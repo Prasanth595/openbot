@@ -369,6 +369,10 @@ export const messages = {
   "settings.voice.model.progressLabel": "Téléchargement de {name}",
   "settings.voice.model.use": "Utiliser",
   "settings.voice.model.inUse": "Utilisé",
+  "settings.voice.model.downloadLabel": "Télécharger {name}",
+  "settings.voice.model.cancelLabel": "Arrêter le téléchargement de {name}",
+  "settings.voice.model.retryLabel": "Télécharger {name} à nouveau",
+  "settings.voice.model.useLabel": "Utiliser {name} pour la dictée",
   "settings.voice.language.section": "Langue",
   "settings.voice.language.title": "Langue de la dictée",
   "settings.voice.language.description":

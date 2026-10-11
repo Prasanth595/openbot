@@ -175,6 +175,7 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
             {(model) => {
               const status = () => props.store.state.statuses[model.id];
               const phase = () => status()?.phase;
+              const inUse = () => settings()?.modelId === model.id;
               return (
                 <Item class="settings-modal-row">
                   <ItemContent>
@@ -189,39 +190,55 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
                     </Show>
                   </ItemContent>
                   <ItemActions>
+                    {/* The selected model is in use before its download too: dictation downloads it. */}
+                    <Show when={inUse()}>
+                      <Badge variant="secondary">{t("settings.voice.model.inUse")}</Badge>
+                    </Show>
                     <Show when={phase() === "missing"}>
-                      <Button variant="outline" size="sm" type="button" onClick={() => props.store.download(model.id)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        aria-label={t("settings.voice.model.downloadLabel", { name: model.name })}
+                        onClick={() => props.store.download(model.id)}
+                      >
                         <Download size={14} aria-hidden="true" />
                         {t("common.download")}
                       </Button>
                     </Show>
                     <Show when={phase() === "downloading"}>
-                      <Button variant="ghost" size="sm" type="button" onClick={() => props.store.cancel(model.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        type="button"
+                        aria-label={t("settings.voice.model.cancelLabel", { name: model.name })}
+                        onClick={() => props.store.cancel(model.id)}
+                      >
                         {t("common.cancel")}
                       </Button>
                     </Show>
                     <Show when={phase() === "error"}>
-                      <Button variant="outline" size="sm" type="button" onClick={() => props.store.download(model.id)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        aria-label={t("settings.voice.model.retryLabel", { name: model.name })}
+                        onClick={() => props.store.download(model.id)}
+                      >
                         <RefreshCw size={14} aria-hidden="true" />
                         {t("common.tryAgain")}
                       </Button>
                     </Show>
-                    <Show when={phase() === "ready" && settings()}>
-                      <Show
-                        when={settings()?.modelId === model.id}
-                        fallback={
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            type="button"
-                            onClick={() => props.store.useModel(model.id)}
-                          >
-                            {t("settings.voice.model.use")}
-                          </Button>
-                        }
+                    <Show when={phase() === "ready" && settings() && !inUse()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                        aria-label={t("settings.voice.model.useLabel", { name: model.name })}
+                        onClick={() => props.store.useModel(model.id)}
                       >
-                        <Badge variant="secondary">{t("settings.voice.model.inUse")}</Badge>
-                      </Show>
+                        {t("settings.voice.model.use")}
+                      </Button>
                     </Show>
                   </ItemActions>
                 </Item>
