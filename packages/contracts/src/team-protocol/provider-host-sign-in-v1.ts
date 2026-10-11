@@ -20,6 +20,9 @@ export const PROVIDER_HOST_SIGN_IN_ROUTES = {
   cancel: "/v1/admin/providers/host-sign-in/cancel",
 } as const;
 
+/** The longest error that `status` sends for an ended sign-in. */
+export const PROVIDER_HOST_SIGN_IN_ERROR_LIMIT = 2_000;
+
 /** The providers these routes sign in. */
 export const PROVIDER_HOST_SIGN_IN_PROVIDERS = ["antigravity"] as const;
 
@@ -31,7 +34,10 @@ export const PROVIDER_HOST_SIGN_IN_CODECS: ReadonlyMap<string, OptionalRouteCode
     PROVIDER_HOST_SIGN_IN_ROUTES.status,
     adminRoute(
       byProvider,
-      fields({ tabId: nullable(string(128)), result: nullable(fields({ error: nullable(string(2_000)) })) }),
+      fields({
+        tabId: nullable(string(128)),
+        result: nullable(fields({ error: nullable(string(PROVIDER_HOST_SIGN_IN_ERROR_LIMIT)) })),
+      }),
     ),
   ],
   [PROVIDER_HOST_SIGN_IN_ROUTES.cancel, adminRoute(byProvider, empty)],

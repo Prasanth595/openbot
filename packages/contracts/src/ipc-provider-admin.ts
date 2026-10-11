@@ -15,6 +15,7 @@ import {
   isCustomProviderSummary,
 } from "./ipc-custom-providers";
 import { isDynamicRecord, isHttpsUrl, isNumber, isOneOf, isString } from "./runtime-values";
+import { PROVIDER_HOST_SIGN_IN_ERROR_LIMIT } from "./team-protocol/provider-host-sign-in-v1";
 
 /** Each URL becomes a link the admin opens, so it is held to https here as well. */
 export function decodeProviderCodeLoginStart(value: unknown): ProviderCodeLoginStart {
@@ -38,15 +39,12 @@ export function decodeProviderCodeLoginStart(value: unknown): ProviderCodeLoginS
   };
 }
 
-/** The bound `provider-host-sign-in-v1` puts on the error of an ended sign-in. */
-const HOST_SIGN_IN_ERROR_LIMIT = 2_000;
-
 export function decodeProviderHostSignInStatus(value: unknown): ProviderHostSignInStatus {
   const invalid = () => new Error("Invalid sign-in response.");
   if (!isDynamicRecord(value) || (value.tabId !== null && !isBoundedString(value.tabId, INPUT_LIMITS.identifier)))
     throw invalid();
   if (value.result === null) return { tabId: value.tabId, result: null };
-  if (!isDynamicRecord(value.result) || !isNullableBoundedString(value.result.error, HOST_SIGN_IN_ERROR_LIMIT))
+  if (!isDynamicRecord(value.result) || !isNullableBoundedString(value.result.error, PROVIDER_HOST_SIGN_IN_ERROR_LIMIT))
     throw invalid();
   return { tabId: value.tabId, result: { error: value.result.error } };
 }

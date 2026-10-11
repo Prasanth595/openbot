@@ -1,7 +1,5 @@
-import { isOneOf } from "@openbot/contracts/runtime-values";
 import {
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
-  PROVIDER_HOST_SIGN_IN_PROVIDERS,
   PROVIDER_HOST_SIGN_IN_ROUTES,
 } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { sourceText } from "@openbot/i18n/source";
@@ -33,7 +31,6 @@ export async function routeProviderHostSignIn(
   requireAdmin(member);
   // `readJson` has already run the body through the `provider-host-sign-in-v1` codec.
   const provider = parseProviderId((await readJson(request)).provider);
-  if (!isOneOf(PROVIDER_HOST_SIGN_IN_PROVIDERS, provider)) throw new HttpError(400, "Unknown provider.");
   switch (url.pathname) {
     case PROVIDER_HOST_SIGN_IN_ROUTES.start:
       await runCauseEffect(signIns.start(provider));

@@ -2,6 +2,7 @@
 // (`provider-host-sign-in-v1`).
 
 import type { AgentProviderId, ProviderHostSignInStatus } from "@openbot/contracts/ipc";
+import { PROVIDER_HOST_SIGN_IN_ERROR_LIMIT } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Cause, Duration, Effect, Exit, Fiber, Option, Scope } from "effect";
@@ -14,8 +15,6 @@ const logger = createOpenBotLogger("provider-host-sign-ins");
 
 /** How long a finished sign-in still answers `status`, so the client that polls it reads the end. */
 const RESULT_KEPT_MS = 60_000;
-/** The bound of an error on the wire, as `provider-host-sign-in-v1` reads it. */
-const ERROR_LIMIT = 2_000;
 
 interface HostSignIn extends ProviderHostSignInStatus {
   /** The sign-in. `#finish` waits for it apart, so a cancel that interrupts it still ends the sign-in. */
@@ -138,5 +137,5 @@ function resultOf(provider: AgentProviderId, exit: Exit.Exit<void, { cause: unkn
 }
 
 function failureText(provider: AgentProviderId, cause: unknown): string {
-  return (cause instanceof Error ? cause.message : endedText(provider)).slice(0, ERROR_LIMIT);
+  return (cause instanceof Error ? cause.message : endedText(provider)).slice(0, PROVIDER_HOST_SIGN_IN_ERROR_LIMIT);
 }
