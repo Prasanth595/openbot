@@ -1848,7 +1848,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   ) {
     // A provider change waits until the agent has no work. It is checked again after the reads below.
     const requireIdle = (previous: AgentSummary) => {
-      const hasPendingWork = this.#mailbox.hasUnfinishedDelivery(input.agentId);
+      // A spent plan holds the queue until it resets, and a switch to another provider is the way out
+      // of that hold. So while the hold lasts, only started work blocks the switch; the queue then
+      // runs on the new provider.
+      const hasPendingWork = this.#usageLimits.mayDrain(input.agentId)
+        ? this.#mailbox.hasUnfinishedDelivery(input.agentId)
+        : this.#mailbox.hasStartedDelivery(input.agentId);
       const activeTurn =
         this.#conversation.workingSnapshot(input.agentId)?.activeTurnId ??
         (previous.threadId ? this.#store.database.readActiveTurnId(input.agentId, previous.threadId) : null);
