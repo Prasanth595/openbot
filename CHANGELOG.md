@@ -6,6 +6,72 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-10-11
+
+### Added
+
+- A scheduled routine has the setting "If OpenBot was closed at the scheduled time". "Skip this run"
+  is the default. "Run once when OpenBot opens" starts one run for the most recent missed time.
+- The run history shows the runs that OpenBot skipped while it was closed, as one row for each
+  group, and marks a run that started more than one minute late.
+- Connect the phone app to a self-hosted or Docker server. Run `openbot mobile-connect` on the server
+  (`docker exec -it <container> openbot mobile-connect` in Docker) and scan the QR code with the
+  phone app. Before, only the desktop app could show a Mobile Connect code.
+- On this computer, you can log in to Grok, Cursor, Cline and Muse with a code, as you can for
+  ChatGPT. On Linux, you can also log in to Claude with a code that you paste.
+- When a browser sign-in that you start does not finish after 25 seconds, or fails, the provider
+  row and the composer show a "Log in with code" button.
+- On this computer, you can connect Gemini with a Gemini API key. Select Sign in on the Gemini row
+  to save the key.
+- Settings > Voice shows the dictation models. You can download, cancel, and select a model there.
+- You can download Whisper large-v3 turbo (1 GB) as a second dictation model. It knows about 100
+  languages. With Whisper, you can set the dictation language, for example Hungarian, or keep
+  Automatic. Whisper writes the text when you stop, not while you speak. Parakeet stays the
+  default and finds the spoken language itself.
+
+### Changed
+
+- German, Spanish, French, Japanese, Brazilian Portuguese, Russian and Turkish now translate all
+  interface text. Before, some screens, errors and status messages showed English text.
+
+### Fixed
+
+- Claude agents keep their prompt cache when their saved memories change. Before, each memory
+  change, such as a new memory that the agent saved, made the next turn write the whole
+  conversation to the cache again. The agent now gets the change with its next message.
+- Show "1 unread message" and "1 unread direct message" in the desktop sidebar. Before, these
+  labels used the plural for one message.
+- Translate open notifications again when you change the language. Before, a provider update
+  notification and the close button of each notification kept the previous language.
+- In the desktop app, an image that you paste or a file that you drop into a channel chat now
+  appears as an attachment. Before, the channel chat ignored it, and only the attachment button
+  worked.
+- An agent whose plan ran out of usage can now change to a model of another provider. Before, the
+  change failed with "Could not change model" while the agent held a queued message, and the agent
+  stayed on the spent plan until it reset. The queued message now runs on the new model.
+- Agents in a channel no longer read the thinking of other agents. Before, when one Claude agent
+  in a channel had thinking text in its turn, Claude stopped every later assignment in that
+  channel with a `reasoning_extraction` safeguard error until the channel summary covered the text.
+  The channel still shows the thinking.
+- The chat input keeps focus while agents work in the background. Before, a browser popup that an
+  agent opened, or a browser tab that an agent or a page closed, took focus from the chat input when
+  the browser panel was open.
+- Keys that you type during a short provider restart or server reconnect are no longer lost.
+- A click into the chat input that closes a popover keeps the focus in the chat input. Before, the
+  focus went back to the button that opened the popover.
+- Connect for Gemini now works on a Linux server that you joined, such as a Docker server. Before,
+  the button did nothing. The server opens the Google page in its own browser, and you sign in
+  through the live view of that page in the app or the web client. Only an owner or admin can do
+  this.
+- A finished agent reply no longer stays cut off after about 220 characters until the window is
+  reloaded. This happened most often in a desktop app connected to another computer or server. A
+  streaming reply also no longer loses its middle part while other agents work, and the Dynamic
+  Island no longer cuts a reply that it already shows.
+- After a joined server restarts, the first action on that server no longer fails with "Provider
+  settings are not supported by this connection." Before, a second try was necessary.
+- Let users close the usage-limit notice above the message box. Keep the current notice dismissed
+  when they return to the chat, and show a notice again for a new quota window.
+
 ## [0.36.0] - 2026-10-10
 
 ### Added

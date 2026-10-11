@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.37.0",
+    "date": "2026-10-11",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Settings > Voice shows the dictation models. You can download Whisper large-v3 turbo and set a fixed dictation language, for example Hungarian.",
+          "A scheduled routine can skip a time that OpenBot missed while it was closed, or run once when OpenBot opens.",
+          "When a browser sign-in does not finish, you can log in with a code. Grok, Cursor, Cline and Muse also accept a code.",
+          "Run openbot mobile-connect on a self-hosted or Docker server to connect the phone app to it."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "German, Spanish, French, Japanese, Brazilian Portuguese, Russian and Turkish now translate all interface text."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Finished agent replies are no longer cut off after about 220 characters.",
+          "An agent that ran out of usage can change to a model of another provider.",
+          "The chat input keeps focus while agents work in the background.",
+          "You can close the usage-limit notice above the message box."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.36.0",
     "date": "2026-10-10",
     "notices": [],
