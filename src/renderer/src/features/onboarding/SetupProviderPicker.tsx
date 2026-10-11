@@ -16,7 +16,12 @@ import { CustomProviderDialog } from "@openbot/ui/features/custom-providers/Cust
 import { CustomProviderListDialog } from "@openbot/ui/features/custom-providers/CustomProviderListDialog";
 import { DetectedProviders } from "@openbot/ui/features/custom-providers/DetectedProviders";
 import type { DetectedProviderApi, ProviderDetection } from "@openbot/ui/features/custom-providers/detected-providers";
-import { OpenCodeKeyDialog, type ProviderKeyApi } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
+import {
+  isKeyDialogProvider,
+  type KeyDialogProvider,
+  OpenCodeKeyDialog,
+  type ProviderKeyApi,
+} from "@openbot/ui/features/settings/OpenCodeKeyDialog";
 import { useText } from "@openbot/ui/text";
 import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
@@ -166,7 +171,7 @@ export function createSetupProviders(
   const [providerSelectedByUser, setProviderSelectedByUser] = createSignal(Boolean(initial?.provider));
   /** The user chose a row on this screen, so a late saved choice does not replace it. */
   let choiceChanged = false;
-  const [openCodeKeyOpen, setOpenCodeKeyOpen] = createSignal(false);
+  const [keyProvider, setKeyProvider] = createSignal<KeyDialogProvider | null>(null);
   const [error, setErrorText] = createSignal("");
   const [errorCode, setErrorCode] = createSignal<UserErrorDetails | null>(null);
   /** Shows `message`, with the code of `cause` when a failure gave one. */
@@ -451,10 +456,10 @@ export function createSetupProviders(
     }
   }
 
-  /** OpenCode signs in with a pasted key, so its row opens the key dialog; the rest open a guide. */
+  /** OpenCode, Muse and Gemini sign in with a pasted key, so their rows open the key dialog; the rest open a guide. */
   function signInProvider(provider: AgentProviderId): void {
-    if (provider === "opencode" && props.providerKeys) {
-      setOpenCodeKeyOpen(true);
+    if (isKeyDialogProvider(provider) && props.providerKeys) {
+      setKeyProvider(provider);
       return;
     }
     void openProviderGuide(provider, props.onSignInProvider, "sign-in");
@@ -548,8 +553,8 @@ export function createSetupProviders(
       setError("");
       setProviderErrors({});
     },
-    openCodeKeyOpen,
-    closeOpenCodeKey: () => setOpenCodeKeyOpen(false),
+    keyProvider,
+    closeKeyDialog: () => setKeyProvider(null),
     host,
     chooseProvider,
     chooseMoreCustom,
@@ -697,19 +702,24 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
           onClose={props.providers.host.closeList}
         />
       </Show>
-      <Show when={props.providers.openCodeKeyOpen() && source().providerKeys}>
-        {(api) => (
-          <OpenCodeKeyDialog
-            api={api()}
-            onClose={props.providers.closeOpenCodeKey}
-            onReconnect={
-              source().onConnectProvider
-                ? async () => {
-                    await props.providers.connectProvider("opencode");
-                  }
-                : undefined
-            }
-          />
+      <Show when={props.providers.keyProvider()} keyed>
+        {(provider) => (
+          <Show when={source().providerKeys}>
+            {(api) => (
+              <OpenCodeKeyDialog
+                api={api()}
+                provider={provider}
+                onClose={props.providers.closeKeyDialog}
+                onReconnect={
+                  source().onConnectProvider
+                    ? async () => {
+                        await props.providers.connectProvider(provider);
+                      }
+                    : undefined
+                }
+              />
+            )}
+          </Show>
         )}
       </Show>
       {/* Sits beside the picker it was started from, so the code covers the row rather
