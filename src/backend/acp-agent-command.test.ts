@@ -2,9 +2,9 @@
 
 import { chmod, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "./acp-agent-command";
+import { agentLaunchPath, assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "./acp-agent-command";
 import { runCauseEffect } from "./effect-boundary";
 
 let root = "";
@@ -72,5 +72,18 @@ describe("argument guards", () => {
     expect(() => assertWindowsScriptArgs("C:\\tools\\agent.cmd", ["--acp", "C:\\work"], "win32")).not.toThrow();
     expect(() => assertWindowsScriptArgs("C:\\tools\\agent.exe", ["a&calc"], "win32")).not.toThrow();
     expect(() => assertWindowsScriptArgs("/usr/bin/agent.cmd", ["a&calc"], "darwin")).not.toThrow();
+  });
+});
+
+describe("agentLaunchPath", () => {
+  it("gives Windows no PATH, because it has no login shell", async () => {
+    await expect(runCauseEffect(agentLaunchPath("win32"))).resolves.toBeNull();
+  });
+
+  it("keeps the PATH of this process in the list the command was looked up in", async () => {
+    const path = await runCauseEffect(agentLaunchPath("linux"));
+    for (const folder of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+      expect(path?.split(delimiter)).toContain(folder);
+    }
   });
 });

@@ -16,7 +16,12 @@ import type {
 import { isNewCustomAgentId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { checkAcpAgent } from "../backend/acp-agent-check";
-import { assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "../backend/acp-agent-command";
+import {
+  agentLaunchPath,
+  assertAgentArgs,
+  assertWindowsScriptArgs,
+  resolveAgentCommand,
+} from "../backend/acp-agent-command";
 import { AgentLifecycleFailed, type AgentService } from "../backend/agent-service";
 import type { CustomAgentStore } from "./custom-agent-store";
 
@@ -25,6 +30,7 @@ export interface CustomAgentChangeDependencies {
   customAgents: Pick<CustomAgentStore, "list" | "save" | "remove" | "checkEnv" | "assertWritable">;
   resolve?: typeof resolveAgentCommand;
   check?: typeof checkAcpAgent;
+  launchPath?: typeof agentLaunchPath;
 }
 
 export interface CustomAgentChanges {
@@ -46,6 +52,7 @@ export function createCustomAgentChanges({
   customAgents,
   resolve = resolveAgentCommand,
   check = checkAcpAgent,
+  launchPath = agentLaunchPath,
 }: CustomAgentChangeDependencies): CustomAgentChanges {
   // One change at a time, from the first read to the last write, as for the endpoints.
   const gate = Semaphore.makeUnsafe(1);
@@ -141,7 +148,11 @@ export function createCustomAgentChanges({
             cause: new Error(sourceText("error.provider.customAgentNotFound", { command: input.command })),
           });
         yield* runtimeSync(() => assertWindowsScriptArgs(executable, input.args));
-        return yield* check({ executable, args: input.args, env }).pipe(toProviderRuntimeFailure);
+        // The same `PATH` the agent starts with, and a `PATH` saved on the agent wins over it.
+        const path = yield* launchPath().pipe(toProviderRuntimeFailure);
+        return yield* check({ executable, args: input.args, env: { ...(path ? { PATH: path } : {}), ...env } }).pipe(
+          toProviderRuntimeFailure,
+        );
       })().pipe(Effect.uninterruptible),
   };
 }

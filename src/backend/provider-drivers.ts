@@ -629,16 +629,16 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createClient: (_cli, timeout, context, confinement) =>
       new CustomAcpAgentsClient(
         () => savedCustomAgents(context),
-        (config, executable, folder, history) =>
-          customAgentChild(config, executable, folder, timeout, context, confinement, false, history),
+        (config, executable, folder, history, launchPath) =>
+          customAgentChild(config, executable, folder, timeout, context, confinement, false, history, launchPath),
         undefined,
         context.history?.("acp"),
       ),
     createProfileClient: (_cli, timeout, context) =>
       new CustomAcpAgentsClient(
         () => savedCustomAgents(context),
-        (config, executable, folder, history) =>
-          customAgentChild(config, executable, folder, timeout, context, undefined, true, history),
+        (config, executable, folder, history, launchPath) =>
+          customAgentChild(config, executable, folder, timeout, context, undefined, true, history, launchPath),
         undefined,
         context.history?.("acp"),
       ),
@@ -665,8 +665,13 @@ function customAgentChild(
   confinement: ProcessConfinement | undefined,
   profileGeneration: boolean,
   history?: AcpHistoryPersistence,
+  launchPath?: string | null,
 ): AgentClient {
-  const env = Object.fromEntries(config.env.map((entry) => [entry.name, entry.value]));
+  // A `PATH` the user saved on the agent wins over the login shell's.
+  const env = {
+    ...(launchPath ? { PATH: launchPath } : {}),
+    ...Object.fromEntries(config.env.map((entry) => [entry.name, entry.value])),
+  };
   const values = config.env.map((entry) => entry.value);
   return new AcpAgentClient({ executable, version: "", source: "system" }, timeout, {
     provider: "acp",

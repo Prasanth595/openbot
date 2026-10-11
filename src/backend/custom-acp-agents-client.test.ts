@@ -91,12 +91,16 @@ const FOLDER = "/work";
  * A router over fake processes. `children` holds each by `<agentId>@<folder>`, and the process that
  * lists an agent's models by `<agentId>@models`; that one answers from `models`.
  */
+const LAUNCH_PATH = "/opt/homebrew/bin:/usr/bin";
+
 function router(configs: CustomAgentConfig[] = [config("goose"), config("qwen")]) {
   const children = new Map<string, FakeChild>();
   const models = new Map<string, () => unknown>();
+  const launchPaths = new Map<string, string | null | undefined>();
   const client = new CustomAcpAgentsClient(
     () => configs,
-    (agent, _executable, folder) => {
+    (agent, _executable, folder, _history, launchPath) => {
+      launchPaths.set(`${agent.id}@${folder ?? "models"}`, launchPath);
       const child = new FakeChild();
       child.answers["thread/start"] = () => ({ thread: { id: "s1" } });
       if (folder === null) child.answers["model/list"] = () => (models.get(agent.id) ?? (() => ({ data: [] })))();
@@ -104,9 +108,11 @@ function router(configs: CustomAgentConfig[] = [config("goose"), config("qwen")]
       return child;
     },
     (command) => Effect.succeed(`/bin/${command}`),
+    undefined,
+    () => Effect.succeed(LAUNCH_PATH),
   );
   client.start();
-  return { client, children, models, configs };
+  return { client, children, models, configs, launchPaths };
 }
 
 const record = (value: unknown) => value;
@@ -160,6 +166,16 @@ describe("CustomAcpAgentsClient", () => {
         { method: "turn/start", params: { threadId: "s1", input: [] } },
       ]);
     }
+  });
+
+  it("gives each process the PATH that the command was looked up in", async () => {
+    const { client, launchPaths } = router([config("goose")]);
+    await startThread(client, "goose/default");
+    await runCauseEffect(client.request("model/list", {}, record));
+    expect([...launchPaths]).toEqual([
+      [`goose@${FOLDER}`, LAUNCH_PATH],
+      ["goose@models", LAUNCH_PATH],
+    ]);
   });
 
   it("resumes a session saved with no folder in its id, and keeps that id", async () => {

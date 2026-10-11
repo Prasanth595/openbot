@@ -127,6 +127,20 @@ const searchPath = Effect.fn("AcpAgentCommand.searchPath")(function* () {
   return yield* exit;
 }, Effect.uninterruptible);
 
+/**
+ * The `PATH` that a custom agent's process starts with, or null where none is needed. It is the
+ * folders `resolveAgentCommand` looks in, so a command found there can find its own interpreter: an
+ * app that Finder, the Dock or a login item starts has a short `PATH`, and `#!/usr/bin/env node`
+ * fails with exit code 127 without the login shell's folders. Windows has no login shell.
+ */
+export const agentLaunchPath = Effect.fn("AcpAgentCommand.launchPath")(function* (
+  platform: NodeJS.Platform = process.platform,
+) {
+  if (platform === "win32") return null;
+  const folders = yield* searchPath();
+  return folders.length > 0 ? folders.join(delimiter) : null;
+});
+
 const whereExe = Effect.fn("AcpAgentCommand.whereExe")((command: string) =>
   providerCall(() => execFileAsync("where.exe", [command], { timeout: 5_000, maxBuffer: 64 * 1024 })).pipe(
     Effect.map(({ stdout }) => pickWindowsExecutable(stdout, process.env.PATHEXT)),
