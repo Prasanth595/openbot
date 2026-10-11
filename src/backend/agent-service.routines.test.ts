@@ -619,7 +619,9 @@ describe.sequential("AgentService: routines", () => {
       (await callOpenBotTool(client, threadId, "start_background_task", task, turnId, "worker-call")).result,
     );
     expect(retried).toMatchObject({ workerAgentId: workerId });
-    expect(service.listAgents().filter((agent) => agent.name === "Release audit")).toHaveLength(1);
+    expect(service.listAgents().filter((agent) => agent.name === "Release audit")).toEqual([
+      expect.objectContaining({ id: workerId, backgroundWorker: true }),
+    ]);
 
     client.emit(
       "notification",

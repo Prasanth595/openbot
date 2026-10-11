@@ -144,7 +144,10 @@ workers", `backgroundWorkers` in the same file and in `host-progress-updates-v1`
 When it is on, the developer instructions ask the agent to start a worker for long work, say so in
 one sentence and end its turn. The router (`#startBackgroundTask` in `agent/openbot-tool-router.ts`)
 creates an ordinary agent with the caller's provider, model, reasoning effort, access and Computer
-Use limits, in the caller's sidebar section, so the user can open it while it works. It then queues
+Use limits, in the caller's sidebar section. `listAgents` marks it `backgroundWorker` (local-only, like
+`access`), and the desktop sidebar hides its row while it works alone: the row shows in "Needs you"
+when the worker waits for the user, and while its chat is open. A remote client does not get the
+mark and lists the worker as an agent. It then queues
 the task from the caller as a teammate request (`backgroundTaskText` in
 `agent/background-workers.ts` adds what a worker is and how it ends). The result comes back as any
 teammate answer does: the worker's final answer, or its own `send_message` with files. A worker uses

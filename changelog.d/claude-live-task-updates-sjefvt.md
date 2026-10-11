@@ -7,5 +7,5 @@
   connected server, such as a headless server, can turn it on from their computer. It works with
   every provider.
 - An agent can give a long task to a temporary background worker and stay free to talk with you.
-  The worker uses the same provider and model, shows in the sidebar while it works, and is removed
-  when it sends its result. Turn it on in Server settings > General, "Background workers".
+  The worker uses the same provider and model, stays out of the sidebar unless it needs you, and is
+  removed when it sends its result. Turn it on in Server settings > General, "Background workers".

@@ -1112,7 +1112,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }).bind(this);
 
   listAgents(): AgentSummary[] {
-    return this.#duplication.visibleAgents(this.#store.list());
+    return this.#duplication
+      .visibleAgents(this.#store.list())
+      .map((agent) => (this.#workers.find(agent.id) ? { ...agent, backgroundWorker: true } : agent));
   }
 
   /**
