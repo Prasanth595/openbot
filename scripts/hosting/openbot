@@ -23,6 +23,8 @@ Usage: openbot <command>
                                  Sign in with a code that OpenBot sends to your email.
                                  The server then shows in the server list of that account.
                                  Its name is "OpenBot" when you give no name.
+  mobile-connect                 Show a QR code that connects the OpenBot phone app to this
+                                 account. It works for one sign-in and expires after two minutes.
   logout                         Sign out. The server stops until the next sign-in.
   name <name>                    Change the server name.
   logs [-f]                      Show the OpenBot log.
@@ -108,6 +110,7 @@ check_answer() {
       invalid_email) message="Enter a valid email address." ;;
       invalid_name) message="Enter a server name." ;;
       signed_in) message="This server is signed in. To use another account, run: openbot logout" ;;
+      account_signed_out | account_code_sent) message="Sign in first with: openbot login" ;;
       *) message="OpenBot refused the request ($(value error))." ;;
     esac
   fi
@@ -186,8 +189,19 @@ login_command() {
   done
   show_status
   if [ "$(value server)" = online ]; then
-    echo "Sign in to OpenBot with $email on your computer, phone or https://openbot.run/app to use this server."
+    echo "Sign in to OpenBot with $email on your computer or https://openbot.run/app to use this server."
+    echo "To use it from your phone, run: openbot mobile-connect"
   fi
+}
+
+mobile_connect_command() {
+  local seconds
+  control POST /v1/mobile-connect
+  check_answer || exit 1
+  value qr | base64 -d
+  seconds=$(($(value expires_at) / 1000 - $(date +%s)))
+  echo "In the OpenBot phone app, select Scan QR code and scan this code."
+  echo "It works for one sign-in and expires in $seconds seconds. Run the command again for a new code."
 }
 
 logs_command() {
@@ -272,6 +286,7 @@ case $command in
     check_answer || exit 1
     show_status
     ;;
+  mobile-connect) mobile_connect_command ;;
   logs) logs_command "$@" ;;
   start | stop | restart)
     require_host "run docker $command <container> on the host"
