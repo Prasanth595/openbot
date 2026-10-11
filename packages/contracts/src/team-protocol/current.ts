@@ -11,6 +11,7 @@ import { AGENT_MEMORIES_CAPABILITY } from "./agent-memories-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "./agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "./agent-session-settings-v1";
 import { AGENT_UPDATE_CAPABILITY } from "./agent-update-v1";
+import { BACKGROUND_WORKERS_CAPABILITY } from "./background-workers-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "./browser-navigation-v1";
 import {
   TEAM_BROWSER_VIEW_CAPABILITY,
@@ -75,6 +76,7 @@ export {
   AGENT_PUBLISH_CAPABILITY,
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
+  BACKGROUND_WORKERS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONTEXT_RESET_CAPABILITY,
   EVENTS_CAPABILITY,
@@ -167,6 +169,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   MCP_SIGN_IN_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
   HOST_PROGRESS_UPDATES_CAPABILITY,
+  BACKGROUND_WORKERS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -241,7 +244,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== ACP_REGISTRY_CAPABILITY &&
     capability !== PROVIDERS_V5_CAPABILITY &&
     capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
-    capability !== HOST_PROGRESS_UPDATES_CAPABILITY,
+    capability !== HOST_PROGRESS_UPDATES_CAPABILITY &&
+    capability !== BACKGROUND_WORKERS_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -257,6 +261,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== ACP_REGISTRY_CAPABILITY &&
       capability !== PROVIDERS_V5_CAPABILITY &&
       capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
-      capability !== HOST_PROGRESS_UPDATES_CAPABILITY,
+      capability !== HOST_PROGRESS_UPDATES_CAPABILITY &&
+      capability !== BACKGROUND_WORKERS_CAPABILITY,
   );
 }

@@ -146,8 +146,11 @@ one sentence and end its turn. The router (`#startBackgroundTask` in `agent/open
 creates an ordinary agent with the caller's provider, model, reasoning effort, access and Computer
 Use limits, in the caller's sidebar section. `listAgents` marks it `backgroundWorker` (local-only, like
 `access`), and the desktop sidebar hides its row while it works alone: the row shows in "Needs you"
-when the worker waits for the user, and while its chat is open. A remote client does not get the
-mark and lists the worker as an agent. It then queues
+when the worker waits for the user, and while its chat is open. The Team API projection drops the
+mark, so a host also answers `background-workers-v1` (`route-background-workers.ts`), which lets
+every member read the worker ids. A connected desktop app (`RemoteEventRefresh`) reads them with
+each roster and marks the same workers; a host without the capability, the browser client and the
+iPhone app list a worker as an agent. It then queues
 the task from the caller as a teammate request (`backgroundTaskText` in
 `agent/background-workers.ts` adds what a worker is and how it ends). The result comes back as any
 teammate answer does: the worker's final answer, or its own `send_message` with files. A worker uses

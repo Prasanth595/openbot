@@ -936,6 +936,21 @@ describe("Team API host-progress-updates-v1", () => {
   });
 });
 
+describe("Team API background-workers-v1", () => {
+  it("lets every member read the host's background workers", async () => {
+    const worker = { ...CHIEF, id: "worker", name: "Worker", backgroundWorker: true };
+    const { asMember, post } = await signedIn("background-workers", {
+      agents: createAgents({ listAgents: () => [CHIEF, worker] }),
+    });
+    const withCapability = { ...asMember, "OpenBot-Capabilities": "background-workers-v1" };
+
+    expect((await post("/v1/host/background-workers", {}, asMember)).status).toBe(404);
+    expect(await (await post("/v1/host/background-workers", {}, withCapability)).json()).toEqual({
+      agentIds: ["worker"],
+    });
+  });
+});
+
 describe("Team API host-update-v1", () => {
   it("lets only an admin start an update, and refuses it when the host user turned it off", async () => {
     let allowed = true;
@@ -1106,12 +1121,12 @@ describe("Team API protocol 7 negotiation", () => {
     };
     const old = await read("6");
     const current = await read("7");
-    expect(TEAM_CURRENT_CAPABILITIES).toHaveLength(70);
+    expect(TEAM_CURRENT_CAPABILITIES).toHaveLength(71);
     expect(legacyTeamCapabilities(TEAM_CURRENT_CAPABILITIES)).toHaveLength(63);
     // This fixture omits optional services. Their capabilities must not be advertised.
     expect(old.capabilities).toEqual(legacyTeamCapabilities(current.capabilities));
     expect(old.capabilities.length).toBeLessThanOrEqual(63);
-    expect(current.capabilities.length).toBeLessThanOrEqual(70);
+    expect(current.capabilities.length).toBeLessThanOrEqual(71);
     expect(old.capabilities).not.toContain("local-providers-v3");
     expect(old.capabilities).not.toContain("agent-session-settings-v1");
     expect(old.capabilities).not.toContain("agent-memories-v1");

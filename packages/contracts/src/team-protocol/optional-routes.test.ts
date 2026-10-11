@@ -5,6 +5,7 @@ import { AGENT_IMPORT_ROUTES } from "./agent-import-v1";
 import { AGENT_INSTALL_ROUTES } from "./agent-install-v1";
 import { AGENT_PUBLISH_ROUTES } from "./agent-publish-v1";
 import { AGENT_UPDATE_ROUTES } from "./agent-update-v1";
+import { BACKGROUND_WORKERS_ROUTES } from "./background-workers-v1";
 import { CONTEXT_RESET_ROUTES } from "./context-reset-v1";
 import {
   legacyTeamCapabilities,
@@ -344,6 +345,16 @@ describe("host-progress-updates-v1", () => {
     expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.update).request({ enabled: true })).toThrow();
     expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.update).request({ ...on, enabled: "yes" })).toThrow();
     expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.settings).response(200, { enabled: false })).toThrow();
+  });
+});
+
+describe("background-workers-v1", () => {
+  it("round-trips the worker ids and rejects other shapes", () => {
+    const route = codec(BACKGROUND_WORKERS_ROUTES.list);
+    expect(route.request({})).toEqual({});
+    expect(route.response(200, { agentIds: ["worker"], extra: 1 })).toEqual({ agentIds: ["worker"] });
+    expect(() => route.response(200, {})).toThrow();
+    expect(() => route.response(200, { agentIds: [""] })).toThrow();
   });
 });
 
