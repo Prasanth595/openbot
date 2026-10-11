@@ -160,6 +160,8 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   readonly #operations = new Set<Deferred.Deferred<void>>();
   #stopping: Deferred.Deferred<void, RemoteWorkflowError> | null = null;
   readonly #hostProtocols = new Map<string, number>();
+  /** One compatibility read for each host whose protocol is not known yet. */
+  readonly #hostProtocolProbes = new Map<string, Deferred.Deferred<void>>();
   readonly #active = new Map<string, ActiveHost>();
   // A failed attempt used to end its session, so each retry against an offline host was a create, a
   // ticket and an end: three Worker requests and a Signal webhook. Only `disconnect` ends it now.
@@ -407,6 +409,10 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     return yield* this.#owned(
       Effect.gen({ self: this }, function* () {
         yield* this.#ensureConnected(hostId);
+        // A new connection forgets the host protocol, and an unknown protocol sends the protocol 6
+        // capability list. A v7 route that needs a v7 capability then refuses a request that the
+        // user sent before the `connected` handler read the compatibility report.
+        if (path !== "/v1/compatibility") yield* this.#learnHostProtocol(hostId);
         const method = (init.method ?? "GET").toUpperCase();
         const binary = binaryBody(init.body);
         const sideRoute = teamSideRouteCodec(path);
@@ -509,6 +515,30 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
         }
         return { status: envelope.status, body, ...(file ? { file } : {}) };
       }),
+    );
+  }).bind(this);
+
+  /**
+   * Reads the compatibility report once when the host protocol is not known. Requests that arrive
+   * during the read wait for it. A failed read keeps the protocol 6 list, which every host accepts.
+   */
+  readonly #learnHostProtocol = Effect.fn("TeamWebRtcClient.learnHostProtocol")(function* (
+    this: TeamWebRtcClientTransport,
+    hostId: string,
+  ): Effect.fn.Return<void> {
+    if (this.#hostProtocols.has(hostId)) return;
+    const pending = this.#hostProtocolProbes.get(hostId);
+    if (pending) return yield* Deferred.await(pending);
+    const probe = Deferred.makeUnsafe<void>();
+    this.#hostProtocolProbes.set(hostId, probe);
+    yield* this.requestResponse(hostId, "/v1/compatibility").pipe(
+      Effect.ignore,
+      Effect.ensuring(
+        Effect.sync(() => {
+          if (this.#hostProtocolProbes.get(hostId) === probe) this.#hostProtocolProbes.delete(hostId);
+          Deferred.doneUnsafe(probe, Effect.void);
+        }),
+      ),
     );
   }).bind(this);
 
