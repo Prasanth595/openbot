@@ -1773,6 +1773,76 @@ describe("shared channel coordination", () => {
     expect(service.mayDrain("agent-b")).toBe(true);
   });
 
+  it("starts the task that waited longest for the host before a newer task of another channel", async () => {
+    await runChannel(data.store.getOrCreate("agent-c"));
+    const members = data.store.list().map((agent) => ({ agentId: agent.id }));
+    await runChannel(
+      service.command(
+        { type: "save", channelId: "channel-1", operationId: operationId(), draft: { ...draft, members } },
+        actor,
+      ),
+    );
+    await runChannel(
+      service.command(
+        {
+          type: "save",
+          channelId: "channel-2",
+          operationId: operationId(),
+          draft: { ...draft, members, title: "Second channel" },
+        },
+        actor,
+      ),
+    );
+    const sendTo = (channelId: string, recipientAgentId: string) =>
+      runChannel(
+        service.command(
+          {
+            type: "send",
+            channelId,
+            operationId: operationId(),
+            text: `Work for ${recipientAgentId}`,
+            recipientAgentId,
+            replyToMessageId: null,
+            attachmentDraftIds: [],
+          },
+          actor,
+        ),
+      );
+    // Channel 1 holds the host. A task of channel 2 waits for it, then a newer task of channel 1.
+    await sendTo("channel-1", "agent-a");
+    await vi.waitFor(() => expect(service.store.assignments("channel-1")).toHaveLength(1));
+    await sendTo("channel-2", "agent-b");
+    await sendTo("channel-1", "agent-c");
+    const starting = required(service.store.assignments("channel-1")[0]);
+    const deliveryId = required(starting.deliveryId);
+    await runChannel(service.prepare(required(data.mailbox.getDelivery(deliveryId))));
+    await runChannel(data.mailbox.markStarting(deliveryId));
+    await runChannel(data.mailbox.markRunning(deliveryId, "turn-host"));
+    await runChannel(service.accepted(deliveryId, "session-host", "turn-host"));
+    const older = required(service.store.tasks("channel-2")[0]);
+    const newer = required(service.store.tasks("channel-1").find((item) => item.ownerAgentId === "agent-c"));
+    expect(older.state).toBe("queued");
+    expect(newer.state).toBe("queued");
+
+    // The first assignment ends. Pump channel 1 alone, as if it came first: its newer task must not
+    // take the host from the older task of channel 2.
+    const wake = vi.spyOn(service, "wake").mockImplementation(() => Effect.void);
+    await runChannel(data.mailbox.markTerminal(deliveryId, "completed"));
+    service.event({
+      type: "turn-completed",
+      agentId: "agent-a",
+      threadId: service.store.context("channel-1", "agent-a").threadId,
+      turnId: "turn-host",
+      status: "completed",
+    });
+    wake.mockRestore();
+    await runChannel(service.wake("channel-1"));
+    await runChannel(service.wake("channel-2"));
+    await vi.waitFor(() => expect(service.store.assignments("channel-2")).toHaveLength(1));
+    expect(service.store.assignments("channel-2")[0]?.taskId).toBe(older.id);
+    expect(service.store.assignments("channel-1").some((item) => item.taskId === newer.id)).toBe(false);
+  });
+
   it("keeps channel deliveries ahead of normal messages queued during attachment copying", async () => {
     await runChannel(
       service.command(

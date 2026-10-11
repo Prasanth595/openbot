@@ -108,6 +108,12 @@ export class ChannelService {
   #stopped = false;
   readonly #wakeAgain = new Set<string>();
   /**
+   * The place of each queued task that resources held back, oldest first. Kept in memory: after a
+   * restart the tasks take new places in the order the next pass meets them.
+   */
+  readonly #queuePlaces = new Map<string, number>();
+  #nextQueuePlace = 0;
+  /**
    * Channels whose pump left a queued task because its owner or normal work was busy. Only a turn
    * that completes wakes every channel, so a delivery that ends without one - a start that fails, a
    * cancel, a requeue - would leave such a task queued until the next command or a restart. Every
@@ -530,6 +536,32 @@ export class ChannelService {
    * the drain scheduler retries just the agent whose delivery it was. Every path that ends an
    * assignment therefore schedules the agents that were waiting behind it.
    */
+  /** Gives a task that resources hold back its place in the queue, once. */
+  #holdPlace(taskId: string): void {
+    if (!this.#queuePlaces.has(taskId)) this.#queuePlaces.set(taskId, this.#nextQueuePlace++);
+  }
+
+  /**
+   * Whether a task that waited longer, and whose resources conflict with these, is ready to start.
+   * A place is dropped once its task is no longer queued. A waiter whose owner is busy or out of
+   * plan is not ready, so it holds nobody back.
+   */
+  #olderWaiterHolds(task: ChannelTask, allTasks: readonly ChannelTask[]): boolean {
+    const place = this.#queuePlaces.get(task.id);
+    let holds = false;
+    for (const [id, otherPlace] of this.#queuePlaces) {
+      const waiter = allTasks.find((item) => item.id === id);
+      if (waiter?.state !== "queued" || !waiter.ownerAgentId) {
+        this.#queuePlaces.delete(id);
+        continue;
+      }
+      if (id === task.id || (place !== undefined && otherPlace > place)) continue;
+      if (this.hooks.busy(waiter.ownerAgentId) || this.hooks.usageLimited?.(waiter.ownerAgentId)) continue;
+      if (resourcesConflict(task.resources, waiter.resources)) holds = true;
+    }
+    return holds;
+  }
+
   #releaseHeldAgents(): Effect.Effect<void, ChannelOperationError> {
     return Effect.gen({ self: this }, function* () {
       yield* this.wake();
@@ -895,7 +927,18 @@ export class ChannelService {
       // Read the reservation from the assignment, not from its task: a transfer can lower the
       // resources of a task that still runs, and the record of the task would then report a
       // reservation that the running turn has not released.
-      if (allAssignments.some((assignment) => resourcesConflict(task.resources, assignment.resources))) continue;
+      if (allAssignments.some((assignment) => resourcesConflict(task.resources, assignment.resources))) {
+        this.#holdPlace(task.id);
+        continue;
+      }
+      // Channels are pumped one after the other, so without an order the first channel to see a free
+      // host takes it, and a task that has waited longer in another channel never gets it. An older
+      // waiting task whose resources conflict holds this one back until that task starts.
+      if (this.#olderWaiterHolds(task, allTasks)) {
+        this.#holdPlace(task.id);
+        continue;
+      }
+      this.#queuePlaces.delete(task.id);
       const assignment: ChannelAssignment = {
         id: randomUUID(),
         channelId,
