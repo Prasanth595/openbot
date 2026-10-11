@@ -62,7 +62,7 @@ const WHISPER_TURBO_MODEL_BASE_URL = `https://huggingface.co/csukuangfj/sherpa-o
 export const WHISPER_TURBO_MODEL_DIRECTORY = "whisper-turbo-int8";
 
 /** OpenAI Whisper large-v3 turbo (MIT), int8 ONNX export for sherpa-onnx. */
-export const WHISPER_TURBO_MODEL_FILES: readonly VoiceModelFile[] = [
+const WHISPER_TURBO_MODEL_FILES: readonly VoiceModelFile[] = [
   {
     name: "turbo-encoder.int8.onnx",
     url: `${WHISPER_TURBO_MODEL_BASE_URL}/turbo-encoder.int8.onnx`,
@@ -84,15 +84,9 @@ export const WHISPER_TURBO_MODEL_FILES: readonly VoiceModelFile[] = [
 ];
 
 /** The files of each model. */
-export const VOICE_MODEL_FILES: Record<VoiceModelId, readonly VoiceModelFile[]> = {
+const VOICE_MODEL_FILES: Record<VoiceModelId, readonly VoiceModelFile[]> = {
   "parakeet-tdt-0.6b-v3": PARAKEET_MODEL_FILES,
   "whisper-turbo": WHISPER_TURBO_MODEL_FILES,
-};
-
-/** The directory name of each model in `<userData>/runtimes`. */
-export const VOICE_MODEL_DIRECTORIES: Record<VoiceModelId, string> = {
-  "parakeet-tdt-0.6b-v3": PARAKEET_MODEL_DIRECTORY,
-  "whisper-turbo": WHISPER_TURBO_MODEL_DIRECTORY,
 };
 
 interface VoiceModelEvents {
