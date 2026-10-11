@@ -1,6 +1,6 @@
 ### Changed
 
-- A hosted server installs a new release by itself when it is idle and no member used it for 5 minutes. Server Settings shows automatic updates as on for a hosted server.
+- A hosted server installs a new release by itself when it is idle and no member used it for 5 minutes. Automatic updates are always on for a hosted server.
 
 ### Fixed
 

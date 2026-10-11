@@ -311,9 +311,14 @@ apply() {
 # openbot.service waits for this. A restore after a wake takes minutes, and a staged release waits
 # for it: OpenBot starts first, and asks for the install when no client uses the server. A copy that
 # a stop interrupted completes first, because a partial release cannot start. A staged release that
-# the restore does not show yet stays for the next start.
+# the restore does not show yet stays for the next start. boat starts the unit a second time after a
+# wake, and a failed `boot` is not active then, so `boot` does nothing while OpenBot runs.
 boot() {
-  if [ -e "$INSTALL/.applying" ]; then
+  local pid
+  pid=$(systemctl show --property=MainPID --value openbot.service || true)
+  if [ "${pid:-0}" != 0 ]; then
+    return 0
+  elif [ -e "$INSTALL/.applying" ]; then
     wait_for_restore
   elif [ ! -e "$INSTALL/staged.ready" ] || restoring; then
     recover

@@ -74,6 +74,8 @@ if [ -n "$AUTH_API_URL" ]; then
   printf 'OPENBOT_AUTH_API_URL=%s\n' "${AUTH_API_URL%/}" >"$INSTALL/hosted/openbot.env"
   chmod 0644 "$INSTALL/hosted/openbot.env"
 fi
+# The start runs `boot` through openbot-update-apply.service, and `boot` waits for this lock.
+flock -u 9
 systemctl start openbot.service
 # install_hosting only enables the timer, and the first boot is maybe a long time away.
 systemctl start openbot-update.timer

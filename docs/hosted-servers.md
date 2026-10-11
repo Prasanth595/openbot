@@ -394,8 +394,10 @@ On a server, root runs `openbot-hosted-update`:
    require it, so it starts after a failure too: with the old release, or with a partial copy after
    a failed copy, until the next start. On a self-installed server, the new release starts at the
    next boot. A hosted server installs it itself: when the release is staged, OpenBot asks root to
-   install it when idle and when no client used the server for 5 minutes (`client-use` in the
-   reasons it waits for). The automatic update switch of a hosted server is always on.
+   install it when idle, and when no connected client changed data or typed for 5 minutes and the
+   start was 5 minutes ago. Reading is not use. Server Settings shows this wait as "other work",
+   because `host-update-v1` has no reason for it. The automatic update switch of a hosted server
+   is always on.
 
 boat saves `/opt` by the paths that change, and it does not look into a directory that a rename
 moves. After the next stop, such a directory is empty or has its old files. So a release gets to
@@ -410,8 +412,9 @@ it. During a restore it skips a staged release and recovers an incomplete one.
 
 boat starts the desktop (`lightdm`) about 8 s after the resume, and then the enabled units of
 `multi-user.target` again, about 16 s after it. `openbot.service` is also wanted by
-`lightdm.service`, so it starts with the desktop; the second start of `openbot-update-apply.service`
-does nothing because of `RemainAfterExit`. [Observed on a boat VM on 2026-10-11; not in boat
+`lightdm.service`, so it starts with the desktop. The second start of `openbot-update-apply.service`
+does nothing: the unit stays active (`RemainAfterExit`), and `boot` does nothing while OpenBot runs
+(after a failed `boot`). [Observed on a boat VM on 2026-10-11; not in boat
 documentation.]
 [Not confirmed in boat documentation: the `active` and `hydration-done` files in
 `/var/lib/ascii-lazy` that mark the restore. Observed on a boat VM.] `apply` never removes a staged

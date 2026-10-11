@@ -23,7 +23,10 @@ SCRATCH=$ROOT/tmp
 REQUESTS=$ROOT/run
 STATE=$ROOT/state
 RESTORE=$ROOT/restore
-systemctl() { echo "systemctl $*" >>"$ROOT/calls"; }
+systemctl() {
+  echo "systemctl $*" >>"$ROOT/calls"
+  if [ "$1" = show ] && [ -e "$ROOT/main-pid" ]; then cat "$ROOT/main-pid"; fi
+}
 uname() { echo x86_64; }
 chown() { :; }
 fetch() {
@@ -218,7 +221,7 @@ describe("openbot-hosted-update", () => {
     expect(readdirSync(join(root, "opt"))).toEqual(["app"]);
   });
 
-  it("starts OpenBot during the restore after a wake, and applies a staged release only on a complete disk", () => {
+  it("starts OpenBot during the restore after a wake, and applies a staged release only on a complete disk before OpenBot", () => {
     installRelease("app", "0.25.2");
     stageRelease("0.25.3");
     mkdirSync(join(root, "restore"));
@@ -228,6 +231,12 @@ describe("openbot-hosted-update", () => {
     expect(versionOf("staged")).toBe("0.25.3");
 
     writeFileSync(join(root, "restore", "hydration-done"), "");
+    // boat starts the unit again after OpenBot started.
+    writeFileSync(join(root, "main-pid"), "4242\n");
+    expect(run("boot").status).toBe(0);
+    expect(versionOf("app")).toBe("0.25.2");
+
+    rmSync(join(root, "main-pid"));
     expect(run("boot").status).toBe(0);
     expect(versionOf("app")).toBe("0.25.3");
     expect(readdirSync(join(root, "opt"))).toEqual(["app"]);
