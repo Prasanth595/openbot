@@ -250,6 +250,8 @@ const Conversation = createSimpleContext({
 
     // The snapshot text is a preview capped at `AGENT_RUNTIME_TEXT_LIMIT`. It does not replace the
     // raw body of a streamed message: the next delta would append to the preview, not to the text.
+    // Main adds text to a message before it sends the buffered delta, so the preview can hold text
+    // that the first delta also holds. A message added from the preview starts with an empty raw body.
     function applyRuntimeMessages(messages: AgentRuntimeSnapshot["latestMessages"]): void {
       const agentIds = new Set(messages.map((message) => message.agentId));
       // The draft includes pending page writes from this event batch. Outside
@@ -258,6 +260,10 @@ const Conversation = createSimpleContext({
         const currentMessages = Object.fromEntries(
           Object.entries(current).map(([id, conversation]) => [id, conversation.messages]),
         );
+        for (const message of messages) {
+          if (currentMessages[message.agentId]?.some((candidate) => candidate.id === message.id)) continue;
+          rawAgentMessageBodies.set(agentMessageKey(message.agentId, message.id), "");
+        }
         const next = appendLatestRuntimeMessages(currentMessages, messages);
         for (const agentId of agentIds) {
           current[agentId] ??= { messages: [] };

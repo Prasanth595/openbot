@@ -402,8 +402,11 @@ export class DynamicIslandCoordinator {
     const incomingMessageAnchors = new Map(runtime.incomingMessageAnchors);
     for (const message of snapshot.latestMessages) {
       // The snapshot text is capped at `AGENT_RUNTIME_TEXT_LIMIT`. A message the island already has
-      // may be further along, and its raw body is what the next delta appends to.
-      const converted = runtime.liveMessages[message.agentId]?.find((candidate) => candidate.id === message.id) ?? {
+      // may be further along, and its raw body is what the next delta appends to. A new message
+      // starts with an empty raw body: main adds text before it sends the delta that holds it.
+      const current = runtime.liveMessages[message.agentId]?.find((candidate) => candidate.id === message.id);
+      if (!current) runtime.rawMessageBodies.set(dynamicIslandMessageKey(message.agentId, message.id), "");
+      const converted = current ?? {
         id: message.id,
         author: "agent",
         body: cleanAgentMessageText(message.text),
