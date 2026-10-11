@@ -59,6 +59,7 @@ await Promise.all([
   access(resolve(resourcesPath, "licenses/sherpa-onnx-LICENSE")),
   access(resolve(resourcesPath, "licenses/onnxruntime-LICENSE")),
   access(resolve(resourcesPath, "licenses/NVIDIA-Parakeet-TDT-0.6B-v3-LICENSE")),
+  access(resolve(resourcesPath, "licenses/OpenAI-Whisper-LICENSE")),
   ...voiceRuntimeFiles.map((name) => access(resolve(voiceRuntimePath, name))),
   access(databaseHostPath),
   access(voiceHostPath),
@@ -142,9 +143,12 @@ for (const name of voiceRuntimeFiles) {
     throw new Error(`Expected a ${machOArchitecture} voice runtime library: ${voiceArchitecture}`);
   }
 }
-// The Parakeet model is downloaded on first voice use.
-if (existsSync(resolve(resourcesPath, "voice/model")) || existsSync(resolve(voiceRuntimePath, "encoder.int8.onnx"))) {
-  throw new Error("The on-demand voice model must not be in the application.");
+// The Parakeet and Whisper models are downloaded on demand.
+if (
+  ["voice/model", "voice/whisper-turbo-int8"].some((path) => existsSync(resolve(resourcesPath, path))) ||
+  ["encoder.int8.onnx", "turbo-encoder.int8.onnx"].some((name) => existsSync(resolve(voiceRuntimePath, name)))
+) {
+  throw new Error("The on-demand voice models must not be in the application.");
 }
 
 for (const name of ["Sunshine.app", "web-server", "streamer"]) {

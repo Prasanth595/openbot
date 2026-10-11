@@ -112,6 +112,8 @@ export const messages = {
   "settings.tab.general.description": "Lege fest, wie sich OpenBot auf diesem Computer verhält.",
   "settings.tab.notifications.title": "Benachrichtigungen",
   "settings.tab.notifications.description": "Lege fest, wie OpenBot dich benachrichtigt.",
+  "settings.tab.voice.title": "Sprache",
+  "settings.tab.voice.description": "Diktat im Nachrichtenfeld. Es läuft auf diesem Computer.",
   "settings.tab.computerUse.title": "Computersteuerung",
   "settings.tab.computerUse.description": "OpenBot erlauben, Apps auf diesem Computer zu sehen und zu bedienen.",
   "settings.tab.profile.title": "Profil",
@@ -357,4 +359,26 @@ export const messages = {
   "settings.hostedServers.plan.standard.summary": "Für ein kleines Team mit täglichen Routinen.",
   "settings.hostedServers.plan.pro.name": "Pro",
   "settings.hostedServers.plan.pro.summary": "Für viele Agenten und intensive Browserarbeit.",
+  // The Voice tab: dictation models and the dictation language.
+  "settings.voice.models.title": "Diktiermodell",
+  "settings.voice.model.parakeet.description":
+    "Schnell. Erkennt die gesprochene Sprache selbst, in 25 europäischen Sprachen.",
+  "settings.voice.model.whisper.description":
+    "Langsamer. Etwa 100 Sprachen, und du kannst die gesprochene Sprache festlegen.",
+  "settings.voice.model.size": "Downloadgröße: {size}",
+  "settings.voice.model.downloading": "Wird geladen · {received} von {total}",
+  "settings.voice.model.failed": "Der Download wurde unterbrochen. Prüfe die Verbindung und versuche es erneut.",
+  "settings.voice.model.progressLabel": "{name} wird geladen",
+  "settings.voice.model.use": "Verwenden",
+  "settings.voice.model.inUse": "In Verwendung",
+  "settings.voice.language.section": "Sprache",
+  "settings.voice.language.title": "Diktiersprache",
+  "settings.voice.language.description": "Die Sprache, die du sprichst. Automatisch erkennt sie aus der Aufnahme.",
+  "settings.voice.language.modelDetects":
+    "Parakeet erkennt die gesprochene Sprache selbst. Um eine Sprache festzulegen, verwende Whisper.",
+  "settings.voice.language.automatic": "Automatisch",
+  "settings.voice.loadFailed": "Die Sprachmodelle konnten nicht gelesen werden.",
+  "settings.voice.saveFailed": "Die Spracheinstellung konnte nicht gespeichert werden. Versuche es erneut.",
+  "settings.voice.downloadFailed": "Der Download konnte nicht starten. Versuche es erneut.",
+  "settings.voice.cancelFailed": "Der Download konnte nicht gestoppt werden.",
 } as const satisfies PartialTranslation<typeof source>;

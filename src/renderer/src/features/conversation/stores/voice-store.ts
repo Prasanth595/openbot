@@ -1,4 +1,4 @@
-import { VOICE_AUDIO_LIMITS } from "@openbot/contracts/ipc";
+import { VOICE_AUDIO_LIMITS, type VoiceModelId } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
 import { onCleanup } from "solid-js";
 import { desktopAnalytics } from "../../../analytics";
@@ -86,6 +86,8 @@ export interface VoiceStoreDeps {
 
 export function createVoiceStore(deps: VoiceStoreDeps) {
   const { resources } = deps;
+  /** The model that `prepareModel` downloads, so the progress of another model is not shown. */
+  let preparingModelId: VoiceModelId | null = null;
 
   async function startVoiceRecording(): Promise<void> {
     const agentId = deps.props.agent?.id;
@@ -100,7 +102,14 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     deps.setVoiceModelProgress(0);
     let stream: MediaStream | undefined;
     try {
-      const modelStatus = await conversationRuntime(deps.props).voice.prepareModel();
+      const voice = conversationRuntime(deps.props).voice;
+      // The settings answer at once; a download reports progress only after that.
+      const [, modelStatus] = await Promise.all([
+        voice.getSettings().then((settings) => {
+          preparingModelId = settings.modelId;
+        }),
+        voice.prepareModel(),
+      ]);
       if (resources.voiceDisposed || resources.voiceRequestGeneration !== generation) return;
       if (modelStatus.phase !== "ready") {
         deps.setVoicePhase("idle");
@@ -165,7 +174,8 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
   }
 
   const removeVoiceModelListener = conversationRuntime(deps.props).voice.onModelStatus((status) => {
-    if (deps.voicePhase() !== "preparing") return;
+    // Settings can download another model at the same time.
+    if (deps.voicePhase() !== "preparing" || status.modelId !== preparingModelId) return;
     deps.setVoiceModelProgress(status.progress);
   });
   onCleanup(removeVoiceModelListener);

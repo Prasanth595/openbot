@@ -212,7 +212,12 @@ import {
   UpdateService,
 } from "./update-service";
 import { listSiblingOpenBotInstances } from "./update-sibling-instances";
-import { PARAKEET_MODEL_DIRECTORY, removeLegacyWhisperCache } from "./voice-model-service";
+import {
+  PARAKEET_MODEL_DIRECTORY,
+  removeLegacyWhisperCache,
+  WHISPER_TURBO_MODEL_DIRECTORY,
+} from "./voice-model-service";
+import { VoicePreferenceStore } from "./voice-preference-store";
 import { spawnVoiceTranscriptionHost } from "./voice-transcription-host-process";
 import { VoiceTranscriptionService } from "./voice-transcription-service";
 import { WebhookRelay } from "./webhook-relay";
@@ -1954,11 +1959,20 @@ export async function createApplicationServices({
     },
   });
   teardown.push(TEARDOWN_ORDER.remoteDesktop, "remote desktop", () => Effect.runPromise(remoteDesktop.stop()));
+  const voicePreferences = new VoicePreferenceStore(join(app.getPath("userData"), "voice-preference.json"));
+  await runCauseEffect(voicePreferences.load());
   const voice = new VoiceTranscriptionService({
     resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
-    modelDirectory: app.isPackaged
-      ? join(app.getPath("userData"), "runtimes", PARAKEET_MODEL_DIRECTORY)
-      : resolve(".openbot-build/voice/model"),
+    // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development.
+    modelDirectories: {
+      "parakeet-tdt-0.6b-v3": app.isPackaged
+        ? join(app.getPath("userData"), "runtimes", PARAKEET_MODEL_DIRECTORY)
+        : resolve(".openbot-build/voice/model"),
+      "whisper-turbo": app.isPackaged
+        ? join(app.getPath("userData"), "runtimes", WHISPER_TURBO_MODEL_DIRECTORY)
+        : resolve(".openbot-build/voice", WHISPER_TURBO_MODEL_DIRECTORY),
+    },
+    preferences: voicePreferences,
     spawnHost: spawnVoiceTranscriptionHost,
   });
   if (app.isPackaged) {

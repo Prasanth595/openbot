@@ -64,9 +64,11 @@ if (platform === "macos" || platform === "windows") {
 }
 if (
   existsSync(join(resourcesRoot, "voice", "model")) ||
-  existsSync(join(resourcesRoot, "voice", "runtime", "encoder.int8.onnx"))
+  existsSync(join(resourcesRoot, "voice", "whisper-turbo-int8")) ||
+  existsSync(join(resourcesRoot, "voice", "runtime", "encoder.int8.onnx")) ||
+  existsSync(join(resourcesRoot, "voice", "runtime", "turbo-encoder.int8.onnx"))
 ) {
-  throw new Error("The packaged application contains the on-demand voice model.");
+  throw new Error("The packaged application contains an on-demand voice model.");
 }
 const unpackedRoot = join(resourcesRoot, "app.asar.unpacked", "node_modules", "@anthropic-ai");
 if (existsSync(unpackedRoot)) {

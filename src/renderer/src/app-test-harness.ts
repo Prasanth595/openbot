@@ -696,8 +696,13 @@ export function installOpenbotStub(): void {
     // No renderer test reaches routine flows yet; a request rejects as not stubbed.
     routineFlows: stubGroup("routineFlows", {}),
     voice: stubGroup("voice", {
-      getModelStatus: vi.fn().mockResolvedValue({ phase: "ready", progress: 100, message: null }),
-      prepareModel: vi.fn().mockResolvedValue({ phase: "ready", progress: 100, message: null }),
+      getModelStatus: vi
+        .fn()
+        .mockResolvedValue({ modelId: "parakeet-tdt-0.6b-v3", phase: "ready", progress: 100, message: null }),
+      prepareModel: vi
+        .fn()
+        .mockResolvedValue({ modelId: "parakeet-tdt-0.6b-v3", phase: "ready", progress: 100, message: null }),
+      getSettings: vi.fn().mockResolvedValue({ modelId: "parakeet-tdt-0.6b-v3", language: "automatic" }),
       transcribe: vi.fn().mockResolvedValue({ text: "Voice transcript" }),
     }),
     auth: stubGroup("auth", {

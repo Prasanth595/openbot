@@ -366,7 +366,13 @@ import type {
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
 } from "./ipc-team-host";
-import type { VoiceModelStatus, VoiceTranscriptionInput, VoiceTranscriptionResult } from "./ipc-voice";
+import type {
+  VoiceModelRequest,
+  VoiceModelStatus,
+  VoiceSettings,
+  VoiceTranscriptionInput,
+  VoiceTranscriptionResult,
+} from "./ipc-voice";
 import type { AccountSession, MobileConnectedDevice, MobileConnectTicket } from "./mobile-connect";
 
 declare const payloadType: unique symbol;
@@ -548,8 +554,18 @@ export const IPC_ENDPOINTS = {
     event: event<ProviderRuntimeSnapshot>()("provider-runtimes:event"),
   },
   voice: {
+    /** The status of the model in use. */
     getModelStatus: request<undefined, VoiceModelStatus>()("voice:get-model-status"),
+    /** One status for each model in `VOICE_MODELS`, in the same order. */
+    getModelStatuses: request<undefined, VoiceModelStatus[]>()("voice:get-model-statuses"),
+    /** Downloads the model in use when it is missing. Answers when it is ready or failed. */
     prepareModel: request<undefined, VoiceModelStatus>()("voice:prepare-model"),
+    /** Downloads one model. Answers when it is ready, failed, or cancelled. */
+    downloadModel: request<VoiceModelRequest, VoiceModelStatus>()("voice:download-model"),
+    /** Stops a download. The model is missing again; a later download starts from the first file not complete. */
+    cancelModelDownload: request<VoiceModelRequest, VoiceModelStatus>()("voice:cancel-model-download"),
+    getSettings: request<undefined, VoiceSettings>()("voice:get-settings"),
+    setSettings: request<VoiceSettings, VoiceSettings>()("voice:set-settings"),
     transcribe: request<VoiceTranscriptionInput, VoiceTranscriptionResult>()("voice:transcribe"),
     modelStatus: event<VoiceModelStatus>()("voice:model-status"),
   },

@@ -129,9 +129,11 @@ import { createMockSkills, type MockSkillsOptions } from "./mock-skills";
 import { createMockStorage } from "./mock-storage";
 import { clone, type Listener, type MockRuntime, matchesQuery } from "./mock-support";
 import { createMockTeam, type MockTeamOptions } from "./mock-team";
+import { createMockVoice, type MockVoiceOptions } from "./mock-voice";
 
 export interface MockOpenBotOptions
   extends MockProviderRuntimeOptions,
+    MockVoiceOptions,
     MockAuthOptions,
     MockBrowserOptions,
     MockTeamOptions,
@@ -539,6 +541,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     (agentId) => agents.find((entry) => entry.id === agentId)?.name ?? agentId,
   );
   const mockProviderRuntimes = createMockProviderRuntimes(options, runtime);
+  const mockVoice = createMockVoice(options, runtime);
   const mockAuth = createMockAuth(options, runtime);
   const mockSkills = createMockSkills(options, (agentId) => emitAgentEvent({ type: "skills-changed", agentId }));
   const { installedSkills, readInstalledSkills } = mockSkills;
@@ -695,12 +698,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     }),
     providerRuntimes: mockProviderRuntimes.providerRuntimes,
     openUrl: async () => undefined,
-    voice: {
-      getModelStatus: async () => ({ phase: "ready", progress: 100, message: null }),
-      prepareModel: async () => ({ phase: "ready", progress: 100, message: null }),
-      transcribe: async () => ({ text: "Mock voice transcript" }),
-      onModelStatus: () => () => undefined,
-    },
+    voice: mockVoice.voice,
     routineFlows: mockRoutineFlows({ routines, routineRuns }),
     auth: mockAuth.auth,
     skills: mockSkills.skills,

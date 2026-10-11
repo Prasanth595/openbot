@@ -2,12 +2,21 @@ import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { VoiceModelStatus, VoiceTranscriptionResult } from "@openbot/contracts/ipc";
+import {
+  AUTOMATIC_VOICE_LANGUAGE,
+  VOICE_MODEL_IDS,
+  type VoiceModelId,
+  type VoiceModelStatus,
+  type VoiceSettings,
+  type VoiceTranscriptionResult,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Effect, Exit, Fiber, Scope } from "effect";
 import { VOICE_RUNTIME_ADDON, VoiceModelService, VoiceOperationError } from "./voice-model-service";
+import type { VoicePreferenceStore } from "./voice-preference-store";
 import type {
+  VoiceTranscriptionEngine,
   VoiceTranscriptionFailure,
   VoiceTranscriptionHostProcess,
   VoiceTranscriptionResponse,
@@ -16,6 +25,11 @@ import type {
 const logger = createOpenBotLogger("voice-transcription-service");
 
 const TRANSCRIPTION_TIMEOUT_MS = 180_000;
+const MODEL_ENGINES: Record<VoiceModelId, VoiceTranscriptionEngine> = {
+  "parakeet-tdt-0.6b-v3": "nemo-transducer",
+  "whisper-turbo": "whisper",
+};
+
 /**
  * The loaded model holds about 2 GB, so the host ends after this long without a request. While
  * the user speaks, the renderer asks about once per second, so the host stays loaded until then.
@@ -32,13 +46,14 @@ interface VoiceTranscriptionEvents {
 /**
  * What the renderer is told when the build carries no speech recognition runtime at all. Linux
  * packages ship without one, so this is the whole of voice on that platform: a stated limit, not a
- * download that spends 670 MB on a model nothing can read.
+ * download of a model that nothing can read.
  */
 const RUNTIME_UNAVAILABLE_MESSAGE = sourceText("error.voice.runtimeUnavailable");
 
 interface VoiceTranscriptionServiceOptions {
   resourcesRoot: string;
-  modelDirectory: string;
+  modelDirectories: Record<VoiceModelId, string>;
+  preferences: VoicePreferenceStore;
   spawnHost: () => VoiceTranscriptionHostProcess;
   fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 }
@@ -58,9 +73,12 @@ interface PendingRequest {
 export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEvents> {
   readonly #scope = Scope.makeUnsafe();
   readonly #addonPath: string;
-  readonly #model: VoiceModelService;
+  readonly #models: Record<VoiceModelId, VoiceModelService>;
+  readonly #preferences: VoicePreferenceStore;
   readonly #spawnHost: () => VoiceTranscriptionHostProcess;
   #host: VoiceTranscriptionHostProcess | null = null;
+  /** The model the running host loaded. The host holds one model, so another one starts a new host. */
+  #hostModelId: VoiceModelId | null = null;
   #pending: PendingRequest | null = null;
   #nextRequestId = 1;
   #idleTimer: NodeJS.Timeout | null = null;
@@ -70,18 +88,62 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
     super();
     this.#addonPath = join(options.resourcesRoot, "runtime", VOICE_RUNTIME_ADDON);
     this.#spawnHost = options.spawnHost;
-    this.#model = new VoiceModelService({ directory: options.modelDirectory, fetch: options.fetch });
-    this.#model.on("status", (status) => this.emit("modelStatus", status));
+    this.#preferences = options.preferences;
+    const model = (modelId: VoiceModelId) => {
+      const service = new VoiceModelService({
+        modelId,
+        directory: options.modelDirectories[modelId],
+        fetch: options.fetch,
+      });
+      service.on("status", (status) => this.emit("modelStatus", status));
+      return service;
+    };
+    this.#models = { "parakeet-tdt-0.6b-v3": model("parakeet-tdt-0.6b-v3"), "whisper-turbo": model("whisper-turbo") };
   }
 
+  /** The status of the model in use. */
   readonly getModelStatus = Effect.fn("VoiceTranscription.getModelStatus")(function* (this: VoiceTranscriptionService) {
-    const missing = this.#runtimeMissing();
-    return missing ?? (yield* this.#model.getStatus());
+    const { modelId } = this.#preferences.get();
+    return this.#runtimeMissing(modelId) ?? (yield* this.#models[modelId].getStatus());
   }).bind(this);
 
+  readonly getModelStatuses = Effect.fn("VoiceTranscription.getModelStatuses")(function* (
+    this: VoiceTranscriptionService,
+  ) {
+    const statuses: VoiceModelStatus[] = [];
+    for (const modelId of VOICE_MODEL_IDS)
+      statuses.push(this.#runtimeMissing(modelId) ?? (yield* this.#models[modelId].getStatus()));
+    return statuses;
+  }).bind(this);
+
+  /** Downloads the model in use when it is missing. */
   readonly prepareModel = Effect.fn("VoiceTranscription.prepareModel")(function* (this: VoiceTranscriptionService) {
-    const missing = this.#runtimeMissing();
-    return missing ?? (yield* this.#model.prepare());
+    return yield* this.downloadModel(this.#preferences.get().modelId);
+  }).bind(this);
+
+  readonly downloadModel = Effect.fn("VoiceTranscription.downloadModel")(function* (
+    this: VoiceTranscriptionService,
+    modelId: VoiceModelId,
+  ) {
+    return this.#runtimeMissing(modelId) ?? (yield* this.#models[modelId].prepare());
+  }).bind(this);
+
+  readonly cancelModelDownload = Effect.fn("VoiceTranscription.cancelModelDownload")(function* (
+    this: VoiceTranscriptionService,
+    modelId: VoiceModelId,
+  ) {
+    return this.#runtimeMissing(modelId) ?? (yield* this.#models[modelId].cancel());
+  }).bind(this);
+
+  getSettings(): VoiceSettings {
+    return this.#preferences.get();
+  }
+
+  readonly setSettings = Effect.fn("VoiceTranscription.setSettings")(function* (
+    this: VoiceTranscriptionService,
+    settings: VoiceSettings,
+  ) {
+    return yield* this.#preferences.set(settings);
   }).bind(this);
 
   readonly transcribe = Effect.fn("VoiceTranscription.transcribe")(
@@ -94,8 +156,9 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
           }),
           () =>
             Effect.gen({ self: this }, function* () {
+              const settings = this.#preferences.get();
               // After the first full check in this process, this is a `stat` of each model file.
-              const modelStatus = yield* this.prepareModel();
+              const modelStatus = yield* this.downloadModel(settings.modelId);
               if (modelStatus.phase !== "ready")
                 return yield* new VoiceOperationError({
                   cause: new Error(modelStatus.message ?? sourceText("error.voice.modelUnavailable")),
@@ -104,7 +167,7 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
               const pcm = audio.slice(WAV_HEADER_BYTES);
               const audioSeconds = (pcm.byteLength / BYTES_PER_SECOND).toFixed(1);
               return yield* Effect.gen({ self: this }, function* () {
-                const text = yield* this.#request(pcm);
+                const text = yield* this.#request(pcm, settings);
                 if (text.length > INPUT_LIMITS.messageText)
                   return yield* new VoiceOperationError({ cause: new Error("The voice transcript is too long.") });
                 logger.info(`Voice transcription of ${audioSeconds}s completed in ${Date.now() - startedAt}ms.`);
@@ -129,23 +192,25 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
 
   readonly shutdown = Effect.fn("VoiceTranscription.shutdown")(function* (this: VoiceTranscriptionService) {
     this.#stopHost();
-    yield* this.#model.shutdown();
+    for (const modelId of VOICE_MODEL_IDS) yield* this.#models[modelId].shutdown();
     yield* Scope.close(this.#scope, Exit.void);
   }, Effect.uninterruptible).bind(this);
 
   /** Reports a build with no bundled speech recognition runtime. */
-  #runtimeMissing(): VoiceModelStatus | null {
+  #runtimeMissing(modelId: VoiceModelId): VoiceModelStatus | null {
     if (existsSync(this.#addonPath)) return null;
-    const status: VoiceModelStatus = { phase: "error", progress: null, message: RUNTIME_UNAVAILABLE_MESSAGE };
+    const status: VoiceModelStatus = { modelId, phase: "error", progress: null, message: RUNTIME_UNAVAILABLE_MESSAGE };
     this.emit("modelStatus", status);
     return status;
   }
 
   /** Sends one request to the host, starting it if needed, and keeps it loaded until it is idle. */
-  #request(pcm: Uint8Array): Effect.Effect<string, VoiceOperationError> {
+  #request(pcm: Uint8Array, { modelId, language }: VoiceSettings): Effect.Effect<string, VoiceOperationError> {
     return Effect.callback<string, VoiceOperationError>((resume) => {
       this.#cancelIdleStop();
+      if (this.#hostModelId !== modelId) this.#stopHost();
       const host = this.#ensureHost();
+      this.#hostModelId = modelId;
       const id = this.#nextRequestId++;
       let settled = false;
       this.#pending = {
@@ -155,7 +220,15 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
           resume(result);
         },
       };
-      host.send({ id, addonPath: this.#addonPath, modelDirectory: this.#model.directory, pcm });
+      const engine = MODEL_ENGINES[modelId];
+      host.send({
+        id,
+        addonPath: this.#addonPath,
+        modelDirectory: this.#models[modelId].directory,
+        engine,
+        language: engine === "whisper" && language !== AUTOMATIC_VOICE_LANGUAGE ? language : "",
+        pcm,
+      });
       return Effect.sync(() => {
         if (this.#pending?.id === id) this.#pending = null;
         // A decode cannot be cancelled, and a host that still works on it would answer late.
@@ -182,6 +255,7 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
     host.onExit(() => {
       if (this.#host !== host) return;
       this.#host = null;
+      this.#hostModelId = null;
       this.#cancelIdleStop();
       const pending = this.#pending;
       if (pending)
@@ -214,6 +288,7 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
     this.#cancelIdleStop();
     const host = this.#host;
     this.#host = null;
+    this.#hostModelId = null;
     host?.kill();
   }
 }

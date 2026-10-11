@@ -63,6 +63,8 @@ import {
   isProviderDetectionSettings,
   isRemoteDesktopSetupStatus,
   isRemoteDesktopTestStatus,
+  isVoiceLanguage,
+  isVoiceModelId,
   type MobileConnectedDevice,
   type MobileConnectTicket,
   type NotificationOpenedEvent,
@@ -79,6 +81,7 @@ import {
   type UpdatePreference,
   type UpdateStatus,
   type VoiceModelStatus,
+  type VoiceSettings,
   type VoiceTranscriptionResult,
 } from "@openbot/contracts/ipc";
 import {
@@ -295,11 +298,21 @@ const VOICE_MODEL_PHASES: readonly VoiceModelStatus["phase"][] = ["missing", "do
 
 export function decodeVoiceModelStatus(value: unknown): VoiceModelStatus {
   const status = decodeRecord(value, "voice model status");
-  const { phase, progress } = status;
-  if (!isOneOf(VOICE_MODEL_PHASES, phase) || (progress !== null && !isNumber(progress))) {
+  const { modelId, phase, progress } = status;
+  if (!isVoiceModelId(modelId) || !isOneOf(VOICE_MODEL_PHASES, phase) || (progress !== null && !isNumber(progress))) {
     throw new Error("Invalid voice model status.");
   }
-  return { phase, progress, message: nullableString(status, "message") };
+  return { modelId, phase, progress, message: nullableString(status, "message") };
+}
+
+export function decodeVoiceModelStatuses(value: unknown): VoiceModelStatus[] {
+  return decodeList(value, "voice model status list", decodeVoiceModelStatus);
+}
+
+export function decodeVoiceSettings(value: unknown): VoiceSettings {
+  const { modelId, language } = decodeRecord(value, "voice settings");
+  if (!isVoiceModelId(modelId) || !isVoiceLanguage(language)) throw new Error("Invalid voice settings.");
+  return { modelId, language };
 }
 
 export function decodeVoiceTranscriptionResult(value: unknown): VoiceTranscriptionResult {
