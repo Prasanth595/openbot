@@ -41,7 +41,8 @@ import { voiceButtonLabel, voiceSupported } from "./voice-status";
 
 // Module scope: the composer remounts on navigation, and a dismissed notice must stay dismissed.
 const [dismissedCompactions, setDismissedCompactions] = createSignal<Record<string, string>>({});
-const [dismissedUsageLimits, setDismissedUsageLimits] = createStore<Record<string, string>>({});
+// Keyed by provider account, then by chat: a recovered window clears every chat of that account.
+const [dismissedUsageLimits, setDismissedUsageLimits] = createStore<Record<string, Record<string, string>>>({});
 
 /** @internal Stable HMR boundary for conversation composer. */
 export function ConversationComposer() {
@@ -164,9 +165,8 @@ export function ConversationComposer() {
     }
     return null;
   });
-  const usageNoticeScope = () =>
+  const usageNoticeAccount = () =>
     JSON.stringify([
-      currentChatConversationKey(),
       props.agent?.provider,
       props.agentStatus.providers?.find((status) => status.id === props.agent?.provider)?.email,
     ]);
@@ -175,7 +175,7 @@ export function ConversationComposer() {
     return spent &&
       !signInRequired() &&
       accountUsageCoversModel(spent.provider, props.agent?.model) &&
-      dismissedUsageLimits[usageNoticeScope()] !== spent.key
+      dismissedUsageLimits[usageNoticeAccount()]?.[currentChatConversationKey() ?? ""] !== spent.key
       ? spent
       : null;
   };
@@ -183,16 +183,16 @@ export function ConversationComposer() {
   // including providers that report no reset time. A pending usage load is not recovery.
   createEffect(
     () => ({
-      key: usageNoticeScope(),
+      account: usageNoticeAccount(),
       spent: usageExhausted(),
       loaded: props.accountUsage?.limits.some(
         (limit) => limit.id === props.agent?.provider && (limit.primary !== null || limit.secondary !== null),
       ),
     }),
-    ({ key, spent, loaded }) => {
+    ({ account, spent, loaded }) => {
       if (loaded && !spent) {
         setDismissedUsageLimits((state) => {
-          delete state[key];
+          delete state[account];
         });
       }
     },
@@ -391,10 +391,11 @@ export function ConversationComposer() {
             provider={spent().provider}
             resetsAt={spent().resetsAt}
             onDismiss={() => {
-              const key = usageNoticeScope();
+              const account = usageNoticeAccount();
+              const chat = currentChatConversationKey() ?? "";
               const window = spent().key;
               setDismissedUsageLimits((state) => {
-                state[key] = window;
+                state[account] = { ...state[account], [chat]: window };
               });
               setComposerFocusRequest((current) => current + 1);
             }}
