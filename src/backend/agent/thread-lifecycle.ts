@@ -108,6 +108,8 @@ export interface ThreadLifecycleOptions {
   passwordVaultConnected?: () => boolean;
   /** The user's switch for progress updates during a user turn. */
   progressUpdates?: () => boolean;
+  /** The user's switch for background workers. */
+  backgroundWorkers?: () => boolean;
 }
 
 /**
@@ -134,6 +136,7 @@ export class ThreadLifecycle {
   readonly #agentEnvironment: () => Readonly<Record<string, string>>;
   readonly #passwordVaultConnected: () => boolean;
   readonly #progressUpdates: () => boolean;
+  readonly #backgroundWorkers: () => boolean;
   readonly #pendingHandoffs = new Map<string, string>();
   readonly #pendingRuntimeRefreshes = new Set<string>();
   /**
@@ -159,6 +162,7 @@ export class ThreadLifecycle {
     this.#agentEnvironment = options.agentEnvironment ?? (() => ({}));
     this.#passwordVaultConnected = options.passwordVaultConnected ?? (() => false);
     this.#progressUpdates = options.progressUpdates ?? (() => false);
+    this.#backgroundWorkers = options.backgroundWorkers ?? (() => false);
   }
 
   /**
@@ -730,6 +734,7 @@ export class ThreadLifecycle {
     const options = {
       passwordVault: this.#passwordVaultConnected(),
       progressUpdates: this.#progressUpdates(),
+      backgroundWorkers: this.#backgroundWorkers(),
       memoryLimit: this.#memories.limit(),
       storedMemoryCount: this.#memories.listFor(agent.id).length,
       memoriesInTurns: client.provider === "claude",

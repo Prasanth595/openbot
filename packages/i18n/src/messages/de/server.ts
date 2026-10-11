@@ -262,6 +262,9 @@ export const messages = {
   "server.settings.progressUpdates": "Fortschritt anzeigen, während Agenten arbeiten",
   "server.settings.progressUpdatesDescription":
     "Agenten auf diesem Server zeigen bei wichtigen Schritten einer langen Aufgabe kurze Updates im Chat und antworten sofort auf eine umgeleitete Nachricht.",
+  "server.settings.backgroundWorkers": "Hintergrund-Worker",
+  "server.settings.backgroundWorkersDescription":
+    "Agenten können eine lange Aufgabe an einen temporären Worker geben und bleiben für das Gespräch frei. Der Worker erscheint in der Seitenleiste, solange er arbeitet, und wird entfernt, wenn er sein Ergebnis sendet.",
   "server.settings.muteDescription":
     "Deaktiviere Desktop-Benachrichtigungen und MacBook-Notch-Aktualisierungen von diesem Server.",
   "server.settings.mutedUntilDescription": "{until}. Deaktiviere diese Option, um die Stummschaltung jetzt aufzuheben.",

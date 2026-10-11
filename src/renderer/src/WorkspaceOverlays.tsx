@@ -546,7 +546,7 @@ function ServerSettings(props: {
           onSetNotificationLevel={(level) => setServerNotificationLevel(server().id, level)}
           progressUpdates={(() => {
             const preference = serverSettingsProgressUpdates();
-            return preference ? { enabled: preference.enabled, onChange: setServerProgressUpdates } : undefined;
+            return preference ? { preference, onChange: setServerProgressUpdates } : undefined;
           })()}
           onCreateInvite={createServerInvite}
           onUpdateMember={updateServerMember}

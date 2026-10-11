@@ -109,8 +109,9 @@ export function parseRemoteSessionReusePreference(input: unknown): RemoteSession
 }
 
 export function parseProgressUpdatePreference(input: unknown): ProgressUpdatePreference {
-  if (!isDynamicRecord(input) || !isBoolean(input.enabled)) throw new Error("The progress update setting is required.");
-  return { enabled: input.enabled };
+  if (!isDynamicRecord(input) || !isBoolean(input.enabled) || !isBoolean(input.backgroundWorkers))
+    throw new Error("The progress update setting is required.");
+  return { enabled: input.enabled, backgroundWorkers: input.backgroundWorkers };
 }
 
 export function parseAppLanguagePreference(input: unknown): SetAppLanguagePreferenceInput {

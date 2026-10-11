@@ -907,11 +907,11 @@ describe("Team API host-admin-v1", () => {
 });
 
 describe("Team API host-progress-updates-v1", () => {
-  it("lets only an admin read and change progress updates on the host", async () => {
-    let preference = { enabled: false };
+  it("lets only an admin read and change progress updates and background workers on the host", async () => {
+    let preference = { enabled: false, backgroundWorkers: false };
     const progressUpdates = {
       get: () => preference,
-      set: (next: { enabled: boolean }) =>
+      set: (next: { enabled: boolean; backgroundWorkers: boolean }) =>
         Effect.sync(() => {
           preference = next;
           return preference;
@@ -920,21 +920,19 @@ describe("Team API host-progress-updates-v1", () => {
     const { admin, asMember, post } = await signedIn("host-progress-updates", { admin: { progressUpdates } });
     const withCapability = { ...admin, "OpenBot-Capabilities": "host-progress-updates-v1" };
     const memberWithCapability = { ...asMember, "OpenBot-Capabilities": "host-progress-updates-v1" };
+    const on = { enabled: true, backgroundWorkers: true };
 
     expect((await post("/v1/admin/host/progress-updates", {})).status).toBe(400);
-    expect((await post("/v1/admin/host/progress-updates/update", { enabled: true }, memberWithCapability)).status).toBe(
-      403,
-    );
-    expect((await post("/v1/admin/host/progress-updates/update", {}, withCapability)).status).toBe(400);
-    expect(preference).toEqual({ enabled: false });
+    expect((await post("/v1/admin/host/progress-updates/update", on, memberWithCapability)).status).toBe(403);
+    expect((await post("/v1/admin/host/progress-updates/update", { enabled: true }, withCapability)).status).toBe(400);
+    expect(preference).toEqual({ enabled: false, backgroundWorkers: false });
 
     expect(await (await post("/v1/admin/host/progress-updates", {}, withCapability)).json()).toEqual({
       enabled: false,
+      backgroundWorkers: false,
     });
-    expect(
-      await (await post("/v1/admin/host/progress-updates/update", { enabled: true }, withCapability)).json(),
-    ).toEqual({ enabled: true });
-    expect(preference).toEqual({ enabled: true });
+    expect(await (await post("/v1/admin/host/progress-updates/update", on, withCapability)).json()).toEqual(on);
+    expect(preference).toEqual(on);
   });
 });
 

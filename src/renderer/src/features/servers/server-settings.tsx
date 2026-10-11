@@ -225,10 +225,10 @@ const ServerSettings = createSimpleContext({
       }
     }
 
-    async function setServerProgressUpdates(enabled: boolean): Promise<void> {
+    async function setServerProgressUpdates(preference: ProgressUpdatePreference): Promise<void> {
       const server = serverSettingsTarget();
       if (!server) throw new Error(currentText().t("server.settings.unavailable"));
-      const saved = await serversPort().hostAdmin.setProgressUpdates({ enabled }, server.id);
+      const saved = await serversPort().hostAdmin.setProgressUpdates(preference, server.id);
       if (serverSettingsTargetId() === server.id) setServerSettingsProgressUpdates(saved);
     }
 

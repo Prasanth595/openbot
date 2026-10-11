@@ -1969,8 +1969,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       ...createMockHostUpdate(options),
       getProgressUpdates: async () => clone(progressUpdates),
-      setProgressUpdates: async ({ enabled }) => {
-        progressUpdates = { enabled };
+      setProgressUpdates: async (preference) => {
+        progressUpdates = clone(preference);
         return clone(progressUpdates);
       },
     },

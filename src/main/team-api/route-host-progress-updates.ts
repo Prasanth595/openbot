@@ -11,7 +11,7 @@ import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
 import { readJson, requireAdmin } from "./request-helpers";
 
 /**
- * The progress update switch of this computer, read and changed from a joined server. The change
+ * The progress update and background worker switches of this computer, read and changed from a joined server. The change
  * runs as the local one does. Frozen by `host-progress-updates-v1`.
  */
 export async function routeHostProgressUpdates(
@@ -30,6 +30,10 @@ export async function routeHostProgressUpdates(
   requireAdmin(member);
   const body = await readJson(request);
   if (url.pathname === HOST_PROGRESS_UPDATES_ROUTES.settings) return json(200, progressUpdates.get());
-  if (!isBoolean(body.enabled)) throw new HttpError(400, "enabled must be true or false.");
-  return json(200, await runCauseEffect(progressUpdates.set({ enabled: body.enabled })));
+  if (!isBoolean(body.enabled) || !isBoolean(body.backgroundWorkers))
+    throw new HttpError(400, "enabled and backgroundWorkers must be true or false.");
+  return json(
+    200,
+    await runCauseEffect(progressUpdates.set({ enabled: body.enabled, backgroundWorkers: body.backgroundWorkers })),
+  );
 }

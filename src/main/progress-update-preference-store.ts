@@ -5,10 +5,11 @@ import { isMissingFileError } from "../backend/file-errors";
 import { type PreferenceFileFailure, readPreferenceFile, writePreferenceFile } from "./preference-file";
 
 /**
- * Whether agents can show progress updates in the chat while they work. The backend reads it for
- * each session start and each `post_update` call, so it is held in memory after `load`.
+ * Whether agents can show progress updates in the chat while they work, and whether they can start
+ * background workers. The backend reads it for each session start and each tool call, so it is held
+ * in memory after `load`.
  *
- * A file that is missing, unreadable as JSON or without the switch reads as the default, off. Writes
+ * A file that is missing, unreadable as JSON or without a switch reads as the default, off. Writes
  * are chained for the reason `update-preference-store.ts` chains its own: an earlier rename that
  * lands last would persist the value the user just changed.
  */
@@ -32,7 +33,7 @@ export class ProgressUpdatePreferenceStore {
       const loaded = yield* Effect.result(
         readPreferenceFile(this.#path, (parsed): ProgressUpdatePreference | null =>
           isDynamicRecord(parsed) && parsed.version === 1 && isBoolean(parsed.enabled)
-            ? { enabled: parsed.enabled }
+            ? { enabled: parsed.enabled, backgroundWorkers: parsed.backgroundWorkers === true }
             : null,
         ),
       );
@@ -49,14 +50,14 @@ export class ProgressUpdatePreferenceStore {
 
   readonly set = Effect.fn("ProgressUpdatePreference.set")(function* (
     this: ProgressUpdatePreferenceStore,
-    { enabled }: ProgressUpdatePreference,
+    { enabled, backgroundWorkers }: ProgressUpdatePreference,
   ) {
     yield* this.#writes.withPermit(
       Effect.uninterruptible(
-        writePreferenceFile(this.#path, { version: 1, enabled }).pipe(
+        writePreferenceFile(this.#path, { version: 1, enabled, backgroundWorkers }).pipe(
           Effect.tap(() =>
             Effect.sync(() => {
-              this.#preference = { enabled };
+              this.#preference = { enabled, backgroundWorkers };
             }),
           ),
         ),

@@ -136,6 +136,28 @@ teammate work stay quiet until their result, and a channel turn uses channel too
 message of the conversation, so no database schema changes, and every client shows it. It does
 not send a desktop notification: notifications still follow the end of the turn.
 
+## Background workers
+
+`openbot.start_background_task` lets an agent give a long task to a temporary worker, so the chat
+stays free while the work runs. It is the second switch of the host setting above ("Background
+workers", `backgroundWorkers` in the same file and in `host-progress-updates-v1`), off by default.
+When it is on, the developer instructions ask the agent to start a worker for long work, say so in
+one sentence and end its turn. The router (`#startBackgroundTask` in `agent/openbot-tool-router.ts`)
+creates an ordinary agent with the caller's provider, model, reasoning effort, access and Computer
+Use limits, in the caller's sidebar section, so the user can open it while it works. It then queues
+the task from the caller as a teammate request (`backgroundTaskText` in
+`agent/background-workers.ts` adds what a worker is and how it ends). The result comes back as any
+teammate answer does: the worker's final answer, or its own `send_message` with files. A worker uses
+no new database schema. `BackgroundWorkers` keeps the list of workers in
+`openbot-background-workers-v1.json`, so a restart does not forget them; a file that is missing or
+invalid reads as no workers, and each one is then an ordinary agent. After each turn of a worker
+(`turn-completed`), and once at startup, `AgentService` removes a worker that has no unfinished
+delivery and runs no turn. A worker that ended with no result first sends its requester a notice,
+so the requester does not wait. A worker cannot start a worker, an agent can have at most four, and
+a channel or external conversation turn cannot start one, because the result comes back to the
+agent's own chat. Removal deletes the worker's workspace; a file it sent with `send_message` stays
+with that message.
+
 ## Agent communication policy
 
 The shared developer instructions keep routine teammate exchanges internal by default. Agents

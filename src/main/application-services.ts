@@ -1295,6 +1295,8 @@ export async function createApplicationServices({
     busyMessageMode: () => busyMessageMode.get().mode,
     agentMemoryLimit: () => agentMemoryLimit.get().limit,
     progressUpdates: () => progressUpdates.get().enabled,
+    backgroundWorkers: () => progressUpdates.get().backgroundWorkers,
+    backgroundWorkersFile: join(app.getPath("userData"), "openbot-background-workers-v1.json"),
     deleteWithRevokedApproval: (agentId, remove) =>
       approvalAutomation.deleteAgent(agentId, remove).pipe(toAgentRemovalFailed),
     tables,

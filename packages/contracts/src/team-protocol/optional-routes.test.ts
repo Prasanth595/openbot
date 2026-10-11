@@ -334,15 +334,16 @@ describe("providers-v3", () => {
 });
 
 describe("host-progress-updates-v1", () => {
-  it("round-trips the switch and rejects other shapes", () => {
+  it("round-trips the switches and rejects other shapes", () => {
+    const on = { enabled: true, backgroundWorkers: true };
     expect(codec(HOST_PROGRESS_UPDATES_ROUTES.settings).request({})).toEqual({});
-    expect(codec(HOST_PROGRESS_UPDATES_ROUTES.update).request({ enabled: true })).toEqual({ enabled: true });
-    expect(codec(HOST_PROGRESS_UPDATES_ROUTES.settings).response(200, { enabled: false, extra: 1 })).toEqual({
-      enabled: false,
-    });
-    expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.update).request({})).toThrow();
-    expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.update).request({ enabled: "yes" })).toThrow();
-    expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.settings).response(200, {})).toThrow();
+    expect(codec(HOST_PROGRESS_UPDATES_ROUTES.update).request(on)).toEqual(on);
+    expect(
+      codec(HOST_PROGRESS_UPDATES_ROUTES.settings).response(200, { enabled: false, backgroundWorkers: true, extra: 1 }),
+    ).toEqual({ enabled: false, backgroundWorkers: true });
+    expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.update).request({ enabled: true })).toThrow();
+    expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.update).request({ ...on, enabled: "yes" })).toThrow();
+    expect(() => codec(HOST_PROGRESS_UPDATES_ROUTES.settings).response(200, { enabled: false })).toThrow();
   });
 });
 
