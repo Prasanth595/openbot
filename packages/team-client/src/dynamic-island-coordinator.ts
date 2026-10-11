@@ -401,18 +401,17 @@ export class DynamicIslandCoordinator {
     const liveMessages: Record<string, DynamicIslandMessageSource[]> = {};
     const incomingMessageAnchors = new Map(runtime.incomingMessageAnchors);
     for (const message of snapshot.latestMessages) {
-      // The snapshot text is capped at `AGENT_RUNTIME_TEXT_LIMIT`. A message the island already has
-      // may be further along, and its raw body is what the next delta appends to. A new message
-      // starts with an empty raw body: main adds text before it sends the delta that holds it.
+      // The snapshot text is capped at `AGENT_RUNTIME_TEXT_LIMIT`, so a message that deltas have made
+      // longer stays as it is. Live Activity gets only snapshots, so a longer snapshot replaces the body.
+      const body = cleanAgentMessageText(message.text);
       const current = runtime.liveMessages[message.agentId]?.find((candidate) => candidate.id === message.id);
-      if (!current) runtime.rawMessageBodies.set(dynamicIslandMessageKey(message.agentId, message.id), "");
-      const converted = current ?? {
-        id: message.id,
-        author: "agent",
-        body: cleanAgentMessageText(message.text),
-        time: message.createdAt,
-        createdAt: message.createdAt,
-      };
+      const converted =
+        current && current.body.length > body.length
+          ? current
+          : { id: message.id, author: "agent", body, time: message.createdAt, createdAt: message.createdAt };
+      if (converted !== current) {
+        runtime.rawMessageBodies.set(dynamicIslandMessageKey(message.agentId, message.id), message.text);
+      }
       liveMessages[message.agentId] = [converted];
       incomingMessageAnchors.set(message.agentId, message.id);
       if (!trackIncoming) continue;
