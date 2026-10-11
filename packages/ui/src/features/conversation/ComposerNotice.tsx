@@ -126,10 +126,11 @@ export function ComposerSignInNotice(props: {
    */
   const [starting, setStarting] = createSignal(false);
   const busy = () => starting() || Boolean(props.signingIn);
-  const browserSignInStuck = createCodeSignInFallback(() => Boolean(props.signingIn));
+  const codeFallback = createCodeSignInFallback(() => Boolean(props.signingIn));
   const signIn = async () => {
     if (busy()) return;
     setStarting(true);
+    codeFallback.startedInBrowser();
     try {
       await props.onSignIn(props.provider);
     } finally {
@@ -143,7 +144,7 @@ export function ComposerSignInNotice(props: {
       body={t("composer.signIn.body", { provider: providerName() })}
       action={
         <>
-          <Show when={props.onSignInWithCode && browserSignInStuck() ? props.onSignInWithCode : undefined}>
+          <Show when={props.onSignInWithCode && codeFallback.offered() ? props.onSignInWithCode : undefined}>
             {(signInWithCode) => (
               <Button
                 variant="outline"
@@ -151,7 +152,10 @@ export function ComposerSignInNotice(props: {
                 type="button"
                 class="composer-notice-code-fallback"
                 aria-label={t("provider.aria.codeFallback", { name: providerName() })}
-                onClick={() => signInWithCode()(props.provider)}
+                onClick={() => {
+                  codeFallback.startedWithCode();
+                  signInWithCode()(props.provider);
+                }}
               >
                 {t("provider.action.signInWithCode")}
               </Button>

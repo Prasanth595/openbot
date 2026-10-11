@@ -463,13 +463,21 @@ export function ProviderPicker(props: ProviderPickerProps) {
                * The browser sign-in is slow or failed. Only a row whose Connect is that browser
                * hand-off offers the code here; a host's Connect is already the code.
                */
-              const browserSignInStuck = createCodeSignInFallback(connecting);
+              const codeFallback = createCodeSignInFallback(connecting);
               const codeFallbackOffered = () =>
                 Boolean(props.onConnectProvider) &&
                 codeSignInOffered() &&
                 !off() &&
                 state() !== "available" &&
-                browserSignInStuck();
+                codeFallback.offered();
+              const signInWithCode = () => {
+                codeFallback.startedWithCode();
+                void props.onSignInWithCodeProvider?.(option().id);
+              };
+              const connect = () => {
+                codeFallback.startedInBrowser();
+                void props.onConnectProvider?.(option().id);
+              };
               /**
                * Every row with a runtime on the computer offers Update in the same place, so the user
                * looks for it in one menu. While a newer version waits, the badge says so and the menu
@@ -615,7 +623,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           class="provider-picker-install"
                           aria-label={t("provider.aria.codeFallback", { name: option().name })}
                           disabled={props.disabled || props.refreshingProviders}
-                          onClick={() => void props.onSignInWithCodeProvider?.(option().id)}
+                          onClick={signInWithCode}
                         >
                           {t("provider.action.signInWithCode")}
                         </Button>
@@ -645,9 +653,9 @@ export function ProviderPicker(props: ProviderPickerProps) {
                                 ) {
                                   void props.onSignInProvider(option().id);
                                 } else if (!props.onConnectProvider && codeSignInOffered()) {
-                                  void props.onSignInWithCodeProvider?.(option().id);
+                                  signInWithCode();
                                 } else {
-                                  void props.onConnectProvider?.(option().id);
+                                  connect();
                                 }
                               } else {
                                 void props.onDownloadProvider?.(option().id);
@@ -690,7 +698,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           })}
                           aria-busy={connecting() ? "true" : undefined}
                           disabled={props.disabled || props.refreshingProviders}
-                          onClick={() => void props.onConnectProvider?.(option().id)}
+                          onClick={connect}
                         >
                           <Show when={connecting()}>
                             <Spinner size="sm" />
@@ -776,7 +784,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                                 </Show>
                               </Show>
                               <Show when={codeSignInOffered()}>
-                                <DropdownMenu.Item onSelect={() => void props.onSignInWithCodeProvider?.(option().id)}>
+                                <DropdownMenu.Item onSelect={signInWithCode}>
                                   <Smartphone aria-hidden="true" />
                                   {t("provider.action.signInWithCode")}
                                 </DropdownMenu.Item>
