@@ -112,6 +112,20 @@ branch refuses them, and no Team API protocol changes.
   service, so the tool router reads it through a getter. The canvas chat panel sends the user's request
   to the open agent's own conversation and shows the answer of the turn that read it.
 
+## Progress updates
+
+`openbot.post_update` lets an agent show a short checkpoint while a user task runs, so the user does
+not wait for the end of the turn to know what happens. The policy asks for an update only at key
+checkpoints: the plan of a long task, a finding that changes the work, a blocker, or a change of
+direction. When the user steers a message into the running turn, the agent answers it at once with
+an update and continues. The router (`#postUpdate` in `agent/openbot-tool-router.ts`) adds a normal
+assistant message to the running turn, in place in the live snapshot as `html_render` does, so the
+turn-completion write keeps it. The message id comes from the thread, turn and call ids, so a retried
+call adds no second update. Only a turn that holds a user delivery can post one: routine runs and
+teammate work stay quiet until their result, and a channel turn uses channel tools. The update is a
+message of the conversation, so no IPC, Team API or database schema changes, and every client shows
+it. It does not send a desktop notification: notifications still follow the end of the turn.
+
 ## Agent communication policy
 
 The shared developer instructions keep routine teammate exchanges internal by default. Agents

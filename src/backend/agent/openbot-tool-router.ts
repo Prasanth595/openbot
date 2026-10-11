@@ -33,7 +33,12 @@ import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
 import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
-import { CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH, htmlPreviewToolSchema, htmlRenderToolSchema } from "../openbot-tools";
+import {
+  CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH,
+  htmlPreviewToolSchema,
+  htmlRenderToolSchema,
+  postUpdateToolSchema,
+} from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
 import type { StoredStateFailure } from "../stored-state-effects";
@@ -47,7 +52,12 @@ import type { BrowserUploads } from "./browser-uploads";
 import type { ChatVisualPreviewHost } from "./chat-visual-preview";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { handleDataTool } from "./data-tools";
-import { responseAttachmentMessageId, visualReplyFileName, visualReplyMessageId } from "./delivery-content";
+import {
+  progressUpdateMessageId,
+  responseAttachmentMessageId,
+  visualReplyFileName,
+  visualReplyMessageId,
+} from "./delivery-content";
 import type { DrainScheduler } from "./drain-scheduler";
 import { HistoryTools } from "./history-tools";
 import type { HostedSiteCoordinator } from "./hosted-site-coordinator";
@@ -730,6 +740,11 @@ export class OpenBotToolRouter {
 
     if (params.tool === "react_to_user_message") return yield* this.#react(params, senderAgentId);
 
+    if (params.tool === "post_update") {
+      if (channelId) return openBotToolFailure("Use channel tools to report channel work.");
+      return yield* this.#postUpdate(params, senderAgentId, executionThreadId);
+    }
+
     return yield* this.#sendMessage(params, senderAgentId);
   });
 
@@ -790,6 +805,56 @@ export class OpenBotToolRouter {
       const messageIndex = snapshot.messages.findIndex((candidate) => candidate.id === messageId);
       if (messageIndex >= 0) snapshot.messages.splice(messageIndex, 1);
       yield* this.#mailbox.discardStagedGeneratedAttachments([attachment.id]).pipe(toToolOperationFailed);
+      throw error;
+    }
+    this.#conversation.publishConversation(snapshot);
+    return openBotToolResult({ status: "shown", messageId });
+  });
+
+  /**
+   * `post_update`: adds a short answer to the running turn, so the user reads a checkpoint while the
+   * agent works. Only a turn that holds a user message can post one: routine and teammate work stays
+   * quiet until its result. A retried call finds its message by id.
+   */
+  readonly #postUpdate = Effect.fn("OpenBotToolRouter.postUpdate")(function* (
+    this: OpenBotToolRouter,
+    params: DynamicToolCallParams,
+    senderAgentId: string,
+    executionThreadId: string,
+  ) {
+    const parsed = postUpdateToolSchema.safeParse(params.arguments);
+    if (!parsed.success) return openBotToolFailure(profileToolErrorMessage(parsed.error));
+    const forUser = this.#mailbox
+      .findDeliveriesByTurn(senderAgentId, params.turnId)
+      .some((candidate) => candidate.delivery.sender.kind === "user");
+    if (!forUser) return openBotToolFailure("Use this tool only in a turn that works on a user message.");
+    const messageId = progressUpdateMessageId(params.threadId, params.turnId, params.callId);
+    // In place, as `html_render` does: a concurrent tool that saves the live snapshot keeps this message.
+    const snapshot = this.#conversation.ensureSnapshot(senderAgentId, executionThreadId);
+    if (snapshot.messages.some(({ id }) => id === messageId)) return openBotToolResult({ status: "shown", messageId });
+    const message: ConversationMessage = {
+      id: messageId,
+      turnId: params.turnId,
+      author: "assistant",
+      source: "assistant",
+      text: parsed.data.text,
+      createdAt: new Date().toISOString(),
+      status: "completed",
+    };
+    snapshot.messages.push(message);
+    sortConversationMessages(snapshot.messages);
+    try {
+      snapshot.revision = this.#store.database.persistConversationChanges({
+        agentId: senderAgentId,
+        threadId: executionThreadId,
+        activeTurnId: snapshot.activeTurnId,
+        changedMessages: [message],
+        eventType: "response.update-posted",
+        detail: { turnId: params.turnId, messageId },
+      });
+    } catch (error) {
+      const messageIndex = snapshot.messages.findIndex((candidate) => candidate.id === messageId);
+      if (messageIndex >= 0) snapshot.messages.splice(messageIndex, 1);
       throw error;
     }
     this.#conversation.publishConversation(snapshot);
