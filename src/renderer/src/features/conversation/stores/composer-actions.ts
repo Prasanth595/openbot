@@ -630,7 +630,8 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       deps.stopVoiceRecording();
       return;
     }
-    if (phase !== "idle") return;
+    // The editor stays open while the agent starts, but a send waits until it is ready.
+    if (phase !== "idle" || !deps.agentReady()) return;
     void submitMessage();
   }
 
