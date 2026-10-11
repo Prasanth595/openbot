@@ -70,7 +70,6 @@ import {
   type NotificationOpenedEvent,
   type NotificationPreference,
   type OnePasswordConnectorStatus,
-  type ProgressUpdatePreference,
   type ProviderDetectionSettings,
   parseGitHubConnectorRepositories,
   parseGitHubConnectorStatus,
@@ -272,10 +271,6 @@ export function decodeUpdatePreference(value: unknown): UpdatePreference {
     allowRemoteUpdates: requiredBoolean(preference, "allowRemoteUpdates"),
     autoInstall: requiredBoolean(preference, "autoInstall"),
   };
-}
-
-export function decodeProgressUpdatePreference(value: unknown): ProgressUpdatePreference {
-  return { enabled: requiredBoolean(decodeRecord(value, "progress update preference"), "enabled") };
 }
 
 export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessionReusePreference {

@@ -9,7 +9,6 @@ export interface SettingsPort {
   getAnalyticsPreference: OpenBotDesktopApi["getAnalyticsPreference"];
   getApprovalAutomation: OpenBotDesktopApi["getApprovalAutomation"];
   getBusyMessageModePreference: OpenBotDesktopApi["getBusyMessageModePreference"];
-  getProgressUpdatePreference: OpenBotDesktopApi["getProgressUpdatePreference"];
   getRemoteSessionReusePreference: OpenBotDesktopApi["getRemoteSessionReusePreference"];
   onApprovalAutomation: OpenBotDesktopApi["onApprovalAutomation"];
   onOpenSettings: OpenBotDesktopApi["onOpenSettings"];
@@ -17,7 +16,6 @@ export interface SettingsPort {
   setAnalyticsPreference: OpenBotDesktopApi["setAnalyticsPreference"];
   setApprovalAutomation: OpenBotDesktopApi["setApprovalAutomation"];
   setBusyMessageModePreference: OpenBotDesktopApi["setBusyMessageModePreference"];
-  setProgressUpdatePreference: OpenBotDesktopApi["setProgressUpdatePreference"];
   setRemoteSessionReusePreference: OpenBotDesktopApi["setRemoteSessionReusePreference"];
   dynamicIsland: Pick<
     OpenBotDesktopApi["dynamicIsland"],

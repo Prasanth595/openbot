@@ -24,6 +24,7 @@ import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { EVENTS_CAPABILITY } from "./events-v1";
 import { HOST_ADMIN_CAPABILITY } from "./host-admin-v1";
 import { HOST_MEMBER_UPDATE_CAPABILITY } from "./host-member-update-v1";
+import { HOST_PROGRESS_UPDATES_CAPABILITY } from "./host-progress-updates-v1";
 import { HOST_RELEASE_CAPABILITY } from "./host-release-v1";
 import { HOST_UPDATE_CAPABILITY } from "./host-update-v1";
 import { HOSTED_SITES_CAPABILITY } from "./hosted-sites-v1";
@@ -79,6 +80,7 @@ export {
   EVENTS_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
+  HOST_PROGRESS_UPDATES_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
   HOST_UPDATE_CAPABILITY,
   HOSTED_SITES_CAPABILITY,
@@ -164,6 +166,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   AGENT_HOST_SETTINGS_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
+  HOST_PROGRESS_UPDATES_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -237,7 +240,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
     capability !== ACP_REGISTRY_CAPABILITY &&
     capability !== PROVIDERS_V5_CAPABILITY &&
-    capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY,
+    capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
+    capability !== HOST_PROGRESS_UPDATES_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -252,6 +256,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
       capability !== ACP_REGISTRY_CAPABILITY &&
       capability !== PROVIDERS_V5_CAPABILITY &&
-      capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY,
+      capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
+      capability !== HOST_PROGRESS_UPDATES_CAPABILITY,
   );
 }

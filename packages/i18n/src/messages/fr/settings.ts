@@ -46,9 +46,6 @@ export const messages = {
   "settings.busyMessage.title": "Orienter les agents pendant leur travail",
   "settings.busyMessage.description":
     "Les nouveaux messages rejoignent le travail en cours de l’agent, pas la file. Fonctionne avec ChatGPT et Claude.",
-  "settings.progressUpdates.title": "Points d’avancement pendant le travail des agents",
-  "settings.progressUpdates.description":
-    "Les agents affichent de courts points dans le chat aux étapes clés d’une longue tâche et répondent tout de suite à un message réorienté.",
   "settings.agentMemoryLimit.title": "Souvenirs par agent",
   "settings.agentMemoryLimit.description": "Nombre de souvenirs que chaque agent de cet ordinateur peut garder.",
   "settings.keepRemoteSessions.title": "Connexion rapide aux serveurs",

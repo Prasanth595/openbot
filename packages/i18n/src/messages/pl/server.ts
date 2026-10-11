@@ -252,6 +252,10 @@ export const messages = {
   "server.settings.setUp": "Skonfiguruj",
   "server.settings.notifications": "Powiadomienia",
   "server.settings.muteNotifications": "Wycisz powiadomienia",
+  "server.settings.agentsSection": "Agenci",
+  "server.settings.progressUpdates": "Postępy podczas pracy agentów",
+  "server.settings.progressUpdatesDescription":
+    "Agenci na tym serwerze pokazują na czacie krótkie informacje w kluczowych krokach długiego zadania i od razu odpowiadają na przekierowaną wiadomość.",
   "server.settings.muteDescription":
     "Zatrzymaj powiadomienia na pulpicie i aktualizacje w wycięciu MacBooka z tego serwera.",
   "server.settings.mutedUntilDescription": "{until}. Wyłącz, aby od razu przywrócić dźwięk.",

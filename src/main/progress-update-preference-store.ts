@@ -12,6 +12,12 @@ import { type PreferenceFileFailure, readPreferenceFile, writePreferenceFile } f
  * are chained for the reason `update-preference-store.ts` chains its own: an earlier rename that
  * lands last would persist the value the user just changed.
  */
+/** The switch as main uses it: a change also restarts the agents' sessions, so they get the new instructions. */
+export interface ProgressUpdateSettings {
+  get(): ProgressUpdatePreference;
+  set(preference: ProgressUpdatePreference): Effect.Effect<ProgressUpdatePreference, PreferenceFileFailure>;
+}
+
 export class ProgressUpdatePreferenceStore {
   readonly #path: string;
   #preference: ProgressUpdatePreference = { ...DEFAULT_PROGRESS_UPDATE_PREFERENCE };

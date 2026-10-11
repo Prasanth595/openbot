@@ -41,9 +41,6 @@ export const messages = {
   "settings.busyMessage.title": "Agenten während der Arbeit steuern",
   "settings.busyMessage.description":
     "Neue Nachrichten fließen in die aktuelle Arbeit des Agenten ein, nicht in die Warteschlange. Funktioniert mit ChatGPT und Claude.",
-  "settings.progressUpdates.title": "Fortschritt anzeigen, während Agenten arbeiten",
-  "settings.progressUpdates.description":
-    "Agenten zeigen bei wichtigen Schritten einer langen Aufgabe kurze Updates im Chat und antworten sofort auf eine umgeleitete Nachricht.",
   "settings.agentMemoryLimit.title": "Erinnerungen pro Agent",
   "settings.agentMemoryLimit.description": "Wie viele Erinnerungen jeder Agent auf diesem Computer behalten kann.",
   "settings.keepRemoteSessions.title": "Schnelle Verbindung zu Servern",

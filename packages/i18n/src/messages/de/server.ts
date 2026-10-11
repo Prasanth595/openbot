@@ -258,6 +258,10 @@ export const messages = {
   "server.settings.setUp": "Einrichten",
   "server.settings.notifications": "Benachrichtigungen",
   "server.settings.muteNotifications": "Benachrichtigungen stummschalten",
+  "server.settings.agentsSection": "Agenten",
+  "server.settings.progressUpdates": "Fortschritt anzeigen, während Agenten arbeiten",
+  "server.settings.progressUpdatesDescription":
+    "Agenten auf diesem Server zeigen bei wichtigen Schritten einer langen Aufgabe kurze Updates im Chat und antworten sofort auf eine umgeleitete Nachricht.",
   "server.settings.muteDescription":
     "Deaktiviere Desktop-Benachrichtigungen und MacBook-Notch-Aktualisierungen von diesem Server.",
   "server.settings.mutedUntilDescription": "{until}. Deaktiviere diese Option, um die Stummschaltung jetzt aufzuheben.",

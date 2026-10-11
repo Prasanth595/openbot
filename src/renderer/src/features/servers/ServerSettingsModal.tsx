@@ -84,6 +84,12 @@ export interface ServerSettingsModalProps {
   /** The Notifications section appears only when a caller supplies both: they are desktop notifications. */
   onSetMuted?: (muted: boolean) => Promise<void>;
   onSetNotificationLevel?: (level: ServerNotificationLevel) => Promise<void>;
+  /**
+   * Whether the agents of the host post progress updates while they work. The Agents section
+   * appears only when a caller supplies it: this computer, or a joined server with
+   * `host-progress-updates-v1` where the account is an owner or admin.
+   */
+  progressUpdates?: { enabled: boolean; onChange: (enabled: boolean) => Promise<void> } | undefined;
   onCreateInvite: (input: { role: "admin" | "member"; email?: string; permanent?: boolean }) => Promise<InviteSummary>;
   onUpdateMember: (input: UpdateTeamMemberInput) => Promise<void>;
   onRemoveMember: (memberId: string) => Promise<void>;

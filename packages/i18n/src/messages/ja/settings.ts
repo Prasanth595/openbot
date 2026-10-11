@@ -40,9 +40,6 @@ export const messages = {
   "settings.busyMessage.title": "作業中のエージェントの方向を修正",
   "settings.busyMessage.description":
     "新しいメッセージはキューに入らず、エージェントの現在の作業に加わります。ChatGPT と Claude で使えます。",
-  "settings.progressUpdates.title": "エージェントの作業中に進捗を表示",
-  "settings.progressUpdates.description":
-    "長いタスクの主要なステップで、エージェントがチャットに短い進捗を表示し、作業中に送られたメッセージにすぐ答えます。",
   "settings.agentMemoryLimit.title": "エージェントごとのメモリー数",
   "settings.agentMemoryLimit.description": "このコンピューターの各エージェントが保存できるメモリーの数です。",
   "settings.keepRemoteSessions.title": "サーバーへの高速接続",

@@ -164,7 +164,7 @@ import { MessagingCredentialStore } from "./messaging-credential-store";
 import { NotificationPreferenceStore } from "./notification-preference-store";
 import { OnePasswordConnectorService } from "./onepassword-connector-service";
 import { OnePasswordConnectorStore } from "./onepassword-connector-store";
-import { ProgressUpdatePreferenceStore } from "./progress-update-preference-store";
+import { ProgressUpdatePreferenceStore, type ProgressUpdateSettings } from "./progress-update-preference-store";
 import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
@@ -402,7 +402,7 @@ export interface ApplicationServices {
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitPreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
-  progressUpdates: ProgressUpdatePreferenceStore;
+  progressUpdates: ProgressUpdateSettings;
   remoteSessionCache: RemoteSessionCache;
   agentInitialization: AgentInitializationGate<AgentLifecycleFailed>;
   sidebarLayout: SidebarLayoutStore;
@@ -1300,6 +1300,11 @@ export async function createApplicationServices({
     tables,
   });
   teardown.push(TEARDOWN_ORDER.service, "the agent service", () => runCauseEffect(service.stop()));
+  const progressUpdateSettings: ProgressUpdateSettings = {
+    get: () => progressUpdates.get(),
+    set: (preference) =>
+      progressUpdates.set(preference).pipe(Effect.tap(() => Effect.sync(() => service.progressUpdatesChanged()))),
+  };
   // Listens only while an agent allows local scripts; see `AutomationServer`.
   const automation = new AutomationServer({
     root: store.automationRoot,
@@ -1665,6 +1670,7 @@ export async function createApplicationServices({
     admin: {
       agents: agentAdminSettings,
       agentHost: agentHostSettings,
+      progressUpdates: progressUpdateSettings,
       sessionSettings: service,
       acpRegistry,
       skills,
@@ -2265,7 +2271,7 @@ export async function createApplicationServices({
     busyMessageMode,
     agentMemoryLimit,
     remoteSessionReuse,
-    progressUpdates,
+    progressUpdates: progressUpdateSettings,
     remoteSessionCache,
     agentInitialization,
     hostUpdateCoordinator,

@@ -906,6 +906,38 @@ describe("Team API host-admin-v1", () => {
   });
 });
 
+describe("Team API host-progress-updates-v1", () => {
+  it("lets only an admin read and change progress updates on the host", async () => {
+    let preference = { enabled: false };
+    const progressUpdates = {
+      get: () => preference,
+      set: (next: { enabled: boolean }) =>
+        Effect.sync(() => {
+          preference = next;
+          return preference;
+        }),
+    };
+    const { admin, asMember, post } = await signedIn("host-progress-updates", { admin: { progressUpdates } });
+    const withCapability = { ...admin, "OpenBot-Capabilities": "host-progress-updates-v1" };
+    const memberWithCapability = { ...asMember, "OpenBot-Capabilities": "host-progress-updates-v1" };
+
+    expect((await post("/v1/admin/host/progress-updates", {})).status).toBe(400);
+    expect((await post("/v1/admin/host/progress-updates/update", { enabled: true }, memberWithCapability)).status).toBe(
+      403,
+    );
+    expect((await post("/v1/admin/host/progress-updates/update", {}, withCapability)).status).toBe(400);
+    expect(preference).toEqual({ enabled: false });
+
+    expect(await (await post("/v1/admin/host/progress-updates", {}, withCapability)).json()).toEqual({
+      enabled: false,
+    });
+    expect(
+      await (await post("/v1/admin/host/progress-updates/update", { enabled: true }, withCapability)).json(),
+    ).toEqual({ enabled: true });
+    expect(preference).toEqual({ enabled: true });
+  });
+});
+
 describe("Team API host-update-v1", () => {
   it("lets only an admin start an update, and refuses it when the host user turned it off", async () => {
     let allowed = true;

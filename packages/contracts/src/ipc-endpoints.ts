@@ -481,10 +481,6 @@ export const IPC_ENDPOINTS = {
     setAgentMemoryLimitPreference: request<AgentMemoryLimitPreference, AgentMemoryLimitPreference>()(
       "app:set-agent-memory-limit",
     ),
-    getProgressUpdatePreference: request<undefined, ProgressUpdatePreference>()("app:get-progress-updates"),
-    setProgressUpdatePreference: request<ProgressUpdatePreference, ProgressUpdatePreference>()(
-      "app:set-progress-updates",
-    ),
     getRemoteSessionReusePreference: request<undefined, RemoteSessionReusePreference>()("app:get-remote-session-reuse"),
     setRemoteSessionReusePreference: request<RemoteSessionReusePreference, RemoteSessionReusePreference>()(
       "app:set-remote-session-reuse",
@@ -728,7 +724,7 @@ export const IPC_ENDPOINTS = {
       "messaging:add-telegram-orchestrator",
     ),
   },
-  // The server name, logo and app update of one server's host. `host.updateIdentity` and `update`
+  // The server name, logo, app update and progress update switch of one server's host. `host.updateIdentity` and `update`
   // reach this computer only; these take the server, so a remote admin reaches the host. The
   // identity result is the server as the list shows it after the change.
   hostAdmin: {
@@ -741,6 +737,11 @@ export const IPC_ENDPOINTS = {
     cancelUpdate: scopedQuery<HostUpdateStatus, "required">()("host-admin:cancel-update"),
     setUpdateSettings: scopedRequest<HostUpdateSettingsChange, HostUpdateStatus, "required">()(
       "host-admin:set-update-settings",
+    ),
+    // Whether the agents of the host post progress updates while they work. An owner or admin.
+    getProgressUpdates: scopedQuery<ProgressUpdatePreference, "required">()("host-admin:get-progress-updates"),
+    setProgressUpdates: scopedRequest<ProgressUpdatePreference, ProgressUpdatePreference, "required">()(
+      "host-admin:set-progress-updates",
     ),
   },
   // The built-in GitHub connection of this computer. Local only: a remote client connects GitHub on

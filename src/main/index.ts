@@ -502,7 +502,6 @@ function registerIpcHandlers({
       busyMessageMode,
       agentMemoryLimit,
       remoteSessionReuse,
-      progressUpdates,
       remoteSessionCache,
       language,
       logoColor,
@@ -579,7 +578,7 @@ function registerIpcHandlers({
       agentTemplates,
       remoteServers,
     }),
-    ...hostAdminIpcHandlers({ host, remoteServers }),
+    ...hostAdminIpcHandlers({ host, remoteServers, progressUpdates }),
     ...providerAdminIpcHandlers({
       service,
       credentials: providerCredentials,

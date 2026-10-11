@@ -116,13 +116,16 @@ branch refuses them, and no Team API protocol changes.
 
 `openbot.post_update` lets an agent show a short checkpoint while a user task runs, so the user does
 not wait for the end of the turn to know what happens. It works with every provider, because each
-one receives the same OpenBot tools. The user turns it on in Settings > General ("Progress updates
-while agents work"); it is off by default. `ProgressUpdatePreferenceStore` in `src/main` keeps the
-choice in `openbot-progress-update-preference-v1.json`, and a file that is missing or invalid reads
-as off. When it is off, the developer instructions tell the agent not to call the tool, and the tool
-refuses. A change unloads the loaded provider sessions, as a memory limit change does, so the next
-turn resumes with the new instructions. A headless server has no Settings for it, so it stays off
-there. The policy asks for an update only at key
+one receives the same OpenBot tools. It is a setting of the host, off by default. An owner or admin
+turns it on in Server settings > General ("Progress updates while agents work"), for the local server
+or for a connected server. `ProgressUpdatePreferenceStore` in `src/main` keeps the choice on the host
+in `openbot-progress-update-preference-v1.json`, and a file that is missing or invalid reads as off.
+The `hostAdmin` IPC endpoints read and change it; for a remote server they use the admin-only Team
+API capability `host-progress-updates-v1` (`team-protocol/host-progress-updates-v1.ts`), which is
+advertised only to protocol 7 peers. So a GUI that connects to a headless server can change it. The
+web client and the mobile app do not show the row. When it is off, the developer instructions tell
+the agent not to call the tool, and the tool refuses. A change unloads the loaded provider sessions,
+as a memory limit change does, so the next turn resumes with the new instructions. The policy asks for an update only at key
 checkpoints: the plan of a long task, a finding that changes the work, a blocker, or a change of
 direction. When the user steers a message into the running turn, the agent answers it at once with
 an update and continues. The router (`#postUpdate` in `agent/openbot-tool-router.ts`) adds a normal
@@ -130,8 +133,8 @@ assistant message to the running turn, in place in the live snapshot as `html_re
 turn-completion write keeps it. The message id comes from the thread, turn and call ids, so a retried
 call adds no second update. Only a turn that holds a user delivery can post one: routine runs and
 teammate work stay quiet until their result, and a channel turn uses channel tools. The update is a
-message of the conversation, so no IPC, Team API or database schema changes, and every client shows
-it. It does not send a desktop notification: notifications still follow the end of the turn.
+message of the conversation, so no database schema changes, and every client shows it. It does
+not send a desktop notification: notifications still follow the end of the turn.
 
 ## Agent communication policy
 

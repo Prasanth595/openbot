@@ -103,7 +103,6 @@ const Settings = createSimpleContext({
     let autoInstallUpdatesChanged = false;
     let desktopNotificationsChanged = false;
     let busyMessageModeChanged = false;
-    let progressUpdatesChanged = false;
     let agentMemoryLimitChanged = false;
     let keepRemoteSessionsChanged = false;
     let turboModeChanged = false;
@@ -242,14 +241,6 @@ const Settings = createSimpleContext({
           "busyMessageMode",
           settingsPort().setBusyMessageModePreference({ mode: value.busyMessageMode }),
           (preference) => preference.mode,
-        );
-      }
-      if (previous.progressUpdates !== value.progressUpdates) {
-        progressUpdatesChanged = true;
-        persistField(
-          "progressUpdates",
-          settingsPort().setProgressUpdatePreference({ enabled: value.progressUpdates }),
-          (preference) => preference.enabled,
         );
       }
       if (previous.agentMemoryLimit !== value.agentMemoryLimit) {
@@ -417,13 +408,6 @@ const Settings = createSimpleContext({
         .then((preference) => {
           if (busyMessageModeChanged) return;
           setGeneralSettings((current) => ({ ...current, busyMessageMode: preference.mode }));
-        })
-        .catch(() => undefined);
-      void settingsPort()
-        .getProgressUpdatePreference()
-        .then((preference) => {
-          if (progressUpdatesChanged) return;
-          setGeneralSettings((current) => ({ ...current, progressUpdates: preference.enabled }));
         })
         .catch(() => undefined);
       void settingsPort()

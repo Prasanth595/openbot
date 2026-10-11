@@ -40,9 +40,6 @@ export const messages = {
   "settings.busyMessage.title": "Ajanları çalışırken yönlendir",
   "settings.busyMessage.description":
     "Yeni mesajlar kuyruğa değil, ajanın mevcut işine eklenir. ChatGPT ve Claude ile çalışır.",
-  "settings.progressUpdates.title": "Ajanlar çalışırken ilerleme güncellemeleri",
-  "settings.progressUpdates.description":
-    "Ajanlar uzun bir görevin önemli adımlarında sohbette kısa güncellemeler gösterir ve yönlendirilen bir mesaja hemen yanıt verir.",
   "settings.agentMemoryLimit.title": "Ajan başına bellek",
   "settings.agentMemoryLimit.description": "Bu bilgisayardaki her ajanın tutabileceği bellek sayısı.",
   "settings.keepRemoteSessions.title": "Sunuculara hızlı bağlantı",

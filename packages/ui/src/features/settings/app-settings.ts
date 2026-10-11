@@ -30,8 +30,6 @@ export interface GeneralSettingsValue {
   sendShortcut: SendShortcutMode;
   /** What a message sent to a busy agent does, unless the agent or the message sets its own. */
   busyMessageMode: BusyMessageMode;
-  /** Agents show short progress updates in the chat while they work on a user task. */
-  progressUpdates: boolean;
   /** How many memories one agent on this computer can hold. */
   agentMemoryLimit: AgentMemoryLimit;
   /** Keep each joined server's connection between runs of the app, so the start is faster. */
@@ -67,7 +65,6 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
   taskCompletionSound: true,
   sendShortcut: "enter",
   busyMessageMode: "queue",
-  progressUpdates: false,
   agentMemoryLimit: DEFAULT_AGENT_MEMORY_LIMIT,
   keepRemoteSessions: true,
   soundFeedback: false,

@@ -254,6 +254,10 @@ export const messages = {
   "server.settings.setUp": "Configurer",
   "server.settings.notifications": "Notifications",
   "server.settings.muteNotifications": "Mettre les notifications en sourdine",
+  "server.settings.agentsSection": "Agents",
+  "server.settings.progressUpdates": "Points d’avancement pendant le travail des agents",
+  "server.settings.progressUpdatesDescription":
+    "Les agents de ce serveur affichent de courts points dans le chat aux étapes clés d’une longue tâche et répondent tout de suite à un message réorienté.",
   "server.settings.muteDescription":
     "Arrêtez les notifications de bureau et les mises à jour de l’encoche du MacBook pour ce serveur.",
   "server.settings.mutedUntilDescription": "{until}. Désactivez pour réactiver le son maintenant.",

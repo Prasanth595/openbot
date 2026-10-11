@@ -258,6 +258,10 @@ export const messages = {
   "server.settings.setUp": "Настроить",
   "server.settings.notifications": "Уведомления",
   "server.settings.muteNotifications": "Отключить уведомления",
+  "server.settings.agentsSection": "Агенты",
+  "server.settings.progressUpdates": "Обновления во время работы агентов",
+  "server.settings.progressUpdatesDescription":
+    "Агенты этого сервера показывают в чате короткие обновления на ключевых шагах долгой задачи и сразу отвечают на перенаправленное сообщение.",
   "server.settings.muteDescription":
     "Прекратить уведомления на рабочем столе и обновления в вырезе MacBook от этого сервера.",
   "server.settings.mutedUntilDescription": "{until}. Выключите, чтобы включить уведомления сейчас.",

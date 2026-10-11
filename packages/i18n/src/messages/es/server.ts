@@ -251,6 +251,10 @@ export const messages = {
   "server.settings.setUp": "Configurar",
   "server.settings.notifications": "Notificaciones",
   "server.settings.muteNotifications": "Silenciar notificaciones",
+  "server.settings.agentsSection": "Agentes",
+  "server.settings.progressUpdates": "Avisos de progreso mientras los agentes trabajan",
+  "server.settings.progressUpdatesDescription":
+    "Los agentes de este servidor muestran avisos cortos en el chat en los pasos clave de una tarea larga y responden al instante a un mensaje redirigido.",
   "server.settings.muteDescription":
     "Detén las notificaciones de escritorio y las actualizaciones en la muesca del MacBook de este servidor.",
   "server.settings.mutedUntilDescription": "{until}. Desactiva para volver a recibir notificaciones ahora.",

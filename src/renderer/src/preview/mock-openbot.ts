@@ -583,11 +583,6 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return () => approvalAutomationListeners.delete(listener);
     },
     getBusyMessageModePreference: async () => clone(busyMessageMode),
-    getProgressUpdatePreference: async () => clone(progressUpdates),
-    setProgressUpdatePreference: async ({ enabled }) => {
-      progressUpdates = { enabled };
-      return clone(progressUpdates);
-    },
     getRemoteSessionReusePreference: async () => clone(remoteSessionReuse),
     setRemoteSessionReusePreference: async ({ keepBetweenRuns }) => {
       remoteSessionReuse = { keepBetweenRuns };
@@ -1973,6 +1968,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return server;
       },
       ...createMockHostUpdate(options),
+      getProgressUpdates: async () => clone(progressUpdates),
+      setProgressUpdates: async ({ enabled }) => {
+        progressUpdates = { enabled };
+        return clone(progressUpdates);
+      },
     },
     storage: createMockStorage(),
     agentImport: {
