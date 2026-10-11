@@ -1137,6 +1137,47 @@ describe("shared channel coordination", () => {
     expect(service.store.messages("channel-1").some((message) => message.id === "history-receipt")).toBe(true);
   });
 
+  it("keeps a member's thinking out of the history another member reads", async () => {
+    const task = await send("Write the report");
+    const reply = (id: string, text: string, itemType?: string): ChannelMessage => ({
+      id,
+      channelId: "channel-1",
+      sequence: 0,
+      author: { kind: "agent", id: "agent-a", name: "A" },
+      taskId: task.id,
+      superseded: false,
+      message: {
+        id,
+        author: "assistant",
+        text,
+        status: "completed",
+        createdAt: "2026-09-07T12:00:00.000Z",
+        turnId: "turn-a",
+        ...(itemType ? { itemType } : {}),
+      },
+    });
+    service.store.update(service.store.get("channel-1"), {
+      messages: [
+        reply("turn-a:reasoning", "PRIVATE_THINKING", "commentary"),
+        reply("turn-b:thought:1", "PRIVATE_THOUGHT", "commentary"),
+        reply("turn-a:narration:0", "The draft is in report.md.", "commentary"),
+        reply("turn-a:assistant", "The report is ready."),
+      ],
+    });
+    const history = new ChannelHistory(service.store, vi.fn<ChannelTextModel>(), service.memories);
+    const prepared = await runChannel(
+      history.prepare(task, required(data.store.list()[0]), required(data.store.list()[0])),
+    );
+    // Claude rejects a request that carries another model's thinking, for every member of the channel.
+    expect(prepared.text).toContain("The report is ready.");
+    expect(prepared.text).not.toContain("PRIVATE_THINKING");
+    expect(prepared.text).not.toContain("PRIVATE_THOUGHT");
+    // Text between tool calls can be the only answer of a turn, so the other members keep it.
+    expect(prepared.text).toContain("The draft is in report.md.");
+    // The reader still sees the thinking in the channel.
+    expect(service.store.messages("channel-1").some((message) => message.id === "turn-a:reasoning")).toBe(true);
+  });
+
   it("transfers one owner and waits for the declared task dependency", async () => {
     const task = await send("Write the report");
     const assignment = required(service.store.assignments("channel-1")[0]);

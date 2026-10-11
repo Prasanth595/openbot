@@ -532,9 +532,11 @@ export const IPC_ENDPOINTS = {
     clearProviderApiKey: request<AgentProviderId, AgentStatus>()("app:clear-provider-api-key"),
     getProviderApiKeyState: request<AgentProviderId, ProviderApiKeyState>()("app:get-provider-api-key-state"),
     /**
-     * Starts a sign-in the user finishes on another device, for a provider whose descriptor says
-     * `codeSignIn`. Cancel it with `cancelProviderCodeLogin`; leaving it running holds one provider
-     * process open until the code expires.
+     * Starts a sign-in the user finishes on another device, for a provider whose backend driver has
+     * one: Codex, Grok, Cursor, Cline and Muse, and Claude on Linux. A pasted code goes to
+     * `providerAdmin.submitCodeLogin` with `LOCAL_SERVER_ID`. Cancel it with
+     * `cancelProviderCodeLogin`; leaving it running holds one provider process open until the code
+     * expires.
      */
     startProviderCodeLogin: request<AgentProviderId, ProviderCodeLoginStart>()("app:start-provider-code-login"),
     /** Abandons a code sign-in: the provider is told, the code is dead, and the provider goes idle. */

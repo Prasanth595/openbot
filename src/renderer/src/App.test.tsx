@@ -5,6 +5,7 @@ import type {
   ConversationSnapshot,
   Routine,
 } from "@openbot/contracts/ipc";
+import { LOCAL_SERVER_ID } from "@openbot/contracts/ipc";
 import { Toaster, toast } from "@openbot/ui";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { createSignal, Show } from "solid-js";
@@ -1448,5 +1449,53 @@ describe("OpenBot connected desktop shell", () => {
     await waitFor(() => expect(screen.getByLabelText("ChatGPT row")).toHaveTextContent("connecting"));
     emitAgentEvent?.({ type: "status", status: codexStatus({ email: "second@example.com" }) });
     expect(await screen.findByText("Signed in as second@example.com.")).toBeVisible();
+  });
+  // Without a submit, a code pasted on this computer went nowhere and the dialog stayed open.
+  it("sends a code pasted on this computer to the local host", async () => {
+    vi.mocked(window.openbot.startProviderCodeLogin).mockResolvedValueOnce({
+      kind: "paste",
+      verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
+      expiresAt: Date.now() + 600_000,
+    });
+    const submitCodeLogin = vi.fn(async () => ({
+      ...codexStatus({}),
+      providers: [
+        {
+          id: "claude" as const,
+          state: "available" as const,
+          version: "2.1.0",
+          message: null,
+          connectionState: "connecting" as const,
+        },
+      ],
+    }));
+    window.openbot.providerAdmin.submitCodeLogin = submitCodeLogin;
+    function PasteProbe() {
+      const { codeLogin } = useProviders();
+      return (
+        <>
+          <button type="button" onClick={() => codeLogin.start("claude")}>
+            Log in with code
+          </button>
+          <button type="button" onClick={() => codeLogin.submit("pasted-code")}>
+            Submit code
+          </button>
+          <output aria-label="Code sign-in">{codeLogin.provider() ? codeLogin.state().phase : "closed"}</output>
+        </>
+      );
+    }
+    render(() => (
+      <AppProviders>
+        <PasteProbe />
+      </AppProviders>
+    ));
+    await fireEvent.click(screen.getByRole("button", { name: "Log in with code" }));
+    await waitFor(() => expect(screen.getByLabelText("Code sign-in")).toHaveTextContent("paste"));
+    await fireEvent.click(screen.getByRole("button", { name: "Submit code" }));
+
+    await waitFor(() =>
+      expect(submitCodeLogin).toHaveBeenCalledWith({ provider: "claude", code: "pasted-code" }, LOCAL_SERVER_ID),
+    );
+    await waitFor(() => expect(screen.getByLabelText("Code sign-in")).toHaveTextContent("verifying"));
   });
 });

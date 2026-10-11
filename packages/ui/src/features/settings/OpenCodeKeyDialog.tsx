@@ -13,6 +13,7 @@ import type {
   ProviderApiKeyState,
   ProviderApiKeyStatus,
 } from "@openbot/contracts/ipc";
+import type { AppTextKey } from "@openbot/i18n";
 import {
   Alert,
   AlertContent,
@@ -28,7 +29,35 @@ import {
 import { createSignal, onSettled, Show } from "solid-js";
 import { useText } from "../../text";
 
-const OPENCODE_GO = "OpenCode Go";
+/** The text of each provider whose key this dialog saves. Muse and Gemini also sign in without a key. */
+const KEY_TEXT = {
+  opencode: {
+    name: "OpenCode Go",
+    title: "provider.openCodeKey.title",
+    description: "provider.openCodeKey.description",
+    label: "provider.openCodeKey.label",
+  },
+  muse: {
+    name: "Muse",
+    title: "provider.museKey.title",
+    description: "provider.museKey.description",
+    label: "provider.museKey.label",
+  },
+  antigravity: {
+    name: "Gemini",
+    title: "provider.geminiKey.title",
+    description: "provider.geminiKey.description",
+    label: "provider.geminiKey.label",
+  },
+} as const satisfies Record<string, { name: string; title: AppTextKey; description: AppTextKey; label: AppTextKey }>;
+
+/** A provider whose API key this dialog saves. */
+export type KeyDialogProvider = keyof typeof KEY_TEXT;
+
+/** Whether `provider` has a key in this dialog. */
+export function isKeyDialogProvider(provider: AgentProviderId): provider is KeyDialogProvider {
+  return Object.hasOwn(KEY_TEXT, provider);
+}
 
 /** The provider-key half of the desktop API, narrowed so a test can pass four functions. */
 export interface ProviderKeyApi {
@@ -40,7 +69,7 @@ export interface ProviderKeyApi {
 
 export interface OpenCodeKeyDialogProps {
   api: ProviderKeyApi;
-  provider?: "opencode" | "muse";
+  provider?: KeyDialogProvider;
   onClose: () => void;
   /**
    * Retries the connection without touching credentials. Without it a failed free provider with
@@ -55,6 +84,7 @@ type DialogPhase = "idle" | "loading" | "saving" | "removing";
 export function OpenCodeKeyDialog(props: OpenCodeKeyDialogProps) {
   const { t, errorMessage } = useText();
   const provider = () => props.provider ?? "opencode";
+  const text = () => KEY_TEXT[provider()];
   const [key, setKey] = createSignal("");
   const [stored, setStored] = createSignal<ProviderApiKeyStatus>("missing");
   const [phase, setPhase] = createSignal<DialogPhase>("loading");
@@ -126,21 +156,14 @@ export function OpenCodeKeyDialog(props: OpenCodeKeyDialogProps) {
         <Dialog.Overlay class="opencode-key-backdrop">
           <Dialog.Content class="opencode-key-dialog" as="section">
             <header class="opencode-key-header">
-              <Dialog.Title class="opencode-key-title">
-                {t(provider() === "muse" ? "provider.museKey.title" : "provider.openCodeKey.title")}
-              </Dialog.Title>
+              <Dialog.Title class="opencode-key-title">{t(text().title)}</Dialog.Title>
               {/* One line that is always the dialog's whole message: the default pitch, the saved
                   fact, or the unreadable warning. A second text block would repeat it. */}
               <Dialog.Description class="opencode-key-description">
                 <Show
                   when={stored() === "saved"}
                   fallback={
-                    <Show
-                      when={stored() === "unreadable"}
-                      fallback={t(
-                        provider() === "muse" ? "provider.museKey.description" : "provider.openCodeKey.description",
-                      )}
-                    >
+                    <Show when={stored() === "unreadable"} fallback={t(text().description)}>
                       {t("provider.openCodeKey.unreadable")}
                     </Show>
                   }
@@ -158,7 +181,7 @@ export function OpenCodeKeyDialog(props: OpenCodeKeyDialogProps) {
                 void save();
               }}
             >
-              <Field label={t(provider() === "muse" ? "provider.museKey.label" : "provider.openCodeKey.label")}>
+              <Field label={t(text().label)}>
                 <Input
                   type="password"
                   autocomplete="off"
@@ -177,7 +200,7 @@ export function OpenCodeKeyDialog(props: OpenCodeKeyDialogProps) {
                       <OctagonX />
                     </AlertIcon>
                     <AlertContent>
-                      <AlertTitle>{provider() === "muse" ? "Muse" : OPENCODE_GO}</AlertTitle>
+                      <AlertTitle>{text().name}</AlertTitle>
                       <AlertDescription>{message()}</AlertDescription>
                     </AlertContent>
                   </Alert>

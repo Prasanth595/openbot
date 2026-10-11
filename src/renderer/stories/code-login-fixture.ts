@@ -97,5 +97,6 @@ export function createFakeCodeLogin(options: FakeCodeLoginOptions = {}): Provide
     },
     cancel: close,
     openVerificationUrl: () => undefined,
+    opener: () => null,
   };
 }

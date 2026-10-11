@@ -1,6 +1,7 @@
 import type { AgentProviderId, ProviderRuntimeStatus } from "@openbot/contracts/ipc";
 import { freeModelsReady, ProviderPicker, type ProviderPickerOption } from "@openbot/ui/components/ProviderPicker";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import { createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 
 /*
@@ -172,20 +173,69 @@ describe("ProviderPicker", () => {
     expect(
       menu({ ...codex, runtimeStatus: runtime({ phase: "downloading", progress: 40, version: null }) }),
     ).toBeNull();
-    // Claude has no code sign-in, so its row has no menu to hold one.
-    expect(
+    // Claude has a code sign-in only where the host can take a pasted code.
+    const claudeMenu = (codeSignInProviders: AgentProviderId[] | undefined) =>
       render(() => (
         <ProviderPicker
           value="claude"
           options={[{ ...claude, state: "available" }]}
           ariaLabel="AI providers"
           allowUnavailableSelection
+          codeSignInProviders={codeSignInProviders}
           onChange={vi.fn()}
           onSignInProvider={vi.fn()}
           onSignInWithCodeProvider={onSignInWithCodeProvider}
         />
-      )).queryByRole("button", { name: "More actions for Claude" }),
-    ).toBeNull();
+      )).queryByRole("button", { name: "More actions for Claude" });
+    expect(claudeMenu(undefined)).toBeNull();
+    expect(claudeMenu(["codex"])).toBeNull();
+    expect(claudeMenu(["codex", "claude"])).toBeTruthy();
+  });
+
+  it("suggests the code sign-in when the browser sign-in does not finish", async () => {
+    vi.useFakeTimers();
+    try {
+      const onSignInWithCodeProvider = vi.fn();
+      const [connectionState, setConnectionState] = createSignal<"connecting" | undefined>(undefined);
+      const onConnectProvider = vi.fn(() => {
+        setConnectionState("connecting");
+      });
+      const view = render(() => (
+        <ProviderPicker
+          value="codex"
+          options={[
+            {
+              id: "codex",
+              name: "ChatGPT",
+              state: "sign-in-required",
+              message: null,
+              connectionState: connectionState(),
+            },
+          ]}
+          ariaLabel="AI providers"
+          allowUnavailableSelection
+          onChange={vi.fn()}
+          onConnectProvider={onConnectProvider}
+          onSignInProvider={vi.fn()}
+          onSignInWithCodeProvider={onSignInWithCodeProvider}
+        />
+      ));
+      const hint = () => view.queryByRole("button", { name: "Log in to ChatGPT with a code" });
+      await fireEvent.click(view.getByRole("button", { name: "Connect ChatGPT" }));
+
+      await vi.advanceTimersByTimeAsync(24_000);
+      expect(hint()).toBeNull();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(hint()).toBeTruthy();
+
+      // A failed attempt keeps the suggestion.
+      setConnectionState(undefined);
+      await vi.advanceTimersByTimeAsync(0);
+      await fireEvent.click(view.getByRole("button", { name: "Log in to ChatGPT with a code" }));
+      expect(onSignInWithCodeProvider).toHaveBeenCalledWith("codex");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("offers Update in every downloaded row's actions menu, and a check where no newer version is known", async () => {

@@ -60,6 +60,7 @@ export const messages = defineMessages("provider", {
   "provider.aria.retry": "Retry {name}",
   "provider.aria.install": "Install {name}",
   "provider.aria.signIn": "Sign in to {name}",
+  "provider.aria.codeFallback": "Log in to {name} with a code",
   "provider.aria.moreActions": "More actions for {name}",
 
   // The switch that turns a provider on or off in OpenBot. While an agent uses the provider, the
@@ -131,6 +132,9 @@ export const messages = defineMessages("provider", {
   "provider.museKey.title": "Meta API key for Muse",
   "provider.museKey.description": "Save a Meta API key on the host, or use the Muse CLI to sign in.",
   "provider.museKey.label": "Meta API key",
+  "provider.geminiKey.title": "Gemini API key",
+  "provider.geminiKey.description": "Save a Gemini API key on the host, or select Connect to sign in with Google.",
+  "provider.geminiKey.label": "Gemini API key",
 
   // The optional OpenCode Go key dialog.
   "provider.openCodeKey.title": "Sign in to OpenCode Go",

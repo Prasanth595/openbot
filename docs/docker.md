@@ -32,6 +32,14 @@ docker exec -it openbot openbot login
 server shows in the server list of that account. Then connect a provider from the app, as on a
 [hosted server](hosted-servers.md#providers).
 
+To connect the phone app, show a Mobile Connect code in the terminal and scan it with the app:
+
+```sh
+docker exec -it openbot openbot mobile-connect
+```
+
+See [Phone app](self-hosted-server.md#phone-app).
+
 The options in both examples are necessary:
 
 | Option | Why |
@@ -86,7 +94,7 @@ protect a home folder. To back it up, stop the container and copy the volume.
 
 ## Commands
 
-In the container, `openbot status`, `login`, `logout`, `name` and `version` work as on a
+In the container, `openbot status`, `login`, `mobile-connect`, `logout`, `name` and `version` work as on a
 [self-hosted server](self-hosted-server.md#commands). Do the other tasks with Docker on the host:
 
 | Task | Command |

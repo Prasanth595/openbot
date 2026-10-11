@@ -812,8 +812,10 @@ OpenBot downloads Google's Antigravity ACP server from `dl.google.com` when you 
 the Gemini row. Each provider update check also asks `dl.google.com` for the size of the newest
 download, also when you do not use Gemini. Google's license does not let OpenBot include it in the application. OpenBot
 starts the server as a local process. Prompts, attachments, and tool results go to that process,
-and the server sends them to Google. Sign in opens Google's sign-in page in your browser. The
-server keeps its login and session files in `~/.gemini`, or in `$GEMINI_HOME`. OpenBot does not
+and the server sends them to Google. Connect opens Google's sign-in page in your browser. On this
+computer, Sign in saves a Gemini API key instead: OpenBot encrypts it in its existing provider
+credential store, gives it to the server as `GEMINI_API_KEY`, and redacts it from logs. The server
+sends the key to Google. The server keeps its login and session files in `~/.gemini`, or in `$GEMINI_HOME`. OpenBot does not
 read, copy, or upload these files. Google's terms apply: <https://antigravity.google/terms>.
 Gemini agents stay on this computer: OpenBot does not show them to team members.
 
@@ -1021,7 +1023,9 @@ check status, and installation method.
 Pi and Muse run on the host selected for the agent. They receive the conversation input, attached
 images, tool definitions, and enabled MCP server configuration needed for a turn. Provider account
 files remain under each provider's control. An explicit Meta API key is encrypted in OpenBot's
-existing provider credential store. Settings responses and settings-change events contain no
+existing provider credential store. Log in with code for Muse starts a local Muse process, with no
+shell, no file writes and no Meta API key, that asks Meta for a code. You confirm the code on Meta's
+page, and Muse keeps the account in its own files. Settings responses and settings-change events contain no
 provider credentials; the event carries only the agent ID.
 
 ACP registry search fetches the catalog from `cdn.agentclientprotocol.com`; search text is matched

@@ -6,6 +6,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer } from "effect";
+import { REASONING_ID } from "./agent/handoff-tool-steps";
 import { type ChannelOperationError, channelFailure, channelSync } from "./channel-effects";
 import type { ChannelMemoryStore } from "./channel-memory-store";
 import type { ChannelStore } from "./channel-store";
@@ -36,9 +37,21 @@ function render(messages: ChannelMessage[]): string {
  * The rows a model reads. A routing receipt ("Assigned to Builder.") is activity the channel shows
  * its reader, and the packet already carries the owner of every task, so sending it again would
  * only repeat the routing that the turn instructions tell the member to leave out of its reply.
+ *
+ * A member's thinking stays in the channel for the reader too, but another model must not read it:
+ * Claude rejects a request that carries a model's thinking (`reasoning_extraction`), and the packet
+ * is rebuilt on every turn, so one such row stopped every assignment in the channel until the
+ * summary covered it. The text between tool calls is commentary as well, but it stays: a turn that
+ * answers and then calls a tool keeps its answer there.
  */
 function conversation(messages: ChannelMessage[]): ChannelMessage[] {
-  return messages.filter((message) => channelRoutingConversationEvent(message.message) === null);
+  return messages.filter(
+    (message) => channelRoutingConversationEvent(message.message) === null && !isMemberThinking(message),
+  );
+}
+
+export function isMemberThinking({ message }: ChannelMessage): boolean {
+  return message.author === "assistant" && message.itemType === "commentary" && REASONING_ID.test(message.id);
 }
 
 /** Cuts one rendered message into inputs the summary model accepts. The source ID stays the same. */

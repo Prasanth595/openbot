@@ -51,6 +51,7 @@ export const messages = {
   "provider.aria.retry": "Tentar {name} novamente",
   "provider.aria.install": "Instalar {name}",
   "provider.aria.signIn": "Entrar em {name}",
+  "provider.aria.codeFallback": "Entrar em {name} com um código",
   "provider.aria.moreActions": "Mais ações para {name}",
   "provider.aria.use": "Usar {name} no OpenBot",
   "provider.use.inUse": {
@@ -114,6 +115,10 @@ export const messages = {
   "provider.museKey.title": "Chave de API da Meta para o Muse",
   "provider.museKey.description": "Salve uma chave de API da Meta no host ou use a CLI do Muse para entrar.",
   "provider.museKey.label": "Chave de API da Meta",
+  "provider.geminiKey.title": "Chave de API do Gemini",
+  "provider.geminiKey.description":
+    "Salve uma chave de API do Gemini no host ou selecione Conectar para entrar com o Google.",
+  "provider.geminiKey.label": "Chave de API do Gemini",
   "provider.openCodeKey.title": "Entrar no OpenCode Go",
   "provider.openCodeKey.description":
     "Os modelos gratuitos não exigem uma conta. Uma chave libera os modelos pagos do Go.",

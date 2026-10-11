@@ -1,4 +1,9 @@
-import { type AgentProviderId, type AgentStatus, agentProviderDescriptor } from "@openbot/contracts/ipc";
+import {
+  type AgentProviderId,
+  type AgentStatus,
+  agentProviderDescriptor,
+  LOCAL_SERVER_ID,
+} from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { toast } from "@openbot/ui";
 import { currentText } from "@openbot/ui/text";
@@ -15,11 +20,13 @@ import { remoteProviderRuntimes } from "./features/provider-updates/remote-provi
 import {
   codeSignInProviders,
   hostSignInProviders,
+  localCodeSignInProviders,
   remoteAdminServer,
   serverSupportsCapability,
 } from "./features/servers/server-capabilities";
 import { useServers } from "./features/servers/servers-context";
 import { hostProviderKeyApi, providerKeyApi } from "./features/settings/provider-key-api";
+import { usePlatform } from "./platform";
 import { providersPort } from "./providers-port";
 import { createSimpleContext } from "./simple-context";
 
@@ -34,6 +41,7 @@ const Providers = createSimpleContext({
   init: () => {
     const { agentStatus, setAgentStatus } = useAgents();
     const { activeServer } = useServers();
+    const { appInfo } = usePlatform();
     const [refreshingProviders, setRefreshingProviders] = createSignal(false);
     /**
      * A CLI the user installed themselves, and the version it reports. Only the agent status knows
@@ -247,10 +255,12 @@ const Providers = createSimpleContext({
             }
           : {
               start: (provider) => providersPort().startProviderCodeLogin(provider),
+              submit: (provider, code) => providerAdmin().submitCodeLogin({ provider, code }, LOCAL_SERVER_ID),
               cancel: (provider) => providersPort().cancelProviderCodeLogin(provider),
             };
       },
-      providers: () => codeSignInProviders(providerAdminServerId() ? activeServer() : undefined),
+      providers: () =>
+        providerAdminServerId() ? codeSignInProviders(activeServer()) : localCodeSignInProviders(appInfo()?.platform),
       openVerificationUrl: (url) => void appPort().openUrl(url),
       connection: {
         begin: (provider) => {

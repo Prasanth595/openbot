@@ -3,6 +3,7 @@ import type { AppFormat } from "@openbot/i18n";
 import { Button, ErrorReference, TriangleAlert } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
+import { createCodeSignInFallback } from "../../components/createCodeSignInFallback";
 import { useText } from "../../text";
 import { CloseIcon } from "./ConversationIcons";
 
@@ -107,6 +108,8 @@ function NoticeContent(props: {
 export function ComposerSignInNotice(props: {
   provider: AgentProviderId;
   onSignIn: (provider: AgentProviderId) => void | Promise<void>;
+  /** The code sign-in, offered when the browser sign-in that `onSignIn` starts is slow or fails. */
+  onSignInWithCode?: ((provider: AgentProviderId) => void) | undefined;
   signingIn?: boolean;
   onShown?: () => void;
 }) {
@@ -123,9 +126,11 @@ export function ComposerSignInNotice(props: {
    */
   const [starting, setStarting] = createSignal(false);
   const busy = () => starting() || Boolean(props.signingIn);
+  const codeFallback = createCodeSignInFallback(() => Boolean(props.signingIn));
   const signIn = async () => {
     if (busy()) return;
     setStarting(true);
+    codeFallback.startedInBrowser();
     try {
       await props.onSignIn(props.provider);
     } finally {
@@ -138,17 +143,36 @@ export function ComposerSignInNotice(props: {
       title={t("composer.signIn.title")}
       body={t("composer.signIn.body", { provider: providerName() })}
       action={
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          loading={busy()}
-          loadingLabel={t("composer.signIn.pending")}
-          aria-label={t("composer.signIn.label", { provider: providerName() })}
-          onClick={() => void signIn()}
-        >
-          {t("composer.signIn.action")}
-        </Button>
+        <>
+          <Show when={props.onSignInWithCode && codeFallback.offered() ? props.onSignInWithCode : undefined}>
+            {(signInWithCode) => (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                class="composer-notice-code-fallback"
+                aria-label={t("provider.aria.codeFallback", { name: providerName() })}
+                onClick={() => {
+                  codeFallback.startedWithCode();
+                  signInWithCode()(props.provider);
+                }}
+              >
+                {t("provider.action.signInWithCode")}
+              </Button>
+            )}
+          </Show>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            loading={busy()}
+            loadingLabel={t("composer.signIn.pending")}
+            aria-label={t("composer.signIn.label", { provider: providerName() })}
+            onClick={() => void signIn()}
+          >
+            {t("composer.signIn.action")}
+          </Button>
+        </>
       }
     />
   );

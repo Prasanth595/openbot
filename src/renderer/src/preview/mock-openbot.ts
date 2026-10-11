@@ -672,13 +672,27 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     restartProvider: async () => clone(agentStatus),
     cancelProviderRestart: async () => clone(agentStatus),
     // A code that never completes: the preview has no provider to finish the sign-in, so this shows
-    // the waiting screen and leaves it there.
-    startProviderCodeLogin: async () => ({
-      kind: "code",
-      userCode: "KTQ4-B62MX",
-      verificationUrl: "https://auth.openai.com/codex/device",
-      expiresAt: Date.now() + 10 * 60_000,
-    }),
+    // the waiting screen and leaves it there. Claude signs in with a code its page shows, which the
+    // user pastes back, and Cursor with a page that signs its CLI in by itself.
+    startProviderCodeLogin: async (provider) =>
+      provider === "claude"
+        ? {
+            kind: "paste",
+            verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
+            expiresAt: Date.now() + 10 * 60_000,
+          }
+        : provider === "cursor"
+          ? {
+              kind: "link",
+              verificationUrl: "https://cursor.com/loginDeepControl?mode=login&redirectTarget=cli",
+              expiresAt: Date.now() + 10 * 60_000,
+            }
+          : {
+              kind: "code",
+              userCode: "KTQ4-B62MX",
+              verificationUrl: "https://auth.openai.com/codex/device",
+              expiresAt: Date.now() + 10 * 60_000,
+            },
     cancelProviderCodeLogin: async () => clone(agentStatus),
     setProviderApiKey: async ({ provider, key }) => {
       if (!key.trim()) throw new Error("A provider key is required.");
@@ -888,22 +902,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     messaging: createMockMessaging(() => agents[0]?.id ?? "preview-agent"),
     // Preview has one host, so every server answers from the same providers as this computer.
     providerAdmin: {
-      // A host signs Claude in with a code its page shows, which the user pastes back, and Cursor
-      // with a page that signs its CLI in by itself.
-      startCodeLogin: async (provider) =>
-        provider === "claude"
-          ? {
-              kind: "paste",
-              verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
-              expiresAt: Date.now() + 10 * 60_000,
-            }
-          : provider === "cursor"
-            ? {
-                kind: "link",
-                verificationUrl: "https://cursor.com/loginDeepControl?mode=login&redirectTarget=cli",
-                expiresAt: Date.now() + 10 * 60_000,
-              }
-            : api.startProviderCodeLogin(provider),
+      startCodeLogin: (provider) => api.startProviderCodeLogin(provider),
       // As with the code above, the preview has no provider to finish the sign-in.
       submitCodeLogin: async () => clone(agentStatus),
       cancelCodeLogin: (provider) => api.cancelProviderCodeLogin(provider),

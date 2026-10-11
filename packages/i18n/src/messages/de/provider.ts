@@ -60,6 +60,7 @@ export const messages = {
   "provider.aria.retry": "{name} erneut versuchen",
   "provider.aria.install": "{name} installieren",
   "provider.aria.signIn": "Bei {name} anmelden",
+  "provider.aria.codeFallback": "Mit Code bei {name} anmelden",
   "provider.aria.moreActions": "Weitere Aktionen für {name}",
   "provider.aria.use": "{name} in OpenBot verwenden",
   "provider.use.inUse": {
@@ -125,6 +126,10 @@ export const messages = {
   "provider.museKey.description":
     "Speichere einen Meta-API-Schlüssel auf dem Host oder melde dich mit der Muse CLI an.",
   "provider.museKey.label": "Meta-API-Schlüssel",
+  "provider.geminiKey.title": "Gemini-API-Schlüssel",
+  "provider.geminiKey.description":
+    "Speichere einen Gemini-API-Schlüssel auf dem Host, oder wähle „Verbinden“, um dich mit Google anzumelden.",
+  "provider.geminiKey.label": "Gemini-API-Schlüssel",
   "provider.openCodeKey.title": "Bei OpenCode Go anmelden",
   "provider.openCodeKey.description":
     "Kostenlose Modelle benötigen kein Konto. Ein Schlüssel schaltet die kostenpflichtigen Go-Modelle frei.",

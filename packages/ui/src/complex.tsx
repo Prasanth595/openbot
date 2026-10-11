@@ -39,12 +39,26 @@ function focusRestoreHandler(upstream: () => OpenChangeHandler | undefined): Ope
       });
       restoreTarget = openTrigger ?? restoreTarget;
     }
+    // The surface owns focus while focus is on the page, its trigger or a dialog. Focus elsewhere, such as in the
+    // composer, stays there.
+    const focusAtClose = document.activeElement;
+    const surfaceOwnedFocus =
+      focusAtClose === null ||
+      focusAtClose === document.body ||
+      focusAtClose === restoreTarget ||
+      focusAtClose.closest('[role="dialog"], [role="alertdialog"]') !== null;
 
     upstream()?.(open);
 
-    if (!open && restoreTarget?.isConnected) {
+    if (!open && surfaceOwnedFocus && restoreTarget?.isConnected) {
       const target = restoreTarget;
-      window.requestAnimationFrame(() => window.requestAnimationFrame(() => target.focus()));
+      window.requestAnimationFrame(() =>
+        window.requestAnimationFrame(() => {
+          // A click outside or the closing action may move focus. Keep it there.
+          const active = document.activeElement;
+          if (active === null || active === document.body || active === focusAtClose) target.focus();
+        }),
+      );
     }
   };
 }

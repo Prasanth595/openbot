@@ -1883,11 +1883,42 @@ async function runFocusScenario(browser: BrowserHost, origin: string): Promise<v
   if (!backgroundAction.success || webContents.getFocusedWebContents() !== focusSentinel.webContents) {
     throw new Error("A background browser action did not restore focus to the unrelated application renderer.");
   }
+  // An agent click opens a popup, and the popup closes itself after sign-in. The visible panel
+  // shows both changes; neither may take focus from the person typing.
+  const opener = await runCauseEffect(browser.open(`${origin}/popup-parent`, "smoke-thread", "smoke-bot"));
+  const popupClick = await callBrowserTool(browser, "click", {
+    tabId: opener.id,
+    target: { kind: "role", role: "button", name: "Blank popup", exact: true },
+  });
+  if (!popupClick.success) throw new Error(`The focus popup click failed: ${toolError(popupClick)}`);
+  const popup = await waitForValue(() => browser.listTabs().find((tab) => tab.openerTabId === opener.id));
+  await waitFor(async () => browser.activeTabId === popup.id, "focus popup activation");
+  const popupKeptFocus = webContents.getFocusedWebContents() === focusSentinel.webContents;
+  await waitFor(
+    async () =>
+      webContents.getAllWebContents().some((item) => item.getURL().endsWith("/popup-login") && !item.isLoading()),
+    "focus popup load",
+  );
+  // The page closes during the navigation that the click starts, so the click can report an aborted load.
+  await callBrowserTool(browser, "click", {
+    tabId: popup.id,
+    target: { kind: "role", role: "button", name: "Use test account", exact: true },
+  });
+  await waitFor(
+    async () => !browser.listTabs().some((tab) => tab.id === popup.id) && browser.activeTabId === opener.id,
+    "focus popup return to opener",
+  );
+  const closeKeptFocus = webContents.getFocusedWebContents() === focusSentinel.webContents;
+  await runCauseEffect(browser.close(opener.id));
   await mkdir(".openbot-build", { recursive: true });
   await writeFile(
     ".openbot-build/browser-focus-report.json",
-    JSON.stringify({ focusLosses, success: backgroundAction.success }, null, 2),
+    JSON.stringify({ focusLosses, success: backgroundAction.success, popupKeptFocus, closeKeptFocus }, null, 2),
   );
+  if (!popupKeptFocus)
+    throw new Error("A popup from an agent click stole focus from an unrelated application renderer.");
+  if (!closeKeptFocus)
+    throw new Error("A popup that closed itself stole focus from an unrelated application renderer.");
   if (focusLosses !== 0) throw new Error(`Background browser actions interrupted typing ${focusLosses} times.`);
   await runCauseEffect(browser.close(backgroundTab.id));
   focusSentinel.destroy();
@@ -3012,7 +3043,9 @@ async function runPopupScenario(browser: BrowserHost, origin: string): Promise<v
       const snapshot = await callBrowserTool(browser, "snapshot", { tabId: popup.id, image: "never" });
       if (!snapshot.success || !JSON.stringify(toolTextPayload(snapshot)).includes("Use test account"))
         throw new Error("Agent cannot read popup.");
-      const popupContents = webContents.getAllWebContents().find((item) => item.getURL().endsWith("/popup-login"));
+      const popupContents = webContents
+        .getAllWebContents()
+        .find((item) => item.getURL().endsWith("/popup-login") && !item.isLoading());
       if (!popupContents) throw new Error("Popup contents missing.");
       const shared = await popupContents.executeJavaScript(
         "(location.hostname === 'localhost' || document.cookie.includes('popup_session=shared')) && !!opener && typeof window.openbot === 'undefined' && typeof require === 'undefined'",

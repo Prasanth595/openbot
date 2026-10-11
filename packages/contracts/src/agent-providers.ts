@@ -354,6 +354,15 @@ export function isLocalOnlyProvider(provider: AgentProviderId): boolean {
 }
 
 /**
+ * Whether a computer on `platform` can run a sign-in whose code the user pastes back (Claude). The
+ * CLI shows its prompt only on a terminal, and only the util-linux `script` gives it one there: see
+ * the backend `startCliCodeLogin`.
+ */
+export function pasteCodeSignInSupported(platform: string): boolean {
+  return platform === "linux";
+}
+
+/**
  * A custom agent id: the first segment of its model ids. No `_`, which `isAgentModel` refuses, and
  * no `/`, which separates the agent from its model.
  */

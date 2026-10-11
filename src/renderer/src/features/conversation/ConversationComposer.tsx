@@ -103,6 +103,11 @@ export function ConversationComposer() {
   let skillPickerChosen = false;
   // A pending Save keeps its exact request for retry. Block changes until retry or cancel.
   const savePending = () => Boolean(editingDeliveryId() && editingPendingSave());
+  // A provider start, restart or server reconnect is short. Keys typed in it must not drop, so only a
+  // lasting stop locks the text. Sending still waits for the agent. Without an agent, no draft keeps the text.
+  const editorLocked = () =>
+    !agentReady() &&
+    !(props.agent && (props.agentStatus.phase === "starting" || props.agentStatus.phase === "restarting"));
   // The mention picker grows out of the same edge as the queue, so only one of them holds it.
   const queueVisible = () => queuePanelVisible() && !pickerOpen();
   const awaitingVisible = () => awaitingReplies().length > 0 && !pickerOpen();
@@ -320,10 +325,11 @@ export function ConversationComposer() {
           />
         )}
       </Show>
-      <Show when={signInRequired()}>
-        {(status) => (
+      {/* Keyed on the provider: a sign-in that failed for one provider says nothing about the next. */}
+      <Show when={signInRequired()?.id} keyed>
+        {(provider) => (
           <ComposerSignInNotice
-            provider={status().id}
+            provider={provider}
             onShown={() =>
               reportNotification({
                 operation: "provider",
@@ -331,11 +337,12 @@ export function ConversationComposer() {
                 cause_code: "authentication",
                 severity: "warning",
                 presentation: "banner",
-                provider: status().id,
+                provider,
               })
             }
-            signingIn={status().connectionState === "connecting"}
+            signingIn={signInRequired()?.connectionState === "connecting"}
             onSignIn={(provider) => props.onSignInProvider?.(provider)}
+            onSignInWithCode={props.onSignInWithCodeProvider}
           />
         )}
       </Show>
@@ -443,7 +450,7 @@ export function ConversationComposer() {
             mcpServers={mcpServers()}
             attachments={currentDraft().attachments}
             value={currentDraft().text}
-            disabled={submitting() || voicePhase() === "transcribing" || !agentReady() || savePending()}
+            disabled={submitting() || voicePhase() === "transcribing" || editorLocked() || savePending()}
             placeholder={
               !agentReady()
                 ? props.agentsConnecting

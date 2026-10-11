@@ -7,15 +7,15 @@ import type { AgentCliInfo } from "./../cli";
 import { causeHelpers } from "../effect-boundary";
 import type { AccountReadResult } from "./../protocol";
 import type { ProviderClientOperationError } from "../provider-client-effects";
-import type { ProviderCliCommand } from "./../provider-drivers";
 import { recordRestartActivity } from "../restart-activity";
 import { stopProcessTree } from "../windows-process-tree";
-import { type CliCodeLogin, type CliCodeLoginFailed, type CliCodePrompt, startCliCodeLogin } from "./cli-code-login";
+import type { CliCodeLogin, CliCodeLoginFailed } from "./cli-code-login";
 import type { ProviderProcessFailed } from "./provider-status";
 
 /** A sign-in that is a CLI process the user completes in a browser the CLI opened, or on another device. */
 interface PendingCliLogin {
-  child: ChildProcess;
+  /** Absent when the login scope owns the process, as for a Muse host. */
+  child?: ChildProcess;
   cli: AgentCliInfo;
   /** True when the sign-in ended with the provider signed in. */
   task: Fiber.Fiber<boolean, CliLoginFailed> | null;
@@ -26,7 +26,8 @@ interface PendingCliLogin {
 
 /** The sign-in process a caller starts, and how it ends. */
 export type CliLoginProcess = {
-  child: ChildProcess;
+  /** The process to stop on a cancel. Without it, closing the login scope stops the sign-in. */
+  child?: ChildProcess;
   done: Effect.Effect<void, ProviderClientOperationError | CliCodeLoginFailed | ProviderProcessFailed>;
 } & Partial<Pick<CliCodeLogin, "prompt" | "submit">>;
 
@@ -95,7 +96,7 @@ export class CliLoginFlow {
         Effect.onError(() => Scope.close(scope, Exit.void)),
       );
       const pending: PendingCliLogin = {
-        child,
+        ...(child ? { child } : {}),
         cli: resolved,
         scope,
         task: null,
@@ -118,24 +119,27 @@ export class CliLoginFlow {
     );
   }, Effect.uninterruptible).bind(this);
 
-  /** Starts a sign-in the user finishes on another device, and reports what the CLI printed for it. */
+  /**
+   * Starts a sign-in the user finishes on another device, and reports what the CLI printed for it.
+   * `start` is the provider's CLI command (`startCliCodeLogin`) or another process with a prompt,
+   * and `timeoutMs` is how long that process waits for the user.
+   */
   readonly startCode = Effect.fn("CliLogin.startCode")(function* (
     this: CliLoginFlow,
     provider: AgentProvider,
-    { command, flow }: { command: ProviderCliCommand; flow: CliCodePrompt["flow"] },
+    start: (
+      cli: AgentCliInfo,
+    ) => Effect.Effect<
+      CliLoginProcess,
+      ProviderClientOperationError | CliCodeLoginFailed | CliLoginFailed,
+      Scope.Scope
+    >,
+    timeoutMs: number,
   ): Effect.fn.Return<ProviderCodeLoginStart, CliLoginFailed> {
-    yield* this.start(provider, (cli) =>
-      startCliCodeLogin({
-        flow,
-        executable: cli.executable,
-        argv: command.argv,
-        env: command.env(cli),
-        timeoutMs: command.timeoutMs,
-      }),
-    );
+    yield* this.start(provider, start);
     const code = this.#pending.get(provider)?.code;
     if (!code) return yield* new CliLoginFailed({ cause: new Error(sourceText("error.provider.codeLoginNoLink")) });
-    const expiresAt = Date.now() + command.timeoutMs;
+    const expiresAt = Date.now() + timeoutMs;
     const prompt = yield* code.prompt.pipe(toCliLoginFailed);
     if (prompt.flow === "link") return { kind: "link", verificationUrl: prompt.verificationUrl, expiresAt };
     return prompt.flow === "paste"
@@ -164,7 +168,7 @@ export class CliLoginFlow {
     const pending = this.#pending.get(provider);
     if (!pending) return;
     this.#pending.delete(provider);
-    yield* stopProcessTree(pending.child).pipe(toCliLoginFailed);
+    if (pending.child) yield* stopProcessTree(pending.child).pipe(toCliLoginFailed);
     yield* Scope.close(pending.scope, Exit.void);
     const task = pending.task;
     // Closing the login scope can interrupt its completion task. Wait for cleanup without
@@ -191,7 +195,10 @@ export class CliLoginFlow {
     this.#pending.clear();
     return Effect.forEach(
       logins,
-      (login) => stopProcessTree(login.child).pipe(Effect.ignore, Effect.andThen(Scope.close(login.scope, Exit.void))),
+      (login) =>
+        (login.child ? stopProcessTree(login.child).pipe(Effect.ignore) : Effect.void).pipe(
+          Effect.andThen(Scope.close(login.scope, Exit.void)),
+        ),
       { discard: true },
     );
   }
@@ -225,7 +232,7 @@ export class CliLoginFlow {
   ) {
     if (this.#pending.get(provider) !== pending) return;
     this.#pending.delete(provider);
-    yield* stopProcessTree(pending.child).pipe(toCliLoginFailed);
+    if (pending.child) yield* stopProcessTree(pending.child).pipe(toCliLoginFailed);
     this.#options.setFailure(provider, error, pending.cli.version);
   });
 }

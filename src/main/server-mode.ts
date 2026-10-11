@@ -7,8 +7,9 @@
  * this process over a Unix socket in the runtime directory that systemd makes for the service user
  * (mode 0700). Only that user and root can connect. Agents run as the same user and already have
  * full access to its files, so the socket gives them nothing new. The socket answers a closed list
- * of requests: status, the email-code sign-in, the server name and sign-out. It never sends the
- * session token or the sign-in code back.
+ * of requests: status, the email-code sign-in, the server name, sign-out and a Mobile Connect code.
+ * It never sends the session token or the sign-in code back. The Mobile Connect code signs one phone
+ * in to the account of the server; the account service lets it work for one sign-in, for two minutes.
  *
  * The protocol is HTTP with form bodies and `key=value` text lines, so the command needs only
  * `curl --unix-socket`.
@@ -23,11 +24,13 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { CentralAuthState } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect } from "effect";
+import QRCode from "qrcode";
 import { runCauseEffect } from "../backend/effect-boundary";
 import type { CentralAuthManager } from "./central-auth-manager";
 import type { HostService } from "./host-service";
 import { readBodyWithin } from "./http-body";
-import { RemoteWorkflowError, remoteCall } from "./remote-service-effects";
+import { createHostedMobileConnect } from "./mobile-connect-host";
+import { RemoteWorkflowError, remoteCall, toRemoteWorkflowError } from "./remote-service-effects";
 
 const CONTROL_SOCKET_FILE = "control.sock";
 const MAX_BODY_BYTES = 4096;
@@ -56,8 +59,11 @@ export function takeServerModeEnvironment(
 export interface ServerModeOptions {
   environment: ServerModeEnvironment;
   version: string;
-  centralAuth: Pick<CentralAuthManager, "getState" | "requestEmailCode" | "verifyEmailCode" | "logout">;
-  host: Pick<HostService, "getStatus" | "configure" | "start" | "updateIdentity">;
+  centralAuth: Pick<
+    CentralAuthManager,
+    "getState" | "requestEmailCode" | "verifyEmailCode" | "logout" | "createMobileConnect"
+  >;
+  host: Pick<HostService, "getStatus" | "configure" | "start" | "updateIdentity" | "getMobileConnectHost">;
   onError: (message: string, error: unknown) => void;
   /** Tests only. */
   uid?: number;
@@ -195,6 +201,8 @@ export class ServerMode {
         return runCauseEffect(this.#verifyLogin(body.get("challenge") ?? "", body.get("code") ?? "", body.get("name")));
       case "POST /v1/name":
         return runCauseEffect(this.#rename(body.get("name") ?? ""));
+      case "POST /v1/mobile-connect":
+        return runCauseEffect(this.#mobileConnect());
       case "POST /v1/logout":
         await runCauseEffect(
           this.#options.centralAuth.logout().pipe(Effect.mapError(({ cause }) => new RemoteWorkflowError({ cause }))),
@@ -260,6 +268,22 @@ export class ServerMode {
     // The entry point publishes the host when the account change is applied. `status` shows it.
     if (state.status === "signed_in") return this.#status();
     return issueFailure(state);
+  });
+
+  /**
+   * A Mobile Connect code as a QR code for a terminal, in base64 because an answer line holds no line
+   * break. The terminal has no other way to show the code to a phone.
+   */
+  readonly #mobileConnect = Effect.fn("ServerMode.mobileConnect")(function* (
+    this: ServerMode,
+  ): Effect.fn.Return<Answer, RemoteWorkflowError> {
+    const account = this.#options.centralAuth.getState();
+    if (account.status !== "signed_in") return issueFailure(account);
+    // A publish that runs now can give the host its name. The code binds the host that it publishes.
+    yield* this.publish();
+    const ticket = yield* createHostedMobileConnect(this.#options).pipe(toRemoteWorkflowError);
+    const qr = yield* remoteCall(() => QRCode.toString(ticket.qrData, { type: "terminal", small: true }));
+    return { status: 200, lines: { qr: Buffer.from(qr).toString("base64"), expires_at: ticket.expiresAt } };
   });
 
   readonly #rename = Effect.fn("ServerMode.rename")(function* (
