@@ -23,7 +23,7 @@ interface ProviderCodeLoginTarget {
 }
 
 /** How a joined server signs in a provider on a page in its own browser, and how this window shows it. */
-export interface ProviderHostSignInTarget {
+interface ProviderHostSignInTarget {
   providers: readonly AgentProviderId[];
   /** The host, as its server row names it. */
   hostName: string;
