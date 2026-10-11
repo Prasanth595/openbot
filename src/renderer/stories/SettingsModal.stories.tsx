@@ -210,7 +210,6 @@ export const Notifications: Story = {
   render: () => <SettingsModalStory initialOpen initialTab="notifications" />,
 };
 
-/** The install guide for each phone, the sign-in code and the connected phones. */
 export const Voice: Story = {
   render: () => <SettingsModalStory initialOpen initialTab="voice" />,
 };
@@ -228,6 +227,7 @@ export const VoiceWhisperHungarian: Story = {
   ),
 };
 
+/** The install guide for each phone, the sign-in code and the connected phones. */
 export const MobileConnect: Story = {
   render: () => <SettingsModalStory initialOpen initialTab="mobile-connect" />,
 };
