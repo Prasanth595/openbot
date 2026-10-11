@@ -217,14 +217,15 @@ describe("TeamWebRtcClientTransport", () => {
     const transport = createTransport(bridge);
     transport.pinHostKey("host-1", hostKeys.publicKey);
     await runCauseEffect(transport.connect("host-1"));
-    await runCauseEffect(transport.request("host-1", "/v1/compatibility"));
     const interrupted = vi.fn();
     send.mockClear().mockReturnValue(Effect.never.pipe(Effect.ensuring(Effect.sync(interrupted))));
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     try {
       const request = runCauseEffect(transport.request("host-1", "/v1/agents"));
       const rejected = expect(request).rejects.toMatchObject({ code: "remote_timeout" });
       await vi.waitFor(() => expect(send).toHaveBeenCalledOnce());
+      // The blocked send is the protocol read of the new connection. It uses the whole deadline, so
+      // the request ends at 15 s and never sends its own frame.
       await vi.advanceTimersByTimeAsync(15_000);
       await rejected;
       expect(interrupted).toHaveBeenCalledOnce();

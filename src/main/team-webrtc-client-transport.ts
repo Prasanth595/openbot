@@ -409,11 +409,20 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     return yield* this.#owned(
       Effect.gen({ self: this }, function* () {
         yield* this.#ensureConnected(hostId);
+        const method = (init.method ?? "GET").toUpperCase();
+        const timeoutMs = init.timeoutMs ?? remoteWorkspaceReadTimeout(method, path);
+        const startedAt = Date.now();
         // A new connection forgets the host protocol, and an unknown protocol sends the protocol 6
         // capability list. A v7 route that needs a v7 capability then refuses a request that the
         // user sent before the `connected` handler read the compatibility report.
-        if (path !== "/v1/compatibility") yield* this.#learnHostProtocol(hostId, init.timeoutMs);
-        const method = (init.method ?? "GET").toUpperCase();
+        if (path !== "/v1/compatibility") yield* this.#learnHostProtocol(hostId, timeoutMs);
+        // The protocol read uses part of the request deadline. It does not add to it.
+        const remainingMs = timeoutMs === undefined ? undefined : timeoutMs - (Date.now() - startedAt);
+        if (remainingMs !== undefined && remainingMs <= 0) {
+          return yield* new RemoteWorkflowError({
+            cause: new TeamWebRtcRequestError(504, "remote_timeout", sourceText("error.remote.requestTimeout")),
+          });
+        }
         const binary = binaryBody(init.body);
         const sideRoute = teamSideRouteCodec(path);
         const bodyTransferId = binary
@@ -457,24 +466,14 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
         // connection that carried its body. Only the connection that refused the frame is marked
         // lost: a request that fails late must not drop the connection another request just made.
         const refusedBy = this.#active.get(hostId);
-        const envelope = yield* this.#exchange(
-          hostId,
-          requestId,
-          frame,
-          init.timeoutMs ?? remoteWorkspaceReadTimeout(method, path),
-        ).pipe(
+        const envelope = yield* this.#exchange(hostId, requestId, frame, remainingMs).pipe(
           Effect.catchIf(
             (error) => !bodyTransferId && isClosedChannelError(error.cause),
             () =>
               Effect.gen({ self: this }, function* () {
                 if (refusedBy?.connected && this.#active.get(hostId) === refusedBy) this.#onDisconnected(hostId);
                 yield* this.#ensureConnected(hostId);
-                return yield* this.#exchange(
-                  hostId,
-                  requestId,
-                  frame,
-                  init.timeoutMs ?? remoteWorkspaceReadTimeout(method, path),
-                );
+                return yield* this.#exchange(hostId, requestId, frame, timeoutMs);
               }),
           ),
         );
