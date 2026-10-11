@@ -248,6 +248,8 @@ const Conversation = createSimpleContext({
       agentChatsRetriedOnOpen.delete(agentId);
     }
 
+    // The snapshot text is a preview capped at `AGENT_RUNTIME_TEXT_LIMIT`. It does not replace the
+    // raw body of a streamed message: the next delta would append to the preview, not to the text.
     function applyRuntimeMessages(messages: AgentRuntimeSnapshot["latestMessages"]): void {
       const agentIds = new Set(messages.map((message) => message.agentId));
       // The draft includes pending page writes from this event batch. Outside
@@ -263,10 +265,6 @@ const Conversation = createSimpleContext({
           if (agentId !== activeAgentId()) trimToLatestPage(current[agentId]);
         }
       });
-      for (const agentId of agentIds) deleteAgentMessageBodies(rawAgentMessageBodies, agentId);
-      for (const message of messages) {
-        rawAgentMessageBodies.set(agentMessageKey(message.agentId, message.id), message.text);
-      }
     }
 
     function applyConversationReads(reads: Record<string, ConversationReadState>): void {

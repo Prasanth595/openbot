@@ -1,9 +1,10 @@
-import type {
-  ConversationPage,
-  ConversationReadState,
-  DirectConversationPage,
-  DirectConversationSnapshot,
-  DirectThreadSummary,
+import {
+  AGENT_RUNTIME_TEXT_LIMIT,
+  type ConversationPage,
+  type ConversationReadState,
+  type DirectConversationPage,
+  type DirectConversationSnapshot,
+  type DirectThreadSummary,
 } from "@openbot/contracts/ipc";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { flush } from "solid-js";
@@ -1040,6 +1041,44 @@ describe("OpenBot connected desktop shell", () => {
         "local",
       ),
     );
+  });
+
+  it("replaces the capped runtime preview of a reply with the full reply", async () => {
+    const createdAt = "2026-08-19T09:03:00.000Z";
+    const reply = `${"A long answer sentence. ".repeat(20)}The end of the answer.`;
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    await waitFor(() => expect(window.openbot.agent.readConversation).toHaveBeenCalledWith("chief"));
+
+    emitAgentEvent?.({
+      type: "runtime-snapshot",
+      snapshot: {
+        agents: [],
+        activeTurns: [],
+        work: [],
+        latestMessages: [
+          { agentId: "chief", id: "agent-long-answer", text: reply.slice(0, AGENT_RUNTIME_TEXT_LIMIT), createdAt },
+        ],
+        attentionComplete: true,
+        pendingPrompts: [],
+        pendingApprovals: [],
+        pendingBrowserTakeovers: [],
+        failedTurns: [],
+      },
+    });
+    await screen.findByText(/^A long answer sentence\./);
+    emitAgentEvent?.({
+      type: "conversation",
+      snapshot: {
+        agentId: "chief",
+        threadId: "thread-chief",
+        activeTurnId: null,
+        revision: 2,
+        messages: [agentReply("agent-long-answer", reply, createdAt)],
+      },
+    });
+
+    expect(await screen.findByText(/The end of the answer\.$/)).toBeInTheDocument();
   });
 
   it("keeps an agent reply unread while the Usage report covers the conversation", async () => {
