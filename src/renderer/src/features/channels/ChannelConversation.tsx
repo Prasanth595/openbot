@@ -212,11 +212,42 @@ export function ChannelConversation(props: ChannelConversationProps) {
         updateDraft(selectedId, (draft) => ({ ...draft, attachments: [...draft.attachments, ...attachments] }));
     });
   /** Dropped or pasted files. Only a browser runtime imports them here; the desktop preload imports its own. */
-  const canImportFiles = () => Boolean(runtime().importAttachments && channels.state.page?.channel.archived === false);
+  const canImportFiles = () =>
+    Boolean(
+      (runtime().importAttachments || runtime().onAttachmentImport) && channels.state.page?.channel.archived === false,
+    );
   const importFiles = (files: File[]) => {
     const importAttachments = runtime().importAttachments;
     if (importAttachments && canImportFiles() && files.length > 0) addAttachments(() => importAttachments(files));
   };
+  // The desktop preload imports a drop or a paste itself and reports it here. The channel open when the
+  // import starts owns the result. A result that no channel owns is discarded, so it does not stay on disk.
+  const desktopImports = new Map<string, PromiseWithResolvers<AttachmentSummary[]>>();
+  createEffect(
+    () => runtime().onAttachmentImport,
+    (onAttachmentImport) => {
+      if (!onAttachmentImport) return;
+      onCleanup(
+        onAttachmentImport((event) => {
+          if (event.type === "started") {
+            if (!canImportFiles()) return;
+            const pending = Promise.withResolvers<AttachmentSummary[]>();
+            desktopImports.set(event.requestId, pending);
+            addAttachments(() => pending.promise);
+            return;
+          }
+          const pending = desktopImports.get(event.requestId);
+          desktopImports.delete(event.requestId);
+          if (event.type === "error") pending?.reject(new Error(event.message));
+          else if (pending) pending.resolve(event.attachments);
+          else
+            for (const attachment of event.attachments)
+              void runtime().agent.discardDraftAttachment?.(attachment.id, event.serverId);
+        }),
+      );
+      onCleanup(() => desktopImports.clear());
+    },
+  );
   const [dropActive, setDropActive] = createSignal(false);
   const [copyError, setCopyError] = createSignal<UserErrorDetails | null>(null);
   createEffect(
