@@ -263,7 +263,7 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
               <Select<VoiceLanguage>
                 class="settings-modal-select"
                 options={languageOptions()}
-                value={settings()?.language}
+                value={settings()?.language ?? null}
                 onChange={(next) => next && props.store.setLanguage(next)}
                 disabled={!settings() || activeModel()?.supportsLanguage === false}
                 placement="bottom-end"
