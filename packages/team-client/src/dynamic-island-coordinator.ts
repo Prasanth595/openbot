@@ -400,12 +400,10 @@ export class DynamicIslandCoordinator {
   ): void {
     const liveMessages: Record<string, DynamicIslandMessageSource[]> = {};
     const incomingMessageAnchors = new Map(runtime.incomingMessageAnchors);
-    for (const agentId of new Set(snapshot.latestMessages.map((message) => message.agentId))) {
-      deleteDynamicIslandMessageBodies(runtime.rawMessageBodies, agentId);
-    }
     for (const message of snapshot.latestMessages) {
-      runtime.rawMessageBodies.set(dynamicIslandMessageKey(message.agentId, message.id), message.text);
-      const converted = {
+      // The snapshot text is capped at `AGENT_RUNTIME_TEXT_LIMIT`. A message the island already has
+      // may be further along, and its raw body is what the next delta appends to.
+      const converted = runtime.liveMessages[message.agentId]?.find((candidate) => candidate.id === message.id) ?? {
         id: message.id,
         author: "agent",
         body: cleanAgentMessageText(message.text),
