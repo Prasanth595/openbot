@@ -79,6 +79,9 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Bu giriş işlemi durduruldu.",
   "provider.codeLogin.pasteExpiresIn": "Sizi bekliyor. Bu giriş işlemi {time} içinde sona erecek.",
   "provider.codeLogin.linkTitle": "{name} hesabına başka bir cihazda giriş yapın",
+  "provider.codeLogin.pageTitle": "{name} oturumu aç",
+  "provider.codeLogin.pageDescription": "Bu sayfa {host} üzerindeki tarayıcıda açık. Burada oturum açın.",
+  "provider.codeLogin.pageOpening": "{name} oturum açma sayfası {host} üzerinde açılıyor…",
   "provider.codeLogin.linkStep": "{name} hesabına giriş yapın. OpenBot kendiliğinden devam eder.",
 
   "provider.picker.noEndpoints": "Henüz uç nokta yok",

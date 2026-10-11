@@ -150,6 +150,7 @@ export const messages = {
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. Actualiza los proveedores para intentarlo de nuevo.",
   "error.provider.noCodeSignIn": "No se puede iniciar sesión en {provider} con un código.",
   "error.provider.codeLoginNoLink": "El proveedor no mostró un enlace de inicio de sesión. Inténtalo de nuevo.",
+  "error.provider.hostSignInEnded": "No se completó el inicio de sesión en {provider}. Inténtalo de nuevo.",
   "error.provider.codeLoginNotWaiting": "Ningún inicio de sesión está esperando un código. Inicia sesión de nuevo.",
   "error.provider.codeLoginBadCode": "Pega el código que muestra la página de inicio de sesión.",
   "error.provider.codeLoginRefused": "El proveedor no aceptó el código. Inicia sesión de nuevo.",

@@ -151,6 +151,7 @@ export const messages = {
     "{provider} hat nicht rechtzeitig geantwortet. Der Computer ist möglicherweise ausgelastet. Aktualisiere die Anbieter, um es erneut zu versuchen.",
   "error.provider.noCodeSignIn": "Bei {provider} ist keine Anmeldung mit einem Code möglich.",
   "error.provider.codeLoginNoLink": "Der Anbieter hat keinen Anmeldelink angezeigt. Versuche es erneut.",
+  "error.provider.hostSignInEnded": "Die Anmeldung bei {provider} wurde nicht abgeschlossen. Versuche es erneut.",
   "error.provider.codeLoginNotWaiting": "Keine Anmeldung wartet auf einen Code. Starte die Anmeldung erneut.",
   "error.provider.codeLoginBadCode": "Füge den Code ein, den die Anmeldeseite anzeigt.",
   "error.provider.codeLoginRefused": "Der Anbieter hat den Code nicht akzeptiert. Starte die Anmeldung erneut.",

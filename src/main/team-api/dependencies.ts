@@ -44,6 +44,7 @@ import type { HostedSiteDesktopService } from "../hosted-site-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
+import type { ProviderHostSignIns } from "../provider-host-sign-ins";
 import type { RemoteScreenGateway } from "../remote-screen-gateway";
 import type { TeamStore } from "../team-store";
 
@@ -138,6 +139,12 @@ export type TeamApiMcpServers = Pick<
 
 /** Its presence, beside `mcpServers`, is what `#protocolSupport` advertises `mcp-sign-in-v1` on. */
 export type TeamApiMcpSignIns = Pick<McpHostSignIns, "start" | "status" | "cancel" | "signOut" | "list">;
+
+/**
+ * Its presence is what `#protocolSupport` advertises `provider-host-sign-in-v1` on. Only a Linux host
+ * passes it: there the Gemini CLI prints its sign-in page instead of opening a browser.
+ */
+export type TeamApiProviderHostSignIns = Pick<ProviderHostSignIns, "start" | "status" | "cancel">;
 
 /** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
 export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
@@ -259,6 +266,7 @@ export interface TeamApiOptions {
   channels?: ChannelService;
   mcpServers?: TeamApiMcpServers;
   mcpSignIns?: TeamApiMcpSignIns;
+  providerHostSignIns?: TeamApiProviderHostSignIns;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;

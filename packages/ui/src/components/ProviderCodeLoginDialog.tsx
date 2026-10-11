@@ -36,6 +36,7 @@ import {
   X,
 } from "@openbot/ui";
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { McpSignInPage, McpSignInPageNote, type McpSignInPageSource } from "../features/settings/McpSignInPage";
 import { useText } from "../text";
 
 /**
@@ -86,6 +87,17 @@ export type ProviderCodeLoginState =
       /** Epoch milliseconds. When the host stops waiting for the sign-in. */
       expiresAt: number;
     }
+  /**
+   * The provider's page is open in the browser of a joined server's host, and the user signs in
+   * through its live view (Gemini on a Linux host). The grant goes back to the host's CLI, not here.
+   */
+  | {
+      phase: "page";
+      /** The host, as its server row names it. */
+      hostName: string;
+      /** The host tab with the page, once the host opened it. */
+      page: McpSignInPageSource | null;
+    }
   /** The code was accepted on the other device; OpenBot is finishing the sign-in. */
   | { phase: "verifying" };
 
@@ -107,6 +119,7 @@ export function ProviderCodeLoginDialog(props: ProviderCodeLoginDialogProps) {
   const waiting = () => (props.state.phase === "waiting" ? props.state : null);
   const pasting = () => (props.state.phase === "paste" ? props.state : null);
   const linking = () => (props.state.phase === "link" ? props.state : null);
+  const hostPage = () => (props.state.phase === "page" ? props.state : null);
   // The field keeps what the user pasted until the dialog closes, so a refused code can be fixed.
   const [pastedCode, setPastedCode] = createSignal("");
   // A new sign-in has a new page, and the code of the last one is no use to it.
@@ -129,15 +142,19 @@ export function ProviderCodeLoginDialog(props: ProviderCodeLoginDialogProps) {
     >
       <Dialog.Portal>
         <Dialog.Overlay class="provider-code-login-backdrop">
-          <Dialog.Content class="provider-code-login-dialog" as="section">
+          <Dialog.Content class="provider-code-login-dialog" data-page={hostPage() ? "" : undefined} as="section">
             <header class="provider-code-login-header">
               <Dialog.Title class="provider-code-login-title">
                 {linking()
                   ? t("provider.codeLogin.linkTitle", { name: props.providerName })
-                  : t("provider.codeLogin.title", { name: props.providerName })}
+                  : hostPage()
+                    ? t("provider.codeLogin.pageTitle", { name: props.providerName })
+                    : t("provider.codeLogin.title", { name: props.providerName })}
               </Dialog.Title>
               <Dialog.Description class="provider-code-login-description">
-                {t("provider.codeLogin.description")}
+                {hostPage()
+                  ? t("provider.codeLogin.pageDescription", { host: hostPage()?.hostName ?? "" })
+                  : t("provider.codeLogin.description")}
               </Dialog.Description>
             </header>
 
@@ -305,6 +322,29 @@ export function ProviderCodeLoginDialog(props: ProviderCodeLoginDialogProps) {
                       </Show>
                     </Text>
                   </div>
+                )}
+              </Show>
+
+              <Show when={hostPage()}>
+                {(host) => (
+                  <Show
+                    when={host().page}
+                    fallback={
+                      <div class="provider-code-login-pending" role="status">
+                        <Spinner size="sm" />
+                        <Text as="span" tone="muted">
+                          {t("provider.codeLogin.pageOpening", { name: props.providerName, host: host().hostName })}
+                        </Text>
+                      </div>
+                    }
+                  >
+                    {(page) => (
+                      <>
+                        <McpSignInPage page={page()} />
+                        <McpSignInPageNote hostName={host().hostName} />
+                      </>
+                    )}
+                  </Show>
                 )}
               </Show>
 

@@ -3,8 +3,10 @@ import {
   type AgentStatus,
   agentProviderDescriptor,
   type ProviderCodeLoginStart,
+  type ProviderHostSignInStatus,
 } from "@openbot/contracts/ipc";
 import type { ProviderCodeLoginState } from "@openbot/ui/components/ProviderCodeLoginDialog";
+import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createSignal, flush, onCleanup } from "solid-js";
 import { actionToast } from "../../action-toast";
@@ -16,7 +18,24 @@ interface ProviderCodeLoginTarget {
   /** Only a target that can start a `paste` sign-in has it. */
   submit?: (provider: AgentProviderId, code: string) => Promise<AgentStatus>;
   cancel: (provider: AgentProviderId) => Promise<AgentStatus>;
+  /** A joined server that opens a provider's sign-in page in its own browser, for the providers it names. */
+  hostSignIn?: ProviderHostSignInTarget;
 }
+
+/** How a joined server signs in a provider on a page in its own browser, and how this window shows it. */
+export interface ProviderHostSignInTarget {
+  providers: readonly AgentProviderId[];
+  /** The host, as its server row names it. */
+  hostName: string;
+  runtime: BrowserViewRuntime;
+  clipboard: boolean;
+  start: (provider: AgentProviderId) => Promise<void>;
+  status: (provider: AgentProviderId) => Promise<ProviderHostSignInStatus>;
+  cancel: (provider: AgentProviderId) => Promise<AgentStatus>;
+}
+
+/** How often the host is asked whether its sign-in page opened or the sign-in ended. */
+const HOST_SIGN_IN_POLL_MS = 1_000;
 
 export interface ProviderCodeLoginOptions {
   /** The status of the computer that runs the providers. It says how a sign-in ends. */
@@ -72,6 +91,19 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
       // Cancellation emits a terminal status. Finish it before the next attempt can wait.
       await codeLoginCancellation;
       if (generation !== codeLoginGeneration) return;
+      const host = target.hostSignIn;
+      if (host?.providers.includes(provider)) {
+        setCodeLoginState({ phase: "page", hostName: host.hostName, page: null });
+        await host.start(provider);
+        // A cancel sent while the start was on its way can reach the host first and find nothing to
+        // stop. A newer sign-in of the same provider owns the host's sign-in now, so it stays.
+        if (generation !== codeLoginGeneration) {
+          if (codeLoginProvider() !== provider) void host.cancel(provider).catch(() => undefined);
+          return;
+        }
+        await followHostSignIn(provider, host, generation);
+        return;
+      }
       const started = await target.start(provider);
       // A dialog the user closed while the provider was answering: the login was cancelled with
       // it, so there is nobody left to show a code to.
@@ -118,6 +150,43 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
                 name: agentProviderDescriptor(provider).displayName,
               }),
       });
+    }
+  }
+
+  /**
+   * Shows the host's page once it opens, and ends the dialog with the host's result. One request
+   * cannot wait for a person to sign in, so the status is read until the sign-in ends.
+   */
+  async function followHostSignIn(
+    provider: AgentProviderId,
+    host: ProviderHostSignInTarget,
+    generation: number,
+  ): Promise<void> {
+    while (generation === codeLoginGeneration) {
+      const status = await host.status(provider).catch((error: unknown) => {
+        // Nobody watches the page any more, so it must not stay open on the host until the deadline.
+        void host.cancel(provider).catch(() => undefined);
+        throw error;
+      });
+      if (generation !== codeLoginGeneration) return;
+      if (status.result) {
+        if (status.result.error) {
+          endProviderCodeLogin(provider, { kind: "failed", message: status.result.error });
+        } else {
+          const row = options.agentStatus().providers?.find((candidate) => candidate.id === provider);
+          endProviderCodeLogin(provider, { kind: "connected", accountLabel: row?.email ?? null });
+        }
+        return;
+      }
+      const state = codeLoginState();
+      const shown = state.phase === "page" ? (state.page?.tabId ?? null) : null;
+      if (status.tabId !== shown)
+        setCodeLoginState({
+          phase: "page",
+          hostName: host.hostName,
+          page: status.tabId ? { runtime: host.runtime, tabId: status.tabId, clipboard: host.clipboard } : null,
+        });
+      await new Promise((resolve) => window.setTimeout(resolve, HOST_SIGN_IN_POLL_MS));
     }
   }
 
@@ -170,8 +239,8 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     const target = codeLoginTarget;
     if (!provider || !target) return;
     options.connection?.drop(provider);
-    codeLoginCancellation = target
-      .cancel(provider)
+    const cancel = target.hostSignIn?.providers.includes(provider) ? target.hostSignIn.cancel : target.cancel;
+    codeLoginCancellation = cancel(provider)
       .then((status) => {
         if (generation === codeLoginGeneration) flush(() => options.applyStatus(status));
       })
@@ -294,5 +363,11 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
 
 /** A phase in which the provider can end the sign-in: a code or a page is out, or a code was sent. */
 function isWaitingPhase(state: ProviderCodeLoginState): boolean {
-  return state.phase === "waiting" || state.phase === "paste" || state.phase === "link" || state.phase === "verifying";
+  return (
+    state.phase === "waiting" ||
+    state.phase === "paste" ||
+    state.phase === "link" ||
+    state.phase === "page" ||
+    state.phase === "verifying"
+  );
 }

@@ -1,11 +1,13 @@
 /**
- * The replies of a host's `providers-v1` to `providers-v4` routes, as the desktop main process and the browser client
- * both read them. The route codec has already checked their fields; these give them their IPC types
- * and fail closed on anything else. They decode what a host sends, so the preload does not use them.
+ * The replies of a host's `providers-v1` to `providers-v4` and `provider-host-sign-in-v1` routes, as the
+ * desktop main process and the browser client both read them. The route codec has already checked
+ * their fields; these give them their IPC types and fail closed on anything else.
  */
 
-import type { ProviderApiKeyStatus, ProviderCodeLoginStart } from "./ipc-agent-status";
+import { INPUT_LIMITS } from "./input-limits";
+import type { ProviderApiKeyStatus, ProviderCodeLoginStart, ProviderHostSignInStatus } from "./ipc-agent-status";
 import type { ProviderRuntimeSnapshot, ProviderRuntimeStatus } from "./ipc-app-auth";
+import { isBoundedString, isNullableBoundedString } from "./ipc-bounded-values";
 import {
   type CustomProviderResult,
   type CustomProviderSummary,
@@ -34,6 +36,19 @@ export function decodeProviderCodeLoginStart(value: unknown): ProviderCodeLoginS
     ...(value.verificationUrlComplete === undefined ? {} : { verificationUrlComplete: value.verificationUrlComplete }),
     expiresAt: value.expiresAt,
   };
+}
+
+/** The bound `provider-host-sign-in-v1` puts on the error of an ended sign-in. */
+const HOST_SIGN_IN_ERROR_LIMIT = 2_000;
+
+export function decodeProviderHostSignInStatus(value: unknown): ProviderHostSignInStatus {
+  const invalid = () => new Error("Invalid sign-in response.");
+  if (!isDynamicRecord(value) || (value.tabId !== null && !isBoundedString(value.tabId, INPUT_LIMITS.identifier)))
+    throw invalid();
+  if (value.result === null) return { tabId: value.tabId, result: null };
+  if (!isDynamicRecord(value.result) || !isNullableBoundedString(value.result.error, HOST_SIGN_IN_ERROR_LIMIT))
+    throw invalid();
+  return { tabId: value.tabId, result: { error: value.result.error } };
 }
 
 export function decodeProviderApiKeyStatus(value: unknown): ProviderApiKeyStatus {

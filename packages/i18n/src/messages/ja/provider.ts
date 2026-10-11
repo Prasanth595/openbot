@@ -79,6 +79,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "このログインは停止しました。",
   "provider.codeLogin.pasteExpiresIn": "待機しています。このログインは残り {time} で停止します。",
   "provider.codeLogin.linkTitle": "別のデバイスで {name} にログイン",
+  "provider.codeLogin.pageTitle": "{name} にサインイン",
+  "provider.codeLogin.pageDescription":
+    "このページは {host} のブラウザーで開いています。ここでサインインしてください。",
+  "provider.codeLogin.pageOpening": "{host} で {name} のサインインページを開いています…",
   "provider.codeLogin.linkStep": "{name} にログインします。OpenBot は自動で続行します。",
 
   "provider.picker.noEndpoints": "エンドポイントはまだありません",

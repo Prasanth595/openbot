@@ -143,6 +143,7 @@ export const messages = defineMessages("error.provider", {
     "{provider} did not answer in time. The computer may be busy. Refresh the providers to try again.",
   "error.provider.noCodeSignIn": "{provider} cannot be signed in with a code.",
   "error.provider.codeLoginNoLink": "The provider did not show a sign-in link. Try again.",
+  "error.provider.hostSignInEnded": "{provider} did not finish signing in. Try again.",
   "error.provider.codeLoginNotWaiting": "No sign-in is waiting for a code. Start the sign-in again.",
   "error.provider.codeLoginBadCode": "Paste the code that the sign-in page shows.",
   "error.provider.codeLoginRefused": "The provider did not accept the code. Start the sign-in again.",

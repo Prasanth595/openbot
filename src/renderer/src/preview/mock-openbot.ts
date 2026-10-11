@@ -907,6 +907,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       // As with the code above, the preview has no provider to finish the sign-in.
       submitCodeLogin: async () => clone(agentStatus),
       cancelCodeLogin: (provider) => api.cancelProviderCodeLogin(provider),
+      // The preview has no host browser, so its Gemini sign-in waits with no page until it is cancelled.
+      startHostSignIn: async () => undefined,
+      hostSignInStatus: async () => ({ tabId: null, result: null }),
+      cancelHostSignIn: async () => clone(agentStatus),
       getApiKeyState: (provider) => api.getProviderApiKeyState(provider),
       setApiKey: (input) => api.setProviderApiKey(input),
       clearApiKey: (provider) => api.clearProviderApiKey(provider),

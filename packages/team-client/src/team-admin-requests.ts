@@ -46,6 +46,7 @@ import {
   decodeMcpTestResult,
   decodeProviderApiKeyStatus,
   decodeProviderCodeLoginStart,
+  decodeProviderHostSignInStatus,
   decodeProviderRuntimeSnapshot,
   decodeStorageUsage,
   type GetStorageUsageInput,
@@ -64,6 +65,7 @@ import {
   type McpSignInStatus,
   type McpTestResult,
   type ProviderCodeLoginStart,
+  type ProviderHostSignInStatus,
   type ProviderRuntimeSnapshot,
   type PublishAgentTemplateInput,
   type RemoveMcpServerInput,
@@ -109,6 +111,7 @@ import { HOST_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-update
 import { HOSTED_SITES_ROUTES } from "@openbot/contracts/team-protocol/hosted-sites-v1";
 import { MCP_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { MCP_ROUTES } from "@openbot/contracts/team-protocol/mcp-v1";
+import { PROVIDER_HOST_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import type { PROVIDERS_RUNTIMES_V2_ROUTES } from "@openbot/contracts/team-protocol/providers-v2";
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "@openbot/contracts/team-protocol/providers-v3";
@@ -550,6 +553,29 @@ export function cancelProviderCodeLogin(
   routes: ProviderCodeLoginRoutes = PROVIDERS_ADMIN_ROUTES,
 ): Effect.Effect<AgentStatus, TeamAdminRequestError> {
   return providerChange(request, routes.codeLoginCancel, { provider });
+}
+/** `provider-host-sign-in-v1`: the host opens the sign-in page in its own browser. */
+export function startProviderHostSignIn(
+  request: TeamApiRequest,
+  provider: AgentProviderId,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_HOST_SIGN_IN_ROUTES.start, ignoreResponse, { provider }));
+}
+
+export function providerHostSignInStatus(
+  request: TeamApiRequest,
+  provider: AgentProviderId,
+): Effect.Effect<ProviderHostSignInStatus, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", PROVIDER_HOST_SIGN_IN_ROUTES.status, decodeProviderHostSignInStatus, { provider }),
+  );
+}
+
+export function cancelProviderHostSignIn(
+  request: TeamApiRequest,
+  provider: AgentProviderId,
+): Effect.Effect<AgentStatus, TeamAdminRequestError> {
+  return providerChange(request, PROVIDER_HOST_SIGN_IN_ROUTES.cancel, { provider });
 }
 export type ProviderKeyRoutes = typeof PROVIDERS_ADMIN_ROUTES | typeof PROVIDERS_V5_ROUTES;
 

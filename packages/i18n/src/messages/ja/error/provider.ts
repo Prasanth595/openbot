@@ -151,6 +151,7 @@ export const messages = {
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。プロバイダーを更新して再試行してください。",
   "error.provider.noCodeSignIn": "{provider} にはコードでサインインできません。",
   "error.provider.codeLoginNoLink": "プロバイダーがサインインのリンクを表示しませんでした。もう一度お試しください。",
+  "error.provider.hostSignInEnded": "{provider} のサインインが完了しませんでした。もう一度お試しください。",
   "error.provider.codeLoginNotWaiting": "コードを待っているサインインはありません。サインインをやり直してください。",
   "error.provider.codeLoginBadCode": "サインインページに表示されたコードを貼り付けてください。",
   "error.provider.codeLoginRefused": "プロバイダーがコードを受け付けませんでした。サインインをやり直してください。",

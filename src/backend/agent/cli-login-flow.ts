@@ -17,7 +17,8 @@ import type { ProviderProcessFailed } from "./provider-status";
 interface PendingCliLogin {
   child: ChildProcess;
   cli: AgentCliInfo;
-  task: Fiber.Fiber<void, CliLoginFailed> | null;
+  /** True when the sign-in ended with the provider signed in. */
+  task: Fiber.Fiber<boolean, CliLoginFailed> | null;
   scope: Scope.Closeable;
   /** A code sign-in: what the CLI printed for the user, and the prompt a pasted code goes to. */
   code?: Pick<CliCodeLogin, "prompt" | "submit">;
@@ -107,7 +108,7 @@ export class CliLoginFlow {
         done.pipe(
           toCliLoginFailed,
           Effect.flatMap(() => this.#complete(provider, pending)),
-          Effect.catch((failure) => this.#fail(provider, pending, failure.cause)),
+          Effect.catch((failure) => this.#fail(provider, pending, failure.cause).pipe(Effect.as(false))),
           Effect.ensuring(Scope.close(scope, Exit.void)),
         ),
         this.#options.scope(),
@@ -173,6 +174,17 @@ export class CliLoginFlow {
     else this.#options.clearConnectionState(provider);
   }, Effect.uninterruptible).bind(this);
 
+  /**
+   * Waits until the pending sign-in of `provider` ends, and answers whether it signed the provider
+   * in. `null` when no sign-in is pending: it did not start, or it already ended.
+   */
+  readonly settled = Effect.fn("CliLogin.settled")(function* (this: CliLoginFlow, provider: AgentProvider) {
+    const task = this.#pending.get(provider)?.task;
+    if (!task) return null;
+    const exit = yield* Fiber.await(task);
+    return Exit.isSuccess(exit) && exit.value;
+  }).bind(this);
+
   /** Forgets every pending sign-in now, and returns the stop of their processes, which the caller runs. */
   dispose(): Effect.Effect<void> {
     const logins = [...this.#pending.values()];
@@ -189,18 +201,20 @@ export class CliLoginFlow {
     provider: AgentProvider,
     pending: PendingCliLogin,
   ) {
-    if (this.#pending.get(provider) !== pending) return;
-    yield* Effect.gen({ self: this }, function* () {
+    if (this.#pending.get(provider) !== pending) return false;
+    return yield* Effect.gen({ self: this }, function* () {
       const candidate = yield* this.#options.authenticate(provider, pending.cli);
       if (this.#pending.get(provider) !== pending) {
         yield* candidate.client.stop().pipe(toCliLoginFailed).pipe(Effect.ignore);
-        return;
+        return false;
       }
       yield* this.#options.activate(provider, candidate.client, pending.cli, candidate.account, {
         isCurrent: () => this.#pending.get(provider) === pending,
       });
-      if (this.#pending.get(provider) === pending) this.#pending.delete(provider);
-    }).pipe(Effect.catch((failure) => this.#fail(provider, pending, failure.cause)));
+      if (this.#pending.get(provider) !== pending) return false;
+      this.#pending.delete(provider);
+      return true;
+    }).pipe(Effect.catch((failure) => this.#fail(provider, pending, failure.cause).pipe(Effect.as(false))));
   }, Effect.uninterruptible);
 
   readonly #fail = Effect.fn("CliLogin.fail")(function* (

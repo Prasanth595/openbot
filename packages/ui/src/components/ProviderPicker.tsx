@@ -469,7 +469,10 @@ export function ProviderPicker(props: ProviderPickerProps) {
                 Boolean(props.onRestartProvider) && (option().restartPending || (available() && !connecting()));
               const diagnosticsOffered = () => Boolean(option().lastError && option().diagnostics);
               const actionsMenu = () =>
-                codeSignInOffered() || updateOffered() || restartOffered() || diagnosticsOffered();
+                (codeSignInOffered() && option().id !== "antigravity") ||
+                updateOffered() ||
+                restartOffered() ||
+                diagnosticsOffered();
               const inputId = () => `${pickerId}-${option().id}`;
               const off = () => Boolean(option().off);
               /** The refused attempt on this row, until the agents move to another provider. */
@@ -539,7 +542,8 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           runtimeStatus()?.phase === "ready" &&
                           !available() &&
                           !connecting() &&
-                          !props.onConnectProvider
+                          !props.onConnectProvider &&
+                          !codeSignInOffered()
                         }
                       >
                         <small class="provider-picker-email" role="status">
@@ -749,7 +753,8 @@ export function ProviderPicker(props: ProviderPickerProps) {
                                   </DropdownMenu.Item>
                                 </Show>
                               </Show>
-                              <Show when={codeSignInOffered()}>
+                              {/* Gemini on a host signs in on a page of the host's browser, which Connect opens. It has no code. */}
+                              <Show when={codeSignInOffered() && option().id !== "antigravity"}>
                                 <DropdownMenu.Item onSelect={() => void props.onSignInWithCodeProvider?.(option().id)}>
                                   <Smartphone aria-hidden="true" />
                                   {t("provider.action.signInWithCode")}

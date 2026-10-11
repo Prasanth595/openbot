@@ -150,6 +150,7 @@ export const messages = {
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. Odśwież dostawców, aby spróbować ponownie.",
   "error.provider.noCodeSignIn": "Dostawca {provider} nie obsługuje logowania kodem.",
   "error.provider.codeLoginNoLink": "Dostawca nie pokazał linku logowania. Spróbuj ponownie.",
+  "error.provider.hostSignInEnded": "Logowanie do {provider} nie zostało ukończone. Spróbuj ponownie.",
   "error.provider.codeLoginNotWaiting": "Żadne logowanie nie czeka na kod. Rozpocznij logowanie ponownie.",
   "error.provider.codeLoginBadCode": "Wklej kod, który pokazuje strona logowania.",
   "error.provider.codeLoginRefused": "Dostawca nie przyjął kodu. Rozpocznij logowanie ponownie.",

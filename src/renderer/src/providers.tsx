@@ -6,12 +6,18 @@ import { createEffect, createMemo, createSignal, flush, onSettled } from "solid-
 import { desktopAnalytics } from "./analytics";
 import { appPort } from "./app-port";
 import { useAgents } from "./features/agents/agents-context";
+import { conversationPort } from "./features/conversation/conversation-port";
 import { hostCustomProvidersApi } from "./features/custom-providers/custom-providers-port";
 import { createCustomProvidersStore } from "./features/custom-providers/stores/custom-providers-store";
 import { createProviderCodeLogin } from "./features/provider-updates/provider-code-login";
 import { createProviderRuntimeStore } from "./features/provider-updates/provider-runtime-store";
 import { remoteProviderRuntimes } from "./features/provider-updates/remote-provider-runtimes";
-import { codeSignInProviders, remoteAdminServer } from "./features/servers/server-capabilities";
+import {
+  codeSignInProviders,
+  hostSignInProviders,
+  remoteAdminServer,
+  serverSupportsCapability,
+} from "./features/servers/server-capabilities";
 import { useServers } from "./features/servers/servers-context";
 import { hostProviderKeyApi, providerKeyApi } from "./features/settings/provider-key-api";
 import { providersPort } from "./providers-port";
@@ -229,6 +235,15 @@ const Providers = createSimpleContext({
               start: (provider) => providerAdmin().startCodeLogin(provider, serverId),
               submit: (provider, code) => providerAdmin().submitCodeLogin({ provider, code }, serverId),
               cancel: (provider) => providerAdmin().cancelCodeLogin(provider, serverId),
+              hostSignIn: {
+                providers: hostSignInProviders(activeServer()),
+                hostName: activeServer()?.name ?? "",
+                runtime: conversationPort().browser,
+                clipboard: serverSupportsCapability(activeServer(), "browser-view-clipboard"),
+                start: (provider) => providerAdmin().startHostSignIn(provider, serverId),
+                status: (provider) => providerAdmin().hostSignInStatus(provider, serverId),
+                cancel: (provider) => providerAdmin().cancelHostSignIn(provider, serverId),
+              },
             }
           : {
               start: (provider) => providersPort().startProviderCodeLogin(provider),

@@ -13,12 +13,17 @@ import {
   decodeCustomProviderSummaries,
   decodeProviderApiKeyStatus,
   decodeProviderCodeLoginStart,
+  decodeProviderHostSignInStatus,
   decodeProviderRuntimeSnapshot,
   type SubmitProviderCodeLoginInput,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
+import {
+  PROVIDER_HOST_SIGN_IN_CAPABILITY,
+  PROVIDER_HOST_SIGN_IN_ROUTES,
+} from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_CAPABILITY, PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import {
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
@@ -114,6 +119,20 @@ export function providerAdminIpcHandlers({
     return PROVIDERS_ADMIN_ROUTES;
   }
 
+  /**
+   * A sign-in in the browser of a joined server's host, which only a host with
+   * `provider-host-sign-in-v1` runs. This computer signs in with its own browser, through Connect.
+   */
+  const hostSignIn = <T>(run: (provider: AgentProviderId, serverId: string) => Promise<T>) =>
+    scopedHandler(parseProviderId, {
+      local: () => Promise.reject(new Error(sourceText("error.team.providersUnsupported"))),
+      remote: (provider: AgentProviderId, serverId: string) => {
+        if (!remoteServers.supportsCapability(serverId, PROVIDER_HOST_SIGN_IN_CAPABILITY))
+          throw new Error(sourceText("error.team.providersUnsupported"));
+        return run(provider, serverId);
+      },
+    });
+
   const runtime = (route: "runtimesDownload" | "runtimesCancel") => (provider: ManagedProviderId, serverId: string) =>
     remote(serverId, runtimeRoutes(serverId)[route], { provider }, decodeProviderRuntimeSnapshot);
 
@@ -139,6 +158,15 @@ export function providerAdminIpcHandlers({
         remote: (provider, serverId) =>
           remoteChange(serverId, signInRoutes(serverId, provider).codeLoginCancel, { provider }),
       }),
+      startHostSignIn: hostSignIn(async (provider, serverId) => {
+        await remote(serverId, PROVIDER_HOST_SIGN_IN_ROUTES.start, { provider }, acceptEmpty);
+      }),
+      hostSignInStatus: hostSignIn((provider, serverId) =>
+        remote(serverId, PROVIDER_HOST_SIGN_IN_ROUTES.status, { provider }, decodeProviderHostSignInStatus),
+      ),
+      cancelHostSignIn: hostSignIn((provider, serverId) =>
+        remoteChange(serverId, PROVIDER_HOST_SIGN_IN_ROUTES.cancel, { provider }),
+      ),
       getApiKeyState: scopedHandler(parseProviderId, {
         local: (provider) => ({ provider, status: credentials.status(provider) }),
         remote: async (provider, serverId) => ({

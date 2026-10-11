@@ -69,6 +69,7 @@ import type {
   AgentStatus,
   ProviderApiKeyState,
   ProviderCodeLoginStart,
+  ProviderHostSignInStatus,
   SetProviderApiKeyInput,
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
@@ -644,6 +645,13 @@ export const IPC_ENDPOINTS = {
       "provider-admin:submit-code-login",
     ),
     cancelCodeLogin: scopedRequest<AgentProviderId, AgentStatus, "required">()("provider-admin:cancel-code-login"),
+    // A sign-in in the browser of a joined server's host, which the live view shows
+    // (`provider-host-sign-in-v1`). How it ends also arrives as the host's status.
+    startHostSignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:start-host-sign-in"),
+    hostSignInStatus: scopedRequest<AgentProviderId, ProviderHostSignInStatus, "required">()(
+      "provider-admin:host-sign-in-status",
+    ),
+    cancelHostSignIn: scopedRequest<AgentProviderId, AgentStatus, "required">()("provider-admin:cancel-host-sign-in"),
     getApiKeyState: scopedRequest<AgentProviderId, ProviderApiKeyState, "required">()(
       "provider-admin:get-api-key-state",
     ),

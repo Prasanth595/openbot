@@ -234,3 +234,13 @@ export type ProviderCodeLoginStart =
       expiresAt: number;
     }
   | { kind: "connected" };
+
+/**
+ * A sign-in that a joined server's host runs in its own browser (`provider-host-sign-in-v1`). `tabId`
+ * is the host tab with the page while it is open, and `result` says how the sign-in ended. Both are
+ * `null` while the host waits for the page.
+ */
+export interface ProviderHostSignInStatus {
+  tabId: string | null;
+  result: { error: string | null } | null;
+}

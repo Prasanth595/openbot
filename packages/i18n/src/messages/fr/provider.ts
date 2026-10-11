@@ -89,6 +89,9 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Cette connexion s’est arrêtée.",
   "provider.codeLogin.pasteExpiresIn": "En attente. Cette connexion s’arrête dans {time}.",
   "provider.codeLogin.linkTitle": "Connectez-vous à {name} sur un autre appareil",
+  "provider.codeLogin.pageTitle": "Se connecter à {name}",
+  "provider.codeLogin.pageDescription": "Cette page est ouverte dans le navigateur de {host}. Connectez-vous ici.",
+  "provider.codeLogin.pageOpening": "Ouverture de la page de connexion de {name} sur {host}…",
   "provider.codeLogin.linkStep": "Connectez-vous à {name}. OpenBot continue tout seul.",
 
   "provider.picker.noEndpoints": "Aucun point de terminaison pour l’instant",

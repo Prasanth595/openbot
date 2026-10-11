@@ -97,6 +97,9 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Вход прекращён.",
   "provider.codeLogin.pasteExpiresIn": "Ждём вас. Вход прекратится через {time}.",
   "provider.codeLogin.linkTitle": "Вход в {name} на другом устройстве",
+  "provider.codeLogin.pageTitle": "Вход в {name}",
+  "provider.codeLogin.pageDescription": "Эта страница открыта в браузере на {host}. Войдите здесь.",
+  "provider.codeLogin.pageOpening": "Открываем страницу входа {name} на {host}…",
   "provider.codeLogin.linkStep": "Войдите в {name}. OpenBot продолжит сам.",
 
   "provider.picker.noEndpoints": "Эндпоинтов пока нет",

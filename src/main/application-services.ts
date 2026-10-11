@@ -167,6 +167,7 @@ import { OnePasswordConnectorStore } from "./onepassword-connector-store";
 import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
+import { ProviderHostSignIns } from "./provider-host-sign-ins";
 import { startProviderLog } from "./provider-log";
 import { toProviderRuntimeFailure } from "./provider-runtime-effects";
 import { ProviderRuntimeManager, providerRuntimeRoot, runtimeTarget } from "./provider-runtime-manager";
@@ -282,6 +283,7 @@ const TEARDOWN_ORDER = {
   computerUsePermissionHelp: 19,
   dynamicIsland: 20,
   // Before the browser, so no sign-in opens a tab while it stops.
+  providerHostSignIns: 28,
   mcpHostSignIns: 29,
   browser: 30,
   browserPictureInPicture: 40,
@@ -1615,6 +1617,12 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.mcpHostSignIns, "MCP sign-ins of joined servers", () =>
     Effect.runPromise(mcpHostSignIns.close()),
   );
+  // Only on Linux does the Gemini CLI print its sign-in page for this host to open.
+  const providerHostSignIns = process.platform === "linux" ? new ProviderHostSignIns({ service, browser }) : undefined;
+  if (providerHostSignIns)
+    teardown.push(TEARDOWN_ORDER.providerHostSignIns, "Provider sign-ins of joined servers", () =>
+      Effect.runPromise(providerHostSignIns.close()),
+    );
   const host = new HostService({
     appVersion: app.getVersion(),
     store: teamStore,
@@ -1632,6 +1640,8 @@ export async function createApplicationServices({
     mcpServers: service,
     // Present, so the host advertises `mcp-sign-in-v1`. The routes are admin-only.
     mcpSignIns: mcpHostSignIns,
+    // Present on Linux, so the host advertises `provider-host-sign-in-v1`. The routes are admin-only.
+    providerHostSignIns,
     // Present, so the host advertises `storage-v1`. Members read; only admins delete or clear.
     storage: storageUsage,
     // Present, so the host advertises `hosted-sites-v1`. Members list; only admins delete.

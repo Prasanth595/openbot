@@ -520,6 +520,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     status,
     setStatus,
     readStatus: () => workspace.runtime.status(),
+    browser: workspace.runtime.browser,
   });
   const runtime = createWebConversationRuntime(
     workspace.runtime,

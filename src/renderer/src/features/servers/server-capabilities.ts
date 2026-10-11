@@ -5,6 +5,7 @@ import {
   type ServerSummary,
 } from "@openbot/contracts/ipc";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
+import { PROVIDER_HOST_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_SIGN_IN_V3_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v3";
 import { PROVIDERS_V4_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v4";
 
@@ -28,6 +29,7 @@ export function serverSupportsCapability(
       capability === "browser-view-clipboard" ||
       capability === "mcp-servers-v1" ||
       capability === "mcp-sign-in-v1" ||
+      capability === "provider-host-sign-in-v1" ||
       capability === "storage-v1" ||
       capability === "hosted-sites-v1" ||
       capability === "agent-admin-v1" ||
@@ -70,6 +72,19 @@ export function remoteMcpSignIn(server: ServerSummary | undefined): boolean {
   );
 }
 
+/**
+ * The providers a joined server signs in on a page in its own browser, which the live view shows
+ * here. Only a Linux host advertises it, and the live view streams the active server only.
+ */
+export function hostSignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
+  return server?.kind === "remote" &&
+    server.active &&
+    serverSupportsCapability(server, "provider-host-sign-in-v1") &&
+    serverSupportsCapability(server, "browser-view")
+    ? PROVIDER_HOST_SIGN_IN_PROVIDERS
+    : [];
+}
+
 /** An owner or admin of a joined server. This computer is always its own administrator. */
 export function serverRoleCanAdminister(server: Pick<ServerSummary, "kind" | "role"> | undefined): boolean {
   return server?.kind === "local" || server?.role === "owner" || server?.role === "admin";
@@ -94,16 +109,18 @@ export function serverCanAdminister(
  * Grok, Cursor and Cline, and Claude when it also has `providers-v3`, which only a host that can run
  * the Claude pasted code advertises. A host with `providers-v3` alone signs in Codex, Claude and Grok.
  * This computer, and an older host, sign in with a code only the providers whose descriptor says so:
- * this computer has a browser for the others.
+ * this computer has a browser for the others. A host with `provider-host-sign-in-v1` adds the
+ * providers it signs in on its own browser's page.
  */
 export function codeSignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
+  const host = hostSignInProviders(server);
   if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v4")) {
     const paste = serverSupportsCapability(server, "providers-v3");
-    return PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude");
+    return [...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), ...host];
   }
   if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v3"))
-    return PROVIDERS_SIGN_IN_V3_PROVIDERS;
-  return AGENT_PROVIDERS.filter((provider) => agentProviderDescriptor(provider).codeSignIn);
+    return [...PROVIDERS_SIGN_IN_V3_PROVIDERS, ...host];
+  return AGENT_PROVIDERS.filter((provider) => agentProviderDescriptor(provider).codeSignIn || host.includes(provider));
 }
 
 /** `server` when it is a joined server this account may manage through `capability`, otherwise undefined. */

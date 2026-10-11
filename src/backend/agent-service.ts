@@ -2242,6 +2242,30 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /** See `ProviderRuntime.signInProviderOnHost`. */
+  signInProviderOnHost(
+    provider: AgentProvider,
+    openPage: (url: string) => Promise<void>,
+  ): Effect.Effect<void, AgentLifecycleFailed> {
+    return this.#providers
+      .signInProviderOnHost(provider, openPage)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "signInProviderOnHost", cause: failure.cause }),
+        ),
+      );
+  }
+
+  cancelProviderSignIn(provider: AgentProvider): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return this.#providers
+      .cancelProviderSignIn(provider)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "cancelProviderSignIn", cause: failure.cause }),
+        ),
+      );
+  }
+
   startProviderCodeLogin(provider: AgentProvider): Effect.Effect<ProviderCodeLoginStart, AgentLifecycleFailed> {
     return this.#providers
       .startProviderCodeLogin(provider)

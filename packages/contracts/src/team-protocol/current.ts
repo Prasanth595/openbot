@@ -30,6 +30,7 @@ import { HOSTED_SITES_CAPABILITY } from "./hosted-sites-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_CAPABILITY } from "./mcp-sign-in-v1";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "./message-client-id-v1";
+import { PROVIDER_HOST_SIGN_IN_CAPABILITY } from "./provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "./providers-v1";
 import { PROVIDERS_RUNTIMES_V2_CAPABILITY } from "./providers-v2";
 import { PROVIDERS_SIGN_IN_V3_CAPABILITY } from "./providers-v3";
@@ -84,6 +85,7 @@ export {
   LIVE_ACTIVITY_PUSH_CAPABILITY,
   MCP_SERVERS_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
+  PROVIDER_HOST_SIGN_IN_CAPABILITY,
   PROVIDERS_ADMIN_CAPABILITY,
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
@@ -161,6 +163,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   WORKSPACE_DIRECTORY_CAPABILITY,
   AGENT_HOST_SETTINGS_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
+  PROVIDER_HOST_SIGN_IN_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -227,12 +230,14 @@ export function isAgentMessageRoute(method: string, path: string): boolean {
 
 // Keep the first request readable by every released peer. The v7 marker lets a current
 // host return the expanded list; older hosts ignore the marker and retain all old features.
+// A protocol 6 peer reads at most 64 capabilities, so each new capability is v7 only.
 export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
   (capability) =>
     capability !== AGENT_MEMORIES_CAPABILITY &&
     capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
     capability !== ACP_REGISTRY_CAPABILITY &&
-    capability !== PROVIDERS_V5_CAPABILITY,
+    capability !== PROVIDERS_V5_CAPABILITY &&
+    capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -246,6 +251,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== AGENT_MEMORIES_CAPABILITY &&
       capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
       capability !== ACP_REGISTRY_CAPABILITY &&
-      capability !== PROVIDERS_V5_CAPABILITY,
+      capability !== PROVIDERS_V5_CAPABILITY &&
+      capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY,
   );
 }

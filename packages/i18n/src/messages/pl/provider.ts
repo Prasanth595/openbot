@@ -97,6 +97,9 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "To logowanie zostało przerwane.",
   "provider.codeLogin.pasteExpiresIn": "Czekamy na ciebie. To logowanie wygaśnie za {time}.",
   "provider.codeLogin.linkTitle": "Zaloguj się do {name} na innym urządzeniu",
+  "provider.codeLogin.pageTitle": "Zaloguj się do {name}",
+  "provider.codeLogin.pageDescription": "Ta strona jest otwarta w przeglądarce na {host}. Zaloguj się tutaj.",
+  "provider.codeLogin.pageOpening": "Otwieranie strony logowania {name} na {host}…",
   "provider.codeLogin.linkStep": "Zaloguj się do {name}. OpenBot będzie kontynuować samodzielnie.",
 
   "provider.picker.noEndpoints": "Brak endpointów",
