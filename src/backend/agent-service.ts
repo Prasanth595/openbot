@@ -1959,6 +1959,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         ),
         Effect.forkIn(this.#scope),
       );
+    } else if (providerChanged && !isHeld) {
+      // A hold that started during the switch let queued work through the second `requireIdle`, and
+      // its release drains only the agents still on the spent model.
+      this.#drain.scheduleDrain(agent.id);
     }
     return agent;
   }, Effect.uninterruptible);
