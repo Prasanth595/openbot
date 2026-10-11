@@ -36,9 +36,19 @@ function render(messages: ChannelMessage[]): string {
  * The rows a model reads. A routing receipt ("Assigned to Builder.") is activity the channel shows
  * its reader, and the packet already carries the owner of every task, so sending it again would
  * only repeat the routing that the turn instructions tell the member to leave out of its reply.
+ *
+ * A member's commentary (its thinking, and the text between its tool calls) stays in the channel
+ * for the reader too. Another model must not read it: Claude rejects a request that carries a
+ * model's thinking (`reasoning_extraction`), and the packet is rebuilt on every turn, so one such
+ * row stopped every assignment in the channel until the summary covered it. The final reply and
+ * `channel_result` carry what the other members need.
  */
-function conversation(messages: ChannelMessage[]): ChannelMessage[] {
-  return messages.filter((message) => channelRoutingConversationEvent(message.message) === null);
+export function channelConversation(messages: ChannelMessage[]): ChannelMessage[] {
+  return messages.filter(
+    (message) =>
+      channelRoutingConversationEvent(message.message) === null &&
+      !(message.message.author === "assistant" && message.message.itemType === "commentary"),
+  );
 }
 
 /** Cuts one rendered message into inputs the summary model accepts. The source ID stays the same. */
@@ -82,7 +92,7 @@ export class ChannelHistory {
       const dependencies = yield* ChannelHistoryDependencies;
       const characterBudget = Math.min(CONTEXT_CHARACTERS, requestedBudget);
       const channel = yield* channelSync(() => dependencies.store.get(task.channelId));
-      let messages = conversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
+      let messages = channelConversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
       let summary = yield* channelSync(() => dependencies.store.summary(channel.id));
       let recent = messages.filter((message) => message.sequence > summary.throughSequence);
       // Reserve half the handoff ceiling for instructions, requested sources, and provider overhead.
@@ -131,7 +141,7 @@ export class ChannelHistory {
           };
           yield* channelSync(() => dependencies.store.saveSummary(channel.id, summary));
         }
-        messages = conversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
+        messages = channelConversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
         recent = messages.filter((message) => message.sequence > summary.throughSequence);
       }
       const memories = yield* channelSync(() => dependencies.memories.list(channel.id));

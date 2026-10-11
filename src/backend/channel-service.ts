@@ -24,7 +24,7 @@ import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope } from "effect";
 import { type ChannelOperationError, channelFailure, channelResult, channelSync } from "./channel-effects";
-import { ChannelHistory, type ChannelTextModel } from "./channel-history";
+import { ChannelHistory, type ChannelTextModel, channelConversation } from "./channel-history";
 import { ChannelMemoryStore } from "./channel-memory-store";
 import { type ChannelAssignment, ChannelStore } from "./channel-store";
 import type { DeliveryContext, MailboxStore } from "./mailbox-store";
@@ -689,9 +689,11 @@ export class ChannelService {
                 .map(({ id, name, title, description }) => ({ id, name, title, description })),
               task,
               summary: summary.text || undefined,
-              recent: channelResult(
-                yield* Effect.result(
-                  channelSync(() => this.store.messages(channelId, undefined, ROUTING_RECENT_MESSAGES + 1)),
+              recent: channelConversation(
+                channelResult(
+                  yield* Effect.result(
+                    channelSync(() => this.store.messages(channelId, undefined, ROUTING_RECENT_MESSAGES + 1)),
+                  ),
                 ),
               )
                 .filter((item) => item.id !== task?.requestMessageId && item.sequence > summary.throughSequence)
@@ -1645,7 +1647,7 @@ export class ChannelService {
         if (!attachment) return yield* channelFailure(new Error("The attachment is unavailable."));
         return attachment;
       }
-      return yield* channelSync(() =>
+      const page = yield* channelSync(() =>
         this.store.page(
           channelId,
           typeof args.beforeSequence === "number" &&
@@ -1655,6 +1657,8 @@ export class ChannelService {
             : undefined,
         ),
       );
+      // The cursors still count every row, so the next page starts where this one ended.
+      return { ...page, messages: channelConversation(page.messages) };
     }
     const operationId = `tool:${turnId}:${callId}`;
     if ((yield* channelSync(() => this.store.database.commandResult(`channels:${operationId}`))) !== undefined)
