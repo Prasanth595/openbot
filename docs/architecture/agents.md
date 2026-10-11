@@ -115,7 +115,14 @@ branch refuses them, and no Team API protocol changes.
 ## Progress updates
 
 `openbot.post_update` lets an agent show a short checkpoint while a user task runs, so the user does
-not wait for the end of the turn to know what happens. The policy asks for an update only at key
+not wait for the end of the turn to know what happens. It works with every provider, because each
+one receives the same OpenBot tools. The user turns it on in Settings > General ("Progress updates
+while agents work"); it is off by default. `ProgressUpdatePreferenceStore` in `src/main` keeps the
+choice in `openbot-progress-update-preference-v1.json`, and a file that is missing or invalid reads
+as off. When it is off, the developer instructions tell the agent not to call the tool, and the tool
+refuses. A change unloads the loaded provider sessions, as a memory limit change does, so the next
+turn resumes with the new instructions. A headless server has no Settings for it, so it stays off
+there. The policy asks for an update only at key
 checkpoints: the plan of a long task, a finding that changes the work, a blocker, or a change of
 direction. When the user steers a message into the running turn, the agent answers it at once with
 an update and continues. The router (`#postUpdate` in `agent/openbot-tool-router.ts`) adds a normal

@@ -102,6 +102,12 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             label={i18n.t("settings.busyMessage.title")}
             description={i18n.t("settings.busyMessage.description")}
           />
+          <SwitchField
+            checked={props.value.progressUpdates}
+            onChange={(checked) => props.onUpdateSetting("progressUpdates", checked)}
+            label={i18n.t("settings.progressUpdates.title")}
+            description={i18n.t("settings.progressUpdates.description")}
+          />
           <Item class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.agentMemoryLimit.title")}</ItemTitle>

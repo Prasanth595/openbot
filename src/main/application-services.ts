@@ -164,6 +164,7 @@ import { MessagingCredentialStore } from "./messaging-credential-store";
 import { NotificationPreferenceStore } from "./notification-preference-store";
 import { OnePasswordConnectorService } from "./onepassword-connector-service";
 import { OnePasswordConnectorStore } from "./onepassword-connector-store";
+import { ProgressUpdatePreferenceStore } from "./progress-update-preference-store";
 import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
@@ -237,6 +238,7 @@ const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
 const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
+const PROGRESS_UPDATE_PREFERENCE_FILE = "openbot-progress-update-preference-v1.json";
 const DYNAMIC_ISLAND_PREFERENCE_FILE = "openbot-dynamic-island-preference-v1.json";
 const BROWSER_STATE_FILE = "openbot-browser-state-v1.json";
 const SIDEBAR_LAYOUT_FILE = "openbot-sidebar-layout-v1.json";
@@ -400,6 +402,7 @@ export interface ApplicationServices {
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitPreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
+  progressUpdates: ProgressUpdatePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
   agentInitialization: AgentInitializationGate<AgentLifecycleFailed>;
   sidebarLayout: SidebarLayoutStore;
@@ -886,6 +889,10 @@ export async function createApplicationServices({
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
   await runCauseEffect(remoteSessionReuse.load());
+  const progressUpdates = new ProgressUpdatePreferenceStore(
+    join(app.getPath("userData"), PROGRESS_UPDATE_PREFERENCE_FILE),
+  );
+  await runCauseEffect(progressUpdates.load());
   const remoteSessionCache = new RemoteSessionCache({
     path: join(app.getPath("userData"), REMOTE_SESSIONS_FILE),
     enabled: remoteSessionReuse.get().keepBetweenRuns,
@@ -1287,6 +1294,7 @@ export async function createApplicationServices({
     approvalAutomation,
     busyMessageMode: () => busyMessageMode.get().mode,
     agentMemoryLimit: () => agentMemoryLimit.get().limit,
+    progressUpdates: () => progressUpdates.get().enabled,
     deleteWithRevokedApproval: (agentId, remove) =>
       approvalAutomation.deleteAgent(agentId, remove).pipe(toAgentRemovalFailed),
     tables,
@@ -2257,6 +2265,7 @@ export async function createApplicationServices({
     busyMessageMode,
     agentMemoryLimit,
     remoteSessionReuse,
+    progressUpdates,
     remoteSessionCache,
     agentInitialization,
     hostUpdateCoordinator,

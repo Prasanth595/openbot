@@ -25,6 +25,7 @@ import type { LanguageService } from "../language-service";
 import type { LogoColorService } from "../logo-color-service";
 import { MAC_PERMISSION_URLS } from "../mac-permission-urls";
 import { exportDiagnostics, exportOpenBotData } from "../maintenance-service";
+import type { ProgressUpdatePreferenceStore } from "../progress-update-preference-store";
 import type { RemoteSessionCache } from "../remote-session-cache";
 import type { RemoteSessionReusePreferenceStore } from "../remote-session-reuse-preference-store";
 import { readSetupState, writeSetupState } from "../setup-store";
@@ -37,6 +38,7 @@ import {
   parseApprovalAutomation,
   parseBusyMessageModePreference,
   parseExternalDestination,
+  parseProgressUpdatePreference,
   parseRemoteSessionReusePreference,
   parseSetup,
 } from "./app-inputs";
@@ -81,6 +83,7 @@ export interface AppIpcDependencies {
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitPreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
+  progressUpdates: ProgressUpdatePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
   language: LanguageService;
   logoColor: LogoColorService;
@@ -103,6 +106,7 @@ export function appIpcHandlers({
   busyMessageMode,
   agentMemoryLimit,
   remoteSessionReuse,
+  progressUpdates,
   remoteSessionCache,
   language,
   logoColor,
@@ -150,6 +154,12 @@ export function appIpcHandlers({
       setAgentMemoryLimitPreference: payloadHandler(parseAgentMemoryLimitPreference, (parsed) =>
         runCauseEffect(
           agentMemoryLimit.set(parsed).pipe(Effect.tap(() => Effect.sync(() => service.memoryLimitChanged()))),
+        ),
+      ),
+      getProgressUpdatePreference: handler(() => progressUpdates.get()),
+      setProgressUpdatePreference: payloadHandler(parseProgressUpdatePreference, (parsed) =>
+        runCauseEffect(
+          progressUpdates.set(parsed).pipe(Effect.tap(() => Effect.sync(() => service.progressUpdatesChanged()))),
         ),
       ),
       getRemoteSessionReusePreference: handler(() => remoteSessionReuse.get()),

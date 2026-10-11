@@ -16,6 +16,7 @@ import type {
   MarketplaceAgentQuery,
   MarketplaceSkillQuery,
   NotificationPreference,
+  ProgressUpdatePreference,
   PublishHostedSiteInput,
   RemoteSessionReusePreference,
   ReplaceHostedSiteInput,
@@ -105,6 +106,11 @@ export function parseRemoteSessionReusePreference(input: unknown): RemoteSession
   if (!isDynamicRecord(input) || !isBoolean(input.keepBetweenRuns))
     throw new Error("The remote session setting is required.");
   return { keepBetweenRuns: input.keepBetweenRuns };
+}
+
+export function parseProgressUpdatePreference(input: unknown): ProgressUpdatePreference {
+  if (!isDynamicRecord(input) || !isBoolean(input.enabled)) throw new Error("The progress update setting is required.");
+  return { enabled: input.enabled };
 }
 
 export function parseAppLanguagePreference(input: unknown): SetAppLanguagePreferenceInput {

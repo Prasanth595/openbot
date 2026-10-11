@@ -115,6 +115,8 @@ export interface OpenBotToolRouterHooks {
   turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
   /** Records a no-update tool call for the turn; null when no routine run started the turn. */
   requestNoUpdate(agentId: string, threadId: string, turnId: string): "quiet" | "shown" | null;
+  /** The user's switch for `post_update`. */
+  progressUpdates(): boolean;
 }
 
 export interface OpenBotToolRouterOptions {
@@ -824,6 +826,8 @@ export class OpenBotToolRouter {
   ) {
     const parsed = postUpdateToolSchema.safeParse(params.arguments);
     if (!parsed.success) return openBotToolFailure(profileToolErrorMessage(parsed.error));
+    if (!this.#hooks.progressUpdates())
+      return openBotToolFailure("The user turned progress updates off. Do not call this tool again in this turn.");
     const forUser = this.#mailbox
       .findDeliveriesByTurn(senderAgentId, params.turnId)
       .some((candidate) => candidate.delivery.sender.kind === "user");

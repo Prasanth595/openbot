@@ -44,6 +44,9 @@ export const messages = defineMessages("settings", {
   "settings.busyMessage.title": "Steer agents while they work",
   "settings.busyMessage.description":
     "New messages join the agent’s current work, not the queue. Works with ChatGPT and Claude.",
+  "settings.progressUpdates.title": "Progress updates while agents work",
+  "settings.progressUpdates.description":
+    "Agents show short updates in the chat at key steps of a long task, and answer a redirected message at once.",
   "settings.agentMemoryLimit.title": "Memories per agent",
   "settings.agentMemoryLimit.description": "How many memories each agent on this computer can keep.",
   "settings.keepRemoteSessions.title": "Fast connection to servers",

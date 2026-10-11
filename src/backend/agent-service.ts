@@ -246,6 +246,11 @@ export interface AgentServiceOptions {
    * default cap, which was the only cap before the setting existed.
    */
   agentMemoryLimit?: () => number;
+  /**
+   * Whether agents can post progress updates during a user turn. The main process owns the
+   * preference. Omitted, off: an agent answers only at the end of its turn.
+   */
+  progressUpdates?: () => boolean;
   deleteWithRevokedApproval?: (
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
@@ -695,6 +700,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
+      progressUpdates: () => options.progressUpdates?.() ?? false,
       hooks: {
         logRecovery: (agentId, provider, outcome) =>
           logger.warn("Recovered an unavailable provider session.", { agentId, provider, outcome }),
@@ -1044,6 +1050,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           lastEventAt: this.#turn.lastEventAt(agentId),
         }),
         requestNoUpdate: (agentId, threadId, turnId) => this.#turn.requestNoUpdate(agentId, threadId, turnId),
+        progressUpdates: () => options.progressUpdates?.() ?? false,
       },
     });
   }
@@ -1180,6 +1187,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   /** The developer instructions state the limit, so a new limit reloads every agent's threads. */
   memoryLimitChanged(): void {
+    for (const agent of this.listAgents()) this.#conversation.unloadAgentThreads(agent.id);
+  }
+
+  /** The instructions say whether to post updates, so each session resumes with the new ones. */
+  progressUpdatesChanged(): void {
     for (const agent of this.listAgents()) this.#conversation.unloadAgentThreads(agent.id);
   }
 

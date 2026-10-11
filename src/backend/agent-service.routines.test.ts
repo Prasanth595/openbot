@@ -523,9 +523,11 @@ describe.sequential("AgentService: routines", () => {
   it("keeps a progress update in the chat before the final answer of the turn", async () => {
     const clients = new Map<AgentProvider, FakeAgentClient>();
     const { store, mailbox } = stores(root);
+    let progressUpdates = false;
     service = createTestService({
       store,
       mailbox,
+      progressUpdates: () => progressUpdates,
       preferredProvider: "codex",
       clientFactory: (provider) => {
         const client = new FakeAgentClient(provider, "", false);
@@ -543,6 +545,8 @@ describe.sequential("AgentService: routines", () => {
     if (!client || !threadId || !turnId) throw new Error("The progress update turn did not start.");
 
     const update = { text: "Found 3 risky migrations." };
+    await expectOpenBotToolFailure(client, threadId, "post_update", update, "turned progress updates off", turnId);
+    progressUpdates = true;
     const posted = await callOpenBotTool(client, threadId, "post_update", update, turnId, "update-call");
     expect(openBotToolPayload(posted.result)).toMatchObject({ status: "shown" });
     // A retried call adds no second update.
@@ -577,6 +581,7 @@ describe.sequential("AgentService: routines", () => {
     service = createTestService({
       store,
       mailbox,
+      progressUpdates: () => true,
       preferredProvider: "codex",
       clientFactory: (provider) => {
         const client = new FakeAgentClient(provider, "", false);

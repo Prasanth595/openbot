@@ -258,6 +258,7 @@ import type {
 } from "./ipc-messaging";
 import type { NotificationOpenedEvent, NotificationPreference } from "./ipc-notifications";
 import type { OnePasswordConnectInput, OnePasswordConnectorStatus } from "./ipc-onepassword-connector";
+import type { ProgressUpdatePreference } from "./ipc-progress-updates";
 import type {
   DetectedModelServer,
   DiscoverModelsInput,
@@ -479,6 +480,10 @@ export const IPC_ENDPOINTS = {
     getAgentMemoryLimitPreference: request<undefined, AgentMemoryLimitPreference>()("app:get-agent-memory-limit"),
     setAgentMemoryLimitPreference: request<AgentMemoryLimitPreference, AgentMemoryLimitPreference>()(
       "app:set-agent-memory-limit",
+    ),
+    getProgressUpdatePreference: request<undefined, ProgressUpdatePreference>()("app:get-progress-updates"),
+    setProgressUpdatePreference: request<ProgressUpdatePreference, ProgressUpdatePreference>()(
+      "app:set-progress-updates",
     ),
     getRemoteSessionReusePreference: request<undefined, RemoteSessionReusePreference>()("app:get-remote-session-reuse"),
     setRemoteSessionReusePreference: request<RemoteSessionReusePreference, RemoteSessionReusePreference>()(
