@@ -165,7 +165,8 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     while (generation === codeLoginGeneration) {
       const status = await host.status(provider).catch((error: unknown) => {
         // Nobody watches the page any more, so it must not stay open on the host until the deadline.
-        void host.cancel(provider).catch(() => undefined);
+        // A newer sign-in of the same provider owns the host's sign-in now.
+        if (generation === codeLoginGeneration) void host.cancel(provider).catch(() => undefined);
         throw error;
       });
       if (generation !== codeLoginGeneration) return;

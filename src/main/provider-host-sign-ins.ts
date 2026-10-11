@@ -1,10 +1,10 @@
 // Provider sign-ins that an administrator starts on this host from another computer
 // (`provider-host-sign-in-v1`).
 
-import type { AgentProviderId } from "@openbot/contracts/ipc";
+import type { AgentProviderId, ProviderHostSignInStatus } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
-import { Duration, Effect, Exit, Scope } from "effect";
+import { Cause, Duration, Effect, Exit, Fiber, Option, Scope } from "effect";
 import { providerLabel } from "../backend/agent/thread-items";
 import type { AgentService } from "../backend/agent-service";
 import type { BrowserHost } from "../backend/browser-host";
@@ -17,9 +17,9 @@ const RESULT_KEPT_MS = 60_000;
 /** The bound of an error on the wire, as `provider-host-sign-in-v1` reads it. */
 const ERROR_LIMIT = 2_000;
 
-export interface ProviderHostSignInStatus {
-  tabId: string | null;
-  result: { error: string | null } | null;
+interface HostSignIn extends ProviderHostSignInStatus {
+  /** The sign-in. `#finish` waits for it apart, so a cancel that interrupts it still ends the sign-in. */
+  run?: Fiber.Fiber<void, { cause: unknown }>;
 }
 
 export interface ProviderHostSignInDependencies {
@@ -38,7 +38,7 @@ export interface ProviderHostSignInDependencies {
  */
 export class ProviderHostSignIns {
   readonly #dependencies: ProviderHostSignInDependencies;
-  readonly #signIns = new Map<AgentProviderId, ProviderHostSignInStatus>();
+  readonly #signIns = new Map<AgentProviderId, HostSignIn>();
   readonly #scope = Scope.makeUnsafe();
 
   constructor(dependencies: ProviderHostSignInDependencies) {
@@ -49,18 +49,18 @@ export class ProviderHostSignIns {
     this: ProviderHostSignIns,
     provider: AgentProviderId,
   ) {
-    const signIn: ProviderHostSignInStatus = { tabId: null, result: null };
+    const signIn: HostSignIn = { tabId: null, result: null };
     this.#signIns.set(provider, signIn);
-    yield* Effect.forkIn(
-      this.#dependencies.service
-        .signInProviderOnHost(provider, (url) => runCauseEffect(this.#show(provider, signIn, url)))
-        .pipe(
-          Effect.as({ error: null }),
-          Effect.catch((failure) => Effect.succeed({ error: failureText(provider, failure.cause) })),
-          Effect.flatMap((result) => this.#finish(provider, signIn, result)),
-        ),
+    const run = yield* Effect.forkIn(
+      this.#dependencies.service.signInProviderOnHost(provider, (url) =>
+        runCauseEffect(this.#show(provider, signIn, url)),
+      ),
       this.#scope,
-      { startImmediately: true },
+    );
+    signIn.run = run;
+    yield* Effect.forkIn(
+      Fiber.await(run).pipe(Effect.flatMap((exit) => this.#finish(provider, signIn, resultOf(provider, exit)))),
+      this.#scope,
     );
   }).bind(this);
 
@@ -75,6 +75,10 @@ export class ProviderHostSignIns {
     this: ProviderHostSignIns,
     provider: AgentProviderId,
   ) {
+    // A sign-in that still waits for the provider to start has no CLI to stop yet. The interrupt
+    // stops it before it opens a page.
+    const run = this.#signIns.get(provider)?.run;
+    if (run) yield* Fiber.interrupt(run);
     yield* this.#dependencies.service.cancelProviderSignIn(provider);
   }).bind(this);
 
@@ -86,7 +90,7 @@ export class ProviderHostSignIns {
   readonly #show = Effect.fn("ProviderHostSignIns.show")(function* (
     this: ProviderHostSignIns,
     provider: AgentProviderId,
-    signIn: ProviderHostSignInStatus,
+    signIn: HostSignIn,
     url: string,
   ) {
     const tab = yield* this.#dependencies.browser.openPrivate(url);
@@ -100,7 +104,7 @@ export class ProviderHostSignIns {
   readonly #finish = Effect.fn("ProviderHostSignIns.finish")(function* (
     this: ProviderHostSignIns,
     provider: AgentProviderId,
-    signIn: ProviderHostSignInStatus,
+    signIn: HostSignIn,
     result: { error: string | null },
   ) {
     signIn.result = result;
@@ -124,6 +128,13 @@ export class ProviderHostSignIns {
 
 function endedText(provider: AgentProviderId): string {
   return sourceText("error.provider.hostSignInEnded", { provider: providerLabel(provider) });
+}
+
+/** Every ending gives a result, so the client stops reading `status` and the tab closes. */
+function resultOf(provider: AgentProviderId, exit: Exit.Exit<void, { cause: unknown }>): { error: string | null } {
+  if (Exit.isSuccess(exit)) return { error: null };
+  const failure = Cause.findErrorOption(exit.cause);
+  return { error: failureText(provider, Option.isSome(failure) ? failure.value.cause : undefined) };
 }
 
 function failureText(provider: AgentProviderId, cause: unknown): string {
