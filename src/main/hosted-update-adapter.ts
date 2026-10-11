@@ -116,7 +116,8 @@ export class HostedUpdateAdapter implements UpdateAdapter {
       if (state) {
         if (state.changedAt !== changedAt) {
           changedAt = state.changedAt;
-          // Root reports only the percent.
+          // Root reports only the percent. Before the download, root can wait for the disk restore
+          // that boat runs after a resume, or for the download of the timer, for minutes.
           this.#emit("download-progress", {
             percent: state.percent,
             total: 0,
@@ -152,11 +153,13 @@ export class HostedUpdateAdapter implements UpdateAdapter {
     return isValidSemver(version) && newerRelease(version, this.#options.currentVersion) ? version : null;
   }
 
+  /** `percent` is NaN while root waits to download, which UpdateService shows as no percent. */
   async #readState(): Promise<{ changedAt: number; percent: number } | null> {
     try {
       const [text, info] = await Promise.all([readFile(this.#paths.state, "utf8"), stat(this.#paths.state)]);
       const [step, value] = text.trim().split(" ");
-      const percent = step === "downloading" ? Math.min(Number(value) || 0, 100) : step === "preparing" ? 100 : 0;
+      const percent =
+        step === "downloading" ? Math.min(Number(value) || 0, 100) : step === "preparing" ? 100 : Number.NaN;
       return { changedAt: info.mtimeMs, percent };
     } catch {
       return null;

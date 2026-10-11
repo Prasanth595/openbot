@@ -375,6 +375,8 @@ export const messages = defineMessages("server", {
   "server.update.status.available": "{version} is available.",
   // {progress} is a percent, such as 42%.
   "server.update.status.downloading": "Downloading {version} · {progress}",
+  // Before the host knows the size, or while it waits to start the download.
+  "server.update.status.downloadingUnknown": "Downloading {version}…",
   "server.update.status.ready": "{version} is downloaded.",
   "server.update.status.installing": "{name} is restarting to install the update.",
   "server.update.status.upToDate": "OpenBot is up to date on {name}.",

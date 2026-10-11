@@ -390,6 +390,7 @@ export const messages = {
   "server.update.status.available": "{version} sürümü mevcut.",
   // {progress} %42 gibi bir yüzdedir.
   "server.update.status.downloading": "{version} indiriliyor · {progress}",
+  "server.update.status.downloadingUnknown": "{version} indiriliyor…",
   "server.update.status.ready": "{version} indirildi.",
   "server.update.status.installing": "{name}, güncellemeyi yüklemek için yeniden başlatılıyor.",
   "server.update.status.upToDate": "{name} üzerinde OpenBot güncel.",

@@ -390,6 +390,7 @@ export const messages = {
   "server.update.status.checking": "Sprawdzanie aktualizacji…",
   "server.update.status.available": "Dostępna jest wersja {version}.",
   "server.update.status.downloading": "Pobieranie {version} · {progress}",
+  "server.update.status.downloadingUnknown": "Pobieranie {version}…",
   "server.update.status.ready": "Pobrano wersję {version}.",
   "server.update.status.installing": "{name} uruchamia się ponownie, aby zainstalować aktualizację.",
   "server.update.status.upToDate": "OpenBot na serwerze {name} jest aktualny.",

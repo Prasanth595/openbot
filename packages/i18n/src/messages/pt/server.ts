@@ -373,6 +373,7 @@ export const messages = {
   "server.update.status.checking": "Buscando atualizações…",
   "server.update.status.available": "{version} está disponível.",
   "server.update.status.downloading": "Baixando {version} · {progress}",
+  "server.update.status.downloadingUnknown": "Baixando {version}…",
   "server.update.status.ready": "{version} foi baixada.",
   "server.update.status.installing": "{name} está reiniciando para instalar a atualização.",
   "server.update.status.upToDate": "O OpenBot está atualizado em {name}.",

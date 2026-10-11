@@ -369,6 +369,7 @@ export const messages = {
   "server.update.status.checking": "アップデートを確認しています…",
   "server.update.status.available": "{version} を利用できます。",
   "server.update.status.downloading": "{version} をダウンロードしています · {progress}",
+  "server.update.status.downloadingUnknown": "{version} をダウンロードしています…",
   "server.update.status.ready": "{version} をダウンロードしました。",
   "server.update.status.installing": "{name} はアップデートをインストールするため再起動しています。",
   "server.update.status.upToDate": "{name} の OpenBot は最新です。",
