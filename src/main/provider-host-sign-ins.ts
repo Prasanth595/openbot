@@ -4,22 +4,11 @@
 import type { AgentProviderId, ProviderHostSignInStatus } from "@openbot/contracts/ipc";
 import { PROVIDER_HOST_SIGN_IN_ERROR_LIMIT } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { sourceText } from "@openbot/i18n/source";
-import { createOpenBotLogger, toLogValue } from "@openbot/logging";
-import { Cause, Duration, Effect, Exit, Fiber, Option, Scope } from "effect";
+import { Cause, Effect, Exit, Option } from "effect";
 import { providerLabel } from "../backend/agent/thread-items";
 import type { AgentService } from "../backend/agent-service";
 import type { BrowserHost } from "../backend/browser-host";
-import { runCauseEffect } from "../backend/effect-boundary";
-
-const logger = createOpenBotLogger("provider-host-sign-ins");
-
-/** How long a finished sign-in still answers `status`, so the client that polls it reads the end. */
-const RESULT_KEPT_MS = 60_000;
-
-interface HostSignIn extends ProviderHostSignInStatus {
-  /** The sign-in. `#finish` waits for it apart, so a cancel that interrupts it still ends the sign-in. */
-  run?: Fiber.Fiber<void, { cause: unknown }>;
-}
+import { HostSignInPages } from "./host-sign-in-pages";
 
 export interface ProviderHostSignInDependencies {
   service: Pick<AgentService, "signInProviderOnHost" | "cancelProviderSignIn">;
@@ -37,37 +26,23 @@ export interface ProviderHostSignInDependencies {
  */
 export class ProviderHostSignIns {
   readonly #dependencies: ProviderHostSignInDependencies;
-  readonly #signIns = new Map<AgentProviderId, HostSignIn>();
-  readonly #scope = Scope.makeUnsafe();
+  readonly #pages: HostSignInPages<AgentProviderId, { error: string | null }>;
 
   constructor(dependencies: ProviderHostSignInDependencies) {
     this.#dependencies = dependencies;
+    this.#pages = new HostSignInPages(dependencies.browser);
   }
 
-  readonly start = Effect.fn("ProviderHostSignIns.start")(function* (
-    this: ProviderHostSignIns,
-    provider: AgentProviderId,
-  ) {
-    const signIn: HostSignIn = { tabId: null, result: null };
-    this.#signIns.set(provider, signIn);
-    const run = yield* Effect.forkIn(
-      this.#dependencies.service.signInProviderOnHost(provider, (url) =>
-        runCauseEffect(this.#show(provider, signIn, url)),
-      ),
-      this.#scope,
+  start(provider: AgentProviderId) {
+    return this.#pages.start(
+      provider,
+      (openPage) => this.#dependencies.service.signInProviderOnHost(provider, openPage),
+      (exit) => resultOf(provider, exit),
     );
-    signIn.run = run;
-    yield* Effect.forkIn(
-      Fiber.await(run).pipe(Effect.flatMap((exit) => this.#finish(provider, signIn, resultOf(provider, exit)))),
-      this.#scope,
-    );
-  }).bind(this);
+  }
 
   status(provider: AgentProviderId): ProviderHostSignInStatus {
-    const signIn = this.#signIns.get(provider);
-    if (!signIn) return { tabId: null, result: { error: endedText(provider) } };
-    // Google can sign in through a popup; the live view follows it and returns when it closes.
-    return { tabId: signIn.tabId && this.#dependencies.browser.privateTab(signIn.tabId), result: signIn.result };
+    return this.#pages.status(provider) ?? { tabId: null, result: { error: endedText(provider) } };
   }
 
   readonly cancel = Effect.fn("ProviderHostSignIns.cancel")(function* (
@@ -76,52 +51,12 @@ export class ProviderHostSignIns {
   ) {
     // A sign-in that still waits for the provider to start has no CLI to stop yet. The interrupt
     // stops it before it opens a page.
-    const run = this.#signIns.get(provider)?.run;
-    if (run) yield* Fiber.interrupt(run);
+    yield* this.#pages.interrupt(provider);
     yield* this.#dependencies.service.cancelProviderSignIn(provider);
   }).bind(this);
 
-  readonly close = Effect.fn("ProviderHostSignIns.close")(function* (this: ProviderHostSignIns) {
-    yield* Scope.close(this.#scope, Exit.void);
-  }).bind(this);
-
-  /** The page opens; a sign-in that a later one replaced or that already ended closes it again. */
-  readonly #show = Effect.fn("ProviderHostSignIns.show")(function* (
-    this: ProviderHostSignIns,
-    provider: AgentProviderId,
-    signIn: HostSignIn,
-    url: string,
-  ) {
-    const tab = yield* this.#dependencies.browser.openPrivate(url);
-    if (this.#signIns.get(provider) === signIn && signIn.result === null) {
-      signIn.tabId = tab.id;
-      return;
-    }
-    yield* this.#closeTab(tab.id);
-  });
-
-  readonly #finish = Effect.fn("ProviderHostSignIns.finish")(function* (
-    this: ProviderHostSignIns,
-    provider: AgentProviderId,
-    signIn: HostSignIn,
-    result: { error: string | null },
-  ) {
-    signIn.result = result;
-    const tabId = signIn.tabId;
-    signIn.tabId = null;
-    if (tabId) yield* this.#closeTab(tabId);
-    yield* Effect.sleep(Duration.millis(RESULT_KEPT_MS));
-    if (this.#signIns.get(provider) === signIn) this.#signIns.delete(provider);
-  });
-
-  #closeTab(tabId: string) {
-    return this.#dependencies.browser
-      .close(tabId)
-      .pipe(
-        Effect.catch((error) =>
-          Effect.sync(() => logger.warn("Unable to close a provider sign-in tab", { error: toLogValue(error) })),
-        ),
-      );
+  close() {
+    return this.#pages.close();
   }
 }
 
@@ -129,7 +64,6 @@ function endedText(provider: AgentProviderId): string {
   return sourceText("error.provider.hostSignInEnded", { provider: providerLabel(provider) });
 }
 
-/** Every ending gives a result, so the client stops reading `status` and the tab closes. */
 function resultOf(provider: AgentProviderId, exit: Exit.Exit<void, { cause: unknown }>): { error: string | null } {
   if (Exit.isSuccess(exit)) return { error: null };
   const failure = Cause.findErrorOption(exit.cause);
