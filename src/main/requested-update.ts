@@ -77,7 +77,7 @@ export interface RequestedUpdateOptions {
    * Set on a hosted server. It installs each release by itself, as its start applied the staged one
    * before, and the automatic restart also waits until no client uses the server.
    */
-  clientInUse?: () => boolean;
+  clientInUse?: (() => boolean) | undefined;
 }
 
 interface Schedule {
@@ -188,13 +188,16 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
     return this.snapshot();
   }).bind(this);
 
-  /** A member can request an idle update but cannot replace an existing schedule. */
+  /**
+   * A member can request an idle update but cannot replace the schedule of another member. It
+   * replaces the automatic one, which on a hosted server also waits for the member's own use.
+   */
   readonly requestWhenIdle = Effect.fn("RequestedUpdate.requestWhenIdle")(function* (
     this: RequestedUpdate,
     member: RequestedUpdateMember,
   ) {
     yield* remoteDecode(() => this.#assertAllowed());
-    if (this.#schedule) return this.snapshot();
+    if (this.#schedule && this.#schedule.memberId !== null) return this.snapshot();
     return yield* this.start(member, "when-idle");
   }).bind(this);
 

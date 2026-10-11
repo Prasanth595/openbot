@@ -325,7 +325,9 @@ describe("RequestedUpdate automatic install", () => {
     updater.installUpdate.mockClear();
     updater.status = { ...updater.status, phase: "ready" };
     inUse = true;
-    await runCauseEffect(requested.start(ADA, "when-idle"));
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(requested.snapshot().restart?.requestedBy).toBeNull();
+    await runCauseEffect(requested.requestWhenIdle(ADA));
     await vi.advanceTimersByTimeAsync(1_000);
     expect(updater.installUpdate).toHaveBeenCalledOnce();
   });
