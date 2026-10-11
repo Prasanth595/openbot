@@ -443,6 +443,7 @@ export const messages = defineMessages("server", {
   "server.update.reason.browserControl": "browser control by an agent",
   "server.update.reason.updateOperation": "another update step",
   "server.update.reason.initialization": "the start of OpenBot",
+  "server.update.reason.clientUse": "a member who uses the server",
   "server.update.reason.other": "other work",
   // A notice to every member when a joined server restarts into an update. {name} is the server.
   "server.restartNotice.waitingTitle": "{name} restarts to install an update",

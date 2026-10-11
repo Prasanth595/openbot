@@ -22,6 +22,7 @@ INSTALL=$ROOT/opt
 SCRATCH=$ROOT/tmp
 REQUESTS=$ROOT/run
 STATE=$ROOT/state
+RESTORE=$ROOT/restore
 systemctl() { echo "systemctl $*" >>"$ROOT/calls"; }
 uname() { echo x86_64; }
 chown() { :; }
@@ -66,7 +67,7 @@ beforeEach(() => {
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-function run(command: "stage" | "apply" | "request") {
+function run(command: "boot" | "stage" | "apply" | "request") {
   return spawnSync("bash", ["-c", harness, "harness", command], {
     env: { ...process.env, ROOT: root, UPDATER: updater },
     encoding: "utf8",
@@ -214,6 +215,21 @@ describe("openbot-hosted-update", () => {
     rmSync(join(root, "fail-hosting"));
     expect(run("apply").status).toBe(0);
     expect(existsSync(join(root, "opt", "app", "openbot"))).toBe(true);
+    expect(readdirSync(join(root, "opt"))).toEqual(["app"]);
+  });
+
+  it("starts OpenBot during the restore after a wake, and applies a staged release only on a complete disk", () => {
+    installRelease("app", "0.25.2");
+    stageRelease("0.25.3");
+    mkdirSync(join(root, "restore"));
+    writeFileSync(join(root, "restore", "active"), "");
+    expect(run("boot").status).toBe(0);
+    expect(versionOf("app")).toBe("0.25.2");
+    expect(versionOf("staged")).toBe("0.25.3");
+
+    writeFileSync(join(root, "restore", "hydration-done"), "");
+    expect(run("boot").status).toBe(0);
+    expect(versionOf("app")).toBe("0.25.3");
     expect(readdirSync(join(root, "opt"))).toEqual(["app"]);
   });
 

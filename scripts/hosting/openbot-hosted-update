@@ -4,11 +4,14 @@
 #   openbot-hosted-update stage   openbot-update.timer. Downloads a newer release, checks it against
 #                                 the release manifest, copies it to /opt/OpenBot/staged, and installs
 #                                 the packages that it needs. OpenBot keeps running.
-#   openbot-hosted-update apply   openbot-update-apply.service, at boot before openbot.service. Copies
-#                                 the staged release into place. boat stop and resume work like a
-#                                 reboot, so a server gets the update at its next wake. A self-hosted
-#                                 server seldom reboots, so `openbot update` stops OpenBot, runs
-#                                 `stage` and `apply`, and starts it again.
+#   openbot-hosted-update boot    openbot-update-apply.service, at boot before openbot.service. Runs
+#                                 `apply` when the disk of the server is complete. After a boat wake,
+#                                 boat restores the disk for some minutes, and OpenBot does not wait
+#                                 for that: OpenBot installs the staged release with `request` when
+#                                 no client uses the server.
+#   openbot-hosted-update apply   Copies the staged release into place while OpenBot is stopped. A
+#                                 self-hosted server seldom reboots, so `openbot update` stops
+#                                 OpenBot, runs `stage` and `apply`, and starts it again.
 #   openbot-hosted-update request openbot-update-request.service, when OpenBot asks for an update in
 #                                 Server Settings. Runs `stage`, or stops OpenBot, runs `apply` and
 #                                 starts it again.
@@ -66,10 +69,14 @@ version_of() {
 # boat restores the disk of a server lazily after a resume, and starts the units before the restore
 # ends. Until then a directory can show no files. Observed on boat, not documented by it: the session
 # has `active` while the restore runs and `hydration-done` when it ends.
+restoring() {
+  [ -e "$RESTORE/active" ] && [ ! -e "$RESTORE/hydration-done" ]
+}
+
 wait_for_restore() {
   local second
   for ((second = 0; second < 240; second++)); do
-    if [ ! -e "$RESTORE/active" ] || [ -e "$RESTORE/hydration-done" ]; then return 0; fi
+    restoring || return 0
     sleep 1
   done
   fail "The disk of the server is still being restored."
@@ -301,6 +308,20 @@ apply() {
   echo "Updated OpenBot from ${current:-unknown} to $staged."
 }
 
+# openbot.service waits for this. A restore after a wake takes minutes, and a staged release waits
+# for it: OpenBot starts first, and asks for the install when no client uses the server. A copy that
+# a stop interrupted completes first, because a partial release cannot start. A staged release that
+# the restore does not show yet stays for the next start.
+boot() {
+  if [ -e "$INSTALL/.applying" ]; then
+    wait_for_restore
+  elif [ ! -e "$INSTALL/staged.ready" ] || restoring; then
+    recover
+    return 0
+  fi
+  apply
+}
+
 # A release that an older script moved into place has the units of `request`, but that script
 # installed only the units that it knew. The start of OpenBot does not wait for the update lock.
 trigger() {
@@ -369,8 +390,12 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   esac
   exec 9>"$LOCK"
   flock 9
-  # openbot.service waits for `apply`, so `apply` waits for the restore only when it has work. A staged
-  # release that the restore does not show yet applies at the next boot.
+  if [ "${1:-}" = boot ]; then
+    boot
+    exit 0
+  fi
+  # The openbot-update-apply.service of an older release runs `apply` at boot. With no work, it does
+  # not wait for the restore.
   if [ "${1:-}" = apply ] && [ ! -e "$INSTALL/staged.ready" ] && [ ! -e "$INSTALL/.applying" ]; then
     recover
     exit 0
@@ -379,6 +404,6 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   case ${1:-} in
     stage) stage ;;
     apply) apply ;;
-    *) fail "usage: $0 stage|apply|request|trigger" ;;
+    *) fail "usage: $0 boot|stage|apply|request|trigger" ;;
   esac
 fi

@@ -74,7 +74,6 @@ export class HostedUpdateAdapter implements UpdateAdapter {
   readonly #events = new EventEmitter();
   readonly #options: HostedUpdateOptions;
   readonly #paths: HostedUpdatePaths;
-  #latestVersion: string | null = null;
 
   constructor(options: HostedUpdateOptions) {
     this.#options = options;
@@ -92,19 +91,17 @@ export class HostedUpdateAdapter implements UpdateAdapter {
       this.#options.fetch ?? fetch,
       AbortSignal.timeout(15_000),
     );
-    this.#latestVersion = version;
     if (!newerRelease(version, this.#options.currentVersion))
       return { isUpdateAvailable: false, updateInfo: { version } };
     return { isUpdateAvailable: true, updateInfo: { version }, cancellationToken: new RequestCancellation() };
   }
 
+  /**
+   * Root answers also when the timer staged the release already: it answers after boat restored the
+   * disk, which can take minutes after a wake. An install during the restore would wait for it with
+   * OpenBot stopped.
+   */
   async downloadUpdate(cancellationToken?: UpdateCancellationToken): Promise<void> {
-    // The timer of the server stages each release too, so the release is often there already.
-    const staged = await this.#stagedVersion();
-    if (staged && (!this.#latestVersion || !newerRelease(this.#latestVersion, staged))) {
-      this.#emit("update-downloaded", { version: staged });
-      return;
-    }
     const request = join(this.#paths.requests, "update-stage");
     await writeFile(request, "", { mode: 0o600 });
     let changedAt: number | null = null;

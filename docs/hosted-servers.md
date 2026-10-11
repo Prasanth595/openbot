@@ -386,13 +386,16 @@ On a server, root runs `openbot-hosted-update`:
    to `/opt/OpenBot/staged`.
    `staged.ready` comes after the last file. OpenBot keeps running. The download and unpack use
    idle CPU and disk priority.
-2. `openbot-update-apply.service` runs `apply` at boot, before `openbot.service`. boat stop and resume
-   work like a reboot, so the new release starts at the next wake of the server, not during use. It
-   copies `staged` to `app`, and then installs the scripts, AppArmor profile and units of the new
-   release. `.applying` and `staged` stay until all of this is complete, so after a stop or a
-   failure the next boot does it again, and `stage` does nothing until then. `openbot.service`
-   does not require `apply`, so it starts after a failure too: with the old release, or with a
-   partial copy after a failed copy, until the next boot.
+2. `apply` copies `staged` to `app`, and then installs the scripts, AppArmor profile and units of
+   the new release. `.applying` and `staged` stay until all of this is complete, so after a stop or
+   a failure the next start does it again, and `stage` does nothing until then.
+   `openbot-update-apply.service` runs `boot` before `openbot.service`. `boot` runs `apply` only on
+   a complete disk, or when `.applying` shows an interrupted copy. `openbot.service` does not
+   require it, so it starts after a failure too: with the old release, or with a partial copy after
+   a failed copy, until the next start. On a self-installed server, the new release starts at the
+   next boot. A hosted server installs it itself: when the release is staged, OpenBot asks root to
+   install it when idle and when no client used the server for 5 minutes (`client-use` in the
+   reasons it waits for). The automatic update switch of a hosted server is always on.
 
 boat saves `/opt` by the paths that change, and it does not look into a directory that a rename
 moves. After the next stop, such a directory is empty or has its old files. So a release gets to
@@ -400,9 +403,16 @@ moves. After the next stop, such a directory is empty or has its old files. So a
 with a probe; not in boat documentation.]
 
 boat resumes a server on a machine that booted before, restores the disk lazily, and starts the
-units before the restore ends. `stage` waits until the restore ends (at most 4 minutes). `apply`
-waits only when it finds `staged.ready` or `.applying`, because OpenBot starts after it. When the
-restore does not show a staged release yet, the release applies at the next boot.
+units before the restore ends. The restore takes about 3.5 minutes. `stage` waits until it ends (at
+most 4 minutes), and OpenBot asks for `stage` before each install, so an install never stops
+OpenBot for the restore. `boot` waits only for an interrupted copy, because OpenBot starts after
+it. During a restore it skips a staged release and recovers an incomplete one.
+
+boat starts the desktop (`lightdm`) about 8 s after the resume, and then the enabled units of
+`multi-user.target` again, about 16 s after it. `openbot.service` is also wanted by
+`lightdm.service`, so it starts with the desktop; the second start of `openbot-update-apply.service`
+does nothing because of `RemainAfterExit`. [Observed on a boat VM on 2026-10-11; not in boat
+documentation.]
 [Not confirmed in boat documentation: the `active` and `hydration-done` files in
 `/var/lib/ascii-lazy` that mark the restore. Observed on a boat VM.] `apply` never removes a staged
 release that is not complete.
@@ -521,6 +531,12 @@ machine) confirmed that systemd starts `openbot.service` again after a resume, a
 secret in `/srv` stays. From the resume call to the OpenBot start took 7 to 34 s; the keyring start
 took 40 ms. Most of the time is boat: it restores the disk and then starts the enabled units, 5 to
 20 s after the sandbox is `idle`.
+
+A wake test on 2026-10-11 (one hosted server with 0.37.0) measured, from the resume call: boat
+ready at 4 s, `openbot.service` at 17 s and the host register at 22 s. A wake with a staged release
+took 3 min 35 s, because `apply` waited for the restore. With the start at `lightdm`,
+`openbot.service` started at 8 s and the host registered at about 20 s: Electron starts slowly from
+the lazily restored disk, and the desktop session holds the display until about 12 s.
 
 A resize test on 2026-09-28 (one plain sandbox with `noEnv`, `small → default → small`, each a stop
 and a resume with `type`) confirmed that boat changes the machine in place with the same sandbox

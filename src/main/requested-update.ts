@@ -73,6 +73,11 @@ export interface RequestedUpdateOptions {
    * to the request that asked for it must have left first.
    */
   graceMs?: number;
+  /**
+   * Set on a hosted server. It installs each release by itself, as its start applied the staged one
+   * before, and the automatic restart also waits until no client uses the server.
+   */
+  clientInUse?: () => boolean;
 }
 
 interface Schedule {
@@ -98,6 +103,7 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
   readonly #graceMs: number;
   #allowed: boolean;
   #autoInstall: boolean;
+  readonly #clientInUse: (() => boolean) | null;
   /** The version whose restart was cancelled, or whose automatic restart failed. The next version schedules again. */
   #declinedVersion: string | null = null;
   #schedule: Schedule | null = null;
@@ -123,6 +129,7 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
     this.#savePreference = options.savePreference;
     this.#allowed = options.preference.allowRemoteUpdates;
     this.#autoInstall = options.preference.autoInstall;
+    this.#clientInUse = options.clientInUse ?? null;
     this.#pollMs = options.pollMs ?? DEFAULT_POLL_MS;
     this.#graceMs = options.graceMs ?? DEFAULT_GRACE_MS;
     this.#updater.on("status", this.#onStatus);
@@ -140,7 +147,7 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
       errorCode: status.errorCode ?? this.#installError,
       remoteUpdates: status.managedByHost ? "managed" : this.#allowed ? "allowed" : "disabled",
       autoDownload: this.#updater.getAutoDownload(),
-      autoInstall: this.#autoInstall,
+      autoInstall: this.#installsAutomatically(),
       restart: schedule
         ? { requestedBy: schedule.requestedBy, mode: schedule.mode, waitingFor: [...schedule.waitingFor] }
         : null,
@@ -213,7 +220,7 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
     if (this.#schedule && !this.#restarting()) {
       // Each switch removes only the restart it allowed: remote access a member's, auto-install its own.
       const automatic = this.#schedule.memberId === null;
-      if (automatic ? !this.#autoInstall : !this.#allowed) this.#clear();
+      if (automatic ? !this.#installsAutomatically() : !this.#allowed) this.#clear();
     }
     yield* this.#advance(this.#updater.getStatus());
     return preference;
@@ -270,7 +277,7 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
     this: RequestedUpdate,
     status: UpdateStatus,
   ) {
-    if (!this.#autoInstall || status.managedByHost || !status.availableVersion) return;
+    if (!this.#installsAutomatically() || status.managedByHost || !status.availableVersion) return;
     if (status.availableVersion === this.#declinedVersion) return;
     if (status.phase === "available")
       yield* Effect.forkIn(this.#updater.downloadUpdate(), this.#workScope, { startImmediately: true });
@@ -296,8 +303,10 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
     if (!schedule || this.#updater.getStatus().phase !== "ready") return;
     if (schedule.mode === "when-idle") {
       const { safeToRestart, reasons } = this.#describeReadiness();
-      if (!safeToRestart) {
-        const waitingFor = [...new Set(reasons)];
+      // A member who asks for the restart is a client too, so only the automatic one waits for clients.
+      const clientUse = schedule.memberId === null && this.#clientInUse?.() === true;
+      if (!safeToRestart || clientUse) {
+        const waitingFor = [...new Set(clientUse ? [...reasons, "client-use"] : reasons)];
         if (waitingFor.join() !== schedule.waitingFor.join()) {
           schedule.waitingFor = waitingFor;
           this.#publish();
@@ -338,6 +347,10 @@ export class RequestedUpdate extends EventEmitter<{ preference: [UpdatePreferenc
         ),
       );
   });
+
+  #installsAutomatically(): boolean {
+    return this.#autoInstall || this.#clientInUse !== null;
+  }
 
   #restarting(): boolean {
     return this.#installing || this.#updater.getStatus().phase === "installing";

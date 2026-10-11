@@ -457,6 +457,7 @@ export const messages = {
   "server.update.reason.browserControl": "Browsersteuerung durch einen Agenten",
   "server.update.reason.updateOperation": "einen weiteren Update-Schritt",
   "server.update.reason.initialization": "den Start von OpenBot",
+  "server.update.reason.clientUse": "ein Mitglied, das den Server nutzt",
   "server.update.reason.other": "andere Aufgaben",
   "server.restartNotice.waitingTitle": "{name} startet neu, um ein Update zu installieren",
   "server.restartNotice.waitingVersionTitle": "{name} startet neu, um OpenBot {version} zu installieren",

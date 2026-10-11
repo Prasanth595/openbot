@@ -1,6 +1,9 @@
 import type { AppTextKey } from "@openbot/i18n";
 
-/** The restart blockers that `checkRestartReadiness` reports, as the user reads them. */
+/**
+ * The restart blockers that `checkRestartReadiness` reports, as the user reads them. `client-use` is
+ * the automatic install of a hosted server, which also waits for its clients.
+ */
 const RESTART_REASON_LABELS: Record<string, AppTextKey> = {
   "agent-turn": "server.update.reason.agentTurn",
   "queued-delivery": "server.update.reason.queuedDelivery",
@@ -14,6 +17,7 @@ const RESTART_REASON_LABELS: Record<string, AppTextKey> = {
   "browser-control": "server.update.reason.browserControl",
   "update-operation": "server.update.reason.updateOperation",
   initialization: "server.update.reason.initialization",
+  "client-use": "server.update.reason.clientUse",
 };
 
 /** A reason from a newer version has no label here yet. */
