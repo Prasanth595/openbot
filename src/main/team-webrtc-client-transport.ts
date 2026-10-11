@@ -117,6 +117,8 @@ interface ActiveHost {
   released: boolean;
   cancelConnectionWait: (() => void) | null;
   expirationTimer: ReturnType<typeof setTimeout> | null;
+  /** The one compatibility read of this connection that learns the host protocol. */
+  protocolProbe: Deferred.Deferred<void> | null;
   authentication: {
     ticket: string;
     clientPublicKey: string;
@@ -160,8 +162,6 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   readonly #operations = new Set<Deferred.Deferred<void>>();
   #stopping: Deferred.Deferred<void, RemoteWorkflowError> | null = null;
   readonly #hostProtocols = new Map<string, number>();
-  /** One compatibility read for each host whose protocol is not known yet. */
-  readonly #hostProtocolProbes = new Map<string, Deferred.Deferred<void>>();
   readonly #active = new Map<string, ActiveHost>();
   // A failed attempt used to end its session, so each retry against an offline host was a create, a
   // ticket and an end: three Worker requests and a Signal webhook. Only `disconnect` ends it now.
@@ -412,7 +412,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
         // A new connection forgets the host protocol, and an unknown protocol sends the protocol 6
         // capability list. A v7 route that needs a v7 capability then refuses a request that the
         // user sent before the `connected` handler read the compatibility report.
-        if (path !== "/v1/compatibility") yield* this.#learnHostProtocol(hostId);
+        if (path !== "/v1/compatibility") yield* this.#learnHostProtocol(hostId, init.timeoutMs);
         const method = (init.method ?? "GET").toUpperCase();
         const binary = binaryBody(init.body);
         const sideRoute = teamSideRouteCodec(path);
@@ -519,26 +519,29 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   }).bind(this);
 
   /**
-   * Reads the compatibility report once when the host protocol is not known. Requests that arrive
-   * during the read wait for it. A failed read keeps the protocol 6 list, which every host accepts.
+   * Reads the compatibility report once for each connection when the host protocol is not known.
+   * Requests that arrive during the read wait for it. A failed read is not tried again on the same
+   * connection: the request keeps the protocol 6 list, which every host accepts.
    */
   readonly #learnHostProtocol = Effect.fn("TeamWebRtcClient.learnHostProtocol")(function* (
     this: TeamWebRtcClientTransport,
     hostId: string,
+    requestTimeoutMs: number | undefined,
   ): Effect.fn.Return<void> {
-    if (this.#hostProtocols.has(hostId)) return;
-    const pending = this.#hostProtocolProbes.get(hostId);
-    if (pending) return yield* Deferred.await(pending);
+    const active = this.#active.get(hostId);
+    if (!active || this.#hostProtocols.has(hostId)) return;
+    if (active.protocolProbe) return yield* Deferred.await(active.protocolProbe);
     const probe = Deferred.makeUnsafe<void>();
-    this.#hostProtocolProbes.set(hostId, probe);
-    yield* this.requestResponse(hostId, "/v1/compatibility").pipe(
+    active.protocolProbe = probe;
+    // The read must not take longer than the deadline of the request that waits for it.
+    const readTimeoutMs = remoteWorkspaceReadTimeout("GET", "/v1/compatibility");
+    const timeoutMs =
+      requestTimeoutMs === undefined || readTimeoutMs === undefined
+        ? readTimeoutMs
+        : Math.min(requestTimeoutMs, readTimeoutMs);
+    yield* this.requestResponse(hostId, "/v1/compatibility", timeoutMs === undefined ? {} : { timeoutMs }).pipe(
       Effect.ignore,
-      Effect.ensuring(
-        Effect.sync(() => {
-          if (this.#hostProtocolProbes.get(hostId) === probe) this.#hostProtocolProbes.delete(hostId);
-          Deferred.doneUnsafe(probe, Effect.void);
-        }),
-      ),
+      Effect.ensuring(Effect.sync(() => Deferred.doneUnsafe(probe, Effect.void))),
     );
   }).bind(this);
 
@@ -746,6 +749,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
       released: false,
       cancelConnectionWait: null,
       expirationTimer: null,
+      protocolProbe: null,
       authentication: null,
     };
     const done = Deferred.makeUnsafe<void, RemoteWorkflowError>();
