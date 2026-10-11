@@ -853,6 +853,46 @@ describe("shared channel coordination", () => {
     expect(service.store.assignments("channel-1").filter((item) => item.taskId === parent.id)).toHaveLength(2);
   });
 
+  it("shows the closing text of a turn once only when the result tool already posted the answer", async () => {
+    await send("Prepare the report");
+    const assignment = required(service.store.assignments("channel-1")[0]);
+    const deliveryId = required(assignment.deliveryId);
+    const execution = required(await runChannel(service.prepare(required(data.mailbox.getDelivery(deliveryId)))));
+    await runChannel(data.mailbox.markStarting(deliveryId));
+    await runChannel(data.mailbox.markRunning(deliveryId, "turn-closing"));
+    await runChannel(service.accepted(deliveryId, "session-closing", "turn-closing"));
+    const assistant = (id: string, text: string, createdAt: string) => ({
+      id,
+      author: "assistant" as const,
+      turnId: "turn-closing",
+      text,
+      createdAt,
+      status: "completed" as const,
+    });
+    const publish = (...messages: ReturnType<typeof assistant>[]) =>
+      service.event({
+        type: "conversation",
+        snapshot: {
+          agentId: "agent-a",
+          threadId: execution.threadId,
+          activeTurnId: "turn-closing",
+          revision: 0,
+          messages,
+        },
+      });
+    const progress = assistant("progress", "Checking the figures", "2026-09-07T12:00:00.000Z");
+    publish(progress);
+    await runChannel(
+      service.tool("channel-1", "agent-a", "turn-closing", "result-1", "channel_result", { text: "The report" }),
+    );
+    // The closing note starts after the result. The progress message started before it.
+    publish(progress, assistant("closing", "The answer is in the channel.", "2099-01-01T00:00:00.000Z"));
+    const texts = service.store.messages("channel-1").map((item) => item.message.text);
+    expect(texts).toContain("Checking the figures");
+    expect(texts).toContain("The report");
+    expect(texts).not.toContain("The answer is in the channel.");
+  });
+
   it("accepts a correction before completing its turn and keeps earlier output superseded", async () => {
     const task = await send("Prepare the report");
     const assignment = required(service.store.assignments("channel-1")[0]);

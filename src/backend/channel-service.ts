@@ -94,6 +94,13 @@ const routingDocument = Schema.toJsonSchemaDocument(RoutingDecision);
 const routingDescription = JSON.stringify({ ...routingDocument.schema, $defs: routingDocument.definitions });
 const decodeRoutingDecision = Schema.decodeUnknownResult(RoutingDecision, { onExcessProperty: "error" });
 
+/** Whether `message` was created after `other`. A time that cannot be read counts as not after. */
+function startedAfter(message: ChannelMessage["message"], other: ChannelMessage["message"]): boolean {
+  const created = Date.parse(message.createdAt);
+  const reference = Date.parse(other.createdAt);
+  return Number.isFinite(created) && Number.isFinite(reference) && created > reference;
+}
+
 /** Owns channel commands and assignment scheduling. It never starts provider turns itself. */
 export class ChannelService {
   readonly store: ChannelStore;
@@ -1528,6 +1535,10 @@ export class ChannelService {
       const result = existing(`channel-result-${assignment.id}-revision-${assignment.taskRevision}`);
       if (result?.message.text === message.text) continue;
       const original = existing(message.id);
+      // The result tool tells the agent to end the turn without repeating the answer, so text that
+      // starts after the result is the closing note of the turn, not a second answer. A message that
+      // the channel already holds keeps updating: it started before the result.
+      if (result && !original && startedAfter(message, result.message)) continue;
       const messageId =
         original?.superseded && task?.revision === assignment.taskRevision
           ? `${message.id}-revision-${task.revision}`
