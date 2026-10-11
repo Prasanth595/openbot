@@ -246,9 +246,7 @@ export class UpdateService extends EventEmitter<UpdateServiceEvents> {
     // abandoned check could overwrite a newer download or ready state.
     this.#updater.on("download-progress", (progress: ProgressInfo) => {
       if (!this.#isDownloadLive()) return;
-      // A percent that is not a number means that the download runs but its size is not known yet.
-      const percent = Number.isFinite(progress.percent) ? clampProgress(progress.percent) : null;
-      this.#setStatus({ phase: "downloading", progress: percent, errorCode: null });
+      this.#setStatus({ phase: "downloading", progress: clampProgress(progress.percent), errorCode: null });
     });
     this.#updater.on("update-downloaded", (info: UpdateInfo) => {
       if (!this.#isDownloadLive()) return;
@@ -903,8 +901,9 @@ function isNewerRelease(candidate: string, current: string): boolean {
   return false;
 }
 
-function clampProgress(value: number): number {
-  return Math.max(0, Math.min(100, Number.isFinite(value) ? Math.round(value) : 0));
+/** A percent that is not a number means that the download runs but its progress is not known. */
+function clampProgress(value: number): number | null {
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null;
 }
 
 export class UpdateOperationFailure extends Schema.TaggedError<UpdateOperationFailure>()("UpdateOperationFailure", {

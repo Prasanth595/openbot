@@ -1884,7 +1884,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone(updateStatus);
       },
       download: async () => {
-        updateStatus = { ...updateStatus, phase: "downloading", progress: 0 };
+        updateStatus = { ...updateStatus, phase: "downloading", progress: null };
         emit(updateListeners, updateStatus);
         const downloadSteps = [
           { delay: 350, expectedPhase: "downloading", phase: "downloading", progress: 28 },
