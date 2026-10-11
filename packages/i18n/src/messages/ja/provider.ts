@@ -31,7 +31,7 @@ export const messages = {
   "provider.status.checking": "確認中",
   "provider.status.off": "オフ",
   "provider.gemini.hostSignIn":
-    "Gemini を接続するには、ホストで OpenBot を開き、「設定」>「プロバイダー」で「接続」を選択してください。Google へのサインインには、そのホストのブラウザーが必要です。リモートでのサインインには対応していません。",
+    "Gemini を接続するには、「サインイン」を選択して Gemini API キーを保存してください。Google アカウントを使うには、ホストで OpenBot を開き、「設定」>「プロバイダー」で「接続」を選択してください。",
 
   "provider.key.free": "無料",
 
@@ -55,6 +55,7 @@ export const messages = {
   "provider.aria.retry": "{name} を再試行",
   "provider.aria.install": "{name} をインストール",
   "provider.aria.signIn": "{name} にサインイン",
+  "provider.aria.codeFallback": "コードで {name} にログイン",
   "provider.aria.moreActions": "{name} のその他の操作",
   "provider.aria.use": "OpenBot で {name} を使用",
   "provider.use.inUse": {
@@ -116,6 +117,10 @@ export const messages = {
   "provider.museKey.title": "Muse 用の Meta API キー",
   "provider.museKey.description": "ホストに Meta API キーを保存するか、Muse CLI を使ってサインインしてください。",
   "provider.museKey.label": "Meta API キー",
+  "provider.geminiKey.title": "Gemini API キー",
+  "provider.geminiKey.description":
+    "ホストに Gemini API キーを保存するか、「接続」を選択して Google でサインインしてください。",
+  "provider.geminiKey.label": "Gemini API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",
   "provider.openCodeKey.description": "無料モデルにアカウントは不要です。キーがあると有料の Go モデルを使えます。",

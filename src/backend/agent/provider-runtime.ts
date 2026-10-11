@@ -49,10 +49,12 @@ import { recordRestartActivity } from "../restart-activity";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
 import { stopProcessTree } from "../windows-process-tree";
 import { normalizeAccountUsage } from "./account-usage";
+import { startCliCodeLogin } from "./cli-code-login";
 import { CliLoginFailed, CliLoginFlow, toCliLoginFailed } from "./cli-login-flow";
 import { CodexLoginFlow, toCodexLoginFailed } from "./codex-login";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { ModelCatalog } from "./model-catalog";
+import { startMuseDeviceLogin } from "./muse-login";
 import {
   createAcpRequestEchoReader,
   ignoredCodexSettings,
@@ -985,7 +987,30 @@ export class ProviderRuntime implements ProviderPort {
       return yield* this.#codexLogin.startDevice().pipe(toProviderOperationFailed);
     }
     yield* this.#cancelCliLogin(provider);
-    return yield* this.#cliLogin.startCode(provider, codeSignIn).pipe(toProviderOperationFailed);
+    if (codeSignIn.kind === "muse-device") {
+      return yield* this.#cliLogin
+        .startCode(
+          provider,
+          (cli) => startMuseDeviceLogin({ cli, timeoutMs: codeSignIn.timeoutMs }),
+          codeSignIn.timeoutMs,
+        )
+        .pipe(toProviderOperationFailed);
+    }
+    const { command, flow } = codeSignIn;
+    return yield* this.#cliLogin
+      .startCode(
+        provider,
+        (cli) =>
+          startCliCodeLogin({
+            flow,
+            executable: cli.executable,
+            argv: command.argv,
+            env: command.env(cli),
+            timeoutMs: command.timeoutMs,
+          }),
+        command.timeoutMs,
+      )
+      .pipe(toProviderOperationFailed);
   }, Effect.uninterruptible);
 
   /**

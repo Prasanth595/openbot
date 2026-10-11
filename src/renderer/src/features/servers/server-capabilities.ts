@@ -2,6 +2,7 @@ import {
   AGENT_PROVIDERS,
   type AgentProviderId,
   agentProviderDescriptor,
+  pasteCodeSignInSupported,
   type ServerSummary,
 } from "@openbot/contracts/ipc";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
@@ -104,6 +105,16 @@ export function codeSignInProviders(server: ServerSummary | undefined): readonly
   if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v3"))
     return PROVIDERS_SIGN_IN_V3_PROVIDERS;
   return AGENT_PROVIDERS.filter((provider) => agentProviderDescriptor(provider).codeSignIn);
+}
+
+/**
+ * The providers that a code sign-in reaches on this computer: every provider whose driver has one,
+ * for when the browser callback cannot reach OpenBot. Claude's pasted code needs a terminal that
+ * only Linux gives it. Muse has a device code on this computer only: no Team API protocol carries it.
+ */
+export function localCodeSignInProviders(platform: string | undefined): readonly AgentProviderId[] {
+  const paste = platform !== undefined && pasteCodeSignInSupported(platform);
+  return [...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), "muse"];
 }
 
 /** `server` when it is a joined server this account may manage through `capability`, otherwise undefined. */

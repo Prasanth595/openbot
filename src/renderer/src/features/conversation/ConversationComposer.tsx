@@ -336,6 +336,7 @@ export function ConversationComposer() {
             }
             signingIn={status().connectionState === "connecting"}
             onSignIn={(provider) => props.onSignInProvider?.(provider)}
+            onSignInWithCode={props.onSignInWithCodeProvider}
           />
         )}
       </Show>

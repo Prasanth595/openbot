@@ -32,7 +32,7 @@ export const messages = defineMessages("provider", {
   "provider.status.checking": "Checking",
   "provider.status.off": "Off",
   "provider.gemini.hostSignIn":
-    "To connect Gemini, open OpenBot on the host and select Connect in Settings > Providers. Google sign-in needs a browser on that host. Remote sign-in is not supported.",
+    "To connect Gemini, select Sign in and save a Gemini API key. To use a Google account, open OpenBot on the host and select Connect in Settings > Providers.",
 
   // Which account tier the OpenCode row runs on. It shows only while it adds to the runtime
   // badge: a saved key leaves the runtime "Connected" to speak for the row.
@@ -60,6 +60,7 @@ export const messages = defineMessages("provider", {
   "provider.aria.retry": "Retry {name}",
   "provider.aria.install": "Install {name}",
   "provider.aria.signIn": "Sign in to {name}",
+  "provider.aria.codeFallback": "Log in to {name} with a code",
   "provider.aria.moreActions": "More actions for {name}",
 
   // The switch that turns a provider on or off in OpenBot. While an agent uses the provider, the
@@ -128,6 +129,9 @@ export const messages = defineMessages("provider", {
   "provider.museKey.title": "Meta API key for Muse",
   "provider.museKey.description": "Save a Meta API key on the host, or use the Muse CLI to sign in.",
   "provider.museKey.label": "Meta API key",
+  "provider.geminiKey.title": "Gemini API key",
+  "provider.geminiKey.description": "Save a Gemini API key on the host, or select Connect to sign in with Google.",
+  "provider.geminiKey.label": "Gemini API key",
 
   // The optional OpenCode Go key dialog.
   "provider.openCodeKey.title": "Sign in to OpenCode Go",

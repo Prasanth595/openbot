@@ -48,6 +48,21 @@ type Story = StoryObj<typeof meta>;
 
 export const Available: Story = {};
 
+/** After 25 s of `connecting`, the row offers the code sign-in under the browser sign-in. */
+export const BrowserSignInStalled: Story = {
+  args: {
+    options: options.map((option) =>
+      option.id === "codex"
+        ? { ...option, state: "sign-in-required", email: null, connectionState: "connecting" }
+        : option,
+    ),
+    allowUnavailableSelection: true,
+    onConnectProvider: fn(),
+    onSignInProvider: fn(),
+    onSignInWithCodeProvider: fn(),
+  },
+};
+
 export const Embedded: Story = {
   args: { embedded: true, label: undefined },
 };

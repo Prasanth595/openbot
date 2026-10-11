@@ -37,7 +37,7 @@ export const messages = {
 
   "provider.status.off": "Désactivé",
   "provider.gemini.hostSignIn":
-    "Pour connecter Gemini, ouvrez OpenBot sur l’hôte et sélectionnez Connecter dans Réglages > Fournisseurs. La connexion Google nécessite un navigateur sur cet hôte. La connexion à distance n’est pas prise en charge.",
+    "Pour connecter Gemini, sélectionnez Se connecter et enregistrez une clé d’API Gemini. Pour utiliser un compte Google, ouvrez OpenBot sur l’hôte et sélectionnez Connecter dans Réglages > Fournisseurs.",
   // Which account tier the OpenCode row runs on. It shows only while it adds to the runtime
   // badge: a saved key leaves the runtime "Connected" to speak for the row.
   "provider.key.free": "Gratuit",
@@ -64,6 +64,7 @@ export const messages = {
   "provider.aria.retry": "Réessayer {name}",
   "provider.aria.install": "Installer {name}",
   "provider.aria.signIn": "Se connecter à {name}",
+  "provider.aria.codeFallback": "Se connecter à {name} avec un code",
   "provider.aria.moreActions": "Autres actions pour {name}",
 
   "provider.aria.use": "Utiliser {name} dans OpenBot",
@@ -128,6 +129,10 @@ export const messages = {
   "provider.museKey.description":
     "Enregistrez une clé d’API Meta sur l’hôte, ou utilisez la CLI Muse pour vous connecter.",
   "provider.museKey.label": "Clé d’API Meta",
+  "provider.geminiKey.title": "Clé d’API Gemini",
+  "provider.geminiKey.description":
+    "Enregistrez une clé d’API Gemini sur l’hôte, ou sélectionnez Connecter pour vous connecter avec Google.",
+  "provider.geminiKey.label": "Clé d’API Gemini",
   "provider.openCodeKey.title": "Se connecter à OpenCode Go",
   "provider.openCodeKey.description":
     "Les modèles gratuits ne demandent pas de compte. Une clé donne accès aux modèles Go payants.",

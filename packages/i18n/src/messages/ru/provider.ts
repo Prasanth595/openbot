@@ -45,7 +45,7 @@ export const messages = {
   "provider.status.checking": "Проверка",
   "provider.status.off": "Выключено",
   "provider.gemini.hostSignIn":
-    "Чтобы подключить Gemini, откройте OpenBot на хосте и нажмите «Подключить» в разделе «Настройки» > «Провайдеры». Для входа в Google на этом хосте нужен браузер. Удалённый вход не поддерживается.",
+    "Чтобы подключить Gemini, нажмите «Войти» и сохраните ключ API Gemini. Чтобы использовать аккаунт Google, откройте OpenBot на хосте и нажмите «Подключить» в разделе «Настройки» > «Провайдеры».",
 
   "provider.key.free": "Бесплатно",
 
@@ -69,6 +69,7 @@ export const messages = {
   "provider.aria.retry": "Повторить: {name}",
   "provider.aria.install": "Установить: {name}",
   "provider.aria.signIn": "Войти в {name}",
+  "provider.aria.codeFallback": "Войти в {name} по коду",
   "provider.aria.moreActions": "Другие действия для {name}",
 
   "provider.aria.use": "Использовать {name} в OpenBot",
@@ -134,6 +135,10 @@ export const messages = {
   "provider.museKey.title": "Ключ API Meta для Muse",
   "provider.museKey.description": "Сохраните ключ API Meta на хосте или войдите через CLI Muse.",
   "provider.museKey.label": "Ключ API Meta",
+  "provider.geminiKey.title": "Ключ API Gemini",
+  "provider.geminiKey.description":
+    "Сохраните ключ API Gemini на хосте или нажмите «Подключить», чтобы войти через Google.",
+  "provider.geminiKey.label": "Ключ API Gemini",
 
   "provider.openCodeKey.title": "Вход в OpenCode Go",
   "provider.openCodeKey.description": "Бесплатным моделям аккаунт не нужен. Ключ открывает платные модели Go.",

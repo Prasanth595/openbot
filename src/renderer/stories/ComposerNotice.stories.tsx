@@ -59,6 +59,16 @@ export const SigningIn: Story = {
   ),
 };
 
+/** After 25 s of `connecting`, the notice offers the code sign-in next to the waiting action. */
+export const SigningInWithCodeFallback: Story = {
+  args: { signingIn: true, onSignInWithCode: fn() },
+  render: (args) => (
+    <ComposerStack>
+      <ComposerSignInNotice {...args} />
+    </ComposerStack>
+  ),
+};
+
 /**
  * The plan window is spent. There is no button: only time or another model gives the user more
  * quota, so the card spends its width on the reset moment instead.

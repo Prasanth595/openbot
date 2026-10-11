@@ -31,7 +31,7 @@ export const messages = {
 
   "provider.status.off": "Kapalı",
   "provider.gemini.hostSignIn":
-    "Gemini'yi bağlamak için ana makinede OpenBot'u açın ve Ayarlar > Sağlayıcılar bölümünde Bağlan'ı seçin. Google ile oturum açmak için o ana makinede bir tarayıcı gerekir. Uzaktan oturum açma desteklenmez.",
+    "Gemini'yi bağlamak için Giriş yap'ı seçin ve bir Gemini API anahtarı kaydedin. Google hesabı kullanmak için ana makinede OpenBot'u açın ve Ayarlar > Sağlayıcılar bölümünde Bağlan'ı seçin.",
   "provider.key.free": "Ücretsiz",
 
   "provider.action.connect": "Bağlan",
@@ -54,6 +54,7 @@ export const messages = {
   "provider.aria.retry": "{name} için tekrar dene",
   "provider.aria.install": "{name} sağlayıcısını yükle",
   "provider.aria.signIn": "{name} giriş yap",
+  "provider.aria.codeFallback": "{name} için kod ile giriş yap",
   "provider.aria.moreActions": "{name} için diğer eylemler",
 
   "provider.aria.use": "OpenBot'ta {name} kullan",
@@ -118,6 +119,10 @@ export const messages = {
   "provider.museKey.description":
     "Ana makineye bir Meta API anahtarı kaydedin veya oturum açmak için Muse CLI'yi kullanın.",
   "provider.museKey.label": "Meta API anahtarı",
+  "provider.geminiKey.title": "Gemini API anahtarı",
+  "provider.geminiKey.description":
+    "Ana makineye bir Gemini API anahtarı kaydedin veya Google ile oturum açmak için Bağlan'ı seçin.",
+  "provider.geminiKey.label": "Gemini API anahtarı",
   "provider.openCodeKey.title": "OpenCode Go'ya giriş yapın",
   "provider.openCodeKey.description":
     "Ücretsiz modeller hesap gerektirmez. Bir anahtar, ücretli Go modellerinin kilidini açar.",

@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { pasteCodeSignInSupported } from "@openbot/contracts/agent-providers";
 import { sourceText } from "@openbot/i18n/source";
 import { registerSecretValue } from "@openbot/logging";
 import { Effect, Fiber, Schema } from "effect";
@@ -171,7 +172,7 @@ export function normalizePastedCode(code: string): string {
 
 /** Whether a pasted-code sign-in can run on this platform: see `startCliCodeLogin`. */
 export function pasteCodeLoginSupported(platform: NodeJS.Platform = process.platform): boolean {
-  return platform === "linux";
+  return pasteCodeSignInSupported(platform);
 }
 
 /**

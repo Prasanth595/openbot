@@ -45,7 +45,7 @@ export const messages = {
   "provider.status.checking": "Sprawdzanie",
   "provider.status.off": "Wyłączony",
   "provider.gemini.hostSignIn":
-    "Aby połączyć Gemini, otwórz OpenBot na hoście i wybierz „Połącz” w sekcji Ustawienia > Dostawcy. Logowanie Google wymaga przeglądarki na tym hoście. Zdalne logowanie nie jest obsługiwane.",
+    "Aby połączyć Gemini, wybierz „Zaloguj się” i zapisz klucz API Gemini. Aby użyć konta Google, otwórz OpenBot na hoście i wybierz „Połącz” w sekcji Ustawienia > Dostawcy.",
 
   "provider.key.free": "Darmowy",
 
@@ -69,6 +69,7 @@ export const messages = {
   "provider.aria.retry": "Spróbuj ponownie: {name}",
   "provider.aria.install": "Zainstaluj {name}",
   "provider.aria.signIn": "Zaloguj się do: {name}",
+  "provider.aria.codeFallback": "Zaloguj się do: {name} kodem",
   "provider.aria.moreActions": "Więcej działań: {name}",
 
   "provider.aria.use": "Używaj {name} w OpenBot",
@@ -135,6 +136,10 @@ export const messages = {
   "provider.museKey.title": "Klucz API Meta dla Muse",
   "provider.museKey.description": "Zapisz klucz API Meta na hoście lub zaloguj się przez Muse CLI.",
   "provider.museKey.label": "Klucz API Meta",
+  "provider.geminiKey.title": "Klucz API Gemini",
+  "provider.geminiKey.description":
+    "Zapisz klucz API Gemini na hoście albo wybierz „Połącz”, aby zalogować się przez Google.",
+  "provider.geminiKey.label": "Klucz API Gemini",
 
   "provider.openCodeKey.title": "Zaloguj się do OpenCode Go",
   "provider.openCodeKey.description": "Darmowe modele nie wymagają konta. Klucz odblokowuje płatne modele Go.",
