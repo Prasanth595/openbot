@@ -195,13 +195,15 @@ login_command() {
 }
 
 mobile_connect_command() {
-  local seconds
+  local expires_at
   control POST /v1/mobile-connect
   check_answer || exit 1
+  expires_at=$(value expires_at)
+  # Arithmetic runs a command in an array index, so only digits go into it.
+  [[ $expires_at =~ ^[0-9]+$ ]] || fail "OpenBot sent an invalid Mobile Connect code."
   value qr | base64 -d
-  seconds=$(($(value expires_at) / 1000 - $(date +%s)))
   echo "In the OpenBot phone app, select Scan QR code and scan this code."
-  echo "It works for one sign-in and expires in $seconds seconds. Run the command again for a new code."
+  echo "It works for one sign-in and expires in $((expires_at / 1000 - $(date +%s))) seconds. Run the command again for a new code."
 }
 
 logs_command() {

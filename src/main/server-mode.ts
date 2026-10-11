@@ -278,7 +278,7 @@ export class ServerMode {
     this: ServerMode,
   ): Effect.fn.Return<Answer, RemoteWorkflowError> {
     const account = this.#options.centralAuth.getState();
-    if (account.status !== "signed_in") return failure(409, `account_${account.status}`);
+    if (account.status !== "signed_in") return issueFailure(account);
     // A publish that runs now can give the host its name. The code binds the host that it publishes.
     yield* this.publish();
     const ticket = yield* createHostedMobileConnect(this.#options).pipe(toRemoteWorkflowError);
