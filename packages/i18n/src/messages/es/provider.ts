@@ -38,7 +38,7 @@ export const messages = {
   "provider.status.checking": "Comprobando",
   "provider.status.off": "Desactivado",
   "provider.gemini.hostSignIn":
-    "Para conectar Gemini, selecciona Iniciar sesión y guarda una clave de API de Gemini. Para usar una cuenta de Google, abre OpenBot en el host y selecciona Conectar en Ajustes > Proveedores.",
+    "Para conectar Gemini, abre OpenBot en el host y selecciona Conectar en Ajustes > Proveedores. El inicio de sesión de Google necesita un navegador en ese host. No se admite el inicio de sesión remoto.",
   "provider.key.free": "Gratis",
   "provider.action.connect": "Conectar",
   "provider.action.reconnect": "Volver a conectar",

@@ -31,7 +31,7 @@ export const messages = {
 
   "provider.status.off": "Kapalı",
   "provider.gemini.hostSignIn":
-    "Gemini'yi bağlamak için Giriş yap'ı seçin ve bir Gemini API anahtarı kaydedin. Google hesabı kullanmak için ana makinede OpenBot'u açın ve Ayarlar > Sağlayıcılar bölümünde Bağlan'ı seçin.",
+    "Gemini'yi bağlamak için ana makinede OpenBot'u açın ve Ayarlar > Sağlayıcılar bölümünde Bağlan'ı seçin. Google ile oturum açmak için o ana makinede bir tarayıcı gerekir. Uzaktan oturum açma desteklenmez.",
   "provider.key.free": "Ücretsiz",
 
   "provider.action.connect": "Bağlan",

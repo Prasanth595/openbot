@@ -73,7 +73,7 @@ describe("ProviderPicker", () => {
       { id: "antigravity", name: "Gemini", state: "sign-in-required", runtimeStatus: runtime({}) },
     ]);
     expect(view.getByText("Not connected")).toBeTruthy();
-    expect(view.getByRole("status").textContent).toContain("select Sign in and save a Gemini API key");
+    expect(view.getByRole("status").textContent).toContain("Google sign-in needs a browser on that host.");
     expect(view.queryByRole("button", { name: "Connect Gemini" })).toBeNull();
   });
 
@@ -196,7 +196,10 @@ describe("ProviderPicker", () => {
     vi.useFakeTimers();
     try {
       const onSignInWithCodeProvider = vi.fn();
-      const [connectionState, setConnectionState] = createSignal<"connecting" | undefined>("connecting");
+      const [connectionState, setConnectionState] = createSignal<"connecting" | undefined>(undefined);
+      const onConnectProvider = vi.fn(() => {
+        setConnectionState("connecting");
+      });
       const view = render(() => (
         <ProviderPicker
           value="codex"
@@ -212,12 +215,13 @@ describe("ProviderPicker", () => {
           ariaLabel="AI providers"
           allowUnavailableSelection
           onChange={vi.fn()}
-          onConnectProvider={vi.fn()}
+          onConnectProvider={onConnectProvider}
           onSignInProvider={vi.fn()}
           onSignInWithCodeProvider={onSignInWithCodeProvider}
         />
       ));
       const hint = () => view.queryByRole("button", { name: "Log in to ChatGPT with a code" });
+      await fireEvent.click(view.getByRole("button", { name: "Connect ChatGPT" }));
 
       await vi.advanceTimersByTimeAsync(24_000);
       expect(hint()).toBeNull();

@@ -716,7 +716,10 @@ export function ProviderPicker(props: ProviderPickerProps) {
                         when={
                           props.onSignInProvider &&
                           !connectOptional() &&
-                          (option().id === "opencode" || option().id === "muse" || option().id === "antigravity"
+                          // A released host stores a Gemini key but never reads it, so only this computer offers it.
+                          (option().id === "opencode" ||
+                          option().id === "muse" ||
+                          (option().id === "antigravity" && props.onConnectProvider)
                             ? runtimeAction() === undefined ||
                               runtimeAction() === "connect" ||
                               runtimeAction() === "restart"

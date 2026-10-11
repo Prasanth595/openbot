@@ -37,7 +37,7 @@ export const messages = {
 
   "provider.status.off": "Désactivé",
   "provider.gemini.hostSignIn":
-    "Pour connecter Gemini, sélectionnez Se connecter et enregistrez une clé d’API Gemini. Pour utiliser un compte Google, ouvrez OpenBot sur l’hôte et sélectionnez Connecter dans Réglages > Fournisseurs.",
+    "Pour connecter Gemini, ouvrez OpenBot sur l’hôte et sélectionnez Connecter dans Réglages > Fournisseurs. La connexion Google nécessite un navigateur sur cet hôte. La connexion à distance n’est pas prise en charge.",
   // Which account tier the OpenCode row runs on. It shows only while it adds to the runtime
   // badge: a saved key leaves the runtime "Connected" to speak for the row.
   "provider.key.free": "Gratuit",

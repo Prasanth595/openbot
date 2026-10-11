@@ -6,6 +6,8 @@ import { CliCodeLoginFailed, type CliCodePrompt } from "./cli-code-login";
 import type { CliLoginProcess } from "./cli-login-flow";
 
 const INITIALIZE_TIMEOUT_MS = 30_000;
+/** The same bound as the prompt of a CLI code sign-in (`PROMPT_TIMEOUT_MS`). */
+const LOGIN_START_TIMEOUT_MS = 30_000;
 /** The SDK ends the host itself after its 10 s shutdown window; this bounds the cancel before it. */
 const CANCEL_TIMEOUT_MS = 15_000;
 
@@ -71,10 +73,17 @@ export const startMuseDeviceLogin = Effect.fn("MuseLogin.start")(function* (opti
   const completed = waitForLoginCompleted(host, options.timeoutMs, () => {
     answered = true;
   });
+  // The SDK request has no deadline of its own: a stalled answer would hold the provider queue.
   const started = yield* Effect.tryPromise({
     try: () => host.connection.request("account/loginStart", { type: "deviceCode" }),
     catch: (cause) => new CliCodeLoginFailed({ cause }),
-  });
+  }).pipe(
+    Effect.timeoutOrElse({
+      duration: LOGIN_START_TIMEOUT_MS,
+      orElse: () =>
+        Effect.fail(new CliCodeLoginFailed({ cause: new Error(sourceText("error.provider.codeLoginNoLink")) })),
+    }),
+  );
   const prompt = Schema.decodeUnknownOption(LoginStartResult)(started).pipe(
     Option.filter((result) => isHttpsUrl(result.verificationUrl) && result.userCode.length > 0),
   );

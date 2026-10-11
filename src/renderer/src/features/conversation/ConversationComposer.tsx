@@ -320,10 +320,11 @@ export function ConversationComposer() {
           />
         )}
       </Show>
-      <Show when={signInRequired()}>
-        {(status) => (
+      {/* Keyed on the provider: a sign-in that failed for one provider says nothing about the next. */}
+      <Show when={signInRequired()?.id} keyed>
+        {(provider) => (
           <ComposerSignInNotice
-            provider={status().id}
+            provider={provider}
             onShown={() =>
               reportNotification({
                 operation: "provider",
@@ -331,10 +332,10 @@ export function ConversationComposer() {
                 cause_code: "authentication",
                 severity: "warning",
                 presentation: "banner",
-                provider: status().id,
+                provider,
               })
             }
-            signingIn={status().connectionState === "connecting"}
+            signingIn={signInRequired()?.connectionState === "connecting"}
             onSignIn={(provider) => props.onSignInProvider?.(provider)}
             onSignInWithCode={props.onSignInWithCodeProvider}
           />

@@ -8,7 +8,7 @@ import type { ProviderCodeLoginState } from "@openbot/ui/components/ProviderCode
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createSignal, flush, onCleanup } from "solid-js";
 import { actionToast } from "../../action-toast";
-import type { ProviderCodeLoginApi } from "../../components/provider-code-login-api";
+import type { ProviderCodeLoginApi, ProviderCodeLoginOpener } from "../../components/provider-code-login-api";
 
 /** The computer that runs the providers: it issues the code, and a cancel goes to the same one. */
 interface ProviderCodeLoginTarget {
@@ -49,6 +49,7 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
   /** The provider whose code dialog is open, and the phase that dialog shows. */
   const [codeLoginProvider, setCodeLoginProvider] = createSignal<AgentProviderId | null>(null);
   const [codeLoginState, setCodeLoginState] = createSignal<ProviderCodeLoginState>({ phase: "starting" });
+  const [codeLoginOpener, setCodeLoginOpener] = createSignal<ProviderCodeLoginOpener | null>(null);
   let codeLoginExpiry: number | undefined;
   /** Whether the provider has been seen working on the open code sign-in. */
   let codeLoginStarted = false;
@@ -57,7 +58,10 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
   /** The computer that runs the open code sign-in. */
   let codeLoginTarget: ProviderCodeLoginTarget | undefined;
 
-  async function startProviderCodeLogin(provider: AgentProviderId): Promise<void> {
+  async function startProviderCodeLogin(
+    provider: AgentProviderId,
+    opener: ProviderCodeLoginOpener | null,
+  ): Promise<void> {
     const generation = ++codeLoginGeneration;
     clearCodeLoginExpiry();
     codeLoginStarted = false;
@@ -65,6 +69,7 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     // this one.
     const target = options.target();
     codeLoginTarget = target;
+    setCodeLoginOpener(opener);
     setCodeLoginProvider(provider);
     setCodeLoginState({ phase: "starting" });
     const failConnection = options.connection?.begin(provider);
@@ -199,6 +204,7 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     clearCodeLoginExpiry();
     codeLoginStarted = false;
     flush(() => setCodeLoginProvider(null));
+    const opener = codeLoginOpener();
     const name = agentProviderDescriptor(provider).displayName;
     const { t, sourceText } = currentText();
     if (outcome.kind === "connected") {
@@ -209,7 +215,7 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
       });
       return;
     }
-    const retry = { label: t("app.provider.newCode"), onClick: () => void startProviderCodeLogin(provider) };
+    const retry = { label: t("app.provider.newCode"), onClick: () => void startProviderCodeLogin(provider, opener) };
     if (outcome.kind === "expired") {
       actionToast.warning(t("app.provider.codeExpired", { name }), {
         ...{
@@ -285,7 +291,8 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     providers: options.providers,
     provider: codeLoginProvider,
     state: codeLoginState,
-    start: (provider) => void startProviderCodeLogin(provider),
+    opener: codeLoginOpener,
+    start: (provider, opener) => void startProviderCodeLogin(provider, opener ?? null),
     submit: (code) => void submitProviderCodeLogin(code),
     cancel: cancelProviderCodeLogin,
     openVerificationUrl: options.openVerificationUrl,

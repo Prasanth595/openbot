@@ -682,6 +682,7 @@ describe("FirstRunFlow", () => {
       }),
       cancel: vi.fn(() => setProvider(null)),
       openVerificationUrl: vi.fn(),
+      opener: () => null,
     };
     const view = render(() => (
       <FirstRunFlow

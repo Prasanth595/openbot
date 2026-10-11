@@ -4,6 +4,7 @@ import {
   ComposerUsageLimitNotice,
 } from "@openbot/ui/features/conversation/ComposerNotice";
 import type { JSX } from "@solidjs/web";
+import { createSignal } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
@@ -59,14 +60,17 @@ export const SigningIn: Story = {
   ),
 };
 
-/** After 25 s of `connecting`, the notice offers the code sign-in next to the waiting action. */
+/** Select Sign in: after 25 s of `connecting`, the notice offers the code sign-in beside it. */
 export const SigningInWithCodeFallback: Story = {
-  args: { signingIn: true, onSignInWithCode: fn() },
-  render: (args) => (
-    <ComposerStack>
-      <ComposerSignInNotice {...args} />
-    </ComposerStack>
-  ),
+  args: { onSignInWithCode: fn() },
+  render: (args) => {
+    const [signingIn, setSigningIn] = createSignal(false);
+    return (
+      <ComposerStack>
+        <ComposerSignInNotice {...args} signingIn={signingIn()} onSignIn={() => setSigningIn(true)} />
+      </ComposerStack>
+    );
+  },
 };
 
 /**

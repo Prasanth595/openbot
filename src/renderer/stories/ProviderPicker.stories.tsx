@@ -48,18 +48,31 @@ type Story = StoryObj<typeof meta>;
 
 export const Available: Story = {};
 
-/** After 25 s of `connecting`, the row offers the code sign-in under the browser sign-in. */
+/** Select Connect on Codex: after 25 s of `connecting`, the row offers the code sign-in. */
 export const BrowserSignInStalled: Story = {
   args: {
-    options: options.map((option) =>
-      option.id === "codex"
-        ? { ...option, state: "sign-in-required", email: null, connectionState: "connecting" }
-        : option,
-    ),
     allowUnavailableSelection: true,
-    onConnectProvider: fn(),
     onSignInProvider: fn(),
     onSignInWithCodeProvider: fn(),
+  },
+  render: (args) => {
+    const [connecting, setConnecting] = createSignal(false);
+    return (
+      <ProviderPicker
+        {...args}
+        options={options.map((option) =>
+          option.id === "codex"
+            ? {
+                ...option,
+                state: "sign-in-required",
+                email: null,
+                connectionState: connecting() ? "connecting" : undefined,
+              }
+            : option,
+        )}
+        onConnectProvider={() => setConnecting(true)}
+      />
+    );
   },
 };
 

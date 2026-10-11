@@ -1351,6 +1351,7 @@ describe("ServerSettingsModal providers", () => {
       }),
       cancel: vi.fn(() => setProvider(null)),
       openVerificationUrl: vi.fn(),
+      opener: () => null,
     };
     render(() => <ProvidersSection agentStatus={codexSignedOutStatus} codeLogin={codeLogin} />);
 

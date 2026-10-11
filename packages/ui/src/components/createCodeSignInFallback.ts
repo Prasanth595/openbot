@@ -11,15 +11,15 @@ const CODE_FALLBACK_DELAY_MS = 25_000;
  * or it ended and the caller still has no account. Its callback may not reach this computer.
  * A provider status cannot tell a failed sign-in from one never started, so the attempt is kept here.
  *
- * A code sign-in also reports `connecting`, so the caller says which way the user chose. Until the
- * user chooses, a sign-in is taken as the browser one.
+ * A code sign-in, a restart and a CLI update also report `connecting`, so only a browser sign-in
+ * that the caller started counts.
  */
 export function createCodeSignInFallback(connecting: () => boolean) {
   const [stalled, setStalled] = createSignal(false);
   const [attempted, setAttempted] = createSignal(false);
-  const [viaCode, setViaCode] = createSignal(false);
+  const [way, setWay] = createSignal<"browser" | "code" | null>(null);
   createEffect(
-    () => connecting() && !viaCode(),
+    () => connecting() && way() === "browser",
     (browserWaiting) => {
       setStalled(false);
       if (!browserWaiting) return;
@@ -29,11 +29,11 @@ export function createCodeSignInFallback(connecting: () => boolean) {
     },
   );
   return {
-    offered: () => !viaCode() && (connecting() ? stalled() : attempted()),
+    offered: () => way() === "browser" && (connecting() ? stalled() : attempted()),
     startedWithCode: () => {
-      setViaCode(true);
+      setWay("code");
       setAttempted(false);
     },
-    startedInBrowser: () => setViaCode(false),
+    startedInBrowser: () => setWay("browser"),
   };
 }

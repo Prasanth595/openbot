@@ -3,7 +3,7 @@ import type { CentralAuthUser, UpdateAgentInput } from "@openbot/contracts/ipc";
 import { hasVisibleToasts } from "@openbot/ui";
 import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLoginDialog";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { useNavigation } from "../../navigation";
 import { usePlatform } from "../../platform";
 import { useProviders } from "../../providers";
@@ -69,17 +69,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
    * The composer's code sign-in, on this computer only. The dialog shows here only while this
    * surface started it: Settings shows its own for the sign-ins it starts.
    */
-  const [codeDialogOwned, setCodeDialogOwned] = createSignal(false);
-  createEffect(
-    () => codeLogin.provider(),
-    (provider) => {
-      if (provider === null) setCodeDialogOwned(false);
-    },
-  );
-  const signInWithCode = (provider: AgentProviderId) => {
-    setCodeDialogOwned(true);
-    codeLogin.start(provider);
-  };
+  const signInWithCode = (provider: AgentProviderId) => codeLogin.start(provider, "composer");
   // Not gated on the server: the picker needs these IDs to label a model it is already showing, and
   // a remote server's OpenCode has its own catalogue. Only the write paths are local-only.
   const { customProviders } = useCustomProviders();
@@ -399,7 +389,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onOpenRemoteDesktop={openRemoteDesktopWorkspace}
         onStop={stopActiveTurn}
       />
-      <Show when={codeDialogOwned() && codeLogin.provider()}>
+      <Show when={codeLogin.opener() === "composer" && codeLogin.provider()}>
         {(provider) => (
           <ProviderCodeLoginDialog
             open={true}
