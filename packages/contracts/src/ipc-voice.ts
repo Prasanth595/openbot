@@ -29,11 +29,28 @@ export interface VoiceModelInfo {
   bytes: number;
   /** True when the model takes a fixed language. Parakeet always finds the language itself. */
   supportsLanguage: boolean;
+  /**
+   * True when the composer shows text while you speak. Whisper reads 30 s for each pass, so it
+   * transcribes only after Stop.
+   */
+  livePreview: boolean;
 }
 
 export const VOICE_MODELS: readonly VoiceModelInfo[] = [
-  { id: "parakeet-tdt-0.6b-v3", name: "Parakeet TDT 0.6B v3", bytes: 670_478_772, supportsLanguage: false },
-  { id: "whisper-turbo", name: "Whisper large-v3 turbo", bytes: 1_036_613_791, supportsLanguage: true },
+  {
+    id: "parakeet-tdt-0.6b-v3",
+    name: "Parakeet TDT 0.6B v3",
+    bytes: 670_478_772,
+    supportsLanguage: false,
+    livePreview: true,
+  },
+  {
+    id: "whisper-turbo",
+    name: "Whisper large-v3 turbo",
+    bytes: 1_036_613_791,
+    supportsLanguage: true,
+    livePreview: false,
+  },
 ];
 
 /** The model finds the spoken language itself. */
@@ -152,10 +169,4 @@ export function isVoiceModelId(value: unknown): value is VoiceModelId {
 
 export function isVoiceLanguage(value: unknown): value is VoiceLanguage {
   return value === AUTOMATIC_VOICE_LANGUAGE || isOneOf(WHISPER_LANGUAGES, value);
-}
-
-export function voiceModelInfo(modelId: VoiceModelId): VoiceModelInfo {
-  const model = VOICE_MODELS.find((candidate) => candidate.id === modelId);
-  if (!model) throw new Error(`Unknown voice model: ${modelId}`);
-  return model;
 }
