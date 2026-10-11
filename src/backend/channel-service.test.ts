@@ -1159,7 +1159,8 @@ describe("shared channel coordination", () => {
     service.store.update(service.store.get("channel-1"), {
       messages: [
         reply("turn-a:reasoning", "PRIVATE_THINKING", "commentary"),
-        reply("turn-a:narration:0", "PRIVATE_NARRATION", "commentary"),
+        reply("turn-b:thought:1", "PRIVATE_THOUGHT", "commentary"),
+        reply("turn-a:narration:0", "The draft is in report.md.", "commentary"),
         reply("turn-a:assistant", "The report is ready."),
       ],
     });
@@ -1170,7 +1171,9 @@ describe("shared channel coordination", () => {
     // Claude rejects a request that carries another model's thinking, for every member of the channel.
     expect(prepared.text).toContain("The report is ready.");
     expect(prepared.text).not.toContain("PRIVATE_THINKING");
-    expect(prepared.text).not.toContain("PRIVATE_NARRATION");
+    expect(prepared.text).not.toContain("PRIVATE_THOUGHT");
+    // Text between tool calls can be the only answer of a turn, so the other members keep it.
+    expect(prepared.text).toContain("The draft is in report.md.");
     // The reader still sees the thinking in the channel.
     expect(service.store.messages("channel-1").some((message) => message.id === "turn-a:reasoning")).toBe(true);
   });

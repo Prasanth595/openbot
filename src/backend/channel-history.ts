@@ -6,6 +6,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer } from "effect";
+import { REASONING_ID } from "./agent/handoff-tool-steps";
 import { type ChannelOperationError, channelFailure, channelSync } from "./channel-effects";
 import type { ChannelMemoryStore } from "./channel-memory-store";
 import type { ChannelStore } from "./channel-store";
@@ -37,18 +38,20 @@ function render(messages: ChannelMessage[]): string {
  * its reader, and the packet already carries the owner of every task, so sending it again would
  * only repeat the routing that the turn instructions tell the member to leave out of its reply.
  *
- * A member's commentary (its thinking, and the text between its tool calls) stays in the channel
- * for the reader too. Another model must not read it: Claude rejects a request that carries a
- * model's thinking (`reasoning_extraction`), and the packet is rebuilt on every turn, so one such
- * row stopped every assignment in the channel until the summary covered it. The final reply and
- * `channel_result` carry what the other members need.
+ * A member's thinking stays in the channel for the reader too, but another model must not read it:
+ * Claude rejects a request that carries a model's thinking (`reasoning_extraction`), and the packet
+ * is rebuilt on every turn, so one such row stopped every assignment in the channel until the
+ * summary covered it. The text between tool calls is commentary as well, but it stays: a turn that
+ * answers and then calls a tool keeps its answer there.
  */
-export function channelConversation(messages: ChannelMessage[]): ChannelMessage[] {
+function conversation(messages: ChannelMessage[]): ChannelMessage[] {
   return messages.filter(
-    (message) =>
-      channelRoutingConversationEvent(message.message) === null &&
-      !(message.message.author === "assistant" && message.message.itemType === "commentary"),
+    (message) => channelRoutingConversationEvent(message.message) === null && !isMemberThinking(message),
   );
+}
+
+export function isMemberThinking({ message }: ChannelMessage): boolean {
+  return message.author === "assistant" && message.itemType === "commentary" && REASONING_ID.test(message.id);
 }
 
 /** Cuts one rendered message into inputs the summary model accepts. The source ID stays the same. */
@@ -92,7 +95,7 @@ export class ChannelHistory {
       const dependencies = yield* ChannelHistoryDependencies;
       const characterBudget = Math.min(CONTEXT_CHARACTERS, requestedBudget);
       const channel = yield* channelSync(() => dependencies.store.get(task.channelId));
-      let messages = channelConversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
+      let messages = conversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
       let summary = yield* channelSync(() => dependencies.store.summary(channel.id));
       let recent = messages.filter((message) => message.sequence > summary.throughSequence);
       // Reserve half the handoff ceiling for instructions, requested sources, and provider overhead.
@@ -141,7 +144,7 @@ export class ChannelHistory {
           };
           yield* channelSync(() => dependencies.store.saveSummary(channel.id, summary));
         }
-        messages = channelConversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
+        messages = conversation(yield* channelSync(() => dependencies.store.messages(channel.id)));
         recent = messages.filter((message) => message.sequence > summary.throughSequence);
       }
       const memories = yield* channelSync(() => dependencies.memories.list(channel.id));
