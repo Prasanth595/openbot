@@ -516,6 +516,11 @@ Network traffic can also occur when:
   pins from `cache.agilebits.com`, checks its SHA-256, and keeps it in
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user
   data;
+- the user dictates for the first time, or presses Download in **Settings → Voice**. OpenBot
+  downloads the speech model that it pins, Parakeet or Whisper turbo, from `huggingface.co`, checks
+  its size and SHA-256, and keeps it in `runtimes` in the application data folder. The request
+  carries no user data. Dictation audio stays on the computer, and the chosen model and language
+  are saved in `voice-preference.json` in the same folder;
 - the user connects Bitwarden. OpenBot runs the installed `bw` CLI to sync with the server already
   configured in that CLI, including a self-hosted server. It syncs before listing or filling logins.
   These calls send no OpenBot conversations, files, or agent instructions to Bitwarden;
