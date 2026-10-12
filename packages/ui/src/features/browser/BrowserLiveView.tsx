@@ -284,7 +284,8 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
     if (letter !== "v" || !props.clipboard) event.preventDefault();
     send({ type: "key", action, key: event.key, code: event.code, modifiers: modifiers(event) });
     if (action === "down" && letter) {
-      if (!props.clipboard) toast.error(t("browser.liveView.clipboardUnsupported"));
+      if (!props.clipboard)
+        toast.error(t("browser.liveView.clipboardUnsupported"), { id: CLIPBOARD_UNSUPPORTED_TOAST });
       else if (letter !== "v") copy(letter === "x");
     }
     // A printable key is two events on the wire: the key itself, and the character it produces.
@@ -296,7 +297,7 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
   const paste = (event: ClipboardEvent) => {
     event.preventDefault();
     if (!props.clipboard) {
-      toast.error(t("browser.liveView.clipboardUnsupported"));
+      toast.error(t("browser.liveView.clipboardUnsupported"), { id: CLIPBOARD_UNSUPPORTED_TOAST });
       return;
     }
     const text = event.clipboardData?.getData("text/plain") ?? "";
@@ -312,7 +313,7 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
   // empty the clipboard before the host's answer arrives.
   const menuCopy = (cut: boolean) => {
     if (props.clipboard) copy(cut);
-    else toast.error(t("browser.liveView.clipboardUnsupported"));
+    else toast.error(t("browser.liveView.clipboardUnsupported"), { id: CLIPBOARD_UNSUPPORTED_TOAST });
   };
 
   /**
@@ -382,6 +383,8 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
 }
 
 const CLIPBOARD_EVENTS = ["paste", "copy", "cut"] as const;
+// One toast for a key press and the Edit menu event that follows it.
+const CLIPBOARD_UNSUPPORTED_TOAST = "browser-live-view-clipboard-unsupported";
 
 /** The host's answer to a copy: its text, a selection too long to send, or no answer at all. */
 type CopyAnswer = { text: string } | "tooLarge" | null;
