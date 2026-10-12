@@ -316,13 +316,14 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
   };
 
   return (
-    // The page takes the keys and a paste, so a screen reader passes them through to it.
-    <div class="browser-live-view" role="application" aria-label={t("browser.liveView.label")}>
+    <div class="browser-live-view">
       <canvas
         ref={setCanvas}
         tabindex="0"
         role="img"
         aria-label={t("browser.liveView.label")}
+        // The chat input does not take the focus back when the window comes back: a paste goes to the page.
+        data-keep-focus
         hidden={!state.live}
         onMouseMove={(event) => pointer(event, "move")}
         onMouseDown={(event) => {
