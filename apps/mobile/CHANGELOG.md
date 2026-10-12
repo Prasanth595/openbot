@@ -23,9 +23,7 @@ the [root changelog](../../CHANGELOG.md).
   field, or the reply animation. The Reduce Motion setting of the phone still applies.
 - Russian interface. Choose Русский in Settings > App language, or keep System default on an iPhone
   that uses Russian.
-- Add Spanish and German to the app language settings. Translate settings, navigation, search,
-  Live Activities and some chat controls. Text that is not translated yet stays in English.
-- Buy a cloud server from the Android app, version 1.2.0. Tap + in the server list and choose a plan.
+- Add Spanish and German to the app language settings.
 - Hide the "Waiting for replies" list in the queued messages sheet when every teammate replied or failed.
 - Use an agent's browser from your phone. Tap the globe in the chat header to see the agent's tab
   live, or to open a new tab when the agent has none. Your finger moves the pointer from anywhere
@@ -77,7 +75,6 @@ the [root changelog](../../CHANGELOG.md).
 - Show a short error code in error alerts, with a "Copy code" button. Send this code when you report
   a problem, so we can find the cause.
 - German, Spanish, French, Japanese, Russian and Turkish now translate all screens of the app.
-  Before, many agent, server, chat and channel screens showed English text in German and Spanish.
 - The app no longer sells cloud servers. Tap + in the server list to see the plans and your cloud servers, with the plan, billing period and state of each server.
 - When an agent asks for a password or a code, you type it where the composer is. The value goes only to the browser, not to the chat.
 - Browser takeover requests in a chat show as a lighter card, with one main action and a close button to cancel.
