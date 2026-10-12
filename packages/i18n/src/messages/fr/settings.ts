@@ -384,4 +384,14 @@ export const messages = {
   "settings.voice.saveFailed": "Impossible d’enregistrer le réglage vocal. Réessayez.",
   "settings.voice.downloadFailed": "Impossible de lancer le téléchargement. Réessayez.",
   "settings.voice.cancelFailed": "Impossible d’arrêter le téléchargement.",
+  "settings.voice.model.elevenlabs.description":
+    "Envoie votre voix à ElevenLabs. Le texte s’affiche pendant que vous parlez et reste stable. Utilise votre propre clé API, et ElevenLabs facture chaque utilisation.",
+  "settings.voice.model.keySaved": "Clé API enregistrée",
+  "settings.voice.model.keyMissing": "Nécessite une clé API ElevenLabs",
+  "settings.voice.apiKey.label": "Clé API ElevenLabs",
+  "settings.voice.apiKey.placeholder": "Collez la clé",
+  "settings.voice.apiKey.save": "Enregistrer la clé",
+  "settings.voice.apiKey.remove": "Supprimer la clé",
+  "settings.voice.apiKey.saveFailed": "Impossible d’enregistrer la clé API. Réessayez.",
+  "settings.voice.apiKey.removeFailed": "Impossible de supprimer la clé API. Réessayez.",
 } as const satisfies PartialTranslation<typeof source>;

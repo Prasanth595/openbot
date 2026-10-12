@@ -383,9 +383,13 @@ import type {
   UpdateTeamMemberInput,
 } from "./ipc-team-host";
 import type {
+  VoiceApiKeyInput,
   VoiceModelRequest,
   VoiceModelStatus,
   VoiceSettings,
+  VoiceStream,
+  VoiceStreamAudio,
+  VoiceStreamTranscript,
   VoiceTranscriptionInput,
   VoiceTranscriptionResult,
 } from "./ipc-voice";
@@ -585,7 +589,21 @@ export const IPC_ENDPOINTS = {
     getSettings: request<undefined, VoiceSettings>()("voice:get-settings"),
     setSettings: request<VoiceSettings, VoiceSettings>()("voice:set-settings"),
     transcribe: request<VoiceTranscriptionInput, VoiceTranscriptionResult>()("voice:transcribe"),
+    /** Saves or removes the ElevenLabs API key. Answers the status of the ElevenLabs model. */
+    setApiKey: request<VoiceApiKeyInput, VoiceModelStatus>()("voice:set-api-key"),
+    /**
+     * Opens a streamed dictation with the cloud model in use. Answers when the provider accepted it.
+     * A new stream ends the one before it.
+     */
+    startStream: request<undefined, VoiceStream>()("voice:start-stream"),
+    appendStream: request<VoiceStreamAudio, void>()("voice:append-stream"),
+    /** Ends the audio and answers the whole text. */
+    finishStream: request<VoiceStream, VoiceTranscriptionResult>()("voice:finish-stream"),
+    /** Ends a stream and drops its text. */
+    cancelStream: request<VoiceStream, void>()("voice:cancel-stream"),
     modelStatus: event<VoiceModelStatus>()("voice:model-status"),
+    /** The text of a stream so far. It can change until `finishStream` answers. */
+    streamTranscript: event<VoiceStreamTranscript>()("voice:stream-transcript"),
   },
   dynamicIsland: {
     getPreference: request<undefined, DynamicIslandPreference>()("dynamic-island:get-preference"),

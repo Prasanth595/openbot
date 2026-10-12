@@ -444,6 +444,10 @@ is not included in analytics; provider output uses the application's secret reda
   `~/Library/Application Support/OpenBot/openbot-github-connector-v1.json`, encrypted by the operating
   system's secret storage. It holds the GitHub access and refresh tokens, the account name, ID and
   avatar address, and the port and secret of the local GitHub MCP server.
+- The ElevenLabs API key for dictation is kept in
+  `~/Library/Application Support/OpenBot/voice-api-key.json`, encrypted by the operating system's
+  secret storage. The app window never receives the key back. Remove key in **Settings → Voice**
+  deletes the file. The key is redacted from logs, exports and diagnostics.
   While the connection is on, `provider-state/github` in the same folder holds the access token and
   the OpenBot GitHub App's installation tokens in plain text, with mode 0600, for `gh` and `git` in
   agent tools. OpenBot deletes that folder when you disconnect and when the app closes; after a crash
@@ -532,8 +536,13 @@ Network traffic can also occur when:
 - the user dictates for the first time, or presses Download in **Settings → Voice**. OpenBot
   downloads the speech model that it pins, Parakeet or Whisper turbo, from `huggingface.co`, checks
   its size and SHA-256, and keeps it in `runtimes` in the application data folder. The request
-  carries no user data. Dictation audio stays on the computer, and the chosen model and language
-  are saved in `voice-preference.json` in the same folder;
+  carries no user data. Dictation audio from these models stays on the computer, and the chosen
+  model and language are saved in `voice-preference.json` in the same folder;
+- the user selects ElevenLabs Scribe v2 Realtime in **Settings → Voice** and dictates. While the
+  microphone records, OpenBot streams the audio and the chosen language to
+  `api.elevenlabs.io` with the user's own API key, and receives the text. Nothing else is sent:
+  no conversation, file or agent instruction. ElevenLabs handles the audio and the text under its
+  own policy and the user's ElevenLabs plan. The local models send nothing;
 - the user connects Bitwarden. OpenBot runs the installed `bw` CLI to sync with the server already
   configured in that CLI, including a self-hosted server. It syncs before listing or filling logins.
   These calls send no OpenBot conversations, files, or agent instructions to Bitwarden;

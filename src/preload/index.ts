@@ -127,6 +127,8 @@ import {
   decodeVoiceModelStatus,
   decodeVoiceModelStatuses,
   decodeVoiceSettings,
+  decodeVoiceStream,
+  decodeVoiceStreamTranscript,
   decodeVoiceTranscriptionResult,
   decodeVoid,
 } from "./app-decoding";
@@ -570,7 +572,13 @@ const openbotApi: OpenBotDesktopApi = {
     setSettings: decodeVoiceSettings,
     prepareModel: decodeVoiceModelStatus,
     transcribe: decodeVoiceTranscriptionResult,
+    setApiKey: decodeVoiceModelStatus,
+    startStream: decodeVoiceStream,
+    appendStream: decodeVoid,
+    finishStream: decodeVoiceTranscriptionResult,
+    cancelStream: decodeVoid,
     modelStatus: decodeVoiceModelStatus,
+    streamTranscript: decodeVoiceStreamTranscript,
   }),
   auth: bridgeGroup(IPC_ENDPOINTS.auth, {
     getState: decodeCentralAuthState,

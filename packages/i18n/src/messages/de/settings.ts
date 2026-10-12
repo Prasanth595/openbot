@@ -385,4 +385,14 @@ export const messages = {
   "settings.voice.saveFailed": "Die Spracheinstellung konnte nicht gespeichert werden. Versuche es erneut.",
   "settings.voice.downloadFailed": "Der Download konnte nicht starten. Versuche es erneut.",
   "settings.voice.cancelFailed": "Der Download konnte nicht gestoppt werden.",
+  "settings.voice.model.elevenlabs.description":
+    "Überträgt deine Stimme an ElevenLabs. Der Text erscheint beim Sprechen und bleibt stabil. Nutzt deinen eigenen API-Schlüssel, und ElevenLabs berechnet jede Nutzung.",
+  "settings.voice.model.keySaved": "API-Schlüssel gespeichert",
+  "settings.voice.model.keyMissing": "Braucht einen ElevenLabs-API-Schlüssel",
+  "settings.voice.apiKey.label": "ElevenLabs-API-Schlüssel",
+  "settings.voice.apiKey.placeholder": "Schlüssel einfügen",
+  "settings.voice.apiKey.save": "Schlüssel speichern",
+  "settings.voice.apiKey.remove": "Schlüssel entfernen",
+  "settings.voice.apiKey.saveFailed": "Der API-Schlüssel konnte nicht gespeichert werden. Versuche es erneut.",
+  "settings.voice.apiKey.removeFailed": "Der API-Schlüssel konnte nicht entfernt werden. Versuche es erneut.",
 } as const satisfies PartialTranslation<typeof source>;

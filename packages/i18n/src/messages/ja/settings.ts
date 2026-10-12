@@ -370,4 +370,14 @@ export const messages = {
   "settings.voice.saveFailed": "音声の設定を保存できませんでした。もう一度お試しください。",
   "settings.voice.downloadFailed": "ダウンロードを開始できませんでした。もう一度お試しください。",
   "settings.voice.cancelFailed": "ダウンロードを停止できませんでした。",
+  "settings.voice.model.elevenlabs.description":
+    "音声を ElevenLabs に送信します。話している間に文字が表示され、途中で変わりません。ご自身の API キーを使い、利用ごとに ElevenLabs から請求されます。",
+  "settings.voice.model.keySaved": "API キーを保存済み",
+  "settings.voice.model.keyMissing": "ElevenLabs の API キーが必要です",
+  "settings.voice.apiKey.label": "ElevenLabs の API キー",
+  "settings.voice.apiKey.placeholder": "キーを貼り付け",
+  "settings.voice.apiKey.save": "キーを保存",
+  "settings.voice.apiKey.remove": "キーを削除",
+  "settings.voice.apiKey.saveFailed": "API キーを保存できませんでした。もう一度お試しください。",
+  "settings.voice.apiKey.removeFailed": "API キーを削除できませんでした。もう一度お試しください。",
 } as const satisfies PartialTranslation<typeof source>;

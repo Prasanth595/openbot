@@ -1,8 +1,8 @@
-import { VOICE_AUDIO_LIMITS, VOICE_MODELS, type VoiceModelId } from "@openbot/contracts/ipc";
+import { VOICE_AUDIO_LIMITS, VOICE_MODELS, VOICE_STREAM_LIMITS, type VoiceModelId } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
 import { onCleanup } from "solid-js";
 import { desktopAnalytics } from "../../../analytics";
-import { appendVoiceTranscript, recordingToWav } from "../../../voice-recording";
+import { appendVoiceTranscript, encodePcm16, recordingToSamples, recordingToWav } from "../../../voice-recording";
 import { EMPTY_DRAFT } from "../composer-draft";
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
@@ -15,6 +15,8 @@ import { voiceCaptureError, voiceTranscriptionError } from "../voice-status";
  * and a pass that is still running makes the next tick wait instead of queueing behind it.
  */
 const LIVE_TRANSCRIPT_INTERVAL_MS = 1_000;
+/** How often a streamed dictation sends the new audio to ElevenLabs. */
+const STREAM_INTERVAL_MS = 250;
 
 /** The recording waveform: how many level samples it shows, and how often a new one arrives. */
 export const VOICE_LEVEL_COUNT = 24;
@@ -28,6 +30,15 @@ const VOICE_NOISE_RISE_DB = 0.1;
 const VOICE_NOISE_MARGIN_DB = 6;
 const VOICE_PEAK_FALL_DB = 0.05;
 const VOICE_MIN_RANGE_DB = 12;
+
+/** A dictation that streams to ElevenLabs through main. */
+export interface VoiceCloudStream {
+  streamId: string;
+  /** How many 16 kHz samples main has received. */
+  sentSamples: number;
+  /** Stops the transcript events of this stream. */
+  stopTranscript: () => void;
+}
 
 interface VoiceSubmitHooks {
   saveEdit: (
@@ -62,6 +73,7 @@ export interface VoiceStoreDeps {
     voiceElapsedTimer: ReturnType<typeof setInterval> | undefined;
     voiceChunks: Blob[];
     voiceLiveRequest: Promise<void> | undefined;
+    voiceCloudStream: VoiceCloudStream | undefined;
     voiceMeterStop: (() => void) | undefined;
     voiceAgentId: string | undefined;
     voiceServerId: string | undefined;
@@ -104,11 +116,14 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     try {
       const voice = conversationRuntime(deps.props).voice;
       let livePreview = true;
+      let streamed = false;
       // The settings answer at once; a download reports progress only after that.
       const [, modelStatus] = await Promise.all([
         voice.getSettings().then((settings) => {
           preparingModelId = settings.modelId;
-          livePreview = VOICE_MODELS.find((model) => model.id === settings.modelId)?.livePreview ?? true;
+          const model = VOICE_MODELS.find((candidate) => candidate.id === settings.modelId);
+          livePreview = model?.livePreview ?? true;
+          streamed = model?.kind === "cloud";
         }),
         voice.prepareModel(),
       ]);
@@ -135,6 +150,11 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         if (!resources.voiceDisposed && resources.voiceRequestGeneration === generation) deps.setVoicePhase("idle");
         return;
       }
+      const cloud = streamed ? await openCloudStream(target, generation) : undefined;
+      if (streamed && !cloud) {
+        for (const track of stream.getTracks()) track.stop();
+        return;
+      }
       const recorder = new MediaRecorder(stream);
       resources.voiceStream = stream;
       resources.voiceRecorder = recorder;
@@ -148,7 +168,8 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         resources.voiceChunks.push(event.data);
         // The last chunk arrives after Stop, and the final pass already covers it.
         if (livePreview && recorder.state === "recording" && !resources.voiceLiveRequest) {
-          resources.voiceLiveRequest = refreshLiveTranscript(recorder, target).finally(() => {
+          const request = cloud ? streamNewAudio(recorder, cloud) : refreshLiveTranscript(recorder, target);
+          resources.voiceLiveRequest = request.finally(() => {
             resources.voiceLiveRequest = undefined;
           });
         }
@@ -156,7 +177,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
       recorder.addEventListener("stop", () => {
         if (resources.voiceRecorder === recorder) void finishVoiceRecording(recorder.mimeType);
       });
-      recorder.start(LIVE_TRANSCRIPT_INTERVAL_MS);
+      recorder.start(cloud ? STREAM_INTERVAL_MS : LIVE_TRANSCRIPT_INTERVAL_MS);
       startVoiceMeter(stream);
       startVoiceElapsedTimer();
       deps.setVoicePhase("recording");
@@ -173,6 +194,71 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
       if (resources.voiceRequestGeneration === generation) deps.setVoicePhase("idle");
       deps.setConversationError(target, voiceCaptureError(error));
     }
+  }
+
+  /**
+   * Opens the ElevenLabs stream after the microphone. Answers nothing when the stream cannot open or
+   * the request was replaced; the phase and the error are then already set.
+   */
+  async function openCloudStream(
+    target: ConversationTarget,
+    generation: number,
+  ): Promise<VoiceCloudStream | undefined> {
+    const voice = conversationRuntime(deps.props).voice;
+    let streamId: string;
+    try {
+      ({ streamId } = await voice.startStream());
+    } catch (error) {
+      if (resources.voiceRequestGeneration === generation) deps.setVoicePhase("idle");
+      deps.setConversationError(target, voiceTranscriptionError(error));
+      return undefined;
+    }
+    if (resources.voiceDisposed || !deps.viewIsMounted() || resources.voiceRequestGeneration !== generation) {
+      void voice.cancelStream({ streamId }).catch(() => {});
+      if (!resources.voiceDisposed && resources.voiceRequestGeneration === generation) deps.setVoicePhase("idle");
+      return undefined;
+    }
+    const stopTranscript = voice.onStreamTranscript((event) => {
+      if (event.streamId === streamId && !resources.voiceDisposed)
+        deps.setVoiceLiveTranscript({ ...target, text: event.text.trim() });
+    });
+    const cloud = { streamId, sentSamples: 0, stopTranscript };
+    resources.voiceCloudStream = cloud;
+    return cloud;
+  }
+
+  /** Sends the audio that main does not have yet. Each pass decodes the whole recording again. */
+  async function sendCloudAudio(cloud: VoiceCloudStream, chunks: Blob[], mimeType: string): Promise<void> {
+    const samples = await recordingToSamples(new Blob(chunks, { type: mimeType }));
+    const pcm = encodePcm16(samples.subarray(cloud.sentSamples));
+    cloud.sentSamples = Math.max(cloud.sentSamples, samples.length);
+    const voice = conversationRuntime(deps.props).voice;
+    // A copy for each part, because IPC would copy the whole buffer of a view.
+    for (let offset = 0; offset < pcm.byteLength; offset += VOICE_STREAM_LIMITS.maximumChunkBytes)
+      await voice.appendStream({
+        streamId: cloud.streamId,
+        pcm: pcm.slice(offset, offset + VOICE_STREAM_LIMITS.maximumChunkBytes),
+      });
+  }
+
+  /** A failed stream does not hear the rest: Stop now, and the final pass reports the failure. */
+  async function streamNewAudio(recorder: MediaRecorder, cloud: VoiceCloudStream): Promise<void> {
+    try {
+      await sendCloudAudio(cloud, resources.voiceChunks, recorder.mimeType);
+    } catch {
+      if (resources.voiceRecorder === recorder) stopVoiceRecording();
+    }
+  }
+
+  /** Ends the stream in main and drops its text. */
+  function cancelCloudStream(): void {
+    const cloud = resources.voiceCloudStream;
+    if (!cloud) return;
+    resources.voiceCloudStream = undefined;
+    cloud.stopTranscript();
+    void conversationRuntime(deps.props)
+      .voice.cancelStream({ streamId: cloud.streamId })
+      .catch(() => {});
   }
 
   const removeVoiceModelListener = conversationRuntime(deps.props).voice.onModelStatus((status) => {
@@ -206,6 +292,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     resources.voiceSubmitRequest = undefined;
     recorder.stop();
     stopVoiceStream();
+    cancelCloudStream();
     deps.setVoiceLiveTranscript(null);
     deps.setVoicePhase("idle");
   }
@@ -285,6 +372,8 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     const targetServerId = resources.voiceServerId;
     const chunks = resources.voiceChunks;
     const submitRequest = resources.voiceSubmitRequest;
+    const cloud = resources.voiceCloudStream;
+    resources.voiceCloudStream = undefined;
     resources.voiceRecorder = undefined;
     resources.voiceAgentId = undefined;
     resources.voiceServerId = undefined;
@@ -293,16 +382,37 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     // The recorder also stops by itself, for example when the microphone is disconnected.
     stopVoiceElapsedTimer();
     stopVoiceStream();
-    if (!targetAgentId || !targetServerId || resources.voiceDisposed) return;
+    if (!targetAgentId || !targetServerId || resources.voiceDisposed) {
+      if (cloud) {
+        cloud.stopTranscript();
+        void conversationRuntime(deps.props)
+          .voice.cancelStream({ streamId: cloud.streamId })
+          .catch(() => {});
+      }
+      return;
+    }
     const analytics = desktopAnalytics.scope();
     const audioDurationSeconds = deps.voiceElapsedSeconds();
     const startedAt = performance.now();
     try {
       // The voice host takes one request at a time; the live pass is at most a second of work.
       await resources.voiceLiveRequest;
-      if (chunks.length === 0) throw new Error(currentText().t("composer.voice.noSpeechRecorded"));
-      const audio = await recordingToWav(new Blob(chunks, { type: mimeType }));
-      const result = await conversationRuntime(deps.props).voice.transcribe({ audio });
+      const voice = conversationRuntime(deps.props).voice;
+      let result: { text: string };
+      if (cloud) {
+        // Main ends the stream when it finishes, also when it fails.
+        try {
+          if (chunks.length > 0) await sendCloudAudio(cloud, chunks, mimeType);
+        } catch (error) {
+          void voice.cancelStream({ streamId: cloud.streamId }).catch(() => {});
+          throw error;
+        }
+        result = await voice.finishStream({ streamId: cloud.streamId });
+      } else {
+        if (chunks.length === 0) throw new Error(currentText().t("composer.voice.noSpeechRecorded"));
+        const audio = await recordingToWav(new Blob(chunks, { type: mimeType }));
+        result = await voice.transcribe({ audio });
+      }
       if (!result.text.trim()) throw new Error(currentText().t("composer.voice.noSpeechDetected"));
       analytics.track("voice_transcription", {
         result: "succeeded",
@@ -352,6 +462,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         }));
       }
     } finally {
+      cloud?.stopTranscript();
       if (!resources.voiceDisposed) {
         deps.setVoiceLiveTranscript(null);
         deps.setVoicePhase("idle");
@@ -387,6 +498,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     cancelVoiceRecording,
     finishVoiceRecording,
     stopVoiceStream,
+    cancelCloudStream,
     startVoiceElapsedTimer,
     stopVoiceElapsedTimer,
   };

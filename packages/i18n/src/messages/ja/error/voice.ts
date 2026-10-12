@@ -11,4 +11,13 @@ export const messages = {
   "error.voice.prepareRequired":
     "ローカル音声文字起こしを使用できません。`bun run voice:prepare` を実行し、OpenBot を再起動してください。",
   "error.voice.transcriptionFailed": "OpenBot はこの録音を文字起こしできませんでした。",
+  "error.voice.cloud.keyRequired": "設定 → 音声 で ElevenLabs の API キーを追加してください。",
+  "error.voice.cloud.keyRejected":
+    "ElevenLabs が API キーを受け付けませんでした。設定 → 音声 でキーを確認してください。",
+  "error.voice.cloud.quotaExceeded": "ElevenLabs の利用枠を使い切りました。",
+  "error.voice.cloud.rateLimited": "ElevenLabs が混み合っています。しばらくしてからもう一度お試しください。",
+  "error.voice.cloud.termsRequired": "ElevenLabs のアカウントで利用規約に同意してから、もう一度お試しください。",
+  "error.voice.cloud.streamEnded": "音声入力の送信が終了しました。もう一度録音してください。",
+  "error.voice.cloud.tooLong": "録音が長すぎます。",
+  "error.voice.cloud.keySaveFailed": "ElevenLabs の API キーを保存できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

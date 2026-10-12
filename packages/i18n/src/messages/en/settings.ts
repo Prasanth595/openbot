@@ -388,4 +388,14 @@ export const messages = defineMessages("settings", {
   "settings.voice.saveFailed": "Could not save the voice setting. Try again.",
   "settings.voice.downloadFailed": "Could not start the download. Try again.",
   "settings.voice.cancelFailed": "Could not stop the download.",
+  "settings.voice.model.elevenlabs.description":
+    "Streams your voice to ElevenLabs. Text shows while you speak and stays fixed. Uses your own API key, and ElevenLabs bills each use.",
+  "settings.voice.model.keySaved": "API key saved",
+  "settings.voice.model.keyMissing": "Needs an ElevenLabs API key",
+  "settings.voice.apiKey.label": "ElevenLabs API key",
+  "settings.voice.apiKey.placeholder": "Paste the key",
+  "settings.voice.apiKey.save": "Save key",
+  "settings.voice.apiKey.remove": "Remove key",
+  "settings.voice.apiKey.saveFailed": "Could not save the API key. Try again.",
+  "settings.voice.apiKey.removeFailed": "Could not remove the API key. Try again.",
 });

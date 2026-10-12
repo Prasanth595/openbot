@@ -1,11 +1,17 @@
 import {
   isVoiceLanguage,
   isVoiceModelId,
+  VOICE_API_KEY_MAX_LENGTH,
   VOICE_AUDIO_LIMITS,
+  VOICE_STREAM_LIMITS,
+  type VoiceApiKeyInput,
   type VoiceModelRequest,
   type VoiceSettings,
+  type VoiceStream,
+  type VoiceStreamAudio,
   type VoiceTranscriptionInput,
 } from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import { isObject } from "./validation";
 
 export function parseVoiceTranscription(input: unknown): VoiceTranscriptionInput {
@@ -48,4 +54,28 @@ export function parseVoiceSettings(input: unknown): VoiceSettings {
     throw new Error("Voice settings need a known model and language.");
   }
   return { modelId: input.modelId, language: input.language };
+}
+
+/** The one place an ElevenLabs key from the renderer enters main. Null removes the saved key. */
+export function parseVoiceApiKey(input: unknown): VoiceApiKeyInput {
+  if (!isObject(input)) throw new Error(sourceText("error.provider.keyRequired"));
+  if (input.key === null) return { key: null };
+  if (typeof input.key !== "string" || !input.key.trim()) throw new Error(sourceText("error.provider.keyRequired"));
+  if (input.key.length > VOICE_API_KEY_MAX_LENGTH) throw new Error(sourceText("error.provider.keyTooLong"));
+  return { key: input.key.trim() };
+}
+
+export function parseVoiceStream(input: unknown): VoiceStream {
+  if (!isObject(input) || typeof input.streamId !== "string" || !input.streamId || input.streamId.length > 64)
+    throw new Error("A voice stream is required.");
+  return { streamId: input.streamId };
+}
+
+export function parseVoiceStreamAudio(input: unknown): VoiceStreamAudio {
+  const { streamId } = parseVoiceStream(input);
+  if (!isObject(input) || !(input.pcm instanceof Uint8Array)) throw new Error("Voice audio is required.");
+  // 16-bit samples: an odd length cannot be PCM.
+  if (input.pcm.byteLength % 2 !== 0 || input.pcm.byteLength > VOICE_STREAM_LIMITS.maximumChunkBytes)
+    throw new Error("Voice audio has an invalid length.");
+  return { streamId, pcm: input.pcm };
 }

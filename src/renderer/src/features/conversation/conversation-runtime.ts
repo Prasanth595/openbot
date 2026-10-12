@@ -43,7 +43,18 @@ export interface ConversationRuntime {
     | "reload"
     | "setVisible"
   >;
-  voice: Pick<OpenBotDesktopApi["voice"], "getSettings" | "onModelStatus" | "prepareModel" | "transcribe">;
+  voice: Pick<
+    OpenBotDesktopApi["voice"],
+    | "getSettings"
+    | "onModelStatus"
+    | "prepareModel"
+    | "transcribe"
+    | "startStream"
+    | "appendStream"
+    | "finishStream"
+    | "cancelStream"
+    | "onStreamTranscript"
+  >;
   openUrl: OpenBotDesktopApi["openUrl"];
   previewAttachment?: (attachment: AttachmentSummary) => Promise<FilePreview>;
   importFiles?: (files: File[]) => Promise<void>;

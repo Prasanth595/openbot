@@ -373,4 +373,14 @@ export const messages = {
   "settings.voice.saveFailed": "Ses ayarı kaydedilemedi. Yeniden deneyin.",
   "settings.voice.downloadFailed": "İndirme başlatılamadı. Yeniden deneyin.",
   "settings.voice.cancelFailed": "İndirme durdurulamadı.",
+  "settings.voice.model.elevenlabs.description":
+    "Sesinizi ElevenLabs'e gönderir. Metin siz konuşurken görünür ve değişmez. Kendi API anahtarınızı kullanır ve ElevenLabs her kullanımı ücretlendirir.",
+  "settings.voice.model.keySaved": "API anahtarı kaydedildi",
+  "settings.voice.model.keyMissing": "ElevenLabs API anahtarı gerekir",
+  "settings.voice.apiKey.label": "ElevenLabs API anahtarı",
+  "settings.voice.apiKey.placeholder": "Anahtarı yapıştırın",
+  "settings.voice.apiKey.save": "Anahtarı kaydet",
+  "settings.voice.apiKey.remove": "Anahtarı kaldır",
+  "settings.voice.apiKey.saveFailed": "API anahtarı kaydedilemedi. Yeniden deneyin.",
+  "settings.voice.apiKey.removeFailed": "API anahtarı kaldırılamadı. Yeniden deneyin.",
 } as const satisfies PartialTranslation<typeof source>;

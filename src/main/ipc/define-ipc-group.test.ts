@@ -8,7 +8,13 @@ import type {
 } from "@openbot/contracts/ipc";
 import { describe, expect, it, vi } from "vitest";
 import { handler, payloadHandler, registerIpcGroup } from "./define-ipc-group";
-import { parseVoiceModelRequest, parseVoiceSettings } from "./voice-inputs";
+import {
+  parseVoiceApiKey,
+  parseVoiceModelRequest,
+  parseVoiceSettings,
+  parseVoiceStream,
+  parseVoiceStreamAudio,
+} from "./voice-inputs";
 
 // Same reason as trusted-ipc.test.ts: electron cannot be imported outside an Electron process, and
 // ipcMain is the only thing the wrappers touch, so registrations are captured rather than performed.
@@ -47,6 +53,11 @@ function registerVoice(transcribe: (input: VoiceTranscriptionInput) => VoiceTran
     getSettings: handler(() => SETTINGS),
     setSettings: payloadHandler(parseVoiceSettings, (settings) => settings),
     transcribe: payloadHandler(decodeNote, transcribe),
+    setApiKey: payloadHandler(parseVoiceApiKey, () => READY),
+    startStream: handler(() => ({ streamId: "stream-1" })),
+    appendStream: payloadHandler(parseVoiceStreamAudio, () => undefined),
+    finishStream: payloadHandler(parseVoiceStream, () => ({ text: "" })),
+    cancelStream: payloadHandler(parseVoiceStream, () => undefined),
   });
 }
 
