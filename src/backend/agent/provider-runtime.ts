@@ -38,6 +38,7 @@ import {
   decodeRecordResponse,
   getString,
 } from "./../protocol";
+import { ProviderSignInError } from "../provider-client-effects";
 import {
   BUILT_IN_PROVIDER_DRIVERS,
   type ProviderClientContext,
@@ -2017,7 +2018,10 @@ export class ProviderRuntime implements ProviderPort {
     const hasActiveClient = this.#clients.has(provider);
     const fallbackMessage = `OpenBot could not connect ${providerLabel(provider)}. Try again.`;
     const rawMessage = error instanceof Error ? error.message : String(error);
-    const message = /^(ChatGPT connection|OpenBot)/u.test(rawMessage) ? rawMessage : fallbackMessage;
+    const message =
+      error instanceof ProviderSignInError || /^(ChatGPT connection|OpenBot)/u.test(rawMessage)
+        ? rawMessage
+        : fallbackMessage;
     const status = hasActiveClient
       ? {
           state: "available" as const,
@@ -2292,7 +2296,8 @@ export class ProviderRuntime implements ProviderPort {
                   message: failure.message === null ? null : this.#redactMcp(failure.message),
                 }),
               });
-              if (!(error instanceof CodexCliError)) this.#emitProviderError(provider, "start_failed", error);
+              if (!(error instanceof CodexCliError || error instanceof ProviderSignInError))
+                this.#emitProviderError(provider, "start_failed", error);
               return message;
             }),
           ),

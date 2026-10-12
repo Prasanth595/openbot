@@ -415,6 +415,16 @@ export function createSetupProviders(
         focusRefreshTimer = setTimeout(synchronize, 250);
         return;
       }
+      // A refresh cancels a sign-in that OpenBot runs, such as Gemini's Google sign-in. The browser
+      // takes focus, so the user often comes back before the sign-in is complete. That sign-in
+      // reports its own result.
+      const signingIn = props.agentStatus.providers?.some(
+        (status) => providersAwaitingFocusRefresh.has(status.id) && status.connectionState === "connecting",
+      );
+      if (signingIn) {
+        blurredAfterProviderConnect = false;
+        return;
+      }
       providersAwaitingFocusRefresh.clear();
       blurredAfterProviderConnect = false;
       void refreshProviders();

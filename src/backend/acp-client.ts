@@ -67,6 +67,7 @@ import {
 } from "./protocol";
 import {
   type ProviderClientOperationError,
+  ProviderSignInError,
   providerCall,
   providerFailure,
   providerResult,
@@ -112,6 +113,8 @@ interface AcpTurn {
    * after the error, because then the harness did not retry.
    */
   interruptedAnswer: string | null;
+  /** A failure that the server sent as answer text and then ended the turn as a success. */
+  providerError: string | null;
   /** The prompt told the model not to answer, so an empty turn is a success. */
   answerOptional: boolean;
   messages: ThreadItem[];
@@ -274,6 +277,16 @@ export interface AcpProviderOptions {
     initialization: InitializeResponse,
   ): Effect.Effect<void, ProviderClientOperationError>;
   /**
+   * The message for a refused sign-in while a saved key is in use, or `null` without a key. A
+   * refused key must say so: a browser sign-in cannot help while the key wins over it.
+   */
+  savedKeyRefusedMessage?: () => string | null;
+  /**
+   * The stderr line of a server that starts an interactive sign-in by itself when its token is not
+   * valid. The account check then reports sign-in required at once and does not wait for the user.
+   */
+  interactiveSignInPrompt?: RegExp;
+  /**
    * Reads optional identity fields that ACP does not define. A provider extension failing must not
    * turn a working authenticated process into a signed-out one, so account/read falls back to null
    * fields when this hook cannot answer.
@@ -336,6 +349,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   #models: AcpModel[] = [];
   #lastTurnStartedAt = 0;
   #signedIn = false;
+  /** Settles when the server asks for an interactive sign-in while `initialize` checks the account. */
+  #signInPrompt: Deferred.Deferred<void> | null = null;
 
   constructor(
     cli: AgentCliInfo,
@@ -352,7 +367,14 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       confine: options.confine,
       label: () => this.#label,
       redact: (text) => this.#redact(text),
-      diagnostic: (message, origin) => this.emit("diagnostic", message, origin),
+      diagnostic: (message, origin) => {
+        // The prompt carries OAuth state, so it is not a diagnostic. Only an explicit sign-in opens it.
+        if (options.interactiveSignInPrompt?.test(message)) {
+          if (this.#signInPrompt) Deferred.doneUnsafe(this.#signInPrompt, Exit.void);
+          return;
+        }
+        this.emit("diagnostic", message, origin);
+      },
       exit: (error) => this.emit("exit", error),
       client: () => ({
         requestPermission: (params) => runCauseEffect(this.#requestPermission(params)),
@@ -885,19 +907,33 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       }),
     );
     const initialization = this.#initialization;
+    const signInPrompt = Deferred.makeUnsafe<void>();
+    this.#signInPrompt = signInPrompt;
     try {
       providerResult(yield* Effect.result(this.options.authenticate?.(connection, initialization) ?? Effect.void));
-      this.#models = providerResult(yield* Effect.result(this.#configuration.discoverModels(timeoutMs)));
+      const discovery = yield* Effect.raceFirst(
+        Effect.result(this.#configuration.discoverModels(timeoutMs)),
+        Deferred.await(signInPrompt).pipe(Effect.as(null)),
+      );
+      if (!discovery) {
+        this.#signedIn = false;
+        return;
+      }
+      this.#models = providerResult(discovery);
       if (this.#models.length === 0 && !this.options.allowNoModels) {
         throw new Error(sourceText("error.provider.acpNoModels"));
       }
       this.#signedIn = true;
     } catch (error) {
       if (isAuthenticationError(error)) {
+        const keyRefused = this.options.savedKeyRefusedMessage?.();
+        if (keyRefused) return yield* providerFailure(new ProviderSignInError({ message: keyRefused }));
         this.#signedIn = false;
         return;
       }
       return yield* providerFailure(error);
+    } finally {
+      this.#signInPrompt = null;
     }
   });
 
@@ -1476,6 +1512,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       thoughtStarted: false,
       receivedOutput: false,
       interruptedAnswer: null,
+      providerError: null,
       answerOptional: isRecord(params) && params.answerOptional === true,
       messages: [],
       toolNames: new Map(),
@@ -1543,9 +1580,16 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         turn.stopped || response.stopReason === "cancelled"
           ? "interrupted"
           : response.stopReason === "end_turn"
-            ? "completed"
+            ? turn.providerError
+              ? "failed"
+              : "completed"
             : "failed";
-      yield* this.#completeTurn(thread, turn, status, status === "failed" ? response.stopReason : null);
+      yield* this.#completeTurn(
+        thread,
+        turn,
+        status,
+        status === "failed" ? (turn.providerError ?? response.stopReason) : null,
+      );
     } catch (error) {
       yield* this.#completeTurn(thread, turn, turn.stopped ? "interrupted" : "failed", turn.stopped ? null : error);
     }
@@ -1568,6 +1612,15 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     const turn = thread.activeTurn;
     if (!turn || turn.completing) return;
     if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text") {
+      // Antigravity reports an exhausted quota as answer text and ends the turn as a success.
+      const quota = this.provider === "antigravity" ? GEMINI_QUOTA_CHUNK.exec(update.content.text) : null;
+      if (quota) {
+        turn.receivedOutput = true;
+        turn.providerError = sourceText("error.provider.antigravityRateLimited", {
+          detail: shownFailureDetail(quota[1]?.trim() ?? ""),
+        });
+        return;
+      }
       // A harness reports a dropped stream as answer text, and then sends the retried answer (#1471).
       // The report gets its own muted item, so it is not joined to the answer around it. When no
       // retried answer comes, the partial reply and the report become the answer.
@@ -1811,6 +1864,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (this.options.profileGeneration) return { outcome: { outcome: "cancelled" } };
     if (this.#historyReplays.has(params.sessionId)) return { outcome: { outcome: "cancelled" } };
     const thread = this.#threads.get(params.sessionId);
+    // The user stopped this Antigravity session, and its harness can still run until the resume.
+    // A tool that it asks for now must not run.
+    if (thread?.needsResume && !thread.activeTurn) return { outcome: { outcome: "cancelled" } };
     const turnId = thread?.activeTurn?.id ?? randomUUID();
     const kind =
       params.toolCall.kind === "execute"
@@ -2028,6 +2084,14 @@ function isSessionNotFound(error: unknown, sessionId: string, provider: AgentPro
   if (provider === "acp" && error.code === -32603) {
     return isRecord(error.data) && error.data.details === `Unsupported ACP session: ${sessionId}`;
   }
+  // Antigravity 1.3.0 has three exact forms: a load or resume puts the ID in data.sessionId, a
+  // configuration change uses the SDK's resource URI `session <id>`, and a prompt raises a plain
+  // error that the SDK wraps as an internal error.
+  if (provider === "antigravity") {
+    if (!isRecord(error.data)) return false;
+    if (error.code === -32603) return error.data.details === `Session not found: ${sessionId}`;
+    return error.code === -32002 && (error.data.sessionId === sessionId || error.data.uri === `session ${sessionId}`);
+  }
   if (error.code !== -32002) return false;
   const uri = isRecord(error.data) ? error.data.uri : undefined;
   return uri === sessionId || error.message.includes(sessionId);
@@ -2064,6 +2128,8 @@ function isOpenCodeServiceFailure(error: unknown): boolean {
  * mid-response. The response above may be incomplete." Only the full report matches, so answer text
  * that starts with "API Error: " stays in the answer.
  */
+/** Antigravity 1.3.0's `quota_exhausted_message`: a fixed header, then the reset time. */
+const GEMINI_QUOTA_CHUNK = /^\s*Usage Limit Reached\n\n([\s\S]*)$/u;
 const HARNESS_ERROR_CHUNK = /^\s*API Error: [^\n]*The response above may be incomplete\.\s*$/u;
 
 const OPENCODE_FAILURE_DETAIL_LIMIT = 200;

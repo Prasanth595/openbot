@@ -218,6 +218,11 @@ export const messages = defineMessages("error.provider", {
   "error.provider.geminiBrowserUnavailable":
     "Gemini could not open the sign-in page. Install a browser and xdg-utils, then connect from a desktop session on this host. A server with no desktop cannot complete this sign-in.",
   "error.provider.acpSignInFailed": "The sign-in did not complete.",
+  "error.provider.acpSignInFailedReason": "The sign-in did not complete: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "This provider does not offer this sign-in on this computer. Update the provider, then try again.",
+  "error.provider.geminiKeyRefused":
+    "Gemini refused the saved API key. Replace or remove the key in Settings, then connect again.",
   "error.provider.messageTooLarge": "OpenBot stopped {provider} because it sent a message larger than {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "An agent ID must be lowercase letters, digits or `-`, and cannot be the ID of a built-in provider.",
