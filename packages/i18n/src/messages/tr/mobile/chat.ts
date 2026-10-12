@@ -243,6 +243,7 @@ export const messages = {
   "mobile.chat.approval.sendFailed": "Kararınız gönderilemedi. Lütfen tekrar deneyin.",
   "mobile.chat.approval.inactiveTitle": "İstek kapandı",
   "mobile.chat.activity.waitingOnDesktop": "Masaüstünde girdiniz bekleniyor",
+  "mobile.chat.activity.waitingForBrowser": "Tarayıcıda işleminiz bekleniyor",
   "mobile.chat.activity.responding": "Yanıt veriliyor…",
   "mobile.chat.activity.thinking": "Düşünüyor…",
   "mobile.chat.history.loadingOlder": "Daha eski mesajlar yükleniyor…",

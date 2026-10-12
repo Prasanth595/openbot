@@ -45,7 +45,7 @@ import { queueReceiptMessages } from "../model/queue-edit-draft";
 import { retainConfirmedAttachments } from "../model/upload-chat-attachments";
 import { voiceAccent, voicePalette } from "../model/voice-palette";
 import { rememberImageDimensions } from "./attachment-preview";
-import { BrowserSecretCard } from "./browser-secret-card";
+import { asksForSecret, BrowserSecretComposer, BrowserTakeoverCard } from "./browser-secret-card";
 import { ChatAttachmentPanel } from "./chat-attachment-panel";
 import { ChatQueueButton } from "./chat-queue-button";
 import type { ChatQueueController } from "./use-chat-queue";
@@ -134,6 +134,15 @@ export function ChatView({
   const { respondToApproval, respondToBrowserSecret, respondToBrowserTakeover, attachmentSupport, browserViewSupport } =
     useMobileWorkspace();
   const browserRequests = useBrowserRequests(target.serverId);
+  const chatBrowserRequests = useMemo(
+    () =>
+      browserRequests.filter((request) =>
+        target.kind === "agent"
+          ? request.agentId === target.id
+          : target.members.some((member) => member.id === request.agentId),
+      ),
+    [browserRequests, target],
+  );
   const browserAllowed = useBrowserFeature();
   const isFocused = useIsFocused();
   const foregroundVisit = useAppForeground();
@@ -289,7 +298,14 @@ export function ChatView({
     sendable: serverOnline && canSend && !sending && !pendingMessage,
     onSend: sendMessage,
   });
+  // Not gated on `appActive`. Notification Center and other system overlays make iOS report the app
+  // inactive, and a request must stay with its typed value. It goes when the app leaves.
+  const showBrowserRequests = serverOnline && foregroundVisit && isFocused && !readOnly;
   const voiceOpen = voice.stage !== "closed";
+  // A password or a code is typed where the composer is, so the screen has one field. The voice
+  // mode and the attachment card keep the composer until they close. Other secret requests wait.
+  const secretRequest =
+    showBrowserRequests && !voiceOpen && !attachments.menuOpen ? chatBrowserRequests.find(asksForSecret) : undefined;
   const dark = useColorScheme() === "dark";
   // The glow and the filled voice controls take the agent's own colour. A
   // channel mixes the colours of its first members.
@@ -601,6 +617,7 @@ export function ChatView({
               questionForm={questionForm}
               onSelectQuestion={onSelectQuestion}
               approvals={readOnly ? undefined : approvals}
+              browserRequests={chatBrowserRequests}
               serverName={server?.name ?? ""}
               onRespondApproval={(approval, decision) =>
                 respondToApproval(target.serverId, { requestId: approval.requestId, decision })
@@ -681,18 +698,13 @@ export function ChatView({
                 </View>
               ) : null}
               <ConnectionStatus server={server} />
-              {serverOnline && appActive && isFocused && !readOnly
-                ? browserRequests
-                    .filter((request) =>
-                      target.kind === "agent"
-                        ? request.agentId === target.id
-                        : target.members.some((member) => member.id === request.agentId),
-                    )
+              {showBrowserRequests
+                ? chatBrowserRequests
+                    .filter((request) => !asksForSecret(request))
                     .map((request) => (
-                      <BrowserSecretCard
+                      <BrowserTakeoverCard
                         key={`${target.serverId}:${request.requestId}`}
                         request={request}
-                        respond={(input) => respondToBrowserSecret(target.serverId, input)}
                         respondToTakeover={(decision) =>
                           respondToBrowserTakeover(target.serverId, { requestId: request.requestId, decision })
                         }
@@ -746,7 +758,20 @@ export function ChatView({
                   fallbackBackground={fieldBackground}
                 />
               ) : null}
-              {!readOnly ? (
+              {secretRequest ? (
+                <BrowserSecretComposer
+                  key={`${target.serverId}:${secretRequest.requestId}`}
+                  request={secretRequest}
+                  respond={(input) => respondToBrowserSecret(target.serverId, input)}
+                  bottomInset={insets.bottom}
+                  liquidGlassAvailable={liquidGlassAvailable}
+                  fallbackBackground={fieldBackground}
+                  foreground={foreground}
+                  muted={muted}
+                  action={action}
+                  actionForeground={actionForeground}
+                />
+              ) : !readOnly ? (
                 <ChatComposer
                   sendRetryVersion={sendRetryVersion}
                   replyTarget={replyTarget}

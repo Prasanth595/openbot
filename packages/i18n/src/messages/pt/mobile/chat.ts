@@ -246,6 +246,7 @@ export const messages = {
   "mobile.chat.approval.sendFailed": "Não foi possível enviar sua decisão. Tente novamente.",
   "mobile.chat.approval.inactiveTitle": "Solicitação encerrada",
   "mobile.chat.activity.waitingOnDesktop": "Aguardando sua ação no computador",
+  "mobile.chat.activity.waitingForBrowser": "Aguardando sua ação no navegador",
   "mobile.chat.activity.responding": "Respondendo…",
   "mobile.chat.activity.thinking": "Pensando…",
   "mobile.chat.history.loadingOlder": "Carregando mensagens anteriores…",

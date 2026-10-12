@@ -239,6 +239,7 @@ export const messages = {
   "mobile.chat.approval.sendFailed": "判断を送信できませんでした。もう一度お試しください。",
   "mobile.chat.approval.inactiveTitle": "リクエストは終了しました",
   "mobile.chat.activity.waitingOnDesktop": "パソコンでの入力を待っています",
+  "mobile.chat.activity.waitingForBrowser": "ブラウザでの操作を待っています",
   "mobile.chat.activity.responding": "応答中…",
   "mobile.chat.activity.thinking": "考え中…",
   "mobile.chat.history.loadingOlder": "以前のメッセージを読み込み中…",
