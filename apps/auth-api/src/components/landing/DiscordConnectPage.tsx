@@ -23,8 +23,10 @@ export function DiscordConnectPage() {
       setFailure(fragment.get("error") ?? "discord_failed");
       return;
     }
-    if (handOffToWebClient("discord", fragment)) {
-      setWebClient(true);
+    // When the client tab that started the install is gone, the start-again message shows.
+    const handoff = handOffToWebClient("discord", fragment);
+    if (handoff) {
+      void handoff.then((received) => (received ? setWebClient(true) : setFailure("discord_tab_closed")));
       return;
     }
     setOpenUrl(target);

@@ -6,9 +6,14 @@
 import { type MessagingPlatform, messagingPage } from "@openbot/contracts/ipc";
 import {
   decodeWebMessagingInstallGrant,
+  decodeWebMessagingInstallMark,
+  encodeWebMessagingInstallMark,
   WEB_MESSAGING_INSTALL_CHANNEL,
+  WEB_MESSAGING_INSTALL_KEY_PREFIX,
+  WEB_MESSAGING_INSTALL_TTL_MS,
   type WebMessagingInstallPlatform,
   webMessagingInstallKey,
+  webMessagingInstallReceipt,
 } from "@openbot/contracts/web-messaging-install";
 import { sourceText } from "@openbot/i18n/source";
 import { runTeamEffect } from "@openbot/team-client";
@@ -24,8 +29,19 @@ import {
   type TeamAdminRequestError,
 } from "@openbot/team-client/team-admin-requests";
 import type { TeamApiRequest } from "@openbot/team-client/team-api-requests";
+import { currentText } from "@openbot/ui/text";
 import { Effect } from "effect";
 import type { HostMessagingApi } from "../connectors/host-messaging-port";
+
+/** Local storage that is not available holds no mark, and the return page opens `openbot://`. */
+function withStorage(action: (storage: Storage) => void): boolean {
+  try {
+    action(localStorage);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** `request` throws for a server that is not connected. Call `dispose` when the client closes. */
 export function webHostMessaging(request: (serverId: string) => TeamApiRequest): {
@@ -33,43 +49,54 @@ export function webHostMessaging(request: (serverId: string) => TeamApiRequest):
   dispose: () => void;
 } {
   /** The installs that this tab opened, by nonce: the server that waits for each grant. */
-  const pending = new Map<string, { platform: WebMessagingInstallPlatform; serverId: string }>();
+  const pending = new Map<string, { platform: WebMessagingInstallPlatform; serverId: string; expiresAt: number }>();
   let channel: BroadcastChannel | null = null;
+
+  /** `request` can throw, so it runs inside the Effect and a failure rejects the promise. */
+  const run = <T>(serverId: string, call: (target: TeamApiRequest) => Effect.Effect<T, TeamAdminRequestError>) =>
+    runTeamEffect(Effect.suspend(() => call(request(serverId))).pipe(Effect.mapError((error) => error.cause)));
 
   const forget = (nonce: string) => {
     pending.delete(nonce);
-    try {
-      localStorage.removeItem(webMessagingInstallKey(nonce));
-    } catch {
-      // Storage that is not available holds no mark.
-    }
-    if (pending.size > 0) return;
-    channel?.close();
-    channel = null;
+    withStorage((storage) => storage.removeItem(webMessagingInstallKey(nonce)));
+  };
+  /** Removes the installs and the marks that the host no longer waits for, including other tabs' old ones. */
+  const prune = (now: number) => {
+    for (const [nonce, install] of pending) if (install.expiresAt <= now) pending.delete(nonce);
+    withStorage((storage) => {
+      for (const key of Object.keys(storage))
+        if (
+          key.startsWith(WEB_MESSAGING_INSTALL_KEY_PREFIX) &&
+          !decodeWebMessagingInstallMark(storage.getItem(key), now)
+        )
+          storage.removeItem(key);
+    });
   };
   const receive = (event: MessageEvent) => {
     const install = decodeWebMessagingInstallGrant(event.data);
     const waiting = install ? pending.get(install.nonce) : undefined;
     if (!install || waiting?.platform !== install.platform) return;
     forget(install.nonce);
+    // The answer tells the return page that this tab took the grant.
+    channel?.postMessage(webMessagingInstallReceipt(install.nonce));
     // The Connectors page reads the connections again by itself and shows the result, as on the desktop.
-    void runTeamEffect(messagingConnectorComplete(request(waiting.serverId), install)).catch(() => undefined);
+    void run(waiting.serverId, (target) => messagingConnectorComplete(target, install)).catch(() => undefined);
   };
-  /** Without the mark, the return page opens `openbot://` as for the desktop app. */
   const remember = (platform: WebMessagingInstallPlatform, nonce: string, serverId: string) => {
-    try {
-      localStorage.setItem(webMessagingInstallKey(nonce), platform);
-    } catch {
+    const now = Date.now();
+    prune(now);
+    if (
+      !withStorage((storage) =>
+        storage.setItem(webMessagingInstallKey(nonce), encodeWebMessagingInstallMark(platform, now)),
+      )
+    )
       return;
-    }
-    pending.set(nonce, { platform, serverId });
+    pending.set(nonce, { platform, serverId, expiresAt: now + WEB_MESSAGING_INSTALL_TTL_MS });
     if (channel) return;
     channel = new BroadcastChannel(WEB_MESSAGING_INSTALL_CHANNEL);
     channel.onmessage = receive;
   };
 
-  const run = <T>(effect: Effect.Effect<T, TeamAdminRequestError>) =>
-    runTeamEffect(effect.pipe(Effect.mapError((error) => error.cause)));
   /**
    * A browser blocks a page that the user's click did not open, and the page is known only when the
    * host answers. So the tab opens empty at the click, with no await before it, and goes to the page after.
@@ -80,34 +107,38 @@ export function webHostMessaging(request: (serverId: string) => TeamApiRequest):
     open: (target: TeamApiRequest) => Effect.Effect<MessagingConnectorPage, TeamAdminRequestError>,
   ) => {
     const tab = window.open("about:blank", "_blank");
-    if (tab) tab.opener = null;
+    if (!tab) throw new Error(currentText().t("browser.popupBlocked.title"));
+    tab.opener = null;
     try {
-      const page = await run(open(request(serverId)));
+      const page = await run(serverId, open);
       const address = messagingPage(platform, page.url);
       if (page.url !== null && !address) throw new Error(sourceText("error.team.connectorPageRefused"));
       if (address && platform !== "telegram" && page.nonce !== null) remember(platform, page.nonce, serverId);
-      if (tab && address) tab.location.href = address;
-      else tab?.close();
+      if (address) tab.location.href = address;
+      else tab.close();
     } catch (error) {
-      tab?.close();
+      tab.close();
       throw error;
     }
   };
 
   return {
     api: {
-      hostOverview: (input, serverId) => run(messagingConnectorOverview(request(serverId), input)),
+      hostOverview: (input, serverId) => run(serverId, (target) => messagingConnectorOverview(target, input)),
       hostConnect: (input, serverId) =>
         withTab(serverId, input.platform, (target) => messagingConnectorConnect(target, input)),
-      hostDisconnect: (input, serverId) => run(messagingConnectorDisconnect(request(serverId), input)),
+      hostDisconnect: (input, serverId) => run(serverId, (target) => messagingConnectorDisconnect(target, input)),
       // A Discord server that removed the bot installs it again, so the host can answer a page.
       hostReconnect: (input, serverId) =>
         withTab(serverId, input.platform, (target) => messagingConnectorReconnect(target, input)),
-      hostSetEnabled: (input, serverId) => run(messagingConnectorSetEnabled(request(serverId), input)),
-      hostAddOrchestrator: (input, serverId) => run(messagingConnectorAddOrchestrator(request(serverId), input)),
+      hostSetEnabled: (input, serverId) => run(serverId, (target) => messagingConnectorSetEnabled(target, input)),
+      hostAddOrchestrator: (input, serverId) =>
+        run(serverId, (target) => messagingConnectorAddOrchestrator(target, input)),
     },
     dispose: () => {
       for (const nonce of [...pending.keys()]) forget(nonce);
+      channel?.close();
+      channel = null;
     },
   };
 }

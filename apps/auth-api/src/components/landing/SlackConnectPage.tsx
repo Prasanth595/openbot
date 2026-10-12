@@ -23,8 +23,10 @@ export function SlackConnectPage() {
       setFailure(fragment.get("error") ?? "slack_failed");
       return;
     }
-    if (handOffToWebClient("slack", fragment)) {
-      setWebClient(true);
+    // When the client tab that started the install is gone, the start-again message shows.
+    const handoff = handOffToWebClient("slack", fragment);
+    if (handoff) {
+      void handoff.then((received) => (received ? setWebClient(true) : setFailure("slack_tab_closed")));
       return;
     }
     setOpenUrl(target);

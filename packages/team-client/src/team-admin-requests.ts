@@ -103,7 +103,7 @@ import {
   type UpdateHostIdentityInput,
   type UpdateRestartMode,
 } from "@openbot/contracts/ipc";
-import { decodeRecord, guardedListDecoder, nullableString } from "@openbot/contracts/ipc-decoding";
+import { decodeRecord, guardedListDecoder, nullableString, requiredBoolean } from "@openbot/contracts/ipc-decoding";
 import {
   decodeEventActivity,
   decodeEventRoutines,
@@ -878,7 +878,7 @@ export function messagingConnectorComplete(
     request(
       "POST",
       CONNECTORS_ROUTES.messagingComplete,
-      (value) => decodeRecord(value, "messaging install").accepted === true,
+      (value) => requiredBoolean(decodeRecord(value, "messaging install"), "accepted"),
       { ...input },
     ),
   );
