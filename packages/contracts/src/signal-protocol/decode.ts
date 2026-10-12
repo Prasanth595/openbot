@@ -33,6 +33,21 @@ import {
 } from "./webhook-route";
 
 /**
+ * Whether a frame is the `rate_limited` error. Signal closes the socket with 1008 right after it, and
+ * the close can run before a client's handler for the frame, so a client reads this when the frame
+ * arrives. Other 1008 closes, such as an expired session, are not a reason for every socket to wait.
+ */
+export function isSignalRateLimitFrame(data: string): boolean {
+  if (!data.includes("rate_limited")) return false;
+  try {
+    const frame = JSON.parse(data);
+    return isDynamicRecord(frame) && frame.type === "error" && frame.code === "rate_limited";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returns `null` for a frame whose `type` this version does not know: a newer Signal service may add
  * one, and a client already installed on a phone has to ignore it rather than drop the connection.
  * Throws for anything that is not a frame at all, or for a known type whose payload does not match -

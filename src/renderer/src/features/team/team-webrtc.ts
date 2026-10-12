@@ -1,5 +1,5 @@
 import { isString } from "@openbot/contracts/runtime-values";
-import { decodeSignalServerMessage } from "@openbot/contracts/signal-protocol/decode";
+import { decodeSignalServerMessage, isSignalRateLimitFrame } from "@openbot/contracts/signal-protocol/decode";
 import {
   SIGNAL_PROTOCOL_VERSION,
   SIGNAL_TURN_REFRESH_INTERVAL_MS,
@@ -62,6 +62,11 @@ interface PeerState {
   payloadDecoders: Partial<Record<"rpc" | "events" | "files" | "desktop", TeamWebRtcPayloadDecoder>>;
   reconnectAttempt: number;
   reconnectTimer: number | null;
+  /**
+   * Signal closed this peer's socket with 1008 for a reason other than its rate limit, such as an
+   * expired session. Only this peer waits; the host socket and other servers connect at once.
+   */
+  socketRetryAt: number;
   turnRefreshTimer: number | null;
   /** When the credentials of the current path must be renewed. */
   turnRefreshDueAt: number;
@@ -159,6 +164,7 @@ async function handleCommand(command: BridgeCommand): Promise<void> {
         payloadDecoders: {},
         reconnectAttempt: 0,
         reconnectTimer: null,
+        socketRetryAt: 0,
         turnRefreshTimer: null,
         turnRefreshDueAt: 0,
         signalRenewTimer: null,
@@ -274,7 +280,7 @@ function connectSignal(state: PeerState, prepared: WebSocket | null = null): voi
     prepared?.close(1000, "Peer stopped");
     return;
   }
-  if (Date.now() < signalRetryAt) {
+  if (Date.now() < Math.max(signalRetryAt, state.socketRetryAt)) {
     prepared?.close(1000, "Signal retry pending");
     scheduleSignalReconnect(state);
     return;
@@ -298,8 +304,12 @@ function connectSignal(state: PeerState, prepared: WebSocket | null = null): voi
       post({ type: "signal-open", peerId: state.id });
       sendHello();
     });
+  // Signal sends `rate_limited` and then closes the socket with 1008. The close can run before the
+  // frame's turn in the chain, which skips a frame of a closed socket, so the code is read here.
+  let rateLimited = false;
   socket.addEventListener("message", (event) => {
     if (!isString(event.data)) return;
+    rateLimited ||= isSignalRateLimitFrame(event.data);
     state.signalChain = state.signalChain
       .then(async () => {
         if (state.closed || state.socket !== socket) return;
@@ -328,7 +338,12 @@ function connectSignal(state: PeerState, prepared: WebSocket | null = null): voi
       post({ type: "peer-disconnected", peerId: state.id });
       return;
     }
-    if (event.code === 1008) signalRetryAt = Date.now() + 60_000;
+    // Every socket waits after a rate limit. Another 1008, such as an expired session, makes only this
+    // peer wait.
+    if (event.code === 1008) {
+      if (rateLimited) signalRetryAt = Date.now() + 60_000;
+      else state.socketRetryAt = Date.now() + 60_000;
+    }
     if (!state.closed) scheduleSignalReconnect(state);
   });
   socket.addEventListener("error", () => socket.close());
@@ -830,7 +845,10 @@ function replaceSignal(state: PeerState): void {
 
 function scheduleSignalReconnect(state: PeerState): void {
   if (state.reconnectTimer !== null) return;
-  const delay = Math.max(signalRetryAt - Date.now(), Math.min(30_000, 500 * 2 ** state.reconnectAttempt++));
+  const delay = Math.max(
+    Math.max(signalRetryAt, state.socketRetryAt) - Date.now(),
+    Math.min(30_000, 500 * 2 ** state.reconnectAttempt++),
+  );
   state.reconnectTimer = window.setTimeout(() => {
     state.reconnectTimer = null;
     connectSignal(state);

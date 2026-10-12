@@ -1,6 +1,6 @@
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
-import { decodeSignalServerMessage } from "@openbot/contracts/signal-protocol/decode";
+import { decodeSignalServerMessage, isSignalRateLimitFrame } from "@openbot/contracts/signal-protocol/decode";
 import {
   SIGNAL_PROTOCOL_VERSION,
   SIGNAL_TURN_REFRESH_INTERVAL_MS,
@@ -272,6 +272,11 @@ interface PeerState {
   answeredRequest: boolean;
   /** The close code of the last Signal socket, so a connection timeout can name it. */
   lastSignalClose: number | null;
+  /**
+   * Signal closed this peer's socket with 1008 for a reason other than its rate limit, such as an
+   * expired session. Only this peer waits: a new peer has a new ticket.
+   */
+  socketRetryAt: number;
   hostProtocol?: number;
 }
 
@@ -288,6 +293,17 @@ const COMPATIBILITY_REQUEST_TIMEOUT_MS = 3_000;
 /** The first read on a new peer also waits for a slow relay path, such as TURN over TLS on mobile data. */
 const FIRST_COMPATIBILITY_REQUEST_TIMEOUT_MS = 10_000;
 const REQUEST_TIMEOUT_MS = 10 * 60_000 + 30_000;
+/**
+ * The host gets no answer to its ICE consent checks while the phone is suspended, and stops using a
+ * path that did not answer for 30 s (RFC 7675). A longer absence needs an ICE restart.
+ */
+const ICE_CONSENT_TIMEOUT_MS = 30_000;
+/**
+ * Signal closes a socket that sent nothing for 120 s, and tells the host to drop its connection 30 s
+ * later. After this long away from the app the host has dropped it, so the peer is replaced, not
+ * resumed. The margin covers the seconds before iOS suspends the app.
+ */
+export const REMOTE_PEER_LOST_AFTER_MS = 160_000;
 
 class RemotePeerIO extends Context.Service<
   RemotePeerIO,
@@ -338,6 +354,8 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
   }
 
   let active = true;
+  /** When the consumer last made this peer inactive, such as when the app went to the background. */
+  let inactiveSince: number | null = null;
   let peer: PeerState | null = null;
   // Keep the rate-limit wait when recovery replaces a peer or the app returns to the foreground.
   let signalRetryAt = 0;
@@ -391,6 +409,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       await runtime.dispose();
     },
     setActive(value: boolean) {
+      const now = Date.now();
+      const away = value && !active && inactiveSince !== null ? now - inactiveSince : 0;
+      if (!value && active) inactiveSince = now;
+      if (value) inactiveSince = null;
       active = value;
       const state = peer;
       if (!state) return;
@@ -413,13 +435,22 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         rejectRequests(new Error(sourceText("error.remote.appInBackground")), true);
         if (!state.authenticated) failPeer(state, new Error(sourceText("error.remote.appInBackground")), actions);
       } else {
-        if (canRecoverPeer(state)) {
+        if (away >= REMOTE_PEER_LOST_AFTER_MS && state.authenticated) {
+          // The host has dropped this connection. Close it without an offline update: the consumer
+          // connects on each return, and that connect starts the new peer on the same session. A
+          // resume hello would only renew an expired token through the account service, and a read
+          // would wait for its timeout on the dead path.
+          void runPeerEffect(closePeer(actions.current.endSession, true));
+        } else if (canRecoverPeer(state)) {
           recoverIce(state, actions, 0);
         } else if (!isPeerOnline(state)) {
           failPeer(state, new Error(sourceText("error.remote.desktopRestoreNeeded")), actions);
         } else {
           resumeTurnRefresh(state);
-          if (!state.socket) openSignal(state, actions);
+          // The host stopped using the path. A renewed socket restarts ICE on its `ready`: the path
+          // comes back, or the answer of a host that dropped the connection fails the peer at once.
+          if (away >= ICE_CONSENT_TIMEOUT_MS) renewSignal(state, actions);
+          else if (!state.socket) openSignal(state, actions);
           // The recovery owner reloads workspace reads on every foreground return.
           // Do not request a second reload for reads canceled on background entry.
           state.needsResync = false;
@@ -712,6 +743,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         signalReady: false,
         answeredRequest: false,
         lastSignalClose: null,
+        socketRetryAt: 0,
       };
       peer = state;
       const connected = Deferred.makeUnsafe<void, RemotePeerError>();
@@ -727,7 +759,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
 
   function openSignal(state: PeerState, actions: ActionsRef): void {
     if (!active || state.closed || peer !== state || state.socket) return;
-    if (Date.now() < signalRetryAt) {
+    if (Date.now() < Math.max(signalRetryAt, state.socketRetryAt)) {
       scheduleReconnect(state, actions);
       return;
     }
@@ -747,9 +779,13 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       };
       socket.send(JSON.stringify(hello));
     };
+    // Signal sends `rate_limited` and then closes the socket with 1008. The close can run before the
+    // frame's handler, which skips a frame of a closed socket, so the code is read here.
+    let rateLimited = false;
     socket.onmessage = (event) => {
       if (!isString(event.data)) return;
       const data = event.data;
+      rateLimited ||= isSignalRateLimitFrame(data);
       void runPeerEffect(
         state.signalLock.withPermit(
           Effect.gen(function* () {
@@ -786,7 +822,12 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       state.hostWaitTimer = null;
       if (state.closed || peer !== state) return;
       if (event) state.lastSignalClose = event.code;
-      if (event?.code === 1008) signalRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
+      // Every new socket waits after a rate limit. Another 1008, such as an expired session, makes only
+      // this peer wait, so a new peer with a new ticket connects at once.
+      if (event?.code === 1008) {
+        if (rateLimited) signalRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
+        else state.socketRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
+      }
       diagnose(state, "signal-closed", `code ${event?.code ?? "unknown"}`);
       scheduleReconnect(state, actions);
     };
@@ -1487,7 +1528,8 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
 
   function scheduleReconnect(state: PeerState, actions: ActionsRef): void {
     if (!active || state.reconnectTimer !== null) return;
-    // The connection deadline measures an active attempt, not the service's rate-limit wait.
+    // The connection deadline measures an active attempt, not the service's rate-limit wait. The wait of
+    // this peer's own socket keeps the deadline, so a recovery replaces a peer whose session ended.
     if (Date.now() < signalRetryAt && state.connectedTimer !== null) {
       clearTimeout(state.connectedTimer);
       state.connectedTimer = null;
@@ -1496,7 +1538,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     // the data channels stay online. A peer that recovers its ICE path needs Signal
     // for the restart. The recovery owner replaces dead peers.
     const delay = Math.max(
-      signalRetryAt - Date.now(),
+      Math.max(signalRetryAt, state.socketRetryAt) - Date.now(),
       isPeerOnline(state) || canRecoverPeer(state) || state.waitingForHost
         ? Math.min(30_000, 500 * 2 ** state.reconnectAttempt++)
         : 60_000,

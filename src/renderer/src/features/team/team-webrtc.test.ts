@@ -636,6 +636,35 @@ it.each(["error", "close"])("waits a full Signal rate window after %s", async (k
   await command({ type: "close", peerId: "all" });
 });
 
+// Signal also closes with 1008 for an expired session. Before, any 1008 made every socket of this page
+// wait 60 s, so a client's expired session kept this computer's own host away from Signal.
+it("waits only on the socket of a 1008 close that is not a rate limit", async () => {
+  vi.useFakeTimers();
+  const { command } = await startBridge();
+  for (const [peerId, peer] of [
+    ["host", "host"],
+    ["server", "client"],
+  ] as const)
+    await command({
+      type: "connect",
+      peerId,
+      peer,
+      signalUrl: "wss://signal.test",
+      token: "test",
+      iceTransportPolicy: "all",
+    });
+  const [host, client] = SignalSocket.instances;
+  if (!host || !client) throw new Error("No Signal sockets");
+  for (const socket of [host, client]) socket.dispatchEvent(new Event("open"));
+  client.dispatchEvent(Object.assign(new Event("close"), { code: 1008 }));
+  host.dispatchEvent(Object.assign(new Event("close"), { code: 1006 }));
+  await vi.advanceTimersByTimeAsync(500);
+  expect(SignalSocket.instances).toHaveLength(3);
+  await vi.advanceTimersByTimeAsync(59_500);
+  expect(SignalSocket.instances).toHaveLength(4);
+  await command({ type: "close", peerId: "all" });
+});
+
 it("keeps the Signal rate wait when main replaces an initial peer", async () => {
   vi.useFakeTimers();
   const { command, posted } = await startBridge();

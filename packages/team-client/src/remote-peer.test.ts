@@ -40,6 +40,9 @@ interface TestStats {
   candidateType?: string;
 }
 
+/** Signal's error frame for its message and socket limits. It closes the socket with 1008 next. */
+const RATE_LIMITED = { type: "error", version: 1, code: "rate_limited", message: "Too many signal messages." };
+
 const channelFixture = {
   id: "channel-one",
   name: "Launch room",
@@ -1026,6 +1029,7 @@ describe("browser remote peer recovery", () => {
     const network = await setupNetwork({ refuseHello: () => refuseHello });
     if (kind === "replacement") {
       await network.connect();
+      network.socket().receive(RATE_LIMITED);
       network.socket().close(1008);
       const offline = deferred();
       network.onOffline = () => offline.resolve();
@@ -1043,6 +1047,48 @@ describe("browser remote peer recovery", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await expect(connecting).resolves.toMatchObject({ ok: true });
     expect(network.sockets).toHaveLength(2);
+    await network.runtime.dispose();
+  });
+
+  // Signal also closes with 1008 for an expired session or ticket. Before, any 1008 made every new
+  // socket wait 60 s, so the peer that replaced this one waited too.
+  it("connects a replacement peer at once after a Signal close that is not a rate limit", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    network.socket().close(1008);
+    const offline = deferred();
+    network.onOffline = () => offline.resolve();
+    network.connection().drop("closed");
+    await offline.promise;
+    await expect(network.connect()).resolves.toMatchObject({ ok: true });
+    expect(network.bootstraps()).toBe(2);
+    expect(network.sockets).toHaveLength(2);
+    await network.runtime.dispose();
+  });
+
+  // iOS suspends the app, so the path of a peer can be dead on a return. A short absence keeps the
+  // path. After 30 s the host stopped using it, so the peer renews Signal and restarts ICE. After 160 s
+  // Signal has told the host to drop the connection, so the peer is replaced on the same session, with
+  // no resume hello and no offline update.
+  it.each([
+    { seconds: 10, tokens: ["ticket"], restarts: 0, sessions: [null] },
+    { seconds: 60, tokens: ["ticket", "resume"], restarts: 1, sessions: [null] },
+    { seconds: 170, tokens: ["ticket", "ticket"], restarts: 0, sessions: [null, "session-1"] },
+  ])("returns to the app after $seconds s away", async ({ seconds, tokens, restarts, sessions }) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const first = network.connection();
+    network.runtime.setActive(false);
+    await vi.advanceTimersByTimeAsync(seconds * 1_000);
+    network.runtime.setActive(true);
+    // The phone's recovery connects on each return.
+    await expect(network.connect()).resolves.toMatchObject({ ok: true });
+    await vi.waitFor(() => expect(network.hellos.map((hello) => hello.token)).toEqual(tokens));
+    await vi.waitFor(() => expect(first.iceRestarts).toBe(restarts));
+    expect(network.keptSessions).toEqual(sessions);
+    expect(network.updates.filter((update) => update.state === "offline")).toEqual([]);
     await network.runtime.dispose();
   });
 
@@ -1375,7 +1421,11 @@ async function setupNetwork(
         return;
       }
       if (message.type === "hello" && options.refuseHello?.()) {
-        queueMicrotask(() => this.close(1008));
+        // Signal sends its error frame, then closes with 1008.
+        queueMicrotask(() => {
+          this.receive(RATE_LIMITED);
+          this.close(1008);
+        });
         return;
       }
       if (message.type === "hello")

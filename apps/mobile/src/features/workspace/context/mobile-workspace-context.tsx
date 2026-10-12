@@ -34,6 +34,7 @@ import {
   createWorkspacePreferences,
   mergeRemoteUnreadIds,
   type RemoteConnectionFailure,
+  type RemoteConnectionStage,
   type RemoteRecoveryStatus,
   RemoteTeamDirectoryClient,
   type RemoteTeamHost,
@@ -138,6 +139,8 @@ export type {
 } from "@/features/workspace/model/workspace-types";
 
 const NO_IDS: string[] = [];
+/** The longest that the servers which are not selected wait for the selected one on a return to the app. */
+const OTHER_SERVERS_RETURN_DELAY_MS = 3_000;
 const EMPTY_SERVER: MobileServer = {
   id: "unavailable",
   name: "OpenBot",
@@ -524,62 +527,84 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           })
           .catch(() => undefined);
       }
-      if (compatibility.capabilities.includes("sidebar-layout")) {
-        try {
-          const layout = await client.request("GET", TEAM_API_ROUTES.sidebarLayout.state, decodeSidebarLayout);
-          if (!context.isCurrent()) return;
-          applySidebarLayout(serverId, layout);
-        } catch (error) {
-          if (!context.isCurrent()) return;
-          const text = currentText();
-          const message = text.errorMessage(error, text.t("mobile.workspace.error.sectionsLoadFailed"));
-          setSidebarByServer((current) => ({
-            ...current,
-            [serverId]: {
-              layout: current[serverId]?.layout ?? null,
-              error: message,
+      // The sections, the agents and the read state do not depend on each other, so they load together.
+      // The first read that fails names the stage.
+      let failed = false;
+      const step = <T,>(stage: RemoteConnectionStage, read: Promise<T>) =>
+        read.catch((error: unknown) => {
+          if (!failed) context.stage = stage;
+          failed = true;
+          throw error;
+        });
+      const sections = compatibility.capabilities.includes("sidebar-layout")
+        ? client.request("GET", TEAM_API_ROUTES.sidebarLayout.state, decodeSidebarLayout).then(
+            (layout) => {
+              if (context.isCurrent()) applySidebarLayout(serverId, layout);
             },
-          }));
-        }
-      } else {
-        setSidebarByServer((current) => ({ ...current, [serverId]: { layout: null, error: null } }));
-      }
-      context.stage = "agents";
-      const summaries = await client.request("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries);
-      if (!context.isCurrent()) return;
-      replaceServerAgents(serverId, summaries);
-      context.stage = "reads";
-      await runTeamEffect(
-        readRefresh.refresh(
-          serverId,
-          () =>
-            Effect.tryPromise(() =>
-              client.request("GET", TEAM_API_ROUTES.agents.conversationReads, decodeConversationReads),
-            ),
-          applyConversationReads,
-          () => context.isCurrent() && !removedServers.current.has(serverId),
+            (error: unknown) => {
+              if (!context.isCurrent()) return;
+              const text = currentText();
+              const message = text.errorMessage(error, text.t("mobile.workspace.error.sectionsLoadFailed"));
+              setSidebarByServer((current) => ({
+                ...current,
+                [serverId]: {
+                  layout: current[serverId]?.layout ?? null,
+                  error: message,
+                },
+              }));
+            },
+          )
+        : setSidebarByServer((current) => ({ ...current, [serverId]: { layout: null, error: null } }));
+      const [summaries] = await Promise.all([
+        step(
+          "agents",
+          client.request("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries).then((summaries) => {
+            if (context.isCurrent()) replaceServerAgents(serverId, summaries);
+            return summaries;
+          }),
         ),
-      );
+        step(
+          "reads",
+          runTeamEffect(
+            readRefresh.refresh(
+              serverId,
+              () =>
+                Effect.tryPromise(() =>
+                  client.request("GET", TEAM_API_ROUTES.agents.conversationReads, decodeConversationReads),
+                ),
+              applyConversationReads,
+              () => context.isCurrent() && !removedServers.current.has(serverId),
+            ),
+          ),
+        ),
+        sections,
+      ]);
       if (!context.isCurrent()) return;
-      context.stage = "conversations";
+      // The server is usable now, so the reconnect status does not wait for every cached chat. They
+      // load again after it, the open chat first. A lost connection stops them, and the next attempt
+      // loads them again; a chat that does not load here loads when it opens.
       const ordered = [...summaries].sort(
         (a, b) => Number(conversationStore.isObserved(b.id)) - Number(conversationStore.isObserved(a.id)),
       );
-      for (const agent of ordered) {
-        if (!context.isCurrent()) return;
-        if (!conversationStore.get(agent.id)) continue;
-        await conversationStore.loadLatest(
-          agent.id,
-          () =>
-            client.request(
-              "GET",
-              `${TEAM_API_ROUTES.agent.conversationPage(agent.id)}?limit=50`,
-              decodeConversationPage,
-            ),
-          context.isCurrent,
-          true,
-        );
-      }
+      void (async () => {
+        for (const agent of ordered) {
+          if (!context.isCurrent()) return;
+          if (!conversationStore.get(agent.id)) continue;
+          await conversationStore
+            .loadLatest(
+              agent.id,
+              () =>
+                client.request(
+                  "GET",
+                  `${TEAM_API_ROUTES.agent.conversationPage(agent.id)}?limit=50`,
+                  decodeConversationPage,
+                ),
+              context.isCurrent,
+              true,
+            )
+            .catch(() => undefined);
+        }
+      })();
       context.stage = "connection";
     },
     [
@@ -613,6 +638,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   );
   const foregroundRef = useRef(foreground);
   foregroundRef.current = foreground;
+  /** Set on background entry; the servers that are not selected stay inactive until it clears. */
+  const [othersHeld, setOthersHeld] = useState(false);
   const wakeReconnect = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(wakeReconnect.current), []);
   // A hosted server that stopped for no use starts again only for use: the selected server, with the
@@ -637,6 +664,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           server.id === hostId ? applyServerRecovery(server, status, failure?.message ?? null, failure) : server,
         ),
       );
+      if (status.phase === "online" && hostId === activeServerIdRef.current) setOthersHeld(false);
       // The status repeats each second while it waits, so each failed attempt asks once.
       if (status.phase === "online") wakeAttempts.current.delete(hostId);
       if (status.phase !== "waiting" && status.phase !== "cooldown") return;
@@ -662,6 +690,22 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     }
     directoryRefresh.setActive(foreground);
   }, [foreground, directoryRefresh, conversationStore]);
+
+  // On a return to the app the selected server connects first; the others follow when it is online,
+  // or after a short wait. The phone then sets up the connection the user waits for alone, and the
+  // tickets of the other servers reach the account service later.
+  useEffect(() => {
+    if (!foreground) {
+      setOthersHeld(true);
+      return;
+    }
+    if (!activeServerIdRef.current) {
+      setOthersHeld(false);
+      return;
+    }
+    const timer = setTimeout(() => setOthersHeld(false), OTHER_SERVERS_RETURN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [foreground]);
 
   const loadConversation = useCallback(
     async (agentId: string, serverId = activeServerIdRef.current, refresh = false) => {
@@ -1561,7 +1605,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             key={server.id}
             hostId={server.id}
             publicKey={server.publicKey}
-            active={foreground}
+            active={foreground && (!othersHeld || server.id === activeServerId)}
             directory={directory}
             register={registerConnection}
             load={loadServer}

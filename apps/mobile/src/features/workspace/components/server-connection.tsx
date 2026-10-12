@@ -8,6 +8,7 @@ import {
   type RemoteTeamDirectoryClient,
   remoteConnectionFailureDetails,
 } from "@openbot/team-client";
+import { REMOTE_PEER_LOST_AFTER_MS } from "@openbot/team-client/remote-peer";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MobileConnectionAnalytics } from "@/features/analytics/connection";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
@@ -56,6 +57,8 @@ export function ServerConnection({
   const generation = useRef(0);
   const [analytics] = useState(() => new MobileConnectionAnalytics(mobileAnalytics));
   const membershipRefreshPending = useRef(false);
+  /** When this connection last became inactive, such as when the app went to the background. */
+  const inactiveSince = useRef<number | null>(null);
   const attach = useCallback((value: RemoteTeamTransportRef | null) => setClient(value), []);
 
   useEffect(() => {
@@ -126,6 +129,12 @@ export function ServerConnection({
     if (!active) {
       generation.current += 1;
       analytics.background();
+      inactiveSince.current ??= Date.now();
+    } else if (inactiveSince.current !== null) {
+      // After this long the peer replaces its connection when it becomes active, so the first attempt
+      // shows that it connects instead of an online server whose requests fail.
+      if (Date.now() - inactiveSince.current >= REMOTE_PEER_LOST_AFTER_MS) controller.current?.offline();
+      inactiveSince.current = null;
     }
     controller.current?.setActive(active);
     if (active && membershipRefreshPending.current) {
