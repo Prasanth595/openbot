@@ -421,10 +421,10 @@ describe("FirstRunFlow", () => {
     await fireEvent.click(download);
     expect(onDownloadProvider).toHaveBeenCalledWith("codex");
 
-    // The main button stays pressable and says what it is waiting for, rather than leaving the
-    // screen to be read as broken.
-    await fireEvent.click(view.getByRole("button", { name: "Connect" }));
-    expect(await view.findAllByText("Download ChatGPT to continue.")).toHaveLength(2);
+    // The main button names the step that the provider waits for, and starts it.
+    onDownloadProvider.mockClear();
+    await fireEvent.click(view.getByRole("button", { name: "Download" }));
+    expect(onDownloadProvider).toHaveBeenCalledWith("codex");
   });
 
   it("connects the selected provider from the main button and says so", async () => {

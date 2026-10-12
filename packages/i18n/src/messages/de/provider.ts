@@ -58,6 +58,8 @@ export const messages = {
   "provider.aria.reconnect": "{name} erneut verbinden",
   "provider.aria.restart": "{name} neu starten",
   "provider.aria.retry": "{name} erneut versuchen",
+  "provider.aria.cancelSignIn": "Anmeldung bei {name} abbrechen",
+  "provider.connecting.browserHint": "Schließe die Anmeldung ab, wenn sich eine Browserseite öffnet.",
   "provider.aria.install": "{name} installieren",
   "provider.aria.signIn": "Bei {name} anmelden",
   "provider.aria.codeFallback": "Mit Code bei {name} anmelden",
@@ -129,7 +131,7 @@ export const messages = {
   "provider.museKey.label": "Meta-API-Schlüssel",
   "provider.geminiKey.title": "Gemini-API-Schlüssel",
   "provider.geminiKey.description":
-    "Speichere einen Gemini-API-Schlüssel auf dem Host, oder wähle „Verbinden“, um dich mit Google anzumelden.",
+    "Speichere einen Gemini-API-Schlüssel auf diesem Computer. Ein gespeicherter Schlüssel wird statt deines Google-Kontos verwendet. Um dich mit Google anzumelden, entferne den Schlüssel und wähle „Verbinden“ in der Gemini-Zeile.",
   "provider.geminiKey.label": "Gemini-API-Schlüssel",
   "provider.openCodeKey.title": "Bei OpenCode Go anmelden",
   "provider.openCodeKey.description":

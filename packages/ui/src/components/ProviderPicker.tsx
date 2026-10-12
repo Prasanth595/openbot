@@ -87,6 +87,8 @@ export interface ProviderPickerProps {
   focusFirst?: boolean;
   refreshingProviders?: boolean | undefined;
   onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  /** Ends the browser sign-in that Connect started, so a closed or stuck page is not a dead end. */
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /**
@@ -474,9 +476,34 @@ export function ProviderPicker(props: ProviderPickerProps) {
                 codeFallback.startedWithCode();
                 void props.onSignInWithCodeProvider?.(option().id);
               };
+              /** A Connect that failed before the sign-in started. The status reports the rest. */
+              const [connectError, setConnectError] = createSignal<string | null>(null);
               const connect = () => {
                 codeFallback.startedInBrowser();
-                void props.onConnectProvider?.(option().id);
+                setConnectError(null);
+                void Promise.resolve(props.onConnectProvider?.(option().id)).catch((error: unknown) =>
+                  setConnectError(errorMessage(error, t("app.provider.connectFailedRetry", { name: option().name }))),
+                );
+              };
+              const hostSignInHint = () =>
+                !off() &&
+                option().id === "antigravity" &&
+                runtimeStatus()?.phase === "ready" &&
+                !available() &&
+                !connecting() &&
+                !props.onConnectProvider &&
+                !codeSignInOffered();
+              /**
+               * Why the row cannot be used, as text: a hover title is easy to miss. A row that is not
+               * downloaded says so with its Download button.
+               */
+              const statusMessage = () => {
+                if (off() || connecting() || hostSignInHint()) return undefined;
+                const runtime = runtimeStatus();
+                if (runtime?.phase === "download-error") return runtime.message ?? undefined;
+                const message = option().message;
+                if (!message || state() === "not-installed") return undefined;
+                return message === option().checkError || message === option().lastError ? undefined : message;
               };
               /**
                * Every row with a runtime on the computer offers Update in the same place, so the user
@@ -555,19 +582,27 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           {t("provider.restartPending")}
                         </small>
                       </Show>
-                      <Show
-                        when={
-                          !off() &&
-                          option().id === "antigravity" &&
-                          runtimeStatus()?.phase === "ready" &&
-                          !available() &&
-                          !connecting() &&
-                          !props.onConnectProvider &&
-                          !codeSignInOffered()
-                        }
-                      >
+                      <Show when={hostSignInHint()}>
                         <small class="provider-picker-email" role="status">
                           {t("provider.gemini.hostSignIn")}
+                        </small>
+                      </Show>
+                      <Show when={connectError() ?? statusMessage()}>
+                        {(message) => (
+                          <small
+                            class={
+                              state() === "error" || runtimeStatus()?.phase === "download-error" || connectError()
+                                ? "provider-picker-check-error"
+                                : "provider-picker-email"
+                            }
+                          >
+                            {sourceText(message())}
+                          </small>
+                        )}
+                      </Show>
+                      <Show when={!off() && connecting() && props.onConnectProvider}>
+                        <small class="provider-picker-email" role="status">
+                          {t("provider.connecting.browserHint")}
                         </small>
                       </Show>
                     </span>
@@ -669,6 +704,18 @@ export function ProviderPicker(props: ProviderPickerProps) {
                             {t(PROVIDER_ACTION_TEXT[action()])}
                           </Button>
                         )}
+                      </Show>
+                      <Show when={connecting() && props.onConnectProvider && props.onCancelProviderSignIn}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          aria-label={t("provider.aria.cancelSignIn", { name: option().name })}
+                          disabled={props.disabled}
+                          onClick={() => void props.onCancelProviderSignIn?.(option().id)}
+                        >
+                          {t("common.cancel")}
+                        </Button>
                       </Show>
                       <Show
                         when={

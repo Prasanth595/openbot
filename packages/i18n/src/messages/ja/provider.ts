@@ -53,6 +53,8 @@ export const messages = {
   "provider.aria.reconnect": "{name} に再接続",
   "provider.aria.restart": "{name} を再起動",
   "provider.aria.retry": "{name} を再試行",
+  "provider.aria.cancelSignIn": "{name} のサインインをキャンセル",
+  "provider.connecting.browserHint": "ブラウザのページが開いたら、サインインを完了してください。",
   "provider.aria.install": "{name} をインストール",
   "provider.aria.signIn": "{name} にサインイン",
   "provider.aria.codeFallback": "コードで {name} にログイン",
@@ -124,7 +126,7 @@ export const messages = {
   "provider.museKey.label": "Meta API キー",
   "provider.geminiKey.title": "Gemini API キー",
   "provider.geminiKey.description":
-    "ホストに Gemini API キーを保存するか、「接続」を選択して Google でサインインしてください。",
+    "このコンピュータに Gemini API キーを保存します。保存したキーは Google アカウントの代わりに使われます。Google でサインインするには、キーを削除してから Gemini の行で「接続」を選択してください。",
   "provider.geminiKey.label": "Gemini API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",

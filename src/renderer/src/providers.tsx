@@ -144,6 +144,12 @@ const Providers = createSimpleContext({
       }
     }
 
+    /** Ends a browser sign-in that Connect started. The provider then shows its state from before. */
+    async function cancelProviderSignIn(provider: AgentProviderId): Promise<void> {
+      const status = await providersPort().cancelProviderSignIn(provider);
+      flush(() => applyAgentStatus(status));
+    }
+
     /** Opens a connect attempt: the status that ends it is matched back to this scope by provider. */
     function beginProviderConnection(provider: AgentProviderId) {
       const analytics = desktopAnalytics.scope();
@@ -289,6 +295,7 @@ const Providers = createSimpleContext({
       refreshingProviders,
       applyAgentStatus,
       connectProvider,
+      cancelProviderSignIn,
       codeLogin,
       openProviderInstallGuide,
       refreshAgentProviders,

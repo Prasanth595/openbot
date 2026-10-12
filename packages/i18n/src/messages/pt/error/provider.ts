@@ -229,6 +229,11 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "O Gemini não conseguiu abrir a página de login. Instale um navegador e o xdg-utils, depois conecte a partir de uma sessão de desktop neste host. Um servidor sem desktop não consegue concluir este login.",
   "error.provider.acpSignInFailed": "O processo de entrada não foi concluído.",
+  "error.provider.acpSignInFailedReason": "O processo de entrada não foi concluído: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Este provedor não oferece esta forma de entrada neste computador. Atualize o provedor e tente novamente.",
+  "error.provider.geminiKeyRefused":
+    "O Gemini recusou a chave de API salva. Substitua ou remova a chave nos Ajustes e conecte novamente.",
   "error.provider.messageTooLarge": "O OpenBot interrompeu {provider} porque enviou uma mensagem maior que {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "Um ID de agente deve conter letras minúsculas, dígitos ou `-`, e não pode ser o ID de um provedor integrado.",

@@ -236,6 +236,11 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini konnte die Anmeldeseite nicht öffnen. Installiere einen Browser und xdg-utils und verbinde dich dann aus einer Desktop-Sitzung auf diesem Host. Ein Server ohne Desktop kann diese Anmeldung nicht abschließen.",
   "error.provider.acpSignInFailed": "Die Anmeldung wurde nicht abgeschlossen.",
+  "error.provider.acpSignInFailedReason": "Die Anmeldung wurde nicht abgeschlossen: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Dieser Anbieter bietet diese Anmeldung auf diesem Computer nicht an. Aktualisiere den Anbieter und versuche es dann erneut.",
+  "error.provider.geminiKeyRefused":
+    "Gemini hat den gespeicherten API-Schlüssel abgelehnt. Ersetze oder entferne den Schlüssel in den Einstellungen und verbinde dich dann erneut.",
   "error.provider.messageTooLarge":
     "OpenBot hat {provider} gestoppt, da eine Nachricht mit mehr als {limit} MB gesendet wurde.",
   "error.provider.customAgentIdInvalid":

@@ -49,6 +49,8 @@ export const messages = {
   "provider.aria.reconnect": "Reconectar {name}",
   "provider.aria.restart": "Reiniciar {name}",
   "provider.aria.retry": "Tentar {name} novamente",
+  "provider.aria.cancelSignIn": "Cancelar a entrada no {name}",
+  "provider.connecting.browserHint": "Conclua a entrada se uma página do navegador abrir.",
   "provider.aria.install": "Instalar {name}",
   "provider.aria.signIn": "Entrar em {name}",
   "provider.aria.codeFallback": "Entrar em {name} com um código",
@@ -118,7 +120,7 @@ export const messages = {
   "provider.museKey.label": "Chave de API da Meta",
   "provider.geminiKey.title": "Chave de API do Gemini",
   "provider.geminiKey.description":
-    "Salve uma chave de API do Gemini no host ou selecione Conectar para entrar com o Google.",
+    "Salve uma chave de API do Gemini neste computador. Uma chave salva é usada no lugar da sua conta Google. Para entrar com o Google, remova a chave e selecione Conectar na linha do Gemini.",
   "provider.geminiKey.label": "Chave de API do Gemini",
   "provider.openCodeKey.title": "Entrar no OpenCode Go",
   "provider.openCodeKey.description":

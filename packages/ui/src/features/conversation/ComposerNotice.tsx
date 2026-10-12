@@ -112,7 +112,7 @@ export function ComposerSignInNotice(props: {
   signingIn?: boolean;
   onShown?: () => void;
 }) {
-  const { t } = useText();
+  const { t, errorMessage } = useText();
   createEffect(
     () => props.provider,
     () => props.onShown?.(),
@@ -124,14 +124,19 @@ export function ComposerSignInNotice(props: {
    * whole gap, so the user presses it again and opens a second guide.
    */
   const [starting, setStarting] = createSignal(false);
+  /** Why the last sign-in could not start. It replaces the body until the next attempt. */
+  const [failure, setFailure] = createSignal<string | null>(null);
   const busy = () => starting() || Boolean(props.signingIn);
   const codeFallback = createCodeSignInFallback(() => Boolean(props.signingIn));
   const signIn = async () => {
     if (busy()) return;
     setStarting(true);
+    setFailure(null);
     codeFallback.startedInBrowser();
     try {
       await props.onSignIn(props.provider);
+    } catch (error) {
+      setFailure(errorMessage(error, t("app.provider.connectFailedRetry", { name: providerName() })));
     } finally {
       // A failed sign-in leaves the notice in place, so the button has to become pressable again.
       setStarting(false);
@@ -140,7 +145,7 @@ export function ComposerSignInNotice(props: {
   return (
     <ComposerNotice
       title={t("composer.signIn.title")}
-      body={t("composer.signIn.body", { provider: providerName() })}
+      body={failure() ?? t("composer.signIn.body", { provider: providerName() })}
       action={
         <>
           <Show when={props.onSignInWithCode && codeFallback.offered() ? props.onSignInWithCode : undefined}>

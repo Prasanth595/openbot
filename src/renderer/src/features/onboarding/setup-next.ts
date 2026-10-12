@@ -73,6 +73,15 @@ export function createSetupNext(providers: SetupProviders) {
   function connectSelected(): void {
     const option = selectedOption();
     const runtimePhase = option?.runtimeStatus?.phase ?? "ready";
+    // The step the button asks for is the download, so the button starts it. The row shows progress.
+    if (
+      option &&
+      (runtimePhase === "not-downloaded" || runtimePhase === "download-error") &&
+      providers.props.onDownloadProvider
+    ) {
+      void providers.downloadProvider(option.id);
+      return;
+    }
     const connect =
       option &&
       !providers.props.refreshingProviders &&

@@ -271,7 +271,13 @@ export function FirstRunFlow(props: FirstRunFlowProps) {
   const freeProgress = () => freeStatus()?.progress ?? null;
   const mainLabel = () => {
     if (lastStep()) return t("onboarding.action.open");
-    if (state.step === "plan" && !providers.selectedProviderConnected()) return t("onboarding.action.connect");
+    if (state.step === "plan" && !providers.selectedProviderConnected()) {
+      // The button then starts the download, so it says so.
+      const phase = option(providers.selectedProvider())?.runtimeStatus?.phase;
+      return phase === "not-downloaded" || phase === "download-error"
+        ? t("common.download")
+        : t("onboarding.action.connect");
+    }
     return t("onboarding.action.next");
   };
   /**

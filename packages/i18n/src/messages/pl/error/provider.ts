@@ -226,6 +226,11 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini nie otworzył strony logowania. Zainstaluj przeglądarkę i xdg-utils, a potem połącz się z sesji pulpitu na tym hoście. Serwer bez pulpitu nie może ukończyć tego logowania.",
   "error.provider.acpSignInFailed": "Logowanie nie zostało ukończone.",
+  "error.provider.acpSignInFailedReason": "Logowanie nie zostało ukończone: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Ten dostawca nie oferuje tego logowania na tym komputerze. Zaktualizuj dostawcę i spróbuj ponownie.",
+  "error.provider.geminiKeyRefused":
+    "Gemini odrzucił zapisany klucz API. Zastąp lub usuń klucz w Ustawieniach, a następnie połącz ponownie.",
   "error.provider.messageTooLarge":
     "OpenBot zatrzymał {provider}, ponieważ wysłał on wiadomość większą niż {limit} MB.",
   "error.provider.customAgentIdInvalid":

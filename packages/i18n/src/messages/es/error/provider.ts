@@ -232,6 +232,11 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini no pudo abrir la página de inicio de sesión. Instala un navegador y xdg-utils, y conéctate desde una sesión de escritorio en este host. Un servidor sin escritorio no puede completar este inicio de sesión.",
   "error.provider.acpSignInFailed": "El inicio de sesión no se completó.",
+  "error.provider.acpSignInFailedReason": "El inicio de sesión no se completó: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Este proveedor no ofrece este inicio de sesión en este ordenador. Actualiza el proveedor y vuelve a intentarlo.",
+  "error.provider.geminiKeyRefused":
+    "Gemini rechazó la clave de API guardada. Reemplaza o elimina la clave en Ajustes y vuelve a conectar.",
   "error.provider.messageTooLarge": "OpenBot detuvo {provider} porque envió un mensaje de más de {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "Un ID de agente debe contener letras minúsculas, dígitos o `-`, y no puede ser el ID de un proveedor integrado.",

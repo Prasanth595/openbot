@@ -49,6 +49,9 @@ export function useSetupProviderProps(local: () => boolean = () => true): SetupP
     get onConnectProvider() {
       return local() ? providers.connectProvider : undefined;
     },
+    get onCancelProviderSignIn() {
+      return local() ? providers.cancelProviderSignIn : undefined;
+    },
     get onInstallProvider() {
       return local() ? providers.openProviderInstallGuide : undefined;
     },

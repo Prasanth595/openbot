@@ -226,6 +226,11 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini не удалось открыть страницу входа. Установите браузер и xdg-utils, затем подключитесь из сеанса рабочего стола на этом хосте. Сервер без рабочего стола не может завершить этот вход.",
   "error.provider.acpSignInFailed": "Вход не завершён.",
+  "error.provider.acpSignInFailedReason": "Вход не завершён: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Этот провайдер не предлагает такой вход на этом компьютере. Обновите провайдера и повторите попытку.",
+  "error.provider.geminiKeyRefused":
+    "Gemini отклонил сохранённый ключ API. Замените или удалите ключ в настройках, затем подключитесь снова.",
   "error.provider.messageTooLarge": "OpenBot остановил {provider}, потому что он отправил сообщение больше {limit} МБ.",
   "error.provider.customAgentIdInvalid":
     "ID агента должен состоять из строчных букв, цифр или `-` и не может совпадать с ID встроенного провайдера.",

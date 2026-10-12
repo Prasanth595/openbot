@@ -230,6 +230,11 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini はサインインページを開けませんでした。ブラウザーと xdg-utils をインストールしてから、このホストのデスクトップセッションで接続してください。デスクトップのないサーバーではこのサインインを完了できません。",
   "error.provider.acpSignInFailed": "サインインが完了しませんでした。",
+  "error.provider.acpSignInFailedReason": "サインインが完了しませんでした: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "このプロバイダはこのコンピュータでこのサインイン方法を提供していません。プロバイダを更新してから、もう一度お試しください。",
+  "error.provider.geminiKeyRefused":
+    "Gemini は保存された API キーを拒否しました。設定でキーを置き換えるか削除してから、もう一度接続してください。",
   "error.provider.messageTooLarge":
     "{limit} MB を超えるメッセージを送信したため、OpenBot は {provider} を停止しました。",
   "error.provider.customAgentIdInvalid":

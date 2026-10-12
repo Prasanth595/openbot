@@ -52,6 +52,8 @@ export const messages = {
   "provider.aria.reconnect": "{name} sağlayıcısına yeniden bağlan",
   "provider.aria.restart": "{name} sağlayıcısını yeniden başlat",
   "provider.aria.retry": "{name} için tekrar dene",
+  "provider.aria.cancelSignIn": "{name} oturum açmasını iptal et",
+  "provider.connecting.browserHint": "Bir tarayıcı sayfası açılırsa oturum açmayı tamamlayın.",
   "provider.aria.install": "{name} sağlayıcısını yükle",
   "provider.aria.signIn": "{name} giriş yap",
   "provider.aria.codeFallback": "{name} için kod ile giriş yap",
@@ -125,7 +127,7 @@ export const messages = {
   "provider.museKey.label": "Meta API anahtarı",
   "provider.geminiKey.title": "Gemini API anahtarı",
   "provider.geminiKey.description":
-    "Ana makineye bir Gemini API anahtarı kaydedin veya Google ile oturum açmak için Bağlan'ı seçin.",
+    "Bu bilgisayara bir Gemini API anahtarı kaydedin. Kayıtlı anahtar, Google hesabınızın yerine kullanılır. Google ile oturum açmak için anahtarı kaldırın ve Gemini satırında Bağlan'ı seçin.",
   "provider.geminiKey.label": "Gemini API anahtarı",
   "provider.openCodeKey.title": "OpenCode Go'ya giriş yapın",
   "provider.openCodeKey.description":

@@ -513,6 +513,8 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                   }
                   return undefined;
                 };
+                /** A Connect that failed before the sign-in started. The status reports the rest. */
+                const [connectError, setConnectError] = createSignal<string | null>(null);
                 const runtimeMessage = () => {
                   const runtimeStatus = runtime();
                   if (runtimeStatus?.phase === "downloading") {
@@ -521,6 +523,10 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                     });
                   }
                   if (runtimeStatus?.phase === "finishing") return t("provider.status.settingUp");
+                  // A sign-in in progress has no message. It is not a failure.
+                  if (status().connectionState === "connecting") return t("provider.connecting.browserHint");
+                  const failed = connectError();
+                  if (failed) return failed;
                   const message = runtimeStatus?.message ?? status().message;
                   return message
                     ? text.sourceText(message)
@@ -570,8 +576,17 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                               onClick={() => {
                                 const target = status().id;
                                 if (action() === "Cancel") void props.onCancelProviderDownload?.(target);
-                                else if (action() === "Connect") void props.onConnectProvider?.(target);
-                                else void props.onDownloadProvider?.(target);
+                                else if (action() === "Connect") {
+                                  setConnectError(null);
+                                  void Promise.resolve(props.onConnectProvider?.(target)).catch((error: unknown) =>
+                                    setConnectError(
+                                      text.errorMessage(
+                                        error,
+                                        t("app.provider.connectFailedRetry", { name: railName(provider, t) }),
+                                      ),
+                                    ),
+                                  );
+                                } else void props.onDownloadProvider?.(target);
                               }}
                             >
                               {t(RUNTIME_ACTION_LABEL[action()])}

@@ -44,6 +44,7 @@ export interface SetupProviderProps {
   providerAvailableVersions?: Partial<Record<AgentProviderId, string | null>> | undefined;
   onUpdateProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
@@ -623,6 +624,7 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
               }
             : undefined
         }
+        onCancelProviderSignIn={source().onCancelProviderSignIn}
         onDownloadProvider={
           source().onDownloadProvider
             ? async (provider) => {

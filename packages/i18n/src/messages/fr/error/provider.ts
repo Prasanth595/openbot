@@ -244,6 +244,11 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini n’a pas pu ouvrir la page de connexion. Installez un navigateur et xdg-utils, puis connectez-vous depuis une session de bureau sur cet hôte. Un serveur sans bureau ne peut pas terminer cette connexion.",
   "error.provider.acpSignInFailed": "La connexion n’a pas abouti.",
+  "error.provider.acpSignInFailedReason": "La connexion n’a pas abouti : {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Ce fournisseur ne propose pas cette connexion sur cet ordinateur. Mettez à jour le fournisseur, puis réessayez.",
+  "error.provider.geminiKeyRefused":
+    "Gemini a refusé la clé d’API enregistrée. Remplacez ou supprimez la clé dans les Réglages, puis reconnectez-vous.",
   "error.provider.messageTooLarge": "OpenBot a arrêté {provider}, car il a envoyé un message de plus de {limit} Mo.",
   "error.provider.customAgentIdInvalid":
     "Un ID d’agent ne peut contenir que des lettres minuscules, des chiffres ou `-`, et ne peut pas être l’ID d’un fournisseur intégré.",

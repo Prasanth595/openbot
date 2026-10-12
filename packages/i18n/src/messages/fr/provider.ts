@@ -62,6 +62,8 @@ export const messages = {
   "provider.aria.reconnect": "Reconnecter {name}",
   "provider.aria.restart": "Redémarrer {name}",
   "provider.aria.retry": "Réessayer {name}",
+  "provider.aria.cancelSignIn": "Annuler la connexion à {name}",
+  "provider.connecting.browserHint": "Terminez la connexion si une page du navigateur s’ouvre.",
   "provider.aria.install": "Installer {name}",
   "provider.aria.signIn": "Se connecter à {name}",
   "provider.aria.codeFallback": "Se connecter à {name} avec un code",
@@ -135,7 +137,7 @@ export const messages = {
   "provider.museKey.label": "Clé d’API Meta",
   "provider.geminiKey.title": "Clé d’API Gemini",
   "provider.geminiKey.description":
-    "Enregistrez une clé d’API Gemini sur l’hôte, ou sélectionnez Connecter pour vous connecter avec Google.",
+    "Enregistrez une clé d’API Gemini sur cet ordinateur. Une clé enregistrée est utilisée à la place de votre compte Google. Pour vous connecter avec Google, supprimez la clé et sélectionnez Connecter sur la ligne Gemini.",
   "provider.geminiKey.label": "Clé d’API Gemini",
   "provider.openCodeKey.title": "Se connecter à OpenCode Go",
   "provider.openCodeKey.description":

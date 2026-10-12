@@ -66,6 +66,7 @@ interface ProviderSettingsSectionProps {
   onSetProviderOn?: ((provider: AgentProviderId, on: boolean) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /**
    * Accepts a described endpoint. Without it the section offers no custom provider at all, which is
    * how a remote server hides the whole feature: these endpoints merge into the OpenCode process on
@@ -204,6 +205,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         onCancelProviderRestart={props.onCancelProviderRestart}
         onSetProviderOn={props.onSetProviderOn}
         onConnectProvider={props.onConnectProvider}
+        onCancelProviderSignIn={props.onCancelProviderSignIn}
         onInstallProvider={props.onInstallProvider}
         onAddCustomProvider={
           props.onAddCustomProvider ? (props.detectedProviderApi ? () => setChoosing(true) : host.openForm) : undefined
@@ -413,6 +415,7 @@ export interface HostProviderSettings {
   codeLogin?: ProviderCodeLoginApi | undefined;
   /** The browser sign-in and the install guide open on this computer, so only its section has them. */
   onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /** The scan is of this computer, so a joined server's section shows no found list. */
   providerDetection?: ProviderDetection | undefined;
@@ -474,6 +477,7 @@ export function HostProviderSettingsPanel(
         onCancelProviderRestart={props.onCancelProviderRestart}
         onSetProviderOn={props.onSetProviderOn}
         onConnectProvider={props.onConnectProvider}
+        onCancelProviderSignIn={props.onCancelProviderSignIn}
         onInstallProvider={props.onInstallProvider}
         onAddCustomProvider={props.onAddCustomProvider}
         customProviders={props.customProviders}
