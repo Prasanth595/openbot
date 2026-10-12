@@ -792,12 +792,21 @@ export class SunshineMoonlightRuntime {
     // alone -- carrying the previous one over would keep reporting a grant the user has already made.
     this.#screenCaptureDenied = false;
     this.#sunshine = yield* desktopSync(() =>
-      this.#spawn(this.#options.paths.sunshine, [join(this.#options.stateDirectory, "sunshine.conf")], {
-        cwd: dirname(this.#options.paths.sunshine),
-        env: { ...process.env, OPENBOT_REMOTE_SETUP: "1" },
-        stdio: ["ignore", "pipe", "pipe"],
-        windowsHide: true,
-      }),
+      this.#spawn(
+        this.#options.paths.sunshine,
+        [
+          join(this.#options.stateDirectory, "sunshine.conf"),
+          // Pairing updates the tray from an HTTP thread. The pinned macOS tray library
+          // calls AppKit there and crashes on macOS 27; OpenBot owns the pairing UI.
+          ...(this.#options.platform === "darwin" ? ["system_tray=disabled"] : []),
+        ],
+        {
+          cwd: dirname(this.#options.paths.sunshine),
+          env: { ...process.env, OPENBOT_REMOTE_SETUP: "1" },
+          stdio: ["ignore", "pipe", "pipe"],
+          windowsHide: true,
+        },
+      ),
     );
     this.#pipeDiagnostics(this.#sunshine, "sunshine");
     this.#watchExit(this.#sunshine, "sunshine");
