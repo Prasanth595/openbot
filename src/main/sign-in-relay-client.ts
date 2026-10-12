@@ -62,6 +62,13 @@ interface Waiting {
   receive: (query: string) => void;
 }
 
+/** A page that the user already chose, as with a link in a conversation. */
+export interface ChosenSignInPage {
+  page: string;
+  /** Called once, when the sign-in waits for its callback, with what the renderer can show. */
+  onWaiting: (page: McpSignInRelayPage) => void;
+}
+
 /**
  * The relayed sign-ins that wait on this computer, by a key that the caller chooses.
  *
@@ -122,18 +129,18 @@ export class SignInRelayClient {
 
   /**
    * Runs one relayed sign-in to its end. An interrupt or a failure cancels the flow on the host. With
-   * `chosenPage`, the page that the user already chose, as with a link in a conversation, opens as soon
-   * as the callback can come back. The host names the page, so any other page ends the sign-in unopened.
+   * `chosen`, the page that the user already chose opens as soon as the callback can come back. The
+   * host names the page, so any other page ends the sign-in unopened.
    */
-  run<E>(key: string, remote: SignInRelayRemote<E>, chosenPage: string | null = null) {
-    return this.#run(key, remote, chosenPage);
+  run<E>(key: string, remote: SignInRelayRemote<E>, chosen: ChosenSignInPage | null = null) {
+    return this.#run(key, remote, chosen);
   }
 
   readonly #run = Effect.fn("SignInRelayClient.run")(function* <E>(
     this: SignInRelayClient,
     key: string,
     remote: SignInRelayRemote<E>,
-    chosenPage: string | null,
+    chosen: ChosenSignInPage | null,
   ) {
     const { flowId } = yield* remote.start;
     const self = this;
@@ -143,7 +150,7 @@ export class SignInRelayClient {
       const authorizeUrl = first.authorizeUrl ?? "";
       const page = safePage(authorizeUrl);
       if (!page) return { toolCount: 0, error: sourceText("error.backend.mcpSignInNotWebPage") };
-      if (chosenPage !== null && page.toString() !== safePage(chosenPage)?.toString())
+      if (chosen !== null && page.toString() !== safePage(chosen.page)?.toString())
         return { toolCount: 0, error: sourceText("error.team.signInRelayLinkUnknown") };
 
       const callback = loopbackCallback(page.toString());
@@ -157,6 +164,7 @@ export class SignInRelayClient {
           state: null,
           receive: () => undefined,
         });
+        yield* self.#openChosen(key, chosen);
         return yield* awaitResult(remote, flowId);
       }
       if (!state) return { toolCount: 0, error: sourceText("error.mcp.relayNoState") };
@@ -177,7 +185,7 @@ export class SignInRelayClient {
         state,
         receive: (value) => Deferred.doneUnsafe(query, Effect.succeed(value)),
       });
-      if (chosenPage !== null) yield* Effect.promise(() => self.#dependencies.openExternal(page.toString()));
+      yield* self.#openChosen(key, chosen);
 
       // The host can end the sign-in first: its deadline passed, or another start replaced it.
       const ended = yield* Effect.raceFirst(
@@ -194,6 +202,14 @@ export class SignInRelayClient {
       Effect.ensuring(Effect.sync(() => self.#waiting.delete(key))),
     );
   });
+
+  /** Opens the chosen page of the sign-in of `key`, which now waits, and tells the caller what it shows. */
+  #openChosen(key: string, chosen: ChosenSignInPage | null) {
+    const waiting = this.#waiting.get(key);
+    if (chosen === null || !waiting) return Effect.void;
+    chosen.onWaiting(waiting.page);
+    return Effect.promise(() => this.#dependencies.openExternal(waiting.url));
+  }
 
   /**
    * Binds the exact callback port for a sign-in whose callback is not on this computer's own listener.

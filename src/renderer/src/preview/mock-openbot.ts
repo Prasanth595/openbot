@@ -1628,7 +1628,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           readState: { unreadCount: 0, firstUnreadMessageId: null, throughMessageId: null },
         };
       },
-      openMessageLink: async () => undefined,
+      openMessageLink: async () => null,
+      pasteMessageLink: async () => undefined,
+      cancelMessageLink: async () => undefined,
       searchConversationMessages: async (input) => {
         const query = input.query.trim().replace(/\s+/g, " ").toLocaleLowerCase();
         const results = agents.flatMap((agent) =>

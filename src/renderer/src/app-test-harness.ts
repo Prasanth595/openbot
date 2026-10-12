@@ -966,7 +966,9 @@ export function installOpenbotStub(): void {
         };
       }),
       searchConversationMessages: vi.fn().mockResolvedValue({ results: [], total: 0, nextCursor: null }),
-      openMessageLink: vi.fn().mockResolvedValue(undefined),
+      openMessageLink: vi.fn().mockResolvedValue(null),
+      pasteMessageLink: vi.fn().mockResolvedValue(undefined),
+      cancelMessageLink: vi.fn().mockResolvedValue(undefined),
       searchConversationFiles: vi.fn().mockResolvedValue({ results: [], nextCursor: null }),
       listConversationReads: vi.fn().mockResolvedValue({}),
       markConversationRead: vi.fn().mockImplementation(async (input) => ({

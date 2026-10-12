@@ -493,6 +493,14 @@ export function startProviderSignInRelay(
   return adminCall(() => request("POST", SIGN_IN_RELAY_ROUTES.providerStart, decodeSignInRelayFlow, { provider }));
 }
 
+/** A relayed sign-in of a link that an agent of the host printed (`sign-in-relay-v1`). */
+export function startLinkSignInRelay(
+  request: TeamApiRequest,
+  input: { agentId: string; url: string },
+): Effect.Effect<{ flowId: string }, TeamAdminRequestError> {
+  return adminCall(() => request("POST", SIGN_IN_RELAY_ROUTES.linkStart, decodeSignInRelayFlow, input));
+}
+
 export function signInRelayStatus(
   request: TeamApiRequest,
   flowId: string,

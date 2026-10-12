@@ -23,6 +23,7 @@ import { onCleanup } from "solid-js";
 import type { ConversationRuntime } from "../conversation/conversation-runtime";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import { createWebAttachmentFiles, openWebLink } from "./web-attachments";
+import { webMessageLinks } from "./web-message-link-relay";
 import type { WebWorkspaceRuntime } from "./web-runtime";
 
 /** The events of the connected host. */
@@ -101,6 +102,7 @@ export function createWebConversationRuntime(
   onHostEvent?: HostEvents,
   eventsEnabled?: () => boolean,
   sessionSettingsEnabled?: () => boolean,
+  signInRelayEnabled?: () => boolean,
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote);
@@ -123,8 +125,11 @@ export function createWebConversationRuntime(
   onCleanup(() => {
     void cancelImportFiles();
   });
+  // The host's relay routes are admin only, so only an admin relays a sign-in link.
+  const messageLinks = adminRequest ? webMessageLinks(adminRequest, () => signInRelayEnabled?.() === true) : {};
   return {
     agent: {
+      ...messageLinks,
       discardDraftAttachment: (id) => remote.discard(id),
       downloadAttachments: unavailable,
       editQueuedMessage: async (input, serverId) => {

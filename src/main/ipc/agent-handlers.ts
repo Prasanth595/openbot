@@ -64,6 +64,7 @@ import {
   parseAgentId,
   parseApprovalResponse,
   parseBrowserTakeoverResponse,
+  parseCancelMessageLink,
   parseCancelQueuedMessage,
   parseChannelId,
   parseCreateAgent,
@@ -72,6 +73,7 @@ import {
   parseMessageReaction,
   parseOpenMessageLink,
   parseOptionalAgentId,
+  parsePasteMessageLink,
   parsePromptResponse,
   parseQueueEdit,
   parseReadConversationPage,
@@ -115,7 +117,7 @@ export interface AgentIpcDependencies {
   host: HostService;
   remoteServers: RemoteServerManager;
   skills: SkillMarketplaceService;
-  messageLinks: Pick<MessageLinkRelay, "open">;
+  messageLinks: Pick<MessageLinkRelay, "open" | "paste" | "cancel">;
   openExternal: (url: string) => Promise<void>;
 }
 
@@ -374,8 +376,19 @@ export function agentIpcHandlers({
           ),
       }),
       openMessageLink: scopedHandler(parseOpenMessageLink, {
-        local: ({ url }) => openHttpLink(url, openExternal),
+        local: async ({ url }) => {
+          await openHttpLink(url, openExternal);
+          return null;
+        },
         remote: ({ agentId, url }, serverId) => messageLinks.open(serverId, agentId, url),
+      }),
+      pasteMessageLink: scopedHandler(parsePasteMessageLink, {
+        local: () => Promise.reject(new Error(sourceText("error.mcp.relayEnded"))),
+        remote: ({ url, address }, serverId) => messageLinks.paste(serverId, url, address),
+      }),
+      cancelMessageLink: scopedHandler(parseCancelMessageLink, {
+        local: async () => undefined,
+        remote: ({ url }, serverId) => messageLinks.cancel(serverId, url),
       }),
       searchConversationMessages: scopedHandler(parseSearchConversationMessages, {
         local: (parsed) =>

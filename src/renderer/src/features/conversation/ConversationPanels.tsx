@@ -1,6 +1,7 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
+import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
 import { createSettingsPanelWidth, saveSettingsPanelWidth } from "../../components/settings-panel-width";
@@ -79,6 +80,10 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     settingsProvider,
     settingsReasoning,
     updateRuntimeSettings,
+    messageLinkRelay,
+    openMessageLinkRelay,
+    pasteMessageLinkRelay,
+    cancelMessageLinkRelay,
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
@@ -404,6 +409,20 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
         }}
       </Show>
       {publishAgent.dialog()}
+      {/* A sign-in link of the host's agent, when this computer cannot take its callback: the user pastes
+          the address that the browser shows. */}
+      <Show when={messageLinkRelay()} keyed>
+        {(relay) => (
+          <McpSignInRelayDialog
+            name={relay.page.authorizeHost}
+            hostName={props.server?.name ?? ""}
+            page={relay.page}
+            onOpen={openMessageLinkRelay}
+            onPaste={pasteMessageLinkRelay}
+            onCancel={cancelMessageLinkRelay}
+          />
+        )}
+      </Show>
     </>
   );
 }

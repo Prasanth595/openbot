@@ -2,7 +2,7 @@
 
 - On a joined server that supports it, you can now connect Codex, Claude, Gemini and Muse from your own computer. The sign-in page opens in your browser, and OpenBot sends the callback to the provider's CLI on the host.
 - On a joined server that supports it, Server settings > Connectors now shows the host's GitHub, Slack, Discord and Telegram connections. You can connect, disconnect and reconnect them from your computer. The pages open in your browser, and the host keeps every token.
-- When an agent on a joined server shows a sign-in link, for example for an MCP server of its CLI, the link opens in your browser and the sign-in finishes on the host.
+- When an agent on a joined server shows a sign-in link, for example for an MCP server of its CLI, the link opens in your browser and the sign-in finishes on the host. When your computer cannot take the callback, and in the browser client, you paste the address that the browser shows at the end.
 - The browser client can now connect providers and install Marketplace apps that sign in with a browser on a joined server.
 
 ### Security

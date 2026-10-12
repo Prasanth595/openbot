@@ -94,6 +94,17 @@ export interface OpenMessageLinkInput {
   url: string;
 }
 
+/** The address that the browser shows at the end of a relayed sign-in link. */
+export interface PasteMessageLinkInput {
+  url: string;
+  address: string;
+}
+
+/** A relayed sign-in link that the user stopped. */
+export interface CancelMessageLinkInput {
+  url: string;
+}
+
 export interface SearchConversationMessagesInput {
   query: string;
   agentId?: string;

@@ -162,6 +162,7 @@ import type {
 } from "./ipc-channel-routines";
 import type { Channel, ChannelCommand, ChannelPage, ChannelReadInput, ChannelSummary } from "./ipc-chat-channels";
 import type {
+  CancelMessageLinkInput,
   ConversationFileSearchPage,
   ConversationPage,
   ConversationReadState,
@@ -169,6 +170,7 @@ import type {
   ConversationWithReadState,
   MarkConversationReadInput,
   OpenMessageLinkInput,
+  PasteMessageLinkInput,
   ReadConversationPageInput,
   RespondToPromptInput,
   SearchConversationFilesInput,
@@ -942,8 +944,12 @@ export const IPC_ENDPOINTS = {
     searchConversationMessages: scopedRequest<SearchConversationMessagesInput, ConversationSearchPage>()(
       "agent:search-conversation-messages",
     ),
-    // On a joined server, a sign-in page that the agent printed goes through `sign-in-relay-v1`.
-    openMessageLink: scopedRequest<OpenMessageLinkInput, void>()("agent:open-message-link"),
+    // On a joined server, a sign-in page that the agent printed goes through `sign-in-relay-v1`. The
+    // page is answered when this computer cannot take the callback, so the user pastes the address.
+    openMessageLink: scopedRequest<OpenMessageLinkInput, McpSignInRelayPage | null>()("agent:open-message-link"),
+    // Resolves when the sign-in ended, and rejects with its error.
+    pasteMessageLink: scopedRequest<PasteMessageLinkInput, void>()("agent:paste-message-link"),
+    cancelMessageLink: scopedRequest<CancelMessageLinkInput, void>()("agent:cancel-message-link"),
     // Local only: a joined server has no file search route, so the renderer asks only this computer.
     searchConversationFiles: request<SearchConversationFilesInput, ConversationFileSearchPage>()(
       "agent:search-conversation-files",

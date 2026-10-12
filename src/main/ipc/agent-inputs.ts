@@ -3,6 +3,7 @@ import {
   type AcknowledgeFailedTurnInput,
   type AgentIpcRequest,
   type AgentMemorySelectionChange,
+  type CancelMessageLinkInput,
   type CancelQueuedMessageInput,
   type ChooseAttachmentsInput,
   type CreateAgentInput,
@@ -35,6 +36,7 @@ import {
   type OpenMessageLinkInput,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
+  type PasteMessageLinkInput,
   type ReadConversationPageInput,
   type ReorderQueueInput,
   type RespondToApprovalInput,
@@ -413,6 +415,19 @@ export function parseOpenMessageLink(value: unknown): OpenMessageLinkInput {
     agentId: requireString(value.agentId, "agentId", INPUT_LIMITS.identifier),
     url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl),
   };
+}
+
+export function parsePasteMessageLink(value: unknown): PasteMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return {
+    url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl),
+    address: requireString(value.address, "Address", INPUT_LIMITS.signInRelayAddress),
+  };
+}
+
+export function parseCancelMessageLink(value: unknown): CancelMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return { url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl) };
 }
 
 export function parseSearchConversationMessages(value: unknown): SearchConversationMessagesInput {

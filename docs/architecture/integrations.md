@@ -88,7 +88,7 @@ POST complete {flowId, query} ----------------> check state, give code to McpOAu
 | Marketplace | [`src/renderer/src/features/settings/marketplace-controller.ts`](../../src/renderer/src/features/settings/marketplace-controller.ts), [`web-marketplace.ts`](../../src/renderer/src/features/web-client/web-marketplace.ts) |
 | Provider page capture on the host (`BROWSER` command, ACP link) | [`src/backend/agent/browser-capture.ts`](../../src/backend/agent/browser-capture.ts), [`src/main/provider-host-sign-ins.ts`](../../src/main/provider-host-sign-ins.ts) |
 | Provider Connect on a joined server | [`src/main/ipc/provider-admin-handlers.ts`](../../src/main/ipc/provider-admin-handlers.ts), [`web-provider-relay.ts`](../../src/renderer/src/features/web-client/web-provider-relay.ts) |
-| Agent links (`agent:open-message-link`) | [`src/main/message-link-relay.ts`](../../src/main/message-link-relay.ts) |
+| Agent links (`agent:open-message-link`, `agent:paste-message-link`, `agent:cancel-message-link`) | [`src/main/message-link-relay.ts`](../../src/main/message-link-relay.ts), [`web-message-link-relay.ts`](../../src/renderer/src/features/web-client/web-message-link-relay.ts) |
 
 ### How the client takes the callback
 
@@ -138,8 +138,13 @@ capability answers that the sign-in must be done on the host.
   exact address as a whole link (`agentPrintedLink`). Any other link gets `404`, so a client cannot
   make the host send a query to a port of its choice. The replay sends only what a click on that
   link on the host would send.
-- An agent link opens at once, because the user clicked it. The client opens it only when the page
-  that the host names is the link that the user clicked; any other page ends the sign-in unopened.
+- An agent link opens at once, because the user clicked it. The desktop app opens it only when the
+  page that the host names is the link that the user clicked; any other page ends the sign-in
+  unopened. The browser client opens the link on the click, as before, because a browser blocks a
+  page that no click opened; it accepts a pasted address only when the host names that same page.
+- When the desktop app cannot bind the port, and always in the browser client, `openMessageLink`
+  returns the page, and the conversation shows `McpSignInRelayDialog` with the paste field.
+  `pasteMessageLink` ends when the sign-in ends; `cancelMessageLink` cancels it on the host.
 
 ### Security checklist for a new relay kind
 
@@ -387,8 +392,7 @@ Use `bun run dev:automation` for snapshots and screenshots. Do not drive another
 | A vault that approves in its desktop app, such as 1Password or Bitwarden | The approval is in the vault app on the host. A relay cannot approve for it. |
 | Slack and Discord in the browser client | A web page cannot receive the `openbot://` link that ends the install. Use the desktop app. |
 | The Slack development return address (`returnUrl`) | Development builds only. It returns to `http://127.0.0.1:<port>/...` on the host, and the relay does not carry it. Use the hosted install. |
-| An agent link in the browser client | The browser client cannot listen on a loopback port, so it only opens the link. |
-| An agent link when the client's port is busy | There is no paste field for agent links. Free the port and open the link again. |
+| An agent link for a member who is not an admin | The relay routes are admin only. The link opens as it is, and its callback cannot reach the host. |
 | An agent link in a command, tool output or commentary | The host relays only a link that the text of an agent message holds. |
 | A CLI that opens its own browser and honors no `BROWSER` | The host never gets the page address. Grok, Cursor and Cline use a code kind. |
 | The iPhone app | It does not take relayed sign-ins. It keeps its current behavior. |

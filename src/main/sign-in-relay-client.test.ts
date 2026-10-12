@@ -92,7 +92,10 @@ function setup(
     opened,
     client,
     page,
-    run: (chosenPage: string | null = null) => Effect.runPromise(client.run("key", remote, chosenPage)),
+    run: (chosenPage: string | null = null) =>
+      Effect.runPromise(
+        client.run("key", remote, chosenPage === null ? null : { page: chosenPage, onWaiting: () => undefined }),
+      ),
     /** The user reads the page's host name in the dialog, then asks to open it. */
     runAndOpen: async () => {
       const done = Effect.runPromise(client.run("key", remote));
