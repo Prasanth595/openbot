@@ -81,6 +81,13 @@ import type { AgentBrowserHost } from "./turn-lifecycle";
 
 const logger = createOpenBotLogger("openbot-tool-router");
 
+/** The channel tools that a channel member may call in a direct chat. The others need a channel task. */
+const MEMBER_CHANNEL_TOOLS: ReadonlySet<string> = new Set([
+  "channel_history",
+  "channel_remember",
+  "channel_forget_memory",
+]);
+
 export interface OpenBotToolRouterHooks {
   listAgents(): AgentSummary[];
   listModels(): AgentModelOption[];
@@ -570,13 +577,25 @@ export class OpenBotToolRouter {
         ),
       );
     }
+    if (MEMBER_CHANNEL_TOOLS.has(params.tool)) {
+      // Outside a channel task: a member reads the history and keeps the memories when a person asks.
+      return yield* this.#channels
+        .memberTool(senderAgentId, params.turnId, params.callId, params.tool, params.arguments)
+        .pipe(
+          Effect.map(openBotToolResult),
+          // The agent reads the reason, such as the channels it can name, and calls again.
+          Effect.catch(({ cause }) =>
+            Effect.succeed(openBotToolFailure(redactText(cause instanceof Error ? cause.message : String(cause)))),
+          ),
+        );
+    }
     if (params.tool.startsWith("channel_")) {
       return {
         success: false,
         contentItems: [
           {
             type: "inputText",
-            text: "This chat has no active channel assignment. Channel tools work only inside a channel task. Use openbot.send_message for direct teammate work, or sidebar section tools (list_sections, create_section, assign_agent_section) to group agents.",
+            text: "This chat has no active channel assignment. This channel tool works only inside a channel task. Use openbot.send_message for direct teammate work, or sidebar section tools (list_sections, create_section, assign_agent_section) to group agents.",
           },
         ],
       };

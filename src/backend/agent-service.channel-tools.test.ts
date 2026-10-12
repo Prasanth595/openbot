@@ -108,4 +108,43 @@ describe.sequential("AgentService: channel tools without assignment", () => {
       tool.mockRestore();
     }
   });
+  it("routes the history and memory tools of a channel member to its channels from a normal chat", async () => {
+    const { store, mailbox } = stores(root);
+    const clients = new Map<AgentProvider, FakeAgentClient>();
+    service = createTestService({
+      store,
+      mailbox,
+      preferredProvider: "codex",
+      clientFactory: (provider) => {
+        const client = new FakeAgentClient(provider, "", false);
+        clients.set(provider, client);
+        return client;
+      },
+    });
+    await runCauseEffect(service.initialize());
+    await runCauseEffect(store.getOrCreate("chief"));
+    await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Normal chat work." }));
+    await waitFor(() => Boolean(store.activeProviderSession("chief")?.externalSessionId));
+
+    const client = clients.get("codex");
+    const threadId = store.activeProviderSession("chief")?.externalSessionId;
+    if (!client || !threadId || !service) throw new Error("Provider session did not start.");
+
+    const memberTool = vi.spyOn(service.channels, "memberTool").mockReturnValue(Effect.succeed({ accepted: true }));
+    try {
+      const turnId = service.listQueue("chief").deliveries[0]?.turnId ?? "test-turn";
+      const args = { channel: "Shopping", text: "Buy oat milk." };
+      const { result, error } = await callOpenBotTool(client, threadId, "channel_remember", args, turnId);
+
+      expect(error).toBeUndefined();
+      expect(memberTool).toHaveBeenCalledWith("chief", turnId, expect.any(String), "channel_remember", args);
+      expect(result).toMatchObject({ success: true });
+      // A tool that needs a task is still refused in a normal chat.
+      const assign = await callOpenBotTool(client, threadId, "channel_assign", {}, turnId);
+      expect(assign.result).toMatchObject({ success: false });
+      expect(memberTool).toHaveBeenCalledTimes(1);
+    } finally {
+      memberTool.mockRestore();
+    }
+  });
 });

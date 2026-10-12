@@ -1773,6 +1773,69 @@ describe("shared channel coordination", () => {
     expect(service.mayDrain("agent-b")).toBe(true);
   });
 
+  describe("channel tools in a direct chat", () => {
+    const member = (tool: string, args: unknown, agentId = "agent-a", callId = `call-${++count}`) =>
+      runChannel(service.memberTool(agentId, "direct-turn", callId, tool, args));
+
+    it("lets a member keep and forget a memory by the name or the id of its channel", async () => {
+      await member("channel_remember", { channel: "project", text: "The client signs off on Fridays." });
+      expect(service.memories.list("channel-1").map((item) => item.text)).toEqual(["The client signs off on Fridays."]);
+      await member("channel_remember", { channel: "channel-1", text: "Reports go out on Mondays." });
+      expect(service.memories.list("channel-1")).toHaveLength(2);
+      await expect(
+        member("channel_forget_memory", { channel: "Project", text: "Reports go out on Mondays." }),
+      ).resolves.toEqual({ accepted: true });
+      expect(service.memories.list("channel-1").map((item) => item.text)).toEqual(["The client signs off on Fridays."]);
+    });
+
+    it("writes a memory once when the same call comes again", async () => {
+      await member("channel_remember", { text: "Use the staging server." }, "agent-a", "same-call");
+      await member("channel_remember", { text: "Use the staging server." }, "agent-a", "same-call");
+      expect(service.memories.list("channel-1")).toHaveLength(1);
+    });
+
+    it("implies the channel when the agent belongs to one channel only", async () => {
+      await member("channel_remember", { text: "Only one channel." });
+      expect(service.memories.list("channel-1")).toHaveLength(1);
+    });
+
+    it("reads the history of the channel", async () => {
+      await send("Prepare the report");
+      const page = await member("channel_history", { channel: "channel-1" });
+      expect(page).toMatchObject({ messages: expect.arrayContaining([expect.anything()]) });
+    });
+
+    it("names the channels of the agent when the channel is missing or unknown", async () => {
+      await runChannel(
+        service.command(
+          {
+            type: "save",
+            channelId: "channel-2",
+            operationId: operationId(),
+            draft: { ...draft, name: "Budget", title: "Second channel" },
+          },
+          actor,
+        ),
+      );
+      await expect(member("channel_remember", { text: "Which one?" })).rejects.toThrow(
+        /Project \(channel-1\).*Budget \(channel-2\)/,
+      );
+      await expect(member("channel_remember", { channel: "Nowhere", text: "Which one?" })).rejects.toThrow(/channel-2/);
+      expect(service.memories.list("channel-1")).toEqual([]);
+      expect(service.memories.list("channel-2")).toEqual([]);
+    });
+
+    it("refuses an agent that is not a member, and the tools that need a task", async () => {
+      await runChannel(data.store.getOrCreate("agent-c"));
+      await expect(member("channel_remember", { channel: "Project", text: "Not mine." }, "agent-c")).rejects.toThrow(
+        /not a member/,
+      );
+      await expect(member("channel_result", { text: "Done" })).rejects.toThrow(/only inside a channel task/);
+      await expect(member("channel_assign", {})).rejects.toThrow(/only inside a channel task/);
+      expect(service.memories.list("channel-1")).toEqual([]);
+    });
+  });
+
   it("keeps channel deliveries ahead of normal messages queued during attachment copying", async () => {
     await runChannel(
       service.command(

@@ -20,7 +20,7 @@ import {
   type QueueHold,
   type UpdateChannelMemoryInput,
 } from "@openbot/contracts/ipc";
-import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
+import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope } from "effect";
 import { type ChannelOperationError, channelFailure, channelResult, channelSync } from "./channel-effects";
@@ -1616,6 +1616,108 @@ export class ChannelService {
     });
   }
 
+  /** A page of the channel's history, or the path of one of its attachments. Never starts an agent. */
+  readonly #readHistory = Effect.fn("ChannelService.readHistory")(function* (
+    this: ChannelService,
+    channelId: string,
+    args: DynamicRecord,
+  ): Effect.fn.Return<unknown, ChannelOperationError> {
+    if (isString(args.attachmentId)) {
+      if (
+        !(yield* channelSync(() => this.store.messages(channelId))).some((entry) =>
+          entry.message.attachments?.some((attachment) => attachment.id === args.attachmentId),
+        )
+      )
+        return yield* channelFailure(new Error("Attachment not found in this channel."));
+      const attachmentId = args.attachmentId;
+      const attachment = yield* this.mailbox.resolveAttachment(attachmentId).pipe(Effect.mapError(channelFailure));
+      if (!attachment) return yield* channelFailure(new Error("The attachment is unavailable."));
+      return attachment;
+    }
+    const page = yield* channelSync(() =>
+      this.store.page(
+        channelId,
+        typeof args.beforeSequence === "number" && Number.isSafeInteger(args.beforeSequence) && args.beforeSequence >= 0
+          ? args.beforeSequence
+          : undefined,
+      ),
+    );
+    // The cursors still count every row, so the next page starts where this one ended.
+    return { ...page, messages: page.messages.filter((message) => !isMemberThinking(message)) };
+  });
+
+  /**
+   * The two memory tools commit at call time, unlike an agent's `remember`, which stages into the
+   * turn and commits when the turn completes. There is no race to stage against: the write is a
+   * single dispatch keyed on this call, so a retried call reads its receipt and writes nothing.
+   */
+  readonly #memory = Effect.fn("ChannelService.memory")(function* (
+    this: ChannelService,
+    channelId: string,
+    turnId: string,
+    operationId: string,
+    tool: "channel_remember" | "channel_forget_memory",
+    args: DynamicRecord,
+  ): Effect.fn.Return<unknown, ChannelOperationError> {
+    if (!isString(args.text) || !args.text.trim() || args.text.length > INPUT_LIMITS.agentMemoryText)
+      return yield* channelFailure(new Error("Provide the memory text."));
+    const text = args.text;
+    if (tool === "channel_remember")
+      yield* channelSync(() => this.memories.saveFromTool(channelId, text, turnId, `channel-memory:${operationId}`));
+    else if (!(yield* channelSync(() => this.memories.deleteByText(channelId, text))))
+      return { accepted: false, reason: "No memory matches that text." };
+    this.hooks.memoriesChanged?.(channelId);
+    return { accepted: true };
+  });
+
+  /**
+   * The tools that a channel member may use outside a channel task, when a person asks in its direct
+   * chat: reading the history and keeping the memories. The channel is named by `channel`, its id or
+   * its name, or it is implied when the agent belongs to one channel only. Assigning, transferring
+   * and answering a task need an active assignment, so they stay inside a task.
+   */
+  readonly memberTool = Effect.fn("ChannelService.memberTool")(function* (
+    this: ChannelService,
+    agentId: string,
+    turnId: string,
+    callId: string,
+    tool: string,
+    args: unknown,
+  ): Effect.fn.Return<unknown, ChannelOperationError> {
+    if (tool !== "channel_history" && tool !== "channel_remember" && tool !== "channel_forget_memory")
+      return yield* channelFailure(new Error(`${tool} works only inside a channel task.`));
+    if (!isDynamicRecord(args)) return yield* channelFailure(new Error("Provide channel tool arguments."));
+    const own = (yield* channelSync(() => this.store.ids()))
+      .filter((id) => !this.#deletedChannels.has(id))
+      .map((id) => this.store.get(id))
+      .filter(
+        (channel) =>
+          !channel.archived &&
+          channel.members.some((member) => member.agentId === agentId) &&
+          this.hooks.agents().some((agent) => agent.id === agentId),
+      );
+    const label = (channel: Channel) => `${channel.name} (${channel.id})`;
+    if (!own.length)
+      return yield* channelFailure(
+        new Error("This chat has no active channel assignment, and you are not a member of any channel."),
+      );
+    const wanted = isString(args.channel) ? args.channel.trim().toLowerCase() : "";
+    const matches = wanted
+      ? own.filter((channel) => channel.id.toLowerCase() === wanted || channel.name.trim().toLowerCase() === wanted)
+      : own.length === 1
+        ? own
+        : [];
+    const [channel] = matches;
+    if (!channel || matches.length > 1)
+      return yield* channelFailure(
+        new Error(
+          `Set channel to the id or name of one of your channels: ${own.map(label).join(", ")}${matches.length > 1 ? ". That name matches more than one channel; use the id" : ""}.`,
+        ),
+      );
+    if (tool === "channel_history") return yield* this.#readHistory(channel.id, args);
+    return yield* this.#memory(channel.id, turnId, `tool:${turnId}:${callId}`, tool, args);
+  });
+
   readonly tool = Effect.fn("ChannelService.tool")(function* (
     this: ChannelService,
     channelId: string,
@@ -1637,32 +1739,7 @@ export class ChannelService {
     if (!task || task.revision !== assignment.taskRevision || task.state !== "running")
       return yield* channelFailure(new Error("The channel task has changed."));
     if (!isDynamicRecord(args)) return yield* channelFailure(new Error("Provide channel tool arguments."));
-    if (tool === "channel_history") {
-      if (isString(args.attachmentId)) {
-        if (
-          !(yield* channelSync(() => this.store.messages(channelId))).some((entry) =>
-            entry.message.attachments?.some((attachment) => attachment.id === args.attachmentId),
-          )
-        )
-          return yield* channelFailure(new Error("Attachment not found in this channel."));
-        const attachmentId = args.attachmentId;
-        const attachment = yield* this.mailbox.resolveAttachment(attachmentId).pipe(Effect.mapError(channelFailure));
-        if (!attachment) return yield* channelFailure(new Error("The attachment is unavailable."));
-        return attachment;
-      }
-      const page = yield* channelSync(() =>
-        this.store.page(
-          channelId,
-          typeof args.beforeSequence === "number" &&
-            Number.isSafeInteger(args.beforeSequence) &&
-            args.beforeSequence >= 0
-            ? args.beforeSequence
-            : undefined,
-        ),
-      );
-      // The cursors still count every row, so the next page starts where this one ended.
-      return { ...page, messages: page.messages.filter((message) => !isMemberThinking(message)) };
-    }
+    if (tool === "channel_history") return yield* this.#readHistory(channelId, args);
     const operationId = `tool:${turnId}:${callId}`;
     if ((yield* channelSync(() => this.store.database.commandResult(`channels:${operationId}`))) !== undefined)
       return { accepted: true };
@@ -1689,22 +1766,8 @@ export class ChannelService {
       this.publish(channelId);
       return { accepted: true, instruction: "The result is in the shared chat. End this turn without repeating it." };
     }
-    /**
-     * The two memory tools commit at call time, unlike an agent's `remember`, which stages into the
-     * turn and commits when the turn completes. There is no race to stage against: the write is a
-     * single dispatch keyed on this call, so a retried call reads its receipt and writes nothing.
-     */
-    if (tool === "channel_remember" || tool === "channel_forget_memory") {
-      if (!isString(args.text) || !args.text.trim() || args.text.length > INPUT_LIMITS.agentMemoryText)
-        return yield* channelFailure(new Error("Provide the memory text."));
-      const text = args.text;
-      if (tool === "channel_remember")
-        yield* channelSync(() => this.memories.saveFromTool(channelId, text, turnId, `channel-memory:${operationId}`));
-      else if (!(yield* channelSync(() => this.memories.deleteByText(channelId, text))))
-        return { accepted: false, reason: "No memory matches that text." };
-      this.hooks.memoriesChanged?.(channelId);
-      return { accepted: true };
-    }
+    if (tool === "channel_remember" || tool === "channel_forget_memory")
+      return yield* this.#memory(channelId, turnId, operationId, tool, args);
     if (tool !== "channel_assign" && tool !== "channel_transfer")
       return yield* channelFailure(new Error("Unknown channel tool."));
     if (

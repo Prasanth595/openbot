@@ -15,13 +15,22 @@ const handoff = {
   dependencies: z.array(z.string()).optional(),
 };
 
+const channelName = z
+  .string()
+  .describe(
+    "The id or name of a channel that you are a member of. Needed outside a channel task, unless you belong to one channel only.",
+  )
+  .optional();
+
 export const CHANNEL_TOOL_DEFINITIONS: readonly { name: string; description: string; shape: z.ZodRawShape }[] = [
   {
     name: "channel_history",
-    description: "Read earlier shared channel messages. This never starts another agent.",
+    description:
+      "Read earlier shared channel messages. This never starts another agent. A channel member can also use it in a direct chat.",
     shape: {
       beforeSequence: z.number().int().min(0).optional(),
       attachmentId: z.string().optional(),
+      channel: channelName,
     },
   },
   {
@@ -45,13 +54,13 @@ export const CHANNEL_TOOL_DEFINITIONS: readonly { name: string; description: str
   {
     name: "channel_remember",
     description:
-      "Save one short, durable fact about this channel that every member should keep. Save the same text again to correct it. This writes immediately.",
-    shape: { text: z.string().min(1).max(INPUT_LIMITS.agentMemoryText) },
+      "Save one short, durable fact about this channel that every member should keep. Save the same text again to correct it. This writes immediately. A channel member can also use it in a direct chat, when a person asks.",
+    shape: { text: z.string().min(1).max(INPUT_LIMITS.agentMemoryText), channel: channelName },
   },
   {
     name: "channel_forget_memory",
     description:
       "Delete one saved channel memory when the user asks the channel to forget it. Give its text exactly as it is listed.",
-    shape: { text: z.string().min(1).max(INPUT_LIMITS.agentMemoryText) },
+    shape: { text: z.string().min(1).max(INPUT_LIMITS.agentMemoryText), channel: channelName },
   },
 ];
