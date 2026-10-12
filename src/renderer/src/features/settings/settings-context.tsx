@@ -236,8 +236,12 @@ const Settings = createSimpleContext({
           desktopNotifications: value.desktopNotifications,
           messagePreview: value.notificationPreview,
         });
-        persistField("desktopNotifications", saved, (preference) => preference.desktopNotifications);
-        persistField("notificationPreview", saved, (preference) => preference.messagePreview);
+        // Each answer writes back only the switch that this change set, so that an older answer does
+        // not undo a later change of the other switch.
+        if (previous.desktopNotifications !== value.desktopNotifications)
+          persistField("desktopNotifications", saved, (preference) => preference.desktopNotifications);
+        if (previous.notificationPreview !== value.notificationPreview)
+          persistField("notificationPreview", saved, (preference) => preference.messagePreview);
       }
       if (previous.busyMessageMode !== value.busyMessageMode) {
         busyMessageModeChanged = true;

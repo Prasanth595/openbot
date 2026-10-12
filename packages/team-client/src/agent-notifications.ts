@@ -90,13 +90,17 @@ function notificationSubject(
 ): Omit<AgentNotificationContent, "title"> | null {
   if (event.type === "prompt") {
     const question = preview && event.questions[0]?.question;
-    const body = (question && previewText(preview.redact(question))) || translate("notification.needsInput");
+    const body = (question && plainPreview(preview.redact(question))) || translate("notification.needsInput");
     return { body, agentId: event.agentId, threadId: event.threadId };
   }
   if (event.type === "approval") {
     const { agentId, threadId, kind, command, reason } = event.approval;
-    const subject = preview && (kind === "command" && command ? command : reason);
-    const action = subject && previewText(preview.redact(subject));
+    // A command keeps its characters; a reason is Markdown, as a reply is.
+    const action = !preview
+      ? null
+      : kind === "command" && command
+        ? previewText(preview.redact(command))
+        : reason && plainPreview(preview.redact(reason));
     const body = action
       ? translate("notification.needsApprovalFor", { action })
       : translate("notification.needsApproval");
@@ -106,14 +110,18 @@ function notificationSubject(
   if (event.type !== "turn-completed" || level !== "all" || event.quiet) return null;
   const { agentId, threadId } = event;
   if (event.status === "completed") {
-    const reply =
-      preview?.reply &&
-      previewText(preview.redact(markdownPreviewText(cleanAgentMessageText(preview.reply.slice(0, REPLY_READ_LIMIT)))));
+    // Redact before the cut and the Markdown change the shape of a secret.
+    const reply = preview?.reply && plainPreview(preview.redact(preview.reply).slice(0, REPLY_READ_LIMIT));
     return { body: reply || translate("notification.finished"), agentId, threadId };
   }
   // An interrupted turn is one the user stopped, so it is not news.
   if (event.status === "failed") return { body: translate("notification.failed"), agentId, threadId };
   return null;
+}
+
+/** Agent Markdown as plain text, cut to the preview length. */
+function plainPreview(text: string): string | null {
+  return previewText(markdownPreviewText(cleanAgentMessageText(text)));
 }
 
 /** The text as one line, cut to the preview length, or null when nothing is left. */

@@ -27,6 +27,7 @@ import type { AppFormat, AppTranslate } from "@openbot/i18n";
 import { redactText } from "@openbot/logging";
 import { notificationForAgentEvent, notificationForUsageLimit } from "@openbot/team-client/agent-notifications";
 import { BrowserWindow, Notification } from "electron";
+import { isNoUpdateAnswer } from "../backend/agent/routine-quiet-runs";
 import type { AgentService } from "../backend/agent-service";
 import { runCauseEffect } from "../backend/effect-boundary";
 import type { HostAnalytics } from "./analytics";
@@ -164,7 +165,9 @@ export function createRendererForwarders({
           );
     if (!page) return null;
     const loaded = await runCauseEffect(page).catch(() => null);
-    return loaded ? (latestTurnAnswer(loaded.messages, turnId)?.text ?? null) : null;
+    const answer = loaded && latestTurnAnswer(loaded.messages, turnId)?.text;
+    // A routine Test run shows the no-update marker in the chat, but it is not news to show.
+    return answer && !isNoUpdateAnswer(answer) ? answer : null;
   }
 
   function forwardBrowserDisplayState(state: BrowserDisplayState): void {
