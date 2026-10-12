@@ -148,14 +148,14 @@ export const messages = {
   "mcp.signIn.relayDescription":
     "Prüfe, dass die Anmeldeseite auf {page} ist, und öffne sie dann in deinem Browser. Wenn du fertig bist, sendet OpenBot die Anmeldung an {host}.",
   "mcp.signIn.relayOpenDescription":
-    "Öffne die Anmeldeseite von {page} in diesem Browser. Wenn du fertig bist, füge die angezeigte Adresse hier ein. OpenBot sendet die Anmeldung dann an {host}.",
+    "Öffne die Anmeldeseite von {page} in deinem Browser. Wenn du fertig bist, füge die angezeigte Adresse hier ein. OpenBot sendet die Anmeldung dann an {host}.",
   "mcp.signIn.relayDeviceDescription":
     "Prüfe, dass die Anmeldeseite auf {page} ist, öffne sie dann in deinem Browser und schließe die Anmeldung dort ab. {host} erkennt die Anmeldung selbst.",
   "mcp.signIn.relayOpen": "Anmeldeseite öffnen",
   "mcp.signIn.relayPasteHint":
     "Wenn der Browser nicht zu OpenBot zurückkehrt, kopiere die angezeigte Adresse und füge sie hier ein.",
   "mcp.signIn.relayPasteRequired":
-    "Dieser Browser kann die Anmeldung nicht an OpenBot übergeben. Wenn du fertig bist, kopiere die angezeigte Adresse und füge sie hier ein.",
+    "OpenBot kann die Anmeldung nicht selbst aus dem Browser holen. Wenn du fertig bist, kopiere die angezeigte Adresse und füge sie hier ein.",
   "mcp.signIn.relayAddress": "Browser-Adresse",
   "mcp.signIn.relaySend": "Senden",
   "mcp.panel.callbackUrlRelayed":

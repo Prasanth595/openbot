@@ -44,6 +44,8 @@ export interface RelaySignIn {
 interface RelayTarget extends RelaySignIn {
   /** Gives the callback to the sign-in that waits for it, and answers whether one took it. */
   deliver: (query: URLSearchParams, pageUrl: string) => Effect.Effect<boolean>;
+  /** Tells a sign-in that this host does not own that the user refused, as the browser here would. */
+  refuse?: (query: URLSearchParams, pageUrl: string) => Effect.Effect<unknown>;
 }
 
 class SignInRelayRefused extends Schema.TaggedError<SignInRelayRefused>()("SignInRelayRefused", {
@@ -146,7 +148,7 @@ export class SignInRelayHost {
    * the browser on this host would send it.
    */
   startReplay(memberId: string, signIn: RelaySignIn): { flowId: string; expiresAt: number } {
-    return this.#open(memberId, { ...signIn, deliver: replay });
+    return this.#open(memberId, { ...signIn, deliver: replay, refuse: replay });
   }
 
   /**
@@ -169,6 +171,7 @@ export class SignInRelayHost {
             return delivered;
           }),
         ),
+      refuse: replay,
       // The CLI keeps its own sign-in, so a refusal or a cancel only ends what this host relays.
       cancel: () => {
         result ??= { toolCount: 0, error: sourceText("error.mcp.relayEnded") };
@@ -201,8 +204,10 @@ export class SignInRelayHost {
     const state = page ? new URL(page).searchParams.get("state") : null;
     if (!page || !state || params.get("state") !== state) return yield* refuse(400, "error.team.signInRelayMismatch");
     flow.completed = true;
-    // The user refused on the sign-in page. Nothing comes after it, so the sign-in ends here.
+    // The user refused on the sign-in page. Nothing comes after it, so the sign-in ends here. A CLI that
+    // waits for the callback gets the refusal too, so it stops now and not at its own deadline.
     if (params.has("error")) {
+      if (flow.target.refuse) yield* flow.target.refuse(params, page);
       flow.target.cancel();
       return view(flow);
     }

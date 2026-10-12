@@ -143,13 +143,13 @@ export const messages = {
   "mcp.signIn.relayDescription":
     "Oturum açma sayfasının {page} üzerinde olduğunu kontrol edin, sonra tarayıcınızda açın. Bitirdiğinizde OpenBot oturum açmayı {host} sunucusuna gönderir.",
   "mcp.signIn.relayOpenDescription":
-    "{page} oturum açma sayfasını bu tarayıcıda açın. Bitirdiğinizde tarayıcının gösterdiği adresi buraya yapıştırın. OpenBot ardından oturum açmayı {host} sunucusuna gönderir.",
+    "{page} oturum açma sayfasını tarayıcınızda açın. Bitirdiğinizde tarayıcının gösterdiği adresi buraya yapıştırın. OpenBot ardından oturum açmayı {host} sunucusuna gönderir.",
   "mcp.signIn.relayDeviceDescription":
     "Oturum açma sayfasının {page} üzerinde olduğunu kontrol edin, sonra tarayıcınızda açıp oturum açmayı orada bitirin. {host} oturum açmayı kendisi algılar.",
   "mcp.signIn.relayOpen": "Oturum açma sayfasını aç",
   "mcp.signIn.relayPasteHint": "Tarayıcı OpenBot'a geri dönmezse gösterdiği adresi kopyalayıp buraya yapıştırın.",
   "mcp.signIn.relayPasteRequired":
-    "Bu tarayıcı oturum açmayı OpenBot'a iletemez. Bitirdiğinizde tarayıcının gösterdiği adresi kopyalayıp buraya yapıştırın.",
+    "OpenBot oturum açmayı tarayıcıdan kendisi alamaz. Bitirdiğinizde tarayıcının gösterdiği adresi kopyalayıp buraya yapıştırın.",
   "mcp.signIn.relayAddress": "Tarayıcı adresi",
   "mcp.signIn.relaySend": "Gönder",
   "mcp.panel.callbackUrlRelayed":

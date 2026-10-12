@@ -27,6 +27,7 @@ import type {
   SetTeamTypingInput,
   TeamMemberSummary,
   TeamPresenceSnapshot,
+  TeamRole,
   TeamSessionSummary,
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
@@ -797,6 +798,7 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: string;
         username: string;
         sessionToken: string;
+        role: TeamRole;
       },
       RemoteWorkflowError,
       HostApiRuntime
@@ -831,6 +833,8 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: identity.publicKey,
         username,
         sessionToken: authenticated.sessionToken,
+        // An owner can promote the test client, so the client shows what the host allows it.
+        role: authenticated.member.role,
       };
     },
     (operation) => this.#provide(operation),

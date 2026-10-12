@@ -142,9 +142,13 @@ describe("SignInRelayHost.startReplay", () => {
       const link = host.startLink("admin", "agent-1", page);
       await Effect.runPromise(host.complete("admin", link.flowId, "code=link-code-123456&state=s1"));
       expect(host.status("admin", link.flowId).result).toEqual({ toolCount: 0, error: null });
+      const refused = host.startLink("admin", "agent-1", page);
+      await Effect.runPromise(host.complete("admin", refused.flowId, "error=access_denied&state=s1"));
+      expect(host.status("admin", refused.flowId).result?.error).not.toBeNull();
       expect(received).toEqual([
         "/callback?code=grant-code-123456&state=s1",
         "/callback?code=link-code-123456&state=s1",
+        "/callback?error=access_denied&state=s1",
       ]);
     } finally {
       await new Promise((resolve) => server.close(resolve));
