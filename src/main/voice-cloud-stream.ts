@@ -21,6 +21,11 @@ const OPEN_TIMEOUT_MS = 15_000;
 const FINAL_SEGMENT_TIMEOUT_MS = 10_000;
 /** After Stop, how long to wait for late text when no segment is in progress. */
 const QUIET_FINISH_MS = 1_500;
+/**
+ * How long a started stream stays open with no audio. The window sends audio four times a second, so
+ * this ends a stream whose window reloaded or crashed.
+ */
+const IDLE_TIMEOUT_MS = 15_000;
 
 /** The socket as the session uses it. `openScribeSocket` adapts a `ws` socket to it. */
 export interface VoiceStreamSocket {
@@ -111,6 +116,7 @@ export class ScribeRealtimeSession {
   #settleReady: { resolve: () => void; reject: (failure: VoiceStreamFailure) => void } | null = null;
   #settleFinish: ((outcome: VoiceStreamFailure | null) => void) | null = null;
   #finishTimer: NodeJS.Timeout | null = null;
+  #idleTimer: NodeJS.Timeout | null = null;
   #openTimer: NodeJS.Timeout | null;
 
   constructor(options: {
@@ -125,12 +131,13 @@ export class ScribeRealtimeSession {
     });
     // A refused start is reported through `ready`; this keeps it from counting as unhandled first.
     this.ready.catch(() => {});
-    this.#openTimer = setTimeout(() => this.#fail("open-timeout"), OPEN_TIMEOUT_MS);
+    // The socket opens first: when `open` throws, no timer is left to use a missing socket.
     this.#socket = options.open(options.url, options.apiKey, {
       onMessage: (text) => this.#receive(text),
       onRejected: (statusCode) => this.#fail(`http-${statusCode}`),
       onClose: () => this.#closed(),
     });
+    this.#openTimer = setTimeout(() => this.#fail("open-timeout"), OPEN_TIMEOUT_MS);
   }
 
   get text(): string {
@@ -141,6 +148,7 @@ export class ScribeRealtimeSession {
   append(pcm: Uint8Array): void {
     if (this.#state.phase === "failed") throw this.#state.failure;
     if (this.#state.phase !== "streaming") throw new VoiceStreamFailure(sourceText("error.voice.cloud.streamEnded"));
+    this.#armIdleTimer();
     if (pcm.byteLength === 0) return;
     this.#sendChunk(Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength).toString("base64"), false);
   }
@@ -150,6 +158,8 @@ export class ScribeRealtimeSession {
     if (this.#state.phase === "failed") throw this.#state.failure;
     if (this.#state.phase !== "streaming") throw new VoiceStreamFailure(sourceText("error.voice.cloud.streamEnded"));
     this.#state = { phase: "finishing" };
+    if (this.#idleTimer) clearTimeout(this.#idleTimer);
+    this.#idleTimer = null;
     const done = new Promise<VoiceStreamFailure | null>((resolve) => {
       this.#settleFinish = resolve;
     });
@@ -164,9 +174,15 @@ export class ScribeRealtimeSession {
   /** Ends the stream and drops its text. */
   cancel(): void {
     if (this.#state.phase === "ended" || this.#state.phase === "failed") return;
+    const failure = new VoiceStreamFailure(sourceText("error.voice.cloud.streamEnded"));
+    if (this.#state.phase === "finishing") {
+      // `finish` closes the socket.
+      this.#endFinish(failure);
+      return;
+    }
     this.#state = { phase: "ended" };
     this.#clearTimers();
-    this.#settleReady?.reject(new VoiceStreamFailure(sourceText("error.voice.cloud.streamEnded")));
+    this.#settleReady?.reject(failure);
     this.#settleReady = null;
     this.#socket.close();
   }
@@ -196,6 +212,7 @@ export class ScribeRealtimeSession {
       this.#state = { phase: "streaming" };
       if (this.#openTimer) clearTimeout(this.#openTimer);
       this.#openTimer = null;
+      this.#armIdleTimer();
       this.#settleReady?.resolve();
       this.#settleReady = null;
       return;
@@ -226,6 +243,11 @@ export class ScribeRealtimeSession {
 
   #textChanged(): void {
     if (this.#state.phase === "streaming" || this.#state.phase === "finishing") this.#onText(this.text);
+  }
+
+  #armIdleTimer(): void {
+    if (this.#idleTimer) clearTimeout(this.#idleTimer);
+    this.#idleTimer = setTimeout(() => this.#fail("idle"), IDLE_TIMEOUT_MS);
   }
 
   #armFinishTimer(): void {
@@ -273,7 +295,9 @@ export class ScribeRealtimeSession {
   #clearTimers(): void {
     if (this.#openTimer) clearTimeout(this.#openTimer);
     if (this.#finishTimer) clearTimeout(this.#finishTimer);
+    if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#openTimer = null;
     this.#finishTimer = null;
+    this.#idleTimer = null;
   }
 }

@@ -62,7 +62,10 @@ export function parseVoiceApiKey(input: unknown): VoiceApiKeyInput {
   if (input.key === null) return { key: null };
   if (typeof input.key !== "string" || !input.key.trim()) throw new Error(sourceText("error.provider.keyRequired"));
   if (input.key.length > VOICE_API_KEY_MAX_LENGTH) throw new Error(sourceText("error.provider.keyTooLong"));
-  return { key: input.key.trim() };
+  const key = input.key.trim();
+  // The key goes into an HTTP header, which refuses other characters when the socket opens.
+  if (!/^[\x21-\x7e]+$/u.test(key)) throw new Error(sourceText("error.provider.keyInvalidCharacters"));
+  return { key };
 }
 
 export function parseVoiceStream(input: unknown): VoiceStream {

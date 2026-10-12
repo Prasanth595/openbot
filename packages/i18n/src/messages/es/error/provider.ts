@@ -106,6 +106,8 @@ export const messages = {
   "error.provider.localOnly": "Los proveedores solo se pueden cambiar en el equipo que ejecuta los agentes.",
   "error.provider.keyRequired": "Se requiere una clave de proveedor.",
   "error.provider.keyTooLong": "La clave del proveedor es demasiado larga.",
+  "error.provider.keyInvalidCharacters":
+    "La clave del proveedor contiene un espacio o un carácter que una clave no puede contener.",
   "error.provider.noModel": "El proveedor seleccionado no tiene ningún modelo disponible.",
   "error.provider.noModelNamed": "{provider} no tiene ningún modelo disponible.",
   "error.provider.acpNoModels":

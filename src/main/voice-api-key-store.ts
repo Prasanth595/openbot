@@ -1,6 +1,7 @@
 import { rm } from "node:fs/promises";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
+import { registerSecretValue } from "@openbot/logging";
 import { Effect, Result, Semaphore } from "effect";
 import { isMissingFileError } from "../backend/file-errors";
 import { PreferenceFileFailure, readPreferenceFile, writePreferenceFile } from "./preference-file";
@@ -47,6 +48,7 @@ export class VoiceApiKeyStore {
       } catch {
         this.#key = null;
       }
+      if (this.#key) registerSecretValue(this.#key);
     });
   }
 
@@ -68,6 +70,7 @@ export class VoiceApiKeyStore {
               return yield* new PreferenceFileFailure({
                 cause: new Error(sourceText("error.app.secretStorageUnavailable")),
               });
+            registerSecretValue(key);
             const sealed = this.#cipher.encrypt(key).toString("base64");
             yield* writePreferenceFile(this.#path, { version: 1, key: sealed });
           }

@@ -103,6 +103,8 @@ export const messages = {
   "error.provider.localOnly": "Sağlayıcılar yalnızca ajanları çalıştıran bilgisayarda değiştirilebilir.",
   "error.provider.keyRequired": "Bir sağlayıcı anahtarı gereklidir.",
   "error.provider.keyTooLong": "Sağlayıcı anahtarı çok uzun.",
+  "error.provider.keyInvalidCharacters":
+    "Sağlayıcı anahtarı, bir anahtarda bulunamayacak bir boşluk veya karakter içeriyor.",
   "error.provider.noModel": "Seçilen sağlayıcının kullanılabilir modeli yok.",
   "error.provider.noModelNamed": "{provider} sağlayıcısının kullanılabilir modeli yok.",
   "error.provider.acpNoModels": "ACP CLI hiçbir ACP modeli tanıtmadı. OpenBot bir yedek model tahmin etmeyecektir.",

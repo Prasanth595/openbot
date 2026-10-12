@@ -104,6 +104,8 @@ export const messages = {
   "error.provider.localOnly": "Anbieter können nur auf dem Computer geändert werden, auf dem die Agenten laufen.",
   "error.provider.keyRequired": "Ein Anbieterschlüssel ist erforderlich.",
   "error.provider.keyTooLong": "Der Anbieterschlüssel ist zu lang.",
+  "error.provider.keyInvalidCharacters":
+    "Der Anbieterschlüssel enthält ein Leerzeichen oder ein Zeichen, das in einem Schlüssel nicht vorkommen kann.",
   "error.provider.noModel": "Der gewählte Anbieter hat kein verfügbares Modell.",
   "error.provider.noModelNamed": "{provider} hat kein verfügbares Modell.",
   "error.provider.acpNoModels": "Die ACP CLI hat keine ACP-Modelle gemeldet. OpenBot wird kein Ersatzmodell erraten.",

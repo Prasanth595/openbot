@@ -113,6 +113,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     deps.setVoicePhase("preparing");
     deps.setVoiceModelProgress(0);
     let stream: MediaStream | undefined;
+    let cloud: VoiceCloudStream | undefined;
     try {
       const voice = conversationRuntime(deps.props).voice;
       let livePreview = true;
@@ -150,7 +151,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         if (!resources.voiceDisposed && resources.voiceRequestGeneration === generation) deps.setVoicePhase("idle");
         return;
       }
-      const cloud = streamed ? await openCloudStream(target, generation) : undefined;
+      cloud = streamed ? await openCloudStream(target, generation) : undefined;
       if (streamed && !cloud) {
         for (const track of stream.getTracks()) track.stop();
         return;
@@ -191,6 +192,8 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
           resources.voiceRecorder = undefined;
         }
       }
+      // A stream that no recording uses would take the next recording's audio.
+      if (cloud && resources.voiceCloudStream === cloud) cancelCloudStream();
       if (resources.voiceRequestGeneration === generation) deps.setVoicePhase("idle");
       deps.setConversationError(target, voiceCaptureError(error));
     }
@@ -228,8 +231,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
   }
 
   /** Sends the audio that main does not have yet. Each pass decodes the whole recording again. */
-  async function sendCloudAudio(cloud: VoiceCloudStream, chunks: Blob[], mimeType: string): Promise<void> {
-    const samples = await recordingToSamples(new Blob(chunks, { type: mimeType }));
+  async function sendCloudAudio(cloud: VoiceCloudStream, samples: Float32Array): Promise<void> {
     const pcm = encodePcm16(samples.subarray(cloud.sentSamples));
     cloud.sentSamples = Math.max(cloud.sentSamples, samples.length);
     const voice = conversationRuntime(deps.props).voice;
@@ -243,8 +245,15 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
 
   /** A failed stream does not hear the rest: Stop now, and the final pass reports the failure. */
   async function streamNewAudio(recorder: MediaRecorder, cloud: VoiceCloudStream): Promise<void> {
+    let samples: Float32Array;
     try {
-      await sendCloudAudio(cloud, resources.voiceChunks, recorder.mimeType);
+      samples = await recordingToSamples(new Blob(resources.voiceChunks, { type: recorder.mimeType }));
+    } catch {
+      // The next pass, or the final one, decodes the recording again.
+      return;
+    }
+    try {
+      await sendCloudAudio(cloud, samples);
     } catch {
       if (resources.voiceRecorder === recorder) stopVoiceRecording();
     }
@@ -402,7 +411,8 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
       if (cloud) {
         // Main ends the stream when it finishes, also when it fails.
         try {
-          if (chunks.length > 0) await sendCloudAudio(cloud, chunks, mimeType);
+          if (chunks.length > 0)
+            await sendCloudAudio(cloud, await recordingToSamples(new Blob(chunks, { type: mimeType })));
         } catch (error) {
           void voice.cancelStream({ streamId: cloud.streamId }).catch(() => {});
           throw error;
