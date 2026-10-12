@@ -93,7 +93,8 @@ export interface ExchangeGroup {
 
 export interface PendingChatMessage {
   message: Extract<ChatMessage, { kind: "message" }>;
-  baseline: Set<string>;
+  /** The host rows drawn when the send started. Set only while the send waits for its receipt. */
+  baseline: ReadonlySet<string> | null;
   serverId: string | null;
 }
 
@@ -111,18 +112,22 @@ export function indexChatMessages(
   return index;
 }
 
+/** The host rows, then the messages the host has not drawn yet, in their send order. */
 export function presentChatMessages(
   messages: ChatMessage[],
-  pending: PendingChatMessage | null,
+  pending: readonly PendingChatMessage[],
   aliases: ReadonlyMap<string, string>,
 ): ChatMessage[] {
   // Events can precede the receipt. Wait for its ID rather than matching by text,
   // which could incorrectly merge another member's identical message.
-  const visible =
-    pending && !pending.serverId ? messages.filter((message) => pending.baseline.has(message.id)) : messages;
+  const baseline = pending.find((item) => !item.serverId && item.baseline)?.baseline;
+  const visible = baseline ? messages.filter((message) => baseline.has(message.id)) : messages;
+  const received = new Map<string, PendingChatMessage["message"]>();
+  for (const item of pending) if (item.serverId) received.set(item.serverId, item.message);
   const result = visible.map((message) => {
     // Keep the local image mounted until the caller caches the final attachment IDs.
-    if (pending?.serverId === message.id) return pending.message;
+    const local = received.get(message.id);
+    if (local) return local;
     const alias = aliases.get(message.id);
     if (alias === undefined) return message;
     let aliased = aliasedMessages.get(message);
@@ -132,7 +137,8 @@ export function presentChatMessages(
     }
     return aliased;
   });
-  if (pending && !messages.some((message) => message.id === pending.serverId)) result.push(pending.message);
+  const drawn = new Set(visible.map((message) => message.id));
+  for (const item of pending) if (!item.serverId || !drawn.has(item.serverId)) result.push(item.message);
   return result;
 }
 

@@ -84,6 +84,7 @@ import { uploadProgressAt } from "../model/upload-progress";
 import { ChatAttachmentView } from "./chat-attachment";
 import { ChatImageGeneration, imageGenerationStatus } from "./chat-image-generation";
 import { ChatMessageGesture } from "./chat-message-gesture";
+import { ChatOutboxStatus, OutboxMessageMenu, type OutboxRowStatus } from "./chat-outbox-status";
 import { useReplyHaptics } from "./use-reply-haptics";
 
 /** A row of the list. Thinking steps show in the activity row instead. */
@@ -255,6 +256,8 @@ interface ChatMessageListProps {
     cancelling: boolean;
     cancel: () => void;
   } | null;
+  /** The messages of this chat that wait on the phone or failed, by row id. */
+  outboxStatuses?: ReadonlyMap<string, OutboxRowStatus>;
 }
 
 type ChatUpload = NonNullable<ChatMessageListProps["upload"]>;
@@ -391,6 +394,7 @@ const MessageRow = memo(function MessageRow({
   source,
   questionForm,
   upload,
+  outbox,
   shared,
 }: {
   message: VisibleMessage;
@@ -402,6 +406,8 @@ const MessageRow = memo(function MessageRow({
   questionForm?: QuestionPromptController;
   /** Set only on the row whose files are uploading. */
   upload?: ChatUpload;
+  /** Set only on a message that waits on the phone or failed. */
+  outbox?: OutboxRowStatus;
   shared: MessageRowShared;
 }) {
   const { t } = useText();
@@ -606,10 +612,13 @@ const MessageRow = memo(function MessageRow({
         >
           {rendered}
         </ChatMessageGesture>
+      ) : outbox ? (
+        <OutboxMessageMenu status={outbox}>{rendered}</OutboxMessageMenu>
       ) : (
         rendered
       )}
       {message.author === "user" && message.status === "failed" ? <TurnFailure reason={message.failureReason} /> : null}
+      {outbox ? <ChatOutboxStatus status={outbox} /> : null}
     </View>
   );
 });
@@ -638,6 +647,7 @@ const NO_APPROVALS: readonly PendingApproval[] = [];
 
 export function ChatMessageList({
   upload,
+  outboxStatuses,
   target,
   accessibilityHidden = false,
   activity,
@@ -882,6 +892,7 @@ export function ChatMessageList({
             }
             questionForm={item.id === questionForm?.messageId ? questionForm : undefined}
             upload={upload?.messageId === item.id ? upload : undefined}
+            outbox={outboxStatuses?.get(item.id)}
             shared={shared}
           />
         </Animated.View>
@@ -896,6 +907,7 @@ export function ChatMessageList({
       messagesById,
       questionForm,
       upload,
+      outboxStatuses,
       shared,
     ],
   );
@@ -1048,23 +1060,14 @@ export function ChatMessageList({
                   }
                   accessibilityState={{ busy: true }}
                 />
-              ) : historyState !== "ready" ? (
+              ) : historyState === "error" ? (
                 <View className="flex-1 items-center justify-center gap-2">
                   <Typography.Paragraph align="center" className="text-text-secondary">
-                    {historyState === "waiting"
-                      ? t("mobile.chat.history.waiting")
-                      : t("mobile.chat.history.loadFailed")}
+                    {t("mobile.chat.history.loadFailed")}
                   </Typography.Paragraph>
-                  {historyState === "waiting" ? (
-                    <Typography.Paragraph type="body-xs" align="center" className="text-muted">
-                      {t("mobile.chat.history.loadsOnReconnect")}
-                    </Typography.Paragraph>
-                  ) : null}
-                  {historyState === "error" ? (
-                    <Button variant="tertiary" onPress={onRetryHistory}>
-                      <Button.Label>{t("common.tryAgain")}</Button.Label>
-                    </Button>
-                  ) : null}
+                  <Button variant="tertiary" onPress={onRetryHistory}>
+                    <Button.Label>{t("common.tryAgain")}</Button.Label>
+                  </Button>
                 </View>
               ) : null}
             </>

@@ -136,8 +136,6 @@ export const messages = {
   "mobile.chat.composer.addAttachment": "Anhang hinzufügen",
   "mobile.chat.composer.ask": "{name} fragen",
   "mobile.chat.composer.stopFailed": "Der Agent konnte nicht gestoppt werden. Möglicherweise ist er bereits fertig.",
-  "mobile.chat.composer.sendFailed":
-    "Die Nachricht konnte nicht gesendet werden. Prüfe die Unterhaltung, bevor du sie erneut sendest.",
   "mobile.chat.camera.captureFailed": "Das Foto konnte nicht aufgenommen werden. Versuche es erneut.",
   "mobile.chat.camera.startFailed": "Die Kamera konnte nicht gestartet werden. Schließe sie und versuche es erneut.",
   "mobile.chat.camera.close": "Kamera schließen",
@@ -214,6 +212,16 @@ export const messages = {
   "mobile.chat.upload.cancelled": "Hochladen des Anhangs abgebrochen.",
   "mobile.chat.upload.uploaded": "Hochgeladen",
   "mobile.chat.upload.uploadingLabel": "Wird hochgeladen",
+  "mobile.chat.outbox.sendsWhenOnline": "Wird gesendet, sobald der Server online ist",
+  "mobile.chat.outbox.waiting": "Wartet auf Versand",
+  "mobile.chat.outbox.failed": "Nicht gesendet",
+  "mobile.chat.outbox.failedHold": "Nicht gesendet. Halte die Nachricht gedrückt, um es erneut zu versuchen.",
+  "mobile.chat.outbox.cancelSend": "Nicht senden",
+  "mobile.chat.outbox.menuHint": "Zeigt die Optionen für diese Nachricht.",
+  "mobile.chat.outbox.unconfirmed": "Nicht bestätigt. Prüfe den Chat, bevor du sie erneut sendest.",
+  "mobile.chat.outbox.editFailed": "Die Nachricht konnte nicht zum Bearbeiten geöffnet werden.",
+  "mobile.chat.outbox.saveFailed":
+    "Wartende Nachrichten konnten auf diesem Telefon nicht gespeichert werden. Lass die App geöffnet, bis sie gesendet sind.",
   "mobile.chat.failure.title": "Nicht beantwortet",
   "mobile.chat.failure.fallback":
     "Der Agent hat gestoppt, bevor er antworten konnte. Sende die Nachricht erneut, um es noch einmal zu versuchen.",
@@ -258,7 +266,6 @@ export const messages = {
   "mobile.chat.history.loading": "Chatverlauf wird geladen",
   "mobile.chat.history.waiting": "Warten auf Verbindung",
   "mobile.chat.history.loadFailed": "Chatverlauf konnte nicht geladen werden",
-  "mobile.chat.history.loadsOnReconnect": "Dein Chatverlauf wird geladen, sobald der Server wieder verbunden ist.",
   "mobile.chat.history.refreshFailed": "Chatverlauf konnte nicht aktualisiert werden.",
   "mobile.chat.history.sentRefresh": "Nachricht gesendet. Aktualisiere den Verlauf, um sie anzuzeigen.",
   "mobile.chat.history.refreshing": "Wird aktualisiert…",

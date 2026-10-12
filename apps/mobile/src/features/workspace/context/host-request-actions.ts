@@ -33,6 +33,7 @@ import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/conte
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
+  TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
   TEAM_SEMANTIC_TAGS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
@@ -140,6 +141,7 @@ type HostRequestActions = Pick<
   | "duplicateAgent"
   | "loadQueue"
   | "canEditQueue"
+  | "canRetryMessage"
   | "attachmentSupport"
   | "editQueue"
   | "changeQueue"
@@ -442,6 +444,7 @@ export function createHostRequestActions({
         serverId,
       ),
     canEditQueue: (serverId) => capabilities.get(serverId)?.includes(TEAM_QUEUE_EDIT_CAPABILITY) ?? false,
+    canRetryMessage: (serverId) => capabilities.get(serverId)?.includes(TEAM_MESSAGE_CLIENT_ID_CAPABILITY) ?? false,
     attachmentSupport: (serverId) => {
       const advertised = capabilities.get(serverId) ?? [];
       return {

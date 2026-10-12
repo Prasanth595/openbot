@@ -62,7 +62,7 @@ describe("mobile question forms", () => {
       },
     ];
     const aliases = new Map([["mobile-delivery", "local-1"]]);
-    const messages = presentChatMessages(projectChatMessages(snapshot.messages), null, aliases);
+    const messages = presentChatMessages(projectChatMessages(snapshot.messages), [], aliases);
     const index = indexChatMessages(messages, aliases);
     const reply = messages[1];
     assert(reply);
@@ -83,7 +83,7 @@ describe("mobile question forms", () => {
       },
     ];
     const projected = projectChatMessages(decodeConversation(snapshot).messages);
-    const result = presentChatMessages(projected, null, new Map([["delivered", "local"]]));
+    const result = presentChatMessages(projected, [], new Map([["delivered", "local"]]));
     expect(result.find((message) => message.id === "local")).toMatchObject({
       body: "Follow up",
       replyToMessageId: "source",
@@ -146,9 +146,9 @@ describe("mobile question forms", () => {
       { ...pending.message, id: "other-member" },
       { ...pending.message, id: "mine" },
     ];
-    expect(presentChatMessages(messages, pending, new Map()).map((message) => message.id)).toEqual(["local"]);
+    expect(presentChatMessages(messages, [pending], new Map()).map((message) => message.id)).toEqual(["local"]);
     expect(
-      presentChatMessages(messages, { ...pending, serverId }, new Map([[serverId, "local"]])).map(
+      presentChatMessages(messages, [{ ...pending, serverId }], new Map([[serverId, "local"]])).map(
         (message) => message.id,
       ),
     ).toEqual(["other-member", "local"]);

@@ -284,6 +284,12 @@ export function useChatAttachments(
       mobileAnalytics.track("attachment_action", { action: "remove", result: "succeeded", attachment_count: 1 });
     },
     clear: () => replace([]),
+    /** Puts back the files of a message that the person takes back to edit, after any files chosen since. */
+    restore: (files: readonly ChatAttachment[]) =>
+      replace([
+        ...itemsRef.current,
+        ...files.map((file) => ({ ...file, id: `mobile-draft-attachment-${++sequence.current}` })),
+      ]),
   };
 }
 

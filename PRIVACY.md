@@ -352,6 +352,10 @@ longer than 4,000 characters becomes a text attachment. Selected documents can a
 copy in the phone's system cache. Attachments added while editing a queued message are saved in the
 phone's app document storage, with references in the saved edit, so they survive an app restart.
 Those draft copies are removed when the attachment is removed or the edit is saved or cancelled.
+A message that the phone has not delivered yet, for example while the server is offline, is saved
+with its text, reply target and files in the phone's app document storage, separately per account,
+so it survives an app restart. The phone sends it when the server is online again, and removes the
+copy when the host confirms it, or when you edit or cancel it. Nothing else receives it.
 Uploads are limited to 10 MB per file on mobile; successful uploads
 become managed attachments on the host. Camera capture uses an in-chat preview. Photo selection uses the phone's system interface.
 Image attachment previews are downloaded from the desktop host through the same encrypted connection.

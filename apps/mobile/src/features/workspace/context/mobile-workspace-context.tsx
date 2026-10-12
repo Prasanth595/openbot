@@ -1407,7 +1407,14 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           discardAttachmentDraft(teamApi(serverId), attachmentId).pipe(Effect.mapError((error) => error.cause)),
         );
       },
-      sendMessage: async (agentId, text, attachmentDraftIds = [], replyToMessageId = null, targetServerId) => {
+      sendMessage: async (
+        agentId,
+        text,
+        attachmentDraftIds = [],
+        replyToMessageId = null,
+        targetServerId,
+        clientMessageId,
+      ) => {
         const serverId = targetServerId ?? agents.find((candidate) => candidate.id === agentId)?.serverId;
         if (!serverId) throw new Error(currentText().t("mobile.workspace.error.agentUnavailable"));
         const receipt = await request(
@@ -1423,6 +1430,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             replyToMessageId,
             // The host uses this phone's zone for a routine the agent creates from the message.
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            ...(clientMessageId ? { clientMessageId } : {}),
           },
           serverId,
         );

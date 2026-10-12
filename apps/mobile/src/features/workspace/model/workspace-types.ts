@@ -159,6 +159,8 @@ export interface MobileWorkspaceContextValue {
   mutateSidebarLayout: (serverId: string, action: SidebarLayoutAction) => Promise<void>;
   loadQueue: (agentId: string, serverId: string) => Promise<QueueSnapshot>;
   canEditQueue: (serverId: string) => boolean;
+  /** True when the host advertises `message-client-id-v1`: a repeat of a message is stored once. */
+  canRetryMessage: (serverId: string) => boolean;
   /** The files this host accepts beyond the base list, as the desktop picker reads them. */
   attachmentSupport: (serverId: string) => AttachmentSupport;
   changeQueue: (
@@ -304,6 +306,8 @@ export interface MobileWorkspaceContextValue {
     attachmentDraftIds?: string[],
     replyToMessageId?: string | null,
     serverId?: string,
+    /** Names the message for the host, which stores a repeat of it once. Send it only when `canRetryMessage`. */
+    clientMessageId?: string,
   ) => Promise<string>;
   uploadAttachment: (
     agentId: string,
