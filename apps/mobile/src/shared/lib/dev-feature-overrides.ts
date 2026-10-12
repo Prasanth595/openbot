@@ -9,7 +9,7 @@ import type { MobileFeature } from "@openbot/contracts/mobile-features";
  *   an account that cannot have hosted servers.
  * - `browser`: the live view of an agent's browser tab.
  */
-export const DEV_FEATURE_OVERRIDES: Readonly<Record<MobileFeature, boolean | null>> = {
+const DEV_FEATURE_OVERRIDES: Readonly<Record<MobileFeature, boolean | null>> = {
   cloudServers: null,
   browser: null,
 };
