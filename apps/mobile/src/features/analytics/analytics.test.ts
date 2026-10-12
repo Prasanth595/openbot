@@ -176,10 +176,10 @@ it("records connection attempts and recovery without duplicate losses or backgro
   analytics.setEnabled(true);
   const connection = new MobileConnectionAnalytics(analytics);
   connection.attempt()("failed", "compatibility");
-  connection.attempt()("succeeded", "conversations");
+  connection.attempt()("succeeded", "reads");
   connection.lost();
   connection.lost();
-  connection.attempt()("succeeded", "conversations");
+  connection.attempt()("succeeded", "reads");
   connection.background();
   connection.lost();
   await analytics.settled();
@@ -191,9 +191,9 @@ it("records connection attempts and recovery without duplicate losses or backgro
       duration_ms: expect.any(Number),
       failure_code: "connection_failed",
     },
-    { action: "connect", result: "succeeded", stage: "conversations", duration_ms: expect.any(Number) },
+    { action: "connect", result: "succeeded", stage: "reads", duration_ms: expect.any(Number) },
     { action: "lost", result: "failed", failure_code: "connection_failed" },
-    { action: "reconnect", result: "succeeded", stage: "conversations", duration_ms: expect.any(Number) },
+    { action: "reconnect", result: "succeeded", stage: "reads", duration_ms: expect.any(Number) },
   ]);
 });
 

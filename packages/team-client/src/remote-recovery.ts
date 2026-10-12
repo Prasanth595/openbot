@@ -40,13 +40,7 @@ export interface RemoteRecoveryStatus {
   remainingSeconds: number;
 }
 
-export type RemoteConnectionStage =
-  | "preferences"
-  | "connection"
-  | "compatibility"
-  | "agents"
-  | "reads"
-  | "conversations";
+export type RemoteConnectionStage = "preferences" | "connection" | "compatibility" | "agents" | "reads";
 
 const CONNECTION_STAGES = {
   preferences: "status.remote.stagePreferences",
@@ -54,7 +48,6 @@ const CONNECTION_STAGES = {
   compatibility: "status.remote.stageCompatibility",
   agents: "status.remote.stageAgents",
   reads: "status.remote.stageReads",
-  conversations: "status.remote.stageConversations",
 } as const satisfies Record<RemoteConnectionStage, keyof SourceMessages>;
 
 // Only fixed protocol messages may appear in diagnostics. Arbitrary server or
