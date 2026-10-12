@@ -1,5 +1,10 @@
 import { supportedAttachmentExtensions } from "@openbot/contracts/attachment-files";
-import { accountUsageCoversModel, canPreviewAttachment } from "@openbot/contracts/ipc";
+import {
+  type AgentWait,
+  accountUsageCoversModel,
+  canPreviewAttachment,
+  type QueueSnapshot,
+} from "@openbot/contracts/ipc";
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
@@ -30,6 +35,7 @@ import {
 } from "@openbot/ui/features/conversation/ComposerNotice";
 import { ComposerCompactionNotice, ContextUsageMeter } from "@openbot/ui/features/conversation/ContextUsage";
 import { CloseIcon, StopIcon } from "@openbot/ui/features/conversation/ConversationIcons";
+import { type OpenWaitItem, OpenWaits } from "@openbot/ui/features/conversation/OpenWaits";
 import { RichMessageText } from "@openbot/ui/features/conversation/RichMessageText";
 import { VoiceRecordingMorph } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { useText } from "@openbot/ui/text";
@@ -113,7 +119,9 @@ export function ConversationComposer() {
   // The mention picker grows out of the same edge as the queue, so only one of them holds it.
   const queueVisible = () => queuePanelVisible() && !pickerOpen();
   const awaitingVisible = () => awaitingReplies().length > 0 && !pickerOpen();
-  const slotOpen = () => queueVisible() || awaitingVisible();
+  const waitItems = createMemo(() => openWaitItems(props.waits ?? [], props.queue));
+  const waitsVisible = () => waitItems().length > 0 && Boolean(props.onCancelWait) && !pickerOpen();
+  const slotOpen = () => queueVisible() || awaitingVisible() || waitsVisible();
   const voiceAvailable = () => !props.runtime && voiceSupported(props.platform);
   const context = () =>
     props.contextState?.agentId === props.agent?.id && props.contextState?.threadId === props.agent?.threadId
@@ -283,6 +291,22 @@ export function ConversationComposer() {
         <div class="agent-queue-slot-inner">
           <Show when={awaitingVisible()}>
             <AwaitingReplies items={awaitingReplies()} onDismiss={dismissAwaitingReplies} />
+          </Show>
+          <Show when={waitsVisible() && props.onCancelWait}>
+            {(cancelWait) => (
+              <OpenWaits
+                items={waitItems()}
+                onCancel={cancelWait()}
+                onShowRequest={
+                  props.onOpenSearchMessage
+                    ? (waitId) => {
+                        const wait = props.waits?.find((entry) => entry.id === waitId);
+                        if (wait) void props.onOpenSearchMessage?.(wait.requestMessageId);
+                      }
+                    : undefined
+                }
+              />
+            )}
           </Show>
           <Show when={queueVisible()}>
             <Loading>
@@ -682,6 +706,27 @@ export function ConversationComposer() {
       </div>
     </div>
   );
+}
+
+/**
+ * A wait is resuming while the run that woke it waits in the queue or runs. A woken wait whose run
+ * ended is open only because the agent did not close it.
+ */
+function openWaitItems(waits: readonly AgentWait[], queue: QueueSnapshot | undefined): OpenWaitItem[] {
+  const pending = new Set(
+    queue?.deliveries
+      .filter(
+        (delivery) => delivery.status === "queued" || delivery.status === "starting" || delivery.status === "running",
+      )
+      .map((delivery) => delivery.id),
+  );
+  return waits.map((wait) => ({
+    id: wait.id,
+    note: wait.note,
+    request: wait.requestText,
+    openedAt: wait.createdAt,
+    state: wait.wakeDeliveryId && pending.has(wait.wakeDeliveryId) ? "resuming" : wait.wokenAt ? "woken" : "waiting",
+  }));
 }
 
 const QueuePanel = lazy(() =>

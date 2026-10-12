@@ -33,6 +33,10 @@ export const INPUT_LIMITS = {
   routineRunsPage: 100,
   // Handoffs inside one routine. A flow wider than this is no longer readable on one canvas.
   routineFlowLinks: 50,
+  // Open waits of one agent. A wait is a request the agent has not finished, and more than this many
+  // at once is a loop that opens waits, not work.
+  agentWaits: 20,
+  agentWaitNote: 500,
   // The text a local script adds to a routine run through the automation server.
   automationPayload: 4_000,
   // Six weeks: the longest range the routine calendar reads, with room for a month view.

@@ -4,6 +4,7 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentEvent,
   AgentSummary,
+  AgentWait,
   ConversationMessage,
   ConversationSnapshot,
   CreateRoutineInput,
@@ -24,6 +25,7 @@ import { collapseMissedOccurrences, RoutineInputError } from "@openbot/team-clie
 import { Effect, Schema } from "effect";
 import { AgentRoutineStore } from "../agent-routine-store";
 import { AGENT_PREVIEW_MAX_LENGTH, type AgentStore } from "../agent-store";
+import type { AgentWaits } from "../agent-waits/agent-waits";
 import { causeHelpers } from "../effect-boundary";
 import type { MailboxStore } from "../mailbox-store";
 import type { DynamicToolCallParams } from "../protocol";
@@ -97,6 +99,8 @@ export interface RoutineSchedulerOptions {
   hooks: RoutineHooks;
   /** Shared with every other routine owner, so one wake time is derived across all of them. */
   timer: RoutineTimer;
+  /** The open waits that a run of the agent wakes. */
+  waits: AgentWaits;
 }
 
 /** The agent preview before a routine run, and the routine task the run showed in its place. */
@@ -124,6 +128,7 @@ export class RoutineScheduler implements RoutineDueSource {
   readonly #conversation: ConversationRuntime;
   readonly #hooks: RoutineHooks;
   readonly #routines: AgentRoutineStore;
+  readonly #waits: AgentWaits;
   /**
    * A deletion has to interrupt live runs before it can remove their routine, so it holds the agent
    * out of the drain loop while it does — otherwise the queue starts the next delivery for a
@@ -152,6 +157,7 @@ export class RoutineScheduler implements RoutineDueSource {
     this.#hooks = options.hooks;
     this.#timer = options.timer;
     this.#routines = new AgentRoutineStore(options.store.database);
+    this.#waits = options.waits;
   }
 
   noteDeliveryTimezone(deliveryId: string, timezone: string): void {
@@ -202,6 +208,11 @@ export class RoutineScheduler implements RoutineDueSource {
 
   runForDelivery(deliveryId: string): RoutineRun | null {
     return this.#routines.runForDelivery(deliveryId);
+  }
+
+  /** The open waits that the run of this delivery continues. */
+  wokenWaits(deliveryId: string): AgentWait[] {
+    return this.#waits.wokenBy(deliveryId);
   }
 
   /**
@@ -438,7 +449,7 @@ export class RoutineScheduler implements RoutineDueSource {
   /** Store the event in the run instruction so recovery retains it. */
   readonly runWithPayload = Effect.fn("RoutineScheduler.runWithPayload")(function* (
     this: RoutineScheduler,
-    input: TestRoutineInput & { payload: string },
+    input: TestRoutineInput & { payload: string; waitId?: string },
   ) {
     const run = yield* routineStep(() => {
       if (!this.mayDrain(input.agentId)) throw new RoutineInputError(sourceText("error.backend.routineWaitForAgent"));
@@ -463,7 +474,7 @@ export class RoutineScheduler implements RoutineDueSource {
         new Date().toISOString(),
       );
     });
-    const queued = yield* this.#enqueueRunEffect(run);
+    const queued = yield* this.#enqueueRunEffect(run, input.waitId ?? null);
     yield* routineStep(() => this.stateChanged(input.agentId));
     return queued;
   }, Effect.uninterruptible);
@@ -805,9 +816,11 @@ export class RoutineScheduler implements RoutineDueSource {
     return deliveryId;
   }, Effect.uninterruptible);
 
+  /** `waitId` is the one open wait a script event names; null wakes every wait the run matches. */
   readonly #enqueueRunEffect = Effect.fn("RoutineScheduler.enqueueRun")(function* (
     this: RoutineScheduler,
     run: RoutineRun,
+    waitId: string | null = null,
   ) {
     // A test or a script run that arrives while a spent plan holds the agent would wait for the
     // reset, and a routine set to skip has no use for a late result.
@@ -858,6 +871,7 @@ export class RoutineScheduler implements RoutineDueSource {
           throw error;
         }
       });
+      yield* routineStep(() => this.#waits.wakeForRun(run, deliveryId, waitId));
       const snapshot = yield* routineStep(() => {
         const current = this.#conversation.ensureSnapshot(agent.id, agent.threadId);
         this.#hooks.syncMailboxMessages(current);

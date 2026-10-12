@@ -1792,6 +1792,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         });
       },
       listQueue: async (agentId) => clone(queues.get(agentId) ?? emptyQueue(agentId)),
+      listWaits: async (agentId) => ({ agentId, waits: [] }),
+      cancelWait: async () => undefined,
       acknowledgeFailedTurn: async () => undefined,
       cancelQueuedMessage: async (input) => {
         const queue = queues.get(input.agentId) ?? emptyQueue(input.agentId);

@@ -6,6 +6,7 @@ import { type AgentProviderId, isAgentProvider } from "./agent-providers";
 import { INPUT_LIMITS } from "./input-limits";
 import { type AgentRuntimeSnapshot, isAgentRuntimeSnapshot } from "./ipc-agent-runtime";
 import type { AccountUsage, AgentStatus } from "./ipc-agent-status";
+import { type AgentWaitsSnapshot, isAgentWaitsSnapshot } from "./ipc-agent-waits";
 import { type AgentSummary, isAgentSummary } from "./ipc-agents";
 import {
   type AgentApproval,
@@ -59,6 +60,8 @@ export type AgentEvent =
     }
   | { type: "queue-invalidated"; agentId: string }
   | { type: "queue-changed"; snapshot: QueueSnapshot }
+  /** Local only: the Team API has no wait events, so a remote server never sends one. */
+  | { type: "waits-changed"; snapshot: AgentWaitsSnapshot }
   | { type: "turn-progress"; agentId: string; threadId: string; turnId: string; detail: string }
   | { type: "turn-started"; agentId: string; threadId: string; turnId: string; origin?: AgentTurnOrigin }
   | {
@@ -178,6 +181,8 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isIdentifier(value.agentId);
     case "queue-changed":
       return isQueueSnapshot(value.snapshot);
+    case "waits-changed":
+      return isAgentWaitsSnapshot(value.snapshot);
     case "turn-progress":
       return (
         isIdentifier(value.agentId) &&

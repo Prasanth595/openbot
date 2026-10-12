@@ -1005,6 +1005,8 @@ export function installOpenbotStub(): void {
       }),
       setMessageReaction: vi.fn().mockResolvedValue(undefined),
       listQueue: vi.fn().mockImplementation(async (agentId) => ({ agentId, deliveries: [] })),
+      listWaits: vi.fn().mockImplementation(async (agentId) => ({ agentId, waits: [] })),
+      cancelWait: vi.fn().mockResolvedValue(undefined),
       acknowledgeFailedTurn: vi.fn().mockResolvedValue(undefined),
       cancelQueuedMessage: vi.fn().mockResolvedValue(undefined),
       steerQueuedMessage: vi.fn().mockResolvedValue(undefined),

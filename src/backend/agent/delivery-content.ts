@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
 import { expandAttachmentReferences } from "@openbot/contracts/attachment-references";
 import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
-import type { AgentSummary, ConversationSnapshot, QueueDeliveryStatus, RoutineRun } from "@openbot/contracts/ipc";
+import type {
+  AgentSummary,
+  AgentWait,
+  ConversationSnapshot,
+  QueueDeliveryStatus,
+  RoutineRun,
+} from "@openbot/contracts/ipc";
+import { wokenWaitsPromptText } from "../agent-waits/agent-waits";
 import type { DeliveryContext } from "../mailbox-store";
 import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
 
@@ -66,6 +73,8 @@ export interface DeliveryPromptSources {
   /** The conversation the delivery joins. A user reply quotes the message it answers from it. */
   snapshot: ConversationSnapshot;
   routineRun: Pick<RoutineRun, "kind"> | null;
+  /** The open waits that a routine run wakes. The run continues their requests. */
+  wokenWaits?: readonly AgentWait[];
   /** The prompt a channel task or an external message sends in place of the delivery text. */
   executionText?: string;
 }
@@ -224,6 +233,8 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
       "--- routine task ---",
       displayText,
     ].join("\n");
+    const waits = wokenWaitsPromptText(sources.wokenWaits ?? []);
+    if (waits) text += `\n\n${waits}`;
   }
   if (managedAttachments.length) {
     text += `${ATTACHED_FILES_HEADER}${managedAttachments.map((item) => `- ${item.name}: ${item.path}`).join("\n")}`;
