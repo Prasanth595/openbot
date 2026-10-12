@@ -62,6 +62,10 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       update({ sessionUpdate: "usage_update", used: 100, size: 10000 });
       return;
     }
+    if (input === "quota") {
+      text("Usage Limit Reached\\n\\nYou have reached your current quota for this period. Your limit will reset in 4 hours.");
+      return reply({ stopReason: "end_turn" });
+    }
     if (input === "classify") {
       text("I will read the file.");
       update({ sessionUpdate: "tool_call", toolCallId: "read", title: "read_file", status: "completed" });
@@ -228,6 +232,21 @@ describe("Antigravity background task recovery", () => {
     ]);
   });
 
+  it("fails a turn that ends with the quota message instead of saving it as the answer", async () => {
+    const ids = await start("quota");
+    await vi.waitFor(() => expect(completions()).toHaveLength(1));
+    expect(completions()[0]).toMatchObject({ params: { turn: { id: ids.turnId, status: "failed" } } });
+    expect(events).toContainEqual({
+      method: "error",
+      params: {
+        ...ids,
+        message:
+          "Gemini refused the request because a rate limit or the plan's quota is reached. Wait a few minutes or choose another model, then try again.\nYou have reached your current quota for this period. Your limit will reset in 4 hours.",
+      },
+    });
+    expect(saved[0]?.items.some((item) => item.phase === "final_answer")).toBe(false);
+  });
+
   it("keeps the existing text buffering for other ACP providers", async () => {
     await runCauseEffect(client.stop());
     client = createClient("opencode");
@@ -235,5 +254,44 @@ describe("Antigravity background task recovery", () => {
     await vi.waitFor(() => expect(completions()).toHaveLength(1));
     expect(hasDelta()).toBe(false);
     expect(saved[0]?.status).toBe("completed");
+  });
+});
+
+describe("Antigravity account check", () => {
+  it("reports sign-in required at once when the server starts its own browser sign-in", async () => {
+    // 1.3.0 starts Google's sign-in during session/new when its token is not valid, and waits there
+    // for five minutes. This server never answers session/new.
+    await writeFile(
+      join(root, "expired.cjs"),
+      `
+      const readline = require("node:readline");
+      const send = (value) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...value }) + "\\n");
+      readline.createInterface({ input: process.stdin }).on("line", (line) => {
+        const { id, method } = JSON.parse(line);
+        if (method === "initialize") return send({ id, result: { protocolVersion: 1, agentCapabilities: {} } });
+        if (method === "session/new") {
+          process.stderr.write("Open the following link to authenticate the ACP server: https://accounts.google.com/o/oauth2/v2/auth?state=private\\n");
+        }
+      });
+      `,
+    );
+    await runCauseEffect(client.stop());
+    const diagnostics: string[] = [];
+    client = new AcpAgentClient({ executable: process.execPath, version: "1.3.0" }, 5_000, {
+      provider: "antigravity",
+      argv: [join(root, "expired.cjs")],
+      env: {},
+      signInMessage: "Sign in with Google to use Gemini.",
+      interactiveSignInPrompt: /Open the following link to authenticate the ACP server: /u,
+    });
+    client.on("diagnostic", (message) => diagnostics.push(message));
+    client.start();
+    await runCauseEffect(client.request("initialize", {}, decodeRecordResponse, 30_000));
+    const account = await runCauseEffect(
+      client.request("account/read", { refreshToken: false }, decodeRecordResponse, 5_000),
+    );
+    expect(account).toMatchObject({ account: null });
+    // The prompt carries OAuth state, so it never becomes a diagnostic.
+    expect(diagnostics.some((message) => message.includes("accounts.google.com"))).toBe(false);
   });
 });
