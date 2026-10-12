@@ -109,7 +109,8 @@ export const messages = {
   "settings.tab.notifications.title": "通知",
   "settings.tab.notifications.description": "OpenBot からの知らせ方を選びます。",
   "settings.tab.voice.title": "音声",
-  "settings.tab.voice.description": "メッセージ欄での音声入力です。このコンピューター上で動作します。",
+  "settings.tab.voice.description":
+    "メッセージ欄での音声入力です。ローカルモデルはこのコンピューター上で、ElevenLabs はクラウドで動作します。",
   "settings.tab.computerUse.title": "コンピュータ操作",
   "settings.tab.computerUse.description": "このコンピュータのアプリを OpenBot が見て操作できるようにします。",
   "settings.tab.profile.title": "プロフィール",
@@ -364,7 +365,7 @@ export const messages = {
   "settings.voice.language.title": "音声入力の言語",
   "settings.voice.language.description": "話す言語です。「自動」は録音から言語を判別します。",
   "settings.voice.language.modelDetects":
-    "Parakeet は話している言語を自動で判別します。言語を指定するには Whisper を使用してください。",
+    "Parakeet は話している言語を自動で判別します。言語を指定するには Whisper または ElevenLabs を使用してください。",
   "settings.voice.language.automatic": "自動",
   "settings.voice.loadFailed": "音声モデルを読み込めませんでした。",
   "settings.voice.saveFailed": "音声の設定を保存できませんでした。もう一度お試しください。",

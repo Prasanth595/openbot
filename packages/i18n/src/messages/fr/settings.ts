@@ -119,7 +119,8 @@ export const messages = {
   "settings.tab.notifications.title": "Notifications",
   "settings.tab.notifications.description": "Choisissez comment OpenBot vous alerte.",
   "settings.tab.voice.title": "Voix",
-  "settings.tab.voice.description": "Dictée dans la zone de message. Elle s’exécute sur cet ordinateur.",
+  "settings.tab.voice.description":
+    "Dictée dans la zone de message. Les modèles locaux s’exécutent sur cet ordinateur ; ElevenLabs s’exécute dans le cloud.",
   "settings.tab.computerUse.title": "Computer Use",
   "settings.tab.computerUse.description":
     "Autoriser OpenBot à voir et à interagir avec les applications de cet ordinateur.",
@@ -378,7 +379,7 @@ export const messages = {
   "settings.voice.language.description":
     "La langue que vous parlez. Automatique la détecte à partir de l’enregistrement.",
   "settings.voice.language.modelDetects":
-    "Parakeet détecte seul la langue parlée. Pour fixer une langue, utilisez Whisper.",
+    "Parakeet détecte seul la langue parlée. Pour fixer une langue, utilisez Whisper ou ElevenLabs.",
   "settings.voice.language.automatic": "Automatique",
   "settings.voice.loadFailed": "Impossible de lire les modèles vocaux.",
   "settings.voice.saveFailed": "Impossible d’enregistrer le réglage vocal. Réessayez.",

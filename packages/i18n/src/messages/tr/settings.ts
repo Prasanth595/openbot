@@ -109,7 +109,8 @@ export const messages = {
   "settings.tab.notifications.title": "Bildirimler",
   "settings.tab.notifications.description": "OpenBot'un sizi nasıl uyaracağını seçin.",
   "settings.tab.voice.title": "Ses",
-  "settings.tab.voice.description": "Mesaj kutusunda dikte. Bu bilgisayarda çalışır.",
+  "settings.tab.voice.description":
+    "Mesaj kutusunda dikte. Yerel modeller bu bilgisayarda, ElevenLabs ise bulutta çalışır.",
   "settings.tab.computerUse.title": "Bilgisayar Kullanımı",
   "settings.tab.computerUse.description":
     "OpenBot'un bu bilgisayardaki uygulamaları görmesine ve bunlarla etkileşime girmesine izin verin.",
@@ -367,7 +368,7 @@ export const messages = {
   "settings.voice.language.title": "Dikte dili",
   "settings.voice.language.description": "Konuştuğunuz dil. Otomatik, dili kayıttan bulur.",
   "settings.voice.language.modelDetects":
-    "Parakeet konuşulan dili kendisi bulur. Bir dil belirlemek için Whisper'ı kullanın.",
+    "Parakeet konuşulan dili kendisi bulur. Bir dil belirlemek için Whisper'ı veya ElevenLabs'i kullanın.",
   "settings.voice.language.automatic": "Otomatik",
   "settings.voice.loadFailed": "Ses modelleri okunamadı.",
   "settings.voice.saveFailed": "Ses ayarı kaydedilemedi. Yeniden deneyin.",

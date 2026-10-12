@@ -111,7 +111,8 @@ export const messages = {
   "settings.tab.notifications.title": "Уведомления",
   "settings.tab.notifications.description": "Выберите, как OpenBot сообщает вам о событиях.",
   "settings.tab.voice.title": "Голос",
-  "settings.tab.voice.description": "Диктовка в поле сообщения. Работает на этом компьютере.",
+  "settings.tab.voice.description":
+    "Диктовка в поле сообщения. Локальные модели работают на этом компьютере, ElevenLabs — в облаке.",
   "settings.tab.computerUse.title": "Управление ПК",
   "settings.tab.computerUse.description": "Разрешите OpenBot видеть приложения на этом компьютере и работать с ними.",
   "settings.tab.profile.title": "Профиль",
@@ -375,7 +376,8 @@ export const messages = {
   "settings.voice.language.section": "Язык",
   "settings.voice.language.title": "Язык диктовки",
   "settings.voice.language.description": "Язык, на котором вы говорите. «Автоматически» определяет его по записи.",
-  "settings.voice.language.modelDetects": "Parakeet сам определяет язык речи. Чтобы задать язык, используйте Whisper.",
+  "settings.voice.language.modelDetects":
+    "Parakeet сам определяет язык речи. Чтобы задать язык, используйте Whisper или ElevenLabs.",
   "settings.voice.language.automatic": "Автоматически",
   "settings.voice.loadFailed": "Не удалось прочитать голосовые модели.",
   "settings.voice.saveFailed": "Не удалось сохранить настройку голоса. Попробуйте снова.",
