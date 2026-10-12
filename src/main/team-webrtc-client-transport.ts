@@ -173,6 +173,8 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   // Each request, typing status and desktop send to an offline host started a new attempt at once,
   // about one each second. Until the wait ends they get the last failure. `connect` does not wait.
   readonly #connectRetries = new Map<string, { failure: RemoteWorkflowError; failures: number; retryAt: number }>();
+  /** Counts the closes of each host. A failure that ends after a close does not make requests wait. */
+  readonly #closes = new Map<string, number>();
   readonly #files: TeamWebRtcFileTransfer;
   readonly #pending = new Map<
     string,
@@ -646,6 +648,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     this.#active.delete(hostId);
     this.#retainedSessions.delete(hostId);
     this.#connectRetries.delete(hostId);
+    this.#closes.set(hostId, (this.#closes.get(hostId) ?? 0) + 1);
     this.#hostProtocols.delete(hostId);
     this.#files.setPeerAuthenticated(hostId, false);
     const disconnected = yield* TeamClientBridge.use((bridge) => bridge.disconnect(hostId)).pipe(Effect.result);
@@ -768,11 +771,15 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     this.#retainedSessions.delete(hostId);
     this.#hostProtocols.delete(hostId);
     this.#active.set(hostId, active);
+    const closes = this.#closes.get(hostId) ?? 0;
     this.#options.connectTrace?.begin(hostId);
     return yield* this.#connect(hostId, active, current?.sessionId || null, storedSession).pipe(
       Effect.tapError((failure) =>
         Effect.sync(() => {
-          if (active.cancelled) return;
+          // A failed attempt leaves `#active` before it closes the bridge. A `disconnect` in that time
+          // cannot cancel it, and a newer attempt can start.
+          const newer = this.#active.get(hostId);
+          if (active.cancelled || (newer && newer !== active) || (this.#closes.get(hostId) ?? 0) !== closes) return;
           const failures = (this.#connectRetries.get(hostId)?.failures ?? 0) + 1;
           const delay = Math.min(
             CONNECT_RETRY_LIMIT_MILLISECONDS,
