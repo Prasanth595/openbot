@@ -636,6 +636,34 @@ it.each(["error", "close"])("waits a full Signal rate window after %s", async (k
   await command({ type: "close", peerId: "all" });
 });
 
+it("does not wait the rate window after Signal refuses a ticket with 1008", async () => {
+  vi.useFakeTimers();
+  const { command } = await startBridge();
+  const connect = {
+    type: "connect",
+    peerId: "host",
+    peer: "host",
+    signalUrl: "wss://signal.test",
+    token: "test",
+    iceTransportPolicy: "all",
+  } as const;
+  await command(connect);
+  const socket = SignalSocket.instances[0];
+  if (!socket) throw new Error("No Signal socket");
+  // Signal closes with 1008 after refusals that are not a rate limit too (#1867).
+  socket.message({
+    type: "error",
+    version: 1,
+    code: "authentication_required",
+    message: "Remote ticket is invalid or expired.",
+  });
+  socket.dispatchEvent(Object.assign(new Event("close"), { code: 1008 }));
+  await command({ type: "disconnect", peerId: "host" });
+  await command(connect);
+  expect(SignalSocket.instances).toHaveLength(2);
+  await command({ type: "close", peerId: "all" });
+});
+
 it("keeps the Signal rate wait when main replaces an initial peer", async () => {
   vi.useFakeTimers();
   const { command, posted } = await startBridge();

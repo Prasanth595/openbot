@@ -170,7 +170,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
         });
       };
       load();
-      onCleanup(port.subscribe(load));
+      return port.subscribe(load);
     },
   );
   createEffect(
@@ -185,7 +185,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
         });
       };
       load();
-      onCleanup(port.subscribe(load));
+      return port.subscribe(load);
     },
   );
   // The drafts live in the conversation controller, so each channel keeps its own through a switch
@@ -227,25 +227,28 @@ export function ChannelConversation(props: ChannelConversationProps) {
     () => runtime().onAttachmentImport,
     (onAttachmentImport) => {
       if (!onAttachmentImport) return;
-      onCleanup(
-        onAttachmentImport((event) => {
-          if (event.type === "started") {
-            if (!canImportFiles()) return;
-            const pending = Promise.withResolvers<AttachmentSummary[]>();
-            desktopImports.set(event.requestId, pending);
-            addAttachments(() => pending.promise);
-            return;
-          }
-          const pending = desktopImports.get(event.requestId);
-          desktopImports.delete(event.requestId);
-          if (event.type === "error") pending?.reject(new Error(event.message));
-          else if (pending) pending.resolve(event.attachments);
-          else
-            for (const attachment of event.attachments)
-              void runtime().agent.discardDraftAttachment?.(attachment.id, event.serverId);
-        }),
-      );
-      onCleanup(() => desktopImports.clear());
+      // Returned, not `onCleanup`: an effect callback has no owner, so a closed channel kept its listener
+      // and discarded every import the agent composer then showed (#1866).
+      const unsubscribe = onAttachmentImport((event) => {
+        if (event.type === "started") {
+          if (!canImportFiles()) return;
+          const pending = Promise.withResolvers<AttachmentSummary[]>();
+          desktopImports.set(event.requestId, pending);
+          addAttachments(() => pending.promise);
+          return;
+        }
+        const pending = desktopImports.get(event.requestId);
+        desktopImports.delete(event.requestId);
+        if (event.type === "error") pending?.reject(new Error(event.message));
+        else if (pending) pending.resolve(event.attachments);
+        else
+          for (const attachment of event.attachments)
+            void runtime().agent.discardDraftAttachment?.(attachment.id, event.serverId);
+      });
+      return () => {
+        unsubscribe();
+        desktopImports.clear();
+      };
     },
   );
   const [dropActive, setDropActive] = createSignal(false);

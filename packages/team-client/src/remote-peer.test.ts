@@ -1020,6 +1020,24 @@ describe("browser remote peer recovery", () => {
     await network.runtime.dispose();
   });
 
+  it("reconnects without the rate wait when Signal closes an expired session", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const socket = network.socket();
+    // Signal closes an expired session with 1008 too, after an error frame that names it (#1867).
+    socket.receive({
+      type: "error",
+      version: 1,
+      code: "authentication_required",
+      message: "The remote session expired.",
+    });
+    socket.close(1008);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(network.sockets.length).toBeGreaterThan(1);
+    await network.runtime.dispose();
+  });
+
   it.each(["initial", "replacement"])("excludes the rate wait from the %s connection timeout", async (kind) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     let refuseHello = kind === "initial";

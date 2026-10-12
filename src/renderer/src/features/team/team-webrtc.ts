@@ -230,17 +230,19 @@ function prepareSignal(peerId: string, signalUrl: string): void {
     if (preparedSignals.get(peerId) === prepared) dropPreparedSignal(peerId);
   };
   socket.addEventListener("open", () => post({ type: "signal-open", peerId }), { signal: listeners.signal });
+  let refusal: string | null = null;
   socket.addEventListener(
     "message",
-    () => {
+    (event) => {
       prepared.refused = true;
+      refusal = signalErrorCode(event.data) ?? refusal;
     },
     { signal: listeners.signal },
   );
   socket.addEventListener(
     "close",
     (event) => {
-      if (event.code === 1008) signalRetryAt = Date.now() + 60_000;
+      holdSignalAfterClose(event.code, refusal);
       drop();
     },
     { signal: listeners.signal },
@@ -298,8 +300,11 @@ function connectSignal(state: PeerState, prepared: WebSocket | null = null): voi
       post({ type: "signal-open", peerId: state.id });
       sendHello();
     });
+  // The error frame arrives before the close, but its chained handler can run after it.
+  let refusal: string | null = null;
   socket.addEventListener("message", (event) => {
     if (!isString(event.data)) return;
+    refusal = signalErrorCode(event.data) ?? refusal;
     state.signalChain = state.signalChain
       .then(async () => {
         if (state.closed || state.socket !== socket) return;
@@ -328,7 +333,7 @@ function connectSignal(state: PeerState, prepared: WebSocket | null = null): voi
       post({ type: "peer-disconnected", peerId: state.id });
       return;
     }
-    if (event.code === 1008) signalRetryAt = Date.now() + 60_000;
+    holdSignalAfterClose(event.code, refusal);
     if (!state.closed) scheduleSignalReconnect(state);
   });
   socket.addEventListener("error", () => socket.close());
@@ -925,6 +930,24 @@ function failPeer(state: PeerState): void {
     code: "webrtc_error",
     message: sourceText("error.remote.webRtcFailed"),
   });
+}
+
+/**
+ * Signal closes with 1008 after several refusals, such as an invalid ticket or a protocol error, and
+ * sends an error frame that names it first. Only a rate limit, or a 1008 with no frame, waits (#1867).
+ */
+function holdSignalAfterClose(code: number, refusal: string | null): void {
+  if (code === 1008 && (refusal === null || refusal === "rate_limited")) signalRetryAt = Date.now() + 60_000;
+}
+
+function signalErrorCode(data: unknown): string | null {
+  if (!isString(data)) return null;
+  try {
+    const message = decodeSignalServerMessage(JSON.parse(data));
+    return message?.type === "error" ? message.code : null;
+  } catch {
+    return null;
+  }
 }
 
 function requirePeer(peerId: string): PeerState {

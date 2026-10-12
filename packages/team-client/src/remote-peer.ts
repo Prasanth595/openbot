@@ -735,6 +735,9 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     const socket = new WebSocket(state.signalUrl);
     state.socket = socket;
     state.signalReady = false;
+    // Signal closes with 1008 after several refusals, and an expired session is not a rate limit (#1867).
+    // The error frame arrives before the close, but its locked handler can run after it.
+    let refusal: string | null = null;
     socket.onopen = () => {
       if (state.closed || peer !== state || state.socket !== socket) return;
       diagnose(state, "signal-open");
@@ -750,6 +753,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     socket.onmessage = (event) => {
       if (!isString(event.data)) return;
       const data = event.data;
+      refusal = signalErrorCode(data) ?? refusal;
       void runPeerEffect(
         state.signalLock.withPermit(
           Effect.gen(function* () {
@@ -786,7 +790,8 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       state.hostWaitTimer = null;
       if (state.closed || peer !== state) return;
       if (event) state.lastSignalClose = event.code;
-      if (event?.code === 1008) signalRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
+      if (event?.code === 1008 && (refusal === null || refusal === "rate_limited"))
+        signalRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
       diagnose(state, "signal-closed", `code ${event?.code ?? "unknown"}`);
       scheduleReconnect(state, actions);
     };
@@ -1735,5 +1740,14 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
 
   function randomBase64Url(size: number): string {
     return bytesToBase64Url(crypto.getRandomValues(new Uint8Array(size)));
+  }
+}
+
+function signalErrorCode(data: string): string | null {
+  try {
+    const message = decodeSignalServerMessage(JSON.parse(data));
+    return message?.type === "error" ? message.code : null;
+  } catch {
+    return null;
   }
 }
