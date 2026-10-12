@@ -169,7 +169,10 @@ export class SignInRelayHost {
             return delivered;
           }),
         ),
-      cancel: () => undefined,
+      // The CLI keeps its own sign-in, so a refusal or a cancel only ends what this host relays.
+      cancel: () => {
+        result ??= { toolCount: 0, error: sourceText("error.mcp.relayEnded") };
+      },
     });
   }
 
