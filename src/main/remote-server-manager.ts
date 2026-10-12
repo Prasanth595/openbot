@@ -165,7 +165,7 @@ export interface DevelopmentRemoteServerConnection {
   username: string;
   sessionToken: string;
   /** The role that the host gives the technical member. A file from an older host has none. */
-  role?: TeamRole;
+  role?: TeamRole | undefined;
 }
 
 const REMOTE_DUPLICATION_TIMEOUT_MS = TEAM_WEBRTC_REMOTE_REQUEST_TIMEOUT_MILLISECONDS;
