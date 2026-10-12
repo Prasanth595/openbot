@@ -29,7 +29,10 @@ export function ThinkingTextGradient({
   muted: ColorValue;
   /** The text size of `children`, so the sizing copy lays out the same lines. */
   type?: "body" | "body-sm";
-  /** False keeps the width of the text, for a label beside other content in a row. */
+  /**
+   * True fills the parent along its main axis, for a label in a row. False sizes to the content:
+   * use it beside other content in a row, and in a column, where `flex: 1` sets the height.
+   */
   fill?: boolean;
 }>) {
   const [width, setWidth] = useState(0);
