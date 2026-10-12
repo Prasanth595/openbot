@@ -1,7 +1,7 @@
 ### Added
 
 - Search finds the same kinds of results as the desktop search: agents, channels, messages, files and routines. It also finds the settings pages of the app and of the server. The filter button next to the search field shows one kind of result. Files show when the computer has the latest OpenBot.
-- A search result opens what it names. A message or a file opens the chat at its message and marks it for a moment. A channel opens the channel, a routine opens its settings, and a settings result opens its page.
+- A search result opens what it names. A message or a file opens the chat at its message. A channel opens the channel, a routine opens its settings, and a settings result opens its page.
 - Settings > Animations has "Animate search results". It turns off the blur when search results change.
 
 ### Changed

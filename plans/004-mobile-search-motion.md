@@ -48,8 +48,11 @@ view is a render pass.
   `apps/mobile/src/shared/components/blur-reveal.tsx:15` and `chat-activity-row.tsx` already use.
 - Every timing uses `reduceMotion: ReduceMotion.Never`. The mode already decides what reduced motion
   removes: a fade carries the state change, so it stays.
-- Blur veil: `expo-blur` `BlurView`, `intensity={16}`, `tint="systemUltraThinMaterial"`,
-  `blurMethod="dimezisBlurViewSdk31Plus"` with a `BlurTargetView` target, as in `blur-reveal.tsx`.
+- Blur veil, iOS only: `expo-blur` `BlurView`, `intensity={16}`, `tint="systemUltraThinMaterial"`.
+  Android gets the same opacity and movement with no veil (decision of 2026-10-12, after a device
+  check): its `BlurTargetView` moves the children into a native view of its own, which stops the
+  layout animations of the rows, and a `BlurView` that mounts paints its tint and the window
+  background for a frame. Do not use `BlurTargetView` here.
   React Native 0.86 on iOS draws `filter: blur()` only behind the experimental
   `enableSwiftUIBasedFilters` flag, so do not use the style filter. Mount the veil only while a layer
   moves; an idle `BlurView` still costs a render pass.

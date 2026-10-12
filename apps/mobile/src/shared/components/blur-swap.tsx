@@ -1,5 +1,5 @@
-import { BlurTargetView, BlurView } from "expo-blur";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { BlurView } from "expo-blur";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -13,8 +13,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import type { TransitionMode } from "@/shared/lib/motion";
+import { isIOS } from "@/shared/lib/platform";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+// Only iOS draws the blur. On Android, `BlurTargetView` moves its children into a native view of its
+// own, which stops the layout animations of the rows inside, and a `BlurView` that mounts paints its
+// tint and the window background for a frame. Android sheets draw no blur at their edges either.
+const BLUR_VEIL = isIOS;
 // The values of `BlurReveal`, so a swap looks like the other blurred reveals of the app. A fade for
 // reduced motion is shorter: it has no movement to show. The fade carries the change, so it stays.
 const DURATION = { blur: { enter: 240, leave: 180 }, fade: { enter: 160, leave: 120 } } as const;
@@ -81,12 +86,11 @@ export function BlurSwap({
 }
 
 function SwapLayer({ layer, mode, onLeft }: { layer: Layer; mode: TransitionMode; onLeft: (key: string) => void }) {
-  const target = useRef<View | null>(null);
   const progress = useSharedValue(layer.enters ? 0 : 1);
   const [settled, setSettled] = useState(false);
   useEffect(() => setSettled(true), []);
   // The blur costs a render pass while it is mounted, so it shows only while the layer moves.
-  const [veiled, setVeiled] = useState(layer.enters && mode === "blur");
+  const [veiled, setVeiled] = useState(BLUR_VEIL && layer.enters && mode === "blur");
   const { key, leaving, enters, delay } = layer;
   useEffect(() => {
     if (mode === "none") {
@@ -98,7 +102,7 @@ function SwapLayer({ layer, mode, onLeft }: { layer: Layer; mode: TransitionMode
     }
     const duration = DURATION[mode];
     if (leaving) {
-      setVeiled(mode === "blur");
+      setVeiled(BLUR_VEIL && mode === "blur");
       progress.set(
         withTiming(0, { duration: duration.leave, easing: EASE_OUT, reduceMotion: ReduceMotion.Never }, (finished) => {
           if (finished) scheduleOnRN(onLeft, key);
@@ -133,23 +137,15 @@ function SwapLayer({ layer, mode, onLeft }: { layer: Layer; mode: TransitionMode
       importantForAccessibility={leaving ? "no-hide-descendants" : "auto"}
       style={[leaving ? { position: "absolute", top: 0, left: 0, right: 0 } : undefined, style]}
     >
-      <BlurTargetView ref={target}>
-        {/* The items of a layer move with it: they do not come in when it does, or go out after it. */}
-        <SwapLayerSettledContext value={settled}>
-          <LayoutAnimationConfig skipEntering skipExiting>
-            {layer.node}
-          </LayoutAnimationConfig>
-        </SwapLayerSettledContext>
-      </BlurTargetView>
+      {/* The items of a layer move with it: they do not come in when it does, or go out after it. */}
+      <SwapLayerSettledContext value={settled}>
+        <LayoutAnimationConfig skipEntering skipExiting>
+          {layer.node}
+        </LayoutAnimationConfig>
+      </SwapLayerSettledContext>
       {veiled ? (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, veilStyle]}>
-          <BlurView
-            blurTarget={target}
-            blurMethod="dimezisBlurViewSdk31Plus"
-            intensity={16}
-            tint="systemUltraThinMaterial"
-            style={StyleSheet.absoluteFill}
-          />
+          <BlurView intensity={16} tint="systemUltraThinMaterial" style={StyleSheet.absoluteFill} />
         </Animated.View>
       ) : null}
     </Animated.View>
@@ -201,8 +197,7 @@ export function swapItemMotion(mode: TransitionMode) {
  */
 export function BlurEnter({ mode, children }: { mode: TransitionMode; children: ReactNode }) {
   const settled = useContext(SwapLayerSettledContext);
-  const [veiled, setVeiled] = useState(mode === "blur" && settled);
-  const target = useRef<View | null>(null);
+  const [veiled, setVeiled] = useState(BLUR_VEIL && mode === "blur" && settled);
   const veil = useSharedValue(1);
   useEffect(() => {
     if (!veiled) return;
@@ -219,16 +214,10 @@ export function BlurEnter({ mode, children }: { mode: TransitionMode; children: 
   const veilStyle = useAnimatedStyle(() => ({ opacity: veil.get() }));
   return (
     <View>
-      <BlurTargetView ref={target}>{children}</BlurTargetView>
+      {children}
       {veiled ? (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, veilStyle]}>
-          <BlurView
-            blurTarget={target}
-            blurMethod="dimezisBlurViewSdk31Plus"
-            intensity={16}
-            tint="systemUltraThinMaterial"
-            style={StyleSheet.absoluteFill}
-          />
+          <BlurView intensity={16} tint="systemUltraThinMaterial" style={StyleSheet.absoluteFill} />
         </Animated.View>
       ) : null}
     </View>

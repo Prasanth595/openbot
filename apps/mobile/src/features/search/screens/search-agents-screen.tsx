@@ -5,8 +5,9 @@ import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { ListFilter, Search } from "lucide-react-native";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
+import { KeyboardController } from "react-native-keyboard-controller";
 import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
@@ -88,6 +89,14 @@ export function SearchAgentsScreen() {
   const liquidGlassAvailable = isLiquidGlassAvailable();
   const motion = useTransitionMode("searchTransitions");
   const input = useRef<MobileSearchTextInputHandle>(null);
+  // A result closes the search. On Android a closing sheet can give the focused field the keyboard
+  // again, so the field gives up its focus and stops taking focus first.
+  const [leaving, setLeaving] = useState(false);
+  const leave = useCallback(() => {
+    setLeaving(true);
+    input.current?.blur();
+    void KeyboardController.dismiss();
+  }, []);
   const filesSupported = canSearchFiles(serverId);
   // As on desktop, a server without channels or without file search shows no filter for them.
   const filters = MOBILE_SEARCH_FILTERS.filter(
@@ -327,7 +336,7 @@ export function SearchAgentsScreen() {
               onPress={() => input.current?.focus()}
             >
               <Search color={String(muted)} size={19} strokeWidth={2} />
-              <MobileSearchTextInput ref={input} value={query} onChangeText={setQuery} />
+              <MobileSearchTextInput ref={input} value={query} onChangeText={setQuery} editable={!leaving} />
             </Pressable>
           </GlassView>
           <SearchFilterButton
@@ -401,6 +410,7 @@ export function SearchAgentsScreen() {
                             query={query}
                             serverId={serverId}
                             agents={agentsById}
+                            onLeave={leave}
                           />
                         </Animated.View>
                       ))}

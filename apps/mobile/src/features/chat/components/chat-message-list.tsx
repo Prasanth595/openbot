@@ -45,11 +45,8 @@ import Animated, {
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
@@ -271,7 +268,7 @@ interface ChatMessageListProps {
   } | null;
   /** The messages of this chat that wait on the phone or failed, by row id. */
   outboxStatuses?: ReadonlyMap<string, OutboxRowStatus>;
-  /** A message from search. The chat opens at its row and marks it for a moment. */
+  /** A message from search. The chat opens at its row. */
   focusMessageId?: string | null;
   onFocusPlaced?: () => void;
 }
@@ -639,34 +636,6 @@ const MessageRow = memo(function MessageRow({
   );
 });
 
-/** Marks the row of a message from search for a moment after the chat opens at it. */
-function FocusHighlight({ onDone }: { onDone: () => void }) {
-  const opacity = useSharedValue(0);
-  useEffect(() => {
-    // A change of color, not of place, so it shows also with reduced motion.
-    opacity.set(
-      withSequence(
-        withTiming(1, { duration: 160, reduceMotion: ReduceMotion.Never }),
-        withDelay(
-          1400,
-          withTiming(0, { duration: 500, reduceMotion: ReduceMotion.Never }, (finished) => {
-            if (finished) scheduleOnRN(onDone);
-          }),
-        ),
-      ),
-    );
-  }, [opacity, onDone]);
-  const style = useAnimatedStyle(() => ({ opacity: opacity.get() }));
-  return (
-    <Animated.View
-      pointerEvents="none"
-      className="bg-accent/15"
-      // Across the list padding, from above the row to the middle of the space below it.
-      style={[{ position: "absolute", left: -16, right: -16, top: -6, bottom: 4 }, style]}
-    />
-  );
-}
-
 /** Under a user message whose turn failed. A reason that is missing or not safe to show uses the fallback. */
 function TurnFailure({ reason }: { reason: string | undefined }) {
   const { t, errorMessage } = useText();
@@ -862,8 +831,6 @@ export function ChatMessageList({
   };
   // The chat opens at the row of a message from search after the row has its place in the list.
   const placedFocus = useRef<string | null>(null);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
-  const clearHighlight = useCallback(() => setHighlightId(null), []);
   const focusId = historyState === "ready" && focusIndex >= 0 ? (visibleMessages[focusIndex]?.id ?? null) : null;
   const focusHandlers = useRef({ openAt: motion.openAt, onFocusPlaced });
   focusHandlers.current = { openAt: motion.openAt, onFocusPlaced };
@@ -871,7 +838,6 @@ export function ChatMessageList({
     if (placedFocus.current === id) return;
     placedFocus.current = id;
     focusHandlers.current.openAt(y);
-    setHighlightId(id);
     focusHandlers.current.onFocusPlaced?.();
   }, []);
   const actionHandlers = useRef({ onReply, onOpenActions, onSelectQuestion });
@@ -966,7 +932,6 @@ export function ChatMessageList({
           accessibilityElementsHidden={response && !responseVisible}
           importantForAccessibility={response && !responseVisible ? "no-hide-descendants" : "auto"}
         >
-          {item.id === highlightId ? <FocusHighlight onDone={clearHighlight} /> : null}
           <MessageRow
             message={item}
             isTailUser={index + windowStart === tailIndex}
@@ -993,8 +958,6 @@ export function ChatMessageList({
       upload,
       outboxStatuses,
       shared,
-      highlightId,
-      clearHighlight,
     ],
   );
   const activitySpec = (activity?: MobileAgentActivity): ChatActivitySpec | null => {

@@ -202,10 +202,13 @@ export function MobileSearchResultRow({
   query,
   serverId,
   agents,
+  onLeave,
 }: {
   result: MobileSearchResult;
   query: string;
   serverId: string;
+  /** Runs before a result closes the search to open what it names. */
+  onLeave: () => void;
   /** The agents of the server, by ID, for the member avatars of a channel. */
   agents: ReadonlyMap<string, MobileAgent>;
 }) {
@@ -214,6 +217,7 @@ export function MobileSearchResultRow({
   // Close the sheet and open the chat in one routing queue run. A chat opened through its home row
   // zooms back into the row when it closes. A chat opened at a message slides in.
   const openChat = (agentId: string, messageId?: string) => {
+    onLeave();
     router.back();
     if (messageId) router.push({ pathname: "/chat/[agentId]", params: { agentId, messageId } });
     else if (!gate?.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId } });
@@ -248,6 +252,7 @@ export function MobileSearchResultRow({
           trailing={formatUpdatedAt(last?.at ?? null, format)}
           query={query}
           onPress={() => {
+            onLeave();
             router.back();
             router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } });
           }}
@@ -297,6 +302,7 @@ export function MobileSearchResultRow({
           detail={setting.detail}
           query={query}
           onPress={() => {
+            onLeave();
             router.back();
             openSetting(setting.id, serverId);
           }}
@@ -313,6 +319,7 @@ export function MobileSearchResultRow({
           trailing={routine.active ? undefined : t("mobile.search.routinePaused")}
           query={query}
           onPress={() => {
+            onLeave();
             router.back();
             if (owner.kind === "agent")
               router.push({
