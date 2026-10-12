@@ -112,7 +112,7 @@ export const messages = {
   "error.remote.operationFailed": "A operação remota falhou.",
   "error.remote.connectionReplaced": "A conexão foi substituída.",
   "error.remote.desktopDidNotConnect": "O computador não se conectou.",
-  "error.remote.desktopRestarted": "O computador reiniciou. Reconectando com uma nova sessão autenticada.",
+  "error.remote.connectionDropped": "O servidor não tem mais esta conexão. Conectando novamente.",
   "error.remote.dataBeforeAuth": "O computador anfitrião enviou dados antes da autenticação.",
   "error.remote.eventStreamGap": "Há uma lacuna no fluxo de eventos do computador anfitrião.",
   "error.remote.malformedEvent": "O computador anfitrião retornou um evento malformado.",

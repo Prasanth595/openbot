@@ -26,7 +26,8 @@ adds no polling or health requests. Foreground resume reuses a healthy connectio
 workspace again without showing a reconnect. The time away decides what happens to the connection:
 after less than 30 s the path is kept. After 30 s the host stopped using the path (ICE consent), so the
 peer renews its Signal socket and restarts ICE; a host that dropped the connection answers with a new
-fingerprint, and the peer fails at once instead of after a read timeout. After 160 s Signal has told
+fingerprint, and the peer fails at once instead of after a read timeout. A connection that is lost
+while a return checks it is replaced at once, with no countdown, as when the check fails. After 160 s Signal has told
 the host to drop the connection (120 s socket idle timeout, then 30 s), so the peer is replaced on the
 same session at once, without a resume hello, and the first attempt shows Connecting. Canceled reads
 and event resets request data synchronization without showing a reconnect on a healthy connection. Invite selection and manual refresh reuse the same controller. A transient RTC

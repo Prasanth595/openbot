@@ -974,8 +974,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           .match(/^a=fingerprint:sha-256\s+([^\r\n]+)$/imu)?.[1]
           ?.trim()
           .toUpperCase();
+        // A new fingerprint is a new connection on the host: the host restarted, or it dropped this
+        // connection after Signal lost the socket, such as while iOS suspended the app.
         if (previousFingerprint && nextFingerprint !== previousFingerprint) {
-          return yield* new RemotePeerError({ message: sourceText("error.remote.desktopRestarted") });
+          return yield* new RemotePeerError({ message: sourceText("error.remote.connectionDropped") });
         }
         yield* peerCall(() => state.connection?.setRemoteDescription({ type: "answer", sdp: message.sdp }));
       } else if (message.type === "ice-candidate") {

@@ -108,8 +108,7 @@ export const messages = {
   "error.remote.operationFailed": "Uzak işlem başarısız oldu.",
   "error.remote.connectionReplaced": "Bağlantı değiştirildi.",
   "error.remote.desktopDidNotConnect": "Masaüstü bağlanmadı.",
-  "error.remote.desktopRestarted":
-    "Masaüstü yeniden başlatıldı. Yeni bir kimliği doğrulanmış oturumla yeniden bağlanılıyor.",
+  "error.remote.connectionDropped": "Sunucuda artık bu bağlantı yok. Yeniden bağlanılıyor.",
   "error.remote.dataBeforeAuth": "Ana makine kimlik doğrulamasından önce veri gönderdi.",
   "error.remote.eventStreamGap": "Ana makine etkinlik akışında bir boşluk var.",
   "error.remote.malformedEvent": "Ana makine bozuk biçimli bir etkinlik döndürdü.",

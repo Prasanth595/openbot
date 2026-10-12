@@ -64,6 +64,7 @@ const SAFE_CONNECTION_ERRORS = new Set(
     [
       "error.remote.appInBackground",
       "error.remote.connectionReplaced",
+      "error.remote.connectionDropped",
       "error.remote.selectedServerOffline",
       "error.remote.serverDisconnected",
       "error.remote.desktopOffline",
@@ -193,6 +194,8 @@ export function createRemoteConnectionRecovery(
   let retryRequested = false;
   let refreshRequested = false;
   let interrupted = false;
+  /** The running attempt checks a connection that was online, such as on a return to the app. */
+  let checking = false;
   let attempt = 0;
   let retryAt: number | null = null;
   /** Chosen when an attempt starts, so its status can show the wait that follows a failure. */
@@ -250,6 +253,7 @@ export function createRemoteConnectionRecovery(
     cancelTimer();
     running = true;
     const checkingConnection = online;
+    checking = checkingConnection;
     retryRequested = false;
     refreshRequested = false;
     interrupted = false;
@@ -332,8 +336,13 @@ export function createRemoteConnectionRecovery(
       online = false;
       if (error !== undefined) onError(error);
       retryRequested = true;
-      // Losing a connection is not a failed reconnection attempt.
-      if (!running && retryAt === null) retryAt = Date.now();
+      // Losing a connection is not a failed reconnection attempt. Neither is losing the connection that
+      // a running attempt checks: as when the check fails, its replacement starts at once, so the status
+      // shows no countdown of a failed attempt.
+      if (retryAt === null && (!running || checking)) {
+        if (running) attempt = 0;
+        retryAt = Date.now();
+      }
       scheduleRetry();
     },
     /**
