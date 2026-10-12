@@ -683,6 +683,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     },
     [request, conversationStore],
   );
+  // A stable function: an open chat reloads its history when this changes.
+  const loadLatestMessages = useCallback(
+    async (agentId: string, serverId?: string) => {
+      await loadConversation(agentId, serverId, true, true);
+    },
+    [loadConversation],
+  );
   const loadConversationAround = useCallback(
     async (agentId: string, messageId: string, serverId = activeServerIdRef.current) => {
       const generation = loadGeneration.current;
@@ -1419,9 +1426,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         ),
       loadConversation,
       loadConversationAround,
-      loadLatestMessages: async (agentId, serverId) => {
-        await loadConversation(agentId, serverId, true, true);
-      },
+      loadLatestMessages,
       loadOlderMessages,
       uploadAttachment: async (agentId, input, targetServerId, onProgress) => {
         const serverId = targetServerId ?? agents.find((candidate) => candidate.id === agentId)?.serverId;
@@ -1557,6 +1562,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     hiddenAgentIds,
     loadConversation,
     loadConversationAround,
+    loadLatestMessages,
     loadOlderMessages,
     markAgentRead,
     markAllRead,
