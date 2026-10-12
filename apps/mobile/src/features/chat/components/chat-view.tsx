@@ -94,6 +94,8 @@ export interface ChatViewProps {
 }
 
 const CHAT_BACK_EDGE_WIDTH = 24;
+/** A host starts a turn within a second or two; this only ends a wait for a turn that never shows. */
+const AWAIT_TURN_MS = 10_000;
 
 function leaveConversation(): void {
   void KeyboardController.dismiss();
@@ -270,6 +272,24 @@ export function ChatView({
   }, [isFocused, composerFocus, target.kind, target.serverId, target.id]);
   const lastUserId =
     messages.findLast((message) => message.kind === "message" && message.author === "user")?.id ?? null;
+  // The host accepted a message to an idle agent, and nothing shows its turn yet. Turn events can
+  // arrive after the read that holds the reply, so the activity row waits for the turn, the reply or
+  // a failure in the conversation. The deadline only ends a turn that never shows.
+  const [awaitingTurn, setAwaitingTurn] = useState(false);
+  const tailUserIndex = messages.findLastIndex((message) => message.kind === "message" && message.author === "user");
+  const tailUser = messages[tailUserIndex];
+  const turnShown =
+    Boolean(activity || activeTurnId) ||
+    tailUserIndex < messages.length - 1 ||
+    (tailUser?.kind === "message" && tailUser.status === "failed");
+  useEffect(() => {
+    if (awaitingTurn && turnShown) setAwaitingTurn(false);
+  }, [awaitingTurn, turnShown]);
+  useEffect(() => {
+    if (!awaitingTurn) return;
+    const timer = setTimeout(() => setAwaitingTurn(false), AWAIT_TURN_MS);
+    return () => clearTimeout(timer);
+  }, [awaitingTurn]);
   const motion = useChatMotion(
     insets.top + 84,
     keyboardOffset,
@@ -497,6 +517,7 @@ export function ChatView({
         } else if (serverId) {
           setMessageAliases((current) => new Map(current).set(serverId, localId));
           setPendingMessage((current) => (current?.message.id === localId ? { ...current, serverId } : current));
+          if (!queueSend && target.kind === "agent") setAwaitingTurn(true);
         } else {
           // Channel commands acknowledge the operation, without a message ID. Use the
           // refreshed host transcript; never guess a receipt from matching message text.
@@ -580,6 +601,7 @@ export function ChatView({
               accessibilityHidden={voiceOpen}
               motion={motion}
               sending={sending}
+              awaitingTurn={awaitingTurn}
               keyboardOffset={keyboardOffset}
               canSend={serverOnline && canSend}
               online={serverOnline}

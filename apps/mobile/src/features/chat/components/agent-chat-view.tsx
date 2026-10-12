@@ -3,6 +3,7 @@ import { useMobileSession } from "@/features/auth/context/mobile-session-context
 import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import { useApprovalRequests } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { openTurnActivity } from "@/features/workspace/model/agent-activity";
 import { latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
 import { uploadChatAttachments } from "../model/upload-chat-attachments";
 import { ChatView } from "./chat-view";
@@ -48,7 +49,7 @@ export function MobileChatView({ agent }: { agent: MobileAgent }) {
     () => projectChatMessages(Object.values(conversation?.references ?? {}), memberId, accountUserId),
     [conversation?.references, memberId, accountUserId],
   );
-  const activity = useAgentActivity(agent.id);
+  const activity = openTurnActivity(useAgentActivity(agent.id), conversation);
   const serverApprovals = useApprovalRequests(agent.serverId);
   const threadId = conversation?.threadId ?? null;
   // As on the desktop, only this chat's thread. A channel task of the same agent asks in the channel.

@@ -201,9 +201,7 @@ function PlanStep({
       </View>
       <View className="min-w-0 flex-1">
         {step.state === "active" ? (
-          <ThinkingTextGradient text={step.text} type="body" enabled foreground={colors.primary} muted={colors.muted}>
-            <Typography.Paragraph style={{ color: colors.primary }}>{step.text}</Typography.Paragraph>
-          </ThinkingTextGradient>
+          <ThinkingTextGradient text={step.text} type="body" enabled foreground={colors.primary} muted={colors.muted} />
         ) : (
           <Typography.Paragraph
             style={{

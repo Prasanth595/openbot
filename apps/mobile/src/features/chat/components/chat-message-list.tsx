@@ -28,7 +28,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { AccessibilityInfo, type CellRendererProps, FlatList, Pressable, View, type ViewStyle } from "react-native";
+import {
+  AccessibilityInfo,
+  type CellRendererProps,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { KeyboardChatScrollView, type KeyboardChatScrollViewProps } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
@@ -65,6 +73,7 @@ import { agentActivityMood, type MobileAgentActivity } from "@/features/workspac
 import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import type { ChatBubbleMessage } from "../context/message-actions-context";
 import { CHAT_HISTORY_BATCH, type ChatHistoryBoundary, chatHistoryStart } from "../model/chat-layout";
@@ -139,24 +148,28 @@ function ChatBubble({
 }: PropsWithChildren<{
   agent: boolean;
   collapsed?: boolean;
-  /** Off when Settings turns reply animation off: the bubble takes each new size at once. */
+  /** Off when Settings turns reply animation off: the background takes each new size at once. */
   animateSize: boolean;
   className: string;
   style: ComponentProps<typeof Animated.View>["style"];
 }>) {
+  // An animated size needs a layout event in JS for each new size. Android sends them late enough
+  // that the background trails the text, so there, as with the animation off, the background fills
+  // the bubble in the same layout pass as the text.
+  const sized = agent && animateSize && !isAndroid;
   const size = useSharedValue({ width: 0, height: 0, measured: false });
   const shown = useSharedValue(collapsed ? 0 : 1);
   useEffect(() => {
     shown.set(collapsed ? 0 : withTiming(1, REPLY_APPEAR));
   }, [collapsed, shown]);
   const background = useAnimatedStyle(() => {
+    if (!sized) return { opacity: shown.get() };
     const { width, height, measured } = size.get();
     // The first measurement is adopted without motion; only later growth during streaming animates.
-    const animate = measured && animateSize;
     return {
       opacity: shown.get(),
-      width: animate ? withTiming(width, REPLY_SIZE) : width,
-      height: animate ? withTiming(height, REPLY_SIZE) : height,
+      width: measured ? withTiming(width, REPLY_SIZE) : width,
+      height: measured ? withTiming(height, REPLY_SIZE) : height,
     };
   });
   return (
@@ -164,7 +177,7 @@ function ChatBubble({
       className={className}
       style={style}
       onLayout={
-        agent
+        sized
           ? ({ nativeEvent }) => {
               const previous = size.get();
               size.set({
@@ -180,9 +193,11 @@ function ChatBubble({
           content once, without a layout animation moving its native anchor. */}
       {agent ? (
         <Animated.View
+          // A new view when the setting changes, so a filled background keeps no animated size.
+          key={sized ? "sized" : "filled"}
           pointerEvents="none"
           className="absolute left-0 top-0 rounded-[30px] bg-control/60"
-          style={[{ borderCurve: "circular" }, background]}
+          style={[{ borderCurve: "circular" }, sized ? null : StyleSheet.absoluteFill, background]}
         />
       ) : null}
       {children}
@@ -199,6 +214,8 @@ interface ChatMessageListProps {
   agents: MobileAgent[];
   motion: ChatMotion;
   sending: boolean;
+  /** The host accepted the sent message, and its turn does not show yet. */
+  awaitingTurn: boolean;
   keyboardOffset: number;
   canSend: boolean;
   online: boolean;
@@ -628,6 +645,7 @@ export function ChatMessageList({
   agents,
   motion,
   sending,
+  awaitingTurn,
   keyboardOffset,
   canSend,
   online,
@@ -892,7 +910,11 @@ export function ChatMessageList({
         message.body.trim() &&
         (!activity?.agentId || !message.speaker || message.speaker.id === activity.agentId),
     );
-    const thinkingDetail = !replying && latestThinking?.kind === "thinking" ? latestThinking.steps.at(-1)?.text : null;
+    // One run of text, as desktop shows it: the row clamps the label, and blank lines would fill it.
+    const thinkingDetail =
+      !replying && latestThinking?.kind === "thinking"
+        ? latestThinking.steps.at(-1)?.text.replace(/\s+/gu, " ").trim()
+        : null;
     const activityLabel =
       sending && !activity
         ? t("common.sending")
@@ -918,15 +940,14 @@ export function ChatMessageList({
       : target.kind === "agent"
         ? target
         : undefined;
-    if (!(activity || sending || messages.some(isStreamingReply) || pendingReveal)) return null;
+    // As on desktop, the conversation's own turn keeps the row: turn events can arrive late.
+    if (!(activity || sending || awaitingTurn || activeTurnId || messages.some(isStreamingReply) || pendingReveal))
+      return null;
     return {
       // The agent, not the signal that reported it: a turn moves from the local send flag to the
       // host's activity to the reply without remounting the avatar.
       key: activity?.agentId ?? activityAgent?.id ?? target.id,
       label: activityLabel,
-      labelKey:
-        (thinkingDetail && latestThinking?.kind === "thinking" ? latestThinking.steps.at(-1)?.id : activityLabel) ??
-        activityLabel,
       accessibilityLabel: `${activityAgent?.name ?? target.name}: ${activityLabel}`,
       agent: activityAgent,
       mood: animateMessages ? agentActivityMood(activity) : "idle",
@@ -938,7 +959,6 @@ export function ChatMessageList({
         motion.responseVisible &&
         !reducedMotion &&
         activity?.phase !== "waiting",
-      reveal: animateMessages && motion.historyVisible && motion.responseVisible && !reducedMotion,
     };
   };
   const activityRows = useActivityPresence(

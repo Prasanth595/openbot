@@ -171,7 +171,7 @@ vi.mock("@/features/workspace/context/mobile-workspace-context", () => ({
 }));
 vi.mock("@/features/agents/components/bloub-avatar", () => ({ BloubAvatarThumbnail: () => null }));
 vi.mock("../components/thinking-text-gradient", () => ({
-  ThinkingTextGradient: ({ children }: PropsWithChildren) => children,
+  ThinkingTextGradient: ({ text }: { text: string }) => <span>{text}</span>,
 }));
 vi.mock("@/shared/components/sheet-form-field", () => ({
   SheetFormField: ({
