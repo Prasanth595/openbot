@@ -316,7 +316,8 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
   };
 
   return (
-    <div class="browser-live-view">
+    // The page takes the keys and a paste, so a screen reader passes them through to it.
+    <div class="browser-live-view" role="application" aria-label={t("browser.liveView.label")}>
       <canvas
         ref={setCanvas}
         tabindex="0"
