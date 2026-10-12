@@ -91,7 +91,10 @@ function memberCanvas(canvas: RoutineFlowCanvas, hidden: ReadonlySet<string>, ad
         steps: flow.steps.map(clipStep),
       })),
     links: canvas.links.filter((link) => visibleRoutineIds.has(link.routineId)),
-    positions: canvas.positions.filter((position) => !hidden.has(nodeAgentId(position.nodeKey) ?? "")),
+    positions: canvas.positions.filter((position) => {
+      const routineId = nodeRoutineId(position.nodeKey);
+      return routineId ? visibleRoutineIds.has(routineId) : !hidden.has(nodeAgentId(position.nodeKey) ?? "");
+    }),
     placedAgentIds: canvas.placedAgentIds.filter((agentId) => !hidden.has(agentId)),
   };
   const oldestFirst = [...result.routines].sort((left, right) =>
@@ -123,6 +126,10 @@ function nodeAgentId(nodeKey: string): string | null {
   return nodeKey.startsWith("agent:") ? nodeKey.slice("agent:".length) : null;
 }
 
+function nodeRoutineId(nodeKey: string): string | null {
+  return nodeKey.startsWith("routine:") ? nodeKey.slice("routine:".length) : null;
+}
+
 /**
  * The routine canvas of an agent, its node positions, and the links that hand a routine's answer on.
  * Any member can use them for the agents the member can see; every agent, routine or link that a
@@ -151,6 +158,12 @@ export async function routeRoutineFlows(
     const touched = await run(routineFlows.agentsOf(ref));
     if (!touched?.every((agentId) => !hiddenAgentIds.has(agentId))) agentNotFound();
   };
+  /** A node is an agent or a routine, and either one must be visible to the caller. */
+  const requireVisibleNode = async (agentId: string, nodeKey: string) => {
+    requireVisible(agentId, ...nodeAgentIds(nodeKey));
+    const routineId = nodeRoutineId(nodeKey);
+    if (routineId) await requireVisibleFlow({ routineId });
+  };
   switch (path) {
     case ROUTINE_FLOWS_ROUTES.canvas: {
       const agentId = stringField(body, "agentId");
@@ -160,13 +173,13 @@ export async function routeRoutineFlows(
     }
     case ROUTINE_FLOWS_ROUTES.savePosition: {
       const input = parse(parseSaveRoutineFlowPosition, body);
-      requireVisible(input.agentId, ...nodeAgentIds(input.nodeKey));
+      await requireVisibleNode(input.agentId, input.nodeKey);
       await run(routineFlows.savePosition(input));
       return json(200, {});
     }
     case ROUTINE_FLOWS_ROUTES.removePosition: {
       const input = parse(parseRemoveRoutineFlowPosition, body);
-      requireVisible(input.agentId, ...nodeAgentIds(input.nodeKey));
+      await requireVisibleNode(input.agentId, input.nodeKey);
       await run(routineFlows.removePosition(input));
       return json(200, {});
     }

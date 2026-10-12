@@ -74,6 +74,8 @@ const CANVAS: RoutineFlowCanvas = {
   positions: [
     { nodeKey: "agent:writer", x: 10, y: 20 },
     { nodeKey: "agent:hidden", x: 30, y: 40 },
+    { nodeKey: "routine:daily", x: 50, y: 60 },
+    { nodeKey: "routine:leaky", x: 70, y: 80 },
   ],
   placedAgentIds: ["writer", "hidden"],
 };
@@ -133,7 +135,7 @@ describe("Team API routine-flows-v1", () => {
     // The routine that hands work to a hidden agent, its link and the hidden node are left out.
     expect(canvas.routines.map(({ routine }) => routine.id)).toEqual(["daily"]);
     expect(canvas.links.map((item) => item.id)).toEqual(["to-writer"]);
-    expect(canvas.positions.map((position) => position.nodeKey)).toEqual(["agent:writer"]);
+    expect(canvas.positions.map((position) => position.nodeKey)).toEqual(["agent:writer", "routine:daily"]);
     expect(canvas.placedAgentIds).toEqual(["writer"]);
     // Only an owner or admin reads a webhook URL, as `events-v1` keeps it.
     expect(canvas.routines[0]?.routine.trigger).toMatchObject({ kind: "webhook", url: null });
@@ -155,12 +157,17 @@ describe("Team API routine-flows-v1", () => {
     });
     expect(await update.json()).toMatchObject({ id: "to-writer", instruction: "Edit." });
     expect((await send(memberToken, ROUTINE_FLOWS_ROUTES.disconnect, { linkId: "to-writer" })).status).toBe(200);
+    const moved = { agentId: "chief", nodeKey: "routine:daily", x: 1, y: 2 };
+    expect((await send(memberToken, ROUTINE_FLOWS_ROUTES.savePosition, moved)).status).toBe(200);
 
     const missing = { error: sourceText("error.team.agentNotFound") };
     const refused = [
       [ROUTINE_FLOWS_ROUTES.canvas, { agentId: "hidden" }],
       [ROUTINE_FLOWS_ROUTES.savePosition, { agentId: "chief", nodeKey: "agent:hidden", x: 1, y: 2 }],
       [ROUTINE_FLOWS_ROUTES.removePosition, { agentId: "hidden", nodeKey: "agent:writer" }],
+      [ROUTINE_FLOWS_ROUTES.savePosition, { agentId: "chief", nodeKey: "routine:leaky", x: 1, y: 2 }],
+      [ROUTINE_FLOWS_ROUTES.savePosition, { agentId: "chief", nodeKey: "routine:gone", x: 1, y: 2 }],
+      [ROUTINE_FLOWS_ROUTES.removePosition, { agentId: "chief", nodeKey: "routine:leaky" }],
       [ROUTINE_FLOWS_ROUTES.connect, { routineId: "daily", fromAgentId: "chief", toAgentId: "hidden" }],
       [ROUTINE_FLOWS_ROUTES.connect, { routineId: "leaky", fromAgentId: "chief", toAgentId: "writer" }],
       [ROUTINE_FLOWS_ROUTES.connect, { routineId: "gone", fromAgentId: "chief", toAgentId: "writer" }],

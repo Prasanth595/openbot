@@ -72,6 +72,16 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
   let reloadTimer: number | undefined;
   /** Moves waiting to be saved, by node: the timer, and the save it runs. */
   const pendingSaves = new Map<string, { timer: number; save: () => void }>();
+  /** Position saves sent and not yet answered, by node. */
+  const savesInFlight = new Map<string, number>();
+  const trackSave = <A,>(nodeKey: string, save: Promise<A>): Promise<A> => {
+    savesInFlight.set(nodeKey, (savesInFlight.get(nodeKey) ?? 0) + 1);
+    return save.finally(() => {
+      const count = (savesInFlight.get(nodeKey) ?? 1) - 1;
+      if (count > 0) savesInFlight.set(nodeKey, count);
+      else savesInFlight.delete(nodeKey);
+    });
+  };
 
   /** A load for an agent the user has left, such as one after a slow write, changes nothing. */
   const load = async (id: string) => {
@@ -84,6 +94,10 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
       setState((draft) => {
         draft.canvas = canvas;
         draft.error = null;
+        // The host now has every saved move, and another client may have moved the same node since.
+        for (const nodeKey of Object.keys(draft.moved)) {
+          if (!pendingSaves.has(nodeKey) && !savesInFlight.has(nodeKey)) delete draft.moved[nodeKey];
+        }
       });
     } catch (error) {
       if (stale()) return;
@@ -166,8 +180,7 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
       draft.moved[key] = position;
       if (draft.canvas && !draft.canvas.placedAgentIds.includes(placed)) draft.canvas.placedAgentIds.push(placed);
     });
-    host()
-      .flows.savePosition({ agentId: canvasAgentId, nodeKey: key, x: position.x, y: position.y })
+    trackSave(key, host().flows.savePosition({ agentId: canvasAgentId, nodeKey: key, x: position.x, y: position.y }))
       .then(() => load(canvasAgentId))
       .catch((error) => {
         setState((draft) => {
@@ -236,9 +249,9 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
     window.clearTimeout(pendingSaves.get(nodeKey)?.timer);
     const save = () => {
       pendingSaves.delete(nodeKey);
-      host()
-        .flows.savePosition({ agentId: canvasAgentId, nodeKey, x: point.x, y: point.y })
-        .catch(failed(t("diagram.flows.saveFailed")));
+      trackSave(nodeKey, host().flows.savePosition({ agentId: canvasAgentId, nodeKey, x: point.x, y: point.y })).catch(
+        failed(t("diagram.flows.saveFailed")),
+      );
     };
     pendingSaves.set(nodeKey, { timer: window.setTimeout(save, SAVE_DELAY_MS), save });
   };
