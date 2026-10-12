@@ -1010,8 +1010,10 @@ export class ProviderRuntime implements ProviderPort {
     this: ProviderRuntime,
     provider: AgentProvider,
   ) {
+    // Codex signs in through its app-server, not a CLI login, and holds its callback port until it ends.
+    const browser = requireProviderDriver(provider).signIn.kind === "browser";
     return yield* this.#runProviderConnectionCommand(provider, () =>
-      this.#cancelCliLogin(provider).pipe(Effect.map(() => this.status())),
+      (browser ? this.#codexLogin.cancel(null) : this.#cancelCliLogin(provider)).pipe(Effect.map(() => this.status())),
     );
   }).bind(this);
 

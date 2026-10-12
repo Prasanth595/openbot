@@ -70,6 +70,11 @@ export function webMcpRelay(
   ): Promise<McpTestResult> {
     const { flowId } = await run(start);
     const status = () => run(signInRelayStatus(request, flowId));
+    // A new sign-in of the same link can start before this one ends, so this one removes only its own wait.
+    let own: RelayWait | null = null;
+    const forget = () => {
+      if (own !== null && waits.get(url) === own) waits.delete(url);
+    };
     try {
       let current: SignInRelayStatus = await status();
       while (!current.result && !current.authorizeUrl) {
@@ -89,13 +94,14 @@ export function webMcpRelay(
       });
       const view = { authorizeHost: page.host, listening: false, pasteable: true };
       const cancel = () => void run(cancelSignInRelay(request, flowId)).catch(() => undefined);
-      waits.set(url, { cancel, page, view, state: page.searchParams.get("state"), receive });
+      own = { cancel, page, view, state: page.searchParams.get("state"), receive };
+      waits.set(url, own);
       onPage(url, view);
       // The host can end the sign-in first: its deadline passed, or the user cancelled.
       while (true) {
         const query = await Promise.race([pasted, pause()]);
         if (query !== null) {
-          waits.delete(url);
+          forget();
           current = await run(completeSignInRelay(request, flowId, query));
           break;
         }
@@ -111,8 +117,8 @@ export function webMcpRelay(
       void run(cancelSignInRelay(request, flowId)).catch(() => undefined);
       throw error;
     } finally {
-      waits.delete(url);
-      onPage(url, null);
+      forget();
+      if (!waits.has(url)) onPage(url, null);
     }
   }
 

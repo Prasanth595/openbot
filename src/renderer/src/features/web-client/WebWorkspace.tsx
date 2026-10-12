@@ -581,8 +581,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     relaySupported: () => workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY),
   });
   const marketplaceCalls = createWebMarketplaceCalls(props.accountFetch, hostRequest);
-  // The host's GitHub connection, for an owner or admin. The host advertises `connectors-v1` only when
-  // it has a GitHub App.
+  // The host's GitHub connection, for an owner or admin, when the host has a GitHub App.
   const githubPort = webGitHubConnectorPort(() => hostRequest());
   const githubController = createGitHubConnector(
     () => githubPort,
@@ -599,7 +598,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       if (id) githubController.reload();
     },
   );
-  const githubConnector = () => (githubEnabled() ? githubController : undefined);
+  const githubConnector = () => (githubEnabled() && githubController.status().available ? githubController : undefined);
   const agentTemplateCalls = createWebAgentTemplateCalls(props.accountFetch, hostRequest);
   const [marketplaceOpen, setMarketplaceOpen] = createSignal(false);
   // A link opens its overlay once it has arrived, which can be after sign-in.
