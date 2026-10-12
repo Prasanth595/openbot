@@ -579,17 +579,13 @@
 /*
  * Live dictation: ComposerEditor.tsx explains the read-only copy that shows in place of the editor.
  * The editor stays focusable under the copy, so keys still edit and send the draft, and screen
- * readers keep the textbox. Clicks pass through the copy to the composer, which focuses the editor.
+ * readers keep the textbox. The copy scrolls a long draft and gives a click to the editor.
  */
 .composer-editor-root[data-dictating] > [role="textbox"] {
   position: absolute;
   inset: 0;
   overflow: hidden;
   opacity: 0;
-  pointer-events: none;
-}
-
-.composer-dictation {
   pointer-events: none;
 }
 

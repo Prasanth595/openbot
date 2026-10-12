@@ -773,6 +773,13 @@ export function ComposerEditor(props: ComposerEditorProps) {
           ref={(element) => (dictationView = element)}
           class="composer-editor-surface composer-dictation"
           data-final={props.dictation?.final ? "" : undefined}
+          // The editor under this copy takes the keys, so a click here gives it the focus.
+          onPointerDown={(event) => {
+            event.preventDefault();
+            if (!editor) return;
+            editor.focus({ preventScroll: true });
+            placeCaretAtEnd(editor);
+          }}
         >
           <div
             ref={(element) => (dictationDraft = element)}
