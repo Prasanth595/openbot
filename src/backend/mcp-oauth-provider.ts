@@ -73,7 +73,7 @@ export const mcpOAuthRecordSchema = z.object({
 });
 
 export type McpOAuthRecord = z.infer<typeof mcpOAuthRecordSchema>;
-export type McpOAuthApp = NonNullable<McpOAuthRecord["app"]>;
+type McpOAuthApp = NonNullable<McpOAuthRecord["app"]>;
 
 /** What a reader may see of a sign-in app. The secret itself never leaves the store. */
 export interface McpOAuthAppSummary {
