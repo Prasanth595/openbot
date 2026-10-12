@@ -26,6 +26,7 @@ const owner = {
 
 interface PublishedSkill {
   featured: boolean;
+  unlisted: boolean;
   id: string;
   versionId: string;
   icon: string;
@@ -69,7 +70,7 @@ export function createPublicationSql(publication: Publication, publishedAt: numb
   for (const skill of publication.skills) {
     const bundleKey = remoteBundleKey(skill);
     statements.push(
-      `INSERT INTO marketplace_skills(id, slug, owner_user_id, approved_version_id, installs, featured, show_creator_avatar, created_at, updated_at) VALUES (${sql(skill.id)}, ${sql(skill.slug)}, ${sql(owner.id)}, NULL, 0, ${skill.featured ? 1 : 0}, 1, ${publishedAt}, ${publishedAt}) ON CONFLICT(id) DO UPDATE SET slug = excluded.slug, owner_user_id = excluded.owner_user_id, show_creator_avatar = excluded.show_creator_avatar, updated_at = excluded.updated_at;`,
+      `INSERT INTO marketplace_skills(id, slug, owner_user_id, approved_version_id, installs, featured, unlisted, show_creator_avatar, created_at, updated_at) VALUES (${sql(skill.id)}, ${sql(skill.slug)}, ${sql(owner.id)}, NULL, 0, ${skill.featured ? 1 : 0}, ${skill.unlisted ? 1 : 0}, 1, ${publishedAt}, ${publishedAt}) ON CONFLICT(id) DO UPDATE SET slug = excluded.slug, owner_user_id = excluded.owner_user_id, unlisted = excluded.unlisted, show_creator_avatar = excluded.show_creator_avatar, updated_at = excluded.updated_at;`,
       `INSERT INTO marketplace_skill_versions(id, skill_id, version, name, description, category, status, rejection_note, bundle_key, bundle_sha256, files_json, icon_key, created_at, reviewed_at) VALUES (${sql(skill.versionId)}, ${sql(skill.id)}, ${skill.version}, ${sql(skill.name)}, ${sql(skill.description)}, ${sql(skill.category)}, 'approved', NULL, ${sql(bundleKey)}, ${sql(skill.bundleSha256)}, ${sql(JSON.stringify(skill.files))}, ${sql(remoteIconKey(skill))}, ${publishedAt}, ${publishedAt}) ON CONFLICT(id) DO NOTHING;`,
       /* The version row is immutable except for its artwork, which a release before the catalog
          carried icons left empty. Only that column is repaired here. */
@@ -191,6 +192,7 @@ function parseSkill(value: unknown): PublishedSkill {
   if (
     !isDynamicRecord(value) ||
     typeof value.featured !== "boolean" ||
+    typeof value.unlisted !== "boolean" ||
     !isString(value.id) ||
     !isString(value.versionId) ||
     !isString(value.slug) ||
@@ -208,6 +210,7 @@ function parseSkill(value: unknown): PublishedSkill {
   }
   return {
     featured: value.featured,
+    unlisted: value.unlisted,
     id: value.id,
     versionId: value.versionId,
     slug: value.slug,

@@ -25,6 +25,7 @@ describe("production catalog publication", () => {
       skills: [
         {
           featured: true,
+          unlisted: false,
           id: "openbot-curated-skill-example",
           versionId: "openbot-curated-version-example-v1-deadbeefdeadbeef",
           slug: "example",
@@ -113,7 +114,7 @@ CREATE TABLE users (
 );
 CREATE TABLE marketplace_skills (
   id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, owner_user_id TEXT NOT NULL REFERENCES users(id),
-  approved_version_id TEXT, installs INTEGER NOT NULL DEFAULT 0, featured INTEGER NOT NULL DEFAULT 0, show_creator_avatar INTEGER NOT NULL DEFAULT 0,
+  approved_version_id TEXT, installs INTEGER NOT NULL DEFAULT 0, featured INTEGER NOT NULL DEFAULT 0, unlisted INTEGER NOT NULL DEFAULT 0, show_creator_avatar INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
 );
 CREATE TABLE marketplace_skill_versions (

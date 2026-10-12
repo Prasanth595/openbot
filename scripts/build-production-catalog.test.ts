@@ -25,10 +25,16 @@ describe("production marketplace catalog", () => {
     );
     const catalog = await readCatalog(join(first, "catalog.json"));
     const skills = catalog.skills;
-    expect(skills).toHaveLength(20);
+    expect(skills).toHaveLength(21);
     for (const value of skills) {
       const bytes = new Uint8Array(await readFile(join(first, value.bundle)));
       const bundle = unzipSync(bytes);
+      if (value.slug === "pstack") {
+        expect(Object.keys(bundle)).toEqual(expect.arrayContaining(["LICENSE", "NOTICE.md", "SKILL.md"]));
+        expect(new TextDecoder().decode(bundle.LICENSE)).toContain("MIT License");
+        expect(value.unlisted).toBe(true);
+        continue;
+      }
       expect(Object.keys(bundle).sort()).toEqual(["LICENSE.txt", "NOTICE.txt", "SKILL.md"]);
       const license = new TextDecoder().decode(bundle["LICENSE.txt"]);
       expect(license).toContain(
@@ -69,7 +75,7 @@ describe("production marketplace catalog", () => {
     const catalog = await readCatalog(join(output, "catalog.json"));
     const skillIds = new Set(catalog.skills.map((skill) => skill.id));
     const agents = await readAgents(join(output, "agents.json"));
-    expect(agents).toHaveLength(15);
+    expect(agents).toHaveLength(16);
     for (const value of agents) {
       expect(value.routines).toEqual([]);
       for (const skill of value.skills) {
@@ -98,6 +104,7 @@ interface GeneratedSkill {
   icon: string;
   category: string;
   slug: string;
+  unlisted: boolean;
 }
 
 interface GeneratedAgent {
@@ -119,7 +126,8 @@ function parseGeneratedSkill(value: unknown): GeneratedSkill {
     !isString(value.bundle) ||
     !isString(value.icon) ||
     !isString(value.category) ||
-    !isString(value.slug)
+    !isString(value.slug) ||
+    typeof value.unlisted !== "boolean"
   ) {
     throw new Error("Generated catalog contains an invalid skill.");
   }
@@ -131,6 +139,7 @@ function parseGeneratedSkill(value: unknown): GeneratedSkill {
     icon: value.icon,
     category: value.category,
     slug: value.slug,
+    unlisted: value.unlisted,
   };
 }
 

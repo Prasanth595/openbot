@@ -9,6 +9,10 @@
     "anthropic": {
       "repository": "https://github.com/anthropics/skills",
       "commit": "3b3fad96af16a10759d930941b4520ba0c40edae"
+    },
+    "cursor": {
+      "repository": "https://github.com/cursor/plugins",
+      "commit": "1b6d44ff26d4e242f4e8f68c391e6d2f7ca16def"
     }
   },
   "skills": [
@@ -131,6 +135,14 @@
       "category": "other",
       "source": "openbot",
       "featured": false
+    },
+    {
+      "slug": "pstack",
+      "category": "coding",
+      "source": "cursor",
+      "upstreamSkill": "pstack",
+      "featured": false,
+      "unlisted": true
     }
   ],
   "agents": [
@@ -280,6 +292,15 @@
       "avatarHue": 280,
       "skills": ["hiring-scorecard", "meeting-actions"],
       "featured": false
+    },
+    {
+      "slug": "pstack",
+      "name": "pstack",
+      "title": "Goes deep first, then writes less and better code",
+      "description": "Runs poteto's pstack workflows: rigorous playbooks, engineering principles, deliberate subagents, and verified work. Start with /pstack.",
+      "avatarHue": 55,
+      "skills": ["pstack"],
+      "category": "coding"
     }
   ]
 }

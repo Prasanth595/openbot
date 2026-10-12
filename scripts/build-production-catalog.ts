@@ -24,11 +24,18 @@ interface UpstreamSource {
   commit: string;
 }
 
+type UpstreamProvider = "openai" | "anthropic" | "cursor";
+
+/**
+ * A `cursor` skill is a vendored multi-file bundle in `bundles/<slug>/`, published with its own
+ * license and notice files. An unlisted skill is installed only through the agents that pin it.
+ */
 type SkillSpec = {
   slug: string;
   category: SkillCategory;
   featured: boolean;
-} & ({ source: "openbot" } | { source: "openai" | "anthropic"; upstreamSkill: string });
+  unlisted: boolean;
+} & ({ source: "openbot" } | { source: UpstreamProvider; upstreamSkill: string });
 
 interface AgentSpec {
   category: SkillCategory;
@@ -44,7 +51,7 @@ interface AgentSpec {
 interface CatalogSpec {
   schemaVersion: number;
   catalogVersion: string;
-  sources: Record<"openai" | "anthropic", UpstreamSource>;
+  sources: Record<UpstreamProvider, UpstreamSource>;
   skills: SkillSpec[];
   agents: AgentSpec[];
 }
@@ -63,11 +70,12 @@ interface BuiltSkill {
   bundleSha256: string;
   files: string[];
   featured: boolean;
-  license: "Apache-2.0" | "PolyForm-Noncommercial-1.0.0";
+  unlisted: boolean;
+  license: "Apache-2.0" | "MIT" | "PolyForm-Noncommercial-1.0.0";
   source:
     | { provider: "openbot"; url: string }
     | {
-        provider: "openai" | "anthropic";
+        provider: UpstreamProvider;
         upstreamSkill: string;
         repository: string;
         commit: string;
@@ -90,21 +98,11 @@ export async function buildProductionCatalog(outputArgument?: string): Promise<s
     const builtSkills: BuiltSkill[] = [];
 
     for (const skill of spec.skills) {
-      const markdown = await readFile(join(sourceRoot, "skills", skill.slug, "SKILL.md"), "utf8");
-      validateSkillMarkdown(skill.slug, markdown);
-      const notice =
-        skill.source === "openbot"
-          ? "Original Skill instructions by the OpenBot team. Licensed under PolyForm Noncommercial 1.0.0 (LICENSE.txt).\n"
-          : createSkillNotice(skill, spec.sources[skill.source]);
-      const archive = zipSync(
-        {
-          "LICENSE.txt": [utf8Bytes(skill.source === "openbot" ? openbotLicense : license), { mtime: zipTimestamp }],
-          "NOTICE.txt": [utf8Bytes(notice), { mtime: zipTimestamp }],
-          "SKILL.md": [utf8Bytes(markdown), { mtime: zipTimestamp }],
-        },
-        { level: 9 },
-      );
-      const preview = inspectGeneratedArchive(archive);
+      const archive =
+        skill.source === "cursor"
+          ? await vendoredArchive(skill.slug)
+          : await promptArchive(skill, skill.source === "openbot" ? openbotLicense : license, spec.sources);
+      const preview = inspectGeneratedArchive(archive, skill.source === "cursor");
       if (preview.slug !== skill.slug) {
         throw new Error(`Skill folder ${skill.slug} does not match its SKILL.md name (${preview.slug}).`);
       }
@@ -128,7 +126,8 @@ export async function buildProductionCatalog(outputArgument?: string): Promise<s
         bundleSha256,
         files: preview.files,
         featured: skill.featured,
-        license: skill.source === "openbot" ? "PolyForm-Noncommercial-1.0.0" : "Apache-2.0",
+        unlisted: skill.unlisted,
+        license: skillLicense(skill.source),
         source:
           skill.source === "openbot"
             ? {
@@ -180,13 +179,50 @@ export function validateSkillMarkdown(slug: string, markdown: string): void {
   }
 }
 
-function inspectGeneratedArchive(archive: Uint8Array) {
+async function promptArchive(skill: SkillSpec, license: string, sources: CatalogSpec["sources"]): Promise<Uint8Array> {
+  const markdown = await readFile(join(sourceRoot, "skills", skill.slug, "SKILL.md"), "utf8");
+  validateSkillMarkdown(skill.slug, markdown);
+  const notice =
+    skill.source === "openbot"
+      ? "Original Skill instructions by the OpenBot team. Licensed under PolyForm Noncommercial 1.0.0 (LICENSE.txt).\n"
+      : createSkillNotice(skill, sources[skill.source]);
+  return zipSync(
+    {
+      "LICENSE.txt": [utf8Bytes(license), { mtime: zipTimestamp }],
+      "NOTICE.txt": [utf8Bytes(notice), { mtime: zipTimestamp }],
+      "SKILL.md": [utf8Bytes(markdown), { mtime: zipTimestamp }],
+    },
+    { level: 9 },
+  );
+}
+
+/** Every file of the vendored bundle, unchanged. Only the entry `SKILL.md` must stay dependency-free. */
+async function vendoredArchive(slug: string): Promise<Uint8Array> {
+  const root = join(sourceRoot, "bundles", slug);
+  const files = await listRelativeFiles(root);
+  if (!files.includes("LICENSE") || !files.includes("NOTICE.md")) {
+    throw new Error(`Vendored skill ${slug} must include LICENSE and NOTICE.md.`);
+  }
+  validateSkillMarkdown(slug, await readFile(join(root, "SKILL.md"), "utf8"));
+  const entries: Record<string, [Uint8Array, { mtime: Date }]> = {};
+  for (const file of files) {
+    entries[file] = [new Uint8Array(await readFile(join(root, file))), { mtime: zipTimestamp }];
+  }
+  return zipSync(entries, { level: 9 });
+}
+
+function skillLicense(source: SkillSpec["source"]): BuiltSkill["license"] {
+  if (source === "openbot") return "PolyForm-Noncommercial-1.0.0";
+  return source === "cursor" ? "MIT" : "Apache-2.0";
+}
+
+function inspectGeneratedArchive(archive: Uint8Array, vendored: boolean) {
   if (archive.byteLength === 0 || archive.byteLength > 10 * 1024 * 1024) {
     throw new Error("Generated skill archive exceeds the marketplace size limit.");
   }
   const entries = unzipSync(archive);
   const files = Object.keys(entries).sort();
-  if (files.join("\n") !== "LICENSE.txt\nNOTICE.txt\nSKILL.md") {
+  if (vendored ? files.length > 200 : files.join("\n") !== "LICENSE.txt\nNOTICE.txt\nSKILL.md") {
     throw new Error(
       `Generated skill archive contains ${files.length} unexpected files: ${files.slice(0, 10).join(", ")}.`,
     );
@@ -276,6 +312,7 @@ function parseSources(value: unknown): CatalogSpec["sources"] {
   return {
     openai: parseSource(value.openai, "openai"),
     anthropic: parseSource(value.anthropic, "anthropic"),
+    cursor: parseSource(value.cursor, "cursor"),
   };
 }
 
@@ -296,13 +333,23 @@ function parseSkillSpec(value: unknown): SkillSpec {
     !isDynamicRecord(value) ||
     !isString(value.slug) ||
     !isSkillCategory(value.category) ||
-    (value.source !== "openai" && value.source !== "anthropic" && value.source !== "openbot") ||
+    (value.source !== "openai" &&
+      value.source !== "anthropic" &&
+      value.source !== "cursor" &&
+      value.source !== "openbot") ||
     (value.source !== "openbot" && !isString(value.upstreamSkill)) ||
-    (value.featured !== undefined && typeof value.featured !== "boolean")
+    (value.featured !== undefined && typeof value.featured !== "boolean") ||
+    (value.unlisted !== undefined && typeof value.unlisted !== "boolean") ||
+    (value.featured === true && value.unlisted === true)
   ) {
     throw new Error("Production catalog contains an invalid skill.");
   }
-  const base = { slug: value.slug, category: value.category, featured: value.featured === true };
+  const base = {
+    slug: value.slug,
+    category: value.category,
+    featured: value.featured === true,
+    unlisted: value.unlisted === true,
+  };
   if (value.source === "openbot") return { ...base, source: "openbot" };
   if (!isString(value.upstreamSkill)) throw new Error("Upstream skill is required.");
   return { ...base, source: value.source, upstreamSkill: value.upstreamSkill };
@@ -344,12 +391,15 @@ function createUpstreamNotices(spec: CatalogSpec, skills: BuiltSkill[]): string 
   const entries = skills.map((skill) =>
     skill.source.provider === "openbot"
       ? `- **${skill.slug}** — original OpenBot team instructions; PolyForm Noncommercial 1.0.0.`
-      : `- **${skill.slug}** — derivative of [${skill.source.upstreamSkill}](${skill.source.url}) from ${skill.source.provider} commit \`${skill.source.commit}\`.`,
+      : skill.source.provider === "cursor"
+        ? `- **${skill.slug}** — unchanged copy of [${skill.source.upstreamSkill}](${skill.source.url}) from cursor commit \`${skill.source.commit}\`; MIT.`
+        : `- **${skill.slug}** — derivative of [${skill.source.upstreamSkill}](${skill.source.url}) from ${skill.source.provider} commit \`${skill.source.commit}\`.`,
   );
-  return `# Upstream Notices\n\nThis catalog contains original OpenBot team skills under PolyForm Noncommercial 1.0.0 and derivatives from the pinned OpenAI and Anthropic repositories under Apache License 2.0. Each bundle includes its applicable license and notice.\n\n${entries.join("\n")}\n\nCatalog version: \`${spec.catalogVersion}\`\n`;
+  return `# Upstream Notices\n\nThis catalog contains original OpenBot team skills under PolyForm Noncommercial 1.0.0, derivatives from the pinned OpenAI and Anthropic repositories under Apache License 2.0, and an unchanged copy of the pinned Cursor pstack plugin under the MIT License. Each bundle includes its applicable license and notice.\n\n${entries.join("\n")}\n\nCatalog version: \`${spec.catalogVersion}\`\n`;
 }
 
 function upstreamSkillUrl(skill: Extract<SkillSpec, { upstreamSkill: string }>, upstream: UpstreamSource): string {
+  if (skill.source === "cursor") return `${upstream.repository}/tree/${upstream.commit}/${skill.upstreamSkill}`;
   const segment = skill.source === "openai" ? "skills/.curated" : "skills";
   return `${upstream.repository}/tree/${upstream.commit}/${segment}/${skill.upstreamSkill}`;
 }

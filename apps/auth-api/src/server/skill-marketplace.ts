@@ -83,7 +83,7 @@ export class SkillMarketplace {
       Effect.gen({ self: this }, function* () {
         const bindings = yield* MarketplaceStorage;
 
-        const clauses = ["skills.approved_version_id = versions.id"];
+        const clauses = ["skills.approved_version_id = versions.id", "skills.unlisted = 0"];
         const values: unknown[] = [];
         const queryInput = normalizeMarketplaceQuery(input.query);
         if (queryInput) {

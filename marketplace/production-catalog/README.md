@@ -1,6 +1,6 @@
 # OpenBot team launch catalog
 
-Version v2 contains 20 Skills and 15 Agents. Four Skills and four Agents are featured on first publication. All entries show the public OpenBot logo as their creator badge, use the publisher **OpenBot**, start with zero installs, and include no scheduled routines. They work from supplied material and available tools; they do not assume a connected inbox, CRM, ad account, or phone service.
+Version v2 contains 21 Skills and 16 Agents. One Skill, pstack, is unlisted: it does not show in Skills and installs only with the pstack Agent. Four Skills and four Agents are featured on first publication. All entries show the public OpenBot logo as their creator badge, use the publisher **OpenBot**, start with zero installs, and include no scheduled routines. They work from supplied material and available tools; they do not assume a connected inbox, CRM, ad account, or phone service.
 
 ## Review locally
 
@@ -19,7 +19,7 @@ bun run marketplace:build
 bun run marketplace:publish:production
 ```
 
-The build writes deterministic ZIP bundles, one SVG icon per Skill, manifests, notices, and checksums to `out/marketplace-production/v2`. A Skill icon is the artwork of its category, so a listing reads as a set; the mark uses paths, not emoji, because a reader's computer may not carry the font. The publish command without flags is an offline dry run. Review the catalog and ensure the account database has migrations through `0019_marketplace_presentation.sql` before production publication.
+The build writes deterministic ZIP bundles, one SVG icon per Skill, manifests, notices, and checksums to `out/marketplace-production/v2`. A Skill icon is the artwork of its category, so a listing reads as a set; the mark uses paths, not emoji, because a reader's computer may not carry the font. The publish command without flags is an offline dry run. Review the catalog and ensure the account database has migrations through `0032_marketplace_unlisted_skills.sql` before production publication.
 
 To publish after review, authenticate Wrangler for the production account and provide `SKILLS_ADMIN_TOKEN` through the environment, then run:
 
@@ -56,6 +56,7 @@ Do not use the separate `skills:seed`, `agents:seed`, or `dev:seed` demo scripts
 | Campaign Analyst | data-analytics | Explains performance and designs the next experiment |
 | Operations Planner | automation | Turns repeatable work into reliable playbooks |
 | Hiring Partner | other | Builds structured interviews around job evidence |
+| pstack | coding | Goes deep first, then writes less and better code |
 
 ## Skills
 
@@ -81,12 +82,15 @@ Do not use the separate `skills:seed`, `agents:seed`, or `dev:seed` demo scripts
 | [data-quality-review](skills/data-quality-review/SKILL.md) | data-analytics | openbot |
 | [workflow-playbook](skills/workflow-playbook/SKILL.md) | automation | openbot |
 | [hiring-scorecard](skills/hiring-scorecard/SKILL.md) | other | openbot |
+| [pstack](bundles/pstack/SKILL.md) (unlisted) | coding | cursor |
 
 ★ Featured on first publication. Existing Featured settings are preserved on reruns.
 
 ## Attribution
 
 The 15 original OpenBot team Skills use the repository PolyForm Noncommercial 1.0.0 license. The five existing adapted Skills retain their pinned OpenAI or Anthropic source attribution and Apache-2.0 license. Each generated bundle contains the applicable LICENSE.txt and NOTICE.txt; the build also produces UPSTREAM_NOTICES.md.
+
+`bundles/pstack/` is an unchanged copy of the pstack plugin by Lauren Tan from the pinned `cursor/plugins` commit, under the MIT License. The build publishes every file of that folder, including its own `LICENSE` and `NOTICE.md`. Only its `SKILL.md` entry point and `NOTICE.md` are OpenBot additions. To update it, copy the new upstream files, update the pinned commit in `catalog.json` and `NOTICE.md`, and increase `catalogVersion`.
 
 ## Check Agent preview switching
 
