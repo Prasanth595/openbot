@@ -112,9 +112,23 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
       }
     },
   );
-  const activeBrowserTab = createMemo(
-    () => browserTabs().find((tab) => tab.id === deps.props.activeBrowserTabId) ?? browserTabs()[0],
-  );
+  // Main shows one tab for every agent and client. When another one moves it, this conversation
+  // takes back the tab it last showed, not its first tab, so the user's choice is kept. When that
+  // tab is closed, the tab that slid into its place in this agent's strip takes over.
+  const lastShownTabs = new Map<string, { id: string; index: number }>();
+  const activeBrowserTab = createMemo(() => {
+    const tabs = browserTabs();
+    const agentId = deps.props.agent?.id;
+    const shownIndex = tabs.findIndex((tab) => tab.id === deps.props.activeBrowserTabId);
+    const shown = tabs[shownIndex];
+    if (shown) {
+      if (agentId) lastShownTabs.set(agentId, { id: shown.id, index: shownIndex });
+      return shown;
+    }
+    const lastShown = agentId ? lastShownTabs.get(agentId) : undefined;
+    if (!lastShown) return tabs[0];
+    return tabs.find((tab) => tab.id === lastShown.id) ?? tabs[lastShown.index] ?? tabs[lastShown.index - 1] ?? tabs[0];
+  });
   const browserTakeoverTab = createMemo(() => {
     const tabId = deps.props.browserTakeover?.tabId;
     return tabId ? browserTabs().find((tab) => tab.id === tabId) : undefined;
