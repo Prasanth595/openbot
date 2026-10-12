@@ -2,6 +2,11 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
+  "error.backend.eventsUnavailable": "Eventos não estão disponíveis neste host.",
+  "error.backend.webhookRouteLimit": "Um host pode ter no máximo {limit} rotinas de webhook.",
+  "error.backend.webhookSettingsInvalid": "Verifique as configurações do webhook e tente de novo.",
+  "error.backend.webhookRouteUnavailable":
+    "A rota pública do webhook não está pronta. Verifique a conexão do host e tente de novo.",
   "error.backend.browserViewRemoteOnly":
     "A visualização ao vivo do navegador só está disponível para um computador anfitrião remoto.",
   "error.backend.browserViewUnsupported":
@@ -67,12 +72,23 @@ export const messages = {
   "error.backend.channelAssigneeUnavailable": "O agente responsável está indisponível.",
   "error.backend.channelAssignmentChanged": "Esta tarefa atribuída pelo canal mudou.",
   "error.backend.channelMemberRequired": "Selecione um membro disponível deste canal.",
+  "error.backend.memoryEssentialBudget":
+    "As memórias essenciais excedem o limite do prompt. Marque uma entrada para pesquisar quando necessário e tente de novo.",
+  "error.backend.memorySelectionConflict": "A memória mudou. Recarregue-a e tente de novo.",
+  "error.backend.memorySelectionUserControlled":
+    "O usuário controla esta seleção de memória. Mantenha a escolha do usuário.",
+  "error.backend.memorySearchQuery": "Digite uma ou mais palavras de busca, até 256 caracteres.",
+  "error.backend.memoryOperationFailed": "A operação de memória falhou. Tente de novo.",
   "error.backend.memoryGone": "Esta memória não existe mais.",
   "error.backend.routineGone": "Esta rotina não existe mais.",
   "error.backend.channelMemoryLimit": "Um canal pode ter até {limit} memórias.",
   "error.backend.channelRoutineLimit": "Um canal pode ter no máximo {limit} rotinas.",
   "error.backend.agentRoutineLimit": "Um agente pode ter no máximo {limit} rotinas.",
   "error.backend.agentMemoryLimit": "Um agente pode ter até {limit} memórias.",
+  "error.backend.agentMemoryLimitReached":
+    "Você tem {saved} de {limit} memórias. Para abrir espaço, atualize uma memória pelo memoryId com o texto combinado de duas memórias relacionadas e esqueça a outra, ou esqueça uma memória que não é mais verdadeira. Depois tente de novo.",
+  "error.backend.agentMemoryLimitExceeded":
+    "Você tem {saved} memórias, e o limite é {limit}. O usuário definiu o limite abaixo do número de memórias salvas. Não esqueça memórias para abrir espaço. Diga ao usuário que esta memória não foi salva.",
   "error.backend.channelHistoryLeadRequired": "Escolha um líder de canal para preparar o histórico compartilhado.",
   "error.backend.channelHistoryArriving":
     "Uma mensagem compartilhada ainda está chegando. Retome quando ela estiver completa.",
@@ -140,6 +156,16 @@ export const messages = {
   "error.backend.memoryTextRequired": "É necessário informar o texto da memória.",
   "error.backend.memoryTextTooLong": "O texto da memória é muito longo.",
   "error.backend.mcpServerGone": "Este servidor MCP não existe mais.",
+  "error.backend.routineFlowLinkGone": "Esta conexão não existe mais.",
+  "error.backend.routineFlowSameAgent": "Um agente não pode passar trabalho para si mesmo.",
+  "error.backend.routineFlowIntoOwner":
+    "A rotina começa com o próprio agente, então esse agente não pode receber trabalho de outro.",
+  "error.backend.routineFlowNotOnPath": "Este agente ainda não faz parte da rotina. Conecte-o à rotina primeiro.",
+  "error.backend.routineFlowDuplicate": "Estes agentes já estão conectados nesta rotina.",
+  "error.backend.routineFlowCycle": "Esta conexão criaria um loop.",
+  "error.backend.routineFlowLinkLimit": "Uma rotina pode ter no máximo {limit} conexões.",
+  "error.backend.routineFlowHandoffFailed": "A rotina não conseguiu passar o trabalho para este agente.",
+  "error.backend.routineFlowRemoteUnsupported": "Fluxos de rotina só estão disponíveis para agentes neste computador.",
   "error.backend.mcpServerLimit": "O OpenBot mantém até {limit} servidores MCP.",
   "error.backend.mcpServerNameTaken": "Já existe um servidor MCP chamado {name}.",
   "error.backend.mcpServerNoAnswer": "O servidor não respondeu em {seconds} segundos.",
@@ -198,6 +224,8 @@ export const messages = {
   "error.backend.editSavedDifferent": "Esta edição já foi salva com outro conteúdo. Suas alterações não foram salvas.",
   "error.backend.useChannelTaskControlsWork": "Use os controles de tarefas do canal para o trabalho no canal.",
   "error.backend.steerTurnChanged": "O turno ativo mudou antes de esta mensagem ser encaminhada para ele.",
+  "error.backend.steerUnsupported":
+    "Este provedor não pode direcionar um turno em execução. Sua mensagem fica na fila.",
   "error.backend.steerQueuedOnly": "Somente mensagens na fila podem ser encaminhadas para o turno ativo.",
   "error.backend.promptInactive": "Esta pergunta não está mais ativa.",
   "error.backend.promptAnswerMismatch": "Uma resposta não corresponde a uma pergunta ativa.",
@@ -234,4 +262,11 @@ export const messages = {
     "O servidor respondeu com {status}. Verifique a chave de API ou outras credenciais.",
   "error.backend.mcpServerHttpUrl":
     "O servidor respondeu com {status}. Verifique a URL. O link pode estar incorreto, expirado ou excluído.",
+  "error.backend.mcpSignInAppUrl": "O app de autenticação precisa de uma URL de servidor válida.",
+  "error.backend.mcpSignInAppClientId": "Digite o ID do cliente do app de autenticação.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "O servidor de autenticação deste servidor MCP mudou, então o OpenBot não enviou o app de autenticação a ele. Se a mudança estiver correta, remova o app de autenticação e adicione-o de novo.",
+  "error.backend.mcpSignInAppNoServer":
+    "Salve este servidor MCP como servidor de URL antes de adicionar um app de autenticação.",
+  "error.backend.mcpSignInAppUnavailable": "Este computador não consegue guardar um app de autenticação.",
 } as const satisfies PartialTranslation<typeof source>;

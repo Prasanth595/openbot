@@ -24,13 +24,15 @@ export const messages = defineMessages("provider", {
   "provider.status.downloadFailed": "Download failed",
   "provider.status.connected": "Connected",
   "provider.status.notDownloaded": "Not downloaded",
-  "provider.status.ready": "Ready",
+  "provider.status.ready": "Runtime installed",
   "provider.status.notConnected": "Not connected",
   "provider.status.notInstalled": "Not installed",
   "provider.status.updateRequired": "Update required",
   "provider.status.unavailable": "Unavailable",
   "provider.status.checking": "Checking",
   "provider.status.off": "Off",
+  "provider.gemini.hostSignIn":
+    "To connect Gemini, open OpenBot on the host and select Connect in Settings > Providers. Google sign-in needs a browser on that host. Remote sign-in is not supported.",
 
   // Which account tier the OpenCode row runs on. It shows only while it adds to the runtime
   // badge: a saved key leaves the runtime "Connected" to speak for the row.
@@ -58,6 +60,7 @@ export const messages = defineMessages("provider", {
   "provider.aria.retry": "Retry {name}",
   "provider.aria.install": "Install {name}",
   "provider.aria.signIn": "Sign in to {name}",
+  "provider.aria.codeFallback": "Log in to {name} with a code",
   "provider.aria.moreActions": "More actions for {name}",
 
   // The switch that turns a provider on or off in OpenBot. While an agent uses the provider, the
@@ -87,6 +90,10 @@ export const messages = defineMessages("provider", {
   "provider.codeLogin.pasteExpired": "This login has stopped.",
   "provider.codeLogin.pasteExpiresIn": "Waiting for you. This login stops in {time}.",
   "provider.codeLogin.linkTitle": "Log in to {name} on another device",
+  "provider.codeLogin.pageTitle": "Sign in to {name}",
+  "provider.codeLogin.pageDescription": "This page is open in the browser on {host}. Sign in here.",
+  "provider.codeLogin.relayStarting": "Starting the {name} sign-in on {host}…",
+  "provider.codeLogin.pageOpening": "Opening the {name} sign-in page on {host}…",
   "provider.codeLogin.linkStep": "Log in to {name}. OpenBot continues by itself.",
 
   // The agent model picker.
@@ -122,6 +129,13 @@ export const messages = defineMessages("provider", {
   "provider.effort.high": "High",
   "provider.effort.xhigh": "Extra high",
   "provider.effort.max": "Max",
+
+  "provider.museKey.title": "Meta API key for Muse",
+  "provider.museKey.description": "Save a Meta API key on the host, or use the Muse CLI to sign in.",
+  "provider.museKey.label": "Meta API key",
+  "provider.geminiKey.title": "Gemini API key",
+  "provider.geminiKey.description": "Save a Gemini API key on the host, or select Connect to sign in with Google.",
+  "provider.geminiKey.label": "Gemini API key",
 
   // The optional OpenCode Go key dialog.
   "provider.openCodeKey.title": "Sign in to OpenCode Go",

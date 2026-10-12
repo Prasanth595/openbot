@@ -248,7 +248,7 @@ describe.sequential("OpenBot Discord app end to end", () => {
     // The install: the guild link comes back sealed to this connect's key, and only this run opens it.
     const connect = async () => {
       if (!messaging) throw new Error("Messaging service is missing.");
-      await runCauseEffect(messaging.connectDiscordGuild());
+      await runCauseEffect(messaging.connectDiscordGuild(true));
       const authorization = authorizations.at(-1);
       if (!authorization) throw new Error("The connect did not start.");
       const grant = await sealDiscordGuildGrant(authorization.hostPublicKey, authorization.hostNonce, {
@@ -309,7 +309,7 @@ describe.sequential("OpenBot Discord app end to end", () => {
     expect(turns()).toHaveLength(3);
     // Reconnect cannot bring a removed bot back: it starts the install again.
     const installs = authorizations.length;
-    await runCauseEffect(messaging.reconnect("discord", GUILD_ID));
+    await runCauseEffect(messaging.reconnect("discord", GUILD_ID, true));
     expect(authorizations).toHaveLength(installs + 1);
     expect(connection()?.state).toBe("invalid_token");
 

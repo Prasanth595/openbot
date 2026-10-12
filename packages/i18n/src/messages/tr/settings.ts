@@ -32,9 +32,19 @@ export const messages = {
   "settings.externalLinks.description": "Konuşmalardaki bağlantıların nerede açılacağını seçin.",
   "settings.externalLinks.defaultBrowser": "Varsayılan tarayıcı",
   "settings.externalLinks.openbot": "OpenBot",
+  "settings.sendShortcut.title": "Gönderme kısayolu",
+  "settings.sendShortcut.description": "Bu cihazda ve tarayıcıda mesaj gönderen tuşları seçin.",
+  "settings.sendShortcut.enter": "Göndermek için Enter",
+  "settings.sendShortcut.modEnterMac": "Göndermek için ⌘Enter",
+  "settings.sendShortcut.modEnterWin": "Göndermek için Ctrl+Enter",
   "settings.busyMessage.title": "Ajanları çalışırken yönlendir",
   "settings.busyMessage.description":
     "Yeni mesajlar kuyruğa değil, ajanın mevcut işine eklenir. ChatGPT ve Claude ile çalışır.",
+  "settings.agentMemoryLimit.title": "Ajan başına bellek",
+  "settings.agentMemoryLimit.description": "Bu bilgisayardaki her ajanın tutabileceği bellek sayısı.",
+  "settings.keepRemoteSessions.title": "Sunuculara hızlı bağlantı",
+  "settings.keepRemoteSessions.description":
+    "Katıldığınız sunuculara olan bağlantıyı açılışlar arasında koruyun. OpenBot yaklaşık bir saniye daha hızlı başlar. OpenBot'tan çıktığınızda OpenBot hizmeti bağlantıyı kapatmaz.",
   "settings.permissions.title": "İzinler",
   "settings.turbo.title": "Turbo modu",
   "settings.turbo.description":
@@ -91,10 +101,15 @@ export const messages = {
   "settings.analytics.title": "Ürün analizlerini paylaş",
   "settings.analytics.description":
     "Hesap kimliğiniz ve e-postanız ile birlikte kullanım ve güvenilirlik meta verilerini OpenBot'un kendi barındırdığı analizlerine gönderin.",
+  "settings.analytics.webTitle": "Hata raporlarını paylaş",
+  "settings.analytics.webDescription":
+    "Hata ve uyarı kodlarını hesap kimliğinizle birlikte OpenBot’un analiz hizmetine gönderin. Bu ayar bu tarayıcı için geçerlidir.",
   "settings.tab.general.title": "Genel",
   "settings.tab.general.description": "OpenBot'un bu bilgisayarda nasıl davranacağını kontrol edin.",
   "settings.tab.notifications.title": "Bildirimler",
   "settings.tab.notifications.description": "OpenBot'un sizi nasıl uyaracağını seçin.",
+  "settings.tab.voice.title": "Ses",
+  "settings.tab.voice.description": "Mesaj kutusunda dikte. Bu bilgisayarda çalışır.",
   "settings.tab.computerUse.title": "Bilgisayar Kullanımı",
   "settings.tab.computerUse.description":
     "OpenBot'un bu bilgisayardaki uygulamaları görmesine ve bunlarla etkileşime girmesine izin verin.",
@@ -281,6 +296,7 @@ export const messages = {
   "settings.hostedServers.usageNote":
     "Bir sunucu son mesajdan veya değişiklikten yaklaşık 15 dakika sonra durur, bir uygulama açık olsa bile. Uygulamada bir tuşa basmak veya tıklamak, bir mesaj ya da zamanlanmış bir rutin onu tekrar başlatır. Ajanları ve rutinleri bu bilgisayar kapalıyken çalışır.",
   "settings.hostedServers.empty": "Henüz barındırılan bir sunucunuz yok.",
+  "settings.hostedServers.loading": "Barındırılan sunucular yükleniyor…",
   "settings.hostedServers.state.awaitingPayment": "Ödeme bekleniyor",
   "settings.hostedServers.state.planEnded": "Plan sona erdi",
   "settings.hostedServers.state.creating": "Oluşturuluyor",
@@ -333,4 +349,28 @@ export const messages = {
   "settings.hostedServers.plan.standard.summary": "Günlük rutinleri olan küçük bir ekip için.",
   "settings.hostedServers.plan.pro.name": "Pro",
   "settings.hostedServers.plan.pro.summary": "Çok sayıda ajan ve yoğun tarayıcı çalışması için.",
+  // The Voice tab: dictation models and the dictation language.
+  "settings.voice.models.title": "Dikte modeli",
+  "settings.voice.model.parakeet.description": "Hızlı. Konuşulan dili 25 Avrupa dili arasında kendisi bulur.",
+  "settings.voice.model.whisper.description": "Daha yavaş. Yaklaşık 100 dil; konuşulan dili belirleyebilirsiniz.",
+  "settings.voice.model.size": "İndirme boyutu: {size}",
+  "settings.voice.model.downloading": "İndiriliyor · {received} / {total}",
+  "settings.voice.model.failed": "İndirme durdu. Bağlantıyı kontrol edip yeniden deneyin.",
+  "settings.voice.model.progressLabel": "{name} indiriliyor",
+  "settings.voice.model.use": "Kullan",
+  "settings.voice.model.inUse": "Kullanımda",
+  "settings.voice.model.downloadLabel": "{name} indir",
+  "settings.voice.model.cancelLabel": "{name} indirmesini durdur",
+  "settings.voice.model.retryLabel": "{name} yeniden indir",
+  "settings.voice.model.useLabel": "Dikte için {name} kullan",
+  "settings.voice.language.section": "Dil",
+  "settings.voice.language.title": "Dikte dili",
+  "settings.voice.language.description": "Konuştuğunuz dil. Otomatik, dili kayıttan bulur.",
+  "settings.voice.language.modelDetects":
+    "Parakeet konuşulan dili kendisi bulur. Bir dil belirlemek için Whisper'ı kullanın.",
+  "settings.voice.language.automatic": "Otomatik",
+  "settings.voice.loadFailed": "Ses modelleri okunamadı.",
+  "settings.voice.saveFailed": "Ses ayarı kaydedilemedi. Yeniden deneyin.",
+  "settings.voice.downloadFailed": "İndirme başlatılamadı. Yeniden deneyin.",
+  "settings.voice.cancelFailed": "İndirme durdurulamadı.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -150,7 +150,7 @@ vi.mock("heroui-native/hooks", () => ({
 vi.mock("uniwind", () => ({ useCSSVariable: () => "gray" }));
 vi.mock("lucide-react-native", () => ({ Check: () => null, ChevronDown: () => null, ChevronRight: () => null }));
 vi.mock("@/features/chat/components/thinking-text-gradient", () => ({
-  ThinkingTextGradient: ({ children }: PropsWithChildren) => <>{children}</>,
+  ThinkingTextGradient: ({ text }: { text: string }) => <>{text}</>,
 }));
 vi.mock("@/shared/components/blur-reveal", () => ({
   BlurReveal: <T,>({ value, children }: { value: T | null; children: (value: T) => ReactNode }) =>

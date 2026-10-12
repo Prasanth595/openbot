@@ -55,6 +55,8 @@ const Servers = createSimpleContext({
     const [hostedServersAvailable, setHostedServersAvailable] = createSignal(false);
     /** The hosted servers of this account. The server menu can delete these. */
     const [hostedServerIds, setHostedServerIds] = createSignal<ReadonlySet<string>>(new Set());
+    /** True after the hosted servers were read once. Until then, an owned server can be a hosted one. */
+    const [hostedServersLoaded, setHostedServersLoaded] = createSignal(false);
     const [serverLoadRequest, setServerLoadRequest] = createSignal<{ serverId: string; nonce: number } | null>(null);
     let loadRequestNonce = 0;
     let pendingCompatibilityRetryServerId: string | null = null;
@@ -271,6 +273,7 @@ const Servers = createSimpleContext({
         else {
           setHostedServersAvailable(false);
           setHostedServerIds(new Set<string>());
+          setHostedServersLoaded(false);
         }
       });
       return () => {
@@ -292,6 +295,7 @@ const Servers = createSimpleContext({
       if (!list) return hostedServersAvailable();
       setHostedServersAvailable(list.available);
       setHostedServerIds(new Set(list.servers.map((server) => server.serverId)));
+      setHostedServersLoaded(true);
       return list.available;
     }
 
@@ -318,9 +322,8 @@ const Servers = createSimpleContext({
         pendingCompatibilityRetryServerId = null;
         const text = currentText();
         actionToast.error(text.t("server.connection.failedTitle"), {
-          ...{
-            description: text.errorMessage(error, text.t("server.connection.failedDescription")),
-          },
+          error,
+          fallback: text.t("server.connection.failedDescription"),
           report: { operation: "team", source: "action", cause_code: classifyFailure(error) },
         });
       }
@@ -337,9 +340,8 @@ const Servers = createSimpleContext({
       } catch (error) {
         const text = currentText();
         actionToast.error(text.t("server.notifications.changeFailedTitle"), {
-          ...{
-            description: text.errorMessage(error, text.t("server.notifications.changeFailedDescription")),
-          },
+          error,
+          fallback: text.t("server.notifications.changeFailedDescription"),
           report: { operation: "team", source: "action", cause_code: classifyFailure(error) },
         });
       }
@@ -351,9 +353,8 @@ const Servers = createSimpleContext({
       } catch (error) {
         const text = currentText();
         actionToast.error(text.t("server.notifications.changeFailedTitle"), {
-          ...{
-            description: text.errorMessage(error, text.t("server.notifications.changeFailedDescription")),
-          },
+          error,
+          fallback: text.t("server.notifications.changeFailedDescription"),
           report: { operation: "team", source: "action", cause_code: classifyFailure(error) },
         });
       }
@@ -395,6 +396,7 @@ const Servers = createSimpleContext({
       setAddServerOpen,
       hostedServersAvailable,
       hostedServerIds,
+      hostedServersLoaded,
       refreshHostedServersAvailable,
       reorderServers,
       setServerMuted,

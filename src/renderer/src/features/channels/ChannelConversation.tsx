@@ -8,7 +8,7 @@ import {
   canPreviewAttachment,
   type FilePreview,
 } from "@openbot/contracts/ipc";
-import { ArrowUp, Button, Plus, X } from "@openbot/ui";
+import { ArrowUp, Button, ErrorReference, Plus, X } from "@openbot/ui";
 import { QuestionPromptBubble } from "@openbot/ui/components/QuestionPromptBubble";
 import {
   SettingsPanel,
@@ -52,6 +52,7 @@ import {
   unreadMessagesDividerIsVisible,
 } from "@openbot/ui/features/conversation/UnreadMessages";
 import { useText } from "@openbot/ui/text";
+import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import type { VirtualItem } from "@tanstack/virtual-core";
 import {
   createEffect,
@@ -211,13 +212,44 @@ export function ChannelConversation(props: ChannelConversationProps) {
         updateDraft(selectedId, (draft) => ({ ...draft, attachments: [...draft.attachments, ...attachments] }));
     });
   /** Dropped or pasted files. Only a browser runtime imports them here; the desktop preload imports its own. */
-  const canImportFiles = () => Boolean(runtime().importAttachments && channels.state.page?.channel.archived === false);
+  const canImportFiles = () =>
+    Boolean(
+      (runtime().importAttachments || runtime().onAttachmentImport) && channels.state.page?.channel.archived === false,
+    );
   const importFiles = (files: File[]) => {
     const importAttachments = runtime().importAttachments;
     if (importAttachments && canImportFiles() && files.length > 0) addAttachments(() => importAttachments(files));
   };
+  // The desktop preload imports a drop or a paste itself and reports it here. The channel open when the
+  // import starts owns the result. A result that no channel owns is discarded, so it does not stay on disk.
+  const desktopImports = new Map<string, PromiseWithResolvers<AttachmentSummary[]>>();
+  createEffect(
+    () => runtime().onAttachmentImport,
+    (onAttachmentImport) => {
+      if (!onAttachmentImport) return;
+      onCleanup(
+        onAttachmentImport((event) => {
+          if (event.type === "started") {
+            if (!canImportFiles()) return;
+            const pending = Promise.withResolvers<AttachmentSummary[]>();
+            desktopImports.set(event.requestId, pending);
+            addAttachments(() => pending.promise);
+            return;
+          }
+          const pending = desktopImports.get(event.requestId);
+          desktopImports.delete(event.requestId);
+          if (event.type === "error") pending?.reject(new Error(event.message));
+          else if (pending) pending.resolve(event.attachments);
+          else
+            for (const attachment of event.attachments)
+              void runtime().agent.discardDraftAttachment?.(attachment.id, event.serverId);
+        }),
+      );
+      onCleanup(() => desktopImports.clear());
+    },
+  );
   const [dropActive, setDropActive] = createSignal(false);
-  const [copyError, setCopyError] = createSignal<string | null>(null);
+  const [copyError, setCopyError] = createSignal<UserErrorDetails | null>(null);
   createEffect(
     () => channels.state.selectedId,
     () => {
@@ -435,8 +467,8 @@ export function ChannelConversation(props: ChannelConversationProps) {
     setCopyError(null);
     try {
       await writeClipboardText(text);
-    } catch {
-      setCopyError(t("chat.actions.copyFailed"));
+    } catch (error) {
+      setCopyError({ message: t("chat.actions.copyFailed"), reference: errorReference(error) });
       return;
     }
     setCopiedMessageId(message.id);
@@ -620,6 +652,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
       <Show when={channels.state.error}>
         <p role="alert">
           {sourceText(channels.state.error ?? "")}
+          <ErrorReference reference={channels.state.errorReference} />
           <Button
             variant="ghost"
             onClick={() =>
@@ -632,7 +665,14 @@ export function ChannelConversation(props: ChannelConversationProps) {
           </Button>
         </p>
       </Show>
-      <Show when={copyError()}>{(message) => <p role="alert">{message()}</p>}</Show>
+      <Show when={copyError()}>
+        {(failure) => (
+          <p role="alert">
+            {failure().message}
+            <ErrorReference reference={failure().reference} />
+          </p>
+        )}
+      </Show>
 
       <Show when={channels.state.page} fallback={<p>{t("channel.conversation.loading")}</p>}>
         {(page) => (

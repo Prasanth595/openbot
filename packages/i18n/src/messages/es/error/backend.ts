@@ -69,12 +69,23 @@ export const messages = {
   "error.backend.channelAssigneeUnavailable": "El agente asignado no está disponible.",
   "error.backend.channelAssignmentChanged": "Esta asignación del canal cambió.",
   "error.backend.channelMemberRequired": "Selecciona un miembro disponible de este canal.",
+  "error.backend.memoryEssentialBudget":
+    "Los recuerdos esenciales superan el límite del prompt. Configura una entrada para buscarla cuando sea necesario e inténtalo de nuevo.",
+  "error.backend.memorySelectionConflict": "El recuerdo cambió. Vuelve a cargarlo e inténtalo de nuevo.",
+  "error.backend.memorySelectionUserControlled":
+    "El usuario controla esta selección de memoria. Respeta la elección del usuario.",
+  "error.backend.memorySearchQuery": "Escribe una o más palabras de búsqueda, hasta 256 caracteres.",
+  "error.backend.memoryOperationFailed": "Falló la operación de memoria. Inténtalo de nuevo.",
   "error.backend.memoryGone": "Este recuerdo ya no existe.",
   "error.backend.routineGone": "Esta rutina ya no existe.",
   "error.backend.channelMemoryLimit": "Un canal puede tener hasta {limit} recuerdos.",
   "error.backend.channelRoutineLimit": "Un canal puede tener un máximo de {limit} rutinas.",
   "error.backend.agentRoutineLimit": "Un agente puede tener un máximo de {limit} rutinas.",
   "error.backend.agentMemoryLimit": "Un agente puede tener hasta {limit} recuerdos.",
+  "error.backend.agentMemoryLimitReached":
+    "Tienes {saved} de {limit} recuerdos. Para hacer sitio, actualiza un recuerdo por su memoryId con el texto combinado de dos recuerdos relacionados y olvida el otro, u olvida un recuerdo que ya no sea cierto. Luego vuelve a intentarlo.",
+  "error.backend.agentMemoryLimitExceeded":
+    "Tienes {saved} recuerdos y el límite es {limit}. El usuario fijó el límite por debajo del número de recuerdos guardados. No olvides recuerdos para hacer sitio. Dile al usuario que este recuerdo no se guardó.",
   "error.backend.channelHistoryLeadRequired": "Elige un coordinador de canal para preparar el historial compartido.",
   "error.backend.channelHistoryArriving": "Aún se está recibiendo un mensaje compartido. Reanuda cuando esté completo.",
   "error.backend.channelHistoryInvalid": "El resumen del historial no es válido. Reanuda para intentarlo de nuevo.",
@@ -212,6 +223,7 @@ export const messages = {
   "error.backend.editSavedDifferent": "Esta edición ya se guardó con otro contenido. Tus cambios no se guardaron.",
   "error.backend.useChannelTaskControlsWork": "Usa los controles de tareas del canal para el trabajo del canal.",
   "error.backend.steerTurnChanged": "El turno activo cambió antes de que se pudiera incorporar este mensaje.",
+  "error.backend.steerUnsupported": "Este proveedor no puede orientar un turno en curso. Tu mensaje sigue en la cola.",
   "error.backend.steerQueuedOnly": "Solo se pueden incorporar mensajes en cola al turno activo.",
   "error.backend.promptInactive": "Esta pregunta ya no está activa.",
   "error.backend.promptAnswerMismatch": "Una respuesta no coincide con ninguna pregunta activa.",
@@ -250,4 +262,11 @@ export const messages = {
     "El servidor respondió {status}. Comprueba la clave API u otras credenciales.",
   "error.backend.mcpServerHttpUrl":
     "El servidor respondió {status}. Comprueba la URL. El enlace puede ser incorrecto, haber caducado o haberse eliminado.",
+  "error.backend.mcpSignInAppUrl": "La app de inicio de sesión necesita una URL de servidor válida.",
+  "error.backend.mcpSignInAppClientId": "Introduce el ID de cliente de la app de inicio de sesión.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "El servidor de inicio de sesión de este servidor MCP cambió, así que OpenBot no le envió la app de inicio de sesión. Si el cambio es correcto, quita la app de inicio de sesión y agrégala de nuevo.",
+  "error.backend.mcpSignInAppNoServer":
+    "Guarda este servidor MCP como servidor de URL antes de añadir una app de inicio de sesión.",
+  "error.backend.mcpSignInAppUnavailable": "Este ordenador no puede guardar una app de inicio de sesión.",
 } as const satisfies PartialTranslation<typeof source>;

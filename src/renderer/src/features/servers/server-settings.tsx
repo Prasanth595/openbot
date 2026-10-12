@@ -2,7 +2,10 @@ import type {
   AvatarImageInput,
   InviteSummary,
   McpServerConfig,
+  McpSignInAppState,
+  McpSignInRelayPage,
   McpTestResult,
+  SaveMcpSignInAppInput,
   ServerSummary,
   TeamInviteSummary,
   TeamPresenceMember,
@@ -14,7 +17,7 @@ import { desktopAnalytics } from "../../analytics";
 import { createSimpleContext } from "../../simple-context";
 import { mcpSignInRecord } from "./mcp-servers";
 import type { ServerSettingsSection } from "./ServerSettingsModal";
-import { serverCanAdminister, serverRoleCanAdminister } from "./server-capabilities";
+import { serverCanAdminister, serverRoleCanAdminister, serverSupportsCapability } from "./server-capabilities";
 import { useServers } from "./servers-context";
 import { serverAdminPort, serversPort } from "./servers-port";
 
@@ -36,6 +39,15 @@ import { serverAdminPort, serversPort } from "./servers-port";
  * latch in each is what keeps a failure *after* the write from being reported as
  * a failed write.
  */
+/** How often the panel asks which host tab shows a remote sign-in page. */
+const MCP_SIGN_IN_PAGE_POLL_MS = 1_000;
+
+function withMcpSignInPage(pages: Record<string, string>, url: string, tabId: string | null): Record<string, string> {
+  if (pages[url] === (tabId ?? undefined)) return pages;
+  const { [url]: _previous, ...rest } = pages;
+  return tabId ? { ...rest, [url]: tabId } : rest;
+}
+
 const ServerSettings = createSimpleContext({
   name: "Server settings",
   init: () => {
@@ -50,8 +62,14 @@ const ServerSettings = createSimpleContext({
     const [serverSettingsError, setServerSettingsError] = createSignal<string | null>(null);
     const [serverSettingsMcp, setServerSettingsMcp] = createSignal<McpServerConfig[]>([]);
     const [serverSettingsMcpError, setServerSettingsMcpError] = createSignal<string | null>(null);
-    /** Which http rows this computer holds a sign-in for, by id. Empty for a remote server. */
+    /** Which http rows the server holds a sign-in for, by id. Empty for a host without `mcp-sign-in-v1`. */
     const [serverSettingsMcpSignIns, setServerSettingsMcpSignIns] = createSignal<Record<string, boolean>>({});
+    /** The host tab of each remote sign-in page, by the address it signs in to, while the sign-in waits. */
+    const [serverSettingsMcpSignInPages, setServerSettingsMcpSignInPages] = createSignal<Record<string, string>>({});
+    /** The relayed sign-in page of each remote sign-in that waits in this computer's browser (`sign-in-relay-v1`). */
+    const [serverSettingsMcpSignInRelays, setServerSettingsMcpSignInRelays] = createSignal<
+      Record<string, McpSignInRelayPage>
+    >({});
     /** Bumped by every open and refresh, so a slower earlier load cannot paint over a newer one. */
     let serverSettingsRequest = 0;
     /**
@@ -345,8 +363,9 @@ const ServerSettings = createSimpleContext({
     }
 
     /**
-     * Ends this account's membership of a joined server. Main removes the server from the list and
-     * sends the new list, which removes the dialog's target, so the dialog closes here first.
+     * Ends this account's membership of a joined server, or removes a server that it owns from the
+     * account service. Main removes the server from the list and sends the new list, which removes
+     * the dialog's target, so the dialog closes here first.
      */
     async function leaveServer(): Promise<void> {
       const server = serverSettingsTarget();
@@ -365,18 +384,19 @@ const ServerSettings = createSimpleContext({
 
     async function removeMembership(server: ServerSummary): Promise<void> {
       const analytics = desktopAnalytics.scope();
+      const action = server.role === "owner" ? "server_removed" : "server_left";
       try {
         await serversPort().servers.remove(server.id);
       } catch (error) {
         analytics.track("team_action", {
-          action: "server_left",
+          action,
           result: "failed",
           server_kind: server.kind,
           failure_code: "server_leave_failed",
         });
         throw error;
       }
-      analytics.track("team_action", { action: "server_left", result: "succeeded", server_kind: server.kind });
+      analytics.track("team_action", { action, result: "succeeded", server_kind: server.kind });
     }
 
     /**
@@ -430,12 +450,8 @@ const ServerSettings = createSimpleContext({
       return result;
     }
 
-    /**
-     * Which http rows this computer holds a sign-in for. Only the local server answers: a sign-in
-     * opens this computer's browser, and a remote host signs in for itself.
-     */
+    /** Which http rows the server holds a sign-in for. A host without `mcp-sign-in-v1` answers none. */
     async function listMcpSignIns(server: ServerSummary): Promise<Record<string, boolean>> {
-      if (server.kind !== "local") return {};
       // A badge beside the list, not the list: a failed read shows no badge rather than failing the
       // list read, or reporting a save that already landed as failed.
       return serversPort()
@@ -443,14 +459,78 @@ const ServerSettings = createSimpleContext({
         .then(mcpSignInRecord, () => ({}));
     }
 
-    /** Opens the browser when the server asks; the answer comes once the browser came back. */
+    /**
+     * Opens the browser when the server asks; the answer comes once the browser came back. A remote
+     * host opens the page in its own browser, and the panel shows that tab while the sign-in waits.
+     */
     async function signInMcpServer(config: McpServerConfig): Promise<McpTestResult> {
       const server = serverSettingsTarget();
       if (!server) throw new Error(currentText().t("server.settings.unavailable"));
-      const result = await serversPort().agent.signInMcpServer({ config }, server.id);
+      let waiting = true;
+      const signIn = serversPort().agent.signInMcpServer({ config }, server.id);
+      if (server.kind === "remote") {
+        if (serverSupportsCapability(server, "sign-in-relay-v1"))
+          void followMcpSignInRelay(server.id, config.url, () => waiting);
+        else void followMcpSignInPage(server.id, config.url, () => waiting);
+      }
+      const result = await signIn.finally(() => {
+        waiting = false;
+      });
       const signIns = await listMcpSignIns(server);
       if (serverSettingsTargetId() === server.id) setServerSettingsMcpSignIns(signIns);
       return result;
+    }
+
+    /** Reads which host tab shows the sign-in page until the sign-in ends; the host opens it a moment after start. */
+    async function followMcpSignInPage(serverId: string, url: string, waiting: () => boolean): Promise<void> {
+      try {
+        while (waiting()) {
+          const tabId = await serversPort()
+            .agent.mcpSignInPage({ url }, serverId)
+            .catch(() => null);
+          if (!waiting()) return;
+          setServerSettingsMcpSignInPages((pages) => withMcpSignInPage(pages, url, tabId));
+          await new Promise((resolve) => setTimeout(resolve, MCP_SIGN_IN_PAGE_POLL_MS));
+        }
+      } finally {
+        setServerSettingsMcpSignInPages((pages) => withMcpSignInPage(pages, url, null));
+      }
+    }
+
+    /** Reads the relayed page of a sign-in until it ends. The page opens when the user asks. */
+    async function followMcpSignInRelay(serverId: string, url: string, waiting: () => boolean): Promise<void> {
+      const set = (page: McpSignInRelayPage | null) =>
+        setServerSettingsMcpSignInRelays((pages) => {
+          const { [url]: _previous, ...rest } = pages;
+          return page ? { ...rest, [url]: page } : rest;
+        });
+      try {
+        while (waiting()) {
+          const page = await serversPort()
+            .agent.mcpSignInRelay({ url }, serverId)
+            .catch(() => null);
+          if (!waiting()) return;
+          const current = serverSettingsMcpSignInRelays()[url];
+          if (current?.authorizeHost !== page?.authorizeHost || current?.listening !== page?.listening) set(page);
+          await new Promise((resolve) => setTimeout(resolve, MCP_SIGN_IN_PAGE_POLL_MS));
+        }
+      } finally {
+        set(null);
+      }
+    }
+
+    /** Opens a relayed sign-in page in this computer's browser, after the user checked its host name. */
+    async function openMcpSignInRelay(url: string): Promise<void> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      await serversPort().agent.openMcpSignInRelay({ url }, server.id);
+    }
+
+    /** The address the browser shows at the end of a relayed sign-in. Main sends only its query to the host. */
+    async function pasteMcpSignInRelay(url: string, address: string): Promise<void> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      await serversPort().agent.completeMcpSignInRelay({ url, address }, server.id);
     }
 
     async function cancelMcpSignIn(url: string): Promise<void> {
@@ -464,6 +544,33 @@ const ServerSettings = createSimpleContext({
       if (!server) throw new Error(currentText().t("server.settings.unavailable"));
       const states = await serversPort().agent.signOutMcpServer({ mcpServerId }, server.id);
       if (serverSettingsTargetId() === server.id) setServerSettingsMcpSignIns(mcpSignInRecord(states));
+    }
+
+    /** The OAuth app of a saved http row. The answer says only whether a secret is saved. */
+    async function mcpSignInApp(mcpServerId: string): Promise<McpSignInAppState> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      return serversPort().agent.mcpSignInApp({ mcpServerId }, server.id);
+    }
+
+    async function saveMcpSignInApp(input: SaveMcpSignInAppInput): Promise<McpSignInAppState> {
+      return changeMcpSignInApp((serverId) => serversPort().agent.saveMcpSignInApp(input, serverId));
+    }
+
+    async function removeMcpSignInApp(mcpServerId: string): Promise<McpSignInAppState> {
+      return changeMcpSignInApp((serverId) => serversPort().agent.removeMcpSignInApp({ mcpServerId }, serverId));
+    }
+
+    /** A changed or removed app drops the sign-in that the old client held, so the badges are read again. */
+    async function changeMcpSignInApp(
+      change: (serverId: string) => Promise<McpSignInAppState>,
+    ): Promise<McpSignInAppState> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      const state = await change(server.id);
+      const signIns = await listMcpSignIns(server);
+      if (serverSettingsTargetId() === server.id) setServerSettingsMcpSignIns(signIns);
+      return state;
     }
 
     async function saveMcpServer(config: McpServerConfig): Promise<void> {
@@ -555,9 +662,16 @@ const ServerSettings = createSimpleContext({
       serverSettingsMcp,
       serverSettingsMcpError,
       serverSettingsMcpSignIns,
+      serverSettingsMcpSignInPages,
+      serverSettingsMcpSignInRelays,
+      openMcpSignInRelay,
+      pasteMcpSignInRelay,
       signInMcpServer,
       cancelMcpSignIn,
       signOutMcpServer,
+      mcpSignInApp,
+      saveMcpSignInApp,
+      removeMcpSignInApp,
       refreshMcpServers,
       saveMcpServer,
       removeMcpServer,

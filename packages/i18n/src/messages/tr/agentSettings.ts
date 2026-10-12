@@ -2,14 +2,19 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agentSettings";
 
 export const messages = {
+  "agentSettings.session.title": "Sağlayıcı ayarları",
+  "agentSettings.session.readFailed": "Sağlayıcı ayarları okunamadı.",
+  "agentSettings.session.pending": "Kaydedilen değişiklikler sonraki turdan önce uygulanır.",
+  "agentSettings.session.unavailable":
+    "Kaydedilen {value} değeri kullanılamıyor. Başka bir değer seçin veya sıfırlayın.",
+  "agentSettings.session.effective": "Geçerli sağlayıcı değeri: {value}",
+  "agentSettings.session.reset": "Ayarı sıfırla",
+  "agentSettings.session.resetNamed": "{name} ayarını sıfırla",
   "agentSettings.label": "Ajan ayarları",
   "agentSettings.title": "Ayarlar",
   "agentSettings.backToDetails": "Ayrıntılara geri dön",
   "agentSettings.closeDetails": "Ayrıntıları kapat",
   "agentSettings.backToSettings": "Ayarlara dön",
-  "agentSettings.profile.title": "Profil",
-  "agentSettings.profile.open": "{name} profilini düzenle",
-  "agentSettings.instructionsEdit": "Talimatları düzenle",
   "agentSettings.permissions.title": "İzinler",
   "agentSettings.advanced.title": "Gelişmiş",
   "agentSettings.groups.brain": "Beyin",
@@ -106,7 +111,7 @@ export const messages = {
   "agentSettings.computerUse.description": "Bu ajanın bu bilgisayardaki uygulamaları kontrol etmesine izin verin",
   "agentSettings.automation.title": "Yerel betikler",
   "agentSettings.automation.description":
-    "Bu bilgisayardaki betiklerin bu ajanın rutinlerini çalıştırmasına izin verin",
+    "Ana bilgisayardaki betiklerin mesaj göndermesine, rutinleri çalıştırmasına, soruları yanıtlamasına ve onay isteklerini kabul etmesine veya reddetmesine izin ver",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tüm {provider} süreci bir korumalı alanda (sandbox) çalışır, bu nedenle dışarıya yazma işlemi başarısız olur. Yalnızca macOS'ta kullanılabilir.",
 } as const satisfies PartialTranslation<typeof source>;

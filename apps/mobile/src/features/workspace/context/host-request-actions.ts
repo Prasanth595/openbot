@@ -3,6 +3,7 @@ import {
   assertStorageUsageScope,
   CHANNEL_CHATS_CAPABILITY,
   decodeAgentAdminSettings,
+  decodeAgentHostSettings,
   decodeChannelRoutineRuns,
   decodeChannelRoutines,
   decodeChannelSummaries,
@@ -19,15 +20,25 @@ import {
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_ADMIN_CAPABILITY, AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import {
+  AGENT_HOST_SETTINGS_CAPABILITY,
+  AGENT_HOST_SETTINGS_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_INSTALL_CAPABILITY } from "@openbot/contracts/team-protocol/agent-install-v1";
+import { AGENT_MEMORIES_CAPABILITY } from "@openbot/contracts/team-protocol/agent-memories-v1";
+import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
+import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
+import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
+  TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
   TEAM_SEMANTIC_TAGS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
+import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -36,17 +47,33 @@ import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
   deleteEventRoutine,
+  deleteSharedTable,
   installAgentTemplate,
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
+  listSharedTables,
+  previewAgentTemplate,
+  publishAgentTemplate,
+  readAgentSessionSettings,
+  resetAgentSessionSetting,
   rotateEventRoutineSecret,
   saveEventRoutine,
+  setAgentSessionSetting,
   setAgentSkillEnabled,
   testEventRoutine,
   uninstallAgentSkill,
+  unpublishAgentTemplate,
 } from "@openbot/team-client/team-admin-requests";
-import { type TeamApiRequest, TeamRequestError } from "@openbot/team-client/team-api-requests";
+import {
+  type AgentMemoriesRequest,
+  clearAgentContext,
+  readAgentMemories,
+  readAgentMemorySelection,
+  setAgentMemoryInclusion,
+  type TeamApiRequest,
+  TeamRequestError,
+} from "@openbot/team-client/team-api-requests";
 import type { QueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import * as Crypto from "expo-crypto";
@@ -77,6 +104,8 @@ type HostRequestActions = Pick<
   | "testAgentRoutine"
   | "loadAgentModels"
   | "loadAgentMemories"
+  | "loadAgentMemorySelection"
+  | "setAgentMemoryInclusion"
   | "loadAgentRoutines"
   | "loadRoutineCalendar"
   | "listEventRoutines"
@@ -93,6 +122,18 @@ type HostRequestActions = Pick<
   | "loadAgentStorage"
   | "loadAgentAdminSettings"
   | "updateAgentAdminSettings"
+  | "loadAgentHostSettings"
+  | "updateAgentHostSettings"
+  | "canStartNewChat"
+  | "startNewChat"
+  | "loadAgentSessionSettings"
+  | "setAgentSessionSetting"
+  | "resetAgentSessionSetting"
+  | "listSharedTables"
+  | "deleteSharedTable"
+  | "loadAgentTemplatePreview"
+  | "publishAgentTemplate"
+  | "unpublishAgentTemplate"
   | "deleteStoredFile"
   | "canInstallAgentTemplate"
   | "installAgentTemplate"
@@ -100,6 +141,7 @@ type HostRequestActions = Pick<
   | "duplicateAgent"
   | "loadQueue"
   | "canEditQueue"
+  | "canRetryMessage"
   | "attachmentSupport"
   | "editQueue"
   | "changeQueue"
@@ -134,13 +176,45 @@ export function createHostRequestActions({
       throw new Error(currentText().t("mobile.agent.skill.manageUnsupported"));
     return teamApi(serverId);
   }
+  /** The shared tables are an optional admin route set. */
+  function sharedTablesAdmin(serverId: string): TeamApiRequest {
+    if (!capabilities.get(serverId)?.includes(SHARED_TABLES_CAPABILITY))
+      throw new Error(currentText().t("mobile.agent.tables.unsupported"));
+    return teamApi(serverId);
+  }
+  /** Publishing is an optional admin route set. */
+  function publishAdmin(serverId: string): TeamApiRequest {
+    if (!capabilities.get(serverId)?.includes(AGENT_PUBLISH_CAPABILITY))
+      throw new Error(currentText().t("mobile.agent.publish.unsupported"));
+    return teamApi(serverId);
+  }
   /** The event admin routes are optional and reject members on the host. */
   function eventsAdmin(serverId: string): TeamApiRequest {
     if (!capabilities.get(serverId)?.includes(EVENTS_CAPABILITY))
       throw new Error(currentText().t("mobile.agent.record.eventsUnsupported"));
     return teamApi(serverId);
   }
+  function memoryRequest(serverId: string): AgentMemoriesRequest<TeamRequestError> {
+    return (method, path, decode, body) =>
+      Effect.tryPromise({
+        try: () => request(method, path, decode, body, serverId),
+        catch: (cause) => new TeamRequestError({ cause }),
+      });
+  }
+  function sessionSettingsAdmin(serverId: string): TeamApiRequest {
+    if (!capabilities.get(serverId)?.includes(AGENT_SESSION_SETTINGS_CAPABILITY))
+      throw new Error(currentText().t("mobile.agent.session.unsupported"));
+    return teamApi(serverId);
+  }
   return {
+    loadAgentSessionSettings: async (agentId, serverId) =>
+      capabilities.get(serverId)?.includes(AGENT_SESSION_SETTINGS_CAPABILITY)
+        ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))
+        : null,
+    setAgentSessionSetting: async (input, serverId) =>
+      runTeamRequest(setAgentSessionSetting(sessionSettingsAdmin(serverId), input)),
+    resetAgentSessionSetting: async (input, serverId) =>
+      runTeamRequest(resetAgentSessionSetting(sessionSettingsAdmin(serverId), input)),
     listEventRoutines: (owner, serverId) => runTeamRequest(listEventRoutines(eventsAdmin(serverId), { owner })),
     saveEventRoutine: (input, serverId) => runTeamRequest(saveEventRoutine(eventsAdmin(serverId), input)),
     deleteEventRoutine: (input, serverId) => runTeamRequest(deleteEventRoutine(eventsAdmin(serverId), input)),
@@ -225,21 +299,33 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
+    loadAgentMemorySelection: (agentId, serverId) =>
+      runTeamRequest(
+        readAgentMemorySelection(
+          memoryRequest(serverId),
+          agentId,
+          capabilities.get(serverId)?.includes(AGENT_MEMORIES_CAPABILITY) ?? false,
+        ),
+      ),
+    setAgentMemoryInclusion: async (input, serverId) => {
+      const key = ["agent-info", ...queryScope, serverId, input.agentId, "memory-selection"];
+      try {
+        const state = await runTeamRequest(setAgentMemoryInclusion(memoryRequest(serverId), input));
+        queryClient.setQueryData(key, state);
+        return state;
+      } catch (cause) {
+        // A concurrent update can reject this revision. Refresh it before the next attempt.
+        void queryClient.invalidateQueries({ queryKey: key });
+        throw cause;
+      }
+    },
     loadAgentMemories: (agentId, serverId) =>
-      request(
-        "GET",
-        TEAM_API_ROUTES.agent.memories(agentId),
-        (value) => {
-          if (
-            !Array.isArray(value) ||
-            !value.every(isAgentMemory) ||
-            value.some((memory) => memory.agentId !== agentId)
-          )
-            throw new Error("The host returned invalid memories.");
-          return value;
-        },
-        undefined,
-        serverId,
+      runTeamRequest(
+        readAgentMemories(
+          memoryRequest(serverId),
+          agentId,
+          capabilities.get(serverId)?.includes(AGENT_MEMORIES_CAPABILITY) ?? false,
+        ),
       ),
     loadAgentRoutines: (agentId, serverId) =>
       request(
@@ -301,6 +387,32 @@ export function createHostRequestActions({
         throw new Error(currentText().t("mobile.agent.access.unsupported"));
       return request("POST", AGENT_ADMIN_ROUTES.update, decodeAgentAdminSettings, { ...input }, serverId);
     },
+    loadAgentHostSettings: async (agentId, serverId) =>
+      capabilities.get(serverId)?.includes(AGENT_HOST_SETTINGS_CAPABILITY)
+        ? request("POST", AGENT_HOST_SETTINGS_ROUTES.settings, decodeAgentHostSettings, { agentId }, serverId)
+        : null,
+    updateAgentHostSettings: async (input, serverId) => {
+      if (!capabilities.get(serverId)?.includes(AGENT_HOST_SETTINGS_CAPABILITY))
+        throw new Error(currentText().t("mobile.agent.host.unsupported"));
+      return request("POST", AGENT_HOST_SETTINGS_ROUTES.update, decodeAgentHostSettings, { ...input }, serverId);
+    },
+    canStartNewChat: (serverId) => capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY) ?? false,
+    startNewChat: async (agentId, serverId) => {
+      // A host too old to know the route answers 404, so refuse before the request.
+      if (!capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY))
+        throw new Error(currentText().t("mobile.agent.newChat.unsupported"));
+      await runTeamRequest(clearAgentContext(teamApi(serverId), agentId));
+    },
+    // Async, so a host without the capability rejects the promise and does not throw at the call.
+    listSharedTables: async (serverId) => runTeamRequest(listSharedTables(sharedTablesAdmin(serverId))),
+    deleteSharedTable: async (name, serverId) => runTeamRequest(deleteSharedTable(sharedTablesAdmin(serverId), name)),
+    loadAgentTemplatePreview: async (agentId, serverId) =>
+      runTeamRequest(previewAgentTemplate(publishAdmin(serverId), agentId)),
+    // A phone cannot draw the share card, and the host publishes without one.
+    publishAgentTemplate: async (agentId, serverId) =>
+      runTeamRequest(publishAgentTemplate(publishAdmin(serverId), { agentId, card: null })),
+    unpublishAgentTemplate: async (agentId, serverId) =>
+      runTeamRequest(unpublishAgentTemplate(publishAdmin(serverId), agentId)),
     deleteStoredFile: async (fileId, serverId) => {
       if (!capabilities.get(serverId)?.includes(STORAGE_CAPABILITY))
         throw new Error(currentText().t("mobile.workspace.error.filesUnsupported"));
@@ -332,6 +444,7 @@ export function createHostRequestActions({
         serverId,
       ),
     canEditQueue: (serverId) => capabilities.get(serverId)?.includes(TEAM_QUEUE_EDIT_CAPABILITY) ?? false,
+    canRetryMessage: (serverId) => capabilities.get(serverId)?.includes(TEAM_MESSAGE_CLIENT_ID_CAPABILITY) ?? false,
     attachmentSupport: (serverId) => {
       const advertised = capabilities.get(serverId) ?? [];
       return {

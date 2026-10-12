@@ -44,14 +44,18 @@ import {
   requireProviderDriver,
   savedCustomAgents,
 } from "./../provider-drivers";
+import { startProviderTerminalLogin } from "../provider-terminal-login";
 import { recordRestartActivity } from "../restart-activity";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
 import { stopProcessTree } from "../windows-process-tree";
 import { normalizeAccountUsage } from "./account-usage";
+import { captureBrowser } from "./browser-capture";
+import { startCliCodeLogin } from "./cli-code-login";
 import { CliLoginFailed, CliLoginFlow, toCliLoginFailed } from "./cli-login-flow";
 import { CodexLoginFlow, toCodexLoginFailed } from "./codex-login";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { ModelCatalog } from "./model-catalog";
+import { startMuseDeviceLogin } from "./muse-login";
 import {
   createAcpRequestEchoReader,
   ignoredCodexSettings,
@@ -305,6 +309,7 @@ export class ProviderRuntime implements ProviderPort {
   readonly #providerStarts = new Map<AgentProvider, Deferred.Deferred<void, ProviderOperationFailed>>();
   readonly #providerConnectionCommands = new Map<AgentProvider, Deferred.Deferred<void, ProviderOperationFailed>>();
   readonly #replacingCli = new Set<AgentProvider>();
+  #removingCustomRuntime = false;
   /**
    * Providers whose idle process was stopped to give its memory back. Each one keeps its status,
    * account and models, so every view reads it as connected; `ensureProvider` starts it again.
@@ -452,8 +457,13 @@ export class ProviderRuntime implements ProviderPort {
         if (this.#off.has(row.id)) return { id: row.id, state: "not-started", version: null, message: null, off: true };
         const source = this.#cli.get(row.id)?.source ?? this.#cliSources.get(row.id);
         const lastError = this.#lastErrors.get(row.id);
+        const unverified =
+          row.id === "muse" && row.state === "available" && this.#accounts.get(row.id)?.type === "muse-unverified";
         const withSource = {
           ...row,
+          ...(unverified
+            ? { state: "sign-in-required" as const, message: sourceText("error.provider.museAuthUnverified") }
+            : {}),
           ...(source ? { cliSource: source } : {}),
           ...(lastError ? { lastError: lastError.message, lastErrorAt: lastError.at } : {}),
         };
@@ -670,6 +680,8 @@ export class ProviderRuntime implements ProviderPort {
 
   createProfileClient(provider: AgentProvider): AgentClient {
     this.requireProviderOn(provider);
+    if (provider === "acp" && this.#removingCustomRuntime)
+      throw new Error(sourceText("error.provider.registryRemoveBusy"));
     const cli = this.#cli.get(provider);
     if (!cli || !this.#clients.has(provider)) throw new Error(sourceText("error.provider.connectBeforeProfile"));
     if (this.#clientFactory) return this.#clientFactory(provider, cli);
@@ -723,6 +735,9 @@ export class ProviderRuntime implements ProviderPort {
                 ),
               );
             } else {
+              // Starting a provider that has no usage reading only to get nothing back cost a cold
+              // start on every dock poll.
+              if (!agentProviderDescriptor(provider).reportsUsage) return;
               const kept = this.#released.has(provider) ? this.#lastUsage.get(provider) : undefined;
               if (kept && !usageWindowHasReset(kept)) {
                 collected.set(provider, kept);
@@ -805,6 +820,8 @@ export class ProviderRuntime implements ProviderPort {
     this: ProviderRuntime,
     provider: AgentProvider,
   ) {
+    if (provider === "acp" && this.#removingCustomRuntime)
+      return yield* new ProviderOperationFailed({ cause: new Error(sourceText("error.provider.registryRemoveBusy")) });
     yield* providerStep(() => this.requireProviderOn(provider));
     this.#lastUsed.set(provider, Date.now());
     if (this.#clients.has(provider)) return;
@@ -846,7 +863,7 @@ export class ProviderRuntime implements ProviderPort {
     options: { notifyReady?: boolean; preserveCheckErrors?: boolean; refreshRuntimeInBackground?: boolean },
     phase: "starting" | "restarting" = "starting",
   ) {
-    if (this.#off.has(provider)) return;
+    if (this.#off.has(provider) || (provider === "acp" && this.#removingCustomRuntime)) return;
     const pending = this.#providerStarts.get(provider);
     if (pending) return yield* Deferred.await(pending);
     const completion = Deferred.makeUnsafe<void, ProviderOperationFailed>();
@@ -869,6 +886,16 @@ export class ProviderRuntime implements ProviderPort {
     provider: AgentProvider,
     openExternal: (url: string) => Promise<void>,
   ) {
+    return yield* this.#connectProvider(provider, openExternal, false);
+  }).bind(this);
+
+  /** `onHost`: the user is not at this computer, so the CLI's page goes to `openExternal`, never to a browser here. */
+  readonly #connectProvider = Effect.fn("ProviderRuntime.connectProvider")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    openExternal: (url: string) => Promise<void>,
+    onHost: boolean,
+  ) {
     const start = this.#providerStarts.get(provider);
     if (start) yield* Deferred.await(start);
     if (start && this.#clients.has(provider) && this.#accounts.has(provider)) return this.status();
@@ -876,14 +903,17 @@ export class ProviderRuntime implements ProviderPort {
       return this.status();
     }
     const signIn = requireProviderDriver(provider).signIn;
-    return yield* this.#runProviderConnectionCommand(provider, () => this.#signIn(provider, signIn, openExternal));
-  }).bind(this);
+    return yield* this.#runProviderConnectionCommand(provider, () =>
+      this.#signIn(provider, signIn, openExternal, onHost),
+    );
+  });
 
   readonly #signIn = Effect.fn("ProviderRuntime.signIn")(function* (
     this: ProviderRuntime,
     provider: AgentProvider,
     signIn: ReturnType<typeof requireProviderDriver>["signIn"],
     openExternal: (url: string) => Promise<void>,
+    onHost: boolean,
   ) {
     switch (signIn.kind) {
       case "browser":
@@ -895,12 +925,13 @@ export class ProviderRuntime implements ProviderPort {
         yield* this.#cliLogin
           .start(provider, (cli) =>
             Effect.gen(function* () {
+              const browser = onHost ? yield* captureBrowser(openExternal) : {};
               const child = yield* Effect.acquireRelease(
                 Effect.try({
                   try: () =>
                     spawn(cli.executable, [...signIn.command.argv], {
                       cwd: process.cwd(),
-                      env: { ...process.env, ...signIn.command.env(cli) },
+                      env: { ...process.env, ...signIn.command.env(cli), ...browser },
                       stdio: "ignore",
                       shell: false,
                       windowsHide: process.platform === "win32",
@@ -924,14 +955,67 @@ export class ProviderRuntime implements ProviderPort {
               env: { ...signIn.env },
               methodId: signIn.methodId,
               timeoutMs: signIn.timeoutMs,
+              ...(provider === "antigravity" && (onHost || process.platform === "linux")
+                ? { openGoogleSignIn: openExternal }
+                : {}),
             }),
           )
           .pipe(toProviderOperationFailed);
         return this.status();
       case "external":
         return yield* this.#reprobeProvider(provider);
+      case "terminal":
+        yield* this.#cancelCliLogin(provider);
+        yield* this.#cliLogin
+          .start(provider, (cli) => startProviderTerminalLogin(cli, signIn.timeoutMs))
+          .pipe(toProviderOperationFailed);
+        return this.status();
     }
   });
+
+  /**
+   * Signs `provider` in through the page that its CLI prints, which `openPage` shows, and waits until
+   * the sign-in ends. For a host whose browser the user reaches only through a live view
+   * (`provider-host-sign-in-v1`). Fails with the reason when the provider is not signed in at the end.
+   */
+  readonly signInProviderOnHost = Effect.fn("ProviderRuntime.signInProviderOnHost")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    openPage: (url: string) => Promise<void>,
+  ) {
+    const codeSignIn = requireProviderDriver(provider).codeSignIn;
+    if (codeSignIn?.kind === "muse-device") {
+      // `muse login` with no terminal waits on a device page it never opens; the page is the sign-in.
+      const started = yield* this.startProviderCodeLogin(provider);
+      if (started.kind === "code")
+        yield* Effect.promise(() => openPage(started.verificationUrlComplete ?? started.verificationUrl));
+    } else {
+      yield* this.#connectProvider(provider, openPage, true);
+    }
+    // A sign-in that ended before this read leaves no task; the clients then tell how it ended.
+    const pending =
+      requireProviderDriver(provider).signIn.kind === "browser"
+        ? this.#codexLogin.settled()
+        : this.#cliLogin.settled(provider);
+    const signedIn = (yield* pending) ?? (this.#clients.has(provider) && this.#accounts.has(provider));
+    if (signedIn) return;
+    const message = this.#status.providers?.find((status) => status.id === provider)?.message;
+    return yield* new ProviderOperationFailed({
+      cause: new Error(message ?? sourceText("error.provider.hostSignInEnded", { provider: providerLabel(provider) })),
+    });
+  }).bind(this);
+
+  /** Ends a sign-in that `signInProviderOnHost` started. The CLI stops, so its page cannot finish it. */
+  readonly cancelProviderSignIn = Effect.fn("ProviderRuntime.cancelProviderSignIn")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+  ) {
+    // Codex signs in through its app-server, not a CLI login, and holds its callback port until it ends.
+    const browser = requireProviderDriver(provider).signIn.kind === "browser";
+    return yield* this.#runProviderConnectionCommand(provider, () =>
+      (browser ? this.#codexLogin.cancel(null) : this.#cancelCliLogin(provider)).pipe(Effect.map(() => this.status())),
+    );
+  }).bind(this);
 
   /**
    * Starts a sign-in the user finishes on another device, for a provider that offers one.
@@ -964,7 +1048,30 @@ export class ProviderRuntime implements ProviderPort {
       return yield* this.#codexLogin.startDevice().pipe(toProviderOperationFailed);
     }
     yield* this.#cancelCliLogin(provider);
-    return yield* this.#cliLogin.startCode(provider, codeSignIn).pipe(toProviderOperationFailed);
+    if (codeSignIn.kind === "muse-device") {
+      return yield* this.#cliLogin
+        .startCode(
+          provider,
+          (cli) => startMuseDeviceLogin({ cli, timeoutMs: codeSignIn.timeoutMs }),
+          codeSignIn.timeoutMs,
+        )
+        .pipe(toProviderOperationFailed);
+    }
+    const { command, flow } = codeSignIn;
+    return yield* this.#cliLogin
+      .startCode(
+        provider,
+        (cli) =>
+          startCliCodeLogin({
+            flow,
+            executable: cli.executable,
+            argv: command.argv,
+            env: command.env(cli),
+            timeoutMs: command.timeoutMs,
+          }),
+        command.timeoutMs,
+      )
+      .pipe(toProviderOperationFailed);
   }, Effect.uninterruptible);
 
   /**
@@ -1099,6 +1206,41 @@ export class ProviderRuntime implements ProviderPort {
     }
     return "restarted";
   }, Effect.uninterruptible);
+
+  /** Holds ACP process ownership while managed executable files are removed. */
+  withCustomAgentRuntimeRemoval<T>(
+    operation: () => Effect.Effect<T, ProviderOperationFailed>,
+  ): Effect.Effect<T, ProviderOperationFailed> {
+    return this.#runProviderConnectionCommand(
+      "acp",
+      () =>
+        Effect.gen({ self: this }, function* () {
+          this.#removingCustomRuntime = true;
+          this.#replacingCli.add("acp");
+          recordRestartActivity();
+          return yield* Effect.gen({ self: this }, function* () {
+            const start = this.#providerStarts.get("acp");
+            if (start) yield* Deferred.await(start).pipe(Effect.ignore);
+            for (const pending of this.#confinedStarts.values()) yield* Deferred.await(pending).pipe(Effect.ignore);
+            if (this.#hooks.isProviderBusy("acp"))
+              return yield* new ProviderOperationFailed({
+                cause: new Error(sourceText("error.provider.registryRemoveBusy")),
+              });
+            yield* this.#stopProviderClient("acp");
+            return yield* operation();
+          }).pipe(
+            Effect.ensuring(
+              Effect.sync(() => {
+                this.#removingCustomRuntime = false;
+                this.#replacingCli.delete("acp");
+                this.#hooks.onProviderResumed("acp");
+              }),
+            ),
+          );
+        }),
+      false,
+    );
+  }
 
   /** Stops a provider's shared process and every Workspace only process of it, with no restart. */
   readonly #stopProviderClient = Effect.fn("ProviderRuntime.stopProviderClient")(function* (
@@ -1255,6 +1397,8 @@ export class ProviderRuntime implements ProviderPort {
    */
   requireReadyClientForAgent(agent: AgentSummary): AgentClient {
     const provider = providerForAgent(agent);
+    if (provider === "acp" && this.#removingCustomRuntime)
+      throw new Error(sourceText("error.provider.registryRemoveBusy"));
     if (!this.#confined.has(agent.id) && !this.#confinementFor(agent)) return this.requireReadyClient(provider);
     const client = this.clientForAgent(agent);
     if (!client) throw new Error(sourceText("error.provider.noAgentProcess", { provider: providerLabel(provider) }));
@@ -1276,6 +1420,8 @@ export class ProviderRuntime implements ProviderPort {
       const currentStart = pending;
       yield* Deferred.await(currentStart).pipe(Effect.ignore);
     }
+    if (provider === "acp" && this.#removingCustomRuntime)
+      return yield* new ProviderOperationFailed({ cause: new Error(sourceText("error.provider.registryRemoveBusy")) });
     const confinement = this.#confinementFor(agent);
     const current = this.#confined.get(agent.id);
     const key = confinement ? this.#confinedKey(provider, confinement) : null;
@@ -1461,6 +1607,8 @@ export class ProviderRuntime implements ProviderPort {
   }
 
   requireReadyClient(provider: AgentProvider): AgentClient {
+    if (provider === "acp" && this.#removingCustomRuntime)
+      throw new Error(sourceText("error.provider.registryRemoveBusy"));
     const client = this.clientFor(provider);
     if (!client || this.#status.phase !== "ready") {
       throw new Error(
@@ -1504,6 +1652,7 @@ export class ProviderRuntime implements ProviderPort {
     this: ProviderRuntime,
     source: AgentClient,
   ) {
+    if (!agentProviderDescriptor(source.provider).reportsUsage) return;
     const client = this.#clients.get(source.provider);
     if (!client || this.#usageLimitRefreshes.has(client)) return;
     this.#usageLimitRefreshes.add(client);
@@ -1550,8 +1699,9 @@ export class ProviderRuntime implements ProviderPort {
     this: ProviderRuntime,
     provider: AgentProvider,
     command: () => Effect.Effect<T, ProviderOperationFailed>,
+    requireOn = true,
   ) {
-    yield* providerStep(() => this.requireProviderOn(provider));
+    if (requireOn) yield* providerStep(() => this.requireProviderOn(provider));
     const previous = this.#providerConnectionCommands.get(provider);
     const completion = Deferred.makeUnsafe<void, ProviderOperationFailed>();
     this.#providerConnectionCommands.set(provider, completion);
@@ -1559,7 +1709,7 @@ export class ProviderRuntime implements ProviderPort {
     if (previous) yield* Deferred.await(previous).pipe(Effect.ignore);
     const exit = yield* Effect.exit(
       Effect.gen({ self: this }, function* () {
-        yield* providerStep(() => this.requireProviderOn(provider));
+        if (requireOn) yield* providerStep(() => this.requireProviderOn(provider));
         return yield* Effect.suspend(command);
       }),
     );
@@ -2064,7 +2214,12 @@ export class ProviderRuntime implements ProviderPort {
             .pipe(toProviderOperationFailed);
           if (!account.account) {
             const message =
-              this.#customProviderSignInMessage(provider) ?? agentProviderDescriptor(provider).signInMessage;
+              this.#customProviderSignInMessage(provider) ??
+              (provider === "pi"
+                ? sourceText("error.provider.piSignIn")
+                : provider === "muse"
+                  ? sourceText("error.provider.museSignIn")
+                  : agentProviderDescriptor(provider).signInMessage);
             yield* candidate.stop().pipe(Effect.catch(() => Effect.void));
             this.#setStatus({
               providers: updateProviderStatus(this.#status.providers, provider, {
@@ -2288,7 +2443,9 @@ export class ProviderRuntime implements ProviderPort {
         stderrLogger.warn("A provider ignored settings in its configuration.", { provider: client.provider, message });
         return;
       }
-      if (isUsageLimitDiagnostic(message)) {
+      // The usage notice reports the limit only for a provider with a usage reading. Another
+      // provider's line goes on to the error below, or nothing on screen would name the limit.
+      if (isUsageLimitDiagnostic(message) && agentProviderDescriptor(client.provider).reportsUsage) {
         stderrLogger.warn("A provider reported an exhausted usage limit.", { provider: client.provider, message });
         Effect.runFork(this.refreshUsageAfterLimit(client));
         return;

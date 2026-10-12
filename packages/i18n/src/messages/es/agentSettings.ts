@@ -2,14 +2,19 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agentSettings";
 
 export const messages = {
+  "agentSettings.session.title": "Ajustes del proveedor",
+  "agentSettings.session.readFailed": "No se pudieron leer los ajustes del proveedor.",
+  "agentSettings.session.pending": "Los cambios guardados se aplican antes del siguiente turno.",
+  "agentSettings.session.unavailable":
+    "El valor guardado {value} no está disponible. Selecciona otro valor o restablécelo.",
+  "agentSettings.session.effective": "Valor actual del proveedor: {value}",
+  "agentSettings.session.reset": "Restablecer ajuste",
+  "agentSettings.session.resetNamed": "Restablecer {name}",
   "agentSettings.label": "Ajustes del agente",
   "agentSettings.title": "Ajustes",
   "agentSettings.backToDetails": "Volver a detalles",
   "agentSettings.closeDetails": "Cerrar detalles",
   "agentSettings.backToSettings": "Volver a la configuración",
-  "agentSettings.profile.title": "Perfil",
-  "agentSettings.profile.open": "Editar el perfil de {name}",
-  "agentSettings.instructionsEdit": "Editar instrucciones",
   "agentSettings.permissions.title": "Permisos",
   "agentSettings.advanced.title": "Avanzado",
   "agentSettings.groups.brain": "Cerebro",
@@ -118,7 +123,8 @@ export const messages = {
   "agentSettings.computerUse.title": "Uso del equipo",
   "agentSettings.computerUse.description": "Permitir que este agente controle apps en este equipo",
   "agentSettings.automation.title": "Scripts locales",
-  "agentSettings.automation.description": "Permitir que los scripts de este equipo ejecuten las rutinas de este agente",
+  "agentSettings.automation.description":
+    "Permitir que los scripts del equipo host envíen mensajes, ejecuten rutinas, respondan preguntas y acepten o rechacen solicitudes de aprobación",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo el proceso de {provider} se ejecuta en un entorno aislado, por lo que la escritura fuera falla. Solo disponible en macOS.",
 } as const satisfies PartialTranslation<typeof source>;

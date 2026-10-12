@@ -1,7 +1,12 @@
+import { AGENT_MEMORY_CONTEXT_BUDGET_BYTES, essentialMemoryBytes } from "@openbot/contracts/agent-memory-context";
+import type { AcpRegistryEntry, AgentSessionSettings, McpSignInApp, McpSignInAppState } from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
   type AgentEvent,
   type AgentMemory,
+  type AgentMemoryLimitPreference,
+  type AgentMemorySelection,
+  type AgentMemorySelectionState,
   type AgentModelOption,
   type AgentProviderId,
   type AgentStatus,
@@ -16,6 +21,8 @@ import {
   type AppSetupState,
   type AttachmentImportEvent,
   agentAutoApprovalEnabled,
+  agentAutomationAllowed,
+  agentComputerUseEnabled,
   type BusyMessageModePreference,
   type CentralAuthState,
   CONTEXT_RESET_ITEM_TYPE,
@@ -27,6 +34,7 @@ import {
   composedCustomModelId,
   createMcpServerId,
   DEFAULT_AGENT_ACCESS,
+  DEFAULT_AGENT_MEMORY_LIMIT,
   DEFAULT_APP_LOGO_COLOR,
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
   DEFAULT_BUSY_MESSAGE_MODE,
@@ -121,9 +129,11 @@ import { createMockSkills, type MockSkillsOptions } from "./mock-skills";
 import { createMockStorage } from "./mock-storage";
 import { clone, type Listener, type MockRuntime, matchesQuery } from "./mock-support";
 import { createMockTeam, type MockTeamOptions } from "./mock-team";
+import { createMockVoice, type MockVoiceOptions } from "./mock-voice";
 
 export interface MockOpenBotOptions
   extends MockProviderRuntimeOptions,
+    MockVoiceOptions,
     MockAuthOptions,
     MockBrowserOptions,
     MockTeamOptions,
@@ -242,6 +252,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let analyticsPreference = clone<AnalyticsPreference>(options.analyticsPreference ?? { enabled: true });
   let approvalAutomation = clone<ApprovalAutomationPreference>(DEFAULT_APPROVAL_AUTOMATION_PREFERENCE);
   let busyMessageMode: BusyMessageModePreference = { mode: DEFAULT_BUSY_MESSAGE_MODE };
+  let agentMemoryLimit: AgentMemoryLimitPreference = { limit: DEFAULT_AGENT_MEMORY_LIMIT };
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
   let languagePreference = clone<AppLanguagePreference>(options.languagePreference ?? { language: "system" });
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
@@ -252,6 +263,35 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let dynamicIslandPresentation: DynamicIslandPresentation = { serverId: "local", mode: "idle" };
   let agentStatus = clone(options.agentStatus ?? STORY_AGENT_STATUS);
   let agents = clone(options.agents ?? STORY_AGENT_SUMMARIES);
+  const sessionSettings = new Map<string, AgentSessionSettings>();
+  function previewSessionSettings(agentId: string): AgentSessionSettings {
+    const agent = agents.find((candidate) => candidate.id === agentId);
+    if (!agent) throw new Error("Agent not found");
+    let value = sessionSettings.get(agentId);
+    if (!value || value.providerIdentity !== agent.provider) {
+      value = {
+        agentId,
+        providerIdentity: agent.provider,
+        pending: false,
+        overrides: {},
+        options: [
+          { id: "compact", name: "Compact replies", type: "boolean", currentValue: false },
+          {
+            id: "format",
+            name: "Reply format",
+            type: "select",
+            currentValue: "auto",
+            options: [
+              { value: "auto", name: "Automatic" },
+              { value: "brief", name: "Brief" },
+            ],
+          },
+        ],
+      };
+      sessionSettings.set(agentId, value);
+    }
+    return value;
+  }
   let mcpServers = clone(STORY_MCP_SERVERS);
   let mcpSignedIn = new Set<string>();
   let cancelPendingMcpSignIn: (() => void) | null = null;
@@ -259,6 +299,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     mcpServers
       .filter((server) => server.transport === "http")
       .map((server) => ({ mcpServerId: server.id, signedIn: mcpSignedIn.has(server.id) }));
+  let mcpSignInApps: Record<string, McpSignInApp> = {};
+  const mcpSignInAppState = (mcpServerId: string): McpSignInAppState => ({
+    redirectUrl: "http://127.0.0.1:28417/mcp-auth",
+    app: mcpSignInApps[mcpServerId] ?? null,
+  });
   let sidebarLayout: SidebarLayoutSnapshot = {
     revision: 0,
     sections: [],
@@ -275,6 +320,17 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let hostedSites = clone(STORY_HOSTED_SITES);
   let detectionSettings: ProviderDetectionSettings = clone(DEFAULT_PROVIDER_DETECTION_SETTINGS);
   let customAgents: CustomAgentSummary[] = [];
+  const registryEntry: AcpRegistryEntry = {
+    id: "example-acp",
+    name: "Example ACP",
+    version: "1.0.0",
+    description: "Preview agent",
+    website: null,
+    license: "MIT",
+    distributions: ["binary"],
+    installedVersion: null,
+    customAgentId: null,
+  };
   // The same two endpoints the model-picker stories invent, so preview shows one list everywhere.
   let customProviders = clone(
     options.customProviders ?? [
@@ -329,6 +385,46 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     agents.map((agent) => [agent.id, { agentId: agent.id, deliveries: queueSeeds[agent.id] ?? [] }]),
   );
   const memories = new Map<string, AgentMemory[]>(Object.entries(clone(options.memories ?? {})));
+  const memorySelections = new Map<string, AgentMemorySelection>();
+  for (const entries of memories.values()) {
+    const selected: AgentMemory[] = [];
+    for (const entry of [...entries].sort((left, right) => {
+      if (left.origin !== right.origin) return left.origin === "manual" ? -1 : 1;
+      return left.updatedAt !== right.updatedAt
+        ? left.updatedAt > right.updatedAt
+          ? -1
+          : 1
+        : left.id < right.id
+          ? -1
+          : left.id > right.id
+            ? 1
+            : 0;
+    })) {
+      const inclusion =
+        essentialMemoryBytes([...selected, entry]) <= AGENT_MEMORY_CONTEXT_BUDGET_BYTES ? "essential" : "searchable";
+      if (inclusion === "essential") selected.push(entry);
+      memorySelections.set(entry.id, { memoryId: entry.id, inclusion, userControlled: false, revision: 0 });
+    }
+  }
+  function getMemorySelection(agentId: string): AgentMemorySelectionState {
+    const entries = memories.get(agentId) ?? [];
+    return {
+      selections: entries.map(
+        (entry) =>
+          memorySelections.get(entry.id) ?? {
+            memoryId: entry.id,
+            inclusion: "searchable",
+            userControlled: false,
+            revision: 0,
+          },
+      ),
+      usedBytes: essentialMemoryBytes(
+        entries.filter((entry) => memorySelections.get(entry.id)?.inclusion === "essential"),
+      ),
+      budgetBytes: AGENT_MEMORY_CONTEXT_BUDGET_BYTES,
+    };
+  }
+
   let tables: SharedTable[] = clone(options.tables ?? STORY_SHARED_TABLES);
   const routines = new Map<string, Routine[]>(Object.entries(clone(options.routines ?? {})));
   const routineRuns = new Map<string, RoutineRun[]>();
@@ -419,6 +515,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     timezone: string;
     schedule: RoutineSchedule;
     limitPolicy?: Routine["limitPolicy"];
+    missedPolicy?: Routine["missedPolicy"];
   }): Routine {
     const now = new Date().toISOString();
     const routineId = crypto.randomUUID();
@@ -430,6 +527,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       active: input.active,
       timezone: input.timezone,
       limitPolicy: input.limitPolicy ?? "wait",
+      missedPolicy: input.missedPolicy ?? "skip",
       trigger: {
         id: crypto.randomUUID(),
         routineId,
@@ -448,6 +546,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     (agentId) => agents.find((entry) => entry.id === agentId)?.name ?? agentId,
   );
   const mockProviderRuntimes = createMockProviderRuntimes(options, runtime);
+  const mockVoice = createMockVoice(options, runtime);
   const mockAuth = createMockAuth(options, runtime);
   const mockSkills = createMockSkills(options, (agentId) => emitAgentEvent({ type: "skills-changed", agentId }));
   const { installedSkills, readInstalledSkills } = mockSkills;
@@ -494,6 +593,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     setBusyMessageModePreference: async ({ mode }) => {
       busyMessageMode = { mode };
       return clone(busyMessageMode);
+    },
+    getAgentMemoryLimitPreference: async () => clone(agentMemoryLimit),
+    setAgentMemoryLimitPreference: async ({ limit }) => {
+      agentMemoryLimit = { limit };
+      return clone(agentMemoryLimit);
     },
     getAppLanguagePreference: async () => clone(languagePreference),
     setAppLanguagePreference: async ({ language }) => {
@@ -576,13 +680,27 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     restartProvider: async () => clone(agentStatus),
     cancelProviderRestart: async () => clone(agentStatus),
     // A code that never completes: the preview has no provider to finish the sign-in, so this shows
-    // the waiting screen and leaves it there.
-    startProviderCodeLogin: async () => ({
-      kind: "code",
-      userCode: "KTQ4-B62MX",
-      verificationUrl: "https://auth.openai.com/codex/device",
-      expiresAt: Date.now() + 10 * 60_000,
-    }),
+    // the waiting screen and leaves it there. Claude signs in with a code its page shows, which the
+    // user pastes back, and Cursor with a page that signs its CLI in by itself.
+    startProviderCodeLogin: async (provider) =>
+      provider === "claude"
+        ? {
+            kind: "paste",
+            verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
+            expiresAt: Date.now() + 10 * 60_000,
+          }
+        : provider === "cursor"
+          ? {
+              kind: "link",
+              verificationUrl: "https://cursor.com/loginDeepControl?mode=login&redirectTarget=cli",
+              expiresAt: Date.now() + 10 * 60_000,
+            }
+          : {
+              kind: "code",
+              userCode: "KTQ4-B62MX",
+              verificationUrl: "https://auth.openai.com/codex/device",
+              expiresAt: Date.now() + 10 * 60_000,
+            },
     cancelProviderCodeLogin: async () => clone(agentStatus),
     setProviderApiKey: async ({ provider, key }) => {
       if (!key.trim()) throw new Error("A provider key is required.");
@@ -599,12 +717,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     }),
     providerRuntimes: mockProviderRuntimes.providerRuntimes,
     openUrl: async () => undefined,
-    voice: {
-      getModelStatus: async () => ({ phase: "ready", progress: 100, message: null }),
-      prepareModel: async () => ({ phase: "ready", progress: 100, message: null }),
-      transcribe: async () => ({ text: "Mock voice transcript" }),
-      onModelStatus: () => () => undefined,
-    },
+    voice: mockVoice.voice,
     routineFlows: mockRoutineFlows({ routines, routineRuns }),
     auth: mockAuth.auth,
     skills: mockSkills.skills,
@@ -713,6 +826,40 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     },
     // Preview starts no process: the names are kept, the values are dropped, and a check answers
     // for the command without running it.
+    acpRegistry: {
+      search: async (query) =>
+        clone(!query || registryEntry.name.toLowerCase().includes(query.toLowerCase()) ? [registryEntry] : []),
+      installed: async () =>
+        registryEntry.installedVersion && registryEntry.customAgentId
+          ? [
+              {
+                registryId: registryEntry.id,
+                customAgentId: registryEntry.customAgentId,
+                version: registryEntry.installedVersion,
+                distribution: "binary",
+              },
+            ]
+          : [],
+      status: async () => [],
+      install: async (input) => {
+        registryEntry.installedVersion = registryEntry.version;
+        registryEntry.customAgentId = input.customAgentId;
+        if (!customAgents.some((agent) => agent.id === input.customAgentId))
+          customAgents.push({
+            id: input.customAgentId,
+            name: input.name ?? registryEntry.name,
+            command: "/preview/example-acp",
+            args: [],
+            envNames: [],
+            resolvedCommand: "/preview/example-acp",
+          });
+        return { agents: clone(customAgents), restart: "not-running" };
+      },
+      cancel: async () => undefined,
+      remove: async () => {
+        registryEntry.installedVersion = null;
+      },
+    },
     customAgents: {
       list: async () => clone(customAgents),
       save: async (input) => {
@@ -758,25 +905,19 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     messaging: createMockMessaging(() => agents[0]?.id ?? "preview-agent"),
     // Preview has one host, so every server answers from the same providers as this computer.
     providerAdmin: {
-      // A host signs Claude in with a code its page shows, which the user pastes back, and Cursor
-      // with a page that signs its CLI in by itself.
-      startCodeLogin: async (provider) =>
-        provider === "claude"
-          ? {
-              kind: "paste",
-              verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
-              expiresAt: Date.now() + 10 * 60_000,
-            }
-          : provider === "cursor"
-            ? {
-                kind: "link",
-                verificationUrl: "https://cursor.com/loginDeepControl?mode=login&redirectTarget=cli",
-                expiresAt: Date.now() + 10 * 60_000,
-              }
-            : api.startProviderCodeLogin(provider),
+      startCodeLogin: (provider) => api.startProviderCodeLogin(provider),
       // As with the code above, the preview has no provider to finish the sign-in.
       submitCodeLogin: async () => clone(agentStatus),
       cancelCodeLogin: (provider) => api.cancelProviderCodeLogin(provider),
+      // The preview has no host browser, so its Gemini sign-in waits with no page until it is cancelled.
+      startHostSignIn: async () => undefined,
+      hostSignInStatus: async () => ({ tabId: null, result: null }),
+      cancelHostSignIn: async () => clone(agentStatus),
+      startRelaySignIn: async () => undefined,
+      relaySignInStatus: async () => ({ page: null, result: null }),
+      openRelaySignIn: async () => undefined,
+      pasteRelaySignIn: async () => undefined,
+      cancelRelaySignIn: async () => clone(agentStatus),
       getApiKeyState: (provider) => api.getProviderApiKeyState(provider),
       setApiKey: (input) => api.setProviderApiKey(input),
       clearApiKey: (provider) => api.clearProviderApiKey(provider),
@@ -1002,6 +1143,32 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           ),
         ),
       listAgents: async () => clone(agents),
+      readAgentSessionSettings: async (agentId) => clone(previewSessionSettings(agentId)),
+      setAgentSessionSetting: async ({ agentId, settingId, value }) => {
+        const settings = previewSessionSettings(agentId);
+        const option = settings.options.find((entry) => entry.id === settingId);
+        if (!option) throw new Error("Unknown setting");
+        if (option.type === "boolean" && typeof value === "boolean") option.currentValue = value;
+        else if (
+          option.type === "select" &&
+          typeof value === "string" &&
+          option.options.some((choice) => choice.value === value)
+        )
+          option.currentValue = value;
+        else throw new Error("Invalid setting value");
+        settings.overrides[settingId] = value;
+        emitAgentEvent({ type: "agent-session-settings-changed", agentId });
+        return clone(settings);
+      },
+      resetAgentSessionSetting: async ({ agentId, settingId }) => {
+        const settings = previewSessionSettings(agentId);
+        delete settings.overrides[settingId];
+        const option = settings.options.find((entry) => entry.id === settingId);
+        if (option?.type === "boolean") option.currentValue = false;
+        else if (option?.type === "select") option.currentValue = "auto";
+        emitAgentEvent({ type: "agent-session-settings-changed", agentId });
+        return clone(settings);
+      },
       listInstalledSkills: async (agentId) => clone(readInstalledSkills(agentId)),
       ...mockChannels,
       getAgentAdminSettings: async (agentId) => {
@@ -1012,6 +1179,20 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           autoApprove: agentAutoApprovalEnabled(approvalAutomation, agentId),
           autoApproveLocked: approvalAutomation.turbo,
         };
+      },
+      getAgentHostSettings: async (agentId) => {
+        const agent = agents.find((candidate) => candidate.id === agentId);
+        if (!agent) throw new Error("Agent not found");
+        return {
+          computerUse: agentComputerUseEnabled(agent),
+          allowAutomation: agentAutomationAllowed(agent),
+          busyMessageMode: agent.busyMessageMode ?? null,
+          defaultBusyMessageMode: busyMessageMode.mode,
+        };
+      },
+      updateAgentHostSettings: async (input) => {
+        await api.agent.updateAgent(input);
+        return api.agent.getAgentHostSettings(input.agentId);
       },
       updateAgentAdminSettings: async ({ agentId, access, autoApprove }) => {
         const agent = agents.find((candidate) => candidate.id === agentId);
@@ -1086,6 +1267,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           cancelPendingMcpSignIn = () => settle(sourceText("error.backend.mcpSignInCancelled"));
           schedule(() => settle(null), 1500);
         }),
+      // The preview is this computer, which shows no host page.
+      mcpSignInPage: async () => null,
+      mcpSignInRelay: async () => null,
+      openMcpSignInRelay: async () => undefined,
+      completeMcpSignInRelay: async () => undefined,
       cancelMcpSignIn: async () => {
         cancelPendingMcpSignIn?.();
       },
@@ -1094,6 +1280,21 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return mcpSignInStates();
       },
       listMcpSignIns: async () => mcpSignInStates(),
+      // The preview keeps no secret: it remembers only that one was given.
+      mcpSignInApp: async ({ mcpServerId }) => mcpSignInAppState(mcpServerId),
+      saveMcpSignInApp: async ({ mcpServerId, clientId, clientSecret, scope }) => {
+        const secretSaved =
+          clientSecret === null ? (mcpSignInApps[mcpServerId]?.secretSaved ?? false) : clientSecret !== "";
+        mcpSignInApps = { ...mcpSignInApps, [mcpServerId]: { clientId, secretSaved, scope } };
+        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        return mcpSignInAppState(mcpServerId);
+      },
+      removeMcpSignInApp: async ({ mcpServerId }) => {
+        const { [mcpServerId]: _removed, ...rest } = mcpSignInApps;
+        mcpSignInApps = rest;
+        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        return mcpSignInAppState(mcpServerId);
+      },
       getSidebarLayout: async () => clone(sidebarLayout),
       mutateSidebarLayout: async (action) => {
         sidebarLayout = applySidebarLayoutAction(sidebarLayout, action);
@@ -1171,12 +1372,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         };
         memories.set(
           agent.id,
-          (memories.get(agentId) ?? []).map((memory) => ({
-            ...memory,
-            id: crypto.randomUUID(),
-            agentId: agent.id,
-            sourceTurnId: null,
-          })),
+          (memories.get(agentId) ?? []).map((memory) => {
+            const id = crypto.randomUUID();
+            const selection = memorySelections.get(memory.id);
+            if (selection) memorySelections.set(id, { ...selection, memoryId: id });
+            return { ...memory, id, agentId: agent.id, sourceTurnId: null };
+          }),
         );
         routines.set(
           agent.id,
@@ -1258,6 +1459,28 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         }
         emitAgentEvent({ type: "agents-changed", agents });
       },
+      getMemorySelection: async (agentId) => clone(getMemorySelection(agentId)),
+      setMemoryInclusion: async ({ agentId, changes }) => {
+        const state = getMemorySelection(agentId);
+        const next = state.selections.map((selection) => ({ ...selection }));
+        for (const change of changes) {
+          const selection = next.find((entry) => entry.memoryId === change.memoryId);
+          if (!selection || selection.revision !== change.expectedRevision)
+            throw new Error(sourceText("error.backend.memorySelectionConflict"));
+          if (change.inclusion !== "automatic") selection.inclusion = change.inclusion;
+          selection.userControlled = change.inclusion !== "automatic";
+          selection.revision += 1;
+        }
+        const ids = new Set(next.filter((entry) => entry.inclusion === "essential").map((entry) => entry.memoryId));
+        if (
+          essentialMemoryBytes((memories.get(agentId) ?? []).filter((entry) => ids.has(entry.id))) >
+          AGENT_MEMORY_CONTEXT_BUDGET_BYTES
+        )
+          throw new Error(sourceText("error.backend.memoryEssentialBudget"));
+        for (const selection of next) memorySelections.set(selection.memoryId, selection);
+        emitAgentEvent({ type: "memories-changed", agentId });
+        return clone(getMemorySelection(agentId));
+      },
       listMemories: async (agentId) => clone(memories.get(agentId) ?? []),
       createMemory: async (input) => {
         const now = new Date().toISOString();
@@ -1271,6 +1494,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           updatedAt: now,
         };
         memories.set(input.agentId, [...(memories.get(input.agentId) ?? []), memory]);
+        memorySelections.set(memory.id, {
+          memoryId: memory.id,
+          inclusion: "searchable",
+          userControlled: false,
+          revision: 0,
+        });
         emitAgentEvent({ type: "memories-changed", agentId: input.agentId });
         return clone(memory);
       },
@@ -1278,6 +1507,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         const current = memories.get(input.agentId)?.find((memory) => memory.id === input.memoryId);
         if (!current) throw new Error("Memory not found");
         const updated = { ...current, text: input.text.trim(), updatedAt: new Date().toISOString() };
+        const selected = (memories.get(input.agentId) ?? [])
+          .filter((entry) => memorySelections.get(entry.id)?.inclusion === "essential")
+          .map((entry) => (entry.id === input.memoryId ? updated : entry));
+        if (essentialMemoryBytes(selected) > AGENT_MEMORY_CONTEXT_BUDGET_BYTES)
+          throw new Error(sourceText("error.backend.memoryEssentialBudget"));
+        const selection = memorySelections.get(input.memoryId);
+        if (selection) memorySelections.set(input.memoryId, { ...selection, revision: selection.revision + 1 });
         memories.set(
           input.agentId,
           (memories.get(input.agentId) ?? []).map((memory) => (memory.id === input.memoryId ? updated : memory)),
@@ -1286,6 +1522,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone(updated);
       },
       deleteMemory: async (input) => {
+        memorySelections.delete(input.memoryId);
         memories.set(
           input.agentId,
           (memories.get(input.agentId) ?? []).filter((memory) => memory.id !== input.memoryId),
@@ -1293,6 +1530,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         emitAgentEvent({ type: "memories-changed", agentId: input.agentId });
       },
       clearMemories: async (agentId) => {
+        for (const entry of memories.get(agentId) ?? []) memorySelections.delete(entry.id);
         memories.delete(agentId);
         emitAgentEvent({ type: "memories-changed", agentId });
       },
@@ -1316,6 +1554,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           ...(input.instruction === undefined ? {} : { instruction: input.instruction.trim() }),
           ...(input.active === undefined ? {} : { active: input.active }),
           ...(input.limitPolicy === undefined ? {} : { limitPolicy: input.limitPolicy }),
+          ...(input.missedPolicy === undefined ? {} : { missedPolicy: input.missedPolicy }),
           ...(input.schedule === undefined
             ? {}
             : {
@@ -1389,6 +1628,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           readState: { unreadCount: 0, firstUnreadMessageId: null, throughMessageId: null },
         };
       },
+      openMessageLink: async () => null,
+      pasteMessageLink: async () => undefined,
+      cancelMessageLink: async () => undefined,
       searchConversationMessages: async (input) => {
         const query = input.query.trim().replace(/\s+/g, " ").toLocaleLowerCase();
         const results = agents.flatMap((agent) =>
@@ -1673,7 +1915,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone(updateStatus);
       },
       download: async () => {
-        updateStatus = { ...updateStatus, phase: "downloading", progress: 0 };
+        updateStatus = { ...updateStatus, phase: "downloading", progress: null };
         emit(updateListeners, updateStatus);
         const downloadSteps = [
           { delay: 350, expectedPhase: "downloading", phase: "downloading", progress: 28 },

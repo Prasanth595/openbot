@@ -58,8 +58,9 @@ export const messages = defineMessages("server", {
   "server.join.emailBound": "This invitation only works for its email recipient.",
   "server.join.unknownDate": "Unknown",
   // The dialog that the plus button on the server rail opens. {price} is a formatted amount, such as "€20".
-  "server.add.title": "Run OpenBot in the cloud",
-  "server.add.description": "OpenBot runs the server for you. Choose a plan to start.",
+  "server.add.title": "Run OpenBot 24/7 on an external server",
+  "server.add.description":
+    "OpenBot Servers keep your agents and routines running, even when your computer is off. We handle the infrastructure and maintenance, so your server is ready to use without any technical setup.",
   "server.add.billing.label": "Billing period",
   "server.add.currency.label": "Currency",
   "server.add.billing.monthly": "Monthly",
@@ -263,6 +264,8 @@ export const messages = defineMessages("server", {
   "server.settings.reachable": "Reachable online. Only invited people can sign in.",
   "server.settings.notReachable": "Not reachable online. Existing members and invitations remain.",
   "server.settings.removeTitle": "Remove server",
+  "server.settings.removeDescription":
+    "Remove this server from the account service for all members. Use this when its computer is no longer available.",
   "server.settings.removeConfirmTitle": "Remove {name}?",
   "server.settings.removeConfirmDescription":
     "This removes the server from the account service for all members and ends remote access. Files and chats on its computer stay intact. To use it again, register it from that computer.",
@@ -372,6 +375,8 @@ export const messages = defineMessages("server", {
   "server.update.status.available": "{version} is available.",
   // {progress} is a percent, such as 42%.
   "server.update.status.downloading": "Downloading {version} · {progress}",
+  // Before the host knows the size, or while it waits to start the download.
+  "server.update.status.downloadingUnknown": "Downloading {version}…",
   "server.update.status.ready": "{version} is downloaded.",
   "server.update.status.installing": "{name} is restarting to install the update.",
   "server.update.status.upToDate": "OpenBot is up to date on {name}.",

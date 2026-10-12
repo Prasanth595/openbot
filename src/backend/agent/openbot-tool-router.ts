@@ -30,6 +30,7 @@ import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
+import type { ProviderSession } from "../database/provider-sessions";
 import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
 import { CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH, htmlPreviewToolSchema, htmlRenderToolSchema } from "../openbot-tools";
@@ -48,6 +49,7 @@ import type { ConversationRuntime } from "./conversation-runtime";
 import { handleDataTool } from "./data-tools";
 import { responseAttachmentMessageId, visualReplyFileName, visualReplyMessageId } from "./delivery-content";
 import type { DrainScheduler } from "./drain-scheduler";
+import { HistoryTools } from "./history-tools";
 import type { HostedSiteCoordinator } from "./hosted-site-coordinator";
 import { isHostedSiteMutationTool } from "./hosted-site-events";
 import type { MailboxSync } from "./mailbox-sync";
@@ -66,12 +68,14 @@ import {
   readAgentToolSchema,
   updateProfileToolSchema,
 } from "./profile-tools";
+import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
 import type { RoutineScheduler } from "./routine-scheduler";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "./routine-tools";
 import { type AgentSidebar, handleSidebarTool } from "./sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS, type LocalSkillTools, runLocalSkillTool } from "./skill-tools";
 import { isDynamicToolCall } from "./thread-items";
 import { toolCallIdempotencyKey } from "./tool-call-idempotency";
+import { discoverTools, resolveDeferredTool } from "./tool-catalog";
 import { ToolOperationFailed, toolStep, toToolOperationFailed } from "./tool-operation";
 import type { AgentBrowserHost } from "./turn-lifecycle";
 
@@ -99,9 +103,12 @@ export interface OpenBotToolRouterHooks {
   interrupt(agentId: string, turnId: string, mayStop: () => boolean): Effect.Effect<boolean, ToolOperationFailed>;
   /** Epoch milliseconds from the turn lifecycle; null when this process has not seen the event. */
   turnActivity(agentId: string, turnId: string | null): { startedAt: number | null; lastEventAt: number | null };
+  /** Records a no-update tool call for the turn; null when no routine run started the turn. */
+  requestNoUpdate(agentId: string, threadId: string, turnId: string): "quiet" | "shown" | null;
 }
 
 export interface OpenBotToolRouterOptions {
+  capturedSteps?: (session: ProviderSession) => Effect.Effect<Map<string, string> | null, ToolOperationFailed>;
   store: AgentStore;
   mailbox: MailboxStore;
   mailboxSync: MailboxSync;
@@ -133,6 +140,7 @@ export interface OpenBotToolRouterOptions {
  * It never imports the agent service facade.
  */
 export class OpenBotToolRouter {
+  readonly #history: HistoryTools;
   readonly #store: AgentStore;
   readonly #mailbox: MailboxStore;
   readonly #mailboxSync: MailboxSync;
@@ -156,6 +164,11 @@ export class OpenBotToolRouter {
   readonly #interruptTool: AgentInterruptTool;
 
   constructor(options: OpenBotToolRouterOptions) {
+    this.#history = new HistoryTools({
+      store: options.store,
+      redact: options.hooks.redactMcp,
+      capturedSteps: options.capturedSteps ?? (() => Effect.succeed(null)),
+    });
     this.#store = options.store;
     this.#mailbox = options.mailbox;
     this.#mailboxSync = options.mailboxSync;
@@ -227,25 +240,71 @@ export class OpenBotToolRouter {
           return;
         case "item/tool/call": {
           if (!isDynamicToolCall(request.params)) throw new Error("Invalid dynamic tool request.");
-          if (request.params.namespace === OPENBOT_BROWSER_NAMESPACE) {
-            const agentId = this.#conversation.agentForThread(request.params.threadId);
+          let params = request.params;
+          if (params.namespace === "openbot") {
+            if (params.tool === "tool_search" || params.tool === "tool_describe") {
+              const agentId = this.#conversation.agentForThread(params.threadId);
+              if (!agentId) throw new Error("The calling OpenBot agent is unknown.");
+              try {
+                const result = discoverTools(params, this.#requireAgent(agentId));
+                client.respond(request.id, openBotToolResult(result));
+              } catch {
+                client.respond(request.id, openBotToolFailure(sourceText("error.agent.toolRequestInvalid")));
+              }
+              return;
+            }
+            if (params.tool === "tool_call") {
+              const resolved = resolveDeferredTool(params);
+              if (!resolved) {
+                client.respond(request.id, openBotToolFailure(sourceText("error.agent.toolRequestInvalid")));
+                return;
+              }
+              params = resolved;
+            }
+          }
+          if (params.namespace === "openbot" && (params.tool === "history_search" || params.tool === "history_read")) {
+            const scope = this.#conversation.historyScope(params.threadId, client);
+            if (!scope || this.#channels.store.channelForThread(scope.threadId)) {
+              client.respond(request.id, openBotToolFailure(sourceText("error.agent.historyUnavailable")));
+              return;
+            }
+            const result = yield* this.#history.call(scope.agentId, scope.threadId, params.tool, params.arguments).pipe(
+              Effect.catch(() => Effect.succeed(openBotToolFailure(sourceText("error.agent.historyUnavailable")))),
+              Effect.catchDefect(() =>
+                Effect.succeed(openBotToolFailure(sourceText("error.agent.historyUnavailable"))),
+              ),
+            );
+            const currentScope = this.#conversation.historyScope(params.threadId, client);
+            if (!request.signal?.aborted && client.running)
+              client.respond(
+                request.id,
+                currentScope?.threadId === scope.threadId
+                  ? result
+                  : openBotToolFailure(sourceText("error.agent.historyUnavailable")),
+              );
+            return;
+          }
+          // Keep the transport identifiers and abort signal; enter the original dispatch below.
+          const toolRequest = { ...request, params };
+          if (toolRequest.params.namespace === OPENBOT_BROWSER_NAMESPACE) {
+            const agentId = this.#conversation.agentForThread(toolRequest.params.threadId);
             if (!agentId) throw new Error("The browsing OpenBot agent is unknown.");
-            if (request.params.tool === "request_takeover" || request.params.tool === "submit_secret") {
-              const result = yield* this.#attention.surfaceBrowserTakeover(client, request);
+            if (toolRequest.params.tool === "request_takeover" || toolRequest.params.tool === "submit_secret") {
+              const result = yield* this.#attention.surfaceBrowserTakeover(client, toolRequest);
               // A takeover of a stopped client ends with a cancel, and that process has nothing to answer.
-              if (client.running) client.respond(request.id, result);
+              if (client.running) client.respond(toolRequest.id, result);
               return;
             }
             if (this.#attention.hasBrowserTakeoverForAgent(agentId)) {
-              client.respond(request.id, {
+              client.respond(toolRequest.id, {
                 success: false,
                 contentItems: [{ type: "inputText", text: "Browser tools are unavailable during user takeover." }],
               });
               return;
             }
             const params = {
-              ...request.params,
-              threadId: this.#conversation.publicThreadId(agentId, request.params.threadId),
+              ...toolRequest.params,
+              threadId: this.#conversation.publicThreadId(agentId, toolRequest.params.threadId),
               ownerAgentId: agentId,
             };
             const operation = Effect.gen({ self: this }, function* () {
@@ -255,7 +314,7 @@ export class OpenBotToolRouter {
                   ? this.#attention.listVaultLogins(params)
                   : this.#browser.handleDynamicTool(params);
             });
-            const signal = request.signal;
+            const signal = toolRequest.signal;
             const cancelled = Effect.callback<never>((resume) => {
               const abort = () => resume(Effect.interrupt);
               if (signal?.aborted) abort();
@@ -267,31 +326,37 @@ export class OpenBotToolRouter {
               Effect.raceFirst(cancelled),
               Effect.onInterrupt(() => Effect.sync(() => this.#browser.endControl(params.threadId, params.turnId))),
             );
-            if (!signal?.aborted && client.running) client.respond(request.id, result);
+            if (!signal?.aborted && client.running) client.respond(toolRequest.id, result);
             return;
           }
-          if (request.params.namespace === "openbot") {
-            if (request.params.tool === "ask_user") {
-              this.#attention.surfaceDynamicPrompt(client, request);
+          if (toolRequest.params.namespace === "openbot") {
+            if (toolRequest.params.tool === "ask_user") {
+              this.#attention.surfaceDynamicPrompt(client, toolRequest);
               return;
             }
-            if (isHostedSiteMutationTool(request.params.tool)) {
-              yield* this.#attention.surfaceHostedSiteApproval(client, request, request.params, request.params.tool);
+            if (isHostedSiteMutationTool(toolRequest.params.tool)) {
+              yield* this.#attention.surfaceHostedSiteApproval(
+                client,
+                toolRequest,
+                toolRequest.params,
+                toolRequest.params.tool,
+              );
               return;
             }
-            const tool = request.params.tool;
-            // The calling agent can correct a profile request, so it gets the reason as a failed tool result.
-            const profileFailure = (error: unknown) =>
+            const tool = toolRequest.params.tool;
+            // The calling agent can correct a profile request or an attachment path, so it gets the reason as a
+            // failed tool result. Codex replaces a JSON-RPC error with "dynamic tool request failed" (#1728).
+            const correctableFailure = (error: unknown) =>
               Effect.sync(() => {
                 const message = this.#hooks.redactMcp(profileToolErrorMessage(error));
-                if (!(error instanceof z.ZodError)) logger.warn("A profile tool failed.", { tool, error: message });
+                if (!(error instanceof z.ZodError)) logger.warn("An OpenBot tool failed.", { tool, error: message });
                 return openBotToolFailure(message);
               });
-            const profileTool = PROFILE_TOOL_NAMES.has(tool);
-            const response = this.#handleOpenBotTool(request.params).pipe(
-              Effect.catch((failure) => (profileTool ? profileFailure(failure.cause) : Effect.fail(failure))),
-              Effect.catchDefect((defect) => (profileTool ? profileFailure(defect) : Effect.die(defect))),
-              Effect.tap((result) => Effect.sync(() => client.respond(request.id, result))),
+            const correctable = PROFILE_TOOL_NAMES.has(tool) || tool === "attach_files_to_response";
+            const response = this.#handleOpenBotTool(toolRequest.params).pipe(
+              Effect.catch((failure) => (correctable ? correctableFailure(failure.cause) : Effect.fail(failure))),
+              Effect.catchDefect((defect) => (correctable ? correctableFailure(defect) : Effect.die(defect))),
+              Effect.tap((result) => Effect.sync(() => client.respond(toolRequest.id, result))),
             );
             // Both store a file and then add the message that names it.
             yield* tool === "attach_files_to_response" || tool === "html_render"
@@ -299,7 +364,7 @@ export class OpenBotToolRouter {
               : response;
             return;
           }
-          throw new Error(`Unsupported dynamic tool namespace: ${request.params.namespace}`);
+          throw new Error(`Unsupported dynamic tool namespace: ${toolRequest.params.namespace}`);
         }
         case "item/tool/requestUserInput":
           this.#attention.surfacePrompt(client, request);
@@ -594,6 +659,16 @@ export class OpenBotToolRouter {
 
     if (params.tool === "update_profile") return yield* this.#updateProfile(params, senderAgentId);
 
+    if (params.tool === ROUTINE_NO_UPDATE_TOOL) {
+      const outcome = this.#hooks.requestNoUpdate(senderAgentId, executionThreadId, params.turnId);
+      if (outcome === null) return openBotToolFailure("Use this tool only in a routine run.");
+      return openBotToolResult(
+        outcome === "quiet"
+          ? { status: "quiet", note: "This run ends without a message or a notification. End your turn now." }
+          : { status: "shown", note: "Someone waits for this answer. Report the result as usual." },
+      );
+    }
+
     const sidebarResult = yield* handleSidebarTool(
       params.tool,
       params.arguments,
@@ -614,7 +689,7 @@ export class OpenBotToolRouter {
     );
     if (flowResult) return flowResult;
 
-    const memoryResult = this.#memories.handleTool(params, senderAgentId);
+    const memoryResult = this.#memories.handleTool(params, senderAgentId, this.#hooks.redactMcp);
     if (memoryResult) return memoryResult;
 
     const tableResult = yield* handleDataTool(params.tool, params.arguments, senderAgentId, this.#tables);
@@ -981,7 +1056,11 @@ export class OpenBotToolRouter {
         throw new Error("paths must be an array of local file paths.");
       }
       const replyToMessageId = params.arguments.replyToMessageId;
-      if (replyToMessageId !== undefined && replyToMessageId !== null && !isString(replyToMessageId)) {
+      if (
+        replyToMessageId !== undefined &&
+        replyToMessageId !== null &&
+        (!isString(replyToMessageId) || replyToMessageId.length > INPUT_LIMITS.identifier)
+      ) {
         throw new Error("replyToMessageId must be a message id.");
       }
       if (!isString(params.arguments.text)) throw new Error("text is required.");
@@ -1002,7 +1081,8 @@ export class OpenBotToolRouter {
           recipientAgentIds: recipientValues,
           text,
           sourcePaths: paths,
-          replyToMessageId: replyToMessageId ?? null,
+          // An agent can send "" for no reply. Every reader rejects an empty id.
+          replyToMessageId: replyToMessageId?.trim() || null,
           expectsReply,
           ...(messagingReturn ? { messagingReturn } : {}),
           idempotencyKey: toolCallIdempotencyKey(params),

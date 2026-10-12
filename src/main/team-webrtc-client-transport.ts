@@ -2,8 +2,8 @@ import { generateKeyPairSync, randomBytes, sign, verify } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
-import { TEAM_CURRENT_CAPABILITIES } from "@openbot/contracts/team-protocol/current";
-import { optionalTeamEvent } from "@openbot/contracts/team-protocol/optional-events";
+import { teamCapabilitiesForProtocol } from "@openbot/contracts/team-protocol/current";
+import { optionalTeamEvent, optionalTeamEventToCurrent } from "@openbot/contracts/team-protocol/optional-events";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
 import {
   type TeamProtocolV1CurrentEventControl,
@@ -19,11 +19,12 @@ import {
   type TeamProtocolV2RpcFrame,
   teamProtocolV2AuthenticationTranscript,
 } from "@openbot/contracts/team-protocol/v2";
+import { decodeTeamProtocolSupportV7Base } from "@openbot/contracts/team-protocol/v7-base";
 import {
-  decodeTeamProtocolV6CurrentEvent,
-  decodeTeamProtocolV6WebRtcHttpResponse,
-  encodeTeamProtocolV6WebRtcHttpRequest,
-} from "@openbot/contracts/team-protocol/v6-webrtc-adapter";
+  decodeTeamProtocolV7CurrentEvent,
+  decodeTeamProtocolV7WebRtcHttpResponse,
+  encodeTeamProtocolV7WebRtcHttpRequest,
+} from "@openbot/contracts/team-protocol/v7-webrtc-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import { remoteWorkspaceReadTimeout } from "@openbot/team-client/remote-recovery";
 import { Context, Deferred, Effect, Fiber, Layer, Result, Schema } from "effect";
@@ -36,6 +37,7 @@ import type {
   RemoteMemberRecord,
 } from "./central-auth-records";
 import type { RemoteConnectTrace } from "./remote-connect-trace";
+import { transportFailure } from "./remote-server-connection-status";
 import { RemoteWorkflowError, remoteDecode, toRemoteWorkflowError } from "./remote-service-effects";
 import type { RemoteSessionCache } from "./remote-session-cache";
 import type { TeamWebRtcBridge } from "./team-webrtc-bridge";
@@ -87,6 +89,7 @@ interface TeamWebRtcClientTransportOptions {
     reactivate?: boolean,
   ) => Effect.Effect<void, CentralAuthOperationError>;
   removeMember: (hostId: string, membershipId: string) => Effect.Effect<void, CentralAuthOperationError>;
+  removeOwnedHost: (hostId: string) => Effect.Effect<void, CentralAuthOperationError>;
   getPrincipalId: () => string;
   controlPlaneUrl: string;
   downloadHostLogo: (
@@ -114,6 +117,8 @@ interface ActiveHost {
   released: boolean;
   cancelConnectionWait: (() => void) | null;
   expirationTimer: ReturnType<typeof setTimeout> | null;
+  /** The one compatibility read of this connection that learns the host protocol. */
+  protocolProbe: Deferred.Deferred<void> | null;
   authentication: {
     ticket: string;
     clientPublicKey: string;
@@ -156,6 +161,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   #stopped = false;
   readonly #operations = new Set<Deferred.Deferred<void>>();
   #stopping: Deferred.Deferred<void, RemoteWorkflowError> | null = null;
+  readonly #hostProtocols = new Map<string, number>();
   readonly #active = new Map<string, ActiveHost>();
   // A failed attempt used to end its session, so each retry against an offline host was a create, a
   // ticket and an end: three Worker requests and a Signal webhook. Only `disconnect` ends it now.
@@ -287,6 +293,27 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     );
   }).bind(this);
 
+  /**
+   * Removes a host that this account owns from the account service. The host can be offline. A host
+   * that the list no longer has is already removed, so a retry after a lost answer succeeds.
+   */
+  readonly removeOwnedHost = Effect.fn("TeamWebRtcClient.removeOwnedHost")(function* (
+    this: TeamWebRtcClientTransport,
+    hostId: string,
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    return yield* this.#owned(
+      Effect.gen({ self: this }, function* () {
+        const host = (yield* this.#options.listHosts().pipe(toRemoteWorkflowError)).find(
+          (candidate) => candidate.hostId === hostId,
+        );
+        if (!host) return;
+        if (host.role !== "owner")
+          return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.remote.ownerOnlyRemove")) });
+        yield* this.#options.removeOwnedHost(hostId).pipe(toRemoteWorkflowError);
+      }),
+    );
+  }).bind(this);
+
   readonly sendDesktop = Effect.fn("TeamWebRtcClient.sendDesktop")(function* (
     this: TeamWebRtcClientTransport,
     hostId: string,
@@ -383,6 +410,19 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
       Effect.gen({ self: this }, function* () {
         yield* this.#ensureConnected(hostId);
         const method = (init.method ?? "GET").toUpperCase();
+        const timeoutMs = init.timeoutMs ?? remoteWorkspaceReadTimeout(method, path);
+        const startedAt = Date.now();
+        // A new connection forgets the host protocol, and an unknown protocol sends the protocol 6
+        // capability list. A v7 route that needs a v7 capability then refuses a request that the
+        // user sent before the `connected` handler read the compatibility report.
+        if (path !== "/v1/compatibility") yield* this.#learnHostProtocol(hostId, timeoutMs);
+        // The protocol read uses part of the request deadline. It does not add to it.
+        const remainingMs = timeoutMs === undefined ? undefined : timeoutMs - (Date.now() - startedAt);
+        if (remainingMs !== undefined && remainingMs <= 0) {
+          return yield* new RemoteWorkflowError({
+            cause: new TeamWebRtcRequestError(504, "remote_timeout", sourceText("error.remote.requestTimeout")),
+          });
+        }
         const binary = binaryBody(init.body);
         const sideRoute = teamSideRouteCodec(path);
         const bodyTransferId = binary
@@ -406,11 +446,15 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
                 ? null
                 : sideRoute
                   ? sideRoute.request(path, init.body)
-                  : encodeTeamProtocolV6WebRtcHttpRequest(method, path, init.body, {
+                  : encodeTeamProtocolV7WebRtcHttpRequest(method, path, init.body, {
                       preserveSemanticTags: init.preserveSemanticTags,
                       agentCreateModel: init.agentCreateModel,
                     }),
-              capabilities: [...TEAM_CURRENT_CAPABILITIES],
+              capabilities: [
+                ...teamCapabilitiesForProtocol(
+                  path === "/v1/compatibility" ? undefined : this.#hostProtocols.get(hostId),
+                ),
+              ],
               ...(bodyTransferId ? { bodyTransferId } : {}),
               ...(init.contentType ? { contentType: init.contentType } : {}),
             },
@@ -422,24 +466,14 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
         // connection that carried its body. Only the connection that refused the frame is marked
         // lost: a request that fails late must not drop the connection another request just made.
         const refusedBy = this.#active.get(hostId);
-        const envelope = yield* this.#exchange(
-          hostId,
-          requestId,
-          frame,
-          init.timeoutMs ?? remoteWorkspaceReadTimeout(method, path),
-        ).pipe(
+        const envelope = yield* this.#exchange(hostId, requestId, frame, remainingMs).pipe(
           Effect.catchIf(
             (error) => !bodyTransferId && isClosedChannelError(error.cause),
             () =>
               Effect.gen({ self: this }, function* () {
                 if (refusedBy?.connected && this.#active.get(hostId) === refusedBy) this.#onDisconnected(hostId);
                 yield* this.#ensureConnected(hostId);
-                return yield* this.#exchange(
-                  hostId,
-                  requestId,
-                  frame,
-                  init.timeoutMs ?? remoteWorkspaceReadTimeout(method, path),
-                );
+                return yield* this.#exchange(hostId, requestId, frame, timeoutMs);
               }),
           ),
         );
@@ -461,7 +495,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
           : yield* remoteDecode(() =>
               sideRoute
                 ? sideRoute.response(path, status, envelope.body)
-                : decodeTeamProtocolV6WebRtcHttpResponse(method, path, status, envelope.body),
+                : decodeTeamProtocolV7WebRtcHttpResponse(method, path, status, envelope.body),
             ).pipe(
               Effect.mapError(
                 () =>
@@ -474,8 +508,39 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
                   }),
               ),
             );
+        if (method === "GET" && path === "/v1/compatibility" && status === 200) {
+          const support = yield* remoteDecode(() => decodeTeamProtocolSupportV7Base(body));
+          this.#hostProtocols.set(hostId, support.protocol.maximum);
+        }
         return { status: envelope.status, body, ...(file ? { file } : {}) };
       }),
+    );
+  }).bind(this);
+
+  /**
+   * Reads the compatibility report once for each connection when the host protocol is not known.
+   * Requests that arrive during the read wait for it. A failed read is not tried again on the same
+   * connection: the request keeps the protocol 6 list, which every host accepts.
+   */
+  readonly #learnHostProtocol = Effect.fn("TeamWebRtcClient.learnHostProtocol")(function* (
+    this: TeamWebRtcClientTransport,
+    hostId: string,
+    requestTimeoutMs: number | undefined,
+  ): Effect.fn.Return<void> {
+    const active = this.#active.get(hostId);
+    if (!active || this.#hostProtocols.has(hostId)) return;
+    if (active.protocolProbe) return yield* Deferred.await(active.protocolProbe);
+    const probe = Deferred.makeUnsafe<void>();
+    active.protocolProbe = probe;
+    // The read must not take longer than the deadline of the request that waits for it.
+    const readTimeoutMs = remoteWorkspaceReadTimeout("GET", "/v1/compatibility");
+    const timeoutMs =
+      requestTimeoutMs === undefined || readTimeoutMs === undefined
+        ? readTimeoutMs
+        : Math.min(requestTimeoutMs, readTimeoutMs);
+    yield* this.requestResponse(hostId, "/v1/compatibility", timeoutMs === undefined ? {} : { timeoutMs }).pipe(
+      Effect.ignore,
+      Effect.ensuring(Effect.sync(() => Deferred.doneUnsafe(probe, Effect.void))),
     );
   }).bind(this);
 
@@ -572,6 +637,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     if (active?.expirationTimer) clearTimeout(active.expirationTimer);
     this.#active.delete(hostId);
     this.#retainedSessions.delete(hostId);
+    this.#hostProtocols.delete(hostId);
     this.#files.setPeerAuthenticated(hostId, false);
     const disconnected = yield* TeamClientBridge.use((bridge) => bridge.disconnect(hostId)).pipe(Effect.result);
     const disconnectError = Result.isFailure(disconnected) ? disconnected.failure.cause : undefined;
@@ -682,11 +748,13 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
       released: false,
       cancelConnectionWait: null,
       expirationTimer: null,
+      protocolProbe: null,
       authentication: null,
     };
     const done = Deferred.makeUnsafe<void, RemoteWorkflowError>();
     active.connecting = done;
     this.#retainedSessions.delete(hostId);
+    this.#hostProtocols.delete(hostId);
     this.#active.set(hostId, active);
     this.#options.connectTrace?.begin(hostId);
     return yield* this.#connect(hostId, active, current?.sessionId || null, storedSession).pipe(
@@ -845,10 +913,10 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
         cleanup();
         resolve();
       };
-      const onError = (failedHostId: string, _code: string, message: string) => {
+      const onError = (failedHostId: string, code: string, message: string) => {
         if (failedHostId !== hostId) return;
         cleanup();
-        reject(new Error(message));
+        reject(new TeamWebRtcConnectError(code, message));
       };
       this.on("connected", onConnected);
       this.on("error", onError);
@@ -1236,8 +1304,8 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
       }
       const optional = frame.type === "event" ? optionalTeamEvent(frame.payload) : null;
       const decoded = optional
-        ? { status: "known" as const, event: optional }
-        : decodeTeamProtocolV6CurrentEvent(frame);
+        ? { status: "known" as const, event: optionalTeamEventToCurrent(optional) }
+        : decodeTeamProtocolV7CurrentEvent(frame);
       if (decoded.status === "invalid") {
         this.#failProtocol(hostId, sourceText("error.remote.malformedKnownEvent"));
         return;
@@ -1292,6 +1360,18 @@ export class TeamWebRtcRequestError extends Schema.TaggedError<TeamWebRtcRequest
 }) {
   constructor(status: number, code: string, message: string) {
     super({ status, code, message });
+  }
+}
+
+/** The connection failed before the host answered. The code is the Signal or the bridge code. */
+class TeamWebRtcConnectError extends Schema.TaggedError<TeamWebRtcConnectError>()("TeamWebRtcConnectError", {
+  code: Schema.String,
+  message: Schema.String,
+  reference: Schema.NullOr(Schema.String),
+}) {
+  constructor(code: string, message: string) {
+    const failure = transportFailure(code, message);
+    super({ code, message: failure.message, reference: failure.reference });
   }
 }
 

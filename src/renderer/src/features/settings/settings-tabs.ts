@@ -3,6 +3,7 @@ import {
   Bell,
   CircleArrowDown,
   CreditCard,
+  Mic,
   MousePointer2,
   PanelTop,
   Server,
@@ -14,6 +15,7 @@ import {
 export type SettingsTab =
   | "general"
   | "notifications"
+  | "voice"
   | "dynamic-island"
   | "computer-use"
   | "profile"
@@ -46,6 +48,12 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     titleKey: "settings.tab.notifications.title",
     descriptionKey: "settings.tab.notifications.description",
     icon: Bell,
+  },
+  {
+    value: "voice",
+    titleKey: "settings.tab.voice.title",
+    descriptionKey: "settings.tab.voice.description",
+    icon: Mic,
   },
   {
     value: "dynamic-island",

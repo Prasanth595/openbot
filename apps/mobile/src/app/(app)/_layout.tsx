@@ -10,6 +10,7 @@ import { createChatNavigationGate } from "@/features/agents/model/chat-navigatio
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer-host";
 import { MessageActionsProvider } from "@/features/chat/context/message-actions-context";
+import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
@@ -359,16 +360,18 @@ export default function AuthenticatedLayout() {
 
   return (
     <MobileWorkspaceProvider key={workspaceKey}>
-      <AgentPinTransitionProvider>
-        <AppDrawerShell>
-          <MessageActionsProvider>
-            <QueuedMessagesProvider>
-              <AuthenticatedStack />
-              <MermaidRendererHost />
-            </QueuedMessagesProvider>
-          </MessageActionsProvider>
-        </AppDrawerShell>
-      </AgentPinTransitionProvider>
+      <OutboxProvider>
+        <AgentPinTransitionProvider>
+          <AppDrawerShell>
+            <MessageActionsProvider>
+              <QueuedMessagesProvider>
+                <AuthenticatedStack />
+                <MermaidRendererHost />
+              </QueuedMessagesProvider>
+            </MessageActionsProvider>
+          </AppDrawerShell>
+        </AgentPinTransitionProvider>
+      </OutboxProvider>
     </MobileWorkspaceProvider>
   );
 }

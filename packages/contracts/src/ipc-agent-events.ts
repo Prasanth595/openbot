@@ -40,6 +40,7 @@ export type AgentEvent =
   | { type: "memories-changed"; agentId: string }
   | { type: "routines-changed"; agentId: string }
   | { type: "skills-changed"; agentId: string }
+  | { type: "agent-session-settings-changed"; agentId: string }
   | { type: "channel-memories-changed"; channelId: string }
   | { type: "channel-routines-changed"; channelId: string }
   | { type: "sidebar-layout-changed"; layout: SidebarLayoutSnapshot }
@@ -69,8 +70,8 @@ export type AgentEvent =
       origin?: AgentTurnOrigin;
       /**
        * A routine run that had nothing to report and posted no message. It is not news, so it shows
-       * no notification. The Team API carries it on protocol 6 beside the frozen projection; see
-       * `team-protocol/turn-quiet-v6.ts`.
+       * no notification. The Team API carries it through the optional `quiet-turn-v1` capability.
+       * Peers without that capability receive the released completion event.
        */
       quiet?: true;
     }
@@ -129,6 +130,7 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isString(value.agentId) && value.agentId.length > 0 && value.agentId.length <= INPUT_LIMITS.identifier;
     case "routines-changed":
       return isString(value.agentId) && value.agentId.length > 0 && value.agentId.length <= INPUT_LIMITS.identifier;
+    case "agent-session-settings-changed":
     case "skills-changed":
       return isIdentifier(value.agentId);
     case "channel-memories-changed":

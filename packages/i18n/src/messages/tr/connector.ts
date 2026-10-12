@@ -71,6 +71,16 @@ export const messages = {
   "connector.github.disconnectEffectTools": "Tüm ajanlar GitHub araçlarını, gh ve git erişimini kaybeder.",
   "connector.github.disconnectEffectRevoke": "Ardından OpenBot yetkisini kaldırabileceğiniz GitHub açılır.",
   "connector.github.disconnectEffectKept": "Sohbetler, dosyalar ve ajan hafızası bu bilgisayarda kalır.",
+  // The same text for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.github.descriptionHost":
+    "{host} sunucusundaki her ajan GitHub depolarınızı, sorunlarınızı (issues), çekme isteklerinizi (pull requests), gh ve git araçlarını kullanabilir.",
+  "connector.github.connectedSummaryHost": {
+    one: "{count} depo · {host} sunucusundaki her ajan",
+    other: "{count} depo · {host} sunucusundaki her ajan",
+  },
+  "connector.github.disconnectConfirmDescriptionHost":
+    "Bağlantıyı kesmek @{login} oturumunu {host} sunucusundan kaldırır.",
+  "connector.github.disconnectEffectKeptHost": "Sohbetler, dosyalar ve ajan hafızası {host} sunucusunda kalır.",
   "connector.github.keepConnected": "Bağlı kal",
   "connector.github.close": "Kapat",
   // Bir entegrasyon sayfasının onu kaldıran eylemi içeren son bölümü.
@@ -78,6 +88,7 @@ export const messages = {
 
   // Sunucu ayarları > Bağlayıcılar: entegrasyonlar listesi. Her satır kendi sayfasını açar.
   "connector.hub.onThisComputer": "Bu bilgisayarda",
+  "connector.hub.onHost": "{host} üzerinde",
   "connector.hub.notSetUp": "Ayarlanmadı",
   "connector.hub.available": "Kullanılabilir",
   // {name} Slack gibi bir entegrasyonun adıdır.
@@ -149,6 +160,8 @@ export const messages = {
   "connector.slack.disconnectTitle": "{workspace} bağlantısı kesilsin mi?",
   "connector.slack.disconnectDescription":
     "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack token'ını bu bilgisayardan kaldırır.",
+  "connector.slack.disconnectDescriptionHost":
+    "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack token'ını {host} üzerinden kaldırır.",
   "connector.slack.disconnectEffect": "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.slack.removeEffectKept": "Konuşmalar ve Slack Düzenleyicisi OpenBot'ta kalır.",
   "connector.slack.keep": "Bağlı tut",
@@ -216,6 +229,8 @@ export const messages = {
   "connector.discord.disconnectTitle": "{workspace} bağlantısı kesilsin mi?",
   "connector.discord.disconnectDescription":
     "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını bu bilgisayardan kaldırır.",
+  "connector.discord.disconnectDescriptionHost":
+    "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını {host} üzerinden kaldırır.",
   "connector.discord.disconnectEffect":
     "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.discord.removeEffectKept": "Konuşmalar ve Discord Düzenleyicisi OpenBot'ta kalır.",
@@ -253,6 +268,8 @@ export const messages = {
     "OpenBot botu artık bu sohbette değil. Sohbetin bağlantısını kesin, sonra botu yeniden ekleyin.",
   "connector.telegram.helpRelayUnavailable":
     "OpenBot bu bilgisayarda Telegram mesajlarını alamıyor. Oturum açın, Sunucu ayarlarında bu bilgisayara bir ad verin ve OpenBot'u açık tutun.",
+  "connector.telegram.helpRelayUnavailableHost":
+    "{host} üzerindeki OpenBot Telegram mesajlarını alamıyor. {host} üzerinde oturum açın, Sunucu ayarlarında sunucuya bir ad verin ve OpenBot'u açık tutun.",
   "connector.telegram.helpError": "OpenBot bu sohbete ulaşamıyor. Yeniden bağlanın veya sohbetin bağlantısını kesin.",
   "connector.telegram.retryAt": "Telegram OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.telegram.pause": "Duraklat",
@@ -304,4 +321,68 @@ export const messages = {
   "connector.telegram.removeEffectKept": "Konuşmalar ve Telegram Düzenleyicisi OpenBot'ta kalır.",
   "connector.telegram.keep": "Bağlı tut",
   "connector.telegram.close": "Kapat",
+  "connector.onePassword.title": "1Password",
+  "connector.onePassword.description":
+    "Ajanların OpenBot tarayıcısında sitelere giriş yapabilmesi için özel bir 1Password kasasını bir hizmet hesabı aracılığıyla OpenBot ile paylaşın.",
+  "connector.onePassword.howItWorks":
+    "Bağlanma, 1Password hesabınızda “Shared with OpenBot” adlı bir kasa ve yalnızca bu kasayı okuyabilen bir hizmet hesabı oluşturur. OpenBot kayıtlı girişleri bu bilgisayardaki kendi tarayıcısında doldurur; bu nedenle yalnızca o kasaya taşıdığınız öğeler paylaşılır. Ajanlar hiçbir zaman parola görmez.",
+  "connector.onePassword.connect": "1Password'e Bağlan",
+  "connector.onePassword.setupTitle": "Kurulum",
+  "connector.onePassword.stepCliTitle": "1Password CLI'yi yükleyin",
+  "connector.onePassword.stepCliChecking": "Bu bilgisayarda 1Password CLI aranıyor",
+  "connector.onePassword.stepCliInstalling": "1Password CLI, 1Password'den indiriliyor",
+  "connector.onePassword.stepCliReady": "{version} sürümü yüklü.",
+  "connector.onePassword.stepCliMissing":
+    "OpenBot bunu 1Password'den kendi klasörüne indirir. Yönetici parolası gerekmez.",
+  "connector.onePassword.stepCliManual":
+    "OpenBot bunu bu bilgisayara yükleyemiyor. 1Password'den yükleyin, ardından bu sayfaya dönün.",
+  "connector.onePassword.installCli": "Yükle",
+  "connector.onePassword.stepAppTitle": "CLI entegrasyonunu açın",
+  "connector.onePassword.stepAppDescription":
+    "1Password uygulamasında Settings > Developer bölümünü açın ve “Integrate with 1Password CLI” seçeneğini açın.",
+  "connector.onePassword.stepAppReady": "1Password uygulaması, CLI'nin paylaşılan kasayı oluşturmasına izin veriyor.",
+  "connector.onePassword.openApp": "1Password'ü Aç",
+  "connector.onePassword.checkAgain": "Tekrar denetle",
+  "connector.onePassword.stepVaultTitle": "Paylaşılan kasayı oluşturun",
+  "connector.onePassword.stepVaultDescription":
+    "OpenBot, “Shared with OpenBot” kasasını ve yalnızca onu okuyabilen bir hizmet hesabı oluşturur. 1Password sizden onay ister.",
+  "connector.onePassword.useToken": "Bunun yerine bir hizmet hesabı belirteci kullan",
+  "connector.onePassword.tokenLabel": "Hizmet hesabı belirteci",
+  "connector.onePassword.tokenPlaceholder": "ops_…",
+  "connector.onePassword.connectWithToken": "Bağlan",
+  "connector.onePassword.approveInApp": "İsteği 1Password uygulamasında onaylayın",
+  "connector.onePassword.cancel": "İptal",
+  "connector.onePassword.chooseAccountTitle": "Bir hesap seçin",
+  "connector.onePassword.chooseAccountDescription": "OpenBot paylaşılan kasayı seçtiğiniz hesapta oluşturur.",
+  "connector.onePassword.useAccount": "Bu hesabı kullan",
+  "connector.onePassword.vaultTitle": "Paylaşılan kasa",
+  "connector.onePassword.vaultDescription":
+    "Ajanların bir girişle oturum açmasına izin vermek için girişi 1Password'de bu kasaya taşıyın. Durdurmak için kaldırın.",
+  "connector.onePassword.loginsLoading": "Girişler 1Password'den okunuyor",
+  "connector.onePassword.loginCount": {
+    one: "{count} giriş",
+    other: "{count} giriş",
+  },
+  "connector.onePassword.disconnect": "Bağlantıyı Kes",
+  "connector.onePassword.disconnectTitle": "1Password Bağlantısını Kes",
+  "connector.onePassword.disconnectSummary":
+    "OpenBot belirteci unutur. Kasa ve hizmet hesabı 1Password'de kalır; artık gerekmiyorsa onları orada kaldırın.",
+  "connector.onePassword.actionFailed": "OpenBot 1Password bağlantısını değiştiremedi.",
+  "connector.onePassword.statusConnected": "Bağlandı",
+  "connector.onePassword.statusConnecting": "Bağlanıyor",
+  "connector.onePassword.statusNotSetUp": "Kurulmadı",
+  "connector.bitwarden.title": "Bitwarden",
+  "connector.bitwarden.description": "Tarayıcı girişlerini Bitwarden'dan doldurun.",
+  "connector.bitwarden.setup":
+    "Bitwarden CLI'yi yükleyin ve bw login ile oturum açın. Shared with OpenBot adlı bir klasör oluşturun ve içine yalnızca ajanların kullanabileceği girişleri koyun. bw unlock --raw komutunu çalıştırın ve oturum anahtarını aşağıya yapıştırın. Ana parolanızı yapıştırmayın.",
+  "connector.bitwarden.scope":
+    "Bu bilgisayardaki tüm ajanlar Shared with OpenBot içindeki eşleşen girişleri kullanabilir. OpenBot tam HTTPS kaynaklarını kullanır. Ana parola istemi veya özel URI eşleştirme kuralı gerektiren öğeleri kullanmaz.",
+  "connector.bitwarden.session":
+    "Oturum anahtarı bellekte kalır. Kasa 8 saat kullanılmazsa veya OpenBot kapanırsa tekrar bağlanın. Bağlantıyı kesmek OpenBot erişimini durdurur; diğer Bitwarden istemcilerini kilitlemez.",
+  "connector.bitwarden.sessionKey": "Bitwarden oturum anahtarı",
+  "connector.bitwarden.connect": "Bitwarden'a Bağlan",
+  "connector.bitwarden.disconnect": "Bitwarden Bağlantısını Kes",
+  "connector.bitwarden.connected": "Bağlandı",
+  "connector.bitwarden.disconnected": "Bağlı değil",
+  "connector.bitwarden.failed": "Bitwarden'a bağlanılamadı.",
 } as const satisfies PartialTranslation<typeof source>;

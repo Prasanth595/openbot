@@ -2,6 +2,11 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
+  "error.backend.eventsUnavailable": "Les événements ne sont pas disponibles sur cet hôte.",
+  "error.backend.webhookRouteLimit": "Un hôte peut avoir au plus {limit} routines webhook.",
+  "error.backend.webhookSettingsInvalid": "Vérifiez les réglages du webhook et réessayez.",
+  "error.backend.webhookRouteUnavailable":
+    "La route publique du webhook n’est pas prête. Vérifiez la connexion à l’hôte et réessayez.",
   "error.backend.browserViewRemoteOnly": "Une vue de navigateur en direct est réservée à un hôte distant.",
   "error.backend.browserViewUnsupported": "Cet hôte distant ne prend pas en charge la vue de navigateur en direct.",
   "error.backend.browserViewLimit": "Trop de vues de navigateur sont ouvertes sur cet hôte.",
@@ -65,12 +70,23 @@ export const messages = {
   "error.backend.channelAssigneeUnavailable": "L’agent assigné est indisponible.",
   "error.backend.channelAssignmentChanged": "Cette tâche de canal a changé.",
   "error.backend.channelMemberRequired": "Sélectionnez un membre disponible de ce canal.",
+  "error.backend.memoryEssentialBudget":
+    "Les souvenirs essentiels dépassent la limite du prompt. Réglez une entrée sur Rechercher au besoin, puis réessayez.",
+  "error.backend.memorySelectionConflict": "Le souvenir a changé. Rechargez-le et réessayez.",
+  "error.backend.memorySelectionUserControlled":
+    "L’utilisateur contrôle la sélection de ce souvenir. Conservez le choix de l’utilisateur.",
+  "error.backend.memorySearchQuery": "Saisissez un ou plusieurs mots de recherche, jusqu’à 256 caractères.",
+  "error.backend.memoryOperationFailed": "L’opération sur le souvenir a échoué. Réessayez.",
   "error.backend.memoryGone": "Ce souvenir n’existe plus.",
   "error.backend.routineGone": "Cette routine n’existe plus.",
   "error.backend.channelMemoryLimit": "Un canal peut avoir jusqu’à {limit} souvenirs.",
   "error.backend.channelRoutineLimit": "Un canal peut avoir au maximum {limit} routines.",
   "error.backend.agentRoutineLimit": "Un agent peut avoir au maximum {limit} routines.",
   "error.backend.agentMemoryLimit": "Un agent peut avoir jusqu’à {limit} souvenirs.",
+  "error.backend.agentMemoryLimitReached":
+    "Vous avez {saved} souvenirs sur {limit}. Pour faire de la place, mettez à jour un souvenir par son memoryId avec le texte combiné de deux souvenirs liés, puis oubliez l’autre, ou oubliez un souvenir qui n’est plus vrai. Puis réessayez.",
+  "error.backend.agentMemoryLimitExceeded":
+    "Vous avez {saved} souvenirs, et la limite est de {limit}. L’utilisateur a fixé la limite sous le nombre de souvenirs enregistrés. N’oubliez pas de souvenirs pour faire de la place. Dites à l’utilisateur que ce souvenir n’a pas été enregistré.",
   "error.backend.channelHistoryLeadRequired": "Choisissez un responsable de canal pour préparer l’historique partagé.",
   "error.backend.channelHistoryArriving":
     "Un message partagé est encore en cours de réception. Reprenez quand il sera complet.",
@@ -140,6 +156,18 @@ export const messages = {
   "error.backend.memoryTextRequired": "Le texte du souvenir est requis.",
   "error.backend.memoryTextTooLong": "Le texte du souvenir est trop long.",
   "error.backend.mcpServerGone": "Ce serveur MCP n’existe plus.",
+  "error.backend.routineFlowLinkGone": "Cette liaison n’existe plus.",
+  "error.backend.routineFlowSameAgent": "Un agent ne peut pas se confier du travail à lui-même.",
+  "error.backend.routineFlowIntoOwner":
+    "La routine démarre avec son propre agent, donc cet agent ne peut pas reprendre le travail d’un autre.",
+  "error.backend.routineFlowNotOnPath":
+    "Cet agent ne fait pas encore partie de la routine. Reliez-le d’abord à la routine.",
+  "error.backend.routineFlowDuplicate": "Ces agents sont déjà reliés dans cette routine.",
+  "error.backend.routineFlowCycle": "Cette liaison créerait une boucle.",
+  "error.backend.routineFlowLinkLimit": "Une routine peut avoir au plus {limit} liaisons.",
+  "error.backend.routineFlowHandoffFailed": "La routine n’a pas pu transmettre le travail à cet agent.",
+  "error.backend.routineFlowRemoteUnsupported":
+    "Les enchaînements de routines sont disponibles uniquement pour les agents de cet ordinateur.",
   "error.backend.mcpServerLimit": "OpenBot garde jusqu’à {limit} serveurs MCP.",
   "error.backend.mcpServerNameTaken": "Un serveur MCP nommé {name} existe déjà.",
   "error.backend.mcpServerNoAnswer": "Le serveur n’a pas répondu en {seconds} secondes.",
@@ -200,6 +228,8 @@ export const messages = {
     "Cette modification a déjà été enregistrée avec un autre contenu. Vos changements n’ont pas été enregistrés.",
   "error.backend.useChannelTaskControlsWork": "Utilisez les commandes de tâche du canal pour le travail du canal.",
   "error.backend.steerTurnChanged": "Le tour actif a changé avant que ce message puisse l’orienter.",
+  "error.backend.steerUnsupported":
+    "Ce fournisseur ne peut pas orienter un tour en cours. Votre message reste dans la file.",
   "error.backend.steerQueuedOnly": "Seuls les messages en file d’attente peuvent orienter le tour.",
   "error.backend.promptInactive": "Cette question n’est plus active.",
   "error.backend.promptAnswerMismatch": "Une réponse ne correspond à aucune question active.",
@@ -237,4 +267,11 @@ export const messages = {
     "Le serveur a répondu {status}. Vérifiez la clé d’API ou les autres identifiants.",
   "error.backend.mcpServerHttpUrl":
     "Le serveur a répondu {status}. Vérifiez l’URL. Le lien est peut-être erroné, expiré ou supprimé.",
+  "error.backend.mcpSignInAppUrl": "L’app de connexion nécessite une URL de serveur valide.",
+  "error.backend.mcpSignInAppClientId": "Saisissez l’ID client de l’app de connexion.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Le serveur de connexion de ce serveur MCP a changé : OpenBot ne lui a pas envoyé l’app de connexion. Si ce changement est correct, supprimez l’app de connexion et ajoutez-la à nouveau.",
+  "error.backend.mcpSignInAppNoServer":
+    "Enregistrez ce serveur MCP comme serveur URL avant d’ajouter une app de connexion.",
+  "error.backend.mcpSignInAppUnavailable": "Cet ordinateur ne peut pas conserver d’app de connexion.",
 } as const satisfies PartialTranslation<typeof source>;

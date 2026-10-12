@@ -74,7 +74,6 @@ export class HostedUpdateAdapter implements UpdateAdapter {
   readonly #events = new EventEmitter();
   readonly #options: HostedUpdateOptions;
   readonly #paths: HostedUpdatePaths;
-  #latestVersion: string | null = null;
 
   constructor(options: HostedUpdateOptions) {
     this.#options = options;
@@ -92,19 +91,17 @@ export class HostedUpdateAdapter implements UpdateAdapter {
       this.#options.fetch ?? fetch,
       AbortSignal.timeout(15_000),
     );
-    this.#latestVersion = version;
     if (!newerRelease(version, this.#options.currentVersion))
       return { isUpdateAvailable: false, updateInfo: { version } };
     return { isUpdateAvailable: true, updateInfo: { version }, cancellationToken: new RequestCancellation() };
   }
 
+  /**
+   * Root answers also when the timer staged the release already: it answers after boat restored the
+   * disk, which can take minutes after a wake. An install during the restore would wait for it with
+   * OpenBot stopped.
+   */
   async downloadUpdate(cancellationToken?: UpdateCancellationToken): Promise<void> {
-    // The timer of the server stages each release too, so the release is often there already.
-    const staged = await this.#stagedVersion();
-    if (staged && (!this.#latestVersion || !newerRelease(this.#latestVersion, staged))) {
-      this.#emit("update-downloaded", { version: staged });
-      return;
-    }
     const request = join(this.#paths.requests, "update-stage");
     await writeFile(request, "", { mode: 0o600 });
     let changedAt: number | null = null;
@@ -116,7 +113,9 @@ export class HostedUpdateAdapter implements UpdateAdapter {
       if (state) {
         if (state.changedAt !== changedAt) {
           changedAt = state.changedAt;
-          // Root reports only the percent.
+          // Root reports only the percent. Before the download, root can wait for the disk restore
+          // that boat runs after a resume, or for the download of the timer, for minutes. After it,
+          // root checks, unpacks and stages the release, and can install packages.
           this.#emit("download-progress", {
             percent: state.percent,
             total: 0,
@@ -152,11 +151,12 @@ export class HostedUpdateAdapter implements UpdateAdapter {
     return isValidSemver(version) && newerRelease(version, this.#options.currentVersion) ? version : null;
   }
 
+  /** `percent` is NaN while root waits or prepares the release, which UpdateService shows as no percent. */
   async #readState(): Promise<{ changedAt: number; percent: number } | null> {
     try {
       const [text, info] = await Promise.all([readFile(this.#paths.state, "utf8"), stat(this.#paths.state)]);
       const [step, value] = text.trim().split(" ");
-      const percent = step === "downloading" ? Math.min(Number(value) || 0, 100) : step === "preparing" ? 100 : 0;
+      const percent = step === "downloading" ? Math.min(Number(value) || 0, 100) : Number.NaN;
       return { changedAt: info.mtimeMs, percent };
     } catch {
       return null;

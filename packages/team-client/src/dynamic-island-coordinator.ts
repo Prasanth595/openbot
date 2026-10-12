@@ -400,18 +400,18 @@ export class DynamicIslandCoordinator {
   ): void {
     const liveMessages: Record<string, DynamicIslandMessageSource[]> = {};
     const incomingMessageAnchors = new Map(runtime.incomingMessageAnchors);
-    for (const agentId of new Set(snapshot.latestMessages.map((message) => message.agentId))) {
-      deleteDynamicIslandMessageBodies(runtime.rawMessageBodies, agentId);
-    }
     for (const message of snapshot.latestMessages) {
-      runtime.rawMessageBodies.set(dynamicIslandMessageKey(message.agentId, message.id), message.text);
-      const converted = {
-        id: message.id,
-        author: "agent",
-        body: cleanAgentMessageText(message.text),
-        time: message.createdAt,
-        createdAt: message.createdAt,
-      };
+      // The snapshot text is capped at `AGENT_RUNTIME_TEXT_LIMIT`, so a message that deltas have made
+      // longer stays as it is. Live Activity gets only snapshots, so a longer snapshot replaces the body.
+      const body = cleanAgentMessageText(message.text);
+      const current = runtime.liveMessages[message.agentId]?.find((candidate) => candidate.id === message.id);
+      const converted =
+        current && current.body.length > body.length
+          ? current
+          : { id: message.id, author: "agent", body, time: message.createdAt, createdAt: message.createdAt };
+      if (converted !== current) {
+        runtime.rawMessageBodies.set(dynamicIslandMessageKey(message.agentId, message.id), message.text);
+      }
       liveMessages[message.agentId] = [converted];
       incomingMessageAnchors.set(message.agentId, message.id);
       if (!trackIncoming) continue;

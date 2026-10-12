@@ -1,9 +1,9 @@
 # Agents
 
-## Local script runs
+## Local scripts API
 
-`src/main/automation-server.ts` is a loopback HTTP listener through which a local script runs a
-routine of an agent that allows it. [docs/automation.md](../automation.md) has the routes and the
+`src/main/automation-server.ts` is a loopback HTTP listener through which a local script sends
+messages, runs routines, and answers pending questions and approvals for an enabled agent. [docs/automation.md](../automation.md) has the routes and the
 commands. The listener runs only while at least one agent has `allowAutomation`, and binds
 `127.0.0.1` on a free port. It writes the URL and a new bearer token to `<userData>/automation/`
 (folder `0700`, files `0600`) and deletes them when it stops. It refuses any request with an
@@ -12,19 +12,40 @@ commands. The listener runs only while at least one agent has `allowAutomation`,
 A run is a manual routine run with the payload after the instruction, so no Team API protocol, run
 kind or sender changes. The payload is in the run row, and `resumePendingRuns` sends it again after a
 crash. The flag is in `agent_json` and needs no migration; a profile without it is off. Only the user
-changes it, on the computer that runs the agent: the Team API parser and the agent profile tools do
-not accept it, the remote IPC branch refuses it, and duplication does not copy it. When the flag is
+changes it: the general Team API agent parser and the agent profile tools do not accept it, the
+general remote IPC update refuses it, and duplication does not copy it. When the flag is
 on, the developer instructions name the two file paths, never the token.
+
+An owner or administrator can also change the flag through the existing `agent-host-settings-v1`
+routes. Desktop, web and mobile clients use these routes. The general agent update route keeps
+refusing it, and hosts without this capability keep the remote control hidden. Remote clients read
+the flag from the host settings response because the released agent summary does not carry it.
+
+Permission decision for #1720: the developer explicitly approved extending the existing Local
+scripts grant to messages and question/approval responses, including agents that already have it
+enabled. There is no new opt-in or capability. This is a specific exception to the routine-only
+meaning first shipped in `agent-host-settings-v1`. Older clients can still change the same flag;
+their older text can describe routines only. The wire payloads and owner/admin checks stay unchanged.
+
+Messages use `AgentService.sendMessage` and its persisted retry keys. The attention registry gives
+each pending object an opaque local handle. Responses match that handle and agent together; an
+expired handle cannot answer a later provider request. Pending details are not trimmed to the UI
+snapshot budget. The HTTP boundary redacts outgoing values. Browser takeovers and secret questions
+are notices only and direct the person to OpenBot. Messages and routine runs share the rate limit.
 
 ## Quiet routine runs
 
-A scheduled run of an agent routine can end without a message. The user asks for it in the routine
-task ("if there is nothing new, answer `[[no-update]]`"); OpenBot adds nothing to the run prompt, and
-there is no setting or column. The marker is a fixed token, not a phrase, so the check does not
-depend on the language of the answer (`src/backend/agent/routine-quiet-runs.ts`). When a turn that
-ran only scheduled routine runs completes and every answer is the marker, the turn drops its answers,
-thinking and plan from the conversation, puts back the agent preview from before the run (the run
-start shows the task there; memory only, so after a restart the task stays), and its `turn-completed`
+A scheduled run of an agent routine can end without a message, in two ways. The agent calls the
+`routine_no_update` tool, which the scheduled-run prompt names, or the user asks in the routine task
+for an answer of only `[[no-update]]`. Models often write a short sentence instead of an exact
+token, so the tool is the main path. There is no setting or column. The tool and the marker do not
+depend on the language of the answer (`src/backend/agent/routine-quiet-runs.ts`). The tool call is
+held in memory until the turn completes; the history import finds it again by the tool name, as
+it finds the marker by its text. When a turn that ran only scheduled routine runs completes and every
+answer is the marker, or the agent called the tool and the turn gave no file, image or question, the
+turn drops its answers, thinking and plan from the conversation, puts back the agent preview from
+before the run (the run start shows the task there; memory only, so after a restart the task stays),
+and its `turn-completed`
 event has `quiet: true`, which stops the desktop notification and the completion sound. The run
 marker and the run history stay. A marker inside a longer answer is a report and is shown. Test runs,
 and script or webhook runs, which are also manual runs, are never quiet.

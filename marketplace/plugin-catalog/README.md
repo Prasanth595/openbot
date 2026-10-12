@@ -1,5 +1,8 @@
 # Plugin catalog source
 
+For a worked example and the sign-in on a joined server, read
+[Integrations and sign-in](../../docs/architecture/integrations.md#add-an-application).
+
 One developer bundle per directory: `plugins/<slug>/plugin.json`.
 `catalog.json` sets the order and the featured flags.
 `scripts/build-plugin-catalog.ts` validates the source and writes three

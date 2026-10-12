@@ -8,14 +8,19 @@ import {
   type AppInfo,
   type BrowserTakeoverRequest,
   CHANNEL_CHATS_CAPABILITY,
+  decodeAgentHostSettings,
   type ServerConnectionState,
   type ServerSummary,
 } from "@openbot/contracts/ipc";
+import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_IMPORT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-import-v1";
+import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
+import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
+import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { runTeamEffect } from "@openbot/team-client";
 import {
   cancelHostUpdate,
@@ -73,6 +78,7 @@ import { readChannelSelection, writeChannelSelection } from "../channels/channel
 import { ChannelsControllerProvider } from "../channels/channels-context";
 import { createChannelsController } from "../channels/channels-controller";
 import { globalSearchChannels } from "../channels/global-search-channels";
+import { createGitHubConnector } from "../connectors/github-connector";
 import { Conversation, createConversationController } from "../conversation/Conversation";
 import { clearStoredQueueEdit } from "../conversation/composer-draft";
 import { ConversationControllerProvider } from "../conversation/conversation-controller-context";
@@ -100,6 +106,7 @@ import { createWebWorkspace, type WebRuntimeFactory } from "./web-client-context
 import { createWebConversationRuntime } from "./web-conversation-runtime";
 import { createWebConversationView } from "./web-conversation-view";
 import { createWebFileSaver } from "./web-file-download";
+import { webGitHubConnectorPort } from "./web-github-connector";
 import { createWebHostedServerCalls } from "./web-hosted-servers";
 import { createWebAgentTemplateCalls, createWebMarketplaceCalls } from "./web-marketplace";
 import { createWebServerNotifications } from "./web-notification-preferences";
@@ -517,6 +524,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     status,
     setStatus,
     readStatus: () => workspace.runtime.status(),
+    browser: workspace.runtime.browser,
   });
   const runtime = createWebConversationRuntime(
     workspace.runtime,
@@ -524,14 +532,24 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     workspace.runtime.admin ? () => hostRequest() : undefined,
     workspace.onHostEvent,
     eventsEnabled,
+    () =>
+      workspace.state.capabilities.includes("agent-session-settings-v1") &&
+      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+    () =>
+      workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
+      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {
       const current = server();
       const agent = workspace.selected();
-      return current && agent ? { server: current, agentId: agent.id } : null;
+      return current && agent ? { server: current, agentId: agent.id, updatedAt: agent.updatedAt ?? null } : null;
     },
     () => ({
+      getAgentHostSettings: (agentId, serverId) =>
+        hostRequest(serverId)("POST", AGENT_HOST_SETTINGS_ROUTES.settings, decodeAgentHostSettings, { agentId }),
+      updateAgentHostSettings: (input, serverId) =>
+        hostRequest(serverId)("POST", AGENT_HOST_SETTINGS_ROUTES.update, decodeAgentHostSettings, { ...input }),
       getAgentAdminSettings: (agentId, serverId) =>
         runTeamEffect(
           getAgentAdminSettings(hostRequest(serverId), agentId).pipe(Effect.mapError((error) => error.cause)),
@@ -546,15 +564,41 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const conversationAgent = createMemo(() => {
     const agent = workspace.selected();
     const settings = remoteAgentAdmin.settings();
-    return agent && settings ? { ...agent, access: settings.access } : agent;
+    const automation = remoteAgentAdmin.automation();
+    return agent
+      ? {
+          ...agent,
+          ...(settings ? { access: settings.access } : {}),
+          ...(automation === undefined ? {} : { allowAutomation: automation }),
+        }
+      : agent;
   });
   const serverSettings = createWebServerSettings({
     server,
     admin: () => workspace.runtime.admin,
     presence: () => workspace.state.presence,
     refreshHosts: () => workspace.refreshHosts(),
+    relaySupported: () => workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY),
   });
   const marketplaceCalls = createWebMarketplaceCalls(props.accountFetch, hostRequest);
+  // The host's GitHub connection, for an owner or admin, when the host has a GitHub App.
+  const githubPort = webGitHubConnectorPort(() => hostRequest());
+  const githubController = createGitHubConnector(
+    () => githubPort,
+    () => server()?.name ?? null,
+  );
+  const githubEnabled = createMemo(
+    () =>
+      workspace.state.capabilities.includes(CONNECTORS_CAPABILITY) &&
+      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+  );
+  createEffect(
+    () => githubEnabled() && server()?.id,
+    (id) => {
+      if (id) githubController.reload();
+    },
+  );
+  const githubConnector = () => (githubEnabled() && githubController.status().available ? githubController : undefined);
   const agentTemplateCalls = createWebAgentTemplateCalls(props.accountFetch, hostRequest);
   const [marketplaceOpen, setMarketplaceOpen] = createSignal(false);
   // A link opens its overlay once it has arrived, which can be after sign-in.
@@ -737,7 +781,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     port: () => channelsPort,
     agents: workspace.profiles,
     // A host switch and a revoked session start the list again. A dropped connection does not: the
-    // open channel and its draft stay, and the effect below reads the list again when the host is back.
+    // open channel and its draft stay, and the controller reads the list again when the host is back.
     scopeKey: () => `${workspace.state.host?.hostId ?? ""}:${workspace.state.revocationRevision}`,
     readSelection: savedChannelId,
     writeSelection: (channelId) => {
@@ -778,13 +822,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         });
     }),
   );
-  // The scope starts before the host is online, so the first connection opens the saved channel here.
-  createEffect(channelsSupported, (supported) => {
-    if (!supported) return;
-    const saved = savedChannelId();
-    if (channels.state.selectedId === null && saved !== null) void channels.open(saved);
-    else void channels.refresh();
-  });
   const channelOpen = () => channels.state.selectedId !== null;
   const createSupported = () => workspace.state.status === "online" && workspace.state.host !== null;
   /** A host with no agents. The first-agent form opens there by itself, as in the desktop app. */
@@ -878,6 +915,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       workspace.state.capabilities.includes("browser-control") &&
       workspace.state.capabilities.includes("browser-view"),
   );
+  /** The host opens an MCP sign-in page in its own browser, and the live view shows it here. */
+  const mcpSignInSupported = () =>
+    workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) ||
+    (workspace.state.capabilities.includes(MCP_SIGN_IN_CAPABILITY) &&
+      workspace.state.capabilities.includes("browser-view"));
   const browserTakeover = createMemo(() => {
     const agent = workspace.selected();
     if (!agent) return undefined;
@@ -906,8 +948,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     () => workspace.state.error,
     (error) => {
       if (error)
-        toast.error(sourceText(error), {
-          report: { operation: "other", source: "system", cause_code: classifyFailure(error) },
+        toast.error(sourceText(error.message), {
+          // The toast shows the code of the failure that `report` kept.
+          error,
+          report: { operation: "other", source: "system", cause_code: classifyFailure(error.message) },
         });
     },
   );
@@ -994,10 +1038,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   initial={!workspace.state.workspaceLoaded}
                   issue={workspace.state.hostedIssue}
                   detail={
-                    workspace.state.recovery?.phase === "suspended" &&
-                    !workspace.state.hostedSleep &&
-                    !workspace.state.hostedIssue
-                      ? workspace.state.connectionError
+                    !workspace.state.hostedSleep && !workspace.state.hostedIssue
+                      ? (workspace.state.connectionError?.message ?? null)
+                      : null
+                  }
+                  reference={
+                    !workspace.state.hostedSleep && !workspace.state.hostedIssue
+                      ? (workspace.state.connectionError?.reference ?? null)
                       : null
                   }
                   phase={
@@ -1276,6 +1323,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 open={marketplaceOpen()}
                 onOpenChange={setMarketplaceOpen}
                 calls={marketplaceCalls}
+                githubConnector={githubConnector()}
                 server={server()}
                 agents={workspace.state.agents}
                 activeAgentId={workspace.state.selectedId ?? ""}
@@ -1327,6 +1375,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     remoteDesktopSupported={false}
                     server={target()}
                     hostStatus={null}
+                    githubConnector={githubConnector()}
                     members={serverSettings.state.members}
                     invites={serverSettings.state.invites}
                     loading={serverSettings.state.loading}
@@ -1345,12 +1394,51 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     onRecheckScreenRecording={unavailable}
                     mcpServers={serverSettings.state.mcp}
                     mcpLoadError={serverSettings.state.mcpError}
-                    onMcpSectionShown={() => void serverSettings.refreshMcp()}
+                    onMcpSectionShown={() => {
+                      void serverSettings.refreshMcp();
+                      if (mcpSignInSupported()) void serverSettings.refreshMcpSignIns().catch(() => undefined);
+                    }}
                     onRetryMcpServers={() => void serverSettings.refreshMcp()}
-                    onSaveMcpServer={serverSettings.saveMcpServer}
+                    onSaveMcpServer={async (config) => {
+                      await serverSettings.saveMcpServer(config);
+                      // A saved row can name an address the host is already signed in to.
+                      if (mcpSignInSupported()) void serverSettings.refreshMcpSignIns().catch(() => undefined);
+                    }}
                     onRemoveMcpServer={serverSettings.removeMcpServer}
                     onSetMcpServerEnabled={serverSettings.setMcpServerEnabled}
                     onTestMcpServer={serverSettings.testMcpServer}
+                    // A host with `sign-in-relay-v1` signs in through this browser and a pasted address.
+                    // An older host opens the page in its own browser, and the live view shows it here.
+                    mcpSignIn={
+                      mcpSignInSupported()
+                        ? {
+                            signedIn: serverSettings.state.mcpSignIns,
+                            remote: {
+                              hostName: target().name,
+                              runtime: workspace.runtime.browser,
+                              clipboard: workspace.state.capabilities.includes("browser-view-clipboard"),
+                              pages: serverSettings.state.mcpSignInPages,
+                              relay: workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY)
+                                ? {
+                                    pages: serverSettings.state.mcpSignInRelays,
+                                    paste: serverSettings.pasteMcpSignInRelay,
+                                    open: serverSettings.openMcpSignInRelay,
+                                  }
+                                : undefined,
+                            },
+                            start: serverSettings.signInMcpServer,
+                            cancel: serverSettings.cancelMcpSignIn,
+                            signOut: serverSettings.signOutMcpServer,
+                            app: workspace.state.capabilities.includes("mcp-sign-in-app-v1")
+                              ? {
+                                  load: serverSettings.mcpSignInApp,
+                                  save: serverSettings.saveMcpSignInApp,
+                                  remove: serverSettings.removeMcpSignInApp,
+                                }
+                              : undefined,
+                          }
+                        : undefined
+                    }
                     storage={{
                       hostName: target().name,
                       calls: storageCalls,
@@ -1487,6 +1575,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
             <WebConnectComputer
               loading={workspace.state.hostsLoading}
               failed={Boolean(workspace.state.hostsError)}
+              reference={workspace.state.hostsError?.reference ?? null}
               onJoin={() => setJoinOpen(true)}
               onRefresh={() => void workspace.run(workspace.refreshHosts)}
             />

@@ -17,7 +17,9 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { defaultProviderModel } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Scope } from "effect";
+import { isMemoryContextBlock, type MemoryContext, memoryContextUpdate } from "./agent/developer-instructions";
 import {
   type ClaudePlanState,
   foldClaudePlanCall,
@@ -28,9 +30,9 @@ import {
   startClaudePlanTurn,
 } from "./agent/plan-updates";
 import { isBalanceDiagnostic, isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
+import { claudeBridgedToolName, VISIBLE_TOOL_DEFINITIONS } from "./agent/tool-catalog";
 import { USAGE_LIMIT_METHOD } from "./agent/usage-limit-gate";
 import { type AgentProvider, RequestTimeoutError } from "./agent-client";
-import { BROWSER_TOOL_DEFINITIONS, OPENBOT_BROWSER_NAMESPACE } from "./browser-tools";
 import { type ClaudeHistoryOptions, claudeHistoryFromMessages, claudeHistoryReader } from "./claude-history";
 import {
   CLAUDE_WORKSPACE_MANAGED_SETTINGS,
@@ -58,7 +60,6 @@ import {
   type McpToolRuntimeSource,
   usableMcpServers,
 } from "./mcp-provider-shapes";
-import { OPENBOT_TOOL_DEFINITIONS } from "./openbot-tools";
 import { PendingServerRequests } from "./pending-server-requests";
 import {
   type AccountRateLimitsReadResult,
@@ -144,6 +145,8 @@ interface ThreadRuntime {
   id: string;
   usageCounterId: string;
   usageCost: number;
+  contextRequest: number;
+  compacting: boolean;
   config: ThreadConfig;
   appliedEffort?: string;
   input: AsyncMessageQueue;
@@ -181,6 +184,10 @@ interface ClaudeStreamMessage {
   errors?: string[];
   terminal_reason?: string;
   modelUsage?: unknown;
+  status?: unknown;
+  compact_result?: unknown;
+  compact_metadata?: unknown;
+  context_usage?: unknown;
   total_cost_usd?: number;
   /** The structured result of the tool a `user` message answers, such as the task a `TaskCreate` made. */
   tool_use_result?: unknown;
@@ -193,6 +200,7 @@ interface ClaudeStreamMessage {
 interface ClaudeQuery extends AsyncIterable<ClaudeStreamMessage> {
   interrupt(): Promise<unknown>;
   supportedModels(): Promise<ModelInfo[]>;
+  getContextUsage?(options: { detail: "summary" }): Promise<unknown>;
   setModel(model?: string): Promise<void>;
   applyFlagSettings(settings: { effortLevel?: ClaudeEffort | null }): Promise<void>;
   usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?(): Promise<unknown>;
@@ -203,7 +211,11 @@ type QueryFactory = (params: Parameters<typeof query>[0]) => ClaudeQuery;
 type SessionHistoryReader = (sessionId: string, options?: { dir?: string }) => Promise<SessionMessage[]>;
 type ClaudeEffortCapability = { supported: ClaudeEffort[]; defaultEffort: ClaudeEffort } | null;
 
+const queryLogger = createOpenBotLogger("claude-query");
+
 export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
+  readonly contextCompaction = "native";
+  #queryRestarts = 0;
   readonly provider: AgentProvider = "claude";
   readonly #cli: ClaudeCliInfo;
   readonly #createQuery: QueryFactory;
@@ -232,6 +244,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   readonly #serverRequests = new PendingServerRequests((request) => this.emit("request", request));
   readonly #modelEffortCapabilities = new Map<string, ClaudeEffortCapability>();
   readonly #modelSdkValues = new Map<string, string>();
+  /**
+   * Each thread's essential memories: the latest that OpenBot gave, and the last that a turn sent.
+   * They go with the turns, not in the system prompt, so a memory change keeps the cached prefix
+   * and restarts no query. Kept by thread, not by query: a restarted or reopened query resumes a
+   * conversation that already holds the memories it was sent.
+   */
+  readonly #memoryContexts = new Map<string, { current: MemoryContext; delivered: MemoryContext | null }>();
   /** Resumes of one thread run one after another: two at once would leave a query nobody closes. */
   readonly #threadResumes = new Map<string, Deferred.Deferred<void, ProviderClientOperationError>>();
   #running = false;
@@ -320,6 +339,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     threadId: string,
   ): Effect.fn.Return<void, ProviderClientOperationError> {
     this.#threads.forget(threadId);
+    this.#memoryContexts.delete(threadId);
     const runtime = this.#threads.get(threadId);
     if (!runtime) return;
     yield* this.#threads.close(runtime).pipe(toProviderClientOperationError);
@@ -365,11 +385,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       case "thread/start": {
         const threadId = randomUUID();
         yield* this.#startThread(threadId, readThreadConfig(params), false);
+        this.#setMemoryContext(threadId, params);
         return yield* providerSync(() => decoder({ thread: { id: threadId } }));
       }
       case "thread/resume": {
         const threadId = yield* providerSync(() => requiredString(params, "threadId"));
         const config = readThreadConfig(params);
+        this.#setMemoryContext(threadId, params);
         const previous = this.#threadResumes.get(threadId);
         const completion = Deferred.makeUnsafe<void, ProviderClientOperationError>();
         this.#threadResumes.set(threadId, completion);
@@ -590,6 +612,14 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     return yield* providerFailure(failure ?? new Error("Claude returned an unreadable sign-in status."));
   });
 
+  #setMemoryContext(threadId: string, params: unknown): void {
+    const current = readMemoryContext(params);
+    if (!current) return;
+    const memory = this.#memoryContexts.get(threadId);
+    if (memory) memory.current = current;
+    else this.#memoryContexts.set(threadId, { current, delivered: null });
+  }
+
   readonly #resumeThread = Effect.fn("ClaudeAgentClient.resumeThread")(function* (
     this: ClaudeAgentClient,
     threadId: string,
@@ -603,6 +633,16 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       if (current && JSON.stringify(current.config) === JSON.stringify(config)) return;
       if (current) {
         if (current.activeTurn) return yield* providerFailure(new Error(sourceText("error.provider.claudeTurnActive")));
+        // Keep the applied model/effort until the live setters succeed at the next turn.
+        if (
+          JSON.stringify({ ...current.config, model: null, effort: null }) ===
+          JSON.stringify({ ...config, model: null, effort: null })
+        )
+          return;
+        queryLogger.info("Restarting a Claude query.", {
+          reason: "configuration-change",
+          count: ++this.#queryRestarts,
+        });
         yield* this.#threads.close(current).pipe(toProviderClientOperationError);
         continue;
       }
@@ -733,6 +773,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       id: threadId,
       usageCounterId: randomUUID(),
       usageCost: 0,
+      contextRequest: 0,
+      compacting: false,
       config,
       appliedEffort,
       input,
@@ -765,6 +807,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     yield* this.#threads.wake(threadId).pipe(toProviderClientOperationError);
     const runtime = yield* providerSync(() => this.#requireThread(threadId));
     if (runtime.activeTurn) return yield* providerFailure(new Error("The Claude thread already has an active turn."));
+    runtime.contextRequest += 1;
 
     const requestedModel = getString(params, "model");
     const modelChanged = Boolean(requestedModel && requestedModel !== runtime.config.model);
@@ -814,13 +857,28 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       method: "turn/started",
       params: { threadId, turn: { id: turnId, status: "inProgress" } },
     });
+    // A block of its own, so that history readers can tell it from the text of the turn. A slash
+    // command gets none: the CLI can drop the blocks before it, and `/clear` empties the context,
+    // so the next turn sends the full block.
+    const memory = this.#memoryContexts.get(threadId);
+    const command = text.startsWith("/");
+    const memoryText = memory && !command ? memoryContextUpdate(memory.delivered, memory.current) : null;
     runtime.input.push({
       type: "user",
-      message: { role: "user", content: text },
+      message: {
+        role: "user",
+        content: memoryText
+          ? [
+              { type: "text", text: memoryText },
+              { type: "text", text },
+            ]
+          : text,
+      },
       parent_tool_use_id: null,
       uuid: turnId,
       session_id: threadId,
     });
+    if (memory) memory.delivered = command ? null : memory.current;
     return { turn: { id: turnId, status: "inProgress" } };
   });
 
@@ -893,6 +951,38 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     runtime: ThreadRuntime,
     message: ClaudeStreamMessage,
   ) {
+    if (message.type === "system" && message.subtype === "status") {
+      const status =
+        message.status === "compacting"
+          ? "running"
+          : message.compact_result === "success"
+            ? "completed"
+            : message.compact_result === "failed"
+              ? "failed"
+              : null;
+      if (status) runtime.compacting = status === "running";
+      if (status)
+        this.emit("notification", { method: "openbot/context-compaction", params: { threadId: runtime.id, status } });
+      return;
+    }
+    if (message.type === "system" && message.subtype === "compact_boundary") {
+      runtime.compacting = false;
+      // The summary can leave the memory blocks out, so the next turn sends the full block again.
+      const memory = this.#memoryContexts.get(runtime.id);
+      if (memory) memory.delivered = null;
+      // Claude's post_tokens counts messages only, not the full context.
+      this.emit("notification", {
+        method: "openbot/context-compaction",
+        params: {
+          threadId: runtime.id,
+          status: "completed",
+        },
+      });
+      return;
+    }
+    if (message.context_usage && !message.parent_tool_use_id && isRecord(message.context_usage)) {
+      this.#emitContextUsage(runtime, message.context_usage.total_tokens, message.context_usage.raw_max_tokens);
+    }
     if (message.type === "rate_limit_event") {
       const info = message.rate_limit_info;
       const turn = runtime.activeTurn;
@@ -927,6 +1017,9 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           return;
         }
       }
+      // The CLI's own report of a failed request, such as "Invalid API key · Please run /login", is not
+      // an answer. The result after it carries the same text and fails the turn.
+      if (message.error && message.error !== "max_output_tokens") return;
       const thinking = messageThinking(message.message);
       /* The deltas never announced this block, so its own order is all there is to say what came
          before it. Text the message placed there is narration, and only that much may go. */
@@ -958,8 +1051,9 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       if (toolCalls.length > 0) this.#flushNarration(runtime);
       for (const toolCall of toolCalls) {
         if (turn.toolCalls.has(toolCall.id)) continue;
-        turn.toolCalls.set(toolCall.id, toolCall.name);
-        this.#emitToolCall(runtime, toolCall.id, toolCall.name, false, toolCall.input);
+        const name = claudeBridgedToolName(toolCall.name, toolCall.input);
+        turn.toolCalls.set(toolCall.id, name);
+        this.#emitToolCall(runtime, toolCall.id, name, false, toolCall.input);
         const plan = foldClaudePlanCall(runtime.plan, toolCall);
         if (plan) this.#emitPlan(runtime, plan);
       }
@@ -1005,6 +1099,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       message.terminal_reason === "aborted_streaming" ||
       message.terminal_reason === "aborted_tools" ||
       errors.some((error) => /interrupt|abort/i.test(error));
+    // "success" with `is_error` is a turn that ended on an API error, and `result` holds its text.
+    const apiError = message.subtype === "success" && message.is_error === true;
     const turn = runtime.activeTurn;
     if (turn) {
       for (const [toolCallId, name] of turn.toolCalls) {
@@ -1017,7 +1113,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       if (
         limit &&
         !interrupted &&
-        (limit.text !== null || (message.subtype === "success" && message.is_error === true)) &&
+        (limit.text !== null || apiError) &&
         !isBalanceDiagnostic(limit.text ?? `${errors.join("\n")}\n${fallback}`)
       ) {
         this.emit("notification", {
@@ -1033,11 +1129,53 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
         return;
       }
       this.#reconcileText(runtime, [...turn.assistantMessages.values()].join(""));
-      if (!turn.seenText && fallback) this.#bufferText(runtime, fallback);
+      if (!turn.seenText && fallback && !apiError) this.#bufferText(runtime, fallback);
     }
-    const status = interrupted ? "interrupted" : message.subtype === "success" ? "completed" : "failed";
-    yield* this.#completeTurn(runtime, status, errors.length > 0 ? errors.join("\n") : null);
+    const status = interrupted ? "interrupted" : message.subtype === "success" && !apiError ? "completed" : "failed";
+    yield* this.#completeTurn(runtime, status, errors.length > 0 ? errors.join("\n") : apiError ? fallback : null);
+    // A local SDK control request reads context; it does not send a user turn or call a model.
+    // Run outside the stream consumer so the result cannot block the queue or the SDK reader.
+    const contextRequest = ++runtime.contextRequest;
+    if (runtime.query.getContextUsage)
+      yield* Effect.forkIn(
+        providerCall(() => runtime.query.getContextUsage?.({ detail: "summary" })).pipe(
+          Effect.timeout("2 seconds"),
+          Effect.tap((usage) =>
+            Effect.sync(() => {
+              if (
+                this.#threads.get(runtime.id) !== runtime ||
+                runtime.contextRequest !== contextRequest ||
+                runtime.activeTurn ||
+                !isRecord(usage)
+              )
+                return;
+              this.#emitContextUsage(runtime, usage.totalTokens, usage.rawMaxTokens);
+            }),
+          ),
+          Effect.ignore,
+        ),
+        this.#scope,
+      );
   });
+
+  #emitContextUsage(runtime: ThreadRuntime, used: unknown, window: unknown): void {
+    if (
+      typeof used !== "number" ||
+      !Number.isFinite(used) ||
+      used < 0 ||
+      typeof window !== "number" ||
+      !Number.isFinite(window) ||
+      window <= 0
+    )
+      return;
+    this.emit("notification", {
+      method: "thread/tokenUsage/updated",
+      params: {
+        threadId: runtime.id,
+        tokenUsage: { last: { totalTokens: used }, modelContextWindow: window, estimated: true },
+      },
+    });
+  }
 
   #emitToolCall(runtime: ThreadRuntime, id: string, name: string, completed: boolean, input?: unknown): void {
     const turn = runtime.activeTurn;
@@ -1195,6 +1333,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   ) {
     const turn = runtime.activeTurn;
     if (!turn) return;
+    if (runtime.compacting && status !== "completed") {
+      runtime.compacting = false;
+      this.emit("notification", {
+        method: "openbot/context-compaction",
+        params: { threadId: runtime.id, status: "failed" },
+      });
+    }
     if (turn.thinkingStarted) {
       this.emit("notification", {
         method: "item/completed",
@@ -1362,20 +1507,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     const call = (namespace: string, name: string, args: unknown) =>
       runCauseEffect(this.#callDynamicTool(threadId, namespace, name, args));
     return {
-      openbot_browser: createSdkMcpServer({
-        name: OPENBOT_BROWSER_NAMESPACE,
-        version: "0.2.0",
-        tools: BROWSER_TOOL_DEFINITIONS.map((definition) =>
-          tool(definition.name, definition.description, definition.shape, (args) =>
-            call(OPENBOT_BROWSER_NAMESPACE, definition.name, args),
-          ),
-        ),
-      }),
       openbot: createSdkMcpServer({
         name: "openbot",
         version: "0.1.0",
         // Claude uses the SDK's AskUserQuestion permission flow.
-        tools: OPENBOT_TOOL_DEFINITIONS.filter((definition) => definition.name !== "ask_user").map((definition) =>
+        tools: VISIBLE_TOOL_DEFINITIONS.filter((definition) => definition.name !== "ask_user").map((definition) =>
           tool(definition.name, definition.description, definition.shape, (args) =>
             call("openbot", definition.name, args),
           ),
@@ -1598,6 +1734,20 @@ function readThreadConfig(params: unknown): ThreadConfig {
   };
 }
 
+function readMemoryContext(params: unknown): MemoryContext | null {
+  const context = isRecord(params) ? params.memoryContext : undefined;
+  if (!isRecord(context) || !Array.isArray(context.memories)) return null;
+  if (!isNumber(context.storedCount) || !isNumber(context.limit)) return null;
+  const memories = context.memories.filter(
+    (memory): memory is MemoryContext["memories"][number] =>
+      isRecord(memory) &&
+      isString(memory.id) &&
+      isString(memory.text) &&
+      isOneOf(["automatic", "manual"] as const, memory.origin),
+  );
+  return { memories, storedCount: context.storedCount, limit: context.limit };
+}
+
 function parseAuthStatus(stdout: unknown): DynamicRecord | null {
   if (!isString(stdout)) return null;
   try {
@@ -1623,7 +1773,13 @@ function messageText(message: unknown): string {
   if (!Array.isArray(message.content)) return "";
   return message.content
     .filter(isRecord)
-    .filter((block) => block.type === "text" && isString(block.text))
+    .filter(
+      (block) =>
+        block.type === "text" &&
+        isString(block.text) &&
+        // OpenBot's memory block is not text that the user wrote.
+        !(message.role === "user" && isMemoryContextBlock(block.text)),
+    )
     .map((block) => block.text)
     .join("\n");
 }

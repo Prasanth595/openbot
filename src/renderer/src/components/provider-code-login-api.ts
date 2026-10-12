@@ -14,18 +14,29 @@
 import type { AgentProviderId } from "@openbot/contracts/ipc";
 import type { ProviderCodeLoginState } from "@openbot/ui/components/ProviderCodeLoginDialog";
 
+export type ProviderCodeLoginOpener = "composer";
+
 export interface ProviderCodeLoginApi {
   /** The providers that the computer that runs them can sign in with a code. */
   providers: () => readonly AgentProviderId[];
   /** The provider whose dialog is open, or null while none is. */
   provider: () => AgentProviderId | null;
   state: () => ProviderCodeLoginState;
+  /**
+   * The surface that started the open sign-in and shows its own dialog for it. Null for Settings
+   * and onboarding, which show theirs for any sign-in. A new code from the notification keeps it.
+   */
+  opener: () => ProviderCodeLoginOpener | null;
   /** Asks the provider for a code and opens the dialog on it. */
-  start: (provider: AgentProviderId) => void;
+  start: (provider: AgentProviderId, opener?: ProviderCodeLoginOpener) => void;
   /** Sends the code the page of a `paste` sign-in showed. */
   submit: (code: string) => void;
   /** Gives up: the code stops working and the dialog closes. */
   cancel: () => void;
   /** Opens the verification page here, for the user who is on this computer after all. */
   openVerificationUrl: (url: string) => void;
+  /** Opens the page of a relayed sign-in in this computer's browser, after the user checked its host. */
+  openRelayPage: () => Promise<void>;
+  /** Sends the address that the browser of a relayed sign-in shows. */
+  pasteRelayAddress: (address: string) => Promise<void>;
 }

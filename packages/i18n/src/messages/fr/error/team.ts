@@ -74,6 +74,7 @@ export const messages = {
   "error.team.skillsUnsupported": "Les compétences ne sont pas prises en charge par cette connexion.",
   "error.team.hostIdentityUnsupported":
     "Les modifications de l’identité du serveur ne sont pas prises en charge par cette connexion.",
+  "error.team.hostUpdateUnsupported": "Les mises à jour de l’hôte ne sont pas prises en charge par cette connexion.",
   "error.team.attachmentNameRequired": "Un nom de pièce jointe sûr est requis.",
   "error.team.attachmentNotFound": "Pièce jointe introuvable.",
   "error.team.sharedFileTooLarge": "Le fichier partagé dépasse la limite de 100 Mo.",
@@ -103,4 +104,13 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Les réglages des agents ne sont pas pris en charge par cette connexion.",
   "error.team.adminRequired": "Un accès administrateur est requis.",
   "error.team.requestTooLarge": "Le corps de la requête est trop volumineux.",
+  "error.team.signInRelayUnsupported":
+    "Ce serveur ne peut pas relayer les connexions. Mettez à jour OpenBot sur l’hôte.",
+  "error.team.connectorsUnsupported":
+    "Les connexions de ce serveur ne peuvent pas être gérées d’ici. Mettez à jour OpenBot sur l’hôte.",
+  "error.team.connectorPageRefused": "Le serveur a envoyé une page qu’OpenBot n’ouvre pas.",
+  "error.team.signInRelayUnknown": "Cette connexion est terminée ou n’existe pas.",
+  "error.team.signInRelayUsed": "Cette connexion a déjà été envoyée.",
+  "error.team.signInRelayMismatch": "Cette adresse ne vient pas de cette connexion.",
+  "error.team.signInRelayLinkUnknown": "Aucun agent de ce serveur n'a affiché ce lien de connexion.",
 } as const satisfies PartialTranslation<typeof source>;

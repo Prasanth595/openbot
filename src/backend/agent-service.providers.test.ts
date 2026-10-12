@@ -17,10 +17,13 @@ import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
+import { VISIBLE_DYNAMIC_TOOLS } from "./agent/tool-catalog";
+import { toolGuidance } from "./agent/tool-guidance";
 import { type AgentProvider, RequestTimeoutError } from "./agent-client";
 import { AgentLifecycleFailed, type AgentService } from "./agent-service";
 import {
   CREATE_AGENT_INPUT,
+  codexConfigRead,
   createTestService,
   FakeAgentClient,
   fakeBrowser,
@@ -204,7 +207,11 @@ describe.sequential("AgentService: providers", () => {
 
     // The developer instructions are written when the session loads, so a memory the agent saved
     // after that reaches the channel only when the next turn loads the session again.
-    service.createMemory({ agentId: "chief", text: "The user prefers concise status updates." });
+    const memory = service.createMemory({ agentId: "chief", text: "The user prefers concise status updates." });
+    service.setMemoryInclusion({
+      agentId: "chief",
+      changes: [{ memoryId: memory.id, inclusion: "essential", expectedRevision: 0 }],
+    });
     await ask("second", "Continue the shared work.", 2);
     expect(lastChannelResume()).toContain("The user prefers concise status updates.");
 
@@ -349,14 +356,7 @@ describe.sequential("AgentService: providers", () => {
     ).toBe(true);
     const starts = client.requests.filter((request) => request.method === "thread/start");
     expect(starts).toHaveLength(2);
-    expect(paramsRecord(starts[1]?.params)?.dynamicTools).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "openbot",
-          tools: expect.arrayContaining([expect.objectContaining({ name: "create_section" })]),
-        }),
-      ]),
-    );
+    expect(paramsRecord(starts[1]?.params)?.dynamicTools).toEqual(VISIBLE_DYNAMIC_TOOLS);
     const turns = client.requests.filter((request) => request.method === "turn/start");
     expect(JSON.stringify(turns.at(-1)?.params)).toContain("tennis and football");
     await runCauseEffect(service.stop());
@@ -423,7 +423,12 @@ describe.sequential("AgentService: providers", () => {
     expect(paramsRecord(starts[1]?.params)?.config).toEqual({
       tools: CODEX_TOOLS,
       mcp_servers: {
-        Filesystem: { command: "/bin/echo", args: ["ready"], env: await launchEnvironment({ TOKEN: "secret" }) },
+        Filesystem: {
+          enabled: true,
+          command: "/bin/echo",
+          args: ["ready"],
+          env: await launchEnvironment({ TOKEN: "secret" }),
+        },
       },
     });
   });
@@ -456,6 +461,25 @@ describe.sequential("AgentService: providers", () => {
       }),
     );
 
+    // The unsupported entry must not choose the transport for the usable normalized name.
+    await runCauseEffect(
+      service.saveMcpServer({
+        config: {
+          id: "",
+          name: "Local_SQLite",
+          transport: "http",
+          enabled: true,
+          command: "",
+          args: [],
+          env: [],
+          envPassthrough: [],
+          workingDirectory: "",
+          url: "https://example.com/mcp",
+          headers: [],
+        },
+      }),
+    );
+
     await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Start." }));
     await waitForQueue(service, "chief", (queue) =>
       queue.deliveries.every((delivery) => delivery.status === "completed"),
@@ -467,9 +491,36 @@ describe.sequential("AgentService: providers", () => {
       message: expect.stringContaining('did not get the MCP server "Local SQLite"'),
     });
 
-    // Reported, and still not sent: the point of the report is that the server is missing.
+    // The HTTP server wins the normalized name in both registration and the runtime.
     const starts = client.requests.filter((request) => request.method === "thread/start");
-    expect(paramsRecord(starts.at(-1)?.params)?.config).toEqual({ tools: CODEX_TOOLS });
+    expect(paramsRecord(starts.at(-1)?.params)?.config).toEqual({
+      tools: CODEX_TOOLS,
+      mcp_servers: { Local_SQLite: { enabled: true, url: "https://example.com/mcp", http_headers: {} } },
+    });
+
+    expect(client.configRead).toMatchObject({
+      config: {
+        mcp_servers: {
+          Local_SQLite: { url: "http://127.0.0.1:1", enabled: false },
+        },
+      },
+    });
+    expect(client.requests.filter((request) => request.method === "config/batchWrite")).toEqual([
+      {
+        method: "config/batchWrite",
+        params: {
+          edits: [
+            {
+              keyPath: "mcp_servers.Local_SQLite",
+              value: { url: "http://127.0.0.1:1", enabled: false },
+              mergeStrategy: "replace",
+            },
+          ],
+          filePath: "/test/.codex/config.toml",
+          expectedVersion: "config-version",
+        },
+      },
+    ]);
 
     await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Again." }));
     await waitForQueue(service, "chief", (queue) =>
@@ -504,6 +555,11 @@ describe.sequential("AgentService: providers", () => {
           cancelSignIn: () => false,
           signedIn: () => false,
           forget: () => Effect.void,
+          signOut: () => Effect.void,
+          redirectUrl: "openbot://mcp-auth",
+          signInApp: () => null,
+          saveSignInApp: () => Effect.succeed(false),
+          removeSignInApp: () => Effect.succeed(false),
         },
       },
     });
@@ -534,7 +590,11 @@ describe.sequential("AgentService: providers", () => {
     expect(paramsRecord(starts.at(-1)?.params)?.config).toEqual({
       tools: CODEX_TOOLS,
       mcp_servers: {
-        Signed_in: { url: "https://mcp.example.com/mcp", http_headers: { Authorization: `Bearer ${token}` } },
+        Signed_in: {
+          enabled: true,
+          url: "https://mcp.example.com/mcp",
+          http_headers: { Authorization: `Bearer ${token}` },
+        },
       },
     });
     const reported = events.filter((event) => event.type === "error");
@@ -750,6 +810,11 @@ describe.sequential("AgentService: providers", () => {
           cancelSignIn: () => false,
           signedIn: () => false,
           forget,
+          signOut: () => Effect.void,
+          redirectUrl: "openbot://mcp-auth",
+          signInApp: () => null,
+          saveSignInApp: () => Effect.succeed(false),
+          removeSignInApp: () => Effect.succeed(false),
         },
       },
     });
@@ -848,7 +913,91 @@ describe.sequential("AgentService: providers", () => {
     // and a server told to open `./data.db` from the wrong place creates a second database.
     expect(paramsRecord(starts[1]?.params)?.config).toEqual({
       tools: CODEX_TOOLS,
-      mcp_servers: { Filesystem: { command: "/bin/echo", args: ["ready"], env: await launchEnvironment() } },
+      mcp_servers: {
+        Filesystem: { enabled: true, command: "/bin/echo", args: ["ready"], env: await launchEnvironment() },
+      },
+    });
+  });
+
+  it("loads custom MCP approvals and revocations, and keeps a disabled server off", async () => {
+    const { store, mailbox } = stores(root);
+    const client = new FakeAgentClient("codex");
+    const saved = {
+      url: "http://127.0.0.1:1",
+      enabled: false,
+      tools: { t3_thread_read: { approval_mode: "approve" } },
+    };
+    client.configRead = codexConfigRead({ T3_MCP: saved });
+    service = createTestService({ store, mailbox, preferredProvider: "codex", clientFactory: () => client });
+    await runCauseEffect(service.initialize());
+    const config: McpServerConfig = {
+      id: "",
+      name: "T3 MCP",
+      transport: "http",
+      enabled: true,
+      command: "",
+      args: [],
+      env: [],
+      envPassthrough: [],
+      workingDirectory: "",
+      url: "https://example.com/mcp",
+      headers: [],
+    };
+    const [server] = await runCauseEffect(service.saveMcpServer({ config }));
+    assert.isDefined(server);
+    await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Read the thread." }));
+    await waitForQueue(service, "chief", (queue) =>
+      queue.deliveries.every((delivery) => delivery.status === "completed"),
+    );
+    const firstSession = store.activeProviderSession("chief")?.externalSessionId;
+    const starts = () => client.requests.filter((request) => request.method === "thread/start");
+    expect(paramsRecord(starts().at(-1)?.params)?.config).toMatchObject({
+      mcp_servers: {
+        T3_MCP: {
+          enabled: true,
+          url: config.url,
+          tools: { t3_thread_read: { approval_mode: "approve" } },
+        },
+      },
+    });
+
+    saved.tools.t3_thread_read.approval_mode = "prompt";
+    await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Read the thread again." }));
+    await waitForQueue(service, "chief", (queue) =>
+      queue.deliveries.every((delivery) => delivery.status === "completed"),
+    );
+    expect(store.activeProviderSession("chief")?.externalSessionId).not.toBe(firstSession);
+    expect(client.releasedThreads).toContain(firstSession);
+    expect(paramsRecord(starts().at(-1)?.params)?.config).toMatchObject({
+      mcp_servers: {
+        T3_MCP: {
+          enabled: true,
+          tools: { t3_thread_read: { approval_mode: "prompt" } },
+        },
+      },
+    });
+
+    await runCauseEffect(service.saveMcpServer({ config: { ...config, id: server.id, enabled: false } }));
+    await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Continue with the server off." }));
+    await waitForQueue(service, "chief", (queue) =>
+      queue.deliveries.every((delivery) => delivery.status === "completed"),
+    );
+    expect(paramsRecord(starts().at(-1)?.params)?.config).toMatchObject({
+      mcp_servers: { T3_MCP: { enabled: false } },
+    });
+
+    await runCauseEffect(service.saveMcpServer({ config: { ...config, id: server.id, enabled: true } }));
+    await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Continue with the server on." }));
+    await waitForQueue(service, "chief", (queue) =>
+      queue.deliveries.every((delivery) => delivery.status === "completed"),
+    );
+    expect(paramsRecord(starts().at(-1)?.params)?.config).toMatchObject({
+      mcp_servers: {
+        T3_MCP: {
+          enabled: true,
+          tools: { t3_thread_read: { approval_mode: "prompt" } },
+        },
+      },
     });
   });
 
@@ -974,11 +1123,10 @@ describe.sequential("AgentService: providers", () => {
     const client = new FakeAgentClient("codex", "CODEX_DONE", true, true);
     // `Filesystem` is in both places, and the panel's entry is the one that wins: a name the user
     // can see and edit must not resolve to a command from a file OpenBot does not show.
-    client.configRead = {
-      config: {
-        mcp_servers: { "Local notes": { command: "/usr/bin/notes" }, Filesystem: { command: "/usr/bin/other" } },
-      },
-    };
+    client.configRead = codexConfigRead({
+      "Local notes": { command: "/usr/bin/notes" },
+      Filesystem: { command: "/usr/bin/other" },
+    });
     service = createTestService({
       store,
       mailbox,
@@ -1016,15 +1164,14 @@ describe.sequential("AgentService: providers", () => {
       tools: CODEX_TOOLS,
       mcp_servers: {
         "Local notes": { enabled: false },
-        Filesystem: { command: "/bin/echo", args: ["ready"], env: await launchEnvironment() },
+        Filesystem: { enabled: true, command: "/bin/echo", args: ["ready"], env: await launchEnvironment() },
       },
     });
 
-    client.configRead = {
-      config: {
-        mcp_servers: { "Local notes": { command: "/usr/bin/notes" }, Scratch: { command: "/usr/bin/scratch" } },
-      },
-    };
+    client.configRead = codexConfigRead({
+      "Local notes": { command: "/usr/bin/notes" },
+      Scratch: { command: "/usr/bin/scratch" },
+    });
     await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Continue." }));
     await waitFor(() =>
       service?.listQueue("chief").deliveries.every((delivery) => ["completed", "failed"].includes(delivery.status)),
@@ -1130,7 +1277,9 @@ describe.sequential("AgentService: providers", () => {
     expect(starts).toHaveLength(2);
     expect(paramsRecord(starts[1]?.params)?.config).toEqual({
       tools: CODEX_TOOLS,
-      mcp_servers: { Filesystem: { command: "/bin/echo", args: ["ready"], env: await launchEnvironment() } },
+      mcp_servers: {
+        Filesystem: { enabled: true, command: "/bin/echo", args: ["ready"], env: await launchEnvironment() },
+      },
     });
   });
 
@@ -1307,7 +1456,9 @@ describe.sequential("AgentService: providers", () => {
     expect(starts).toHaveLength(2);
     expect(paramsRecord(starts[1]?.params)?.config).toEqual({
       tools: CODEX_TOOLS,
-      mcp_servers: { Filesystem: { command: "/bin/echo", args: ["ready"], env: await launchEnvironment() } },
+      mcp_servers: {
+        Filesystem: { enabled: true, command: "/bin/echo", args: ["ready"], env: await launchEnvironment() },
+      },
     });
   });
 
@@ -1468,15 +1619,15 @@ describe.sequential("AgentService: providers", () => {
 
         const request = clients.get(provider)?.requests.find((candidate) => candidate.method === method);
         const instructions = paramsRecord(request?.params)?.developerInstructions;
-        expect(instructions).toContain("Keep routine teammate communication internal");
-        expect(instructions).toContain("On startup or resume, begin or continue the task without narrating setup");
-        expect(instructions).toContain(
-          "Report meaningful outcomes, completed work, material changes, blockers, failures",
-        );
+        expect(instructions).toContain("Keep routine teammate messages internal");
+        expect(instructions).toContain("Start or resume work without setup narration");
+        expect(instructions).toContain("Report meaningful progress, results, failures");
         expect(instructions).toContain("required user input or approval");
         expect(instructions).toContain("If the user asks for a detailed coordination report, provide it");
-        expect(instructions).toContain("send the result back in the Status/Result/Evidence format");
-        expect(instructions).toContain("Do not create acknowledgement loops");
+        expect(instructions).toContain(
+          "For a task reply use Status: done | partial | blocked, Result: <outcome>, Evidence:",
+        );
+        expect(instructions).toContain("Never create acknowledgement loops");
         expect(instructions).not.toContain("When you receive a reply, summarize it for the user");
         await runCauseEffect(service.stop());
       }
@@ -2852,7 +3003,7 @@ describe.sequential("AgentService: providers", () => {
     expect(firstInputText(turn?.params)).not.toContain("Old Research");
   });
 
-  it("creates independent full-access threads with browser and OpenBot tools", async () => {
+  it("creates independent full-access threads with visible tools and deferred workflow guidance", async () => {
     const { service: agentService, store } = await startService(root);
     service = agentService;
 
@@ -2873,6 +3024,8 @@ describe.sequential("AgentService: providers", () => {
         { id: "cursor", state: "not-installed", version: null },
         { id: "cline", state: "not-installed", version: null },
         { id: "acp", state: "not-installed", version: null },
+        { id: "pi", state: "not-installed", version: null },
+        { id: "muse", state: "not-installed", version: null },
       ],
       // Unavailable because no Computer Use driver was given to this service. It no longer follows
       // from Codex being connected.
@@ -2914,67 +3067,41 @@ describe.sequential("AgentService: providers", () => {
       expect(params.developerInstructions).toContain(
         "You may list, read, create, edit, move, and delete files and run local commands in both directories.",
       );
-      expect(params.developerInstructions).toContain("For every browser task");
+      const agent = store.list().find((item) => item.workspacePath === params.cwd);
+      assert.isDefined(agent);
+      const browserGuidance = toolGuidance("openbot_browser", "submit_secret", agent);
+      const routineGuidance = toolGuidance("openbot", "create_routine", agent);
+      const sectionGuidance = toolGuidance("openbot", "list_sections", agent);
+      const reactionGuidance = toolGuidance("openbot", "react_to_user_message", agent);
+      expect(params.developerInstructions).toContain("Use only openbot_browser tools for browser work");
       expect(params.developerInstructions).toContain(`Use ${COMPUTER_USE_MCP_SERVER_NAME} for every GUI task`);
-      expect(params.developerInstructions).toContain("openbot_browser.submit_secret");
-      expect(params.developerInstructions).toContain("openbot.create_routine");
-      expect(params.developerInstructions).toContain("Never use ChatGPT Sites");
+      expect(params.developerInstructions).toContain("Never ask for a secret in chat");
       expect(params.developerInstructions).toContain("openbot.attach_files_to_response");
-      expect(params.developerInstructions).toContain("sadness, disappointment, frustration, loneliness");
-      expect(params.developerInstructions).toContain("An emoji written inside your answer does not count");
-      expect(params.developerInstructions).toContain("Omit agentId to target yourself");
-      expect.soft(params.developerInstructions).toContain("call openbot.list_agents and openbot.list_sections");
-      expect.soft(params.developerInstructions).toContain("Prefer suitable agents in your own section first");
+      expect(browserGuidance).toContain("openbot_browser.submit_secret");
+      expect(browserGuidance).toContain("Never request the secret in chat, include it in tool arguments");
+      expect(routineGuidance).toContain("openbot.create_routine");
+      expect(routineGuidance).toContain("Omit agentId to target yourself");
+      expect(toolGuidance("openbot", "publish_site", agent)).toContain("Never use ChatGPT Sites");
+      expect(reactionGuidance).toContain("sadness, disappointment, frustration, loneliness");
+      expect(reactionGuidance).toContain("An emoji written inside your answer does not count");
+      expect.soft(sectionGuidance).toContain("call openbot.list_agents and openbot.list_sections");
+      expect.soft(sectionGuidance).toContain("Prefer suitable agents in your own section first");
       expect
-        .soft(params.developerInstructions)
+        .soft(sectionGuidance)
         .toContain(
           "Choose agents outside it when no suitable section member is available or additional expertise is needed; you do not need to contact a section member first.",
         );
       expect
-        .soft(params.developerInstructions)
+        .soft(sectionGuidance)
         .toContain(
           "If you have no section, choose by name, title, and description without giving other ungrouped agents priority.",
         );
       expect
-        .soft(params.developerInstructions)
+        .soft(sectionGuidance)
         .toContain(
           "Recipients explicitly named by the user and replies to existing messages take priority over section preference.",
         );
-      expect(params.dynamicTools).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ type: "namespace", name: "openbot_browser" }),
-          expect.objectContaining({
-            type: "namespace",
-            name: "openbot",
-            tools: expect.arrayContaining([
-              expect.objectContaining({ name: "attach_files_to_response" }),
-              expect.objectContaining({ name: "ask_user" }),
-              expect.objectContaining({ name: "list_agents" }),
-              expect.objectContaining({ name: "update_profile" }),
-              expect.objectContaining({ name: "create_agent" }),
-              expect.objectContaining({ name: "list_models" }),
-              expect.objectContaining({ name: "list_sections" }),
-              expect.objectContaining({ name: "create_section" }),
-              expect.objectContaining({ name: "rename_section" }),
-              expect.objectContaining({ name: "delete_section" }),
-              expect.objectContaining({ name: "assign_agent_section" }),
-
-              expect.objectContaining({ name: "list_routines" }),
-              expect.objectContaining({ name: "create_routine" }),
-              expect.objectContaining({ name: "update_routine" }),
-              expect.objectContaining({ name: "delete_routine" }),
-              expect.objectContaining({ name: "test_routine" }),
-              expect.objectContaining({ name: "react_to_user_message" }),
-            ]),
-          }),
-        ]),
-      );
-      const browserTools = (Array.isArray(params.dynamicTools) ? params.dynamicTools : [])
-        .filter(isDynamicRecord)
-        .find((tool) => tool.type === "namespace" && tool.name === "openbot_browser");
-      expect(browserTools).toMatchObject({
-        tools: expect.arrayContaining([expect.objectContaining({ name: "request_takeover" })]),
-      });
+      expect(params.dynamicTools).toEqual(VISIBLE_DYNAMIC_TOOLS);
     }
     for (const turn of requests.filter((message) => message.method === "turn/start")) {
       const params = paramsRecord(turn.params);

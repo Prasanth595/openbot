@@ -8,6 +8,7 @@ import { DEFAULT_DYNAMIC_ISLAND_PREFERENCE, IDLE_DYNAMIC_ISLAND_PRESENTATION } f
 import type { DynamicIslandNotchSize, DynamicIslandStateChangeReason, DynamicIslandViewState } from "@openbot/ui";
 import { OpenBotDynamicIsland } from "@openbot/ui/features/dynamic-island/OpenBotDynamicIsland";
 import { useText } from "@openbot/ui/text";
+import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createSignal, onSettled, Show } from "solid-js";
 import { dynamicIslandPort } from "./dynamic-island-port";
 
@@ -37,16 +38,25 @@ export function DynamicIslandSurface() {
   const [viewState, setViewState] = createSignal<DynamicIslandViewState>("compact");
   // A failed action keeps the panel open with this message, so an Approve that did not reach the
   // agent does not look like it worked.
-  const [actionError, setActionError] = createSignal<string>();
+  const [actionError, setActionError] = createSignal<UserErrorDetails>();
   // Each action and each clear starts a new generation, so a late failure does not show on another panel.
   let actionGeneration = 0;
   let pointerInside = false;
   let focusInside = false;
+  // A reply field was pressed. The panel is not focusable by default, so main makes it key only until
+  // the focus leaves the island. A focus change inside the island keeps it key: when the panel stops
+  // being key, its blur collapses the island before a click on an option lands.
+  let keyboardInside = false;
   let queuedPresentation: DynamicIslandPresentation | undefined;
 
   function applyPresentation(next: DynamicIslandPresentation): void {
     if (
-      interactionLocksPresentation(presentation(), next, pointerInside || focusInside || viewState() === "expanded")
+      interactionLocksPresentation(
+        presentation(),
+        next,
+        pointerInside || focusInside || viewState() === "expanded",
+        keyboardInside,
+      )
     ) {
       queuedPresentation = next;
       return;
@@ -72,8 +82,14 @@ export function DynamicIslandSurface() {
   }
 
   function changeViewState(next: DynamicIslandViewState, reason: DynamicIslandStateChangeReason): void {
+    // The pointer can leave while the user types a reply. Escape, Close and a click outside still collapse.
+    if (reason === "hover-exit" && keyboardInside && isTextField(document.activeElement)) return;
     if (reason === "pointer" || reason === "keyboard" || reason === "escape") performHaptic();
     setViewState(next);
+    if (next === "compact" && keyboardInside) {
+      keyboardInside = false;
+      void syncInteractive();
+    }
     if (next === "compact") clearActionError();
     if (next === "compact" && !pointerInside && !focusInside) applyQueuedPresentation();
   }
@@ -84,37 +100,39 @@ export function DynamicIslandSurface() {
     if (next) commitPresentation(next);
   }
 
-  function syncInteractive(): void {
-    void dynamicIslandPort().dynamicIsland.setInteractive({ interactive: pointerInside || focusInside });
+  function syncInteractive(): Promise<void> {
+    const interactive = pointerInside || focusInside;
+    return dynamicIslandPort().dynamicIsland.setInteractive({ interactive, keyboard: interactive && keyboardInside });
   }
 
   function beginPointerInteraction(): void {
     pointerInside = true;
-    syncInteractive();
+    void syncInteractive();
   }
 
   function endPointerInteraction(): void {
     pointerInside = false;
     if (viewState() === "compact" && !focusInside) applyQueuedPresentation();
-    syncInteractive();
+    void syncInteractive();
   }
 
   function beginFocusInteraction(): void {
     focusInside = true;
-    syncInteractive();
+    void syncInteractive();
   }
 
   function endFocusInteraction(): void {
     focusInside = false;
     if (viewState() === "compact" && !pointerInside) applyQueuedPresentation();
-    syncInteractive();
+    void syncInteractive();
   }
 
   function closeInteraction(): void {
     pointerInside = false;
     focusInside = false;
+    keyboardInside = false;
     if (viewState() === "compact") applyQueuedPresentation();
-    syncInteractive();
+    void syncInteractive();
   }
 
   function enterInteraction(event: MouseEvent & { currentTarget: HTMLFieldSetElement }): void {
@@ -130,7 +148,19 @@ export function DynamicIslandSurface() {
 
   function leaveFocusInteraction(event: FocusEvent & { currentTarget: HTMLFieldSetElement }): void {
     if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+    keyboardInside = false;
     endFocusInteraction();
+  }
+
+  /** A press on a reply field asks main for key input, then puts the caret in the field. */
+  async function requestKeyboard(event: PointerEvent): Promise<void> {
+    const field = event.target;
+    if (!isTextField(field)) return;
+    if (!keyboardInside) {
+      keyboardInside = true;
+      await syncInteractive();
+    }
+    if (keyboardInside && document.activeElement !== field) field.focus();
   }
 
   function clearActionError(): number {
@@ -138,20 +168,24 @@ export function DynamicIslandSurface() {
     return ++actionGeneration;
   }
 
-  async function perform(action: DynamicIslandAction): Promise<void> {
+  /** Resolves `false` when the action failed. */
+  async function perform(action: DynamicIslandAction): Promise<boolean> {
     performHaptic();
     const generation = clearActionError();
     try {
       await dynamicIslandPort().dynamicIsland.performAction(action);
-    } catch {
-      if (generation === actionGeneration) setActionError(t("island.action.failed"));
-      return;
+    } catch (error) {
+      if (generation === actionGeneration)
+        setActionError({ message: t("island.action.failed"), reference: errorReference(error) });
+      return false;
     }
     pointerInside = false;
     focusInside = false;
+    keyboardInside = false;
     setViewState("compact");
     applyQueuedPresentation();
     await dynamicIslandPort().dynamicIsland.setInteractive({ interactive: false });
+    return true;
   }
 
   function performHaptic(): void {
@@ -175,6 +209,7 @@ export function DynamicIslandSurface() {
     const close = () => {
       pointerInside = false;
       focusInside = false;
+      keyboardInside = false;
       setViewState("compact");
       clearActionError();
       applyQueuedPresentation();
@@ -200,6 +235,7 @@ export function DynamicIslandSurface() {
           onFocusIn={beginFocusInteraction}
           onBlur={leaveFocusInteraction}
           onFocusOut={leaveFocusInteraction}
+          onPointerDown={(event) => void requestKeyboard(event)}
         >
           <OpenBotDynamicIsland
             presentation={presentation()}
@@ -210,6 +246,7 @@ export function DynamicIslandSurface() {
             widthPercent={preference().widthPercent}
             heightPercent={preference().heightPercent}
             extendedHoverArea
+            inlineReply
             onStateChange={changeViewState}
             onAction={perform}
             actionError={actionError()}
@@ -219,6 +256,10 @@ export function DynamicIslandSurface() {
       </Show>
     </main>
   );
+}
+
+function isTextField(target: EventTarget | null): target is HTMLInputElement | HTMLTextAreaElement {
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
 }
 
 function readAppVariant(value: string | null): AppVariant {
@@ -234,8 +275,10 @@ function interactionLocksPresentation(
   current: DynamicIslandPresentation,
   next: DynamicIslandPresentation,
   interacting: boolean,
+  typing: boolean,
 ): boolean {
-  if (!interacting || !isCriticalPresentation(current)) return false;
+  // While the user types a reply, a new card must not take the draft to another agent.
+  if (!interacting || !(typing || isCriticalPresentation(current))) return false;
   return presentationIdentity(current) !== presentationIdentity(next);
 }
 

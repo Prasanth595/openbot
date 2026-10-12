@@ -7,6 +7,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import type { AgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
 import { currentText } from "@openbot/ui/text";
+import type { UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import type { ChatSearchMatch } from "./chat-search";
 import {
@@ -20,7 +21,13 @@ import {
 } from "./composer-draft";
 import { type StoredComposerDrafts, writeComposerDraftsOnChange } from "./composer-draft-storage";
 import { composerDraftKey } from "./conversation-keys";
-import type { ComposerDraft, ConversationProps, RightPanelMode, SidebarFilePreview } from "./conversation-types";
+import type {
+  ComposerDraft,
+  ConversationProps,
+  RightPanelMode,
+  SidebarFilePreview,
+  VoiceLiveTranscript,
+} from "./conversation-types";
 import { createPendingSendStore } from "./stores/pending-send-store";
 
 const SETTINGS_PANEL_DEFAULT = 296;
@@ -56,6 +63,10 @@ interface ConversationResources {
   voiceRecordingTimer: ReturnType<typeof setTimeout> | undefined;
   voiceElapsedTimer: ReturnType<typeof setInterval> | undefined;
   voiceChunks: Blob[];
+  /** The live transcription in flight, so the final pass waits for it instead of racing it. */
+  voiceLiveRequest: Promise<void> | undefined;
+  /** Stops the microphone level meter that draws the recording waveform. */
+  voiceMeterStop: (() => void) | undefined;
   voiceAgentId: string | undefined;
   voiceServerId: string | undefined;
   voiceSubmitRequest:
@@ -190,11 +201,15 @@ export function createStableConversationState(
       unsentTexts: pendingSends.unsentTexts,
     });
   const [composerErrors, setComposerErrors] = createSignal<Record<string, string>>({});
+  /** The code of each composer error that came from a failure, keyed like `composerErrors`. */
+  const [composerErrorReferences, setComposerErrorReferences] = createSignal<Record<string, UserErrorDetails>>({});
   const [voicePhase, setVoicePhase] = createSignal<"idle" | "preparing" | "requesting" | "recording" | "transcribing">(
     "idle",
   );
   const [voiceModelProgress, setVoiceModelProgress] = createSignal<number | null>(null);
   const [voiceElapsedSeconds, setVoiceElapsedSeconds] = createSignal(0);
+  const [voiceLiveTranscript, setVoiceLiveTranscript] = createSignal<VoiceLiveTranscript | null>(null);
+  const [voiceLevels, setVoiceLevels] = createSignal<number[]>([]);
   const [browserPipBounds, setBrowserPipBounds] = createSignal<BrowserBounds | null>(readBrowserPipBounds());
   const [settingsPanelWidth, setSettingsPanelWidth] = createSignal(SETTINGS_PANEL_DEFAULT);
   const [browserPanelWidth, setBrowserPanelWidth] = createSignal(BROWSER_PANEL_DEFAULT);
@@ -210,6 +225,8 @@ export function createStableConversationState(
     voiceRecordingTimer: undefined,
     voiceElapsedTimer: undefined,
     voiceChunks: [],
+    voiceLiveRequest: undefined,
+    voiceMeterStop: undefined,
     voiceAgentId: undefined,
     voiceServerId: undefined,
     voiceSubmitRequest: undefined,
@@ -244,6 +261,7 @@ export function createStableConversationState(
     if (resources.voiceElapsedTimer) clearInterval(resources.voiceElapsedTimer);
     if (resources.voiceRecorder?.state === "recording") resources.voiceRecorder.stop();
     for (const track of resources.voiceStream?.getTracks() ?? []) track.stop();
+    resources.voiceMeterStop?.();
     stopComposerTyping();
   });
 
@@ -289,12 +307,18 @@ export function createStableConversationState(
     setConversationErrors,
     composerErrors,
     setComposerErrors,
+    composerErrorReferences,
+    setComposerErrorReferences,
     voicePhase,
     setVoicePhase,
     voiceModelProgress,
     setVoiceModelProgress,
     voiceElapsedSeconds,
     setVoiceElapsedSeconds,
+    voiceLiveTranscript,
+    setVoiceLiveTranscript,
+    voiceLevels,
+    setVoiceLevels,
     browserPipBounds,
     setBrowserPipBounds,
     settingsPanelWidth,

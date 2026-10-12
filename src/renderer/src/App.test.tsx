@@ -5,6 +5,7 @@ import type {
   ConversationSnapshot,
   Routine,
 } from "@openbot/contracts/ipc";
+import { LOCAL_SERVER_ID } from "@openbot/contracts/ipc";
 import { Toaster, toast } from "@openbot/ui";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { createSignal, Show } from "solid-js";
@@ -32,6 +33,7 @@ import { useServers } from "./features/servers/servers-context";
 import { SIDEBAR_PINS_STORAGE_KEY } from "./features/sidebar/sidebar-pins-storage";
 import { SIDEBAR_COLLAPSED_STORAGE_KEY } from "./features/sidebar/sidebar-sections-storage";
 import { useLayout } from "./layout";
+import { SettingsModal } from "./lazy-views";
 import { useNavigation } from "./navigation";
 import { useProviders } from "./providers";
 
@@ -240,10 +242,9 @@ describe("OpenBot connected desktop shell", () => {
     await fireEvent.input(composer);
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
     const settings = await screen.findByRole("complementary", { name: "Agent settings" });
-    await fireEvent.click(within(settings).getByRole("button", { name: /^Edit profile of/u }));
     const name = await within(settings).findByRole("textbox", { name: "Agent name" });
     await fireEvent.input(name, { target: { value: "Draft agent name" } });
-    await fireEvent.click(within(settings).getByRole("button", { name: "Back to settings" }));
+    await fireEvent.blur(name);
     const usageTrigger = within(settings).getByRole("button", { name: "Usage" });
     await fireEvent.click(usageTrigger);
     const usage = await screen.findByRole("region", { name: "Agent usage" });
@@ -251,7 +252,7 @@ describe("OpenBot connected desktop shell", () => {
     expect(within(usage).getByRole("heading", { name: "Usage Local" })).toBeInTheDocument();
     await fireEvent.click(within(usage).getByRole("button", { name: "Back" }));
     expect(screen.getByRole("main", { name: "Conversation" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edit profile of Draft agent name" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Agent name" })).toHaveValue("Draft agent name");
     expect(screen.getByRole("textbox", { name: "Message Draft agent name" })).toHaveTextContent(
       "Keep this conversation draft",
     );
@@ -427,7 +428,10 @@ describe("OpenBot connected desktop shell", () => {
     expect(screen.queryByText("https://about.fb.com/news/")).not.toBeInTheDocument();
 
     await fireEvent.click(metaLink);
-    expect(window.openbot.openUrl).toHaveBeenCalledWith("https://about.fb.com/news/");
+    expect(window.openbot.agent.openMessageLink).toHaveBeenCalledWith(
+      { agentId: expect.any(String), url: "https://about.fb.com/news/" },
+      expect.any(String),
+    );
     expect(window.openbot.browser.open).not.toHaveBeenCalled();
   });
 
@@ -500,6 +504,8 @@ describe("OpenBot connected desktop shell", () => {
   });
 
   it("loads shared sidebar sections and connects section actions to the desktop API", async () => {
+    // This narrow selection can finish before the shell's background settings preload.
+    await SettingsModal.preload();
     const sectionId = "11111111-1111-4111-8111-111111111111";
     const layout = {
       revision: 3,
@@ -1446,5 +1452,53 @@ describe("OpenBot connected desktop shell", () => {
     await waitFor(() => expect(screen.getByLabelText("ChatGPT row")).toHaveTextContent("connecting"));
     emitAgentEvent?.({ type: "status", status: codexStatus({ email: "second@example.com" }) });
     expect(await screen.findByText("Signed in as second@example.com.")).toBeVisible();
+  });
+  // Without a submit, a code pasted on this computer went nowhere and the dialog stayed open.
+  it("sends a code pasted on this computer to the local host", async () => {
+    vi.mocked(window.openbot.startProviderCodeLogin).mockResolvedValueOnce({
+      kind: "paste",
+      verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
+      expiresAt: Date.now() + 600_000,
+    });
+    const submitCodeLogin = vi.fn(async () => ({
+      ...codexStatus({}),
+      providers: [
+        {
+          id: "claude" as const,
+          state: "available" as const,
+          version: "2.1.0",
+          message: null,
+          connectionState: "connecting" as const,
+        },
+      ],
+    }));
+    window.openbot.providerAdmin.submitCodeLogin = submitCodeLogin;
+    function PasteProbe() {
+      const { codeLogin } = useProviders();
+      return (
+        <>
+          <button type="button" onClick={() => codeLogin.start("claude")}>
+            Log in with code
+          </button>
+          <button type="button" onClick={() => codeLogin.submit("pasted-code")}>
+            Submit code
+          </button>
+          <output aria-label="Code sign-in">{codeLogin.provider() ? codeLogin.state().phase : "closed"}</output>
+        </>
+      );
+    }
+    render(() => (
+      <AppProviders>
+        <PasteProbe />
+      </AppProviders>
+    ));
+    await fireEvent.click(screen.getByRole("button", { name: "Log in with code" }));
+    await waitFor(() => expect(screen.getByLabelText("Code sign-in")).toHaveTextContent("paste"));
+    await fireEvent.click(screen.getByRole("button", { name: "Submit code" }));
+
+    await waitFor(() =>
+      expect(submitCodeLogin).toHaveBeenCalledWith({ provider: "claude", code: "pasted-code" }, LOCAL_SERVER_ID),
+    );
+    await waitFor(() => expect(screen.getByLabelText("Code sign-in")).toHaveTextContent("verifying"));
   });
 });

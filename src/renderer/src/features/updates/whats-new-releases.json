@@ -1,0 +1,163 @@
+[
+  {
+    "version": "0.37.0",
+    "date": "2026-10-11",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Settings > Voice shows the dictation models. You can download Whisper large-v3 turbo and set a fixed dictation language, for example Hungarian.",
+          "A scheduled routine can skip a time that OpenBot missed while it was closed, or run once when OpenBot opens.",
+          "When a browser sign-in does not finish, you can log in with a code. Grok, Cursor, Cline and Muse also accept a code.",
+          "Run openbot mobile-connect on a self-hosted or Docker server to connect the phone app to it."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "German, Spanish, French, Japanese, Brazilian Portuguese, Russian and Turkish now translate all interface text."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Finished agent replies are no longer cut off after about 220 characters.",
+          "An agent that ran out of usage can change to a model of another provider.",
+          "The chat input keeps focus while agents work in the background.",
+          "You can close the usage-limit notice above the message box."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.36.0",
+    "date": "2026-10-10",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "OpenBot is now available in Polish. Choose Polski in Settings > General > Language.",
+          "With analytics on, OpenBot sends one daily summary of its memory and CPU use. It does not send process names, command lines or paths."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": ["All of the Brazilian Portuguese interface is translated."]
+      }
+    ]
+  },
+  {
+    "version": "0.35.2",
+    "date": "2026-10-10",
+    "notices": [],
+    "groups": [
+      {
+        "type": "fixed",
+        "items": [
+          "Agents on Muse models, such as Muse Spark 1.3, reply again.",
+          "The agent avatar stays inside the Dynamic Island when the main window is zoomed in."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.35.1",
+    "date": "2026-10-10",
+    "notices": [],
+    "groups": [
+      {
+        "type": "changed",
+        "items": [
+          "The usage popover shows each limit of a provider, such as the 5-hour and weekly limits, and when each one resets.",
+          "A failed connection shows the reason and a short error code. Copy the code when you report a problem."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "The web app connects again by itself when a server comes back after an update or a restart. You no longer need to reload the page.",
+          "A hosted server no longer stays at \"Starting\" with \"Too many active remote connections.\"",
+          "A server that lost its remote connection for good reports an error, and a cloud server connects again by itself."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.35.0",
+    "date": "2026-10-10",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "On macOS, reply to an agent, answer its question or stop its work from the Dynamic Island.",
+          "The file preview panel highlights code, can wrap long lines and has a Copy button.",
+          "Choose which agent memories are always in the prompt. Agents can search the other saved memories.",
+          "Add Cobrain from the Apps catalog. Agents can load, search and save notes in your Cobrain memory.",
+          "See the release notes after an update. Open them again in Settings > Updates."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Voice input uses a new speech model and shows the words while you speak. The first recording downloads approximately 670 MB. Japanese, Chinese and Korean dictation is no longer available.",
+          "Agents use less context. A ring near the message box shows how much context the agent uses.",
+          "Agent settings show the face, name, title and instructions at the top. Click the face to change the image or color.",
+          "Local scripts can now send messages and answer questions and approvals. Agents that already allow Local scripts get this change."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Grok agents answer again after their Grok CLI restarts.",
+          "A Codex agent on a Plus or Pro plan waits for its usage limit to reset. Before, each queued message failed.",
+          "The owner of a server can remove it from the account, also when its computer is offline or gone.",
+          "A paste into a remote desktop now pastes your own clipboard.",
+          "Two attachments whose names differ only in case now both arrive."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.34.1",
+    "date": "2026-10-09",
+    "notices": [],
+    "groups": [
+      {
+        "type": "changed",
+        "items": [
+          "The sidebar now shows \"OpenBot for mobile\". Open \"How to install\" for the iPhone and Android setup steps."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": ["The message box stays at the bottom of the chat again. Before, it moved up in a short conversation."]
+      }
+    ]
+  },
+  {
+    "version": "0.34.0",
+    "date": "2026-10-09",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "See your routines on a canvas. Open an agent in Routines to see its next runs, past runs and results.",
+          "Connect agents in a routine. Each agent can pass its answer to the next agent in the flow.",
+          "Ask an agent to edit the routine canvas. Use the chat panel to add or change routines and their connections.",
+          "Use OpenBot in Russian, Spanish or German. Select the interface language in Settings."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Open joined servers faster after a restart. Fast connection to servers is on by default in Settings > General.",
+          "Manage notifications in their own Settings tab. Desktop notifications, sounds and the test notification are together."
+        ]
+      }
+    ]
+  }
+]

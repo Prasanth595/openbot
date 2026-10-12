@@ -40,6 +40,7 @@ import type {
   TeamMemberSummary,
   TeamPresenceSnapshot,
   TeamRealtimeEvent,
+  TeamRole,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
 import {
@@ -163,6 +164,8 @@ export interface DevelopmentRemoteServerConnection {
   publicKey: string;
   username: string;
   sessionToken: string;
+  /** The role that the host gives the technical member. A file from an older host has none. */
+  role?: TeamRole | undefined;
 }
 
 const REMOTE_DUPLICATION_TIMEOUT_MS = TEAM_WEBRTC_REMOTE_REQUEST_TIMEOUT_MILLISECONDS;
@@ -777,7 +780,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
         encryptedToken: yield* remoteDecode(() => this.#store.sealToken(input.sessionToken)),
         remoteDesktopAvailable: false,
         logoVersion: verifiedIdentity.logoVersion,
-        role: "member",
+        role: input.role ?? "member",
       };
       this.#connections.setCompatibility(stored.id, verifiedIdentity.compatibility);
       this.#connections.clearIssue(stored.id);
@@ -992,13 +995,12 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       if (serverId === LOCAL_SERVER_ID)
         return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.remote.localServerRemove")) });
       const server = this.#store.find(serverId);
-      // An owner cannot leave their own host, so the account service keeps listing it. Hiding it is
-      // what makes the removal survive the next directory sync.
-      let hideHost = false;
       if (server?.transport === "webrtc-v2") {
         if (!transport)
           return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.remote.webRtcUnavailable")) });
-        if (server.role === "owner") hideHost = true;
+        // An owner cannot leave their own host. The owner removes it from the account service, so the
+        // next directory sync on each device of each member does not list it again.
+        if (server.role === "owner") yield* transport.removeOwnedHost(serverId);
         else yield* transport.leaveHost(serverId);
         yield* transport.disconnect(serverId).pipe(Effect.catch(() => Effect.void));
       } else if (server && this.#connections.compatibilityFor(serverId)?.negotiatedProtocol) {
@@ -1014,7 +1016,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
         yield* this.request(serverId, path, decodeVoid, { method: "POST" }).pipe(Effect.catch(() => Effect.void));
       }
       this.#clearServerConnectionState(serverId);
-      yield* this.#store.remove(serverId, { hideHost });
+      yield* this.#store.remove(serverId);
       this.#emitChanged();
     },
     (operation) => this.#owned(operation),

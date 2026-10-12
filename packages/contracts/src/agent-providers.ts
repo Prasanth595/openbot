@@ -27,6 +27,8 @@ export const AGENT_PROVIDERS = [
   "antigravity",
   "cursor",
   "cline",
+  "pi",
+  "muse",
   "acp",
 ] as const;
 export type AgentProviderId = (typeof AGENT_PROVIDERS)[number];
@@ -85,6 +87,13 @@ export interface AgentProviderDescriptor {
    * turn ends. Only a `native` provider steers a message sent in `steer` mode; the others queue it.
    */
   readonly steer: "native" | "deferred";
+  /**
+   * Whether OpenBot can read the plan's remaining usage. `false`: the CLI exposes no usage reading,
+   * so the dock says the provider does not report usage instead of waiting for a reading. Declared
+   * here because the renderer cannot see the drivers; set it to `true` with a driver's usage read
+   * (Codex and Claude read it themselves, Grok and OpenCode through `readRateLimits`).
+   */
+  readonly reportsUsage: boolean;
 }
 
 /**
@@ -107,6 +116,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "command-sandbox",
     steer: "native",
+    reportsUsage: true,
   },
   claude: {
     id: "claude",
@@ -123,6 +133,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".claude/skills"],
     workspaceEnforcement: "tool-sandbox",
     steer: "native",
+    reportsUsage: true,
   },
   grok: {
     id: "grok",
@@ -139,6 +150,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    reportsUsage: true,
   },
   opencode: {
     id: "opencode",
@@ -157,6 +169,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".opencode/skills", ".agents/skills", ".claude/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    reportsUsage: true,
   },
   // Google moved Google AI Pro and Ultra accounts from Gemini CLI to Antigravity on 18 June 2026,
   // so the plan runs through Google's Antigravity ACP server. The account and the models are Gemini.
@@ -175,6 +188,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".gemini/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    reportsUsage: false,
   },
   // The Cursor CLI (`cursor-agent acp`) with the user's Cursor plan. Sign-in is the ACP
   // `cursor_login` method, which opens a browser. `CURSOR_API_KEY` in the environment also signs in.
@@ -193,6 +207,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".cursor/skills", ".claude/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    reportsUsage: false,
   },
   // The Cline CLI (`cline --acp`). Sign-in is the ACP `cline` method, which opens a browser. A Cline
   // account runs the free models; `CLINE_API_KEY` in the environment also signs in.
@@ -211,6 +226,41 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".cline/skills", ".clinerules/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    reportsUsage: false,
+  },
+  pi: {
+    id: "pi",
+    displayName: "Pi",
+    cliName: "Pi CLI",
+    onboardingDescription: "Included with OpenBot",
+    signInMessage: "Use /login in Pi on the host computer. Close Pi when sign-in is complete.",
+    installGuideLink: null,
+    defaultModel: "",
+    legacyModelPrefix: null,
+    authKind: "pi",
+    pickerOrder: 7,
+    codeSignIn: false,
+    skillFolders: [".agents/skills"],
+    workspaceEnforcement: "confined-process",
+    steer: "native",
+    reportsUsage: false,
+  },
+  muse: {
+    id: "muse",
+    displayName: "Muse",
+    cliName: "Muse CLI",
+    onboardingDescription: "Included with OpenBot",
+    signInMessage: "Sign in to Muse on the host computer to continue.",
+    installGuideLink: null,
+    defaultModel: "",
+    legacyModelPrefix: null,
+    authKind: "muse",
+    pickerOrder: 8,
+    codeSignIn: false,
+    skillFolders: [".agents/skills"],
+    workspaceEnforcement: "confined-process",
+    steer: "native",
+    reportsUsage: true,
   },
   // One provider for every Agent Client Protocol agent the user adds by command. The model id names
   // the agent (`<customAgentId>/<agentModel>`), so one provider row serves them all and the shipped
@@ -230,6 +280,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    reportsUsage: false,
   },
 } as const satisfies Record<AgentProviderId, AgentProviderDescriptor>;
 
@@ -275,6 +326,8 @@ export const MANAGED_RUNTIME_PROVIDERS = [
   "antigravity",
   "cursor",
   "cline",
+  "pi",
+  "muse",
 ] as const satisfies readonly AgentProviderId[];
 export type ManagedProviderId = (typeof MANAGED_RUNTIME_PROVIDERS)[number];
 
@@ -291,11 +344,22 @@ export const LOCAL_ONLY_PROVIDERS = [
   "antigravity",
   "cursor",
   "cline",
+  "pi",
+  "muse",
   "acp",
 ] as const satisfies readonly AgentProviderId[];
 
 export function isLocalOnlyProvider(provider: AgentProviderId): boolean {
   return isOneOf(LOCAL_ONLY_PROVIDERS, provider);
+}
+
+/**
+ * Whether a computer on `platform` can run a sign-in whose code the user pastes back (Claude). The
+ * CLI shows its prompt only on a terminal, and only the util-linux `script` gives it one there: see
+ * the backend `startCliCodeLogin`.
+ */
+export function pasteCodeSignInSupported(platform: string): boolean {
+  return platform === "linux";
 }
 
 /**

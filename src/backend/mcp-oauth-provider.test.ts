@@ -455,6 +455,11 @@ describe("signing in to an http MCP server", () => {
       cancelSignIn: () => false,
       signedIn: () => false,
       forget: (url) => oauth.forget(url),
+      signOut: (url) => oauth.signOut(url),
+      redirectUrl: oauth.redirectUrl,
+      signInApp: (url) => oauth.signInApp(url),
+      saveSignInApp: (url, app) => oauth.saveSignInApp(url, app),
+      removeSignInApp: (url) => oauth.removeSignInApp(url),
     };
 
     expect(await runMcp(testMcpServer(config(server.url), 10_000, undefined, silent))).toEqual({
@@ -583,6 +588,11 @@ describe("signing in to an http MCP server", () => {
       cancelSignIn: () => false,
       signedIn: () => false,
       forget: (url) => oauth.forget(url),
+      signOut: (url) => oauth.signOut(url),
+      redirectUrl: oauth.redirectUrl,
+      signInApp: (url) => oauth.signInApp(url),
+      saveSignInApp: (url, app) => oauth.saveSignInApp(url, app),
+      removeSignInApp: (url) => oauth.removeSignInApp(url),
     };
     expect(await runMcp(testMcpServer(config(server.url), 10_000, undefined, silent))).toEqual({
       toolCount: 1,
@@ -631,6 +641,11 @@ describe("signing in to an http MCP server", () => {
       cancelSignIn: () => false,
       signedIn: () => false,
       forget: (url) => restarted.forget(url),
+      signOut: (url) => restarted.signOut(url),
+      redirectUrl: restarted.redirectUrl,
+      signInApp: (url) => restarted.signInApp(url),
+      saveSignInApp: (url, app) => restarted.saveSignInApp(url, app),
+      removeSignInApp: (url) => restarted.removeSignInApp(url),
     };
     expect(await runMcp(testMcpServer(config(server.url), 10_000, undefined, silent))).toEqual({
       toolCount: 1,
@@ -1038,6 +1053,88 @@ describe("signing in to an http MCP server", () => {
       toolCount: 0,
       error: "This server asks you to sign in. Choose Sign in to continue in your browser.",
     });
+  });
+
+  // Issue #1872: a server with no client registration signs in with an app the administrator registered.
+  it("signs in with a saved app, never registers, and keeps the secret out of every answer", async () => {
+    const server = await fakeServer({ refuseRegistration: "empty" });
+    const storage = memoryStorage();
+    const opened: string[] = [];
+    const oauth = createOAuth({
+      storage,
+      redirectUrl: "openbot://mcp-auth",
+      openExternal: async (url) => {
+        opened.push(url);
+        oauth.receiveAuthorizationCode(new URL(url).searchParams.get("state") ?? "", GRANT);
+      },
+      signInTimeoutMs: 10_000,
+    });
+    const app = { clientId: "admin-client", clientSecret: "admin-secret", scope: "read offline_access" };
+    expect(await runMcp(oauth.saveSignInApp(server.url, app))).toBe(false);
+
+    expect(await runMcp(testMcpServer(config(server.url), 10_000, undefined, oauth, "here"))).toEqual({
+      toolCount: 1,
+      error: null,
+    });
+    expect(server.registrations).toBe(0);
+    const authorize = new URL(opened[0] ?? "");
+    expect(authorize.searchParams.get("client_id")).toBe("admin-client");
+    expect(authorize.searchParams.get("scope")).toBe("read offline_access");
+    expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
+    // The first authorization server that accepted the app binds it.
+    expect(storage.read(server.url)?.app).toEqual({ ...app, issuer: server.base });
+
+    const summary = oauth.signInApp(server.url);
+    expect(summary).toEqual({ clientId: "admin-client", secretSaved: true, scope: "read offline_access" });
+    expect(JSON.stringify(summary)).not.toContain("admin-secret");
+
+    // Sign out drops the session and keeps the app; a save without a secret keeps the stored one.
+    await runMcp(oauth.signOut(server.url));
+    expect(oauth.signedIn(server.url)).toBe(false);
+    expect(storage.read(server.url)?.app).toEqual({ ...app, issuer: server.base });
+    expect(await runMcp(oauth.saveSignInApp(server.url, { ...app, clientSecret: null, scope: "read" }))).toBe(false);
+    expect(storage.read(server.url)?.app).toEqual({ ...app, scope: "read", issuer: server.base });
+
+    // Removing the row removes the app and its secret.
+    await runMcp(oauth.forget(server.url));
+    expect(storage.read(server.url)).toBeNull();
+  });
+
+  it("never sends a sign-in app to an authorization server it is not bound to", async () => {
+    const server = await fakeServer({ refuseRegistration: "empty" });
+    const storage = memoryStorage();
+    // The app was bound to another server, and the resource now names this one.
+    storage.records.set(server.url, {
+      app: { clientId: "admin-client", clientSecret: "admin-secret", issuer: "https://auth.example.com" },
+    });
+    const openExternal = vi.fn(async () => undefined);
+    const oauth = createOAuth({ storage, redirectUrl: "openbot://mcp-auth", openExternal, signInTimeoutMs: 10_000 });
+
+    const result = await runMcp(testMcpServer(config(server.url), 10_000, undefined, oauth, "here"));
+    expect(result.error).toBe(
+      "The sign-in server of this MCP server changed, so OpenBot did not send it the sign-in app. If the change is correct, remove the sign-in app and add it again.",
+    );
+    expect(openExternal).not.toHaveBeenCalled();
+    expect(server.registrations).toBe(0);
+    expect(server.tokenRequests).toHaveLength(0);
+  });
+
+  it("keeps the binding of a saved secret when only the client ID changes", async () => {
+    const url = "https://mcp.example.com/mcp";
+    const storage = memoryStorage();
+    storage.records.set(url, {
+      app: { clientId: "admin-client", clientSecret: "admin-secret", issuer: "https://auth.example.com" },
+    });
+    const oauth = createOAuth({ storage, redirectUrl: "openbot://mcp-auth", openExternal: async () => undefined });
+
+    await runMcp(oauth.saveSignInApp(url, { clientId: "other-client", clientSecret: null, scope: "" }));
+    expect(storage.read(url)?.app).toEqual({
+      clientId: "other-client",
+      clientSecret: "admin-secret",
+      issuer: "https://auth.example.com",
+    });
+    await runMcp(oauth.saveSignInApp(url, { clientId: "other-client", clientSecret: "new-secret", scope: "" }));
+    expect(storage.read(url)?.app).toEqual({ clientId: "other-client", clientSecret: "new-secret" });
   });
 
   it("ends a sign-in the user cancels and keeps no token", async () => {

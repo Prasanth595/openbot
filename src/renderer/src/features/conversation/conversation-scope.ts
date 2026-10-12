@@ -1,5 +1,6 @@
-import type { UpdateAgentInput } from "@openbot/contracts/ipc";
+import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
+import { errorReference } from "@openbot/user-errors";
 import {
   createContext,
   createEffect,
@@ -68,6 +69,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setAttachmentBusy,
     composerErrors,
     setComposerErrors,
+    composerErrorReferences,
+    setComposerErrorReferences,
     conversationErrors,
     setConversationErrors,
     voicePhase,
@@ -76,6 +79,10 @@ export function createConversationViewScope(props: ConversationProps) {
     setVoiceModelProgress,
     voiceElapsedSeconds,
     setVoiceElapsedSeconds,
+    voiceLiveTranscript,
+    setVoiceLiveTranscript,
+    voiceLevels,
+    setVoiceLevels,
     markingRead,
     setMarkingRead,
     submitting,
@@ -137,11 +144,20 @@ export function createConversationViewScope(props: ConversationProps) {
    * Async completions must pass an explicit target captured at operation start;
    * reading `currentConversationTarget(props)` at completion time would
    * attribute the failure to whichever chat the user has since opened.
+   *
+   * `cause` is the failure behind the sentence. The banner shows its code.
    */
-  const setScopedComposerError = (error: string | null, targetOverride?: ConversationTarget): void => {
+  const setScopedComposerError = (error: string | null, targetOverride?: ConversationTarget, cause?: unknown): void => {
     const target = targetOverride ?? currentConversationTarget(props);
     if (!target) return;
     const key = composerDraftKey(target);
+    const reference = error === null || cause === undefined ? null : errorReference(cause);
+    setComposerErrorReferences((current) => {
+      if (reference && error) return { ...current, [key]: { message: error, reference } };
+      if (!(key in current)) return current;
+      const { [key]: _removed, ...next } = current;
+      return next;
+    });
     if (error === null) {
       setComposerErrors((current) => {
         if (!(key in current)) return current;
@@ -239,6 +255,14 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerErrorForTarget,
     clearChatErrors,
   } = composer;
+  /** The code of the shown composer error. A later sentence without a cause shows no code. */
+  const currentChatErrorReference = createMemo(() => {
+    const target = currentTarget();
+    const message = currentComposerError();
+    if (!target || !message) return null;
+    const entry = composerErrorReferences()[composerDraftKey(target)];
+    return entry?.message === message ? entry.reference : null;
+  });
   const queue = createQueueStore({ props, hiddenAwaitingReplyIds });
   const { activeDeliveries, awaitingReplies, orderedQueuedDeliveries, presentedQueueDeliveries, queuePanelVisible } =
     queue;
@@ -387,6 +411,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setVoiceModelProgress,
     voiceElapsedSeconds,
     setVoiceElapsedSeconds,
+    setVoiceLiveTranscript,
+    setVoiceLevels,
     drafts,
     setDrafts,
     setConversationErrors,
@@ -401,7 +427,12 @@ export function createConversationViewScope(props: ConversationProps) {
       restoreTranscript: (...args) => composer.restoreVoiceTranscript(...args),
     },
   });
-  const { startVoiceRecording, stopVoiceRecording } = voice;
+  const { startVoiceRecording, stopVoiceRecording, cancelVoiceRecording } = voice;
+  // Live text belongs to the conversation it is dictated into, not to whichever one is open.
+  const voiceLiveText = () => {
+    const live = voiceLiveTranscript();
+    return live && live.agentId === props.agent?.id && live.serverId === (props.server?.id ?? "local") ? live.text : "";
+  };
   const actions = createComposerActions({
     props,
     attachmentBusy,
@@ -551,6 +582,12 @@ export function createConversationViewScope(props: ConversationProps) {
   let currentUnreadCount = 0;
   let conversationPanel: HTMLElement | undefined;
   const [browserSurface, setBrowserSurface] = createSignal<HTMLDivElement>();
+  /** A link sign-in that the host relays, while it waits for the address that the browser shows. */
+  const [messageLinkRelay, setMessageLinkRelay] = createSignal<{
+    url: string;
+    target: ConversationTarget;
+    page: McpSignInRelayPage;
+  } | null>(null);
   let browserResizeObserver: ResizeObserver | undefined;
   let browserWindowResizeHandler: (() => void) | undefined;
   let browserVisibilityFrame: number | undefined;
@@ -1020,11 +1057,39 @@ export function createConversationViewScope(props: ConversationProps) {
 
   async function openExternalMessageUrl(url: string) {
     const target = currentTarget();
+    const runtime = conversationRuntime(props);
     try {
-      await conversationRuntime(props).openUrl(url);
-    } catch {
-      setScopedComposerError(currentText().t("composer.error.openLink"), target);
+      if (target && runtime.agent.openMessageLink) {
+        const page = await runtime.agent.openMessageLink({ agentId: target.agentId, url }, target.serverId);
+        if (page) setMessageLinkRelay({ url, target, page });
+      } else await runtime.openUrl(url);
+    } catch (error) {
+      setScopedComposerError(currentText().t("composer.error.openLink"), target, error);
     }
+  }
+
+  /** Opens the relayed sign-in page of a link again, after the user checked its host name. */
+  async function openMessageLinkRelay(): Promise<void> {
+    const relay = messageLinkRelay();
+    if (!relay) throw new Error(currentText().t("error.mcp.relayEnded"));
+    await conversationRuntime(props).openUrl(relay.url);
+  }
+
+  /** The address that the browser shows at the end of a relayed link sign-in. Main sends only its query. */
+  async function pasteMessageLinkRelay(address: string): Promise<void> {
+    const relay = messageLinkRelay();
+    const paste = conversationRuntime(props).agent.pasteMessageLink;
+    if (!relay || !paste) throw new Error(currentText().t("error.mcp.relayEnded"));
+    await paste({ url: relay.url, address }, relay.target.serverId);
+    if (messageLinkRelay() === relay) setMessageLinkRelay(null);
+  }
+
+  /** Ends the relayed sign-in of a link on the host. */
+  function cancelMessageLinkRelay(): void {
+    const relay = messageLinkRelay();
+    setMessageLinkRelay(null);
+    const cancel = conversationRuntime(props).agent.cancelMessageLink;
+    if (relay && cancel) void cancel({ url: relay.url }, relay.target.serverId).catch(() => undefined);
   }
 
   /**
@@ -1126,6 +1191,7 @@ export function createConversationViewScope(props: ConversationProps) {
     composerError: currentComposerError,
     currentComposerError,
     currentChatError,
+    currentChatErrorReference,
     currentChatConversationKey,
     dismissCurrentChatErrors,
     dismissAwaitingReplies,
@@ -1144,6 +1210,7 @@ export function createConversationViewScope(props: ConversationProps) {
     dropActive,
     editQueuedMessage,
     editingDeliveryId: currentEditingDeliveryId,
+    cancelQueuedMessageEdit,
     editingPendingSave,
     expandedEmojiMessageId,
     scrollFades,
@@ -1167,6 +1234,10 @@ export function createConversationViewScope(props: ConversationProps) {
     openAttachmentPickerFromKey,
     openBrowserAddress,
     openExternalMessageUrl,
+    messageLinkRelay,
+    openMessageLinkRelay,
+    pasteMessageLinkRelay,
+    cancelMessageLinkRelay,
     openMoreMessageId,
     openReactionMessageId,
     openRoutineSettings,
@@ -1234,6 +1305,7 @@ export function createConversationViewScope(props: ConversationProps) {
     showScrollToLatest,
     startVoiceRecording,
     stopVoiceRecording,
+    cancelVoiceRecording,
     submitComposer,
     submitting,
     unreadDividerVisible,
@@ -1243,6 +1315,8 @@ export function createConversationViewScope(props: ConversationProps) {
     updateTeamTyping,
     updateUnreadDividerVisibility,
     voiceElapsedSeconds,
+    voiceLevels,
+    voiceLiveText,
     voicePhase,
     voiceModelProgress,
   };

@@ -114,3 +114,10 @@
     background: color-mix(in srgb, var(--notice-accent) 18%, transparent);
   }
 }
+
+/* The code sign-in is the second way in: outlined beside the tinted Sign in button. */
+.composer-notice .composer-notice-code-fallback {
+  flex: none;
+  border-color: color-mix(in srgb, var(--notice-accent) 45%, transparent);
+  background: transparent;
+}

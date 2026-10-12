@@ -126,6 +126,8 @@ beforeEach(async () => {
         return { id: `routine-${routines.length}` };
       },
       createMemory: (input) => memories.push(input),
+      memoryLimit: () => 64,
+      initializeMemorySelection: vi.fn(),
       setAvatar: (agentId, image) =>
         Effect.tryPromise({
           try: async () => {

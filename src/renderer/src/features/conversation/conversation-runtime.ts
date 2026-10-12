@@ -1,4 +1,11 @@
-import type { AttachmentSummary, FilePreview, OpenBotDesktopApi } from "@openbot/contracts/ipc";
+import type {
+  AgentSessionSettings,
+  AttachmentSummary,
+  FilePreview,
+  OpenBotDesktopApi,
+  ResetAgentSessionSettingInput,
+  SetAgentSessionSettingInput,
+} from "@openbot/contracts/ipc";
 import type { AgentSkillCalls } from "../../skills-port";
 import type { AgentTemplatePublishCalls } from "../agent-templates/agent-templates-port";
 import type { SharedTableCalls } from "./conversation-port";
@@ -22,7 +29,9 @@ export interface ConversationRuntime {
     | "previewWorkspaceFile"
     | "respondToBrowserSecret"
     | "setMessageReaction"
-  >;
+  > &
+    // A joined server's sign-in link that the host relays. Absent, a link opens with `openUrl`.
+    Partial<Pick<OpenBotDesktopApi["agent"], "openMessageLink" | "pasteMessageLink" | "cancelMessageLink">>;
   browser: Pick<
     OpenBotDesktopApi["browser"],
     | "capturePreview"
@@ -34,7 +43,7 @@ export interface ConversationRuntime {
     | "reload"
     | "setVisible"
   >;
-  voice: Pick<OpenBotDesktopApi["voice"], "onModelStatus" | "prepareModel" | "transcribe">;
+  voice: Pick<OpenBotDesktopApi["voice"], "getSettings" | "onModelStatus" | "prepareModel" | "transcribe">;
   openUrl: OpenBotDesktopApi["openUrl"];
   previewAttachment?: (attachment: AttachmentSummary) => Promise<FilePreview>;
   importFiles?: (files: File[]) => Promise<void>;
@@ -46,6 +55,14 @@ export interface ConversationRuntime {
         sharedTables: SharedTableCalls;
         agentTemplates: AgentTemplatePublishCalls;
         eventRoutines?: EventRoutinesApi | undefined;
+        sessionSettings?:
+          | {
+              read(agentId: string): Promise<AgentSessionSettings>;
+              set(input: SetAgentSessionSettingInput): Promise<AgentSessionSettings>;
+              reset(input: ResetAgentSessionSettingInput): Promise<AgentSessionSettings>;
+              subscribe?(agentId: string, listener: () => void): () => void;
+            }
+          | undefined;
       }
     | undefined;
 }

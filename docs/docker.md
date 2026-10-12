@@ -32,14 +32,24 @@ docker exec -it openbot openbot login
 server shows in the server list of that account. Then connect a provider from the app, as on a
 [hosted server](hosted-servers.md#providers).
 
+To connect the phone app, show a Mobile Connect code in the terminal and scan it with the app:
+
+```sh
+docker exec -it openbot openbot mobile-connect
+```
+
+See [Phone app](self-hosted-server.md#phone-app).
+
 The options in both examples are necessary:
 
 | Option | Why |
 | --- | --- |
 | `seccomp=seccomp.json` | The Electron sandbox makes user namespaces. The default seccomp profile of Docker refuses them, and the container stops with a message. See [Security](#security). |
-| `--shm-size 1g` | Chromium uses shared memory. The Docker default of 64 MB is too small. |
+| `--shm-size 1g` | Chromium uses shared memory. The Docker default of 64 MB is too small. When `/dev/shm` is smaller than 1 GiB, Chromium uses `/tmp`, which is slower. |
 | `--stop-timeout 60` | OpenBot stops its agents and closes its database before it exits. |
 | `-v openbot-data:/data` | All data is in `/data`. Without a volume, it goes away with the container. |
+
+For Amazon ECS, see [AWS ECS](aws-ecs.md).
 
 The container publishes no port. OpenBot only connects out: to the account server, to the providers,
 and to Signal and TURN for remote use. The Team API listens on `127.0.0.1` in the container.
@@ -84,7 +94,7 @@ protect a home folder. To back it up, stop the container and copy the volume.
 
 ## Commands
 
-In the container, `openbot status`, `login`, `logout`, `name` and `version` work as on a
+In the container, `openbot status`, `login`, `mobile-connect`, `logout`, `name` and `version` work as on a
 [self-hosted server](self-hosted-server.md#commands). Do the other tasks with Docker on the host:
 
 | Task | Command |
@@ -148,6 +158,9 @@ does not use systemd.
 - Remote desktop and Computer Use need a display. The container has a virtual display, but remote
   desktop and Computer Use were not tested in it. The arm64 release has no remote desktop runtime.
 - Voice prompts are not available on Linux.
+- Gemini signs in on a Google page in the browser of the container. An owner or admin opens it
+  with Connect in the app, and signs in through the live view of that page. This needs a release
+  with `provider-host-sign-in-v1` on both sides. It was not tested in a container.
 
 ## Not confirmed
 

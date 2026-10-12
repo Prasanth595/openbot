@@ -2,14 +2,19 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agentSettings";
 
 export const messages = {
+  "agentSettings.session.title": "プロバイダーの設定",
+  "agentSettings.session.readFailed": "プロバイダーの設定を読み取れませんでした。",
+  "agentSettings.session.pending": "保存した変更は次のターンの前に適用されます。",
+  "agentSettings.session.unavailable":
+    "保存された値 {value} は利用できません。別の値を選択するか、リセットしてください。",
+  "agentSettings.session.effective": "現在のプロバイダーの値: {value}",
+  "agentSettings.session.reset": "設定をリセット",
+  "agentSettings.session.resetNamed": "{name} をリセット",
   "agentSettings.label": "エージェントの設定",
   "agentSettings.title": "設定",
   "agentSettings.backToDetails": "詳細に戻る",
   "agentSettings.closeDetails": "詳細を閉じる",
   "agentSettings.backToSettings": "設定に戻る",
-  "agentSettings.profile.title": "プロフィール",
-  "agentSettings.profile.open": "{name} のプロフィールを編集",
-  "agentSettings.instructionsEdit": "指示を編集",
   "agentSettings.permissions.title": "権限",
   "agentSettings.advanced.title": "詳細設定",
   "agentSettings.groups.brain": "頭脳",
@@ -113,6 +118,9 @@ export const messages = {
     "Computer Use と OpenBot ブラウザーは制限されません。Computer Use は下でオフにできます。",
   "agentSettings.computerUse.title": "Computer Use",
   "agentSettings.computerUse.description": "このエージェントにこのコンピューターのアプリの操作を許可します",
+  "agentSettings.automation.title": "ローカルスクリプト",
+  "agentSettings.automation.description":
+    "ホスト上のスクリプトが、メッセージの送信、ルーティンの実行、質問への回答、承認の許可や拒否を行えるようにします",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "{provider} のプロセス全体がサンドボックス内で実行されるため、外部への書き込みは失敗します。macOS でのみ利用できます。",
 } as const satisfies PartialTranslation<typeof source>;

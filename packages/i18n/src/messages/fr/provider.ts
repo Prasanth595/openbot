@@ -28,13 +28,16 @@ export const messages = {
   "provider.status.downloadFailed": "Échec du téléchargement",
   "provider.status.connected": "Connecté",
   "provider.status.notDownloaded": "Non téléchargé",
-  "provider.status.ready": "Prêt",
+  "provider.status.ready": "Environnement d’exécution installé",
   "provider.status.notConnected": "Non connecté",
   "provider.status.notInstalled": "Non installé",
   "provider.status.updateRequired": "Mise à jour requise",
   "provider.status.unavailable": "Indisponible",
   "provider.status.checking": "Vérification",
 
+  "provider.status.off": "Désactivé",
+  "provider.gemini.hostSignIn":
+    "Pour connecter Gemini, ouvrez OpenBot sur l’hôte et sélectionnez Connecter dans Réglages > Fournisseurs. La connexion Google nécessite un navigateur sur cet hôte. La connexion à distance n’est pas prise en charge.",
   // Which account tier the OpenCode row runs on. It shows only while it adds to the runtime
   // badge: a saved key leaves the runtime "Connected" to speak for the row.
   "provider.key.free": "Gratuit",
@@ -48,6 +51,8 @@ export const messages = {
   "provider.action.checkForUpdates": "Rechercher des mises à jour",
   "provider.lastError": "Dernière erreur : {detail}",
   "provider.action.copyDiagnostics": "Copier les diagnostics",
+  "provider.action.cancelRestart": "Annuler le redémarrage",
+  "provider.restartPending": "Redémarre après l’arrêt des tâches en cours",
   "provider.action.install": "Installer",
   "provider.action.signIn": "Se connecter",
   "provider.action.signInWithCode": "Se connecter avec un code",
@@ -59,8 +64,14 @@ export const messages = {
   "provider.aria.retry": "Réessayer {name}",
   "provider.aria.install": "Installer {name}",
   "provider.aria.signIn": "Se connecter à {name}",
+  "provider.aria.codeFallback": "Se connecter à {name} avec un code",
   "provider.aria.moreActions": "Autres actions pour {name}",
 
+  "provider.aria.use": "Utiliser {name} dans OpenBot",
+  "provider.use.inUse": {
+    one: "{agents} utilise {name}. Changez le modèle de cet agent, puis désactivez {name}.",
+    other: "{agents} utilisent {name}. Changez le modèle de ces agents, puis désactivez {name}.",
+  },
   "provider.codeLogin.title": "Se connecter à {name} avec un code",
   "provider.codeLogin.description": "Terminez sur votre téléphone ou dans un autre navigateur. OpenBot attend ici.",
   "provider.codeLogin.starting": "Obtention d’un code auprès de {name}…",
@@ -79,6 +90,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Cette connexion s’est arrêtée.",
   "provider.codeLogin.pasteExpiresIn": "En attente. Cette connexion s’arrête dans {time}.",
   "provider.codeLogin.linkTitle": "Connectez-vous à {name} sur un autre appareil",
+  "provider.codeLogin.pageTitle": "Se connecter à {name}",
+  "provider.codeLogin.pageDescription": "Cette page est ouverte dans le navigateur de {host}. Connectez-vous ici.",
+  "provider.codeLogin.relayStarting": "Démarrage de la connexion à {name} sur {host}…",
+  "provider.codeLogin.pageOpening": "Ouverture de la page de connexion de {name} sur {host}…",
   "provider.codeLogin.linkStep": "Connectez-vous à {name}. OpenBot continue tout seul.",
 
   "provider.picker.noEndpoints": "Aucun point de terminaison pour l’instant",
@@ -114,6 +129,14 @@ export const messages = {
   "provider.effort.xhigh": "Très élevé",
   "provider.effort.max": "Max",
 
+  "provider.museKey.title": "Clé d’API Meta pour Muse",
+  "provider.museKey.description":
+    "Enregistrez une clé d’API Meta sur l’hôte, ou utilisez la CLI Muse pour vous connecter.",
+  "provider.museKey.label": "Clé d’API Meta",
+  "provider.geminiKey.title": "Clé d’API Gemini",
+  "provider.geminiKey.description":
+    "Enregistrez une clé d’API Gemini sur l’hôte, ou sélectionnez Connecter pour vous connecter avec Google.",
+  "provider.geminiKey.label": "Clé d’API Gemini",
   "provider.openCodeKey.title": "Se connecter à OpenCode Go",
   "provider.openCodeKey.description":
     "Les modèles gratuits ne demandent pas de compte. Une clé donne accès aux modèles Go payants.",

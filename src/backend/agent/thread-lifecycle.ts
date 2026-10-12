@@ -7,16 +7,15 @@ import {
   agentComputerUseEnabled,
   agentProviderDescriptor,
   COMPUTER_USE_MCP_SERVER_ID,
-  COMPUTER_USE_MCP_SERVER_NAME,
   type McpServerConfig,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
 import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger } from "@openbot/logging";
 import { Effect, Result, Schema } from "effect";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
-import { BROWSER_DYNAMIC_TOOLS } from "../browser-tools";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
 import type { MailboxStore } from "../mailbox-store";
@@ -25,6 +24,7 @@ import {
   type CodexDisabledMcpServer,
   type CodexMcpServer,
   codexDisabledServers,
+  codexMcpServerName,
   codexMcpServers,
   type McpAuthorizationSource,
   type McpServerDrop,
@@ -36,19 +36,22 @@ import {
   toMcpShapeFailed,
   usableMcpServers,
 } from "../mcp-provider-shapes";
-import { OPENBOT_DYNAMIC_TOOLS } from "../openbot-tools";
 import { decodeRecordResponse, decodeThreadResponse, getString, type ResponseDecoder } from "../protocol";
 import { TimeoutError, withTimeout } from "../with-timeout";
 import type { AgentMemories } from "./agent-memories";
 import { readCodexMcpConfig } from "./codex-mcp-config";
 import type { ContextCompaction } from "./context-compaction";
 import type { ConversationRuntime } from "./conversation-runtime";
-import { agentNamesById, estimateTokens, HANDOFF_END, HANDOFF_START, renderHandoffMessage } from "./delivery-content";
-import { developerInstructions } from "./developer-instructions";
-import { readHandoffHistory } from "./handoff-history";
+import { agentNamesById } from "./delivery-content";
+import { developerInstructions, memoryContext } from "./developer-instructions";
+import { readHandoffHistory, renderProviderHandoff } from "./handoff-history";
 import { decodeCapturedSteps, readCapturedSteps } from "./handoff-tool-steps";
+import { sessionSettingsIdentity } from "./session-settings";
 import { isArchivedThreadError, isMissingProviderSessionError } from "./thread-items";
+import { VISIBLE_DYNAMIC_TOOLS } from "./tool-catalog";
 import { codexSandboxConfig, codexSandboxMode, workspaceWritableRoots } from "./workspace-sandbox";
+
+const logger = createOpenBotLogger("thread-lifecycle");
 
 /**
  * What the Codex adapter sends, versioned. Codex ignores MCP configuration on resume, so a
@@ -58,9 +61,9 @@ import { codexSandboxConfig, codexSandboxMode, workspaceWritableRoots } from "./
  * the payload, 3 is the sweep that turns off the servers `~/.codex/config.toml` declares, and 4 is
  * the managed tool runtimes joining the fingerprint, so a session started before Bun finished
  * downloading is replaced once its servers can actually start, 5 is the plan tool below, and 6 is
- * server names in the form Codex accepts.
+ * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers.
  */
-const CODEX_MCP_ADAPTER_VERSION = 6;
+const CODEX_MCP_ADAPTER_VERSION = 7;
 
 /**
  * Codex offers `update_plan` only when this is on, and without it a turn sends no
@@ -68,13 +71,6 @@ const CODEX_MCP_ADAPTER_VERSION = 6;
  */
 const CODEX_TOOLS_CONFIG = { update_plan: { enabled: true } } as const;
 
-// A handoff can follow an edit of the profile. The earlier replies then show the old standing
-// remit, and without this line the model copies them instead of following the new one.
-const HANDOFF_PRECEDENCE =
-  "Your current profile and developer instructions take precedence over any different instructions or behavior in this transcript.";
-
-/** How many of the newest earlier sessions a handoff reads, when they have no capture. */
-const HANDOFF_SESSIONS_READ = 3;
 /** The provider switch waits for the capture, so its read is short. */
 const CAPTURE_READ_TIMEOUT_MS = 10_000;
 
@@ -108,14 +104,6 @@ export interface ThreadLifecycleOptions {
    * the built-in GitHub connection. Claude and the ACP clients read the same source at spawn.
    */
   agentEnvironment?: (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>;
-  /**
-   * The turns of an earlier provider session, read with that session's own provider. The handoff
-   * takes the work steps from them: OpenBot stores no tool steps, so only that provider has them.
-   */
-  readProviderSteps?: (
-    provider: AgentProvider,
-    externalSessionId: string,
-  ) => Effect.Effect<Map<string, string>, ThreadOperationFailed>;
   /** Whether a password vault is connected, read at each start and resume of a session. */
   passwordVaultConnected?: () => boolean;
 }
@@ -131,6 +119,7 @@ export interface ThreadLifecycleOptions {
  * Never imports the facade; the drain scheduler takes this class directly.
  */
 export class ThreadLifecycle {
+  readonly #sessionStarts = new Map<string, number>();
   readonly #store: AgentStore;
   readonly #mailbox: MailboxStore;
   readonly #conversation: ConversationRuntime;
@@ -141,7 +130,6 @@ export class ThreadLifecycle {
   readonly #mcpToolRuntimes: McpToolRuntimeSource | undefined;
   readonly #mcpAuthorization: McpAuthorizationSource | undefined;
   readonly #agentEnvironment: () => Readonly<Record<string, string>>;
-  readonly #readProviderSteps: ThreadLifecycleOptions["readProviderSteps"];
   readonly #passwordVaultConnected: () => boolean;
   readonly #pendingHandoffs = new Map<string, string>();
   readonly #pendingRuntimeRefreshes = new Set<string>();
@@ -166,7 +154,6 @@ export class ThreadLifecycle {
     this.#mcpToolRuntimes = options.mcpToolRuntimes;
     this.#mcpAuthorization = options.mcpAuthorization;
     this.#agentEnvironment = options.agentEnvironment ?? (() => ({}));
-    this.#readProviderSteps = options.readProviderSteps;
     this.#passwordVaultConnected = options.passwordVaultConnected ?? (() => false);
   }
 
@@ -177,6 +164,10 @@ export class ThreadLifecycle {
    */
   #toolRuntimes(): McpToolRuntimes {
     return this.#mcpToolRuntimes?.() ?? NO_MCP_TOOL_RUNTIMES;
+  }
+
+  runtimeRefreshPending(agentId: string): boolean {
+    return this.#pendingRuntimeRefreshes.has(agentId);
   }
 
   readonly refreshAgentRuntime = Effect.fn("ThreadLifecycle.refreshAgentRuntime")(function* (
@@ -255,10 +246,14 @@ export class ThreadLifecycle {
   readonly deleteProviderSessionFiles = Effect.fn("ThreadLifecycle.deleteProviderSessionFiles")(function* (
     this: ThreadLifecycle,
     sessionId: string,
+    databaseSessionId?: string,
   ) {
     yield* threadIo(() => rm(this.handoffPath(sessionId), { force: true }));
     yield* threadIo(() => rm(this.toolManifestPath(sessionId), { force: true }));
-    yield* threadIo(() => rm(this.workStepsPath(sessionId), { force: true }));
+    if (databaseSessionId) yield* threadIo(() => rm(this.workStepsPath(databaseSessionId), { force: true }));
+    // Unattributed legacy captures stay until no recorded session uses the external identifier.
+    if (!this.#store.database.listProviderSessionIds(sessionId).some((id) => id !== databaseSessionId))
+      yield* threadIo(() => rm(this.legacyWorkStepsPath(sessionId), { force: true }));
     this.#pendingHandoffs.delete(sessionId);
   }, Effect.uninterruptible).bind(this);
 
@@ -271,7 +266,11 @@ export class ThreadLifecycle {
           this.#store.database.listExternalSessionIds().map((id) => createHash("sha256").update(id).digest("hex")),
         ),
     );
-    for (const name of ["provider-handoffs", "provider-toolsets", "provider-work-steps"]) {
+    const captured = new Set(
+      this.#store.database.listProviderSessionIds().map((id) => createHash("sha256").update(id).digest("hex")),
+    );
+    for (const name of ["provider-handoffs", "provider-toolsets", "provider-work-steps", "provider-work-steps/v2"]) {
+      const retained = name === "provider-work-steps/v2" ? captured : recorded;
       const directory = join(this.#store.database.userDataPath, name);
       const files = yield* threadIo(() => readdir(directory, { withFileTypes: true })).pipe(
         Effect.catch((failure) => {
@@ -282,7 +281,7 @@ export class ThreadLifecycle {
         }),
       );
       for (const file of files)
-        if (file.isFile() && /^[a-f0-9]{64}$/.test(file.name) && !recorded.has(file.name))
+        if (file.isFile() && /^[a-f0-9]{64}$/.test(file.name) && !retained.has(file.name))
           yield* threadIo(() => rm(join(directory, file.name), { force: true }));
     }
   }).bind(this);
@@ -318,7 +317,12 @@ export class ThreadLifecycle {
         client.provider === "codex" &&
         !(yield* this.hasCurrentToolsEffect(currentAgent, client, session.externalSessionId))
       ) {
-        const replacement = yield* this.startProviderThread(currentAgent, client, publicThreadId);
+        const replacement = yield* this.startProviderThread(
+          currentAgent,
+          client,
+          publicThreadId,
+          "configuration-change",
+        );
         yield* this.#releaseProviderSession(session.externalSessionId, client);
         yield* threadStep(() => {
           this.retireProviderSession(currentAgent, session.externalSessionId);
@@ -331,7 +335,7 @@ export class ThreadLifecycle {
         if (Result.isFailure(resumed)) {
           if (!isMissingProviderSessionError(resumed.failure.cause, client.provider)) return yield* resumed.failure;
           yield* threadStep(() => this.retireProviderSession(currentAgent, session.externalSessionId));
-          const replacement = yield* this.startProviderThread(currentAgent, client, publicThreadId);
+          const replacement = yield* this.startProviderThread(currentAgent, client, publicThreadId, "missing-session");
           this.#hooks.logRecovery(currentAgent.id, client.provider, "replaced");
           return replacement;
         }
@@ -367,10 +371,11 @@ export class ThreadLifecycle {
     agent: AgentSummary,
     client: AgentClient,
     publicThreadId: string,
+    reason?: "configuration-change" | "missing-session",
   ) {
     return yield* Effect.acquireUseRelease(
       Effect.sync(() => this.holdRuntimeRefresh(agent.id)),
-      () => this.#startProviderThread(agent, client, publicThreadId),
+      () => this.#startProviderThread(agent, client, publicThreadId, reason),
       (release) => Effect.sync(release),
     );
   }, Effect.uninterruptible).bind(this);
@@ -380,6 +385,7 @@ export class ThreadLifecycle {
     agent: AgentSummary,
     client: AgentClient,
     publicThreadId: string,
+    reason?: "configuration-change" | "missing-session",
   ) {
     // One reading of the MCP set for the request and for the manifest below. Read twice, a change
     // that lands while the provider answers would be recorded as what this session was given, and
@@ -390,7 +396,7 @@ export class ThreadLifecycle {
     const toolRuntimes = this.#toolRuntimes();
     // The same reading rule as above, and for the same reason: the manifest has to record the set
     // this session was started with, including the names swept out of the provider's own file.
-    const disabled = yield* this.codexOwnServersEffect(client, mcpServers);
+    const disabled = yield* this.codexOwnServersEffect(client, mcpServers, toolRuntimes);
     // The same single reading, so the manifest records the variables this session was started with.
     const environment = this.#agentEnvironment();
     const config = yield* this.codexConfigEffect(agent, client, mcpServers, disabled, toolRuntimes, environment);
@@ -407,14 +413,26 @@ export class ThreadLifecycle {
           sandbox: codexSandboxMode(agent),
           ...this.#workspaceOnlyParam(agent, client),
           ...this.#computerUseParam(agent, client),
-          developerInstructions: this.#instructions(agent),
+          ...this.#instructions(agent, client),
           ephemeral: false,
           serviceName: "openbot",
-          dynamicTools: [...BROWSER_DYNAMIC_TOOLS, OPENBOT_DYNAMIC_TOOLS],
+          dynamicTools: VISIBLE_DYNAMIC_TOOLS,
         },
         decodeThreadResponse,
       )
       .pipe(toThreadOperationFailed);
+    const previousSession = this.#store.database.listProviderSessions(publicThreadId).at(-1);
+    const startReason =
+      reason ??
+      (previousSession
+        ? previousSession.provider === client.provider
+          ? "retired-session"
+          : "provider-switch"
+        : "new-session");
+    const key = `${client.provider}:${startReason}`;
+    const count = (this.#sessionStarts.get(key) ?? 0) + 1;
+    this.#sessionStarts.set(key, count);
+    logger.info("Started a provider session.", { provider: client.provider, reason: startReason, count });
     const externalThreadId = response.thread.id;
     const prepared = yield* Effect.result(
       Effect.gen({ self: this }, function* () {
@@ -485,7 +503,17 @@ export class ThreadLifecycle {
     return join(
       this.#store.database.userDataPath,
       "provider-work-steps",
+      "v2",
       createHash("sha256").update(sessionId).digest("hex"),
+    );
+  }
+
+  /** Captures saved before v2, keyed by the external identifier that two providers can share. */
+  private legacyWorkStepsPath(externalSessionId: string): string {
+    return join(
+      this.#store.database.userDataPath,
+      "provider-work-steps",
+      createHash("sha256").update(externalSessionId).digest("hex"),
     );
   }
 
@@ -533,13 +561,8 @@ export class ThreadLifecycle {
     const { servers, dropped } = yield* threadStep(() => codexMcpServers(usable));
     this.#hooks.reportMcpDrops(client.provider, dropped);
     const mcpServers = { ...disabled, ...servers };
-    const computerUse = servers[COMPUTER_USE_MCP_SERVER_NAME];
-    if (computerUse) {
-      mcpServers[COMPUTER_USE_MCP_SERVER_NAME] = {
-        ...disabled[COMPUTER_USE_MCP_SERVER_NAME],
-        ...computerUse,
-        enabled: true,
-      };
+    for (const [name, server] of Object.entries(servers)) {
+      mcpServers[name] = { ...disabled[name], ...server, enabled: true };
     }
     return {
       config: {
@@ -556,21 +579,34 @@ export class ThreadLifecycle {
   /**
    * The servers Codex would merge from its own file, each turned off.
    *
-   * Computer Use needs a saved registration for persistent tool approvals. A registration failure
-   * stops the thread with recovery guidance. Without Computer Use, retain the existing empty
+   * Each MCP server needs a saved registration for persistent tool approvals. A registration failure
+   * stops the thread with recovery guidance. Without MCP servers, retain the existing empty
    * result on a failed config read.
    */
   private readonly codexOwnServersEffect = Effect.fn("ThreadLifecycle.codexOwnServers")(function* (
     this: ThreadLifecycle,
     client: AgentClient,
     configs: readonly McpServerConfig[],
+    toolRuntimes: McpToolRuntimes,
   ): Effect.fn.Return<Record<string, CodexDisabledMcpServer>, ThreadOperationFailed> {
     if (client.provider !== "codex") return {};
-    const computerUse = configs.find((server) => server.id === COMPUTER_USE_MCP_SERVER_ID);
-    return yield* codexDisabledServers(() => readCodexMcpConfig(client, computerUse).pipe(toMcpShapeFailed)).pipe(
+    // Register only the servers selected by the runtime adapter, including name collisions.
+    const usable = yield* usableMcpServers(configs, toolRuntimes).pipe(toThreadOperationFailed);
+    const { servers } = codexMcpServers(usable);
+    return yield* codexDisabledServers(() => readCodexMcpConfig(client, servers).pipe(toMcpShapeFailed)).pipe(
       Effect.catch(() =>
-        computerUse
-          ? Effect.fail(new ThreadOperationFailed({ cause: new Error(sourceText("error.provider.computerUseConfig")) }))
+        Object.keys(servers).length > 0
+          ? Effect.fail(
+              new ThreadOperationFailed({
+                cause: new Error(
+                  sourceText(
+                    configs.every((server) => server.id === COMPUTER_USE_MCP_SERVER_ID)
+                      ? "error.provider.computerUseConfig"
+                      : "error.provider.mcpConfig",
+                  ),
+                ),
+              }),
+            )
           : Effect.succeed({}),
       ),
     );
@@ -615,13 +651,14 @@ export class ThreadLifecycle {
     return createHash("sha256")
       .update(
         JSON.stringify([
-          [...BROWSER_DYNAMIC_TOOLS, OPENBOT_DYNAMIC_TOOLS],
+          VISIBLE_DYNAMIC_TOOLS,
           mcpFingerprintValues(configs),
           Object.keys(disabled).sort(),
           // A revoked approval must also replace a loaded session with the old tool policy.
-          ...(configs.some((config) => config.id === COMPUTER_USE_MCP_SERVER_ID)
-            ? [disabled[COMPUTER_USE_MCP_SERVER_NAME]?.tools ?? {}]
-            : []),
+          configs.map((config) => [
+            codexMcpServerName(config.name),
+            disabled[codexMcpServerName(config.name)]?.tools ?? {},
+          ]),
           [toolRuntimes.binDirectories, toolRuntimes.commandAliases],
           CODEX_MCP_ADAPTER_VERSION,
           // Only a sandboxed agent, or one that allows local scripts, adds a value: Codex keeps the
@@ -671,28 +708,37 @@ export class ThreadLifecycle {
       if (missingSessionFile(stored.failure.cause)) return false;
       return yield* stored.failure;
     }
-    const disabled = yield* this.codexOwnServersEffect(client, this.#agentMcpServers(agent));
+    const configs = this.#agentMcpServers(agent);
+    const toolRuntimes = this.#toolRuntimes();
+    const disabled = yield* this.codexOwnServersEffect(client, configs, toolRuntimes);
     const fingerprint = yield* threadStep(() =>
-      this.toolFingerprint(
-        agent,
-        this.#agentMcpServers(agent),
-        disabled,
-        this.#toolRuntimes(),
-        this.#agentEnvironment(),
-      ),
+      this.toolFingerprint(agent, configs, disabled, toolRuntimes, this.#agentEnvironment()),
     );
     return stored.success === fingerprint;
   });
 
-  /** The developer instructions of a session start or resume, with what is connected now. */
-  #instructions(agent: AgentSummary): string {
-    return developerInstructions(
+  /**
+   * The developer instructions of a session start or resume, with what is connected now. Claude
+   * gets the memories apart, and its client sends them with the turns: see `memoriesInTurns`.
+   */
+  #instructions(agent: AgentSummary, client: AgentClient): DynamicRecord {
+    const memories = this.#memories.essentialFor(agent.id);
+    const options = {
+      passwordVault: this.#passwordVaultConnected(),
+      memoryLimit: this.#memories.limit(),
+      storedMemoryCount: this.#memories.listFor(agent.id).length,
+      memoriesInTurns: client.provider === "claude",
+    };
+    const instructions = developerInstructions(
       agent,
       this.#store.sharedRoot,
-      this.#memories.listFor(agent.id),
+      memories,
       this.#store.automationRoot,
-      { passwordVault: this.#passwordVaultConnected() },
+      options,
     );
+    return options.memoriesInTurns
+      ? { developerInstructions: instructions, memoryContext: memoryContext(memories, options) }
+      : { developerInstructions: instructions };
   }
 
   /**
@@ -707,6 +753,8 @@ export class ThreadLifecycle {
     client: AgentClient,
     externalThreadId: string,
   ): Effect.fn.Return<DynamicRecord, ThreadOperationFailed> {
+    const configs = this.#agentMcpServers(agent);
+    const toolRuntimes = this.#toolRuntimes();
     return {
       threadId: externalThreadId,
       model: agent.model,
@@ -717,14 +765,14 @@ export class ThreadLifecycle {
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
       ...this.#computerUseParam(agent, client),
-      developerInstructions: this.#instructions(agent),
-      ...(client.provider === "codex" ? {} : { dynamicTools: [...BROWSER_DYNAMIC_TOOLS, OPENBOT_DYNAMIC_TOOLS] }),
+      ...this.#instructions(agent, client),
+      ...(client.provider === "codex" ? {} : { dynamicTools: VISIBLE_DYNAMIC_TOOLS }),
       ...(yield* this.codexConfigEffect(
         agent,
         client,
-        this.#agentMcpServers(agent),
-        yield* this.codexOwnServersEffect(client, this.#agentMcpServers(agent)),
-        this.#toolRuntimes(),
+        configs,
+        yield* this.codexOwnServersEffect(client, configs, toolRuntimes),
+        toolRuntimes,
         this.#agentEnvironment(),
       )),
     };
@@ -813,6 +861,9 @@ export class ThreadLifecycle {
     agent: AgentSummary,
     startingDeliveryIds: ReadonlySet<string> = new Set(),
   ) {
+    const settingsIdentity = sessionSettingsIdentity(agent);
+    const resets = this.#store.list().find((candidate) => candidate.id === agent.id)?.sessionSettingResets;
+    if (resets?.includes(settingsIdentity)) this.#pendingRuntimeRefreshes.add(agent.id);
     if (!this.#pendingRuntimeRefreshes.has(agent.id)) return;
     // A compaction is a provider turn that deliberately keeps no conversation turn id, so the busy
     // check below reads its thread as idle. Its completion arrives on the routing this refresh
@@ -841,7 +892,10 @@ export class ThreadLifecycle {
       if (this.#activeTurnOf(agent.id, threadId)) deferred = true;
       else yield* this.#refreshThreadRuntime(threadId);
     }
-    if (!deferred) this.#pendingRuntimeRefreshes.delete(agent.id);
+    if (!deferred) {
+      this.#pendingRuntimeRefreshes.delete(agent.id);
+      this.#store.clearSessionSettingReset(agent.id, settingsIdentity);
+    }
   }, Effect.uninterruptible).bind(this);
 
   /**
@@ -914,72 +968,46 @@ export class ThreadLifecycle {
       );
   }, Effect.uninterruptible);
 
-  /**
-   * The work steps of earlier sessions, for the turns the transcript keeps. A session captured at a
-   * provider switch gives its saved steps. Of the others, only the newest few are read: each read
-   * can start that provider's CLI again, and the steps of older turns mostly fall in the part of the
-   * handoff that is summarized without them. A read that fails leaves its steps out.
-   */
-  readonly #earlierWorkSteps = Effect.fn("ThreadLifecycle.earlierWorkSteps")(function* (
-    this: ThreadLifecycle,
-    sessions: readonly ProviderSession[],
-    turnIds: ReadonlySet<string>,
-  ) {
-    const read = this.#readProviderSteps;
-    const firstRead = sessions.length - HANDOFF_SESSIONS_READ;
-    const retained = new Map<string, string>();
-    for (const [index, session] of sessions.entries()) {
-      const steps = yield* Effect.gen({ self: this }, function* () {
-        const captured = yield* this.#capturedWorkSteps(session);
-        if (captured) return captured;
-        if (!read || index < firstRead) return new Map<string, string>();
-        return yield* read(session.provider, session.externalSessionId);
-      }).pipe(
-        Effect.catchDefect((cause) => Effect.fail(new ThreadOperationFailed({ cause }))),
-        Effect.catch((failure) =>
-          Effect.sync(() => {
-            this.#hooks.logHandoffReadFailure(session.provider, failure.cause);
-            return new Map<string, string>();
-          }),
-        ),
-      );
-      for (const [turnId, text] of steps) {
-        if (turnIds.has(turnId)) retained.set(turnId, text);
-      }
-    }
-    return retained;
-  });
-
-  /** The saved steps of a session, or `null` when it has none to give, and a live read is next. */
-  readonly #capturedWorkSteps = Effect.fn("ThreadLifecycle.capturedWorkSteps")(function* (
+  /** The saved steps of a session, or `null` when no capture is available. */
+  readonly capturedWorkSteps = Effect.fn("ThreadLifecycle.capturedWorkSteps")(function* (
     this: ThreadLifecycle,
     session: ProviderSession,
   ) {
-    const text = yield* Effect.result(threadIo(() => readFile(this.workStepsPath(session.externalSessionId), "utf8")));
+    let text = yield* Effect.result(threadIo(() => readFile(this.workStepsPath(session.id), "utf8")));
+    // A pre-v2 capture belongs to this session only when no other session uses its external identifier.
+    if (
+      Result.isFailure(text) &&
+      missingSessionFile(text.failure.cause) &&
+      this.#store.database.listProviderSessionIds(session.externalSessionId).every((id) => id === session.id)
+    )
+      text = yield* Effect.result(
+        threadIo(() => readFile(this.legacyWorkStepsPath(session.externalSessionId), "utf8")),
+      );
     if (Result.isFailure(text)) {
       if (missingSessionFile(text.failure.cause)) return null;
-      return yield* text.failure;
+      this.#hooks.logHandoffReadFailure(session.provider, text.failure.cause);
+      return null;
     }
     const decoded = yield* Effect.result(threadStep(() => decodeCapturedSteps(text.success)));
     if (Result.isSuccess(decoded)) return decoded.success;
-    // A write that a crash cut short. The provider may still give the steps.
+    // A write that a crash cut short. Omit the capture.
     this.#hooks.logHandoffReadFailure(session.provider, decoded.failure.cause);
     return null;
-  });
+  }).bind(this);
 
   /**
    * Reads the work steps of a session that a provider switch is about to replace, through the
    * client that holds it, while it still does: an ACP agent keeps its turns only in its own process,
    * and a provider no agent uses stops a minute later. The result is saved with `saveWorkSteps`
    * once the switch is stored. `null` - no client holds the session, or the read failed - leaves
-   * the session to the read that the next handoff makes.
+   * the session to an unavailable capture in the next handoff.
    */
   readonly readWorkSteps = Effect.fn("ThreadLifecycle.readWorkSteps")(function* (
     this: ThreadLifecycle,
     session: ProviderSession,
   ) {
     const client = this.#conversation.loadedClientFor(session.externalSessionId);
-    if (!client) return null;
+    if (!client || client.provider !== session.provider) return null;
     // Not the request's own timeout: the Claude and ACP clients answer a read without one.
     return yield* withTimeout(
       readCapturedSteps(client, session.externalSessionId),
@@ -1005,11 +1033,9 @@ export class ThreadLifecycle {
     captured: string,
   ) {
     yield* threadIo(() =>
-      mkdir(join(this.#store.database.userDataPath, "provider-work-steps"), { recursive: true, mode: 0o700 }),
+      mkdir(join(this.#store.database.userDataPath, "provider-work-steps", "v2"), { recursive: true, mode: 0o700 }),
     ).pipe(
-      Effect.andThen(
-        threadIo(() => writeFile(this.workStepsPath(session.externalSessionId), captured, { mode: 0o600 })),
-      ),
+      Effect.andThen(threadIo(() => writeFile(this.workStepsPath(session.id), captured, { mode: 0o600 }))),
       Effect.catch((failure) => Effect.sync(() => this.#hooks.logHandoffReadFailure(session.provider, failure.cause))),
     );
   }).bind(this);
@@ -1024,65 +1050,20 @@ export class ThreadLifecycle {
     if (sessions.length < 1) return null;
     const agentNames = agentNamesById(this.#store.list());
     const history = readHandoffHistory(this.#store.database, agentId, threadId, agentNames);
-    const messages = history.recent;
-    if (messages.length === 0 && history.olderCount === 0) return null;
-    const lastOfTurn = new Map<string, number>();
-    messages.forEach((message, index) => {
-      if (message.turnId) lastOfTurn.set(message.turnId, index);
-    });
-    const workSteps = yield* this.#earlierWorkSteps(sessions, new Set(lastOfTurn.keys()));
-    // A turn's steps go with its last message: before the answer they led to, or after the request,
-    // from the user or from another agent, when the turn ended without one.
-    const rendered = messages.map((message, index) => {
-      const text = renderHandoffMessage(message, agentNames);
-      const steps = message.turnId && lastOfTurn.get(message.turnId) === index ? workSteps.get(message.turnId) : null;
-      if (!steps) return text;
-      return message.author === "assistant" ? `${steps}\n${text}` : `${text}\n${steps}`;
-    });
-    const budgetTokens = 60_000;
-    const fullText = rendered.join("\n\n");
-    if (history.olderCount === 0 && estimateTokens(fullText) <= budgetTokens) {
-      return [
-        `${HANDOFF_START} The following transcript is user-visible history from the previous provider, with the work steps it recorded.`,
-        HANDOFF_PRECEDENCE,
-        "Do not repeat completed work unless the current message asks for it.",
-        "--- previous transcript ---",
-        fullText,
-        HANDOFF_END,
-      ].join("\n");
+    const captures = new Map<string, Map<string, string> | null>();
+    const steps = new Map<string, string>();
+    const turns = new Set<string>();
+    for (const row of history.recent) {
+      const session = sessions.find((candidate) => candidate.id === row.providerSessionId);
+      if (!session || !row.message.turnId) continue;
+      const key = `${session.id}:${row.message.turnId}`;
+      if (turns.has(key)) continue;
+      turns.add(key);
+      if (!captures.has(session.id)) captures.set(session.id, yield* this.capturedWorkSteps(session));
+      const text = captures.get(session.id)?.get(row.message.turnId);
+      if (text) steps.set(row.message.id, text);
     }
-
-    const newest: string[] = [];
-    let newestTokens = 0;
-    const newestBudget = Math.floor(budgetTokens * 0.85);
-    let split = rendered.length;
-    while (split > 0) {
-      const candidate = rendered[split - 1];
-      if (candidate === undefined) break;
-      const tokens = estimateTokens(candidate);
-      if (newestTokens + tokens > newestBudget) break;
-      newest.unshift(candidate);
-      newestTokens += tokens;
-      split -= 1;
-    }
-    const oldMessages = messages.slice(0, split);
-    for (const message of oldMessages) history.summarize(message, false);
-    const summaryText = history.summary();
-    this.#store.database.saveThreadSummary(
-      threadId,
-      oldMessages.at(-1)?.id ?? history.throughMessageId,
-      summaryText,
-      estimateTokens(summaryText),
-    );
-    return [
-      `${HANDOFF_START} The oldest visible history was summarized because the provider handoff exceeded its context budget.`,
-      HANDOFF_PRECEDENCE,
-      "--- saved summary of older history ---",
-      summaryText,
-      "--- full recent transcript ---",
-      newest.join("\n\n"),
-      HANDOFF_END,
-    ].join("\n");
+    return renderProviderHandoff(history, agentNames, steps);
   }).bind(this);
 }
 

@@ -7,6 +7,9 @@ import {
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import { AGENT_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-admin-v1";
+import { AGENT_HOST_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
+import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import {
   TEAM_BROWSER_VIEW_CAPABILITY,
   TEAM_BROWSER_VIEW_CLIPBOARD_CAPABILITY,
@@ -19,16 +22,18 @@ import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-pro
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
+import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
-import { decodeTeamProtocolSupportV1 } from "@openbot/contracts/team-protocol/v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
+import { decodeTeamProtocolSupportV7Base } from "@openbot/contracts/team-protocol/v7-base";
 import { sourceText } from "@openbot/i18n/source";
 import {
   createRemoteAccountRefresh,
   createRemoteReadRefresh,
   createWorkspacePreferences,
   mergeRemoteUnreadIds,
+  type RemoteConnectionFailure,
   type RemoteRecoveryStatus,
   RemoteTeamDirectoryClient,
   type RemoteTeamHost,
@@ -52,6 +57,7 @@ import {
 } from "@openbot/team-client/team-api-requests";
 import { replaceEqualDeep, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
+import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import {
   createContext,
@@ -289,6 +295,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             state: previous?.state ?? "unknown",
             initialConnectionPending: previous?.initialConnectionPending ?? true,
             connectionMessage: previous?.connectionMessage ?? null,
+            connectionFailure: previous?.connectionFailure,
             recoveryStatus: previous?.recoveryStatus,
             address: null,
             accent: serverAccent(host.hostId),
@@ -426,9 +433,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         try {
           const saved = reconcileChannelPins(preferenceStore, serverId, channels);
           setPreferences((current) => ({ ...current, [serverId]: saved }));
-        } catch {
+        } catch (error) {
           showFailureAlert(
-            undefined,
+            error,
             "settings",
             currentText().t("mobile.workspace.alert.preferencesTitle"),
             currentText().t("mobile.workspace.alert.preferencesBody"),
@@ -454,9 +461,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           const next = replaceEqualDeep(current[serverId], saved);
           return next === current[serverId] ? current : { ...current, [serverId]: next };
         });
-      } catch {
+      } catch (error) {
         showFailureAlert(
-          undefined,
+          error,
           "settings",
           currentText().t("mobile.workspace.alert.preferencesTitle"),
           currentText().t("mobile.workspace.alert.preferencesBody"),
@@ -491,7 +498,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       await client.connect(serverId, publicKey);
       if (!context.isCurrent()) return;
       context.stage = "compatibility";
-      const compatibility = await client.request("GET", TEAM_API_ROUTES.compatibility, decodeTeamProtocolSupportV1);
+      const compatibility = await client.request("GET", TEAM_API_ROUTES.compatibility, decodeTeamProtocolSupportV7Base);
       if (!context.isCurrent()) return;
       supportLog.add(
         "info",
@@ -624,9 +631,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   /** The last failed attempt of each server that asked for a wake. */
   const wakeAttempts = useRef(new Map<string, number>());
   const handleConnectionStatus = useCallback(
-    (hostId: string, status: RemoteRecoveryStatus, failure: string | null) => {
+    (hostId: string, status: RemoteRecoveryStatus, failure: RemoteConnectionFailure | null) => {
       setServers((current) =>
-        current.map((server) => (server.id === hostId ? applyServerRecovery(server, status, failure) : server)),
+        current.map((server) =>
+          server.id === hostId ? applyServerRecovery(server, status, failure?.message ?? null, failure) : server,
+        ),
       );
       // The status repeats each second while it waits, so each failed attempt asks once.
       if (status.phase === "online") wakeAttempts.current.delete(hostId);
@@ -674,9 +683,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     [request, conversationStore],
   );
   const loadOlderMessages = useCallback(
-    async (agentId: string) => {
+    async (agentId: string, serverId = activeServerIdRef.current) => {
       const generation = loadGeneration.current;
-      const serverId = activeServerIdRef.current;
       await conversationStore.loadOlder(
         agentId,
         (cursor) =>
@@ -838,12 +846,19 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId, event.agentId],
         });
       }
+      if (event.type === "agent-session-settings-changed") {
+        void queryClient.invalidateQueries({
+          queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId, event.agentId],
+          predicate: (query) => query.queryKey.at(-1) === "session-settings",
+        });
+      }
       if (event.type === "agents-changed") {
         replaceServerAgents(serverId, event.agents);
-        // Access and auto-approve are not in the agent summary; the host sends this event when either changes.
+        // The admin and host settings of an agent are not in the agent summary. The host sends this event
+        // when one of them changes, so an open settings page reads them again.
         void queryClient.invalidateQueries({
           queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId],
-          predicate: (query) => query.queryKey.at(-1) === "admin",
+          predicate: (query) => ["admin", "host", "session-settings"].includes(String(query.queryKey.at(-1))),
         });
       } else if (event.type === "conversation") {
         const knownIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
@@ -891,22 +906,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     ],
   );
 
-  const markAgentRead = useCallback(
-    (agentId: string, visibleMessageId?: string | null) => {
-      if (
-        visibleMessageId === null &&
-        (!activeServerId ||
-          !serverCapabilities.current.get(activeServerId)?.includes(TEAM_CONVERSATION_UNREAD_CAPABILITY))
-      ) {
-        showWarningAlert(
-          "team",
-          currentText().t("mobile.workspace.alert.updateRequiredTitle"),
-          currentText().t("mobile.workspace.alert.updateRequiredUnread"),
-        );
-        return;
-      }
-      if (!activeServerId) return;
-      const isCurrentRead = readRefresh.invalidate(activeServerId);
+  /**
+   * Writes one agent's read cursor on `serverId` after its earlier writes. It rejects when the host refuses it.
+   */
+  const writeAgentRead = useCallback(
+    (agentId: string, visibleMessageId?: string | null, serverId = activeServerId): Promise<void> => {
+      if (!serverId) return Promise.resolve();
+      const isCurrentRead = readRefresh.invalidate(serverId);
       const generation = loadGeneration.current;
       liveState.update("unreadAgentIds", (current) =>
         visibleMessageId === null ? [...new Set([...current, agentId])] : current.filter((id) => id !== agentId),
@@ -917,7 +923,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           const snapshot =
             visibleMessageId !== undefined
               ? null
-              : (conversationStore.get(agentId) ?? (await loadConversation(agentId)));
+              : (conversationStore.get(agentId) ?? (await loadConversation(agentId, serverId)));
           if (generation !== loadGeneration.current) return;
           const throughMessageId = visibleMessageId !== undefined ? visibleMessageId : snapshot?.messages.at(-1)?.id;
           if (throughMessageId === undefined) return;
@@ -928,26 +934,24 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
               : TEAM_API_ROUTES.agent.conversationRead(agentId),
             (value) => decodeConversationReads({ [agentId]: value }),
             visibleMessageId === null ? {} : { throughMessageId },
+            serverId,
           );
           if (generation === loadGeneration.current && isCurrentRead()) {
-            readRefresh.invalidate(activeServerId);
+            readRefresh.invalidate(serverId);
             applyConversationReads(reads);
           }
         })
-        .catch(() => {
-          if (generation === loadGeneration.current) void refreshConversationReads().catch(() => undefined);
-          if (visibleMessageId === null)
-            showFailureAlert(
-              undefined,
-              "settings",
-              currentText().t("mobile.workspace.alert.markUnreadTitle"),
-              currentText().t("mobile.workspace.alert.markUnreadBody"),
-            );
+        .catch((error: unknown) => {
+          if (generation === loadGeneration.current) void refreshConversationReads(serverId).catch(() => undefined);
+          throw error;
         });
-      readWrites.current.set(agentId, write);
-      void write.finally(() => {
-        if (readWrites.current.get(agentId) === write) readWrites.current.delete(agentId);
+      // A failed write must not stop the next write for this agent.
+      const settled = write.catch(() => undefined);
+      readWrites.current.set(agentId, settled);
+      void settled.finally(() => {
+        if (readWrites.current.get(agentId) === settled) readWrites.current.delete(agentId);
       });
+      return write;
     },
     [
       liveState,
@@ -961,6 +965,62 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     ],
   );
 
+  const markAgentRead = useCallback(
+    (agentId: string, visibleMessageId?: string | null, targetServerId?: string) => {
+      const serverId = targetServerId ?? activeServerId;
+      if (
+        visibleMessageId === null &&
+        (!serverId || !serverCapabilities.current.get(serverId)?.includes(TEAM_CONVERSATION_UNREAD_CAPABILITY))
+      ) {
+        showWarningAlert(
+          "team",
+          currentText().t("mobile.workspace.alert.updateRequiredTitle"),
+          currentText().t("mobile.workspace.alert.updateRequiredUnread"),
+        );
+        return;
+      }
+      void writeAgentRead(agentId, visibleMessageId, serverId ?? undefined).catch((error: unknown) => {
+        if (visibleMessageId === null)
+          showFailureAlert(
+            error,
+            "settings",
+            currentText().t("mobile.workspace.alert.markUnreadTitle"),
+            currentText().t("mobile.workspace.alert.markUnreadBody"),
+          );
+      });
+    },
+    [activeServerId, writeAgentRead],
+  );
+
+  /** Marks every unread agent and channel of the active server read through its newest message. */
+  const markAllRead = useCallback(async () => {
+    const serverId = activeServerIdRef.current;
+    if (!serverId) return;
+    // Only listed agents: a read of an id the host no longer knows creates that agent again.
+    const listed = new Set(agents.filter((agent) => agent.serverId === serverId).map((agent) => agent.id));
+    const unread = liveState.get().unreadAgentIds.filter((agentId) => listed.has(agentId));
+    const results = await Promise.allSettled([
+      // A cached chat can be older than the read state, so each receipt uses the host's newest message.
+      ...unread.map(async (agentId) => {
+        const page = await request(
+          "GET",
+          `${TEAM_API_ROUTES.agent.conversationPage(agentId)}?limit=1`,
+          decodeConversationPage,
+          undefined,
+          serverId,
+        );
+        const latestId = page.messages.at(-1)?.id;
+        if (latestId) await writeAgentRead(agentId, latestId, serverId);
+      }),
+      channelStore.markAllRead(serverId, Crypto.randomUUID),
+    ]);
+    const failure = results.find((result) => result.status === "rejected");
+    if (!failure) return;
+    // A later successful write discards the refresh of a refused one, so read the host state once more.
+    await refreshConversationReads(serverId).catch(() => undefined);
+    throw failure.reason;
+  }, [agents, liveState, request, writeAgentRead, channelStore, refreshConversationReads]);
+
   const updatePreferences = useCallback(
     (serverId: string, change: (current: RemoteWorkspacePreferences) => RemoteWorkspacePreferences) => {
       try {
@@ -968,9 +1028,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         preferenceStore.write(serverId, next);
         setPreferences((current) => ({ ...current, [serverId]: next }));
         return next;
-      } catch {
+      } catch (error) {
         showFailureAlert(
-          undefined,
+          error,
           "settings",
           currentText().t("mobile.workspace.alert.preferencesTitle"),
           currentText().t("mobile.workspace.alert.preferencesBody"),
@@ -992,6 +1052,37 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           (server.role === "owner" || server.role === "admin") &&
           serverCapabilities.current.get(serverId)?.includes(capability),
       );
+    };
+    /** Drops a server that this account left or removed, and its local state. */
+    const forgetServer = (serverId: string) => {
+      removedServers.current.add(serverId);
+      readRefresh.invalidate(serverId);
+      directoryGeneration.current += 1;
+      directoryRefresh.invalidate();
+      setServerDirectoryState("ready");
+      setServerDirectoryError(null);
+      const removedIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
+      serverAgentIds.current.delete(serverId);
+      if (activeServerId === serverId) {
+        loadGeneration.current += 1;
+        setActiveServerId(session.host?.hostId ?? null);
+      }
+      setServers((current) => current.filter((candidate) => candidate.id !== serverId));
+      setSidebarByServer((current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== serverId)));
+      setAgents((current) => current.filter((agent) => agent.serverId !== serverId));
+      liveState.update("activityByServer", (current) => {
+        const next = { ...current };
+        delete next[serverId];
+        return next;
+      });
+      liveState.update("approvalRequests", (current) => {
+        const next = { ...current };
+        delete next[serverId];
+        return next;
+      });
+      for (const id of removedIds) conversationStore.remove(id);
+      updatePreferences(serverId, () => ({ hidden: [], pinned: [] }));
+      liveState.update("unreadAgentIds", (current) => current.filter((id) => !removedIds.has(id)));
     };
     const workspace: MobileWorkspaceContextValue = {
       browserViewSupport: (serverId) => {
@@ -1087,9 +1178,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           });
           setSavedServerOrder({ key: orderKey, ids: serverIds });
           return true;
-        } catch {
+        } catch (error) {
           showFailureAlert(
-            undefined,
+            error,
             "settings",
             currentText().t("mobile.workspace.alert.serverOrderTitle"),
             currentText().t("mobile.workspace.alert.serverOrderBody"),
@@ -1154,34 +1245,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         if (!server || server.role === "owner")
           throw new Error(currentText().t("mobile.workspace.error.leaveOwnServer"));
         await runTeamEffect(directory.leaveHost(server.id, server.membershipId));
-        removedServers.current.add(serverId);
-        readRefresh.invalidate(serverId);
-        directoryGeneration.current += 1;
-        directoryRefresh.invalidate();
-        setServerDirectoryState("ready");
-        setServerDirectoryError(null);
-        const removedIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
-        serverAgentIds.current.delete(serverId);
-        if (activeServerId === serverId) {
-          loadGeneration.current += 1;
-          setActiveServerId(session.host?.hostId ?? null);
-        }
-        setServers((current) => current.filter((candidate) => candidate.id !== serverId));
-        setSidebarByServer((current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== serverId)));
-        setAgents((current) => current.filter((agent) => agent.serverId !== serverId));
-        liveState.update("activityByServer", (current) => {
-          const next = { ...current };
-          delete next[serverId];
-          return next;
-        });
-        liveState.update("approvalRequests", (current) => {
-          const next = { ...current };
-          delete next[serverId];
-          return next;
-        });
-        for (const id of removedIds) conversationStore.remove(id);
-        updatePreferences(serverId, () => ({ hidden: [], pinned: [] }));
-        liveState.update("unreadAgentIds", (current) => current.filter((id) => !removedIds.has(id)));
+        forgetServer(serverId);
+      },
+      removeServer: async (serverId) => {
+        const server = serversRef.current.find((candidate) => candidate.id === serverId);
+        if (server?.role !== "owner") throw new Error(currentText().t("mobile.workspace.error.removeOwnedServerOnly"));
+        await runTeamEffect(directory.removeOwnedHost(server.id));
+        forgetServer(serverId);
       },
       refreshServer: async (serverId) => {
         connections.current.get(serverId)?.refresh();
@@ -1190,6 +1260,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
       canManageAgentSkills: (serverId) => administers(serverId, SKILLS_ADMIN_CAPABILITY),
+      canManageSharedTables: (serverId) => administers(serverId, SHARED_TABLES_CAPABILITY),
+      canManageAgentAccess: (serverId) => administers(serverId, AGENT_ADMIN_CAPABILITY),
+      canManageAgentHostSettings: (serverId) => administers(serverId, AGENT_HOST_SETTINGS_CAPABILITY),
+      canPublishAgent: (serverId) => administers(serverId, AGENT_PUBLISH_CAPABILITY),
       updateServerIdentity: async (serverId, input) => {
         const server = serversRef.current.find((candidate) => candidate.id === serverId);
         if (!server || server.role === "member")
@@ -1333,7 +1407,14 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           discardAttachmentDraft(teamApi(serverId), attachmentId).pipe(Effect.mapError((error) => error.cause)),
         );
       },
-      sendMessage: async (agentId, text, attachmentDraftIds = [], replyToMessageId = null, targetServerId) => {
+      sendMessage: async (
+        agentId,
+        text,
+        attachmentDraftIds = [],
+        replyToMessageId = null,
+        targetServerId,
+        clientMessageId,
+      ) => {
         const serverId = targetServerId ?? agents.find((candidate) => candidate.id === agentId)?.serverId;
         if (!serverId) throw new Error(currentText().t("mobile.workspace.error.agentUnavailable"));
         const receipt = await request(
@@ -1349,6 +1430,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             replyToMessageId,
             // The host uses this phone's zone for a routine the agent creates from the message.
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            ...(clientMessageId ? { clientMessageId } : {}),
           },
           serverId,
         );
@@ -1396,6 +1478,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         mobileAnalytics.track("conversation_action", { action: "unhide", result: saved ? "succeeded" : "failed" });
       },
       markAgentRead,
+      markAllRead,
       markAgentUnread: (agentId) => {
         markAgentRead(agentId, null);
       },
@@ -1445,6 +1528,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     loadConversation,
     loadOlderMessages,
     markAgentRead,
+    markAllRead,
     pinnedAgentIds,
     pinnedChannelIds,
     hiddenChannelIds,

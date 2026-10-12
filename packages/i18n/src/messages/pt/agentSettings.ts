@@ -2,14 +2,18 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agentSettings";
 
 export const messages = {
+  "agentSettings.session.title": "Configurações do provedor",
+  "agentSettings.session.readFailed": "Não foi possível ler as configurações do provedor.",
+  "agentSettings.session.pending": "As mudanças salvas valem antes do próximo turno.",
+  "agentSettings.session.unavailable": "O valor salvo {value} não está disponível. Escolha outro valor ou restaure-o.",
+  "agentSettings.session.effective": "Valor atual do provedor: {value}",
+  "agentSettings.session.reset": "Restaurar configuração",
+  "agentSettings.session.resetNamed": "Restaurar {name}",
   "agentSettings.label": "Configurações do agente",
   "agentSettings.title": "Configurações",
   "agentSettings.backToDetails": "Voltar aos detalhes",
   "agentSettings.closeDetails": "Fechar detalhes",
   "agentSettings.backToSettings": "Voltar às configurações",
-  "agentSettings.profile.title": "Perfil",
-  "agentSettings.profile.open": "Editar perfil de {name}",
-  "agentSettings.instructionsEdit": "Editar instruções",
   "agentSettings.permissions.title": "Permissões",
   "agentSettings.advanced.title": "Avançado",
   "agentSettings.groups.brain": "Cérebro",
@@ -106,6 +110,9 @@ export const messages = {
     "O Uso do computador e o navegador do OpenBot não são limitados; você pode desativar o Uso do computador abaixo.",
   "agentSettings.computerUse.title": "Uso do computador",
   "agentSettings.computerUse.description": "Permitir que este agente controle aplicativos neste computador",
+  "agentSettings.automation.title": "Scripts locais",
+  "agentSettings.automation.description":
+    "Permitir que scripts no host enviem mensagens, executem rotinas, respondam perguntas e aceitem ou recusem aprovações",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Todo o processo do {provider} é executado em um ambiente isolado, por isso a gravação fora desses locais falha. Disponível somente no macOS.",
 } as const satisfies PartialTranslation<typeof source>;

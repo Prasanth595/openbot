@@ -64,13 +64,10 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
 } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
-import {
-  decodeTeamProtocolSupportV1,
-  type TeamProtocolSupportV1,
-  teamProtocolUpdateDirection,
-} from "@openbot/contracts/team-protocol/v1";
+import { type TeamProtocolSupportV1, teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
+import { decodeTeamProtocolSupportV7Base } from "@openbot/contracts/team-protocol/v7-base";
 import {
   WORKSPACE_DIRECTORY_CAPABILITY,
   WORKSPACE_DIRECTORY_ROUTES,
@@ -108,9 +105,15 @@ import {
 } from "@openbot/team-client/team-api-requests";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import { currentText } from "@openbot/ui/text";
+import { referenceFrom } from "@openbot/user-errors";
 import { Effect } from "effect";
 import type { ServerAdminPort } from "../servers/servers-port";
-import { createWebHostConnections, type WebHostConnections, type WebHostNotice } from "./web-host-connections";
+import {
+  createWebHostConnections,
+  type WebHostConnections,
+  type WebHostNotice,
+  WebHostRequestError,
+} from "./web-host-connections";
 import {
   acquireOpenedWebHostLock,
   acquireWebHostLock,
@@ -244,10 +247,17 @@ export class WebHostIncompatibleError extends Error {
 }
 
 export class WebHostConnectionError extends Error {
-  constructor(readonly code: "identity_changed" | "authentication_required" | "access_ended") {
+  /** The code a user can copy, such as `http/401`. */
+  readonly reference: string | null;
+
+  constructor(
+    readonly code: "identity_changed" | "authentication_required" | "access_ended",
+    reference: string | null = null,
+  ) {
     super(
       currentText().t(code === "identity_changed" ? "webClient.error.identityChanged" : "webClient.error.accessEnded"),
     );
+    this.reference = reference;
   }
 }
 
@@ -293,8 +303,15 @@ export function createWebWorkspaceRuntime(
       try {
         return await runTeamEffect(directory.createBootstrap(id, key, sessionId));
       } catch (error) {
+        // The reference keeps 401 apart from 403 and names the account service code, such as `session_inactive`.
         if (error instanceof RemoteDirectoryError && (error.status === 401 || error.status === 403))
-          events.connection({ hostId: id, state: "offline", message: null, code: "session_revoked" });
+          events.connection({
+            hostId: id,
+            state: "offline",
+            message: null,
+            code: "session_revoked",
+            ...(error.reference ? { reference: error.reference } : {}),
+          });
         throw error;
       }
     },
@@ -302,24 +319,32 @@ export function createWebWorkspaceRuntime(
       if (!sessionsEnded) await runTeamEffect(directory.endSession(id));
     },
   };
-  const peer = dependencies.createPeer({
-    current: {
-      ...sessionActions,
-      onConnectionUpdate: async (update) => {
-        if (update.state !== "online") {
-          browserView.disconnect(update.message ?? undefined);
-          const releaseGeneration = liveViewGeneration + 1;
-          void releaseLiveView().finally(() => {
-            if (liveViewGeneration === releaseGeneration) browserView.disconnect();
-          });
-        }
-        events.connection(update);
+  /** The host of a connect attempt that Signal holds until the host is online. */
+  let waitingHostId: string | null = null;
+  const peer = dependencies.createPeer(
+    {
+      current: {
+        ...sessionActions,
+        onConnectionUpdate: async (update) => {
+          // A `connecting` update without `hostOffline`, such as a `rate_limited` reply, does not end the hold.
+          if (update.hostOffline) waitingHostId = update.hostId;
+          else if (update.state !== "connecting") waitingHostId = null;
+          if (update.state !== "online") {
+            browserView.disconnect(update.message ?? undefined);
+            const releaseGeneration = liveViewGeneration + 1;
+            void releaseLiveView().finally(() => {
+              if (liveViewGeneration === releaseGeneration) browserView.disconnect();
+            });
+          }
+          events.connection(update);
+        },
+        onHostStreamData: (data) => browserView.receive(data),
+        onTeamEvent: async (id, event) => events.event(id, event),
+        onAccountProfileChanged: events.accountChanged,
       },
-      onHostStreamData: (data) => browserView.receive(data),
-      onTeamEvent: async (id, event) => events.event(id, event),
-      onAccountProfileChanged: events.accountChanged,
     },
-  });
+    { waitForHost: true },
+  );
   let releaseHostLock: (() => void) | null = null;
   let lockedHostId: string | null = null;
   const hostChannel = dependencies.openHostChannel?.(accountId) ?? null;
@@ -352,7 +377,7 @@ export function createWebWorkspaceRuntime(
         requestId: message.requestId,
       } satisfies WebHostTabMessage);
   });
-  let connecting = false;
+  let connecting: Promise<unknown> | null = null;
   let disposed = false;
   let generation = 0;
   let uploadGeneration = 0;
@@ -427,12 +452,18 @@ export function createWebWorkspaceRuntime(
       if (disposed || generation !== current) throw new Error(currentText().t("webClient.error.hostChanged"));
     }
     if (result.status === 401 || (result.status === 403 && membershipRead)) {
-      const error = new WebHostConnectionError(result.status === 401 ? "authentication_required" : "access_ended");
+      const error = new WebHostConnectionError(
+        result.status === 401 ? "authentication_required" : "access_ended",
+        referenceFrom("http", result.status),
+      );
       if (requestHostId) events.accessDenied?.(requestHostId, error);
       throw error;
     }
     if (!result.ok || (result.status ?? 500) >= 400)
-      throw new Error(hostRefusal(result.status, result.body) ?? currentText().t("webClient.error.requestIncomplete"));
+      throw new WebHostRequestError(
+        hostRefusal(result.status, result.body) ?? currentText().t("webClient.error.requestIncomplete"),
+        result.status === undefined ? (result.reference ?? null) : referenceFrom("http", result.status),
+      );
     return result.body;
   }
   // The shared Team API requests decode their own responses. A declaration, like `request`, so the
@@ -526,6 +557,72 @@ export function createWebWorkspaceRuntime(
   const emitView = (event: BrowserLiveViewEvent) => {
     for (const listener of viewListeners) listener(event);
   };
+  async function connectHost(host: RemoteTeamHost): Promise<string[]> {
+    try {
+      await peer.cancelUpload().catch(() => undefined);
+      const switchingHost = lockedHostId !== host.hostId;
+      const retryDraftCleanup = switchingHost && draftCleanupRetryHosts.has(host.hostId);
+      if (switchingHost) await discardCompletedDrafts();
+      await releaseLiveView();
+      browserView.disconnect();
+      if (switchingHost) {
+        await peer.execute({ id: crypto.randomUUID(), type: "disconnect" });
+        releaseHostLock?.();
+        releaseHostLock = null;
+        lockedHostId = null;
+        // This tab's own status connection gives the host up first.
+        await hosts?.select(host.hostId);
+        const release = await acquireOpenedWebHostLock(
+          accountId,
+          host.hostId,
+          hostChannel,
+          dependencies.acquireHostLock,
+        );
+        if (disposed) {
+          release();
+          throw new Error(currentText().t("webClient.error.connectionClosed"));
+        }
+        releaseHostLock = release;
+        lockedHostId = host.hostId;
+        hosts?.holdSelected(host.hostId, true);
+      }
+      const current = ++generation;
+      connectedHost = host;
+      pinWebHostKey(accountId, host);
+      const result = await peer.execute({
+        id: crypto.randomUUID(),
+        type: "connect",
+        hostId: host.hostId,
+        hostPublicKey: host.devicePublicKey,
+      });
+      if (!result.ok || disposed || current !== generation)
+        throw new WebHostRequestError(
+          currentText().t("webClient.error.connectionUnavailable"),
+          result.ok ? null : (result.reference ?? null),
+        );
+      const support = decodeTeamProtocolSupportV7Base(await request("GET", TEAM_API_ROUTES.compatibility));
+      const updateDirection = teamProtocolUpdateDirection(
+        { minimum: TEAM_PROTOCOL_V3, maximum: TEAM_PROTOCOL_V3 },
+        support.protocol,
+      );
+      if (updateDirection) throw new WebHostIncompatibleError(support, updateDirection);
+      capabilities = support.capabilities;
+      if (retryDraftCleanup) await discardCompletedDrafts(host.hostId);
+      return capabilities;
+    } catch (error) {
+      capabilities = [];
+      connectedHost = null;
+      try {
+        await peer.execute({ id: crypto.randomUUID(), type: "disconnect" });
+      } finally {
+        releaseHostLock?.();
+        releaseHostLock = null;
+        lockedHostId = null;
+        hosts?.holdSelected(host.hostId, false);
+      }
+      throw error;
+    }
+  }
   return {
     admin,
     ...(hosts ? { hosts } : {}),
@@ -658,70 +755,22 @@ export function createWebWorkspaceRuntime(
     },
     acceptInvite: (url) => runTeamEffect(directory.acceptInvite(url)),
     async connect(host) {
+      // An attempt that waits for an offline host has no deadline, so another host replaces it.
+      if (connecting && waitingHostId !== null && waitingHostId !== host.hostId) {
+        const previous = connecting;
+        await peer.execute({ id: crypto.randomUUID(), type: "disconnect" });
+        await previous.catch(() => undefined);
+      }
       if (connecting || disposed) throw new Error(currentText().t("webClient.error.connectionChanging"));
-      connecting = true;
+      const attempt = connectHost(host);
+      connecting = attempt;
       try {
-        await peer.cancelUpload().catch(() => undefined);
-        const switchingHost = lockedHostId !== host.hostId;
-        const retryDraftCleanup = switchingHost && draftCleanupRetryHosts.has(host.hostId);
-        if (switchingHost) await discardCompletedDrafts();
-        await releaseLiveView();
-        browserView.disconnect();
-        if (switchingHost) {
-          await peer.execute({ id: crypto.randomUUID(), type: "disconnect" });
-          releaseHostLock?.();
-          releaseHostLock = null;
-          lockedHostId = null;
-          // This tab's own status connection gives the host up first.
-          await hosts?.select(host.hostId);
-          const release = await acquireOpenedWebHostLock(
-            accountId,
-            host.hostId,
-            hostChannel,
-            dependencies.acquireHostLock,
-          );
-          if (disposed) {
-            release();
-            throw new Error(currentText().t("webClient.error.connectionClosed"));
-          }
-          releaseHostLock = release;
-          lockedHostId = host.hostId;
-          hosts?.holdSelected(host.hostId, true);
-        }
-        const current = ++generation;
-        connectedHost = host;
-        pinWebHostKey(accountId, host);
-        const result = await peer.execute({
-          id: crypto.randomUUID(),
-          type: "connect",
-          hostId: host.hostId,
-          hostPublicKey: host.devicePublicKey,
-        });
-        if (!result.ok || disposed || current !== generation)
-          throw new Error(currentText().t("webClient.error.connectionUnavailable"));
-        const support = decodeTeamProtocolSupportV1(await request("GET", TEAM_API_ROUTES.compatibility));
-        const updateDirection = teamProtocolUpdateDirection(
-          { minimum: TEAM_PROTOCOL_V3, maximum: TEAM_PROTOCOL_V3 },
-          support.protocol,
-        );
-        if (updateDirection) throw new WebHostIncompatibleError(support, updateDirection);
-        capabilities = support.capabilities;
-        if (retryDraftCleanup) await discardCompletedDrafts(host.hostId);
-        return capabilities;
-      } catch (error) {
-        capabilities = [];
-        connectedHost = null;
-        try {
-          await peer.execute({ id: crypto.randomUUID(), type: "disconnect" });
-        } finally {
-          releaseHostLock?.();
-          releaseHostLock = null;
-          lockedHostId = null;
-          hosts?.holdSelected(host.hostId, false);
-        }
-        throw error;
+        return await attempt;
       } finally {
-        connecting = false;
+        if (connecting === attempt) {
+          connecting = null;
+          waitingHostId = null;
+        }
       }
     },
     async disconnect() {

@@ -25,6 +25,7 @@ export const messages = {
     "Entre na sua conta de {name}. O OpenBot obtém as ferramentas que essa conta pode acessar, sem receber sua senha.",
   "mcp.signIn.waiting": "Aguardando o navegador…",
   "mcp.signIn.continue": "Continuar para {name}",
+  "mcp.signIn.pageDescription": "Esta página está aberta no navegador de {host}. Autentique-se aqui.",
   "mcp.server.loadFailed": "Não foi possível carregar os servidores MCP.",
   "mcp.test.connected": { one: "Conectado · {count} ferramenta", other: "Conectado · {count} ferramentas" },
   "mcp.status.testing": "Testando…",
@@ -113,4 +114,46 @@ export const messages = {
     one: "Conclua a autenticação no navegador. O OpenBot para de esperar após {count} minuto.",
     other: "Conclua a autenticação no navegador. O OpenBot para de esperar após {count} minutos.",
   },
+  "mcp.panel.signInWaitingOn": {
+    one: "Abrindo a página de autenticação em {host}. O OpenBot para de esperar após {count} minuto.",
+    other: "Abrindo a página de autenticação em {host}. O OpenBot para de esperar após {count} minutos.",
+  },
+  "mcp.panel.appTitle": "App de autenticação",
+  "mcp.panel.appDescription":
+    "Use um app OAuth que você registrou no provedor do servidor. O OpenBot usa esse app quando o servidor não consegue registrar o OpenBot sozinho. Deixe em branco para o OpenBot se registrar.",
+  "mcp.panel.appSaveFirst": "Primeiro salve este servidor. Depois você pode adicionar um app de autenticação.",
+  "mcp.panel.appUrlChanged": "Primeiro salve a nova URL do servidor. O app de autenticação pertence à URL salva.",
+  "mcp.panel.appLoadFailed": "Não foi possível ler o app de autenticação.",
+  "mcp.panel.callbackUrl": "URL de retorno",
+  "mcp.panel.callbackUrlDescription": "Adicione exatamente esta URL às URLs de redirecionamento permitidas do app.",
+  "mcp.panel.callbackUrlOnHost":
+    "{host} faz a autenticação no próprio navegador, então esta URL está em {host}. Adicione exatamente esta URL às URLs de redirecionamento permitidas do app.",
+  "mcp.panel.callbackUrlUnavailable": "Nenhuma URL de retorno disponível.",
+  "mcp.panel.copyCallbackUrl": "Copiar URL de retorno",
+  "mcp.panel.clientId": "ID do cliente",
+  "mcp.panel.clientSecret": "Segredo do cliente",
+  "mcp.panel.clientSecretDescription": "Opcional. Apenas para um app que tem segredo.",
+  "mcp.panel.clientSecretSaved": "Segredo salvo. Digite um novo segredo para substituí-lo.",
+  "mcp.panel.clientSecretRemoved": "O segredo é removido quando você salva o app.",
+  "mcp.panel.removeClientSecret": "Remover segredo",
+  "mcp.panel.scopes": "Escopos",
+  "mcp.panel.scopesDescription": "Opcional. Separe os escopos com espaços.",
+  "mcp.panel.saveApp": "Salvar app",
+  "mcp.panel.removeApp": "Remover app",
+  "mcp.panel.appSaved": "App salvo. Faça a autenticação para usá-lo.",
+  "mcp.panel.appRemoved": "App removido.",
+  "mcp.signIn.relayDescription":
+    "Confirme que a página de autenticação está em {page} e abra-a no seu navegador. Quando você terminar, o OpenBot envia a autenticação para {host}.",
+  "mcp.signIn.relayOpenDescription":
+    "Abra a página de autenticação de {page} no seu navegador. Quando terminar, cole aqui o endereço que o navegador mostra. O OpenBot então envia a autenticação para {host}.",
+  "mcp.signIn.relayDeviceDescription":
+    "Confirme que a página de autenticação está em {page}, abra-a no seu navegador e termine lá. {host} detecta a autenticação sozinho.",
+  "mcp.signIn.relayOpen": "Abrir página de autenticação",
+  "mcp.signIn.relayPasteHint": "Se o navegador não voltar ao OpenBot, copie o endereço que ele mostra e cole aqui.",
+  "mcp.signIn.relayPasteRequired":
+    "O OpenBot não consegue receber a autenticação do navegador sozinho. Quando terminar, copie o endereço que o navegador mostra e cole aqui.",
+  "mcp.signIn.relayAddress": "Endereço do navegador",
+  "mcp.signIn.relaySend": "Enviar",
+  "mcp.panel.callbackUrlRelayed":
+    "A página de autenticação abre no seu navegador, e o OpenBot no seu computador envia a autenticação para {host}. Adicione exatamente esta URL às URLs de redirecionamento permitidas do app.",
 } as const satisfies PartialTranslation<typeof source>;

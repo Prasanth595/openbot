@@ -8,12 +8,12 @@ import type { McpServerConfig } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { VISIBLE_DYNAMIC_TOOLS } from "./agent/tool-catalog";
 import { AgentStore } from "./agent-store";
 import { CLAUDE_IDLE_THREAD_LIMIT, CLAUDE_THREAD_IDLE_RELEASE_MS, ClaudeAgentClient } from "./claude-client";
 import { mergeProviderHistory, newAssistantMessage, snapshotFromThread } from "./conversation-snapshots";
 import { runCauseEffect } from "./effect-boundary";
 import { loginShellPath } from "./mcp-provider-shapes";
-import { OPENBOT_DYNAMIC_TOOLS } from "./openbot-tools";
 import { isPathInside } from "./path-containment";
 import {
   decodeAccountRateLimitsReadResult,
@@ -27,6 +27,13 @@ import {
 } from "./protocol";
 
 type TestStreamMessage =
+  | {
+      type: "system";
+      subtype: "status" | "compact_boundary";
+      status?: "compacting" | null;
+      compact_result?: "success" | "failed";
+      compact_metadata?: { pre_tokens: number; post_tokens?: number };
+    }
   | {
       type: "stream_event";
       parent_tool_use_id: null;
@@ -43,6 +50,7 @@ type TestStreamMessage =
       parent_tool_use_id: string | null;
       session_id: string;
       uuid: string;
+      error?: string;
       message: {
         content: Array<{
           type: string;
@@ -76,6 +84,7 @@ type TestStreamMessage =
       >;
       total_cost_usd?: number;
       subtype: "success";
+      is_error?: boolean;
       result: string;
       terminal_reason: "completed";
       errors: string[];
@@ -243,20 +252,15 @@ fi
       });
       const options: DynamicRecord | null = isDynamicRecord(params.options) ? params.options : null;
       const mcpServers: DynamicRecord | null = isDynamicRecord(options?.mcpServers) ? options.mcpServers : null;
-      const browserServer = mcpServers?.openbot_browser;
-      const browserServerInstance = isDynamicRecord(browserServer) ? browserServer.instance : null;
-      const registeredBrowserTools = isDynamicRecord(browserServerInstance)
-        ? browserServerInstance._registeredTools
-        : null;
-      expect(isDynamicRecord(registeredBrowserTools) ? Object.keys(registeredBrowserTools) : []).toEqual(
-        expect.arrayContaining(["evaluate", "request_takeover"]),
-      );
+      expect(mcpServers?.openbot_browser).toBeUndefined();
       const openbotServer = mcpServers?.openbot;
       const serverInstance = isDynamicRecord(openbotServer) ? openbotServer.instance : null;
       const registeredTools = isDynamicRecord(serverInstance) ? serverInstance._registeredTools : null;
       // Compare the declarations passed to the providers, including schema constraints and guidance.
       // Claude uses the SDK's AskUserQuestion instead of the ask_user MCP tool.
-      const expectedTools = OPENBOT_DYNAMIC_TOOLS.tools.filter((dynamicTool) => dynamicTool.name !== "ask_user");
+      const expectedTools = VISIBLE_DYNAMIC_TOOLS.flatMap((namespace) => namespace.tools).filter(
+        (dynamicTool) => dynamicTool.name !== "ask_user",
+      );
       expect((isDynamicRecord(registeredTools) ? Object.keys(registeredTools) : []).toSorted()).toEqual(
         expectedTools.map((dynamicTool) => dynamicTool.name).toSorted(),
       );
@@ -708,8 +712,190 @@ fi
     await runCauseEffect(client.stop());
   });
 
-  it("restarts an inactive session when resumed with updated memory instructions", async () => {
+  it.each([
+    { model: "claude-opus-5-5", effort: "high", expectedModel: "claude-opus-5-5", expectedEffort: "high" },
+    { model: "claude-sonnet-5", effort: "max", expectedModel: null, expectedEffort: "max" },
+  ])(
+    "reuses a resumed query and applies live settings: $model/$effort",
+    async ({ model, effort, expectedModel, expectedEffort }) => {
+      root = await mkdtemp(join(tmpdir(), "openbot-claude-live-resume-"));
+      const queries: TestQuery[] = [];
+      const client = new ClaudeAgentClient({ executable: "/bin/true", version: "2.1.280" }, () => {
+        const query = new TestQuery(new TestQueue<TestStreamMessage>());
+        queries.push(query);
+        return query;
+      });
+      client.start();
+      const config = { cwd: root, model: "claude-sonnet-5", effort: "low", developerInstructions: "Stable rules" };
+      const thread = await runCauseEffect(client.request("thread/start", config, decodeThreadResponse));
+      await runCauseEffect(
+        client.request("thread/resume", { ...config, model, effort, threadId: thread.thread.id }, decodeThreadResponse),
+      );
+      await runCauseEffect(
+        client.request("turn/start", { threadId: thread.thread.id, model, effort, input: [] }, decodeTurnResponse),
+      );
+      expect(queries).toHaveLength(1);
+      expect(queries[0]?.models).toEqual(expectedModel ? [expectedModel] : []);
+      expect(queries[0]?.flagSettings).toEqual([{ effortLevel: expectedEffort }]);
+      await runCauseEffect(client.stop());
+    },
+  );
+
+  it("reports native compaction and reads local context without a model turn", async () => {
+    root = await mkdtemp(join(tmpdir(), "openbot-claude-context-"));
+    const output = new TestQueue<TestStreamMessage>();
+    const contextRead = vi.fn(async () => ({ totalTokens: 41000, rawMaxTokens: 200000 }));
+    class ContextQuery extends TestQuery {
+      getContextUsage = contextRead;
+    }
+    const client = new ClaudeAgentClient(
+      { executable: "/bin/true", version: "2.1.280" },
+      () => new ContextQuery(output),
+    );
+    const notifications: Array<{ method: string; params: unknown }> = [];
+    client.on("notification", (event) => notifications.push(event));
+    client.start();
+    const thread = await runCauseEffect(
+      client.request("thread/start", { cwd: root, model: "claude-sonnet-5" }, decodeThreadResponse),
+    );
+    await startTurn(client, thread.thread.id, "context-turn");
+    output.push({ type: "system", subtype: "status", status: "compacting" });
+    output.push({
+      type: "system",
+      subtype: "compact_boundary",
+      compact_metadata: { pre_tokens: 180000, post_tokens: 41000 },
+    });
+    output.push({
+      type: "result",
+      subtype: "success",
+      result: "Done",
+      errors: [],
+      terminal_reason: "completed",
+      session_id: thread.thread.id,
+      uuid: "context-result",
+    });
+    await vi.waitFor(() =>
+      expect(notifications.some((event) => event.method === "thread/tokenUsage/updated")).toBe(true),
+    );
+    expect(contextRead).toHaveBeenCalledTimes(1);
+    expect(contextRead).toHaveBeenCalledWith({ detail: "summary" });
+    expect(notifications.filter((event) => event.method === "turn/started")).toHaveLength(1);
+    expect(
+      notifications.filter((event) => event.method === "openbot/context-compaction").map((event) => event.params),
+    ).toEqual([
+      { threadId: thread.thread.id, status: "running" },
+      { threadId: thread.thread.id, status: "completed" },
+    ]);
+    expect(notifications.find((event) => event.method === "thread/tokenUsage/updated")?.params).toEqual({
+      threadId: thread.thread.id,
+      tokenUsage: { last: { totalTokens: 41000 }, modelContextWindow: 200000, estimated: true },
+    });
+    await runCauseEffect(client.stop());
+  });
+
+  it("sends changed memories with the next turn and keeps the query and its system prompt", async () => {
     root = await mkdtemp(join(tmpdir(), "openbot-claude-memory-resume-"));
+    // Long enough that the change alone is shorter than the full block.
+    const saved = ["release", "deploy", "review"].map((topic) => ({
+      id: `memory-${topic}`,
+      text: `The ${topic} steps are written in the team handbook. `.repeat(8),
+      origin: "manual",
+    }));
+    const instructions: string[] = [];
+    const snapshots: unknown[] = [];
+    const output = new TestQueue<TestStreamMessage>();
+    const prompts: AsyncIterable<SDKUserMessage>[] = [];
+    const client = new ClaudeAgentClient({ executable: "/bin/true", version: "2.1.280" }, (params) => {
+      if (!isString(params.prompt)) prompts.push(params.prompt);
+      const options: DynamicRecord | null = isDynamicRecord(params.options) ? params.options : null;
+      const systemPrompt = options?.systemPrompt;
+      if (isDynamicRecord(systemPrompt) && isString(systemPrompt.append)) instructions.push(systemPrompt.append);
+      snapshots.push(options?.extraArgs);
+      return new TestQuery(output);
+    });
+    const notifications: Array<{ method: string; params: unknown }> = [];
+    client.on("notification", (notification) => notifications.push(notification));
+    client.start();
+    const config = {
+      cwd: root,
+      model: "claude-sonnet-5",
+      developerInstructions: "Be concise.",
+      memoryContext: { memories: saved, storedCount: 3, limit: 5 },
+      runtimeWorkspaceRoots: [root],
+    };
+    const thread = await runCauseEffect(client.request("thread/start", config, decodeThreadResponse));
+    const threadId = thread.thread.id;
+    const turns = prompts[0]?.[Symbol.asyncIterator]();
+    if (!turns) throw new Error("The Claude query received no prompt stream.");
+    const runTurn = async (turnId: string) => {
+      await startTurn(client, threadId, turnId);
+      const { value } = await turns.next();
+      output.push({
+        type: "result",
+        subtype: "success",
+        result: "Done",
+        errors: [],
+        terminal_reason: "completed",
+        session_id: threadId,
+        uuid: `${turnId}-result`,
+      });
+      await vi.waitFor(() =>
+        expect(
+          notifications.some(
+            (event) =>
+              event.method === "turn/completed" &&
+              isDynamicRecord(event.params) &&
+              isDynamicRecord(event.params.turn) &&
+              event.params.turn.id === turnId,
+          ),
+        ).toBe(true),
+      );
+      return value?.message.content;
+    };
+
+    expect(await runTurn("11111111-1111-4111-8111-111111111111")).toEqual([
+      {
+        type: "text",
+        text: expect.stringMatching(/^<openbot_saved_memories>\n[\s\S]*memory-review[\s\S]*You have 3 saved memories/),
+      },
+      { type: "text", text: "Hello" },
+    ]);
+    const memory = { id: "memory-1", text: "Uses metric units.", origin: "manual" };
+    await runCauseEffect(
+      client.request(
+        "thread/resume",
+        { ...config, threadId, memoryContext: { memories: [...saved.slice(1), memory], storedCount: 4, limit: 5 } },
+        decodeThreadResponse,
+      ),
+    );
+    expect(await runTurn("22222222-2222-4222-8222-222222222222")).toEqual([
+      {
+        type: "text",
+        text: expect.stringMatching(
+          /^<openbot_saved_memories_update>\n[\s\S]*Uses metric units\.[\s\S]*\["memory-release"\]\nYou have 4 saved memories/,
+        ),
+      },
+      { type: "text", text: "Hello" },
+    ]);
+    expect(await runTurn("33333333-3333-4333-8333-333333333333")).toBe("Hello");
+    // A compaction summary can drop the memory blocks, so the agent gets all of them again.
+    output.push({ type: "system", subtype: "compact_boundary", compact_metadata: { pre_tokens: 1, post_tokens: 1 } });
+    await vi.waitFor(() =>
+      expect(notifications.some((event) => event.method === "openbot/context-compaction")).toBe(true),
+    );
+    expect(await runTurn("44444444-4444-4444-8444-444444444444")).toEqual([
+      { type: "text", text: expect.stringMatching(/^<openbot_saved_memories>\n[\s\S]*Uses metric units\./) },
+      { type: "text", text: "Hello" },
+    ]);
+
+    // One query, one system prompt: a memory change must not change the cached prefix.
+    expect(instructions).toEqual(["Be concise."]);
+    expect(snapshots).toEqual([{ "system-prompt-snapshot": "off" }]);
+    await runCauseEffect(client.stop());
+  });
+
+  it("restarts an inactive session when resumed with an updated profile", async () => {
+    root = await mkdtemp(join(tmpdir(), "openbot-claude-profile-resume-"));
     const instructions: string[] = [];
     const snapshots: unknown[] = [];
     const client = new ClaudeAgentClient({ executable: "/bin/true", version: "2.1.280" }, (params) => {
@@ -723,26 +909,19 @@ fi
     const config = {
       cwd: root,
       model: "claude-sonnet-5",
-      developerInstructions: "<agent_memories>[]</agent_memories>",
+      developerInstructions: "<agent_profile>Writer</agent_profile>",
       runtimeWorkspaceRoots: [root],
     };
     const thread = await runCauseEffect(client.request("thread/start", config, decodeThreadResponse));
     await runCauseEffect(
       client.request(
         "thread/resume",
-        {
-          ...config,
-          threadId: thread.thread.id,
-          developerInstructions: '<agent_memories>[{"text":"Uses metric units."}]</agent_memories>',
-        },
+        { ...config, threadId: thread.thread.id, developerInstructions: "<agent_profile>Editor</agent_profile>" },
         decodeThreadResponse,
       ),
     );
 
-    expect(instructions).toEqual([
-      "<agent_memories>[]</agent_memories>",
-      '<agent_memories>[{"text":"Uses metric units."}]</agent_memories>',
-    ]);
+    expect(instructions).toEqual(["<agent_profile>Writer</agent_profile>", "<agent_profile>Editor</agent_profile>"]);
     // A CLI that records the first prompt would send it again on resume and drop the new text.
     const off = { "system-prompt-snapshot": "off" };
     expect(snapshots).toEqual([off, off]);
@@ -839,6 +1018,41 @@ fi
     expect(answerText(notifications)).toBe("Visible without a refresh");
     expect(narrationTexts(notifications)).toEqual([]);
     expect(JSON.stringify(notifications)).not.toContain("Hidden child response");
+    await runCauseEffect(client.stop());
+  });
+
+  it("fails a turn that ended on an API error instead of answering with the error", async () => {
+    const { client, notifications, output, threadId } = await createHarness();
+    const turnId = "11111111-1111-4111-8111-111111111111";
+    await startTurn(client, threadId, turnId);
+
+    const failure = "Invalid API key · Please run /login";
+    output.push({
+      type: "assistant",
+      parent_tool_use_id: null,
+      session_id: threadId,
+      uuid: "error-message",
+      error: "authentication_failed",
+      message: { content: [{ type: "text", text: failure }] },
+    });
+    output.push({
+      type: "result",
+      subtype: "success",
+      is_error: true,
+      result: failure,
+      terminal_reason: "completed",
+      errors: [],
+      session_id: threadId,
+      uuid: turnId,
+    });
+    await waitFor(() => notifications.some((event) => event.method === "turn/completed"));
+
+    expect(answerText(notifications)).toBe("");
+    expect(notifications).toContainEqual({ method: "error", params: { threadId, turnId, message: failure } });
+    expect(notifications).toContainEqual({
+      method: "turn/completed",
+      params: { threadId, turn: { id: turnId, status: "failed" } },
+    });
     await runCauseEffect(client.stop());
   });
 

@@ -1,6 +1,10 @@
 import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("error.agent", {
+  "error.agent.historyUnavailable":
+    "History is unavailable for this request. Read recent history again, or use channel_history for channel work.",
+  "error.agent.toolRequestInvalid":
+    "Invalid tool discovery arguments. Use the declared schema and an original qualified tool name.",
   // Agent errors that the main process and the backend send.
   "error.agent.approvalWhileDeleting": "Cannot grant approval while the agent is being deleted.",
   "error.agent.accessLocalOnly": "Agent access can only be changed on the computer that runs the agent.",
@@ -81,6 +85,9 @@ export const messages = defineMessages("error.agent", {
   "error.agent.automationLocalOnly": "Local scripts can only be allowed on the computer that runs the agent.",
   "error.agent.busyMessageModeLocalOnly":
     "What messages do while the agent works can only be set on the computer that runs the agent.",
+  "error.agent.localScriptsOff": "This agent does not allow local scripts.",
+  "error.agent.localScriptsRateLimited":
+    "Local scripts sent this agent {limit} message or routine requests in the last hour. Try again later.",
   "error.agent.automationOff": "This agent does not allow local scripts to run its routines.",
   "error.agent.automationPayloadTooLong": "The payload is longer than {limit} characters.",
   "error.agent.automationRateLimited":

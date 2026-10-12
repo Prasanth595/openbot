@@ -23,12 +23,15 @@ export const messages = {
   "provider.status.downloadFailed": "ダウンロード失敗",
   "provider.status.connected": "接続済み",
   "provider.status.notDownloaded": "未ダウンロード",
-  "provider.status.ready": "使用可能",
+  "provider.status.ready": "ランタイムをインストール済み",
   "provider.status.notConnected": "未接続",
   "provider.status.notInstalled": "未インストール",
   "provider.status.updateRequired": "アップデートが必要",
   "provider.status.unavailable": "利用できません",
   "provider.status.checking": "確認中",
+  "provider.status.off": "オフ",
+  "provider.gemini.hostSignIn":
+    "Gemini を接続するには、ホストで OpenBot を開き、「設定」>「プロバイダー」で「接続」を選択してください。Google へのサインインには、そのホストのブラウザーが必要です。リモートでのサインインには対応していません。",
 
   "provider.key.free": "無料",
 
@@ -39,6 +42,8 @@ export const messages = {
   "provider.action.checkForUpdates": "アップデートを確認",
   "provider.lastError": "最後のエラー: {detail}",
   "provider.action.copyDiagnostics": "診断情報をコピー",
+  "provider.action.cancelRestart": "再起動をキャンセル",
+  "provider.restartPending": "現在のタスクが停止した後に再起動します",
   "provider.action.install": "インストール",
   "provider.action.signIn": "サインイン",
   "provider.action.signInWithCode": "コードでログイン",
@@ -50,7 +55,12 @@ export const messages = {
   "provider.aria.retry": "{name} を再試行",
   "provider.aria.install": "{name} をインストール",
   "provider.aria.signIn": "{name} にサインイン",
+  "provider.aria.codeFallback": "コードで {name} にログイン",
   "provider.aria.moreActions": "{name} のその他の操作",
+  "provider.aria.use": "OpenBot で {name} を使用",
+  "provider.use.inUse": {
+    other: "{agents} が {name} を使用しています。エージェントのモデルを変更してから、{name} をオフにしてください。",
+  },
 
   "provider.codeLogin.title": "コードで {name} にログイン",
   "provider.codeLogin.description": "スマートフォンか別のブラウザで完了してください。OpenBot はここで待機します。",
@@ -70,6 +80,11 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "このログインは停止しました。",
   "provider.codeLogin.pasteExpiresIn": "待機しています。このログインは残り {time} で停止します。",
   "provider.codeLogin.linkTitle": "別のデバイスで {name} にログイン",
+  "provider.codeLogin.pageTitle": "{name} にサインイン",
+  "provider.codeLogin.pageDescription":
+    "このページは {host} のブラウザーで開いています。ここでサインインしてください。",
+  "provider.codeLogin.relayStarting": "{host} で {name} のサインインを開始しています…",
+  "provider.codeLogin.pageOpening": "{host} で {name} のサインインページを開いています…",
   "provider.codeLogin.linkStep": "{name} にログインします。OpenBot は自動で続行します。",
 
   "provider.picker.noEndpoints": "エンドポイントはまだありません",
@@ -104,6 +119,13 @@ export const messages = {
   "provider.effort.high": "高",
   "provider.effort.xhigh": "最高",
   "provider.effort.max": "最大",
+  "provider.museKey.title": "Muse 用の Meta API キー",
+  "provider.museKey.description": "ホストに Meta API キーを保存するか、Muse CLI を使ってサインインしてください。",
+  "provider.museKey.label": "Meta API キー",
+  "provider.geminiKey.title": "Gemini API キー",
+  "provider.geminiKey.description":
+    "ホストに Gemini API キーを保存するか、「接続」を選択して Google でサインインしてください。",
+  "provider.geminiKey.label": "Gemini API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",
   "provider.openCodeKey.description": "無料モデルにアカウントは不要です。キーがあると有料の Go モデルを使えます。",
