@@ -342,6 +342,8 @@ export function ComposerEditor(props: ComposerEditorProps) {
     ({ shown, value, agents, skills, mcpServers, attachments }) => {
       if (!shown || !dictationDraft) return;
       renderEditorValue(dictationDraft, value, agents, skills, mcpServers, attachments, attachmentTokenActions);
+      // The editor needs a closing <br> to show an empty last line; inline, it would push the words a line down.
+      if (value.endsWith("\n")) dictationDraft.lastChild?.remove();
     },
   );
   createEffect(dictationWords, () => {
