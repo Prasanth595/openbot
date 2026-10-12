@@ -29,8 +29,10 @@ import {
   type TeamAdminRequestError,
 } from "@openbot/team-client/team-admin-requests";
 import type { TeamApiRequest } from "@openbot/team-client/team-api-requests";
+import { classifyFailure } from "@openbot/telemetry";
 import { currentText } from "@openbot/ui/text";
 import { Effect } from "effect";
+import { actionToast } from "../../action-toast";
 import type { HostMessagingApi } from "../connectors/host-messaging-port";
 
 /** Local storage that is not available holds no mark, and the return page opens `openbot://`. */
@@ -76,11 +78,27 @@ export function webHostMessaging(request: (serverId: string) => TeamApiRequest):
     const install = decodeWebMessagingInstallGrant(event.data);
     const waiting = install ? pending.get(install.nonce) : undefined;
     if (!install || waiting?.platform !== install.platform) return;
+    // When this tab no longer reaches that server, it sends no answer, and the return page says to start again.
+    let target: TeamApiRequest;
+    try {
+      target = request(waiting.serverId);
+    } catch {
+      return;
+    }
     forget(install.nonce);
     // The answer tells the return page that this tab took the grant.
     channel?.postMessage(webMessagingInstallReceipt(install.nonce));
-    // The Connectors page reads the connections again by itself and shows the result, as on the desktop.
-    void run(waiting.serverId, (target) => messagingConnectorComplete(target, install)).catch(() => undefined);
+    // The Connectors page reads the connections again by itself and shows a completed install.
+    void runTeamEffect(messagingConnectorComplete(target, install).pipe(Effect.mapError((error) => error.cause))).catch(
+      (error: unknown) => {
+        const { t, errorMessage } = currentText();
+        const title = t(`connector.${install.platform}.actionFailed`);
+        actionToast.error(title, {
+          description: errorMessage(error, title),
+          report: { operation: "other", source: "action", cause_code: classifyFailure(error) },
+        });
+      },
+    );
   };
   const remember = (platform: WebMessagingInstallPlatform, nonce: string, serverId: string) => {
     const now = Date.now();
