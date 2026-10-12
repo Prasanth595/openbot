@@ -185,6 +185,8 @@ export class MessagingService {
   readonly #telegramApp: TelegramAppPort | null;
   readonly #sidebar: Pick<SidebarLayoutStore, "getSnapshot" | "mutate"> | null;
   #started = false;
+  /** `start` asked every enabled connection to start. One with no live entry then does not start by itself. */
+  #connectionsStarted = false;
   /** Holds the ingress socket open while a Telegram link code waits for its chat. */
   #telegramLinkLease: { release: () => void; timer: ReturnType<typeof setTimeout> } | null = null;
   #scope = Scope.makeUnsafe();
@@ -224,12 +226,18 @@ export class MessagingService {
       (record) => this.#startConnection(record),
       { concurrency: "unbounded", discard: true },
     );
+    this.#connectionsStarted = true;
+    // A connection with no credentials or a removed chat did not start: its kept deliveries wait no more.
+    for (const [connectionId, waiters] of [...this.#transportWaiters]) {
+      if (!this.#live.has(connectionId)) for (const ready of [...waiters]) ready();
+    }
   }).bind(this);
 
   readonly stop = Effect.fn("MessagingService.stop")(function* (
     this: MessagingService,
   ): Effect.fn.Return<void, MessagingOperationFailed> {
     this.#started = false;
+    this.#connectionsStarted = false;
     for (const unsubscribe of this.#unsubscribe.splice(0)) unsubscribe();
     // The kept deliveries that wait for a connection go now: nothing will start it.
     for (const waiters of [...this.#transportWaiters.values()]) for (const ready of [...waiters]) ready();
@@ -599,7 +607,7 @@ export class MessagingService {
     // Not started yet, or starting again after an identify that failed (its transport takes no delivery).
     // A connection that stopped on an error does not start by itself, so nothing waits for it.
     const live = this.#live.get(record.connectionId);
-    const starting = !live || STARTING_STATES.has(live.state);
+    const starting = live ? STARTING_STATES.has(live.state) : !this.#connectionsStarted;
     if (current()?.deliver || !queued || !record.enabled || !starting) return Effect.sync(current);
     return Effect.callback<void>((resume) => {
       const waiters = this.#transportWaiters.get(record.connectionId) ?? new Set<() => void>();
