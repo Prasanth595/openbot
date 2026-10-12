@@ -481,7 +481,7 @@ describe.sequential("Slack messaging end to end", () => {
   it("stops on a token Slack no longer accepts, and keeps the workspace when an agent is deleted", async () => {
     const { agent, credentials } = await connected();
     slack.rejectBotToken = true;
-    await runCauseEffect(messaging?.reconnect("slack", "T1") ?? Effect.succeed(undefined));
+    await runCauseEffect(messaging?.reconnect("slack", "T1", true) ?? Effect.succeed(null));
     await waitFor(() => workspace()?.state === "invalid_token");
     slack.rejectBotToken = false;
 

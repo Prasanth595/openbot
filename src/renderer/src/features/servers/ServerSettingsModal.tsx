@@ -747,6 +747,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
               discord={props.discordConnector}
               telegram={props.telegramConnector}
               agents={props.connectorAgents ?? []}
+              hostName={local() ? undefined : props.server.name}
             />
           </Tabs.Content>
         </Show>

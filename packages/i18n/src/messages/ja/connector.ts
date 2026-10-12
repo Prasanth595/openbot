@@ -59,12 +59,22 @@ export const messages = {
   "connector.github.disconnectEffectTools": "すべてのエージェントが GitHub のツール、gh、git を使えなくなります。",
   "connector.github.disconnectEffectRevoke": "その後 GitHub が開き、OpenBot のアクセスを取り消せます。",
   "connector.github.disconnectEffectKept": "チャット、ファイル、エージェントのメモリーはこのコンピュータに残ります。",
+  // The same text for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.github.descriptionHost":
+    "{host} のすべてのエージェントが、GitHub のリポジトリ、Issue、プルリクエスト、gh と git を使えます。",
+  "connector.github.connectedSummaryHost": {
+    other: "リポジトリ {count} 件 · {host} のすべてのエージェント",
+  },
+  "connector.github.disconnectConfirmDescriptionHost":
+    "切断すると、@{login} のサインイン情報が {host} から削除されます。",
+  "connector.github.disconnectEffectKeptHost": "チャット、ファイル、エージェントのメモリーは {host} に残ります。",
   "connector.github.keepConnected": "接続したままにする",
   "connector.github.close": "閉じる",
   "connector.dangerZone": "危険な操作",
 
   // Server settings > Connectors: the list of integrations. Each row opens its page.
   "connector.hub.onThisComputer": "このコンピュータ上",
+  "connector.hub.onHost": "{host} 上",
   "connector.hub.notSetUp": "未設定",
   "connector.hub.available": "利用可能",
   "connector.hub.open": "{name} を開く",
@@ -131,6 +141,8 @@ export const messages = {
   "connector.slack.disconnectTitle": "{workspace} を切断しますか？",
   "connector.slack.disconnectDescription":
     "OpenBot は {workspace} での回答を停止し、Slack のトークンをこのコンピュータから削除します。",
+  "connector.slack.disconnectDescriptionHost":
+    "OpenBot は {workspace} での回答を停止し、Slack のトークンを {host} から削除します。",
   "connector.slack.disconnectEffect":
     "{workspace} のメンバーは、@OpenBot からあなたのエージェントに連絡できなくなります。",
   "connector.slack.removeEffectKept": "会話と Slack Orchestrator は OpenBot に残ります。",
@@ -196,6 +208,8 @@ export const messages = {
   "connector.discord.disconnectTitle": "{workspace} を切断しますか？",
   "connector.discord.disconnectDescription":
     "OpenBot は {workspace} での回答を停止し、Discord の接続をこのコンピュータから削除します。",
+  "connector.discord.disconnectDescriptionHost":
+    "OpenBot は {workspace} での回答を停止し、Discord の接続を {host} から削除します。",
   "connector.discord.disconnectEffect":
     "{workspace} のメンバーは、@OpenBot からあなたのエージェントに連絡できなくなります。",
   "connector.discord.removeEffectKept": "会話と Discord Orchestrator は OpenBot に残ります。",
@@ -229,6 +243,8 @@ export const messages = {
     "OpenBot ボットはこのチャットにいません。チャットを切断してから、ボットをもう一度追加してください。",
   "connector.telegram.helpRelayUnavailable":
     "このコンピュータでは OpenBot が Telegram のメッセージを受信できません。サインインし、サーバー設定でこのコンピュータに名前を付けて、OpenBot を開いたままにしてください。",
+  "connector.telegram.helpRelayUnavailableHost":
+    "{host} の OpenBot は Telegram のメッセージを受信できません。{host} でサインインし、サーバー設定でサーバーに名前を付けて、OpenBot を開いたままにしてください。",
   "connector.telegram.helpError": "OpenBot はこのチャットに接続できません。再接続するか、チャットを切断してください。",
   "connector.telegram.retryAt": "Telegram から待機するよう求められました。{time} に再試行します。",
   "connector.telegram.pause": "一時停止",

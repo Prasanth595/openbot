@@ -398,6 +398,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
             onOpenVerificationUrl={codeLogin.openVerificationUrl}
             onCancel={codeLogin.cancel}
             onSubmitCode={codeLogin.submit}
+            onOpenRelayPage={codeLogin.openRelayPage}
+            onPasteRelayAddress={codeLogin.pasteRelayAddress}
           />
         )}
       </Show>

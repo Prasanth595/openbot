@@ -155,6 +155,8 @@ export const messages = {
     "Sprawdź, czy strona logowania jest na {page}, a potem otwórz ją w przeglądarce. Gdy skończysz, OpenBot wyśle logowanie do {host}.",
   "mcp.signIn.relayOpenDescription":
     "Otwórz stronę logowania {page} w tej przeglądarce. Gdy skończysz, wklej tutaj wyświetlany adres. OpenBot wyśle wtedy logowanie do {host}.",
+  "mcp.signIn.relayDeviceDescription":
+    "Sprawdź, czy strona logowania jest na {page}, a potem otwórz ją w przeglądarce i zakończ tam logowanie. {host} sam wykryje logowanie.",
   "mcp.signIn.relayOpen": "Otwórz stronę logowania",
   "mcp.signIn.relayPasteHint": "Jeśli przeglądarka nie wróci do OpenBot, skopiuj wyświetlany adres i wklej go tutaj.",
   "mcp.signIn.relayPasteRequired":

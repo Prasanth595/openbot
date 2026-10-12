@@ -32,6 +32,7 @@ import {
   type ListRoutineRunsInput,
   type MarkConversationReadInput,
   type OpenAttachmentInput,
+  type OpenMessageLinkInput,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
   type ReadConversationPageInput,
@@ -403,6 +404,14 @@ export function parseReadConversationPage(value: unknown): ReadConversationPageI
     agentId: requireString(value.agentId, "agentId", INPUT_LIMITS.identifier),
     anchor: parsePageAnchor(value.anchor),
     limit: parsePageLimit(value.limit),
+  };
+}
+
+export function parseOpenMessageLink(value: unknown): OpenMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return {
+    agentId: requireString(value.agentId, "agentId", INPUT_LIMITS.identifier),
+    url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl),
   };
 }
 

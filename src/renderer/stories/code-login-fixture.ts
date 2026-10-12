@@ -97,6 +97,8 @@ export function createFakeCodeLogin(options: FakeCodeLoginOptions = {}): Provide
     },
     cancel: close,
     openVerificationUrl: () => undefined,
+    openRelayPage: async () => undefined,
+    pasteRelayAddress: async () => undefined,
     opener: () => null,
   };
 }

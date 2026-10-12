@@ -7,12 +7,21 @@
 // `complete`. The host finishes the sign-in. A member cannot use any route; `requireAdmin` on the host
 // is the only gate.
 //
-// `mcp/start` returns a flow at once, and the sign-in runs on the host. `status` answers
+// `mcp/start` and `provider/start` return a flow at once, and the sign-in runs on the host. `status` answers
 // `authorizeUrl` once the host has the page address, `callback` when that page sends the user back to
 // a loopback address on the host, and `result` once the sign-in ended. `callback` stays `null` when
 // the address is not a loopback one: the client can then only send an address that the user pastes.
 // `complete` takes only the query of the callback; the host builds the rest of the address from its
 // own record. A flow completes once, only for the member who started it, and ends at `expiresAt`.
+//
+// `provider/start` signs in a provider's CLI on the host. Its page can return to the CLI's own loopback
+// listener, which the host sends the query to, or it is a device page with no callback: the user only
+// opens it, and the CLI finishes by itself.
+//
+// `link/start` relays a sign-in page that an agent of the host printed in its conversation, such as the
+// page of an MCP server that the agent's CLI signs in to. The host accepts only an https page that
+// returns to a loopback address with a `state`, and only when an agent message of `agentId` holds that
+// exact address. The host sends the query to the loopback address of that page.
 import {
   adminRoute,
   boolean,
@@ -31,10 +40,15 @@ export const SIGN_IN_RELAY_CAPABILITY = "sign-in-relay-v1";
 
 export const SIGN_IN_RELAY_ROUTES = {
   mcpStart: "/v1/admin/sign-in-relay/mcp/start",
+  providerStart: "/v1/admin/sign-in-relay/provider/start",
+  linkStart: "/v1/admin/sign-in-relay/link/start",
   status: "/v1/admin/sign-in-relay/status",
   complete: "/v1/admin/sign-in-relay/complete",
   cancel: "/v1/admin/sign-in-relay/cancel",
 } as const;
+
+/** The providers whose sign-in `provider/start` relays. */
+export const SIGN_IN_RELAY_PROVIDERS = ["codex", "claude", "antigravity", "muse"] as const;
 
 const pair = fields({ key: string(255), value: string(8_192) });
 // The configuration the form shows, saved or not: an empty id is a draft.
@@ -52,6 +66,7 @@ const config = fields({
   headers: list(pair, 32),
 });
 const byFlow = fields({ flowId: identifier });
+const started = fields({ flowId: identifier, expiresAt: count });
 const flow = fields({
   authorizeUrl: nullable(string(8_192)),
   callback: nullable(fields({ port: count, path: string(2_048), state: nullable(string(1_024)) })),
@@ -59,7 +74,9 @@ const flow = fields({
 });
 
 export const SIGN_IN_RELAY_CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
-  [SIGN_IN_RELAY_ROUTES.mcpStart, adminRoute(fields({ config }), fields({ flowId: identifier, expiresAt: count }))],
+  [SIGN_IN_RELAY_ROUTES.mcpStart, adminRoute(fields({ config }), started)],
+  [SIGN_IN_RELAY_ROUTES.providerStart, adminRoute(fields({ provider: oneOf(...SIGN_IN_RELAY_PROVIDERS) }), started)],
+  [SIGN_IN_RELAY_ROUTES.linkStart, adminRoute(fields({ agentId: identifier, url: string(8_192) }), started)],
   [SIGN_IN_RELAY_ROUTES.status, adminRoute(byFlow, flow)],
   [SIGN_IN_RELAY_ROUTES.complete, adminRoute(fields({ flowId: identifier, query: string(8_192) }), flow)],
   [SIGN_IN_RELAY_ROUTES.cancel, adminRoute(byFlow, empty)],

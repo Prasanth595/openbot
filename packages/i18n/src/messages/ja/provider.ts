@@ -83,6 +83,7 @@ export const messages = {
   "provider.codeLogin.pageTitle": "{name} にサインイン",
   "provider.codeLogin.pageDescription":
     "このページは {host} のブラウザーで開いています。ここでサインインしてください。",
+  "provider.codeLogin.relayStarting": "{host} で {name} のサインインを開始しています…",
   "provider.codeLogin.pageOpening": "{host} で {name} のサインインページを開いています…",
   "provider.codeLogin.linkStep": "{name} にログインします。OpenBot は自動で続行します。",
 

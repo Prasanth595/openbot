@@ -1,8 +1,10 @@
+import { createServer } from "node:http";
 import type { McpServerConfig } from "@openbot/contracts/ipc";
 import { loopbackCallback } from "@openbot/contracts/ipc";
 import { redactText } from "@openbot/logging";
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
+import { runCauseEffect } from "../backend/effect-boundary";
 import { SIGN_IN_RELAY_TTL_MS, SignInRelayHost } from "./sign-in-relay-host";
 import { HttpError } from "./team-api/http-error";
 
@@ -30,16 +32,22 @@ function setup() {
   const receiveMcpGrant = vi.fn((_state: string, _code: string) => true);
   const host = new SignInRelayHost({
     mcp: { startRelay: () => Effect.void, relayStatus: () => ({ pageUrl: PAGE, result: null }), cancel },
+    providers: {
+      startRelay: () => Effect.void,
+      relayStatus: () => ({ pageUrl: null, result: null }),
+      cancel: () => Effect.void,
+    },
     receiveMcpGrant,
+    printedLink: () => false,
     now: () => now,
   });
   const start = (memberId = "admin") => Effect.runPromise(host.startMcp(memberId, { config: config() }));
   return { host, cancel, receiveMcpGrant, start, advance: (ms: number) => (now += ms) };
 }
 
-function refusal(run: () => unknown): number {
+async function refusal(run: () => Effect.Effect<unknown, { readonly cause: unknown }>): Promise<number> {
   try {
-    run();
+    await runCauseEffect(run());
   } catch (error) {
     if (error instanceof HttpError) return error.status;
     throw error;
@@ -52,20 +60,20 @@ describe("SignInRelayHost", () => {
     const { host, receiveMcpGrant, start } = setup();
     const { flowId } = await start();
 
-    host.complete("admin", flowId, "code=grant-code-123456&state=state-1");
+    await Effect.runPromise(host.complete("admin", flowId, "code=grant-code-123456&state=state-1"));
 
     expect(receiveMcpGrant).toHaveBeenCalledWith("state-1", "grant-code-123456");
     expect(redactText("code grant-code-123456")).not.toContain("grant-code-123456");
-    expect(refusal(() => host.complete("admin", flowId, "code=grant-code-123456&state=state-1"))).toBe(409);
+    expect(await refusal(() => host.complete("admin", flowId, "code=grant-code-123456&state=state-1"))).toBe(409);
   });
 
   it("answers another member as it answers an unknown flow", async () => {
     const { host, receiveMcpGrant, start } = setup();
     const { flowId } = await start("admin");
 
-    expect(refusal(() => host.status("other", flowId))).toBe(404);
-    expect(refusal(() => host.complete("other", flowId, "code=c&state=state-1"))).toBe(404);
-    expect(refusal(() => host.status("admin", "unknown"))).toBe(404);
+    expect(await refusal(() => Effect.sync(() => host.status("other", flowId)))).toBe(404);
+    expect(await refusal(() => host.complete("other", flowId, "code=c&state=state-1"))).toBe(404);
+    expect(await refusal(() => Effect.sync(() => host.status("admin", "unknown")))).toBe(404);
     expect(receiveMcpGrant).not.toHaveBeenCalled();
   });
 
@@ -73,7 +81,7 @@ describe("SignInRelayHost", () => {
     const { host, receiveMcpGrant, start } = setup();
     const { flowId } = await start();
 
-    expect(refusal(() => host.complete("admin", flowId, "code=c&state=state-2"))).toBe(400);
+    expect(await refusal(() => host.complete("admin", flowId, "code=c&state=state-2"))).toBe(400);
     expect(receiveMcpGrant).not.toHaveBeenCalled();
   });
 
@@ -83,7 +91,7 @@ describe("SignInRelayHost", () => {
 
     advance(SIGN_IN_RELAY_TTL_MS);
 
-    expect(refusal(() => host.complete("admin", flowId, "code=c&state=state-1"))).toBe(404);
+    expect(await refusal(() => host.complete("admin", flowId, "code=c&state=state-1"))).toBe(404);
     expect(cancel).toHaveBeenCalledWith("https://mcp.example.com/mcp");
   });
 
@@ -91,10 +99,56 @@ describe("SignInRelayHost", () => {
     const { host, cancel, receiveMcpGrant, start } = setup();
     const { flowId } = await start();
 
-    host.complete("admin", flowId, "error=access_denied&state=state-1");
+    await Effect.runPromise(host.complete("admin", flowId, "error=access_denied&state=state-1"));
 
     expect(cancel).toHaveBeenCalled();
     expect(receiveMcpGrant).not.toHaveBeenCalled();
+  });
+});
+
+describe("SignInRelayHost.startReplay", () => {
+  it("sends the callback only to the listener that its own page or its agent's message names", async () => {
+    const received: string[] = [];
+    const server = createServer((request, response) => {
+      received.push(request.url ?? "");
+      response.writeHead(302, { location: "https://example.com/done" }).end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+    const page = `https://auth.example.com/authorize?state=s1&redirect_uri=${encodeURIComponent(`http://127.0.0.1:${port}/callback`)}`;
+    const host = new SignInRelayHost({
+      mcp: { startRelay: () => Effect.void, relayStatus: () => ({ pageUrl: null, result: null }), cancel: vi.fn() },
+      providers: {
+        startRelay: () => Effect.void,
+        relayStatus: () => ({ pageUrl: null, result: null }),
+        cancel: () => Effect.void,
+      },
+      receiveMcpGrant: () => false,
+      printedLink: (agentId, url) => agentId === "agent-1" && url === page,
+    });
+    try {
+      const { flowId } = host.startReplay("admin", {
+        key: "provider\ncodex",
+        status: () => ({ pageUrl: page, result: null }),
+        cancel: vi.fn(),
+      });
+
+      await Effect.runPromise(host.complete("admin", flowId, "code=grant-code-123456&state=s1"));
+
+      expect(received).toEqual(["/callback?code=grant-code-123456&state=s1"]);
+
+      expect(() => host.startLink("admin", "agent-2", page)).toThrow(HttpError);
+      const link = host.startLink("admin", "agent-1", page);
+      await Effect.runPromise(host.complete("admin", link.flowId, "code=link-code-123456&state=s1"));
+      expect(host.status("admin", link.flowId).result).toEqual({ toolCount: 0, error: null });
+      expect(received).toEqual([
+        "/callback?code=grant-code-123456&state=s1",
+        "/callback?code=link-code-123456&state=s1",
+      ]);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   });
 });
 

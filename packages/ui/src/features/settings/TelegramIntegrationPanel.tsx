@@ -61,6 +61,8 @@ export interface TelegramIntegrationPanelProps {
   onReconnect: (workspaceId: string) => void;
   onSetEnabled: (workspaceId: string, enabled: boolean) => void;
   onAddOrchestrator: (choice: TelegramOrchestratorChoice | null) => void;
+  /** The joined server's name, when the chats are that server's and not this computer's. */
+  hostName?: string | undefined;
 }
 
 /** What a chat row can do. */
@@ -178,6 +180,7 @@ export function TelegramIntegrationPanel(props: TelegramIntegrationPanelProps) {
               {(connection) => (
                 <ChatRow
                   connection={connection}
+                  hostName={props.hostName}
                   busy={props.busy}
                   onReconnect={() => props.onReconnect(connection.workspaceId)}
                   onSetEnabled={(enabled) => props.onSetEnabled(connection.workspaceId, enabled)}
@@ -290,6 +293,7 @@ function OrchestratorFace(props: { size?: "md" | "lg" }) {
 
 function ChatRow(props: {
   connection: MessagingConnection;
+  hostName?: string | undefined;
   busy: boolean;
   onReconnect: () => void;
   onSetEnabled: (enabled: boolean) => void;
@@ -303,6 +307,8 @@ function ChatRow(props: {
       return t("connector.telegram.retryAt", {
         time: format.date(new Date(current.retryAt), { hour: "numeric", minute: "2-digit" }),
       });
+    if (current.state === "relay_unavailable" && props.hostName)
+      return t("connector.telegram.helpRelayUnavailableHost", { host: props.hostName });
     const help = STATE_HELP[current.state];
     if (help) return t(help);
     return isGroupChat(current) ? t("connector.telegram.groupDescription") : t("connector.telegram.directDescription");

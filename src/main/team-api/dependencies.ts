@@ -35,11 +35,13 @@ import type { Logger } from "@openbot/logging";
 import type { AgentService } from "../../backend/agent-service";
 import type { BrowserHost } from "../../backend/browser-host";
 import type { MailboxStore } from "../../backend/mailbox-store";
+import type { MessagingService } from "../../backend/messaging/messaging-service";
 import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { StorageUsageService } from "../../backend/storage-usage";
 import type { TeamChatStore } from "../../backend/team-chat-store";
 import type { AgentImportService } from "../agent-import-service";
 import type { BrowserViewGateway } from "../browser-view-gateway";
+import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
@@ -144,8 +146,34 @@ export type TeamApiMcpSignIns = Pick<
   "start" | "status" | "cancel" | "signOut" | "list" | "app" | "saveApp" | "removeApp"
 >;
 
+/** `connectors-v1`: the GitHub connection and the messaging connections of this host. */
+export interface TeamApiConnectors {
+  github: Pick<GitHubConnectorService, "status" | "pages" | "connect" | "cancel" | "disconnect" | "repositories">;
+  messaging: Pick<
+    MessagingService,
+    | "slackOverview"
+    | "discordOverview"
+    | "telegramOverview"
+    | "connectSlackWorkspace"
+    | "connectDiscordGuild"
+    | "connectTelegramChat"
+    | "completeSlackWorkspace"
+    | "completeDiscordGuild"
+    | "disconnectSlackWorkspace"
+    | "disconnectDiscordGuild"
+    | "disconnectTelegramChat"
+    | "reconnect"
+    | "setEnabled"
+    | "addOrchestrator"
+    | "addTelegramOrchestrator"
+  >;
+}
+
 /** Its presence, beside `mcpServers`, is what `#protocolSupport` advertises `sign-in-relay-v1` on. */
-export type TeamApiSignInRelay = Pick<SignInRelayHost, "startMcp" | "status" | "complete" | "cancel">;
+export type TeamApiSignInRelay = Pick<
+  SignInRelayHost,
+  "startMcp" | "startProvider" | "startLink" | "status" | "complete" | "cancel"
+>;
 
 /**
  * Its presence is what `#protocolSupport` advertises `provider-host-sign-in-v1` on. Only a Linux host
@@ -274,6 +302,7 @@ export interface TeamApiOptions {
   mcpServers?: TeamApiMcpServers;
   mcpSignIns?: TeamApiMcpSignIns;
   signInRelay?: TeamApiSignInRelay;
+  connectors?: TeamApiConnectors;
   providerHostSignIns?: TeamApiProviderHostSignIns;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;

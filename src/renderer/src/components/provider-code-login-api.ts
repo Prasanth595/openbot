@@ -35,4 +35,8 @@ export interface ProviderCodeLoginApi {
   cancel: () => void;
   /** Opens the verification page here, for the user who is on this computer after all. */
   openVerificationUrl: (url: string) => void;
+  /** Opens the page of a relayed sign-in in this computer's browser, after the user checked its host. */
+  openRelayPage: () => Promise<void>;
+  /** Sends the address that the browser of a relayed sign-in shows. */
+  pasteRelayAddress: (address: string) => Promise<void>;
 }

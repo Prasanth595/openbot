@@ -913,6 +913,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       startHostSignIn: async () => undefined,
       hostSignInStatus: async () => ({ tabId: null, result: null }),
       cancelHostSignIn: async () => clone(agentStatus),
+      startRelaySignIn: async () => undefined,
+      relaySignInStatus: async () => ({ page: null, result: null }),
+      openRelaySignIn: async () => undefined,
+      pasteRelaySignIn: async () => undefined,
+      cancelRelaySignIn: async () => clone(agentStatus),
       getApiKeyState: (provider) => api.getProviderApiKeyState(provider),
       setApiKey: (input) => api.setProviderApiKey(input),
       clearApiKey: (provider) => api.clearProviderApiKey(provider),
@@ -1623,6 +1628,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           readState: { unreadCount: 0, firstUnreadMessageId: null, throughMessageId: null },
         };
       },
+      openMessageLink: async () => undefined,
       searchConversationMessages: async (input) => {
         const query = input.query.trim().replace(/\s+/g, " ").toLocaleLowerCase();
         const results = agents.flatMap((agent) =>

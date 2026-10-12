@@ -142,6 +142,8 @@ export const messages = {
     "サインインページが {page} にあることを確認してから、ブラウザーで開いてください。完了すると、OpenBot がサインインを {host} に送信します。",
   "mcp.signIn.relayOpenDescription":
     "このブラウザーで {page} のサインインページを開いてください。完了したら、ブラウザーに表示されたアドレスをここに貼り付けてください。その後、OpenBot がサインインを {host} に送信します。",
+  "mcp.signIn.relayDeviceDescription":
+    "サインインページが {page} にあることを確認してから、ブラウザーで開いてサインインを完了してください。{host} はサインインを自動で検出します。",
   "mcp.signIn.relayOpen": "サインインページを開く",
   "mcp.signIn.relayPasteHint":
     "ブラウザーが OpenBot に戻らない場合は、表示されているアドレスをコピーしてここに貼り付けてください。",

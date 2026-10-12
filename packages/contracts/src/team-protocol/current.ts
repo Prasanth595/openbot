@@ -20,6 +20,7 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
 } from "./browser-view-v1";
+import { CONNECTORS_CAPABILITY } from "./connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { EVENTS_CAPABILITY } from "./events-v1";
 import { HOST_ADMIN_CAPABILITY } from "./host-admin-v1";
@@ -77,6 +78,7 @@ export {
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
+  CONNECTORS_CAPABILITY,
   CONTEXT_RESET_CAPABILITY,
   EVENTS_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
@@ -170,6 +172,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
   MCP_SIGN_IN_APP_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
+  CONNECTORS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -245,7 +248,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== PROVIDERS_V5_CAPABILITY &&
     capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
     capability !== MCP_SIGN_IN_APP_CAPABILITY &&
-    capability !== SIGN_IN_RELAY_CAPABILITY,
+    capability !== SIGN_IN_RELAY_CAPABILITY &&
+    capability !== CONNECTORS_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -262,6 +266,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== PROVIDERS_V5_CAPABILITY &&
       capability !== PROVIDER_HOST_SIGN_IN_CAPABILITY &&
       capability !== MCP_SIGN_IN_APP_CAPABILITY &&
-      capability !== SIGN_IN_RELAY_CAPABILITY,
+      capability !== SIGN_IN_RELAY_CAPABILITY &&
+      capability !== CONNECTORS_CAPABILITY,
   );
 }

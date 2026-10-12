@@ -146,6 +146,8 @@ export const messages = {
     "Confirme que a página de autenticação está em {page} e abra-a no seu navegador. Quando você terminar, o OpenBot envia a autenticação para {host}.",
   "mcp.signIn.relayOpenDescription":
     "Abra a página de autenticação de {page} neste navegador. Quando terminar, cole aqui o endereço que o navegador mostra. O OpenBot então envia a autenticação para {host}.",
+  "mcp.signIn.relayDeviceDescription":
+    "Confirme que a página de autenticação está em {page}, abra-a no seu navegador e termine lá. {host} detecta a autenticação sozinho.",
   "mcp.signIn.relayOpen": "Abrir página de autenticação",
   "mcp.signIn.relayPasteHint": "Se o navegador não voltar ao OpenBot, copie o endereço que ele mostra e cole aqui.",
   "mcp.signIn.relayPasteRequired":

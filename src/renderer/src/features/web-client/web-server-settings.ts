@@ -12,13 +12,9 @@ import type {
   TeamPresenceSnapshot,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
-import { relayCallbackQuery, type SignInRelayStatus } from "@openbot/contracts/ipc";
-import { sourceText } from "@openbot/i18n/source";
 import { runTeamEffect } from "@openbot/team-client";
 import {
   cancelMcpSignIn as cancelMcpSignInRequest,
-  cancelSignInRelay,
-  completeSignInRelay,
   listMcpServers,
   listMcpSignIns as listMcpSignInsRequest,
   mcpSignInApp as mcpSignInAppRequest,
@@ -28,10 +24,8 @@ import {
   saveMcpServer as saveMcpServerRequest,
   saveMcpSignInApp as saveMcpSignInAppRequest,
   setMcpServerEnabled as setMcpServerEnabledRequest,
-  signInRelayStatus,
   signOutMcpServer as signOutMcpServerRequest,
   startMcpSignIn,
-  startMcpSignInRelay,
   testMcpServer as testMcpServerRequest,
   updateHostIdentity,
 } from "@openbot/team-client/team-admin-requests";
@@ -40,6 +34,7 @@ import { Effect } from "effect";
 import { createEffect, createStore, untrack } from "solid-js";
 import { mcpSignInRecord } from "../servers/mcp-servers";
 import { serverCanAdminister, serverRoleCanAdminister } from "../servers/server-capabilities";
+import { webMcpRelay } from "./web-mcp-relay";
 import type { WebAdminRuntime } from "./web-runtime";
 
 interface WebServerSettingsState {
@@ -56,13 +51,6 @@ interface WebServerSettingsState {
   mcpSignInPages: Record<string, string>;
   /** The relayed sign-in page of each sign-in that waits in this browser (`sign-in-relay-v1`). */
   mcpSignInRelays: Record<string, McpSignInRelayPage>;
-}
-
-/** A relayed sign-in that waits for the address the user pastes. */
-interface RelayWait {
-  page: URL;
-  state: string | null;
-  receive: (query: string) => void;
 }
 
 /**
@@ -95,7 +83,12 @@ export function createWebServerSettings(options: {
     mcpSignInPages: {},
     mcpSignInRelays: {},
   });
-  const relayWaits = new Map<string, RelayWait>();
+  const relay = webMcpRelay((url, page) =>
+    setState((draft) => {
+      if (page) draft.mcpSignInRelays[url] = page;
+      else delete draft.mcpSignInRelays[url];
+    }),
+  );
   /** Bumped by every open and refresh, so a slower earlier load cannot paint over a newer one. */
   let request = 0;
   /** The same guard for the MCP list. It loads from a different event, so it has its own counter. */
@@ -258,7 +251,7 @@ export function createWebServerSettings(options: {
     const url = config.url;
     const run = <T>(effect: Effect.Effect<T, { cause: unknown }>) =>
       runTeamEffect(effect.pipe(Effect.mapError((error) => error.cause)));
-    if (options.relaySupported()) return signInRelayed(admin, config, run);
+    if (options.relaySupported()) return signInRelayed(admin, config);
     await run(startMcpSignIn(admin.request, { config }));
     try {
       while (true) {
@@ -277,79 +270,13 @@ export function createWebServerSettings(options: {
     }
   }
 
-  /**
-   * The host starts the sign-in and opens no page. This browser cannot listen for the callback, so the
-   * user opens the page from the dialog and pastes the address that the browser shows at the end. Only
-   * its query goes to the host.
-   */
-  async function signInRelayed(
-    admin: WebAdminRuntime,
-    config: McpServerConfig,
-    run: <T>(effect: Effect.Effect<T, { cause: unknown }>) => Promise<T>,
-  ): Promise<McpTestResult> {
-    const url = config.url;
-    const { flowId } = await run(startMcpSignInRelay(admin.request, { config }));
-    const status = () => run(signInRelayStatus(admin.request, flowId));
-    const pause = () => new Promise<null>((resolve) => setTimeout(() => resolve(null), MCP_SIGN_IN_POLL_MS));
+  /** A relayed sign-in waits in this browser: see `webMcpRelay`. */
+  async function signInRelayed(admin: WebAdminRuntime, config: McpServerConfig): Promise<McpTestResult> {
     try {
-      let current: SignInRelayStatus = await status();
-      while (!current.result && !current.authorizeUrl) {
-        await pause();
-        current = await status();
-      }
-      if (current.result) return current.result;
-      const page = webPage(current.authorizeUrl ?? "");
-      if (!page) return { toolCount: 0, error: sourceText("error.backend.mcpSignInNotWebPage") };
-      let receive: (query: string) => void = () => undefined;
-      const pasted = new Promise<string>((resolve) => {
-        receive = resolve;
-      });
-      relayWaits.set(url, { page, state: page.searchParams.get("state"), receive });
-      setState((draft) => {
-        draft.mcpSignInRelays[url] = { authorizeHost: page.host, listening: false };
-      });
-      // The host can end the sign-in first: its deadline passed, or the user cancelled.
-      while (true) {
-        const query = await Promise.race([pasted, pause()]);
-        if (query !== null) {
-          relayWaits.delete(url);
-          current = await run(completeSignInRelay(admin.request, flowId, query));
-          break;
-        }
-        current = await status();
-        if (current.result) return current.result;
-      }
-      while (!current.result) {
-        await pause();
-        current = await status();
-      }
-      return current.result;
-    } catch (error) {
-      void run(cancelSignInRelay(admin.request, flowId)).catch(() => undefined);
-      throw error;
+      return await relay.signIn(admin.request, config);
     } finally {
-      relayWaits.delete(url);
-      setState((draft) => {
-        delete draft.mcpSignInRelays[url];
-      });
       void refreshMcpSignIns().catch(() => undefined);
     }
-  }
-
-  /** The address that the browser shows at the end of a relayed sign-in. */
-  function pasteMcpSignInRelay(url: string, address: string): Promise<void> {
-    const wait = relayWaits.get(url);
-    if (!wait) return Promise.reject(new Error(sourceText("error.mcp.relayEnded")));
-    const query = relayCallbackQuery(address, wait.state);
-    if (query === null) return Promise.reject(new Error(sourceText("error.mcp.relayAddressInvalid")));
-    wait.receive(query);
-    return Promise.resolve();
-  }
-
-  /** Opens the page from a click, so the browser does not block it. */
-  function openMcpSignInRelay(url: string): void {
-    const wait = relayWaits.get(url);
-    if (wait) window.open(wait.page, "_blank", "noopener,noreferrer");
   }
 
   /** The host answers each change with the whole list. A read still in flight has the old list. */
@@ -406,8 +333,8 @@ export function createWebServerSettings(options: {
       ),
     refreshMcpSignIns,
     signInMcpServer,
-    pasteMcpSignInRelay,
-    openMcpSignInRelay,
+    pasteMcpSignInRelay: relay.paste,
+    openMcpSignInRelay: relay.open,
     cancelMcpSignIn: async (url: string): Promise<void> => {
       await runTeamEffect(
         cancelMcpSignInRequest(requireAdmin().admin.request, { url }).pipe(Effect.mapError((error) => error.cause)),
@@ -438,14 +365,4 @@ export function createWebServerSettings(options: {
         testMcpServerRequest(requireAdmin().admin.request, { config }).pipe(Effect.mapError((error) => error.cause)),
       ),
   };
-}
-
-/** The page address, when it is a web page. The host chose it, so this browser opens nothing else. */
-function webPage(address: string): URL | null {
-  try {
-    const url = new URL(address);
-    return url.protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
 }

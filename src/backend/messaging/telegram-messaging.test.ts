@@ -228,7 +228,7 @@ async function linked(options: { autoComplete?: boolean } = {}) {
     },
   });
   await runCauseEffect(messaging.start());
-  await runCauseEffect(messaging.connectTelegramChat("group"));
+  await runCauseEffect(messaging.connectTelegramChat("group", true));
   // Nothing runs yet: the open link code alone holds the socket for the chat's `/start`.
   expect(signal.holders).toBe(1);
   await signal.send(message(1, `/start@${BOT_USERNAME} ${CODE}`), true);
@@ -386,7 +386,9 @@ describe.sequential("Telegram messaging end to end", () => {
     expect(unlinked).toEqual([CHAT_ID]);
     // The transport stopped, so the socket's state cannot show the chat as connected again.
     expect(signal.holders).toBe(0);
-    await expect(runCauseEffect(messaging?.reconnect("telegram", CHAT_ID) ?? Effect.void)).rejects.toThrow();
+    await expect(
+      runCauseEffect(messaging?.reconnect("telegram", CHAT_ID, true) ?? Effect.succeed(null)),
+    ).rejects.toThrow();
     await expect(runCauseEffect(messaging?.setEnabled("telegram", CHAT_ID, true) ?? Effect.void)).rejects.toThrow();
     expect(chat()?.state).toBe("removed");
 
@@ -396,7 +398,7 @@ describe.sequential("Telegram messaging end to end", () => {
     expect(chat()?.state).toBe("removed");
 
     // A new link brings it back.
-    await runCauseEffect(messaging?.connectTelegramChat("group") ?? Effect.void);
+    await runCauseEffect(Effect.asVoid(messaging?.connectTelegramChat("group", true) ?? Effect.void));
     await signal.send(message(3, `/start@${BOT_USERNAME} ${CODE}`), true);
     await waitFor(() => chat()?.state === "connected");
 

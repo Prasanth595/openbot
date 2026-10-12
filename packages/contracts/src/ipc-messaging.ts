@@ -106,6 +106,77 @@ export interface ConnectTelegramChatInput {
   place: "group" | "direct";
 }
 
+/**
+ * The page that a connect opens. A joined server opens no page and returns it to the client. `nonce`
+ * names the Slack or Discord install, which ends in a deep link to the client; Telegram has none.
+ */
+export interface MessagingConnectPage {
+  url: string;
+  nonce: string | null;
+}
+
+/** One platform of a joined server, which an owner or admin manages from their own computer. */
+export interface HostMessagingPlatformInput {
+  platform: MessagingPlatform;
+}
+
+/** `place` is where a Telegram chat adds the bot; Slack and Discord ignore it. */
+export interface HostMessagingConnectInput extends HostMessagingPlatformInput {
+  place: ConnectTelegramChatInput["place"] | null;
+}
+
+export interface HostMessagingWorkspaceInput extends HostMessagingPlatformInput {
+  workspaceId: string;
+}
+
+export interface HostSetMessagingEnabledInput extends HostMessagingWorkspaceInput {
+  enabled: boolean;
+}
+
+/** Telegram has one orchestrator for all chats, so its `workspaceId` is null. */
+export interface HostAddMessagingOrchestratorInput extends HostMessagingPlatformInput {
+  workspaceId: string | null;
+}
+
+/** The host of each platform's connect page. A joined server names the page, so nothing else opens. */
+const MESSAGING_PAGE_HOSTS: Record<MessagingPlatform, string> = {
+  slack: "slack.com",
+  discord: "discord.com",
+  telegram: "t.me",
+};
+
+/** The connect page that a joined server named, when it is the platform's own https page. */
+export function messagingPage(platform: MessagingPlatform, address: string | null): string | null {
+  const url = address === null ? null : URL.parse(address);
+  return url?.protocol === "https:" && url.hostname === MESSAGING_PAGE_HOSTS[platform] && url.port === ""
+    ? url.toString()
+    : null;
+}
+
+/**
+ * Reads a joined server's connections. A later host can name a state or a credential state that this
+ * build does not know: it shows as an error, and the connection stays in the list.
+ */
+export function decodeHostMessagingOverview(value: unknown): MessagingOverview {
+  const connections =
+    isDynamicRecord(value) && Array.isArray(value.connections) && value.connections.length <= TELEGRAM_ROUTE_CHATS_LIMIT
+      ? value.connections.map((connection: unknown) =>
+          isDynamicRecord(connection)
+            ? {
+                ...connection,
+                state: isOneOf(MESSAGING_CONNECTION_STATES, connection.state) ? connection.state : "error",
+                credentials: isOneOf(MESSAGING_CREDENTIAL_STATES, connection.credentials)
+                  ? connection.credentials
+                  : "unreadable",
+              }
+            : connection,
+        )
+      : null;
+  const overview = { connections };
+  if (!isTelegramOverview(overview)) throw new Error("Invalid messaging response.");
+  return overview;
+}
+
 /** Creates the Telegram Orchestrator, which every Telegram chat shares. */
 export type AddTelegramOrchestratorInput = Omit<AddMessagingOrchestratorInput, "workspaceId">;
 

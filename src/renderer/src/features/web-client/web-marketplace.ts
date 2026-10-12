@@ -2,6 +2,7 @@ import { sourceText } from "@openbot/i18n";
 import { runTeamEffect } from "@openbot/team-client";
 import { createMarketplaceCatalog } from "@openbot/team-client/marketplace-catalog";
 import {
+  cancelMcpSignIn,
   installAgentSkill,
   installAgentTemplate,
   installMarketplaceAgent,
@@ -18,6 +19,7 @@ import { currentText } from "@openbot/ui/text";
 import { Effect } from "effect";
 import type { AgentTemplateInstallCalls } from "../agent-templates/agent-templates-port";
 import type { MarketplaceCalls } from "../settings/marketplace-calls";
+import { webMcpRelay } from "./web-mcp-relay";
 
 /** No server id: the account is a member, or the host runs an OpenBot without agent-install-v1. */
 const noAgentInstall = () => currentText().t("webClient.error.agentInstallNotAllowed");
@@ -35,6 +37,7 @@ export function createWebMarketplaceCalls(
   request: (serverId?: string) => TeamApiRequest,
 ): MarketplaceCalls {
   const catalog = createMarketplaceCatalog(accountFetch);
+  const relay = webMcpRelay();
   return {
     skills: {
       list: (query) => runTeamEffect(catalog.skills.list(query)),
@@ -63,9 +66,20 @@ export function createWebMarketplaceCalls(
         runTeamEffect(saveMcpServer(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
       removeMcpServer: async (input, serverId) =>
         runTeamEffect(removeMcpServer(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
-      // A sign-in opens the browser of the computer that runs OpenBot; the Team API has no route for it.
-      signInMcpServer: async () => {
-        throw new Error(sourceText("error.mcp.signInOnHost"));
+      // The marketplace asks only a host that relays its sign-ins (`sign-in-relay-v1`): the page opens
+      // in this browser, and the user pastes the address it ends on.
+      signInMcpServer: async ({ config }, serverId) => {
+        if (!serverId) throw new Error(sourceText("error.mcp.signInOnHost"));
+        return relay.signIn(request(serverId), config);
+      },
+    },
+    signInRelay: {
+      page: async (url) => relay.page(url),
+      // No await comes before `window.open`: a browser blocks a page that the user's click did not open.
+      open: async (url) => relay.open(url),
+      paste: (url, address) => relay.paste(url, address),
+      cancel: async (url, serverId) => {
+        await runTeamEffect(cancelMcpSignIn(request(serverId), { url }).pipe(Effect.mapError((error) => error.cause)));
       },
     },
     addAgent: async (input, serverId) => {

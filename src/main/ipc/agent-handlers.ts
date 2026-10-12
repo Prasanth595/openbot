@@ -41,6 +41,7 @@ import type { AgentService } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { HostService } from "../host-service";
+import { type MessageLinkRelay, openHttpLink } from "../message-link-relay";
 import {
   decodeAccountUsageFromHost,
   decodeAgentAnalyticsFromHost,
@@ -69,6 +70,7 @@ import {
   parseInterrupt,
   parseMarkConversationRead,
   parseMessageReaction,
+  parseOpenMessageLink,
   parseOptionalAgentId,
   parsePromptResponse,
   parseQueueEdit,
@@ -113,6 +115,8 @@ export interface AgentIpcDependencies {
   host: HostService;
   remoteServers: RemoteServerManager;
   skills: SkillMarketplaceService;
+  messageLinks: Pick<MessageLinkRelay, "open">;
+  openExternal: (url: string) => Promise<void>;
 }
 
 export function agentIpcHandlers({
@@ -121,6 +125,8 @@ export function agentIpcHandlers({
   host,
   remoteServers,
   skills,
+  messageLinks,
+  openExternal,
 }: AgentIpcDependencies): Pick<IpcGroupHandlers, "agent"> {
   return {
     agent: {
@@ -366,6 +372,10 @@ export function agentIpcHandlers({
           runCauseEffect(
             remoteServers.readAgentConversationPage(parsed.agentId, parsed.anchor, parsed.limit, serverId),
           ),
+      }),
+      openMessageLink: scopedHandler(parseOpenMessageLink, {
+        local: ({ url }) => openHttpLink(url, openExternal),
+        remote: ({ agentId, url }, serverId) => messageLinks.open(serverId, agentId, url),
       }),
       searchConversationMessages: scopedHandler(parseSearchConversationMessages, {
         local: (parsed) =>

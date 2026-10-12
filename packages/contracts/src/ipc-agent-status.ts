@@ -1,6 +1,7 @@
 import type { AgentProviderId } from "./agent-providers";
 import { INPUT_LIMITS } from "./input-limits";
 import { isBoundedString, isFiniteNumber, isNullableBoundedString } from "./ipc-bounded-values";
+import type { McpSignInRelayPage } from "./ipc-mcp-servers";
 import { isDynamicRecord, isOneOf } from "./runtime-values";
 
 export const AGENT_PHASES = ["idle", "starting", "ready", "restarting", "blocked", "stopped"] as const;
@@ -243,4 +244,20 @@ export type ProviderCodeLoginStart =
 export interface ProviderHostSignInStatus {
   tabId: string | null;
   result: { error: string | null } | null;
+}
+
+/**
+ * A sign-in that a joined server's host started and that opens in this computer's browser
+ * (`sign-in-relay-v1`). `page` is set while the page waits for the user, and `result` says how the
+ * sign-in ended. Both are `null` while the host has no page address.
+ */
+export interface ProviderRelaySignInStatus {
+  page: McpSignInRelayPage | null;
+  result: { error: string | null } | null;
+}
+
+/** The address that the browser of a relayed provider sign-in shows. It holds a grant. */
+export interface PasteProviderRelaySignInInput {
+  provider: AgentProviderId;
+  address: string;
 }

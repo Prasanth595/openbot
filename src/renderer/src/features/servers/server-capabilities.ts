@@ -9,6 +9,7 @@ import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/cur
 import { PROVIDER_HOST_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_SIGN_IN_V3_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v3";
 import { PROVIDERS_V4_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v4";
+import { SIGN_IN_RELAY_PROVIDERS } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 
 /**
  * Whether a server can be asked for a capability-gated feature. A local server
@@ -32,6 +33,7 @@ export function serverSupportsCapability(
       capability === "mcp-sign-in-v1" ||
       capability === "mcp-sign-in-app-v1" ||
       capability === "sign-in-relay-v1" ||
+      capability === "connectors-v1" ||
       capability === "provider-host-sign-in-v1" ||
       capability === "storage-v1" ||
       capability === "hosted-sites-v1" ||
@@ -90,6 +92,17 @@ export function hostSignInProviders(server: ServerSummary | undefined): readonly
     : [];
 }
 
+/**
+ * The providers a joined server signs in on a page in this computer's browser, with the callback
+ * relayed to the host (`sign-in-relay-v1`). The user's own browser keeps their sessions, so these win
+ * over the host's code and live view.
+ */
+export function relaySignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
+  return server?.kind === "remote" && serverSupportsCapability(server, "sign-in-relay-v1")
+    ? SIGN_IN_RELAY_PROVIDERS
+    : [];
+}
+
 /** An owner or admin of a joined server. This computer is always its own administrator. */
 export function serverRoleCanAdminister(server: Pick<ServerSummary, "kind" | "role"> | undefined): boolean {
   return server?.kind === "local" || server?.role === "owner" || server?.role === "admin";
@@ -115,16 +128,19 @@ export function serverCanAdminister(
  * the Claude pasted code advertises. A host with `providers-v3` alone signs in Codex, Claude and Grok.
  * This computer, and an older host, sign in with a code only the providers whose descriptor says so:
  * this computer has a browser for the others. A host with `provider-host-sign-in-v1` adds the
- * providers it signs in on its own browser's page.
+ * providers it signs in on its own browser's page, and a host with `sign-in-relay-v1` the providers
+ * it signs in on a page in this computer's browser.
  */
 export function codeSignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
-  const host = hostSignInProviders(server);
+  const host = [...new Set([...hostSignInProviders(server), ...relaySignInProviders(server)])];
   if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v4")) {
     const paste = serverSupportsCapability(server, "providers-v3");
-    return [...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), ...host];
+    return [
+      ...new Set([...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), ...host]),
+    ];
   }
   if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v3"))
-    return [...PROVIDERS_SIGN_IN_V3_PROVIDERS, ...host];
+    return [...new Set([...PROVIDERS_SIGN_IN_V3_PROVIDERS, ...host])];
   return AGENT_PROVIDERS.filter((provider) => agentProviderDescriptor(provider).codeSignIn || host.includes(provider));
 }
 

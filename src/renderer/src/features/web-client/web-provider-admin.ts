@@ -53,11 +53,13 @@ import { remoteProviderRuntimes } from "../provider-updates/remote-provider-runt
 import {
   codeSignInProviders,
   hostSignInProviders,
+  relaySignInProviders,
   remoteAdminServer,
   serverSupportsCapability,
 } from "../servers/server-capabilities";
 import type { HostProviderSettings } from "../settings/ProviderSettingsSection";
 import { hostProviderKeyApi } from "../settings/provider-key-api";
+import { webProviderRelay } from "./web-provider-relay";
 
 /** How often the host status is read while a code sign-in waits, in case a status event is lost. */
 const CODE_LOGIN_POLL_MS = 3000;
@@ -160,6 +162,7 @@ function webProviderAdmin(
       runTeamEffect(saveCustomProvider(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
     deleteCustomProvider: async (input, serverId) =>
       runTeamEffect(deleteCustomProvider(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
+    ...webProviderRelay(request),
   };
 }
 
@@ -248,6 +251,16 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
           start: (provider: AgentProviderId) => admin.startHostSignIn(provider, id ?? ""),
           status: (provider: AgentProviderId) => admin.hostSignInStatus(provider, id ?? ""),
           cancel: (provider: AgentProviderId) => admin.cancelHostSignIn(provider, id ?? ""),
+        },
+        relay: {
+          providers: relaySignInProviders(options.server()),
+          hostName: options.server()?.name ?? "",
+          start: (provider: AgentProviderId) => admin.startRelaySignIn(provider, id ?? ""),
+          status: (provider: AgentProviderId) => admin.relaySignInStatus(provider, id ?? ""),
+          open: (provider: AgentProviderId) => admin.openRelaySignIn(provider, id ?? ""),
+          paste: (provider: AgentProviderId, address: string) =>
+            admin.pasteRelaySignIn({ provider, address }, id ?? ""),
+          cancel: (provider: AgentProviderId) => admin.cancelRelaySignIn(provider, id ?? ""),
         },
       };
     },

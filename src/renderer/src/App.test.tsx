@@ -428,7 +428,10 @@ describe("OpenBot connected desktop shell", () => {
     expect(screen.queryByText("https://about.fb.com/news/")).not.toBeInTheDocument();
 
     await fireEvent.click(metaLink);
-    expect(window.openbot.openUrl).toHaveBeenCalledWith("https://about.fb.com/news/");
+    expect(window.openbot.agent.openMessageLink).toHaveBeenCalledWith(
+      { agentId: expect.any(String), url: "https://about.fb.com/news/" },
+      expect.any(String),
+    );
     expect(window.openbot.browser.open).not.toHaveBeenCalled();
   });
 

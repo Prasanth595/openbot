@@ -104,7 +104,11 @@ export const messages = {
   "error.team.requestTooLarge": "Der Anfragetext ist zu groß.",
   "error.team.signInRelayUnsupported":
     "Dieser Server kann keine Anmeldungen weiterleiten. Aktualisiere OpenBot auf dem Host.",
+  "error.team.connectorsUnsupported":
+    "Die Verbindungen dieses Servers lassen sich hier nicht verwalten. Aktualisiere OpenBot auf dem Host.",
+  "error.team.connectorPageRefused": "Der Server hat eine Seite gesendet, die OpenBot nicht öffnet.",
   "error.team.signInRelayUnknown": "Diese Anmeldung ist beendet oder existiert nicht.",
   "error.team.signInRelayUsed": "Diese Anmeldung wurde bereits gesendet.",
   "error.team.signInRelayMismatch": "Diese Adresse gehört nicht zu dieser Anmeldung.",
+  "error.team.signInRelayLinkUnknown": "Kein Agent auf diesem Server hat diesen Anmeldelink angezeigt.",
 } as const satisfies PartialTranslation<typeof source>;

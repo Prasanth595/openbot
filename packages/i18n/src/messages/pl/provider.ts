@@ -100,6 +100,7 @@ export const messages = {
   "provider.codeLogin.linkTitle": "Zaloguj się do {name} na innym urządzeniu",
   "provider.codeLogin.pageTitle": "Zaloguj się do {name}",
   "provider.codeLogin.pageDescription": "Ta strona jest otwarta w przeglądarce na {host}. Zaloguj się tutaj.",
+  "provider.codeLogin.relayStarting": "Uruchamianie logowania do {name} na {host}…",
   "provider.codeLogin.pageOpening": "Otwieranie strony logowania {name} na {host}…",
   "provider.codeLogin.linkStep": "Zaloguj się do {name}. OpenBot będzie kontynuować samodzielnie.",
 

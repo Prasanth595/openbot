@@ -13,7 +13,6 @@ import {
   decodeMcpSignInStatus,
   decodeMcpTestResult,
   decodeSignInRelayFlow,
-  decodeSignInRelayStatus,
   MCP_SERVERS_CAPABILITY,
   type McpServerConfig,
   type TestMcpServerInput,
@@ -34,7 +33,7 @@ import { type McpToolRuntimes, needsManagedRuntime } from "../../backend/mcp-pro
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import type { ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
-import type { SignInRelayClient, SignInRelayRemote } from "../sign-in-relay-client";
+import { type SignInRelayClient, type SignInRelayRemote, signInRelayRemote } from "../sign-in-relay-client";
 import type { IpcGroupHandlers } from "./define-ipc-group";
 import {
   parseCancelMcpSignIn,
@@ -168,12 +167,7 @@ export function mcpServerIpcHandlers({
   function relayRemote(serverId: string, input: TestMcpServerInput): SignInRelayRemote<RemoteWorkflowError> {
     const post = <T>(path: string, decoder: ResponseDecoder<T>, body: unknown) =>
       remoteServers.request(serverId, path, decoder, { method: "POST", body });
-    return {
-      start: post(SIGN_IN_RELAY_ROUTES.mcpStart, decodeSignInRelayFlow, input),
-      status: (flowId) => post(SIGN_IN_RELAY_ROUTES.status, decodeSignInRelayStatus, { flowId }),
-      complete: (flowId, query) => post(SIGN_IN_RELAY_ROUTES.complete, decodeSignInRelayStatus, { flowId, query }),
-      cancel: (flowId) => post(SIGN_IN_RELAY_ROUTES.cancel, () => undefined, { flowId }),
-    };
+    return signInRelayRemote(post, post(SIGN_IN_RELAY_ROUTES.mcpStart, decodeSignInRelayFlow, input));
   }
 
   /** A sign-in app is the host's: an older host cannot keep one, so the reason is stated first. */

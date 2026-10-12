@@ -78,6 +78,7 @@ export const messages = {
   "provider.codeLogin.linkTitle": "Entre em {name} em outro dispositivo",
   "provider.codeLogin.pageTitle": "Entrar em {name}",
   "provider.codeLogin.pageDescription": "Esta página está aberta no navegador de {host}. Entre aqui.",
+  "provider.codeLogin.relayStarting": "Iniciando a autenticação do {name} em {host}…",
   "provider.codeLogin.pageOpening": "Abrindo a página de entrada de {name} em {host}…",
   "provider.codeLogin.linkStep": "Entre em {name}. O OpenBot continua sozinho.",
   "provider.picker.noEndpoints": "Nenhum endpoint ainda",

@@ -59,6 +59,7 @@
     "./team-protocol/mcp-sign-in-v1": "./src/team-protocol/mcp-sign-in-v1.ts",
     "./team-protocol/provider-host-sign-in-v1": "./src/team-protocol/provider-host-sign-in-v1.ts",
     "./team-protocol/sign-in-relay-v1": "./src/team-protocol/sign-in-relay-v1.ts",
+    "./team-protocol/connectors-v1": "./src/team-protocol/connectors-v1.ts",
     "./team-protocol/current": "./src/team-protocol/current.ts",
     "./team-protocol/http-codecs": "./src/team-protocol/http-codecs.ts",
     "./team-protocol/side-routes": "./src/team-protocol/side-routes.ts",

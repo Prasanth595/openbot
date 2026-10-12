@@ -377,6 +377,8 @@ function ProviderSettingsDialogs(props: {
             onOpenVerificationUrl={api().openVerificationUrl}
             onCancel={api().cancel}
             onSubmitCode={api().submit}
+            onOpenRelayPage={api().openRelayPage}
+            onPasteRelayAddress={api().pasteRelayAddress}
           />
         )}
       </Show>

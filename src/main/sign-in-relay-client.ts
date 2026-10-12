@@ -2,11 +2,13 @@
 // sign-in in the user's own browser, takes the callback, and sends its query to the host.
 
 import {
+  decodeSignInRelayStatus,
   loopbackCallback,
   type McpSignInRelayPage,
   relayCallbackQuery,
   type SignInRelayStatus,
 } from "@openbot/contracts/ipc";
+import { SIGN_IN_RELAY_ROUTES } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Deferred, Duration, Effect } from "effect";
@@ -28,6 +30,22 @@ export interface SignInRelayRemote<E> {
   cancel: (flowId: string) => Effect.Effect<void, E>;
 }
 
+/** A `POST` to one route of a joined server, decoded. */
+type RelayPost<E> = <T>(path: string, decoder: (value: unknown) => T, body: unknown) => Effect.Effect<T, E>;
+
+/** The `status`, `complete` and `cancel` routes of a joined server, after the `start` that the kind of sign-in has. */
+export function signInRelayRemote<E>(
+  post: RelayPost<E>,
+  start: Effect.Effect<{ flowId: string }, E>,
+): SignInRelayRemote<E> {
+  return {
+    start,
+    status: (flowId) => post(SIGN_IN_RELAY_ROUTES.status, decodeSignInRelayStatus, { flowId }),
+    complete: (flowId, query) => post(SIGN_IN_RELAY_ROUTES.complete, decodeSignInRelayStatus, { flowId, query }),
+    cancel: (flowId) => post(SIGN_IN_RELAY_ROUTES.cancel, () => undefined, { flowId }),
+  };
+}
+
 export interface SignInRelayClientDependencies {
   openExternal: (url: string) => Promise<void>;
   language: Pick<LanguageService, "locale" | "translate">;
@@ -39,7 +57,8 @@ interface Waiting {
   page: McpSignInRelayPage;
   /** The address the browser opens. It goes nowhere until the user, who sees its host name, asks. */
   url: string;
-  state: string;
+  /** `null` for a page that returns nowhere: no callback is its own. */
+  state: string | null;
   receive: (query: string) => void;
 }
 
@@ -55,7 +74,8 @@ interface Waiting {
  * The host chooses the page, so a host that is not honest could ask for a grant of another account in
  * this browser. The page therefore opens only when the user, who sees its host name, asks; the port is
  * read from the page and not from the host's answer; and a page with no `state` is refused, so the
- * listener hands on only the callback of this sign-in.
+ * listener hands on only the callback of this sign-in. A page with no `state` that returns nowhere has
+ * no callback to take, so the user can only open it.
  */
 export class SignInRelayClient {
   readonly #dependencies: SignInRelayClientDependencies;
@@ -76,7 +96,7 @@ export class SignInRelayClient {
    */
   deliver(state: string, query: string): boolean {
     for (const waiting of this.#waiting.values()) {
-      if (waiting.state !== state) continue;
+      if (waiting.state === null || waiting.state !== state) continue;
       waiting.receive(query);
       return true;
     }
@@ -94,20 +114,26 @@ export class SignInRelayClient {
   paste(key: string, address: string): void {
     const waiting = this.#waiting.get(key);
     if (!waiting) throw new Error(sourceText("error.mcp.relayEnded"));
+    if (waiting.state === null) throw new Error(sourceText("error.mcp.relayAddressInvalid"));
     const query = relayCallbackQuery(address, waiting.state);
     if (query === null) throw new Error(sourceText("error.mcp.relayAddressInvalid"));
     waiting.receive(query);
   }
 
-  /** Runs one relayed sign-in to its end. An interrupt or a failure cancels the flow on the host. */
-  run<E>(key: string, remote: SignInRelayRemote<E>) {
-    return this.#run(key, remote);
+  /**
+   * Runs one relayed sign-in to its end. An interrupt or a failure cancels the flow on the host. With
+   * `opensPage`, the page opens as soon as the callback can come back: the user already chose it, as
+   * with a link in a conversation.
+   */
+  run<E>(key: string, remote: SignInRelayRemote<E>, opensPage = false) {
+    return this.#run(key, remote, opensPage);
   }
 
   readonly #run = Effect.fn("SignInRelayClient.run")(function* <E>(
     this: SignInRelayClient,
     key: string,
     remote: SignInRelayRemote<E>,
+    opensPage: boolean,
   ) {
     const { flowId } = yield* remote.start;
     const self = this;
@@ -118,11 +144,22 @@ export class SignInRelayClient {
       const page = safePage(authorizeUrl);
       if (!page) return { toolCount: 0, error: sourceText("error.backend.mcpSignInNotWebPage") };
 
+      const callback = loopbackCallback(page.toString());
       const state = page.searchParams.get("state");
+      // A page with no `state` that returns nowhere, such as a device page, has nothing to relay: the
+      // user only opens it, and the host's sign-in finishes by itself.
+      if (!state && !callback) {
+        self.#waiting.set(key, {
+          page: { authorizeHost: page.host, listening: false, pasteable: false },
+          url: page.toString(),
+          state: null,
+          receive: () => undefined,
+        });
+        return yield* awaitResult(remote, flowId);
+      }
       if (!state) return { toolCount: 0, error: sourceText("error.mcp.relayNoState") };
 
       const query = yield* Deferred.make<string>();
-      const callback = loopbackCallback(page.toString());
       const listener = yield* Effect.acquireRelease(
         Effect.promise(() =>
           self.#listen(callback, state, (value) => Deferred.doneUnsafe(query, Effect.succeed(value))),
@@ -133,11 +170,12 @@ export class SignInRelayClient {
       const routed =
         callback !== null && (listener !== null || (own?.port === callback.port && own.path === callback.path));
       self.#waiting.set(key, {
-        page: { authorizeHost: page.host, listening: routed },
+        page: { authorizeHost: page.host, listening: routed, pasteable: true },
         url: page.toString(),
         state,
         receive: (value) => Deferred.doneUnsafe(query, Effect.succeed(value)),
       });
+      if (opensPage) yield* Effect.promise(() => self.#dependencies.openExternal(page.toString()));
 
       // The host can end the sign-in first: its deadline passed, or another start replaced it.
       const ended = yield* Effect.raceFirst(

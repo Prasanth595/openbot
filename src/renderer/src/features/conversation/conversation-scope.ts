@@ -1051,8 +1051,11 @@ export function createConversationViewScope(props: ConversationProps) {
 
   async function openExternalMessageUrl(url: string) {
     const target = currentTarget();
+    const runtime = conversationRuntime(props);
     try {
-      await conversationRuntime(props).openUrl(url);
+      if (target && runtime.agent.openMessageLink)
+        await runtime.agent.openMessageLink({ agentId: target.agentId, url }, target.serverId);
+      else await runtime.openUrl(url);
     } catch (error) {
       setScopedComposerError(currentText().t("composer.error.openLink"), target, error);
     }

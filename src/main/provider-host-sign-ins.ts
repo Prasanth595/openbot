@@ -41,6 +41,21 @@ export class ProviderHostSignIns {
     );
   }
 
+  /** Starts the sign-in with no tab: the page address waits for a client to open it (`sign-in-relay-v1`). */
+  startRelay(provider: AgentProviderId) {
+    return this.#pages.start(
+      provider,
+      (openPage) => this.#dependencies.service.signInProviderOnHost(provider, openPage),
+      (exit) => resultOf(provider, exit),
+      "relay",
+    );
+  }
+
+  /** The page address of a relayed sign-in, and how it ended. */
+  relayStatus(provider: AgentProviderId): { pageUrl: string | null; result: { error: string | null } | null } {
+    return { pageUrl: this.#pages.pageUrl(provider), result: this.status(provider).result };
+  }
+
   status(provider: AgentProviderId): ProviderHostSignInStatus {
     return this.#pages.status(provider) ?? { tabId: null, result: { error: endedText(provider) } };
   }

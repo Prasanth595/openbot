@@ -285,7 +285,7 @@ describe.sequential("OpenBot Slack app end to end", () => {
     // The install: the bot token comes back sealed to this connect's key, and only this run opens it.
     const connect = async () => {
       if (!messaging) throw new Error("Messaging service is missing.");
-      await runCauseEffect(messaging.connectSlackWorkspace());
+      await runCauseEffect(messaging.connectSlackWorkspace(true));
       const authorization = authorizations.at(-1);
       if (!authorization) throw new Error("The connect did not start.");
       const grant = await sealSlackWorkspaceGrant(authorization.hostPublicKey, authorization.hostNonce, {

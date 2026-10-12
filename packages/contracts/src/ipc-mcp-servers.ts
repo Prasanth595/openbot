@@ -141,11 +141,13 @@ export interface CompleteMcpSignInRelayInput {
 /**
  * A sign-in of a joined server that waits in the browser of this computer (`sign-in-relay-v1`): the
  * host name of the page, and whether this computer listens for the callback. When it does not, the
- * user pastes the address that the browser shows.
+ * user pastes the address that the browser shows. A page that returns nowhere, such as a device page,
+ * is not `pasteable`: the user only opens it, and the host's sign-in finishes by itself.
  */
 export interface McpSignInRelayPage {
   authorizeHost: string;
   listening: boolean;
+  pasteable: boolean;
 }
 
 /** One relayed sign-in as its host answers it. `callback` is `null` when the page does not return to a loopback address. */
@@ -353,6 +355,16 @@ export function loopbackCallback(pageUrl: string): NonNullable<SignInRelayStatus
   }
 }
 
+/**
+ * A sign-in page that an agent printed and that a joined server can relay: an https page that returns
+ * to a loopback address with a `state`. Any other link opens as a normal link.
+ */
+export function relayableSignInLink(address: string): string | null {
+  const page = URL.parse(address);
+  if (page?.protocol !== "https:" || !page.searchParams.get("state")) return null;
+  return loopbackCallback(page.toString()) ? page.toString() : null;
+}
+
 export function decodeSignInRelayFlow(value: unknown): { flowId: string } {
   if (!isDynamicRecord(value) || !isBounded(value.flowId, INPUT_LIMITS.identifier) || value.flowId.length === 0)
     throw new Error("Invalid sign-in relay response.");
@@ -385,9 +397,14 @@ function isSignInRelayCallback(value: unknown): value is NonNullable<SignInRelay
 /** The page of a relayed sign-in that waits on this computer, or `null`. */
 export function decodeMcpSignInRelayPage(value: unknown): McpSignInRelayPage | null {
   if (value === null) return null;
-  if (!isDynamicRecord(value) || !isBounded(value.authorizeHost, INPUT_LIMITS.mcpUrl) || !isBoolean(value.listening))
+  if (
+    !isDynamicRecord(value) ||
+    !isBounded(value.authorizeHost, INPUT_LIMITS.mcpUrl) ||
+    !isBoolean(value.listening) ||
+    !isBoolean(value.pasteable)
+  )
     throw new Error("Invalid MCP server response.");
-  return { authorizeHost: value.authorizeHost, listening: value.listening };
+  return { authorizeHost: value.authorizeHost, listening: value.listening, pasteable: value.pasteable };
 }
 
 /** The host tab that shows a remote sign-in page, or `null` while there is none. */

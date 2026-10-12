@@ -21,6 +21,7 @@ import {
   codeSignInProviders,
   hostSignInProviders,
   localCodeSignInProviders,
+  relaySignInProviders,
   remoteAdminServer,
   serverSupportsCapability,
 } from "./features/servers/server-capabilities";
@@ -251,6 +252,15 @@ const Providers = createSimpleContext({
                 start: (provider) => providerAdmin().startHostSignIn(provider, serverId),
                 status: (provider) => providerAdmin().hostSignInStatus(provider, serverId),
                 cancel: (provider) => providerAdmin().cancelHostSignIn(provider, serverId),
+              },
+              relay: {
+                providers: relaySignInProviders(activeServer()),
+                hostName: activeServer()?.name ?? "",
+                start: (provider) => providerAdmin().startRelaySignIn(provider, serverId),
+                status: (provider) => providerAdmin().relaySignInStatus(provider, serverId),
+                open: (provider) => providerAdmin().openRelaySignIn(provider, serverId),
+                paste: (provider, address) => providerAdmin().pasteRelaySignIn({ provider, address }, serverId),
+                cancel: (provider) => providerAdmin().cancelRelaySignIn(provider, serverId),
               },
             }
           : {

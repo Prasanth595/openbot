@@ -100,7 +100,11 @@ export const messages = {
   "error.team.adminRequired": "Wymagany jest dostęp administratora.",
   "error.team.requestTooLarge": "Treść żądania jest za duża.",
   "error.team.signInRelayUnsupported": "Ten serwer nie może przekazywać logowań. Zaktualizuj OpenBot na hoście.",
+  "error.team.connectorsUnsupported":
+    "Połączeniami tego serwera nie można zarządzać stąd. Zaktualizuj OpenBot na hoście.",
+  "error.team.connectorPageRefused": "Serwer wysłał stronę, której OpenBot nie otwiera.",
   "error.team.signInRelayUnknown": "To logowanie się zakończyło albo nie istnieje.",
   "error.team.signInRelayUsed": "To logowanie zostało już wysłane.",
   "error.team.signInRelayMismatch": "Ten adres nie pochodzi z tego logowania.",
+  "error.team.signInRelayLinkUnknown": "Żaden agent na tym serwerze nie pokazał tego linku logowania.",
 } as const satisfies PartialTranslation<typeof source>;

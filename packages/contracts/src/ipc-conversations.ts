@@ -88,6 +88,12 @@ export interface ConversationPage {
   readState?: ConversationReadState;
 }
 
+/** A link in an agent's conversation that the user opened. */
+export interface OpenMessageLinkInput {
+  agentId: string;
+  url: string;
+}
+
 export interface SearchConversationMessagesInput {
   query: string;
   agentId?: string;

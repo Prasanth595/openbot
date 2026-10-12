@@ -101,7 +101,11 @@ export const messages = {
   "error.team.requestTooLarge": "リクエストの本文が大きすぎます。",
   "error.team.signInRelayUnsupported":
     "このサーバーはサインインを中継できません。ホストの OpenBot を更新してください。",
+  "error.team.connectorsUnsupported":
+    "このサーバーの接続はここから管理できません。ホストの OpenBot を更新してください。",
+  "error.team.connectorPageRefused": "サーバーが OpenBot で開かないページを送信しました。",
   "error.team.signInRelayUnknown": "このサインインは終了したか、存在しません。",
   "error.team.signInRelayUsed": "このサインインはすでに送信されています。",
   "error.team.signInRelayMismatch": "このアドレスはこのサインインのものではありません。",
+  "error.team.signInRelayLinkUnknown": "このサーバーのエージェントはこのサインインリンクを表示していません。",
 } as const satisfies PartialTranslation<typeof source>;

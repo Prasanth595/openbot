@@ -176,6 +176,7 @@ import { startProviderLog } from "./provider-log";
 import { toProviderRuntimeFailure } from "./provider-runtime-effects";
 import { ProviderRuntimeManager, providerRuntimeRoot, runtimeTarget } from "./provider-runtime-manager";
 import { ProviderUseSettingsStore } from "./provider-use-settings-store";
+import { RelayedMessagingInstalls } from "./relayed-messaging-installs";
 import { decodeQueuedMessageReceipt } from "./remote-agent-decoding";
 import { RemoteConnectTrace } from "./remote-connect-trace";
 import { RemoteDesktopManager } from "./remote-desktop-manager";
@@ -380,6 +381,8 @@ export interface ApplicationServices {
   mcpOAuth: McpOAuth;
   /** The sign-ins of joined servers that wait in this computer's browser, and the callbacks they take. */
   signInRelayClient: SignInRelayClient;
+  /** The Slack and Discord installs that this computer opened for a joined server. */
+  relayedMessagingInstalls: RelayedMessagingInstalls;
   githubConnector: GitHubConnectorService;
   onePasswordConnector: OnePasswordConnectorService;
   bitwardenConnector: BitwardenConnectorService;
@@ -1639,20 +1642,29 @@ export async function createApplicationServices({
     join(app.getPath("userData"), "agent-import-uploads"),
   );
   const mcpHostSignIns = new McpHostSignIns({ service, browser });
-  // The flows end with the sign-ins they relay, which `mcpHostSignIns` closes.
+  const providerSignIns = new ProviderHostSignIns({ service, browser });
+  // The flows end with the sign-ins they relay, which `mcpHostSignIns` and `providerSignIns` close.
   const signInRelayHost = new SignInRelayHost({
     mcp: mcpHostSignIns,
+    providers: providerSignIns,
     receiveMcpGrant: (state, code) => mcpOAuth.receiveAuthorizationCode(state, code),
+    // The search ignores case, so the exact address is checked again on each agent message it finds.
+    printedLink: (agentId, url) =>
+      service
+        .searchConversationMessages(url, agentId, undefined, 20)
+        .results.some(
+          ({ message }) => (message.author === "agent" || message.author === "assistant") && message.text.includes(url),
+        ),
   });
   teardown.push(TEARDOWN_ORDER.mcpHostSignIns, "MCP sign-ins of joined servers", () =>
     Effect.runPromise(mcpHostSignIns.close()),
   );
-  // Only on Linux does the Gemini CLI print its sign-in page for this host to open.
-  const providerHostSignIns = process.platform === "linux" ? new ProviderHostSignIns({ service, browser }) : undefined;
-  if (providerHostSignIns)
-    teardown.push(TEARDOWN_ORDER.providerHostSignIns, "Provider sign-ins of joined servers", () =>
-      Effect.runPromise(providerHostSignIns.close()),
-    );
+  teardown.push(TEARDOWN_ORDER.providerHostSignIns, "Provider sign-ins of joined servers", () =>
+    Effect.runPromise(providerSignIns.close()),
+  );
+  // The live view of a sign-in page in this host's browser: only on Linux, where the Gemini CLI has
+  // always printed its page. The relay takes the page on every platform.
+  const providerHostSignIns = process.platform === "linux" ? providerSignIns : undefined;
   const host = new HostService({
     appVersion: app.getVersion(),
     store: teamStore,
@@ -1672,6 +1684,9 @@ export async function createApplicationServices({
     mcpSignIns: mcpHostSignIns,
     // Present, so the host advertises `sign-in-relay-v1`. The routes are admin-only.
     signInRelay: signInRelayHost,
+    // Present, so the host advertises `connectors-v1`. GitHub answers `available: false` when this
+    // build has no GitHub App. The routes are admin-only.
+    connectors: { github: githubConnector, messaging },
     // Present on Linux, so the host advertises `provider-host-sign-in-v1`. The routes are admin-only.
     providerHostSignIns,
     // Present, so the host advertises `storage-v1`. Members read; only admins delete or clear.
@@ -2264,6 +2279,7 @@ export async function createApplicationServices({
     messaging,
     mcpOAuth,
     signInRelayClient,
+    relayedMessagingInstalls: new RelayedMessagingInstalls(remoteServers),
     githubConnector,
     onePasswordConnector,
     bitwardenConnector,

@@ -92,6 +92,7 @@ export const messages = defineMessages("provider", {
   "provider.codeLogin.linkTitle": "Log in to {name} on another device",
   "provider.codeLogin.pageTitle": "Sign in to {name}",
   "provider.codeLogin.pageDescription": "This page is open in the browser on {host}. Sign in here.",
+  "provider.codeLogin.relayStarting": "Starting the {name} sign-in on {host}…",
   "provider.codeLogin.pageOpening": "Opening the {name} sign-in page on {host}…",
   "provider.codeLogin.linkStep": "Log in to {name}. OpenBot continues by itself.",
 

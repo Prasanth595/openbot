@@ -1,4 +1,8 @@
-import { SIGN_IN_RELAY_CAPABILITY, SIGN_IN_RELAY_ROUTES } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
+import {
+  SIGN_IN_RELAY_CAPABILITY,
+  SIGN_IN_RELAY_PROVIDERS,
+  SIGN_IN_RELAY_ROUTES,
+} from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import { parseTestMcpServer } from "../ipc/mcp-inputs";
@@ -31,10 +35,26 @@ export async function routeSignInRelay(
   switch (url.pathname) {
     case SIGN_IN_RELAY_ROUTES.mcpStart:
       return json(200, await runCauseEffect(relay.startMcp(member.id, parseTestMcpServer(body))));
+    case SIGN_IN_RELAY_ROUTES.providerStart: {
+      // The codec admits only `SIGN_IN_RELAY_PROVIDERS`.
+      const provider = SIGN_IN_RELAY_PROVIDERS.find((id) => id === stringField(body, "provider"));
+      if (!provider) throw new HttpError(400, sourceText("error.team.signInRelayUnsupported"));
+      return json(200, await runCauseEffect(relay.startProvider(member.id, provider)));
+    }
+    case SIGN_IN_RELAY_ROUTES.linkStart:
+      return json(
+        200,
+        relay.startLink(member.id, stringField(body, "agentId"), stringField(body, "url", false, 8_192)),
+      );
     case SIGN_IN_RELAY_ROUTES.status:
       return json(200, relay.status(member.id, stringField(body, "flowId")));
     case SIGN_IN_RELAY_ROUTES.complete:
-      return json(200, relay.complete(member.id, stringField(body, "flowId"), stringField(body, "query", true, 8_192)));
+      return json(
+        200,
+        await runCauseEffect(
+          relay.complete(member.id, stringField(body, "flowId"), stringField(body, "query", true, 8_192)),
+        ),
+      );
     default:
       relay.cancel(member.id, stringField(body, "flowId"));
       return json(200, {});

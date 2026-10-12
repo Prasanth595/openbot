@@ -82,6 +82,7 @@ export const messages = {
   "provider.codeLogin.linkTitle": "{name} hesabına başka bir cihazda giriş yapın",
   "provider.codeLogin.pageTitle": "{name} oturumu aç",
   "provider.codeLogin.pageDescription": "Bu sayfa {host} üzerindeki tarayıcıda açık. Burada oturum açın.",
+  "provider.codeLogin.relayStarting": "{name} oturum açma işlemi {host} üzerinde başlatılıyor…",
   "provider.codeLogin.pageOpening": "{name} oturum açma sayfası {host} üzerinde açılıyor…",
   "provider.codeLogin.linkStep": "{name} hesabına giriş yapın. OpenBot kendiliğinden devam eder.",
 

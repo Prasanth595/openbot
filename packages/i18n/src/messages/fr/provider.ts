@@ -92,6 +92,7 @@ export const messages = {
   "provider.codeLogin.linkTitle": "Connectez-vous à {name} sur un autre appareil",
   "provider.codeLogin.pageTitle": "Se connecter à {name}",
   "provider.codeLogin.pageDescription": "Cette page est ouverte dans le navigateur de {host}. Connectez-vous ici.",
+  "provider.codeLogin.relayStarting": "Démarrage de la connexion à {name} sur {host}…",
   "provider.codeLogin.pageOpening": "Ouverture de la page de connexion de {name} sur {host}…",
   "provider.codeLogin.linkStep": "Connectez-vous à {name}. OpenBot continue tout seul.",
 

@@ -61,6 +61,12 @@ function setup(
         result = { toolCount: 0, error: "stopped" };
       },
     },
+    providers: {
+      startRelay: () => Effect.void,
+      relayStatus: () => ({ pageUrl: null, result: null }),
+      cancel: () => Effect.void,
+    },
+    printedLink: () => false,
     receiveMcpGrant: (_state, code) => {
       granted.push(code);
       result = { toolCount: 3, error: null };
@@ -70,7 +76,7 @@ function setup(
   const remote: SignInRelayRemote<unknown> = {
     start: host.startMcp("admin", { config: config() }),
     status: (flowId) => Effect.try(() => host.status("admin", flowId)),
-    complete: (flowId, query) => Effect.try(() => host.complete("admin", flowId, query)),
+    complete: (flowId, query) => host.complete("admin", flowId, query),
     cancel: (flowId) => Effect.try(() => host.cancel("admin", flowId)),
   };
   const client: SignInRelayClient = new SignInRelayClient({

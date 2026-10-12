@@ -5,6 +5,7 @@ import { AGENT_IMPORT_ROUTES } from "./agent-import-v1";
 import { AGENT_INSTALL_ROUTES } from "./agent-install-v1";
 import { AGENT_PUBLISH_ROUTES } from "./agent-publish-v1";
 import { AGENT_UPDATE_ROUTES } from "./agent-update-v1";
+import { CONNECTORS_CAPABILITY, CONNECTORS_ROUTES } from "./connectors-v1";
 import { CONTEXT_RESET_ROUTES } from "./context-reset-v1";
 import {
   legacyTeamCapabilities,
@@ -689,5 +690,57 @@ describe("sign-in-relay-v1", () => {
   it("is advertised only to a protocol 7 peer", () => {
     expect(TEAM_CURRENT_CAPABILITIES).toContain(SIGN_IN_RELAY_CAPABILITY);
     expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(SIGN_IN_RELAY_CAPABILITY);
+  });
+});
+
+describe("connectors-v1", () => {
+  const status = {
+    available: true,
+    state: "pending",
+    login: null,
+    avatarUrl: null,
+    userCode: "ABCD-1234",
+    verificationUri: "https://github.com/login/device",
+    error: null,
+    installUrl: "https://github.com/apps/openbotgit/installations/new",
+    revokeUrl: null,
+  };
+
+  // No route carries a token: a field the codec does not name never reaches the client.
+  it("round-trips a status and drops what it does not name", () => {
+    expect(codec(CONNECTORS_ROUTES.githubConnect).response(200, { ...status, accessToken: "gho_secret" })).toEqual(
+      status,
+    );
+    expect(() => codec(CONNECTORS_ROUTES.githubStatus).response(200, { ...status, state: "unknown" })).toThrow();
+    expect(codec(CONNECTORS_ROUTES.githubConnect).request({ url: "https://evil.example" })).toEqual({});
+  });
+
+  // A bot token stays on the host. Only Slack and Discord installs end in a grant for the host.
+  it("keeps messaging tokens on the host", () => {
+    const connection = {
+      workspaceId: "T1",
+      platform: "slack",
+      enabled: true,
+      state: "connected",
+      workspaceName: "Acme",
+      botUserId: "U1",
+      missingScopes: [],
+      retryAt: null,
+      credentials: "saved",
+      orchestratorAgentId: null,
+    };
+    expect(
+      codec(CONNECTORS_ROUTES.messagingOverview).response(200, {
+        connections: [{ ...connection, botToken: "xoxb-secret" }],
+      }),
+    ).toEqual({ connections: [connection] });
+    expect(() =>
+      codec(CONNECTORS_ROUTES.messagingComplete).request({ platform: "telegram", nonce: "n", grant: "g" }),
+    ).toThrow();
+  });
+
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(CONNECTORS_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(CONNECTORS_CAPABILITY);
   });
 });

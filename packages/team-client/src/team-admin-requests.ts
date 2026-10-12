@@ -37,6 +37,8 @@ import {
   decodeHostAddedAgent,
   decodeHostAgentTemplatePreview,
   decodeHostAgentTemplatePublication,
+  decodeHostGitHubConnectorRepositories,
+  decodeHostGitHubConnectorStatus,
   decodeHostReleaseStatus,
   decodeHostUpdateStatus,
   decodeInstalledSkills,
@@ -53,7 +55,9 @@ import {
   decodeSignInRelayStatus,
   decodeStorageUsage,
   type GetStorageUsageInput,
+  type GitHubConnectorRepositories,
   type HostedSiteList,
+  type HostGitHubConnectorStatus,
   type HostReleaseStatus,
   type HostUpdateSettingsChange,
   type HostUpdateStatus,
@@ -112,6 +116,7 @@ import { AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin
 import { AGENT_INSTALL_ROUTES } from "@openbot/contracts/team-protocol/agent-install-v1";
 import { AGENT_PUBLISH_IMAGE_BYTES, AGENT_PUBLISH_ROUTES } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/agent-update-v1";
+import { CONNECTORS_ROUTES } from "@openbot/contracts/team-protocol/connectors-v1";
 import { EVENTS_ROUTES } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { HOST_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-update-v1";
@@ -125,7 +130,7 @@ import type { PROVIDERS_RUNTIMES_V2_ROUTES } from "@openbot/contracts/team-proto
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "@openbot/contracts/team-protocol/providers-v3";
 import type { PROVIDERS_V4_ROUTES } from "@openbot/contracts/team-protocol/providers-v4";
 import { SHARED_TABLES_ROUTES } from "@openbot/contracts/team-protocol/shared-tables-v1";
-import { SIGN_IN_RELAY_ROUTES } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
+import { type SIGN_IN_RELAY_PROVIDERS, SIGN_IN_RELAY_ROUTES } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { SKILLS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -480,6 +485,14 @@ export function startMcpSignInRelay(
   );
 }
 
+/** A relayed sign-in of a provider's CLI on the host (`sign-in-relay-v1`). */
+export function startProviderSignInRelay(
+  request: TeamApiRequest,
+  provider: (typeof SIGN_IN_RELAY_PROVIDERS)[number],
+): Effect.Effect<{ flowId: string }, TeamAdminRequestError> {
+  return adminCall(() => request("POST", SIGN_IN_RELAY_ROUTES.providerStart, decodeSignInRelayFlow, { provider }));
+}
+
 export function signInRelayStatus(
   request: TeamApiRequest,
   flowId: string,
@@ -652,6 +665,14 @@ export function cancelProviderHostSignIn(
 ): Effect.Effect<AgentStatus, TeamAdminRequestError> {
   return providerChange(request, PROVIDER_HOST_SIGN_IN_ROUTES.cancel, { provider });
 }
+
+/** Ends a relayed provider sign-in on the host, and answers the host's status after it. */
+export function cancelProviderSignInRelay(
+  request: TeamApiRequest,
+  flowId: string,
+): Effect.Effect<AgentStatus, TeamAdminRequestError> {
+  return providerChange(request, SIGN_IN_RELAY_ROUTES.cancel, { flowId });
+}
 export type ProviderKeyRoutes = typeof PROVIDERS_ADMIN_ROUTES | typeof PROVIDERS_V5_ROUTES;
 
 export const getProviderApiKeyState = Effect.fn("TeamAdmin.getProviderApiKeyState")(function* (
@@ -776,4 +797,25 @@ export function resetAgentSessionSetting(
   input: ResetAgentSessionSettingInput,
 ): Effect.Effect<AgentSessionSettings, TeamAdminRequestError> {
   return adminCall(() => request("POST", AGENT_SESSION_SETTINGS_ROUTES.reset, decodeSessionSettings, { ...input }));
+}
+
+type GitHubConnectorStatusRoute = Exclude<keyof typeof CONNECTORS_ROUTES, "githubRepositories">;
+
+/**
+ * The host's GitHub connection (`connectors-v1`): read it, connect, cancel or disconnect. The host
+ * opens no page; the answer names the pages that the client opens.
+ */
+export function githubConnectorRequest(
+  request: TeamApiRequest,
+  route: GitHubConnectorStatusRoute,
+): Effect.Effect<HostGitHubConnectorStatus, TeamAdminRequestError> {
+  return adminCall(() => request("POST", CONNECTORS_ROUTES[route], decodeHostGitHubConnectorStatus, {}));
+}
+
+export function githubConnectorRepositories(
+  request: TeamApiRequest,
+): Effect.Effect<GitHubConnectorRepositories, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", CONNECTORS_ROUTES.githubRepositories, decodeHostGitHubConnectorRepositories, {}),
+  );
 }

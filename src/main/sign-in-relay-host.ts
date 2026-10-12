@@ -5,31 +5,51 @@ import { randomBytes } from "node:crypto";
 import {
   loopbackCallback,
   type McpTestResult,
+  relayableSignInLink,
   type SignInRelayStatus,
   type TestMcpServerInput,
 } from "@openbot/contracts/ipc";
+import type { SIGN_IN_RELAY_PROVIDERS } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { registerSecretValue } from "@openbot/logging";
-import { Effect } from "effect";
+import { Duration, Effect, Schema } from "effect";
+import { causeHelpers } from "../backend/effect-boundary";
 import type { McpHostSignIns } from "./mcp-host-sign-ins";
+import type { ProviderHostSignIns } from "./provider-host-sign-ins";
 import { HttpError } from "./team-api/http-error";
+
+export type SignInRelayProvider = (typeof SIGN_IN_RELAY_PROVIDERS)[number];
 
 /** How long a flow can complete. The sign-in on this host has its own, equal deadline. */
 export const SIGN_IN_RELAY_TTL_MS = 10 * 60_000;
 /** Flows kept at one time. A new flow above this ends the oldest. */
 const FLOW_LIMIT = 16;
+/** How long the listener of a sign-in on this host can take to answer its callback. */
+const REPLAY_TIMEOUT = Duration.seconds(10);
 /** What `status` and `complete` answer, as `sign-in-relay-v1` sends it. */
 export type SignInRelayView = SignInRelayStatus;
 
-/** The part of a flow that differs by kind of sign-in. */
-interface RelayTarget {
+/** A sign-in on this host that a flow relays to: its page address, how it ended, and how to stop it. */
+export interface RelaySignIn {
   /** One sign-in runs for each key; a new flow for the same key replaces the old one. */
   key: string;
   status: () => { pageUrl: string | null; result: McpTestResult | null };
-  /** Gives the callback to the sign-in that waits for it, and answers whether one took it. */
-  deliver: (query: URLSearchParams) => boolean;
   cancel: () => void;
 }
+
+/** The part of a flow that differs by kind of sign-in. */
+interface RelayTarget extends RelaySignIn {
+  /** Gives the callback to the sign-in that waits for it, and answers whether one took it. */
+  deliver: (query: URLSearchParams, pageUrl: string) => Effect.Effect<boolean>;
+}
+
+class SignInRelayRefused extends Schema.TaggedError<SignInRelayRefused>()("SignInRelayRefused", {
+  cause: Schema.Defect(),
+}) {}
+
+const { sync: refusable } = causeHelpers(SignInRelayRefused);
+const refuse = (status: number, key: "error.team.signInRelayUsed" | "error.team.signInRelayMismatch") =>
+  Effect.fail(new SignInRelayRefused({ cause: new HttpError(status, sourceText(key)) }));
 
 interface Flow {
   memberId: string;
@@ -40,8 +60,11 @@ interface Flow {
 
 export interface SignInRelayHostDependencies {
   mcp: Pick<McpHostSignIns, "startRelay" | "relayStatus" | "cancel">;
+  providers: Pick<ProviderHostSignIns, "startRelay" | "relayStatus" | "cancel">;
   /** Gives an MCP grant to the sign-in on this host that waits for `state`, as the loopback listener does. */
   receiveMcpGrant: (state: string, code: string) => boolean;
+  /** Answers whether an agent message of `agentId` holds this exact address. */
+  printedLink: (agentId: string, url: string) => boolean;
   now?: () => number;
 }
 
@@ -80,40 +103,106 @@ export class SignInRelayHost {
     return this.#open(memberId, {
       key: `mcp\n${url}`,
       status: () => mcp.relayStatus(url),
-      deliver: (query) => {
-        const state = query.get("state");
-        const code = query.get("code");
-        if (!state || !code) return false;
-        registerSecretValue(code);
-        return receiveMcpGrant(state, code);
-      },
+      deliver: (query) =>
+        Effect.sync(() => {
+          const state = query.get("state");
+          const code = query.get("code");
+          if (!state || !code) return false;
+          registerSecretValue(code);
+          return receiveMcpGrant(state, code);
+        }),
       cancel: () => mcp.cancel(url),
     });
   });
+
+  /** Starts the sign-in of a provider's CLI with no tab, and returns its flow at once. */
+  startProvider(memberId: string, provider: SignInRelayProvider) {
+    return this.#startProvider(memberId, provider);
+  }
+
+  readonly #startProvider = Effect.fn("SignInRelayHost.startProvider")(function* (
+    this: SignInRelayHost,
+    memberId: string,
+    provider: SignInRelayProvider,
+  ) {
+    const { providers } = this.#dependencies;
+    yield* providers.startRelay(provider);
+    return this.startReplay(memberId, {
+      key: `provider\n${provider}`,
+      status: () => {
+        const { pageUrl, result } = providers.relayStatus(provider);
+        return { pageUrl, result: result && { toolCount: 0, error: result.error } };
+      },
+      cancel: () => Effect.runFork(providers.cancel(provider).pipe(Effect.ignore)),
+    });
+  });
+
+  /**
+   * Relays to a sign-in that already runs on this host and listens on the loopback address its page
+   * names, such as the sign-in of a provider's command-line tool. The callback goes to that address as
+   * the browser on this host would send it.
+   */
+  startReplay(memberId: string, signIn: RelaySignIn): { flowId: string; expiresAt: number } {
+    return this.#open(memberId, { ...signIn, deliver: replay });
+  }
+
+  /**
+   * Relays a sign-in page that an agent of this host printed, such as the page of an MCP server that
+   * the agent's CLI signs in to. The CLI listens on the loopback address of the page. Only a page that
+   * an agent message holds can start a flow, so a client cannot choose the address that gets the query.
+   */
+  startLink(memberId: string, agentId: string, url: string): { flowId: string; expiresAt: number } {
+    if (!relayableSignInLink(url) || !this.#dependencies.printedLink(agentId, url))
+      throw new HttpError(404, sourceText("error.team.signInRelayLinkUnknown"));
+    let result: McpTestResult | null = null;
+    return this.#open(memberId, {
+      key: `link\n${url}`,
+      status: () => ({ pageUrl: url, result }),
+      // The CLI owns the sign-in, so this host knows only that the callback reached it.
+      deliver: (query, pageUrl) =>
+        replay(query, pageUrl).pipe(
+          Effect.map((delivered) => {
+            if (delivered) result = { toolCount: 0, error: null };
+            return delivered;
+          }),
+        ),
+      cancel: () => undefined,
+    });
+  }
 
   status(memberId: string, flowId: string): SignInRelayView {
     return view(this.#flow(memberId, flowId));
   }
 
   /** Delivers the callback query of a flow. The client then reads `status` until the sign-in ends. */
-  complete(memberId: string, flowId: string, query: string): SignInRelayView {
-    const flow = this.#flow(memberId, flowId);
-    if (flow.completed) throw new HttpError(409, sourceText("error.team.signInRelayUsed"));
+  complete(memberId: string, flowId: string, query: string) {
+    return this.#complete(memberId, flowId, query);
+  }
+
+  readonly #complete = Effect.fn("SignInRelayHost.complete")(function* (
+    this: SignInRelayHost,
+    memberId: string,
+    flowId: string,
+    query: string,
+  ) {
+    const flow = yield* refusable(() => this.#flow(memberId, flowId));
+    if (flow.completed) return yield* refuse(409, "error.team.signInRelayUsed");
     const current = view(flow);
     if (current.result) return current;
     const params = new URLSearchParams(query);
     // A callback for another sign-in, or for a page this flow has not shown yet, is not this one.
-    const state = current.authorizeUrl ? new URL(current.authorizeUrl).searchParams.get("state") : null;
-    if (!state || params.get("state") !== state) throw new HttpError(400, sourceText("error.team.signInRelayMismatch"));
+    const page = current.authorizeUrl;
+    const state = page ? new URL(page).searchParams.get("state") : null;
+    if (!page || !state || params.get("state") !== state) return yield* refuse(400, "error.team.signInRelayMismatch");
     flow.completed = true;
     // The user refused on the sign-in page. Nothing comes after it, so the sign-in ends here.
     if (params.has("error")) {
       flow.target.cancel();
       return view(flow);
     }
-    if (!flow.target.deliver(params)) throw new HttpError(400, sourceText("error.team.signInRelayMismatch"));
+    if (!(yield* flow.target.deliver(params, page))) return yield* refuse(400, "error.team.signInRelayMismatch");
     return view(flow);
-  }
+  });
 
   cancel(memberId: string, flowId: string): void {
     const flow = this.#flow(memberId, flowId);
@@ -157,3 +246,26 @@ function view(flow: Flow): SignInRelayView {
   const { pageUrl, result } = flow.target.status();
   return { authorizeUrl: pageUrl, callback: pageUrl ? loopbackCallback(pageUrl) : null, result };
 }
+
+/**
+ * Sends the callback to the loopback address that the page of this host's own sign-in names. The
+ * address comes only from that page, so a client cannot choose it. The request follows no redirect,
+ * and only its status is kept: the answer is a page for a browser. The query holds a grant, so
+ * nothing here logs the address.
+ */
+const replay = Effect.fn("SignInRelayHost.replay")(function* (query: URLSearchParams, pageUrl: string) {
+  if (!loopbackCallback(pageUrl)) return false;
+  const code = query.get("code");
+  if (code) registerSecretValue(code);
+  const address = new URL(new URL(pageUrl).searchParams.get("redirect_uri") ?? "");
+  address.search = query.toString();
+  address.hash = "";
+  return yield* Effect.tryPromise(async (signal) => {
+    const response = await fetch(address, { redirect: "manual", signal });
+    await response.body?.cancel();
+    return response.status < 400;
+  }).pipe(
+    Effect.timeout(REPLAY_TIMEOUT),
+    Effect.orElseSucceed(() => false),
+  );
+});

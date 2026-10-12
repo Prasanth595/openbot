@@ -91,6 +91,7 @@ import {
   showMainWindow,
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
+import { MessageLinkRelay, openHttpLink } from "./message-link-relay";
 import { watchRemoteHostDirectory } from "./remote-server-host-directory";
 import { createRendererForwarders } from "./renderer-forwarders";
 import { sendToRenderer } from "./renderer-ipc";
@@ -427,6 +428,7 @@ function attachWindowsSessionEndHandlers(window: BrowserWindow): void {
 function registerIpcHandlers({
   service,
   signInRelayClient,
+  relayedMessagingInstalls,
   providerRuntimes,
   providerCredentials,
   messaging,
@@ -523,7 +525,7 @@ function registerIpcHandlers({
     ...accountIpcHandlers({ centralAuth, host }),
     ...skillIpcHandlers({ skills, getMainWindow, translate: language.translate }),
     ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
-    ...githubConnectorIpcHandlers({ githubConnector }),
+    ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector }),
     ...bitwardenConnectorIpcHandlers({ bitwardenConnector }),
     ...billingIpcHandlers({ billing }),
@@ -585,8 +587,14 @@ function registerIpcHandlers({
       runtimes: providerRuntimes,
       customProviders: customProviderChanges,
       remoteServers,
+      relay: signInRelayClient,
     }),
-    ...messagingIpcHandlers({ messaging }),
+    ...messagingIpcHandlers({
+      messaging,
+      remoteServers,
+      relayedInstalls: relayedMessagingInstalls,
+      openExternal: (url) => shell.openExternal(url),
+    }),
     ...mcpServerIpcHandlers({
       service,
       remoteServers,
@@ -607,7 +615,19 @@ function registerIpcHandlers({
       agents: () => service.listAgents(),
       openPath: (path) => shell.openPath(path),
     }),
-    ...agentIpcHandlers({ service, sidebarLayout, host, remoteServers, skills }),
+    ...agentIpcHandlers({
+      service,
+      sidebarLayout,
+      host,
+      remoteServers,
+      skills,
+      messageLinks: new MessageLinkRelay({
+        remoteServers,
+        relay: signInRelayClient,
+        openUrl: (url) => openHttpLink(url, (address) => shell.openExternal(address)),
+      }),
+      openExternal: (address) => shell.openExternal(address),
+    }),
     ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView }),
   });
 }
@@ -776,13 +796,15 @@ function takeRendererDeepLink(link: DeepLink | null): RendererDeepLink | null {
 }
 
 /**
- * Hands a Slack install the sealed token it is waiting for. As with an MCP grant, a link this run did
- * not start does nothing and raises no window.
+ * Hands a Slack install the sealed token it is waiting for. An install that this computer opened for
+ * a joined server sends the token on to that server. As with an MCP grant, a link this run did not
+ * start does nothing and raises no window.
  */
 function receiveSlackSignIn(link: Extract<DeepLink, { kind: "slack-workspace" }>): void {
-  const messaging = services?.messaging;
-  if (!messaging) return;
-  void Effect.runPromise(messaging.completeSlackWorkspace(link.nonce, link.grant))
+  const current = services;
+  if (!current) return;
+  void Effect.runPromise(current.messaging.completeSlackWorkspace(link.nonce, link.grant))
+    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("slack", link.nonce, link.grant))
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);
@@ -793,13 +815,15 @@ function receiveSlackSignIn(link: Extract<DeepLink, { kind: "slack-workspace" }>
 }
 
 /**
- * Hands a Discord install the sealed guild link it is waiting for. As with a Slack install, a link
- * this run did not start does nothing and raises no window.
+ * Hands a Discord install the sealed guild link it is waiting for, or sends it on to the joined server
+ * that started it. As with a Slack install, a link this run did not start does nothing and raises no
+ * window.
  */
 function receiveDiscordSignIn(link: Extract<DeepLink, { kind: "discord-guild" }>): void {
-  const messaging = services?.messaging;
-  if (!messaging) return;
-  void Effect.runPromise(messaging.completeDiscordGuild(link.nonce, link.grant))
+  const current = services;
+  if (!current) return;
+  void Effect.runPromise(current.messaging.completeDiscordGuild(link.nonce, link.grant))
+    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("discord", link.nonce, link.grant))
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);

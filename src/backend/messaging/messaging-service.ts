@@ -12,6 +12,7 @@ import type {
   ConnectTelegramChatInput,
   MessagingConnection,
   MessagingConnectionState,
+  MessagingConnectPage,
   MessagingCredentialState,
   MessagingOverview,
   MessagingPlatform,
@@ -273,19 +274,23 @@ export class MessagingService {
     };
   }
 
+  /** Returns the install page when the connection must install the app again, as `connectDiscordGuild` does. */
   readonly reconnect = Effect.fn("MessagingService.reconnect")(function* (
     this: MessagingService,
     platform: MessagingPlatform,
     workspaceId: string,
-  ): Effect.fn.Return<void, MessagingOperationFailed> {
+    opensPage: boolean,
+  ): Effect.fn.Return<MessagingConnectPage | null, MessagingOperationFailed> {
     const record = yield* messagingStep(() => this.#requireLinked(platform, workspaceId));
     // A guild that removed the bot has no bot to reconnect to and no link: it must install it again.
-    if (platform === "discord" && record.lastErrorCode === "invalid_token") return yield* this.connectDiscordGuild();
+    if (platform === "discord" && record.lastErrorCode === "invalid_token")
+      return yield* this.connectDiscordGuild(opensPage);
     yield* this.#stopConnection(record.connectionId);
     this.#threads.store.updateConnection(record.connectionId, { enabled: true, lastErrorCode: null });
     const updated = this.#threads.store.connection(record.connectionId);
     if (updated) yield* this.#startConnection(updated);
     this.#ingress?.reconnect();
+    return null;
   }, Effect.uninterruptible).bind(this);
 
   readonly setEnabled = Effect.fn("MessagingService.setEnabled")(function* (
@@ -356,12 +361,16 @@ export class MessagingService {
     return layout.agentAssignments[agentId] ?? null;
   });
 
-  /** Opens the OpenBot Slack app's install in the browser. A deep link to `completeSlackWorkspace` ends it. */
+  /**
+   * Opens the OpenBot Slack app's install in the browser, or only returns it when `opensPage` is false.
+   * A deep link to `completeSlackWorkspace` ends it.
+   */
   readonly connectSlackWorkspace = Effect.fn("MessagingService.connectSlackWorkspace")(function* (
     this: MessagingService,
-  ) {
+    opensPage: boolean,
+  ): Effect.fn.Return<MessagingConnectPage, MessagingOperationFailed> {
     const connect = yield* messagingStep(() => this.#requireConnect());
-    yield* connect.start().pipe(toMessagingOperationFailed);
+    return yield* connect.start(opensPage).pipe(toMessagingOperationFailed);
   }).bind(this);
 
   readonly completeSlackWorkspace = Effect.fn("MessagingService.completeSlackWorkspace")(function* (
@@ -416,10 +425,16 @@ export class MessagingService {
     this.#ingress?.reconnect();
   }, Effect.uninterruptible).bind(this);
 
-  /** Opens the OpenBot Discord app's install in the browser. A deep link to `completeDiscordGuild` ends it. */
-  readonly connectDiscordGuild = Effect.fn("MessagingService.connectDiscordGuild")(function* (this: MessagingService) {
+  /**
+   * Opens the OpenBot Discord app's install in the browser, or only returns it when `opensPage` is
+   * false. A deep link to `completeDiscordGuild` ends it.
+   */
+  readonly connectDiscordGuild = Effect.fn("MessagingService.connectDiscordGuild")(function* (
+    this: MessagingService,
+    opensPage: boolean,
+  ): Effect.fn.Return<MessagingConnectPage, MessagingOperationFailed> {
     const connect = yield* messagingStep(() => this.#requireDiscordConnect());
-    yield* connect.start().pipe(toMessagingOperationFailed);
+    return yield* connect.start(opensPage).pipe(toMessagingOperationFailed);
   }).bind(this);
 
   /**
@@ -542,7 +557,8 @@ export class MessagingService {
   readonly connectTelegramChat = Effect.fn("MessagingService.connectTelegramChat")(function* (
     this: MessagingService,
     place: ConnectTelegramChatInput["place"],
-  ) {
+    opensPage: boolean,
+  ): Effect.fn.Return<MessagingConnectPage, MessagingOperationFailed> {
     const { app, ingress } = yield* messagingStep(() => this.#requireTelegram());
     // Signal routes the new chat to this host's socket when the chat sends the code. With no
     // connection running, nothing else holds the socket open, so the code holds it until it expires.
@@ -557,7 +573,10 @@ export class MessagingService {
       Effect.map(([, created]) => created),
       Effect.onError(() => Effect.sync(() => this.#endTelegramLinkLease())),
     );
-    yield* messagingIo(() => app.openExternal(telegramLinkUrl(link.botUsername, link.code, place)));
+    const url = telegramLinkUrl(link.botUsername, link.code, place);
+    if (opensPage) yield* messagingIo(() => app.openExternal(url));
+    // A Telegram link has no callback: the chat sends the code to the bot.
+    return { url, nonce: null };
   }).bind(this);
 
   /** Waits a short time for the socket to be open with a Signal that has Telegram. */
