@@ -12,7 +12,7 @@ export const messages = {
   "sidebar.new.agent": "Nowy agent",
   "sidebar.new.channel": "Nowy kanał",
   "sidebar.new.section": "Nowa sekcja",
-  "sidebar.new.menu": "Nowy agent lub kanał",
+  "sidebar.new.menu": "Nowy agent lub sekcja",
   "sidebar.markAllRead": "Oznacz wszystko jako przeczytane",
   "sidebar.topbar.openSettings": "Otwórz ustawienia: {name}",
   "sidebar.topbar.expand": "Rozwiń pasek boczny",

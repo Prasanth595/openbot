@@ -3004,8 +3004,16 @@ describe.sequential("AgentService: providers", () => {
   });
 
   it("creates independent full-access threads with visible tools and deferred workflow guidance", async () => {
-    const { service: agentService, store } = await startService(root);
+    const sidebar = new SidebarLayoutStore(join(root, "sidebar.json"));
+    await runCauseEffect(sidebar.initialize());
+    const { service: agentService, store } = await startService(root, { sidebarLayout: sidebar });
     service = agentService;
+    for (const id of ["chief", "sales-outbound", "inbox-manager"]) await runCauseEffect(store.getOrCreate(id));
+    const ids = new Set(["chief", "sales-outbound", "inbox-manager"]);
+    const layout = await runCauseEffect(sidebar.mutate({ type: "create", name: "Revenue", agentId: "chief" }, ids));
+    const sectionId = layout.agentAssignments.chief;
+    assert.isDefined(sectionId);
+    await runCauseEffect(sidebar.mutate({ type: "assign", agentId: "sales-outbound", sectionId }, ids));
 
     expect(service.getStatus()).toMatchObject({
       phase: "ready",
@@ -3077,6 +3085,9 @@ describe.sequential("AgentService: providers", () => {
       expect(params.developerInstructions).toContain(`Use ${COMPUTER_USE_MCP_SERVER_NAME} for every GUI task`);
       expect(params.developerInstructions).toContain("Never ask for a secret in chat");
       expect(params.developerInstructions).toContain("openbot.attach_files_to_response");
+      // Section-mates are named in the instructions; an agent outside the section is not.
+      expect(params.developerInstructions).toContain(`"id": "${agent.id === "chief" ? "sales-outbound" : "chief"}"`);
+      expect(params.developerInstructions).not.toContain('"id": "inbox-manager"');
       expect(browserGuidance).toContain("openbot_browser.submit_secret");
       expect(browserGuidance).toContain("Never request the secret in chat, include it in tool arguments");
       expect(routineGuidance).toContain("openbot.create_routine");
@@ -3084,17 +3095,16 @@ describe.sequential("AgentService: providers", () => {
       expect(toolGuidance("openbot", "publish_site", agent)).toContain("Never use ChatGPT Sites");
       expect(reactionGuidance).toContain("sadness, disappointment, frustration, loneliness");
       expect(reactionGuidance).toContain("An emoji written inside your answer does not count");
-      expect.soft(sectionGuidance).toContain("call openbot.list_agents and openbot.list_sections");
-      expect.soft(sectionGuidance).toContain("Prefer suitable agents in your own section first");
+      expect.soft(sectionGuidance).toContain("prefer suitable agents in your own sidebar section first");
       expect
         .soft(sectionGuidance)
         .toContain(
-          "Choose agents outside it when no suitable section member is available or additional expertise is needed; you do not need to contact a section member first.",
+          "Choose agents outside it only when no section teammate fits, more expertise is needed, or the user names another agent.",
         );
       expect
         .soft(sectionGuidance)
         .toContain(
-          "If you have no section, choose by name, title, and description without giving other ungrouped agents priority.",
+          "If you have no section_teammates block, choose by name, title, and description without giving ungrouped agents priority.",
         );
       expect
         .soft(sectionGuidance)

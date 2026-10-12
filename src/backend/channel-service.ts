@@ -63,6 +63,8 @@ export interface ChannelHooks {
   queueHoldChanged?(): void;
   /** A memory is not part of the channel revision, so a tool write needs its own notification. */
   memoriesChanged?(channelId: string): void;
+  /** Channels are retired: nothing can create, edit or restore one. `retire` archives the others. */
+  retired?: boolean;
   error(error: unknown): void;
 }
 
@@ -94,7 +96,12 @@ const routingDocument = Schema.toJsonSchemaDocument(RoutingDecision);
 const routingDescription = JSON.stringify({ ...routingDocument.schema, $defs: routingDocument.definitions });
 const decodeRoutingDecision = Schema.decodeUnknownResult(RoutingDecision, { onExcessProperty: "error" });
 
-/** Owns channel commands and assignment scheduling. It never starts provider turns itself. */
+/**
+ * Owns channel commands and assignment scheduling. It never starts provider turns itself.
+ *
+ * Deprecated: the application retires channels at start (`retire`), and the next release removes
+ * this service, its store and the channel data.
+ */
 export class ChannelService {
   readonly store: ChannelStore;
   readonly memories: ChannelMemoryStore;
@@ -106,6 +113,8 @@ export class ChannelService {
   readonly #interrupts = new Set<Fiber.Fiber<void>>();
   readonly #events = new Set<Fiber.Fiber<void>>();
   #stopped = false;
+  /** Nothing can create, edit or restore a channel. */
+  #retired: boolean;
   readonly #wakeAgain = new Set<string>();
   /**
    * The place of each queued task that resources held back, oldest first. Kept in memory: after a
@@ -135,6 +144,7 @@ export class ChannelService {
     this.store = new ChannelStore(database);
     this.memories = new ChannelMemoryStore(database);
     this.#history = new ChannelHistory(this.store, hooks.generate, this.memories);
+    this.#retired = hooks.retired ?? false;
   }
 
   /**
@@ -158,6 +168,9 @@ export class ChannelService {
       beforeApply: (command: ChannelCommand) => ChannelCommand | null = (queued) => queued,
     ) => {
       const operation = Effect.suspend(() => {
+        // `retire` archives every channel, so the archive guard refuses the other commands.
+        if (this.#retired && (command.type === "save" || command.type === "restore"))
+          return Effect.fail(channelFailure(new Error(sourceText("error.backend.channelsRetired"))));
         const next = beforeApply(command);
         return next ? this.apply(next, actor) : channelSync(() => this.store.get(command.channelId));
       });
@@ -2310,6 +2323,21 @@ export class ChannelService {
     this.hooks.queueHoldChanged?.();
   }
 
+  /**
+   * Archives every channel and refuses to create, edit or restore one. Archiving stops the work
+   * of each channel and keeps its records, so no channel assignment holds the host. Run it after
+   * `recover`, which settles the assignments of the previous run.
+   */
+  readonly retire = Effect.fn("ChannelService.retire")(function* (
+    this: ChannelService,
+  ): Effect.fn.Return<void, ChannelOperationError> {
+    this.#retired = true;
+    const archived = yield* channelSync(() => this.store.archivedIds());
+    for (const channelId of yield* channelSync(() => this.store.ids()))
+      if (!archived.has(channelId))
+        yield* this.command({ type: "archive", operationId: `retire:${channelId}`, channelId }, RETIRE_ACTOR);
+  });
+
   readonly stop = Effect.fn("ChannelService.stop")(function* (
     this: ChannelService,
   ): Effect.fn.Return<void, ChannelOperationError> {
@@ -2323,6 +2351,8 @@ export class ChannelService {
     yield* Scope.close(this.#scope, Exit.void);
   }, Effect.uninterruptible).bind(this);
 }
+
+const RETIRE_ACTOR = { id: "openbot", name: "OpenBot" };
 
 function terminal(task: ChannelTask): boolean {
   return task.state === "completed" || task.state === "cancelled";

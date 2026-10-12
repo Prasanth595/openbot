@@ -43,7 +43,7 @@ import { readCodexMcpConfig } from "./codex-mcp-config";
 import type { ContextCompaction } from "./context-compaction";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { agentNamesById } from "./delivery-content";
-import { developerInstructions, memoryContext } from "./developer-instructions";
+import { developerInstructions, memoryContext, type SectionTeammates } from "./developer-instructions";
 import { readHandoffHistory, renderProviderHandoff } from "./handoff-history";
 import { decodeCapturedSteps, readCapturedSteps } from "./handoff-tool-steps";
 import { sessionSettingsIdentity } from "./session-settings";
@@ -106,6 +106,8 @@ export interface ThreadLifecycleOptions {
   agentEnvironment?: (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>;
   /** Whether a password vault is connected, read at each start and resume of a session. */
   passwordVaultConnected?: () => boolean;
+  /** The other agents in an agent's sidebar section, read at each start and resume of a session. */
+  sectionTeammates?: (agentId: string) => SectionTeammates | null;
 }
 
 /**
@@ -131,6 +133,7 @@ export class ThreadLifecycle {
   readonly #mcpAuthorization: McpAuthorizationSource | undefined;
   readonly #agentEnvironment: () => Readonly<Record<string, string>>;
   readonly #passwordVaultConnected: () => boolean;
+  readonly #sectionTeammates: (agentId: string) => SectionTeammates | null;
   readonly #pendingHandoffs = new Map<string, string>();
   readonly #pendingRuntimeRefreshes = new Set<string>();
   /**
@@ -155,6 +158,7 @@ export class ThreadLifecycle {
     this.#mcpAuthorization = options.mcpAuthorization;
     this.#agentEnvironment = options.agentEnvironment ?? (() => ({}));
     this.#passwordVaultConnected = options.passwordVaultConnected ?? (() => false);
+    this.#sectionTeammates = options.sectionTeammates ?? (() => null);
   }
 
   /**
@@ -640,6 +644,9 @@ export class ThreadLifecycle {
    * The agent environment goes in for the same reason as the MCP set: Codex keeps the configuration
    * of a resumed session. It holds paths only. It is added only when it is not empty, so a
    * computer with no GitHub connection keeps the fingerprints it had.
+   *
+   * The section-mates go in for the same reason as the profile: they are in the instructions. An
+   * agent with no section adds no value and keeps its fingerprint.
    */
   private toolFingerprint(
     agent: AgentSummary,
@@ -648,6 +655,7 @@ export class ThreadLifecycle {
     toolRuntimes: McpToolRuntimes,
     environment: Readonly<Record<string, string>>,
   ): string {
+    const section = this.#sectionTeammates(agent.id);
     return createHash("sha256")
       .update(
         JSON.stringify([
@@ -671,6 +679,7 @@ export class ThreadLifecycle {
             ...(agentAutomationAllowed(agent) ? ["automation"] : []),
           ],
           ...(Object.keys(environment).length > 0 ? [Object.entries(environment).sort()] : []),
+          ...(section ? [[section.name, section.members.map((member) => [member.id, member.name, member.title])]] : []),
         ]),
       )
       .digest("hex");
@@ -728,6 +737,7 @@ export class ThreadLifecycle {
       memoryLimit: this.#memories.limit(),
       storedMemoryCount: this.#memories.listFor(agent.id).length,
       memoriesInTurns: client.provider === "claude",
+      sectionTeammates: this.#sectionTeammates(agent.id),
     };
     const instructions = developerInstructions(
       agent,

@@ -1676,6 +1676,27 @@ describe("shared channel coordination", () => {
     expect(data.mailbox.hasUnfinishedDelivery("agent-b")).toBe(true);
   });
 
+  it("frees the agents held behind channel work when channels are retired, and refuses new channels", async () => {
+    await send("Inspect project A");
+    await runChannel(
+      data.mailbox.enqueue({
+        sender: { kind: "user" },
+        recipientAgentIds: ["agent-b"],
+        text: "Draft the release note",
+        idempotencyKey: "test:channel-hold:retired",
+      }),
+    );
+    expect(service.mayDrain("agent-b")).toBe(false);
+    await runChannel(service.retire());
+    // Retirement archives a channel with work in it; a hold left behind would keep every agent queued.
+    expect(service.store.archivedIds().has("channel-1")).toBe(true);
+    expect(service.mayDrain("agent-b")).toBe(true);
+    expect(data.mailbox.listQueue("agent-b").deliveries.map((delivery) => delivery.status)).toEqual(["queued"]);
+    await expect(
+      runChannel(service.command({ type: "save", channelId: "channel-2", operationId: operationId(), draft }, actor)),
+    ).rejects.toThrow("Channels are no longer supported.");
+  });
+
   it("schedules the agents held behind a channel assignment when it fails to start", async () => {
     await send("Inspect project A");
     const deliveryId = required(service.store.assignments("channel-1").find((item) => item.deliveryId)?.deliveryId);

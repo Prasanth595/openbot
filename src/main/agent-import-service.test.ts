@@ -297,17 +297,8 @@ describe("AgentImportService", () => {
 
     it("imports a group chat as a channel with its lead, memories and routines", async () => {
       const preview = await runCauseEffect(service.stage(await exportWith([desk()])));
-      expect(decodeAgentImportPreview(preview)?.channels).toEqual([
-        {
-          key: "desk",
-          name: "Tennis desk",
-          title: "Match previews",
-          memberKeys: ["gauff", "iga", "wta"],
-          leadKey: "iga",
-          memoryCount: 1,
-          routineCount: 1,
-        },
-      ]);
+      // Channels are deprecated: the preview offers no group chat, and the host refuses the save.
+      expect(decodeAgentImportPreview(preview)?.channels).toEqual([]);
 
       const result = await runCauseEffect(
         service.apply({
@@ -390,10 +381,6 @@ describe("AgentImportService", () => {
           ]),
         ),
       );
-      expect(preview.channels.map((channel) => [channel.key, channel.memberKeys, channel.leadKey])).toEqual([
-        ["desk", ["gauff", "iga"], null],
-        ["pair", ["wta"], null],
-      ]);
       expect(preview.warnings).toEqual([
         "Tennis desk: members that are not agents in this export are left out.",
         "Tennis desk: the lead is not a member, so the channel has no lead.",

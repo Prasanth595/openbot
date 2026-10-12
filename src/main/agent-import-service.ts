@@ -7,8 +7,8 @@ import { type ArchiveOperationError, archiveCall, archiveFailure, archiveResult,
 // inflating them, so a large export previews quickly. `apply` inflates one agent at a time.
 // Each agent is created through the same services the user reaches by hand. When one step fails,
 // that agent is deleted and reported, and the other agents continue. A workspace file that cannot
-// be written is a warning, not a failed step, so the agent still imports. Group chats become channels
-// after the agents, with the members that imported; a channel needs at least one, as in OpenBot.
+// be written is a warning, not a failed step, so the agent still imports. Group chats used to become
+// channels after the agents. Channels are deprecated, so the preview offers none.
 
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -292,15 +292,9 @@ export class AgentImportService {
           nameExists: existing.has(agent.name.toLowerCase()),
         };
       }),
-      channels: manifest.channels.map((channel) => ({
-        key: channel.key,
-        name: channel.name,
-        title: channel.title,
-        memberKeys: channel.members,
-        leadKey: channel.lead,
-        memoryCount: channel.memories.length,
-        routineCount: channel.routines.length,
-      })),
+      // Channels are deprecated, so no group chat is offered. The host refuses a channel save, so an
+      // apply that still names one reports it in `skippedChannels`.
+      channels: [],
       warnings: bounded(warnings),
     };
   });
