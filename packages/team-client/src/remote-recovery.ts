@@ -209,7 +209,10 @@ export function createRemoteConnectionRecovery(
   /** `start` begins the attempt that is due now: a new run, or the next pass of the run that is ending. */
   function scheduleRetry(start: () => void = startRun) {
     if (disposed || suspended) return;
-    retryAt ??= Date.now() + (startingRetryDelay() ?? retryDelay ?? remoteRetryDelay(attempt));
+    const startingDelay = startingRetryDelay();
+    retryAt ??= Date.now() + (startingDelay ?? retryDelay ?? remoteRetryDelay(attempt));
+    // A host that began to start during a longer wait does not wait for the rest of it.
+    if (startingDelay !== null) retryAt = Math.min(retryAt, Date.now() + startingDelay);
     retryDelay = null;
     if (!active) return;
     const remaining = Math.max(0, retryAt - Date.now());
