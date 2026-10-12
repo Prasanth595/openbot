@@ -839,11 +839,14 @@ export function ChatMessageList({
   const promptIndex = visibleMessages.findIndex((message) => message.id === questionForm?.messageId);
   const focusIndex = focusMessageId ? chatRowIndex(visibleMessages, focusMessageId) : -1;
   const historyStart = chatHistoryStart(visibleMessages, tailIndex, currentBoundary);
-  const windowStart = Math.min(
-    historyStart,
-    promptIndex >= 0 ? promptIndex : historyStart,
-    focusIndex >= 0 ? Math.max(0, focusIndex - FOCUS_CONTEXT_ROWS) : historyStart,
-  );
+  // A message from search starts the window just above its row, so the row renders at once while the
+  // list waits for it. A start further up can leave the row past the rows that the list renders.
+  const windowStart =
+    focusIndex >= 0
+      ? Math.max(0, focusIndex - FOCUS_CONTEXT_ROWS)
+      : promptIndex >= 0
+        ? Math.min(historyStart, promptIndex)
+        : historyStart;
   const firstId = visibleMessages[windowStart]?.id ?? null;
   const headId = visibleMessages[0]?.id ?? null;
   if (boundary.firstId !== firstId || boundary.headId !== headId || boundary.generation !== generation)
