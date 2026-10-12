@@ -485,6 +485,12 @@ export function ProviderPicker(props: ProviderPickerProps) {
                   setConnectError(errorMessage(error, t("app.provider.connectFailedRetry", { name: option().name }))),
                 );
               };
+              /**
+               * A sign-in that Connect started and that waits for the browser. A download or an update
+               * also marks the row connecting, until its new runtime is ready.
+               */
+              const signingIn = () =>
+                connecting() && Boolean(props.onConnectProvider) && (runtimeStatus()?.phase ?? "ready") === "ready";
               const hostSignInHint = () =>
                 !off() &&
                 option().id === "antigravity" &&
@@ -601,7 +607,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           </small>
                         )}
                       </Show>
-                      <Show when={!off() && connecting() && props.onConnectProvider}>
+                      <Show when={!off() && signingIn()}>
                         <small class="provider-picker-email" role="status">
                           {t("provider.connecting.browserHint")}
                         </small>
@@ -706,7 +712,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           </Button>
                         )}
                       </Show>
-                      <Show when={connecting() && props.onConnectProvider && props.onCancelProviderSignIn}>
+                      <Show when={signingIn() && props.onCancelProviderSignIn}>
                         <Button
                           type="button"
                           variant="ghost"
@@ -768,10 +774,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                         when={
                           props.onSignInProvider &&
                           !connectOptional() &&
-                          // A released host stores a Gemini key but never reads it, so only this computer offers it.
-                          (option().id === "opencode" ||
-                          option().id === "muse" ||
-                          (option().id === "antigravity" && props.onConnectProvider)
+                          (option().id === "opencode" || option().id === "muse"
                             ? runtimeAction() === undefined ||
                               runtimeAction() === "connect" ||
                               runtimeAction() === "restart"
@@ -791,6 +794,30 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           onClick={() => void props.onSignInProvider?.(option().id)}
                         >
                           {t("provider.action.signIn")}
+                        </Button>
+                      </Show>
+                      {/* Gemini's Connect and Reconnect are the Google sign-in, and a saved key wins
+                      over it, so the key stays reachable in every state, Connected included: a
+                      refused key must stay replaceable and removable. A released host stores a
+                      Gemini key but never reads it, so only this computer offers it. */}
+                      <Show
+                        when={
+                          props.onSignInProvider &&
+                          props.onConnectProvider &&
+                          option().id === "antigravity" &&
+                          runtimeStatus()?.phase === "ready"
+                        }
+                      >
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          class="provider-picker-install"
+                          aria-label={t("provider.aria.apiKey", { name: option().name })}
+                          disabled={props.disabled || props.refreshingProviders}
+                          onClick={() => void props.onSignInProvider?.(option().id)}
+                        >
+                          {t("provider.action.apiKey")}
                         </Button>
                       </Show>
                       {/* The row's secondary actions: Update on every downloaded runtime, and the code

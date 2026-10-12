@@ -62,7 +62,6 @@ import {
   ignoredCodexSettings,
   isAcpHandlerDiagnostic,
   isBackgroundRefreshDiagnostic,
-  isCanceledHarnessRequestDiagnostic,
   isGlogBelowErrorDiagnostic,
   isIgnoredConfigDiagnostic,
   isMcpSubsystemDiagnostic,
@@ -1992,14 +1991,28 @@ export class ProviderRuntime implements ProviderPort {
     });
   }
 
+  /** What a provider with no account says, as the start reports it. */
+  #signInRequiredMessage(provider: AgentProvider): string {
+    return (
+      this.#customProviderSignInMessage(provider) ??
+      (provider === "pi"
+        ? sourceText("error.provider.piSignIn")
+        : provider === "muse"
+          ? sourceText("error.provider.museSignIn")
+          : agentProviderDescriptor(provider).signInMessage)
+    );
+  }
+
   #clearProviderConnectionState(provider: AgentProvider): void {
     const current = this.#status.providers?.find((candidate) => candidate.id === provider);
     if (!current?.connectionState) return;
+    const signedOut = !this.#clients.has(provider) && current.state === "sign-in-required";
     this.#setStatus({
       providers: updateProviderStatus(this.#status.providers, provider, {
         state: this.#clients.has(provider) ? "available" : current.state,
         version: this.#cli.get(provider)?.version ?? current.version,
-        message: null,
+        // A canceled sign-in leaves the provider as it was, so the row says again why it waits.
+        message: signedOut ? this.#signInRequiredMessage(provider) : null,
         email: this.#accounts.get(provider)?.email ?? current.email ?? null,
       }),
     });
@@ -2218,13 +2231,7 @@ export class ProviderRuntime implements ProviderPort {
             .request("account/read", { refreshToken: false }, decodeAccountReadResult, 5_000)
             .pipe(toProviderOperationFailed);
           if (!account.account) {
-            const message =
-              this.#customProviderSignInMessage(provider) ??
-              (provider === "pi"
-                ? sourceText("error.provider.piSignIn")
-                : provider === "muse"
-                  ? sourceText("error.provider.museSignIn")
-                  : agentProviderDescriptor(provider).signInMessage);
+            const message = this.#signInRequiredMessage(provider);
             yield* candidate.stop().pipe(Effect.catch(() => Effect.void));
             this.#setStatus({
               providers: updateProviderStatus(this.#status.providers, provider, {
@@ -2460,8 +2467,12 @@ export class ProviderRuntime implements ProviderPort {
         stderrLogger.info("A provider logged an info or warning record.", { provider: client.provider, message });
         return;
       }
-      if (isCanceledHarnessRequestDiagnostic(message)) {
-        stderrLogger.info("A provider logged a request that a stop canceled.", { provider: client.provider, message });
+      if (client.provider === "antigravity") {
+        // Antigravity reports each failure in the protocol: a failed turn in its answer, a refused
+        // account as an authentication error, and a crash as the process exit, which keeps the last
+        // stderr line. Its stderr repeats them as harness records and Python tracebacks, one
+        // "Provider error" toast per line, and a canceled request after each Stop.
+        stderrLogger.warn("Gemini logged a diagnostic.", { provider: client.provider, message });
         return;
       }
       // Without the timestamp, a repeat of one failure is the same message, and the renderer shows

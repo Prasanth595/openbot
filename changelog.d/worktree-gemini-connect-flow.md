@@ -12,7 +12,10 @@
 - A Gemini chat whose session was lost now starts a new session. Before, every next message in that chat failed.
 - When the Gemini plan's quota is reached, the turn fails with a clear message. Before, the quota notice was saved as Gemini's answer.
 - Gemini no longer asks for approval of a tool after you press Stop.
-- Stopping a Gemini turn no longer shows two "Provider error" notifications about a canceled request.
+- Gemini no longer shows a "Provider error" notification for each line of its internal log, such as after a Stop or a failed request. The failed turn says what happened.
+- When Gemini fails a request, for example because the API key is not valid, the turn fails with a clear message. Before, the error was saved as Gemini's answer.
+- The Gemini row in Settings always has an API key button, so a saved key can be replaced or removed while Gemini shows Connected.
+- After you cancel a sign-in, the provider row shows again why it is not connected.
 - Provider rows in Settings show why a provider is not ready, or why its download failed, as text. Before, the reason was only in a tooltip.
 - A Connect that fails in Settings, the model picker or the chat composer now shows why.
 - The Gemini row and other downloaded providers show "Update available" in Settings, as the update notification does.

@@ -62,6 +62,16 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       update({ sessionUpdate: "usage_update", used: 100, size: 10000 });
       return;
     }
+    if (input === "bad key") {
+      // 1.3.0 logs the SDK failure, then sends its message as the answer. The pause models the
+      // separate stderr and stdout pipes.
+      process.stderr.write("E1012 18:06:18.628396 8553515072 server.py:5230] Antigravity SDK error processing prompt for session " + params.sessionId + "\\n");
+      setTimeout(() => {
+        text("API key not valid. Please pass a valid API key.");
+        reply({ stopReason: "end_turn" });
+      }, 50);
+      return;
+    }
     if (input === "quota") {
       text("Usage Limit Reached\\n\\nYou have reached your current quota for this period. Your limit will reset in 4 hours.");
       return reply({ stopReason: "end_turn" });
@@ -242,6 +252,20 @@ describe("Antigravity background task recovery", () => {
         ...ids,
         message:
           "Gemini refused the request because a rate limit or the plan's quota is reached. Wait a few minutes or choose another model, then try again.\nYou have reached your current quota for this period. Your limit will reset in 4 hours.",
+      },
+    });
+    expect(saved[0]?.items.some((item) => item.phase === "final_answer")).toBe(false);
+  });
+
+  it("fails a turn whose SDK failure the server sent as the answer", async () => {
+    const ids = await start("bad key");
+    await vi.waitFor(() => expect(completions()).toHaveLength(1));
+    expect(completions()[0]).toMatchObject({ params: { turn: { id: ids.turnId, status: "failed" } } });
+    expect(events).toContainEqual({
+      method: "error",
+      params: {
+        ...ids,
+        message: "Gemini refused the saved API key. Replace or remove the key in Settings, then connect again.",
       },
     });
     expect(saved[0]?.items.some((item) => item.phase === "final_answer")).toBe(false);

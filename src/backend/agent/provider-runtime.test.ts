@@ -954,9 +954,9 @@ describe.sequential("ProviderRuntime: account checks and login", () => {
       params: { loginId: "login-1" },
     });
     expect(codexClients[1]?.running).toBe(false);
-    // Back to the row the user pressed, with nothing left running behind it.
+    // Back to the row the user pressed, with nothing left running behind it, and its reason again.
     const codex = service.getStatus().providers?.find((provider) => provider.id === "codex");
-    expect(codex).toMatchObject({ state: "sign-in-required", message: null });
+    expect(codex).toMatchObject({ state: "sign-in-required", message: "Connect ChatGPT to continue." });
     expect(codex?.connectionState).toBeUndefined();
   });
 

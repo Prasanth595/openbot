@@ -115,6 +115,11 @@ interface AcpTurn {
   interruptedAnswer: string | null;
   /** A failure that the server sent as answer text and then ended the turn as a success. */
   providerError: string | null;
+  /**
+   * Where the answer text stood when Antigravity logged that its SDK failed this prompt. The
+   * server then sends the failure as answer text and ends the turn as a success.
+   */
+  sdkFailureAt: number | null;
   /** The prompt told the model not to answer, so an empty turn is a success. */
   answerOptional: boolean;
   messages: ThreadItem[];
@@ -373,6 +378,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           if (this.#signInPrompt) Deferred.doneUnsafe(this.#signInPrompt, Exit.void);
           return;
         }
+        const failedSession = options.provider === "antigravity" ? GEMINI_SDK_FAILURE.exec(message)?.[1] : undefined;
+        const failedTurn = failedSession ? this.#threads.get(failedSession)?.activeTurn : undefined;
+        if (failedTurn && failedTurn.sdkFailureAt === null) failedTurn.sdkFailureAt = failedTurn.text.length;
         this.emit("diagnostic", message, origin);
       },
       exit: (error) => this.emit("exit", error),
@@ -1513,6 +1521,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       receivedOutput: false,
       interruptedAnswer: null,
       providerError: null,
+      sdkFailureAt: null,
       answerOptional: isRecord(params) && params.answerOptional === true,
       messages: [],
       toolNames: new Map(),
@@ -1575,6 +1584,21 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           "OpenCode returned no response. Check the selected model's sign-in and billing in OpenCode, then retry or choose another model.",
         );
         return;
+      }
+      if (
+        this.provider === "antigravity" &&
+        !turn.providerError &&
+        !turn.stopped &&
+        response.stopReason === "end_turn"
+      ) {
+        // The server's SDK failed the prompt and sent its message as the answer (1.3.0). The text
+        // before the failure is the partial answer; the rest is the message.
+        const failureAt = turn.sdkFailureAt ?? (GEMINI_EXECUTION_ERROR_ANSWER.test(turn.text) ? 0 : null);
+        const failure = failureAt === null ? "" : turn.text.slice(failureAt).trim();
+        if (failureAt !== null) {
+          turn.providerError = geminiTurnFailure(failure || turn.text.trim());
+          turn.text = failure ? turn.text.slice(0, failureAt) : "";
+        }
       }
       const status =
         turn.stopped || response.stopReason === "cancelled"
@@ -2130,6 +2154,18 @@ function isOpenCodeServiceFailure(error: unknown): boolean {
  */
 /** Antigravity 1.3.0's `quota_exhausted_message`: a fixed header, then the reset time. */
 const GEMINI_QUOTA_CHUNK = /^\s*Usage Limit Reached\n\n([\s\S]*)$/u;
+/** The stderr record that Antigravity 1.3.0 writes before it sends an SDK failure as answer text. */
+const GEMINI_SDK_FAILURE = /\bAntigravity SDK error processing prompt for session (\S+)/u;
+/** `format_execution_error` of Antigravity 1.3.0 when the failure is not a Google API error. */
+const GEMINI_EXECUTION_ERROR_ANSWER = /^\s*Agent execution error: /u;
+
+/** The message of a Gemini turn that the server failed but reported as answer text. */
+function geminiTurnFailure(text: string): string {
+  // Google's API answer for a refused key. The key is the user's to fix, not the request.
+  if (/\bAPI key not valid\b|\bAPI_KEY_INVALID\b/u.test(text)) return sourceText("error.provider.geminiKeyRefused");
+  const key = GEMINI_REQUEST_FAILURES.find(([, pattern]) => pattern.test(text))?.[0];
+  return key ? sourceText(key, { detail: shownFailureDetail(text) }) : shownFailureDetail(text);
+}
 const HARNESS_ERROR_CHUNK = /^\s*API Error: [^\n]*The response above may be incomplete\.\s*$/u;
 
 const OPENCODE_FAILURE_DETAIL_LIMIT = 200;
