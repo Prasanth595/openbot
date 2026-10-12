@@ -22,6 +22,7 @@ import type {
   TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
+import { WAKE_RECONNECT_DELAY_MS } from "@openbot/team-client/hosted-server-wake";
 import type { RemoteTeamHost } from "@openbot/team-client/remote-directory";
 import {
   createRemoteConnectionRecovery,
@@ -226,6 +227,8 @@ export function createWebWorkspace(
             draft.recovery = status;
           });
       },
+      // A hosted server that starts comes online soon, so the next attempt does not wait for the backoff.
+      () => (state.hostedSleep === "waking" ? WAKE_RECONNECT_DELAY_MS : null),
     );
   }
   /**

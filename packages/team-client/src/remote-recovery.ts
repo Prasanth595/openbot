@@ -178,6 +178,8 @@ export function createRemoteConnectionRecovery(
   connect: () => Promise<void>,
   onError: (error: unknown) => void,
   onStatus: (status: RemoteRecoveryStatus) => void = () => {},
+  /** The wait while the host starts, such as a hosted server after a wake. It replaces the backoff. */
+  startingRetryDelay: () => number | null = () => null,
 ) {
   let active = false;
   let disposed = false;
@@ -207,7 +209,7 @@ export function createRemoteConnectionRecovery(
   /** `start` begins the attempt that is due now: a new run, or the next pass of the run that is ending. */
   function scheduleRetry(start: () => void = startRun) {
     if (disposed || suspended) return;
-    retryAt ??= Date.now() + (retryDelay ?? remoteRetryDelay(attempt));
+    retryAt ??= Date.now() + (startingRetryDelay() ?? retryDelay ?? remoteRetryDelay(attempt));
     retryDelay = null;
     if (!active) return;
     const remaining = Math.max(0, retryAt - Date.now());

@@ -1078,12 +1078,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   initial={!workspace.state.workspaceLoaded}
                   issue={workspace.state.hostedIssue}
                   detail={
-                    !workspace.state.hostedSleep && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
                       ? (workspace.state.connectionError?.message ?? null)
                       : null
                   }
                   reference={
-                    !workspace.state.hostedSleep && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
                       ? (workspace.state.connectionError?.reference ?? null)
                       : null
                   }
