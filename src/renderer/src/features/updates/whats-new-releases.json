@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.38.0",
+    "date": "2026-10-12",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "On a joined server, sign-in pages for providers, MCP servers and Marketplace apps open in the browser of your own computer. The host keeps every grant.",
+          "On a joined server, Server settings > Connectors shows the host's GitHub, Slack, Discord and Telegram connections. You can connect and disconnect them from your computer.",
+          "A URL MCP server can use a sign-in app: the OAuth app that you registered with its provider."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["Dictated words show at the end of your draft, where they will go."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "The built-in browser keeps the website that you chose when an agent opens more websites.",
+          "A paste into the live view of a remote browser goes to the page.",
+          "A remote connection that stays open for a long time no longer floods the signalling service.",
+          "A server update shows a moving bar, not \"Downloading · 0%\", while the server prepares it."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.37.0",
     "date": "2026-10-11",
     "notices": [],
