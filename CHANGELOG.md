@@ -13,11 +13,10 @@ All notable changes to OpenBot will be documented here. The project follows
 - URL MCP servers have a "Sign-in app" section. Enter the client ID, an optional client secret and optional scopes of an OAuth app that you registered with the server's provider. OpenBot uses this app when the server cannot register OpenBot by itself. The section shows the exact callback URL with a copy button. On a joined server, the host keeps the app and signs in with its own browser.
 - On a joined server that supports it, you can now connect Codex, Claude, Gemini and Muse from your own computer. The sign-in page opens in your browser, and OpenBot sends the callback to the provider's CLI on the host.
 - On a joined server that supports it, Server settings > Connectors now shows the host's GitHub, Slack, Discord and Telegram connections. You can connect, disconnect and reconnect them from your computer. The pages open in your browser, and the host keeps every token.
-- When an agent on a joined server shows a sign-in link, for example for an MCP server of its CLI, the link opens in your browser and the sign-in finishes on the host. When your computer cannot take the callback, and in the browser client, you paste the address that the browser shows at the end.
-- The browser client can now connect providers and install Marketplace apps that sign in with a browser on a joined server.
+- When an agent on a joined server shows a sign-in link, for example for an MCP server of its CLI, the link opens in your browser and the sign-in finishes on the host.
+- The Marketplace can now install an app that signs in with a browser on a joined server that supports this relay. The browser client can also connect providers and install these apps on a joined server.
 - On a joined server that supports it, the sign-in page of a URL MCP server now opens in the browser of your own computer, not in a tab on the host. Your passwords, passkeys and existing sessions work. OpenBot takes the callback on your computer and sends it to the host, and the host keeps the grant.
-- When your computer cannot take the callback, OpenBot asks you to paste the address that the browser shows at the end of the sign-in. The browser client always uses this step.
-- The Marketplace can now install an app that signs in with a browser on a joined server that supports this relay.
+- When your computer cannot take the callback of a relayed sign-in, OpenBot asks you to paste the address that the browser shows at the end of the sign-in. The browser client always uses this step.
 
 ### Changed
 
