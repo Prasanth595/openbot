@@ -5,7 +5,7 @@ import type { DraftAttachment, InstalledSkill, McpServerConfig } from "@openbot/
 import { Badge, Blocks, Listbox, Puzzle } from "@openbot/ui";
 import { usesTouchLayout } from "@openbot/ui/utils";
 import { Dynamic, Portal } from "@solidjs/web";
-import { createEffect, createMemo, createSignal, createUniqueId, onCleanup, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createUniqueId, For, onCleanup, onSettled, Show } from "solid-js";
 import { createScrollFades } from "../../components/createScrollFades";
 import type { AgentProfile } from "../../data";
 import { useText } from "../../text";
@@ -81,6 +81,11 @@ interface ComposerEditorProps {
   onPasteFiles?: (files: File[]) => void;
   /** Told when the mention picker opens or closes, so the queue panel can give up the same space. */
   onPickerOpenChange?: (open: boolean) => void;
+  /**
+   * The words heard so far while the user dictates. `final` is set while the recording turns into
+   * the final text. See `dictationWords` for how they show.
+   */
+  dictation?: { text: string; final: boolean };
 }
 
 interface MentionContext {
@@ -89,6 +94,8 @@ interface MentionContext {
   end: number;
   trigger: "@" | "$";
 }
+
+const DICTATION_INTERIM_WORDS = 2;
 
 export function expandComposerMentions(value: string): string {
   return value.replace(MENTION_PATTERN, (match, name: string, target: string) => {
@@ -313,6 +320,33 @@ export function ComposerEditor(props: ComposerEditorProps) {
       }
     },
   );
+
+  /*
+   * Live dictation continues the draft's last line, where the final text lands, so nothing moves
+   * when the recording finishes. The editor's text offsets and serializer must never see these
+   * words, so a read-only copy of the draft takes the editor's place while they show.
+   */
+  const dictationWords = createMemo(() => props.dictation?.text.trim().split(/\s+/u).filter(Boolean) ?? []);
+  const dictating = () => dictationWords().length > 0;
+  let dictationView: HTMLDivElement | undefined;
+  let dictationDraft: HTMLDivElement | undefined;
+  createEffect(
+    () => ({
+      shown: dictating(),
+      value: props.value,
+      agents: props.agents,
+      skills: props.skills ?? [],
+      mcpServers: props.mcpServers ?? [],
+      attachments: props.attachments ?? [],
+    }),
+    ({ shown, value, agents, skills, mcpServers, attachments }) => {
+      if (!shown || !dictationDraft) return;
+      renderEditorValue(dictationDraft, value, agents, skills, mcpServers, attachments, attachmentTokenActions);
+    },
+  );
+  createEffect(dictationWords, () => {
+    if (dictationView) dictationView.scrollTop = dictationView.scrollHeight;
+  });
 
   // Coming back to the window puts the caret back here, so the first keys are not lost. A touch
   // device would open its keyboard instead, and focus leaving an embedded frame (an HTML preview)
@@ -688,8 +722,8 @@ export function ComposerEditor(props: ComposerEditorProps) {
   }
 
   return (
-    <div class="composer-editor-root">
-      <Show when={!props.value}>
+    <div class="composer-editor-root" data-dictating={dictating() ? "" : undefined}>
+      <Show when={!props.value && !dictating()}>
         <span class="composer-editor-placeholder" aria-hidden="true">
           {props.placeholder}
         </span>
@@ -732,6 +766,39 @@ export function ComposerEditor(props: ComposerEditorProps) {
           }, 100);
         }}
       />
+      <Show when={dictating()}>
+        <div
+          ref={(element) => (dictationView = element)}
+          class="composer-editor-surface composer-dictation"
+          data-final={props.dictation?.final ? "" : undefined}
+        >
+          <div
+            ref={(element) => (dictationDraft = element)}
+            class="composer-dictation-draft"
+            aria-hidden="true"
+            inert
+          />
+          <span aria-live="polite">
+            {props.value && !/\s$/u.test(props.value) ? " " : ""}
+            <For each={dictationWords()}>
+              {(word, index) => (
+                <span
+                  class="composer-dictation-word"
+                  // The last words are the ones the next live pass is most likely to change.
+                  data-interim={
+                    !props.dictation?.final && index() >= dictationWords().length - DICTATION_INTERIM_WORDS
+                      ? ""
+                      : undefined
+                  }
+                >
+                  {index() === 0 ? word : ` ${word}`}
+                </span>
+              )}
+            </For>
+          </span>
+          <span class="composer-dictation-caret" aria-hidden="true" />
+        </div>
+      </Show>
       <Show when={pickerOpen()}>
         <Portal mount={pickerFrame().mount}>
           <div

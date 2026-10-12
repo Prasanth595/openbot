@@ -486,10 +486,7 @@ export function ConversationComposer() {
             </For>
           </div>
         </Show>
-        <div
-          class="composer-input-label"
-          data-live-transcript={voiceLiveText() ? (currentDraft().text.trim() ? "append" : "replace") : undefined}
-        >
+        <div class="composer-input-label">
           <ComposerEditor
             agentId={props.agent?.id}
             agents={props.agents}
@@ -526,6 +523,7 @@ export function ConversationComposer() {
             onSubmit={submitComposer}
             sendShortcut={deviceSendShortcut(props.platform)}
             onPickerOpenChange={setPickerOpen}
+            dictation={{ text: voiceLiveText(), final: voicePhase() === "transcribing" }}
             onPasteFiles={(files) => {
               if (props.runtime?.importFiles) void props.runtime.importFiles(files);
             }}
@@ -535,17 +533,6 @@ export function ConversationComposer() {
                 : attachmentAction(attachment, "open")
             }
           />
-          <Show when={voiceLiveText()}>
-            {(text) => (
-              <p
-                class="voice-live-transcript"
-                aria-live="polite"
-                data-final={voicePhase() === "transcribing" ? "" : undefined}
-              >
-                {text()}
-              </p>
-            )}
-          </Show>
         </div>
         <div class="composer-toolbar">
           <Input
