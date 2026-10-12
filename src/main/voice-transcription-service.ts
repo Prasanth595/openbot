@@ -282,9 +282,8 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
       this.#endStream(streamId);
       return yield* new VoiceOperationError({ cause: new Error(sourceText("error.voice.cloud.tooLong")) });
     }
-    yield* Effect.try({ try: () => stream.session.append(pcm), catch: streamError }).pipe(
-      Effect.tapError(() => Effect.sync(() => this.#endStream(streamId))),
-    );
+    // A failed session stays until finish or cancel, so that both report its failure, not "ended".
+    yield* Effect.try({ try: () => stream.session.append(pcm), catch: streamError });
   }).bind(this);
 
   /** Ends the audio of a stream and answers its whole text. */
