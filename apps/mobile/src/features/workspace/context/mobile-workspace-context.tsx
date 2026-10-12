@@ -638,8 +638,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   );
   const foregroundRef = useRef(foreground);
   foregroundRef.current = foreground;
-  /** Set on background entry; the servers that are not selected stay inactive until it clears. */
-  const [othersHeld, setOthersHeld] = useState(false);
+  /**
+   * Set on background entry with the selected server. Until it clears, the other servers stay
+   * inactive. A new selection ends it, so the server that the user leaves keeps its attempt.
+   */
+  const [hold, setHold] = useState<{ serverId: string | null } | null>(null);
+  const othersHeld = hold !== null && hold.serverId === activeServerId;
   const wakeReconnect = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(wakeReconnect.current), []);
   // A hosted server that stopped for no use starts again only for use: the selected server, with the
@@ -664,7 +668,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           server.id === hostId ? applyServerRecovery(server, status, failure?.message ?? null, failure) : server,
         ),
       );
-      if (status.phase === "online" && hostId === activeServerIdRef.current) setOthersHeld(false);
+      if (status.phase === "online" && hostId === activeServerIdRef.current) setHold(null);
       // The status repeats each second while it waits, so each failed attempt asks once.
       if (status.phase === "online") wakeAttempts.current.delete(hostId);
       if (status.phase !== "waiting" && status.phase !== "cooldown") return;
@@ -696,14 +700,14 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   // tickets of the other servers reach the account service later.
   useEffect(() => {
     if (!foreground) {
-      setOthersHeld(true);
+      setHold({ serverId: activeServerIdRef.current });
       return;
     }
     if (!activeServerIdRef.current) {
-      setOthersHeld(false);
+      setHold(null);
       return;
     }
-    const timer = setTimeout(() => setOthersHeld(false), OTHER_SERVERS_RETURN_DELAY_MS);
+    const timer = setTimeout(() => setHold(null), OTHER_SERVERS_RETURN_DELAY_MS);
     return () => clearTimeout(timer);
   }, [foreground]);
 
