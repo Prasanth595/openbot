@@ -12,6 +12,7 @@
 - A Gemini chat whose session was lost now starts a new session. Before, every next message in that chat failed.
 - When the Gemini plan's quota is reached, the turn fails with a clear message. Before, the quota notice was saved as Gemini's answer.
 - Gemini no longer asks for approval of a tool after you press Stop.
+- Stopping a Gemini turn no longer shows two "Provider error" notifications about a canceled request.
 - Provider rows in Settings show why a provider is not ready, or why its download failed, as text. Before, the reason was only in a tooltip.
 - A Connect that fails in Settings, the model picker or the chat composer now shows why.
 - The Gemini row and other downloaded providers show "Update available" in Settings, as the update notification does.
