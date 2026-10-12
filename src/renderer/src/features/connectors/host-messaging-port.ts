@@ -12,16 +12,19 @@ type HostMessagingMethod =
 /** What the Slack, Discord and Telegram pages reach: the connections of one server. */
 export type MessagingConnectorApi = Omit<MessagingDesktopApi, HostMessagingMethod>;
 
+/** The `connectors-v1` messaging requests to a joined server: main's, or the browser client's. */
+export type HostMessagingApi = Pick<MessagingDesktopApi, HostMessagingMethod>;
+
 /**
- * The connections of the joined server that `serverId` names (`connectors-v1`), through main. Main
- * opens each connect page in this computer's browser. The orchestrator starts on the host's default
- * provider and model, so a choice is not sent.
+ * The connections of the joined server that `serverId` names (`connectors-v1`), through main or the
+ * browser client's `host`. Each opens the connect page in this computer's browser. The orchestrator
+ * starts on the host's default provider and model, so a choice is not sent.
  */
 export function hostMessagingApi(
   serverId: () => string | undefined,
-  host: () => Pick<MessagingDesktopApi, HostMessagingMethod> = () => window.openbot.messaging,
+  host: () => HostMessagingApi = () => window.openbot.messaging,
 ): MessagingConnectorApi {
-  const call = <T>(method: (api: Pick<MessagingDesktopApi, HostMessagingMethod>, serverId: string) => Promise<T>) => {
+  const call = <T>(method: (api: HostMessagingApi, serverId: string) => Promise<T>) => {
     const id = serverId();
     if (!id) return Promise.reject(new Error(sourceText("error.team.connectorsUnsupported")));
     return method(host(), id);

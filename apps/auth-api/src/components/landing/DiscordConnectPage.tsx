@@ -1,15 +1,17 @@
 import { AppLogo } from "@openbot/brand";
 import { createSignal, onSettled, Show } from "solid-js";
 import { Button } from "../ui/button";
+import { handOffToWebClient } from "./web-messaging-handoff";
 
 /**
- * The page that returns a Discord install to the desktop app. The install callback redirects here
- * with a sealed grant, or an error code, in the fragment. The page only builds the `openbot://` link:
- * only the host can open the grant.
+ * The page that returns a Discord install to the desktop app, or to the browser client tab that started
+ * it. The install callback redirects here with a sealed grant, or an error code, in the fragment. The
+ * page only builds the `openbot://` link or passes the grant on: only the host can open the grant.
  */
 export function DiscordConnectPage() {
   const [openUrl, setOpenUrl] = createSignal("");
   const [failure, setFailure] = createSignal<string | null>(null);
+  const [webClient, setWebClient] = createSignal(false);
 
   onSettled(() => {
     const page = new URL(window.location.href);
@@ -21,15 +23,19 @@ export function DiscordConnectPage() {
       setFailure(fragment.get("error") ?? "discord_failed");
       return;
     }
+    if (handOffToWebClient("discord", fragment)) {
+      setWebClient(true);
+      return;
+    }
     setOpenUrl(target);
     window.location.assign(target);
   });
 
-  return <DiscordConnectView openUrl={openUrl()} failure={failure()} />;
+  return <DiscordConnectView openUrl={openUrl()} failure={failure()} webClient={webClient()} />;
 }
 
 /** The page's card: the link back to OpenBot, or why Discord did not finish. */
-export function DiscordConnectView(props: { openUrl: string; failure: string | null }) {
+export function DiscordConnectView(props: { openUrl: string; failure: string | null; webClient?: boolean }) {
   return (
     <main class="join-page">
       <a class="landing-brand join-page-brand" href="/" aria-label="OpenBot home">
@@ -50,7 +56,11 @@ export function DiscordConnectView(props: { openUrl: string; failure: string | n
             </p>
           }
         >
-          <p class="join-card-copy">OpenBot finishes the Discord connection on your computer.</p>
+          <p class="join-card-copy">
+            {props.webClient
+              ? "Your OpenBot tab finishes the Discord connection. You can close this tab."
+              : "OpenBot finishes the Discord connection on your computer."}
+          </p>
           <Show when={props.openUrl}>
             {(href) => (
               <div class="join-card-actions join-card-actions-single">
