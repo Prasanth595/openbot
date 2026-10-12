@@ -20,7 +20,7 @@ export const MOBILE_SEARCH_FILTERS = [
   "settings",
 ] as const;
 export type MobileSearchFilter = (typeof MOBILE_SEARCH_FILTERS)[number];
-export type MobileSearchSectionKey = Exclude<MobileSearchFilter, "all">;
+type MobileSearchSectionKey = Exclude<MobileSearchFilter, "all">;
 
 /** A settings page of this app or of the active server. The phone has other pages than the desktop. */
 export type MobileSearchSettingId =
@@ -71,7 +71,7 @@ export type MobileSearchResult =
     };
 
 /** Who wrote a message. Another member of the server shows by name, as in the chat. */
-export type MobileSearchMessageAuthor = "agent" | "you" | { member: string };
+type MobileSearchMessageAuthor = "agent" | "you" | { member: string };
 
 /** A search that the host answers in pages. `idle` when it does not run for the filter and query. */
 export type MobileRemoteSearch<T> =
@@ -84,7 +84,7 @@ export type MobileRemoteSearch<T> =
       pages?: number;
     };
 
-export interface MobileSearchSection {
+interface MobileSearchSection {
   key: MobileSearchSectionKey;
   results: MobileSearchResult[];
   /** All shows the first rows of each kind. The filter of the kind shows the others. */
