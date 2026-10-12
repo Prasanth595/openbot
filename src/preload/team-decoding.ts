@@ -10,6 +10,7 @@ import {
   type DirectConversationSnapshot,
   type DirectMessage,
   type DirectThreadSummary,
+  type HostedServerIssue,
   type HostStatus,
   type InvitePreview,
   type InviteSummary,
@@ -267,6 +268,7 @@ function server(summary: DynamicRecord): ServerSummary {
     connectionSequence,
     hostRestart,
     hostedSleep,
+    hostedIssue,
     memberLimit,
   } = summary;
   if (!isOneOf(SERVER_NOTIFICATION_LEVELS, notificationLevel)) throw new Error("Invalid notificationLevel.");
@@ -299,6 +301,7 @@ function server(summary: DynamicRecord): ServerSummary {
     ...(hostedSleep === undefined
       ? {}
       : { hostedSleep: hostedSleep === "sleeping" || hostedSleep === "waking" ? hostedSleep : null }),
+    ...(hostedIssue === undefined ? {} : { hostedIssue: decodeHostedIssue(hostedIssue) }),
     ...(memberLimit === undefined ? {} : { memberLimit }),
   };
 }
@@ -332,10 +335,13 @@ function protocolRange(value: unknown): { minimum: number; maximum: number } {
 function serverIssue(value: unknown): ServerConnectionIssue {
   const issue = decodeRecord(value, "server connection issue");
   if (!isOneOf(SERVER_ISSUE_CODES, issue.code)) throw new Error("Invalid code.");
+  const { reference } = issue;
+  if (reference !== undefined && !isString(reference)) throw new Error("Invalid reference.");
   return {
     code: issue.code,
     message: requiredString(issue, "message"),
     retryable: requiredBoolean(issue, "retryable"),
+    ...(reference === undefined ? {} : { reference }),
   };
 }
 
@@ -427,4 +433,9 @@ function remoteDesktopDisplay(display: DynamicRecord): RemoteDesktopDisplay {
 function teamRole(value: unknown): TeamRole {
   if (!isOneOf(TEAM_ROLES, value)) throw new Error("Invalid role.");
   return value;
+}
+
+function decodeHostedIssue(value: unknown): HostedServerIssue | null {
+  if (value === null || value === "plan_ended" || value === "wake_failed" || value === "start_timeout") return value;
+  throw new Error("Invalid hostedIssue.");
 }

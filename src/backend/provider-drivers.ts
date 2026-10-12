@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
+import type { ClientSideConnection, InitializeResponse } from "@agentclientprotocol/sdk";
 import type { AgentAuthState, AgentProviderId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
@@ -16,7 +17,9 @@ import {
   resolveCodexCli,
   resolveCursorCli,
   resolveGrokCli,
+  resolveMuseCli,
   resolveOpencodeCli,
+  resolvePiCli,
 } from "./cli";
 import { CustomAcpAgentsClient, type CustomAgentConfig, type CustomAgentSource } from "./custom-acp-agents-client";
 import { GrokAgentClient } from "./grok-client";
@@ -27,6 +30,7 @@ import type {
   McpServerSource,
   McpToolRuntimeSource,
 } from "./mcp-provider-shapes";
+import { MuseAgentClient } from "./muse-client";
 import {
   type CustomProviderSource,
   OPENCODE_PROFILE_CONFIG,
@@ -34,6 +38,7 @@ import {
   openCodeSignInMessage,
 } from "./opencode-config";
 import { readOpenCodeGoUsage } from "./opencode-usage";
+import { PiAgentClient } from "./pi-client";
 import {
   antigravityStatePaths,
   clineStatePaths,
@@ -41,16 +46,18 @@ import {
   cursorConfinedEnv,
   cursorStatePaths,
   customAgentStatePaths,
+  museStatePaths,
   OPENCODE_CONFINED_ENV,
   openCodeStatePaths,
   type ProcessConfinement,
+  piStatePaths,
   type SpawnTarget,
 } from "./process-confinement";
 import type { AccountReadResult } from "./protocol";
-import { type ProviderClientOperationError, providerFailure } from "./provider-client-effects";
+import { type ProviderClientOperationError, providerCall, providerFailure } from "./provider-client-effects";
 
 /** One command OpenBot runs against a provider's own CLI, waiting for the process to exit. */
-export interface ProviderCliCommand {
+interface ProviderCliCommand {
   readonly argv: readonly string[];
   readonly env: (cli: AgentCliInfo) => Record<string, string>;
   readonly timeoutMs: number;
@@ -87,6 +94,8 @@ type ProviderSignIn =
   | { kind: "cli-command"; command: ProviderCliCommand }
   /** The user signs in with the CLI themselves; OpenBot only re-probes the provider afterwards. */
   | { kind: "external" }
+  /** The host opens an interactive terminal and refreshes the account when it closes. */
+  | { kind: "terminal"; timeoutMs: number }
   /**
    * OpenBot starts the ACP server and calls `authenticate` with this method, which opens a browser
    * from the server. Only the sign-in process calls it: in a status probe it would open a browser.
@@ -101,13 +110,44 @@ type ProviderSignIn =
 
 /**
  * A sign-in the user finishes on another device, for a host with no browser the user can see.
- * `codex-device` is the Codex app-server device code. `cli` spawns the provider's CLI and reads its
- * link: `device` prints a code the user confirms, `paste` waits for the code the provider's page
- * shows, which the user copies back, and `link` is a page that signs the CLI in by itself.
+ * `codex-device` is the Codex app-server device code. `muse-device` is the device code a `muse serve`
+ * host asks Meta for. `cli` spawns the provider's CLI and reads its link: `device` prints a code the
+ * user confirms, `paste` waits for the code the provider's page shows, which the user copies back,
+ * and `link` is a page that signs the CLI in by itself.
  */
 type ProviderCodeSignIn =
   | { kind: "codex-device" }
+  | { kind: "muse-device"; timeoutMs: number }
   | { kind: "cli"; flow: "device" | "paste" | "link"; command: ProviderCliCommand };
+
+/**
+ * The Gemini API key sign-in, the other way in when Google's browser sign-in cannot reach this
+ * computer. The CLI saves only the chosen method, never the key, so the key goes in
+ * `GEMINI_API_KEY` at every spawn. A saved key wins over a Google account: the user saved it last.
+ * A profile-generation client gets the key but not the agent environment, as before.
+ */
+function antigravityKeyOptions(context: ProviderClientContext, agentEnvironment: boolean) {
+  const key = () => context.apiKey("antigravity");
+  return {
+    extraEnv: () => {
+      const saved = key();
+      return {
+        ...(agentEnvironment ? context.agentEnvironment?.() : {}),
+        ...(saved ? { GEMINI_API_KEY: saved } : {}),
+      };
+    },
+    redactValues: () => {
+      const saved = key();
+      return saved ? [saved] : [];
+    },
+    authenticate: (connection: ClientSideConnection, initialization: InitializeResponse) =>
+      key() && initialization.authMethods?.some((method) => method.id === GEMINI_API_KEY_METHOD)
+        ? providerCall(() => connection.authenticate({ methodId: GEMINI_API_KEY_METHOD })).pipe(Effect.asVoid)
+        : Effect.void,
+  };
+}
+
+const GEMINI_API_KEY_METHOD = "gemini-api-key";
 
 /**
  * Google's registry starts the Linux build with an empty `--uid=`, and the other builds with no
@@ -240,6 +280,83 @@ export interface BuiltInProviderDriver {
 }
 
 export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
+  {
+    id: "pi",
+    signIn: { kind: "terminal", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
+    resolveCli: resolvePiCli,
+    createClient: (cli, timeout, context, confinement) => {
+      const history = context.history?.("pi");
+      return new PiAgentClient(cli, {
+        requestTimeoutMs: timeout,
+        ...(confinement
+          ? {
+              confine: (target) => {
+                const paths = piStatePaths();
+                for (const path of paths.writable) mkdirSync(path, { recursive: true, mode: 0o700 });
+                return confineSpawnTarget(target, confinement, paths);
+              },
+            }
+          : {}),
+        extraEnv: () => ({ ...context.agentEnvironment?.() }),
+        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
+        mcpServers: context.mcpServers,
+        ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
+        ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
+        ...(context.mcpAuthorization ? { mcpAuthorization: context.mcpAuthorization } : {}),
+        ...(history ? { history } : {}),
+      });
+    },
+    createProfileClient: (cli, timeout, context) =>
+      new PiAgentClient(cli, {
+        requestTimeoutMs: timeout,
+        profileGeneration: true,
+        ...(context.providerStateDirectory ? { providerStateDirectory: context.providerStateDirectory } : {}),
+      }),
+    authState: (account) => ({ kind: "pi", email: account?.email ?? null }),
+    validateAccount: () => undefined,
+  },
+  {
+    id: "muse",
+    signIn: {
+      kind: "cli-command",
+      command: { argv: ["login"], env: () => ({ MUSE_NO_AUTO_UPDATE: "1" }), timeoutMs: CLI_LOGIN_TIMEOUT_MS },
+    },
+    // On this computer only: no Team API protocol carries a Muse code sign-in.
+    codeSignIn: { kind: "muse-device", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
+    resolveCli: resolveMuseCli,
+    createClient: (cli, timeout, context, confinement) =>
+      new MuseAgentClient(cli, {
+        requestTimeoutMs: timeout,
+        apiKey: () => context.apiKey("muse"),
+        extraEnv: () => ({ ...context.agentEnvironment?.() }),
+        ...(confinement
+          ? {
+              confine: (target) => {
+                const paths = museStatePaths();
+                for (const path of paths.writable)
+                  mkdirSync(basename(path).startsWith("session-index.db") ? dirname(path) : path, {
+                    recursive: true,
+                    mode: 0o700,
+                  });
+                return confineSpawnTarget(target, confinement, paths);
+              },
+            }
+          : {}),
+        mcpServers: context.mcpServers,
+        ...(context.reportMcpDrops ? { reportMcpDrops: context.reportMcpDrops } : {}),
+        ...(context.mcpToolRuntimes ? { mcpToolRuntimes: context.mcpToolRuntimes } : {}),
+        ...(context.mcpAuthorization ? { mcpAuthorization: context.mcpAuthorization } : {}),
+      }),
+    createProfileClient: (cli, timeout, context) =>
+      new MuseAgentClient(cli, {
+        requestTimeoutMs: timeout,
+        apiKey: () => context.apiKey("muse"),
+        profileGeneration: true,
+      }),
+    authState: (account) =>
+      account?.type === "muse" ? { kind: "muse", email: account.email ?? null } : { kind: "unknown" },
+    validateAccount: () => undefined,
+  },
   {
     id: "codex",
     signIn: { kind: "browser" },
@@ -395,7 +512,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         ...(confinement
           ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityStatePaths()) }
           : {}),
-        extraEnv: () => ({ ...context.agentEnvironment?.() }),
+        ...antigravityKeyOptions(context, true),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
         servesModel: context.servesModel,
         mcpServers: context.mcpServers,
@@ -412,6 +529,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         argv: ANTIGRAVITY_ARGV,
         profileGeneration: true,
         env: {},
+        ...antigravityKeyOptions(context, false),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
         servesModel: context.servesModel,
       }),

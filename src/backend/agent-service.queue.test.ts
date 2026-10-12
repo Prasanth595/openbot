@@ -4,6 +4,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { AgentEvent } from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import { registerSecretValue } from "@openbot/logging";
 import { Effect } from "effect";
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,6 +35,7 @@ import {
 import { runCauseEffect } from "./effect-boundary";
 import { MailboxStore } from "./mailbox-store";
 import { getString } from "./protocol";
+import { NO_PROVIDER_CREDENTIALS } from "./provider-drivers";
 import { SidebarLayoutStore } from "./sidebar-layout-store";
 import { StoredStateFailure } from "./stored-state-effects";
 
@@ -418,6 +420,8 @@ describe.sequential("AgentService: queue", () => {
         { id: "cursor", state: "not-installed", version: null },
         { id: "cline", state: "not-installed", version: null },
         { id: "acp", state: "not-installed", version: null },
+        { id: "pi", state: "not-installed", version: null },
+        { id: "muse", state: "not-installed", version: null },
       ],
     });
     await expect(
@@ -514,6 +518,8 @@ describe.sequential("AgentService: queue", () => {
           { id: "cursor", state: "not-installed" },
           { id: "cline", state: "not-installed" },
           { id: "acp", state: "not-installed" },
+          { id: "pi", state: "not-installed" },
+          { id: "muse", state: "not-installed" },
         ],
       });
 
@@ -529,6 +535,8 @@ describe.sequential("AgentService: queue", () => {
           { id: "cursor", state: "not-installed" },
           { id: "cline", state: "not-installed" },
           { id: "acp", state: "not-installed" },
+          { id: "pi", state: "not-installed" },
+          { id: "muse", state: "not-installed" },
         ],
       });
       const codexClient = clients.get("codex");
@@ -882,7 +890,7 @@ describe.sequential("AgentService: queue", () => {
     };
 
     await runCauseEffect(service.updateAgent({ agentId: "chief", provider: "grok", model: "grok-4.5" }));
-    const stepsDirectory = join(started.store.database.userDataPath, "provider-work-steps");
+    const stepsDirectory = join(started.store.database.userDataPath, "provider-work-steps", "v2");
     const [capture] = await readdir(stepsDirectory);
     assert(capture, "The switch saved no work steps.");
     const saved = await readFile(join(stepsDirectory, capture), "utf8");
@@ -1010,7 +1018,7 @@ describe.sequential("AgentService: queue", () => {
     },
   );
 
-  it("stores a visible summary when a provider handoff exceeds its budget", async () => {
+  it("bounds a provider handoff and keeps the complete result in local history", async () => {
     process.env.OPENBOT_CLAUDE_PATH = await fakeClaudeCli();
     const clients = new Map<AgentProvider, FakeAgentClient>();
     const { service: agentService, store } = await startService(root, {
@@ -1032,12 +1040,14 @@ describe.sequential("AgentService: queue", () => {
     await waitForQueue(service, "chief", (queue) => queue.deliveries[1]?.status === "completed");
 
     const claudeTurn = clients.get("claude")?.requests.find((request) => request.method === "turn/start")?.params;
-    expect(firstInputText(claudeTurn)).toContain("oldest visible history was summarized");
+    expect(firstInputText(claudeTurn)).toContain("history_read");
+    expect((firstInputText(claudeTurn) ?? "").length).toBeLessThan(33_000);
     if (!publicThreadId) throw new Error("The public thread was not created.");
-    expect(store.database.latestThreadSummary(publicThreadId)).toMatchObject({
-      threadId: publicThreadId,
-      throughMessageId: expect.any(String),
-    });
+    expect(
+      store.database
+        .readAgentHistory("chief", publicThreadId, { author: "assistant", limit: 10 })
+        .messages.some((row) => row.message.text.length === 250_000),
+    ).toBe(true);
   });
 
   it("starts a new provider session without the history before a new chat", async () => {
@@ -1090,14 +1100,9 @@ describe.sequential("AgentService: queue", () => {
     const instructions = getString(start?.params, "developerInstructions") ?? "";
     expect(instructions).toContain('"title": "Research & writing"');
     expect(instructions).toContain('"description": "Researches topics and turns findings into clear writing."');
-    expect(instructions).toContain("Be pragmatic and direct");
-    expect(instructions).toContain("Give the shortest answer that is complete and useful");
-    expect(instructions).toContain("Do not add filler");
+    expect(instructions).toContain("Give the shortest complete answer");
     expect(instructions).toContain("openbot.ask_user");
-    expect(instructions).toContain("GitHub-flavored Markdown tables");
-    expect(instructions).toContain("at least three dashes per column");
-    expect(instructions).toContain("put exactly ✓ or — in every option cell");
-    expect(instructions).toContain("render that Markdown as a comparison table");
+    expect(instructions).toContain("openbot.tool_describe");
     expect(instructions).toContain("standing remit");
   });
 
@@ -1272,6 +1277,38 @@ describe.sequential("AgentService: queue", () => {
     expect(mailbox.hasAgentMessageFromTurnTo("chief", "provider-turn", "worker")).toBe(true);
   });
 
+  // An agent can send `replyToMessageId: ""`. Stored as it came, it failed every read of the sender's
+  // and the recipient's conversations, and the recipient's queue stopped.
+  it("queues an agent message with an empty reply id as no reply", async () => {
+    const {
+      service: agentService,
+      client,
+      store,
+    } = await startService(root, { provider: "codex", autoComplete: false });
+    service = agentService;
+    await Promise.all([runCauseEffect(store.getOrCreate("chief")), runCauseEffect(store.getOrCreate("worker"))]);
+    await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Coordinate the report." }));
+    await waitForQueue(service, "chief", (queue) => queue.deliveries[0]?.status === "running");
+    const chiefThreadId = store.activeProviderSession("chief")?.externalSessionId;
+    assert(chiefThreadId);
+
+    await callOpenBotTool(client, chiefThreadId, "send_message", {
+      recipientAgentIds: ["worker"],
+      text: "Report sent.",
+      replyToMessageId: "",
+      expectsReply: false,
+    });
+    // The worker conversation gets the message before the delivery is marked running.
+    await waitForQueue(service, "worker", (queue) => queue.deliveries[0]?.status === "running");
+    expect(service.listQueue("worker").deliveries).toEqual([
+      expect.objectContaining({ text: "Report sent.", replyToMessageId: null }),
+    ]);
+    const page = await runCauseEffect(service.readConversationPageFor("worker", "user", { type: "latest" }, 50));
+    expect(page.messages).toContainEqual(
+      expect.objectContaining({ exchange: expect.objectContaining({ replyToMessageId: null }) }),
+    );
+  });
+
   it("lets an agent stop the turn its own message started and drops its queued follow-up", async () => {
     const {
       service: agentService,
@@ -1370,14 +1407,26 @@ describe.sequential("AgentService: queue", () => {
         provider,
         preferredProvider: provider,
         busyMessageMode: () => "steer",
-        client: (requested) => new FakeAgentClient(requested, "DONE", false, true, {}, requestHook),
+        credentials: {
+          ...NO_PROVIDER_CREDENTIALS,
+          customAgents: () => [{ id: "fixture", name: "Fixture", command: "fixture", args: [], env: [] }],
+        },
+        client: (requested) => {
+          const client = new FakeAgentClient(requested, "DONE", false, true, {}, requestHook);
+          if (requested === "acp") client.modelList = () => ({ data: [{ model: "fixture/default" }] });
+          return client;
+        },
       });
       service = started.service;
-      if (provider === "opencode") {
+      if (provider === "opencode" || provider === "acp") {
         await runCauseEffect(started.store.getOrCreate("chief"));
         await runCauseEffect(started.service.ensureProvider(provider));
         await runCauseEffect(
-          started.service.updateAgent({ agentId: "chief", provider, model: "opencode/example-model" }),
+          started.service.updateAgent({
+            agentId: "chief",
+            provider,
+            model: provider === "acp" ? "fixture/default" : "opencode/example-model",
+          }),
         );
       }
       const events: AgentEvent[] = [];
@@ -1409,20 +1458,49 @@ describe.sequential("AgentService: queue", () => {
       expect(steer?.params).toMatchObject({ expectedTurnId: turnId, clientUserMessageId: receipt.deliveries[0]?.id });
     });
 
-    it("waits in the queue with a reason on a provider that cannot steer, then starts", async () => {
-      const { service: agentService, client, completeTurn } = await startBusyAgent("opencode");
-      await runCauseEffect(agentService.sendMessage({ agentId: "chief", text: "Use staging" }));
+    it.each(["opencode", "acp"] as const)(
+      "keeps automatic and manual %s steering queued until the turn ends",
+      async (provider) => {
+        const { service: agentService, client, completeTurn, turnId, store } = await startBusyAgent(provider);
+        const session = store.activeProviderSession("chief");
+        await runCauseEffect(agentService.sendMessage({ agentId: "chief", text: "Use staging" }));
 
-      expect(client.requests.some((request) => request.method === "turn/steer")).toBe(false);
-      expect(agentService.listQueue("chief").deliveries[1]).toMatchObject({
-        status: "queued",
-        steerFallback: "provider-unsupported",
-      });
+        expect(client.requests.some((request) => request.method === "turn/steer")).toBe(false);
+        expect(agentService.listQueue("chief").deliveries[1]).toMatchObject({
+          status: "queued",
+          steerFallback: "provider-unsupported",
+        });
 
-      completeTurn();
-      await waitFor(() => turnStarts(client) === 2);
-      expect(agentService.listQueue("chief").deliveries[1]).not.toHaveProperty("steerFallback");
-    });
+        const queued = agentService.listQueue("chief").deliveries[1];
+        if (!queued) throw new Error("Queued message is missing.");
+        await expect(
+          runCauseEffect(
+            agentService.steerQueuedMessage({
+              agentId: "chief",
+              deliveryId: queued.id,
+              expectedTurnId: turnId,
+            }),
+          ),
+        ).rejects.toThrow(sourceText("error.backend.steerUnsupported"));
+        expect(
+          client.requests.some((request) => request.method === "turn/steer" || request.method === "turn/interrupt"),
+        ).toBe(false);
+        expect(agentService.listQueue("chief").deliveries).toEqual([
+          expect.objectContaining({ status: "running", turnId }),
+          expect.objectContaining({
+            id: queued.id,
+            text: "Use staging",
+            status: "queued",
+            steerFallback: "provider-unsupported",
+          }),
+        ]);
+        expect(store.activeProviderSession("chief")).toEqual(session);
+        completeTurn();
+        await waitFor(() => turnStarts(client) === 2);
+        expect(agentService.listQueue("chief").deliveries[1]).toMatchObject({ id: queued.id, status: "running" });
+        expect(agentService.listQueue("chief").deliveries[1]).not.toHaveProperty("steerFallback");
+      },
+    );
 
     it("keeps a message whose steer request fails in the queue, then starts it", async () => {
       const {
@@ -1441,6 +1519,51 @@ describe.sequential("AgentService: queue", () => {
       await waitFor(() => turnStarts(client) === 2);
       expect(agentService.listQueue("chief").deliveries[1]?.status).toBe("running");
     });
+
+    it.each([false, true])(
+      "restores a refused manual native steer (turn ended: %s) without duplicate delivery",
+      async (endTurn) => {
+        let refuse = (_error: Error) => {};
+        const pending = new Promise<void>((_resolve, reject) => {
+          refuse = reject;
+        });
+        const requested = vi.fn();
+        const busy = await startBusyAgent("codex", async (method) => {
+          if (method !== "turn/steer") return;
+          requested();
+          await pending;
+        });
+        await runCauseEffect(busy.service.updateAgent({ agentId: "chief", busyMessageMode: "queue" }));
+        await runCauseEffect(busy.service.sendMessage({ agentId: "chief", text: "Keep this input" }));
+        const queued = busy.service.listQueue("chief").deliveries[1];
+        if (!queued) throw new Error("Queued message is missing.");
+        const steering = runCauseEffect(
+          busy.service.steerQueuedMessage({
+            agentId: "chief",
+            deliveryId: queued.id,
+            expectedTurnId: busy.turnId,
+          }),
+        );
+        const refused = expect(steering).rejects.toThrow("Steer refused.");
+        await vi.waitFor(() => expect(requested).toHaveBeenCalledOnce());
+        expect(busy.service.listQueue("chief").deliveries[1]?.status).toBe("starting");
+        if (endTurn) {
+          busy.completeTurn();
+          await waitForQueue(busy.service, "chief", (queue) => queue.deliveries[1]?.status === "completed");
+        }
+        refuse(new Error("Steer refused."));
+        await refused;
+        if (!endTurn) {
+          expect(busy.service.listQueue("chief").deliveries[1]).toMatchObject({ id: queued.id, status: "queued" });
+          busy.completeTurn();
+        }
+        await waitFor(() => turnStarts(busy.client) === 2);
+        expect(busy.service.listQueue("chief").deliveries).toEqual([
+          expect.objectContaining({ status: "completed", turnId: busy.turnId }),
+          expect.objectContaining({ id: queued.id, text: "Keep this input", status: "running" }),
+        ]);
+      },
+    );
 
     it("follows the agent's own setting before the app default", async () => {
       const { service: agentService, client } = await startBusyAgent("codex");

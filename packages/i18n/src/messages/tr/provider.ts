@@ -22,13 +22,16 @@ export const messages = {
   "provider.status.downloadFailed": "İndirme başarısız",
   "provider.status.connected": "Bağlandı",
   "provider.status.notDownloaded": "İndirilmedi",
-  "provider.status.ready": "Hazır",
+  "provider.status.ready": "Çalışma zamanı yüklendi",
   "provider.status.notConnected": "Bağlı değil",
   "provider.status.notInstalled": "Yüklü değil",
   "provider.status.updateRequired": "Güncelleme gerekli",
   "provider.status.unavailable": "Kullanılamıyor",
   "provider.status.checking": "Denetleniyor",
 
+  "provider.status.off": "Kapalı",
+  "provider.gemini.hostSignIn":
+    "Gemini'yi bağlamak için ana makinede OpenBot'u açın ve Ayarlar > Sağlayıcılar bölümünde Bağlan'ı seçin. Google ile oturum açmak için o ana makinede bir tarayıcı gerekir. Uzaktan oturum açma desteklenmez.",
   "provider.key.free": "Ücretsiz",
 
   "provider.action.connect": "Bağlan",
@@ -51,8 +54,14 @@ export const messages = {
   "provider.aria.retry": "{name} için tekrar dene",
   "provider.aria.install": "{name} sağlayıcısını yükle",
   "provider.aria.signIn": "{name} giriş yap",
+  "provider.aria.codeFallback": "{name} için kod ile giriş yap",
   "provider.aria.moreActions": "{name} için diğer eylemler",
 
+  "provider.aria.use": "OpenBot'ta {name} kullan",
+  "provider.use.inUse": {
+    one: "{agents}, {name} kullanıyor. Bu ajanın modelini değiştirin, ardından {name} sağlayıcısını kapatın.",
+    other: "{agents}, {name} kullanıyor. Bu ajanların modelini değiştirin, ardından {name} sağlayıcısını kapatın.",
+  },
   "provider.codeLogin.title": "Bir kod ile {name} hesabına giriş yapın",
   "provider.codeLogin.description": "Telefonunuzda veya başka bir tarayıcıda tamamlayın. OpenBot burada bekler.",
   "provider.codeLogin.starting": "{name} kaynağından bir kod alınıyor…",
@@ -71,6 +80,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Bu giriş işlemi durduruldu.",
   "provider.codeLogin.pasteExpiresIn": "Sizi bekliyor. Bu giriş işlemi {time} içinde sona erecek.",
   "provider.codeLogin.linkTitle": "{name} hesabına başka bir cihazda giriş yapın",
+  "provider.codeLogin.pageTitle": "{name} oturumu aç",
+  "provider.codeLogin.pageDescription": "Bu sayfa {host} üzerindeki tarayıcıda açık. Burada oturum açın.",
+  "provider.codeLogin.relayStarting": "{name} oturum açma işlemi {host} üzerinde başlatılıyor…",
+  "provider.codeLogin.pageOpening": "{name} oturum açma sayfası {host} üzerinde açılıyor…",
   "provider.codeLogin.linkStep": "{name} hesabına giriş yapın. OpenBot kendiliğinden devam eder.",
 
   "provider.picker.noEndpoints": "Henüz uç nokta yok",
@@ -106,6 +119,14 @@ export const messages = {
   "provider.effort.xhigh": "Ekstra yüksek",
   "provider.effort.max": "Maksimum",
 
+  "provider.museKey.title": "Muse için Meta API anahtarı",
+  "provider.museKey.description":
+    "Ana makineye bir Meta API anahtarı kaydedin veya oturum açmak için Muse CLI'yi kullanın.",
+  "provider.museKey.label": "Meta API anahtarı",
+  "provider.geminiKey.title": "Gemini API anahtarı",
+  "provider.geminiKey.description":
+    "Ana makineye bir Gemini API anahtarı kaydedin veya Google ile oturum açmak için Bağlan'ı seçin.",
+  "provider.geminiKey.label": "Gemini API anahtarı",
   "provider.openCodeKey.title": "OpenCode Go'ya giriş yapın",
   "provider.openCodeKey.description":
     "Ücretsiz modeller hesap gerektirmez. Bir anahtar, ücretli Go modellerinin kilidini açar.",

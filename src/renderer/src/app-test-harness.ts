@@ -141,6 +141,40 @@ const CONNECTING_STATUS: Record<AgentProviderId, AgentStatus> = {
     message: null,
     fullAccess: true,
   },
+  pi: {
+    phase: "blocked",
+    cliVersion: "1.1.0",
+    auth: { kind: "unknown" },
+    providers: [
+      {
+        id: "pi",
+        state: "sign-in-required",
+        connectionState: "connecting",
+        version: "1.1.0",
+        message: null,
+      },
+    ],
+    capabilities: { chat: "unavailable", browser: "ready", computerUse: "unavailable" },
+    message: null,
+    fullAccess: true,
+  },
+  muse: {
+    phase: "blocked",
+    cliVersion: "1.4.4-R5419.1",
+    auth: { kind: "unknown" },
+    providers: [
+      {
+        id: "muse",
+        state: "sign-in-required",
+        connectionState: "connecting",
+        version: "1.4.4-R5419.1",
+        message: null,
+      },
+    ],
+    capabilities: { chat: "unavailable", browser: "ready", computerUse: "unavailable" },
+    message: null,
+    fullAccess: true,
+  },
   acp: {
     phase: "blocked",
     cliVersion: null,
@@ -571,6 +605,8 @@ export function installOpenbotStub(): void {
       setApprovalAutomation: vi.fn(async () => ({ turbo: false, defaultAutoApprove: false, autoApproveOverrides: {} })),
       getBusyMessageModePreference: vi.fn().mockResolvedValue({ mode: "queue" }),
       setBusyMessageModePreference: vi.fn(async ({ mode }) => ({ mode })),
+      getAgentMemoryLimitPreference: vi.fn().mockResolvedValue({ limit: 64 }),
+      setAgentMemoryLimitPreference: vi.fn(async ({ limit }) => ({ limit })),
       getRemoteSessionReusePreference: vi.fn().mockResolvedValue({ keepBetweenRuns: true }),
       setRemoteSessionReusePreference: vi.fn(async ({ keepBetweenRuns }) => ({ keepBetweenRuns })),
       getAppLanguagePreference: vi.fn().mockResolvedValue({ language: "system" }),
@@ -660,8 +696,13 @@ export function installOpenbotStub(): void {
     // No renderer test reaches routine flows yet; a request rejects as not stubbed.
     routineFlows: stubGroup("routineFlows", {}),
     voice: stubGroup("voice", {
-      getModelStatus: vi.fn().mockResolvedValue({ phase: "ready", progress: 100, message: null }),
-      prepareModel: vi.fn().mockResolvedValue({ phase: "ready", progress: 100, message: null }),
+      getModelStatus: vi
+        .fn()
+        .mockResolvedValue({ modelId: "parakeet-tdt-0.6b-v3", phase: "ready", progress: 100, message: null }),
+      prepareModel: vi
+        .fn()
+        .mockResolvedValue({ modelId: "parakeet-tdt-0.6b-v3", phase: "ready", progress: 100, message: null }),
+      getSettings: vi.fn().mockResolvedValue({ modelId: "parakeet-tdt-0.6b-v3", language: "automatic" }),
       transcribe: vi.fn().mockResolvedValue({ text: "Voice transcript" }),
     }),
     auth: stubGroup("auth", {
@@ -709,10 +750,19 @@ export function installOpenbotStub(): void {
       setMcpServerEnabled: notStubbed("agent.setMcpServerEnabled"),
       testMcpServer: notStubbed("agent.testMcpServer"),
       signInMcpServer: notStubbed("agent.signInMcpServer"),
+      mcpSignInPage: notStubbed("agent.mcpSignInPage"),
+      mcpSignInRelay: notStubbed("agent.mcpSignInRelay"),
+      openMcpSignInRelay: notStubbed("agent.openMcpSignInRelay"),
+      completeMcpSignInRelay: notStubbed("agent.completeMcpSignInRelay"),
       cancelMcpSignIn: notStubbed("agent.cancelMcpSignIn"),
       signOutMcpServer: notStubbed("agent.signOutMcpServer"),
       listMcpSignIns: notStubbed("agent.listMcpSignIns"),
+      mcpSignInApp: notStubbed("agent.mcpSignInApp"),
+      saveMcpSignInApp: notStubbed("agent.saveMcpSignInApp"),
+      removeMcpSignInApp: notStubbed("agent.removeMcpSignInApp"),
       getAgentAdminSettings: notStubbed("agent.getAgentAdminSettings"),
+      getAgentHostSettings: notStubbed("agent.getAgentHostSettings"),
+      updateAgentHostSettings: notStubbed("agent.updateAgentHostSettings"),
       updateAgentAdminSettings: notStubbed("agent.updateAgentAdminSettings"),
       listAgentSkills: notStubbed("agent.listAgentSkills"),
       installAgentSkill: notStubbed("agent.installAgentSkill"),
@@ -802,8 +852,19 @@ export function installOpenbotStub(): void {
         },
       ]),
       listAgents: vi.fn().mockResolvedValue(AGENTS),
+      readAgentSessionSettings: vi.fn(async (agentId: string) => ({
+        agentId,
+        providerIdentity: "codex",
+        options: [],
+        overrides: {},
+        pending: false,
+      })),
+      setAgentSessionSetting: notStubbed("agent.setAgentSessionSetting"),
+      resetAgentSessionSetting: notStubbed("agent.resetAgentSessionSetting"),
       listInstalledSkills: vi.fn().mockResolvedValue([]),
       listMcpServers: vi.fn().mockResolvedValue([]),
+      getMemorySelection: vi.fn().mockResolvedValue(null),
+      setMemoryInclusion: notStubbed("agent.setMemoryInclusion"),
       listMemories: vi.fn().mockResolvedValue([]),
       listRoutines: vi.fn().mockResolvedValue([]),
       listRoutineRuns: vi.fn().mockResolvedValue([]),
@@ -905,6 +966,9 @@ export function installOpenbotStub(): void {
         };
       }),
       searchConversationMessages: vi.fn().mockResolvedValue({ results: [], total: 0, nextCursor: null }),
+      openMessageLink: vi.fn().mockResolvedValue(null),
+      pasteMessageLink: vi.fn().mockResolvedValue(undefined),
+      cancelMessageLink: vi.fn().mockResolvedValue(undefined),
       searchConversationFiles: vi.fn().mockResolvedValue({ results: [], nextCursor: null }),
       listConversationReads: vi.fn().mockResolvedValue({}),
       markConversationRead: vi.fn().mockImplementation(async (input) => ({
@@ -1204,6 +1268,11 @@ export function installOpenbotStub(): void {
       list: vi.fn().mockResolvedValue([]),
       save: vi.fn().mockResolvedValue({ providers: [], restart: "not-running" }),
       delete: vi.fn().mockResolvedValue({ providers: [], restart: "not-running" }),
+    }),
+    acpRegistry: stubGroup("acpRegistry", {
+      search: vi.fn().mockResolvedValue([]),
+      installed: vi.fn().mockResolvedValue([]),
+      status: vi.fn().mockResolvedValue([]),
     }),
     customAgents: stubGroup("customAgents", {
       list: vi.fn().mockResolvedValue([]),

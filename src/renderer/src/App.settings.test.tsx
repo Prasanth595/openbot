@@ -198,7 +198,7 @@ describe("OpenBot connected desktop shell", () => {
     await screen.findByRole("heading", { name: "Chief" });
     await waitFor(() => expect(window.openbot.agent.listInstalledSkills).toHaveBeenCalled());
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
-    await screen.findByRole("button", { name: /^Edit profile of/u });
+    await screen.findByRole("textbox", { name: "Agent name" });
     vi.mocked(window.openbot.agent.listInstalledSkills).mockResolvedValue([
       {
         skillId: "local-skill-smoke",
@@ -235,7 +235,9 @@ describe("OpenBot connected desktop shell", () => {
     const usageButton = await screen.findByRole("button", { name: "Usage, ChatGPT 59% left" });
     await fireEvent.click(usageButton);
     const usageDialog = screen.getByRole("dialog", { name: "Usage" });
-    expect(within(usageDialog).getByRole("listitem", { name: /ChatGPT, 59% left/ })).toBeInTheDocument();
+    expect(
+      within(usageDialog).getByRole("listitem", { name: /ChatGPT, 5-hour 72% left.*Weekly 59% left/ }),
+    ).toBeInTheDocument();
     await fireEvent.click(within(usageDialog).getByRole("button", { name: "Refresh" }));
     await waitFor(() => expect(window.openbot.agent.getUsage).toHaveBeenCalledTimes(2));
     await fireEvent.keyDown(usageDialog, { key: "Escape" });
@@ -302,7 +304,9 @@ describe("OpenBot connected desktop shell", () => {
     expect(vi.mocked(window.openbot.agent.getUsage).mock.calls[0]).toEqual([]);
     const accountDialog = screen.getByRole("dialog", { name: "Account actions" });
     expect(within(accountDialog).getByRole("heading", { name: "Usage" })).toBeInTheDocument();
-    expect(within(accountDialog).getByRole("listitem", { name: /ChatGPT, 59% left/ })).toBeInTheDocument();
+    expect(
+      within(accountDialog).getByRole("listitem", { name: /ChatGPT, 5-hour 72% left.*Weekly 59% left/ }),
+    ).toBeInTheDocument();
   });
 
   it("lists each connected provider in the usage popover", async () => {
@@ -326,8 +330,10 @@ describe("OpenBot connected desktop shell", () => {
     const usageButton = await screen.findByRole("button", { name: "Usage, ChatGPT 85% left" });
     await fireEvent.click(usageButton);
     const usageDialog = screen.getByRole("dialog", { name: "Usage" });
-    expect(within(usageDialog).getByRole("listitem", { name: /Claude, 0% left/ })).toBeInTheDocument();
-    expect(within(usageDialog).getByRole("listitem", { name: /ChatGPT, 85% left/ })).toBeInTheDocument();
+    expect(
+      within(usageDialog).getByRole("listitem", { name: /Claude, 5-hour 0% left.*Weekly 60% left/ }),
+    ).toBeInTheDocument();
+    expect(within(usageDialog).getByRole("listitem", { name: /ChatGPT, Weekly 85% left/ })).toBeInTheDocument();
   });
 
   it("keeps host-wide usage when an earlier request finishes late", async () => {
@@ -913,7 +919,6 @@ describe("OpenBot connected desktop shell", () => {
     );
 
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
-    await fireEvent.click(await screen.findByRole("button", { name: /^Edit profile of/u }));
     const name = await screen.findByRole("textbox", { name: "Agent name" });
     await fireEvent.input(name, { target: { value: "Coordinator" } });
     await fireEvent.blur(name);
@@ -944,7 +949,6 @@ describe("OpenBot connected desktop shell", () => {
     await screen.findByRole("heading", { name: "Chief" });
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
     const settings = await screen.findByRole("complementary", { name: "Agent settings" });
-    await fireEvent.click(within(settings).getByRole("button", { name: /^Edit profile of/u }));
     await fireEvent.click(await within(settings).findByRole("button", { name: "Edit agent avatar" }));
     const editor = within(settings).getByRole("dialog", { name: "Avatar editor" });
     await fireEvent.click(within(editor).getByRole("button", { name: "Remove" }));
@@ -1000,7 +1004,6 @@ describe("OpenBot connected desktop shell", () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
     await fireEvent.click(screen.getByRole("button", { name: "View agent settings" }));
-    await fireEvent.click(await screen.findByRole("button", { name: /^Edit profile of/u }));
     const name = await screen.findByRole("textbox", { name: "Agent name" });
     name.focus();
     let draft = "";
@@ -1042,8 +1045,6 @@ describe("OpenBot connected desktop shell", () => {
     }
     expect(screen.getByRole("textbox", { name: "Agent title" })).toBe(title);
 
-    await fireEvent.click(screen.getByRole("button", { name: "Back to settings" }));
-    await fireEvent.click(screen.getByRole("button", { name: "Edit instructions" }));
     const description = screen.getByRole("textbox", { name: "Agent instructions" });
     description.focus();
     draft = "";

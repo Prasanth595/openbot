@@ -164,10 +164,20 @@ When no agents have loaded and the selected server is connecting or offline, the
 already loaded remain visible during reconnection.
 
 While a server is disconnected, its agent avatars and colored chat bubbles fade locally with the same
-280 ms transition. Chat input, attachments,
-voice/send controls and suggested prompts are disabled. Draft text is preserved, and the controls
-and original colors return when the server is online. This visual state is derived only in the
-mobile UI: it never changes the agent's synced avatar profile or sends appearance updates over RTC.
+280 ms transition. Voice controls and suggested prompts are disabled until the server is online. The
+chat input and attachments stay usable: a sent message goes to the phone's outbox and is drawn
+lighter. One line under the last waiting message says `Sends when the server is online`, and touch
+and hold on a waiting message opens the native context menu with Edit and Don't send. While the
+history waits for the server, `Waiting for connection` shows under the reconnect status above the
+composer; in the chat that status shows only the attempt and the countdown. The outbox is saved per account in the app's documents,
+so it survives a restart. Each chat sends its messages one at a time and in order while its server is
+online. An agent message carries a `clientMessageId` when the host advertises `message-client-id-v1`,
+and a channel message uses the same id as its `operationId`, so a repeat after a lost reply stores
+the message once. A message that the host refused shows `Not sent`, and its menu adds Retry; it holds
+the later messages of its chat. A message that the host may have stored is not repeated when
+the host cannot drop a repeat, or 12 hours after its first attempt; it shows `Not confirmed`. This
+visual state is derived only in the mobile UI: it never changes the agent's synced avatar profile or
+sends appearance updates over RTC.
 
 Invitations pin the desktop public key before acceptance. Pins are stored in the device Keychain /
 Keystore, scoped to the account service and user, and checked on later directory refreshes. Joining
@@ -468,7 +478,7 @@ where available, `duration_ms`. Failure codes are fixed categories, never raw er
 | `mobile_connection_action` | Initial connection attempt, reconnection attempt, or connection lost; result, duration and bounded loading stage |
 | `conversation_opened` | One visible-visit outcome and time to readable conversation, including cached/offline reads; failures when no readable conversation is available |
 | `message_send` | Host receipt or failure, attachment count, reply flag, provider/model/reasoning metadata when known |
-| `agent_input_action` | Submission of a structured prompt answer; no answer contents |
+| `agent_input_action` | Submission of a structured prompt answer or an approval decision (`accept` or `decline`); no answer contents, command or path |
 | `attachment_action` | Local file selection, upload, removal; result, count and coarse size bucket when known |
 | `agent_action` | Create, update, duplicate or delete |
 | `routine_action` | Create, update or delete, including enabling/disabling through update |

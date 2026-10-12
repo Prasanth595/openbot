@@ -2,14 +2,19 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agentSettings";
 
 export const messages = {
+  "agentSettings.session.title": "Настройки провайдера",
+  "agentSettings.session.readFailed": "Не удалось прочитать настройки провайдера.",
+  "agentSettings.session.pending": "Сохранённые изменения вступят в силу перед следующим ходом.",
+  "agentSettings.session.unavailable":
+    "Сохранённое значение {value} недоступно. Выберите другое значение или сбросьте его.",
+  "agentSettings.session.effective": "Текущее значение у провайдера: {value}",
+  "agentSettings.session.reset": "Сбросить параметр",
+  "agentSettings.session.resetNamed": "Сбросить {name}",
   "agentSettings.label": "Настройки агента",
   "agentSettings.title": "Настройки",
   "agentSettings.backToDetails": "Назад к описанию",
   "agentSettings.closeDetails": "Закрыть описание",
   "agentSettings.backToSettings": "Назад к настройкам",
-  "agentSettings.profile.title": "Профиль",
-  "agentSettings.profile.open": "Изменить профиль {name}",
-  "agentSettings.instructionsEdit": "Изменить инструкции",
   "agentSettings.permissions.title": "Разрешения",
   "agentSettings.advanced.title": "Дополнительно",
   "agentSettings.groups.brain": "Мозг",
@@ -136,7 +141,7 @@ export const messages = {
   "agentSettings.computerUse.description": "Разрешить этому агенту управлять приложениями на этом компьютере",
   "agentSettings.automation.title": "Локальные скрипты",
   "agentSettings.automation.description":
-    "Разрешить скриптам на этом компьютере запускать регулярные задачи этого агента",
+    "Разрешить скриптам на хосте отправлять сообщения, запускать процедуры, отвечать на вопросы и одобрять или отклонять запросы",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Весь процесс {provider} работает в песочнице, поэтому запись за пределами не удастся. Доступно только в macOS.",
 } as const satisfies PartialTranslation<typeof source>;

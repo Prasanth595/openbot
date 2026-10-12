@@ -55,7 +55,7 @@ for (const cancel of [false, true]) {
         if (status.state === "connected") connected.resolve();
       });
       try {
-        await runCauseEffect(service.connect());
+        await runCauseEffect(service.connect(true));
         await vi.advanceTimersByTimeAsync(1_000);
         await arrived.promise;
         if (cancel) service.cancel();
@@ -66,7 +66,7 @@ for (const cancel of [false, true]) {
           await connected.promise;
           expect(await readFile(join(tools, "token"), "utf8")).toBe("test-access-token");
           expect(store.read()?.accessToken).toBe("test-access-token");
-          await runCauseEffect(service.disconnect());
+          await runCauseEffect(service.disconnect(true));
         }
         await runCauseEffect(service.dispose());
         expect(store.read()).toBeNull();

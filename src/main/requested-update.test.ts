@@ -66,7 +66,7 @@ let requested: RequestedUpdate;
 let stored: UpdatePreference;
 let announce: ReturnType<typeof vi.fn<(state: HostRestartState, version: string | null) => void>>;
 
-function create(preference: Partial<UpdatePreference> = {}) {
+function create(preference: Partial<UpdatePreference> = {}, clientInUse?: () => boolean) {
   stored = { autoDownload: true, allowRemoteUpdates: true, autoInstall: false, ...preference };
   requested = new RequestedUpdate({
     updater,
@@ -81,6 +81,7 @@ function create(preference: Partial<UpdatePreference> = {}) {
     announce,
     pollMs: 5_000,
     graceMs: 1_000,
+    clientInUse,
   });
   return requested;
 }
@@ -306,6 +307,29 @@ describe("RequestedUpdate automatic install", () => {
     await vi.advanceTimersByTimeAsync(10_000);
     expect(updater.installUpdate).toHaveBeenCalledOnce();
     expect(requested.snapshot()).toMatchObject({ errorCode: "install_failed", restart: null });
+  });
+
+  it("a hosted server installs each release, after its clients and not before a member's request", async () => {
+    let inUse = true;
+    updater.status = { ...updater.status, phase: "ready", availableVersion: "0.25.0", progress: 100 };
+    create({ autoInstall: false }, () => inUse);
+    expect(requested.snapshot().autoInstall).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(requested.snapshot().restart).toEqual({ requestedBy: null, mode: "when-idle", waitingFor: ["client-use"] });
+    expect(updater.installUpdate).not.toHaveBeenCalled();
+
+    inUse = false;
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(updater.installUpdate).toHaveBeenCalledOnce();
+
+    updater.installUpdate.mockClear();
+    updater.status = { ...updater.status, phase: "ready" };
+    inUse = true;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(requested.snapshot().restart?.requestedBy).toBeNull();
+    await runCauseEffect(requested.requestWhenIdle(ADA));
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(updater.installUpdate).toHaveBeenCalledOnce();
   });
 
   it("each switch removes only the restart it allowed", async () => {

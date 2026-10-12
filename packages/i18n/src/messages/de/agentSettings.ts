@@ -2,14 +2,19 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agentSettings";
 
 export const messages = {
+  "agentSettings.session.title": "Anbietereinstellungen",
+  "agentSettings.session.readFailed": "Die Anbietereinstellungen konnten nicht gelesen werden.",
+  "agentSettings.session.pending": "Gespeicherte Änderungen gelten vor dem nächsten Durchgang.",
+  "agentSettings.session.unavailable":
+    "Der gespeicherte Wert {value} ist nicht verfügbar. Wähle einen anderen Wert oder setze ihn zurück.",
+  "agentSettings.session.effective": "Aktueller Wert des Anbieters: {value}",
+  "agentSettings.session.reset": "Einstellung zurücksetzen",
+  "agentSettings.session.resetNamed": "{name} zurücksetzen",
   "agentSettings.label": "Agenteneinstellungen",
   "agentSettings.title": "Einstellungen",
   "agentSettings.backToDetails": "Zurück zu den Details",
   "agentSettings.closeDetails": "Details schließen",
   "agentSettings.backToSettings": "Zurück zu den Einstellungen",
-  "agentSettings.profile.title": "Profil",
-  "agentSettings.profile.open": "Profil von {name} bearbeiten",
-  "agentSettings.instructionsEdit": "Anweisungen bearbeiten",
   "agentSettings.permissions.title": "Berechtigungen",
   "agentSettings.advanced.title": "Erweitert",
   "agentSettings.groups.brain": "Gehirn",
@@ -120,7 +125,7 @@ export const messages = {
   "agentSettings.computerUse.description": "Diesem Agenten erlauben, Apps auf diesem Computer zu steuern",
   "agentSettings.automation.title": "Lokale Skripte",
   "agentSettings.automation.description":
-    "Skripten auf diesem Computer erlauben, die Routinen dieses Agenten auszuführen",
+    "Skripten auf dem Host erlauben, Nachrichten zu senden, Routinen auszuführen, Fragen zu beantworten und Anfragen zu genehmigen oder abzulehnen",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Der gesamte Prozess von {provider} läuft in einer Sandbox, daher schlagen Schreibzugriffe außerhalb fehl. Nur unter macOS verfügbar.",
 } as const satisfies PartialTranslation<typeof source>;

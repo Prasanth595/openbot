@@ -10,6 +10,8 @@ type UploadControl = {
   cancelled: () => boolean;
   progress: (completed: number) => void;
   fileProgress?: (fraction: number) => void;
+  /** Runs after the uploads, right before the command that can store the message. */
+  beforeCommand?: () => Promise<void>;
 };
 
 /** Retain uploads and the operation ID when delivery is uncertain. */
@@ -88,6 +90,7 @@ export class ChannelSend {
       replyToMessageId,
       attachmentDraftIds: ids,
     };
+    await upload?.beforeCommand?.();
     this.failed = command;
     let historyPending = false;
     try {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TEAM_CURRENT_CAPABILITIES } from "./current";
+import { TEAM_BOOTSTRAP_CAPABILITIES, TEAM_CURRENT_CAPABILITIES } from "./current";
 import { optionalTeamEvent } from "./optional-events";
 import { optionalRouteCodec } from "./optional-routes";
 import { ROUTINE_FLOWS_CAPABILITY, ROUTINE_FLOWS_ROUTES, routineFlowsEvent } from "./routine-flows-v1";
@@ -73,9 +73,10 @@ const canvas = {
 };
 
 describe("routine-flows-v1", () => {
-  it("is one current capability, inside the limit the frozen decoders accept", () => {
+  // A protocol 6 peer reads at most 64 capabilities.
+  it("is one current capability, advertised only to a protocol 7 peer", () => {
     expect(TEAM_CURRENT_CAPABILITIES).toContain(ROUTINE_FLOWS_CAPABILITY);
-    expect(TEAM_CURRENT_CAPABILITIES.length).toBeLessThanOrEqual(64);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(ROUTINE_FLOWS_CAPABILITY);
     expect(optionalRouteCodec(`${ROUTINE_FLOWS_ROUTES.canvas}?x=1`)).toBeDefined();
     expect(optionalRouteCodec("/v1/routine-flows")).toBeUndefined();
   });

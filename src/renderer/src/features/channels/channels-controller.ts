@@ -1,4 +1,5 @@
 import type { ChannelCommand, ChannelPage, ChannelSummary } from "@openbot/contracts/ipc";
+import type { AppTextKey } from "@openbot/i18n";
 import type { AgentProfile } from "@openbot/ui/data";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore, flush, onSettled, reconcile, untrack } from "solid-js";
@@ -25,6 +26,8 @@ interface ChannelsState {
   loading: boolean;
   pending: boolean;
   error: string | null;
+  /** The code of the failure in `error`. It shows only while `error` is set. */
+  errorReference: string | null;
   editing: "create" | "settings" | null;
   archived: boolean;
   collapsed: boolean;
@@ -54,6 +57,12 @@ export interface ChannelsEnvironment {
 
 export type ChannelsController = ReturnType<typeof createChannelsController>;
 
+/** The localized and redacted sentence for a failure, and its code. */
+function failure(error: unknown, fallback: AppTextKey): Pick<ChannelsState, "error" | "errorReference"> {
+  const details = currentText().errorDetails(error, currentText().t(fallback));
+  return { error: details.message, errorReference: details.reference };
+}
+
 export function createChannelsController(env: ChannelsEnvironment) {
   const [state, setState] = createStore<ChannelsState>({
     channels: [],
@@ -62,6 +71,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
     loading: false,
     pending: false,
     error: null,
+    errorReference: null,
     editing: null,
     archived: false,
     collapsed: false,
@@ -170,7 +180,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
       if (!disposed && account === env.scopeKey() && id === refreshId)
         setState((state) => {
           Object.assign(state, {
-            error: error instanceof Error ? error.message : currentText().t("channel.error.load"),
+            ...failure(error, "channel.error.load"),
             loading: false,
           });
         });
@@ -195,7 +205,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
     } catch (error) {
       if (!disposed && account === env.scopeKey())
         setState((state) => {
-          state.error = error instanceof Error ? error.message : currentText().t("channel.error.action");
+          Object.assign(state, failure(error, "channel.error.action"));
         });
       return false;
     }
@@ -254,9 +264,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
       if (!disposed && account === env.scopeKey()) {
         failedCommand = attempt;
         setState((state) => {
-          Object.assign(state, {
-            error: error instanceof Error ? error.message : currentText().t("channel.error.update"),
-          });
+          Object.assign(state, failure(error, "channel.error.update"));
         });
       }
       return false;
@@ -286,32 +294,53 @@ export function createChannelsController(env: ChannelsEnvironment) {
     } catch (error) {
       if (!disposed && account === env.scopeKey() && state.selectedId === channelId)
         setState((state) => {
-          state.error = error instanceof Error ? error.message : currentText().t("channel.error.loadOlder");
+          Object.assign(state, failure(error, "channel.error.loadOlder"));
         });
     }
   }
-  createEffect(env.scopeKey, (scope) => {
-    // Read once for this scope; a later capability change does not reset the open channel.
-    const channelsSupported = untrack(supported);
-    const selected = channelsSupported ? env.readSelection(scope) : null;
-    refreshId += 1;
-    readThrough.clear();
-    failedCommand = null;
-    pendingCommands = 0;
-    flush(() =>
-      setState((state) => {
-        Object.assign(state, {
-          channels: [],
-          selectedId: selected,
-          page: null,
-          pending: false,
-          error: null,
-          editing: null,
-        });
-      }),
-    );
-    if (channelsSupported) void untrack(() => refresh(selected));
-  });
+  createEffect(
+    () => ({ scope: env.scopeKey(), supported: supported() }),
+    (next, previous) => {
+      if (next.scope !== previous?.scope) {
+        const selected = next.supported ? env.readSelection(next.scope) : null;
+        refreshId += 1;
+        readThrough.clear();
+        failedCommand = null;
+        pendingCommands = 0;
+        flush(() =>
+          setState((state) => {
+            Object.assign(state, {
+              channels: [],
+              selectedId: selected,
+              page: null,
+              pending: false,
+              error: null,
+              editing: null,
+            });
+          }),
+        );
+        if (next.supported) void untrack(() => refresh(selected));
+        return;
+      }
+      // A capability change does not reset the open channel. Support can arrive after the scope starts:
+      // a remote host reports its capabilities after it connects, and again after each reconnect.
+      if (!next.supported || previous.supported) return;
+      const saved = state.selectedId === null ? env.readSelection(next.scope) : null;
+      if (saved === null) {
+        void refresh();
+        return;
+      }
+      // As `open`, but the read gets the channel as an argument: a store write in an effect shows only
+      // after the flush, so a read that takes the selection from the store reads the old one.
+      env.beforeOpen();
+      flush(() =>
+        setState((state) => {
+          Object.assign(state, { selectedId: saved, page: null, editing: null, loading: true });
+        }),
+      );
+      void refresh(saved);
+    },
+  );
   onSettled(() => {
     const focus = () => {
       void refresh();

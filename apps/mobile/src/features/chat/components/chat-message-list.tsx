@@ -1,6 +1,6 @@
-import type { AgentExchangeSummary } from "@openbot/contracts/ipc";
-import type { MobileTextKey, MobileTranslate } from "@openbot/i18n/mobile";
-import { Link, useIsFocused } from "expo-router";
+import type { BrowserTakeoverRequest } from "@openbot/contracts/ipc";
+import type { MobileTextKey } from "@openbot/i18n/mobile";
+import { useIsFocused } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import {
   CalendarClock,
@@ -29,7 +29,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { AccessibilityInfo, type CellRendererProps, FlatList, Pressable, View, type ViewStyle } from "react-native";
+import {
+  AccessibilityInfo,
+  type CellRendererProps,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { KeyboardChatScrollView, type KeyboardChatScrollViewProps } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
@@ -41,9 +49,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
-import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressable";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { ChatActivityRow, type ChatActivitySpec } from "@/features/chat/components/chat-activity-row";
+import { type ApprovalDecision, approvalTitle, ChatApprovalCard } from "@/features/chat/components/chat-approval-card";
+import { ChatExchangeGroup, ChatExchangeMarker } from "@/features/chat/components/chat-exchange-marker";
 import { ChatMarkdown } from "@/features/chat/components/chat-markdown";
 import { ChatPlan } from "@/features/chat/components/chat-plan";
 import { ChatQuestionPrompt } from "@/features/chat/components/chat-question-prompt";
@@ -51,13 +60,21 @@ import { useActivityPresence } from "@/features/chat/components/use-activity-pre
 import type { ChatMotion } from "@/features/chat/components/use-chat-motion";
 import { useMessageArrivals } from "@/features/chat/components/use-message-arrivals";
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
-import { type ChatMessage, indexChatMessages, type RoutineMarkerEvent } from "@/features/chat/model/chat-messages";
+import {
+  type ChatMessage,
+  type ExchangeGroup,
+  groupExchangeMarkers,
+  indexChatMessages,
+  type RoutineMarkerEvent,
+} from "@/features/chat/model/chat-messages";
 import { useAgentColorMessages } from "@/features/settings/model/message-color";
 import { useConnectionAppearance } from "@/features/workspace/components/use-connection-appearance";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { agentActivityMood, type MobileAgentActivity } from "@/features/workspace/model/agent-activity";
+import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import type { ChatBubbleMessage } from "../context/message-actions-context";
 import { CHAT_HISTORY_BATCH, type ChatHistoryBoundary, chatHistoryStart } from "../model/chat-layout";
@@ -68,9 +85,11 @@ import { uploadProgressAt } from "../model/upload-progress";
 import { ChatAttachmentView } from "./chat-attachment";
 import { ChatImageGeneration, imageGenerationStatus } from "./chat-image-generation";
 import { ChatMessageGesture } from "./chat-message-gesture";
+import { ChatOutboxStatus, OutboxMessageMenu, type OutboxRowStatus } from "./chat-outbox-status";
 import { useReplyHaptics } from "./use-reply-haptics";
 
-type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }>;
+/** A row of the list. Thinking steps show in the activity row instead. */
+type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
 const TailLayoutContext = createContext<{
   id: string | null;
   onTailStartLayout: ChatMotion["onTailStartLayout"];
@@ -131,24 +150,28 @@ function ChatBubble({
 }: PropsWithChildren<{
   agent: boolean;
   collapsed?: boolean;
-  /** Off when Settings turns reply animation off: the bubble takes each new size at once. */
+  /** Off when Settings turns reply animation off: the background takes each new size at once. */
   animateSize: boolean;
   className: string;
   style: ComponentProps<typeof Animated.View>["style"];
 }>) {
+  // An animated size needs a layout event in JS for each new size. Android sends them late enough
+  // that the background trails the text, so there, as with the animation off, the background fills
+  // the bubble in the same layout pass as the text.
+  const sized = agent && animateSize && !isAndroid;
   const size = useSharedValue({ width: 0, height: 0, measured: false });
   const shown = useSharedValue(collapsed ? 0 : 1);
   useEffect(() => {
     shown.set(collapsed ? 0 : withTiming(1, REPLY_APPEAR));
   }, [collapsed, shown]);
   const background = useAnimatedStyle(() => {
+    if (!sized) return { opacity: shown.get() };
     const { width, height, measured } = size.get();
     // The first measurement is adopted without motion; only later growth during streaming animates.
-    const animate = measured && animateSize;
     return {
       opacity: shown.get(),
-      width: animate ? withTiming(width, REPLY_SIZE) : width,
-      height: animate ? withTiming(height, REPLY_SIZE) : height,
+      width: measured ? withTiming(width, REPLY_SIZE) : width,
+      height: measured ? withTiming(height, REPLY_SIZE) : height,
     };
   });
   return (
@@ -156,7 +179,7 @@ function ChatBubble({
       className={className}
       style={style}
       onLayout={
-        agent
+        sized
           ? ({ nativeEvent }) => {
               const previous = size.get();
               size.set({
@@ -172,26 +195,16 @@ function ChatBubble({
           content once, without a layout animation moving its native anchor. */}
       {agent ? (
         <Animated.View
+          // A new view when the setting changes, so a filled background keeps no animated size.
+          key={sized ? "sized" : "filled"}
           pointerEvents="none"
           className="absolute left-0 top-0 rounded-[30px] bg-control/60"
-          style={[{ borderCurve: "circular" }, background]}
+          style={[{ borderCurve: "circular" }, sized ? null : StyleSheet.absoluteFill, background]}
         />
       ) : null}
       {children}
     </Animated.View>
   );
-}
-
-/**
- * Matches the desktop marker. An absent mark means a request: that is what a host older than the
- * mark reports, and what every message stored before it meant.
- */
-function exchangeLabel(exchange: AgentExchangeSummary, t: MobileTranslate) {
-  if (exchange.expectsReply === false)
-    return exchange.direction === "outgoing"
-      ? t("mobile.chat.exchange.informed")
-      : t("mobile.chat.exchange.updateFrom");
-  return exchange.direction === "outgoing" ? t("mobile.chat.exchange.messaged") : t("mobile.chat.exchange.messageFrom");
 }
 
 interface ChatMessageListProps {
@@ -203,6 +216,8 @@ interface ChatMessageListProps {
   agents: MobileAgent[];
   motion: ChatMotion;
   sending: boolean;
+  /** The host accepted the sent message, and its turn does not show yet. */
+  awaitingTurn: boolean;
   keyboardOffset: number;
   canSend: boolean;
   online: boolean;
@@ -210,6 +225,12 @@ interface ChatMessageListProps {
   activeTurnId: string | null;
   questionForm?: QuestionPromptController;
   onSelectQuestion?: (messageId: string) => void;
+  /** The approvals that this chat's agents wait on, shown below the activity as on the desktop. */
+  approvals?: readonly PendingApproval[];
+  /** The browser requests that this chat's agents wait on. The phone shows them above the composer. */
+  browserRequests?: readonly BrowserTakeoverRequest[];
+  serverName?: string;
+  onRespondApproval?: (approval: PendingApproval, decision: ApprovalDecision) => Promise<void>;
   fieldBackground: ViewStyle["backgroundColor"];
   foreground: ViewStyle["backgroundColor"];
   historyState: "ready" | "connecting" | "waiting" | "loading" | "error";
@@ -238,6 +259,8 @@ interface ChatMessageListProps {
     cancelling: boolean;
     cancel: () => void;
   } | null;
+  /** The messages of this chat that wait on the phone or failed, by row id. */
+  outboxStatuses?: ReadonlyMap<string, OutboxRowStatus>;
 }
 
 type ChatUpload = NonNullable<ChatMessageListProps["upload"]>;
@@ -327,6 +350,20 @@ function RoutineMarkerRow({
   );
 }
 
+/** Where a new chat started, as the desktop divider shows it. The agent does not see the messages above. */
+function ContextResetMarkerRow({ muted }: { muted: ViewStyle["backgroundColor"] }) {
+  const { t } = useText();
+  return (
+    <View accessible className="flex-row items-center gap-3 py-2">
+      <View className="h-px flex-1" style={{ backgroundColor: muted, opacity: 0.35 }} />
+      <Typography.Paragraph type="body-sm" style={{ color: muted }}>
+        {t("mobile.chat.contextReset")}
+      </Typography.Paragraph>
+      <View className="h-px flex-1" style={{ backgroundColor: muted, opacity: 0.35 }} />
+    </View>
+  );
+}
+
 function playbackEligible(message: VisibleMessage) {
   return (
     message.kind === "message" &&
@@ -360,6 +397,7 @@ const MessageRow = memo(function MessageRow({
   source,
   questionForm,
   upload,
+  outbox,
   shared,
 }: {
   message: VisibleMessage;
@@ -371,6 +409,8 @@ const MessageRow = memo(function MessageRow({
   questionForm?: QuestionPromptController;
   /** Set only on the row whose files are uploading. */
   upload?: ChatUpload;
+  /** Set only on a message that waits on the phone or failed. */
+  outbox?: OutboxRowStatus;
   shared: MessageRowShared;
 }) {
   const { t } = useText();
@@ -422,62 +462,12 @@ const MessageRow = memo(function MessageRow({
   const rendered =
     message.kind === "routine" ? (
       <RoutineMarkerRow key={message.id} message={message} muted={muted} />
+    ) : message.kind === "context-reset" ? (
+      <ContextResetMarkerRow key={message.id} muted={muted} />
+    ) : message.kind === "exchange-group" ? (
+      <ChatExchangeGroup key={message.id} group={message} agents={agents} agentsById={agentsById} muted={muted} />
     ) : message.kind === "exchange" || message.kind === "channel-routing" ? (
-      <View key={message.id} className="flex-row flex-wrap items-center justify-center gap-2 py-2">
-        <Typography.Paragraph type="body-sm" style={{ color: muted }}>
-          {message.kind === "channel-routing"
-            ? message.event.action === "assigned"
-              ? t("mobile.chat.exchange.assignedTo")
-              : t("mobile.chat.exchange.continuingWith")
-            : exchangeLabel(message.exchange, t)}
-        </Typography.Paragraph>
-        {(message.kind === "channel-routing"
-          ? [message.event.agentId]
-          : message.exchange.direction === "incoming"
-            ? [message.exchange.senderAgentId]
-            : message.exchange.recipientAgentIds
-        ).map((id) => {
-          const legacyName =
-            message.kind === "channel-routing" && message.event.agentId === null ? message.event.agentName : null;
-          const legacyMatches = legacyName ? agents.filter((agent) => agent.name === legacyName) : [];
-          const participant = id ? agentsById.get(id) : legacyMatches.length === 1 ? legacyMatches[0] : undefined;
-          const badge = (
-            <View key={id ?? legacyName} className="flex-row items-center gap-1">
-              {participant ? (
-                <BloubAvatarThumbnail
-                  agentId={participant.id}
-                  serverId={participant.serverId}
-                  hue={participant.avatarHue}
-                  seed={participant.avatarSeed}
-                  size={22}
-                />
-              ) : null}
-              <Typography.Paragraph type="body-sm" style={{ color: muted }}>
-                {participant?.name ??
-                  (message.kind === "channel-routing"
-                    ? (legacyName ?? t("mobile.chat.exchange.unavailableAgent"))
-                    : t("mobile.chat.exchange.unknownAgent"))}
-              </Typography.Paragraph>
-            </View>
-          );
-          return message.kind === "channel-routing" && participant ? (
-            <Link
-              key={participant.id}
-              href={{ pathname: "/chat/[agentId]", params: { agentId: participant.id } }}
-              asChild
-            >
-              <ChatLinkPressable
-                accessibilityRole="link"
-                accessibilityLabel={t("mobile.chat.exchange.openChat", { name: participant.name })}
-              >
-                {badge}
-              </ChatLinkPressable>
-            </Link>
-          ) : (
-            <View key={id ?? legacyName}>{badge}</View>
-          );
-        })}
-      </View>
+      <ChatExchangeMarker key={message.id} message={message} agents={agents} agentsById={agentsById} muted={muted} />
     ) : message.kind === "plan" ? (
       <ChatPlan key={message.id} message={message} />
     ) : message.kind === "question" ? (
@@ -625,10 +615,13 @@ const MessageRow = memo(function MessageRow({
         >
           {rendered}
         </ChatMessageGesture>
+      ) : outbox ? (
+        <OutboxMessageMenu status={outbox}>{rendered}</OutboxMessageMenu>
       ) : (
         rendered
       )}
       {message.author === "user" && message.status === "failed" ? <TurnFailure reason={message.failureReason} /> : null}
+      {outbox ? <ChatOutboxStatus status={outbox} /> : null}
     </View>
   );
 });
@@ -653,8 +646,12 @@ function TurnFailure({ reason }: { reason: string | undefined }) {
   );
 }
 
+const NO_APPROVALS: readonly PendingApproval[] = [];
+const NO_BROWSER_REQUESTS: readonly BrowserTakeoverRequest[] = [];
+
 export function ChatMessageList({
   upload,
+  outboxStatuses,
   target,
   accessibilityHidden = false,
   activity,
@@ -662,6 +659,7 @@ export function ChatMessageList({
   agents,
   motion,
   sending,
+  awaitingTurn,
   keyboardOffset,
   canSend,
   online,
@@ -669,6 +667,10 @@ export function ChatMessageList({
   activeTurnId,
   questionForm,
   onSelectQuestion,
+  approvals = NO_APPROVALS,
+  browserRequests = NO_BROWSER_REQUESTS,
+  serverName = "",
+  onRespondApproval,
   fieldBackground,
   foreground,
   historyState,
@@ -717,6 +719,20 @@ export function ChatMessageList({
       t("mobile.chat.question.inputRequired", { question: questionForm.question.question }),
     );
   }, [questionForm?.messageId, questionForm?.question, t]);
+  const announcedApprovals = useRef(new Set<string>());
+  useEffect(() => {
+    for (const approval of approvals) {
+      const key = String(approval.requestId);
+      if (announcedApprovals.current.has(key)) continue;
+      announcedApprovals.current.add(key);
+      AccessibilityInfo.announceForAccessibility(
+        t("mobile.chat.approval.inputRequired", {
+          name: agentsById.get(approval.agentId)?.name ?? target.name,
+          title: approvalTitle(approval, t),
+        }),
+      );
+    }
+  }, [approvals, agentsById, target.name, t]);
   const [userForegroundColor, themeForegroundColor, themeMutedColor] = useCSSVariable([
     "--openbot-text-on-light",
     "--openbot-text-primary",
@@ -763,7 +779,10 @@ export function ChatMessageList({
     return { backgroundColor: `rgb(${r}, ${g}, ${b})` };
   });
 
-  const visibleMessages = useMemo(() => messages.filter((message) => message.kind !== "thinking"), [messages]);
+  const visibleMessages = useMemo(
+    () => groupExchangeMarkers(messages.filter((message) => message.kind !== "thinking")),
+    [messages],
+  );
   const tailIndex = visibleMessages.findLastIndex((message) => message.kind === "message" && message.author === "user");
   const tailId = visibleMessages[tailIndex]?.id ?? null;
   const [boundary, setBoundary] = useState<ChatHistoryBoundary>({ firstId: null, headId: null });
@@ -878,6 +897,7 @@ export function ChatMessageList({
             }
             questionForm={item.id === questionForm?.messageId ? questionForm : undefined}
             upload={upload?.messageId === item.id ? upload : undefined}
+            outbox={outboxStatuses?.get(item.id)}
             shared={shared}
           />
         </Animated.View>
@@ -892,6 +912,7 @@ export function ChatMessageList({
       messagesById,
       questionForm,
       upload,
+      outboxStatuses,
       shared,
     ],
   );
@@ -906,7 +927,11 @@ export function ChatMessageList({
         message.body.trim() &&
         (!activity?.agentId || !message.speaker || message.speaker.id === activity.agentId),
     );
-    const thinkingDetail = !replying && latestThinking?.kind === "thinking" ? latestThinking.steps.at(-1)?.text : null;
+    // One run of text, as desktop shows it: the row clamps the label, and blank lines would fill it.
+    const thinkingDetail =
+      !replying && latestThinking?.kind === "thinking"
+        ? latestThinking.steps.at(-1)?.text.replace(/\s+/gu, " ").trim()
+        : null;
     const activityLabel =
       sending && !activity
         ? t("common.sending")
@@ -915,7 +940,11 @@ export function ChatMessageList({
               (message) => message.kind === "question" && !message.prompt.resolution && message.turnId === activeTurnId,
             )
             ? t("mobile.chat.activity.waitingForAnswer")
-            : t("mobile.chat.activity.waitingOnDesktop")
+            : approvals.some((approval) => approval.agentId === (activity?.agentId ?? target.id))
+              ? t("mobile.chat.activity.waitingForApproval")
+              : browserRequests.some((request) => request.agentId === (activity?.agentId ?? target.id))
+                ? t("mobile.chat.activity.waitingForBrowser")
+                : t("mobile.chat.activity.waitingOnDesktop")
           : thinkingDetail
             ? thinkingDetail
             : activity?.phase === "responding"
@@ -930,15 +959,14 @@ export function ChatMessageList({
       : target.kind === "agent"
         ? target
         : undefined;
-    if (!(activity || sending || messages.some(isStreamingReply) || pendingReveal)) return null;
+    // As on desktop, the conversation's own turn keeps the row: turn events can arrive late.
+    if (!(activity || sending || awaitingTurn || activeTurnId || messages.some(isStreamingReply) || pendingReveal))
+      return null;
     return {
       // The agent, not the signal that reported it: a turn moves from the local send flag to the
       // host's activity to the reply without remounting the avatar.
       key: activity?.agentId ?? activityAgent?.id ?? target.id,
       label: activityLabel,
-      labelKey:
-        (thinkingDetail && latestThinking?.kind === "thinking" ? latestThinking.steps.at(-1)?.id : activityLabel) ??
-        activityLabel,
       accessibilityLabel: `${activityAgent?.name ?? target.name}: ${activityLabel}`,
       agent: activityAgent,
       mood: animateMessages ? agentActivityMood(activity) : "idle",
@@ -950,7 +978,6 @@ export function ChatMessageList({
         motion.responseVisible &&
         !reducedMotion &&
         activity?.phase !== "waiting",
-      reveal: animateMessages && motion.historyVisible && motion.responseVisible && !reducedMotion,
     };
   };
   const activityRows = useActivityPresence(
@@ -1040,23 +1067,14 @@ export function ChatMessageList({
                   }
                   accessibilityState={{ busy: true }}
                 />
-              ) : historyState !== "ready" ? (
+              ) : historyState === "error" ? (
                 <View className="flex-1 items-center justify-center gap-2">
                   <Typography.Paragraph align="center" className="text-text-secondary">
-                    {historyState === "waiting"
-                      ? t("mobile.chat.history.waiting")
-                      : t("mobile.chat.history.loadFailed")}
+                    {t("mobile.chat.history.loadFailed")}
                   </Typography.Paragraph>
-                  {historyState === "waiting" ? (
-                    <Typography.Paragraph type="body-xs" align="center" className="text-muted">
-                      {t("mobile.chat.history.loadsOnReconnect")}
-                    </Typography.Paragraph>
-                  ) : null}
-                  {historyState === "error" ? (
-                    <Button variant="tertiary" onPress={onRetryHistory}>
-                      <Button.Label>{t("common.tryAgain")}</Button.Label>
-                    </Button>
-                  ) : null}
+                  <Button variant="tertiary" onPress={onRetryHistory}>
+                    <Button.Label>{t("common.tryAgain")}</Button.Label>
+                  </Button>
                 </View>
               ) : null}
             </>
@@ -1073,6 +1091,21 @@ export function ChatMessageList({
                   />
                 ))}
               </Animated.View>
+              {onRespondApproval && approvals.length ? (
+                <View className="gap-3 pb-3">
+                  {approvals.map((approval) => (
+                    <ChatApprovalCard
+                      key={String(approval.requestId)}
+                      approval={approval}
+                      agentName={agentsById.get(approval.agentId)?.name ?? target.name}
+                      showAgentName={target.kind === "channel"}
+                      serverName={serverName}
+                      canAnswer={canSend}
+                      respond={(decision) => onRespondApproval(approval, decision)}
+                    />
+                  ))}
+                </View>
+              ) : null}
               {showStarter ? (
                 <View
                   className="gap-4 rounded-[26px] p-4"

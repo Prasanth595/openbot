@@ -23,6 +23,7 @@ import {
   type ProviderHistoryFragment,
   type ProviderHistoryRequest,
 } from "./provider-history";
+import { registerProviderProcess } from "./provider-processes";
 import { createDiagnosticStream } from "./stderr-diagnostics";
 
 interface PendingRequest {
@@ -49,6 +50,7 @@ export class AppServerError extends Error {
 }
 
 export class CodexAppServerClient extends EventEmitter<ClientEvents> {
+  readonly contextCompaction = "events";
   readonly provider: AgentProvider = "codex";
   readonly #executable: string;
   readonly #requestTimeoutMs: number;
@@ -83,6 +85,7 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
       windowsHide: true,
     });
     this.#process = child;
+    registerProviderProcess(child, "codex");
 
     child.stdin.on("error", (error) => this.#fail(error, child));
     child.stdout.on("data", (chunk: Buffer) => {

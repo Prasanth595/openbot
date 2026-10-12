@@ -2,7 +2,7 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Typography } from "heroui-native";
 import { useState, useSyncExternalStore } from "react";
-import { Alert, Linking } from "react-native";
+import { Alert, Linking, ScrollView } from "react-native";
 import {
   SettingsContent,
   SettingsNote,
@@ -95,13 +95,15 @@ export function SupportSettingsScreen() {
         {saveError ? <SettingsNote>{saveError}</SettingsNote> : null}
       </SettingsSection>
       <SettingsSection title={t("mobile.settings.support.recent")} footer={t("mobile.settings.support.recentFooter")}>
-        <SettingsRow>
-          {entries.length === 0 ? (
+        {entries.length === 0 ? (
+          <SettingsRow>
             <Typography.Paragraph type="body-xs" className="text-grouped-secondary">
               {t("mobile.settings.support.empty")}
             </Typography.Paragraph>
-          ) : (
-            entries
+          </SettingsRow>
+        ) : (
+          <ScrollView className="max-h-80" contentContainerClassName="gap-1 px-4 py-3" nestedScrollEnabled>
+            {entries
               .slice(-SHOWN_ENTRIES)
               .reverse()
               .map((entry) => (
@@ -113,9 +115,9 @@ export function SupportSettingsScreen() {
                 >
                   {formatSupportLogEntry(entry)}
                 </Typography.Paragraph>
-              ))
-          )}
-        </SettingsRow>
+              ))}
+          </ScrollView>
+        )}
       </SettingsSection>
     </SettingsContent>
   );

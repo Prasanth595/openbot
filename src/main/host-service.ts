@@ -27,6 +27,7 @@ import type {
   SetTeamTypingInput,
   TeamMemberSummary,
   TeamPresenceSnapshot,
+  TeamRole,
   TeamSessionSummary,
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
@@ -74,6 +75,10 @@ type ForwardedApiOptions = ConstructorParameters<typeof TeamApiServer>[0];
 interface HostServiceOptions {
   channels?: ChannelService;
   mcpServers?: ForwardedApiOptions["mcpServers"];
+  mcpSignIns?: ForwardedApiOptions["mcpSignIns"];
+  signInRelay?: ForwardedApiOptions["signInRelay"];
+  connectors?: ForwardedApiOptions["connectors"];
+  providerHostSignIns?: ForwardedApiOptions["providerHostSignIns"];
   mcpToolRuntimePreparation?: ForwardedApiOptions["mcpToolRuntimePreparation"];
   storage?: ForwardedApiOptions["storage"];
   hostedSites?: ForwardedApiOptions["hostedSites"];
@@ -116,6 +121,8 @@ interface HostServiceOptions {
   getRemoteDesktopRuntimeCredentials?: () => Effect.Effect<{ username: string; password: string }, RemoteWorkflowError>;
   getRemoteDesktopDisplays?: () => RemoteDesktopDisplay[];
   getRemoteDesktopIceServers?: () => Effect.Effect<RemoteDesktopIceServer[], RemoteWorkflowError>;
+  /** Puts a remote desktop member's pasted text on this computer's clipboard. */
+  writeRemoteDesktopClipboard?: (text: string) => void;
   platform?: "darwin" | "win32" | "linux";
   unattended?: boolean;
   teamWebRtcBridge?: TeamWebRtcBridge;
@@ -220,6 +227,7 @@ export class HostService extends EventEmitter<HostEvents> {
         options.getRemoteDesktopIceServers ??
         (() => Effect.fail(new RemoteWorkflowError({ cause: new Error(sourceText("error.host.iceServersMissing")) }))),
       ...(options.createRemoteDesktopRuntime ? { createRuntime: options.createRemoteDesktopRuntime } : {}),
+      ...(options.writeRemoteDesktopClipboard ? { writeClipboard: options.writeRemoteDesktopClipboard } : {}),
       ...(logDirectory
         ? {
             onDiagnostic: (source: "sunshine" | "moonlight", message: string) => {
@@ -291,6 +299,10 @@ export class HostService extends EventEmitter<HostEvents> {
       agentsReady: options.agentsReady,
       channels: options.channels,
       mcpServers: options.mcpServers,
+      mcpSignIns: options.mcpSignIns,
+      signInRelay: options.signInRelay,
+      connectors: options.connectors,
+      providerHostSignIns: options.providerHostSignIns,
       mcpToolRuntimePreparation: options.mcpToolRuntimePreparation,
       storage: options.storage,
       hostedSites: options.hostedSites,
@@ -341,7 +353,8 @@ export class HostService extends EventEmitter<HostEvents> {
                 });
               return yield* issueTicket(hostId);
             }),
-          onSignalRecoveryFailure: (error) => {
+          onSignalRecoveryFailure: (error, reason) => {
+            logger.warn(`Host phase ${this.#status.phase} -> error: Signal ${reason}.`);
             this.#setStatus({
               phase: "error",
               apiOnline: false,
@@ -787,6 +800,7 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: string;
         username: string;
         sessionToken: string;
+        role: TeamRole;
       },
       RemoteWorkflowError,
       HostApiRuntime
@@ -821,6 +835,8 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: identity.publicKey,
         username,
         sessionToken: authenticated.sessionToken,
+        // An owner can promote the test client, so the client shows what the host allows it.
+        role: authenticated.member.role,
       };
     },
     (operation) => this.#provide(operation),

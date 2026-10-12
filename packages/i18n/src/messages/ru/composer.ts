@@ -2,6 +2,9 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/composer";
 
 export const messages = {
+  "composer.queueEdit.body":
+    "Вы редактируете сообщение в очереди. Сохраните или отмените правку, чтобы разрешить его выполнение.",
+  "composer.queueEdit.cancel": "Отменить правку",
   "composer.notice.dismiss": "Скрыть ошибку",
   "composer.signIn.title": "Нужен вход",
   "composer.signIn.body": "Войдите в {provider}, чтобы отправлять сообщения.",
@@ -38,6 +41,7 @@ export const messages = {
   "composer.token.unavailableSkill": "Недоступный навык {name}",
   "composer.token.unavailableMcp": "Недоступный сервер MCP {name}",
   "composer.voice.stop": "Остановить запись голоса",
+  "composer.voice.cancel": "Отменить запись голоса",
   "composer.voice.preparing": "Загрузка голосовой модели",
   "composer.voice.requesting": "Запрос доступа к микрофону",
   "composer.voice.transcribing": "Расшифровка голосового запроса",
@@ -94,4 +98,17 @@ export const messages = {
     "Сохранение не подтверждено. Нажмите «Сохранить» ещё раз, чтобы проверить результат.",
   "composer.error.changeModel": "Не удалось сменить модель. Повторите.",
   "composer.error.changeEffort": "Не удалось изменить уровень усилий. Повторите.",
+  "composer.context.label": "Контекст заполнен на {percent}",
+  "composer.context.labelEstimated": "Контекст заполнен примерно на {percent}",
+  "composer.context.labelCompacting": "Сжатие контекста",
+  "composer.context.title": "Контекст",
+  "composer.context.percent": "Заполнено на {percent}",
+  "composer.context.tokens": "{used} из {total} токенов",
+  "composer.context.tokensEstimated": "Примерно: {used} из {total} токенов",
+  "composer.context.autoAt": "Контекст сжимается автоматически при {percent}.",
+  "composer.context.nativeAuto": "Автоматическим сжатием управляет провайдер.",
+  "composer.compaction.estimated": "Примерный прогресс",
+  "composer.context.noAuto": "Этот агент не сжимает свой контекст.",
+  "composer.context.lastCompaction": "Последнее сжатие: {before} → {after} токенов",
+  "composer.compaction.elapsed": "{minutes}:{seconds}",
 } as const satisfies PartialTranslation<typeof source>;

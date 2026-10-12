@@ -68,7 +68,7 @@ export interface SlackOrchestratorModels {
 
 export interface SlackIntegrationPanelProps {
   /** Slack when absent. Discord shows the same page with its own text, logo and orchestrator. */
-  platform?: MessagingPlatform | undefined;
+  platform?: WorkspacePlatform | undefined;
   /** Every agent on this computer. */
   agents: SlackIntegrationAgent[];
   /** The connected workspaces: Slack workspaces or Discord servers. */
@@ -81,6 +81,8 @@ export interface SlackIntegrationPanelProps {
   onReconnect: (workspaceId: string) => void;
   onSetEnabled: (workspaceId: string, enabled: boolean) => void;
   onAddOrchestrator: (workspaceId: string, choice: SlackOrchestratorChoice | null) => void;
+  /** The joined server's name, when the connections are that server's and not this computer's. */
+  hostName?: string | undefined;
 }
 
 /** What a workspace row can do. */
@@ -101,7 +103,10 @@ function rowKind(connection: MessagingConnection): RowKind {
   }
 }
 
-const STATE_HELP: Record<MessagingPlatform, Partial<Record<MessagingConnection["state"], AppTextKey>>> = {
+/** The platforms that this page serves. Telegram has its own page (`TelegramIntegrationPanel`). */
+export type WorkspacePlatform = Exclude<MessagingPlatform, "telegram">;
+
+const STATE_HELP: Record<WorkspacePlatform, Partial<Record<MessagingConnection["state"], AppTextKey>>> = {
   slack: {
     invalid_token: "messaging.help.invalid_token",
     secret_storage_unavailable: "messaging.help.secret_storage_unavailable",
@@ -161,6 +166,7 @@ const SLACK_TEXT = {
   done: "connector.slack.done",
   disconnectTitle: "connector.slack.disconnectTitle",
   disconnectDescription: "connector.slack.disconnectDescription",
+  disconnectDescriptionHost: "connector.slack.disconnectDescriptionHost",
   disconnectEffect: "connector.slack.disconnectEffect",
   removeEffectKept: "connector.slack.removeEffectKept",
   keep: "connector.slack.keep",
@@ -214,6 +220,7 @@ const DISCORD_TEXT = {
   done: "connector.discord.done",
   disconnectTitle: "connector.discord.disconnectTitle",
   disconnectDescription: "connector.discord.disconnectDescription",
+  disconnectDescriptionHost: "connector.discord.disconnectDescriptionHost",
   disconnectEffect: "connector.discord.disconnectEffect",
   removeEffectKept: "connector.discord.removeEffectKept",
   keep: "connector.discord.keep",
@@ -221,17 +228,17 @@ const DISCORD_TEXT = {
 } as const satisfies Record<keyof typeof SLACK_TEXT, keyof AppMessages>;
 
 /** The catalog keys of a platform's page. The Connectors list reads the title and summaries too. */
-export function messagingPlatformText(platform: MessagingPlatform = "slack") {
+export function messagingPlatformText(platform: WorkspacePlatform = "slack") {
   return platform === "discord" ? DISCORD_TEXT : SLACK_TEXT;
 }
 
 const ORCHESTRATOR_AVATAR = {
   slack: SLACK_ORCHESTRATOR_AVATAR,
   discord: DISCORD_ORCHESTRATOR_AVATAR,
-} as const satisfies Record<MessagingPlatform, { avatarSeed: string; avatarHue: number }>;
+} as const satisfies Record<WorkspacePlatform, { avatarSeed: string; avatarHue: number }>;
 
 /** The logo of a platform. */
-export function MessagingMark(props: { platform?: MessagingPlatform | undefined }) {
+export function MessagingMark(props: { platform?: WorkspacePlatform | undefined }) {
   return (
     <Show when={props.platform === "discord"} fallback={<SlackMark />}>
       <DiscordMark />
@@ -251,7 +258,7 @@ export function slackOrchestrator<Agent extends { id: string }>(
 export function slackIntegrationState(
   connections: readonly MessagingConnection[],
   agents: readonly { id: string }[],
-  platform: MessagingPlatform = "slack",
+  platform: WorkspacePlatform = "slack",
 ): { status: IntegrationStatus; label: AppTextKey; attention: number } {
   const text = messagingPlatformText(platform);
   const attention = connections.filter(
@@ -388,6 +395,7 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
       />
       <DisconnectDialog
         platform={props.platform}
+        hostName={props.hostName}
         connection={disconnecting()}
         onConfirm={(workspaceId) => {
           setDisconnecting(null);
@@ -399,7 +407,7 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
   );
 }
 
-function OrchestratorFace(props: { platform?: MessagingPlatform | undefined; size?: "md" | "lg" }) {
+function OrchestratorFace(props: { platform?: WorkspacePlatform | undefined; size?: "md" | "lg" }) {
   const avatar = () => ORCHESTRATOR_AVATAR[props.platform ?? "slack"];
   return (
     <span class="integrations-agent-face" data-size={props.size ?? "md"}>
@@ -409,7 +417,7 @@ function OrchestratorFace(props: { platform?: MessagingPlatform | undefined; siz
 }
 
 function WorkspaceRow(props: {
-  platform?: MessagingPlatform | undefined;
+  platform?: WorkspacePlatform | undefined;
   connection: MessagingConnection;
   busy: boolean;
   onReconnect: () => void;
@@ -477,7 +485,7 @@ type ConnectStep = 0 | 1 | 2;
  */
 export function SlackConnectDialog(props: {
   /** Slack when absent. */
-  platform?: MessagingPlatform | undefined;
+  platform?: WorkspacePlatform | undefined;
   open: boolean;
   connection: MessagingConnection | null;
   agents: readonly { id: string }[];
@@ -656,7 +664,8 @@ export function SlackConnectDialog(props: {
 }
 
 function DisconnectDialog(props: {
-  platform?: MessagingPlatform | undefined;
+  platform?: WorkspacePlatform | undefined;
+  hostName?: string | undefined;
   connection: MessagingConnection | null;
   onConfirm: (workspaceId: string) => void;
   onClose: () => void;
@@ -672,7 +681,11 @@ function DisconnectDialog(props: {
       logo={<MessagingMark platform={props.platform} />}
       link="broken"
       title={t(text().disconnectTitle, { workspace: workspace() })}
-      description={t(text().disconnectDescription, { workspace: workspace() })}
+      description={
+        props.hostName
+          ? t(text().disconnectDescriptionHost, { workspace: workspace(), host: props.hostName })
+          : t(text().disconnectDescription, { workspace: workspace() })
+      }
       footer={
         <>
           <Button type="button" variant="ghost" onClick={props.onClose}>

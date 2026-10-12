@@ -18,11 +18,12 @@ export const INPUT_LIMITS = {
   modelName: 160,
   agentTitle: 120,
   agentDescription: 2_000,
+  // The default of the app setting `AGENT_MEMORY_LIMITS`; a user can raise it.
   agentMemories: 64,
   agentSkills: 32,
   sharedTables: 64,
   sharedTableName: 64,
-  // Half the agent cap. A channel packet is rebuilt every turn and the memories block is paid in
+  // Half the default agent cap. A channel packet is rebuilt every turn and the memories block is paid in
   // full each time, against `ChannelHistory.prepare`'s hard character budget.
   channelMemories: 32,
   agentMemoryText: 500,
@@ -76,6 +77,13 @@ export const INPUT_LIMITS = {
   mcpUrl: 2_048,
   mcpToolCount: 10_000,
   mcpErrorText: 2_000,
+  // A sign-in app (`mcp-sign-in-app-v1`). Generous for every provider checked; the wire codec keeps
+  // its own copies of these numbers.
+  mcpClientId: 1_024,
+  mcpClientSecret: 4_096,
+  mcpScope: 2_048,
+  // A relayed sign-in (`sign-in-relay-v1`): the page address and the callback the browser came back to.
+  signInRelayAddress: 8_192,
   teamMembers: 100,
   activeInvites: 100,
   // Permanent links accept unlimited joins until revoked, so a leaked link is open

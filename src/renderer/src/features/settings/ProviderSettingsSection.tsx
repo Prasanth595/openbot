@@ -14,6 +14,10 @@ import { Text } from "@openbot/ui";
 import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLoginDialog";
 import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
 import {
+  AcpRegistrySettings,
+  type AcpRegistrySettingsApi,
+} from "@openbot/ui/features/custom-providers/AcpRegistrySettings";
+import {
   CustomAgentSettings,
   type CustomAgentSettingsApi,
 } from "@openbot/ui/features/custom-providers/CustomAgentSettings";
@@ -32,7 +36,12 @@ import {
   ProviderDetectionSettings,
   type ProviderDetectionSettingsValue,
 } from "@openbot/ui/features/custom-providers/ProviderDetectionSettings";
-import { OpenCodeKeyDialog, type ProviderKeyApi } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
+import {
+  isKeyDialogProvider,
+  type KeyDialogProvider,
+  OpenCodeKeyDialog,
+  type ProviderKeyApi,
+} from "@openbot/ui/features/settings/OpenCodeKeyDialog";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, createStore, Show, untrack } from "solid-js";
 import type { ProviderCodeLoginApi } from "../../components/provider-code-login-api";
@@ -78,6 +87,7 @@ interface ProviderSettingsSectionProps {
   takenAgentIds?: readonly string[] | undefined;
   /** The user's own ACP agents. This computer only, so a joined server's section never has it. */
   customAgents?: CustomAgentSettingsApi | undefined;
+  acpRegistry?: AcpRegistrySettingsApi | undefined;
 }
 
 /** The provider list of the computer the agents run on, with its custom endpoint dialogs. */
@@ -275,6 +285,9 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
           </>
         )}
       </Show>
+      <Show when={props.acpRegistry} keyed>
+        {(api) => <AcpRegistrySettings api={api} />}
+      </Show>
       <Show when={props.customAgents}>{(api) => <CustomAgentSettings api={api()} />}</Show>
     </div>
   );
@@ -289,6 +302,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
  */
 function createProviderKeyState(props: { readonly open: boolean; readonly providerKeys?: ProviderKeyApi | undefined }) {
   const [keyDialogOpen, setKeyDialogOpen] = createSignal(false);
+  const [keyProvider, setKeyProvider] = createSignal<KeyDialogProvider>("opencode");
   const [openCodeKeyStatus, setOpenCodeKeyStatus] = createSignal<ProviderApiKeyStatus | undefined>(undefined);
   async function refreshOpenCodeKeyStatus(): Promise<void> {
     const keys = props.providerKeys;
@@ -315,10 +329,14 @@ function createProviderKeyState(props: { readonly open: boolean; readonly provid
   );
   return {
     keyDialogOpen,
+    keyProvider,
     openCodeKeyStatus,
-    /** OpenCode is the only provider whose sign-in is a pasted key, so it is the only row served. */
+    /** Only the providers whose sign-in can be a pasted key are served: OpenCode, Muse and Gemini. */
     openKeyDialog(provider: AgentProviderId): void {
-      if (provider === "opencode") setKeyDialogOpen(true);
+      if (isKeyDialogProvider(provider)) {
+        setKeyProvider(provider);
+        setKeyDialogOpen(true);
+      }
     },
     closeKeyDialog(): void {
       setKeyDialogOpen(false);
@@ -342,8 +360,11 @@ function ProviderSettingsDialogs(props: {
         {(api) => (
           <OpenCodeKeyDialog
             api={api()}
+            provider={props.keys.keyProvider()}
             onClose={props.keys.closeKeyDialog}
-            onReconnect={props.onConnectProvider ? () => props.onConnectProvider?.("opencode") : undefined}
+            onReconnect={
+              props.onConnectProvider ? () => props.onConnectProvider?.(props.keys.keyProvider()) : undefined
+            }
           />
         )}
       </Show>
@@ -356,6 +377,8 @@ function ProviderSettingsDialogs(props: {
             onOpenVerificationUrl={api().openVerificationUrl}
             onCancel={api().cancel}
             onSubmitCode={api().submit}
+            onOpenRelayPage={api().openRelayPage}
+            onPasteRelayAddress={api().pasteRelayAddress}
           />
         )}
       </Show>
@@ -396,6 +419,7 @@ export interface HostProviderSettings {
   detectedProviderApi?: DetectedProviderApi | undefined;
   takenAgentIds?: readonly string[] | undefined;
   customAgents?: CustomAgentSettingsApi | undefined;
+  acpRegistry?: AcpRegistrySettingsApi | undefined;
   detectionSettings?: ProviderDetectionSettingsValue | undefined;
   onDetectionSettingsChange?: ((value: ProviderDetectionSettingsValue) => void) | undefined;
   detectionSettingsError?: string | null | undefined;
@@ -459,6 +483,7 @@ export function HostProviderSettingsPanel(
         detectedProviderApi={props.detectedProviderApi}
         takenAgentIds={props.takenAgentIds}
         customAgents={props.customAgents}
+        acpRegistry={props.acpRegistry}
         onSignInProvider={props.providerKeys ? keys.openKeyDialog : undefined}
         onSignInWithCodeProvider={props.codeLogin?.start}
         codeSignInProviders={props.codeLogin?.providers()}

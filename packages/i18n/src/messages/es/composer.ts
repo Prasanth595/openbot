@@ -2,6 +2,8 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/composer";
 
 export const messages = {
+  "composer.queueEdit.body": "Estás editando un mensaje en cola. Guarda o cancela la edición para que se ejecute.",
+  "composer.queueEdit.cancel": "Cancelar edición",
   "composer.notice.dismiss": "Cerrar error",
   "composer.signIn.title": "Es necesario iniciar sesión",
   "composer.signIn.body": "Inicia sesión en {provider} para enviar mensajes.",
@@ -38,6 +40,7 @@ export const messages = {
   "composer.token.unavailableSkill": "Habilidad no disponible {name}",
   "composer.token.unavailableMcp": "Servidor MCP no disponible {name}",
   "composer.voice.stop": "Detener grabación de voz",
+  "composer.voice.cancel": "Cancelar grabación de voz",
   "composer.voice.preparing": "Descargando modelo de voz",
   "composer.voice.requesting": "Solicitando acceso al micrófono",
   "composer.voice.transcribing": "Transcribiendo instrucción de voz",
@@ -94,4 +97,17 @@ export const messages = {
     "No se ha confirmado que se haya guardado. Vuelve a pulsar Guardar para comprobar el resultado.",
   "composer.error.changeModel": "No se pudo cambiar el modelo. Vuelve a intentarlo.",
   "composer.error.changeEffort": "No se pudo cambiar el esfuerzo. Vuelve a intentarlo.",
+  "composer.context.label": "Contexto lleno al {percent}",
+  "composer.context.labelEstimated": "Contexto lleno aproximadamente al {percent}",
+  "composer.context.labelCompacting": "Compactando el contexto",
+  "composer.context.title": "Contexto",
+  "composer.context.percent": "Lleno al {percent}",
+  "composer.context.tokens": "{used} de {total} tokens",
+  "composer.context.tokensEstimated": "Estimación: {used} de {total} tokens",
+  "composer.context.autoAt": "El contexto se compacta automáticamente al {percent}.",
+  "composer.context.nativeAuto": "El proveedor gestiona la compactación automática.",
+  "composer.compaction.estimated": "Progreso estimado",
+  "composer.context.noAuto": "Este agente no compacta su contexto.",
+  "composer.context.lastCompaction": "Última compactación: {before} → {after} tokens",
+  "composer.compaction.elapsed": "{minutes}:{seconds}",
 } as const satisfies PartialTranslation<typeof source>;

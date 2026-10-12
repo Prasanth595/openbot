@@ -75,6 +75,22 @@ export const Downloading: Story = {
   },
 };
 
+/** The host waits to download or prepares the release, so the notice has no percentage. */
+export const PreparingDownload: Story = {
+  render: () => (
+    <NoticeStory
+      start={() =>
+        watchHostUpdate({
+          serverId: "story-preparing",
+          name: "Studio",
+          calls: { getUpdateStatus: async () => ({ ...AVAILABLE, phase: "downloading", progress: null }) },
+          offer: false,
+        })
+      }
+    />
+  ),
+};
+
 function RestartStory(props: { restart: HostRestartView["restart"]; online: boolean }) {
   const [hosts] = createSignal<HostRestartView[]>([
     { id: "story-restart", name: "Studio", online: props.online, restart: props.restart, version: "0.24.0" },

@@ -7,7 +7,8 @@ import { generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isString } from "@openbot/contracts/runtime-values";
+import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
+import { PROVIDER_HOST_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import {
   decodeTeamProtocolV2AuthFrame,
   decodeTeamProtocolV2RpcFrame,
@@ -44,6 +45,27 @@ function mockAuthenticatedSend(bridge: TeamWebRtcBridge, automaticallyConfirm = 
   const send = vi.spyOn(bridge, "send").mockImplementation((hostId, channel, data) =>
     remoteCall(async () => {
       if (channel !== "rpc" || !isString(data)) return;
+      // The transport reads the host protocol before the first request on each connection.
+      const compatibilityId = compatibilityRequestId(data);
+      if (compatibilityId) {
+        queueMicrotask(() =>
+          bridge.emit(
+            "data",
+            hostId,
+            "rpc",
+            JSON.stringify({
+              version: 2,
+              type: "response",
+              requestId: compatibilityId,
+              result: {
+                status: 200,
+                body: { appVersion: "1.0.0", protocol: { minimum: 2, maximum: 7 }, capabilities: [] },
+              },
+            }),
+          ),
+        );
+        return;
+      }
       let frame: TeamProtocolV2AuthFrame;
       try {
         frame = decodeTeamProtocolV2AuthFrame(data);
@@ -145,6 +167,7 @@ function createTransport(
     listMembers: () => authCall(async () => []),
     updateMember: () => authCall(async () => undefined),
     removeMember: () => authCall(async () => undefined),
+    removeOwnedHost: () => authCall(async () => undefined),
     getPrincipalId: () => "user-1",
     controlPlaneUrl: "https://api.example.test",
     downloadHostLogo: () => authCall(async () => ({ bytes: new Uint8Array(), mimeType: "image/png" })),
@@ -153,20 +176,66 @@ function createTransport(
   });
 }
 
+function sentRequest(data: string) {
+  try {
+    const frame = decodeTeamProtocolV2RpcFrame(data);
+    if (frame.type !== "request") return null;
+    const payload = isDynamicRecord(frame.payload) ? frame.payload : {};
+    return { requestId: frame.requestId, path: payload.path, capabilities: payload.capabilities };
+  } catch {
+    // An auth frame, which this is not looking for.
+    return null;
+  }
+}
+
+function compatibilityRequestId(data: string): string | null {
+  const request = sentRequest(data);
+  return request?.path === "/v1/compatibility" ? request.requestId : null;
+}
+
+/** The last request that is not the compatibility read, which the mock host answers itself. */
 function sentRequestId(send: { mock: { calls: unknown[][] } }): string | null {
   for (const call of [...send.mock.calls].reverse()) {
     if (call[1] !== "rpc" || !isString(call[2])) continue;
-    try {
-      const frame = decodeTeamProtocolV2RpcFrame(call[2]);
-      if (frame.type === "request") return frame.requestId;
-    } catch {
-      // An auth frame, which this is not looking for.
-    }
+    const request = sentRequest(call[2]);
+    if (request && request.path !== "/v1/compatibility") return request.requestId;
   }
   return null;
 }
 
 describe("TeamWebRtcClientTransport", () => {
+  it("ends a required read at its deadline while the bridge send is blocked", async () => {
+    const bridge = new TeamWebRtcBridge();
+    vi.spyOn(bridge, "start").mockReturnValue(Effect.void);
+    vi.spyOn(bridge, "connect").mockImplementation(({ peerId }) =>
+      remoteCall(async () => {
+        queueMicrotask(() => bridge.emit("connected", peerId, channelBinding));
+      }),
+    );
+    vi.spyOn(bridge, "disconnect").mockReturnValue(Effect.void);
+    const { send } = mockAuthenticatedSend(bridge);
+    const transport = createTransport(bridge);
+    transport.pinHostKey("host-1", hostKeys.publicKey);
+    await runCauseEffect(transport.connect("host-1"));
+    const interrupted = vi.fn();
+    send.mockClear().mockReturnValue(Effect.never.pipe(Effect.ensuring(Effect.sync(interrupted))));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      const request = runCauseEffect(transport.request("host-1", "/v1/agents"));
+      const rejected = expect(request).rejects.toMatchObject({ code: "remote_timeout" });
+      await vi.waitFor(() => expect(send).toHaveBeenCalledOnce());
+      // The blocked send is the protocol read of the new connection. It uses the whole deadline, so
+      // the request ends at 15 s and never sends its own frame.
+      await vi.advanceTimersByTimeAsync(15_000);
+      await rejected;
+      expect(interrupted).toHaveBeenCalledOnce();
+      expect(send).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+      await runCauseEffect(transport.stop());
+    }
+  });
+
   it("waits for the host directory only for a host without a pinned key, and still refuses one it does not pin", async () => {
     const bridge = new TeamWebRtcBridge();
     vi.spyOn(bridge, "start").mockReturnValue(Effect.void);
@@ -316,6 +385,7 @@ describe("TeamWebRtcClientTransport", () => {
       listMembers: () => authCall(async () => []),
       updateMember: () => authCall(async () => undefined),
       removeMember: () => authCall(async () => undefined),
+      removeOwnedHost: () => authCall(async () => undefined),
       getPrincipalId: () => "user-1",
       controlPlaneUrl: "https://api.example.test",
       downloadHostLogo: () => authCall(async () => ({ bytes: new Uint8Array(), mimeType: "image/png" })),
@@ -480,6 +550,7 @@ describe("TeamWebRtcClientTransport", () => {
       listMembers: () => authCall(async () => []),
       updateMember: () => authCall(async () => undefined),
       removeMember: () => authCall(async () => undefined),
+      removeOwnedHost: () => authCall(async () => undefined),
       getPrincipalId: () => "user-1",
       controlPlaneUrl: "https://api.example.test",
       downloadHostLogo: () => authCall(async () => ({ bytes: new Uint8Array(), mimeType: "image/png" })),
@@ -553,6 +624,7 @@ describe("TeamWebRtcClientTransport", () => {
       listMembers: () => authCall(async () => []),
       updateMember: () => authCall(async () => undefined),
       removeMember: () => authCall(async () => undefined),
+      removeOwnedHost: () => authCall(async () => undefined),
       getPrincipalId: () => principalId,
       controlPlaneUrl: "https://api.example.test",
       downloadHostLogo: () => authCall(async () => ({ bytes: new Uint8Array(), mimeType: "image/png" })),
@@ -623,6 +695,7 @@ describe("TeamWebRtcClientTransport", () => {
       listMembers: () => authCall(async () => []),
       updateMember: () => authCall(async () => undefined),
       removeMember: () => authCall(async () => undefined),
+      removeOwnedHost: () => authCall(async () => undefined),
       getPrincipalId: () => "user-1",
       controlPlaneUrl: "https://api.example.test",
       downloadHostLogo: () => authCall(async () => ({ bytes: new Uint8Array(), mimeType: "image/png" })),
@@ -672,6 +745,47 @@ describe("TeamWebRtcClientTransport", () => {
       );
       await vi.waitFor(() => expect(refusals).toBe(2));
       expect(connect).toHaveBeenCalledTimes(2);
+      bridge.emit(
+        "data",
+        "host-1",
+        "rpc",
+        JSON.stringify({
+          version: 2,
+          type: "response",
+          requestId: sentRequestId(authentication.send),
+          result: { status: 204, body: null },
+        }),
+      );
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      await runCauseEffect(transport.stop());
+    }
+  });
+
+  // A new connection forgets the host protocol. The first request must still carry the v7 list, or
+  // a v7 route such as the provider sign-in refuses it as an unsupported connection.
+  it("reads the host protocol before the first request on a new connection", async () => {
+    const bridge = new TeamWebRtcBridge();
+    vi.spyOn(bridge, "connect").mockImplementation(({ peerId }) =>
+      remoteCall(async () => {
+        queueMicrotask(() => bridge.emit("connected", peerId, channelBinding));
+      }),
+    );
+    vi.spyOn(bridge, "disconnect").mockReturnValue(Effect.void);
+    const authentication = mockAuthenticatedSend(bridge);
+    const transport = createTransport(bridge);
+    transport.pinHostKey("host-1", hostKeys.publicKey);
+    try {
+      await runCauseEffect(transport.connect("host-1"));
+      const pending = runCauseEffect(
+        transport.request("host-1", "/v1/agents/research/interrupt", { method: "POST", body: { turnId: "turn-1" } }),
+      );
+      await vi.waitFor(() => expect(sentRequestId(authentication.send)).not.toBeNull());
+      const requests = authentication.send.mock.calls.flatMap(([, channel, data]) =>
+        channel === "rpc" && isString(data) ? (sentRequest(data) ?? []) : [],
+      );
+      expect(requests.map((request) => request.path)).toEqual(["/v1/compatibility", "/v1/agents/research/interrupt"]);
+      expect(requests[1]?.capabilities).toContain(PROVIDER_HOST_SIGN_IN_CAPABILITY);
       bridge.emit(
         "data",
         "host-1",
@@ -798,6 +912,53 @@ describe("TeamWebRtcClientTransport", () => {
       );
       expect(event).toHaveBeenCalledWith("host-1", payload);
     }
+    const completion = {
+      type: "quiet-turn-completed",
+      agentId: "agent-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+      status: "completed",
+      origin: "routine",
+    };
+    bridge.emit(
+      "data",
+      "host-1",
+      "events",
+      JSON.stringify({
+        version: 2,
+        type: "event",
+        sequence: 5,
+        payload: completion,
+      }),
+    );
+    expect(event).toHaveBeenCalledWith("host-1", { ...completion, type: "turn-completed", quiet: true });
+    const { agentId, ...wire } = completion;
+    bridge.emit(
+      "data",
+      "host-1",
+      "events",
+      JSON.stringify({
+        version: 2,
+        type: "event",
+        sequence: 6,
+        payload: { ...wire, type: "turn-completed", botId: agentId },
+      }),
+    );
+    expect(event).toHaveBeenCalledWith("host-1", { ...completion, type: "turn-completed" });
+    const error = vi.fn();
+    transport.on("error", error);
+    bridge.emit(
+      "data",
+      "host-1",
+      "events",
+      JSON.stringify({
+        version: 2,
+        type: "event",
+        sequence: 7,
+        payload: { ...completion, turnId: null },
+      }),
+    );
+    expect(error).toHaveBeenCalledWith("host-1", "protocol_error", expect.any(String));
     await runCauseEffect(transport.stop());
   });
 

@@ -143,13 +143,14 @@ jobs:
         if: env.CODE == 'true'
         run: bun run check:desktop:static
 
-      - name: Check translation catalogs
-        if: env.CODE == 'true'
-        run: bun run i18n:check
+      - parallel:
+          - name: Check translation catalogs
+            if: env.CODE == 'true'
+            run: bun run i18n:check
 
-      - name: Check ratcheted TypeScript options
-        if: env.CODE == 'true'
-        run: bun run types:ratchet
+          - name: Check ratcheted TypeScript options
+            if: env.CODE == 'true'
+            run: bun run types:ratchet
 
   browser:
     # The smoke test starts the real Electron binary and opens windows, so it
@@ -167,14 +168,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Set up Bun
-        uses: ./.github/actions/setup-bun
+      - parallel:
+          - name: Set up Bun
+            uses: ./.github/actions/setup-bun
 
-      - name: Install a virtual display
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends --yes xvfb
+          - name: Install a virtual display
+            shell: bash
+            run: |
+              sudo apt-get update
+              sudo apt-get install --no-install-recommends --yes xvfb
 
       - name: Run the browser smoke test
         run: xvfb-run -a bun run test:browser
@@ -284,20 +286,32 @@ jobs:
         with:
           install: ignore-scripts
 
-      - name: Typecheck mobile
-        run: bun run mobile:typecheck
+      - parallel:
+          - name: Typecheck mobile
+            run: bun run mobile:typecheck
 
-      - name: Typecheck site router
-        run: bun run typecheck:sites
+          - name: Typecheck team client
+            run: bun run typecheck:team-client
 
-      - name: Typecheck team client
-        run: bun run typecheck:team-client
+      - parallel:
+          - name: Typecheck site router
+            run: bun run typecheck:sites
 
-      - name: Typecheck remote API
-        run: bun run typecheck:remote
+          - name: Typecheck remote API
+            run: bun run typecheck:remote
 
-      - name: Typecheck logging, telemetry, user errors and i18n
-        run: bun run --parallel typecheck:logging typecheck:telemetry typecheck:user-errors typecheck:i18n
+      - parallel:
+          - name: Typecheck logging
+            run: bun run typecheck:logging
+
+          - name: Typecheck telemetry
+            run: bun run typecheck:telemetry
+
+          - name: Typecheck user errors
+            run: bun run typecheck:user-errors
+
+          - name: Typecheck i18n
+            run: bun run typecheck:i18n
 
       - name: Validate the remote Compose files
         run: bun run remote:check:compose
@@ -414,20 +428,6 @@ jobs:
       - name: Build production Worker
         run: bun run api:build
 
-      - name: Apply production D1 migrations
-        working-directory: apps/auth-api
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_DEPLOY_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: ../../node_modules/.bin/wrangler d1 migrations apply DB --remote --config wrangler.jsonc
-
-      - name: Deploy public site router
-        working-directory: apps/site-router
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_SITE_ROUTER_DEPLOY_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: ../../node_modules/.bin/wrangler deploy --config wrangler.jsonc --keep-vars
-
       - name: Prepare runtime secrets
         id: runtime-secrets
         shell: bash
@@ -439,13 +439,13 @@ jobs:
           REMOTE_TICKET_PRIVATE_JWK: ${{ secrets.REMOTE_TICKET_PRIVATE_JWK }}
           REMOTE_TICKET_PUBLIC_JWKS: ${{ secrets.REMOTE_TICKET_PUBLIC_JWKS }}
           REMOTE_AUTH_WEBHOOK_SECRET: ${{ secrets.REMOTE_AUTH_WEBHOOK_SECRET }}
+          OPENPANEL_CLIENT_ID: ${{ secrets.OPENPANEL_CLIENT_ID }}
+          OPENPANEL_CLIENT_SECRET: ${{ secrets.OPENPANEL_CLIENT_SECRET }}
           # Optional: an unset value keeps the value that the Worker has. See docs/hosted-servers.md.
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           BOAT_API_KEY: ${{ secrets.BOAT_API_KEY }}
           BOAT_WEBHOOK_SECRET: ${{ secrets.BOAT_WEBHOOK_SECRET }}
-          OPENPANEL_CLIENT_ID: ${{ secrets.OPENPANEL_CLIENT_ID }}
-          OPENPANEL_CLIENT_SECRET: ${{ secrets.OPENPANEL_CLIENT_SECRET }}
           # GitHub refuses an Actions secret name that starts with GITHUB_. The Worker name is GITHUB_APP_PRIVATE_KEY.
           OPENBOT_GITHUB_APP_PRIVATE_KEY: ${{ secrets.OPENBOT_GITHUB_APP_PRIVATE_KEY }}
           APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
@@ -461,6 +461,11 @@ jobs:
             const remotePrivateJwk = process.env.REMOTE_TICKET_PRIVATE_JWK;
             const remotePublicJwks = process.env.REMOTE_TICKET_PUBLIC_JWKS;
             const remoteWebhookSecret = process.env.REMOTE_AUTH_WEBHOOK_SECRET;
+            const openpanelClientId = process.env.OPENPANEL_CLIENT_ID?.trim();
+            const openpanelClientSecret = process.env.OPENPANEL_CLIENT_SECRET?.trim();
+            if (!openpanelClientId || !openpanelClientSecret) {
+              throw new Error("OPENPANEL_CLIENT_ID and OPENPANEL_CLIENT_SECRET are required for production analytics.");
+            }
             const path = process.env.SECRETS_PATH;
             if (
               !smtp ||
@@ -479,7 +484,6 @@ jobs:
             for (const names of [
               ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"],
               ["BOAT_API_KEY", "BOAT_WEBHOOK_SECRET"],
-              ["OPENPANEL_CLIENT_ID", "OPENPANEL_CLIENT_SECRET"],
               // The Live Activity relay stays off until both are set.
               ["APNS_PRIVATE_KEY", "APNS_KEY_ID"],
             ]) {
@@ -496,6 +500,8 @@ jobs:
             }
             const secrets = {
               ...optional,
+              OPENPANEL_CLIENT_ID: openpanelClientId,
+              OPENPANEL_CLIENT_SECRET: openpanelClientSecret,
               EMAIL_SMTP_PASSWORD: smtp,
               SKILLS_ADMIN_TOKEN: skillsAdmin,
               SITE_REPORT_HASH_SECRET: siteReportHash,
@@ -507,6 +513,20 @@ jobs:
             await Bun.write(path, JSON.stringify(secrets));
           '
           echo "path=$secrets_path" >> "$GITHUB_OUTPUT"
+
+      - name: Apply production D1 migrations
+        working-directory: apps/auth-api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_DEPLOY_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: ../../node_modules/.bin/wrangler d1 migrations apply DB --remote --config wrangler.jsonc
+
+      - name: Deploy public site router
+        working-directory: apps/site-router
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_SITE_ROUTER_DEPLOY_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: ../../node_modules/.bin/wrangler deploy --config wrangler.jsonc --keep-vars
 
       - name: Deploy production Worker
         working-directory: apps/auth-api

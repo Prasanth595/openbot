@@ -16,6 +16,55 @@ import { runTeamEffect } from "./effect-boundary";
 const sessionId = "11111111-1111-4111-8111-111111111111";
 const tabId = "22222222-2222-4222-8222-222222222222";
 describe("remote browser view", () => {
+  it.each(["open", "input"] as const)("reports a failed %s send without transport secrets", async (stage) => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const request = vi.fn().mockResolvedValue({ id: sessionId, tabId, streamPath: browserViewStreamPath(sessionId) });
+    const client = createRemoteBrowserView(
+      send,
+      request,
+      () => false,
+      () => false,
+    );
+    const ended = vi.fn();
+    const failure = new Error("transport credential=synthetic-secret");
+    if (stage === "open") {
+      send.mockRejectedValueOnce(failure);
+      await expect(runTeamEffect(client.open(tabId, vi.fn(), ended, vi.fn()))).rejects.toThrow(
+        "The live view of this page failed.",
+      );
+    } else {
+      const view = await runTeamEffect(client.open(tabId, vi.fn(), ended, vi.fn()));
+      const streamId = decodeRemoteDesktopSignalControl(send.mock.calls[0]?.[0]).streamId;
+      client.receive(encodeRemoteDesktopSignalControl({ type: "opened", streamId }));
+      send.mockRejectedValueOnce(failure);
+      await expect(
+        runTeamEffect(view.input({ type: "key", action: "down", key: "a", code: "KeyA", text: "", modifiers: 0 })),
+      ).rejects.toThrow("The live view of this page failed.");
+    }
+    expect(ended).toHaveBeenCalledExactlyOnceWith("The live view of this page failed.");
+    expect(request).toHaveBeenLastCalledWith("DELETE", `/v1/browser/view/sessions/${sessionId}`);
+    const reopened = await runTeamEffect(client.open(tabId, vi.fn(), vi.fn(), vi.fn()));
+    await runTeamEffect(reopened.close());
+  });
+
+  it("reports an invalid stream payload as a failure and releases its session", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const request = vi.fn().mockResolvedValue({ id: sessionId, tabId, streamPath: browserViewStreamPath(sessionId) });
+    const client = createRemoteBrowserView(
+      send,
+      request,
+      () => false,
+      () => false,
+    );
+    const ended = vi.fn();
+    await runTeamEffect(client.open(tabId, vi.fn(), ended, vi.fn()));
+    client.receive("invalid stream payload");
+    await vi.waitFor(() =>
+      expect(request).toHaveBeenLastCalledWith("DELETE", `/v1/browser/view/sessions/${sessionId}`),
+    );
+    expect(ended).toHaveBeenCalledExactlyOnceWith("The live view of this page failed.");
+  });
+
   it.each([
     { type: "error", message: "The host stream socket failed." },
     { type: "close", code: 1011, reason: "The live view of this page failed." },
@@ -78,6 +127,45 @@ describe("remote browser view", () => {
       runTeamEffect(view.input({ type: "key", action: "down", key: "a", code: "KeyA", text: "", modifiers: 0 })),
     ).rejects.toThrow("not connected");
   });
+  it("asks for the cursor, the menus and a page size only of a host that advertises them", async () => {
+    for (const advertised of [true, false]) {
+      const send = vi.fn().mockResolvedValue(undefined);
+      const request = vi.fn().mockResolvedValue({ id: sessionId, tabId, streamPath: browserViewStreamPath(sessionId) });
+      const client = createRemoteBrowserView(
+        send,
+        request,
+        () => false,
+        () => false,
+        () => ({
+          cursor: advertised,
+          contextMenu: advertised,
+          viewport: advertised ? { width: 1280, height: 800 } : null,
+        }),
+      );
+      const message = vi.fn();
+      const copied = vi.fn();
+      const ended = vi.fn();
+      const view = await runTeamEffect(client.open(tabId, vi.fn(), ended, copied, message));
+      const control = decodeRemoteDesktopSignalControl(send.mock.calls[0]?.[0]);
+      assert(control.type === "open");
+      const query = new URL(control.path, "http://host").searchParams;
+      expect([query.get("cursor"), query.get("menu"), query.get("viewport")]).toEqual(
+        advertised ? ["1", "1", "1280x800"] : [null, null, null],
+      );
+      client.receive(encodeRemoteDesktopSignalControl({ type: "opened", streamId: control.streamId }));
+      const text = (data: string) =>
+        client.receive(encodeRemoteDesktopSignalControl({ type: "text", streamId: control.streamId, data }));
+      // A message of a newer host leaves the view open, and a copy answer still goes to its own listener.
+      text(JSON.stringify({ type: "something-newer" }));
+      text(JSON.stringify({ type: "cursor", cursor: "pointer" }));
+      text(encodeBrowserViewCopied({ type: "copyTooLarge" }));
+      expect(message).toHaveBeenCalledExactlyOnceWith({ type: "cursor", cursor: "pointer" });
+      expect(copied).toHaveBeenCalledExactlyOnceWith({ type: "copyTooLarge" });
+      expect(ended).not.toHaveBeenCalled();
+      await runTeamEffect(view.close());
+    }
+  });
+
   it("does not attach a view that finishes opening after disconnect", async () => {
     let finish: ((value: { id: string; tabId: string; streamPath: string }) => void) | undefined;
     const request = vi

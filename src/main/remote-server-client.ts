@@ -1,3 +1,4 @@
+import { decodeTeamProtocolSupportV7Base } from "@openbot/contracts/team-protocol/v7-base";
 // One Team API call, from picking a wire format to recording that it failed.
 //
 // **Two encodings, on purpose. Never merge them.** The HTTPS path frames V1 or V3 according to the
@@ -24,11 +25,11 @@ import {
   isAgentCreateRoute,
   supportsTeamSemanticTags,
   TEAM_AGENT_CREATE_MODEL_CAPABILITY,
-  TEAM_CURRENT_CAPABILITIES,
+  TEAM_BOOTSTRAP_CAPABILITIES,
   type TeamCurrentCapability,
+  teamCapabilitiesForProtocol,
 } from "@openbot/contracts/team-protocol/current";
 import {
-  decodeTeamProtocolSupportV1,
   highestCommonTeamProtocol,
   TEAM_APP_VERSION_HEADER,
   TEAM_CAPABILITIES_HEADER,
@@ -62,12 +63,24 @@ export interface RemoteHostRequestTransport {
   request: (
     hostId: string,
     path: string,
-    init?: { method?: string; body?: unknown; preserveSemanticTags?: boolean; agentCreateModel?: boolean },
+    init?: {
+      method?: string;
+      body?: unknown;
+      preserveSemanticTags?: boolean;
+      agentCreateModel?: boolean;
+      timeoutMs?: number;
+    },
   ) => Effect.Effect<unknown, RemoteWorkflowError>;
   requestResponse: (
     hostId: string,
     path: string,
-    init?: { method?: string; body?: unknown; contentType?: string; preserveSemanticTags?: boolean },
+    init?: {
+      method?: string;
+      body?: unknown;
+      contentType?: string;
+      preserveSemanticTags?: boolean;
+      timeoutMs?: number;
+    },
   ) => Effect.Effect<
     {
       status: number;
@@ -191,7 +204,7 @@ export class RemoteServerClient {
    * `affectsConnection` is false for the remote viewer, whose requests are triggered by page loads
    * rather than by the user and so must not mark a healthy server offline.
    *
-   * `timeoutMs` applies to HTTP only. A WebRTC request has the transport's own limit.
+   * `timeoutMs` applies to both HTTP and WebRTC requests.
    */
 
   readonly fetch = Effect.fn("RemoteClient.fetch")(function* (
@@ -214,6 +227,7 @@ export class RemoteServerClient {
             method: init.method,
             body: requestBody,
             contentType,
+            timeoutMs,
             preserveSemanticTags: supportsTeamSemanticTags(compatibility.capabilities),
           });
           const headers = new Headers();
@@ -242,7 +256,7 @@ export class RemoteServerClient {
       headers.set(TEAM_PROTOCOL_VERSION_HEADER, String(compatibility.negotiatedProtocol));
       if (this.#appVersion) {
         headers.set(TEAM_APP_VERSION_HEADER, this.#appVersion);
-        headers.set(TEAM_CAPABILITIES_HEADER, TEAM_CURRENT_CAPABILITIES.join(","));
+        headers.set(TEAM_CAPABILITIES_HEADER, teamCapabilitiesForProtocol(compatibility.negotiatedProtocol).join(","));
       }
       const response = yield* remoteFetch(input, { ...init, headers }, timeoutMs).pipe(
         Effect.mapError(
@@ -280,7 +294,7 @@ export class RemoteServerClient {
     return {
       protocol: compatibility.negotiatedProtocol ?? undefined,
       appVersion: this.#appVersion ?? undefined,
-      capabilities: this.#appVersion ? TEAM_CURRENT_CAPABILITIES : undefined,
+      capabilities: this.#appVersion ? teamCapabilitiesForProtocol(compatibility.negotiatedProtocol) : undefined,
       preserveSemanticTags: supportsTeamSemanticTags(compatibility.capabilities),
     };
   }
@@ -371,7 +385,7 @@ export class RemoteServerClient {
       // treating a host talking nonsense as healthy.
       const value = yield* this.#hostRequestEffect(serverId, TEAM_API_ROUTES.compatibility);
       return yield* remoteDecode(() =>
-        decodeOrProtocolError(decodeTeamProtocolSupportV1, value, sourceText("error.remote.invalidCompatibility")),
+        decodeOrProtocolError(decodeTeamProtocolSupportV7Base, value, sourceText("error.remote.invalidCompatibility")),
       );
     }).pipe(Effect.result);
     if (Result.isFailure(attempt3)) {
@@ -397,7 +411,10 @@ export class RemoteServerClient {
   ): Effect.fn.Return<ServerCompatibility, RemoteWorkflowError> {
     if (!this.#appVersion) return assumedCompatibility(this.#appVersion);
     const attempt4 = yield* Effect.gen({ self: this }, function* () {
-      return yield* requestJson(apiUrl, TEAM_API_ROUTES.compatibility, decodeTeamProtocolSupportV1).pipe(
+      return yield* requestJson(apiUrl, TEAM_API_ROUTES.compatibility, decodeTeamProtocolSupportV7Base, {
+        protocol: 7,
+        capabilities: TEAM_BOOTSTRAP_CAPABILITIES,
+      }).pipe(
         Effect.mapError(
           (failure) =>
             new RemoteWorkflowError({
@@ -568,7 +585,7 @@ export class RemoteServerClient {
     return yield* remoteDecode(() =>
       webRtcCompatibility(
         this.#appVersion,
-        decodeOrProtocolError(decodeTeamProtocolSupportV1, value, sourceText("error.remote.invalidCompatibility")),
+        decodeOrProtocolError(decodeTeamProtocolSupportV7Base, value, sourceText("error.remote.invalidCompatibility")),
       ),
     );
   });

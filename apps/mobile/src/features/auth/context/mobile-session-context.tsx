@@ -55,6 +55,8 @@ export function MobileSessionProvider({ children }: PropsWithChildren) {
     if (sessionRef.current?.sessionToken !== session?.sessionToken || sessionRef.current?.apiUrl !== session?.apiUrl) {
       sessionScope.current += 1;
       queryClient.removeQueries({ queryKey: ["account-sessions"] });
+      // The hosted server plans keep the last answer for the life of the app; a new session drops it.
+      queryClient.removeQueries({ queryKey: ["hosted-server-plans"] });
     }
     mobileAnalytics.setUser(session?.user ?? null);
     sessionRef.current = session;

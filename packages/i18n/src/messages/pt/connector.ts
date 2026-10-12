@@ -57,10 +57,20 @@ export const messages = {
   "connector.github.disconnectEffectTools": "Todos os agentes perdem as ferramentas do GitHub, gh e git.",
   "connector.github.disconnectEffectRevoke": "Em seguida, o GitHub abre para você revogar o OpenBot.",
   "connector.github.disconnectEffectKept": "Os chats, arquivos e a memória dos agentes continuam neste computador.",
+  // The same text for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.github.descriptionHost":
+    "Todos os agentes em {host} podem usar seus repositórios, issues e pull requests do GitHub, além de gh e git.",
+  "connector.github.connectedSummaryHost": {
+    one: "{count} repositório · todos os agentes em {host}",
+    other: "{count} repositórios · todos os agentes em {host}",
+  },
+  "connector.github.disconnectConfirmDescriptionHost": "Desconectar remove o acesso de @{login} de {host}.",
+  "connector.github.disconnectEffectKeptHost": "Os chats, arquivos e a memória dos agentes continuam em {host}.",
   "connector.github.keepConnected": "Manter conectado",
   "connector.github.close": "Fechar",
   "connector.dangerZone": "Zona de perigo",
   "connector.hub.onThisComputer": "Neste computador",
+  "connector.hub.onHost": "Em {host}",
   "connector.hub.notSetUp": "Não configurado",
   "connector.hub.available": "Disponível",
   "connector.hub.open": "Abrir {name}",
@@ -125,6 +135,8 @@ export const messages = {
   "connector.slack.disconnectTitle": "Desconectar {workspace}?",
   "connector.slack.disconnectDescription":
     "O OpenBot para de responder em {workspace} e remove o token do Slack deste computador.",
+  "connector.slack.disconnectDescriptionHost":
+    "O OpenBot para de responder em {workspace} e remove o token do Slack de {host}.",
   "connector.slack.disconnectEffect":
     "As pessoas em {workspace} não poderão mais acessar seus agentes por meio de @OpenBot.",
   "connector.slack.removeEffectKept": "As conversas e o Orquestrador do Slack continuam no OpenBot.",
@@ -186,11 +198,93 @@ export const messages = {
   "connector.discord.disconnectTitle": "Desconectar {workspace}?",
   "connector.discord.disconnectDescription":
     "O OpenBot para de responder em {workspace} e remove a conexão do Discord deste computador.",
+  "connector.discord.disconnectDescriptionHost":
+    "O OpenBot para de responder em {workspace} e remove a conexão do Discord de {host}.",
   "connector.discord.disconnectEffect":
     "As pessoas em {workspace} não poderão mais acessar seus agentes por meio de @OpenBot.",
   "connector.discord.removeEffectKept": "As conversas e o Orquestrador do Discord continuam no OpenBot.",
   "connector.discord.keep": "Manter conectado",
   "connector.discord.close": "Fechar",
+  "connector.telegram.title": "Telegram",
+  "connector.telegram.description":
+    "Adicione o bot do OpenBot a um grupo do Telegram ou abra um chat direto com ele. O Orquestrador do Telegram consulta o agente certo e responde.",
+  "connector.telegram.statusNotSetUp": "Não configurado",
+  "connector.telegram.statusConnected": "Conectado",
+  "connector.telegram.statusAttention": "Precisa de atenção",
+  "connector.telegram.summaryConnected": {
+    one: "{count} chat · O Orquestrador do Telegram responde",
+    other: "{count} chats · O Orquestrador do Telegram responde",
+  },
+  "connector.telegram.summaryNoAgent": {
+    one: "{count} chat · Nenhum agente responde ainda",
+    other: "{count} chats · Nenhum agente responde ainda",
+  },
+  "connector.telegram.attentionTitle": {
+    one: "{count} chat precisa de atenção",
+    other: "{count} chats precisam de atenção",
+  },
+  "connector.telegram.attentionDescription": "O estado abaixo informa o que fazer.",
+  "connector.telegram.connect": "Conectar Telegram",
+  "connector.telegram.addAgent": "Adicionar agente",
+  "connector.telegram.actionFailed": "O Telegram não aceitou a alteração",
+  "connector.telegram.chatsTitle": "Chats",
+  "connector.telegram.groupDescription": "As pessoas mencionam o bot ou respondem às mensagens dele.",
+  "connector.telegram.directDescription": "Todas as mensagens deste chat vão para o Orquestrador do Telegram.",
+  "connector.telegram.helpRemoved":
+    "O bot do OpenBot não está mais neste chat. Desconecte o chat e adicione o bot novamente.",
+  "connector.telegram.helpRelayUnavailable":
+    "O OpenBot não consegue receber mensagens do Telegram neste computador. Entre na sua conta, dê um nome a este computador nas Configurações do servidor e mantenha o OpenBot aberto.",
+  "connector.telegram.helpRelayUnavailableHost":
+    "O OpenBot em {host} não consegue receber mensagens do Telegram. Em {host}, entre na sua conta, dê um nome ao servidor nas Configurações do servidor e mantenha o OpenBot aberto.",
+  "connector.telegram.helpError": "O OpenBot não consegue acessar este chat. Reconecte ou desconecte o chat.",
+  "connector.telegram.retryAt": "O Telegram pediu para o OpenBot aguardar. Ele tentará novamente às {time}.",
+  "connector.telegram.pause": "Pausar",
+  "connector.telegram.resume": "Retomar",
+  "connector.telegram.reconnect": "Reconectar",
+  "connector.telegram.disconnectChat": "Desconectar",
+  "connector.telegram.rowAction": "{action}: {name}",
+  "connector.telegram.linkTitle": "Vincular outro chat",
+  "connector.telegram.linkDescription":
+    "O Telegram abre no seu navegador. O chat aparece aqui quando estiver vinculado.",
+  "connector.telegram.linkWaiting": "Aguardando o Telegram. Selecione o chat no Telegram.",
+  "connector.telegram.addToGroup": "Adicionar a um grupo",
+  "connector.telegram.openDirectChat": "Abrir um chat direto",
+  "connector.telegram.orchestratorTitle": "Orquestrador do Telegram",
+  "connector.telegram.orchestratorDescription":
+    "Este agente recebe as mensagens para o OpenBot de todos os seus chats do Telegram. Ele responde às mais curtas, encaminha o restante do trabalho ao agente certo e publica a resposta no chat.",
+  "connector.telegram.orchestratorNone": "Nenhum agente responde ainda",
+  "connector.telegram.orchestratorNoneDescription":
+    "Adicione o Orquestrador do Telegram para que o Telegram receba respostas.",
+  "connector.telegram.mentionNote":
+    "Em um grupo, mencione o bot ou responda às mensagens dele. Em um chat direto, todas as mensagens vão para o bot.",
+  "connector.telegram.stepChat": "Chat",
+  "connector.telegram.stepAgent": "Agente",
+  "connector.telegram.connectTitle": "Vincular um chat do Telegram",
+  "connector.telegram.connectDescription":
+    "Adicione o bot do OpenBot a um grupo ou abra um chat direto com ele. Um único bot atende todos os seus chats.",
+  "connector.telegram.connectStepBrowser": "O Telegram abre no seu navegador",
+  "connector.telegram.connectStepPick": "Selecione o grupo ou toque em Iniciar no chat direto",
+  "connector.telegram.connectStepReturn": "Esta janela continua quando o chat estiver vinculado",
+  "connector.telegram.connectWaiting": "Aguardando o Telegram. Selecione o chat no Telegram.",
+  "connector.telegram.agentStepTitle": "Adicionar o Orquestrador do Telegram",
+  "connector.telegram.agentStepDescription":
+    "Este novo agente responde às mensagens para o OpenBot em {chat} e em cada chat que você vincular depois.",
+  "connector.telegram.orchestratorName": "Orquestrador do Telegram",
+  "connector.telegram.orchestratorRole": "Responde no Telegram e consulta a equipe",
+  "connector.telegram.orchestratorDoesReceive": "Recebe primeiro todas as mensagens do Telegram para o OpenBot",
+  "connector.telegram.orchestratorDoesDelegate": "Atribui cada tarefa ao agente mais adequado",
+  "connector.telegram.orchestratorDoesAnswer": "Publica a resposta no chat do Telegram",
+  "connector.telegram.orchestratorModel": "Modelo",
+  "connector.telegram.doneTitle": "O OpenBot está em {chat}",
+  "connector.telegram.done": "Concluir",
+  "connector.telegram.disconnectTitle": "Desconectar {chat}?",
+  "connector.telegram.disconnectDescription":
+    "O bot do OpenBot sai de {chat} e o OpenBot para de responder lá. As conversas ficam no OpenBot.",
+  "connector.telegram.disconnectEffect":
+    "As pessoas em {chat} não poderão mais acessar seus agentes por meio do bot do OpenBot.",
+  "connector.telegram.removeEffectKept": "As conversas e o Orquestrador do Telegram continuam no OpenBot.",
+  "connector.telegram.keep": "Manter conectado",
+  "connector.telegram.close": "Fechar",
   "connector.onePassword.title": "1Password",
   "connector.onePassword.description":
     "Compartilhe um cofre dedicado do 1Password com o OpenBot por meio de uma conta de serviço, para que os agentes possam entrar em sites no navegador do OpenBot.",
@@ -238,4 +332,18 @@ export const messages = {
   "connector.onePassword.statusConnected": "Conectado",
   "connector.onePassword.statusConnecting": "Conectando",
   "connector.onePassword.statusNotSetUp": "Não configurado",
+  "connector.bitwarden.title": "Bitwarden",
+  "connector.bitwarden.description": "Preencher logins do navegador a partir do Bitwarden.",
+  "connector.bitwarden.setup":
+    "Instale a CLI do Bitwarden e entre com bw login. Crie uma pasta chamada Shared with OpenBot e coloque nela apenas os logins que os agentes podem usar. Execute bw unlock --raw e cole a chave de sessão abaixo. Não cole sua senha mestra.",
+  "connector.bitwarden.scope":
+    "Todos os agentes deste computador podem usar logins correspondentes em Shared with OpenBot. O OpenBot usa origens HTTPS exatas. Ele não usa itens que exigem senha mestra ou regra personalizada de URI.",
+  "connector.bitwarden.session":
+    "A chave de sessão fica na memória. Conecte de novo após 8 horas sem uso do cofre ou após o OpenBot fechar. Desconectar interrompe o acesso do OpenBot; não bloqueia outros clientes Bitwarden.",
+  "connector.bitwarden.sessionKey": "Chave de sessão do Bitwarden",
+  "connector.bitwarden.connect": "Conectar Bitwarden",
+  "connector.bitwarden.disconnect": "Desconectar Bitwarden",
+  "connector.bitwarden.connected": "Conectado",
+  "connector.bitwarden.disconnected": "Não conectado",
+  "connector.bitwarden.failed": "Não foi possível conectar ao Bitwarden.",
 } as const satisfies PartialTranslation<typeof source>;

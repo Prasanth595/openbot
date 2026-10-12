@@ -542,6 +542,14 @@ describe("TeamWebRtcHostGateway", () => {
       { type: "channel-memories-changed", channelId: "channel-1" },
       { type: "channel-routines-changed", channelId: "channel-1" },
       { type: "skills-changed", agentId: "agent-1" },
+      {
+        type: "quiet-turn-completed",
+        agentId: "agent-1",
+        threadId: "thread-1",
+        turnId: "turn-1",
+        status: "completed",
+        origin: "routine",
+      },
     ] as const) {
       for (const client of eventsServer.clients) client.send(JSON.stringify(event));
       await vi.waitFor(() =>
@@ -626,6 +634,43 @@ describe("TeamWebRtcHostGateway", () => {
 
     await vi.waitFor(() => expect(bridge.disconnectedPeers).toEqual(["peer-1"]));
     expect(bridge.connections).toHaveLength(1);
+    await runCauseEffect(gateway.stop());
+    await runCauseEffect(gateway.dispose());
+  });
+
+  it("reports a host Signal peer that closed for good unless a recovery owns it", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "openbot-webrtc-host-closed-"));
+    directories.push(directory);
+    const bridge = new FakeBridge();
+    const store = new TeamStore(join(directory, "team.json"));
+    await runCauseEffect(store.initialize());
+    const recoveryFailure = vi.fn();
+    const renewSignal = vi.fn(() => Effect.never);
+    const gateway = new TeamWebRtcHostGateway({
+      bridge,
+      store,
+      appVersion: "1.0.0",
+      transferDirectory: join(directory, "transfers"),
+      renewSignal,
+      onSignalRecoveryFailure: recoveryFailure,
+    });
+    await runCauseEffect(
+      gateway.start({
+        hostId: "host-1",
+        signalUrl: "wss://signal.example.test/v1/signal",
+        ticket: "initial",
+        localApiPort: 0,
+      }),
+    );
+
+    // Signal closed the host socket with code 4000; the bridge does not connect it again.
+    bridge.emit("disconnected", "host-1");
+    expect(recoveryFailure).toHaveBeenCalledOnce();
+
+    bridge.emit("error", "host-1", "session_revoked", "credential rotated");
+    bridge.emit("disconnected", "host-1");
+    await vi.waitFor(() => expect(renewSignal).toHaveBeenCalledWith("host-1"));
+    expect(recoveryFailure).toHaveBeenCalledOnce();
     await runCauseEffect(gateway.stop());
     await runCauseEffect(gateway.dispose());
   });

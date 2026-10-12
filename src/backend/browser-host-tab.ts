@@ -1,6 +1,7 @@
 import type { BrowserEnvironment, BrowserPreview, BrowserTab } from "@openbot/contracts/ipc";
+import type { BrowserViewContextMenu } from "@openbot/contracts/team-protocol/browser-view-v1";
 import type { Deferred, Effect, Scope } from "effect";
-import { BrowserWindow, type WebContents, type WebContentsView, webContents } from "electron";
+import { BrowserWindow, type Session, type WebContents, type WebContentsView, webContents } from "electron";
 import type { BrowserCdpEngine } from "./browser-cdp";
 import type { BrowserDiagnostics } from "./browser-diagnostics";
 import type { BrowserOperationError } from "./browser-effects";
@@ -33,6 +34,11 @@ export interface BrowserHostTab {
    * and recording stay blocked in its opener group until a main-frame navigation replaces it.
    */
   secretDocument?: boolean;
+  /**
+   * A session of this tab and its popups only, kept in memory: a sign-in page that the host opened
+   * for someone else. Such a tab is not saved, and its cookies go when it closes.
+   */
+  privateSession?: Session;
   popup: boolean;
   popupFailure?: BrowserTab["popupFailure"];
   closing?: boolean;
@@ -67,12 +73,19 @@ export interface BrowserHostTab {
   /** When a person or an agent last used the tab. A preview request does not count as use. */
   lastUsedAt: number;
   focusOnVisible: boolean;
+  /** Whether the tab had focus when its page closed itself, so its opener can take focus over. */
+  focusedAtPageClose?: boolean | undefined;
   environment: BrowserEnvironment;
   engine: BrowserCdpEngine;
   diagnostics: BrowserDiagnostics;
   recording: boolean;
   captureGeneration: number;
   viewInvalidations: Set<() => void>;
+  /**
+   * The live view that made the last right-click, until the menu of that click opens. The menu then
+   * goes to that view, and does not open on this screen.
+   */
+  viewContextMenu: { deliver: (menu: BrowserViewContextMenu) => void; until: number } | null;
   /** The host of the last page reported as a site visit, so a navigation inside one site is not reported again. */
   visitedHost?: string | undefined;
   // Pending consent permits human takeover; submission blocks captures until document replacement.

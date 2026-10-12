@@ -2,6 +2,9 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/composer";
 
 export const messages = {
+  "composer.queueEdit.body":
+    "Du bearbeitest eine Nachricht in der Warteschlange. Speichere die Änderung oder brich sie ab, damit die Nachricht ausgeführt werden kann.",
+  "composer.queueEdit.cancel": "Bearbeitung abbrechen",
   "composer.notice.dismiss": "Fehler ausblenden",
   "composer.signIn.title": "Anmeldung erforderlich",
   "composer.signIn.body": "Melde dich bei {provider} an, um Nachrichten zu senden.",
@@ -39,6 +42,7 @@ export const messages = {
   "composer.token.unavailableSkill": "Nicht verfügbare Fähigkeit {name}",
   "composer.token.unavailableMcp": "Nicht verfügbarer MCP-Server {name}",
   "composer.voice.stop": "Sprachaufnahme stoppen",
+  "composer.voice.cancel": "Sprachaufnahme abbrechen",
   "composer.voice.preparing": "Sprachmodell wird heruntergeladen",
   "composer.voice.requesting": "Mikrofonzugriff wird angefordert",
   "composer.voice.transcribing": "Sprachanweisung wird transkribiert",
@@ -97,4 +101,17 @@ export const messages = {
     "Das Speichern ist nicht bestätigt. Wähle erneut Speichern, um das Ergebnis zu prüfen.",
   "composer.error.changeModel": "Das Modell konnte nicht geändert werden. Versuche es erneut.",
   "composer.error.changeEffort": "Der Denkaufwand konnte nicht geändert werden. Versuche es erneut.",
+  "composer.context.label": "Kontext zu {percent} voll",
+  "composer.context.labelEstimated": "Kontext zu etwa {percent} voll",
+  "composer.context.labelCompacting": "Kontext wird komprimiert",
+  "composer.context.title": "Kontext",
+  "composer.context.percent": "{percent} voll",
+  "composer.context.tokens": "{used} von {total} Tokens",
+  "composer.context.tokensEstimated": "Geschätzt: {used} von {total} Tokens",
+  "composer.context.autoAt": "Der Kontext wird bei {percent} automatisch komprimiert.",
+  "composer.context.nativeAuto": "Der Anbieter verwaltet die automatische Komprimierung.",
+  "composer.compaction.estimated": "Geschätzter Fortschritt",
+  "composer.context.noAuto": "Dieser Agent komprimiert seinen Kontext nicht.",
+  "composer.context.lastCompaction": "Letzte Komprimierung: {before} → {after} Tokens",
+  "composer.compaction.elapsed": "{minutes}:{seconds}",
 } as const satisfies PartialTranslation<typeof source>;

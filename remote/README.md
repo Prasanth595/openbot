@@ -2,8 +2,8 @@
 
 This directory holds our own control plane for WebRTC connections. The Remote API relays SDP and ICE.
 Team files, chats, commands and video never pass through the Remote API or Cloudflare. The exceptions
-are the OpenBot Slack app and the OpenBot Discord bot: see [Slack requests](#slack-requests) and
-[Discord](#discord).
+are the OpenBot Slack app, the OpenBot Discord bot and the OpenBot Telegram bot: see
+[Slack requests](#slack-requests), [Discord](#discord) and [Telegram updates](#telegram-updates).
 
 ## Flow
 
@@ -95,6 +95,30 @@ Signal sends the account service the guild IDs that the bot is in
 guild. Signal sends nothing while a Gateway shard is closed, because the list can then miss a new
 guild. So a link goes also when its host is off and the first unlink failed, or Signal restarted.
 
+## Telegram updates
+
+One OpenBot bot serves every user, and only Signal has its token. `TELEGRAM_BOT_TOKENS` is a
+comma-separated list of bot tokens (`<bot ID>:<secret>`), because the production and development
+bots share Signal. `TELEGRAM_WEBHOOK_SECRET` (at least 32 bytes) is required with them: the webhook
+secret of each bot is the base64url HMAC-SHA256 of `telegram-webhook:<bot ID>` with it. A malformed
+value turns off only Telegram. With `TELEGRAM_WEBHOOK_ORIGIN`, Signal sets the webhook of each bot to
+`<origin>/v1/telegram/updates/<bot ID>` when it starts; a failure is logged and Signal runs on.
+
+Telegram posts each update to `/v1/telegram/updates/<bot ID>`. Signal checks the secret header,
+reads only the chat ID, the callback query ID and a `/start <code>` link code, and passes the exact
+body to the `ingress` socket of the chat's host. A link code makes Signal ask the account service to
+link the chat (`/v2/remote/telegram-route/link`), and routes the chat to that host at once. Signal
+answers 200 to each signed update, also when no host holds the chat: Telegram holds back the bot's
+other updates while one fails.
+
+An `ingress` socket names its chats with a Telegram route ticket: an ES256 JWT with the audience
+`openbot-telegram-route`, signed with the key of the Slack route ticket. When `ready` names the
+`telegram` capability, the host calls the Bot API through the socket (`telegram-call`). Signal
+accepts only the methods and parameters of `TelegramCallParams`, only for the chats routed to that
+socket, and returns only the reduced result. A host downloads a file from `/v1/telegram/files/<token>`
+and posts a document to `/v1/telegram/uploads/<token>`. These tokens are signed, expire after two
+minutes, and an upload token works once. Signal does not store or log an update or a file.
+
 ## Production requirements
 
 - Linux with Docker Engine and Docker Compose.
@@ -147,10 +171,19 @@ Reconnecting one session replaces only that session's Signal socket. Disconnecti
 must not end another device's session. Legacy hosts that omit `multiplex` keep the one-client limit:
 a second session receives `host_busy` without interrupting the first.
 
-`REMOTE_MAX_CONNECTIONS_PER_USER` (default 32) limits the authenticated Signal sockets of one account.
-Published hosts and clients share it. Each open desktop, phone, or browser keeps a socket for each
-saved host. A reconnect of the same session does not count its old socket. Change the value on the
-Signal server: a desktop environment does not change it.
+`REMOTE_MAX_CONNECTIONS_PER_USER` (default 32) limits the authenticated client Signal sockets of one
+account. Each open desktop, phone, or browser keeps a socket for each saved host. A reconnect of the
+same session does not count its old socket. Host sockets do not count, and the limit never refuses a
+host. A host hello moves the clients of the older sockets of the same host to the new socket. The older
+sockets stay open; when the new socket closes, the last remaining one takes the clients. A host keeps at
+most 4 sockets: a fifth hello closes the oldest with code 1013, and that host can connect again. Change the value
+on the Signal server: a desktop environment does not change it.
+This also applies when the old client socket waits for its host to reconnect. Token signing finishes
+before Signal admits the new socket, so concurrent reconnects do not hold extra account slots.
+
+Production deployments keep `/opt/openbot/remote/.env.production`. A value in that file overrides
+the default, even when a release changes the repository's environment file. Check the running
+container's effective limit after a configuration change and Signal restart.
 
 See [the issue #325 deployment procedure](../docs/remote-session-deployment.md) for the production evidence,
 a Signal-only update, rollback commands, and the required desktop/mobile checks.

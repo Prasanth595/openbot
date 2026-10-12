@@ -1,4 +1,9 @@
-import { type AgentProviderId, type AgentStatus, agentProviderDescriptor } from "@openbot/contracts/ipc";
+import {
+  type AgentProviderId,
+  type AgentStatus,
+  agentProviderDescriptor,
+  LOCAL_SERVER_ID,
+} from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { toast } from "@openbot/ui";
 import { currentText } from "@openbot/ui/text";
@@ -6,14 +11,23 @@ import { createEffect, createMemo, createSignal, flush, onSettled } from "solid-
 import { desktopAnalytics } from "./analytics";
 import { appPort } from "./app-port";
 import { useAgents } from "./features/agents/agents-context";
+import { conversationPort } from "./features/conversation/conversation-port";
 import { hostCustomProvidersApi } from "./features/custom-providers/custom-providers-port";
 import { createCustomProvidersStore } from "./features/custom-providers/stores/custom-providers-store";
 import { createProviderCodeLogin } from "./features/provider-updates/provider-code-login";
 import { createProviderRuntimeStore } from "./features/provider-updates/provider-runtime-store";
 import { remoteProviderRuntimes } from "./features/provider-updates/remote-provider-runtimes";
-import { codeSignInProviders, remoteAdminServer } from "./features/servers/server-capabilities";
+import {
+  codeSignInProviders,
+  hostSignInProviders,
+  localCodeSignInProviders,
+  relaySignInProviders,
+  remoteAdminServer,
+  serverSupportsCapability,
+} from "./features/servers/server-capabilities";
 import { useServers } from "./features/servers/servers-context";
 import { hostProviderKeyApi, providerKeyApi } from "./features/settings/provider-key-api";
+import { usePlatform } from "./platform";
 import { providersPort } from "./providers-port";
 import { createSimpleContext } from "./simple-context";
 
@@ -28,6 +42,7 @@ const Providers = createSimpleContext({
   init: () => {
     const { agentStatus, setAgentStatus } = useAgents();
     const { activeServer } = useServers();
+    const { appInfo } = usePlatform();
     const [refreshingProviders, setRefreshingProviders] = createSignal(false);
     /**
      * A CLI the user installed themselves, and the version it reports. Only the agent status knows
@@ -229,13 +244,33 @@ const Providers = createSimpleContext({
               start: (provider) => providerAdmin().startCodeLogin(provider, serverId),
               submit: (provider, code) => providerAdmin().submitCodeLogin({ provider, code }, serverId),
               cancel: (provider) => providerAdmin().cancelCodeLogin(provider, serverId),
+              hostSignIn: {
+                providers: hostSignInProviders(activeServer()),
+                hostName: activeServer()?.name ?? "",
+                runtime: conversationPort().browser,
+                clipboard: serverSupportsCapability(activeServer(), "browser-view-clipboard"),
+                start: (provider) => providerAdmin().startHostSignIn(provider, serverId),
+                status: (provider) => providerAdmin().hostSignInStatus(provider, serverId),
+                cancel: (provider) => providerAdmin().cancelHostSignIn(provider, serverId),
+              },
+              relay: {
+                providers: relaySignInProviders(activeServer()),
+                hostName: activeServer()?.name ?? "",
+                start: (provider) => providerAdmin().startRelaySignIn(provider, serverId),
+                status: (provider) => providerAdmin().relaySignInStatus(provider, serverId),
+                open: (provider) => providerAdmin().openRelaySignIn(provider, serverId),
+                paste: (provider, address) => providerAdmin().pasteRelaySignIn({ provider, address }, serverId),
+                cancel: (provider) => providerAdmin().cancelRelaySignIn(provider, serverId),
+              },
             }
           : {
               start: (provider) => providersPort().startProviderCodeLogin(provider),
+              submit: (provider, code) => providerAdmin().submitCodeLogin({ provider, code }, LOCAL_SERVER_ID),
               cancel: (provider) => providersPort().cancelProviderCodeLogin(provider),
             };
       },
-      providers: () => codeSignInProviders(providerAdminServerId() ? activeServer() : undefined),
+      providers: () =>
+        providerAdminServerId() ? codeSignInProviders(activeServer()) : localCodeSignInProviders(appInfo()?.platform),
       openVerificationUrl: (url) => void appPort().openUrl(url),
       connection: {
         begin: (provider) => {

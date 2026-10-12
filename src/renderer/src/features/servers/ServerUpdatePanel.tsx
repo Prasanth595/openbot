@@ -208,10 +208,12 @@ export function ServerUpdatePanel(
       case "available":
         return t("server.update.status.available", { version: version(current) });
       case "downloading":
-        return t("server.update.status.downloading", {
-          version: version(current),
-          progress: format.percent((current.progress ?? 0) / 100),
-        });
+        return current.progress === null
+          ? t("server.update.status.downloadingUnknown", { version: version(current) })
+          : t("server.update.status.downloading", {
+              version: version(current),
+              progress: format.percent(current.progress / 100),
+            });
       case "ready":
         return t("server.update.status.ready", { version: version(current) });
       case "installing":

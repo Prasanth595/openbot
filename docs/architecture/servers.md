@@ -116,7 +116,7 @@ in the Routines view; the web client shows the view switch only when the host se
 `history-extent-v1` lets the chat's day rail draw the history that is not loaded on a joined server.
 It adds `olderCount` and `oldestAt` (at most 64 characters) beside the frozen keys of `pageInfo` on
 `GET /v1/agents/:id/conversation-page` and `GET /v1/direct/conversations/:id/page`, and at the top
-level of the `POST /v1/channels/read` page. The host adds them only on protocol 6 and only when the
+level of the `POST /v1/channels/read` page. The host adds them only on protocol 7 and only when the
 request advertises the capability, so a released client reads the same bytes as before. A host
 without the capability never sends them, so a client keeps them whenever they are present, and a
 malformed value fails closed. The WebRTC host peer encodes the local response again with the same
@@ -142,6 +142,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | Capability | Grants | IPC group |
 | --- | --- | --- |
 | `agent-admin-v1` | Agent access and auto-approve | `agentAdmin` |
+| `agent-host-settings-v1` | Agent Computer Use, local scripts, and messages while it works; reads the host default | none: only the iPhone app uses it |
 | `skills-admin-v1` | List, install, remove, enable skills by marketplace id | `agentAdmin` |
 | `shared-tables-v1` | List and delete shared tables | `agentAdmin` |
 | `agent-install-v1` | Add an agent from a listing or a shared template, by id | `agentAdmin` |

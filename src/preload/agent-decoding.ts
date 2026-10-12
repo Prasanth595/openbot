@@ -1,3 +1,4 @@
+import { type AgentSessionSettings, isAgentSessionSettings } from "@openbot/contracts/ipc";
 // What main answers for agents: provider status, models, the agents themselves, memories, routines,
 // shared tables and the sidebar layout.
 //
@@ -7,6 +8,7 @@
 import {
   type AccountUsage,
   type AgentMemory,
+  type AgentMemorySelectionState,
   type AgentModelOption,
   type AgentStatus,
   type AgentSummary,
@@ -14,7 +16,9 @@ import {
   decodeOptionalAgentAnalytics,
   decodeOptionalHostAnalytics,
   isAccountUsage,
+  isAgentHostSettings,
   isAgentMemory,
+  isAgentMemorySelectionState,
   isAgentModelOption,
   isAgentProvider,
   isAgentStatus,
@@ -34,6 +38,7 @@ import { decodeRecord, guardedDecoder, guardedListDecoder } from "@openbot/contr
 import { isDynamicRecord, isHttpsUrl, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 
 export const decodeRoutine = guardedDecoder(isRoutine, "routine response");
+export const decodeAgentHostSettingsFromMain = guardedDecoder(isAgentHostSettings, "agent host settings response");
 export const decodeRoutines = guardedListDecoder(isRoutine, "routine list response");
 export const decodeRoutineRun = guardedDecoder(isRoutineRun, "routine run response");
 export const decodeRoutineRuns = guardedListDecoder(isRoutineRun, "routine history response");
@@ -148,4 +153,17 @@ export function decodeAgentAnalyticsFromMain(value: unknown) {
 
 export function decodeHostAnalyticsFromMain(value: unknown) {
   return decodeOptionalHostAnalytics(value);
+}
+
+export function decodeMemorySelection(value: unknown): AgentMemorySelectionState {
+  if (!isAgentMemorySelectionState(value)) throw new Error("Invalid agent memory selection response.");
+  return value;
+}
+
+export function decodeOptionalMemorySelection(value: unknown): AgentMemorySelectionState | null {
+  return value === null ? null : decodeMemorySelection(value);
+}
+export function decodeAgentSessionSettingsFromMain(value: unknown): AgentSessionSettings {
+  if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
+  return value;
 }

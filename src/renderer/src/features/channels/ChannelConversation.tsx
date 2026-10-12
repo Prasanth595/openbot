@@ -8,7 +8,7 @@ import {
   canPreviewAttachment,
   type FilePreview,
 } from "@openbot/contracts/ipc";
-import { ArrowUp, Button, Plus, X } from "@openbot/ui";
+import { ArrowUp, Button, ErrorReference, Plus, X } from "@openbot/ui";
 import { QuestionPromptBubble } from "@openbot/ui/components/QuestionPromptBubble";
 import {
   SettingsPanel,
@@ -52,6 +52,7 @@ import {
   unreadMessagesDividerIsVisible,
 } from "@openbot/ui/features/conversation/UnreadMessages";
 import { useText } from "@openbot/ui/text";
+import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import type { VirtualItem } from "@tanstack/virtual-core";
 import {
   createEffect,
@@ -88,6 +89,7 @@ const ChannelFilePreviewPanel = lazy(() => import("../conversation/FilePreviewPa
 
 /** What the open channel reads from the client around it. The channel itself comes from `useChannels()`. */
 export interface ChannelConversationProps {
+  connectionReady?: boolean;
   isOwnMessage: (authorId: string) => boolean;
   /** The device with the keyboard on desktop. Web leaves it empty and the browser is detected. */
   platform?: "darwin" | "win32" | "linux" | undefined;
@@ -210,13 +212,44 @@ export function ChannelConversation(props: ChannelConversationProps) {
         updateDraft(selectedId, (draft) => ({ ...draft, attachments: [...draft.attachments, ...attachments] }));
     });
   /** Dropped or pasted files. Only a browser runtime imports them here; the desktop preload imports its own. */
-  const canImportFiles = () => Boolean(runtime().importAttachments && channels.state.page?.channel.archived === false);
+  const canImportFiles = () =>
+    Boolean(
+      (runtime().importAttachments || runtime().onAttachmentImport) && channels.state.page?.channel.archived === false,
+    );
   const importFiles = (files: File[]) => {
     const importAttachments = runtime().importAttachments;
     if (importAttachments && canImportFiles() && files.length > 0) addAttachments(() => importAttachments(files));
   };
+  // The desktop preload imports a drop or a paste itself and reports it here. The channel open when the
+  // import starts owns the result. A result that no channel owns is discarded, so it does not stay on disk.
+  const desktopImports = new Map<string, PromiseWithResolvers<AttachmentSummary[]>>();
+  createEffect(
+    () => runtime().onAttachmentImport,
+    (onAttachmentImport) => {
+      if (!onAttachmentImport) return;
+      onCleanup(
+        onAttachmentImport((event) => {
+          if (event.type === "started") {
+            if (!canImportFiles()) return;
+            const pending = Promise.withResolvers<AttachmentSummary[]>();
+            desktopImports.set(event.requestId, pending);
+            addAttachments(() => pending.promise);
+            return;
+          }
+          const pending = desktopImports.get(event.requestId);
+          desktopImports.delete(event.requestId);
+          if (event.type === "error") pending?.reject(new Error(event.message));
+          else if (pending) pending.resolve(event.attachments);
+          else
+            for (const attachment of event.attachments)
+              void runtime().agent.discardDraftAttachment?.(attachment.id, event.serverId);
+        }),
+      );
+      onCleanup(() => desktopImports.clear());
+    },
+  );
   const [dropActive, setDropActive] = createSignal(false);
-  const [copyError, setCopyError] = createSignal<string | null>(null);
+  const [copyError, setCopyError] = createSignal<UserErrorDetails | null>(null);
   createEffect(
     () => channels.state.selectedId,
     () => {
@@ -434,8 +467,8 @@ export function ChannelConversation(props: ChannelConversationProps) {
     setCopyError(null);
     try {
       await writeClipboardText(text);
-    } catch {
-      setCopyError(t("chat.actions.copyFailed"));
+    } catch (error) {
+      setCopyError({ message: t("chat.actions.copyFailed"), reference: errorReference(error) });
       return;
     }
     setCopiedMessageId(message.id);
@@ -539,6 +572,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
    * failed.
    */
   const stopWork = async () => {
+    if (props.connectionReady === false) return;
     const channelId = channels.state.page?.channel.id;
     if (!channelId) return;
     for (const taskId of activeRuns()) {
@@ -563,7 +597,13 @@ export function ChannelConversation(props: ChannelConversationProps) {
   const submit = () => {
     const { text, attachments, replyToMessageId } = composer();
     const channelId = channels.state.selectedId;
-    if (channels.state.pending || (!text.trim() && !attachments.length) || !channelId) return;
+    if (
+      props.connectionReady === false ||
+      channels.state.pending ||
+      (!text.trim() && !attachments.length) ||
+      !channelId
+    )
+      return;
     const expanded = expandComposerMentions(text);
     // A request that opens with a member is addressed to that member, the way a reader writes it.
     // A mention later in the text is what it reads as: a reference the owner of the work can see.
@@ -612,6 +652,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
       <Show when={channels.state.error}>
         <p role="alert">
           {sourceText(channels.state.error ?? "")}
+          <ErrorReference reference={channels.state.errorReference} />
           <Button
             variant="ghost"
             onClick={() =>
@@ -624,7 +665,14 @@ export function ChannelConversation(props: ChannelConversationProps) {
           </Button>
         </p>
       </Show>
-      <Show when={copyError()}>{(message) => <p role="alert">{message()}</p>}</Show>
+      <Show when={copyError()}>
+        {(failure) => (
+          <p role="alert">
+            {failure().message}
+            <ErrorReference reference={failure().reference} />
+          </p>
+        )}
+      </Show>
 
       <Show when={channels.state.page} fallback={<p>{t("channel.conversation.loading")}</p>}>
         {(page) => (
@@ -1021,6 +1069,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
                       variant="ghost"
                       class="composer-button"
                       aria-label={t("channel.composer.attach")}
+                      disabled={props.connectionReady === false}
                       onClick={() => addAttachments(() => runtime().agent.chooseAttachments({ filter: "all" }))}
                     >
                       <Plus aria-hidden="true" />
@@ -1038,7 +1087,9 @@ export function ChannelConversation(props: ChannelConversationProps) {
                             aria-keyshortcuts={sendShortcutAriaKey(deviceSendShortcut(props.platform))}
                             title={t(sendShortcutHintKey(deviceSendShortcut(props.platform), "send"))}
                             disabled={
-                              channels.state.pending || (!composer().text.trim() && !composer().attachments.length)
+                              props.connectionReady === false ||
+                              channels.state.pending ||
+                              (!composer().text.trim() && !composer().attachments.length)
                             }
                           >
                             <ArrowUp aria-hidden="true" />
@@ -1050,6 +1101,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
                           variant="ghost"
                           class="voice-button voice-button-active"
                           aria-label={t("channel.composer.stop")}
+                          disabled={props.connectionReady === false}
                           onClick={() => void stopWork()}
                         >
                           <StopIcon />

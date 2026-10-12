@@ -21,6 +21,8 @@ export interface ServerConnectionIssue {
   code: ServerConnectionIssueCode;
   message: string;
   retryable: boolean;
+  /** A short code a user can copy into a report, such as `signal/host_busy`. */
+  reference?: string;
 }
 
 export interface ServerCompatibility {
@@ -84,7 +86,11 @@ export interface ServerSummary {
    * user's input (`waking`). Cleared when the connection comes back.
    */
   hostedSleep?: HostedServerSleep | null;
+  /** A hosted start needs user action. This is local IPC metadata, not a Team API field. */
+  hostedIssue?: HostedServerIssue | null;
 }
+
+export type HostedServerIssue = "plan_ended" | "wake_failed" | "start_timeout";
 
 export type HostedServerSleep = "sleeping" | "waking";
 

@@ -8,6 +8,7 @@ import type { AgentProvider } from "./agent-client";
 import type { AgentService } from "./agent-service";
 import {
   FakeAgentClient,
+  fakeClaudeCli,
   notification,
   startAgentTestFixture,
   startService,
@@ -132,6 +133,29 @@ describe.sequential("AgentService: usage limit", () => {
     expect(service.getRuntimeSnapshot().usageLimits).toEqual([]);
   });
 
+  it("lets a held agent move to another provider and runs the held queue there", async () => {
+    process.env.OPENBOT_CLAUDE_PATH = await fakeClaudeCli();
+    const codex = new PlanClient("codex");
+    const started = await startService(root, {
+      preferredProvider: "codex",
+      client: (provider) => (provider === "codex" ? codex : new FakeAgentClient(provider)),
+    });
+    service = started.service;
+    const events: AgentEvent[] = [];
+    service.on("event", (event) => events.push(event));
+
+    const receipt = await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Write the morning plan." }));
+    await waitFor(() => events.some((event) => event.type === "usage-limit-reached"));
+    // The held message is queued, and the switch is the only way out before the plan resets.
+    await runCauseEffect(service.updateAgent({ agentId: "chief", provider: "claude", model: "claude-sonnet-5" }));
+
+    const delivery = () => started.mailbox.getDelivery(receipt.deliveries[0]?.id ?? "")?.delivery;
+    await waitFor(() => delivery()?.status === "completed");
+    expect(codex.turnStarts).toBe(1);
+    expect(started.clientFor("claude")?.requests.some((request) => request.method === "turn/start")).toBe(true);
+    expect(service.getRuntimeSnapshot().usageLimits).toEqual([]);
+  });
+
   it("fails a refused turn that already ran a command, so the command does not run twice", async () => {
     const client = new PlanClient("codex");
     client.act = true;
@@ -179,6 +203,17 @@ describe.sequential("AgentService: usage limit", () => {
     expect(isPlanLimitDiagnostic(SESSION_LIMIT)).toBe(true);
     expect(isPlanLimitDiagnostic("You've hit your weekly limit · resets Oct 9")).toBe(true);
     expect(isPlanLimitDiagnostic("You've hit your usage limit. Try again at 10:34 AM.")).toBe(true);
+    // Codex Plus and Pro offer credits next to the reset.
+    expect(
+      isPlanLimitDiagnostic(
+        "You’ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/settings/usage to purchase more credits or try again at 3:00 PM.",
+      ),
+    ).toBe(true);
+    expect(
+      isPlanLimitDiagnostic(
+        "You’ve hit your usage limit. Visit https://chatgpt.com/settings/usage to purchase more credits or try again at Oct 12th, 2026 9:00 AM.",
+      ),
+    ).toBe(true);
     expect(isUsageLimitDiagnostic("You've hit your rate limit. Try again in 20 seconds.")).toBe(false);
     expect(isUsageLimitDiagnostic("429 Rate limit reached for requests")).toBe(false);
     // A balance does not come back by waiting, so the turn fails with the provider's reason.
@@ -190,5 +225,6 @@ describe.sequential("AgentService: usage limit", () => {
       expect(isUsageLimitDiagnostic(balance)).toBe(true);
       expect(isPlanLimitDiagnostic(balance)).toBe(false);
     }
+    expect(isPlanLimitDiagnostic("Your workspace is out of credits. Add credits to continue.")).toBe(false);
   });
 });

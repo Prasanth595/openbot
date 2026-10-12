@@ -25,7 +25,7 @@ export interface ChannelsPort {
   > &
     ChannelMemoriesApi &
     ChannelRoutinesApi &
-    Partial<Pick<OpenBotDesktopApi["agent"], "downloadAttachments">>;
+    Partial<Pick<OpenBotDesktopApi["agent"], "discardDraftAttachment" | "downloadAttachments">>;
   eventRoutines?: EventRoutinesApi | undefined;
   browser: Pick<OpenBotDesktopApi["browser"], "capturePreview">;
   openUrl: OpenBotDesktopApi["openUrl"];
@@ -42,6 +42,8 @@ export interface ChannelsPort {
   visualPage?: (attachment: AttachmentSummary) => Promise<string>;
   /** Uploads dropped or pasted files as drafts. Only a browser client has it; the desktop preload imports them. */
   importAttachments?: (files: File[]) => Promise<AttachmentSummary[]>;
+  /** Reports the files the desktop preload imports from a drop or a paste. Only the desktop has it. */
+  onAttachmentImport?: OpenBotDesktopApi["agent"]["onAttachmentImport"];
 }
 
 /** Read on each call: tests and stories replace `window.openbot` per case. */
@@ -52,5 +54,6 @@ export function channelsPort(): ChannelsPort {
     browser: api.browser,
     openUrl: (url) => api.openUrl(url),
     fileActions: "native",
+    onAttachmentImport: (listener) => api.agent.onAttachmentImport(listener),
   };
 }

@@ -2,6 +2,8 @@ import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("error.provider", {
   // Provider, provider runtime and custom endpoint errors.
+  "error.provider.mcpConfig":
+    "OpenBot could not register MCP servers in the Codex configuration. Check that your Codex config.toml is valid and writable, then restart OpenBot.",
   "error.provider.computerUseConfig":
     "OpenBot could not register Computer Use in the Codex configuration. Check that your Codex config.toml is valid and writable, then restart OpenBot. You can turn off Computer Use in the teammate settings to continue without it.",
   "error.provider.endpointsReadOnly":
@@ -141,6 +143,7 @@ export const messages = defineMessages("error.provider", {
     "{provider} did not answer in time. The computer may be busy. Refresh the providers to try again.",
   "error.provider.noCodeSignIn": "{provider} cannot be signed in with a code.",
   "error.provider.codeLoginNoLink": "The provider did not show a sign-in link. Try again.",
+  "error.provider.hostSignInEnded": "{provider} did not finish signing in. Try again.",
   "error.provider.codeLoginNotWaiting": "No sign-in is waiting for a code. Start the sign-in again.",
   "error.provider.codeLoginBadCode": "Paste the code that the sign-in page shows.",
   "error.provider.codeLoginRefused": "The provider did not accept the code. Start the sign-in again.",
@@ -183,6 +186,12 @@ export const messages = defineMessages("error.provider", {
   "error.provider.antigravityNotStarted": "The Gemini server was found, but its version cannot be read.",
   "error.provider.antigravityVersionUnreadable": "Unable to read the Gemini server version.",
   "error.provider.antigravitySignIn": "Sign in with Google to use Gemini.",
+  "error.provider.antigravityRateLimited":
+    "Gemini refused the request because a rate limit or the plan's quota is reached. Wait a few minutes or choose another model, then try again.\n{detail}",
+  "error.provider.antigravityModelUnavailable":
+    "Gemini cannot use this model now. Choose another model, then try again.\n{detail}",
+  "error.provider.antigravityServiceFailure":
+    "Google's Gemini service did not complete the request. Try again in a few minutes.\n{detail}",
   "error.provider.cursorArchivePath": "The Cursor archive has an unexpected file.",
   "error.provider.cursorChecksum": "Cursor runtime checksum mismatch.",
   "error.provider.cursorReleaseShape": "The Cursor release has an unexpected shape.",
@@ -205,6 +214,8 @@ export const messages = defineMessages("error.provider", {
   "error.provider.grokSignIn": "Run `grok login` or set XAI_API_KEY to use Grok.",
   "error.provider.acpSignInTimedOut": "The sign-in timed out.",
   "error.provider.acpSignInStopped": "The sign-in stopped before it was complete.",
+  "error.provider.geminiBrowserUnavailable":
+    "Gemini could not open the sign-in page. Install a browser and xdg-utils, then connect from a desktop session on this host. A server with no desktop cannot complete this sign-in.",
   "error.provider.acpSignInFailed": "The sign-in did not complete.",
   "error.provider.messageTooLarge": "OpenBot stopped {provider} because it sent a message larger than {limit} MB.",
   "error.provider.customAgentIdInvalid":
@@ -239,4 +250,67 @@ export const messages = defineMessages("error.provider", {
   "error.provider.useSettingsReadOnly":
     "The saved provider settings cannot be read. Update OpenBot before you change them.",
   "error.provider.useChangeFailed": "OpenBot could not change the provider setting.",
+  "error.provider.sessionSettingUnavailable": "This setting is not available in the current provider session.",
+  "error.provider.sessionSettingInvalid": "This value is not available for the setting.",
+  "error.provider.sessionSettingsBusy": "Wait for the current turn to finish before changing a session setting.",
+  "error.provider.piOutdated": "Pi {version} is too old. Install Pi 1.1.0 or later for native RPC and MCP support.",
+  "error.provider.nativeMissing": "The {provider} CLI is not installed. Download it in Settings.",
+  "error.provider.nativeNotStarted": "The {provider} CLI could not start.",
+  "error.provider.nativeVersionUnreadable": "The {provider} CLI version could not be read.",
+  "error.provider.piSessionBusy": "Wait for the current Pi turn to finish.",
+  "error.provider.piStopped": "Pi is not running. Connect Pi and try again.",
+  "error.provider.piSessionMissing": "The Pi session file is not available on this computer.",
+  "error.provider.piResumeCancelled": "Pi cancelled the session resume. Try again.",
+  "error.provider.piSessionIdentity": "Pi returned a different session. The saved session was not replaced.",
+  "error.provider.piModelInvalid": "Select a Pi model that includes its provider.",
+  "error.provider.piToolInvalid": "The tool returned an invalid result.",
+  "error.provider.piSignIn": "Use /login in Pi on the host computer. Close Pi when sign-in is complete.",
+  "error.provider.museBusy": "Muse session is busy.",
+  "error.provider.museStopped": "Muse client is not running.",
+  "error.provider.museUnexpectedProvider": "Muse returned an unexpected model provider.",
+  "error.provider.museNoActiveTurn": "Muse has no active turn to steer.",
+  "error.provider.museInvalidProtocol": "Muse returned an invalid protocol response.",
+  "error.provider.museNotStarted": "Muse did not start.",
+  "error.provider.museNativeWindows": "Muse requires a native executable on Windows.",
+  "error.provider.museStartTimeout": "Muse initialization timed out.",
+  "error.provider.museStartStopped": "Muse stopped during initialization.",
+  "error.provider.museProtocolVersion": "Unsupported Muse protocol version.",
+  "error.provider.museHistoryRequired": "Muse must retain session history.",
+  "error.provider.museRequestUnsupported": "Unsupported Muse server request.",
+  "error.provider.museConnectionFailed":
+    "Muse connection failed. Resume the conversation to recover its saved history.",
+  "error.provider.museUnknownSession": "Unknown Muse session.",
+  "error.provider.museInvalidToolResult": "Invalid OpenBot tool result.",
+  "error.provider.museMcpRequired": "Muse must support session MCP servers.",
+  "error.provider.museSessionMismatch": "Muse returned a different session.",
+  "error.provider.museCompactRejected": "Muse did not accept compaction.",
+  "error.provider.museTurnMismatch": "Muse returned a different turn.",
+  "error.provider.museHistoryMismatch": "Muse history crossed sessions.",
+  "error.provider.museRecoveryFailed": "Muse could not recover the missing events.",
+  "error.provider.museHistoryStalled": "Muse history cursor did not advance.",
+  "error.provider.museApprovalUnavailable": "Muse did not offer this approval response.",
+  "error.provider.museHistoryOwner": "Muse history belongs to another session.",
+  "error.provider.museHistoryMissing": "Muse did not return session history.",
+  "error.provider.museEmptyInput": "Muse needs text or an image.",
+  "error.provider.museMethodUnsupported": "Muse does not support {method}.",
+  "error.provider.museTurnFailed": "Muse turn failed.",
+  "error.provider.museProfileUnsupported":
+    "Muse cannot generate a profile without access to external tools. Use another provider to generate the profile, then select Muse for the agent.",
+  "error.provider.museAuthUnverified":
+    "Muse authentication is not verified. Connect on the host computer, or set a Meta API key.",
+  "error.provider.museSignIn": "Sign in to Muse on the host computer to continue.",
+  "error.provider.terminalLoginFailed":
+    "The sign-in terminal could not open. Open the provider CLI on this host and sign in there, then refresh providers.",
+  "error.provider.nativeArchiveInvalid": "The provider download does not contain a valid installation.",
+  "error.provider.nativeChecksum": "The provider installation did not pass its integrity check.",
+  "error.provider.registryUnavailable": "The ACP registry is not available. Try again.",
+  "error.provider.registryInvalid": "The ACP registry returned invalid data.",
+  "error.provider.registryMissing": "This agent is not in the ACP registry.",
+  "error.provider.registryBusy": "An installation is already in progress for this agent.",
+  "error.provider.registryCancelled": "The agent installation was cancelled.",
+  "error.provider.registryPrerequisite": "Install {tool} on the host before you install this agent.",
+  "error.provider.registryBindingChanged": "The custom agent changed during installation. Try again.",
+  "error.provider.registryInstallFailed": "The agent installation failed. The previous installation is unchanged.",
+  "error.provider.registryRemoveBusy":
+    "Wait for the agent installation and active ACP work to finish before you remove it.",
 });

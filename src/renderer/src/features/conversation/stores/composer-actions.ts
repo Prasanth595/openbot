@@ -37,7 +37,8 @@ export interface ComposerActionsDeps {
   submitting: () => boolean;
   setSubmitting: (submitting: boolean) => void;
   voicePhase: () => string;
-  setComposerError: (error: string | null, targetOverride?: ConversationTarget) => void;
+  /** `cause` is the failure behind `error`. The banner shows its code. */
+  setComposerError: (error: string | null, targetOverride?: ConversationTarget, cause?: unknown) => void;
   setComposerFocusRequest: (update: (current: number) => number) => void;
   setShowComposerActions: (show: boolean) => void;
   orderedQueuedDeliveries: () => QueueDelivery[];
@@ -176,6 +177,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     // A pending Save owns the outcome: keep it for retry instead of replacing it.
     if (deps.editingPendingSave()) return;
     if (deps.editingDeliveryId() && !(await cancelQueuedMessageEdit())) return;
+    if (deps.props.agent?.id !== agentId || (deps.props.server?.id ?? "local") !== serverId) return;
     const backup = copyComposerDraft(deps.currentDraft());
     const supportsHold =
       deps.props.server?.kind !== "remote" ||
@@ -243,10 +245,14 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         setEditingDraft(original);
       }
     } catch (error) {
-      deps.setComposerError(errorMessage(error, t("composer.error.holdQueued")), {
-        agentId,
-        serverId,
-      });
+      deps.setComposerError(
+        errorMessage(error, t("composer.error.holdQueued")),
+        {
+          agentId,
+          serverId,
+        },
+        error,
+      );
       return;
     } finally {
       deps.setSubmitting(false);
@@ -279,7 +285,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         );
       } catch (error) {
         if (!isQueueEditRejected(error)) {
-          deps.setComposerError(errorMessage(error, t("composer.error.cancelEdit")), target);
+          deps.setComposerError(errorMessage(error, t("composer.error.cancelEdit")), target, error);
           return false;
         }
       } finally {
@@ -384,10 +390,14 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         }
       } catch (error) {
         deps.setSubmitting(false);
-        deps.setComposerError(errorMessage(error, t("composer.error.holdQueued")), {
-          agentId,
-          serverId,
-        });
+        deps.setComposerError(
+          errorMessage(error, t("composer.error.holdQueued")),
+          {
+            agentId,
+            serverId,
+          },
+          error,
+        );
         return false;
       }
       const pendingSave = {
@@ -414,10 +424,10 @@ export function createComposerActions(deps: ComposerActionsDeps) {
             pendingSave,
           }),
         );
-      } catch {
+      } catch (error) {
         deps.setEditingPendingSave(null);
         deps.setSubmitting(false);
-        deps.setComposerError(t("composer.error.saveEditTryAgain"), { agentId, serverId });
+        deps.setComposerError(t("composer.error.saveEditTryAgain"), { agentId, serverId }, error);
         return false;
       }
     }
@@ -437,10 +447,14 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         });
       }
     } catch (error) {
-      deps.setComposerError(errorMessage(error, t("composer.error.updateQueued")), {
-        agentId,
-        serverId,
-      });
+      deps.setComposerError(
+        errorMessage(error, t("composer.error.updateQueued")),
+        {
+          agentId,
+          serverId,
+        },
+        error,
+      );
     } finally {
       deps.setSubmitting(false);
     }
@@ -527,7 +541,10 @@ export function createComposerActions(deps: ComposerActionsDeps) {
    * chat's messages in the order the user sent them. `draft` is what Edit puts back in the composer.
    */
   function queueSend(target: ConversationTarget, draft: ComposerDraft, text: string): void {
-    deps.setStickToLatest(true);
+    const activeTarget = deps.currentTarget();
+    if (activeTarget && activeTarget.agentId === target.agentId && activeTarget.serverId === target.serverId) {
+      deps.setStickToLatest(true);
+    }
     // Read the send function now: the send outlives this view when the user switches server.
     const send = deps.props.onSendMessage;
     const server = deps.props.server;
@@ -613,7 +630,8 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       deps.stopVoiceRecording();
       return;
     }
-    if (phase !== "idle") return;
+    // The editor stays open while the agent starts, but a send waits until it is ready.
+    if (phase !== "idle" || !deps.agentReady()) return;
     void submitMessage();
   }
 

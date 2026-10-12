@@ -15,7 +15,9 @@ import {
   ROUTINE_FLOWS_CAPABILITY,
   ROUTINE_FLOWS_ROUTES,
 } from "@openbot/contracts/team-protocol/routine-flows-v1";
+import { TEAM_PROTOCOL_VERSION_HEADER } from "@openbot/contracts/team-protocol/v1";
 import { TEAM_PROTOCOL_V2_MAX_JSON_FRAME_BYTES } from "@openbot/contracts/team-protocol/v2";
+import { TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -178,10 +180,12 @@ describe("Team API routine-flows-v1", () => {
     expect(refused.status).toBe(400);
     expect(await refused.json()).toEqual({ error: sourceText("error.team.routineFlowsUnsupported") });
 
+    // Only a protocol 7 client reads the list that names the capability.
+    const headers = { [TEAM_PROTOCOL_VERSION_HEADER]: String(TEAM_PROTOCOL_V7) };
     const bare = await startHost(null);
-    const compatibility = await (await fetch(`${bare.base}/v1/compatibility`)).json();
+    const compatibility = await (await fetch(`${bare.base}/v1/compatibility`, { headers })).json();
     expect(compatibility.capabilities).not.toContain(ROUTINE_FLOWS_CAPABILITY);
-    const advertised = await (await fetch(`${(await startHost()).base}/v1/compatibility`)).json();
+    const advertised = await (await fetch(`${(await startHost()).base}/v1/compatibility`, { headers })).json();
     expect(advertised.capabilities).toContain(ROUTINE_FLOWS_CAPABILITY);
   });
 

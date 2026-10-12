@@ -16,6 +16,7 @@ import type {
 import {
   CONVERSATION_PLAN_ITEM_TYPE,
   channelRoutingConversationEvent,
+  isContextResetMarker,
   parseConversationPlanText,
   routineConversationEvent,
   routineRunConversationEvent,
@@ -38,7 +39,15 @@ export type ChatMessage =
             agentName: string;
           };
     }
-  | { id: string; kind: "exchange"; exchange: AgentExchangeSummary }
+  | {
+      id: string;
+      kind: "exchange";
+      exchange: AgentExchangeSummary;
+      /** Incoming files show under the marker, so the marker keeps a row of its own. */
+      standalone: boolean;
+    }
+  /** Where a new chat started: the agent does not see the messages above it. */
+  | { id: string; kind: "context-reset" }
   /** A routine created, changed, deleted, or run by the agent. The label matches the desktop marker. */
   | { id: string; kind: "routine"; event: RoutineMarkerEvent; label: MobileTextKey; routineName: string }
   | { id: string; kind: "question"; turnId: string | undefined; prompt: ConversationQuestionPrompt }
@@ -72,9 +81,20 @@ export type ChatMessage =
     }
   | { id: string; kind: "thinking"; turnId: string | undefined; steps: { id: string; text: string }[] };
 
+export type ExchangeMarker = Extract<ChatMessage, { kind: "exchange" }>;
+
+/** Consecutive messages to and from other agents, drawn as one row as on desktop. */
+export interface ExchangeGroup {
+  /** The ID of the first marker, so the row stays the same while the exchange grows. */
+  id: string;
+  kind: "exchange-group";
+  exchanges: ExchangeMarker[];
+}
+
 export interface PendingChatMessage {
   message: Extract<ChatMessage, { kind: "message" }>;
-  baseline: Set<string>;
+  /** The host rows drawn when the send started. Set only while the send waits for its receipt. */
+  baseline: ReadonlySet<string> | null;
   serverId: string | null;
 }
 
@@ -92,18 +112,22 @@ export function indexChatMessages(
   return index;
 }
 
+/** The host rows, then the messages the host has not drawn yet, in their send order. */
 export function presentChatMessages(
   messages: ChatMessage[],
-  pending: PendingChatMessage | null,
+  pending: readonly PendingChatMessage[],
   aliases: ReadonlyMap<string, string>,
 ): ChatMessage[] {
   // Events can precede the receipt. Wait for its ID rather than matching by text,
   // which could incorrectly merge another member's identical message.
-  const visible =
-    pending && !pending.serverId ? messages.filter((message) => pending.baseline.has(message.id)) : messages;
+  const baseline = pending.find((item) => !item.serverId && item.baseline)?.baseline;
+  const visible = baseline ? messages.filter((message) => baseline.has(message.id)) : messages;
+  const received = new Map<string, PendingChatMessage["message"]>();
+  for (const item of pending) if (item.serverId) received.set(item.serverId, item.message);
   const result = visible.map((message) => {
     // Keep the local image mounted until the caller caches the final attachment IDs.
-    if (pending?.serverId === message.id) return pending.message;
+    const local = received.get(message.id);
+    if (local) return local;
     const alias = aliases.get(message.id);
     if (alias === undefined) return message;
     let aliased = aliasedMessages.get(message);
@@ -113,7 +137,8 @@ export function presentChatMessages(
     }
     return aliased;
   });
-  if (pending && !messages.some((message) => message.id === pending.serverId)) result.push(pending.message);
+  const drawn = new Set(visible.map((message) => message.id));
+  for (const item of pending) if (!item.serverId || !drawn.has(item.serverId)) result.push(item.message);
   return result;
 }
 
@@ -122,6 +147,7 @@ const projectedBubbles = new WeakMap<ConversationMessage, { readerKey: string; b
 const projectedExchanges = new WeakMap<ConversationMessage, ChatMessage>();
 const projectedQuestions = new WeakMap<ConversationMessage, ChatMessage>();
 const projectedRoutines = new WeakMap<ConversationMessage, ChatMessage>();
+const projectedResets = new WeakMap<ConversationMessage, ChatMessage>();
 
 const ROUTINE_RUN_LABELS = {
   queued: "mobile.chat.routine.invoked",
@@ -284,6 +310,13 @@ export function projectChatMessages(
     const routine = projectRoutineMarker(message, latestRuns);
     if (routine) result.push(routine);
     if (message.routine) continue;
+    // A new chat is a system message too. Like desktop, it shows as a divider, not as its text.
+    if (isContextResetMarker(message)) {
+      result.push(
+        projectedMarker(projectedResets, message, () => ({ id: `context-reset:${message.id}`, kind: "context-reset" })),
+      );
+      continue;
+    }
     if (message.delivery?.status === "queued" || message.delivery?.status === "cancelled") continue;
     if (message.exchange) {
       const { exchange } = message;
@@ -292,6 +325,7 @@ export function projectChatMessages(
           id: `exchange:${message.id}`,
           kind: "exchange",
           exchange,
+          standalone: exchange.direction === "incoming" && Boolean(message.attachments?.length),
         })),
       );
       // Match desktop: exchanges have markers, not another agent's text bubble.
@@ -351,6 +385,50 @@ export function projectChatMessages(
     }
   }
   return result;
+}
+
+const exchangeGroups = new WeakMap<ExchangeMarker, ExchangeGroup>();
+
+/**
+ * Joins consecutive messages to and from other agents into one row, as desktop does, so a long
+ * exchange between agents does not fill the chat. Give it the rows without thinking steps: desktop
+ * does not draw them between the markers either. The messages stay unchanged.
+ */
+export function groupExchangeMarkers<T extends ChatMessage>(messages: readonly T[]): (T | ExchangeGroup)[] {
+  const rows: (T | ExchangeGroup)[] = [];
+  let run: (T & ExchangeMarker)[] = [];
+  const closeRun = () => {
+    const [first] = run;
+    if (first) rows.push(run.length === 1 ? first : exchangeGroup(first, run));
+    run = [];
+  };
+  for (const message of messages) {
+    if (groupableExchange(message)) {
+      run.push(message);
+      continue;
+    }
+    closeRun();
+    rows.push(message);
+  }
+  closeRun();
+  return rows;
+}
+
+function groupableExchange<T extends ChatMessage>(message: T): message is T & ExchangeMarker {
+  return message.kind === "exchange" && !message.standalone;
+}
+
+/** Reuse the group of the same markers, so a streamed reply does not draw the group row again. */
+function exchangeGroup(first: ExchangeMarker, exchanges: ExchangeMarker[]): ExchangeGroup {
+  const cached = exchangeGroups.get(first);
+  if (
+    cached?.exchanges.length === exchanges.length &&
+    cached.exchanges.every((item, index) => item === exchanges[index])
+  )
+    return cached;
+  const group: ExchangeGroup = { id: first.id, kind: "exchange-group", exchanges };
+  exchangeGroups.set(first, group);
+  return group;
 }
 
 const failedBubbles = new WeakMap<ChatMessage, ChatMessage>();

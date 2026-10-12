@@ -357,12 +357,17 @@ it("instruments message commands without sending their contents or changing the 
   };
   const sendMessage = vi.fn(async () => "message-receipt");
   const workspace: MobileWorkspaceContextValue = {
+    browserViewSupport: () => ({ view: false, clipboard: false, contextMenu: false, viewport: false }),
+    openBrowserView: () => null,
+    controlBrowserTab: unexpected,
+    respondToApproval: async () => undefined,
     respondToBrowserTakeover: async () => undefined,
     respondToBrowserSecret: async () => undefined,
     sidebarByServer: {},
     mutateSidebarLayout: async () => {},
     loadQueue: async (agentId) => ({ agentId, deliveries: [] }),
     canEditQueue: () => false,
+    canRetryMessage: () => false,
     attachmentSupport: () => ({ eml: true, media: true }),
     changeQueue: async () => {},
     interruptTurn: async () => {},
@@ -401,6 +406,7 @@ it("instruments message commands without sending their contents or changing the 
     conversationStore: new MobileConversationStore(() => () => {}),
     selectServer: () => {},
     leaveServer: unexpected,
+    removeServer: unexpected,
     refreshServers: unexpected,
     reorderServers: () => false,
     refreshServer: unexpected,
@@ -428,6 +434,8 @@ it("instruments message commands without sending their contents or changing the 
     testAgentRoutine: unexpected,
     loadAgentModels: unexpected,
     loadAgentMemories: unexpected,
+    loadAgentMemorySelection: unexpected,
+    setAgentMemoryInclusion: unexpected,
     loadAgentRoutines: unexpected,
     loadRoutineCalendar: unexpected,
     loadHostAnalytics: unexpected,
@@ -440,6 +448,22 @@ it("instruments message commands without sending their contents or changing the 
     loadAgentStorage: unexpected,
     loadAgentAdminSettings: unexpected,
     updateAgentAdminSettings: unexpected,
+    canManageAgentAccess: () => false,
+    canManageAgentHostSettings: () => false,
+    loadAgentHostSettings: unexpected,
+    updateAgentHostSettings: unexpected,
+    canStartNewChat: () => false,
+    startNewChat: unexpected,
+    loadAgentSessionSettings: unexpected,
+    setAgentSessionSetting: unexpected,
+    resetAgentSessionSetting: unexpected,
+    canManageSharedTables: () => false,
+    listSharedTables: unexpected,
+    deleteSharedTable: unexpected,
+    canPublishAgent: () => false,
+    loadAgentTemplatePreview: unexpected,
+    publishAgentTemplate: unexpected,
+    unpublishAgentTemplate: unexpected,
     canInstallAgentTemplate: () => false,
     installAgentTemplate: unexpected,
     deleteStoredFile: unexpected,
@@ -454,6 +478,7 @@ it("instruments message commands without sending their contents or changing the 
     unhideAgent: () => {},
     markAgentRead: () => {},
     markAgentUnread: () => {},
+    markAllRead: async () => {},
     toggleAgentPin: () => "pinned",
   };
   mobileAnalytics.setUser({ id: "account", email: "person@example.com" });
@@ -461,9 +486,16 @@ it("instruments message commands without sending their contents or changing the 
   requests.length = 0;
   const tracked = trackWorkspaceActions(workspace);
   await expect(
-    tracked.sendMessage("agent-private", "private contents", ["file-private"], "reply-private"),
+    tracked.sendMessage("agent-private", "private contents", ["file-private"], "reply-private", "server", "client-id"),
   ).resolves.toBe("message-receipt");
-  expect(sendMessage).toHaveBeenCalledWith("agent-private", "private contents", ["file-private"], "reply-private");
+  expect(sendMessage).toHaveBeenCalledWith(
+    "agent-private",
+    "private contents",
+    ["file-private"],
+    "reply-private",
+    "server",
+    "client-id",
+  );
   await mobileAnalytics.settled();
   expect(requests.map(({ body }) => JSON.parse(body))).toEqual([
     {

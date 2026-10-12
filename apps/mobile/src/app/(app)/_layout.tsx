@@ -10,6 +10,7 @@ import { createChatNavigationGate } from "@/features/agents/model/chat-navigatio
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer-host";
 import { MessageActionsProvider } from "@/features/chat/context/message-actions-context";
+import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
@@ -100,6 +101,30 @@ function AuthenticatedStack() {
             gestureEnabled: true,
             // The screen draws the app's glass header, as the chat does.
             headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="browser/[agentId]"
+          options={{
+            animation: pushAnimation,
+            contentStyle: { backgroundColor: background },
+            // Every finger on the page is the page's mouse, so only the screen edge goes back.
+            fullScreenGestureEnabled: false,
+            gestureEnabled: true,
+            // The screen draws the app's glass header over the page, as the chat does.
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="browser-help"
+          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
           }}
         />
         <Stack.Screen
@@ -335,16 +360,18 @@ export default function AuthenticatedLayout() {
 
   return (
     <MobileWorkspaceProvider key={workspaceKey}>
-      <AgentPinTransitionProvider>
-        <AppDrawerShell>
-          <MessageActionsProvider>
-            <QueuedMessagesProvider>
-              <AuthenticatedStack />
-              <MermaidRendererHost />
-            </QueuedMessagesProvider>
-          </MessageActionsProvider>
-        </AppDrawerShell>
-      </AgentPinTransitionProvider>
+      <OutboxProvider>
+        <AgentPinTransitionProvider>
+          <AppDrawerShell>
+            <MessageActionsProvider>
+              <QueuedMessagesProvider>
+                <AuthenticatedStack />
+                <MermaidRendererHost />
+              </QueuedMessagesProvider>
+            </MessageActionsProvider>
+          </AppDrawerShell>
+        </AgentPinTransitionProvider>
+      </OutboxProvider>
     </MobileWorkspaceProvider>
   );
 }

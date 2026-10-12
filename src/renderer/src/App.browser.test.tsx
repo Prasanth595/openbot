@@ -1128,7 +1128,8 @@ describe("OpenBot connected desktop shell", () => {
     expect(await screen.findByRole("img", { name: "Preview of Sign in" })).toBeVisible();
     expect(window.openbot.browser.capturePreview).toHaveBeenCalledTimes(1);
     expect(window.openbot.browser.capturePreview).toHaveBeenCalledWith("tab-login");
-    expect(screen.queryByRole("textbox", { name: "Message Chief" })).not.toBeInTheDocument();
+    // The message box and its queue stay under the card, so a message sent meanwhile stays in view.
+    expect(screen.getByRole("textbox", { name: "Message Chief" })).toBeVisible();
     // The request alone never takes the window: the page waits behind the preview on the card.
     expect(screen.queryByRole("complementary", { name: "Browser" })).not.toBeInTheDocument();
     expect(window.openbot.browser.activate).not.toHaveBeenCalled();
@@ -1355,6 +1356,7 @@ describe("OpenBot connected desktop shell", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Studio Mac server" })).toHaveAttribute("aria-pressed", "true"),
     );
+    await screen.findByRole("heading", { name: "Chief" });
     emitAgentEvent?.({
       type: "browser-changed",
       tabs: [browserTab("remote-tab-during-switch", "Remote page", { url: "https://example.com/remote" })],

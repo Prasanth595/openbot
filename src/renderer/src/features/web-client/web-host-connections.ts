@@ -1,12 +1,14 @@
 import { type AgentEvent, type AgentSummary, isAgentSummary } from "@openbot/contracts/ipc";
 import { guardedListDecoder } from "@openbot/contracts/ipc-decoding";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
-import { decodeTeamProtocolSupportV1, teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
+import { teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
+import { decodeTeamProtocolSupportV7Base } from "@openbot/contracts/team-protocol/v7-base";
 import type { RemoteTeamHost } from "@openbot/team-client/remote-directory";
 import type { createRemoteTeamPeer, RemoteTeamPeerActions } from "@openbot/team-client/remote-peer";
 import { createRemoteConnectionRecovery } from "@openbot/team-client/remote-recovery";
 import { currentText } from "@openbot/ui/text";
+import { referenceFrom } from "@openbot/user-errors";
 import {
   type acquireWebHostLock,
   decodeWebHostTabMessage,
@@ -18,6 +20,16 @@ import {
 const RELEASED_HOST_REST_MS = 30_000;
 
 type Peer = ReturnType<typeof createRemoteTeamPeer>;
+
+/** A host request that failed. `reference` names the status or the transport failure. */
+export class WebHostRequestError extends Error {
+  constructor(
+    message: string,
+    readonly reference: string | null,
+  ) {
+    super(message);
+  }
+}
 
 interface HostEntry {
   host: RemoteTeamHost;
@@ -126,8 +138,9 @@ export function createWebHostConnections(options: {
 
   function connect(entry: HostEntry): void {
     const { host } = entry;
-    const failed = (message: string | null | undefined) =>
-      new Error(message ?? currentText().t("webClient.error.connectionUnavailable"));
+    // The peer's code goes with its text, so the recovery keeps both.
+    const failed = (message: string | null | undefined, reference: string | undefined) =>
+      new WebHostRequestError(message ?? currentText().t("webClient.error.connectionUnavailable"), reference ?? null);
     const peer = options.createPeer({
       current: {
         getBootstrap: options.actions.getBootstrap,
@@ -147,8 +160,8 @@ export function createWebHostConnections(options: {
             void readAgents(entry);
           if (update.state !== "offline") return;
           if (update.code === "session_revoked") options.onSessionRevoked();
-          if (update.code === "protocol_error") entry.recovery?.suspend(failed(update.message));
-          else entry.recovery?.offline(failed(update.message));
+          if (update.code === "protocol_error") entry.recovery?.suspend(failed(update.message, update.reference));
+          else entry.recovery?.offline(failed(update.message, update.reference));
         },
         // A status connection shows no workspace. It reads only the events that a notification needs.
         async onTeamEvent(_hostId, event) {
@@ -179,7 +192,7 @@ export function createWebHostConnections(options: {
         });
         entry.connecting = connecting;
         const connected = await connecting;
-        if (!connected.ok) throw failed(connected.error);
+        if (!connected.ok) throw failed(connected.error, connected.reference);
         const response = await peer.execute({
           id: crypto.randomUUID(),
           type: "request",
@@ -187,8 +200,12 @@ export function createWebHostConnections(options: {
           path: TEAM_API_ROUTES.compatibility,
           body: {},
         });
-        if (!response.ok || (response.status ?? 500) >= 400) throw failed(response.error);
-        const support = decodeTeamProtocolSupportV1(response.body);
+        if (!response.ok || (response.status ?? 500) >= 400)
+          throw failed(
+            response.error,
+            response.status === undefined ? response.reference : (referenceFrom("http", response.status) ?? undefined),
+          );
+        const support = decodeTeamProtocolSupportV7Base(response.body);
         // The same rule as opening the host, so the rail and the open agree.
         if (teamProtocolUpdateDirection({ minimum: TEAM_PROTOCOL_V3, maximum: TEAM_PROTOCOL_V3 }, support.protocol)) {
           entry.incompatible = true;

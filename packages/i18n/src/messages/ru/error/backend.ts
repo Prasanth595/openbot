@@ -69,12 +69,22 @@ export const messages = {
   "error.backend.channelAssigneeUnavailable": "Назначенный агент недоступен.",
   "error.backend.channelAssignmentChanged": "Это назначение в канале изменилось.",
   "error.backend.channelMemberRequired": "Выберите доступного участника этого канала.",
+  "error.backend.memoryEssentialBudget":
+    "Важные записи памяти превышают лимит промпта. Переведите какую-либо запись в режим «Искать при необходимости» и повторите попытку.",
+  "error.backend.memorySelectionConflict": "Память изменилась. Перезагрузите её и повторите попытку.",
+  "error.backend.memorySelectionUserControlled": "Этот выбор памяти задаёт пользователь. Сохраните выбор пользователя.",
+  "error.backend.memorySearchQuery": "Введите одно или несколько слов для поиска, не более 256 символов.",
+  "error.backend.memoryOperationFailed": "Операция с памятью не удалась. Повторите попытку.",
   "error.backend.memoryGone": "Этой записи памяти больше нет.",
   "error.backend.routineGone": "Этой регулярной задачи больше нет.",
   "error.backend.channelMemoryLimit": "В канале может быть не более {limit} записей памяти.",
   "error.backend.channelRoutineLimit": "В канале может быть не более {limit} регулярных задач.",
   "error.backend.agentRoutineLimit": "У агента может быть не более {limit} регулярных задач.",
   "error.backend.agentMemoryLimit": "У агента может быть не более {limit} записей памяти.",
+  "error.backend.agentMemoryLimitReached":
+    "У вас {saved} из {limit} записей памяти. Чтобы освободить место, обновите одну запись по её memoryId объединённым текстом двух связанных записей и забудьте другую или забудьте запись, которая больше не верна. Затем повторите попытку.",
+  "error.backend.agentMemoryLimitExceeded":
+    "У вас {saved} записей памяти, а лимит — {limit}. Пользователь установил лимит ниже числа сохранённых записей. Не забывайте записи, чтобы освободить место. Сообщите пользователю, что эта запись не сохранена.",
   "error.backend.channelHistoryLeadRequired": "Выберите ведущего канала, чтобы подготовить общую историю.",
   "error.backend.channelHistoryArriving": "Общее сообщение ещё приходит. Продолжите, когда оно придёт полностью.",
   "error.backend.channelHistoryInvalid": "Сводка истории некорректна. Продолжите, чтобы повторить попытку.",
@@ -203,6 +213,8 @@ export const messages = {
   "error.backend.editSavedDifferent": "Это изменение уже сохранено с другим содержимым. Ваши правки не сохранены.",
   "error.backend.useChannelTaskControlsWork": "Для работы в канале используйте элементы управления задачами канала.",
   "error.backend.steerTurnChanged": "Активный ход изменился, прежде чем это сообщение удалось направить.",
+  "error.backend.steerUnsupported":
+    "Этот провайдер не умеет направлять выполняемый ход. Ваше сообщение остаётся в очереди.",
   "error.backend.steerQueuedOnly": "Направлять можно только сообщения в очереди.",
   "error.backend.promptInactive": "Этот запрос больше не активен.",
   "error.backend.promptAnswerMismatch": "Ответ не соответствует активному вопросу.",
@@ -237,4 +249,11 @@ export const messages = {
   "error.backend.mcpServerHttpCredentials": "Сервер ответил {status}. Проверьте API-ключ или другие учётные данные.",
   "error.backend.mcpServerHttpUrl":
     "Сервер ответил {status}. Проверьте URL. Ссылка может быть неверной, устаревшей или удалённой.",
+  "error.backend.mcpSignInAppUrl": "Для приложения входа нужен правильный URL сервера.",
+  "error.backend.mcpSignInAppClientId": "Введите ID клиента приложения входа.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Сервер входа этого MCP-сервера изменился, поэтому OpenBot не отправил ему приложение входа. Если это изменение верно, удалите приложение входа и добавьте его снова.",
+  "error.backend.mcpSignInAppNoServer":
+    "Сохраните этот MCP-сервер как URL-сервер, прежде чем добавлять приложение входа.",
+  "error.backend.mcpSignInAppUnavailable": "Этот компьютер не может хранить приложение входа.",
 } as const satisfies PartialTranslation<typeof source>;

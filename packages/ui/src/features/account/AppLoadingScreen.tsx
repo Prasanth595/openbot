@@ -1,8 +1,10 @@
 import { type Block, BloubBot, type BloubBotRef, type StateId } from "@norbert_bodziony/bloub";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
+import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, For, onSettled, untrack } from "solid-js";
 import { bloubAvatarProfile } from "../../bloub-avatar";
+import { ErrorReference } from "../../error-reference";
 import { useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
 
@@ -105,6 +107,11 @@ export interface AppLoadingScreenProps {
   at?: number;
   /** What the screen waits for, for a screen reader. The default is the app load. */
   label?: string;
+  title?: string;
+  detail?: string;
+  /** The code of the failure in `detail`, for a user to copy into a report. */
+  reference?: string | null;
+  actions?: JSX.Element;
 }
 
 export function AppLoadingScreen(props: AppLoadingScreenProps) {
@@ -200,8 +207,8 @@ export function AppLoadingScreen(props: AppLoadingScreenProps) {
       onAnimationEnd={handleAnimationEnd}
     >
       <span class="sr-only">{props.label ?? t("webClient.loading")}</span>
-      <div class="app-loading-stage" aria-hidden="true">
-        <div class="app-loading-row">
+      <div class="app-loading-stage">
+        <div class="app-loading-row" aria-hidden="true">
           <For each={HOPPERS}>
             {(hopper) => (
               <div class="app-loading-agent" style={{ "--app-loading-index": hopper.index }}>
@@ -249,8 +256,11 @@ export function AppLoadingScreen(props: AppLoadingScreenProps) {
           </div>
         </div>
         <p class="app-loading-status">
-          <For each={[status()]}>{(line) => <span class="app-loading-line">{t(line)}</span>}</For>
+          {props.title ?? <For each={[status()]}>{(line) => <span class="app-loading-line">{t(line)}</span>}</For>}
         </p>
+        {props.detail && <p class="server-connection-detail">{props.detail}</p>}
+        <ErrorReference reference={props.reference} />
+        {props.actions && <div class="server-connection-actions">{props.actions}</div>}
       </div>
     </main>
   );

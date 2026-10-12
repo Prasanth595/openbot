@@ -2,6 +2,10 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.historyUnavailable":
+    "История недоступна для этого запроса. Прочитайте недавнюю историю ещё раз или используйте channel_history для работы с каналом.",
+  "error.agent.toolRequestInvalid":
+    "Некорректные аргументы поиска инструментов. Используйте объявленную схему и исходное полное имя инструмента.",
   "error.agent.approvalWhileDeleting": "Нельзя дать подтверждение, пока агент удаляется.",
   "error.agent.accessLocalOnly": "Доступ агента можно изменить только на компьютере, где он работает.",
   "error.agent.duplicateCleanupFailed": "Не удалось дублировать агента, а неполную копию удалить не получилось.",
@@ -83,6 +87,9 @@ export const messages = {
   "error.agent.automationLocalOnly": "Локальные скрипты можно разрешить только на компьютере, где работает агент.",
   "error.agent.busyMessageModeLocalOnly":
     "Поведение сообщений, пока агент работает, можно задать только на компьютере, где он работает.",
+  "error.agent.localScriptsOff": "Этот агент не разрешает локальные скрипты.",
+  "error.agent.localScriptsRateLimited":
+    "За последний час локальные скрипты отправили этому агенту {limit} запросов сообщений или процедур. Повторите попытку позже.",
   "error.agent.automationOff": "Этот агент не разрешает локальным скриптам запускать свои регулярные задачи.",
   "error.agent.automationPayloadTooLong": "Данные длиннее {limit} символов.",
   "error.agent.automationRateLimited":

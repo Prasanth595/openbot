@@ -281,14 +281,15 @@ servers, their webhooks and the cron continue.
    billing and server events in [ANALYTICS.md](../ANALYTICS.md). Only production gets them.
 6. **Secrets.** The `Deploy Cloudflare production` job in `.github/workflows/ci.yml` sends these
    from the `cloudflare-production` GitHub Environment. It refuses a set with only some values and a
-   Stripe key that is not live. A value that is not set keeps the value that the Worker has; to turn
+   Stripe key that is not live. OpenPanel credentials are required before any remote change.
+   An optional value that is not set keeps the value that the Worker has; to turn
    a feature off, run `wrangler secret delete <name>`.
 
    | Name | Kind | Value |
    | --- | --- | --- |
    | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | secrets, a pair | Step 3 writes them |
    | `BOAT_API_KEY`, `BOAT_WEBHOOK_SECRET` | secrets, a pair | Step 3 writes them |
-   | `OPENPANEL_CLIENT_ID`, `OPENPANEL_CLIENT_SECRET` | secrets, a pair | The client from step 5 |
+   | `OPENPANEL_CLIENT_ID`, `OPENPANEL_CLIENT_SECRET` | required secrets, a pair | The client from step 5 |
 
    The release job sets `HOSTED_SERVER_TEMPLATE` directly on the production Worker. Normal
    deployments preserve it. A GitHub variable with that name is no longer used.
@@ -301,6 +302,22 @@ servers, their webhooks and the cron continue.
 
 The cron runs each 5 minutes in production. An idle server stops 15 to 30 minutes after its last
 use, and the checks that repair a missed webhook run at most 5 minutes late.
+
+### Sales reports
+
+The OpenPanel **Revenue and Customers** dashboard shows purchases and checkout outcomes.
+Revenue comes from verified `invoice.paid` events. It includes collected tax and discounts,
+before refunds and fees. Amounts use USD cents. EUR and PLN amounts use the latest available
+ECB rate on or before the payment date in UTC. The original currency and amount stay on the event.
+
+Daily `billing_snapshot` events show MRR and ARR. MRR includes active and overdue subscriptions,
+after discounts and before tax. Annual prices are divided by 12. Overdue MRR is separate.
+Do not sum snapshots across dates. Read each value with its `as_of` date.
+
+The account service stores source facts before it accepts a payment webhook. A separate D1
+ledger sends the events. A network failure or unknown delivery result becomes `uncertain`.
+Check OpenPanel before retrying such an event. A repeated invoice does not create new revenue.
+Checkout return, expiry, and payment failure are separate outcomes; none proves that payment occurred.
 
 ## Build the server template
 
@@ -369,13 +386,18 @@ On a server, root runs `openbot-hosted-update`:
    to `/opt/OpenBot/staged`.
    `staged.ready` comes after the last file. OpenBot keeps running. The download and unpack use
    idle CPU and disk priority.
-2. `openbot-update-apply.service` runs `apply` at boot, before `openbot.service`. boat stop and resume
-   work like a reboot, so the new release starts at the next wake of the server, not during use. It
-   copies `staged` to `app`, and then installs the scripts, AppArmor profile and units of the new
-   release. `.applying` and `staged` stay until all of this is complete, so after a stop or a
-   failure the next boot does it again, and `stage` does nothing until then. `openbot.service`
-   does not require `apply`, so it starts after a failure too: with the old release, or with a
-   partial copy after a failed copy, until the next boot.
+2. `apply` copies `staged` to `app`, and then installs the scripts, AppArmor profile and units of
+   the new release. `.applying` and `staged` stay until all of this is complete, so after a stop or
+   a failure the next start does it again, and `stage` does nothing until then.
+   `openbot-update-apply.service` runs `boot` before `openbot.service`. `boot` runs `apply` only on
+   a complete disk, or when `.applying` shows an interrupted copy. `openbot.service` does not
+   require it, so it starts after a failure too: with the old release, or with a partial copy after
+   a failed copy, until the next start. On a self-installed server, the new release starts at the
+   next boot. A hosted server installs it itself: when the release is staged, OpenBot asks root to
+   install it when idle, and when no connected client changed data or typed for 5 minutes and the
+   start was 5 minutes ago. Reading is not use. Server Settings shows this wait as "other work",
+   because `host-update-v1` has no reason for it. The automatic update switch of a hosted server
+   is always on.
 
 boat saves `/opt` by the paths that change, and it does not look into a directory that a rename
 moves. After the next stop, such a directory is empty or has its old files. So a release gets to
@@ -383,9 +405,17 @@ moves. After the next stop, such a directory is empty or has its old files. So a
 with a probe; not in boat documentation.]
 
 boat resumes a server on a machine that booted before, restores the disk lazily, and starts the
-units before the restore ends. `stage` waits until the restore ends (at most 4 minutes). `apply`
-waits only when it finds `staged.ready` or `.applying`, because OpenBot starts after it. When the
-restore does not show a staged release yet, the release applies at the next boot.
+units before the restore ends. The restore takes about 3.5 minutes. `stage` waits until it ends (at
+most 4 minutes), and OpenBot asks for `stage` before each install, so an install never stops
+OpenBot for the restore. `boot` waits only for an interrupted copy, because OpenBot starts after
+it. During a restore it skips a staged release and recovers an incomplete one.
+
+boat starts the desktop (`lightdm`) about 8 s after the resume, and then the enabled units of
+`multi-user.target` again, about 16 s after it. `openbot.service` is also wanted by
+`lightdm.service`, so it starts with the desktop. The second start of `openbot-update-apply.service`
+does nothing: the unit stays active (`RemainAfterExit`), and `boot` does nothing while OpenBot runs
+(after a failed `boot`). [Observed on a boat VM on 2026-10-11; not in boat
+documentation.]
 [Not confirmed in boat documentation: the `active` and `hydration-done` files in
 `/var/lib/ascii-lazy` that mark the restore. Observed on a boat VM.] `apply` never removes a staged
 release that is not complete.
@@ -504,6 +534,12 @@ machine) confirmed that systemd starts `openbot.service` again after a resume, a
 secret in `/srv` stays. From the resume call to the OpenBot start took 7 to 34 s; the keyring start
 took 40 ms. Most of the time is boat: it restores the disk and then starts the enabled units, 5 to
 20 s after the sandbox is `idle`.
+
+A wake test on 2026-10-11 (one hosted server with 0.37.0) measured, from the resume call: boat
+ready at 4 s, `openbot.service` at 17 s and the host register at 22 s. A wake with a staged release
+took 3 min 35 s, because `apply` waited for the restore. With the start at `lightdm`,
+`openbot.service` started at 8 s and the host registered at about 20 s: Electron starts slowly from
+the lazily restored disk, and the desktop session holds the display until about 12 s.
 
 A resize test on 2026-09-28 (one plain sandbox with `noEnv`, `small → default → small`, each a stop
 and a resume with `type`) confirmed that boat changes the machine in place with the same sandbox

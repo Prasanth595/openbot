@@ -104,4 +104,13 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Esta conexión no admite ajustes de agentes.",
   "error.team.adminRequired": "Se requiere acceso de administrador.",
   "error.team.requestTooLarge": "El cuerpo de la solicitud es demasiado grande.",
+  "error.team.signInRelayUnsupported":
+    "Este servidor no puede retransmitir inicios de sesión. Actualiza OpenBot en el host.",
+  "error.team.connectorsUnsupported":
+    "Las conexiones de este servidor no se pueden gestionar desde aquí. Actualiza OpenBot en el host.",
+  "error.team.connectorPageRefused": "El servidor envió una página que OpenBot no abre.",
+  "error.team.signInRelayUnknown": "Este inicio de sesión terminó o no existe.",
+  "error.team.signInRelayUsed": "Este inicio de sesión ya se envió.",
+  "error.team.signInRelayMismatch": "Esta dirección no es de este inicio de sesión.",
+  "error.team.signInRelayLinkUnknown": "Ningún agente de este servidor mostró este enlace de inicio de sesión.",
 } as const satisfies PartialTranslation<typeof source>;

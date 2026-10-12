@@ -271,12 +271,12 @@ describe("OpenBot connected desktop shell", () => {
     };
     vi.mocked(window.openbot.servers.list).mockResolvedValueOnce([local, busy]);
     render(() => <App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent(busy.issue?.message ?? "");
+    expect(await screen.findByText("The host already has an active remote session.")).toBeVisible();
     expect(window.openbot.agent.listAgents).not.toHaveBeenCalled();
     await fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(window.openbot.servers.retryConnection).toHaveBeenCalledWith(busy.id));
     emitServers?.([local, { ...busy, state: "connecting" }]);
-    expect(screen.getByRole("alert")).toHaveTextContent("The host already has an active remote session.");
+    expect(screen.getByText("The host already has an active remote session.")).toBeVisible();
     emitServers?.([local, { ...busy, state: "online", issue: null, connectionSequence: 1 }]);
     expect(await screen.findByRole("heading", { name: "Chief" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Cannot connect to Studio Mac" })).not.toBeInTheDocument();
@@ -328,11 +328,13 @@ describe("OpenBot connected desktop shell", () => {
     expect(screen.getByRole("heading", { name: "Chief" })).toBeInTheDocument();
     vi.mocked(window.openbot.agent.listAgents).mockResolvedValueOnce([{ ...AGENTS[0], name: "Current Chief" }]);
     emitServers?.([local, { ...remote, connectionSequence: 4 }]);
-    await screen.findByRole("heading", { name: "Current Chief" });
+    // The replacement waits for the previous attempt to finish, but its stale empty result must not apply.
+    expect(window.openbot.agent.listAgents).toHaveBeenCalledTimes(3);
     resolveOld?.([]);
     await oldAgents;
     flush();
-    expect(screen.getByRole("heading", { name: "Current Chief" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create your first agent" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Current Chief" })).toBeInTheDocument();
   });
 
   it("keeps a newer online event when retry returns an older summary", async () => {
@@ -444,11 +446,13 @@ describe("OpenBot connected desktop shell", () => {
     vi.mocked(window.openbot.servers.list).mockResolvedValueOnce([local, provisional]);
 
     render(() => <App />);
-    await screen.findByRole("heading", { name: "Chief" });
+    await screen.findByText("Connecting to Studio Mac", { selector: ".app-loading-status" });
+    expect(window.openbot.agent.listAgents).not.toHaveBeenCalled();
     expect(window.openbot.agent.getSidebarLayout).not.toHaveBeenCalled();
     expect(window.openbot.browser.getDisplayState).not.toHaveBeenCalled();
 
     emitServers?.([local, negotiated]);
+    await screen.findByRole("heading", { name: "Chief" });
     await waitFor(() => expect(window.openbot.agent.getSidebarLayout).toHaveBeenCalled());
     expect(window.openbot.browser.getDisplayState).toHaveBeenCalled();
     // The server was already active, so the workspace reloads on
@@ -885,6 +889,45 @@ describe("OpenBot connected desktop shell", () => {
     },
   );
 
+  it("keeps the Remote Control viewer when another server changes", async () => {
+    const remote = {
+      ...testServer("remote-1", true),
+      kind: "remote" as const,
+      state: "online" as const,
+      remoteDesktopAvailable: true,
+      role: "owner" as const,
+    };
+    const other = { ...testServer("remote-2", false), kind: "remote" as const, state: "online" as const };
+    vi.mocked(window.openbot.servers.list).mockResolvedValueOnce([remote, other]);
+    vi.mocked(window.openbot.remoteDesktop.connect).mockResolvedValueOnce({
+      status: "connected",
+      session: {
+        id: "desktop-1",
+        serverId: "remote-1",
+        viewerUrl: "https://studio-mac-k7m4q2pz-host.openbot.run/v1/remote-screen/sessions/desktop-1/viewer",
+        viewerGrant: "viewer-grant",
+        displays: [],
+        selectedDisplayId: null,
+        phase: "connecting",
+        transport: "unknown",
+        errorCode: null,
+        message: "Connecting…",
+        createdAt: "2026-08-18T12:00:00.000Z",
+        grantExpiresAt: "2026-08-18T12:01:00.000Z",
+      },
+    });
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    await fireEvent.click(screen.getByRole("button", { name: "Open remote control" }));
+    const viewer = await screen.findByTitle("Sunshine remote desktop");
+
+    // The viewer grant works once, so a new frame for the same session would show "Remote access expired".
+    emitServers?.([{ ...remote }, { ...other, state: "offline" }]);
+
+    await waitFor(() => expect(screen.getByTitle("Sunshine remote desktop")).toBe(viewer));
+    expect(window.openbot.remoteDesktop.connect).toHaveBeenCalledTimes(1);
+  });
+
   it("disconnects a hidden Remote Control session when the server changes", async () => {
     const servers = [
       {
@@ -990,7 +1033,7 @@ describe("OpenBot connected desktop shell", () => {
       expect(screen.getByRole("button", { name: "Studio Mac server" })).toHaveAttribute("aria-pressed", "true"),
     );
 
-    expect(await screen.findByRole("button", { name: "Send message" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send message" })).toBeEnabled());
   });
 
   it("does not offer an answered prompt again after leaving its server and coming back", async () => {
@@ -1084,7 +1127,6 @@ describe("OpenBot connected desktop shell", () => {
   it("persists settings and opens managed attachment actions", async () => {
     render(() => <App />);
     await fireEvent.click(await screen.findByRole("button", { name: "View agent settings" }));
-    await fireEvent.click(await screen.findByRole("button", { name: /^Edit profile of/u }));
     const name = await screen.findByRole("textbox", { name: "Agent name" });
     await fireEvent.input(name, { target: { value: "Coordinator" } });
     await fireEvent.blur(name);

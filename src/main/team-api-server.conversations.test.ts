@@ -13,7 +13,11 @@ import {
   routineRunConversationEventItemType,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
-import { TEAM_CURRENT_CAPABILITIES, TEAM_HISTORY_EXTENT_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import {
+  TEAM_BOOTSTRAP_CAPABILITIES,
+  TEAM_CURRENT_CAPABILITIES,
+  TEAM_HISTORY_EXTENT_CAPABILITY,
+} from "@openbot/contracts/team-protocol/current";
 import {
   TEAM_CAPABILITIES_HEADER,
   TEAM_PROTOCOL_V1_CAPABILITIES,
@@ -21,7 +25,7 @@ import {
 } from "@openbot/contracts/team-protocol/v1";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
 import { TEAM_PROTOCOL_V5 } from "@openbot/contracts/team-protocol/v5";
-import { TEAM_PROTOCOL_V6 } from "@openbot/contracts/team-protocol/v6";
+import { TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import {
   createAgents,
@@ -251,7 +255,7 @@ describe("TeamApiServer conversations", () => {
     await expect(
       jsonRequest(base, "/v1/agents/chief/usage", {
         token: token,
-        capabilities: [...TEAM_CURRENT_CAPABILITIES],
+        capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
         protocol: TEAM_PROTOCOL_V3,
       }),
     ).resolves.toEqual(usage);
@@ -260,7 +264,7 @@ describe("TeamApiServer conversations", () => {
     await expect(
       jsonRequest(base, analyticsPath, {
         token,
-        capabilities: [...TEAM_CURRENT_CAPABILITIES],
+        capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
         protocol: TEAM_PROTOCOL_V3,
       }),
     ).resolves.toEqual(analytics);
@@ -273,7 +277,7 @@ describe("TeamApiServer conversations", () => {
     await expect(
       jsonRequest(base, `/v1/analytics?startDate=${analytics.startDate}&endDate=${analytics.endDate}&timeZone=UTC`, {
         token,
-        capabilities: [...TEAM_CURRENT_CAPABILITIES],
+        capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
         protocol: TEAM_PROTOCOL_V3,
       }),
     ).resolves.toEqual(hostAnalytics);
@@ -284,7 +288,7 @@ describe("TeamApiServer conversations", () => {
     });
     const headers = {
       [TEAM_PROTOCOL_VERSION_HEADER]: "3",
-      [TEAM_CAPABILITIES_HEADER]: TEAM_CURRENT_CAPABILITIES.join(","),
+      [TEAM_CAPABILITIES_HEADER]: TEAM_BOOTSTRAP_CAPABILITIES.join(","),
     };
     expect((await fetch(`${base}${analyticsPath}`, { headers })).status).toBe(401);
     const memberSession = store.openRemoteSession({
@@ -296,7 +300,7 @@ describe("TeamApiServer conversations", () => {
     await expect(
       jsonRequest(base, analyticsPath, {
         token: memberSession.sessionToken,
-        capabilities: [...TEAM_CURRENT_CAPABILITIES],
+        capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
         protocol: TEAM_PROTOCOL_V3,
       }),
     ).resolves.toEqual(analytics);
@@ -331,7 +335,7 @@ describe("TeamApiServer conversations", () => {
     await expect(
       jsonRequest(base, "/v1/agents/chief/conversation", {
         token: token,
-        capabilities: [...TEAM_CURRENT_CAPABILITIES],
+        capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
       }),
     ).resolves.toEqual({
       ...wireConversation,
@@ -364,7 +368,7 @@ describe("TeamApiServer conversations", () => {
       jsonRequest(base, "/v1/agents/chief/conversation-page?limit=10", {
         token: token,
         capabilities: [...TEAM_CURRENT_CAPABILITIES],
-        protocol: TEAM_PROTOCOL_V6,
+        protocol: TEAM_PROTOCOL_V7,
       }),
     ).resolves.toMatchObject({
       pageInfo: { hasOlder: false, olderCursor: null, olderCount: 40, oldestAt: "2026-09-01T00:00:00.000Z" },
@@ -372,10 +376,10 @@ describe("TeamApiServer conversations", () => {
     for (const [capabilities, protocol] of [
       [
         TEAM_CURRENT_CAPABILITIES.filter((capability) => capability !== TEAM_HISTORY_EXTENT_CAPABILITY),
-        TEAM_PROTOCOL_V6,
+        TEAM_PROTOCOL_V7,
       ],
       // A released adapter ignores the capability.
-      [TEAM_CURRENT_CAPABILITIES, undefined],
+      [TEAM_BOOTSTRAP_CAPABILITIES, undefined],
       [TEAM_PROTOCOL_V1_CAPABILITIES, undefined],
     ] as const) {
       const page = await jsonRequest(base, "/v1/agents/chief/conversation-page?limit=10", {
@@ -422,7 +426,7 @@ describe("TeamApiServer conversations", () => {
     await jsonRequest(base, "/v1/agents/chief/messages", {
       token: token,
       protocol: TEAM_PROTOCOL_V3,
-      capabilities: [...TEAM_CURRENT_CAPABILITIES],
+      capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
       body: {
         text: taggedMessage,
         attachmentDraftIds: [],
@@ -440,7 +444,7 @@ describe("TeamApiServer conversations", () => {
     await jsonRequest(base, "/v1/agents/chief/messages", {
       token: token,
       protocol: TEAM_PROTOCOL_V5,
-      capabilities: [...TEAM_CURRENT_CAPABILITIES],
+      capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
       body: { text: "Every day at 8", attachmentDraftIds: [], replyToMessageId: null, timezone: "Europe/Warsaw" },
     });
     expect(sendMessage).toHaveBeenLastCalledWith(
@@ -463,7 +467,7 @@ describe("TeamApiServer conversations", () => {
       jsonRequest(base, "/v1/agents/chief/conversation/unread", {
         token: token,
         protocol: TEAM_PROTOCOL_V3,
-        capabilities: [...TEAM_CURRENT_CAPABILITIES],
+        capabilities: [...TEAM_BOOTSTRAP_CAPABILITIES],
         body: {},
       }),
     ).resolves.toEqual({ unreadCount: 1, firstUnreadMessageId: "message-1", throughMessageId: null });
@@ -484,7 +488,7 @@ describe("TeamApiServer conversations", () => {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         [TEAM_PROTOCOL_VERSION_HEADER]: "3",
-        [TEAM_CAPABILITIES_HEADER]: TEAM_CURRENT_CAPABILITIES.join(","),
+        [TEAM_CAPABILITIES_HEADER]: TEAM_BOOTSTRAP_CAPABILITIES.join(","),
       },
       body: JSON.stringify({ memberId: "other-reader" }),
     });
@@ -511,7 +515,7 @@ describe("TeamApiServer conversations", () => {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       [TEAM_PROTOCOL_VERSION_HEADER]: String(TEAM_PROTOCOL_V3),
-      [TEAM_CAPABILITIES_HEADER]: TEAM_CURRENT_CAPABILITIES.join(","),
+      [TEAM_CAPABILITIES_HEADER]: TEAM_BOOTSTRAP_CAPABILITIES.join(","),
     };
 
     for (const [method, action, body] of [
@@ -542,7 +546,7 @@ describe("TeamApiServer conversations", () => {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       [TEAM_PROTOCOL_VERSION_HEADER]: String(TEAM_PROTOCOL_V3),
-      [TEAM_CAPABILITIES_HEADER]: TEAM_CURRENT_CAPABILITIES.join(","),
+      [TEAM_CAPABILITIES_HEADER]: TEAM_BOOTSTRAP_CAPABILITIES.join(","),
     };
 
     for (const [action, body] of [

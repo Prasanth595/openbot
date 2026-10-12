@@ -7,6 +7,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { SettingsModal } from "../src/features/settings/SettingsModal";
 import type { SettingsTab } from "../src/features/settings/settings-tabs";
 import { createMockBilling } from "../src/preview/mock-billing";
+import type { MockVoiceOptions } from "../src/preview/mock-voice";
 import { createMockOpenBot } from "./mock-openbot";
 import { previewStorySoundSettings } from "./sound-feedback-fixture";
 
@@ -37,10 +38,12 @@ function SettingsModalStory(props: {
   openTab?: SettingsTab;
   /** A restart that a server admin asked for. */
   scheduledRestart?: UpdateStatus["scheduledRestart"];
+  /** The downloaded dictation models and the saved voice setting. */
+  voice?: MockVoiceOptions;
 }) {
   const previousApi = window.openbot;
   const billingApi = createMockBilling();
-  const mock = createMockOpenBot();
+  const mock = createMockOpenBot(props.voice);
   window.openbot = mock.api;
   onCleanup(() => {
     mock.dispose();
@@ -69,6 +72,13 @@ function SettingsModalStory(props: {
       platform: "ios",
       connectedAt: Date.now() - 86_400_000,
       lastActiveAt: Date.now() - 45_000,
+    },
+    {
+      sessionId: "22222222-2222-4222-8222-222222222222",
+      name: "Pixel 9",
+      platform: "android",
+      connectedAt: Date.now() - 3_600_000,
+      lastActiveAt: Date.now() - 600_000,
     },
   ]);
 
@@ -198,6 +208,28 @@ export const Narrow: Story = {
 
 export const Notifications: Story = {
   render: () => <SettingsModalStory initialOpen initialTab="notifications" />,
+};
+
+export const Voice: Story = {
+  render: () => <SettingsModalStory initialOpen initialTab="voice" />,
+};
+
+export const VoiceWhisperHungarian: Story = {
+  render: () => (
+    <SettingsModalStory
+      initialOpen
+      initialTab="voice"
+      voice={{
+        voiceModelsReady: ["parakeet-tdt-0.6b-v3", "whisper-turbo"],
+        voiceSettings: { modelId: "whisper-turbo", language: "hu" },
+      }}
+    />
+  ),
+};
+
+/** The install guide for each phone, the sign-in code and the connected phones. */
+export const MobileConnect: Story = {
+  render: () => <SettingsModalStory initialOpen initialTab="mobile-connect" />,
 };
 
 /** No plan yet. Choose a plan: the mock then shows it as active, as after a Stripe payment. */

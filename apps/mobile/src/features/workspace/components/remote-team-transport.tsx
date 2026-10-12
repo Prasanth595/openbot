@@ -1,4 +1,5 @@
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { isQueueEditRoute, QueueEditRejectedError } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import { sourceText } from "@openbot/i18n/source";
@@ -13,14 +14,23 @@ import {
   type RemoteTeamDiagnostic,
   type RemoteUploadProgress,
 } from "@openbot/team-client/remote-peer";
+import { referenceFrom } from "@openbot/user-errors";
 import * as Crypto from "expo-crypto";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import type {
+  BrowserViewBridgeCommand,
+  BrowserViewBridgeEvent,
+  BrowserViewBridgeOpen,
+  RemoteBrowserViewSession,
+} from "@/features/browser/model/browser-view-bridge";
 import { supportLog, supportLogUrl } from "@/features/support/model/support-log";
+import { InactiveRequestError } from "@/features/workspace/model/pending-approvals";
+import { referencedError } from "@/features/workspace/model/referenced-error";
 import { expoGoDomOptions } from "@/shared/lib/expo-go-dom";
 import { currentText } from "@/shared/lib/text";
 
-import RemoteTeamBridge from "./remote-team-bridge.dom";
+import RemoteTeamBridge, { type RemoteTeamBridgeHandle } from "./remote-team-bridge.dom";
 
 export interface RemoteTeamTransportRef {
   connect(hostId: string, hostPublicKey: string): Promise<void>;
@@ -34,6 +44,11 @@ export interface RemoteTeamTransportRef {
     /** Hears the fraction of the uploaded file sent so far, from 0 to 1. */
     onUploadProgress?: (fraction: number) => void,
   ): Promise<T>;
+  /** Null until the peer page is ready for views. Events of a closed view are dropped. */
+  openBrowserView(
+    options: Omit<BrowserViewBridgeOpen, "viewId">,
+    listener: (event: BrowserViewBridgeEvent) => void,
+  ): RemoteBrowserViewSession | null;
 }
 
 interface RemoteTeamTransportProps {
@@ -66,6 +81,16 @@ export const RemoteTeamTransport = forwardRef<RemoteTeamTransportRef, RemoteTeam
     const hostIdRef = useRef<string | null>(null);
     useEffect(() => () => mailbox.dispose(), [mailbox]);
 
+    const bridge = useRef<RemoteTeamBridgeHandle>(null);
+    const viewListeners = useRef(new Map<string, (event: BrowserViewBridgeEvent) => void>());
+    const sendViewCommand = useCallback((command: BrowserViewBridgeCommand) => {
+      // The handle has the method only after the page has registered it.
+      const browserView = bridge.current?.browserView;
+      if (typeof browserView !== "function") return false;
+      browserView(command);
+      return true;
+    }, []);
+
     // Upload progress arrives from the web view by command ID, while the command is still pending.
     const uploadListeners = useRef(new Map<string, (fraction: number) => void>());
     const enqueue = useCallback(
@@ -93,11 +118,19 @@ export const RemoteTeamTransport = forwardRef<RemoteTeamTransportRef, RemoteTeam
         connect: async (hostId, hostPublicKey) => {
           hostIdRef.current = hostId;
           const result = await enqueue({ type: "connect", hostId, hostPublicKey });
-          if (!result.ok) throw new Error(result.error ?? currentText().t("mobile.workspace.error.connectFailed"));
+          if (!result.ok)
+            throw referencedError(
+              result.error ?? currentText().t("mobile.workspace.error.connectFailed"),
+              result.reference,
+            );
         },
         disconnect: async () => {
           const result = await enqueue({ type: "disconnect" });
-          if (!result.ok) throw new Error(result.error ?? currentText().t("mobile.workspace.error.disconnectFailed"));
+          if (!result.ok)
+            throw referencedError(
+              result.error ?? currentText().t("mobile.workspace.error.disconnectFailed"),
+              result.reference,
+            );
         },
         request: async <T,>(
           method: string,
@@ -120,15 +153,39 @@ export const RemoteTeamTransport = forwardRef<RemoteTeamTransportRef, RemoteTeam
               "connection",
               `${request} -> ${result.status ?? "no status"} ${time}`,
             );
-          if (!result.ok) throw new Error(result.error ?? sourceText("error.remote.serverRequestFailed"));
+          if (!result.ok)
+            throw referencedError(result.error ?? sourceText("error.remote.serverRequestFailed"), result.reference);
           if (result.status === 409 && isQueueEditRoute(method, path))
             throw new QueueEditRejectedError(currentText().t("mobile.workspace.error.queueEditRejected"));
+          // The host answers 409 when a form or an approval no longer waits: answered elsewhere, or ended.
+          if (result.status === 409 && method === "POST" && path === TEAM_API_ROUTES.respond.approval)
+            throw new InactiveRequestError(currentText().t("mobile.workspace.error.approvalInactive"));
+          if (result.status === 409 && method === "POST" && path === TEAM_API_ROUTES.respond.prompt)
+            throw new InactiveRequestError(currentText().t("mobile.workspace.error.formUnavailable"));
           if (result.status !== undefined && result.status >= 400)
-            throw new Error(sourceText("error.remote.serverRequestFailed"));
+            throw referencedError(sourceText("error.remote.serverRequestFailed"), referenceFrom("http", result.status));
           return decode(result.body);
         },
+        openBrowserView: (options, listener) => {
+          const viewId = Crypto.randomUUID();
+          viewListeners.current.set(viewId, listener);
+          if (!sendViewCommand({ type: "open", viewId, ...options })) {
+            viewListeners.current.delete(viewId);
+            return null;
+          }
+          return {
+            input: (inputs) => {
+              if (inputs.length > 0) sendViewCommand({ type: "input", viewId, inputs });
+            },
+            frameDone: (sequence, drawn) => sendViewCommand({ type: "frame-done", viewId, sequence, drawn }),
+            close: () => {
+              if (!viewListeners.current.delete(viewId)) return;
+              sendViewCommand({ type: "close", viewId });
+            },
+          };
+        },
       }),
-      [enqueue],
+      [enqueue, sendViewCommand],
     );
 
     const handleCommandResult = useCallback(
@@ -140,6 +197,7 @@ export const RemoteTeamTransport = forwardRef<RemoteTeamTransportRef, RemoteTeam
 
     return (
       <RemoteTeamBridge
+        ref={bridge}
         active={foreground}
         commands={commands}
         dom={{
@@ -166,6 +224,11 @@ export const RemoteTeamTransport = forwardRef<RemoteTeamTransportRef, RemoteTeam
           uploadListeners.current.get(commandId)?.(total > 0 ? sent / total : 1)
         }
         onAccountProfileChanged={refreshProfile}
+        onBrowserViewEvent={async (event) => {
+          const listener = viewListeners.current.get(event.viewId);
+          if (event.type === "ended") viewListeners.current.delete(event.viewId);
+          listener?.(event);
+        }}
         onAccountServersChanged={onMembershipChanged}
         onConnectionUpdate={async (update) => onConnectionUpdate(update)}
         onDiagnostic={async ({ hostId, step, detail }: RemoteTeamDiagnostic) =>

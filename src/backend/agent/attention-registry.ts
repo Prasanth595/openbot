@@ -15,7 +15,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { AGENT_RUNTIME_ATTENTION_LIMIT } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
-import { createOpenBotLogger, toLogValue } from "@openbot/logging";
+import { createOpenBotLogger, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
 import type { AgentClient } from "../agent-client";
 import type { BrowserOperationError } from "../browser-effects";
@@ -40,6 +40,7 @@ import {
   type HostedSiteMutationContext,
 } from "./hosted-site-coordinator";
 import type { HostedSiteMutationTool } from "./hosted-site-events";
+import { InactiveAttentionRequest } from "./inactive-attention-request";
 import {
   approvalPermissions,
   browserTakeoverError,
@@ -156,6 +157,10 @@ export type RuntimeAttention = Pick<
   "attentionComplete" | "pendingPrompts" | "pendingApprovals" | "pendingBrowserTakeovers"
 >;
 
+export type LocalAttentionResponse =
+  | { kind: "prompt"; requestId: string; answers: Record<string, string[]> }
+  | { kind: "approval"; requestId: string; decision: "accept" | "decline" };
+
 /**
  * Everything an agent can be blocked on waiting for the user: a question, an approval, a request to
  * take over a browser tab.
@@ -167,6 +172,8 @@ export type RuntimeAttention = Pick<
  * an entry silently dropped is an agent stuck forever.
  */
 export class AttentionRegistry {
+  // A handle belongs to one pending object, even when a provider reuses its request ID.
+  readonly #localHandles = new WeakMap<PendingPrompt | PendingApproval | PendingBrowserTakeover, string>();
   readonly #conversation: ConversationRuntime;
   readonly #browser: AttentionBrowserHost;
   readonly #hostedSites: HostedSiteApprovals;
@@ -202,6 +209,60 @@ export class AttentionRegistry {
     );
   }
 
+  /** Full details for one agent; the UI snapshot has a separate size budget. */
+  localAttention(agentId: string) {
+    return {
+      prompts: [...this.#prompts.values()]
+        .filter((pending) => pending.agentId === agentId)
+        .map((pending) => ({
+          requestId: this.#localHandle(pending),
+          questions: structuredClone(pending.questions),
+          requiresOpenBot: pending.questions.some(localQuestionNeedsOpenBot),
+        })),
+      approvals: [...this.#approvals.values()]
+        .filter((pending) => pending.approval.agentId === agentId)
+        .map((pending) => ({ ...structuredClone(pending.approval), requestId: this.#localHandle(pending) })),
+      browserTakeovers: [...this.#takeovers.values()]
+        .filter((pending) => pending.request.agentId === agentId)
+        .map((pending) => ({ requestId: this.#localHandle(pending), requiresOpenBot: true })),
+    };
+  }
+
+  readonly respondToLocalAttention = Effect.fn("AttentionRegistry.respondToLocalAttention")(function* (
+    this: AttentionRegistry,
+    agentId: string,
+    input: LocalAttentionResponse,
+  ) {
+    if (input.kind === "prompt") {
+      const pending = [...this.#prompts.values()].find(
+        (entry) => entry.agentId === agentId && this.#localHandles.get(entry) === input.requestId,
+      );
+      if (!pending || pending.questions.some(localQuestionNeedsOpenBot)) {
+        return yield* attentionStep(() => {
+          throw new InactiveAttentionRequest(sourceText("error.backend.promptInactive"));
+        });
+      }
+      return yield* this.respondToPrompt({ requestId: pending.id, answers: input.answers });
+    }
+    const pending = [...this.#approvals.values()].find(
+      (entry) => entry.approval.agentId === agentId && this.#localHandles.get(entry) === input.requestId,
+    );
+    if (!pending) {
+      return yield* attentionStep(() => {
+        throw new InactiveAttentionRequest(sourceText("error.backend.approvalInactive"));
+      });
+    }
+    return yield* this.respondToApproval({ requestId: pending.id, decision: input.decision });
+  }).bind(this);
+
+  #localHandle(pending: PendingPrompt | PendingApproval | PendingBrowserTakeover): string {
+    const existing = this.#localHandles.get(pending);
+    if (existing) return existing;
+    const handle = randomUUID();
+    this.#localHandles.set(pending, handle);
+    return handle;
+  }
+
   /** The attention section of the runtime snapshot, budgeted prompts first and takeovers last. */
   runtimeAttention(): RuntimeAttention {
     const attentionComplete =
@@ -228,7 +289,7 @@ export class AttentionRegistry {
   readonly respondToPrompt = Effect.fn("AttentionRegistry.respondToPrompt")((input: RespondToPromptInput) =>
     attentionStep(() => {
       const pending = this.#prompts.get(input.requestId);
-      if (!pending) throw new Error(sourceText("error.backend.promptInactive"));
+      if (!pending) throw new InactiveAttentionRequest(sourceText("error.backend.promptInactive"));
       const questionIds = new Set(pending.questions.map((question) => question.id));
       if (Object.keys(input.answers).some((id) => !questionIds.has(id))) {
         throw new Error(sourceText("error.backend.promptAnswerMismatch"));
@@ -263,7 +324,7 @@ export class AttentionRegistry {
   ) {
     const pending = yield* attentionStep(() => {
       const value = this.#approvals.get(input.requestId);
-      if (!value) throw new Error(sourceText("error.backend.approvalInactive"));
+      if (!value) throw new InactiveAttentionRequest(sourceText("error.backend.approvalInactive"));
       return value;
     });
     this.#routines.markRunningForTurn(getString(pending.params, "turnId"));
@@ -994,5 +1055,14 @@ export class AttentionRegistry {
 class AttentionOperationFailed extends Schema.TaggedError<AttentionOperationFailed>()("AttentionOperationFailed", {
   cause: Schema.Defect(),
 }) {}
+
+/** Redacted choice labels and IDs cannot be sent back as the provider's original values. */
+function localQuestionNeedsOpenBot(question: AgentPromptQuestion): boolean {
+  return (
+    question.isSecret ||
+    redactText(question.id) !== question.id ||
+    (question.options?.some((option) => redactText(option.label) !== option.label) ?? false)
+  );
+}
 
 const { sync: attentionStep, rewrap: toAttentionOperationFailed } = causeHelpers(AttentionOperationFailed);

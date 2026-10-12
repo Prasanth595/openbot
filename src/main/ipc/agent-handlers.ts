@@ -1,3 +1,7 @@
+import {
+  AGENT_SESSION_SETTINGS_CAPABILITY,
+  AGENT_SESSION_SETTINGS_ROUTES,
+} from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 // An agent's core surface: status, agents, conversations, the queue and the prompts
 // a turn can raise. Memories, routines and attachments are their own registrars.
 // Every one of these routes to the local service or to a remote server by the
@@ -22,7 +26,9 @@ import {
   parseChannelRead,
   parseGenerateAgentProfile,
   parseHostAnalyticsInput,
+  parseResetAgentSessionSetting,
   parseSaveAgentProfile,
+  parseSetAgentSessionSetting,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
@@ -35,10 +41,12 @@ import type { AgentService } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { HostService } from "../host-service";
+import { type MessageLinkRelay, openHttpLink } from "../message-link-relay";
 import {
   decodeAccountUsageFromHost,
   decodeAgentAnalyticsFromHost,
   decodeAgentModelOptions,
+  decodeAgentSessionSettingsFromHost,
   decodeAgentStatusFromHost,
   decodeAgentSummaries,
   decodeAgentSummary,
@@ -56,13 +64,16 @@ import {
   parseAgentId,
   parseApprovalResponse,
   parseBrowserTakeoverResponse,
+  parseCancelMessageLink,
   parseCancelQueuedMessage,
   parseChannelId,
   parseCreateAgent,
   parseInterrupt,
   parseMarkConversationRead,
   parseMessageReaction,
+  parseOpenMessageLink,
   parseOptionalAgentId,
+  parsePasteMessageLink,
   parsePromptResponse,
   parseQueueEdit,
   parseReadConversationPage,
@@ -106,6 +117,8 @@ export interface AgentIpcDependencies {
   host: HostService;
   remoteServers: RemoteServerManager;
   skills: SkillMarketplaceService;
+  messageLinks: Pick<MessageLinkRelay, "open" | "paste" | "cancel">;
+  openExternal: (url: string) => Promise<void>;
 }
 
 export function agentIpcHandlers({
@@ -114,6 +127,8 @@ export function agentIpcHandlers({
   host,
   remoteServers,
   skills,
+  messageLinks,
+  openExternal,
 }: AgentIpcDependencies): Pick<IpcGroupHandlers, "agent"> {
   return {
     agent: {
@@ -165,6 +180,45 @@ export function agentIpcHandlers({
               decodeAgentModelOptions(logRejectedModels(value, "remote")),
             ),
           ),
+      }),
+      readAgentSessionSettings: scopedHandler(parseAgentId, {
+        local: (agentId) => runCauseEffect(service.readAgentSessionSettings(agentId)),
+        remote: (agentId, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_SESSION_SETTINGS_CAPABILITY))
+            throw new Error(sourceText("error.team.agentSettingsUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_SESSION_SETTINGS_ROUTES.read, decodeAgentSessionSettingsFromHost, {
+              method: "POST",
+              body: { agentId },
+            }),
+          );
+        },
+      }),
+      setAgentSessionSetting: scopedHandler(parseSetAgentSessionSetting, {
+        local: (input) => runCauseEffect(service.setAgentSessionSetting(input)),
+        remote: (input, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_SESSION_SETTINGS_CAPABILITY))
+            throw new Error(sourceText("error.team.agentSettingsUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_SESSION_SETTINGS_ROUTES.set, decodeAgentSessionSettingsFromHost, {
+              method: "POST",
+              body: input,
+            }),
+          );
+        },
+      }),
+      resetAgentSessionSetting: scopedHandler(parseResetAgentSessionSetting, {
+        local: (input) => runCauseEffect(service.resetAgentSessionSetting(input)),
+        remote: (input, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_SESSION_SETTINGS_CAPABILITY))
+            throw new Error(sourceText("error.team.agentSettingsUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_SESSION_SETTINGS_ROUTES.reset, decodeAgentSessionSettingsFromHost, {
+              method: "POST",
+              body: input,
+            }),
+          );
+        },
       }),
       listAgents: scopedQueryHandler({
         local: () => service.listAgents(),
@@ -320,6 +374,21 @@ export function agentIpcHandlers({
           runCauseEffect(
             remoteServers.readAgentConversationPage(parsed.agentId, parsed.anchor, parsed.limit, serverId),
           ),
+      }),
+      openMessageLink: scopedHandler(parseOpenMessageLink, {
+        local: async ({ url }) => {
+          await openHttpLink(url, openExternal);
+          return null;
+        },
+        remote: ({ agentId, url }, serverId) => messageLinks.open(serverId, agentId, url),
+      }),
+      pasteMessageLink: scopedHandler(parsePasteMessageLink, {
+        local: () => Promise.reject(new Error(sourceText("error.mcp.relayEnded"))),
+        remote: ({ url, address }, serverId) => messageLinks.paste(serverId, url, address),
+      }),
+      cancelMessageLink: scopedHandler(parseCancelMessageLink, {
+        local: async () => undefined,
+        remote: ({ url }, serverId) => messageLinks.cancel(serverId, url),
       }),
       searchConversationMessages: scopedHandler(parseSearchConversationMessages, {
         local: (parsed) =>

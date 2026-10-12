@@ -9,6 +9,9 @@ import {
   listSharedTables,
   previewAgentTemplate,
   publishAgentTemplate,
+  readAgentSessionSettings,
+  resetAgentSessionSetting,
+  setAgentSessionSetting,
   setAgentSkillEnabled,
   uninstallAgentSkill,
   unpublishAgentTemplate,
@@ -21,6 +24,7 @@ import type { ConversationRuntime } from "../conversation/conversation-runtime";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import { createWebAttachmentMedia } from "./web-attachment-media";
 import { createWebAttachmentFiles, openWebLink } from "./web-attachments";
+import { webMessageLinks } from "./web-message-link-relay";
 import type { WebWorkspaceRuntime } from "./web-runtime";
 
 /** The events of the connected host. */
@@ -31,10 +35,30 @@ function webHostAdmin(
   request: () => TeamApiRequest,
   onHostEvent?: HostEvents,
   eventsEnabled?: () => boolean,
+  sessionSettingsEnabled?: () => boolean,
 ): NonNullable<ConversationRuntime["admin"]> {
   // `request()` names the connected host at call time, so a host switch reaches the new host.
   const eventRoutines = webEventRoutinesApi((...args) => request()(...args));
   return {
+    get sessionSettings() {
+      if (sessionSettingsEnabled?.() !== true) return undefined;
+      return {
+        read: (agentId: string) =>
+          runTeamEffect(readAgentSessionSettings(request(), agentId).pipe(Effect.mapError((error) => error.cause))),
+        set: (input: import("@openbot/contracts/ipc").SetAgentSessionSettingInput) =>
+          runTeamEffect(setAgentSessionSetting(request(), input).pipe(Effect.mapError((error) => error.cause))),
+        reset: (input: import("@openbot/contracts/ipc").ResetAgentSessionSettingInput) =>
+          runTeamEffect(resetAgentSessionSetting(request(), input).pipe(Effect.mapError((error) => error.cause))),
+        ...(onHostEvent
+          ? {
+              subscribe: (agentId: string, listener: () => void) =>
+                onHostEvent((event) => {
+                  if (event.type === "agent-session-settings-changed" && event.agentId === agentId) listener();
+                }),
+            }
+          : {}),
+      };
+    },
     skills: {
       listInstalled: (agentId) =>
         runTeamEffect(listAgentSkills(request(), agentId).pipe(Effect.mapError((error) => error.cause))),
@@ -78,6 +102,8 @@ export function createWebConversationRuntime(
   adminRequest?: () => TeamApiRequest,
   onHostEvent?: HostEvents,
   eventsEnabled?: () => boolean,
+  sessionSettingsEnabled?: () => boolean,
+  signInRelayEnabled?: () => boolean,
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
@@ -102,8 +128,11 @@ export function createWebConversationRuntime(
     void cancelImportFiles();
     attachmentMedia.dispose();
   });
+  // The host's relay routes are admin only, so only an admin relays a sign-in link.
+  const messageLinks = adminRequest ? webMessageLinks(adminRequest, () => signInRelayEnabled?.() === true) : {};
   return {
     agent: {
+      ...messageLinks,
       discardDraftAttachment: (id) => remote.discard(id),
       downloadAttachments: unavailable,
       editQueuedMessage: async (input, serverId) => {
@@ -152,7 +181,12 @@ export function createWebConversationRuntime(
       reload: (tabId) => remote.reloadBrowserTab(tabId),
       setVisible: async () => {},
     },
-    voice: { onModelStatus: () => () => {}, prepareModel: unavailable, transcribe: unavailable },
+    voice: {
+      getSettings: unavailable,
+      onModelStatus: () => () => {},
+      prepareModel: unavailable,
+      transcribe: unavailable,
+    },
     openUrl: openWebLink,
     previewAttachment: files.preview,
     attachmentMedia,
@@ -197,6 +231,6 @@ export function createWebConversationRuntime(
       }
     },
     cancelImportFiles,
-    admin: adminRequest ? webHostAdmin(adminRequest, onHostEvent, eventsEnabled) : undefined,
+    admin: adminRequest ? webHostAdmin(adminRequest, onHostEvent, eventsEnabled, sessionSettingsEnabled) : undefined,
   };
 }

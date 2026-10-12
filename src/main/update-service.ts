@@ -491,7 +491,7 @@ export class UpdateService extends EventEmitter<UpdateServiceEvents> {
       const generation = ++this.#downloadGeneration;
       this.#activeDownload = generation;
       this.#operation = "download";
-      this.#setStatus({ phase: "downloading", progress: 0, message: null, errorCode: null });
+      this.#setStatus({ phase: "downloading", progress: null, message: null, errorCode: null });
       yield* Effect.gen({ self: this }, function* () {
         const token = yield* this.#ensureCancellationToken();
         if (this.#downloadGeneration !== generation) return;
@@ -901,8 +901,9 @@ function isNewerRelease(candidate: string, current: string): boolean {
   return false;
 }
 
-function clampProgress(value: number): number {
-  return Math.max(0, Math.min(100, Number.isFinite(value) ? Math.round(value) : 0));
+/** A percent that is not a number means that the download runs but its progress is not known. */
+function clampProgress(value: number): number | null {
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null;
 }
 
 export class UpdateOperationFailure extends Schema.TaggedError<UpdateOperationFailure>()("UpdateOperationFailure", {

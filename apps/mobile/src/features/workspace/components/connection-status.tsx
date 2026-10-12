@@ -9,7 +9,7 @@ import { recoveryAttempt, recoveryCountdown, serverStatusLabel } from "@/feature
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { useText } from "@/shared/lib/text";
 
-function ConnectionStatusText({ server }: { server: MobileServer }) {
+function ConnectionStatusText({ server, note }: { server: MobileServer; note: string | null }) {
   const { t, sourceText } = useText();
   const recovery = server.recoveryStatus;
   const reconnecting = recovery && recovery.phase !== "online" && recovery.phase !== "suspended";
@@ -18,6 +18,7 @@ function ConnectionStatusText({ server }: { server: MobileServer }) {
     ? t("mobile.workspace.status.attempt", { attempt: recoveryAttempt(recovery), limit: REMOTE_RETRY_LIMIT })
     : server.connectionMessage && sourceText(server.connectionMessage);
   const remainingSeconds = reconnecting ? recoveryCountdown(recovery) : null;
+  // The chat keeps to the attempt and the countdown. The failure that caused a retry is in the support log.
 
   return (
     <View
@@ -28,39 +29,54 @@ function ConnectionStatusText({ server }: { server: MobileServer }) {
         remainingSeconds !== null && remainingSeconds > 0
           ? t("mobile.workspace.status.retryIn", { seconds: remainingSeconds })
           : null,
+        note,
       ]
         .filter(Boolean)
         .join(". ")}
-      className="flex-row items-center justify-center px-5 pb-1 pt-1"
+      className="items-center px-5 pb-1 pt-1"
     >
-      <Typography.Paragraph
-        type="body-xs"
-        className="shrink text-text-secondary"
-        numberOfLines={1}
-        maxFontSizeMultiplier={1.2}
-      >
-        {reconnecting ? `${title} · ` : detail ? `${title} · ${detail}` : title}
-      </Typography.Paragraph>
-      {reconnecting ? (
-        <>
-          <AnimatedCounter value={String(recoveryAttempt(recovery))} />
-          <Typography.Paragraph type="body-xs" className="text-text-secondary" maxFontSizeMultiplier={1.2}>
-            /{REMOTE_RETRY_LIMIT}
-          </Typography.Paragraph>
-        </>
+      <View className="flex-row items-center justify-center">
+        <Typography.Paragraph
+          type="body-xs"
+          className="shrink text-text-secondary"
+          numberOfLines={1}
+          maxFontSizeMultiplier={1.2}
+        >
+          {reconnecting ? `${title} · ` : detail ? `${title} · ${detail}` : title}
+        </Typography.Paragraph>
+        {reconnecting ? (
+          <>
+            <AnimatedCounter value={String(recoveryAttempt(recovery))} />
+            <Typography.Paragraph type="body-xs" className="text-text-secondary" maxFontSizeMultiplier={1.2}>
+              /{REMOTE_RETRY_LIMIT}
+            </Typography.Paragraph>
+          </>
+        ) : null}
+        <ConnectionCountdown seconds={remainingSeconds} />
+      </View>
+      {note ? (
+        <Typography.Paragraph
+          type="body-xs"
+          align="center"
+          className="text-muted"
+          numberOfLines={1}
+          maxFontSizeMultiplier={1.2}
+        >
+          {note}
+        </Typography.Paragraph>
       ) : null}
-      <ConnectionCountdown seconds={remainingSeconds} />
     </View>
   );
 }
 
-export function ConnectionStatus({ server }: { server: MobileServer | undefined }) {
+/** Under the reconnect status: what the chat waits for, such as its history. */
+export function ConnectionStatus({ server, note = null }: { server: MobileServer | undefined; note?: string | null }) {
   return (
     <ConnectionStatusReveal
       value={server && !server.initialConnectionPending && server.state !== "online" ? server : null}
       collapseOnHide
     >
-      {(displayed) => <ConnectionStatusText server={displayed} />}
+      {(displayed) => <ConnectionStatusText server={displayed} note={note} />}
     </ConnectionStatusReveal>
   );
 }

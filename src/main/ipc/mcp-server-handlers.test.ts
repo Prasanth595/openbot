@@ -12,6 +12,8 @@ import {
   type McpServerConfig,
   type McpTestResult,
 } from "@openbot/contracts/ipc";
+import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
+import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { describe, expect, it, vi } from "vitest";
 import { NO_MCP_TOOL_RUNTIMES } from "../../backend/mcp-provider-shapes";
 import { ProviderRuntimeFailure } from "../provider-runtime-effects";
@@ -68,7 +70,11 @@ function httpConfig(): McpServerConfig {
   };
 }
 
-function setup(options: { ensureToolRuntimesReady?: () => Effect.Effect<void, ProviderRuntimeFailure> }): {
+function setup(options: {
+  ensureToolRuntimesReady?: () => Effect.Effect<void, ProviderRuntimeFailure>;
+  /** Whether the host advertises `mcp-sign-in-v1`. */
+  signIn?: boolean;
+}): {
   ensureToolRuntimesReady: ReturnType<typeof vi.fn>;
   testMcpServer: ReturnType<typeof vi.fn>;
   remoteCalls: RemoteRequestInit[];
@@ -88,10 +94,15 @@ function setup(options: { ensureToolRuntimesReady?: () => Effect.Effect<void, Pr
     cancelMcpSignIn: () => undefined,
     signOutMcpServer: () => Effect.succeed([]),
     listMcpSignIns: () => [],
+    mcpSignInApp: () => ({ redirectUrl: null, app: null }),
+    saveMcpSignInApp: () => Effect.succeed({ redirectUrl: null, app: null }),
+    removeMcpSignInApp: () => Effect.succeed({ redirectUrl: null, app: null }),
   };
   const remoteCalls: RemoteRequestInit[] = [];
   const remoteServers = {
-    supportsCapability: () => true,
+    // The live view only: the relay has its own tests.
+    supportsCapability: (_serverId: string, capability: string) =>
+      capability !== SIGN_IN_RELAY_CAPABILITY && (options.signIn !== false || capability !== MCP_SIGN_IN_CAPABILITY),
     // Generic like the manager: the host answers what the codec below decodes.
     request: <T>(
       _serverId: string,
@@ -113,6 +124,12 @@ function setup(options: { ensureToolRuntimesReady?: () => Effect.Effect<void, Pr
       startToolRuntimes: () => undefined,
       ensureToolRuntimesReady,
       toolRuntimes: () => NO_MCP_TOOL_RUNTIMES,
+      relay: {
+        run: () => Effect.die("The relay is not used here."),
+        page: () => null,
+        open: async () => undefined,
+        paste: () => undefined,
+      },
     }).mcpServers,
   );
   const listener = registrations.get(IPC_ENDPOINTS.mcpServers.testMcpServer.channel);
@@ -156,9 +173,9 @@ describe("mcpServerIpcHandlers test", () => {
     expect(testMcpServer).toHaveBeenCalledWith(expect.anything(), { storedCredentials: true, signInPlace: "here" });
   });
 
-  it("refuses a sign-in for a remote server without asking the host", async () => {
-    // Nobody sits in front of the host's browser, and the Team API has no sign-in route.
-    const { remoteCalls, signInRemote } = setup({});
+  it("refuses a sign-in for a host without mcp-sign-in-v1 without asking it", async () => {
+    // Such a host has no sign-in route, so the reason is stated before any request.
+    const { remoteCalls, signInRemote } = setup({ signIn: false });
 
     await expect(signInRemote(httpConfig())).rejects.toThrow(
       "Sign-in to an MCP server works only in OpenBot on the host computer.",

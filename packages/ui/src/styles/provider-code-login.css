@@ -33,6 +33,11 @@
   animation: provider-code-login-dialog-in var(--openbot-duration-slow) var(--openbot-ease-out) both;
 }
 
+/* The host's sign-in page needs the width of a browser window. */
+.provider-code-login-dialog[data-page] {
+  width: min(720px, 100%);
+}
+
 .provider-code-login-header {
   display: flex;
   flex-direction: column;

@@ -17,6 +17,7 @@ import {
 import { parseHostedSiteList, parseHostedSiteSummary } from "@openbot/contracts/hosted-sites";
 import {
   type AccountSession,
+  type AgentMemoryLimitPreference,
   type AnalyticsPreference,
   type AppInfo,
   type AppLanguagePreference,
@@ -44,6 +45,7 @@ import {
   type HostedSiteSummary,
   IDLE_RESTART_TARGETS,
   type IdleRestart,
+  isAgentMemoryLimit,
   isAgentModel,
   isAgentProvider,
   isAppLanguage,
@@ -61,6 +63,8 @@ import {
   isProviderDetectionSettings,
   isRemoteDesktopSetupStatus,
   isRemoteDesktopTestStatus,
+  isVoiceLanguage,
+  isVoiceModelId,
   type MobileConnectedDevice,
   type MobileConnectTicket,
   type NotificationOpenedEvent,
@@ -77,6 +81,7 @@ import {
   type UpdatePreference,
   type UpdateStatus,
   type VoiceModelStatus,
+  type VoiceSettings,
   type VoiceTranscriptionResult,
 } from "@openbot/contracts/ipc";
 import {
@@ -122,6 +127,12 @@ export function decodeBusyMessageModePreference(value: unknown): BusyMessageMode
   const preference = decodeRecord(value, "busy message mode preference");
   if (!isBusyMessageMode(preference.mode)) throw new Error("Invalid busy message mode.");
   return { mode: preference.mode };
+}
+
+export function decodeAgentMemoryLimitPreference(value: unknown): AgentMemoryLimitPreference {
+  const preference = decodeRecord(value, "agent memory limit preference");
+  if (!isAgentMemoryLimit(preference.limit)) throw new Error("Invalid agent memory limit.");
+  return { limit: preference.limit };
 }
 
 export function decodeAppLanguagePreference(value: unknown): AppLanguagePreference {
@@ -177,12 +188,14 @@ function decodeCentralAuthUser(value: unknown): CentralAuthUser {
 
 function decodeCentralAuthIssue(value: unknown): CentralAuthIssue {
   const issue = decodeRecord(value, "account issue");
-  const { retryAfterSeconds } = issue;
+  const { retryAfterSeconds, reference } = issue;
   if (retryAfterSeconds !== undefined && !isNumber(retryAfterSeconds)) throw new Error("Invalid retryAfterSeconds.");
+  if (reference !== undefined && !isString(reference)) throw new Error("Invalid reference.");
   return {
     code: requiredString(issue, "code"),
     message: requiredString(issue, "message"),
     ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+    ...(reference === undefined ? {} : { reference }),
   };
 }
 
@@ -285,11 +298,21 @@ const VOICE_MODEL_PHASES: readonly VoiceModelStatus["phase"][] = ["missing", "do
 
 export function decodeVoiceModelStatus(value: unknown): VoiceModelStatus {
   const status = decodeRecord(value, "voice model status");
-  const { phase, progress } = status;
-  if (!isOneOf(VOICE_MODEL_PHASES, phase) || (progress !== null && !isNumber(progress))) {
+  const { modelId, phase, progress } = status;
+  if (!isVoiceModelId(modelId) || !isOneOf(VOICE_MODEL_PHASES, phase) || (progress !== null && !isNumber(progress))) {
     throw new Error("Invalid voice model status.");
   }
-  return { phase, progress, message: nullableString(status, "message") };
+  return { modelId, phase, progress, message: nullableString(status, "message") };
+}
+
+export function decodeVoiceModelStatuses(value: unknown): VoiceModelStatus[] {
+  return decodeList(value, "voice model status list", decodeVoiceModelStatus);
+}
+
+export function decodeVoiceSettings(value: unknown): VoiceSettings {
+  const { modelId, language } = decodeRecord(value, "voice settings");
+  if (!isVoiceModelId(modelId) || !isVoiceLanguage(language)) throw new Error("Invalid voice settings.");
+  return { modelId, language };
 }
 
 export function decodeVoiceTranscriptionResult(value: unknown): VoiceTranscriptionResult {

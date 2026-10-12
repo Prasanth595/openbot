@@ -38,12 +38,19 @@ import {
   encodeTeamProtocolV6CurrentHttpRequest,
   encodeTeamProtocolV6CurrentHttpResponse,
 } from "./v6-adapter";
+import { TEAM_PROTOCOL_V7 } from "./v7";
+import {
+  decodeTeamProtocolV7CurrentHttpRequest,
+  decodeTeamProtocolV7CurrentHttpResponse,
+  encodeTeamProtocolV7CurrentHttpRequest,
+  encodeTeamProtocolV7CurrentHttpResponse,
+} from "./v7-adapter";
 
 export interface TeamHttpCodecOptions {
   preserveSemanticTags?: boolean;
   /** Read only by V4, V5 and V6, which accept a model in an agent create request. */
   agentCreateModel?: boolean;
-  /** Read only by V6 responses: the negotiated history-extent-v1 capability. */
+  /** Read only by V7 responses: the negotiated history-extent-v1 capability. */
   historyExtent?: boolean;
 }
 
@@ -94,6 +101,13 @@ const V5_CODEC: TeamHttpCodec = {
   decodeResponse: decodeTeamProtocolV5CurrentHttpResponse,
 };
 
+const V7_CODEC: TeamHttpCodec = {
+  encodeRequest: encodeTeamProtocolV7CurrentHttpRequest,
+  decodeRequest: decodeTeamProtocolV7CurrentHttpRequest,
+  encodeResponse: encodeTeamProtocolV7CurrentHttpResponse,
+  decodeResponse: decodeTeamProtocolV7CurrentHttpResponse,
+};
+
 const V6_CODEC: TeamHttpCodec = {
   encodeRequest: encodeTeamProtocolV6CurrentHttpRequest,
   decodeRequest: decodeTeamProtocolV6CurrentHttpRequest,
@@ -103,6 +117,7 @@ const V6_CODEC: TeamHttpCodec = {
 
 /** The HTTP adapter of a negotiated protocol. No protocol, or one older than V3, gets V1. */
 export function teamHttpCodec(protocol: number | undefined): TeamHttpCodec {
+  if (protocol === TEAM_PROTOCOL_V7) return V7_CODEC;
   if (protocol === TEAM_PROTOCOL_V6) return V6_CODEC;
   if (protocol === TEAM_PROTOCOL_V5) return V5_CODEC;
   if (protocol === TEAM_PROTOCOL_V4) return V4_CODEC;

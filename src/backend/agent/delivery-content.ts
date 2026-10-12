@@ -3,6 +3,7 @@ import { expandAttachmentReferences } from "@openbot/contracts/attachment-refere
 import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
 import type { AgentSummary, ConversationSnapshot, QueueDeliveryStatus, RoutineRun } from "@openbot/contracts/ipc";
 import type { DeliveryContext } from "../mailbox-store";
+import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
 
 export function responseAttachmentMessageId(threadId: string, turnId: string, callId: string): string {
   const digest = createHash("sha256").update(`${threadId}\0${turnId}\0${callId}`).digest("hex").slice(0, 32);
@@ -219,7 +220,7 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
       "Perform the task below now. Do not answer only that the routine or monitoring is active.",
       sources.routineRun?.kind === "manual"
         ? "This is a manual Test run. Report the action and result even when a normal scheduled run would suppress a notification because there is no change."
-        : "This is a scheduled run. Follow the notification conditions in the routine task.",
+        : `This is a scheduled run. Follow the notification conditions in the routine task. When they give nothing to report, call the ${ROUTINE_NO_UPDATE_TOOL} tool instead of a written answer.`,
       "--- routine task ---",
       displayText,
     ].join("\n");
@@ -303,28 +304,4 @@ export function renderHandoffMessage(
     : "";
   const body = displayMessageReferences(message.text, message.attachments ?? [], agentNames);
   return [`[${message.createdAt}] ${message.author}${sender}:`, body, attachmentMetadata].filter(Boolean).join("\n");
-}
-
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
-export function summarizeOldMessages(
-  messages: ConversationSnapshot["messages"],
-  tokenBudget: number,
-  agentNames: ReadonlyMap<string, string>,
-): string {
-  const maximumCharacters = Math.max(4_000, tokenBudget * 4);
-  const lines = messages.map((message) => {
-    const normalized = displayMessageReferences(message.text, message.attachments ?? [], agentNames)
-      .replace(/\s+/g, " ")
-      .trim();
-    const excerpt = normalized.length > 600 ? `${normalized.slice(0, 597)}...` : normalized;
-    const attachments = (message.attachments ?? []).map((item) => item.name).join(", ");
-    return `- ${message.author}${message.senderAgentId ? ` (${message.senderAgentId})` : ""}: ${excerpt}${attachments ? ` [attachments: ${attachments}]` : ""}`;
-  });
-  const summary = [`Summary of ${messages.length} older user-visible messages:`, ...lines].join("\n");
-  return summary.length > maximumCharacters
-    ? `${summary.slice(0, maximumCharacters - 56)}\n[Summary shortened to fit the handoff budget.]`
-    : summary;
 }

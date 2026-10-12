@@ -104,4 +104,11 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Это подключение не поддерживает настройки агентов.",
   "error.team.adminRequired": "Требуется доступ администратора.",
   "error.team.requestTooLarge": "Тело запроса слишком большое.",
+  "error.team.signInRelayUnsupported": "Этот сервер не может передавать входы. Обновите OpenBot на хосте.",
+  "error.team.connectorsUnsupported": "Подключениями этого сервера нельзя управлять отсюда. Обновите OpenBot на хосте.",
+  "error.team.connectorPageRefused": "Сервер прислал страницу, которую OpenBot не открывает.",
+  "error.team.signInRelayUnknown": "Этот вход завершён или не существует.",
+  "error.team.signInRelayUsed": "Этот вход уже отправлен.",
+  "error.team.signInRelayMismatch": "Этот адрес не относится к этому входу.",
+  "error.team.signInRelayLinkUnknown": "Ни один агент на этом сервере не показывал эту ссылку для входа.",
 } as const satisfies PartialTranslation<typeof source>;

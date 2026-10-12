@@ -17,6 +17,7 @@ export default defineConfig({
           "@openbot/logging",
           "@openbot/team-client",
           "@openbot/telemetry",
+          "@openbot/user-errors",
         ],
       }),
     ],
@@ -27,6 +28,9 @@ export default defineConfig({
           // The database host is its own process. Only node:* and the installed Effect package
           // are runtime imports; the unpacked host must not load the main process bundle.
           "agent-database-host": resolve("src/backend/agent-data/agent-database-host.ts"),
+          // The voice host is its own process too. It imports only node:* and loads the speech
+          // recognition addon by path.
+          "voice-transcription-host": resolve("src/main/voice-transcription-host.ts"),
         },
       },
     },

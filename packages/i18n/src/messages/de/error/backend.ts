@@ -70,12 +70,23 @@ export const messages = {
   "error.backend.channelAssigneeUnavailable": "Der zugewiesene Agent ist nicht verfügbar.",
   "error.backend.channelAssignmentChanged": "Dieser Kanalauftrag wurde geändert.",
   "error.backend.channelMemberRequired": "Wähle ein verfügbares Mitglied dieses Kanals.",
+  "error.backend.memoryEssentialBudget":
+    "Die wesentlichen Erinnerungen überschreiten das Prompt-Limit. Stelle einen Eintrag auf „Bei Bedarf suchen“ und versuche es erneut.",
+  "error.backend.memorySelectionConflict": "Die Erinnerung hat sich geändert. Lade sie neu und versuche es erneut.",
+  "error.backend.memorySelectionUserControlled":
+    "Der Nutzer steuert diese Auswahl der Erinnerung. Behalte die Wahl des Nutzers bei.",
+  "error.backend.memorySearchQuery": "Gib ein oder mehrere Suchwörter mit bis zu 256 Zeichen ein.",
+  "error.backend.memoryOperationFailed": "Der Vorgang für die Erinnerung ist fehlgeschlagen. Versuche es erneut.",
   "error.backend.memoryGone": "Diese Erinnerung existiert nicht mehr.",
   "error.backend.routineGone": "Diese Routine existiert nicht mehr.",
   "error.backend.channelMemoryLimit": "Ein Kanal kann bis zu {limit} Erinnerungen haben.",
   "error.backend.channelRoutineLimit": "Ein Kanal kann höchstens {limit} Routinen haben.",
   "error.backend.agentRoutineLimit": "Ein Agent kann höchstens {limit} Routinen haben.",
   "error.backend.agentMemoryLimit": "Ein Agent kann bis zu {limit} Erinnerungen haben.",
+  "error.backend.agentMemoryLimitReached":
+    "Du hast {saved} von {limit} Erinnerungen. Um Platz zu schaffen, aktualisiere eine Erinnerung über ihre memoryId mit dem kombinierten Text zweier verwandter Erinnerungen und vergiss dann die andere, oder vergiss eine Erinnerung, die nicht mehr stimmt. Versuche es dann erneut.",
+  "error.backend.agentMemoryLimitExceeded":
+    "Du hast {saved} Erinnerungen, und das Limit ist {limit}. Der Benutzer hat das Limit unter die Zahl der gespeicherten Erinnerungen gesetzt. Vergiss keine Erinnerungen, um Platz zu schaffen. Sag dem Benutzer, dass diese Erinnerung nicht gespeichert wurde.",
   "error.backend.channelHistoryLeadRequired": "Wähle eine Kanalleitung, um den geteilten Verlauf vorzubereiten.",
   "error.backend.channelHistoryArriving":
     "Eine geteilte Nachricht wird noch empfangen. Setze fort, wenn sie vollständig ist.",
@@ -220,6 +231,8 @@ export const messages = {
   "error.backend.useChannelTaskControlsWork": "Verwende für Kanalarbeit die Aufgabensteuerung des Kanals.",
   "error.backend.steerTurnChanged":
     "Der aktive Durchlauf wurde geändert, bevor diese Nachricht eingesteuert werden konnte.",
+  "error.backend.steerUnsupported":
+    "Dieser Anbieter kann einen laufenden Durchgang nicht steuern. Deine Nachricht bleibt in der Warteschlange.",
   "error.backend.steerQueuedOnly": "Nur Nachrichten in der Warteschlange können eingesteuert werden.",
   "error.backend.promptInactive": "Diese Rückfrage ist nicht mehr aktiv.",
   "error.backend.promptAnswerMismatch": "Eine Antwort passt zu keiner aktiven Frage.",
@@ -258,4 +271,11 @@ export const messages = {
     "Der Server hat mit {status} geantwortet. Prüfe den API-Schlüssel oder andere Zugangsdaten.",
   "error.backend.mcpServerHttpUrl":
     "Der Server hat mit {status} geantwortet. Prüfe die URL. Der Link ist möglicherweise falsch, abgelaufen oder gelöscht.",
+  "error.backend.mcpSignInAppUrl": "Die Anmelde-App braucht eine gültige Server-URL.",
+  "error.backend.mcpSignInAppClientId": "Gib die Client-ID der Anmelde-App ein.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Der Anmeldeserver dieses MCP-Servers hat sich geändert, daher hat OpenBot ihm die Anmelde-App nicht gesendet. Wenn die Änderung korrekt ist, entferne die Anmelde-App und füge sie erneut hinzu.",
+  "error.backend.mcpSignInAppNoServer":
+    "Speichere diesen MCP-Server als URL-Server, bevor du eine Anmelde-App hinzufügst.",
+  "error.backend.mcpSignInAppUnavailable": "Dieser Computer kann keine Anmelde-App speichern.",
 } as const satisfies PartialTranslation<typeof source>;

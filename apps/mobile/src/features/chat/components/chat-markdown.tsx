@@ -26,6 +26,7 @@ import {
   StreamRevealProvider,
 } from "@/features/chat/components/streaming-tail-text";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
+import { graphemes } from "@/shared/lib/graphemes";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
@@ -175,17 +176,6 @@ function FileReference({ text, presentation }: { text: string; presentation: Tex
 // after a space or a separator, and a long run without one breaks after this many characters.
 const CODE_PIECE_MAX_LENGTH = 12;
 
-// Hermes may not have Intl.Segmenter. The fallback keeps flags, marks, skin tones and joined emoji whole.
-const GRAPHEME_FALLBACK =
-  /\p{Regional_Indicator}{2}|\P{M}[\p{M}\p{Emoji_Modifier}]*(?:\u200d\P{M}[\p{M}\p{Emoji_Modifier}]*)*/gu;
-
-function graphemes(text: string): string[] {
-  if (Intl.Segmenter) {
-    return Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text), (part) => part.segment);
-  }
-  return text.match(GRAPHEME_FALLBACK) ?? [];
-}
-
 function codePieces(text: string): string[] {
   return (text.match(/[^\s\-/._]*(?:[\s\-/._]+|$)/gu) ?? []).flatMap((piece) => {
     const characters = graphemes(piece);
@@ -331,11 +321,11 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
           accessibilityHint={url}
           onPress={() => {
             void haptics.impact("soft");
-            void Linking.openURL(url).catch(() => {
+            void Linking.openURL(url).catch((error: unknown) => {
               void haptics.notification("error");
               const { t } = currentText();
               showFailureAlert(
-                undefined,
+                error,
                 "browser",
                 t("mobile.chat.markdown.linkFailedTitle"),
                 t("mobile.chat.markdown.linkFailedMessage"),

@@ -47,6 +47,12 @@ import {
   decodeTeamProtocolV6WebRtcHttpRequest,
   encodeTeamProtocolV6WebRtcHttpResponse,
 } from "@openbot/contracts/team-protocol/v6-webrtc-adapter";
+import { TEAM_PI_MUSE_CAPABILITY } from "@openbot/contracts/team-protocol/v7";
+import {
+  createTeamProtocolV7Event,
+  decodeTeamProtocolV7WebRtcHttpRequest,
+  encodeTeamProtocolV7WebRtcHttpResponse,
+} from "@openbot/contracts/team-protocol/v7-webrtc-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Deferred, Effect, Fiber, Layer, ManagedRuntime } from "effect";
 import type * as Ws from "ws";
@@ -596,13 +602,15 @@ export class TeamWebRtcHostPeer {
                 JSON.stringify(
                   sideRoute
                     ? sideRoute.request(input.path, input.body)
-                    : (peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-                        ? decodeTeamProtocolV6WebRtcHttpRequest
-                        : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                          ? decodeTeamProtocolV5WebRtcHttpRequest
-                          : peerCapabilities.has("opencode")
-                            ? decodeTeamProtocolV4WebRtcHttpRequest
-                            : decodeTeamProtocolV3WebRtcHttpRequest)(input.method, input.path, input.body, {
+                    : (peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+                        ? decodeTeamProtocolV7WebRtcHttpRequest
+                        : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                          ? decodeTeamProtocolV6WebRtcHttpRequest
+                          : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                            ? decodeTeamProtocolV5WebRtcHttpRequest
+                            : peerCapabilities.has("opencode")
+                              ? decodeTeamProtocolV4WebRtcHttpRequest
+                              : decodeTeamProtocolV3WebRtcHttpRequest)(input.method, input.path, input.body, {
                         preserveSemanticTags,
                         agentCreateModel: peerCapabilities.has(TEAM_AGENT_CREATE_MODEL_CAPABILITY),
                       }),
@@ -615,15 +623,17 @@ export class TeamWebRtcHostPeer {
           headers: {
             Authorization: `Bearer ${this.#localSessionToken}`,
             "Content-Type": uploaded?.mimeType ?? input.contentType ?? "application/json",
-            "OpenBot-Protocol-Version": peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-              ? "6"
-              : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                ? "5"
-                : peerCapabilities.has("opencode")
-                  ? "4"
-                  : isTeamProtocolV3OnlyRoute(input.method, input.path)
-                    ? "3"
-                    : "1",
+            "OpenBot-Protocol-Version": peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+              ? "7"
+              : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                ? "6"
+                : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                  ? "5"
+                  : peerCapabilities.has("opencode")
+                    ? "4"
+                    : isTeamProtocolV3OnlyRoute(input.method, input.path)
+                      ? "3"
+                      : "1",
             "OpenBot-App-Version": this.#appVersion,
             "OpenBot-Capabilities": [...this.#peerCapabilities].join(","),
             ...(this.#localSessionId ? { "X-OpenBot-WebRTC-Session": this.#localSessionId } : {}),
@@ -666,7 +676,7 @@ export class TeamWebRtcHostPeer {
               file: { transferId, name, mimeType: contentType || "application/octet-stream", size },
             };
           }
-          // A variable, not a literal: only the V6 encoder declares `historyExtent`.
+          // A variable, not a literal: only the V7 encoder declares `historyExtent`.
           const responseOptions = {
             preserveSemanticTags,
             historyExtent: peerCapabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
@@ -675,13 +685,15 @@ export class TeamWebRtcHostPeer {
             status: response.status,
             body: sideRoute
               ? sideRoute.response(input.path, response.status, body, responseOptions)
-              : (peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-                  ? encodeTeamProtocolV6WebRtcHttpResponse
-                  : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                    ? encodeTeamProtocolV5WebRtcHttpResponse
-                    : peerCapabilities.has("opencode")
-                      ? encodeTeamProtocolV4WebRtcHttpResponse
-                      : encodeTeamProtocolV3WebRtcHttpResponse)(
+              : (peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+                  ? encodeTeamProtocolV7WebRtcHttpResponse
+                  : peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                    ? encodeTeamProtocolV6WebRtcHttpResponse
+                    : peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                      ? encodeTeamProtocolV5WebRtcHttpResponse
+                      : peerCapabilities.has("opencode")
+                        ? encodeTeamProtocolV4WebRtcHttpResponse
+                        : encodeTeamProtocolV3WebRtcHttpResponse)(
                   input.method,
                   input.path,
                   response.status,
@@ -717,7 +729,7 @@ export class TeamWebRtcHostPeer {
         // rejects it and the catch below would drop it without a trace: a remote client would
         // stop seeing incoming messages and task updates until its next refresh. The optional
         // protocol validates and envelopes its own event, exactly as the request path does. The
-        // `host-update-v1` restart notice and the `skills-events-v1` event take the same path.
+        // `host-update-v1`, `skills-events-v1`, and `quiet-turn-v1` events take the same path.
         const event = JSON.parse(data.toString());
         const channel = optionalTeamEvent(event);
         frame = encodeTeamProtocolV2Frame(
@@ -728,13 +740,15 @@ export class TeamWebRtcHostPeer {
                 sequence: this.#nextEventSequence,
                 payload: channel,
               })
-            : (this.#peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
-                ? createTeamProtocolV6Event
-                : this.#peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
-                  ? createTeamProtocolV5Event
-                  : this.#peerCapabilities.has("opencode")
-                    ? createTeamProtocolV4Event
-                    : createTeamProtocolV2Event)(this.#nextEventSequence, event, {
+            : (this.#peerCapabilities.has(TEAM_PI_MUSE_CAPABILITY)
+                ? createTeamProtocolV7Event
+                : this.#peerCapabilities.has(TEAM_CURSOR_CLINE_CAPABILITY)
+                  ? createTeamProtocolV6Event
+                  : this.#peerCapabilities.has(TEAM_LOCAL_PROVIDERS_CAPABILITY)
+                    ? createTeamProtocolV5Event
+                    : this.#peerCapabilities.has("opencode")
+                      ? createTeamProtocolV4Event
+                      : createTeamProtocolV2Event)(this.#nextEventSequence, event, {
                 preserveSemanticTags: supportsTeamSemanticTags(this.#peerCapabilities),
                 preserveBrowserSecrets: this.#peerCapabilities.has("browser-secret-handoff"),
               }),
@@ -992,7 +1006,9 @@ function isHttpRequest(value: TeamProtocolV2Json): value is TeamProtocolV2Json &
     value.path.length <= 2_048 &&
     Object.hasOwn(value, "body") &&
     (value.capabilities === undefined ||
-      (Array.isArray(value.capabilities) && value.capabilities.length <= 64 && value.capabilities.every(isString))) &&
+      (Array.isArray(value.capabilities) &&
+        value.capabilities.length <= (value.capabilities.includes(TEAM_PI_MUSE_CAPABILITY) ? 128 : 64) &&
+        value.capabilities.every(isString))) &&
     (value.bodyTransferId === undefined || isString(value.bodyTransferId)) &&
     (value.contentType === undefined || isString(value.contentType))
   );

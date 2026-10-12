@@ -18,9 +18,16 @@ export interface ServersPort {
     | "setMcpServerEnabled"
     | "testMcpServer"
     | "signInMcpServer"
+    | "mcpSignInPage"
+    | "mcpSignInRelay"
+    | "openMcpSignInRelay"
+    | "completeMcpSignInRelay"
     | "cancelMcpSignIn"
     | "signOutMcpServer"
     | "listMcpSignIns"
+    | "mcpSignInApp"
+    | "saveMcpSignInApp"
+    | "removeMcpSignInApp"
   >;
   events: OpenBotDesktopApi["events"];
   auth: Pick<OpenBotDesktopApi["auth"], "onEvent">;

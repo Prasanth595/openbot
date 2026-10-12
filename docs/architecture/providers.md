@@ -1,5 +1,98 @@
 # Providers
 
+To add a provider, or to see how a provider signs in on a joined server, read
+[Integrations and sign-in](integrations.md#add-a-provider).
+
+## Built-in tool discovery
+
+`agent/tool-catalog.ts` exposes seven direct tools and three discovery tools to every adapter.
+Claude uses its native question tool instead of `ask_user`. The direct tools are `ask_user`,
+`attach_files_to_response`, `list_agents`, `send_message`, `remember`, `forget_memory`, and
+`react_to_user_message`. External plugin registration stays with each provider adapter.
+
+`tool_search` uses local keyword matching. Exact names come first, then word matches, with stable
+catalog order for ties. It returns five results by default and at most ten. `tool_describe` returns
+the original schemas for up to ten qualified names, plus guidance from `agent/tool-guidance.ts`.
+Identical guidance appears once per response. The initial catalog lists names without schemas.
+
+`tool_call` accepts `{ name: "namespace.tool", arguments: { ... } }`. The router resolves only
+original built-in names. It preserves the request, thread, turn, and call identifiers and the abort
+signal, then enters the same dispatch as a direct call. Existing decoders, secure browser input,
+approval cards, image results, cancellation, and message idempotency remain at their existing owners.
+A discovery tool cannot call another discovery tool. Old direct calls still reach their handlers.
+
+The visible definitions are part of the existing tool configuration fingerprint. A catalog change
+uses the existing session replacement or resume path; it does not reset the agent or its visible
+conversation. Claude builds its SDK MCP server from the same visible definitions. ACP, Pi, and Muse
+receive them through the local MCP bridge.
+
+`agent/developer-instructions.ts` puts stable rules first, profile and workspace settings next,
+and memories last. Detailed browser, administration, routine, hosting, data, and visual guidance
+loads through `tool_describe`. Essential secret handling and untrusted-content rules stay in the
+permanent instructions. ACP and Muse still insert these shorter instructions on each normal turn.
+Retention after compaction is not assumed. Compaction thresholds are unchanged.
+
+The default synthetic fixture measures 11,541 instruction characters and 8,382 characters for the
+serialized visible tool definitions, including the 1,912-character catalog. This is 19,923
+characters, or about 4,981 tokens at four characters per token, compared with the earlier 101,602
+characters (about 25,401 tokens). It is an 80.4% reduction in default application text. Schemas and
+guidance loaded later add context and can add model steps. Provider prompts, external plugins,
+caching, billing, and native model serialization are outside this measurement.
+
+## History retrieval and replacement sessions
+
+A replacement provider session receives a handoff of at most 32,000 characters, including headers
+and message identifiers. The budget reserves 24,000 for recent messages, 4,000 for older excerpts,
+2,000 for captured work steps, and 2,000 for instructions and references. Unused space can hold more
+recent text. Large latest user and assistant messages keep their start and end. Excerpts are not
+semantic summaries. Handoff construction stops reading pages when its packet is full and does not
+start old provider processes to get work steps. Existing stored conversations and summaries remain.
+
+Two deferred tools recover omitted text without model calls for search or summarization:
+
+- `history_search` searches the calling conversation, with five results by default and ten maximum.
+  Each excerpt is at most 400 characters. Its serialized tool result is at most 8,000 characters.
+- `history_read` returns recent messages, a named message, or a page before a returned cursor.
+  It returns ten messages by default and twenty maximum, within a 16,000-character serialized result.
+  `nextOffset` continues a large message. With `includeWorkSteps`, `nextWorkStepsOffset` can be passed
+  as `workStepsOffset` to continue a large or heavily escaped capture. Captures contain selected work
+  steps, not raw provider reasoning or full tool results. Missing or corrupt captures do not block chat.
+
+New captures use `provider-work-steps/v2` and the unique database session ID. Two providers can
+use the same native session and turn IDs without sharing captures. Legacy capture files have no
+ownership record. They remain on disk while their sessions remain recorded, but are not served as
+history or handoff evidence. A new capture restores work-step access; saved chat text is unchanged.
+
+The router requires an exact native-thread binding and the loaded client. It never falls back to
+the personal conversation. Database reads check thread ownership and canonical conversation order.
+The latest context-reset marker excludes earlier messages. Cursors name a stored anchor and the
+current reset; supplied ordering values are not trusted. File reads are followed by another check
+of reset, message existence, and message content. Channel history continues through `channel_history`
+and its assignment checks. Messaging history stays within the current link's execution thread.
+
+Claude model and effort changes use its live setters at the next turn, without replacing the
+native session or restarting its query. Standing instruction or access changes retain the existing
+refresh path. No-op profile saves do not unload sessions. Logs count provider-session starts by
+reason and Claude configuration restarts, without conversation text.
+
+Memory refresh behavior remains unchanged. The Codex fake-provider test proves that updated
+instructions are sent on resume; it does not prove native model adoption. Claude prompt snapshots
+stay off so they cannot freeze changed profile or memory text.
+
+## Compaction ownership
+
+Codex and Muse complete explicit compaction through turn events. Pi completes it through the request
+response. Claude manages compaction natively. ACP and custom ACP expose no explicit compaction
+operation to the OpenBot scheduler. Unsupported or native-managed clients cannot reserve its queue
+for a no-op request. Request completion clears the hold and keeps the minimum-growth guard.
+
+Codex retains the 80% threshold based on its last reported token usage and context-window size.
+Cumulative account usage is not context occupancy. A missing report is not zero usage. No fixed
+200,000-token context window, per-turn model summary, or new automatic model call is added.
+
+The design uses Hermes's on-demand discovery, stable instruction ordering, and bounded local
+history recall as references. OpenBot retains each native provider's session and compaction rules.
+
 ## Provider CLI updates
 
 The runtime manager offers the latest upstream release of each provider CLI. It checks at startup,
@@ -144,7 +237,8 @@ failure as well as after a success.
 
 ## OpenCode and ACP
 
-`src/backend/acp-client.ts` owns ACP process transport, model discovery, session start/load,
+`src/backend/acp-connection.ts` owns ACP process transport. `acp-configuration.ts` owns
+configuration and model discovery. `src/backend/acp-client.ts` owns session start/load,
 streamed messages, permissions, tool bridging, and cancellation. `grok-client.ts` supplies xAI
 login and billing hooks. The OpenCode driver starts `opencode acp` on the runtime OpenBot pins and
 downloads, or on a CLI the user installed. Profile clients deny tool permissions.
@@ -201,17 +295,93 @@ The server has no `--version`, so staging writes `antigravity-package.json` and
 `PATH`, because the Antigravity editor installs an `antigravity` command that is not this server.
 
 Sign in is an ACP `authenticate` call with `oauth-personal`, in a separate process
-(`src/backend/acp-sign-in.ts`): the server opens the browser and waits, and a status probe must
-never wait for that. The serving client never calls `authenticate`. A signed-out server answers
-`session/new` with "Authentication required", which the client reports as sign-in required.
+(`src/backend/acp-sign-in.ts`). On Linux, OpenBot reads the Google sign-in link from the
+server and opens it with the desktop browser. The server browser launch is disabled for this
+process so the page opens once. A failed browser launch gives an actionable error; the OAuth
+link and browser error details are not logged. Other platforms let the server open the browser.
+A status probe must never call `authenticate`. The serving client does not call it.
+OpenBot checks authentication through model discovery (`session/new`), not the auth methods
+advertised by `initialize`. The runtime can answer "Authentication required", which OpenBot
+reports as sign-in required. In runtime 1.3.0, a saved OAuth method with no valid token can also
+start interactive authentication during `session/new`; this can leave the probe waiting until
+its existing deadline. Runtime installation alone does not confirm authentication.
+On Ubuntu 24.04, install a desktop browser and `xdg-utils` before sign-in. The Google
+callback uses `127.0.0.1` on the host, so complete sign-in in a desktop session on that same
+VM. A browser on another computer cannot complete this loopback callback. A server with no
+desktop can install and start Gemini, but cannot complete the interactive Google sign-in.
+
+The local Settings > Providers screen offers Connect for both a managed runtime and an
+external runtime. Gemini has no device-code flow, so a remote host signs it in on a page in its
+own browser. A Linux host advertises `provider-host-sign-in-v1` (Team API v7 only). Connect sends
+`start` to the host. The host runs the same sign-in as its own Connect, and opens the Google link
+from the CLI in a private tab of its browser. The client polls `status`, shows that tab through
+the live view (`browser-view`), and closes the dialog on the `result`. The Google callback goes to
+`127.0.0.1` on the host, so the host's browser completes it. No route carries the link or a
+credential, and every route requires an owner or admin. A host on another platform does not
+advertise the capability; open OpenBot in the host's desktop session to connect it there. A runtime status of "Runtime installed" means only that the files are
+available; "Connected" requires a successful provider check. A known authentication or launch
+error takes priority over runtime readiness.
+
+#### Download and external runtime recovery
+
+Issue #1776 reports an HTTP 404 for the official 1.3.0 Linux archive from an OVH IPv6 pool,
+and HTTP 200 over IPv4. This cause is not confirmed: checks from another host on 2026-10-10
+returned HTTP 200 over both families. An HTTP failure occurs before archive extraction or
+ACP startup; it is separate from browser sign-in and missing runtime files. OpenBot keeps
+the download error and Retry action and does not change the host's network settings.
+
+For an affected host, an operator can compare bounded requests to the exact failing URL
+with `curl --ipv4 --head --connect-timeout 10 --max-time 30 <url>` and the corresponding
+`--ipv6` command. If IPv4 works, download that same official archive with
+`curl --ipv4 --fail --connect-timeout 10 --max-time 300 --output <new-archive-path> <url>`.
+Verify the archive against a trusted release checksum before extraction. This affects only
+that request. Do not disable IPv6. The report's claimed `::1` kernel requirement was not
+confirmed in the ACP Python source; a native harness requirement remains unverified.
+
+An external installation must preserve this layout (1.3.0 is an example):
+
+```text
+/var/lib/openbot/antigravity-acp-1.3.0/
+  antigravity-package.json    {"version":"1.3.0"}
+  bin/
+    agy_acp_server.par
+    localharness_external
+```
+
+Both programs must be executable by the OpenBot host user. Set
+`OPENBOT_ANTIGRAVITY_PATH=/var/lib/openbot/antigravity-acp-1.3.0/bin/agy_acp_server.par`
+in that process's environment and restart OpenBot. The variable names the executable, not
+the directory. OpenBot requires the version manifest two levels above it; extraction alone
+does not create that manifest. An invalid override remains an error: OpenBot does not replace
+it with the managed runtime. Managed updates do not change the explicit override.
+
 The server runs confined; `antigravityStatePaths` gives it `~/.gemini/antigravity-acp` and
 `~/.gemini/artifacts` and protects its settings files. Migration 22 adds `antigravity` to
 `projection_provider_sessions`.
 
+The server has no usage reading, so the descriptor sets `reportsUsage: false`: the usage poll does
+not start Gemini, the dock says usage is not reported, and a limit failure is shown as a turn error
+instead of waiting for a usage notice. `GEMINI_REQUEST_FAILURES` in `src/backend/acp-client.ts`
+names a rate limit or quota, an unavailable model, and a service failure from Google's status
+text. Antigravity does not document these texts.
+
+Antigravity 1.3.0 keeps `session/prompt` open until its harness reports
+`STATE_FULLY_IDLE`. A background task can thus keep a turn open after answer text
+arrives. The adapter streams that text at once. A later tool or thought changes
+the same message to commentary. It does not use a quiet period or a usage update
+as proof that the turn ended.
+
+Stop sends `session/cancel`, ends the local turn, and saves unfinished tool calls
+as interrupted. Before the next message, `session/resume` rebuilds the harness
+with the same session ID and saved history. A failed restore keeps that session
+available for another attempt. This does not change Antigravity's task database
+or provide early turn completion while its background tasks continue to run.
+
 Team API v1–v4 do not know `antigravity`. The host hides Gemini agents, models, status, and
 sign-in state from peers on those versions, and the `providers-v1` routes omit it. Team API v5
 carries Gemini, and the `providers-v2` runtime routes let an owner or admin download or cancel the
-host's Gemini runtime. Gemini signs in through a browser on the host, so no peer route signs it in.
+host's Gemini runtime. Gemini signs in through a browser on the host. The `provider-host-sign-in-v1`
+routes let an owner or admin start that sign-in and see the page through the live view.
 
 ### Cursor
 
@@ -339,3 +509,95 @@ skips their executable version checks. Turning a provider on checks it again.
 the change while an agent uses the provider. New model assignments use the same lock.
 The switch is local IPC only; released Team API adapters stay unchanged. Remote
 clients receive the host's filtered model list.
+
+
+## Provider settings and the ACP registry
+
+`AgentClient` remains the provider boundary. ACP session ownership, history replay, and turn
+completion stay together. Boolean and select settings can include grouped choices. The client
+processes configuration notifications while idle. Model and reasoning continue to use their
+existing fields. Permission, access, and approval settings remain under OpenBot controls.
+
+Additional overrides are stored in validated agent JSON, by provider identity. A custom ACP
+identity includes its custom agent ID. Saved overrides are separate from the current descriptors
+and effective values. Missing choices remain saved and have a reset action. Changes made during
+a turn apply before the next turn. Reset has a durable refresh marker, so restart cannot restore
+the old provider value. No SQL migration is required.
+
+The ACP registry uses `https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json`.
+Registry installation records are separate from saved custom-agent configuration. Native and npm
+distributions use staged installation and published integrity data. A `uvx` entry requires `uvx`
+on the host. An ACP initialization check runs before activation. Failed or cancelled preparation
+keeps the previous command. Removal stops the idle ACP runtime and removes managed files only;
+it keeps saved agent IDs, settings, secrets, workspaces, and conversations. Manual commands remain
+available. Installation always targets the selected host.
+
+## Pi
+
+Pi uses its native `--mode rpc` interface. It does not use an ACP wrapper. Requests have IDs;
+`agent_settled` completes a turn. A successful `prompt` response only accepts the prompt. Cancellation
+clears queued work before abort. Session paths and the active conversation branch are preserved.
+Models come from the running CLI. A small extension uses Pi's `registerMcpServer` interface to
+register configured MCP servers and OpenBot tools. Secrets are supplied through process state,
+not copied into the extension source.
+
+Managed Pi archives come from official GitHub releases and use the published SHA-256 digest.
+Sign-in opens Pi in a host terminal. Close Pi after sign-in to refresh models in OpenBot.
+Remote clients must complete sign-in on the host. There is no separate Pi account screen.
+
+## Muse
+
+Muse uses the official `@muse-code/sdk` to run `muse serve` over MSP. The SDK is pinned to `1.4.2`;
+newer SDK versions must meet the three-day dependency rule before adoption. The native integration
+supplies `sessionMcp`, preserves native session identity, and reads durable items to recover missed
+events before completion. A cached model list does not prove authentication. Setup can run CLI
+login; an explicit Meta API key uses OpenBot's encrypted credential store.
+
+Muse profile generation fails before the CLI starts. The pinned native host still starts inherited
+MCP servers with `--disable-shell`, `--disable-write`, empty hooks, and session `mcpServers: {}`.
+It cannot meet the tool-free profile requirement. Generate the profile with another provider,
+then select Muse for the agent. The local echo test and synthetic MCP marker record this limit in
+`.openbot-build/muse-check/profile-mcp.mjs` and `profile-mcp-report.json`; this is not a live model
+authentication test.
+
+Managed Muse downloads use the official stable-channel manifest and artifact SHA-256 values.
+The CLI remains an optional download, outside the OpenBot package. OpenBot does not overwrite
+provider account files or run upstream self-updaters against managed installations. Both Pi and
+Muse use the existing process confinement boundary. Workspace-only mode fails closed on hosts
+without confinement support.
+
+## Protocol compatibility
+
+Team API v7 adds Pi and Muse provider values. Released v1–v6 adapters remain unchanged. Older
+clients do not receive providers they cannot decode. Custom agents already named `pi` or `muse`
+remain valid; the names are reserved only for new custom-agent creation.
+
+Optional `providers-v5` routes include the new runtimes and write-only provider keys.
+`agent-session-settings-v1` adds read, set, reset, and an agent-ID-only invalidation event.
+`acp-registry-v1` adds registry administration. Each administrative route checks the host role;
+clients hide unsupported controls. MCP-over-ACP transport is outside this change.
+
+## Local context indication
+
+The desktop uses the shared context design from PR #1786. Optional `contextStates` on the local
+runtime snapshot carries numeric context use and the latest compaction state. Released Team
+adapters omit this field. Remote web and mobile clients retain their current contracts.
+
+The snapshot includes only active personal provider sessions. Reset, session replacement and
+provider changes remove the old indication. A provider change publishes a runtime snapshot before
+the next turn, so retired counts do not remain on screen. Execution-thread data does not enter
+personal chat.
+Codex uses `tokenUsage.last.totalTokens` and its reported `modelContextWindow`. Claude reads the
+SDK `getContextUsage({ detail: "summary" })` result after a turn. This uses the previous response
+and local estimates; it avoids full per-category token-count requests. The read runs outside the
+stream consumer, has a two-second deadline, and cannot block the next turn. Old or unsupported
+reports stay absent. Claude counts carry an estimate flag, which the context ring and popover
+display. Native `status` and `compact_boundary` events drive Claude's compaction notice. Claude's
+`post_tokens` counts messages without the system prompt and tools, so its compaction marker omits
+the token comparison. Later local estimates do not restore that comparison.
+
+The progress percentage is an estimate based on elapsed time and the preceding compaction duration
+in this process. It never proves completion. Terminal provider events control success and failure.
+The latest marker and timing are runtime state, not new saved conversation messages. A provider
+summary is not copied into this state. The UI can render a breakdown or manual action, but this
+connection supplies neither: it adds no manual-compaction endpoint and makes no extra model turn.

@@ -7,6 +7,7 @@ import type {
   MarketplaceSkillDetail,
   MarketplaceSkillSummary,
   McpServerConfig,
+  McpSignInRelayPage,
 } from "@openbot/contracts/ipc";
 import { mcpConfigErrors } from "@openbot/contracts/ipc";
 import { createPluginShareUrl } from "@openbot/contracts/plugin-links";
@@ -30,12 +31,13 @@ import {
 import type { McpConnectFlow } from "@openbot/ui/features/settings/mcp-connect-auth";
 import type { PluginUninstallPlan } from "@openbot/ui/features/settings/PluginUninstallDialog";
 import { useText } from "@openbot/ui/text";
+import { errorReference } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onCleanup, untrack } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
 import { writeClipboardText } from "../../clipboard";
 import { type GitHubConnectorController, githubPanelProps } from "../connectors/github-connector";
 import { type OnePasswordConnectorController, onePasswordPanelProps } from "../connectors/onepassword-connector";
-import { desktopMarketplaceCalls, type MarketplaceCalls } from "./marketplace-calls";
+import { desktopMarketplaceCalls, type MarketplaceCalls, type MarketplaceSignInRelay } from "./marketplace-calls";
 import { createPluginAppConfig } from "./marketplace-plugin-catalog";
 import { localizedPlugin } from "./marketplace-plugin-text";
 import { agentHomeCache, marketplaceErrorMessage, skillHomeCache } from "./marketplace-shared";
@@ -60,6 +62,8 @@ export interface MarketplaceControllerProps {
   pluginServerId?: string | undefined;
   /** The joined server that keeps an app's credential. Absent when this computer keeps it. */
   pluginHostName?: string | undefined;
+  /** The joined server in `pluginServerId` relays its sign-ins to this computer (`sign-in-relay-v1`). */
+  pluginSignInRelay?: boolean | undefined;
   /** The joined server whose agents `agents` lists, when this account manages it. Absent: this computer. */
   hostServerId?: string | undefined;
   /** The joined server that a marketplace agent is added to. Absent: this computer. */
@@ -83,6 +87,15 @@ export interface PendingConnect {
   settle: (config: McpServerConfig | null) => void;
 }
 
+/** How often the page of a relayed sign-in is read while it waits. */
+const SIGN_IN_RELAY_POLL_MS = 1_000;
+
+/** The relayed sign-in of one app while it waits. */
+export interface MarketplaceSignInRelayState {
+  url: string;
+  page: McpSignInRelayPage;
+}
+
 /** An agent that the Marketplace added or updated while it was open. "Open chat" opens it. */
 interface AddedRecord {
   agent: AddedAgent;
@@ -99,7 +112,13 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
   const calls = () => props.calls ?? desktopMarketplaceCalls();
   const skillCalls = () => calls().agentSkills(props.hostServerId);
 
-  const [error, setError] = createSignal<string | null>(null);
+  const [error, setErrorText] = createSignal<string | null>(null);
+  const [errorCode, setErrorCode] = createSignal<string | null>(null);
+  /** Shows `message`, with the code of `cause` when a failure gave one. */
+  const setError = (message: string | null, cause?: unknown) => {
+    setErrorText(message);
+    setErrorCode(cause === undefined ? null : errorReference(cause));
+  };
   const [notice, setNotice] = createSignal("");
   /** The actions in flight: `agent:<listing>`, `skill:<skill>` and `app:<app id>`. */
   const [busy, setBusy] = createStore<Record<string, true>>({});
@@ -114,7 +133,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     try {
       return await work();
     } catch (cause) {
-      setError(marketplaceErrorMessage(cause));
+      setError(marketplaceErrorMessage(cause), cause);
       return undefined;
     }
   }
@@ -225,7 +244,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
       setSkills((draft) => {
         draft.read[agentId] = "failed";
       });
-      setError(marketplaceErrorMessage(cause));
+      setError(marketplaceErrorMessage(cause), cause);
     }
   }
 
@@ -269,6 +288,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     setError(null);
     const failed: string[] = [];
     let reason = "";
+    let lastCause: unknown;
     for (const agentId of agentIds) {
       const action = on ? (installedSkill(agentId, skill.id) ? "update" : "install") : "uninstall";
       const analytics = desktopAnalytics.scope();
@@ -284,6 +304,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
       } catch (cause) {
         failed.push(agentName(agentId));
         reason = marketplaceErrorMessage(cause);
+        lastCause = cause;
         analytics.track("marketplace_action", {
           entity: "skill",
           action,
@@ -303,9 +324,12 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
           count: changed,
         }),
       );
-    if (failed.length === 1 && agentIds.length === 1) setError(reason);
+    if (failed.length === 1 && agentIds.length === 1) setError(reason, lastCause);
     else if (failed.length > 0)
-      setError(t("marketplace.error.skillPartial", { name: skill.name, agents: format.list(failed), reason }));
+      setError(
+        t("marketplace.error.skillPartial", { name: skill.name, agents: format.list(failed), reason }),
+        lastCause,
+      );
   }
 
   async function loadSkill(id: string) {
@@ -485,11 +509,70 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     return calls().mcp.testMcpServer({ config }, serverId);
   }
 
-  /** A browser sign-in for a "link" listing: opens the browser when the server asks for one. */
+  /** The relay of a joined server, when both sides can relay a sign-in. */
+  const signInRelay = () => (props.pluginSignInRelay ? calls().signInRelay : undefined);
+  const [relayed, setRelayed] = createSignal<MarketplaceSignInRelayState | null>(null);
+
+  /**
+   * A browser sign-in for a "link" listing: opens the browser when the server asks for one. A joined
+   * server that relays opens the page in this computer's browser; the paste field shows while it waits.
+   */
   async function signInPluginApp(config: McpServerConfig) {
     const serverId = props.pluginServerId;
     if (!serverId) throw new Error(t("marketplace.error.connectNoServer"));
-    return calls().mcp.signInMcpServer({ config }, serverId);
+    const relay = signInRelay();
+    let waiting = true;
+    const signIn = calls().mcp.signInMcpServer({ config }, serverId);
+    if (relay) void followSignInRelay(relay, config.url, serverId, () => waiting);
+    return signIn.finally(() => {
+      waiting = false;
+    });
+  }
+
+  async function followSignInRelay(
+    relay: MarketplaceSignInRelay,
+    url: string,
+    serverId: string,
+    waiting: () => boolean,
+  ): Promise<void> {
+    try {
+      while (waiting()) {
+        const page = await relay.page(url, serverId).catch(() => null);
+        if (!waiting()) return;
+        const current = relayed();
+        if (current?.page.authorizeHost !== page?.authorizeHost || current?.page.listening !== page?.listening)
+          setRelayed(page ? { url, page } : null);
+        await new Promise((resolve) => setTimeout(resolve, SIGN_IN_RELAY_POLL_MS));
+      }
+    } finally {
+      setRelayed(null);
+    }
+  }
+
+  /** Opens the relayed sign-in page in this computer's browser, after the user checked its host name. */
+  async function openSignInRelay(): Promise<void> {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (!relay || !current || !serverId) throw new Error(t("error.mcp.relayEnded"));
+    await relay.open(current.url, serverId);
+  }
+
+  /** The address the browser shows at the end of a relayed sign-in. Main sends only its query to the host. */
+  async function pasteSignInRelay(address: string): Promise<void> {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (!relay || !current || !serverId) throw new Error(t("error.mcp.relayEnded"));
+    await relay.paste(current.url, address, serverId);
+  }
+
+  /** Ends the relayed sign-in on the host; the waiting connect step then reports it as stopped. */
+  function cancelSignInRelay(): void {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (relay && current && serverId) void relay.cancel(current.url, serverId).catch(() => undefined);
   }
 
   /** Takes back only what this attempt installed. A skill the agent already had is the user's. */
@@ -519,8 +602,12 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     }
     /* A browser sign-in saves its grant on the computer that finishes it, and a local server
        answers only on the computer that runs it, so an app that asks for either is installed on
-       the host itself. */
-    const hostOnly = plugin.apps.find((app) => ["link", "local"].includes(app.server.auth?.[0]?.kind ?? ""));
+       the host itself. A host that relays its sign-ins finishes a browser sign-in in this
+       computer's browser and keeps the grant itself. */
+    const hostOnly = plugin.apps.find((app) => {
+      const kind = app.server.auth?.[0]?.kind ?? "";
+      return kind === "local" || (kind === "link" && !signInRelay());
+    });
     if (props.hostServerId && hostOnly) {
       const key =
         hostOnly.server.auth?.[0]?.kind === "local"
@@ -610,6 +697,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     setError(null);
     const analytics = desktopAnalytics.scope();
     const failures: string[] = [];
+    let lastCause: unknown;
     for (const app of plugin.apps) {
       const config = heldApp(app);
       if (!config) continue;
@@ -617,6 +705,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
         setServers(await calls().mcp.removeMcpServer({ mcpServerId: config.id }, serverId));
       } catch (cause) {
         failures.push(`${app.name}: ${marketplaceErrorMessage(cause)}`);
+        lastCause = cause;
       }
     }
     if (agentId) {
@@ -626,6 +715,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
           await skillCalls().uninstall({ agentId, skillId: skill.id });
         } catch (cause) {
           failures.push(`${skill.slug}: ${marketplaceErrorMessage(cause)}`);
+          lastCause = cause;
         }
       }
     }
@@ -643,7 +733,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     if (agentId && plugin.skills.length > 0) await readInstalled(agentId);
     mark(key, false);
     if (failures.length > 0)
-      setError(t("marketplace.error.uninstallPartial", { name: plugin.name, failures: failures.join(" ") }));
+      setError(t("marketplace.error.uninstallPartial", { name: plugin.name, failures: failures.join(" ") }), lastCause);
     else setNotice(t("marketplace.notice.appDisconnected", { name: plugin.name }));
   }
 
@@ -666,14 +756,14 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     if (!safe) return;
     void calls()
       .openUrl(safe)
-      .catch(() => setError(t("marketplace.error.openLink")));
+      .catch((cause) => setError(t("marketplace.error.openLink"), cause));
   }
 
   /* The address is built from the slug rather than read from `shareUrl`, so what is copied is what the route answers. */
   function copyLink(slug: string) {
     void Promise.resolve()
       .then(() => writeClipboardText(createPluginShareUrl(slug)))
-      .catch(() => setError(t("marketplace.error.copyLink")));
+      .catch((cause) => setError(t("marketplace.error.copyLink"), cause));
   }
 
   /* The connect step and the confirmation are siblings of the window. Closing the window stops them. */
@@ -758,6 +848,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     },
 
     error,
+    errorReference: errorCode,
     clearError: () => setError(null),
     notice,
   };
@@ -773,6 +864,10 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     cancelUninstall: () => setUninstalling(null),
     testPluginApp,
     signInPluginApp,
+    signInRelayed: relayed,
+    openSignInRelay,
+    pasteSignInRelay,
+    cancelSignInRelay,
     openPluginUrl,
   };
 }

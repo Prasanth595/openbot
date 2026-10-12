@@ -1,3 +1,4 @@
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type CauseCode, classifyFailure, type FailureProperties } from "@openbot/telemetry";
 import { useQueryClient } from "@tanstack/react-query";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
@@ -16,14 +17,17 @@ import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { MobileConversationAnalytics } from "@/features/analytics/conversation";
 import { reportMobileNotification } from "@/features/analytics/failure-reports";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
+import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
+import { channelRecipient } from "@/features/channels/model/channel-draft";
 import { ChatComposer, VOICE_BUTTON_SIZE } from "@/features/chat/components/chat-composer";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
 import { ChatHeader } from "@/features/chat/components/chat-header";
 import { ChatMessageList } from "@/features/chat/components/chat-message-list";
-import { type ChatAttachment, useChatAttachments } from "@/features/chat/components/use-chat-attachments";
+import { useChatAttachments } from "@/features/chat/components/use-chat-attachments";
 import { useChatMotion } from "@/features/chat/components/use-chat-motion";
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import { type ChatBubbleMessage, useMessageActions } from "@/features/chat/context/message-actions-context";
+import { useOutbox } from "@/features/chat/context/outbox-context";
 import { usePublishedQueuedChat } from "@/features/chat/context/queued-messages-context";
 import { type ChatMessage, type PendingChatMessage, presentChatMessages } from "@/features/chat/model/chat-messages";
 import { ConnectionStatus } from "@/features/workspace/components/connection-status";
@@ -31,20 +35,23 @@ import { useBrowserRequests } from "@/features/workspace/components/use-live-wor
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgentActivity } from "@/features/workspace/model/agent-activity";
+import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
 import { haptics } from "@/shared/lib/haptics";
 import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
 import { mentionDraft } from "../model/chat-mentions";
-import type { ChatHistoryReceipt } from "../model/chat-messages";
 import type { ChatTarget } from "../model/chat-target";
 import { takeComposerFocus, takeComposerRequest, useComposerRequest } from "../model/composer-requests";
+import { type OutboxMessage, outboxChatKey, outboxChatMessage, outboxRowId, outboxTargetKey } from "../model/outbox";
+import type { OutboxDraft, OutboxStore } from "../model/outbox-store";
 import { queueReceiptMessages } from "../model/queue-edit-draft";
 import { retainConfirmedAttachments } from "../model/upload-chat-attachments";
 import { voiceAccent, voicePalette } from "../model/voice-palette";
 import { rememberImageDimensions } from "./attachment-preview";
-import { BrowserSecretCard } from "./browser-secret-card";
+import { asksForSecret, BrowserSecretComposer, BrowserTakeoverCard } from "./browser-secret-card";
 import { ChatAttachmentPanel } from "./chat-attachment-panel";
+import type { OutboxRowStatus } from "./chat-outbox-status";
 import { ChatQueueButton } from "./chat-queue-button";
 import type { ChatQueueController } from "./use-chat-queue";
 import { useVoiceMode } from "./use-voice-mode";
@@ -59,6 +66,7 @@ export interface ChatViewProps {
   referenceMessages: ChatMessage[];
   ready: boolean;
   historyLoadFailed: boolean;
+  /** Whether the person can write here. A message waits on this phone while the server is offline. */
   canSend: boolean;
   readOnly?: boolean;
   activity?: MobileAgentActivity;
@@ -68,6 +76,8 @@ export interface ChatViewProps {
   stopTurn?: (turnId: string) => Promise<void>;
   questionForm?: QuestionPromptController;
   onSelectQuestion?: (messageId: string) => void;
+  /** The approvals of this chat's agents, from the caller that knows which thread is this chat's. */
+  approvals?: readonly PendingApproval[];
   readBoundary: string | null;
   markRead: () => void;
   fetchHistory: () => void;
@@ -75,21 +85,27 @@ export interface ChatViewProps {
   olderLoading: boolean;
   olderError: boolean;
   loadOlder: () => void;
-  send: (
-    body: string,
-    files: ChatAttachment[],
-    replyToMessageId: string | null,
-    upload?: {
-      cancelled: () => boolean;
-      progress: (completed: number) => void;
-      fileProgress: (fraction: number) => void;
-    },
-  ) => Promise<string | null | ChatHistoryReceipt>;
   needsAction?: boolean;
   notice?: string;
 }
 
 const CHAT_BACK_EDGE_WIDTH = 24;
+/** A host starts a turn within a second or two; this only ends a wait for a turn that never shows. */
+const AWAIT_TURN_MS = 10_000;
+
+// One row object per outbox message state, so a list row draws again only when its message changes.
+const outboxRows = new WeakMap<OutboxMessage, ChatBubbleMessage>();
+
+function outboxRow(outbox: OutboxStore, message: OutboxMessage): ChatBubbleMessage {
+  let row = outboxRows.get(message);
+  if (!row) {
+    // The row draws these images before the host knows them, at their real shape.
+    for (const file of message.files) if (file.dimensions) rememberImageDimensions(file.id, file.dimensions);
+    row = outboxChatMessage(message, (file) => outbox.previewUri(message, file));
+    outboxRows.set(message, row);
+  }
+  return row;
+}
 
 function leaveConversation(): void {
   void KeyboardController.dismiss();
@@ -114,6 +130,7 @@ export function ChatView({
   stopTurn,
   questionForm,
   onSelectQuestion,
+  approvals,
   readBoundary,
   markRead,
   fetchHistory,
@@ -121,13 +138,23 @@ export function ChatView({
   olderLoading,
   olderError,
   loadOlder,
-  send,
   needsAction = false,
   notice,
 }: ChatViewProps) {
   const { t, errorMessage } = useText();
-  const { respondToBrowserSecret, respondToBrowserTakeover, attachmentSupport } = useMobileWorkspace();
+  const { respondToApproval, respondToBrowserSecret, respondToBrowserTakeover, attachmentSupport, browserViewSupport } =
+    useMobileWorkspace();
   const browserRequests = useBrowserRequests(target.serverId);
+  const chatBrowserRequests = useMemo(
+    () =>
+      browserRequests.filter((request) =>
+        target.kind === "agent"
+          ? request.agentId === target.id
+          : target.members.some((member) => member.id === request.agentId),
+      ),
+    [browserRequests, target],
+  );
+  const browserAllowed = useBrowserFeature();
   const isFocused = useIsFocused();
   const foregroundVisit = useAppForeground();
   const [conversationAnalytics] = useState(() => new MobileConversationAnalytics(mobileAnalytics));
@@ -165,39 +192,36 @@ export function ChatView({
     reportedError.current = sendError;
     reportMobileNotification({ code: sendError.cause }, "turn", "banner", sendError.context);
   }, [isFocused, sendError, target.id]);
-  const [sending, setSending] = useState(false);
-  const [historyReceipt, setHistoryReceipt] = useState<ChatHistoryReceipt | null>(null);
   const [refreshingHistory, setRefreshingHistory] = useState(false);
   const [sendRetryVersion, setSendRetryVersion] = useState(0);
-  const sendingRef = useRef(false);
-  const uploadCancelled = useRef(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  // The sent fraction of the file uploading now. The peer reports it once per whole percent.
-  const [fileProgress, setFileProgress] = useState(0);
-  const [uploadCancelRequested, setUploadCancelRequested] = useState(false);
-  const [pendingInQueue, setPendingInQueue] = useState(false);
   const queryClient = useQueryClient();
   const composerAttachments = useChatAttachments([], undefined, () => attachmentSupport(target.serverId));
   const attachments = composerAttachments;
-  const submittedFiles = useRef<ChatAttachment[]>([]);
-  const [pendingMessage, setPendingMessage] = useState<PendingChatMessage | null>(null);
   const [messageAliases, setMessageAliases] = useState<ReadonlyMap<string, string>>(new Map());
-  const sendSequence = useRef(0);
   const [showStarter, setShowStarter] = useState(true);
-  const { servers } = useMobileWorkspace();
+  const { servers, channelStore } = useMobileWorkspace();
+  // The messages of this chat that the host has not drawn yet. They wait for the connection, in order.
+  const { store: outbox, snapshot: outboxSnapshot } = useOutbox();
+  const outboxKey = outboxChatKey(target);
+  const outboxMessages = useMemo(
+    () => outboxSnapshot.messages.filter((message) => outboxTargetKey(message.target) === outboxKey),
+    [outboxSnapshot.messages, outboxKey],
+  );
+  const sendingMessage = outboxMessages.find((message) => message.state === "sending") ?? null;
+  const sendingUpload = sendingMessage ? outboxSnapshot.uploads.get(sendingMessage.clientMessageId) : undefined;
+  // While the agent works, the host queues a sent message: the queue sheet shows it, not the chat.
+  const sendsToQueue = Boolean(queue && (activeTurnId || queue.queued.length || queue.replies.length));
   const queuePending = useMemo(
     () =>
-      pendingInQueue && sending && pendingMessage
+      sendsToQueue && sendingMessage
         ? {
-            message: pendingMessage.message,
-            progress: uploadProgress,
-            total: submittedFiles.current.length,
-            cancel: () => {
-              uploadCancelled.current = true;
-            },
+            message: outboxRow(outbox, sendingMessage),
+            progress: sendingUpload?.completed ?? 0,
+            total: sendingMessage.files.length,
+            cancel: () => outbox.cancelUpload(sendingMessage.clientMessageId),
           }
         : null,
-    [pendingInQueue, sending, pendingMessage, uploadProgress],
+    [sendsToQueue, sendingMessage, sendingUpload?.completed, outbox],
   );
   usePublishedQueuedChat(queue?.chatId ?? `${target.serverId}:${target.id}`, queue ?? null, queuePending);
   const queuedMessageIds = useMemo(
@@ -210,33 +234,85 @@ export function ChatView({
       ),
     [queue?.deliveries],
   );
+  // The host rows drawn when the request that stores a message started. Rows that arrive before its
+  // receipt wait for it: one of them can be the same message. An upload stores nothing yet.
+  const sendBaselines = useRef(new Map<string, ReadonlySet<string>>());
+  if (
+    sendingMessage &&
+    outboxSnapshot.storing.has(sendingMessage.clientMessageId) &&
+    !sendBaselines.current.has(sendingMessage.clientMessageId)
+  )
+    sendBaselines.current.set(sendingMessage.clientMessageId, new Set(projectedMessages.map((message) => message.id)));
+  // A message sent while the agent works stays in the queue sheet until the chat draws the host row.
+  const queueSends = useRef(new Set<string>());
+  if (sendingMessage && sendsToQueue) queueSends.current.add(sendingMessage.clientMessageId);
+  const pendingMessages = useMemo(
+    () =>
+      outboxMessages.flatMap((message): PendingChatMessage[] =>
+        (message.state === "sending" && sendsToQueue) ||
+        (message.state === "sent" && queueSends.current.has(message.clientMessageId)) ||
+        (message.messageId !== null && queuedMessageIds.has(message.messageId)) ||
+        // The host stored it, and the notice above the composer asks for the history that shows it.
+        message.historyPending
+          ? []
+          : [
+              {
+                message: outboxRow(outbox, message),
+                baseline: outboxSnapshot.storing.has(message.clientMessageId)
+                  ? (sendBaselines.current.get(message.clientMessageId) ?? null)
+                  : null,
+                serverId: message.messageId,
+              },
+            ],
+      ),
+    [outboxMessages, outboxSnapshot.storing, sendsToQueue, queuedMessageIds, outbox],
+  );
   const messages = useMemo(
     () =>
       presentChatMessages(
         projectedMessages.filter((item) => !queuedMessageIds.has(item.id)),
-        pendingInQueue || (pendingMessage?.serverId && queuedMessageIds.has(pendingMessage.serverId))
-          ? null
-          : pendingMessage,
+        pendingMessages,
         messageAliases,
       ),
-    [projectedMessages, pendingMessage, pendingInQueue, messageAliases, queuedMessageIds],
+    [projectedMessages, pendingMessages, messageAliases, queuedMessageIds],
   );
   useEffect(() => {
-    if (!pendingMessage?.serverId) return;
-    if (
-      retainConfirmedAttachments(
-        [...projectedMessages, ...queueReceiptMessages(queue?.deliveries ?? [])],
-        pendingMessage.serverId,
-        submittedFiles.current,
-        (id, file) => {
-          queryClient.setQueryData(["chat-attachment", target.serverId, id], file);
-        },
-      )
-    ) {
-      submittedFiles.current = [];
-      setPendingMessage(null);
-    }
-  }, [pendingMessage, projectedMessages, queue?.deliveries, queryClient, target.serverId]);
+    for (const id of sendBaselines.current.keys())
+      if (!outboxSnapshot.storing.has(id)) sendBaselines.current.delete(id);
+    for (const id of queueSends.current)
+      if (!outboxMessages.some((message) => message.clientMessageId === id)) queueSends.current.delete(id);
+    // Replies and the list key keep the local row after the host names the message.
+    const received = outboxMessages.filter((message) => message.messageId !== null);
+    if (received.some((message) => message.messageId !== null && !messageAliases.has(message.messageId)))
+      setMessageAliases((current) => {
+        const next = new Map(current);
+        for (const message of received) if (message.messageId) next.set(message.messageId, outboxRowId(message));
+        return next;
+      });
+    const drawn = [...projectedMessages, ...queueReceiptMessages(queue?.deliveries ?? [])];
+    const settled = received.filter(
+      (message) =>
+        message.messageId !== null &&
+        retainConfirmedAttachments(
+          drawn,
+          message.messageId,
+          [...outbox.filesInMemory(message.clientMessageId)],
+          (id, file) => {
+            queryClient.setQueryData(["chat-attachment", target.serverId, id], file);
+          },
+        ),
+    );
+    if (settled.length) outbox.settle(settled.map((message) => message.clientMessageId));
+  }, [
+    outboxMessages,
+    outboxSnapshot.storing,
+    messageAliases,
+    projectedMessages,
+    queue?.deliveries,
+    outbox,
+    queryClient,
+    target.serverId,
+  ]);
   // The composer answers only after the person chooses it in the form. A private answer has its
   // own masked field in the form, never the composer.
   const answersQuestion = Boolean(
@@ -263,6 +339,38 @@ export function ChatView({
   }, [isFocused, composerFocus, target.kind, target.serverId, target.id]);
   const lastUserId =
     messages.findLast((message) => message.kind === "message" && message.author === "user")?.id ?? null;
+  // The host accepted a message to an idle agent, and nothing shows its turn yet. Turn events can
+  // arrive after the read that holds the reply, so the activity row waits for the turn, the reply or
+  // a failure in the conversation. The deadline only ends a turn that never shows.
+  const [awaitingTurn, setAwaitingTurn] = useState(false);
+  const tailUserIndex = messages.findLastIndex((message) => message.kind === "message" && message.author === "user");
+  const tailUser = messages[tailUserIndex];
+  const turnShown =
+    Boolean(activity || activeTurnId) ||
+    tailUserIndex < messages.length - 1 ||
+    (tailUser?.kind === "message" && tailUser.status === "failed");
+  useEffect(() => {
+    if (awaitingTurn && turnShown) setAwaitingTurn(false);
+  }, [awaitingTurn, turnShown]);
+  useEffect(() => {
+    if (!awaitingTurn) return;
+    const timer = setTimeout(() => setAwaitingTurn(false), AWAIT_TURN_MS);
+    return () => clearTimeout(timer);
+  }, [awaitingTurn]);
+  // Each receipt starts the wait once. A message that the host queues behind a turn has its own row.
+  const awaitedReceipts = useRef(new Set<string>());
+  useEffect(() => {
+    if (target.kind !== "agent") return;
+    for (const message of outboxMessages)
+      if (
+        message.messageId !== null &&
+        !queueSends.current.has(message.clientMessageId) &&
+        !awaitedReceipts.current.has(message.clientMessageId)
+      ) {
+        awaitedReceipts.current.add(message.clientMessageId);
+        setAwaitingTurn(true);
+      }
+  }, [outboxMessages, target.kind]);
   const motion = useChatMotion(
     insets.top + 84,
     keyboardOffset,
@@ -279,10 +387,17 @@ export function ChatView({
   const voice = useVoiceMode({
     enabled: isFocused && serverOnline && canSend && !readOnly,
     focused: isFocused,
-    sendable: serverOnline && canSend && !sending && !pendingMessage,
+    sendable: serverOnline && canSend,
     onSend: sendMessage,
   });
+  // Not gated on `appActive`. Notification Center and other system overlays make iOS report the app
+  // inactive, and a request must stay with its typed value. It goes when the app leaves.
+  const showBrowserRequests = serverOnline && foregroundVisit && isFocused && !readOnly;
   const voiceOpen = voice.stage !== "closed";
+  // A password or a code is typed where the composer is, so the screen has one field. The voice
+  // mode and the attachment card keep the composer until they close. Other secret requests wait.
+  const secretRequest =
+    showBrowserRequests && !voiceOpen && !attachments.menuOpen ? chatBrowserRequests.find(asksForSecret) : undefined;
   const dark = useColorScheme() === "dark";
   // The glow and the filled voice controls take the agent's own colour. A
   // channel mixes the colours of its first members.
@@ -330,8 +445,8 @@ export function ChatView({
   // Opening a chat reads it, as on desktop. After the user scrolls away, only the latest message in view reads it.
   const seesLatest = atLatest || (motion.historyVisible && !motion.userScrolled);
   useEffect(() => {
-    if (!pendingMessage && isFocused && appActive && seesLatest && serverOnline && readBoundary) markRead();
-  }, [pendingMessage, isFocused, appActive, seesLatest, serverOnline, readBoundary, markRead]);
+    if (!sendingMessage && isFocused && appActive && seesLatest && serverOnline && readBoundary) markRead();
+  }, [sendingMessage, isFocused, appActive, seesLatest, serverOnline, readBoundary, markRead]);
 
   // The attachment card must not rebuild this gesture. A new gesture object
   // makes GestureDetector re-attach around the whole chat, the input inside it
@@ -371,14 +486,14 @@ export function ChatView({
     [menuOpenValue, voiceOpenValue, leaveVoiceMode],
   );
 
+  // A channel stored these messages, but its transcript did not load after them.
+  const historyPending = outboxMessages.filter((message) => message.historyPending);
   async function retryAcceptedHistory() {
-    if (!historyReceipt || refreshingHistory) return;
+    if (!historyPending.length || refreshingHistory || target.kind !== "channel") return;
     setRefreshingHistory(true);
     try {
-      await historyReceipt.refreshHistory();
-      submittedFiles.current = [];
-      setPendingMessage(null);
-      setHistoryReceipt(null);
+      await channelStore.refreshHistory(target.serverId, target.id);
+      outbox.settle(historyPending.map((message) => message.clientMessageId));
       setSendError(null);
       void haptics.notification("success");
     } catch (error) {
@@ -420,11 +535,24 @@ export function ChatView({
   }, [stopTurn, activeTurnId, target.id, errorMessage, t, failureContext]);
 
   function sendMessage(value: string): void {
-    if (!serverOnline || !canSend || sendingRef.current || pendingMessage) return;
+    if (!canSend) return;
     const body = value.trim();
-    if (!body && attachments.items.length === 0) return;
+    const files = attachments.items;
+    if (!body && files.length === 0) return;
+    // Files given back by Edit can add up to more than one message takes.
+    if (files.length > INPUT_LIMITS.attachments) {
+      const message = t("mobile.chat.attachment.limit", { limit: INPUT_LIMITS.attachments });
+      void haptics.notification("error");
+      setSendError({
+        cause: classifyFailure(new Error(message)),
+        context: failureContext,
+        agentId: target.id,
+        message,
+      });
+      return;
+    }
     // While the agent asks a question, the composer text is the answer. Files still go as a message.
-    if (answersQuestion && questionForm && attachments.items.length === 0) {
+    if (answersQuestion && questionForm && files.length === 0) {
       if (!body || questionForm.disabled) return;
       Keyboard.dismiss();
       void haptics.impact();
@@ -434,93 +562,90 @@ export function ChatView({
     }
 
     setSendError(null);
-    const queueSend = Boolean(queue && (activeTurnId || queue.queued.length || queue.replies.length));
-    setPendingInQueue(queueSend);
-    if (!queueSend) motion.beginSend();
+    // The send animation starts from the loaded history. Without it, as offline, the row shows at once:
+    // the animation would hide the first message until a history that does not load.
+    if (!sendsToQueue && ready) motion.beginSend();
     Keyboard.dismiss();
-
     void haptics.impact();
     setShowStarter(false);
     setDraft("");
-    sendingRef.current = true;
-    setSending(true);
     const submittedReply = replyTarget;
     setReplyTarget(null);
-    const files = attachments.items;
-    submittedFiles.current = files;
-    // The sending message draws these images before the host knows them, at their real shape.
-    for (const file of files) if (file.dimensions) rememberImageDimensions(file.id, file.dimensions);
-    uploadCancelled.current = false;
-    setUploadCancelRequested(false);
-    setUploadProgress(0);
-    setFileProgress(0);
-    const localId = `local-message-${++sendSequence.current}`;
-    setPendingMessage({
-      message: {
-        id: localId,
-        kind: "message",
-        author: "user",
-        body,
-        streaming: false,
-        replyToMessageId: submittedReply?.id ?? null,
-        attachments: files.map((file) => ({
-          id: file.id,
-          name: file.name,
-          mimeType: file.mimeType,
-          size: file.size,
-          kind: file.mimeType.startsWith("image/") ? "image" : "file",
-          previewKind: "none",
-          previewUrl: file.mimeType.startsWith("image/")
-            ? (file.uri ?? `data:${file.mimeType};base64,${file.base64}`)
-            : null,
-        })),
-      },
-      baseline: new Set(projectedMessages.map((message) => message.id)),
-      serverId: null,
-    });
-    void (async () => {
-      try {
-        const serverId = await send(body, files, submittedReply?.id ?? null, {
-          cancelled: () => uploadCancelled.current,
-          progress: setUploadProgress,
-          fileProgress: setFileProgress,
-        });
-        if (serverId && typeof serverId === "object") {
-          setHistoryReceipt(serverId);
-        } else if (serverId) {
-          setMessageAliases((current) => new Map(current).set(serverId, localId));
-          setPendingMessage((current) => (current?.message.id === localId ? { ...current, serverId } : current));
-        } else {
-          // Channel commands acknowledge the operation, without a message ID. Use the
-          // refreshed host transcript; never guess a receipt from matching message text.
-          submittedFiles.current = [];
-          setPendingMessage(null);
-        }
-        attachments.clear();
-      } catch (error) {
-        submittedFiles.current = [];
-        motion.cancelSend();
-        setPendingMessage((current) => (current?.message.id === localId ? null : current));
-        setReplyTarget((current) => current ?? submittedReply);
-        setDraft((current) => (current ? `${body}\n${current}` : body));
-        setSendRetryVersion((version) => version + 1);
-        // A cancelled upload is the user's own choice: the files and text are back in the
-        // composer, and no error is needed to explain it.
-        if (!uploadCancelled.current) {
-          void haptics.notification("error");
-          setSendError({
-            cause: classifyFailure(error),
-            context: failureContext,
-            agentId: target.id,
-            message: errorMessage(error, t("mobile.chat.composer.sendFailed")),
-          });
-        }
-      } finally {
-        sendingRef.current = false;
-        setSending(false);
-      }
-    })();
+    // The outbox keeps the message on this phone and sends it while the server is online.
+    outbox.add(
+      target.kind === "agent"
+        ? { kind: "agent", serverId: target.serverId, agentId: target.id }
+        : {
+            kind: "channel",
+            serverId: target.serverId,
+            channelId: target.id,
+            recipientAgentId: channelRecipient(
+              body,
+              target.members.map((member) => ({ agentId: member.id })),
+            ),
+          },
+      { text: body, replyToMessageId: submittedReply?.id ?? null, files },
+    );
+    attachments.clear();
   }
+
+  /**
+   * Takes a message out of the outbox and puts its text, reply and files back in the composer. A ref,
+   * so that a streamed reply does not draw the pending rows again.
+   */
+  const editOutboxMessage = useRef<(clientMessageId: string) => Promise<void>>(async () => {});
+  editOutboxMessage.current = async (clientMessageId) => {
+    let restored: OutboxDraft | null;
+    try {
+      restored = await outbox.edit(clientMessageId);
+    } catch (error) {
+      void haptics.notification("error");
+      setSendError({
+        cause: classifyFailure(error),
+        context: failureContext,
+        agentId: target.id,
+        message: errorMessage(error, t("mobile.chat.outbox.editFailed")),
+      });
+      return;
+    }
+    if (!restored) return;
+    const { text: body, replyToMessageId, files } = restored;
+    if (body) setDraft((current) => (current ? `${body}\n${current}` : body));
+    const reply = projectedMessages.find(
+      (message): message is ChatBubbleMessage => message.kind === "message" && message.id === replyToMessageId,
+    );
+    if (reply) setReplyTarget((current) => current ?? reply);
+    if (files.length) attachments.restore(files);
+    setSendRetryVersion((version) => version + 1);
+  };
+  const cancelSend = useRef(motion.cancelSend);
+  useEffect(() => {
+    cancelSend.current = motion.cancelSend;
+  });
+  // A stopped upload is the person's own choice: the text and files go back to the composer, and no
+  // error is needed to explain it.
+  useEffect(() => {
+    const returned = outboxMessages.filter((message) => message.returned);
+    if (!returned.length) return;
+    cancelSend.current();
+    for (const message of returned) void editOutboxMessage.current(message.clientMessageId);
+  }, [outboxMessages]);
+  const outboxStatuses = useMemo(() => {
+    const statuses = new Map<string, OutboxRowStatus>();
+    // The waiting messages share one status line, under the last of them.
+    const lastWaiting = outboxMessages.findLast((message) => message.state === "waiting");
+    for (const message of outboxMessages)
+      if (message.state === "waiting" || message.state === "failed")
+        statuses.set(outboxRowId(message), {
+          message,
+          online: serverOnline,
+          showStatus: message.state === "failed" || message === lastWaiting,
+          retry: () => outbox.retry(message.clientMessageId),
+          edit: () => void editOutboxMessage.current(message.clientMessageId),
+          cancel: () => void outbox.cancel(message.clientMessageId),
+        });
+    return statuses;
+  }, [outboxMessages, serverOnline, outbox]);
 
   const replyToMessage = !readOnly
     ? (message: ChatBubbleMessage) => {
@@ -572,7 +697,8 @@ export function ChatView({
               target={target}
               accessibilityHidden={voiceOpen}
               motion={motion}
-              sending={sending}
+              sending={Boolean(sendingMessage)}
+              awaitingTurn={awaitingTurn}
               keyboardOffset={keyboardOffset}
               canSend={serverOnline && canSend}
               online={serverOnline}
@@ -593,6 +719,12 @@ export function ChatView({
               activeTurnId={activeTurnId}
               questionForm={questionForm}
               onSelectQuestion={onSelectQuestion}
+              approvals={readOnly ? undefined : approvals}
+              browserRequests={chatBrowserRequests}
+              serverName={server?.name ?? ""}
+              onRespondApproval={(approval, decision) =>
+                respondToApproval(target.serverId, { requestId: approval.requestId, decision })
+              }
               fieldBackground={fieldBackground}
               foreground={foreground}
               messages={messages}
@@ -621,19 +753,15 @@ export function ChatView({
               onSelectStarter={sendMessage}
               onRetryHistory={fetchHistory}
               upload={
-                sending && pendingMessage && !pendingInQueue && submittedFiles.current.length > 0
+                sendingMessage && sendingUpload && !sendsToQueue
                   ? {
-                      messageId: pendingMessage.message.id,
-                      completed: uploadProgress,
-                      current: fileProgress,
-                      cancelling: uploadCancelRequested,
-                      cancel: () => {
-                        uploadCancelled.current = true;
-                        setUploadCancelRequested(true);
-                      },
+                      messageId: outboxRowId(sendingMessage),
+                      ...sendingUpload,
+                      cancel: () => outbox.cancelUpload(sendingMessage.clientMessageId),
                     }
                   : null
               }
+              outboxStatuses={outboxStatuses}
             />
             {voiceOpen ? (
               <VoiceOverlay
@@ -668,21 +796,35 @@ export function ChatView({
                   </ChatGlassIconButton>
                 </View>
               ) : null}
-              <ConnectionStatus server={server} />
-              {serverOnline && appActive && isFocused && !readOnly
-                ? browserRequests
-                    .filter((request) =>
-                      target.kind === "agent"
-                        ? request.agentId === target.id
-                        : target.members.some((member) => member.id === request.agentId),
-                    )
+              <ConnectionStatus
+                server={server}
+                // The history waits for the server: the chat says so under the reconnect status.
+                note={
+                  !ready && !server?.initialConnectionPending && !serverOnline ? t("mobile.chat.history.waiting") : null
+                }
+              />
+              {showBrowserRequests
+                ? chatBrowserRequests
+                    .filter((request) => !asksForSecret(request))
                     .map((request) => (
-                      <BrowserSecretCard
+                      <BrowserTakeoverCard
                         key={`${target.serverId}:${request.requestId}`}
                         request={request}
-                        respond={(input) => respondToBrowserSecret(target.serverId, input)}
                         respondToTakeover={(decision) =>
                           respondToBrowserTakeover(target.serverId, { requestId: request.requestId, decision })
+                        }
+                        openBrowser={
+                          browserAllowed && browserViewSupport(target.serverId).view
+                            ? () =>
+                                router.push({
+                                  pathname: "/browser/[agentId]",
+                                  params: {
+                                    agentId: request.agentId,
+                                    serverId: target.serverId,
+                                    tabId: request.tabId,
+                                  },
+                                })
+                            : undefined
                         }
                       />
                     ))
@@ -692,7 +834,12 @@ export function ChatView({
                   {sendError.message}
                 </Typography.Paragraph>
               ) : null}
-              {historyReceipt ? (
+              {outboxSnapshot.storageFailed && outboxMessages.length ? (
+                <Typography.Paragraph accessibilityRole="alert" className="bg-background px-4 py-2 text-danger-text">
+                  {t("mobile.chat.outbox.saveFailed")}
+                </Typography.Paragraph>
+              ) : null}
+              {historyPending.length ? (
                 <View className="bg-background px-4 py-2">
                   <Typography.Paragraph className="text-muted">
                     {t("mobile.chat.history.sentRefresh")}
@@ -721,7 +868,20 @@ export function ChatView({
                   fallbackBackground={fieldBackground}
                 />
               ) : null}
-              {!readOnly ? (
+              {secretRequest ? (
+                <BrowserSecretComposer
+                  key={`${target.serverId}:${secretRequest.requestId}`}
+                  request={secretRequest}
+                  respond={(input) => respondToBrowserSecret(target.serverId, input)}
+                  bottomInset={insets.bottom}
+                  liquidGlassAvailable={liquidGlassAvailable}
+                  fallbackBackground={fieldBackground}
+                  foreground={foreground}
+                  muted={muted}
+                  action={action}
+                  actionForeground={actionForeground}
+                />
+              ) : !readOnly ? (
                 <ChatComposer
                   sendRetryVersion={sendRetryVersion}
                   replyTarget={replyTarget}
@@ -736,8 +896,7 @@ export function ChatView({
                   agentName={target.name}
                   placeholder={answersQuestion ? t("mobile.chat.question.answerPlaceholder") : undefined}
                   bottomInset={insets.bottom}
-                  disabled={!serverOnline || !canSend}
-                  sending={sending || Boolean(pendingMessage)}
+                  disabled={!canSend}
                   attachments={attachments}
                   draft={draft}
                   fallbackBackground={fieldBackground}

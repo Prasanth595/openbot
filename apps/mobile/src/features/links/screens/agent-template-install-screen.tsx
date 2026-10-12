@@ -220,11 +220,7 @@ function TemplateLoading({ label }: { label: string }) {
   const [foreground, muted] = useThemeColor(["foreground", "muted"]);
   return (
     <View accessible accessibilityRole="progressbar" accessibilityLabel={label} className="items-center pt-12">
-      <ThinkingTextGradient text={label} foreground={foreground} muted={muted} enabled fill={false}>
-        <Typography.Paragraph type="body-sm" style={{ color: muted }}>
-          {label}
-        </Typography.Paragraph>
-      </ThinkingTextGradient>
+      <ThinkingTextGradient text={label} foreground={foreground} muted={muted} enabled />
     </View>
   );
 }

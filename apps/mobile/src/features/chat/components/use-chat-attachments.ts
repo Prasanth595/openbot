@@ -52,7 +52,7 @@ export function useChatAttachments(
   /** What the receiving host accepts. Read on each selection, because it loads with the connection. */
   support?: () => AttachmentSupport,
 ) {
-  const { t } = useText();
+  const { t, errorMessage } = useText();
   const limitMessage = () => t("mobile.chat.attachment.limit", { limit: INPUT_LIMITS.attachments });
   // The plus's rect while the attachment card is open, and null while it is
   // not: one value, so the card can never be open without an anchor to grow
@@ -204,7 +204,7 @@ export function useChatAttachments(
         error,
         "turn",
         t("mobile.chat.attachment.addFailed"),
-        error instanceof Error ? error.message : t("mobile.chat.tryAgain"),
+        errorMessage(error, t("mobile.chat.tryAgain")),
       );
       return false;
     }
@@ -255,7 +255,7 @@ export function useChatAttachments(
           error,
           "turn",
           t("mobile.chat.attachment.addFailed"),
-          error instanceof Error ? error.message : t("mobile.chat.tryAgain"),
+          errorMessage(error, t("mobile.chat.tryAgain")),
         );
       })
       .finally(() => {
@@ -284,6 +284,12 @@ export function useChatAttachments(
       mobileAnalytics.track("attachment_action", { action: "remove", result: "succeeded", attachment_count: 1 });
     },
     clear: () => replace([]),
+    /** Puts back the files of a message that the person takes back to edit, after any files chosen since. */
+    restore: (files: readonly ChatAttachment[]) =>
+      replace([
+        ...itemsRef.current,
+        ...files.map((file) => ({ ...file, id: `mobile-draft-attachment-${++sequence.current}` })),
+      ]),
   };
 }
 

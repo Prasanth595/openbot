@@ -66,12 +66,22 @@ export const messages = defineMessages("error.backend", {
   "error.backend.channelAssigneeUnavailable": "The assigned agent is unavailable.",
   "error.backend.channelAssignmentChanged": "This channel assignment has changed.",
   "error.backend.channelMemberRequired": "Select an available member of this channel.",
+  "error.backend.memoryEssentialBudget":
+    "The essential memories exceed the prompt limit. Set an entry to search when needed, then try again.",
+  "error.backend.memorySelectionConflict": "The memory changed. Reload it and try again.",
+  "error.backend.memorySelectionUserControlled": "The user controls this memory selection. Keep the user's choice.",
+  "error.backend.memorySearchQuery": "Enter one or more search words, up to 256 characters.",
+  "error.backend.memoryOperationFailed": "The memory operation failed. Try again.",
   "error.backend.memoryGone": "This memory no longer exists.",
   "error.backend.routineGone": "This routine no longer exists.",
   "error.backend.channelMemoryLimit": "A channel can have up to {limit} memories.",
   "error.backend.channelRoutineLimit": "A channel can have at most {limit} routines.",
   "error.backend.agentRoutineLimit": "An agent can have at most {limit} routines.",
   "error.backend.agentMemoryLimit": "An agent can have up to {limit} memories.",
+  "error.backend.agentMemoryLimitReached":
+    "You have {saved} of {limit} memories. To make room, update one memory by memoryId with the combined text of two related memories, then forget the other one, or forget a memory that is no longer true. Then try again.",
+  "error.backend.agentMemoryLimitExceeded":
+    "You have {saved} memories, and the limit is {limit}. The user set the limit below the number of saved memories. Do not forget memories to make room. Tell the user that this memory was not saved.",
   "error.backend.channelHistoryLeadRequired": "Choose a channel lead to prepare the shared history.",
   "error.backend.channelHistoryArriving": "A shared message is still arriving. Resume when it is complete.",
   "error.backend.channelHistoryInvalid": "The history summary is invalid. Resume to try again.",
@@ -201,6 +211,7 @@ export const messages = defineMessages("error.backend", {
     "This edit was already saved with different contents. Your changes were not saved.",
   "error.backend.useChannelTaskControlsWork": "Use the channel task controls for channel work.",
   "error.backend.steerTurnChanged": "The active turn changed before this message could be steered.",
+  "error.backend.steerUnsupported": "This provider cannot steer a running turn. Your message stays in the queue.",
   "error.backend.steerQueuedOnly": "Only queued messages can be steered.",
   "error.backend.promptInactive": "This prompt is no longer active.",
   "error.backend.promptAnswerMismatch": "A prompt answer does not match an active question.",
@@ -235,4 +246,10 @@ export const messages = defineMessages("error.backend", {
   "error.backend.mcpServerHttpCredentials": "The server answered {status}. Check the API key or other credentials.",
   "error.backend.mcpServerHttpUrl":
     "The server answered {status}. Check the URL. The link may be wrong, expired, or deleted.",
+  "error.backend.mcpSignInAppUrl": "The sign-in app needs a valid server URL.",
+  "error.backend.mcpSignInAppClientId": "Enter the client ID of the sign-in app.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "The sign-in server of this MCP server changed, so OpenBot did not send it the sign-in app. If the change is correct, remove the sign-in app and add it again.",
+  "error.backend.mcpSignInAppNoServer": "Save this MCP server as a URL server before you add a sign-in app.",
+  "error.backend.mcpSignInAppUnavailable": "This computer cannot keep a sign-in app.",
 });
