@@ -63,6 +63,8 @@ export const messages = defineMessages("settings", {
   "settings.alerts.title": "Alerts",
   "settings.desktopNotifications.title": "Desktop notifications",
   "settings.desktopNotifications.description": "Show a notification when an agent needs attention.",
+  "settings.notificationPreview.title": "Show message preview",
+  "settings.notificationPreview.description": "Show the start of the agent's reply or question in notifications.",
   "settings.testNotification.title": "Test notification",
   "settings.testNotification.description":
     "Show one now. If it does not appear, allow OpenBot notifications in your system settings.",

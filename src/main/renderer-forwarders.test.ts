@@ -1,7 +1,7 @@
 import { remoteCall } from "./remote-service-effects";
 // @vitest-environment node
 
-import type { AgentEvent, AgentSummary, ServerSummary } from "@openbot/contracts/ipc";
+import type { AgentEvent, AgentSummary, ConversationMessage, ServerSummary } from "@openbot/contracts/ipc";
 import { createFormat, translateFor } from "@openbot/i18n";
 import type { AgentNotificationContent } from "@openbot/team-client/agent-notifications";
 import { BrowserWindow } from "electron";
@@ -9,10 +9,16 @@ import { assert, beforeEach, expect, it, vi } from "vitest";
 import { createRendererForwarders } from "./renderer-forwarders";
 
 const mocks = vi.hoisted(() => {
-  const state: { clickListeners: (() => void)[]; focused: boolean; desktopNotifications: boolean } = {
+  const state: {
+    clickListeners: (() => void)[];
+    focused: boolean;
+    desktopNotifications: boolean;
+    preview: boolean;
+  } = {
     clickListeners: [],
     focused: false,
     desktopNotifications: true,
+    preview: true,
   };
   return Object.assign(state, { show: vi.fn(), content: vi.fn(), send: vi.fn() });
 });
@@ -82,6 +88,7 @@ function server(id: string): ServerSummary {
 function setup() {
   const servers = [server("local"), server("alpha"), server("beta")];
   const request = vi.fn(async (_serverId: string): Promise<AgentSummary[]> => [{ ...agent, name: "Remote Chief" }]);
+  const messages = vi.fn(async (_serverId: string): Promise<ConversationMessage[]> => []);
   let lookupSettled = Promise.resolve();
   const window = new BrowserWindow();
   const forwarders = createRendererForwarders({
@@ -100,19 +107,31 @@ function setup() {
           );
           return result;
         }),
+      readAgentConversationPage: (agentId, _anchor, _limit, serverId) =>
+        remoteCall(async () => ({
+          agentId,
+          threadId: "thread-chief",
+          activeTurnId: null,
+          revision: 1,
+          messages: await messages(serverId ?? ""),
+          references: {},
+          pageInfo: { hasOlder: false, olderCursor: null },
+        })),
     }),
     showMainWindow: vi.fn(),
     getTranslate: () => translateFor("en"),
     getFormat: () => createFormat("en"),
     desktopNotificationsEnabled: () => mocks.desktopNotifications,
+    notificationPreviewEnabled: () => mocks.preview,
   });
-  return { ...forwarders, servers, request, waitForLookup: () => lookupSettled };
+  return { ...forwarders, servers, request, messages, waitForLookup: () => lookupSettled };
 }
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.clickListeners = [];
   mocks.focused = false;
   mocks.desktopNotifications = true;
+  mocks.preview = true;
 });
 
 it("mutes only the selected server while forwarding its live events", async () => {
@@ -133,7 +152,7 @@ it("mutes only the selected server while forwarding its live events", async () =
   await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledTimes(2));
 });
 
-it("uses the local mute preference and local agent settings", () => {
+it("uses the local mute preference and local agent settings", async () => {
   const fixture = setup();
   const [local] = fixture.servers;
   assert(local);
@@ -142,6 +161,7 @@ it("uses the local mute preference and local agent settings", () => {
   expect(mocks.show).not.toHaveBeenCalled();
   local.notificationsMuted = false;
   fixture.forwardAgentEvent("local", event);
+  await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
   expect(mocks.content).toHaveBeenCalledWith({ title: "Local Chief", body: "Finished working." });
   expect(fixture.request).not.toHaveBeenCalled();
 });
@@ -199,9 +219,10 @@ it("stays quiet when desktop notifications are off or the server level rules the
   expect(mocks.content).toHaveBeenCalledWith({ title: "Local Chief", body: "Needs your input." });
 });
 
-it("opens the agent's conversation when the user clicks the notification", () => {
+it("opens the agent's conversation when the user clicks the notification", async () => {
   const fixture = setup();
   fixture.forwardAgentEvent("local", event);
+  await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
   mocks.send.mockClear();
   for (const listener of mocks.clickListeners) listener();
   expect(mocks.send).toHaveBeenCalledWith("notifications:opened-event", {
@@ -209,4 +230,57 @@ it("opens the agent's conversation when the user clicks the notification", () =>
     agentId: "chief",
     threadId: "thread-chief",
   });
+});
+
+it("shows the answer of the finished turn only while the preview switch is on", async () => {
+  const fixture = setup();
+  fixture.messages.mockResolvedValue([
+    {
+      id: "answer",
+      turnId: "turn-1",
+      author: "assistant",
+      text: "**Two** tests fail: the fixture is old.",
+      createdAt: "2026-10-12T10:00:00.000Z",
+      status: "completed",
+    },
+  ]);
+  fixture.forwardAgentEvent("alpha", event);
+  await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
+  expect(mocks.content).toHaveBeenLastCalledWith({
+    title: "Remote Chief",
+    body: "Two tests fail: the fixture is old.",
+  });
+  mocks.preview = false;
+  fixture.forwardAgentEvent("alpha", event);
+  await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledTimes(2));
+  expect(mocks.content).toHaveBeenLastCalledWith({ title: "Remote Chief", body: "Finished working." });
+});
+
+it("shows a command to approve without its secrets, and only with the preview on", async () => {
+  const fixture = setup();
+  const approval: AgentEvent = {
+    type: "approval",
+    approval: {
+      requestId: 1,
+      agentId: "chief",
+      threadId: "thread-chief",
+      turnId: "turn-1",
+      kind: "command",
+      command: "OPENAI_API_KEY=sk-proj-abcdefghijklmnop1234567890 node run.js",
+      cwd: null,
+      reason: null,
+      grantRoot: null,
+      permissions: null,
+    },
+  };
+  fixture.forwardAgentEvent("local", approval);
+  await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledOnce());
+  expect(mocks.content).toHaveBeenLastCalledWith({
+    title: "Local Chief",
+    body: "Needs your approval: OPENAI_API_KEY=[redacted] node run.js",
+  });
+  mocks.preview = false;
+  fixture.forwardAgentEvent("local", approval);
+  await vi.waitFor(() => expect(mocks.show).toHaveBeenCalledTimes(2));
+  expect(mocks.content).toHaveBeenLastCalledWith({ title: "Local Chief", body: "Needs your approval." });
 });

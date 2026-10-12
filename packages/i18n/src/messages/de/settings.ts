@@ -61,6 +61,9 @@ export const messages = {
   "settings.desktopNotifications.title": "Desktop-Benachrichtigungen",
   "settings.desktopNotifications.description":
     "Eine Benachrichtigung anzeigen, wenn ein Agent Aufmerksamkeit benötigt.",
+  "settings.notificationPreview.title": "Nachrichtenvorschau anzeigen",
+  "settings.notificationPreview.description":
+    "Zeigt in Benachrichtigungen den Anfang der Antwort oder Frage des Agenten.",
   "settings.testNotification.title": "Testbenachrichtigung",
   "settings.testNotification.description":
     "Jetzt eine anzeigen. Falls sie nicht erscheint, erlaube OpenBot-Benachrichtigungen in den Systemeinstellungen.",

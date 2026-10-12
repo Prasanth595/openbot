@@ -308,6 +308,7 @@ const {
   getTranslate: () => services?.language.translate ?? translateFor("en"),
   getFormat: () => createFormat(services?.language.locale ?? "en"),
   desktopNotificationsEnabled: () => services?.notificationPreference.get().desktopNotifications ?? true,
+  notificationPreviewEnabled: () => services?.notificationPreference.get().messagePreview ?? true,
 });
 
 // Resolved once, safely: every `app.setPath("userData", ...)` above has already run.

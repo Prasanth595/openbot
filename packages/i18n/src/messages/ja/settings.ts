@@ -59,6 +59,8 @@ export const messages = {
   "settings.alerts.title": "アラート",
   "settings.desktopNotifications.title": "デスクトップ通知",
   "settings.desktopNotifications.description": "エージェントに対応が必要なときに通知を表示します。",
+  "settings.notificationPreview.title": "メッセージのプレビューを表示",
+  "settings.notificationPreview.description": "通知にエージェントの返信や質問の冒頭を表示します。",
   "settings.testNotification.title": "テスト通知",
   "settings.testNotification.description":
     "今すぐ通知を表示します。表示されない場合は、システム設定で OpenBot の通知を許可してください。",

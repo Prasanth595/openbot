@@ -19,10 +19,12 @@ import {
   type BrowserDisplayState,
   IPC_ENDPOINTS,
   LOCAL_SERVER_ID,
+  latestTurnAnswer,
   type VoiceModelStatus,
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import type { AppFormat, AppTranslate } from "@openbot/i18n";
+import { redactText } from "@openbot/logging";
 import { notificationForAgentEvent, notificationForUsageLimit } from "@openbot/team-client/agent-notifications";
 import { BrowserWindow, Notification } from "electron";
 import type { AgentService } from "../backend/agent-service";
@@ -40,7 +42,7 @@ export interface RendererForwarderDependencies {
   getAgentService: () => Pick<AgentService, "listAgents"> | null;
   getHostService: () => HostService | null;
   getHostAnalytics: () => HostAnalytics | null;
-  getRemoteServerManager: () => Pick<RemoteServerManager, "list" | "request"> | null;
+  getRemoteServerManager: () => Pick<RemoteServerManager, "list" | "request" | "readAgentConversationPage"> | null;
   showMainWindow: (window: BrowserWindow) => void;
   /** The language every desktop notification is written in, read at the moment one is raised. */
   getTranslate: () => AppTranslate;
@@ -48,7 +50,12 @@ export interface RendererForwarderDependencies {
   getFormat: () => AppFormat;
   /** The Settings switch for every desktop notification, read at the moment one is raised. */
   desktopNotificationsEnabled: () => boolean;
+  /** The Settings switch that lets a notification show the agent's words. */
+  notificationPreviewEnabled: () => boolean;
 }
+
+/** The newest messages that a finished turn's answer is looked for in. */
+const ANSWER_LOOKUP_LIMIT = 20;
 
 /**
  * Returns the forwarders as an object so the entry point can destructure it and keep every
@@ -64,6 +71,7 @@ export function createRendererForwarders({
   getTranslate,
   getFormat,
   desktopNotificationsEnabled,
+  notificationPreviewEnabled,
 }: RendererForwarderDependencies) {
   function forwardAgentEvent(serverId: string, event: AgentEvent, bufferedLive = false): void {
     if (serverId === LOCAL_SERVER_ID) getHostAnalytics()?.handleAgentEvent(event);
@@ -102,18 +110,31 @@ export function createRendererForwarders({
     // Skip the remote agent lookup for an event the level already rules out.
     if (initialLevel === "needs-me" && event.type === "turn-completed") return;
     const remoteManager = getRemoteServerManager();
+    const preview = notificationPreviewEnabled();
+    const answer =
+      preview && event.type === "turn-completed" && event.status === "completed"
+        ? turnAnswer(serverId, event.agentId, event.turnId)
+        : null;
     const agents =
       serverId === LOCAL_SERVER_ID
         ? (getAgentService()?.listAgents() ?? [])
         : remoteManager
           ? await runCauseEffect(remoteManager.request(serverId, TEAM_API_ROUTES.agents.all, decodeAgentSummaries))
           : [];
+    const reply = answer ? await answer : null;
     const level = notifyLevel();
     const content = !level
       ? null
       : event.type === "usage-limit-reached"
         ? notificationForUsageLimit(event, agents, getTranslate(), getFormat(), level)
-        : notificationForAgentEvent(event, agents, getTranslate(), level);
+        : notificationForAgentEvent(
+            event,
+            agents,
+            getTranslate(),
+            level,
+            // The switch is read again: the user can turn it off while the lookups run.
+            preview && notificationPreviewEnabled() ? { reply, redact: redactText } : null,
+          );
     if (!content) return;
     const notification = new Notification({ title: content.title, body: content.body });
     notification.on("click", () => {
@@ -128,6 +149,22 @@ export function createRendererForwarders({
       });
     });
     showRetainedNotification(notification);
+  }
+
+  /** The text of a finished turn's answer, or null when it cannot be read. The notification then shows a fixed text. */
+  async function turnAnswer(serverId: string, agentId: string, turnId: string): Promise<string | null> {
+    const page =
+      serverId === LOCAL_SERVER_ID
+        ? getHostService()?.readAgentConversationPage(agentId, { type: "latest" }, ANSWER_LOOKUP_LIMIT)
+        : getRemoteServerManager()?.readAgentConversationPage(
+            agentId,
+            { type: "latest" },
+            ANSWER_LOOKUP_LIMIT,
+            serverId,
+          );
+    if (!page) return null;
+    const loaded = await runCauseEffect(page).catch(() => null);
+    return loaded ? (latestTurnAnswer(loaded.messages, turnId)?.text ?? null) : null;
   }
 
   function forwardBrowserDisplayState(state: BrowserDisplayState): void {

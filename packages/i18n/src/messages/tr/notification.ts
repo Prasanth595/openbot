@@ -4,6 +4,7 @@ import type { messages as source } from "../en/notification";
 export const messages = {
   "notification.needsInput": "Girdinize ihtiyaç duyuyor.",
   "notification.needsApproval": "Onayınıza ihtiyaç duyuyor.",
+  "notification.needsApprovalFor": "Onayınıza ihtiyaç duyuyor: {action}",
   "notification.finished": "Çalışmayı tamamladı.",
   "notification.failed": "Bir hatayla durdu.",
   "notification.usageLimit.title": "{provider} hesabı sınırına ulaştı",

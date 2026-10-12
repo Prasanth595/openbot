@@ -58,6 +58,8 @@ export const messages = {
   "settings.alerts.title": "Uyarılar",
   "settings.desktopNotifications.title": "Masaüstü bildirimleri",
   "settings.desktopNotifications.description": "Bir ajanın dikkat çekmesi gerektiğinde bildirim gösterin.",
+  "settings.notificationPreview.title": "Mesaj önizlemesini göster",
+  "settings.notificationPreview.description": "Bildirimlerde ajanın yanıtının veya sorusunun başını gösterin.",
   "settings.testNotification.title": "Test bildirimi",
   "settings.testNotification.description":
     "Şimdi bir tane gösterin. Görünmezse, sistem ayarlarınızda OpenBot bildirimlerine izin verin.",
