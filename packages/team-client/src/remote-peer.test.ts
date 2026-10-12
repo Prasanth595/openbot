@@ -40,9 +40,6 @@ interface TestStats {
   candidateType?: string;
 }
 
-/** Signal's error frame for its message and socket limits. It closes the socket with 1008 next. */
-const RATE_LIMITED = { type: "error", version: 1, code: "rate_limited", message: "Too many signal messages." };
-
 const channelFixture = {
   id: "channel-one",
   name: "Launch room",
@@ -1023,13 +1020,30 @@ describe("browser remote peer recovery", () => {
     await network.runtime.dispose();
   });
 
+  it("reconnects without the rate wait when Signal closes an expired session", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const socket = network.socket();
+    // Signal closes an expired session with 1008 too, after an error frame that names it (#1867).
+    socket.receive({
+      type: "error",
+      version: 1,
+      code: "authentication_required",
+      message: "The remote session expired.",
+    });
+    socket.close(1008);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(network.sockets.length).toBeGreaterThan(1);
+    await network.runtime.dispose();
+  });
+
   it.each(["initial", "replacement"])("excludes the rate wait from the %s connection timeout", async (kind) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     let refuseHello = kind === "initial";
     const network = await setupNetwork({ refuseHello: () => refuseHello });
     if (kind === "replacement") {
       await network.connect();
-      network.socket().receive(RATE_LIMITED);
       network.socket().close(1008);
       const offline = deferred();
       network.onOffline = () => offline.resolve();
@@ -1046,23 +1060,6 @@ describe("browser remote peer recovery", () => {
     expect(network.updates.filter((update) => update.state === "offline")).toEqual([]);
     await vi.advanceTimersByTimeAsync(1_000);
     await expect(connecting).resolves.toMatchObject({ ok: true });
-    expect(network.sockets).toHaveLength(2);
-    await network.runtime.dispose();
-  });
-
-  // Signal also closes with 1008 for an expired session or ticket. Before, any 1008 made every new
-  // socket wait 60 s, so the peer that replaced this one waited too.
-  it("connects a replacement peer at once after a Signal close that is not a rate limit", async () => {
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
-    const network = await setupNetwork();
-    await network.connect();
-    network.socket().close(1008);
-    const offline = deferred();
-    network.onOffline = () => offline.resolve();
-    network.connection().drop("closed");
-    await offline.promise;
-    await expect(network.connect()).resolves.toMatchObject({ ok: true });
-    expect(network.bootstraps()).toBe(2);
     expect(network.sockets).toHaveLength(2);
     await network.runtime.dispose();
   });
@@ -1421,11 +1418,7 @@ async function setupNetwork(
         return;
       }
       if (message.type === "hello" && options.refuseHello?.()) {
-        // Signal sends its error frame, then closes with 1008.
-        queueMicrotask(() => {
-          this.receive(RATE_LIMITED);
-          this.close(1008);
-        });
+        queueMicrotask(() => this.close(1008));
         return;
       }
       if (message.type === "hello")

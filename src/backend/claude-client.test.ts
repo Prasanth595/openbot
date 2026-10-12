@@ -29,7 +29,8 @@ import {
 type TestStreamMessage =
   | {
       type: "system";
-      subtype: "status" | "compact_boundary";
+      subtype: "status" | "compact_boundary" | "background_tasks_changed";
+      tasks?: Array<{ task_id: string; task_type: string; description: string; ambient?: boolean }>;
       status?: "compacting" | null;
       compact_result?: "success" | "failed";
       compact_metadata?: { pre_tokens: number; post_tokens?: number };
@@ -957,6 +958,42 @@ fi
       // A thread in a turn is never idle.
       await vi.advanceTimersByTimeAsync(CLAUDE_THREAD_IDLE_RELEASE_MS);
       expect(spawned[1]?.query.closed).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+    await runCauseEffect(client.stop());
+  });
+
+  it("keeps the process of a thread whose background subagents still run", async () => {
+    root = await mkdtemp(join(tmpdir(), "openbot-claude-background-"));
+    const output = new TestQueue<TestStreamMessage>();
+    const query = new TestQuery(output);
+    const client = new ClaudeAgentClient({ executable: "/bin/true", version: "2.1.231" }, () => query);
+    client.start();
+    vi.useFakeTimers();
+    try {
+      await runCauseEffect(
+        client.request(
+          "thread/start",
+          { cwd: root, model: "claude-sonnet-5", developerInstructions: "Be concise.", runtimeWorkspaceRoots: [root] },
+          decodeThreadResponse,
+        ),
+      );
+      const tasks = (list: Array<{ task_id: string; ambient?: boolean }>): TestStreamMessage => ({
+        type: "system",
+        subtype: "background_tasks_changed",
+        tasks: list.map((task) => ({ task_type: "local_agent", description: "Research", ...task })),
+      });
+      output.push(tasks([{ task_id: "store-1" }, { task_id: "watcher", ambient: true }]));
+      await vi.waitFor(() => expect(client.canReleaseProcess()).toBe(false));
+      await vi.advanceTimersByTimeAsync(CLAUDE_THREAD_IDLE_RELEASE_MS);
+      expect(query.closed).toBe(false);
+
+      // An ambient watcher is not work, so the thread is idle again once the subagent ends.
+      output.push(tasks([{ task_id: "watcher", ambient: true }]));
+      await vi.waitFor(() => expect(client.canReleaseProcess()).toBe(true));
+      await vi.advanceTimersByTimeAsync(CLAUDE_THREAD_IDLE_RELEASE_MS);
+      expect(query.closed).toBe(true);
     } finally {
       vi.useRealTimers();
     }

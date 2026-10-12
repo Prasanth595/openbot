@@ -33,7 +33,7 @@ import { CloseIcon, StopIcon } from "@openbot/ui/features/conversation/Conversat
 import { RichMessageText } from "@openbot/ui/features/conversation/RichMessageText";
 import { VoiceRecordingMorph } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createSignal, createStore, For, Loading, lazy, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, For, Loading, lazy, Show } from "solid-js";
 import { reportErrorBanner, reportNotification } from "../../error-reports";
 import { deviceSendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "../../send-shortcut-preference";
 import { useConversationViewScope } from "./conversation-scope";
@@ -204,7 +204,7 @@ export function ConversationComposer() {
     (resetsAt) => {
       if (resetsAt === null) return;
       const timer = window.setTimeout(() => setNow(Date.now()), Math.max(0, resetsAt * 1_000 - Date.now()));
-      onCleanup(() => window.clearTimeout(timer));
+      return () => window.clearTimeout(timer);
     },
   );
   const attachmentAccept = () => {

@@ -636,32 +636,31 @@ it.each(["error", "close"])("waits a full Signal rate window after %s", async (k
   await command({ type: "close", peerId: "all" });
 });
 
-// Signal also closes with 1008 for an expired session. Before, any 1008 made every socket of this page
-// wait 60 s, so a client's expired session kept this computer's own host away from Signal.
-it("waits only on the socket of a 1008 close that is not a rate limit", async () => {
+it("does not wait the rate window after Signal refuses a ticket with 1008", async () => {
   vi.useFakeTimers();
   const { command } = await startBridge();
-  for (const [peerId, peer] of [
-    ["host", "host"],
-    ["server", "client"],
-  ] as const)
-    await command({
-      type: "connect",
-      peerId,
-      peer,
-      signalUrl: "wss://signal.test",
-      token: "test",
-      iceTransportPolicy: "all",
-    });
-  const [host, client] = SignalSocket.instances;
-  if (!host || !client) throw new Error("No Signal sockets");
-  for (const socket of [host, client]) socket.dispatchEvent(new Event("open"));
-  client.dispatchEvent(Object.assign(new Event("close"), { code: 1008 }));
-  host.dispatchEvent(Object.assign(new Event("close"), { code: 1006 }));
-  await vi.advanceTimersByTimeAsync(500);
-  expect(SignalSocket.instances).toHaveLength(3);
-  await vi.advanceTimersByTimeAsync(59_500);
-  expect(SignalSocket.instances).toHaveLength(4);
+  const connect = {
+    type: "connect",
+    peerId: "host",
+    peer: "host",
+    signalUrl: "wss://signal.test",
+    token: "test",
+    iceTransportPolicy: "all",
+  } as const;
+  await command(connect);
+  const socket = SignalSocket.instances[0];
+  if (!socket) throw new Error("No Signal socket");
+  // Signal closes with 1008 after refusals that are not a rate limit too (#1867).
+  socket.message({
+    type: "error",
+    version: 1,
+    code: "authentication_required",
+    message: "Remote ticket is invalid or expired.",
+  });
+  socket.dispatchEvent(Object.assign(new Event("close"), { code: 1008 }));
+  await command({ type: "disconnect", peerId: "host" });
+  await command(connect);
+  expect(SignalSocket.instances).toHaveLength(2);
   await command({ type: "close", peerId: "all" });
 });
 

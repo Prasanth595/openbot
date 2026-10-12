@@ -59,6 +59,8 @@ export const messages = {
   "settings.alerts.title": "Alertas",
   "settings.desktopNotifications.title": "Notificações da área de trabalho",
   "settings.desktopNotifications.description": "Mostre uma notificação quando um agente precisar de atenção.",
+  "settings.notificationPreview.title": "Mostrar prévia da mensagem",
+  "settings.notificationPreview.description": "Mostre nas notificações o início da resposta ou da pergunta do agente.",
   "settings.testNotification.title": "Notificação de teste",
   "settings.testNotification.description":
     "Mostre uma agora. Se ela não aparecer, permita as notificações do OpenBot nas configurações do sistema.",

@@ -150,10 +150,10 @@ function parseSwitches<Key extends string>(
 }
 
 export function parseNotificationPreference(input: unknown): NotificationPreference {
-  if (!isDynamicRecord(input) || !isBoolean(input.desktopNotifications)) {
+  if (!isDynamicRecord(input) || !isBoolean(input.desktopNotifications) || !isBoolean(input.messagePreview)) {
     throw new Error("Notification preference is required.");
   }
-  return { desktopNotifications: input.desktopNotifications };
+  return { desktopNotifications: input.desktopNotifications, messagePreview: input.messagePreview };
 }
 
 export function parseDynamicIslandPreference(input: unknown): DynamicIslandPreference {

@@ -1084,7 +1084,7 @@ export function installOpenbotStub(): void {
       onEvent: vi.fn(updateStatusBridge.subscribe),
     }),
     notifications: stubGroup("notifications", {
-      getPreference: vi.fn().mockResolvedValue({ desktopNotifications: true }),
+      getPreference: vi.fn().mockResolvedValue({ desktopNotifications: true, messagePreview: true }),
       setPreference: vi.fn(async (input) => input),
       test: vi.fn().mockResolvedValue(undefined),
       openSettings: vi.fn().mockResolvedValue(undefined),

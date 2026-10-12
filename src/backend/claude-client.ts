@@ -157,6 +157,8 @@ interface ThreadRuntime {
   idleSince: number;
   /** The plan Claude keeps with its todo and task tools, which OpenBot shows as a task list. */
   plan: ClaudePlanState;
+  /** Background subagents and commands that outlive their turn. Stopping the process ends them (#1870). */
+  backgroundTasks: number;
 }
 
 /**
@@ -195,6 +197,8 @@ interface ClaudeStreamMessage {
   /** Why an assistant message is a refusal, such as `rate_limit`. */
   error?: string;
   rate_limit_info?: unknown;
+  /** `background_tasks_changed`: every live background task. */
+  tasks?: unknown;
 }
 
 interface ClaudeQuery extends AsyncIterable<ClaudeStreamMessage> {
@@ -236,7 +240,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     releaseAfterMs: CLAUDE_THREAD_IDLE_RELEASE_MS,
     idleLimit: CLAUDE_IDLE_THREAD_LIMIT,
     // A session that is not persisted has nothing on disk to resume from.
-    canRelease: (runtime) => runtime.config.persistSession,
+    canRelease: (runtime) => runtime.config.persistSession && runtime.backgroundTasks === 0,
     snapshot: (runtime) => runtime.config,
     dispose: (runtime) => this.#closeRuntime(runtime),
     reopen: (threadId, config) => this.#startThread(threadId, config, true),
@@ -326,6 +330,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
 
   releaseIdleThreads(): Effect.Effect<void, ProviderClientOperationError> {
     return this.#threads.releaseIdle();
+  }
+
+  /** Background subagents run in this process after their turn ends, so it stays while any runs. */
+  canReleaseProcess(): boolean {
+    return [...this.#threads.ids()].every((id) => !this.#threads.get(id)?.backgroundTasks);
   }
 
   /**
@@ -784,6 +793,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       idleRelease: null,
       idleSince: 0,
       plan: newClaudePlanState(),
+      backgroundTasks: 0,
     };
     runtime.consume = yield* Effect.forkIn(this.#consume(runtime), this.#scope, { startImmediately: true });
     this.#threads.add(runtime);
@@ -963,6 +973,18 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       if (status) runtime.compacting = status === "running";
       if (status)
         this.emit("notification", { method: "openbot/context-compaction", params: { threadId: runtime.id, status } });
+      return;
+    }
+    if (message.type === "system" && message.subtype === "background_tasks_changed") {
+      const before = runtime.backgroundTasks;
+      runtime.backgroundTasks = Array.isArray(message.tasks)
+        ? message.tasks.filter((task) => !(isRecord(task) && task.ambient === true)).length
+        : 0;
+      // The level can arrive after the turn that started the work ended, so it holds or frees the idle timer.
+      if (!runtime.activeTurn) {
+        if (before === 0 && runtime.backgroundTasks > 0) this.#threads.holdForTurn(runtime);
+        else if (before > 0 && runtime.backgroundTasks === 0) yield* this.#threads.markIdle(runtime);
+      }
       return;
     }
     if (message.type === "system" && message.subtype === "compact_boundary") {

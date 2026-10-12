@@ -60,6 +60,8 @@ export const messages = {
   "settings.alerts.title": "Alerty",
   "settings.desktopNotifications.title": "Powiadomienia na pulpicie",
   "settings.desktopNotifications.description": "Pokazuj powiadomienie, gdy agent wymaga uwagi.",
+  "settings.notificationPreview.title": "Pokazuj podgląd wiadomości",
+  "settings.notificationPreview.description": "Pokazuj w powiadomieniach początek odpowiedzi lub pytania agenta.",
   "settings.testNotification.title": "Powiadomienie testowe",
   "settings.testNotification.description":
     "Pokaż je teraz. Jeśli się nie pojawi, zezwól na powiadomienia OpenBot w ustawieniach systemowych.",

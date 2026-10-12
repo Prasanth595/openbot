@@ -60,6 +60,8 @@ export const messages = {
   "settings.alerts.title": "Оповещения",
   "settings.desktopNotifications.title": "Уведомления на рабочем столе",
   "settings.desktopNotifications.description": "Показывать уведомление, когда агенту нужно внимание.",
+  "settings.notificationPreview.title": "Показывать текст сообщения",
+  "settings.notificationPreview.description": "Показывать в уведомлениях начало ответа или вопроса агента.",
   "settings.testNotification.title": "Тестовое уведомление",
   "settings.testNotification.description":
     "Показать его сейчас. Если оно не появилось, разрешите уведомления OpenBot в системных настройках.",

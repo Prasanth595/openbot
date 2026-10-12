@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { assert, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { emitAgentEvent, installOpenbotStub, testServer } from "./app-test-harness";
+import { attachment, emitAgentEvent, emitAttachmentImport, installOpenbotStub, testServer } from "./app-test-harness";
 import { CHANNEL_SELECTION_STORAGE_KEY } from "./features/channels/channel-selection";
 import { AccountDock } from "./lazy-views";
 
@@ -67,6 +67,24 @@ it("restores the selected channel after restart and clears it when returning to 
   const view = render(() => <App />);
   expect(await screen.findByRole("heading", { name: "Chief", level: 1 })).toBeVisible();
   view.unmount();
+});
+
+it("keeps an image pasted in an agent chat after a channel was open", async () => {
+  await openSavedChannel();
+  await fireEvent.click(screen.getByRole("button", { name: /^Chief, Chief of staff/ }));
+  await screen.findByRole("main", { name: "Conversation" });
+
+  // The closed channel must not answer the desktop import as a result that no channel owns (#1866).
+  emitAttachmentImport?.({ type: "started", requestId: "paste-after-channel", serverId: "local" });
+  emitAttachmentImport?.({
+    type: "completed",
+    requestId: "paste-after-channel",
+    serverId: "local",
+    attachments: [attachment("pasted-image", "screenshot.png", "image")],
+  });
+
+  expect(await screen.findByRole("button", { name: "Remove screenshot.png" })).toBeInTheDocument();
+  expect(window.openbot.agent.discardDraftAttachment).not.toHaveBeenCalled();
 });
 
 it("keeps unsent agent and channel drafts through a chat switch and a restart", async () => {

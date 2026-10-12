@@ -1,6 +1,6 @@
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
-import { decodeSignalServerMessage, isSignalRateLimitFrame } from "@openbot/contracts/signal-protocol/decode";
+import { decodeSignalServerMessage } from "@openbot/contracts/signal-protocol/decode";
 import {
   SIGNAL_PROTOCOL_VERSION,
   SIGNAL_TURN_REFRESH_INTERVAL_MS,
@@ -272,11 +272,6 @@ interface PeerState {
   answeredRequest: boolean;
   /** The close code of the last Signal socket, so a connection timeout can name it. */
   lastSignalClose: number | null;
-  /**
-   * Signal closed this peer's socket with 1008 for a reason other than its rate limit, such as an
-   * expired session. Only this peer waits: a new peer has a new ticket.
-   */
-  socketRetryAt: number;
   hostProtocol?: number;
 }
 
@@ -743,7 +738,6 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         signalReady: false,
         answeredRequest: false,
         lastSignalClose: null,
-        socketRetryAt: 0,
       };
       peer = state;
       const connected = Deferred.makeUnsafe<void, RemotePeerError>();
@@ -759,7 +753,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
 
   function openSignal(state: PeerState, actions: ActionsRef): void {
     if (!active || state.closed || peer !== state || state.socket) return;
-    if (Date.now() < Math.max(signalRetryAt, state.socketRetryAt)) {
+    if (Date.now() < signalRetryAt) {
       scheduleReconnect(state, actions);
       return;
     }
@@ -767,6 +761,9 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     const socket = new WebSocket(state.signalUrl);
     state.socket = socket;
     state.signalReady = false;
+    // Signal closes with 1008 after several refusals, and an expired session is not a rate limit (#1867).
+    // The error frame arrives before the close, but its locked handler can run after it.
+    let refusal: string | null = null;
     socket.onopen = () => {
       if (state.closed || peer !== state || state.socket !== socket) return;
       diagnose(state, "signal-open");
@@ -779,13 +776,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       };
       socket.send(JSON.stringify(hello));
     };
-    // Signal sends `rate_limited` and then closes the socket with 1008. The close can run before the
-    // frame's handler, which skips a frame of a closed socket, so the code is read here.
-    let rateLimited = false;
     socket.onmessage = (event) => {
       if (!isString(event.data)) return;
       const data = event.data;
-      rateLimited ||= isSignalRateLimitFrame(data);
+      refusal = signalErrorCode(data) ?? refusal;
       void runPeerEffect(
         state.signalLock.withPermit(
           Effect.gen(function* () {
@@ -822,12 +816,8 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       state.hostWaitTimer = null;
       if (state.closed || peer !== state) return;
       if (event) state.lastSignalClose = event.code;
-      // Every new socket waits after a rate limit. Another 1008, such as an expired session, makes only
-      // this peer wait, so a new peer with a new ticket connects at once.
-      if (event?.code === 1008) {
-        if (rateLimited) signalRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
-        else state.socketRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
-      }
+      if (event?.code === 1008 && (refusal === null || refusal === "rate_limited"))
+        signalRetryAt = Date.now() + SIGNAL_RATE_LIMIT_MS;
       diagnose(state, "signal-closed", `code ${event?.code ?? "unknown"}`);
       scheduleReconnect(state, actions);
     };
@@ -1530,8 +1520,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
 
   function scheduleReconnect(state: PeerState, actions: ActionsRef): void {
     if (!active || state.reconnectTimer !== null) return;
-    // The connection deadline measures an active attempt, not the service's rate-limit wait. The wait of
-    // this peer's own socket keeps the deadline, so a recovery replaces a peer whose session ended.
+    // The connection deadline measures an active attempt, not the service's rate-limit wait.
     if (Date.now() < signalRetryAt && state.connectedTimer !== null) {
       clearTimeout(state.connectedTimer);
       state.connectedTimer = null;
@@ -1540,7 +1529,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     // the data channels stay online. A peer that recovers its ICE path needs Signal
     // for the restart. The recovery owner replaces dead peers.
     const delay = Math.max(
-      Math.max(signalRetryAt, state.socketRetryAt) - Date.now(),
+      signalRetryAt - Date.now(),
       isPeerOnline(state) || canRecoverPeer(state) || state.waitingForHost
         ? Math.min(30_000, 500 * 2 ** state.reconnectAttempt++)
         : 60_000,
@@ -1779,5 +1768,14 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
 
   function randomBase64Url(size: number): string {
     return bytesToBase64Url(crypto.getRandomValues(new Uint8Array(size)));
+  }
+}
+
+function signalErrorCode(data: string): string | null {
+  try {
+    const message = decodeSignalServerMessage(JSON.parse(data));
+    return message?.type === "error" ? message.code : null;
+  } catch {
+    return null;
   }
 }

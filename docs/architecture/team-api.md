@@ -32,8 +32,9 @@ the host to drop the connection (120 s socket idle timeout, then 30 s), so the p
 same session at once, without a resume hello, and the first attempt shows Connecting. Canceled reads
 and event resets request data synchronization without showing a reconnect on a healthy connection. Invite selection and manual refresh reuse the same controller. A transient RTC
 disconnected state has a 15-second recovery window, including on resume; failed or closed states
-drive recovery immediately. Only Signal's `rate_limited` makes every new Signal socket wait 60 s;
-another close with code 1008, such as an expired session, makes only that peer's socket wait. Backgrounding pauses the grace timer and cancels pending reads so they cannot block resume.
+drive recovery immediately. Signal's `rate_limited`, or a close with code 1008 and no error frame,
+makes the next Signal socket wait 60 s; another refusal with code 1008, such as an invalid ticket,
+reconnects at once. Backgrounding pauses the grace timer and cancels pending reads so they cannot block resume.
 Explicit refresh bypasses the retry cooldown without overlapping a pending connection attempt.
 The native/DOM mailbox carries concurrent commands by ID. Switching or disconnecting cancels
 pending callers immediately; peer generations reject late callbacks from a superseded host.
