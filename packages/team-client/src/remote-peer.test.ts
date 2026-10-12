@@ -1,6 +1,6 @@
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import type { SignalClientMessage } from "@openbot/contracts/signal-protocol/messages";
+import { SIGNAL_TURN_REFRESH_INTERVAL_MS, type SignalClientMessage } from "@openbot/contracts/signal-protocol/messages";
 import {
   decodeTeamProtocolV2FileChunk,
   decodeTeamProtocolV2FileControlFrame,
@@ -30,6 +30,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+
+/** The fields of a WebRTC stats report that the peer reads to find the selected path. */
+interface TestStats {
+  type: string;
+  selectedCandidatePairId?: string;
+  localCandidateId?: string;
+  remoteCandidateId?: string;
+  candidateType?: string;
+}
 
 const channelFixture = {
   id: "channel-one",
@@ -258,6 +267,49 @@ describe("browser remote peer recovery", () => {
     expect(result).toMatchObject({ ok: false });
     expect(network.updates.at(-1)).toMatchObject({ state: "online" });
     // Vitest reports an unhandled rejection here if validation registered an abandoned request.
+    await network.runtime.dispose();
+  });
+
+  // Signal sends the `connectionId` of a refresh back in its `ready`. Sent with this connection's ID,
+  // the answer read as a kept path whose deadline had passed, so the peer asked again at once, until
+  // Signal closed the socket for its message limit.
+  it.each([
+    { candidateType: "host", restarts: 0 },
+    { candidateType: "relay", restarts: 1 },
+  ])("renews TURN credentials once per interval on a $candidateType path", async ({ candidateType, restarts }) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const connection = network.connection();
+    connection.candidateType = candidateType;
+    const socket = network.socket();
+    const send = socket.send.bind(socket);
+    const refreshes: unknown[] = [];
+    socket.send = (data: string) => {
+      send(data);
+      const message = JSON.parse(data);
+      if (message.type !== "turn-refresh") return;
+      refreshes.push(message);
+      // Bounded, so a peer that asks in a loop fails the test instead of running forever.
+      if (refreshes.length <= 3)
+        queueMicrotask(() =>
+          socket.receive({
+            type: "ready",
+            version: 1,
+            connectionId: message.connectionId,
+            resumeToken: "resume-2",
+            iceServers: [{ urls: "turn:localhost" }],
+          }),
+        );
+    };
+
+    await vi.advanceTimersByTimeAsync(SIGNAL_TURN_REFRESH_INTERVAL_MS);
+    await vi.waitFor(() => expect(connection.configurations).toHaveLength(1));
+    await vi.advanceTimersByTimeAsync(SIGNAL_TURN_REFRESH_INTERVAL_MS - 1_000);
+    expect(refreshes).toEqual([{ type: "turn-refresh", version: 1, connectionId: null }]);
+    expect(connection.iceRestarts).toBe(restarts);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(refreshes).toHaveLength(2);
     await network.runtime.dispose();
   });
 
@@ -1459,7 +1511,20 @@ async function setupNetwork(
         channel.onopen?.();
       }
     }
-    setConfiguration() {}
+    readonly configurations: RTCConfiguration[] = [];
+    setConfiguration(value: RTCConfiguration) {
+      this.configurations.push(value);
+    }
+    /** The type of the local candidate in the selected pair. */
+    candidateType = "host";
+    async getStats() {
+      return new Map<string, TestStats>([
+        ["transport", { type: "transport", selectedCandidatePairId: "pair" }],
+        ["pair", { type: "candidate-pair", localCandidateId: "local", remoteCandidateId: "remote" }],
+        ["local", { type: "local-candidate", candidateType: this.candidateType }],
+        ["remote", { type: "remote-candidate", candidateType: "host" }],
+      ]);
+    }
     iceRestarts = 0;
     restartIce() {
       this.iceRestarts += 1;

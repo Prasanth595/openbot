@@ -456,18 +456,38 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
   /** The candidate types of the selected pair, such as `relay/udp -> host/udp`. Never the addresses. */
   function reportRoute(state: PeerState, connection: RTCPeerConnection) {
     return Effect.fn("RemotePeer.reportRoute")(function* () {
-      const stats = yield* peerCall(() => connection.getStats());
-      let route: string | null = null;
-      stats.forEach((report) => {
-        if (route || report.type !== "candidate-pair" || report.state !== "succeeded" || !report.nominated) return;
-        route = `${candidateRoute(stats.get(report.localCandidateId))} -> ${candidateRoute(stats.get(report.remoteCandidateId))}`;
-      });
-      if (route) yield* notify(diagnosticCall(state, "route", route));
+      const pair = selectedCandidates(yield* peerCall(() => connection.getStats()));
+      if (pair)
+        yield* notify(
+          diagnosticCall(state, "route", `${candidateRoute(pair.local)} -> ${candidateRoute(pair.remote)}`),
+        );
     })();
   }
 
   function candidateRoute(candidate: { candidateType?: string; protocol?: string } | undefined): string {
     return `${candidate?.candidateType ?? "unknown"}/${candidate?.protocol ?? "unknown"}`;
+  }
+
+  /** The two candidates of the pair that carries the data, or null before ICE selects one. */
+  function selectedCandidates(stats: RTCStatsReport) {
+    const reports = [...stats.values()];
+    const transport = reports.find((report) => report.type === "transport" && report.selectedCandidatePairId);
+    const pair =
+      (transport ? stats.get(transport.selectedCandidatePairId) : undefined) ??
+      reports.find((report) => report.type === "candidate-pair" && report.state === "succeeded" && report.nominated);
+    return pair ? { local: stats.get(pair.localCandidateId), remote: stats.get(pair.remoteCandidateId) } : null;
+  }
+
+  /** Whether the path goes through a TURN server, whose allocation keeps the credentials it was made with. */
+  function usesRelay(connection: RTCPeerConnection) {
+    return peerCall(() => connection.getStats()).pipe(
+      Effect.map((stats) => {
+        const pair = selectedCandidates(stats);
+        // With no pair to read, restart: a relayed path stops when its credentials expire.
+        return !pair || pair.local?.candidateType === "relay" || pair.remote?.candidateType === "relay";
+      }),
+      Effect.catch(() => Effect.succeed(true)),
+    );
   }
 
   function isPeerOnline(state: PeerState): boolean {
@@ -848,10 +868,15 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           state.waitingForHost = false;
           armConnectedTimer(state, actions);
         }
+        // Null only on the `ready` that answers this peer's `turn-refresh`.
+        const turnRefresh = message.connectionId === null;
+        const online = isPeerOnline(state);
         // The host replaces a connection after 10 ICE restarts, so a socket that comes back while the
-        // path is still online, such as on a return to the foreground, keeps the path. A TURN refresh
-        // still restarts ICE, so a relayed path moves to the new credentials.
-        const restartsIce = message.connectionId === null || state.restartIceOnReady || !isPeerOnline(state);
+        // path is still online, such as on a return to the foreground, keeps the path. After a TURN
+        // refresh only a relayed path restarts ICE to use the new credentials; any other path takes
+        // them at its next gathering.
+        const relayed = turnRefresh && online && state.connection ? yield* usesRelay(state.connection) : false;
+        const restartsIce = state.restartIceOnReady || !online || relayed;
         state.restartIceOnReady = false;
         state.resumeToken = message.resumeToken;
         // Null on the `ready` that answers a TURN refresh: the credentials are new, the connection is
@@ -865,8 +890,9 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         const connectionId = state.connectionId;
         state.signalReady = true;
         yield* notify(diagnosticCall(state, "signal-ready", `${state.iceServers.length} ICE servers`));
-        // A kept path still uses the credentials of its last ICE restart, so keep their deadline.
-        if (state.connection && !restartsIce) resumeTurnRefresh(state);
+        // A kept path still uses the credentials of its last ICE restart, so keep their deadline. The
+        // answer to a refresh starts a new one, or the next refresh would be due at once.
+        if (state.connection && !restartsIce && !turnRefresh) resumeTurnRefresh(state);
         else scheduleTurnRefresh(state);
         if (state.connection) {
           const connection = state.connection;
@@ -1501,11 +1527,9 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       state.turnRefreshTimer = null;
       if (canSignal(state)) {
         try {
-          sendSignal(state, {
-            type: "turn-refresh",
-            version: SIGNAL_PROTOCOL_VERSION,
-            connectionId: state.connectionId,
-          });
+          // Null asks for the credentials of this socket, and Signal answers with a null `connectionId`.
+          // With this connection's ID the answer read as the `ready` of a new socket.
+          sendSignal(state, { type: "turn-refresh", version: SIGNAL_PROTOCOL_VERSION, connectionId: null });
         } catch {
           // The reconnect path will request fresh TURN credentials.
         }

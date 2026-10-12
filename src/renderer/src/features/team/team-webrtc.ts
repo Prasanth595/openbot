@@ -387,16 +387,17 @@ async function handleSignal(state: PeerState, message: SignalServerMessage): Pro
   }
   if (message.type === "ready") {
     state.reconnectAttempt = 0;
+    // Null on the `ready` of the host's socket, and on the `ready` that answers a `turn-refresh`.
+    const turnRefresh = message.connectionId === null;
+    const client = state.role === "client" && state.connectionId ? state.peerConnection : null;
     // The host replaces a connection after 10 ICE restarts, so a socket that comes back while the
-    // path is still connected keeps the path. A TURN refresh still restarts ICE, so a relayed path
-    // moves to the new credentials.
+    // path is still connected keeps the path. After a TURN refresh only a relayed path restarts ICE
+    // to use the new credentials; any other path takes them at its next gathering.
     const shouldRestartIce = Boolean(
-      state.role === "client" &&
-        state.connectionId &&
-        state.peerConnection &&
-        (message.connectionId === null ||
-          state.restartIceOnReady ||
-          state.peerConnection.connectionState !== "connected"),
+      client &&
+        (state.restartIceOnReady ||
+          client.connectionState !== "connected" ||
+          (turnRefresh && (await selectedPath(client).catch(() => "relay")) === "relay")),
     );
     state.restartIceOnReady = false;
     state.resumeToken = message.resumeToken;
@@ -419,8 +420,9 @@ async function handleSignal(state: PeerState, message: SignalServerMessage): Pro
         bundlePolicy: "max-bundle",
         iceTransportPolicy: state.iceTransportPolicy,
       });
-    // A kept path still uses the credentials of its last ICE restart, so keep their deadline.
-    if (state.role === "client" && state.peerConnection && !shouldRestartIce)
+    // A kept path still uses the credentials of its last ICE restart, so keep their deadline. The
+    // answer to a refresh starts a new one, or the next refresh would be due at once.
+    if (state.role === "client" && state.peerConnection && !shouldRestartIce && !turnRefresh)
       scheduleTurnRefresh(state, Math.max(0, state.turnRefreshDueAt - Date.now()));
     else scheduleTurnRefresh(state);
     post({ type: "ice-servers", peerId: state.id, iceServers: state.iceServers });
@@ -789,6 +791,11 @@ function requiredDescriptionSdp(description: RTCSessionDescriptionInit): string 
 }
 
 async function reportSelectedPath(state: PeerState, connection: RTCPeerConnection): Promise<void> {
+  post({ type: "ice-path", peerId: state.id, path: await selectedPath(connection) });
+}
+
+/** `relay` when either end of the selected pair is a TURN allocation, which keeps the credentials it was made with. */
+async function selectedPath(connection: RTCPeerConnection): Promise<"relay" | "p2p"> {
   const stats = await connection.getStats();
   const transport = [...stats.values()].find((report) => report.type === "transport" && report.selectedCandidatePairId);
   const selectedPair = transport ? stats.get(transport.selectedCandidatePairId) : null;
@@ -800,8 +807,7 @@ async function reportSelectedPath(state: PeerState, connection: RTCPeerConnectio
     [...stats.values()].find((report) => report.type === "candidate-pair" && report.state === "succeeded");
   const local = pair ? stats.get(pair.localCandidateId) : null;
   const remote = pair ? stats.get(pair.remoteCandidateId) : null;
-  const path = local?.candidateType === "relay" || remote?.candidateType === "relay" ? "relay" : "p2p";
-  post({ type: "ice-path", peerId: state.id, path });
+  return local?.candidateType === "relay" || remote?.candidateType === "relay" ? "relay" : "p2p";
 }
 
 function sendSignal(state: PeerState, message: SignalClientMessage): void {
@@ -844,7 +850,9 @@ function armTurnRefresh(state: PeerState, delay: number): void {
     if (!state.socket || state.socket.readyState !== WebSocket.OPEN)
       return armTurnRefresh(state, SIGNAL_TURN_REFRESH_INTERVAL_MS);
     try {
-      sendSignal(state, { type: "turn-refresh", version: SIGNAL_PROTOCOL_VERSION, connectionId: state.connectionId });
+      // Null asks for the credentials of this socket, and Signal answers with a null `connectionId`.
+      // With a client's connection ID the answer read as the `ready` of a new socket.
+      sendSignal(state, { type: "turn-refresh", version: SIGNAL_PROTOCOL_VERSION, connectionId: null });
     } catch {
       armTurnRefresh(state, SIGNAL_TURN_REFRESH_INTERVAL_MS);
     }
