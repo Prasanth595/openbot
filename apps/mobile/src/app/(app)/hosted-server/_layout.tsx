@@ -7,9 +7,9 @@ import { useText } from "@/shared/lib/text";
 
 export const unstable_settings = { initialRouteName: "index" };
 
-// One sheet owns the purchase: the plans, then the payment and the setup of the new server as an
-// inner page. The back button on the setup returns to the plans while the server waits for payment.
-// Join with an invitation is an inner page too, so the user can go back to the plans.
+// One sheet shows the plans and the account's hosted servers, with no purchase: app store rules do
+// not allow a purchase outside the store. The setup of a server in setup is an inner page. Join with
+// an invitation is an inner page too, so the user can go back to the plans.
 export default function HostedServerLayout() {
   const { t } = useText();
   const background = String(useCSSVariable("--openbot-bg-sheet"));
