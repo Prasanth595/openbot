@@ -95,7 +95,7 @@ export async function startLoopbackCallbackServer(
  * The checks of one request, before the sign-in sees it: the parsed URL, or the refusal. Separated
  * from the listener so a test states a request rather than making one.
  */
-export function checkCallbackRequest(
+function checkCallbackRequest(
   method: string | undefined,
   target: string | undefined,
   host: string | undefined,

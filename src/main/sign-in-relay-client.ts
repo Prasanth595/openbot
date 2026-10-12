@@ -144,6 +144,15 @@ export class SignInRelayClient {
   ) {
     const { flowId } = yield* remote.start;
     const self = this;
+    // A new sign-in of the same key can start before this one ends, so this run removes only its own entry.
+    let own: Waiting | null = null;
+    const wait = (waiting: Waiting) => {
+      own = waiting;
+      self.#waiting.set(key, waiting);
+    };
+    const forget = () => {
+      if (own !== null && self.#waiting.get(key) === own) self.#waiting.delete(key);
+    };
     return yield* Effect.gen(function* () {
       const first = yield* awaitPage(remote, flowId);
       if (first.result) return first.result;
@@ -158,7 +167,7 @@ export class SignInRelayClient {
       // A page with no `state` that returns nowhere, such as a device page, has nothing to relay: the
       // user only opens it, and the host's sign-in finishes by itself.
       if (!state && !callback) {
-        self.#waiting.set(key, {
+        wait({
           page: { authorizeHost: page.host, listening: false, pasteable: false },
           url: page.toString(),
           state: null,
@@ -179,7 +188,7 @@ export class SignInRelayClient {
       const own = self.#dependencies.ownListener();
       const routed =
         callback !== null && (listener !== null || (own?.port === callback.port && own.path === callback.path));
-      self.#waiting.set(key, {
+      wait({
         page: { authorizeHost: page.host, listening: routed, pasteable: true },
         url: page.toString(),
         state,
@@ -193,13 +202,13 @@ export class SignInRelayClient {
         awaitResult(remote, flowId).pipe(Effect.map((result) => ({ result }))),
       );
       if ("result" in ended) return ended.result;
-      self.#waiting.delete(key);
+      forget();
       const completed = yield* remote.complete(flowId, ended.query);
       return completed.result ?? (yield* awaitResult(remote, flowId));
     }).pipe(
       Effect.scoped,
       Effect.onError(() => remote.cancel(flowId).pipe(Effect.ignore)),
-      Effect.ensuring(Effect.sync(() => self.#waiting.delete(key))),
+      Effect.ensuring(Effect.sync(forget)),
     );
   });
 
