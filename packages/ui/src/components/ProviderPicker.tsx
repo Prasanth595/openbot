@@ -590,11 +590,12 @@ export function ProviderPicker(props: ProviderPickerProps) {
                       <Show when={connectError() ?? statusMessage()}>
                         {(message) => (
                           <small
-                            class={
+                            class={[
+                              "provider-picker-status-message",
                               state() === "error" || runtimeStatus()?.phase === "download-error" || connectError()
                                 ? "provider-picker-check-error"
-                                : "provider-picker-email"
-                            }
+                                : "provider-picker-email",
+                            ]}
                           >
                             {sourceText(message())}
                           </small>

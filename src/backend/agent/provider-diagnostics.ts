@@ -225,6 +225,18 @@ export function isGlogBelowErrorDiagnostic(message: string): boolean {
 }
 
 /**
+ * Whether the Antigravity harness reports a model request that its caller canceled, as in
+ * `harness stderr: received model response error: doRequest: error sending request: Post "…": context canceled`.
+ *
+ * Go's `context canceled` comes only from a cancel by the caller: Stop, or the end of the process.
+ * The turn already shows that it stopped, and the user read two "Provider error" toasts after each
+ * Stop. A request that took too long ends with `deadline exceeded` instead, and stays visible.
+ */
+export function isCanceledHarnessRequestDiagnostic(message: string): boolean {
+  return /\bharness stderr:.*\bcontext canceled\W*$/su.test(message);
+}
+
+/**
  * The timestamp a CLI's log formatter writes before a record, as in
  * `2026-09-23T06:57:23.278161Z ERROR …`. It is removed from what the renderer shows: it is not
  * something to act on, and it makes every repeat of one failure a new message.

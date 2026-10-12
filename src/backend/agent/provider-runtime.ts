@@ -62,6 +62,7 @@ import {
   ignoredCodexSettings,
   isAcpHandlerDiagnostic,
   isBackgroundRefreshDiagnostic,
+  isCanceledHarnessRequestDiagnostic,
   isGlogBelowErrorDiagnostic,
   isIgnoredConfigDiagnostic,
   isMcpSubsystemDiagnostic,
@@ -2457,6 +2458,10 @@ export class ProviderRuntime implements ProviderPort {
       }
       if (isGlogBelowErrorDiagnostic(message)) {
         stderrLogger.info("A provider logged an info or warning record.", { provider: client.provider, message });
+        return;
+      }
+      if (isCanceledHarnessRequestDiagnostic(message)) {
+        stderrLogger.info("A provider logged a request that a stop canceled.", { provider: client.provider, message });
         return;
       }
       // Without the timestamp, a repeat of one failure is the same message, and the renderer shows
