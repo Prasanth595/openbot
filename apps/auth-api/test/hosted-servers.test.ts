@@ -232,7 +232,7 @@ describe("hosted servers", () => {
       available: false,
       lifecycleAvailable: true,
       servers: [],
-      maxServers: 3,
+      maxServers: 50,
     });
     await expect(
       runApiEffect(context.service.create(stranger, STARTER, "create-key-0000001", RETURN)),

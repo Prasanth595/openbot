@@ -17,7 +17,7 @@ uses the scripts and units of this page with `mode` set to `self`.
 The Worker enables hosted servers only when it has the boat and Stripe secrets and
 `HOSTED_SERVER_TEMPLATE`, and only for the account IDs or emails in `HOSTED_SERVERS_ALLOWED_USER_IDS` (`*`
 allows each account; with no value, no account can create a server). Production sets `*` in
-`wrangler.jsonc`, so each account can buy a server. See [Production](#production). An account can have 3 servers that are not
+`wrangler.jsonc`, so each account can buy a server. See [Production](#production). An account can have 50 servers that are not
 deleted (`MAX_SERVERS_PER_ACCOUNT`). An account has at most one server that waits for its first
 payment: a create with a new Idempotency-Key gives its plan to that server and opens a new page. So a
 cancelled or abandoned Checkout page adds no server, also when the client lost its key (the web client

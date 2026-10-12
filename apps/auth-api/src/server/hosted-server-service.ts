@@ -51,7 +51,7 @@ const CLAIM_REDEEM_RETRY_MS = 10 * 60_000;
 const STUCK_AFTER_MS = 2 * 60_000;
 /** boat retries a delivery for hours, so a delivery ID is kept longer than the 5 minute replay window. */
 const DELIVERY_RETENTION_MS = 7 * 24 * 60 * 60_000;
-const MAX_SERVERS_PER_ACCOUNT = 3;
+const MAX_SERVERS_PER_ACCOUNT = 50;
 const TICK_BATCH_SIZE = 20;
 /**
  * A server that waits for its first payment this long is removed. Its Checkout page (35 minutes)
