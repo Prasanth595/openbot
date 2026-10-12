@@ -166,8 +166,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Cette liaison créerait une boucle.",
   "error.backend.routineFlowLinkLimit": "Une routine peut avoir au plus {limit} liaisons.",
   "error.backend.routineFlowHandoffFailed": "La routine n’a pas pu transmettre le travail à cet agent.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "Les enchaînements de routines sont disponibles uniquement pour les agents de cet ordinateur.",
   "error.backend.mcpServerLimit": "OpenBot garde jusqu’à {limit} serveurs MCP.",
   "error.backend.mcpServerNameTaken": "Un serveur MCP nommé {name} existe déjà.",
   "error.backend.mcpServerNoAnswer": "Le serveur n’a pas répondu en {seconds} secondes.",

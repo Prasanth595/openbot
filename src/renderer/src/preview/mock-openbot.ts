@@ -65,6 +65,8 @@ import {
   type ReorderQueueInput,
   type RespondToPromptInput,
   type Routine,
+  type RoutineFlowLink,
+  type RoutineFlowStep,
   type RoutineRun,
   type RoutineSchedule,
   type SendMessageInput,
@@ -154,6 +156,10 @@ export interface MockOpenBotOptions
   memories?: Record<string, AgentMemory[]>;
   tables?: SharedTable[];
   routines?: Record<string, Routine[]>;
+  /** Runs keyed by routine id, newest first. */
+  routineRuns?: Record<string, RoutineRun[]>;
+  routineFlowLinks?: RoutineFlowLink[];
+  routineFlowSteps?: RoutineFlowStep[];
   customProviders?: CustomProviderSummary[];
 }
 
@@ -427,7 +433,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
 
   let tables: SharedTable[] = clone(options.tables ?? STORY_SHARED_TABLES);
   const routines = new Map<string, Routine[]>(Object.entries(clone(options.routines ?? {})));
-  const routineRuns = new Map<string, RoutineRun[]>();
+  const routineRuns = new Map<string, RoutineRun[]>(Object.entries(clone(options.routineRuns ?? {})));
 
   function emitAgentEvent(event: AgentEvent): void {
     emit(agentListeners, event);
@@ -718,7 +724,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     providerRuntimes: mockProviderRuntimes.providerRuntimes,
     openUrl: async () => undefined,
     voice: mockVoice.voice,
-    routineFlows: mockRoutineFlows({ routines, routineRuns }),
+    routineFlows: mockRoutineFlows(
+      { routines, routineRuns, links: options.routineFlowLinks, steps: options.routineFlowSteps },
+      (agentId) => emitAgentEvent({ type: "routine-flows-changed", agentId }),
+    ),
     auth: mockAuth.auth,
     skills: mockSkills.skills,
     hostedSites: {
@@ -1901,7 +1910,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return () => agentListeners.delete(listener);
       },
       onScopedEvent: (listener) => {
-        const scopedListener = (event: AgentEvent) => listener({ serverId: "local", event });
+        const scopedListener = (event: AgentEvent) => listener({ serverId: mockTeam.activeServerId(), event });
         agentListeners.add(scopedListener);
         return () => agentListeners.delete(scopedListener);
       },
@@ -1966,7 +1975,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       onPreference: () => () => undefined,
     },
     notifications: {
-      getPreference: async () => ({ desktopNotifications: true }),
+      getPreference: async () => ({ desktopNotifications: true, messagePreview: true }),
       setPreference: async (input) => ({ ...input }),
       test: async () => undefined,
       openSettings: async () => undefined,

@@ -7,6 +7,7 @@ import {
   createRemoteConnectionRecovery,
   createRemoteReadRefresh,
   mergeRemoteUnreadIds,
+  type RemoteRecoveryStatus,
   remoteConnectionFailureDetails,
   remoteRecoveryMessage,
   resyncRemoteConversations,
@@ -471,6 +472,43 @@ describe("remote connection recovery", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(phase).toBe("suspended");
     controller.dispose();
+  });
+
+  // A return to the app checks the connection that was online. When that connection is lost during
+  // the check, its replacement starts at once, as when the check fails. The status showed the
+  // countdown of a failed attempt for a moment.
+  it("replaces a connection lost during a foreground check without a failure countdown", async () => {
+    vi.useFakeTimers();
+    let finish = () => {};
+    const load = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const statuses: RemoteRecoveryStatus[] = [];
+    const recovery = createRemoteConnectionRecovery(
+      load,
+      () => {},
+      (status) => statuses.push(status),
+    );
+    recovery.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    recovery.setActive(false);
+    recovery.setActive(true);
+    await vi.advanceTimersByTimeAsync(0);
+    statuses.length = 0;
+    recovery.offline();
+    expect(statuses).toEqual([{ phase: "waiting", attempt: 0, remainingSeconds: 0 }]);
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(load).toHaveBeenCalledTimes(3);
+    expect(statuses.map((status) => status.phase)).toEqual(["waiting", "connecting", "online"]);
+    recovery.dispose();
   });
 
   it("does not overlap connection attempts and ignores a disposed server", async () => {

@@ -1,10 +1,18 @@
-// The local speech recognition models (Parakeet, Whisper turbo), their settings, and dictation.
+// The speech recognition models (Parakeet and Whisper turbo on this computer, ElevenLabs Scribe in
+// the cloud), their settings, and dictation.
 
-import type { VoiceModelStatus, VoiceSettings, VoiceTranscriptionResult } from "@openbot/contracts/ipc";
+import type { VoiceModelStatus, VoiceSettings, VoiceStream, VoiceTranscriptionResult } from "@openbot/contracts/ipc";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { VoiceTranscriptionService } from "../voice-transcription-service";
 import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
-import { parseVoiceModelRequest, parseVoiceSettings, parseVoiceTranscription } from "./voice-inputs";
+import {
+  parseVoiceApiKey,
+  parseVoiceModelRequest,
+  parseVoiceSettings,
+  parseVoiceStream,
+  parseVoiceStreamAudio,
+  parseVoiceTranscription,
+} from "./voice-inputs";
 
 export interface VoiceIpcDependencies {
   voice: VoiceTranscriptionService;
@@ -33,6 +41,20 @@ export function voiceIpcHandlers({ voice }: VoiceIpcDependencies): Pick<IpcGroup
         parseVoiceTranscription,
         (transcription): Promise<VoiceTranscriptionResult> => runCauseEffect(voice.transcribe(transcription.audio)),
       ),
+      setApiKey: payloadHandler(
+        parseVoiceApiKey,
+        ({ key }): Promise<VoiceModelStatus> => runCauseEffect(voice.setApiKey(key)),
+      ),
+      startStream: handler((): Promise<VoiceStream> => runCauseEffect(voice.startStream())),
+      appendStream: payloadHandler(
+        parseVoiceStreamAudio,
+        (audio): Promise<void> => runCauseEffect(voice.appendStream(audio)),
+      ),
+      finishStream: payloadHandler(
+        parseVoiceStream,
+        (stream): Promise<VoiceTranscriptionResult> => runCauseEffect(voice.finishStream(stream)),
+      ),
+      cancelStream: payloadHandler(parseVoiceStream, (stream): void => voice.cancelStream(stream)),
     },
   };
 }

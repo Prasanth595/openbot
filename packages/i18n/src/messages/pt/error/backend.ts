@@ -165,7 +165,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Esta conexão criaria um loop.",
   "error.backend.routineFlowLinkLimit": "Uma rotina pode ter no máximo {limit} conexões.",
   "error.backend.routineFlowHandoffFailed": "A rotina não conseguiu passar o trabalho para este agente.",
-  "error.backend.routineFlowRemoteUnsupported": "Fluxos de rotina só estão disponíveis para agentes neste computador.",
   "error.backend.mcpServerLimit": "O OpenBot mantém até {limit} servidores MCP.",
   "error.backend.mcpServerNameTaken": "Já existe um servidor MCP chamado {name}.",
   "error.backend.mcpServerNoAnswer": "O servidor não respondeu em {seconds} segundos.",

@@ -1,20 +1,22 @@
 import {
   DEFAULT_VOICE_SETTINGS,
+  ELEVENLABS_VOICE_MODEL_ID,
   type OpenBotDesktopApi,
   VOICE_MODEL_IDS,
   type VoiceModelId,
   type VoiceModelStatus,
   type VoiceSettings,
+  type VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
 import { clone, type Listener, type MockRuntime } from "./mock-support";
 
 export interface MockVoiceOptions {
-  /** The models already downloaded. Parakeet when not given. */
+  /** The models already downloaded, and ElevenLabs when its key is saved. Parakeet when not given. */
   voiceModelsReady?: readonly VoiceModelId[];
   voiceSettings?: VoiceSettings;
 }
 
-/** The local dictation models, with download progress the preview makes up. */
+/** The dictation models, with download progress and a streamed transcript the preview makes up. */
 export function createMockVoice(options: MockVoiceOptions, { emit, schedule }: MockRuntime) {
   const ready = new Set(options.voiceModelsReady ?? ["parakeet-tdt-0.6b-v3"]);
   let settings: VoiceSettings = clone(options.voiceSettings ?? DEFAULT_VOICE_SETTINGS);
@@ -27,6 +29,7 @@ export function createMockVoice(options: MockVoiceOptions, { emit, schedule }: M
     ]),
   );
   const listeners = new Set<Listener<VoiceModelStatus>>();
+  const transcriptListeners = new Set<Listener<VoiceStreamTranscript>>();
   const transfers = new Map<VoiceModelId, { settle: (status: VoiceModelStatus) => void }>();
   const status = (modelId: VoiceModelId): VoiceModelStatus =>
     clone(statuses.get(modelId) ?? { modelId, phase: "missing", progress: null, message: null });
@@ -38,7 +41,8 @@ export function createMockVoice(options: MockVoiceOptions, { emit, schedule }: M
   const download = (modelId: VoiceModelId) =>
     new Promise<VoiceModelStatus>((resolve) => {
       const current = status(modelId);
-      if (current.phase === "ready") return resolve(current);
+      // The cloud model has nothing to download: its key makes it ready.
+      if (current.phase === "ready" || modelId === ELEVENLABS_VOICE_MODEL_ID) return resolve(current);
       const transfer = { settle: resolve };
       transfers.set(modelId, transfer);
       setStatus({ modelId, phase: "downloading", progress: 0, message: null });
@@ -74,9 +78,26 @@ export function createMockVoice(options: MockVoiceOptions, { emit, schedule }: M
       return clone(settings);
     },
     transcribe: async () => ({ text: "Mock voice transcript" }),
+    setApiKey: async ({ key }) => {
+      setStatus({
+        modelId: ELEVENLABS_VOICE_MODEL_ID,
+        phase: key === null ? "missing" : "ready",
+        progress: key === null ? null : 100,
+        message: null,
+      });
+      return status(ELEVENLABS_VOICE_MODEL_ID);
+    },
+    startStream: async () => ({ streamId: crypto.randomUUID() }),
+    appendStream: async ({ streamId }) => emit(transcriptListeners, { streamId, text: "Mock voice transcript" }),
+    finishStream: async () => ({ text: "Mock voice transcript" }),
+    cancelStream: async () => {},
     onModelStatus: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    onStreamTranscript: (listener) => {
+      transcriptListeners.add(listener);
+      return () => transcriptListeners.delete(listener);
     },
   };
   return { voice };

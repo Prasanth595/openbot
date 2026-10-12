@@ -304,7 +304,6 @@ import type {
   RemoveRoutineFlowPositionInput,
   RoutineFlowCanvas,
   RoutineFlowLink,
-  RoutineFlowsChanged,
   SaveRoutineFlowPositionInput,
   UpdateRoutineFlowLinkInput,
 } from "./ipc-routine-flows";
@@ -383,9 +382,13 @@ import type {
   UpdateTeamMemberInput,
 } from "./ipc-team-host";
 import type {
+  VoiceApiKeyInput,
   VoiceModelRequest,
   VoiceModelStatus,
   VoiceSettings,
+  VoiceStream,
+  VoiceStreamAudio,
+  VoiceStreamTranscript,
   VoiceTranscriptionInput,
   VoiceTranscriptionResult,
 } from "./ipc-voice";
@@ -585,7 +588,21 @@ export const IPC_ENDPOINTS = {
     getSettings: request<undefined, VoiceSettings>()("voice:get-settings"),
     setSettings: request<VoiceSettings, VoiceSettings>()("voice:set-settings"),
     transcribe: request<VoiceTranscriptionInput, VoiceTranscriptionResult>()("voice:transcribe"),
+    /** Saves or removes the ElevenLabs API key. Answers the status of the ElevenLabs model. */
+    setApiKey: request<VoiceApiKeyInput, VoiceModelStatus>()("voice:set-api-key"),
+    /**
+     * Opens a streamed dictation with the cloud model in use. Answers when the provider accepted it.
+     * A new stream ends the one before it.
+     */
+    startStream: request<undefined, VoiceStream>()("voice:start-stream"),
+    appendStream: request<VoiceStreamAudio, void>()("voice:append-stream"),
+    /** Ends the audio and answers the whole text. */
+    finishStream: request<VoiceStream, VoiceTranscriptionResult>()("voice:finish-stream"),
+    /** Ends a stream and drops its text. */
+    cancelStream: request<VoiceStream, void>()("voice:cancel-stream"),
     modelStatus: event<VoiceModelStatus>()("voice:model-status"),
+    /** The text of a stream so far. It can change until `finishStream` answers. */
+    streamTranscript: event<VoiceStreamTranscript>()("voice:stream-transcript"),
   },
   dynamicIsland: {
     getPreference: request<undefined, DynamicIslandPreference>()("dynamic-island:get-preference"),
@@ -1023,7 +1040,8 @@ export const IPC_ENDPOINTS = {
   },
   /**
    * Routine flows: an agent routine's answer handed on from agent to agent, and the canvas that shows
-   * it. Only this computer's host keeps them; a remote server answers that it cannot.
+   * it. A joined server answers through `routine-flows-v1` when it supports it. The agent event
+   * `routine-flows-changed` says which canvas changed.
    */
   routineFlows: {
     canvas: scopedRequest<string, RoutineFlowCanvas>()("routine-flows:canvas"),
@@ -1032,8 +1050,6 @@ export const IPC_ENDPOINTS = {
     connect: scopedRequest<ConnectRoutineFlowInput, RoutineFlowLink>()("routine-flows:connect"),
     disconnect: scopedRequest<DisconnectRoutineFlowInput, void>()("routine-flows:disconnect"),
     updateLink: scopedRequest<UpdateRoutineFlowLinkInput, RoutineFlowLink>()("routine-flows:update-link"),
-    /** The local agents whose canvases changed. */
-    changed: event<RoutineFlowsChanged>()("routine-flows:changed"),
   },
   agentAttachments: {
     chooseAttachments: scopedRequest<ChooseAttachmentsInput, DraftAttachment[]>()("agent:choose-attachments"),

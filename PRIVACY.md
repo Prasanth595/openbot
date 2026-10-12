@@ -280,8 +280,8 @@ Each account can buy hosted servers. A hosted server is a Linux
 OpenBot computer that runs in a [boat](https://boat.dev) sandbox in the EU (Germany, Finland or
 France). The sandbox holds the server's workspaces, conversations, attachments, browser data and
 team data, the same as your own computer would. The server stops 15 to 30 minutes after its last use and
-starts again when you press a key or click in an app that shows it, or a few minutes before its next
-scheduled routine run. Use means that an agent works, a remote desktop is open, a file moves, or you
+starts again when you press a key or click in an app that shows it, when a Slack, Discord or
+Telegram message addresses OpenBot, or a few minutes before its next scheduled routine run. Use means that an agent works, a remote desktop is open, a file moves, or you
 sent a message, made a change, typed or used a shared browser view in the last 5 minutes. An app
 that is only open does not count.
 To show whether a server is asleep, the app asks the account service for its state. This request
@@ -444,6 +444,10 @@ is not included in analytics; provider output uses the application's secret reda
   `~/Library/Application Support/OpenBot/openbot-github-connector-v1.json`, encrypted by the operating
   system's secret storage. It holds the GitHub access and refresh tokens, the account name, ID and
   avatar address, and the port and secret of the local GitHub MCP server.
+- The ElevenLabs API key for dictation is kept in
+  `~/Library/Application Support/OpenBot/voice-api-key.json`, encrypted by the operating system's
+  secret storage. The app window never receives the key back. Remove key in **Settings → Voice**
+  deletes the file. The key is redacted from logs, exports and diagnostics.
   While the connection is on, `provider-state/github` in the same folder holds the access token and
   the OpenBot GitHub App's installation tokens in plain text, with mode 0600, for `gh` and `git` in
   agent tools. OpenBot deletes that folder when you disconnect and when the app closes; after a crash
@@ -532,8 +536,13 @@ Network traffic can also occur when:
 - the user dictates for the first time, or presses Download in **Settings → Voice**. OpenBot
   downloads the speech model that it pins, Parakeet or Whisper turbo, from `huggingface.co`, checks
   its size and SHA-256, and keeps it in `runtimes` in the application data folder. The request
-  carries no user data. Dictation audio stays on the computer, and the chosen model and language
-  are saved in `voice-preference.json` in the same folder;
+  carries no user data. Dictation audio from these models stays on the computer, and the chosen
+  model and language are saved in `voice-preference.json` in the same folder;
+- the user selects ElevenLabs Scribe v2 Realtime in **Settings → Voice** and dictates. While the
+  microphone records, OpenBot streams the audio and the chosen language to
+  `api.elevenlabs.io` with the user's own API key, and receives the text. Nothing else is sent:
+  no conversation, file or agent instruction. ElevenLabs handles the audio and the text under its
+  own policy and the user's ElevenLabs plan. The local models send nothing;
 - the user connects Bitwarden. OpenBot runs the installed `bw` CLI to sync with the server already
   configured in that CLI, including a self-hosted server. It syncs before listing or filling logins.
   These calls send no OpenBot conversations, files, or agent instructions to Bitwarden;
@@ -568,7 +577,10 @@ Network traffic can also occur when:
   CDN. The server that holds those files gets the request and the network address of the computer,
   but no OpenBot cookies. The page cannot read the app, the conversation or other
   files. `html_preview` draws the page in a hidden window that has its own
-  session in memory. The mobile app does not run the page: it shows the page as its file;
+  session in memory. The web client gets the page through the host connection and runs it in a
+  sandboxed `srcdoc` frame with an opaque origin, so the page cannot read the web client's storage
+  or its host keys; the browser sends no referrer for its requests. The mobile app does not run the
+  page: it shows the page as its file;
 - a user opens an explicitly labeled external support or setup link;
 - a Slack workspace is connected. See [Slack connections](#slack-connections);
 - a Discord server is connected. See [Discord connections](#discord-connections);
@@ -605,9 +617,10 @@ message. It gives the bot token to the computer encrypted to a key that only tha
 
 Slack sends the workspace's events, which contain the Slack messages in the channels OpenBot is in
 and its direct messages, to OpenBot's Signal service (`signal.openbot.run`). Signal checks Slack's
-signature and reads only the app ID and the workspace ID, to find the computer. It passes each request to that
-computer over its Signal connection, in transit only: it does not store or log the message. The
-answers go from the computer to the Slack Web API directly.
+signature and reads only the app ID and the workspace ID, to find the computer, and the type,
+channel type, thread and bot ID of the event, to know whether it addresses OpenBot. It passes each
+request to that computer over its Signal connection, in transit only: it does not store or log the
+message. The answers go from the computer to the Slack Web API directly.
 
 - **Stored on the host.** The bot token is encrypted by the operating system's secret storage, like
   provider API keys, and redacted from logs, exports and diagnostics. The database holds the
@@ -630,8 +643,9 @@ answers go from the computer to the Slack Web API directly.
   error.
 
 Anyone who can post in the Slack workspace, guests and Slack Connect members included, can give the
-agents work. The agents run on the host with the access the user gave them. A hosted server stays awake
-while a Slack connection is live.
+agents work. The agents run on the host with the access the user gave them. A hosted server that sleeps starts for a message that addresses OpenBot. Until it connects,
+Signal keeps that message in memory for at most 10 minutes, encrypted to a key that only that server
+has, so Signal cannot read it; a restart of Signal deletes it.
 
 ## Discord connections
 
@@ -668,8 +682,9 @@ passes nothing on.
   reactions, and redacted approval requests. A post never pings anyone.
 
 Anyone who can post in a channel that OpenBot can view can give the agents work. The agents run on the
-host with the access the user gave them. A hosted server stays awake while a Discord connection is
-live.
+host with the access the user gave them. A hosted server that sleeps starts for a message that addresses OpenBot. Until it connects,
+Signal keeps that message in memory for at most 10 minutes, encrypted to a key that only that server
+has, so Signal cannot read it; a restart of Signal deletes it.
 
 ## Telegram connections
 
@@ -711,7 +726,9 @@ short-lived signed addresses, in transit only.
   redacted. A failed request posts a fixed sentence, never the provider's error.
 
 Anyone who can post in a linked chat can give the agents work. The agents run on the host with the
-access the user gave them. A hosted server stays awake while a Telegram connection is live.
+access the user gave them. A hosted server that sleeps starts for a message that addresses OpenBot. Until it connects,
+Signal keeps that message in memory for at most 10 minutes, encrypted to a key that only that server
+has, so Signal cannot read it; a restart of Signal deletes it.
 
 Plugin pages on openbot.run show each listing's own icon. The page asks `openbot.run` for that
 picture, and the website fetches it there from the address the plugin catalog holds, so reading a

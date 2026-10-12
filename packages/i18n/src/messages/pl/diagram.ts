@@ -101,7 +101,6 @@ export const messages = {
   "diagram.routine.recent": "Ostatnie uruchomienia",
   "diagram.routine.runLabel": "{status}, {time}",
   "diagram.routine.manual": "Ręcznie",
-  "diagram.flows.remoteOnly": "Przepływy rutyn są dostępne tylko dla agentów na tym komputerze.",
   "diagram.flows.loadFailed": "Nie udało się wczytać rutyn tego agenta.",
   "diagram.flows.saveFailed": "Nie udało się zapisać tej zmiany w rutynach.",
   "diagram.flows.runFailed": "Nie udało się uruchomić tej rutyny.",

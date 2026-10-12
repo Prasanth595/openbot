@@ -32,6 +32,8 @@ import {
   isQueuedMessageReceipt,
   isQueueSnapshot,
   isRoutine,
+  isRoutineFlowCanvas,
+  isRoutineFlowLink,
   isRoutineRun,
   isSidebarLayoutSnapshot,
 } from "@openbot/contracts/ipc";
@@ -154,6 +156,8 @@ export const decodeRoutine = guardedDecoder(isRoutine, "remote routine");
 export const decodeRoutines = guardedListDecoder(isRoutine, "remote routine list");
 export const decodeRoutineRun = guardedDecoder(isRoutineRun, "remote routine run");
 export const decodeRoutineRuns = guardedListDecoder(isRoutineRun, "remote routine history");
+export const decodeRemoteRoutineFlowCanvas = guardedDecoder(isRoutineFlowCanvas, "remote routine flow canvas");
+export const decodeRemoteRoutineFlowLink = guardedDecoder(isRoutineFlowLink, "remote routine flow link");
 
 export function decodeSidebarLayoutSnapshot(value: unknown): SidebarLayoutSnapshot {
   if (!isSidebarLayoutSnapshot(value)) throw new Error("Invalid sidebar layout response.");

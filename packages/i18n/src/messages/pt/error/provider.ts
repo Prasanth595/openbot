@@ -106,6 +106,8 @@ export const messages = {
   "error.provider.localOnly": "Os provedores só podem ser alterados no computador que executa os agentes.",
   "error.provider.keyRequired": "É necessário informar uma chave de provedor.",
   "error.provider.keyTooLong": "A chave do provedor é muito longa.",
+  "error.provider.keyInvalidCharacters":
+    "A chave do provedor contém um espaço ou um caractere que uma chave não pode conter.",
   "error.provider.noModel": "O provedor selecionado não tem nenhum modelo disponível.",
   "error.provider.noModelNamed": "{provider} não tem nenhum modelo disponível.",
   "error.provider.acpNoModels":

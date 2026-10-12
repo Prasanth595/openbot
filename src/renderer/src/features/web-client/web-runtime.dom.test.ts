@@ -230,6 +230,15 @@ describe("browser workspace runtime", () => {
     await runtime.dispose();
   });
 
+  it("sends no routine flow request to a host without routine-flows-v1", async () => {
+    const runtime = create();
+    await runtime.connect(host);
+    peer.execute.mockClear();
+    await expect(runtime.routineFlows?.canvas("agent")).rejects.toThrow("does not support routine flows");
+    expect(peer.execute).not.toHaveBeenCalled();
+    await runtime.dispose();
+  });
+
   it.each([200, 403])("ignores a sidebar response with status %s after the host changes", async (status) => {
     let resolveLayout: ((value: unknown) => void) | undefined;
     peer.execute.mockImplementation(async (command) => {

@@ -1064,6 +1064,31 @@ describe("browser remote peer recovery", () => {
     await network.runtime.dispose();
   });
 
+  // iOS suspends the app, so the path of a peer can be dead on a return. A short absence keeps the
+  // path. After 30 s the host stopped using it, so the peer renews Signal and restarts ICE. After 160 s
+  // Signal has told the host to drop the connection, so the peer is replaced on the same session, with
+  // no resume hello and no offline update.
+  it.each([
+    { seconds: 10, tokens: ["ticket"], restarts: 0, sessions: [null] },
+    { seconds: 60, tokens: ["ticket", "resume"], restarts: 1, sessions: [null] },
+    { seconds: 170, tokens: ["ticket", "ticket"], restarts: 0, sessions: [null, "session-1"] },
+  ])("returns to the app after $seconds s away", async ({ seconds, tokens, restarts, sessions }) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const first = network.connection();
+    network.runtime.setActive(false);
+    await vi.advanceTimersByTimeAsync(seconds * 1_000);
+    network.runtime.setActive(true);
+    // The phone's recovery connects on each return.
+    await expect(network.connect()).resolves.toMatchObject({ ok: true });
+    await vi.waitFor(() => expect(network.hellos.map((hello) => hello.token)).toEqual(tokens));
+    await vi.waitFor(() => expect(first.iceRestarts).toBe(restarts));
+    expect(network.keptSessions).toEqual(sessions);
+    expect(network.updates.filter((update) => update.state === "offline")).toEqual([]);
+    await network.runtime.dispose();
+  });
+
   it("still times out an active connection attempt after 30 seconds", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     const offered = deferred();

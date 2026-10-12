@@ -285,9 +285,9 @@ const {
   forwardUpdateStatus,
   forwardUpdatePreference,
   forwardVoiceModelStatus,
+  forwardVoiceStreamTranscript,
   forwardProviderRuntimeStatus,
   forwardGitHubConnectorStatus,
-  forwardRoutineFlowsChanged,
   forwardOnePasswordConnectorStatus,
   forwardBitwardenConnectorStatus,
   forwardHostStatus,
@@ -308,6 +308,7 @@ const {
   getTranslate: () => services?.language.translate ?? translateFor("en"),
   getFormat: () => createFormat(services?.language.locale ?? "en"),
   desktopNotificationsEnabled: () => services?.notificationPreference.get().desktopNotifications ?? true,
+  notificationPreviewEnabled: () => services?.notificationPreference.get().messagePreview ?? true,
 });
 
 // Resolved once, safely: every `app.setPath("userData", ...)` above has already run.
@@ -569,7 +570,7 @@ function registerIpcHandlers({
     ...memoryIpcHandlers({ service, remoteServers }),
     ...sharedTableIpcHandlers({ service, remoteServers }),
     ...routineIpcHandlers({ service, remoteServers }),
-    ...routineFlowIpcHandlers({ routineFlows }),
+    ...routineFlowIpcHandlers({ routineFlows, remoteServers }),
     ...channelMemoryIpcHandlers({ service, remoteServers }),
     ...channelRoutineIpcHandlers({ service, remoteServers }),
     ...agentAdminIpcHandlers({
@@ -944,6 +945,7 @@ if (!hasSingleInstanceLock) {
         forwardBrowserDisplayState,
         forwardProviderRuntimeStatus,
         forwardVoiceModelStatus,
+        forwardVoiceStreamTranscript,
         prepareForUpdateInstall,
       });
       services = built;
@@ -1045,7 +1047,6 @@ if (!hasSingleInstanceLock) {
       host.on("directTyping", (event) => forwardDirectTyping("local", event));
       remoteDesktop.on("changed", forwardRemoteDesktopSessions);
       built.githubConnector.onChanged(forwardGitHubConnectorStatus);
-      built.routineFlows.onChanged(forwardRoutineFlowsChanged);
       built.onePasswordConnector.onChanged(forwardOnePasswordConnectorStatus);
       built.bitwardenConnector.onChanged(forwardBitwardenConnectorStatus);
       remoteServers.on("changed", forwardServers);

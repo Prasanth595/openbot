@@ -101,7 +101,7 @@ const Settings = createSimpleContext({
     let autoDownloadUpdatesChanged = false;
     let allowRemoteUpdatesChanged = false;
     let autoInstallUpdatesChanged = false;
-    let desktopNotificationsChanged = false;
+    let notificationPreferenceChanged = false;
     let busyMessageModeChanged = false;
     let agentMemoryLimitChanged = false;
     let keepRemoteSessionsChanged = false;
@@ -227,13 +227,21 @@ const Settings = createSimpleContext({
           (preference) => preference.autoInstall,
         );
       }
-      if (previous.desktopNotifications !== value.desktopNotifications) {
-        desktopNotificationsChanged = true;
-        persistField(
-          "desktopNotifications",
-          settingsPort().notifications.setPreference({ desktopNotifications: value.desktopNotifications }),
-          (preference) => preference.desktopNotifications,
-        );
+      if (
+        previous.desktopNotifications !== value.desktopNotifications ||
+        previous.notificationPreview !== value.notificationPreview
+      ) {
+        notificationPreferenceChanged = true;
+        const saved = settingsPort().notifications.setPreference({
+          desktopNotifications: value.desktopNotifications,
+          messagePreview: value.notificationPreview,
+        });
+        // Each answer writes back only the switch that this change set, so that an older answer does
+        // not undo a later change of the other switch.
+        if (previous.desktopNotifications !== value.desktopNotifications)
+          persistField("desktopNotifications", saved, (preference) => preference.desktopNotifications);
+        if (previous.notificationPreview !== value.notificationPreview)
+          persistField("notificationPreview", saved, (preference) => preference.messagePreview);
       }
       if (previous.busyMessageMode !== value.busyMessageMode) {
         busyMessageModeChanged = true;
@@ -427,8 +435,12 @@ const Settings = createSimpleContext({
       void settingsPort()
         .notifications.getPreference()
         .then((preference) => {
-          if (desktopNotificationsChanged) return;
-          setGeneralSettings((current) => ({ ...current, desktopNotifications: preference.desktopNotifications }));
+          if (notificationPreferenceChanged) return;
+          setGeneralSettings((current) => ({
+            ...current,
+            desktopNotifications: preference.desktopNotifications,
+            notificationPreview: preference.messagePreview,
+          }));
         })
         .catch(() => undefined);
       void settingsPort()

@@ -377,6 +377,18 @@
   gap: var(--openbot-space-4);
 }
 
+.settings-voice-key {
+  display: flex;
+  align-items: center;
+  gap: var(--openbot-space-2);
+  margin-top: var(--openbot-space-2);
+}
+
+.settings-voice-key > .ui-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .settings-modal-row-title {
   color: var(--openbot-text-primary);
   font-size: var(--openbot-text-lg);

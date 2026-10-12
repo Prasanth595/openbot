@@ -155,8 +155,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Bu bağlantı bir döngü oluşturur.",
   "error.backend.routineFlowLinkLimit": "Bir rutinde en fazla {limit} bağlantı olabilir.",
   "error.backend.routineFlowHandoffFailed": "Rutin işi bu ajana aktaramadı.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "Rutin akışları yalnızca bu bilgisayardaki ajanlar için kullanılabilir.",
   "error.backend.mcpServerLimit": "OpenBot en fazla {limit} MCP sunucusu tutar.",
   "error.backend.mcpServerNameTaken": "{name} adında bir MCP sunucusu zaten mevcut.",
   "error.backend.mcpServerNoAnswer": "Sunucu {seconds} saniye içinde yanıt vermedi.",

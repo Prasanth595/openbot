@@ -60,6 +60,8 @@ export const messages = {
   "settings.alerts.title": "Alerty",
   "settings.desktopNotifications.title": "Powiadomienia na pulpicie",
   "settings.desktopNotifications.description": "Pokazuj powiadomienie, gdy agent wymaga uwagi.",
+  "settings.notificationPreview.title": "Pokazuj podgląd wiadomości",
+  "settings.notificationPreview.description": "Pokazuj w powiadomieniach początek odpowiedzi lub pytania agenta.",
   "settings.testNotification.title": "Powiadomienie testowe",
   "settings.testNotification.description":
     "Pokaż je teraz. Jeśli się nie pojawi, zezwól na powiadomienia OpenBot w ustawieniach systemowych.",
@@ -111,7 +113,8 @@ export const messages = {
   "settings.tab.notifications.title": "Powiadomienia",
   "settings.tab.notifications.description": "Wybierz, jak OpenBot cię powiadamia.",
   "settings.tab.voice.title": "Głos",
-  "settings.tab.voice.description": "Dyktowanie w polu wiadomości. Działa na tym komputerze.",
+  "settings.tab.voice.description":
+    "Dyktowanie w polu wiadomości. Modele lokalne działają na tym komputerze, a ElevenLabs w chmurze.",
   "settings.tab.computerUse.title": "Sterowanie komputerem",
   "settings.tab.computerUse.description": "Pozwól OpenBot widzieć aplikacje na tym komputerze i ich używać.",
   "settings.tab.profile.title": "Profil",
@@ -374,10 +377,21 @@ export const messages = {
   "settings.voice.language.section": "Język",
   "settings.voice.language.title": "Język dyktowania",
   "settings.voice.language.description": "Język, w którym mówisz. Automatycznie rozpoznaje go z nagrania.",
-  "settings.voice.language.modelDetects": "Parakeet sam rozpoznaje język mowy. Aby ustawić język, użyj Whisper.",
+  "settings.voice.language.modelDetects":
+    "Parakeet sam rozpoznaje język mowy. Aby ustawić język, użyj Whisper lub ElevenLabs.",
   "settings.voice.language.automatic": "Automatycznie",
   "settings.voice.loadFailed": "Nie udało się odczytać modeli głosu.",
   "settings.voice.saveFailed": "Nie udało się zapisać ustawienia głosu. Spróbuj ponownie.",
   "settings.voice.downloadFailed": "Nie udało się rozpocząć pobierania. Spróbuj ponownie.",
   "settings.voice.cancelFailed": "Nie udało się zatrzymać pobierania.",
+  "settings.voice.model.elevenlabs.description":
+    "Przesyła Twój głos do ElevenLabs. Tekst pojawia się w trakcie mówienia i się nie zmienia. Używa Twojego klucza API, a ElevenLabs nalicza opłatę za każde użycie.",
+  "settings.voice.model.keySaved": "Klucz API zapisany",
+  "settings.voice.model.keyMissing": "Wymaga klucza API ElevenLabs",
+  "settings.voice.apiKey.label": "Klucz API ElevenLabs",
+  "settings.voice.apiKey.placeholder": "Wklej klucz",
+  "settings.voice.apiKey.save": "Zapisz klucz",
+  "settings.voice.apiKey.remove": "Usuń klucz",
+  "settings.voice.apiKey.saveFailed": "Nie udało się zapisać klucza API. Spróbuj ponownie.",
+  "settings.voice.apiKey.removeFailed": "Nie udało się usunąć klucza API. Spróbuj ponownie.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -32,7 +32,7 @@ import {
 import { isBalanceDiagnostic, isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
 import { claudeBridgedToolName, VISIBLE_TOOL_DEFINITIONS } from "./agent/tool-catalog";
 import { USAGE_LIMIT_METHOD } from "./agent/usage-limit-gate";
-import { type AgentProvider, RequestTimeoutError } from "./agent-client";
+import { type AgentProvider, ProviderTurnActiveError, RequestTimeoutError } from "./agent-client";
 import { type ClaudeHistoryOptions, claudeHistoryFromMessages, claudeHistoryReader } from "./claude-history";
 import {
   CLAUDE_WORKSPACE_MANAGED_SETTINGS,
@@ -139,6 +139,8 @@ interface ActiveTurn {
    * message that only states the limit, so its text is held here and not published as the answer.
    */
   usageLimit: { resetsAt: number | null; text: string | null } | null;
+  /** The CLI started this turn itself, with no message from OpenBot, such as after a background task ended. */
+  unprompted: boolean;
 }
 
 interface ThreadRuntime {
@@ -816,7 +818,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   ): Effect.fn.Return<TurnResponse, ProviderClientOperationError> {
     yield* this.#threads.wake(threadId).pipe(toProviderClientOperationError);
     const runtime = yield* providerSync(() => this.#requireThread(threadId));
-    if (runtime.activeTurn) return yield* providerFailure(new Error("The Claude thread already has an active turn."));
+    if (runtime.activeTurn) return yield* providerFailure(this.#turnActiveError(runtime.activeTurn));
     runtime.contextRequest += 1;
 
     const requestedModel = getString(params, "model");
@@ -841,32 +843,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     const clientId = getString(params, "clientUserMessageId");
     const turnId = clientId && isUuid(clientId) ? clientId : randomUUID();
     const text = readInputText(params);
-    const activeTurn = {
-      id: turnId,
-      itemId: `${turnId}:assistant`,
-      reasoningItemId: `${turnId}:reasoning`,
-      text: "",
-      seenText: "",
-      publishedText: "",
-      lastNarration: null,
-      narrationCount: 0,
-      thinking: "",
-      thinkingStarted: false,
-      thinkingStreamId: null,
-      assistantMessages: new Map<string, string>(),
-      thinkingMessages: new Map<string, string>(),
-      toolCalls: new Map<string, string>(),
-      usageLimit: null,
-    };
-    runtime.activeTurn = activeTurn;
-    startClaudePlanTurn(runtime.plan);
+    // The CLI can start a turn of its own while the model or effort changes above.
+    if (runtime.activeTurn) return yield* providerFailure(this.#turnActiveError(runtime.activeTurn));
     // Only now: a model or effort change that fails above leaves the idle timer armed, so the
     // pool can still release the thread.
-    this.#threads.holdForTurn(runtime);
-    this.emit("notification", {
-      method: "turn/started",
-      params: { threadId, turn: { id: turnId, status: "inProgress" } },
-    });
+    this.#beginTurn(runtime, turnId, false);
     // A block of its own, so that history readers can tell it from the text of the turn. A slash
     // command gets none: the CLI can drop the blocks before it, and `/clear` empties the context,
     // so the next turn sends the full block.
@@ -891,6 +872,55 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     if (memory) memory.delivered = command ? null : memory.current;
     return { turn: { id: turnId, status: "inProgress" } };
   });
+
+  /** A turn of the CLI's own ends with its own result, so the message waits for it rather than joining it. */
+  #turnActiveError(turn: ActiveTurn): Error {
+    return turn.unprompted
+      ? new ProviderTurnActiveError("Claude")
+      : new Error("The Claude thread already has an active turn.");
+  }
+
+  #beginTurn(runtime: ThreadRuntime, turnId: string, unprompted: boolean): ActiveTurn {
+    const turn: ActiveTurn = {
+      id: turnId,
+      itemId: `${turnId}:assistant`,
+      reasoningItemId: `${turnId}:reasoning`,
+      text: "",
+      seenText: "",
+      publishedText: "",
+      lastNarration: null,
+      narrationCount: 0,
+      thinking: "",
+      thinkingStarted: false,
+      thinkingStreamId: null,
+      assistantMessages: new Map<string, string>(),
+      thinkingMessages: new Map<string, string>(),
+      toolCalls: new Map<string, string>(),
+      usageLimit: null,
+      unprompted,
+    };
+    runtime.activeTurn = turn;
+    startClaudePlanTurn(runtime.plan);
+    this.#threads.holdForTurn(runtime);
+    this.emit("notification", {
+      method: "turn/started",
+      // `unprompted` tells the lifecycle that no delivery started this turn.
+      params: {
+        threadId: runtime.id,
+        turn: { id: turnId, status: "inProgress" },
+        ...(unprompted ? { unprompted } : {}),
+      },
+    });
+    return turn;
+  }
+
+  /**
+   * The turn that main-agent output belongs to. In stream mode the CLI starts a turn of its own when
+   * a background subagent or command ends, and the answer of that turn is shown like any other.
+   */
+  #outputTurn(runtime: ThreadRuntime): ActiveTurn {
+    return runtime.activeTurn ?? this.#beginTurn(runtime, randomUUID(), true);
+  }
 
   readonly #steerTurnEffect = Effect.fn("ClaudeAgentClient.steerTurn")(function* (
     this: ClaudeAgentClient,
@@ -1018,8 +1048,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       const event = message.event;
       const delta = isRecord(event) ? event.delta : null;
       if (event && isRecord(event) && event.type === "content_block_delta" && isRecord(delta)) {
-        if (delta.type === "text_delta" && isString(delta.text)) this.#bufferText(runtime, delta.text);
-        else if (delta.type === "thinking_delta" && isString(delta.thinking)) {
+        if (delta.type === "text_delta" && isString(delta.text)) {
+          this.#outputTurn(runtime);
+          this.#bufferText(runtime, delta.text);
+        } else if (delta.type === "thinking_delta" && isString(delta.thinking)) {
+          this.#outputTurn(runtime);
           this.#appendThinkingDelta(runtime, delta.thinking, message.uuid);
         }
       }
@@ -1027,10 +1060,9 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     }
 
     if (message.type === "assistant") {
-      if (message.parent_tool_use_id !== null) return;
-      const turn = runtime.activeTurn;
+      if (message.parent_tool_use_id !== null || !message.uuid) return;
+      const turn = this.#outputTurn(runtime);
       const text = messageText(message.message);
-      if (!turn || !message.uuid) return;
       if (message.error === "rate_limit") {
         // A spent balance does not reset, so it is not held: the turn fails with its own text.
         if (isBalanceDiagnostic(text)) turn.usageLimit = null;

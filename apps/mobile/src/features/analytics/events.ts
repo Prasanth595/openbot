@@ -19,7 +19,7 @@ export const MOBILE_EVENTS = {
   mobile_connection_action: {
     action: ["connect", "reconnect", "lost"],
     ...outcome,
-    stage: ["preferences", "connection", "compatibility", "agents", "reads", "conversations"],
+    stage: ["preferences", "connection", "compatibility", "agents", "reads"],
   },
   conversation_opened: { ...outcome, ...agent },
   message_send: {

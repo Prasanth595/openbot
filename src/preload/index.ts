@@ -127,6 +127,8 @@ import {
   decodeVoiceModelStatus,
   decodeVoiceModelStatuses,
   decodeVoiceSettings,
+  decodeVoiceStream,
+  decodeVoiceStreamTranscript,
   decodeVoiceTranscriptionResult,
   decodeVoid,
 } from "./app-decoding";
@@ -171,7 +173,7 @@ import {
   decodeTelegramOverviewReply,
 } from "./messaging-decoding";
 import { decodeProviderRuntimeSnapshot } from "./provider-runtime";
-import { decodeRoutineFlowCanvas, decodeRoutineFlowLink, decodeRoutineFlowsChanged } from "./routine-flow-decoding";
+import { decodeRoutineFlowCanvas, decodeRoutineFlowLink } from "./routine-flow-decoding";
 import {
   decodeAgentInstallation,
   decodeAgentPublicationPreview,
@@ -559,7 +561,6 @@ const openbotApi: OpenBotDesktopApi = {
     connect: decodeRoutineFlowLink,
     disconnect: decodeVoid,
     updateLink: decodeRoutineFlowLink,
-    changed: decodeRoutineFlowsChanged,
   }),
   voice: bridgeGroup(IPC_ENDPOINTS.voice, {
     getModelStatus: decodeVoiceModelStatus,
@@ -570,7 +571,13 @@ const openbotApi: OpenBotDesktopApi = {
     setSettings: decodeVoiceSettings,
     prepareModel: decodeVoiceModelStatus,
     transcribe: decodeVoiceTranscriptionResult,
+    setApiKey: decodeVoiceModelStatus,
+    startStream: decodeVoiceStream,
+    appendStream: decodeVoid,
+    finishStream: decodeVoiceTranscriptionResult,
+    cancelStream: decodeVoid,
     modelStatus: decodeVoiceModelStatus,
+    streamTranscript: decodeVoiceStreamTranscript,
   }),
   auth: bridgeGroup(IPC_ENDPOINTS.auth, {
     getState: decodeCentralAuthState,

@@ -56,8 +56,8 @@ import type {
   CentralAuthState,
   ComputerUseState,
   ProviderRuntimeSnapshot,
-  RoutineFlowsChanged,
   VoiceModelStatus,
+  VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
 import { IPC_ENDPOINTS, isManagedToolRuntime, isUpdateBusyPhase, latestTurnAnswer } from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
@@ -137,6 +137,7 @@ import { HostedServerDesktopService, withHostingDeveloperKey } from "./hosted-se
 import { HostedServerStartRetry } from "./hosted-server-start-retry";
 import { HostedSiteDesktopService } from "./hosted-site-service";
 import { IdleRestart } from "./idle-restart";
+import { loadIngressQueueKey } from "./ingress-queue-key";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
 import { LogoColorService } from "./logo-color-service";
@@ -220,6 +221,8 @@ import {
   UpdateService,
 } from "./update-service";
 import { listSiblingOpenBotInstances } from "./update-sibling-instances";
+import { VoiceApiKeyStore } from "./voice-api-key-store";
+import { openScribeSocket } from "./voice-cloud-stream";
 import {
   PARAKEET_MODEL_DIRECTORY,
   removeLegacyWhisperCache,
@@ -258,6 +261,7 @@ const REMOTE_DESKTOP_RUNTIME_SECRET_FILE = "openbot-remote-desktop-runtime-v1.js
 const CUSTOM_PROVIDERS_FILE = "openbot-custom-providers-v1.json";
 const PROVIDER_CREDENTIAL_FILE = "openbot-provider-credentials-v1.json";
 const MESSAGING_CREDENTIAL_FILE = "openbot-messaging-credentials-v1.json";
+const INGRESS_QUEUE_KEY_FILE = "openbot-ingress-queue-key-v1.json";
 /** The MCP sign-ins. Separate from the keys above: a key is typed by the user, a token is not. */
 const MCP_OAUTH_FILE = "openbot-mcp-oauth-v1.json";
 /** The one GitHub sign-in of this computer, with the same cipher as the MCP sign-ins. */
@@ -361,18 +365,14 @@ export interface ApplicationServiceContext {
   forwardBrowserDisplayState: (state: BrowserDisplayState) => void;
   forwardProviderRuntimeStatus: (snapshot: ProviderRuntimeSnapshot) => void;
   forwardVoiceModelStatus: (status: VoiceModelStatus) => void;
+  forwardVoiceStreamTranscript: (transcript: VoiceStreamTranscript) => void;
   prepareForUpdateInstall: () => Promise<void>;
 }
 
 /** Everything the entry point wires up, registers IPC handlers against, and shuts down. */
-/** The routine flow runtime, and a way to hear which agents' canvases changed. */
-type RoutineFlowsService = RoutineFlowsHandle & {
-  onChanged(listener: (change: RoutineFlowsChanged) => void): void;
-};
-
 export interface ApplicationServices {
   service: AgentService;
-  routineFlows: RoutineFlowsService;
+  routineFlows: RoutineFlowsHandle;
   providerRuntimes: ProviderRuntimeManager;
   providerCredentials: ProviderCredentialStore;
   /** The Slack and Telegram connections of the agents on this host. */
@@ -528,6 +528,7 @@ async function createMessagingServices({
     issueDiscordRoute: (hostId) => centralAuth.issueDiscordRoute(hostId).pipe(toRemoteWorkflowError),
     issueWebhookRoute: (hostId) => centralAuth.issueWebhookRoute(hostId).pipe(toRemoteWorkflowError),
     issueTelegramRoute: (hostId) => centralAuth.issueTelegramRoute(hostId).pipe(toRemoteWorkflowError),
+    queueKey: () => loadIngressQueueKey(join(app.getPath("userData"), INGRESS_QUEUE_KEY_FILE), secretCipher),
   });
   teardown.push(TEARDOWN_ORDER.signalIngress, "the Signal ingress socket", () =>
     Effect.runPromise(signalIngress.dispose()),
@@ -677,6 +678,7 @@ export async function createApplicationServices({
   forwardBrowserDisplayState,
   forwardProviderRuntimeStatus,
   forwardVoiceModelStatus,
+  forwardVoiceStreamTranscript,
   prepareForUpdateInstall,
 }: ApplicationServiceContext): Promise<ApplicationServices> {
   // First, so the provider lines of the whole startup reach the file.
@@ -1333,7 +1335,6 @@ export async function createApplicationServices({
   });
   teardown.push(TEARDOWN_ORDER.automation, "the automation server", () => Effect.runPromise(automation.stop()));
   // An agent routine's answer handed on from agent to agent; see `routine-flows.ts`.
-  const routineFlowListeners = new Set<(change: RoutineFlowsChanged) => void>();
   const routineFlowRuntime = await Effect.runPromise(
     createRoutineFlows({
       store: new RoutineFlowStore({ database: store.database }),
@@ -1351,17 +1352,12 @@ export async function createApplicationServices({
       },
       agentName: (agentId) => store.list().find((agent) => agent.id === agentId)?.name ?? agentId,
       sendHandoff: (input) => service.enqueueRoutineHandoff(input),
+      // An agent event, so this window, joined clients and the web app hear it the same way.
       changed: (agentIds) => {
-        for (const listener of routineFlowListeners) listener({ agentIds });
+        for (const agentId of agentIds) service.notifyRoutineFlowsChanged(agentId);
       },
     }),
   );
-  const routineFlows: RoutineFlowsService = {
-    ...routineFlowRuntime,
-    onChanged: (listener) => {
-      routineFlowListeners.add(listener);
-    },
-  };
   service.on("event", (event) => Effect.runFork(routineFlowRuntime.notice(event)));
   teardown.push(TEARDOWN_ORDER.routineFlows, "the routine flows", () => Effect.runPromise(routineFlowRuntime.close()));
   // Listens only after the user turns the feed on in Server Settings > Routines.
@@ -1698,6 +1694,8 @@ export async function createApplicationServices({
     hostedSites,
     // Present, so the host advertises `agent-import-v1`. Any member can import.
     agentImport,
+    // Present, so the host advertises `routine-flows-v1`. Any member who can see the agents.
+    routineFlows: routineFlowRuntime,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.
     admin: {
       agents: agentAdminSettings,
@@ -2016,6 +2014,11 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.remoteDesktop, "remote desktop", () => Effect.runPromise(remoteDesktop.stop()));
   const voicePreferences = new VoicePreferenceStore(join(app.getPath("userData"), "voice-preference.json"));
   await runCauseEffect(voicePreferences.load());
+  const voiceApiKeys = new VoiceApiKeyStore({
+    path: join(app.getPath("userData"), "voice-api-key.json"),
+    cipher: secretCipher,
+  });
+  await runCauseEffect(voiceApiKeys.load());
   const voice = new VoiceTranscriptionService({
     resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
     // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development.
@@ -2028,7 +2031,9 @@ export async function createApplicationServices({
         : resolve(".openbot-build/voice", WHISPER_TURBO_MODEL_DIRECTORY),
     },
     preferences: voicePreferences,
+    apiKeys: voiceApiKeys,
     spawnHost: spawnVoiceTranscriptionHost,
+    openStreamSocket: openScribeSocket,
   });
   if (app.isPackaged) {
     // Parakeet replaced Whisper. The Whisper model is an application download, not user data.
@@ -2038,6 +2043,7 @@ export async function createApplicationServices({
   }
   teardown.push(TEARDOWN_ORDER.voice, "voice transcription", () => Effect.runPromise(voice.shutdown()));
   voice.on("modelStatus", forwardVoiceModelStatus);
+  voice.on("streamTranscript", forwardVoiceStreamTranscript);
   const currentVersion = app.getVersion();
   // Skip the file check in dev: unpacked runs never enable updates, so avoid touching resourcesPath.
   const updateMetadataAvailable = app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
@@ -2211,12 +2217,13 @@ export async function createApplicationServices({
     );
     const hostedServerActivity = new HostedServerActivity({
       hostId: hostedServer.hostId,
-      // A live Slack connection counts: stopped, the server could not hear the next message. An open
-      // browser view does not: a view that the user forgot would keep the server running. Input in
-      // the view counts as client use.
+      // A live Slack, Discord or Telegram connection counts only when Signal cannot start the server for
+      // the next message and keep it (an older Signal, or no queue key): stopped, the server could not
+      // hear it. An open browser view does not count: a view that the user forgot would keep the server
+      // running. Input in the view counts as client use.
       inUse: () =>
         service.hasActiveWork().length > 0 ||
-        messaging.hasLiveConnection() ||
+        (messaging.hasLiveConnection() && !signalIngress.queueReady()) ||
         host.describeRestartBlockers().some((reason) => reason !== "browser-view") ||
         clientInUse(),
       nextRunAt: () => {
@@ -2276,7 +2283,7 @@ export async function createApplicationServices({
 
   return {
     service,
-    routineFlows,
+    routineFlows: routineFlowRuntime,
     providerRuntimes,
     providerCredentials,
     messaging,

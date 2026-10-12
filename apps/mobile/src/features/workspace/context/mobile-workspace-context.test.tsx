@@ -83,6 +83,16 @@ const initialLayout: SidebarLayoutSnapshot = {
 const sidebarRequest = vi.fn(
   async (_method: string, _body?: TeamProtocolV2Json): Promise<SidebarLayoutSnapshot> => initialLayout,
 );
+const workingPage = {
+  agentId: "working",
+  threadId: "thread",
+  activeTurnId: null,
+  revision: 1,
+  messages: [],
+  references: {},
+  pageInfo: { hasOlder: false, olderCursor: null },
+};
+let conversationPage = async (): Promise<unknown> => workingPage;
 let emit = (_event: AgentEvent | TeamRealtimeEvent) => {};
 let disconnect = () => {};
 let reconnectSnapshot: AgentEvent | null = null;
@@ -140,6 +150,8 @@ vi.mock("../components/remote-team-transport", () => ({
               })),
             );
           if (path === TEAM_API_ROUTES.agents.conversationReads) return decode({});
+          if (path.startsWith(TEAM_API_ROUTES.agent.conversationPage("working")))
+            return decode(await conversationPage());
           if (path === HOST_ADMIN_ROUTES.identity) {
             if (identityFailure) throw identityFailure;
             return decode({});
@@ -170,6 +182,7 @@ afterEach(async () => {
   native.storage.clear();
   sent.length = 0;
   reconnectSnapshot = null;
+  conversationPage = async () => workingPage;
   sidebarSupported = false;
   hostAdminSupported = false;
   identityFailure = null;
@@ -242,6 +255,32 @@ it.each(["foreground", "manual"])(
     expect(current.liveState.get().activityByServer[host.hostId]).toEqual({});
   },
 );
+
+// The reconnect status waited until every cached chat had loaded again, one chat after another. The
+// server is usable once its agents and read state load; the chats load after that.
+it("shows a reconnected server online before its cached chats load again", async () => {
+  await act(async () =>
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <MobileWorkspaceProvider>
+          <Workspace />
+        </MobileWorkspaceProvider>
+      </QueryClientProvider>,
+    ),
+  );
+  await act(async () => current.loadConversation("working", host.hostId));
+  let release = () => {};
+  conversationPage = () =>
+    new Promise((resolve) => {
+      release = () => resolve(workingPage);
+    });
+  const pageReads = () =>
+    sent.filter((request) => request.path.startsWith(TEAM_API_ROUTES.agent.conversationPage("working")));
+  await act(async () => disconnect());
+  await vi.waitFor(() => expect(pageReads()).toHaveLength(2));
+  await vi.waitFor(() => expect(current.activeServer.state).toBe("online"));
+  await act(async () => release());
+});
 
 it.each(["memories", "routines"] as const)("refreshes active channel %s after a remote edit", async (section) => {
   await act(async () =>

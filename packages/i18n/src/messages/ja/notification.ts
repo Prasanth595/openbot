@@ -4,6 +4,7 @@ import type { messages as source } from "../en/notification";
 export const messages = {
   "notification.needsInput": "入力が必要です。",
   "notification.needsApproval": "承認が必要です。",
+  "notification.needsApprovalFor": "承認が必要です: {action}",
   "notification.finished": "作業が完了しました。",
   "notification.failed": "エラーで停止しました。",
   "notification.usageLimit.title": "{provider} のアカウントが上限に達しました",

@@ -180,7 +180,7 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
           reference: errorReference(error),
         })),
       );
-      onCleanup(() => void runtime.stopLiveView().catch(() => undefined));
+      return () => void runtime.stopLiveView().catch(() => undefined);
     },
   );
 
@@ -334,9 +334,9 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
         else menuCopy(event.type === "cut");
       };
       for (const type of CLIPBOARD_EVENTS) document.addEventListener(type, clipboardEvent, true);
-      onCleanup(() => {
+      return () => {
         for (const type of CLIPBOARD_EVENTS) document.removeEventListener(type, clipboardEvent, true);
-      });
+      };
     },
   );
 

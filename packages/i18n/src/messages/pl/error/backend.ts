@@ -159,7 +159,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "To połączenie utworzyłoby pętlę.",
   "error.backend.routineFlowLinkLimit": "Rutyna może mieć maksymalnie {limit} połączeń.",
   "error.backend.routineFlowHandoffFailed": "Rutyna nie mogła przekazać pracy temu agentowi.",
-  "error.backend.routineFlowRemoteUnsupported": "Przepływy rutyn są dostępne tylko dla agentów na tym komputerze.",
   "error.backend.mcpServerLimit": "OpenBot przechowuje maksymalnie {limit} serwerów MCP.",
   "error.backend.mcpServerNameTaken": "Serwer MCP o nazwie {name} już istnieje.",
   "error.backend.mcpServerNoAnswer": "Serwer nie odpowiedział w ciągu {seconds} s.",

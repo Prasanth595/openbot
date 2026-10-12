@@ -288,6 +288,17 @@ const COMPATIBILITY_REQUEST_TIMEOUT_MS = 3_000;
 /** The first read on a new peer also waits for a slow relay path, such as TURN over TLS on mobile data. */
 const FIRST_COMPATIBILITY_REQUEST_TIMEOUT_MS = 10_000;
 const REQUEST_TIMEOUT_MS = 10 * 60_000 + 30_000;
+/**
+ * The host gets no answer to its ICE consent checks while the phone is suspended, and stops using a
+ * path that did not answer for 30 s (RFC 7675). A longer absence needs an ICE restart.
+ */
+const ICE_CONSENT_TIMEOUT_MS = 30_000;
+/**
+ * Signal closes a socket that sent nothing for 120 s, and tells the host to drop its connection 30 s
+ * later. After this long away from the app the host has dropped it, so the peer is replaced, not
+ * resumed. The margin covers the seconds before iOS suspends the app.
+ */
+export const REMOTE_PEER_LOST_AFTER_MS = 160_000;
 
 class RemotePeerIO extends Context.Service<
   RemotePeerIO,
@@ -338,6 +349,8 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
   }
 
   let active = true;
+  /** When the consumer last made this peer inactive, such as when the app went to the background. */
+  let inactiveSince: number | null = null;
   let peer: PeerState | null = null;
   // Keep the rate-limit wait when recovery replaces a peer or the app returns to the foreground.
   let signalRetryAt = 0;
@@ -391,6 +404,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       await runtime.dispose();
     },
     setActive(value: boolean) {
+      const now = Date.now();
+      const away = value && !active && inactiveSince !== null ? now - inactiveSince : 0;
+      if (!value && active) inactiveSince = now;
+      if (value) inactiveSince = null;
       active = value;
       const state = peer;
       if (!state) return;
@@ -413,13 +430,22 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         rejectRequests(new Error(sourceText("error.remote.appInBackground")), true);
         if (!state.authenticated) failPeer(state, new Error(sourceText("error.remote.appInBackground")), actions);
       } else {
-        if (canRecoverPeer(state)) {
+        if (away >= REMOTE_PEER_LOST_AFTER_MS && state.authenticated) {
+          // The host has dropped this connection. Close it without an offline update: the consumer
+          // connects on each return, and that connect starts the new peer on the same session. A
+          // resume hello would only renew an expired token through the account service, and a read
+          // would wait for its timeout on the dead path.
+          void runPeerEffect(closePeer(actions.current.endSession, true));
+        } else if (canRecoverPeer(state)) {
           recoverIce(state, actions, 0);
         } else if (!isPeerOnline(state)) {
           failPeer(state, new Error(sourceText("error.remote.desktopRestoreNeeded")), actions);
         } else {
           resumeTurnRefresh(state);
-          if (!state.socket) openSignal(state, actions);
+          // The host stopped using the path. A renewed socket restarts ICE on its `ready`: the path
+          // comes back, or the answer of a host that dropped the connection fails the peer at once.
+          if (away >= ICE_CONSENT_TIMEOUT_MS) renewSignal(state, actions);
+          else if (!state.socket) openSignal(state, actions);
           // The recovery owner reloads workspace reads on every foreground return.
           // Do not request a second reload for reads canceled on background entry.
           state.needsResync = false;
@@ -938,8 +964,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           .match(/^a=fingerprint:sha-256\s+([^\r\n]+)$/imu)?.[1]
           ?.trim()
           .toUpperCase();
+        // A new fingerprint is a new connection on the host: the host restarted, or it dropped this
+        // connection after Signal lost the socket, such as while iOS suspended the app.
         if (previousFingerprint && nextFingerprint !== previousFingerprint) {
-          return yield* new RemotePeerError({ message: sourceText("error.remote.desktopRestarted") });
+          return yield* new RemotePeerError({ message: sourceText("error.remote.connectionDropped") });
         }
         yield* peerCall(() => state.connection?.setRemoteDescription({ type: "answer", sdp: message.sdp }));
       } else if (message.type === "ice-candidate") {
@@ -1141,7 +1169,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           pending.resolve({
             status: frame.result.status,
             body: sideRoute
-              ? yield* peerDecode(() => sideRoute.response(pending.path, status, body))
+              ? yield* peerDecode(() => sideRoute.response(pending.path, status, body, { historyExtent: true }))
               : yield* peerDecode(() =>
                   decodeTeamProtocolV7WebRtcHttpResponse(pending.method, pending.path, status, body),
                 ),

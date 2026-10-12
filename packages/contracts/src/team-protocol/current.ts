@@ -24,6 +24,7 @@ import { CONNECTORS_CAPABILITY } from "./connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CAPABILITY } from "./conversation-file-search-v1";
 import { EVENTS_CAPABILITY } from "./events-v1";
+import { TEAM_HISTORY_EXTENT_CAPABILITY } from "./history-extent-v1";
 import { HOST_ADMIN_CAPABILITY } from "./host-admin-v1";
 import { HOST_MEMBER_UPDATE_CAPABILITY } from "./host-member-update-v1";
 import { HOST_RELEASE_CAPABILITY } from "./host-release-v1";
@@ -41,6 +42,7 @@ import { PROVIDERS_V4_CAPABILITY } from "./providers-v4";
 import { PROVIDERS_V5_CAPABILITY } from "./providers-v5";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "./queue-edit-v1";
 import { QUIET_TURN_CAPABILITY } from "./quiet-turn-v1";
+import { ROUTINE_FLOWS_CAPABILITY } from "./routine-flows-v1";
 import { SHARED_TABLES_CAPABILITY } from "./shared-tables-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "./skills-admin-v1";
@@ -99,6 +101,7 @@ export {
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
   QUIET_TURN_CAPABILITY,
+  ROUTINE_FLOWS_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
@@ -111,6 +114,7 @@ export {
   TEAM_BROWSER_VIEW_CURSOR_CAPABILITY,
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
+  TEAM_HISTORY_EXTENT_CAPABILITY,
   TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
   WORKSPACE_DIRECTORY_CAPABILITY,
 };
@@ -176,6 +180,8 @@ export const TEAM_CURRENT_CAPABILITIES = [
   SIGN_IN_RELAY_CAPABILITY,
   CONNECTORS_CAPABILITY,
   CONVERSATION_FILE_SEARCH_CAPABILITY,
+  ROUTINE_FLOWS_CAPABILITY,
+  TEAM_HISTORY_EXTENT_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -253,7 +259,9 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== MCP_SIGN_IN_APP_CAPABILITY &&
     capability !== SIGN_IN_RELAY_CAPABILITY &&
     capability !== CONNECTORS_CAPABILITY &&
-    capability !== CONVERSATION_FILE_SEARCH_CAPABILITY,
+    capability !== CONVERSATION_FILE_SEARCH_CAPABILITY &&
+    capability !== ROUTINE_FLOWS_CAPABILITY &&
+    capability !== TEAM_HISTORY_EXTENT_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -272,6 +280,8 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== MCP_SIGN_IN_APP_CAPABILITY &&
       capability !== SIGN_IN_RELAY_CAPABILITY &&
       capability !== CONNECTORS_CAPABILITY &&
-      capability !== CONVERSATION_FILE_SEARCH_CAPABILITY,
+      capability !== CONVERSATION_FILE_SEARCH_CAPABILITY &&
+      capability !== ROUTINE_FLOWS_CAPABILITY &&
+      capability !== TEAM_HISTORY_EXTENT_CAPABILITY,
   );
 }

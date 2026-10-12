@@ -162,8 +162,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "この接続はループになります。",
   "error.backend.routineFlowLinkLimit": "1 つのルーティンの接続は最大 {limit} 個です。",
   "error.backend.routineFlowHandoffFailed": "ルーティンはこのエージェントに作業を渡せませんでした。",
-  "error.backend.routineFlowRemoteUnsupported":
-    "ルーティンのフローは、このコンピュータ上のエージェントでのみ利用できます。",
   "error.backend.mcpServerLimit": "OpenBot に保存できる MCP サーバーは {limit} 個までです。",
   "error.backend.mcpServerNameTaken": "{name} という名前の MCP サーバーはすでに存在します。",
   "error.backend.mcpServerNoAnswer": "サーバーは {seconds} 秒以内に応答しませんでした。",

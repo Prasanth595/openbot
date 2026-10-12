@@ -11,4 +11,13 @@ export const messages = {
   "error.voice.prepareRequired":
     "La transcription vocale locale est indisponible. Exécutez `bun run voice:prepare` et redémarrez OpenBot.",
   "error.voice.transcriptionFailed": "OpenBot n’a pas pu transcrire cet enregistrement.",
+  "error.voice.cloud.keyRequired": "Ajoutez votre clé API ElevenLabs dans Réglages → Voix.",
+  "error.voice.cloud.keyRejected": "ElevenLabs n’a pas accepté la clé API. Vérifiez la clé dans Réglages → Voix.",
+  "error.voice.cloud.quotaExceeded": "Votre quota ElevenLabs est épuisé.",
+  "error.voice.cloud.rateLimited": "ElevenLabs est occupé. Réessayez dans un instant.",
+  "error.voice.cloud.termsRequired":
+    "Acceptez les conditions d’ElevenLabs dans votre compte ElevenLabs, puis réessayez.",
+  "error.voice.cloud.streamEnded": "Le flux de dictée s’est arrêté. Enregistrez à nouveau.",
+  "error.voice.cloud.tooLong": "L’enregistrement est trop long.",
+  "error.voice.cloud.keySaveFailed": "Impossible d’enregistrer la clé API ElevenLabs.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -53,6 +53,7 @@ import {
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
   QUIET_TURN_CAPABILITY,
+  ROUTINE_FLOWS_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
@@ -61,6 +62,7 @@ import {
   supportsTeamSemanticTags,
   TEAM_AGENT_ACTIVITY_CAPABILITY,
   TEAM_CURRENT_CAPABILITIES,
+  TEAM_HISTORY_EXTENT_CAPABILITY,
   type TeamCurrentCapability,
 } from "@openbot/contracts/team-protocol/current";
 import {
@@ -151,6 +153,7 @@ import { routeMcpSignInApp } from "./team-api/route-mcp-sign-in-app";
 import { routeProviderHostSignIn } from "./team-api/route-provider-host-sign-in";
 import { routeProviders } from "./team-api/route-providers";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
+import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
 import { routeSignInRelay } from "./team-api/route-sign-in-relay";
 import { routeSkillsAdmin } from "./team-api/route-skills-admin";
@@ -734,6 +737,8 @@ export class TeamApiServer {
       if ((await routeAgentMemoryPage(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeWorkspaceDirectory(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeConversationFiles(context, this.#options.agents)) === "handled") return;
+      if ((await routeRoutineFlows(context, this.#options.routineFlows, this.#options.agents, hidden)) === "handled")
+        return;
       if ((await this.#routeEvents(context)) === "handled") return;
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
       if (
@@ -1407,7 +1412,10 @@ export class TeamApiServer {
   #json(response: ServerResponse, status: number, value: object | null): RouteOutcome {
     const route = this.#responseRoutes.get(response);
     if (!route) throw new Error("Team API response route is unavailable.");
-    const options = { preserveSemanticTags: supportsTeamSemanticTags(route.capabilities) };
+    const options = {
+      preserveSemanticTags: supportsTeamSemanticTags(route.capabilities),
+      historyExtent: route.capabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
+    };
     // The body is encoded before the head is written. A response the negotiated protocol cannot
     // represent - a route its frozen adapter does not classify - makes the encoder throw, and with
     // the headers already sent that throw could neither answer the caller nor end the request: it
@@ -1425,7 +1433,7 @@ export class TeamApiServer {
         : value;
     const sideRoute = teamSideRouteCodec(route.path);
     const body = sideRoute
-      ? JSON.stringify(sideRoute.response(route.path, status, visibleValue))
+      ? JSON.stringify(sideRoute.response(route.path, status, visibleValue, options))
       : teamHttpCodec(route.protocol).encodeResponse(route.method, route.path, status, visibleValue, options);
     response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
     response.end(`${body}\n`);
@@ -1525,6 +1533,7 @@ export class TeamApiServer {
         if (capability === EVENTS_CAPABILITY) return this.#options.events !== undefined;
         if (capability === AGENT_IMPORT_CAPABILITY) return this.#options.agentImport !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
+        if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
         return true;
       }),
     };
@@ -1657,6 +1666,7 @@ function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
     return "channel-chats-v1";
   if (event.type === "agent-session-settings-changed") return AGENT_SESSION_SETTINGS_CAPABILITY;
   if (event.type === "skills-changed") return SKILLS_EVENTS_CAPABILITY;
+  if (event.type === "routine-flows-changed") return ROUTINE_FLOWS_CAPABILITY;
   if (event.type === "turn-progress") return TEAM_AGENT_ACTIVITY_CAPABILITY;
   if (event.type === "runtime-snapshot") return "agent-runtime-snapshots";
   if (event.type === "sidebar-layout-changed") return "sidebar-layout";
