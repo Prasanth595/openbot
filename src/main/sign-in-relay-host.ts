@@ -3,6 +3,7 @@
 
 import { randomBytes } from "node:crypto";
 import {
+  type ConversationMessage,
   loopbackCallback,
   type McpTestResult,
   relayableSignInLink,
@@ -26,6 +27,8 @@ export const SIGN_IN_RELAY_TTL_MS = 10 * 60_000;
 const FLOW_LIMIT = 16;
 /** How long the listener of a sign-in on this host can take to answer its callback. */
 const REPLAY_TIMEOUT = Duration.seconds(10);
+/** How long after its message an agent's sign-in link can start a flow. A CLI's own page ends sooner. */
+export const PRINTED_LINK_AGE_MS = 60 * 60_000;
 /** What `status` and `complete` answer, as `sign-in-relay-v1` sends it. */
 export type SignInRelayView = SignInRelayStatus;
 
@@ -240,6 +243,29 @@ export class SignInRelayHost {
       if (!flow.target.status().result) flow.target.cancel();
     }
   }
+}
+
+/**
+ * Whether an agent message from the last `PRINTED_LINK_AGE_MS` holds `url` as a whole link. The link
+ * must end where the message's link ends, so a client cannot drop the end of a printed link, and an
+ * old message cannot start a flow. The replay sends only what a click on that link on this host would
+ * send.
+ */
+export function agentPrintedLink(messages: readonly ConversationMessage[], url: string, now: number): boolean {
+  return messages.some((message) => {
+    if (message.author !== "agent" && message.author !== "assistant") return false;
+    if (!(now - Date.parse(message.createdAt) <= PRINTED_LINK_AGE_MS)) return false;
+    for (let at = message.text.indexOf(url); at >= 0; at = message.text.indexOf(url, at + 1))
+      if (linkEndsAt(message.text, at + url.length)) return true;
+    return false;
+  });
+}
+
+/** Whether a link ends at `end`: at the end of the text, a space, a closing mark, or a final punctuation mark. */
+function linkEndsAt(text: string, end: number): boolean {
+  const next = text.charAt(end);
+  if (next === "" || /[\s<>"'`)\]]/.test(next)) return true;
+  return /[.,;:!?]/.test(next) && (end + 1 === text.length || /[\s<>"'`)\]]/.test(text.charAt(end + 1)));
 }
 
 function view(flow: Flow): SignInRelayView {

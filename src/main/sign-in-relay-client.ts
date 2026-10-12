@@ -122,18 +122,18 @@ export class SignInRelayClient {
 
   /**
    * Runs one relayed sign-in to its end. An interrupt or a failure cancels the flow on the host. With
-   * `opensPage`, the page opens as soon as the callback can come back: the user already chose it, as
-   * with a link in a conversation.
+   * `chosenPage`, the page that the user already chose, as with a link in a conversation, opens as soon
+   * as the callback can come back. The host names the page, so any other page ends the sign-in unopened.
    */
-  run<E>(key: string, remote: SignInRelayRemote<E>, opensPage = false) {
-    return this.#run(key, remote, opensPage);
+  run<E>(key: string, remote: SignInRelayRemote<E>, chosenPage: string | null = null) {
+    return this.#run(key, remote, chosenPage);
   }
 
   readonly #run = Effect.fn("SignInRelayClient.run")(function* <E>(
     this: SignInRelayClient,
     key: string,
     remote: SignInRelayRemote<E>,
-    opensPage: boolean,
+    chosenPage: string | null,
   ) {
     const { flowId } = yield* remote.start;
     const self = this;
@@ -143,6 +143,8 @@ export class SignInRelayClient {
       const authorizeUrl = first.authorizeUrl ?? "";
       const page = safePage(authorizeUrl);
       if (!page) return { toolCount: 0, error: sourceText("error.backend.mcpSignInNotWebPage") };
+      if (chosenPage !== null && page.toString() !== safePage(chosenPage)?.toString())
+        return { toolCount: 0, error: sourceText("error.team.signInRelayLinkUnknown") };
 
       const callback = loopbackCallback(page.toString());
       const state = page.searchParams.get("state");
@@ -175,7 +177,7 @@ export class SignInRelayClient {
         state,
         receive: (value) => Deferred.doneUnsafe(query, Effect.succeed(value)),
       });
-      if (opensPage) yield* Effect.promise(() => self.#dependencies.openExternal(page.toString()));
+      if (chosenPage !== null) yield* Effect.promise(() => self.#dependencies.openExternal(page.toString()));
 
       // The host can end the sign-in first: its deadline passed, or another start replaced it.
       const ended = yield* Effect.raceFirst(

@@ -133,9 +133,13 @@ capability answers that the sign-in must be done on the host.
 - The code travels only on the encrypted Team channel. The account Worker never sees it.
 - Replay delivery sends one GET to the loopback address of the host's own page. It follows no
   redirect, keeps only the status code and drops the body.
-- `link/start` accepts only an https page with a `state` and a loopback `redirect_uri`, and only when
-  an agent message of `agentId` holds that exact address (`relayableSignInLink`). Any other link
-  gets `404`, so a client cannot make the host send a query to a port of its choice.
+- `link/start` accepts only an https page with a `state` and a loopback `redirect_uri`
+  (`relayableSignInLink`), and only when an agent message of `agentId` from the last hour holds that
+  exact address as a whole link (`agentPrintedLink`). Any other link gets `404`, so a client cannot
+  make the host send a query to a port of its choice. The replay sends only what a click on that
+  link on the host would send.
+- An agent link opens at once, because the user clicked it. The client opens it only when the page
+  that the host names is the link that the user clicked; any other page ends the sign-in unopened.
 
 ### Security checklist for a new relay kind
 

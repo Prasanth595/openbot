@@ -91,7 +91,8 @@ function setup(
     granted,
     opened,
     client,
-    run: () => Effect.runPromise(client.run("key", remote)),
+    page,
+    run: (chosenPage: string | null = null) => Effect.runPromise(client.run("key", remote, chosenPage)),
     /** The user reads the page's host name in the dialog, then asks to open it. */
     runAndOpen: async () => {
       const done = Effect.runPromise(client.run("key", remote));
@@ -134,6 +135,25 @@ describe("SignInRelayClient", () => {
 
     expect(await runAndOpen()).toEqual({ toolCount: 3, error: null });
     expect(granted).toEqual([CODE]);
+  });
+
+  it("opens a page that the user chose only when the host names that page", async () => {
+    const port = await freePort();
+    const refused = setup(port, { browser: async () => undefined });
+
+    expect(await refused.run("https://auth.example.com/authorize?state=other")).toEqual({
+      toolCount: 0,
+      error: sourceText("error.team.signInRelayLinkUnknown"),
+    });
+    expect(refused.opened).toEqual([]);
+
+    const chosen = setup(port, {
+      browser: async () => {
+        await fetch(`http://127.0.0.1:${port}/cb?code=${CODE}&state=${STATE}`);
+      },
+    });
+    expect(await chosen.run(chosen.page)).toEqual({ toolCount: 3, error: null });
+    expect(chosen.opened).toEqual([new URL(chosen.page).toString()]);
   });
 
   it("refuses a page with no state, so its listener cannot hand on another sign-in's callback", async () => {

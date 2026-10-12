@@ -201,7 +201,7 @@ import {
 } from "./session-configuration";
 import { readSetupState } from "./setup-store";
 import { SignInRelayClient } from "./sign-in-relay-client";
-import { SignInRelayHost } from "./sign-in-relay-host";
+import { agentPrintedLink, SignInRelayHost } from "./sign-in-relay-host";
 import { SignalIngress } from "./signal-ingress";
 import { SkillMarketplaceService } from "./skill-marketplace-service";
 import { SLACK_DEV_CALLBACK_PATH, startSlackDevCallbackServer } from "./slack-dev-callback-server";
@@ -1650,11 +1650,11 @@ export async function createApplicationServices({
     receiveMcpGrant: (state, code) => mcpOAuth.receiveAuthorizationCode(state, code),
     // The search ignores case, so the exact address is checked again on each agent message it finds.
     printedLink: (agentId, url) =>
-      service
-        .searchConversationMessages(url, agentId, undefined, 20)
-        .results.some(
-          ({ message }) => (message.author === "agent" || message.author === "assistant") && message.text.includes(url),
-        ),
+      agentPrintedLink(
+        service.searchConversationMessages(url, agentId, undefined, 20).results.map(({ message }) => message),
+        url,
+        Date.now(),
+      ),
   });
   teardown.push(TEARDOWN_ORDER.mcpHostSignIns, "MCP sign-ins of joined servers", () =>
     Effect.runPromise(mcpHostSignIns.close()),

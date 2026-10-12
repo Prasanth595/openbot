@@ -5,7 +5,7 @@ import { redactText } from "@openbot/logging";
 import { Effect } from "effect";
 import { describe, expect, it, vi } from "vitest";
 import { runCauseEffect } from "../backend/effect-boundary";
-import { SIGN_IN_RELAY_TTL_MS, SignInRelayHost } from "./sign-in-relay-host";
+import { agentPrintedLink, PRINTED_LINK_AGE_MS, SIGN_IN_RELAY_TTL_MS, SignInRelayHost } from "./sign-in-relay-host";
 import { HttpError } from "./team-api/http-error";
 
 const PAGE = "https://auth.example.com/authorize?state=state-1&redirect_uri=http%3A%2F%2F127.0.0.1%3A28417%2Fmcp-auth";
@@ -149,6 +149,25 @@ describe("SignInRelayHost.startReplay", () => {
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
+  });
+});
+
+describe("agentPrintedLink", () => {
+  it("accepts only a whole link from a recent agent message", () => {
+    const now = Date.parse("2026-10-12T12:00:00.000Z");
+    const link = "https://auth.example.com/authorize?state=s&redirect_uri=http%3A%2F%2F127.0.0.1%3A5000%2Fcb";
+    const message = (text: string, author: "agent" | "user" = "agent", age = 0) => ({
+      id: "m",
+      author,
+      text,
+      createdAt: new Date(now - age).toISOString(),
+      status: "completed" as const,
+    });
+
+    expect(agentPrintedLink([message(`Open [the page](${link}).`)], link, now)).toBe(true);
+    expect(agentPrintedLink([message(`Open ${link}&scope=all`)], link, now)).toBe(false);
+    expect(agentPrintedLink([message(link, "user")], link, now)).toBe(false);
+    expect(agentPrintedLink([message(link, "agent", PRINTED_LINK_AGE_MS + 1)], link, now)).toBe(false);
   });
 });
 

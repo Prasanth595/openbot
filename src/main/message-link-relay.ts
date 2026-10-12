@@ -62,7 +62,7 @@ export class MessageLinkRelay {
     const post = <T>(path: string, decoder: ResponseDecoder<T>, body: unknown) =>
       remoteServers.request(serverId, path, decoder, { method: "POST", body });
     const flow = await runCauseEffect(post(SIGN_IN_RELAY_ROUTES.linkStart, decodeSignInRelayFlow, { agentId, url }));
-    const fiber = Effect.runFork(relay.run(key, signInRelayRemote(post, Effect.succeed(flow)), true));
+    const fiber = Effect.runFork(relay.run(key, signInRelayRemote(post, Effect.succeed(flow)), page));
     this.#running.set(key, fiber);
     fiber.addObserver((exit) => {
       if (this.#running.get(key) === fiber) this.#running.delete(key);
