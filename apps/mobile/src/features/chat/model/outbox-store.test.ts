@@ -201,6 +201,8 @@ describe("outbox", () => {
     expect(states(restarted)).toEqual([["unsure", "failed"]]);
     expect(restarted.snapshot().messages[0]?.repeatSafe).toBe(false);
     restarted.retry("client-1");
+    // Retry starts nothing: a start would have made the message sending at once.
+    expect(states(restarted)).toEqual([["unsure", "failed"]]);
     expect(deliver).not.toHaveBeenCalled();
   });
 
