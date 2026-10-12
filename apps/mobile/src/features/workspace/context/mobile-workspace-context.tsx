@@ -710,6 +710,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     const timer = setTimeout(() => setHold(null), OTHER_SERVERS_RETURN_DELAY_MS);
     return () => clearTimeout(timer);
   }, [foreground]);
+  // A selection made during the hold ends it, also when the user then selects the first server again.
+  useEffect(() => {
+    if (hold && hold.serverId !== activeServerId) setHold(null);
+  }, [hold, activeServerId]);
 
   const loadConversation = useCallback(
     async (agentId: string, serverId = activeServerIdRef.current, refresh = false) => {
