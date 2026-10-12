@@ -1664,7 +1664,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       }
       // Antigravity keeps session/prompt open while background tasks run. Its text must not
       // wait for that response. A later tool/thought boundary can still classify it as commentary.
-      if (this.provider === "antigravity" && update.content.text) {
+      // Text after an SDK failure is the failure, which the turn reports when it ends.
+      if (this.provider === "antigravity" && update.content.text && turn.sdkFailureAt === null) {
         if (!turn.text)
           this.emit("notification", {
             method: "item/started",

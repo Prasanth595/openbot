@@ -1878,10 +1878,11 @@ export class ProviderRuntime implements ProviderPort {
             const account = response.account;
             if (!account)
               return yield* new ProviderOperationFailed({
-                cause: new Error(
-                  this.#customProviderSignInMessage(provider) ??
+                cause: new ProviderSignInError({
+                  message:
+                    this.#customProviderSignInMessage(provider) ??
                     sourceText("error.provider.noAuthenticatedAccount", { provider: providerLabel(provider) }),
-                ),
+                }),
               });
             yield* providerStep(() => driver.validateAccount(account));
             transferred = true;
@@ -2126,6 +2127,21 @@ export class ProviderRuntime implements ProviderPort {
           yield* providerStep(() => this.#clearProviderConnectionState(provider));
           return this.status();
         }).pipe(
+          // A check that finds no account is an answer, not a failure: a removed key can leave a
+          // provider signed out. The process that still runs on the old credential must stop.
+          Effect.catch((failure) =>
+            failure.cause instanceof ProviderSignInError
+              ? Effect.gen({ self: this }, function* () {
+                  yield* this.#stopProviderClient(provider);
+                  this.#setProviderConnectionFailure(
+                    provider,
+                    new ProviderSignInError({ message: this.#signInRequiredMessage(provider) }),
+                    cli?.version,
+                  );
+                  return this.status();
+                })
+              : Effect.fail(failure),
+          ),
           Effect.tapError((failure) =>
             Effect.sync(() => this.#setProviderConnectionFailure(provider, failure.cause, cli?.version)),
           ),

@@ -459,6 +459,56 @@ describe.sequential("ProviderRuntime: account checks and login", () => {
     },
   );
 
+  it("stops the process on a removed key when no account is left", async () => {
+    process.env.OPENBOT_OPENCODE_PATH = await fakeOpencodeCli();
+    let storedKey: string | null = "go-key";
+    const clients: FakeAgentClient[] = [];
+    const { store, mailbox } = stores(root);
+    service = createTestService({
+      store,
+      mailbox,
+      preferredProvider: "opencode",
+      clientFactory: (provider) => {
+        const client = new FakeAgentClient(provider);
+        if (provider === "opencode") {
+          // Only the key signs this provider in, as an API key signs Gemini in.
+          client.accountSignedIn = storedKey !== null;
+          clients.push(client);
+        }
+        return client;
+      },
+      bundledExecutables: {},
+      prepareAgentWorkspace: () =>
+        Effect.try({
+          try: () => undefined,
+          catch: (cause) => new AgentLifecycleFailed({ operation: "test adapter", cause }),
+        }),
+      hostedSites: null,
+      sidebarLayout: null,
+      preferredModel: null,
+      credentials: { apiKey: () => storedKey, customProviders: () => [], mcpServers: () => [] },
+    });
+    await runCauseEffect(service.initialize());
+    expect(service.getStatus().providers?.find((provider) => provider.id === "opencode")?.state).toBe("available");
+
+    const status = await runCauseEffect(
+      service.changeProviderCredential("opencode", () =>
+        Effect.try({
+          try: () => {
+            storedKey = null;
+          },
+          catch: (cause) => new AgentLifecycleFailed({ operation: "test adapter", cause }),
+        }),
+      ),
+    );
+
+    // The process that read the removed key must not serve another turn.
+    expect(clients[0]?.running).toBe(false);
+    expect(status.providers?.find((provider) => provider.id === "opencode")).toMatchObject({
+      state: "sign-in-required",
+    });
+  });
+
   it("restarts OpenCode on a changed key before it reports the change", async () => {
     process.env.OPENBOT_OPENCODE_PATH = await fakeOpencodeCli();
     let storedKey: string | null = null;
