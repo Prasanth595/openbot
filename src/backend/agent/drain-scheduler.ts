@@ -1,7 +1,7 @@
 import { AGENT_PROVIDERS } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Result, Schema } from "effect";
-import type { AgentProvider } from "../agent-client";
+import { type AgentProvider, ProviderTurnActiveError } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { ChannelService } from "../channel-service";
 import { causeHelpers } from "../effect-boundary";
@@ -550,6 +550,13 @@ export class DrainScheduler {
               confirmedTurnId,
               batch.map(({ delivery: item }) => item.id),
             );
+            return;
+          }
+          // The provider started a turn of its own after the check above. Nothing ran, and `mayDrain`
+          // holds the messages until that turn ends.
+          if (error instanceof ProviderTurnActiveError) {
+            for (const item of batch) yield* this.#mailbox.restoreQueued(item.delivery.id).pipe(toDeliveryStartFailed);
+            this.#mailboxSync.emitQueue(delivery.recipientAgentId);
             return;
           }
           if (isRequestTimeout(error, "turn/start")) {

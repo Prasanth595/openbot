@@ -9,6 +9,7 @@ import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contract
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { VISIBLE_DYNAMIC_TOOLS } from "./agent/tool-catalog";
+import { ProviderTurnActiveError } from "./agent-client";
 import { AgentStore } from "./agent-store";
 import { CLAUDE_IDLE_THREAD_LIMIT, CLAUDE_THREAD_IDLE_RELEASE_MS, ClaudeAgentClient } from "./claude-client";
 import { mergeProviderHistory, newAssistantMessage, snapshotFromThread } from "./conversation-snapshots";
@@ -1025,6 +1026,11 @@ fi
       uuid: "subagent-answer",
       message: { content: [{ type: "text", text: "The subagent found 3 stores." }] },
     });
+    await vi.waitFor(() => expect(notifications.some(({ method }) => method === "turn/started")).toBe(true));
+    // A message does not join that turn: the drain queues it again until the CLI's result.
+    await expect(startTurn(client, threadId, "77777777-7777-4777-8777-777777777777")).rejects.toBeInstanceOf(
+      ProviderTurnActiveError,
+    );
     output.push({
       type: "result",
       subtype: "success",

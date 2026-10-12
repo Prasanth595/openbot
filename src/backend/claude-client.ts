@@ -32,7 +32,7 @@ import {
 import { isBalanceDiagnostic, isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
 import { claudeBridgedToolName, VISIBLE_TOOL_DEFINITIONS } from "./agent/tool-catalog";
 import { USAGE_LIMIT_METHOD } from "./agent/usage-limit-gate";
-import { type AgentProvider, RequestTimeoutError } from "./agent-client";
+import { type AgentProvider, ProviderTurnActiveError, RequestTimeoutError } from "./agent-client";
 import { type ClaudeHistoryOptions, claudeHistoryFromMessages, claudeHistoryReader } from "./claude-history";
 import {
   CLAUDE_WORKSPACE_MANAGED_SETTINGS,
@@ -818,10 +818,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   ): Effect.fn.Return<TurnResponse, ProviderClientOperationError> {
     yield* this.#threads.wake(threadId).pipe(toProviderClientOperationError);
     const runtime = yield* providerSync(() => this.#requireThread(threadId));
-    // The CLI can start its own turn after the drain checked that the agent is idle. That turn ends
-    // here, and its remaining output goes to this one, so that the message does not fail.
-    if (runtime.activeTurn?.unprompted) yield* this.#completeTurn(runtime, "completed", null);
-    if (runtime.activeTurn) return yield* providerFailure(new Error("The Claude thread already has an active turn."));
+    if (runtime.activeTurn) return yield* providerFailure(this.#turnActiveError(runtime.activeTurn));
     runtime.contextRequest += 1;
 
     const requestedModel = getString(params, "model");
@@ -846,6 +843,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     const clientId = getString(params, "clientUserMessageId");
     const turnId = clientId && isUuid(clientId) ? clientId : randomUUID();
     const text = readInputText(params);
+    // The CLI can start a turn of its own while the model or effort changes above.
+    if (runtime.activeTurn) return yield* providerFailure(this.#turnActiveError(runtime.activeTurn));
     // Only now: a model or effort change that fails above leaves the idle timer armed, so the
     // pool can still release the thread.
     this.#beginTurn(runtime, turnId, false);
@@ -873,6 +872,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     if (memory) memory.delivered = command ? null : memory.current;
     return { turn: { id: turnId, status: "inProgress" } };
   });
+
+  /** A turn of the CLI's own ends with its own result, so the message waits for it rather than joining it. */
+  #turnActiveError(turn: ActiveTurn): Error {
+    return turn.unprompted
+      ? new ProviderTurnActiveError("Claude")
+      : new Error("The Claude thread already has an active turn.");
+  }
 
   #beginTurn(runtime: ThreadRuntime, turnId: string, unprompted: boolean): ActiveTurn {
     const turn: ActiveTurn = {
