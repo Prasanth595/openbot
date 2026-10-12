@@ -72,7 +72,7 @@ class ControlPlane extends Context.Service<
   }
 >()("@openbot/remote-api/ControlPlane") {
   static layer = Layer.sync(ControlPlane, () => {
-    const ask = Effect.fn("ControlPlane.request")((path: string, payload: unknown) =>
+    const ask = Effect.fn("ControlPlane.request")((path: string, payload: unknown, timeoutMilliseconds = 5_000) =>
       Effect.tryPromise({
         try: (signal) => {
           const body = JSON.stringify(payload);
@@ -85,7 +85,7 @@ class ControlPlane extends Context.Service<
               "OpenBot-Signature": signServiceRequest(body, timestamp, config.authWebhookSecret),
             },
             body,
-            signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
+            signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMilliseconds)]),
           });
         },
         catch: () => new ControlPlaneError({ message: "The account service request failed." }),
@@ -186,7 +186,8 @@ class ControlPlane extends Context.Service<
       ),
       routeWake: Effect.fn("ControlPlane.routeWake")((route, wake) =>
         Effect.acquireUseRelease(
-          ask("/v2/remote/route-wake", { route, wake }),
+          // Longer than Slack waits: Slack sends the event again, and a late answer still keeps this one.
+          ask("/v2/remote/route-wake", { route, wake }, 30_000),
           (response) =>
             Effect.gen(function* () {
               if (response.status === 404) return { hostId: null, state: "not_hosted" as const };

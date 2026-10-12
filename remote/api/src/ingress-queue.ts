@@ -60,8 +60,11 @@ const DEFAULT_INGRESS_QUEUE_LIMITS: IngressQueueLimits = {
 /** How often expired events go when no other event or flush comes. */
 const EXPIRY_INTERVAL_MILLISECONDS = 30_000;
 
-/** Bounds the remembered routes. Past it, the entries older than the longest check interval go. */
+/** Bounds the remembered routes. Past it, the oldest answer goes. */
 const MAXIMUM_ROUTES = 100_000;
+
+/** Bounds the remembered queue keys. Past it, the key of the host whose last hello is oldest goes. */
+const MAXIMUM_KEYS = 100_000;
 
 export interface QueuedFrame {
   /** Sent with the frame; the host acknowledges it with `queued-delivery-ack`. */
@@ -92,8 +95,9 @@ export class IngressQueue {
   readonly #waker: RouteWaker | null;
   readonly #limits: IngressQueueLimits;
   readonly #now: () => number;
-  /** The queue key of each host, from its last `ingress` hello. */
+  /** The queue key of each host, from its last `ingress` hello, oldest hello first. */
   readonly #keys = new Map<string, string>();
+  /** Oldest answer first. */
   readonly #routes = new Map<string, { wake: RouteWake; at: number; woke: boolean }>();
   /** A route that asks the account service now. Concurrent events share the answer. */
   readonly #pending = new Map<string, { answer: Deferred.Deferred<RouteWake>; wake: boolean }>();
@@ -114,10 +118,15 @@ export class IngressQueue {
     this.#now = options.now ?? Date.now;
   }
 
-  /** The key from the host's last `ingress` hello. A hello without one removes the earlier key. */
+  /**
+   * The key from the host's last `ingress` hello. A hello without one removes the earlier key. A host
+   * that sleeps has no socket and still needs its key, so a key goes only past `MAXIMUM_KEYS`.
+   */
   rememberKey(hostId: string, queueKey: string | null): void {
-    if (queueKey) this.#keys.set(hostId, queueKey);
-    else this.#keys.delete(hostId);
+    this.#keys.delete(hostId);
+    if (!queueKey) return;
+    dropOldest(this.#keys, MAXIMUM_KEYS);
+    this.#keys.set(hostId, queueKey);
   }
 
   /** Whether Signal can start hosts and keep their events. */
@@ -245,8 +254,11 @@ export class IngressQueue {
     const waker = this.#waker;
     const asked = waker ? yield* waker(route, wake) : null;
     const answer: RouteWake = asked ?? { hostId: null, state: "not_hosted" };
-    if (this.#routes.size >= MAXIMUM_ROUTES) this.#pruneRoutes(now);
-    if (asked) this.#routes.set(routeKey, { wake: asked, at: now, woke: wake });
+    if (asked) {
+      this.#routes.delete(routeKey);
+      dropOldest(this.#routes, MAXIMUM_ROUTES);
+      this.#routes.set(routeKey, { wake: asked, at: now, woke: wake });
+    }
     this.#pending.delete(routeKey);
     yield* Deferred.succeed(result, answer);
     return answer;
@@ -305,10 +317,12 @@ export class IngressQueue {
   #pruneAll(): void {
     for (const hostId of [...this.#queues.keys()]) this.#prune(hostId);
   }
+}
 
-  #pruneRoutes(now: number): void {
-    for (const [key, known] of this.#routes) {
-      if (now - known.at >= this.#limits.otherRouteCheckMilliseconds) this.#routes.delete(key);
-    }
+/** Makes room for one entry in a map that keeps its oldest entry first. */
+function dropOldest(map: Map<string, unknown>, maximum: number): void {
+  for (const key of map.keys()) {
+    if (map.size < maximum) return;
+    map.delete(key);
   }
 }
