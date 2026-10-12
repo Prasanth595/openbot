@@ -315,6 +315,30 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
     else toast.error(t("browser.liveView.clipboardUnsupported"));
   };
 
+  /**
+   * Chromium sends a clipboard event to the node of the text selection, not to the focused element.
+   * A click on the canvas leaves the selection where it was, such as in the chat input, so a paste
+   * would go there, or nowhere. While the canvas has the focus, the event is the page's wherever it
+   * was sent.
+   */
+  createEffect(
+    () => canvas(),
+    (element) => {
+      if (!element) return;
+      const document = element.ownerDocument;
+      const clipboardEvent = (event: ClipboardEvent) => {
+        if (event.target !== element && document.activeElement !== element) return;
+        event.stopImmediatePropagation();
+        if (event.type === "paste") paste(event);
+        else menuCopy(event.type === "cut");
+      };
+      for (const type of CLIPBOARD_EVENTS) document.addEventListener(type, clipboardEvent, true);
+      onCleanup(() => {
+        for (const type of CLIPBOARD_EVENTS) document.removeEventListener(type, clipboardEvent, true);
+      });
+    },
+  );
+
   return (
     <div class="browser-live-view">
       <canvas
@@ -322,8 +346,6 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
         tabindex="0"
         role="img"
         aria-label={t("browser.liveView.label")}
-        // The chat input does not take the focus back when the window comes back: a paste goes to the page.
-        data-keep-focus
         hidden={!state.live}
         onMouseMove={(event) => pointer(event, "move")}
         onMouseDown={(event) => {
@@ -348,9 +370,6 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
         }}
         onKeyDown={(event) => key(event, "down")}
         onKeyUp={(event) => key(event, "up")}
-        onPaste={paste}
-        onCopy={() => menuCopy(false)}
-        onCut={() => menuCopy(true)}
       />
       <Show when={!state.live}>
         <div class="browser-empty-state">
@@ -361,6 +380,8 @@ export default function BrowserLiveView(props: BrowserLiveViewProps) {
     </div>
   );
 }
+
+const CLIPBOARD_EVENTS = ["paste", "copy", "cut"] as const;
 
 /** The host's answer to a copy: its text, a selection too long to send, or no answer at all. */
 type CopyAnswer = { text: string } | "tooLarge" | null;
