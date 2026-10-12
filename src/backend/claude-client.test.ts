@@ -1000,6 +1000,60 @@ fi
     await runCauseEffect(client.stop());
   });
 
+  it("shows the answer of a turn that the CLI starts when a background subagent ends", async () => {
+    root = await mkdtemp(join(tmpdir(), "openbot-claude-unprompted-"));
+    const output = new TestQueue<TestStreamMessage>();
+    const query = new TestQuery(output);
+    const client = new ClaudeAgentClient({ executable: "/bin/true", version: "2.1.231" }, () => query);
+    const notifications: Array<{ method: string; params: unknown }> = [];
+    client.on("notification", (notification) => notifications.push(notification));
+    client.start();
+    const thread = await runCauseEffect(
+      client.request(
+        "thread/start",
+        { cwd: root, model: "claude-sonnet-5", runtimeWorkspaceRoots: [root] },
+        decodeThreadResponse,
+      ),
+    );
+    const threadId = thread.thread.id;
+
+    // No turn/start: the CLI reads the subagent's task notification and answers on its own.
+    output.push({
+      type: "assistant",
+      parent_tool_use_id: null,
+      session_id: threadId,
+      uuid: "subagent-answer",
+      message: { content: [{ type: "text", text: "The subagent found 3 stores." }] },
+    });
+    output.push({
+      type: "result",
+      subtype: "success",
+      result: "The subagent found 3 stores.",
+      terminal_reason: "completed",
+      errors: [],
+      session_id: threadId,
+      uuid: "subagent-result",
+    });
+
+    await vi.waitFor(() => expect(notifications.some(({ method }) => method === "turn/completed")).toBe(true));
+    const started = notifications.find(({ method }) => method === "turn/started");
+    const turnId = getString(getRecord(started?.params, "turn"), "id");
+    expect(started?.params).toMatchObject({ threadId, unprompted: true });
+    expect(notifications).toContainEqual({
+      method: "item/completed",
+      params: {
+        threadId,
+        turnId,
+        item: { id: `${turnId}:assistant`, type: "agentMessage", text: "The subagent found 3 stores." },
+      },
+    });
+    expect(notifications.find(({ method }) => method === "turn/completed")?.params).toEqual({
+      threadId,
+      turn: { id: turnId, status: "completed" },
+    });
+    await runCauseEffect(client.stop());
+  });
+
   it("keeps only the most recently idle thread processes and resumes a released one", async () => {
     root = await mkdtemp(join(tmpdir(), "openbot-claude-idle-limit-"));
     const spawned: Array<{ query: TestQuery; output: TestQueue<TestStreamMessage>; options: DynamicRecord | null }> =

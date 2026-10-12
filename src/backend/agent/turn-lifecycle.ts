@@ -325,7 +325,9 @@ export class TurnLifecycle {
         if (!turnId) return;
         if (this.#compaction.claimTurn(agentId, threadId, turnId)) return;
         this.#compaction.beginTurn(threadId);
-        const starting = this.#mailbox.startingDeliveryForAgent(agentId)?.delivery;
+        // The provider started this turn itself. A delivery that is starting now waits for its own turn.
+        const unprompted = isRecord(params) && params.unprompted === true;
+        const starting = unprompted ? undefined : this.#mailbox.startingDeliveryForAgent(agentId)?.delivery;
         const sentAt = starting ? Date.parse(starting.createdAt) : Number.NaN;
         this.#runningTurns.set(turnId, {
           client: source,
@@ -342,13 +344,15 @@ export class TurnLifecycle {
         snapshot.activeTurnId = turnId;
         this.#failedTurns.delete(agentId);
         const origin = starting?.sender.kind ?? "unknown";
-        const association = Deferred.makeUnsafe<void, TurnOperationFailed>();
-        this.#turnAssociations.set(turnId, association);
-        yield* Effect.gen({ self: this }, function* () {
-          const exit = yield* Effect.exit(this.#associateStartedTurn(agentId, turnId, snapshot));
-          yield* Deferred.done(association, exit);
-          if (this.#turnAssociations.get(turnId) === association) this.#turnAssociations.delete(turnId);
-        }).pipe(Effect.forkIn(this.#scope, { startImmediately: true }));
+        if (!unprompted) {
+          const association = Deferred.makeUnsafe<void, TurnOperationFailed>();
+          this.#turnAssociations.set(turnId, association);
+          yield* Effect.gen({ self: this }, function* () {
+            const exit = yield* Effect.exit(this.#associateStartedTurn(agentId, turnId, snapshot));
+            yield* Deferred.done(association, exit);
+            if (this.#turnAssociations.get(turnId) === association) this.#turnAssociations.delete(turnId);
+          }).pipe(Effect.forkIn(this.#scope, { startImmediately: true }));
+        }
         this.#hooks.emit({ type: "turn-started", agentId, threadId: publicThreadId, turnId, origin });
         this.#conversation.emitConversation(snapshot, "turn.started", { turnId });
         return;
