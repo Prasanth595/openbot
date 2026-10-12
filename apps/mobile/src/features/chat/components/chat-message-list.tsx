@@ -1,3 +1,4 @@
+import type { BrowserTakeoverRequest } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useIsFocused } from "expo-router";
 import { Button, Typography } from "heroui-native";
@@ -226,6 +227,8 @@ interface ChatMessageListProps {
   onSelectQuestion?: (messageId: string) => void;
   /** The approvals that this chat's agents wait on, shown below the activity as on the desktop. */
   approvals?: readonly PendingApproval[];
+  /** The browser requests that this chat's agents wait on. The phone shows them above the composer. */
+  browserRequests?: readonly BrowserTakeoverRequest[];
   serverName?: string;
   onRespondApproval?: (approval: PendingApproval, decision: ApprovalDecision) => Promise<void>;
   fieldBackground: ViewStyle["backgroundColor"];
@@ -644,6 +647,7 @@ function TurnFailure({ reason }: { reason: string | undefined }) {
 }
 
 const NO_APPROVALS: readonly PendingApproval[] = [];
+const NO_BROWSER_REQUESTS: readonly BrowserTakeoverRequest[] = [];
 
 export function ChatMessageList({
   upload,
@@ -664,6 +668,7 @@ export function ChatMessageList({
   questionForm,
   onSelectQuestion,
   approvals = NO_APPROVALS,
+  browserRequests = NO_BROWSER_REQUESTS,
   serverName = "",
   onRespondApproval,
   fieldBackground,
@@ -937,7 +942,9 @@ export function ChatMessageList({
             ? t("mobile.chat.activity.waitingForAnswer")
             : approvals.some((approval) => approval.agentId === (activity?.agentId ?? target.id))
               ? t("mobile.chat.activity.waitingForApproval")
-              : t("mobile.chat.activity.waitingOnDesktop")
+              : browserRequests.some((request) => request.agentId === (activity?.agentId ?? target.id))
+                ? t("mobile.chat.activity.waitingForBrowser")
+                : t("mobile.chat.activity.waitingOnDesktop")
           : thinkingDetail
             ? thinkingDetail
             : activity?.phase === "responding"

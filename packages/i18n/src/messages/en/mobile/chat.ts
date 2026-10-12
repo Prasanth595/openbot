@@ -249,6 +249,7 @@ export const messages = defineMessages("mobile.chat", {
   "mobile.chat.approval.sendFailed": "Could not send your decision. Try again.",
   "mobile.chat.approval.inactiveTitle": "Request closed",
   "mobile.chat.activity.waitingOnDesktop": "Waiting for your input on desktop",
+  "mobile.chat.activity.waitingForBrowser": "Waiting for you in the browser",
   "mobile.chat.activity.responding": "Responding…",
   "mobile.chat.activity.thinking": "Thinking…",
   "mobile.chat.history.loadingOlder": "Loading older messages…",
