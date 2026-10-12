@@ -7,6 +7,119 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
+## [1.3.0] - In review
+
+### Added
+
+- Visual replies. A chart, a table, a diagram or a mockup that an agent shows as an HTML page on
+  the computer appears in the phone chat as its HTML file, with the page title. The phone does not
+  run the page. The page does not count as an unread message.
+- Report safe categories for error alerts, chat send failures, and failed actions.
+- Keep a bounded local error queue and retry on foreground or reconnection. Opt-out and account changes clear pending reports.
+- Add a webhook trigger to teammate and group routines. The host makes the webhook URL and the signing secret. You see the secret one time when you create the webhook, and you can make a new one.
+- Each routine shows the webhook requests that it ignored. Tap **Filter events** to limit a webhook routine to one event type and to data filters.
+- Animations settings. In Settings > Animations, you can turn off all animations, as Reduce Motion
+  does. You can also turn off only the zoom into a chat, the agent faces, the compact message
+  field, or the reply animation. The Reduce Motion setting of the phone still applies.
+- Russian interface. Choose Русский in Settings > App language, or keep System default on an iPhone
+  that uses Russian.
+- Add Spanish and German to the app language settings. Translate settings, navigation, search,
+  Live Activities and some chat controls. Text that is not translated yet stays in English.
+- Buy a cloud server from the Android app, version 1.2.0. Tap + in the server list and choose a plan.
+- Hide the "Waiting for replies" list in the queued messages sheet when every teammate replied or failed.
+- Use an agent's browser from your phone. Tap the globe in the chat header to see the agent's tab
+  live, or to open a new tab when the agent has none. Your finger moves the pointer from anywhere
+  on the screen, as on a trackpad, and a tap clicks at the pointer. Turn off Trackpad mode in the
+  ··· menu to click where you tap. One finger drags, two fingers scroll, a pinch zooms, and a tap
+  with two fingers or a press and hold right-clicks. The page's menu then opens on your phone, with items
+  such as Copy Link and Paste. The pointer shows the page's cursor, such as a hand on a link or a
+  bar in a text field. The keyboard button types on the page, and the clipboard button copies
+  selected text to your phone and pastes from it. The ? button explains each gesture.
+- The arrows in the bottom bar of the browser go to the previous and the next page. Reload page is
+  in the ··· menu. The tabs button shows the agent's tabs: select a tab to show it, or open a new
+  tab or close the tab on screen.
+- The page in the browser keeps the same size on your phone when the window of OpenBot on the
+  server changes size. The server needs this version of OpenBot.
+- When an agent asks you to take over its browser, the request has an Open browser button. In the
+  browser, choose I'm done in the ··· menu to give control back to the agent.
+- You can allow or deny an agent's approval request in the chat. The card shows the command, files or permissions, and says what each answer does on the computer. Before, the chat only showed "Waiting for your input on desktop".
+- When a request is too long to show on the phone, the card lets you deny it and tells you to open OpenBot on the computer to allow it.
+- Mark agents that wait for you in the agent list, with an icon for a question, an approval, or a browser takeover. A "Needs you" group shows them above the sections.
+- When an agent waits for you, the compact Dynamic Island shows an amber mark on the agent's photo, and the agent's name has the agent color.
+- Mark all agent chats and channels on a server as read from the home screen chat options menu. If a chat cannot be marked read, it stays unread and the app tells you.
+- Agent info groups the agent settings as the desktop app does: **Brain**, **Knows**, **Does**, and **Rules**. **Rules** has **Permissions**, **Notifications**, and **Advanced**.
+- **Advanced** shows the workspace folder of the agent and can start a **New chat**. A new chat shows a "New chat started" divider in the chat.
+- Owners and admins can turn **Computer Use** and **Local scripts** on or off for an agent, and select what a message does while the agent works (**Queue** or **Steer**). A change made on the computer or on another device shows at once. The computer that runs the agent must have the newest OpenBot desktop version.
+- Owners and admins can see and delete the **Tables** that the agents share, and **Publish** an agent as a link template. The link preview of a template that you publish from the phone shows the general OpenBot image, not an agent card.
+- Support Pi and Muse agents on hosts with Team API v7.
+- Add provider session settings and reset on hosts that support this feature.
+- Choose which agent memories enter every prompt on updated hosts. Keep other memories saved for search, and let the agent manage the selection when needed.
+- Polish interface. Choose Polski in Settings > App language, or keep System default on an iPhone
+  that uses Polish.
+- Write and send messages while your server is offline. Waiting messages are drawn lighter, one line under them says they send when the server is online, and you touch and hold a message to edit it or not send it. They send on their own when the server is back. The phone keeps waiting messages and their files when you close the app.
+- Search finds the same kinds of results as the desktop search: agents, channels, messages, files and routines. It also finds the settings pages of the app and of the server. The filter button next to the search field shows one kind of result. Files show when the computer has the latest OpenBot.
+- A search result opens what it names. A message or a file opens the chat at its message. A channel opens the channel, a routine opens its settings, and a settings result opens its page.
+- Settings > Animations has "Animate search results". It turns off the blur when search results change.
+
+### Changed
+
+- New Claude agents use Haiku 5.5 by default.
+- The screen that creates an agent now has a soft glow in the color of the agent. When you select a different color, the glow and the avatar change to the new color smoothly.
+- Settings has no General page. Appearance, Animations, Language, Haptics, Live Activities and
+  Privacy each have their own page. Hidden chats and deleted channels are on the Settings page.
+- Show what a hosted server gives at the top of the plans sheet: it runs OpenBot 24/7 on an external
+  server, keeps agents and routines running when the computer is off, and needs no technical setup.
+- Like on desktop, consecutive messages between agents show as one line in the chat, such as "3 messages with 2 agents". Tap it to see each message.
+- A message to several agents shows their avatars and the number of agents. Tap it to see their names.
+- Explain that Local scripts can also send messages, answer questions, and accept or decline approvals on a supported host.
+- Show a specific reason when a connection to a server fails, for example when the host is busy or
+  an invitation was already used. Before, most of these failures showed "The connection failed."
+- Show a short error code in error alerts, with a "Copy code" button. Send this code when you report
+  a problem, so we can find the cause.
+- German, Spanish, French, Japanese, Russian and Turkish now translate all screens of the app.
+  Before, many agent, server, chat and channel screens showed English text in German and Spanish.
+- The app no longer sells cloud servers. Tap + in the server list to see the plans and your cloud servers, with the plan, billing period and state of each server.
+- When an agent asks for a password or a code, you type it where the composer is. The value goes only to the browser, not to the chat.
+- Browser takeover requests in a chat show as a lighter card, with one main action and a close button to cancel.
+- While an agent waits for you in its browser, the chat says so, instead of asking for input on the desktop.
+- The chat stays free while a message sends: you can write and send the next one at once. Messages of one chat arrive in the order you sent them.
+- A message that did not send stays in the chat as `Not sent`. Touch and hold it to retry, edit it or not send it. Before, its text went back to the composer.
+- When the connection drops during a send, the message waits and sends again when the server is back, and the server stores it once. A server that cannot recognize a repeated message marks it `Not confirmed` instead, so you can check the chat first.
+- Search results show the agent or channel picture, the time and the words that match. All shows the first results of each kind, and "See all" shows all results of that kind.
+- Search results come in, go out and move to their new place with a short animation. Sections of results and search messages come in with a short blur. When motion is reduced, they only fade.
+
+### Fixed
+
+- Voice mode on iOS. The Cancel and Send buttons no longer show as small circles behind the voice
+  button while you speak, or behind the composer after the voice mode closes.
+- Show the answers that an agent waits for, and the latest channel message, as plain text. Before,
+  these previews showed raw Markdown marks such as `**` and `#`.
+- A message that you send to a running turn now shows after what the agent did before it. Before, it moved up to the turn's first message.
+- Prevent a server connection from closing with “Signal message is invalid” when the browser sends an empty ICE completion marker.
+- Keep the connection to your computer when you open the app again while the connection still
+  works. Before, each return to the app restarted the connection path, and after 10 restarts the
+  computer closed the connection. The app then stopped for a few seconds while it connected again.
+- The agent's browser follows the light or dark appearance of the app.
+- Live Activity answer buttons show as one capsule each and share the full width.
+- The owner of a server can now remove it from the account in server settings, also when its computer is offline or gone. Before, an owner could not remove such a server. The removal applies to all members and all devices. Members lose access, and connected Slack, Discord, Telegram and webhook routes stop. If you add the server again, invite its members again and set up its connections again. Old webhook URLs do not work again.
+- Open a chat of an agent on a connected server that is not the active one, for example from a Live Activity, and OpenBot now loads the messages, loads older messages and marks them read on the agent's own server. Before, it asked the active server.
+- Report failed browser Live View connections and input as failures instead of normal view termination. Release failed sessions so the view can be opened again.
+- Tasks card. The step in progress shows all its lines at each text size. Before, a larger text
+  size cut off the bottom of the step, and the next step touched it.
+- While an agent works, its activity row in the chat now shows at most two lines of its thinking text, next to the avatar, as on desktop. Before, a long thinking step made the row as tall as all of its text, and most of that text did not show, so the chat showed a large empty space with the avatar in the middle of it.
+- The activity row now stays from when you send a message until the reply shows. Before, on Android, the row could disappear and show again while the agent started its work.
+- On Android, the activity row no longer shows a black background for a moment when it appears.
+- On Android, the bubble of an agent reply now grows with its text. Before, the text could go out of the bubble while the reply showed.
+- On Android, the text of a reply no longer flickers while it shows word by word. Each word now shows at once.
+- A browser request in a chat stays visible, with the typed value, while Notification Center or another system overlay is open.
+- In Settings > Support, the recent log scrolls in its own box, so a long log does not make the page very long.
+- After 45 minutes on one server connection, and on each return to the app after that, the app asked the signalling service for new relay credentials many times a second, until the service closed the socket for a minute. A lost connection could not recover in that minute. The app now asks once every 45 minutes.
+- A remote connection that Signal refuses for a reason other than a rate limit, such as an invalid ticket, reconnects at once. Before, OpenBot waited 60 seconds as if Signal had limited its rate.
+- A server is usable sooner after you return to the app. Before, "Reconnecting" stayed until every chat that you had opened before had loaded again, one after another. Now it ends when the agents and the unread counts load, and the chats load after it, the open chat first.
+- After more than 30 seconds away, the app waited 3 seconds for a dead connection before it connected again. Now it repairs the connection at once, or replaces it at once when the server has already dropped it. After more than about 3 minutes away, it shows at once that it connects, instead of a server that looked online but did not answer.
+- On a return to the app, the selected server connects first, and your other servers follow when it is online.
+- When the server had dropped the connection while the app was in the background, the status showed a short countdown and said that the desktop had restarted. Now it shows that the app connects again, and the message says that the server no longer has the connection.
+
 ## [1.2.0] - 2026-10-08
 
 ### Added
