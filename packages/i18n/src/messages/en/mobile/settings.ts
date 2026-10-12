@@ -80,6 +80,9 @@ export const messages = defineMessages("mobile.settings", {
   "mobile.settings.animations.textReveal": "Animate replies",
   "mobile.settings.animations.textRevealFooter":
     "A reply types out word by word, and its bubble grows smoothly. When this is off, the text shows as it arrives.",
+  "mobile.settings.animations.searchTransitions": "Animate search results",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Search results and search messages fade in and out with a short blur when they change. When motion is reduced, they only fade. When this is off, they change at once.",
   "mobile.settings.feedback.footer": "Touch feedback for actions in the app on this device.",
   "mobile.settings.feedback.haptics": "Haptics",
   "mobile.settings.feedback.retry": "Retry saving haptics setting",

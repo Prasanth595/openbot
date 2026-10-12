@@ -103,6 +103,7 @@ export const messages = {
   "error.provider.localOnly": "Dostawców można zmieniać tylko na komputerze, na którym działają agenci.",
   "error.provider.keyRequired": "Klucz dostawcy jest wymagany.",
   "error.provider.keyTooLong": "Klucz dostawcy jest za długi.",
+  "error.provider.keyInvalidCharacters": "Klucz dostawcy zawiera spację lub znak, którego klucz nie może zawierać.",
   "error.provider.noModel": "Wybrany dostawca nie ma dostępnego modelu.",
   "error.provider.noModelNamed": "Dostawca {provider} nie ma dostępnego modelu.",
   "error.provider.acpNoModels": "ACP CLI nie udostępnił żadnych modeli ACP. OpenBot nie zgaduje modelu zastępczego.",

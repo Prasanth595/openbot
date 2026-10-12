@@ -126,4 +126,43 @@ export const messages = {
     many: "Otwieranie strony logowania na: {host}. OpenBot przestanie czekać po {count} minutach.",
     other: "Otwieranie strony logowania na: {host}. OpenBot przestanie czekać po {count} minuty.",
   },
+  "mcp.panel.appTitle": "Aplikacja logowania",
+  "mcp.panel.appDescription":
+    "Użyj aplikacji OAuth zarejestrowanej u dostawcy serwera. OpenBot używa jej, gdy serwer nie może sam zarejestrować OpenBot. Zostaw puste, aby OpenBot zarejestrował się sam.",
+  "mcp.panel.appSaveFirst": "Najpierw zapisz ten serwer. Potem możesz dodać aplikację logowania.",
+  "mcp.panel.appUrlChanged":
+    "Najpierw zapisz nowy adres URL serwera. Aplikacja logowania należy do zapisanego adresu URL.",
+  "mcp.panel.appLoadFailed": "Nie udało się odczytać aplikacji logowania.",
+  "mcp.panel.callbackUrl": "Adres URL wywołania zwrotnego",
+  "mcp.panel.callbackUrlDescription": "Dodaj dokładnie ten adres URL do dozwolonych adresów przekierowania aplikacji.",
+  "mcp.panel.callbackUrlOnHost":
+    "{host} loguje się we własnej przeglądarce, więc ten adres URL jest na {host}. Dodaj dokładnie ten adres URL do dozwolonych adresów przekierowania aplikacji.",
+  "mcp.panel.callbackUrlUnavailable": "Brak dostępnego adresu URL wywołania zwrotnego.",
+  "mcp.panel.copyCallbackUrl": "Kopiuj adres URL wywołania zwrotnego",
+  "mcp.panel.clientId": "Identyfikator klienta",
+  "mcp.panel.clientSecret": "Sekret klienta",
+  "mcp.panel.clientSecretDescription": "Opcjonalnie. Tylko dla aplikacji, która ma sekret.",
+  "mcp.panel.clientSecretSaved": "Sekret zapisany. Wpisz nowy sekret, aby go zastąpić.",
+  "mcp.panel.clientSecretRemoved": "Sekret zostanie usunięty, gdy zapiszesz aplikację.",
+  "mcp.panel.removeClientSecret": "Usuń sekret",
+  "mcp.panel.scopes": "Zakresy",
+  "mcp.panel.scopesDescription": "Opcjonalnie. Oddziel zakresy spacjami.",
+  "mcp.panel.saveApp": "Zapisz aplikację",
+  "mcp.panel.removeApp": "Usuń aplikację",
+  "mcp.panel.appSaved": "Aplikacja zapisana. Zaloguj się, aby jej użyć.",
+  "mcp.panel.appRemoved": "Aplikacja usunięta.",
+  "mcp.signIn.relayDescription":
+    "Sprawdź, czy strona logowania jest na {page}, a potem otwórz ją w przeglądarce. Gdy skończysz, OpenBot wyśle logowanie do {host}.",
+  "mcp.signIn.relayOpenDescription":
+    "Otwórz stronę logowania {page} w swojej przeglądarce. Gdy skończysz, wklej tutaj wyświetlany adres. OpenBot wyśle wtedy logowanie do {host}.",
+  "mcp.signIn.relayDeviceDescription":
+    "Sprawdź, czy strona logowania jest na {page}, a potem otwórz ją w przeglądarce i zakończ tam logowanie. {host} sam wykryje logowanie.",
+  "mcp.signIn.relayOpen": "Otwórz stronę logowania",
+  "mcp.signIn.relayPasteHint": "Jeśli przeglądarka nie wróci do OpenBot, skopiuj wyświetlany adres i wklej go tutaj.",
+  "mcp.signIn.relayPasteRequired":
+    "OpenBot nie może sam odebrać logowania z przeglądarki. Gdy skończysz, skopiuj wyświetlany adres i wklej go tutaj.",
+  "mcp.signIn.relayAddress": "Adres z przeglądarki",
+  "mcp.signIn.relaySend": "Wyślij",
+  "mcp.panel.callbackUrlRelayed":
+    "Strona logowania otwiera się w Twojej przeglądarce, a OpenBot na Twoim komputerze wysyła logowanie do {host}. Dodaj dokładnie ten adres URL do dozwolonych adresów przekierowania aplikacji.",
 } as const satisfies PartialTranslation<typeof source>;

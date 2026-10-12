@@ -86,6 +86,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Animuj odpowiedzi",
   "mobile.settings.animations.textRevealFooter":
     "Odpowiedź pojawia się słowo po słowie, a jej dymek płynnie rośnie. Gdy to jest wyłączone, tekst pojawia się w miarę napływania.",
+  "mobile.settings.animations.searchTransitions": "Animuj wyniki wyszukiwania",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Wyniki i komunikaty wyszukiwania pojawiają się i znikają z krótkim rozmyciem, gdy się zmieniają. Gdy ruch jest ograniczony, tylko się przenikają. Gdy to jest wyłączone, zmieniają się od razu.",
   "mobile.settings.feedback.footer": "Wibracje przy akcjach w aplikacji na tym urządzeniu.",
   "mobile.settings.feedback.haptics": "Haptyka",
   "mobile.settings.feedback.retry": "Ponów zapis ustawienia haptyki",

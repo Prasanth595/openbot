@@ -87,6 +87,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const {
     contextStates,
     activeQueue,
+    activeWaits,
     activeRoutineIds,
     activeRoutines,
     pendingPrompts,
@@ -98,6 +99,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     respondToApprovalRequest,
     respondToBrowserTakeover,
     cancelQueuedMessage,
+    cancelWait,
     steerQueuedMessage,
     updateQueuedMessage,
     reorderQueue,
@@ -381,6 +383,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onClearAgentContext={clearActiveAgentContext()}
         onRespondToBrowserTakeover={respondToBrowserTakeover}
         onCancelQueuedMessage={cancelQueuedMessage}
+        waits={activeWaits()}
+        onCancelWait={cancelWait}
         onSteerQueuedMessage={steerQueuedMessage}
         onUpdateQueuedMessage={updateQueuedMessage}
         onReorderQueue={reorderQueue}
@@ -398,6 +402,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
             onOpenVerificationUrl={codeLogin.openVerificationUrl}
             onCancel={codeLogin.cancel}
             onSubmitCode={codeLogin.submit}
+            onOpenRelayPage={codeLogin.openRelayPage}
+            onPasteRelayAddress={codeLogin.pasteRelayAddress}
           />
         )}
       </Show>

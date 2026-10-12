@@ -4,7 +4,7 @@ import { Effect, Result, Semaphore } from "effect";
 import { isMissingFileError } from "../backend/file-errors";
 import { type PreferenceFileFailure, readPreferenceFile, writePreferenceFile } from "./preference-file";
 
-const DEFAULT_PREFERENCE: NotificationPreference = { desktopNotifications: true };
+const DEFAULT_PREFERENCE: NotificationPreference = { desktopNotifications: true, messagePreview: true };
 
 interface StoredNotificationPreference extends NotificationPreference {
   /** Whether OpenBot has already shown the notification that makes macOS ask for permission. */
@@ -12,7 +12,7 @@ interface StoredNotificationPreference extends NotificationPreference {
 }
 
 /**
- * The desktop notification switch. Main reads it for every agent event, so it is held in memory
+ * The desktop notification switches. Main reads them for every agent event, so it is held in memory
  * after `load` rather than read from disk each time.
  *
  * Writes are chained for the reason `update-preference-store.ts` chains its own: each one renames its
@@ -35,6 +35,8 @@ export class NotificationPreferenceStore {
           if (isDynamicRecord(parsed) && parsed.version === 1 && isBoolean(parsed.desktopNotifications))
             return {
               desktopNotifications: parsed.desktopNotifications,
+              // A file from before the preview switch has no value; the preview is on by default.
+              messagePreview: parsed.messagePreview !== false,
               permissionRequested: parsed.permissionRequested === true,
             };
           return null;
@@ -48,7 +50,7 @@ export class NotificationPreferenceStore {
   }
 
   get(): NotificationPreference {
-    return { desktopNotifications: this.#stored.desktopNotifications };
+    return { desktopNotifications: this.#stored.desktopNotifications, messagePreview: this.#stored.messagePreview };
   }
 
   permissionRequested(): boolean {
@@ -57,9 +59,9 @@ export class NotificationPreferenceStore {
 
   readonly set = Effect.fn("NotificationPreference.set")(function* (
     this: NotificationPreferenceStore,
-    { desktopNotifications }: NotificationPreference,
+    { desktopNotifications, messagePreview }: NotificationPreference,
   ) {
-    yield* this.#write((stored) => ({ ...stored, desktopNotifications }));
+    yield* this.#write((stored) => ({ ...stored, desktopNotifications, messagePreview }));
     return this.get();
   });
 

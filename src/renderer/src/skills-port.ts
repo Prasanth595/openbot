@@ -15,10 +15,14 @@ export interface SkillsPort {
   agent: Pick<
     OpenBotDesktopApi["agent"],
     | "addMarketplaceAgent"
+    | "cancelMcpSignIn"
+    | "completeMcpSignInRelay"
     | "installAgentSkill"
     | "listAgentSkills"
     | "listInstalledSkills"
     | "listMcpServers"
+    | "mcpSignInRelay"
+    | "openMcpSignInRelay"
     | "onEvent"
     | "removeMcpServer"
     | "saveMcpServer"

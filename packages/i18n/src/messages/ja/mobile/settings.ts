@@ -83,6 +83,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "返信のアニメーション",
   "mobile.settings.animations.textRevealFooter":
     "返信が一語ずつ表示され、吹き出しがなめらかに大きくなります。オフにすると、テキストは届いた時点で表示されます。",
+  "mobile.settings.animations.searchTransitions": "検索結果のアニメーション",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "検索結果と検索メッセージは、変わるときに短いぼかしでフェードイン・フェードアウトします。動きを減らしているときはフェードのみです。オフにすると、すぐに切り替わります。",
   "mobile.settings.feedback.footer": "このデバイスでのアプリ操作の触覚フィードバックです。",
   "mobile.settings.feedback.haptics": "触覚フィードバック",
   "mobile.settings.feedback.retry": "触覚フィードバックの設定をもう一度保存",

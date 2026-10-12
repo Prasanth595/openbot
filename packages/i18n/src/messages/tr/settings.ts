@@ -58,6 +58,8 @@ export const messages = {
   "settings.alerts.title": "Uyarılar",
   "settings.desktopNotifications.title": "Masaüstü bildirimleri",
   "settings.desktopNotifications.description": "Bir ajanın dikkat çekmesi gerektiğinde bildirim gösterin.",
+  "settings.notificationPreview.title": "Mesaj önizlemesini göster",
+  "settings.notificationPreview.description": "Bildirimlerde ajanın yanıtının veya sorusunun başını gösterin.",
   "settings.testNotification.title": "Test bildirimi",
   "settings.testNotification.description":
     "Şimdi bir tane gösterin. Görünmezse, sistem ayarlarınızda OpenBot bildirimlerine izin verin.",
@@ -109,7 +111,8 @@ export const messages = {
   "settings.tab.notifications.title": "Bildirimler",
   "settings.tab.notifications.description": "OpenBot'un sizi nasıl uyaracağını seçin.",
   "settings.tab.voice.title": "Ses",
-  "settings.tab.voice.description": "Mesaj kutusunda dikte. Bu bilgisayarda çalışır.",
+  "settings.tab.voice.description":
+    "Mesaj kutusunda dikte. Yerel modeller bu bilgisayarda, ElevenLabs ise bulutta çalışır.",
   "settings.tab.computerUse.title": "Bilgisayar Kullanımı",
   "settings.tab.computerUse.description":
     "OpenBot'un bu bilgisayardaki uygulamaları görmesine ve bunlarla etkileşime girmesine izin verin.",
@@ -367,10 +370,20 @@ export const messages = {
   "settings.voice.language.title": "Dikte dili",
   "settings.voice.language.description": "Konuştuğunuz dil. Otomatik, dili kayıttan bulur.",
   "settings.voice.language.modelDetects":
-    "Parakeet konuşulan dili kendisi bulur. Bir dil belirlemek için Whisper'ı kullanın.",
+    "Parakeet konuşulan dili kendisi bulur. Bir dil belirlemek için Whisper'ı veya ElevenLabs'i kullanın.",
   "settings.voice.language.automatic": "Otomatik",
   "settings.voice.loadFailed": "Ses modelleri okunamadı.",
   "settings.voice.saveFailed": "Ses ayarı kaydedilemedi. Yeniden deneyin.",
   "settings.voice.downloadFailed": "İndirme başlatılamadı. Yeniden deneyin.",
   "settings.voice.cancelFailed": "İndirme durdurulamadı.",
+  "settings.voice.model.elevenlabs.description":
+    "Sesinizi ElevenLabs'e gönderir. Metin siz konuşurken görünür ve değişmez. Kendi API anahtarınızı kullanır ve ElevenLabs her kullanımı ücretlendirir.",
+  "settings.voice.model.keySaved": "API anahtarı kaydedildi",
+  "settings.voice.model.keyMissing": "ElevenLabs API anahtarı gerekir",
+  "settings.voice.apiKey.label": "ElevenLabs API anahtarı",
+  "settings.voice.apiKey.placeholder": "Anahtarı yapıştırın",
+  "settings.voice.apiKey.save": "Anahtarı kaydet",
+  "settings.voice.apiKey.remove": "Anahtarı kaldır",
+  "settings.voice.apiKey.saveFailed": "API anahtarı kaydedilemedi. Yeniden deneyin.",
+  "settings.voice.apiKey.removeFailed": "API anahtarı kaldırılamadı. Yeniden deneyin.",
 } as const satisfies PartialTranslation<typeof source>;

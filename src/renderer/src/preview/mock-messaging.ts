@@ -70,7 +70,7 @@ export function createMockMessaging(orchestrator: () => string): MessagingDeskto
     if (!current) throw new Error(sourceText("error.messaging.notConnected"));
     chats.set(workspaceId, { ...current, ...update });
   };
-  return {
+  const api: Omit<MessagingDesktopApi, `host${string}`> = {
     getSlackOverview: slack.overview,
     connectSlackWorkspace: slack.connect,
     disconnectSlackWorkspace: slack.disconnect,
@@ -118,5 +118,41 @@ export function createMockMessaging(orchestrator: () => string): MessagingDeskto
       for (const workspaceId of chats.keys()) changeChat(workspaceId, { orchestratorAgentId: agentId });
       return { agentId, sectionId: null };
     },
+  };
+  // The preview has one host, so a joined server's connections are the same ones.
+  const overview = { slack: api.getSlackOverview, discord: api.getDiscordOverview, telegram: api.getTelegramOverview };
+  return {
+    ...api,
+    hostOverview: ({ platform }) => overview[platform](),
+    hostConnect: ({ platform, place }) =>
+      platform === "slack"
+        ? api.connectSlackWorkspace()
+        : platform === "discord"
+          ? api.connectDiscordGuild()
+          : api.connectTelegramChat({ place: place ?? "group" }),
+    hostDisconnect: ({ platform, workspaceId }) =>
+      platform === "slack"
+        ? api.disconnectSlackWorkspace({ workspaceId })
+        : platform === "discord"
+          ? api.disconnectDiscordGuild({ workspaceId })
+          : api.disconnectTelegramChat({ workspaceId }),
+    hostReconnect: ({ platform, workspaceId }) =>
+      platform === "slack"
+        ? api.reconnectSlackWorkspace({ workspaceId })
+        : platform === "discord"
+          ? api.reconnectDiscordGuild({ workspaceId })
+          : api.reconnectTelegramChat({ workspaceId }),
+    hostSetEnabled: ({ platform, ...input }) =>
+      platform === "slack"
+        ? api.setSlackEnabled(input)
+        : platform === "discord"
+          ? api.setDiscordEnabled(input)
+          : api.setTelegramEnabled(input),
+    hostAddOrchestrator: ({ platform, workspaceId }) =>
+      platform === "telegram" || workspaceId === null
+        ? api.addTelegramOrchestrator({})
+        : platform === "slack"
+          ? api.addSlackOrchestrator({ workspaceId })
+          : api.addDiscordOrchestrator({ workspaceId }),
   };
 }

@@ -131,7 +131,7 @@ export function RichMessageText(props: RichMessageTextProps) {
           }
           if (part.url) {
             return (
-              <MessageLink url={part.url} onOpenLink={props.onOpenLink}>
+              <MessageLink url={part.url} title={linkTitle(part.text, part.url)} onOpenLink={props.onOpenLink}>
                 {part.text}
               </MessageLink>
             );
@@ -266,7 +266,8 @@ function StreamingTailText(props: { body: string; after: number }) {
 
 export function MessageLink(props: {
   url: string;
-  title?: string | null;
+  /** The native tooltip. Omit it when the link text already shows the URL. */
+  title?: string | undefined;
   children: JSX.Element;
   onOpenLink: (url: string) => void;
 }) {
@@ -276,7 +277,7 @@ export function MessageLink(props: {
       href={props.url}
       data-cuelume-navigate=""
       data-cuelume-emphasis="subtle"
-      title={props.title ?? props.url}
+      title={props.title}
       onClick={(event) => {
         event.preventDefault();
         props.onOpenLink(props.url);
@@ -445,6 +446,11 @@ function linkedMessageParts(body: string): RichMessagePart[] {
   }
   if (cursor < body.length) parts.push({ text: body.slice(cursor) });
   return parts.length > 0 ? parts : [{ text: body }];
+}
+
+/** The URL as a tooltip, unless the link text is already that URL. */
+export function linkTitle(text: string, url: string): string | undefined {
+  return text === url || `${text}/` === url ? undefined : url;
 }
 
 export function safeBrowserUrl(value: string): string | null {

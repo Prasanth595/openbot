@@ -97,7 +97,7 @@ it("keeps local images until the receipt maps them to final attachment IDs", () 
   const retain = (id: string, file: RemoteFileUpload & { localUri?: string }) => retained.set(id, file);
   expect(retainConfirmedAttachments([confirmed], "another-receipt", [local], retain)).toBe(false);
   expect(retained.size).toBe(0);
-  expect(presentChatMessages([confirmed], pending, new Map())[0]).toBe(pending.message);
+  expect(presentChatMessages([confirmed], [pending], new Map())[0]).toBe(pending.message);
   expect(retainConfirmedAttachments([confirmed], "receipt", [local], retain)).toBe(true);
   expect(retained.get("final-id")).toEqual({
     name: local.name,
@@ -105,5 +105,5 @@ it("keeps local images until the receipt maps them to final attachment IDs", () 
     base64: local.base64,
     localUri: local.uri,
   });
-  expect(presentChatMessages([confirmed], null, new Map())[0]).toBe(confirmed);
+  expect(presentChatMessages([confirmed], [], new Map())[0]).toBe(confirmed);
 });

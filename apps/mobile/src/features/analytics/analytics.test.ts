@@ -176,10 +176,10 @@ it("records connection attempts and recovery without duplicate losses or backgro
   analytics.setEnabled(true);
   const connection = new MobileConnectionAnalytics(analytics);
   connection.attempt()("failed", "compatibility");
-  connection.attempt()("succeeded", "conversations");
+  connection.attempt()("succeeded", "reads");
   connection.lost();
   connection.lost();
-  connection.attempt()("succeeded", "conversations");
+  connection.attempt()("succeeded", "reads");
   connection.background();
   connection.lost();
   await analytics.settled();
@@ -191,9 +191,9 @@ it("records connection attempts and recovery without duplicate losses or backgro
       duration_ms: expect.any(Number),
       failure_code: "connection_failed",
     },
-    { action: "connect", result: "succeeded", stage: "conversations", duration_ms: expect.any(Number) },
+    { action: "connect", result: "succeeded", stage: "reads", duration_ms: expect.any(Number) },
     { action: "lost", result: "failed", failure_code: "connection_failed" },
-    { action: "reconnect", result: "succeeded", stage: "conversations", duration_ms: expect.any(Number) },
+    { action: "reconnect", result: "succeeded", stage: "reads", duration_ms: expect.any(Number) },
   ]);
 });
 
@@ -367,6 +367,7 @@ it("instruments message commands without sending their contents or changing the 
     mutateSidebarLayout: async () => {},
     loadQueue: async (agentId) => ({ agentId, deliveries: [] }),
     canEditQueue: () => false,
+    canRetryMessage: () => false,
     attachmentSupport: () => ({ eml: true, media: true }),
     changeQueue: async () => {},
     interruptTurn: async () => {},
@@ -439,6 +440,8 @@ it("instruments message commands without sending their contents or changing the 
     loadRoutineCalendar: unexpected,
     loadHostAnalytics: unexpected,
     searchMessages: unexpected,
+    canSearchFiles: () => false,
+    searchFiles: unexpected,
     loadAgentAnalytics: unexpected,
     loadAgentSkills: unexpected,
     canManageAgentSkills: () => false,
@@ -467,6 +470,8 @@ it("instruments message commands without sending their contents or changing the 
     installAgentTemplate: unexpected,
     deleteStoredFile: unexpected,
     loadConversation: unexpected,
+    loadConversationAround: unexpected,
+    loadLatestMessages: unexpected,
     loadOlderMessages: unexpected,
     respondToPrompt: unexpected,
     sendMessage,
@@ -485,9 +490,16 @@ it("instruments message commands without sending their contents or changing the 
   requests.length = 0;
   const tracked = trackWorkspaceActions(workspace);
   await expect(
-    tracked.sendMessage("agent-private", "private contents", ["file-private"], "reply-private"),
+    tracked.sendMessage("agent-private", "private contents", ["file-private"], "reply-private", "server", "client-id"),
   ).resolves.toBe("message-receipt");
-  expect(sendMessage).toHaveBeenCalledWith("agent-private", "private contents", ["file-private"], "reply-private");
+  expect(sendMessage).toHaveBeenCalledWith(
+    "agent-private",
+    "private contents",
+    ["file-private"],
+    "reply-private",
+    "server",
+    "client-id",
+  );
   await mobileAnalytics.settled();
   expect(requests.map(({ body }) => JSON.parse(body))).toEqual([
     {

@@ -59,6 +59,8 @@ export const messages = {
   "settings.alerts.title": "アラート",
   "settings.desktopNotifications.title": "デスクトップ通知",
   "settings.desktopNotifications.description": "エージェントに対応が必要なときに通知を表示します。",
+  "settings.notificationPreview.title": "メッセージのプレビューを表示",
+  "settings.notificationPreview.description": "通知にエージェントの返信や質問の冒頭を表示します。",
   "settings.testNotification.title": "テスト通知",
   "settings.testNotification.description":
     "今すぐ通知を表示します。表示されない場合は、システム設定で OpenBot の通知を許可してください。",
@@ -109,7 +111,8 @@ export const messages = {
   "settings.tab.notifications.title": "通知",
   "settings.tab.notifications.description": "OpenBot からの知らせ方を選びます。",
   "settings.tab.voice.title": "音声",
-  "settings.tab.voice.description": "メッセージ欄での音声入力です。このコンピューター上で動作します。",
+  "settings.tab.voice.description":
+    "メッセージ欄での音声入力です。ローカルモデルはこのコンピューター上で、ElevenLabs はクラウドで動作します。",
   "settings.tab.computerUse.title": "コンピュータ操作",
   "settings.tab.computerUse.description": "このコンピュータのアプリを OpenBot が見て操作できるようにします。",
   "settings.tab.profile.title": "プロフィール",
@@ -364,10 +367,20 @@ export const messages = {
   "settings.voice.language.title": "音声入力の言語",
   "settings.voice.language.description": "話す言語です。「自動」は録音から言語を判別します。",
   "settings.voice.language.modelDetects":
-    "Parakeet は話している言語を自動で判別します。言語を指定するには Whisper を使用してください。",
+    "Parakeet は話している言語を自動で判別します。言語を指定するには Whisper または ElevenLabs を使用してください。",
   "settings.voice.language.automatic": "自動",
   "settings.voice.loadFailed": "音声モデルを読み込めませんでした。",
   "settings.voice.saveFailed": "音声の設定を保存できませんでした。もう一度お試しください。",
   "settings.voice.downloadFailed": "ダウンロードを開始できませんでした。もう一度お試しください。",
   "settings.voice.cancelFailed": "ダウンロードを停止できませんでした。",
+  "settings.voice.model.elevenlabs.description":
+    "音声を ElevenLabs に送信します。話している間に文字が表示され、途中で変わりません。ご自身の API キーを使い、利用ごとに ElevenLabs から請求されます。",
+  "settings.voice.model.keySaved": "API キーを保存済み",
+  "settings.voice.model.keyMissing": "ElevenLabs の API キーが必要です",
+  "settings.voice.apiKey.label": "ElevenLabs の API キー",
+  "settings.voice.apiKey.placeholder": "キーを貼り付け",
+  "settings.voice.apiKey.save": "キーを保存",
+  "settings.voice.apiKey.remove": "キーを削除",
+  "settings.voice.apiKey.saveFailed": "API キーを保存できませんでした。もう一度お試しください。",
+  "settings.voice.apiKey.removeFailed": "API キーを削除できませんでした。もう一度お試しください。",
 } as const satisfies PartialTranslation<typeof source>;

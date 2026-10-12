@@ -9,6 +9,7 @@ import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contract
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { VISIBLE_DYNAMIC_TOOLS } from "./agent/tool-catalog";
+import { ProviderTurnActiveError } from "./agent-client";
 import { AgentStore } from "./agent-store";
 import { CLAUDE_IDLE_THREAD_LIMIT, CLAUDE_THREAD_IDLE_RELEASE_MS, ClaudeAgentClient } from "./claude-client";
 import { mergeProviderHistory, newAssistantMessage, snapshotFromThread } from "./conversation-snapshots";
@@ -29,7 +30,8 @@ import {
 type TestStreamMessage =
   | {
       type: "system";
-      subtype: "status" | "compact_boundary";
+      subtype: "status" | "compact_boundary" | "background_tasks_changed";
+      tasks?: Array<{ task_id: string; task_type: string; description: string; ambient?: boolean }>;
       status?: "compacting" | null;
       compact_result?: "success" | "failed";
       compact_metadata?: { pre_tokens: number; post_tokens?: number };
@@ -960,6 +962,101 @@ fi
     } finally {
       vi.useRealTimers();
     }
+    await runCauseEffect(client.stop());
+  });
+
+  it("keeps the process of a thread whose background subagents still run", async () => {
+    root = await mkdtemp(join(tmpdir(), "openbot-claude-background-"));
+    const output = new TestQueue<TestStreamMessage>();
+    const query = new TestQuery(output);
+    const client = new ClaudeAgentClient({ executable: "/bin/true", version: "2.1.231" }, () => query);
+    client.start();
+    vi.useFakeTimers();
+    try {
+      await runCauseEffect(
+        client.request(
+          "thread/start",
+          { cwd: root, model: "claude-sonnet-5", developerInstructions: "Be concise.", runtimeWorkspaceRoots: [root] },
+          decodeThreadResponse,
+        ),
+      );
+      const tasks = (list: Array<{ task_id: string; ambient?: boolean }>): TestStreamMessage => ({
+        type: "system",
+        subtype: "background_tasks_changed",
+        tasks: list.map((task) => ({ task_type: "local_agent", description: "Research", ...task })),
+      });
+      output.push(tasks([{ task_id: "store-1" }, { task_id: "watcher", ambient: true }]));
+      await vi.waitFor(() => expect(client.canReleaseProcess()).toBe(false));
+      await vi.advanceTimersByTimeAsync(CLAUDE_THREAD_IDLE_RELEASE_MS);
+      expect(query.closed).toBe(false);
+
+      // An ambient watcher is not work, so the thread is idle again once the subagent ends.
+      output.push(tasks([{ task_id: "watcher", ambient: true }]));
+      await vi.waitFor(() => expect(client.canReleaseProcess()).toBe(true));
+      await vi.advanceTimersByTimeAsync(CLAUDE_THREAD_IDLE_RELEASE_MS);
+      expect(query.closed).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+    await runCauseEffect(client.stop());
+  });
+
+  it("shows the answer of a turn that the CLI starts when a background subagent ends", async () => {
+    root = await mkdtemp(join(tmpdir(), "openbot-claude-unprompted-"));
+    const output = new TestQueue<TestStreamMessage>();
+    const query = new TestQuery(output);
+    const client = new ClaudeAgentClient({ executable: "/bin/true", version: "2.1.231" }, () => query);
+    const notifications: Array<{ method: string; params: unknown }> = [];
+    client.on("notification", (notification) => notifications.push(notification));
+    client.start();
+    const thread = await runCauseEffect(
+      client.request(
+        "thread/start",
+        { cwd: root, model: "claude-sonnet-5", runtimeWorkspaceRoots: [root] },
+        decodeThreadResponse,
+      ),
+    );
+    const threadId = thread.thread.id;
+
+    // No turn/start: the CLI reads the subagent's task notification and answers on its own.
+    output.push({
+      type: "assistant",
+      parent_tool_use_id: null,
+      session_id: threadId,
+      uuid: "subagent-answer",
+      message: { content: [{ type: "text", text: "The subagent found 3 stores." }] },
+    });
+    await vi.waitFor(() => expect(notifications.some(({ method }) => method === "turn/started")).toBe(true));
+    // A message does not join that turn: the drain queues it again until the CLI's result.
+    await expect(startTurn(client, threadId, "77777777-7777-4777-8777-777777777777")).rejects.toBeInstanceOf(
+      ProviderTurnActiveError,
+    );
+    output.push({
+      type: "result",
+      subtype: "success",
+      result: "The subagent found 3 stores.",
+      terminal_reason: "completed",
+      errors: [],
+      session_id: threadId,
+      uuid: "subagent-result",
+    });
+
+    await vi.waitFor(() => expect(notifications.some(({ method }) => method === "turn/completed")).toBe(true));
+    const started = notifications.find(({ method }) => method === "turn/started");
+    const turnId = getString(getRecord(started?.params, "turn"), "id");
+    expect(started?.params).toMatchObject({ threadId, unprompted: true });
+    expect(notifications).toContainEqual({
+      method: "item/completed",
+      params: {
+        threadId,
+        turnId,
+        item: { id: `${turnId}:assistant`, type: "agentMessage", text: "The subagent found 3 stores." },
+      },
+    });
+    expect(notifications.find(({ method }) => method === "turn/completed")?.params).toEqual({
+      threadId,
+      turn: { id: turnId, status: "completed" },
+    });
     await runCauseEffect(client.stop());
   });
 

@@ -87,6 +87,7 @@ export const messages = {
   "provider.codeLogin.linkTitle": "Iniciar sesión en {name} desde otro dispositivo",
   "provider.codeLogin.pageTitle": "Iniciar sesión en {name}",
   "provider.codeLogin.pageDescription": "Esta página está abierta en el navegador de {host}. Inicia sesión aquí.",
+  "provider.codeLogin.relayStarting": "Iniciando el inicio de sesión de {name} en {host}…",
   "provider.codeLogin.pageOpening": "Abriendo la página de inicio de sesión de {name} en {host}…",
   "provider.codeLogin.linkStep": "Inicia sesión en {name}. OpenBot continúa automáticamente.",
   "provider.picker.noEndpoints": "Aún no hay endpoints",

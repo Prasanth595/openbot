@@ -11,6 +11,7 @@ changes, and respect the `STOP` conditions.
 | 001 | Add a central account API and a host whitelist | P1 | L | — | SUPERSEDED BY 002 |
 | 002 | TanStack Start, Solid 2, Cloudflare Workers and D1 | P1 | L | — | IN PROGRESS |
 | 003 | MCP is robust and future-proof | P1 | M | — | DONE |
+| 004 | Fade the mobile search results and notices in and out | MEDIUM | S | — | DONE |
 
 Allowed states: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <reason>`,
 `REJECTED: <reason>`.
@@ -26,6 +27,9 @@ Allowed states: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <reason>`,
 - The plan was written against a dirty working tree at commit `8229759`.
   Uncommitted files of the OpenBot Remote feature are part of the input state.
   The implementer must preserve them and check them before making a change.
+
+- Plan 004 was written by the `improve-animations` skill on 2026-10-12 for the mobile search sheet. It
+  is independent of the other plans.
 
 ## Rejected alternatives
 

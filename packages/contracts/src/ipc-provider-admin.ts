@@ -5,7 +5,12 @@
  */
 
 import { INPUT_LIMITS } from "./input-limits";
-import type { ProviderApiKeyStatus, ProviderCodeLoginStart, ProviderHostSignInStatus } from "./ipc-agent-status";
+import type {
+  ProviderApiKeyStatus,
+  ProviderCodeLoginStart,
+  ProviderHostSignInStatus,
+  ProviderRelaySignInStatus,
+} from "./ipc-agent-status";
 import type { ProviderRuntimeSnapshot, ProviderRuntimeStatus } from "./ipc-app-auth";
 import { isBoundedString, isNullableBoundedString } from "./ipc-bounded-values";
 import {
@@ -14,6 +19,7 @@ import {
   isCustomProviderResult,
   isCustomProviderSummary,
 } from "./ipc-custom-providers";
+import { decodeMcpSignInRelayPage } from "./ipc-mcp-servers";
 import { isDynamicRecord, isHttpsUrl, isNumber, isOneOf, isString } from "./runtime-values";
 import { PROVIDER_HOST_SIGN_IN_ERROR_LIMIT } from "./team-protocol/provider-host-sign-in-v1";
 
@@ -47,6 +53,16 @@ export function decodeProviderHostSignInStatus(value: unknown): ProviderHostSign
   if (!isDynamicRecord(value.result) || !isNullableBoundedString(value.result.error, PROVIDER_HOST_SIGN_IN_ERROR_LIMIT))
     throw invalid();
   return { tabId: value.tabId, result: { error: value.result.error } };
+}
+
+export function decodeProviderRelaySignInStatus(value: unknown): ProviderRelaySignInStatus {
+  const invalid = () => new Error("Invalid sign-in response.");
+  if (!isDynamicRecord(value)) throw invalid();
+  const page = decodeMcpSignInRelayPage(value.page ?? null);
+  if (value.result === null) return { page, result: null };
+  if (!isDynamicRecord(value.result) || !isNullableBoundedString(value.result.error, PROVIDER_HOST_SIGN_IN_ERROR_LIMIT))
+    throw invalid();
+  return { page, result: { error: value.result.error } };
 }
 
 export function decodeProviderApiKeyStatus(value: unknown): ProviderApiKeyStatus {

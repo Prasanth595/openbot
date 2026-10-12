@@ -2,8 +2,10 @@ import {
   type AgentProviderId,
   type AgentStatus,
   agentProviderDescriptor,
+  type McpSignInRelayPage,
   type ProviderCodeLoginStart,
   type ProviderHostSignInStatus,
+  type ProviderRelaySignInStatus,
 } from "@openbot/contracts/ipc";
 import type { ProviderCodeLoginState } from "@openbot/ui/components/ProviderCodeLoginDialog";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
@@ -20,6 +22,23 @@ interface ProviderCodeLoginTarget {
   cancel: (provider: AgentProviderId) => Promise<AgentStatus>;
   /** A joined server that opens a provider's sign-in page in its own browser, for the providers it names. */
   hostSignIn?: ProviderHostSignInTarget;
+  /** A joined server whose sign-in page opens in this computer's browser, for the providers it names. */
+  relay?: ProviderRelayTarget;
+}
+
+/**
+ * How a joined server starts a provider's sign-in whose page opens in this computer's browser
+ * (`sign-in-relay-v1`). The callback goes to the host, not to this window.
+ */
+interface ProviderRelayTarget {
+  providers: readonly AgentProviderId[];
+  /** The host, as its server row names it. */
+  hostName: string;
+  start: (provider: AgentProviderId) => Promise<void>;
+  status: (provider: AgentProviderId) => Promise<ProviderRelaySignInStatus>;
+  open: (provider: AgentProviderId) => Promise<void>;
+  paste: (provider: AgentProviderId, address: string) => Promise<void>;
+  cancel: (provider: AgentProviderId) => Promise<AgentStatus>;
 }
 
 /** How a joined server signs in a provider on a page in its own browser, and how this window shows it. */
@@ -96,6 +115,17 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
       // Cancellation emits a terminal status. Finish it before the next attempt can wait.
       await codeLoginCancellation;
       if (generation !== codeLoginGeneration) return;
+      const relay = target.relay;
+      if (relay?.providers.includes(provider)) {
+        setCodeLoginState({ phase: "relay", hostName: relay.hostName, page: null });
+        await relay.start(provider);
+        if (generation !== codeLoginGeneration) {
+          if (codeLoginProvider() !== provider) void relay.cancel(provider).catch(() => undefined);
+          return;
+        }
+        await followRelaySignIn(provider, relay, generation);
+        return;
+      }
       const host = target.hostSignIn;
       if (host?.providers.includes(provider)) {
         setCodeLoginState({ phase: "page", hostName: host.hostName, page: null });
@@ -196,6 +226,43 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     }
   }
 
+  /** Shows the page once the host has it, and ends the dialog with the relayed sign-in's result. */
+  async function followRelaySignIn(
+    provider: AgentProviderId,
+    relay: ProviderRelayTarget,
+    generation: number,
+  ): Promise<void> {
+    while (generation === codeLoginGeneration) {
+      const status = await relay.status(provider).catch((error: unknown) => {
+        if (generation === codeLoginGeneration) void relay.cancel(provider).catch(() => undefined);
+        throw error;
+      });
+      if (generation !== codeLoginGeneration) return;
+      if (status.result) {
+        if (status.result.error) {
+          endProviderCodeLogin(provider, { kind: "failed", message: status.result.error });
+        } else {
+          const row = options.agentStatus().providers?.find((candidate) => candidate.id === provider);
+          endProviderCodeLogin(provider, { kind: "connected", accountLabel: row?.email ?? null });
+        }
+        return;
+      }
+      const state = codeLoginState();
+      const shown = state.phase === "relay" ? state.page : null;
+      if (status.page && !samePage(shown, status.page))
+        setCodeLoginState({ phase: "relay", hostName: relay.hostName, page: status.page });
+      await new Promise((resolve) => window.setTimeout(resolve, HOST_SIGN_IN_POLL_MS));
+    }
+  }
+
+  /** The relay of the open sign-in, while the dialog shows its page. */
+  function openRelay(): { provider: AgentProviderId; relay: ProviderRelayTarget } | null {
+    const provider = codeLoginProvider();
+    const relay = codeLoginTarget?.relay;
+    if (!provider || !relay || codeLoginState().phase !== "relay") return null;
+    return { provider, relay };
+  }
+
   /**
    * Sends the code a `paste` sign-in's page showed. The code is a credential: it goes to the
    * computer that runs the provider, and nothing here keeps it. How the sign-in ends arrives as a
@@ -245,7 +312,11 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     const target = codeLoginTarget;
     if (!provider || !target) return;
     options.connection?.drop(provider);
-    const cancel = target.hostSignIn?.providers.includes(provider) ? target.hostSignIn.cancel : target.cancel;
+    const cancel = target.relay?.providers.includes(provider)
+      ? target.relay.cancel
+      : target.hostSignIn?.providers.includes(provider)
+        ? target.hostSignIn.cancel
+        : target.cancel;
     codeLoginCancellation = cancel(provider)
       .then((status) => {
         if (generation === codeLoginGeneration) flush(() => options.applyStatus(status));
@@ -366,6 +437,17 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     submit: (code) => void submitProviderCodeLogin(code),
     cancel: cancelProviderCodeLogin,
     openVerificationUrl: options.openVerificationUrl,
+    // No await before `open`: the browser client opens the page in the user's click.
+    openRelayPage: () => {
+      const open = openRelay();
+      return open ? open.relay.open(open.provider) : Promise.reject(new Error(currentText().t("error.mcp.relayEnded")));
+    },
+    pasteRelayAddress: (address) => {
+      const open = openRelay();
+      return open
+        ? open.relay.paste(open.provider, address)
+        : Promise.reject(new Error(currentText().t("error.mcp.relayEnded")));
+    },
   };
 }
 
@@ -376,6 +458,15 @@ function isWaitingPhase(state: ProviderCodeLoginState): boolean {
     state.phase === "paste" ||
     state.phase === "link" ||
     state.phase === "page" ||
+    state.phase === "relay" ||
     state.phase === "verifying"
+  );
+}
+
+function samePage(shown: McpSignInRelayPage | null, page: McpSignInRelayPage): boolean {
+  return (
+    shown?.authorizeHost === page.authorizeHost &&
+    shown.listening === page.listening &&
+    shown.pasteable === page.pasteable
   );
 }

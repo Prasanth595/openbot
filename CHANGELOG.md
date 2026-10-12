@@ -6,6 +6,45 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-10-12
+
+### Added
+
+- URL MCP servers have a "Sign-in app" section. Enter the client ID, an optional client secret and optional scopes of an OAuth app that you registered with the server's provider. OpenBot uses this app when the server cannot register OpenBot by itself. The section shows the exact callback URL with a copy button. On a joined server, the host keeps the app and signs in with its own browser.
+- On a joined server that supports it, you can now connect Codex, Claude, Gemini and Muse from your own computer. The sign-in page opens in your browser, and OpenBot sends the callback to the provider's CLI on the host.
+- On a joined server that supports it, Server settings > Connectors now shows the host's GitHub, Slack, Discord and Telegram connections. You can connect, disconnect and reconnect them from your computer. The pages open in your browser, and the host keeps every token.
+- When an agent on a joined server shows a sign-in link, for example for an MCP server of its CLI, the link opens in your browser and the sign-in finishes on the host.
+- The Marketplace can now install an app that signs in with a browser on a joined server that supports this relay. The browser client can also connect providers and install these apps on a joined server.
+- On a joined server that supports it, the sign-in page of a URL MCP server now opens in the browser of your own computer, not in a tab on the host. Your passwords, passkeys and existing sessions work. OpenBot takes the callback on your computer and sends it to the host, and the host keeps the grant.
+- When your computer cannot take the callback of a relayed sign-in, OpenBot asks you to paste the address that the browser shows at the end of the sign-in. The browser client always uses this step.
+
+### Changed
+
+- A hosted server installs a new release by itself when it is idle and no member used it for 5 minutes. Automatic updates are always on for a hosted server.
+- Show the words you dictate at the end of your draft, where they will go. Before, they showed as a
+  separate grey paragraph under the draft and moved into it when the recording finished.
+- Make the voice recording bar shorter, so the message box has more space for text.
+- MCP sign-in now tries the same local callback port each time (28417), so the callback URL of a sign-in app stays the same. When the port is busy, OpenBot uses a random port.
+
+### Fixed
+
+- Show a moving bar and no percent while a server prepares an update or stages it. Before, the update
+  notice showed "Downloading · 0%" for minutes while a cloud server waited for its disk after a resume.
+- A hosted server that had a new release ready took more than 3 minutes to wake. It now wakes in about 20 seconds, as it does without a release.
+- When an agent opened more websites in the built-in browser, or when you came back to the OpenBot window, the browser went back to the first website. It now keeps the website that you chose.
+- A paste into the live view of a remote host's browser now goes to the page. Before, the paste
+  went to the last text selection in the window, such as the chat input, or it was lost.
+- A connection to a remote server that stayed open for 45 minutes asked the signalling service for new relay credentials many times a second, until the service closed the socket for a minute. The service could then also close the server owner's own host connection. OpenBot now asks once every 45 minutes, and restarts the network path only when it goes through a relay.
+- When you refuse a relayed sign-in on a joined server, the command-line tool on the server now gets
+  the refusal and stops at once. Before, it waited until its own time limit.
+- The paste step of a relayed sign-in no longer says "this browser" in the desktop app.
+
+### Security
+
+- OpenBot keeps the client secret of a sign-in app in the encrypted sign-in store, shows only "Secret saved" after you save it, and removes it when you remove the server. Only an owner or admin can change a sign-in app on a joined server. A sign-in app is bound to the first sign-in server that accepts it, and OpenBot never sends it to a different one.
+- The host relays an agent's sign-in link only when the link is an https page with a `state` that returns to a loopback address, and only when a message of that agent holds that exact link. A Slack or Discord grant goes only to the server whose install your computer opened, and only once. No connector route carries a token, and OpenBot does not log sign-in codes or grants.
+- Only an owner or admin can start a relayed sign-in. Each relay completes once, only for the member who started it, and ends after 10 minutes. Your computer sends only the query of the callback. The host checks its `state` and never lets a client choose a host port or address. The page opens only when you click "Open sign-in page" in the dialog that shows its host name, and your computer refuses a page that has no `state`, so a host cannot use your browser for a grant you did not ask for. OpenBot does not log the sign-in code.
+
 ## [0.37.0] - 2026-10-11
 
 ### Added

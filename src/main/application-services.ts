@@ -56,8 +56,8 @@ import type {
   CentralAuthState,
   ComputerUseState,
   ProviderRuntimeSnapshot,
-  RoutineFlowsChanged,
   VoiceModelStatus,
+  VoiceStreamTranscript,
 } from "@openbot/contracts/ipc";
 import { IPC_ENDPOINTS, isManagedToolRuntime, isUpdateBusyPhase, latestTurnAnswer } from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
@@ -137,6 +137,7 @@ import { HostedServerDesktopService, withHostingDeveloperKey } from "./hosted-se
 import { HostedServerStartRetry } from "./hosted-server-start-retry";
 import { HostedSiteDesktopService } from "./hosted-site-service";
 import { IdleRestart } from "./idle-restart";
+import { loadIngressQueueKey } from "./ingress-queue-key";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
 import { LogoColorService } from "./logo-color-service";
@@ -158,7 +159,11 @@ import {
 } from "./main-window";
 import { ManagedSkillService } from "./managed-skill-service";
 import { McpHostSignIns } from "./mcp-host-sign-ins";
-import { startMcpOAuthRedirectServer } from "./mcp-oauth-redirect-server";
+import {
+  MCP_OAUTH_REDIRECT_PATH,
+  MCP_OAUTH_REDIRECT_PORT,
+  startMcpOAuthRedirectServer,
+} from "./mcp-oauth-redirect-server";
 import { McpOAuthStore } from "./mcp-oauth-store";
 import { MessagingCredentialStore } from "./messaging-credential-store";
 import { NotificationPreferenceStore } from "./notification-preference-store";
@@ -172,6 +177,7 @@ import { startProviderLog } from "./provider-log";
 import { toProviderRuntimeFailure } from "./provider-runtime-effects";
 import { ProviderRuntimeManager, providerRuntimeRoot, runtimeTarget } from "./provider-runtime-manager";
 import { ProviderUseSettingsStore } from "./provider-use-settings-store";
+import { RelayedMessagingInstalls } from "./relayed-messaging-installs";
 import { decodeQueuedMessageReceipt } from "./remote-agent-decoding";
 import { RemoteConnectTrace } from "./remote-connect-trace";
 import { RemoteDesktopManager } from "./remote-desktop-manager";
@@ -195,6 +201,8 @@ import {
   configureServerLogoProtocols,
 } from "./session-configuration";
 import { readSetupState } from "./setup-store";
+import { SignInRelayClient } from "./sign-in-relay-client";
+import { agentPrintedLink, SignInRelayHost } from "./sign-in-relay-host";
 import { SignalIngress } from "./signal-ingress";
 import { SkillMarketplaceService } from "./skill-marketplace-service";
 import { SLACK_DEV_CALLBACK_PATH, startSlackDevCallbackServer } from "./slack-dev-callback-server";
@@ -213,6 +221,8 @@ import {
   UpdateService,
 } from "./update-service";
 import { listSiblingOpenBotInstances } from "./update-sibling-instances";
+import { VoiceApiKeyStore } from "./voice-api-key-store";
+import { openScribeSocket } from "./voice-cloud-stream";
 import {
   PARAKEET_MODEL_DIRECTORY,
   removeLegacyWhisperCache,
@@ -251,6 +261,7 @@ const REMOTE_DESKTOP_RUNTIME_SECRET_FILE = "openbot-remote-desktop-runtime-v1.js
 const CUSTOM_PROVIDERS_FILE = "openbot-custom-providers-v1.json";
 const PROVIDER_CREDENTIAL_FILE = "openbot-provider-credentials-v1.json";
 const MESSAGING_CREDENTIAL_FILE = "openbot-messaging-credentials-v1.json";
+const INGRESS_QUEUE_KEY_FILE = "openbot-ingress-queue-key-v1.json";
 /** The MCP sign-ins. Separate from the keys above: a key is typed by the user, a token is not. */
 const MCP_OAUTH_FILE = "openbot-mcp-oauth-v1.json";
 /** The one GitHub sign-in of this computer, with the same cipher as the MCP sign-ins. */
@@ -354,24 +365,24 @@ export interface ApplicationServiceContext {
   forwardBrowserDisplayState: (state: BrowserDisplayState) => void;
   forwardProviderRuntimeStatus: (snapshot: ProviderRuntimeSnapshot) => void;
   forwardVoiceModelStatus: (status: VoiceModelStatus) => void;
+  forwardVoiceStreamTranscript: (transcript: VoiceStreamTranscript) => void;
   prepareForUpdateInstall: () => Promise<void>;
 }
 
 /** Everything the entry point wires up, registers IPC handlers against, and shuts down. */
-/** The routine flow runtime, and a way to hear which agents' canvases changed. */
-type RoutineFlowsService = RoutineFlowsHandle & {
-  onChanged(listener: (change: RoutineFlowsChanged) => void): void;
-};
-
 export interface ApplicationServices {
   service: AgentService;
-  routineFlows: RoutineFlowsService;
+  routineFlows: RoutineFlowsHandle;
   providerRuntimes: ProviderRuntimeManager;
   providerCredentials: ProviderCredentialStore;
   /** The Slack and Telegram connections of the agents on this host. */
   messaging: MessagingService;
   /** Reached by the entry point for one thing only: handing a returning grant to its sign-in. */
   mcpOAuth: McpOAuth;
+  /** The sign-ins of joined servers that wait in this computer's browser, and the callbacks they take. */
+  signInRelayClient: SignInRelayClient;
+  /** The Slack and Discord installs that this computer opened for a joined server. */
+  relayedMessagingInstalls: RelayedMessagingInstalls;
   githubConnector: GitHubConnectorService;
   onePasswordConnector: OnePasswordConnectorService;
   bitwardenConnector: BitwardenConnectorService;
@@ -517,6 +528,7 @@ async function createMessagingServices({
     issueDiscordRoute: (hostId) => centralAuth.issueDiscordRoute(hostId).pipe(toRemoteWorkflowError),
     issueWebhookRoute: (hostId) => centralAuth.issueWebhookRoute(hostId).pipe(toRemoteWorkflowError),
     issueTelegramRoute: (hostId) => centralAuth.issueTelegramRoute(hostId).pipe(toRemoteWorkflowError),
+    queueKey: () => loadIngressQueueKey(join(app.getPath("userData"), INGRESS_QUEUE_KEY_FILE), secretCipher),
   });
   teardown.push(TEARDOWN_ORDER.signalIngress, "the Signal ingress socket", () =>
     Effect.runPromise(signalIngress.dispose()),
@@ -666,6 +678,7 @@ export async function createApplicationServices({
   forwardBrowserDisplayState,
   forwardProviderRuntimeStatus,
   forwardVoiceModelStatus,
+  forwardVoiceStreamTranscript,
   prepareForUpdateInstall,
 }: ApplicationServiceContext): Promise<ApplicationServices> {
   // First, so the provider lines of the whole startup reach the file.
@@ -1019,15 +1032,30 @@ export async function createApplicationServices({
   // in between - a browser tab left open on a previous run reaches this port on its own. It is
   // held rather than closed over, so that request is refused instead of raising in the listener.
   let mcpOAuthAuthority: McpOAuth | null = null;
+  // A joined server's sign-in can send its callback to this same port: the host's own listener
+  // uses the same port number. A `state` that no local sign-in started goes to the relay.
+  const signInRelayClient = new SignInRelayClient({
+    openExternal: (url) => shell.openExternal(url),
+    language,
+    ownListener: () =>
+      mcpOAuthRedirect
+        ? { port: Number(new URL(mcpOAuthRedirect.redirectUrl).port), path: MCP_OAUTH_REDIRECT_PATH }
+        : null,
+  });
   const mcpOAuthRedirect = await startMcpOAuthRedirectServer({
     language,
-    deliver: (state, code) => {
+    preferredPort: MCP_OAUTH_REDIRECT_PORT,
+    deliver: (state, code, query) => {
       const elsewhere = mcpOAuthAuthority?.openedElsewhere(state) ?? false;
-      if (!mcpOAuthAuthority?.receiveAuthorizationCode(state, code)) return false;
+      if (!mcpOAuthAuthority?.receiveAuthorizationCode(state, code))
+        return signInRelayClient.deliver(state, query) ? "relayed" : false;
       if (elsewhere) return true;
       const current = windows.getMainWindow();
       if (current && !current.isDestroyed()) showMainWindow(current);
       return true;
+    },
+    relayRefusal: (state, query) => {
+      signInRelayClient.deliver(state, query);
     },
   }).catch((error: unknown) => {
     logger.warn(
@@ -1307,7 +1335,6 @@ export async function createApplicationServices({
   });
   teardown.push(TEARDOWN_ORDER.automation, "the automation server", () => Effect.runPromise(automation.stop()));
   // An agent routine's answer handed on from agent to agent; see `routine-flows.ts`.
-  const routineFlowListeners = new Set<(change: RoutineFlowsChanged) => void>();
   const routineFlowRuntime = await Effect.runPromise(
     createRoutineFlows({
       store: new RoutineFlowStore({ database: store.database }),
@@ -1325,17 +1352,12 @@ export async function createApplicationServices({
       },
       agentName: (agentId) => store.list().find((agent) => agent.id === agentId)?.name ?? agentId,
       sendHandoff: (input) => service.enqueueRoutineHandoff(input),
+      // An agent event, so this window, joined clients and the web app hear it the same way.
       changed: (agentIds) => {
-        for (const listener of routineFlowListeners) listener({ agentIds });
+        for (const agentId of agentIds) service.notifyRoutineFlowsChanged(agentId);
       },
     }),
   );
-  const routineFlows: RoutineFlowsService = {
-    ...routineFlowRuntime,
-    onChanged: (listener) => {
-      routineFlowListeners.add(listener);
-    },
-  };
   service.on("event", (event) => Effect.runFork(routineFlowRuntime.notice(event)));
   teardown.push(TEARDOWN_ORDER.routineFlows, "the routine flows", () => Effect.runPromise(routineFlowRuntime.close()));
   // Listens only after the user turns the feed on in Server Settings > Routines.
@@ -1619,15 +1641,29 @@ export async function createApplicationServices({
     join(app.getPath("userData"), "agent-import-uploads"),
   );
   const mcpHostSignIns = new McpHostSignIns({ service, browser });
+  const providerSignIns = new ProviderHostSignIns({ service, browser });
+  // The flows end with the sign-ins they relay, which `mcpHostSignIns` and `providerSignIns` close.
+  const signInRelayHost = new SignInRelayHost({
+    mcp: mcpHostSignIns,
+    providers: providerSignIns,
+    receiveMcpGrant: (state, code) => mcpOAuth.receiveAuthorizationCode(state, code),
+    // The search ignores case, so the exact address is checked again on each agent message it finds.
+    printedLink: (agentId, url) =>
+      agentPrintedLink(
+        service.searchConversationMessages(url, agentId, undefined, 20).results.map(({ message }) => message),
+        url,
+        Date.now(),
+      ),
+  });
   teardown.push(TEARDOWN_ORDER.mcpHostSignIns, "MCP sign-ins of joined servers", () =>
     Effect.runPromise(mcpHostSignIns.close()),
   );
-  // Only on Linux does the Gemini CLI print its sign-in page for this host to open.
-  const providerHostSignIns = process.platform === "linux" ? new ProviderHostSignIns({ service, browser }) : undefined;
-  if (providerHostSignIns)
-    teardown.push(TEARDOWN_ORDER.providerHostSignIns, "Provider sign-ins of joined servers", () =>
-      Effect.runPromise(providerHostSignIns.close()),
-    );
+  teardown.push(TEARDOWN_ORDER.providerHostSignIns, "Provider sign-ins of joined servers", () =>
+    Effect.runPromise(providerSignIns.close()),
+  );
+  // The live view of a sign-in page in this host's browser: only on Linux, where the Gemini CLI has
+  // always printed its page. The relay takes the page on every platform.
+  const providerHostSignIns = process.platform === "linux" ? providerSignIns : undefined;
   const host = new HostService({
     appVersion: app.getVersion(),
     store: teamStore,
@@ -1645,6 +1681,11 @@ export async function createApplicationServices({
     mcpServers: service,
     // Present, so the host advertises `mcp-sign-in-v1`. The routes are admin-only.
     mcpSignIns: mcpHostSignIns,
+    // Present, so the host advertises `sign-in-relay-v1`. The routes are admin-only.
+    signInRelay: signInRelayHost,
+    // Present, so the host advertises `connectors-v1`. GitHub answers `available: false` when this
+    // build has no GitHub App. The routes are admin-only.
+    connectors: { github: githubConnector, messaging },
     // Present on Linux, so the host advertises `provider-host-sign-in-v1`. The routes are admin-only.
     providerHostSignIns,
     // Present, so the host advertises `storage-v1`. Members read; only admins delete or clear.
@@ -1653,6 +1694,8 @@ export async function createApplicationServices({
     hostedSites,
     // Present, so the host advertises `agent-import-v1`. Any member can import.
     agentImport,
+    // Present, so the host advertises `routine-flows-v1`. Any member who can see the agents.
+    routineFlows: routineFlowRuntime,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.
     admin: {
       agents: agentAdminSettings,
@@ -1971,6 +2014,11 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.remoteDesktop, "remote desktop", () => Effect.runPromise(remoteDesktop.stop()));
   const voicePreferences = new VoicePreferenceStore(join(app.getPath("userData"), "voice-preference.json"));
   await runCauseEffect(voicePreferences.load());
+  const voiceApiKeys = new VoiceApiKeyStore({
+    path: join(app.getPath("userData"), "voice-api-key.json"),
+    cipher: secretCipher,
+  });
+  await runCauseEffect(voiceApiKeys.load());
   const voice = new VoiceTranscriptionService({
     resourcesRoot: app.isPackaged ? join(process.resourcesPath, "voice") : resolve(".openbot-build/voice"),
     // `voice:prepare` puts Parakeet in `.openbot-build/voice/model` for development.
@@ -1983,7 +2031,9 @@ export async function createApplicationServices({
         : resolve(".openbot-build/voice", WHISPER_TURBO_MODEL_DIRECTORY),
     },
     preferences: voicePreferences,
+    apiKeys: voiceApiKeys,
     spawnHost: spawnVoiceTranscriptionHost,
+    openStreamSocket: openScribeSocket,
   });
   if (app.isPackaged) {
     // Parakeet replaced Whisper. The Whisper model is an application download, not user data.
@@ -1993,6 +2043,7 @@ export async function createApplicationServices({
   }
   teardown.push(TEARDOWN_ORDER.voice, "voice transcription", () => Effect.runPromise(voice.shutdown()));
   voice.on("modelStatus", forwardVoiceModelStatus);
+  voice.on("streamTranscript", forwardVoiceStreamTranscript);
   const currentVersion = app.getVersion();
   // Skip the file check in dev: unpacked runs never enable updates, so avoid touching resourcesPath.
   const updateMetadataAvailable = app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
@@ -2166,12 +2217,13 @@ export async function createApplicationServices({
     );
     const hostedServerActivity = new HostedServerActivity({
       hostId: hostedServer.hostId,
-      // A live Slack connection counts: stopped, the server could not hear the next message. An open
-      // browser view does not: a view that the user forgot would keep the server running. Input in
-      // the view counts as client use.
+      // A live Slack, Discord or Telegram connection counts only when Signal cannot start the server for
+      // the next message and keep it (an older Signal, or no queue key): stopped, the server could not
+      // hear it. An open browser view does not count: a view that the user forgot would keep the server
+      // running. Input in the view counts as client use.
       inUse: () =>
         service.hasActiveWork().length > 0 ||
-        messaging.hasLiveConnection() ||
+        (messaging.hasLiveConnection() && !signalIngress.queueReady()) ||
         host.describeRestartBlockers().some((reason) => reason !== "browser-view") ||
         clientInUse(),
       nextRunAt: () => {
@@ -2231,11 +2283,13 @@ export async function createApplicationServices({
 
   return {
     service,
-    routineFlows,
+    routineFlows: routineFlowRuntime,
     providerRuntimes,
     providerCredentials,
     messaging,
     mcpOAuth,
+    signInRelayClient,
+    relayedMessagingInstalls: new RelayedMessagingInstalls(remoteServers),
     githubConnector,
     onePasswordConnector,
     bitwardenConnector,

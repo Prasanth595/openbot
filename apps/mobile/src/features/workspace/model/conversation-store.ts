@@ -6,6 +6,8 @@ type Delta = Extract<AgentEvent, { type: "conversation-delta" }>;
 export interface MobileConversation extends ConversationPage {
   olderLoading: boolean;
   olderError: boolean;
+  /** The window was loaded around a searched message and does not reach the latest message. */
+  detached: boolean;
 }
 type ReadPage = (cursor?: string) => Promise<ConversationPage>;
 
@@ -17,7 +19,7 @@ export class MobileConversationStore {
   #deltas = new Map<string, Delta[]>();
   #cancelFrame: (() => void) | null = null;
   #olderLoads = new Map<string, symbol>();
-  #loads = new Map<string, { promise: Promise<ConversationPage>; dirty: boolean }>();
+  #loads = new Map<string, { promise: Promise<ConversationPage>; dirty: boolean; attach: boolean }>();
 
   constructor(private schedule: (flush: () => void) => () => void) {}
 
@@ -40,7 +42,9 @@ export class MobileConversationStore {
       listeners.delete(listener);
       if (!listeners.size) {
         this.#listeners.delete(agentId);
-        if ((this.get(agentId)?.messages.length ?? 0) > 50) this.remove(agentId);
+        const entry = this.get(agentId);
+        // A window around a searched message is not the chat that the next reader opens.
+        if (entry && (entry.detached || entry.messages.length > 50)) this.remove(agentId);
       }
     };
   }
@@ -81,7 +85,8 @@ export class MobileConversationStore {
     for (const listener of this.#listeners.get(agentId) ?? []) listener();
   }
 
-  applyPage(page: ConversationPage, cursor?: string) {
+  /** `attach` lets a latest page replace a window around a searched message. */
+  applyPage(page: ConversationPage, cursor?: string, attach = false) {
     this.flush();
     const current = this.get(page.agentId);
     if (cursor && (!current || current.threadId !== page.threadId || current.pageInfo.olderCursor !== cursor)) return;
@@ -89,6 +94,8 @@ export class MobileConversationStore {
     const sameThread = current?.threadId === page.threadId;
     const indices = sameThread ? this.#indices.get(page.agentId) : undefined;
     const overlap = page.messages.find((message) => indices?.has(message.id));
+    // A window around a searched message stays until a latest page meets it or the reader asks for the latest messages.
+    if (!cursor && current?.detached && !overlap && !attach) return;
     // A disconnected latest page must not leave an invisible gap in the history.
     const retain = Boolean(sameThread && (cursor || overlap));
     const oldMessages = retain && current ? current.messages : [];
@@ -121,18 +128,54 @@ export class MobileConversationStore {
       pageInfo: !cursor && retain && current && first > 0 ? current.pageInfo : page.pageInfo,
       olderLoading: current?.olderLoading ?? false,
       olderError: false,
+      detached: cursor ? (current?.detached ?? false) : false,
     });
     this.#publish(page.agentId, next);
   }
 
-  loadLatest(agentId: string, read: ReadPage, isCurrent: () => boolean, refresh = false): Promise<ConversationPage> {
+  /**
+   * Shows a page around a searched message. A page that meets the loaded window adds its older
+   * messages to it. Another page replaces the window until the latest messages load again.
+   */
+  applyAround(page: ConversationPage) {
+    // A reader who left the chat does not need it, and the next one opens at the latest message.
+    if (!this.isObserved(page.agentId)) return;
+    this.flush();
+    const current = this.get(page.agentId);
+    const indices =
+      current && !current.detached && current.threadId === page.threadId ? this.#indices.get(page.agentId) : undefined;
+    const overlap = indices ? page.messages.findIndex((message) => indices.has(message.id)) : -1;
+    if (current && overlap >= 0) {
+      // The window already starts at the page or before it.
+      if (overlap === 0) return;
+      this.#publish(page.agentId, {
+        ...current,
+        messages: [...page.messages.slice(0, overlap), ...current.messages],
+        references: { ...current.references, ...page.references },
+        pageInfo: page.pageInfo,
+        olderError: false,
+      });
+      return;
+    }
+    this.#publish(page.agentId, { ...page, olderLoading: false, olderError: false, detached: true });
+  }
+
+  loadLatest(
+    agentId: string,
+    read: ReadPage,
+    isCurrent: () => boolean,
+    refresh = false,
+    attach = false,
+  ): Promise<ConversationPage> {
     const pending = this.#loads.get(agentId);
     if (pending) {
       if (refresh) pending.dirty = true;
+      if (attach) pending.attach = true;
       return pending.promise;
     }
-    const load: { promise: Promise<ConversationPage>; dirty: boolean } = {
+    const load: { promise: Promise<ConversationPage>; dirty: boolean; attach: boolean } = {
       dirty: false,
+      attach,
       promise: Promise.resolve()
         .then(async () => {
           let page: ConversationPage;
@@ -141,7 +184,7 @@ export class MobileConversationStore {
             page = await read();
             if (page.agentId !== agentId) throw new Error("The server returned a page for another conversation.");
             if (!isCurrent() || this.#loads.get(agentId) !== load) return page;
-            this.applyPage(page);
+            this.applyPage(page, undefined, load.attach);
           } while (load.dirty);
           return page;
         })
@@ -215,6 +258,8 @@ export class MobileConversationStore {
         const text = parts.join("");
         const index = indices.get(messageId);
         if (index === undefined) {
+          // A window around a searched message does not reach the newest messages.
+          if (current.detached) continue;
           added = true;
           messages.push({
             id: messageId,

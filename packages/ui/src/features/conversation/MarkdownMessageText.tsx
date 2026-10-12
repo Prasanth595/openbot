@@ -11,7 +11,7 @@ import { CodeBlock } from "./CodeBlock";
 import { CodePreview } from "./CodePreview";
 import type { MessageCodeBlock } from "./DataTable";
 import { MathFormula } from "./MathFormula";
-import { MessageLink, RichMessageText, type RichMessageTextProps, safeBrowserUrl } from "./RichMessageText";
+import { linkTitle, MessageLink, RichMessageText, type RichMessageTextProps, safeBrowserUrl } from "./RichMessageText";
 import {
   sameStreamingTailOffsets,
   streamingTailInside,
@@ -647,7 +647,11 @@ function MarkdownInline(props: {
             const sharedPath = sharedFileTarget(fileUrl === null ? token.href : decodedFileUrlPath(fileUrl));
             const workspacePath = workspaceFileTarget(fileUrl ?? token.href);
             return url ? (
-              <MessageLink url={url} title={token.title} onOpenLink={props.content.onOpenLink}>
+              <MessageLink
+                url={url}
+                title={token.title || linkTitle(token.text, url)}
+                onOpenLink={props.content.onOpenLink}
+              >
                 {token.text === token.href ? (
                   token.text
                 ) : (
@@ -681,7 +685,7 @@ function MarkdownInline(props: {
             const url = safeBrowserUrl(token.href);
             if (url && props.content.imagesAsLinks) {
               return (
-                <MessageLink url={url} onOpenLink={props.content.onOpenLink}>
+                <MessageLink url={url} title={url} onOpenLink={props.content.onOpenLink}>
                   {token.text || t("chat.image.view")}
                 </MessageLink>
               );

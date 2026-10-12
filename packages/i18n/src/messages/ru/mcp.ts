@@ -126,4 +126,42 @@ export const messages = {
     many: "Открываем страницу входа на {host}. OpenBot ждёт не дольше {count} минут.",
     other: "Открываем страницу входа на {host}. OpenBot ждёт не дольше {count} минуты.",
   },
+  "mcp.panel.appTitle": "Приложение входа",
+  "mcp.panel.appDescription":
+    "Используйте OAuth-приложение, которое вы зарегистрировали у провайдера сервера. OpenBot использует его, когда сервер не может сам зарегистрировать OpenBot. Оставьте поле пустым, чтобы OpenBot зарегистрировался сам.",
+  "mcp.panel.appSaveFirst": "Сначала сохраните этот сервер. Затем можно добавить приложение входа.",
+  "mcp.panel.appUrlChanged": "Сначала сохраните новый URL сервера. Приложение входа относится к сохранённому URL.",
+  "mcp.panel.appLoadFailed": "Не удалось прочитать приложение входа.",
+  "mcp.panel.callbackUrl": "URL обратного вызова",
+  "mcp.panel.callbackUrlDescription": "Добавьте именно этот URL в разрешённые URL перенаправления приложения.",
+  "mcp.panel.callbackUrlOnHost":
+    "{host} входит через свой браузер, поэтому этот URL находится на {host}. Добавьте именно этот URL в разрешённые URL перенаправления приложения.",
+  "mcp.panel.callbackUrlUnavailable": "URL обратного вызова недоступен.",
+  "mcp.panel.copyCallbackUrl": "Копировать URL обратного вызова",
+  "mcp.panel.clientId": "ID клиента",
+  "mcp.panel.clientSecret": "Секрет клиента",
+  "mcp.panel.clientSecretDescription": "Необязательно. Только для приложения с секретом.",
+  "mcp.panel.clientSecretSaved": "Секрет сохранён. Введите новый секрет, чтобы заменить его.",
+  "mcp.panel.clientSecretRemoved": "Секрет будет удалён при сохранении приложения.",
+  "mcp.panel.removeClientSecret": "Удалить секрет",
+  "mcp.panel.scopes": "Области доступа",
+  "mcp.panel.scopesDescription": "Необязательно. Разделяйте области доступа пробелами.",
+  "mcp.panel.saveApp": "Сохранить приложение",
+  "mcp.panel.removeApp": "Удалить приложение",
+  "mcp.panel.appSaved": "Приложение сохранено. Войдите, чтобы использовать его.",
+  "mcp.panel.appRemoved": "Приложение удалено.",
+  "mcp.signIn.relayDescription":
+    "Убедитесь, что страница входа находится на {page}, затем откройте её в браузере. Когда вы закончите, OpenBot отправит вход на {host}.",
+  "mcp.signIn.relayOpenDescription":
+    "Откройте страницу входа {page} в своём браузере. Когда закончите, вставьте сюда показанный адрес. Затем OpenBot отправит вход на {host}.",
+  "mcp.signIn.relayDeviceDescription":
+    "Убедитесь, что страница входа находится на {page}, затем откройте её в браузере и завершите вход там. {host} сам обнаружит вход.",
+  "mcp.signIn.relayOpen": "Открыть страницу входа",
+  "mcp.signIn.relayPasteHint": "Если браузер не вернулся в OpenBot, скопируйте показанный адрес и вставьте его сюда.",
+  "mcp.signIn.relayPasteRequired":
+    "OpenBot не может сам получить вход из браузера. Когда закончите, скопируйте показанный адрес и вставьте его сюда.",
+  "mcp.signIn.relayAddress": "Адрес в браузере",
+  "mcp.signIn.relaySend": "Отправить",
+  "mcp.panel.callbackUrlRelayed":
+    "Страница входа открывается в вашем браузере, а OpenBot на вашем компьютере отправляет вход на {host}. Добавьте именно этот URL в разрешённые URL перенаправления приложения.",
 } as const satisfies PartialTranslation<typeof source>;

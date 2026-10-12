@@ -555,6 +555,11 @@ describe.sequential("AgentService: providers", () => {
           cancelSignIn: () => false,
           signedIn: () => false,
           forget: () => Effect.void,
+          signOut: () => Effect.void,
+          redirectUrl: "openbot://mcp-auth",
+          signInApp: () => null,
+          saveSignInApp: () => Effect.succeed(false),
+          removeSignInApp: () => Effect.succeed(false),
         },
       },
     });
@@ -805,6 +810,11 @@ describe.sequential("AgentService: providers", () => {
           cancelSignIn: () => false,
           signedIn: () => false,
           forget,
+          signOut: () => Effect.void,
+          redirectUrl: "openbot://mcp-auth",
+          signInApp: () => null,
+          saveSignInApp: () => Effect.succeed(false),
+          removeSignInApp: () => Effect.succeed(false),
         },
       },
     });

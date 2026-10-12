@@ -230,7 +230,7 @@
     1.004 93.3%,
     1
   );
-  --voice-bar-width: 216px;
+  --voice-bar-width: 152px;
   position: relative;
   display: flex;
   align-items: center;
@@ -397,9 +397,9 @@
     both;
 }
 
-/* Cancel sits on the bar itself; a hover disc there would look like a second drop. */
+/* Cancel sits on the bar itself, so its hover disc stays faint, like the bar. */
 .voice-morph .voice-recording-cancel:hover:not(:disabled) {
-  background: transparent;
+  background: color-mix(in srgb, var(--openbot-text-primary) 10%, transparent);
   color: var(--openbot-text-primary);
 }
 
@@ -479,34 +479,6 @@
   max-height: var(--composer-editor-max-height);
   align-items: flex-end;
   cursor: text;
-}
-
-/* Live dictation: the text said so far takes the empty editor's place, or follows the draft. */
-.composer-input-label[data-live-transcript] {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.composer-input-label[data-live-transcript="replace"] .composer-editor-root {
-  display: none;
-}
-
-.voice-live-transcript {
-  min-height: 28px;
-  margin: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 2px 0 8px;
-  color: var(--openbot-text-secondary);
-  font-size: var(--openbot-text-lg);
-  line-height: 20px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  transition: color var(--openbot-duration-hover) var(--openbot-ease-out);
-}
-
-.voice-live-transcript[data-final] {
-  color: var(--openbot-text-primary);
 }
 
 .composer-toolbar {
@@ -602,6 +574,68 @@
 
 .composer-editor-surface[aria-disabled="true"] {
   pointer-events: none;
+}
+
+/*
+ * Live dictation: ComposerEditor.tsx explains the read-only copy that shows in place of the editor.
+ * The editor stays focusable under the copy, so keys still edit and send the draft, and screen
+ * readers keep the textbox. The copy scrolls a long draft and gives a click to the editor.
+ */
+.composer-editor-root[data-dictating] > [role="textbox"] {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.composer-dictation-draft {
+  display: inline;
+}
+
+.composer-dictation-word {
+  animation: composer-dictation-word-in var(--openbot-duration-slow) var(--openbot-ease-out) both;
+  transition: color var(--openbot-duration-slow) var(--openbot-ease-out);
+}
+
+.composer-dictation-word[data-interim] {
+  color: var(--openbot-text-muted);
+}
+
+.composer-dictation-caret {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  margin-left: 2px;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--openbot-accent);
+  vertical-align: -3px;
+  animation: composer-dictation-caret 1s ease-in-out infinite;
+}
+
+.composer-dictation[data-final] .composer-dictation-caret {
+  display: none;
+}
+
+@keyframes composer-dictation-word-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+@keyframes composer-dictation-caret {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-dictation-word,
+  .composer-dictation-caret {
+    transition: none;
+    animation: none;
+  }
 }
 
 .composer-editor-placeholder {

@@ -159,7 +159,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "To połączenie utworzyłoby pętlę.",
   "error.backend.routineFlowLinkLimit": "Rutyna może mieć maksymalnie {limit} połączeń.",
   "error.backend.routineFlowHandoffFailed": "Rutyna nie mogła przekazać pracy temu agentowi.",
-  "error.backend.routineFlowRemoteUnsupported": "Przepływy rutyn są dostępne tylko dla agentów na tym komputerze.",
   "error.backend.mcpServerLimit": "OpenBot przechowuje maksymalnie {limit} serwerów MCP.",
   "error.backend.mcpServerNameTaken": "Serwer MCP o nazwie {name} już istnieje.",
   "error.backend.mcpServerNoAnswer": "Serwer nie odpowiedział w ciągu {seconds} s.",
@@ -256,4 +255,10 @@ export const messages = {
     "Serwer odpowiedział {status}. Sprawdź klucz API lub inne dane uwierzytelniające.",
   "error.backend.mcpServerHttpUrl":
     "Serwer odpowiedział {status}. Sprawdź URL. Link może być błędny, wygasły lub usunięty.",
+  "error.backend.mcpSignInAppUrl": "Aplikacja logowania wymaga prawidłowego adresu URL serwera.",
+  "error.backend.mcpSignInAppClientId": "Wpisz identyfikator klienta aplikacji logowania.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Serwer logowania tego serwera MCP zmienił się, więc OpenBot nie wysłał mu aplikacji logowania. Jeśli ta zmiana jest poprawna, usuń aplikację logowania i dodaj ją ponownie.",
+  "error.backend.mcpSignInAppNoServer": "Zapisz ten serwer MCP jako serwer URL, zanim dodasz aplikację logowania.",
+  "error.backend.mcpSignInAppUnavailable": "Ten komputer nie może przechować aplikacji logowania.",
 } as const satisfies PartialTranslation<typeof source>;

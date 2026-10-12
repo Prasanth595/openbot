@@ -11,6 +11,8 @@ import { actionToast } from "../../action-toast";
 import { type GitHubConnectorPort, githubConnectorPort } from "./github-connector-port";
 
 export interface GitHubConnectorController {
+  /** The joined server whose connection this is, or null for this computer's. */
+  hostName: () => string | null;
   status: () => GitHubConnectorStatus;
   busy: () => boolean;
   /** Null until the first list arrives, and while the connection is not active. */
@@ -39,6 +41,7 @@ export interface GitHubConnectorController {
  */
 export function createGitHubConnector(
   port: () => GitHubConnectorPort = githubConnectorPort,
+  hostName: () => string | null = () => null,
 ): GitHubConnectorController {
   const [status, setStatus] = createSignal<GitHubConnectorStatus>(DISCONNECTED_GITHUB_CONNECTOR);
   const [busy, setBusy] = createSignal(false);
@@ -126,6 +129,7 @@ export function createGitHubConnector(
   };
 
   return {
+    hostName,
     status,
     busy,
     repositories,
@@ -146,6 +150,9 @@ export function createGitHubConnector(
 /** The panel of the connector. Server settings and the Marketplace show the same controller through it. */
 export function githubPanelProps(controller: GitHubConnectorController): GitHubConnectorPanelProps {
   return {
+    get hostName() {
+      return controller.hostName() ?? undefined;
+    },
     get status() {
       return controller.status();
     },

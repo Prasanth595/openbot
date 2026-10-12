@@ -28,6 +28,7 @@ import { z } from "zod";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
+import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
@@ -128,6 +129,7 @@ export interface OpenBotToolRouterOptions {
   hostedSites: HostedSiteCoordinator;
   routines: RoutineScheduler;
   memories: AgentMemories;
+  waits: AgentWaits;
   drain: DrainScheduler;
   tables: AgentTables | null;
   sidebarLayout: AgentSidebar | null;
@@ -160,6 +162,7 @@ export class OpenBotToolRouter {
   readonly #hostedSites: HostedSiteCoordinator;
   readonly #routines: RoutineScheduler;
   readonly #memories: AgentMemories;
+  readonly #waits: AgentWaits;
   readonly #drain: DrainScheduler;
   readonly #tables: AgentTables | null;
   readonly #sidebarLayout: AgentSidebar | null;
@@ -188,6 +191,7 @@ export class OpenBotToolRouter {
     this.#hostedSites = options.hostedSites;
     this.#routines = options.routines;
     this.#memories = options.memories;
+    this.#waits = options.waits;
     this.#drain = options.drain;
     this.#tables = options.tables;
     this.#sidebarLayout = options.sidebarLayout;
@@ -710,6 +714,14 @@ export class OpenBotToolRouter {
 
     const memoryResult = this.#memories.handleTool(params, senderAgentId, this.#hooks.redactMcp);
     if (memoryResult) return memoryResult;
+
+    const waitResult = this.#waits.handleTool(params, {
+      agentId: senderAgentId,
+      inExecutionThread: this.#conversation.isExecutionThread(
+        this.#conversation.publicThreadId(senderAgentId, params.threadId),
+      ),
+    });
+    if (waitResult) return waitResult;
 
     const tableResult = yield* handleDataTool(params.tool, params.arguments, senderAgentId, this.#tables);
     if (tableResult) return tableResult;

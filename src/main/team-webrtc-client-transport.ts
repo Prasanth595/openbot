@@ -48,6 +48,10 @@ export const TEAM_WEBRTC_REMOTE_REQUEST_TIMEOUT_MILLISECONDS = 10 * 60_000 + 30_
 /** Node clamps a longer `setTimeout` to one millisecond, and says so on stderr. */
 const MAXIMUM_TIMER_DELAY_MILLISECONDS = 2_147_483_647;
 
+/** The wait after a failed attempt, the same steps as the Signal sockets: 500 ms, doubled, to 30 s. */
+const CONNECT_RETRY_START_MILLISECONDS = 500;
+const CONNECT_RETRY_LIMIT_MILLISECONDS = 30_000;
+
 interface TeamWebRtcClientTransportEvents {
   connected: [hostId: string];
   disconnected: [hostId: string];
@@ -166,6 +170,11 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   // A failed attempt used to end its session, so each retry against an offline host was a create, a
   // ticket and an end: three Worker requests and a Signal webhook. Only `disconnect` ends it now.
   readonly #retainedSessions = new Map<string, RetainedSession>();
+  // Each request, typing status and desktop send to an offline host started a new attempt at once,
+  // about one each second. Until the wait ends they get the last failure. `connect` does not wait.
+  readonly #connectRetries = new Map<string, { failure: RemoteWorkflowError; failures: number; retryAt: number }>();
+  /** Counts the closes of each host. A failure that ends after a close does not make requests wait. */
+  readonly #closes = new Map<string, number>();
   readonly #files: TeamWebRtcFileTransfer;
   readonly #pending = new Map<
     string,
@@ -354,8 +363,9 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     );
   }).bind(this);
 
+  /** Starts an attempt also while a failed one makes requests wait: a retry asked for it. */
   connect(hostId: string): Effect.Effect<void, RemoteWorkflowError> {
-    return this.#owned(this.#ensureConnected(hostId));
+    return this.#owned(this.#ensureConnected(hostId, true));
   }
 
   /**
@@ -494,7 +504,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
           ? null
           : yield* remoteDecode(() =>
               sideRoute
-                ? sideRoute.response(path, status, envelope.body)
+                ? sideRoute.response(path, status, envelope.body, { historyExtent: true })
                 : decodeTeamProtocolV7WebRtcHttpResponse(method, path, status, envelope.body),
             ).pipe(
               Effect.mapError(
@@ -637,6 +647,8 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     if (active?.expirationTimer) clearTimeout(active.expirationTimer);
     this.#active.delete(hostId);
     this.#retainedSessions.delete(hostId);
+    this.#connectRetries.delete(hostId);
+    this.#closes.set(hostId, (this.#closes.get(hostId) ?? 0) + 1);
     this.#hostProtocols.delete(hostId);
     this.#files.setPeerAuthenticated(hostId, false);
     const disconnected = yield* TeamClientBridge.use((bridge) => bridge.disconnect(hostId)).pipe(Effect.result);
@@ -712,6 +724,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   readonly #ensureConnected = Effect.fn("TeamWebRtcClient.ensureConnected")(function* (
     this: TeamWebRtcClientTransport,
     hostId: string,
+    retryNow = false,
   ): Effect.fn.Return<void, RemoteWorkflowError, TeamClientBridge> {
     const sessionCache = this.#options.sessionCache;
     if (sessionCache) yield* sessionCache.load();
@@ -738,6 +751,8 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     if (current?.connected) return;
     const connecting = current?.connecting;
     if (connecting) return yield* Deferred.await(connecting);
+    const retry = this.#connectRetries.get(hostId);
+    if (retry && !retryNow && Date.now() < retry.retryAt) return yield* retry.failure;
     const active: ActiveHost = {
       sessionId: current?.sessionId ?? "",
       expiresAt: current?.expiresAt ?? 0,
@@ -756,8 +771,23 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     this.#retainedSessions.delete(hostId);
     this.#hostProtocols.delete(hostId);
     this.#active.set(hostId, active);
+    const closes = this.#closes.get(hostId) ?? 0;
     this.#options.connectTrace?.begin(hostId);
     return yield* this.#connect(hostId, active, current?.sessionId || null, storedSession).pipe(
+      Effect.tapError((failure) =>
+        Effect.sync(() => {
+          // A failed attempt leaves `#active` before it closes the bridge. A `disconnect` in that time
+          // cannot cancel it, and a newer attempt can start.
+          const newer = this.#active.get(hostId);
+          if (active.cancelled || (newer && newer !== active) || (this.#closes.get(hostId) ?? 0) !== closes) return;
+          const failures = (this.#connectRetries.get(hostId)?.failures ?? 0) + 1;
+          const delay = Math.min(
+            CONNECT_RETRY_LIMIT_MILLISECONDS,
+            CONNECT_RETRY_START_MILLISECONDS * 2 ** (failures - 1),
+          );
+          this.#connectRetries.set(hostId, { failure, failures, retryAt: Date.now() + delay });
+        }),
+      ),
       Effect.onExit((exit) => Deferred.done(done, exit)),
       Effect.onError(() =>
         Effect.sync(() => {
@@ -1102,6 +1132,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
 
   #finishConnected(hostId: string, active: ActiveHost): void {
     this.#files.setPeerAuthenticated(hostId, true);
+    this.#connectRetries.delete(hostId);
     active.connected = true;
     active.connecting = null;
     this.#options.connectTrace?.mark(hostId, "auth");

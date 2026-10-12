@@ -80,6 +80,16 @@ the agent workspace; a symbolic link that leaves it is not listed. A missing pat
 message that names the path and the workspace. A client without the capability shows the file preview
 error. The desktop lists a local folder without the containment when the agent has no workspace limit.
 
+### Conversation files
+
+`conversation-file-search-v1` adds `POST /v1/conversation-files/search` with `{ query, cursor, limit? }`.
+Any member can send it. The host answers the files of agent chat messages whose name contains the
+query, newest first, with the agent, the message, the time and the attachment summary. An empty query
+lists the newest files. A page has at most 100 results (50 when `limit` is absent), and `nextCursor`
+gets the next page. Channel threads and the files of an agent hidden from the client are not listed.
+The capability is advertised only to protocol 7 clients. An older host answers 404, so a client
+sends the request only when the host advertises the capability.
+
 ### Agent import from a joined server
 
 `agent-import-v1` lets any member, not only an owner or admin, import a Grok Bot export into the host.
@@ -94,6 +104,33 @@ with the member as the actor. A member never revises a skill already in the host
 gets the existing skill and the result warns. `POST /v1/agent-import/discard` releases the token. On
 desktop, main opens the dialog, reads the file and sends it (`agent-import:choose` is server-scoped);
 the web client uses the browser chooser and ships the export skill in its bundle.
+
+### Routine flows
+
+`routine-flows-v1` serves the routine canvas (see [Routine flows](agents.md#routine-flows)) to a
+joined desktop and to the web client. Its routes are `POST /v1/routine-flows/canvas`,
+`/positions/save`, `/positions/remove`, `/links/connect`, `/links/disconnect` and `/links/update`,
+with the input in the body. Any member who can see the agents can read and change a canvas, as with
+the agent routine routes; it is not an admin capability. A member sees a routine only when every
+agent it touches is visible, and the host answers a hidden or unknown agent, routine or link with
+404. A webhook trigger's URL goes only to an owner or admin; a member reads it as null. Step input,
+output and error cross with at most 4,000 characters each, and the host empties the step texts of the
+routines with the oldest runs first when a canvas would pass three quarters of one WebRTC frame. The
+optional event `routine-flows-changed { agentId }` names the canvas that changed; the host sends it
+only to a connection with the capability and never for a hidden agent. Webhook config, secret
+rotation and webhook test runs stay on `events-v1`. A client without the capability shows a notice
+in the Routines view; the web client shows the view switch only when the host serves it.
+
+### History extent
+
+`history-extent-v1` lets the chat's day rail draw the history that is not loaded on a joined server.
+It adds `olderCount` and `oldestAt` (at most 64 characters) beside the frozen keys of `pageInfo` on
+`GET /v1/agents/:id/conversation-page` and `GET /v1/direct/conversations/:id/page`, and at the top
+level of the `POST /v1/channels/read` page. The host adds them only on protocol 7 and only when the
+request advertises the capability, so a released client reads the same bytes as before. A host
+without the capability never sends them, so a client keeps them whenever they are present, and a
+malformed value fails closed. The WebRTC host peer encodes the local response again with the same
+option, so the fields reach the web client and a joined desktop through the data channel too.
 
 ### Skill events
 

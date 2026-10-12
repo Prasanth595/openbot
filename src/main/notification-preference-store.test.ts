@@ -36,12 +36,14 @@ describe("notification permission request", () => {
     await Effect.runPromise(requestNotificationPermission({ platform: "darwin", preference: store, showWelcome }));
     expect(showWelcome).not.toHaveBeenCalled();
 
-    await runCauseEffect(store.set({ desktopNotifications: true }));
+    // The file has no preview switch, so the preview stays on.
+    expect(store.get()).toEqual({ desktopNotifications: false, messagePreview: true });
+    await runCauseEffect(store.set({ desktopNotifications: true, messagePreview: true }));
     await Effect.runPromise(requestNotificationPermission({ platform: "darwin", preference: store, showWelcome }));
     expect(showWelcome).toHaveBeenCalledTimes(1);
-    await runCauseEffect(store.set({ desktopNotifications: false }));
+    await runCauseEffect(store.set({ desktopNotifications: false, messagePreview: false }));
     const restarted = await loadedStore(path);
-    expect(restarted.get()).toEqual({ desktopNotifications: false });
+    expect(restarted.get()).toEqual({ desktopNotifications: false, messagePreview: false });
     expect(restarted.permissionRequested()).toBe(true);
   });
 

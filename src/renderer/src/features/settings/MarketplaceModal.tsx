@@ -3,6 +3,7 @@ import { createMarketplaceNavigation } from "@openbot/ui/features/marketplace/ma
 import { McpKeyDialog } from "@openbot/ui/features/settings/McpKeyDialog";
 import { McpLocalDialog } from "@openbot/ui/features/settings/McpLocalDialog";
 import { McpSignInDialog } from "@openbot/ui/features/settings/McpSignInDialog";
+import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { PluginUninstallDialog } from "@openbot/ui/features/settings/PluginUninstallDialog";
 import { createEffect, createSignal, Match, Show, Switch, untrack } from "solid-js";
 import { createMarketplaceController, type MarketplaceControllerProps } from "./marketplace-controller";
@@ -124,7 +125,23 @@ export function MarketplaceModal(props: MarketplaceModalProps) {
                 onTest={controller.signInPluginApp}
                 onConnected={(config) => pending.settle(config)}
                 onCancel={() => pending.settle(null)}
+                hostName={props.pluginSignInRelay ? props.pluginHostName : undefined}
+                onCancelSignIn={controller.cancelSignInRelay}
               />
+              {/* The page opens in this computer's browser; the paste field is the way back when the
+                  browser cannot reach this computer's listener. */}
+              <Show when={controller.signInRelayed()} keyed>
+                {(relay) => (
+                  <McpSignInRelayDialog
+                    name={pending.subject.name}
+                    hostName={props.pluginHostName ?? ""}
+                    page={relay.page}
+                    onOpen={controller.openSignInRelay}
+                    onPaste={controller.pasteSignInRelay}
+                    onCancel={controller.cancelSignInRelay}
+                  />
+                )}
+              </Show>
             </Match>
             <Match when={pending.flow.kind === "key" ? pending.flow : null} keyed>
               {(flow) => (

@@ -88,6 +88,23 @@ export interface ConversationPage {
   readState?: ConversationReadState;
 }
 
+/** A link in an agent's conversation that the user opened. */
+export interface OpenMessageLinkInput {
+  agentId: string;
+  url: string;
+}
+
+/** The address that the browser shows at the end of a relayed sign-in link. */
+export interface PasteMessageLinkInput {
+  url: string;
+  address: string;
+}
+
+/** A relayed sign-in link that the user stopped. */
+export interface CancelMessageLinkInput {
+  url: string;
+}
+
 export interface SearchConversationMessagesInput {
   query: string;
   agentId?: string;

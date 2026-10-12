@@ -24,6 +24,12 @@ import {
   renameSectionToolSchema,
 } from "./agent/sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS } from "./agent/skill-tools";
+import {
+  AWAIT_EVENT_TOOL,
+  awaitEventToolSchema,
+  CLOSE_WAIT_TOOL,
+  closeWaitToolSchema,
+} from "./agent-waits/agent-waits";
 import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
 import { ROUTINE_FLOW_TOOL_DEFINITIONS } from "./routine-flows/routine-flow-tools";
 import { routineScheduleZodSchema } from "./routine-tool-schema";
@@ -254,6 +260,18 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     description:
       "Use only in a scheduled routine run, when the routine task gives nothing to report. OpenBot then removes your text answers of this run and sends no notification; the run history still shows the run. Do not call it when you report anything. In a manual Test run, the user sees your answer.",
     shape: {},
+  },
+  {
+    name: AWAIT_EVENT_TOOL,
+    description:
+      "Open a wait when you cannot finish the current request in this turn because you wait for something outside it: a build, a deploy, a later check. OpenBot shows the wait to the user until you close it. The next run of one of your routines wakes the wait, or a local script event that names its waitId. The run that wakes it repeats the request and your note. Give routineId to let only that routine wake it. After this call, tell the user what you wait for and end your turn.",
+    shape: awaitEventToolSchema.shape,
+  },
+  {
+    name: CLOSE_WAIT_TOOL,
+    description:
+      "Close an open wait when its request is done, or when it can no longer be done. Leave it open to wait for the next run again.",
+    shape: closeWaitToolSchema.shape,
   },
   ...MEMORY_RECALL_TOOL_DEFINITIONS,
   {

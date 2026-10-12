@@ -104,6 +104,7 @@ export const messages = {
   "error.provider.localOnly": "プロバイダーは、エージェントを実行しているコンピューターでのみ変更できます。",
   "error.provider.keyRequired": "プロバイダーキーが必要です。",
   "error.provider.keyTooLong": "プロバイダーキーが長すぎます。",
+  "error.provider.keyInvalidCharacters": "プロバイダーキーに、キーに使えない空白または文字が含まれています。",
   "error.provider.noModel": "選択したプロバイダーに使用できるモデルがありません。",
   "error.provider.noModelNamed": "{provider} に使用できるモデルがありません。",
   "error.provider.acpNoModels": "ACP CLI が ACP モデルを通知しませんでした。OpenBot は代替モデルを推測しません。",

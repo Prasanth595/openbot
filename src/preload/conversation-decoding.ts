@@ -5,6 +5,7 @@
 // carries, so a value the renderer reads always has the shape its type says.
 
 import {
+  type AgentWaitsSnapshot,
   type ConversationFileSearchPage,
   type ConversationMessage,
   type ConversationPage,
@@ -13,6 +14,7 @@ import {
   type ConversationWithReadState,
   type DraftAttachment,
   type FilePreview,
+  isAgentWaitsSnapshot,
   isAttachmentSummary,
   isConversationMessage,
   isConversationReadState,
@@ -144,6 +146,13 @@ export function decodeAttachments(value: unknown): DraftAttachment[] {
 export function decodeReceipt(value: unknown): QueuedMessageReceipt {
   if (!isQueuedMessageReceipt(value)) {
     throw new Error("Invalid queued message response.");
+  }
+  return value;
+}
+
+export function decodeWaits(value: unknown): AgentWaitsSnapshot {
+  if (!isAgentWaitsSnapshot(value)) {
+    throw new Error("Invalid open waits response.");
   }
   return value;
 }

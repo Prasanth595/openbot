@@ -1,5 +1,8 @@
 # Providers
 
+To add a provider, or to see how a provider signs in on a joined server, read
+[Integrations and sign-in](integrations.md#add-a-provider).
+
 ## Built-in tool discovery
 
 `agent/tool-catalog.ts` exposes seven direct tools and three discovery tools to every adapter.

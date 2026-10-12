@@ -82,6 +82,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Animar respostas",
   "mobile.settings.animations.textRevealFooter":
     "Uma resposta aparece palavra por palavra, e o balão cresce suavemente. Quando desativado, o texto aparece assim que chega.",
+  "mobile.settings.animations.searchTransitions": "Animar resultados da busca",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Os resultados e as mensagens da busca aparecem e somem com um breve desfoque quando mudam. Com o movimento reduzido, eles só esmaecem. Quando isto está desativado, eles mudam na hora.",
   "mobile.settings.feedback.footer": "Resposta ao toque nas ações do app neste dispositivo.",
   "mobile.settings.feedback.haptics": "Resposta tátil",
   "mobile.settings.feedback.retry": "Tentar salvar a configuração de resposta tátil novamente",

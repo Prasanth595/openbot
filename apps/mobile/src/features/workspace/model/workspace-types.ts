@@ -16,6 +16,7 @@ import type {
   AgentTemplatePublication,
   AvatarHue,
   AvatarImageInput,
+  ConversationFileSearchPage,
   ConversationSearchPage,
   ConversationSnapshot,
   CreateAgentInput,
@@ -33,6 +34,7 @@ import type {
   Routine,
   RoutineCalendar,
   RoutineCalendarInput,
+  RoutineCalendarOwner,
   SetAgentMemoryInclusionInput,
   SetAgentSessionSettingInput,
   SetEnabledSkillInput,
@@ -159,6 +161,8 @@ export interface MobileWorkspaceContextValue {
   mutateSidebarLayout: (serverId: string, action: SidebarLayoutAction) => Promise<void>;
   loadQueue: (agentId: string, serverId: string) => Promise<QueueSnapshot>;
   canEditQueue: (serverId: string) => boolean;
+  /** True when the host advertises `message-client-id-v1`: a repeat of a message is stored once. */
+  canRetryMessage: (serverId: string) => boolean;
   /** The files this host accepts beyond the base list, as the desktop picker reads them. */
   attachmentSupport: (serverId: string) => AttachmentSupport;
   changeQueue: (
@@ -234,7 +238,15 @@ export interface MobileWorkspaceContextValue {
   loadAgentMemories: (agentId: string, serverId: string) => Promise<AgentMemory[]>;
   loadAgentRoutines: (agentId: string, serverId: string) => Promise<Routine[]>;
   /** Every routine of the server, of agents and channels, with its runs in the range. */
-  loadRoutineCalendar: (input: RoutineCalendarInput, serverId: string) => Promise<RoutineCalendar>;
+  /**
+   * `owners` are the agents and channels whose routines to read, when the caller already knows them.
+   * Without it, the phone reads the agent and channel lists of the host first.
+   */
+  loadRoutineCalendar: (
+    input: RoutineCalendarInput,
+    serverId: string,
+    owners?: readonly RoutineCalendarOwner[],
+  ) => Promise<RoutineCalendar>;
   loadAgentAnalytics: (input: AgentAnalyticsInput, serverId: string) => Promise<AgentAnalytics | null>;
   /** Null when the host does not advertise `host-analytics`. Without an agent ID, the report covers every agent. */
   loadHostAnalytics: (input: HostAnalyticsInput, serverId: string) => Promise<HostAnalytics | null>;
@@ -295,7 +307,18 @@ export interface MobileWorkspaceContextValue {
   deleteStoredFile: (fileId: string, serverId: string) => Promise<void>;
   /** Searches message text in the server's agent chats, one page from `cursor` or from the newest match. */
   searchMessages: (query: string, serverId: string, cursor?: string) => Promise<ConversationSearchPage>;
+  /** True when the host advertises `conversation-file-search-v1`. */
+  canSearchFiles: (serverId: string) => boolean;
+  /** Searches file names in the server's agent chats. An empty query lists the newest files. */
+  searchFiles: (query: string, serverId: string, cursor?: string) => Promise<ConversationFileSearchPage>;
   loadConversation: (agentId: string, serverId?: string) => Promise<ConversationSnapshot>;
+  /**
+   * Loads the page around a message, for a chat that opens at a search result. False when the host
+   * does not have the message.
+   */
+  loadConversationAround: (agentId: string, messageId: string, serverId?: string) => Promise<boolean>;
+  /** Loads the latest page in place of a window around a searched message. */
+  loadLatestMessages: (agentId: string, serverId?: string) => Promise<void>;
   loadOlderMessages: (agentId: string, serverId?: string) => Promise<void>;
   respondToPrompt: (agentId: string, input: RespondToPromptInput) => Promise<void>;
   sendMessage: (
@@ -304,6 +327,8 @@ export interface MobileWorkspaceContextValue {
     attachmentDraftIds?: string[],
     replyToMessageId?: string | null,
     serverId?: string,
+    /** Names the message for the host, which stores a repeat of it once. Send it only when `canRetryMessage`. */
+    clientMessageId?: string,
   ) => Promise<string>;
   uploadAttachment: (
     agentId: string,

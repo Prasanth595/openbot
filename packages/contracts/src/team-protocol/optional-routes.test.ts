@@ -5,7 +5,13 @@ import { AGENT_IMPORT_ROUTES } from "./agent-import-v1";
 import { AGENT_INSTALL_ROUTES } from "./agent-install-v1";
 import { AGENT_PUBLISH_ROUTES } from "./agent-publish-v1";
 import { AGENT_UPDATE_ROUTES } from "./agent-update-v1";
+import { CONNECTORS_CAPABILITY, CONNECTORS_ROUTES } from "./connectors-v1";
 import { CONTEXT_RESET_ROUTES } from "./context-reset-v1";
+import {
+  CONVERSATION_FILE_SEARCH_CAPABILITY,
+  CONVERSATION_FILE_SEARCH_ROUTES,
+  decodeConversationFileSearchResponse,
+} from "./conversation-file-search-v1";
 import {
   legacyTeamCapabilities,
   TEAM_BOOTSTRAP_CAPABILITIES,
@@ -18,10 +24,12 @@ import { HOST_RELEASE_ROUTES } from "./host-release-v1";
 import { HOST_UPDATE_ROUTES, hostRestartEvent } from "./host-update-v1";
 import { HOSTED_SITES_ROUTES } from "./hosted-sites-v1";
 import { LIVE_ACTIVITY_PUSH_ROUTES } from "./live-activity-push-v1";
+import { MCP_SIGN_IN_APP_CAPABILITY, MCP_SIGN_IN_APP_ROUTES } from "./mcp-sign-in-app-v1";
 import { optionalRouteCodec } from "./optional-routes";
 import { PROVIDERS_ADMIN_ROUTES } from "./providers-v1";
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "./providers-v3";
 import { SHARED_TABLES_ROUTES } from "./shared-tables-v1";
+import { SIGN_IN_RELAY_CAPABILITY, SIGN_IN_RELAY_ROUTES } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_ROUTES } from "./skills-admin-v1";
 import { decodeTeamProtocolSupportV1 } from "./v1";
 import { decodeTeamProtocolSupportV6Base } from "./v6-base";
@@ -612,5 +620,201 @@ describe("host-release-v1", () => {
       expect(() => codec(path).response(200, { ...snapshot, phase: "restart" })).toThrow();
       expect(() => codec(path).response(200, { ...snapshot, currentVersion: "x".repeat(65) })).toThrow();
     }
+  });
+});
+
+describe("mcp-sign-in-app-v1", () => {
+  const app = { clientId: "openbot-client", secretSaved: true, scope: "read offline_access" };
+  const state = { redirectUrl: "http://127.0.0.1:28417/mcp-auth", app };
+
+  // The secret goes to the host once, in a save. No answer may carry it back to a client.
+  it("sends the secret only towards the host and drops it from every answer", () => {
+    const save = { mcpServerId: "mcp-1", clientId: "openbot-client", clientSecret: "s3cret", scope: "read" };
+    expect(codec(MCP_SIGN_IN_APP_ROUTES.save).request(save)).toEqual(save);
+    expect(codec(MCP_SIGN_IN_APP_ROUTES.save).request({ ...save, clientSecret: null })).toEqual({
+      ...save,
+      clientSecret: null,
+    });
+    for (const path of Object.values(MCP_SIGN_IN_APP_ROUTES)) {
+      expect(
+        codec(path).response(200, { ...state, clientSecret: "s3cret", app: { ...app, clientSecret: "s3cret" } }),
+      ).toEqual(state);
+      expect(codec(path).response(200, { redirectUrl: null, app: null })).toEqual({ redirectUrl: null, app: null });
+    }
+    expect(codec(MCP_SIGN_IN_APP_ROUTES.get).request({ mcpServerId: "mcp-1", clientSecret: "s3cret" })).toEqual({
+      mcpServerId: "mcp-1",
+    });
+  });
+
+  it("rejects malformed payloads", () => {
+    expect(() => codec(MCP_SIGN_IN_APP_ROUTES.remove).request({ mcpServerId: "" })).toThrow();
+    expect(() =>
+      codec(MCP_SIGN_IN_APP_ROUTES.save).request({ mcpServerId: "mcp-1", clientId: "x", scope: "" }),
+    ).toThrow();
+    expect(() =>
+      codec(MCP_SIGN_IN_APP_ROUTES.get).response(200, { ...state, app: { ...app, secretSaved: "yes" } }),
+    ).toThrow();
+  });
+
+  // A protocol 6 peer reads at most 64 capabilities.
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(MCP_SIGN_IN_APP_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(MCP_SIGN_IN_APP_CAPABILITY);
+  });
+});
+
+describe("sign-in-relay-v1", () => {
+  const flow = {
+    authorizeUrl: "https://auth.example.com/authorize?client_id=openbot",
+    callback: { port: 28417, path: "/mcp-auth", state: "state-1" },
+    result: null,
+  };
+
+  // The client sends only the query of the callback. It cannot name the host address it reaches.
+  it("sends only a flow and a query to the host", () => {
+    const complete = { flowId: "flow-1", query: "code=abc&state=state-1" };
+    expect(codec(SIGN_IN_RELAY_ROUTES.complete).request({ ...complete, port: 22, path: "/admin" })).toEqual(complete);
+    expect(() => codec(SIGN_IN_RELAY_ROUTES.complete).request({ ...complete, query: "x".repeat(8_193) })).toThrow();
+    expect(() => codec(SIGN_IN_RELAY_ROUTES.status).request({ flowId: "" })).toThrow();
+  });
+
+  it("round-trips a flow and rejects malformed answers", () => {
+    for (const path of [SIGN_IN_RELAY_ROUTES.status, SIGN_IN_RELAY_ROUTES.complete]) {
+      expect(codec(path).response(200, flow)).toEqual(flow);
+      expect(
+        codec(path).response(200, { authorizeUrl: null, callback: null, result: { error: null, toolCount: 3 } }),
+      ).toEqual({ authorizeUrl: null, callback: null, result: { error: null, toolCount: 3 } });
+      expect(() => codec(path).response(200, { ...flow, callback: { ...flow.callback, port: -1 } })).toThrow();
+    }
+    expect(codec(SIGN_IN_RELAY_ROUTES.mcpStart).response(200, { flowId: "flow-1", expiresAt: 1 })).toEqual({
+      flowId: "flow-1",
+      expiresAt: 1,
+    });
+  });
+
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(SIGN_IN_RELAY_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(SIGN_IN_RELAY_CAPABILITY);
+  });
+});
+
+describe("connectors-v1", () => {
+  const status = {
+    available: true,
+    state: "pending",
+    login: null,
+    avatarUrl: null,
+    userCode: "ABCD-1234",
+    verificationUri: "https://github.com/login/device",
+    error: null,
+    installUrl: "https://github.com/apps/openbotgit/installations/new",
+    revokeUrl: null,
+  };
+
+  // No route carries a token: a field the codec does not name never reaches the client.
+  it("round-trips a status and drops what it does not name", () => {
+    expect(codec(CONNECTORS_ROUTES.githubConnect).response(200, { ...status, accessToken: "gho_secret" })).toEqual(
+      status,
+    );
+    expect(() => codec(CONNECTORS_ROUTES.githubStatus).response(200, { ...status, state: "unknown" })).toThrow();
+    expect(codec(CONNECTORS_ROUTES.githubConnect).request({ url: "https://evil.example" })).toEqual({});
+  });
+
+  // A bot token stays on the host. Only Slack and Discord installs end in a grant for the host.
+  it("keeps messaging tokens on the host", () => {
+    const connection = {
+      workspaceId: "T1",
+      platform: "slack",
+      enabled: true,
+      state: "connected",
+      workspaceName: "Acme",
+      botUserId: "U1",
+      missingScopes: [],
+      retryAt: null,
+      credentials: "saved",
+      orchestratorAgentId: null,
+    };
+    expect(
+      codec(CONNECTORS_ROUTES.messagingOverview).response(200, {
+        connections: [{ ...connection, botToken: "xoxb-secret" }],
+      }),
+    ).toEqual({ connections: [connection] });
+    expect(() =>
+      codec(CONNECTORS_ROUTES.messagingComplete).request({ platform: "telegram", nonce: "n", grant: "g" }),
+    ).toThrow();
+  });
+
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(CONNECTORS_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(CONNECTORS_CAPABILITY);
+  });
+});
+
+describe("conversation-file-search-v1", () => {
+  const attachment = {
+    id: "attachment-1",
+    name: "report.pdf",
+    size: 2_048,
+    kind: "file",
+    mimeType: "application/pdf",
+    previewKind: "pdf",
+    previewUrl: "openbot-attachment://file/attachment-1",
+  };
+  const result = { agentId: "chief", messageId: "message-1", createdAt: "2026-10-12T08:00:00.000Z", attachment };
+  const page = { results: [result], nextCursor: "eyJ2ZXJzaW9uIjoxLCJvZmZzZXQiOjUwfQ" };
+
+  // An empty query lists the newest files. A field the contract does not name never reaches the host.
+  it("carries the query, the cursor and an optional limit to the host", () => {
+    const search = codec(CONVERSATION_FILE_SEARCH_ROUTES.search);
+    expect(search.request({ query: "", cursor: null, agentId: "chief" })).toEqual({ query: "", cursor: null });
+    expect(search.request({ query: "report", cursor: "next", limit: 20 })).toEqual({
+      query: "report",
+      cursor: "next",
+      limit: 20,
+    });
+  });
+
+  it("round-trips a page and drops what it does not name", () => {
+    const search = codec(CONVERSATION_FILE_SEARCH_ROUTES.search);
+    const sent = {
+      ...page,
+      total: 1,
+      results: [{ ...result, threadId: "thread-1", attachment: { ...attachment, path: "/x" } }],
+    };
+    expect(search.response(200, sent)).toEqual(page);
+    expect(decodeConversationFileSearchResponse(search.response(200, page))).toEqual(page);
+    expect(search.response(200, { results: [], nextCursor: null })).toEqual({ results: [], nextCursor: null });
+  });
+
+  it("rejects malformed payloads", () => {
+    const search = codec(CONVERSATION_FILE_SEARCH_ROUTES.search);
+    expect(() => search.request({ query: "x".repeat(256), cursor: null })).toThrow();
+    expect(() => search.request({ query: "report" })).toThrow();
+    expect(() => search.request({ query: "report", cursor: "x".repeat(2_049) })).toThrow();
+    expect(() => search.request({ query: "report", cursor: null, limit: -1 })).toThrow();
+    expect(() => search.response(200, { ...page, results: Array.from({ length: 101 }, () => result) })).toThrow();
+    expect(() => search.response(200, { results: [{ ...result, agentId: "" }], nextCursor: null })).toThrow();
+    expect(() =>
+      search.response(200, {
+        results: [{ ...result, attachment: { ...attachment, kind: "folder" } }],
+        nextCursor: null,
+      }),
+    ).toThrow();
+    expect(() =>
+      search.response(200, {
+        results: [{ ...result, attachment: { ...attachment, previewUrl: "x".repeat(2_049) } }],
+        nextCursor: null,
+      }),
+    ).toThrow();
+    expect(() =>
+      decodeConversationFileSearchResponse({ results: [{ ...result, attachment: null }], nextCursor: null }),
+    ).toThrow();
+  });
+
+  // A protocol 6 peer reads at most 64 capabilities.
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
+    expect(legacyTeamCapabilities(TEAM_CURRENT_CAPABILITIES)).not.toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
   });
 });

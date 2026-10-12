@@ -62,6 +62,11 @@ export const messages = defineMessages("error.team", {
   "error.team.agentUpdateUnsupported": "Updating agents is not supported by this connection.",
   "error.team.contextResetUnsupported": "Starting a new chat is not supported by this connection.",
   "error.team.workspaceDirectoryUnsupported": "Showing folders is not supported by this connection.",
+  "error.team.conversationFileSearchUnsupported": "Searching files is not supported by this connection.",
+  "error.team.routineFlowsUnsupported":
+    "This server does not support routine flows. Update OpenBot on the computer that runs it.",
+  "error.team.routineCanvasTooLarge":
+    "This routine canvas is too large to send to this device. Shorten the routine instructions on the computer that runs the server.",
   "error.team.agentImportUnsupported": "Importing agents is not supported by this connection.",
   "error.team.liveActivityUnsupported": "This host cannot update the Live Activity of a phone.",
   "error.team.agentUpdateTargetRequired": "An agent to update is required.",
@@ -98,4 +103,12 @@ export const messages = defineMessages("error.team", {
   "error.team.agentSettingsUnsupported": "Agent settings are not supported by this connection.",
   "error.team.adminRequired": "Administrator access is required.",
   "error.team.requestTooLarge": "Request body is too large.",
+  "error.team.signInRelayUnsupported": "This server cannot relay sign-ins. Update OpenBot on the host.",
+  "error.team.connectorsUnsupported":
+    "This server cannot manage its connections from here. Update OpenBot on the host.",
+  "error.team.connectorPageRefused": "The server sent a page that OpenBot does not open.",
+  "error.team.signInRelayUnknown": "This sign-in ended or does not exist.",
+  "error.team.signInRelayUsed": "This sign-in was already sent.",
+  "error.team.signInRelayMismatch": "This address is not from this sign-in.",
+  "error.team.signInRelayLinkUnknown": "No agent on this server showed this sign-in link.",
 });

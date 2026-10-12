@@ -137,8 +137,6 @@ export const messages = {
   "mobile.chat.composer.addAttachment": "Ajouter une pièce jointe",
   "mobile.chat.composer.ask": "Demander à {name}",
   "mobile.chat.composer.stopFailed": "Impossible d’arrêter l’agent. Il a peut-être déjà terminé.",
-  "mobile.chat.composer.sendFailed":
-    "Impossible d’envoyer le message. Vérifiez la conversation avant de l’envoyer de nouveau.",
   "mobile.chat.camera.captureFailed": "Impossible de prendre la photo. Réessayez.",
   "mobile.chat.camera.startFailed": "Impossible de démarrer l’appareil photo. Fermez-le et réessayez.",
   "mobile.chat.camera.close": "Fermer l’appareil photo",
@@ -216,6 +214,16 @@ export const messages = {
   "mobile.chat.upload.cancelled": "Envoi de la pièce jointe annulé.",
   "mobile.chat.upload.uploaded": "Envoyé",
   "mobile.chat.upload.uploadingLabel": "Envoi en cours",
+  "mobile.chat.outbox.sendsWhenOnline": "Sera envoyé quand le serveur sera en ligne",
+  "mobile.chat.outbox.waiting": "En attente d’envoi",
+  "mobile.chat.outbox.failed": "Non envoyé",
+  "mobile.chat.outbox.failedHold": "Non envoyé. Maintenez le message appuyé pour réessayer.",
+  "mobile.chat.outbox.cancelSend": "Ne pas envoyer",
+  "mobile.chat.outbox.menuHint": "Affiche les options de ce message.",
+  "mobile.chat.outbox.unconfirmed": "Non confirmé. Vérifiez la conversation avant de l’envoyer de nouveau.",
+  "mobile.chat.outbox.editFailed": "Impossible d’ouvrir le message pour le modifier.",
+  "mobile.chat.outbox.saveFailed":
+    "Impossible d’enregistrer les messages en attente sur ce téléphone. Gardez l’app ouverte jusqu’à leur envoi.",
   "mobile.chat.failure.title": "Sans réponse",
   "mobile.chat.failure.fallback":
     "L’agent s’est arrêté avant de répondre. Envoyez de nouveau le message pour réessayer.",
@@ -261,8 +269,6 @@ export const messages = {
   "mobile.chat.history.loading": "Chargement de l’historique de la discussion",
   "mobile.chat.history.waiting": "En attente de connexion",
   "mobile.chat.history.loadFailed": "Impossible de charger l’historique de la discussion",
-  "mobile.chat.history.loadsOnReconnect":
-    "L’historique de la discussion se chargera quand le serveur sera de nouveau connecté.",
   "mobile.chat.history.refreshFailed": "Impossible d’actualiser l’historique de la discussion.",
   "mobile.chat.history.sentRefresh": "Message envoyé. Actualisez l’historique pour l’afficher.",
   "mobile.chat.history.refreshing": "Actualisation…",

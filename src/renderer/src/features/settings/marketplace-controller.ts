@@ -7,6 +7,7 @@ import type {
   MarketplaceSkillDetail,
   MarketplaceSkillSummary,
   McpServerConfig,
+  McpSignInRelayPage,
 } from "@openbot/contracts/ipc";
 import { mcpConfigErrors } from "@openbot/contracts/ipc";
 import { createPluginShareUrl } from "@openbot/contracts/plugin-links";
@@ -36,7 +37,7 @@ import { desktopAnalytics } from "../../analytics";
 import { writeClipboardText } from "../../clipboard";
 import { type GitHubConnectorController, githubPanelProps } from "../connectors/github-connector";
 import { type OnePasswordConnectorController, onePasswordPanelProps } from "../connectors/onepassword-connector";
-import { desktopMarketplaceCalls, type MarketplaceCalls } from "./marketplace-calls";
+import { desktopMarketplaceCalls, type MarketplaceCalls, type MarketplaceSignInRelay } from "./marketplace-calls";
 import { createPluginAppConfig } from "./marketplace-plugin-catalog";
 import { localizedPlugin } from "./marketplace-plugin-text";
 import { agentHomeCache, marketplaceErrorMessage, skillHomeCache } from "./marketplace-shared";
@@ -61,6 +62,8 @@ export interface MarketplaceControllerProps {
   pluginServerId?: string | undefined;
   /** The joined server that keeps an app's credential. Absent when this computer keeps it. */
   pluginHostName?: string | undefined;
+  /** The joined server in `pluginServerId` relays its sign-ins to this computer (`sign-in-relay-v1`). */
+  pluginSignInRelay?: boolean | undefined;
   /** The joined server whose agents `agents` lists, when this account manages it. Absent: this computer. */
   hostServerId?: string | undefined;
   /** The joined server that a marketplace agent is added to. Absent: this computer. */
@@ -82,6 +85,15 @@ export interface PendingConnect {
   subject: McpConnectSubject;
   flow: McpConnectFlow;
   settle: (config: McpServerConfig | null) => void;
+}
+
+/** How often the page of a relayed sign-in is read while it waits. */
+const SIGN_IN_RELAY_POLL_MS = 1_000;
+
+/** The relayed sign-in of one app while it waits. */
+export interface MarketplaceSignInRelayState {
+  url: string;
+  page: McpSignInRelayPage;
 }
 
 /** An agent that the Marketplace added or updated while it was open. "Open chat" opens it. */
@@ -497,11 +509,70 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     return calls().mcp.testMcpServer({ config }, serverId);
   }
 
-  /** A browser sign-in for a "link" listing: opens the browser when the server asks for one. */
+  /** The relay of a joined server, when both sides can relay a sign-in. */
+  const signInRelay = () => (props.pluginSignInRelay ? calls().signInRelay : undefined);
+  const [relayed, setRelayed] = createSignal<MarketplaceSignInRelayState | null>(null);
+
+  /**
+   * A browser sign-in for a "link" listing: opens the browser when the server asks for one. A joined
+   * server that relays opens the page in this computer's browser; the paste field shows while it waits.
+   */
   async function signInPluginApp(config: McpServerConfig) {
     const serverId = props.pluginServerId;
     if (!serverId) throw new Error(t("marketplace.error.connectNoServer"));
-    return calls().mcp.signInMcpServer({ config }, serverId);
+    const relay = signInRelay();
+    let waiting = true;
+    const signIn = calls().mcp.signInMcpServer({ config }, serverId);
+    if (relay) void followSignInRelay(relay, config.url, serverId, () => waiting);
+    return signIn.finally(() => {
+      waiting = false;
+    });
+  }
+
+  async function followSignInRelay(
+    relay: MarketplaceSignInRelay,
+    url: string,
+    serverId: string,
+    waiting: () => boolean,
+  ): Promise<void> {
+    try {
+      while (waiting()) {
+        const page = await relay.page(url, serverId).catch(() => null);
+        if (!waiting()) return;
+        const current = relayed();
+        if (current?.page.authorizeHost !== page?.authorizeHost || current?.page.listening !== page?.listening)
+          setRelayed(page ? { url, page } : null);
+        await new Promise((resolve) => setTimeout(resolve, SIGN_IN_RELAY_POLL_MS));
+      }
+    } finally {
+      setRelayed(null);
+    }
+  }
+
+  /** Opens the relayed sign-in page in this computer's browser, after the user checked its host name. */
+  async function openSignInRelay(): Promise<void> {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (!relay || !current || !serverId) throw new Error(t("error.mcp.relayEnded"));
+    await relay.open(current.url, serverId);
+  }
+
+  /** The address the browser shows at the end of a relayed sign-in. Main sends only its query to the host. */
+  async function pasteSignInRelay(address: string): Promise<void> {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (!relay || !current || !serverId) throw new Error(t("error.mcp.relayEnded"));
+    await relay.paste(current.url, address, serverId);
+  }
+
+  /** Ends the relayed sign-in on the host; the waiting connect step then reports it as stopped. */
+  function cancelSignInRelay(): void {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (relay && current && serverId) void relay.cancel(current.url, serverId).catch(() => undefined);
   }
 
   /** Takes back only what this attempt installed. A skill the agent already had is the user's. */
@@ -531,8 +602,12 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     }
     /* A browser sign-in saves its grant on the computer that finishes it, and a local server
        answers only on the computer that runs it, so an app that asks for either is installed on
-       the host itself. */
-    const hostOnly = plugin.apps.find((app) => ["link", "local"].includes(app.server.auth?.[0]?.kind ?? ""));
+       the host itself. A host that relays its sign-ins finishes a browser sign-in in this
+       computer's browser and keeps the grant itself. */
+    const hostOnly = plugin.apps.find((app) => {
+      const kind = app.server.auth?.[0]?.kind ?? "";
+      return kind === "local" || (kind === "link" && !signInRelay());
+    });
     if (props.hostServerId && hostOnly) {
       const key =
         hostOnly.server.auth?.[0]?.kind === "local"
@@ -789,6 +864,10 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     cancelUninstall: () => setUninstalling(null),
     testPluginApp,
     signInPluginApp,
+    signInRelayed: relayed,
+    openSignInRelay,
+    pasteSignInRelay,
+    cancelSignInRelay,
     openPluginUrl,
   };
 }

@@ -5,6 +5,7 @@ import type {
   AgentModelOption,
   AgentProviderId,
   AgentStatus,
+  AgentWait,
   AttachmentSummary,
   AvatarImageInput,
   BrowserControlState,
@@ -137,6 +138,8 @@ export interface ConversationProps {
   profileRequest?: { agentId: string; nonce: number } | null;
   messageFocusRequest: { agentId: string; messageId: string; nonce: number } | null;
   queue: QueueSnapshot | undefined;
+  /** The agent's open waits. Absent where the host does not keep them. */
+  waits?: readonly AgentWait[];
   browserTabs: BrowserTab[];
   activeBrowserTabId: string | null;
   browserVisibilitySuspended: boolean;
@@ -210,6 +213,7 @@ export interface ConversationProps {
   onClearAgentContext?: () => Promise<void>;
   onRespondToBrowserTakeover: (decision: "complete" | "cancel") => Promise<boolean>;
   onCancelQueuedMessage: (deliveryId: string) => void;
+  onCancelWait?: (waitId: string) => void;
   onSteerQueuedMessage: (deliveryId: string) => void;
   onUpdateQueuedMessage: (
     deliveryId: string,

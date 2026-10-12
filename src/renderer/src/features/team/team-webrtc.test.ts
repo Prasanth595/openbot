@@ -1,5 +1,5 @@
 import { isString } from "@openbot/contracts/runtime-values";
-import type { SignalServerMessage } from "@openbot/contracts/signal-protocol/messages";
+import { SIGNAL_TURN_REFRESH_INTERVAL_MS, type SignalServerMessage } from "@openbot/contracts/signal-protocol/messages";
 import { TEAM_PROTOCOL_V2_CHANNELS } from "@openbot/contracts/team-protocol/v2";
 import { afterEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { BridgeCommand } from "./team-webrtc";
@@ -56,6 +56,15 @@ class DataChannel {
   constructor(readonly label: string) {}
 }
 
+/** The fields of a WebRTC stats report that the bridge reads to find the selected path. */
+interface TestStats {
+  type: string;
+  selectedCandidatePairId?: string;
+  localCandidateId?: string;
+  remoteCandidateId?: string;
+  candidateType?: string;
+}
+
 class PeerConnection {
   static readonly instances: PeerConnection[] = [];
   localDescription: { type: string; sdp: string } | null = null;
@@ -68,8 +77,18 @@ class PeerConnection {
   readonly close = vi.fn();
   readonly setConfiguration = vi.fn();
   readonly restartIce = vi.fn();
+  /** The type of the local candidate in the selected pair. */
+  candidateType = "host";
   constructor() {
     PeerConnection.instances.push(this);
+  }
+  async getStats() {
+    return new Map<string, TestStats>([
+      ["transport", { type: "transport", selectedCandidatePairId: "pair" }],
+      ["pair", { type: "candidate-pair", localCandidateId: "local", remoteCandidateId: "remote" }],
+      ["local", { type: "local-candidate", candidateType: this.candidateType }],
+      ["remote", { type: "remote-candidate", candidateType: "host" }],
+    ]);
   }
   async setLocalDescription(value: { type: string; sdp: string }): Promise<void> {
     this.localDescription = value;
@@ -335,6 +354,62 @@ it("renews Signal for a lost client path, and reports the peer when the path doe
   expect(rtc.close).toHaveBeenCalled();
 });
 
+// Signal sends the `connectionId` of a refresh back in its `ready`. Sent with the connection's ID,
+// the answer read as a kept path whose deadline had passed, so the client asked again at once, until
+// Signal closed the socket for its message limit.
+it.each([
+  { candidateType: "host", restarts: 0 },
+  { candidateType: "relay", restarts: 1 },
+])("renews TURN credentials once per interval on a $candidateType client path", async ({ candidateType, restarts }) => {
+  vi.useFakeTimers();
+  const { command } = await startBridge();
+  await command({
+    type: "connect",
+    peerId: "host-1",
+    peer: "client",
+    signalUrl: "wss://signal.example.test",
+    token: "test",
+    iceTransportPolicy: "all",
+  });
+  const signal = SignalSocket.instances[0];
+  if (!signal) throw new Error("No Signal socket.");
+  signal.dispatchEvent(new Event("open"));
+  signal.message({ type: "ready", version: 1, connectionId: "connection-1", resumeToken: "resume", iceServers: [] });
+  await vi.waitFor(() => expect(PeerConnection.instances).toHaveLength(1));
+  const rtc = PeerConnection.instances[0];
+  if (!rtc) throw new Error("No RTC connection.");
+  rtc.candidateType = candidateType;
+  rtc.connectionState = "connected";
+  rtc.onconnectionstatechange?.();
+  const refreshes = () =>
+    signal.send.mock.calls.map(([data]) => JSON.parse(data)).filter((message) => message.type === "turn-refresh");
+  // Signal answers a refresh with the `connectionId` that the refresh named. Bounded, so a client
+  // that asks in a loop fails the test instead of running forever.
+  signal.send.mockImplementation((data) => {
+    const message = JSON.parse(data);
+    if (message.type === "turn-refresh" && refreshes().length <= 3)
+      queueMicrotask(() =>
+        signal.message({
+          type: "ready",
+          version: 1,
+          connectionId: message.connectionId,
+          resumeToken: "resume-2",
+          iceServers: [{ urls: "turn:localhost" }],
+        }),
+      );
+  });
+  rtc.setConfiguration.mockClear();
+
+  await vi.advanceTimersByTimeAsync(SIGNAL_TURN_REFRESH_INTERVAL_MS);
+  await vi.waitFor(() => expect(rtc.setConfiguration).toHaveBeenCalled());
+  await vi.advanceTimersByTimeAsync(SIGNAL_TURN_REFRESH_INTERVAL_MS - 1_000);
+  expect(refreshes()).toEqual([{ type: "turn-refresh", version: 1, connectionId: null }]);
+  expect(rtc.restartIce).toHaveBeenCalledTimes(restarts);
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(refreshes()).toHaveLength(2);
+  await command({ type: "close", peerId: "all" });
+});
+
 // The host can close the connection while the client computer sleeps. The path still read
 // `connected`, so main read the host as connected and each stop request failed on a closed channel.
 it("reports the client peer when the host closes a data channel on a connected path", async () => {
@@ -557,6 +632,34 @@ it.each(["error", "close"])("waits a full Signal rate window after %s", async (k
   await vi.advanceTimersByTimeAsync(59_000);
   expect(SignalSocket.instances).toHaveLength(1);
   await vi.advanceTimersByTimeAsync(1_000);
+  expect(SignalSocket.instances).toHaveLength(2);
+  await command({ type: "close", peerId: "all" });
+});
+
+it("does not wait the rate window after Signal refuses a ticket with 1008", async () => {
+  vi.useFakeTimers();
+  const { command } = await startBridge();
+  const connect = {
+    type: "connect",
+    peerId: "host",
+    peer: "host",
+    signalUrl: "wss://signal.test",
+    token: "test",
+    iceTransportPolicy: "all",
+  } as const;
+  await command(connect);
+  const socket = SignalSocket.instances[0];
+  if (!socket) throw new Error("No Signal socket");
+  // Signal closes with 1008 after refusals that are not a rate limit too (#1867).
+  socket.message({
+    type: "error",
+    version: 1,
+    code: "authentication_required",
+    message: "Remote ticket is invalid or expired.",
+  });
+  socket.dispatchEvent(Object.assign(new Event("close"), { code: 1008 }));
+  await command({ type: "disconnect", peerId: "host" });
+  await command(connect);
   expect(SignalSocket.instances).toHaveLength(2);
   await command({ type: "close", peerId: "all" });
 });

@@ -128,7 +128,7 @@ const valid: [string, (value: unknown) => unknown, unknown][] = [
   ["update status", decodeUpdateStatus, updateStatus],
   ["host-managed update status", decodeUpdateStatus, { ...updateStatus, managedByHost: true } satisfies UpdateStatus],
   ["update preference", decodeUpdatePreference, { autoDownload: true, allowRemoteUpdates: true, autoInstall: false }],
-  ["notification preference", decodeNotificationPreference, { desktopNotifications: true }],
+  ["notification preference", decodeNotificationPreference, { desktopNotifications: true, messagePreview: false }],
   [
     "opened notification",
     decodeNotificationOpenedEvent,

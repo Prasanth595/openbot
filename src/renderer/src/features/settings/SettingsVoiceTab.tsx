@@ -1,5 +1,6 @@
 import {
   AUTOMATIC_VOICE_LANGUAGE,
+  ELEVENLABS_VOICE_MODEL_ID,
   VOICE_MODELS,
   type VoiceLanguage,
   type VoiceModelInfo,
@@ -12,6 +13,7 @@ import {
   Badge,
   Button,
   Download,
+  Input,
   Item,
   ItemActions,
   ItemContent,
@@ -28,12 +30,13 @@ import {
   SettingsSection,
 } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, createStore, For, Show } from "solid-js";
 import type { SettingsVoiceStore } from "./settings-voice-store";
 
 const MODEL_DESCRIPTION = {
   "parakeet-tdt-0.6b-v3": "settings.voice.model.parakeet.description",
   "whisper-turbo": "settings.voice.model.whisper.description",
+  [ELEVENLABS_VOICE_MODEL_ID]: "settings.voice.model.elevenlabs.description",
 } as const satisfies Record<VoiceModelInfo["id"], AppTextKey>;
 
 /** `jw` is Whisper's code for Javanese, whose catalog name is under `jv`. */
@@ -147,7 +150,24 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
     return [AUTOMATIC_VOICE_LANGUAGE, ...sorted];
   });
 
+  // The key is never read back: main has no getter for it, and the field clears once it is saved.
+  const [apiKey, setApiKey] = createStore({ draft: "", saving: false });
+  const saveApiKey = async () => {
+    const key = apiKey.draft.trim();
+    if (!key || apiKey.saving) return;
+    setApiKey((draft) => {
+      draft.saving = true;
+    });
+    const saved = await props.store.saveApiKey(key);
+    setApiKey((draft) => {
+      draft.saving = false;
+      if (saved) draft.draft = "";
+    });
+  };
+
   const statusText = (model: VoiceModelInfo, status: VoiceModelStatus | null) => {
+    if (model.kind === "cloud")
+      return status?.phase === "ready" ? t("settings.voice.model.keySaved") : t("settings.voice.model.keyMissing");
     if (status?.phase === "downloading")
       return t("settings.voice.model.downloading", {
         received: format.fileSize(Math.round((model.bytes * (status.progress ?? 0)) / 100)),
@@ -188,13 +208,49 @@ export function SettingsVoiceTab(props: SettingsVoiceTabProps) {
                         aria-label={t("settings.voice.model.progressLabel", { name: model.name })}
                       />
                     </Show>
+                    <Show when={model.kind === "cloud" && phase() === "missing"}>
+                      <div class="settings-voice-key">
+                        <Input
+                          type="password"
+                          size="sm"
+                          autocomplete="off"
+                          spellcheck={false}
+                          aria-label={t("settings.voice.apiKey.label")}
+                          placeholder={t("settings.voice.apiKey.placeholder")}
+                          value={apiKey.draft}
+                          disabled={apiKey.saving}
+                          onValueChange={(value) =>
+                            setApiKey((draft) => {
+                              draft.draft = value;
+                            })
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") void saveApiKey();
+                          }}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          type="button"
+                          disabled={!apiKey.draft.trim() || apiKey.saving}
+                          onClick={() => void saveApiKey()}
+                        >
+                          {t("settings.voice.apiKey.save")}
+                        </Button>
+                      </div>
+                    </Show>
                   </ItemContent>
                   <ItemActions>
                     {/* The selected model is in use before its download too: dictation downloads it. */}
                     <Show when={inUse()}>
                       <Badge variant="secondary">{t("settings.voice.model.inUse")}</Badge>
                     </Show>
-                    <Show when={phase() === "missing"}>
+                    <Show when={model.kind === "cloud" && phase() === "ready"}>
+                      <Button variant="ghost" size="sm" type="button" onClick={() => void props.store.removeApiKey()}>
+                        {t("settings.voice.apiKey.remove")}
+                      </Button>
+                    </Show>
+                    <Show when={model.kind === "local" && phase() === "missing"}>
                       <Button
                         variant="outline"
                         size="sm"

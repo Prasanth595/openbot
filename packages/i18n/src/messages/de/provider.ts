@@ -88,6 +88,7 @@ export const messages = {
   "provider.codeLogin.linkTitle": "Auf einem anderen Gerät bei {name} anmelden",
   "provider.codeLogin.pageTitle": "Bei {name} anmelden",
   "provider.codeLogin.pageDescription": "Diese Seite ist im Browser auf {host} geöffnet. Melde dich hier an.",
+  "provider.codeLogin.relayStarting": "Die Anmeldung bei {name} wird auf {host} gestartet…",
   "provider.codeLogin.pageOpening": "Die Anmeldeseite von {name} wird auf {host} geöffnet…",
   "provider.codeLogin.linkStep": "Melde dich bei {name} an. OpenBot fährt automatisch fort.",
   "provider.picker.noEndpoints": "Noch keine Endpunkte",

@@ -108,6 +108,14 @@ export class ChannelService {
   #stopped = false;
   readonly #wakeAgain = new Set<string>();
   /**
+   * The place of each queued task that resources held back, oldest first. Kept in memory: after a
+   * restart the tasks take new places in the order the next pass meets them.
+   */
+  readonly #queuePlaces = new Map<string, number>();
+  #nextQueuePlace = 0;
+  /** The channels that each older waiting task held back, so they wake when it can no longer start. */
+  readonly #heldBehind = new Map<string, Set<string>>();
+  /**
    * Channels whose pump left a queued task because its owner or normal work was busy. Only a turn
    * that completes wakes every channel, so a delivery that ends without one - a start that fails, a
    * cancel, a requeue - would leave such a task queued until the next command or a restart. Every
@@ -523,6 +531,103 @@ export class ChannelService {
     };
   }
 
+  /** Every task by id and every active assignment, across all channels. */
+  #scheduling(): { tasks: ReadonlyMap<string, ChannelTask>; assignments: ChannelAssignment[] } {
+    const ids = this.store.ids();
+    return {
+      tasks: new Map(ids.flatMap((id) => this.store.tasks(id)).map((task) => [task.id, task])),
+      assignments: ids.flatMap((id) => this.store.assignments(id)).filter(activeAssignment),
+    };
+  }
+
+  /**
+   * Whether the task waits for other work before its resources matter: a stopped run, a running
+   * turn of its owner or of the task, a full channel, or a dependency that is not complete.
+   */
+  #waitsForWork(
+    task: ChannelTask,
+    tasks: ReadonlyMap<string, ChannelTask>,
+    assignments: readonly ChannelAssignment[],
+  ): boolean {
+    const root = tasks.get(task.rootTaskId);
+    if (root && (root.state === "paused" || root.state === "failed" || root.state === "cancelled")) return true;
+    // A task keeps one owner at a time. A transfer replaces the owner and the resources of the
+    // task record while the previous owner still runs its turn, so the identity of the owner
+    // alone does not show that the task is free: the assignment of the previous owner does.
+    return (
+      assignments.some((assignment) => assignment.agentId === task.ownerAgentId || assignment.taskId === task.id) ||
+      assignments.filter((assignment) => assignment.channelId === task.channelId).length >= CHANNEL_PARALLEL_LIMIT ||
+      task.dependencies.some((id) => tasks.get(id)?.state !== "completed")
+    );
+  }
+
+  /** Gives a task that resources hold back its place in the queue, once. */
+  #holdPlace(taskId: string): void {
+    if (!this.#queuePlaces.has(taskId)) this.#queuePlaces.set(taskId, this.#nextQueuePlace++);
+  }
+
+  /**
+   * Whether the pump of its channel would start this waiting task once its resources are free. A
+   * task that its own pump skips must not hold back another task, or both wait for ever.
+   */
+  #waiterReady(
+    waiter: ChannelTask,
+    tasks: ReadonlyMap<string, ChannelTask>,
+    assignments: readonly ChannelAssignment[],
+  ): boolean {
+    const ownerAgentId = waiter.ownerAgentId;
+    if (waiter.state !== "queued" || !ownerAgentId || this.#deletedChannels.has(waiter.channelId)) return false;
+    if (this.#waitsForWork(waiter, tasks, assignments)) return false;
+    if (this.hooks.busy(ownerAgentId) || this.hooks.usageLimited?.(ownerAgentId)) return false;
+    const channel = this.store.get(waiter.channelId);
+    return (
+      !channel.archived &&
+      channel.members.some((member) => member.agentId === ownerAgentId) &&
+      this.hooks.agents().some((agent) => agent.id === ownerAgentId)
+    );
+  }
+
+  /**
+   * The oldest waiting task that is ready and whose resources conflict with these. A place is
+   * dropped once its task is no longer queued.
+   */
+  #olderWaiter(
+    task: ChannelTask,
+    tasks: ReadonlyMap<string, ChannelTask>,
+    assignments: readonly ChannelAssignment[],
+  ): ChannelTask | undefined {
+    const place = this.#queuePlaces.get(task.id);
+    for (const [id, otherPlace] of this.#queuePlaces) {
+      const waiter = tasks.get(id);
+      if (waiter?.state !== "queued") {
+        this.#queuePlaces.delete(id);
+        continue;
+      }
+      if (id === task.id || (place !== undefined && otherPlace > place)) continue;
+      if (resourcesConflict(task.resources, waiter.resources) && this.#waiterReady(waiter, tasks, assignments))
+        return waiter;
+    }
+    return undefined;
+  }
+
+  /**
+   * A waiting task that held channels back can stop being ready with no assignment that ends: it
+   * starts, it is stopped, or its owner leaves. Nothing else would pump those channels again, so
+   * every pump that ends wakes them.
+   */
+  #wakeHeldBehind(): Effect.Effect<void, ChannelOperationError> {
+    return Effect.gen({ self: this }, function* () {
+      if (!this.#heldBehind.size) return;
+      const { tasks, assignments } = yield* channelSync(() => this.#scheduling());
+      for (const [waiterId, channelIds] of [...this.#heldBehind]) {
+        const waiter = tasks.get(waiterId);
+        if (waiter && (yield* channelSync(() => this.#waiterReady(waiter, tasks, assignments)))) continue;
+        this.#heldBehind.delete(waiterId);
+        for (const channelId of channelIds) yield* this.wake(channelId);
+      }
+    });
+  }
+
   /**
    * One active assignment reserves the host, so `mayDrain` holds the normal requests of every
    * agent whose next delivery is not channel work. Ending that assignment lifts the reservation,
@@ -554,6 +659,9 @@ export class ChannelService {
             Effect.ensuring(
               Effect.gen({ self: this }, function* () {
                 this.#pumps.delete(id);
+                yield* this.#wakeHeldBehind().pipe(
+                  Effect.catch((failure) => Effect.sync(() => this.hooks.error(failure.cause))),
+                );
                 if (this.#wakeAgain.delete(id))
                   yield* this.wake(id).pipe(
                     Effect.catch((failure) => Effect.sync(() => this.hooks.error(failure.cause))),
@@ -876,26 +984,26 @@ export class ChannelService {
         this.publish(channelId);
         continue;
       }
-      const allAssignments = (yield* channelSync(() => this.store.ids()))
-        .flatMap((id) => this.store.assignments(id))
-        .filter(activeAssignment);
-      // A task keeps one owner at a time. A transfer replaces the owner and the resources of the
-      // task record while the previous owner still runs its turn, so the identity of the owner
-      // alone does not show that the task is free: the assignment of the previous owner does.
-      if (
-        allAssignments.some(
-          (assignment) => assignment.agentId === task.ownerAgentId || assignment.taskId === task.id,
-        ) ||
-        allAssignments.filter((assignment) => assignment.channelId === channelId).length >= CHANNEL_PARALLEL_LIMIT
-      )
-        continue;
-      const allTasks = (yield* channelSync(() => this.store.ids())).flatMap((id) => this.store.tasks(id));
-      if (task.dependencies.some((id) => !allTasks.some((item) => item.id === id && item.state === "completed")))
-        continue;
+      const { tasks: allTasks, assignments: allAssignments } = yield* channelSync(() => this.#scheduling());
+      if (this.#waitsForWork(task, allTasks, allAssignments)) continue;
       // Read the reservation from the assignment, not from its task: a transfer can lower the
       // resources of a task that still runs, and the record of the task would then report a
       // reservation that the running turn has not released.
-      if (allAssignments.some((assignment) => resourcesConflict(task.resources, assignment.resources))) continue;
+      if (allAssignments.some((assignment) => resourcesConflict(task.resources, assignment.resources))) {
+        this.#holdPlace(task.id);
+        continue;
+      }
+      // Channels are pumped one after the other, so without an order the first channel to see a free
+      // host takes it, and a task that has waited longer in another channel never gets it. An older
+      // waiting task whose resources conflict holds this one back until that task starts.
+      const olderWaiter = yield* channelSync(() => this.#olderWaiter(task, allTasks, allAssignments));
+      if (olderWaiter) {
+        this.#holdPlace(task.id);
+        const held = this.#heldBehind.get(olderWaiter.id) ?? new Set<string>();
+        this.#heldBehind.set(olderWaiter.id, held.add(channelId));
+        continue;
+      }
+      this.#queuePlaces.delete(task.id);
       const assignment: ChannelAssignment = {
         id: randomUUID(),
         channelId,

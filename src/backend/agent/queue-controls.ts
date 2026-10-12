@@ -250,6 +250,7 @@ export class QueueControls {
             snapshot,
             routineRun:
               context.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(input.deliveryId) : null,
+            wokenWaits: context.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(input.deliveryId) : [],
           }),
         },
         decodeRecordResponse,

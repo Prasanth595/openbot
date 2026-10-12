@@ -121,4 +121,43 @@ export const messages = {
     one: "Abriendo la página de inicio de sesión en {host}. OpenBot deja de esperar después de {count} minuto.",
     other: "Abriendo la página de inicio de sesión en {host}. OpenBot deja de esperar después de {count} minutos.",
   },
+  "mcp.panel.appTitle": "App de inicio de sesión",
+  "mcp.panel.appDescription":
+    "Usa una app OAuth que registraste con el proveedor del servidor. OpenBot la usa cuando el servidor no puede registrar OpenBot por sí mismo. Déjala vacía para que OpenBot se registre.",
+  "mcp.panel.appSaveFirst": "Primero guarda este servidor. Después puedes añadir una app de inicio de sesión.",
+  "mcp.panel.appUrlChanged":
+    "Primero guarda la nueva URL del servidor. La app de inicio de sesión pertenece a la URL guardada.",
+  "mcp.panel.appLoadFailed": "No se pudo leer la app de inicio de sesión.",
+  "mcp.panel.callbackUrl": "URL de retorno",
+  "mcp.panel.callbackUrlDescription": "Añade exactamente esta URL a las URL de redirección permitidas de la app.",
+  "mcp.panel.callbackUrlOnHost":
+    "{host} inicia sesión con su propio navegador, así que esta URL está en {host}. Añade exactamente esta URL a las URL de redirección permitidas de la app.",
+  "mcp.panel.callbackUrlUnavailable": "No hay ninguna URL de retorno disponible.",
+  "mcp.panel.copyCallbackUrl": "Copiar URL de retorno",
+  "mcp.panel.clientId": "ID de cliente",
+  "mcp.panel.clientSecret": "Secreto de cliente",
+  "mcp.panel.clientSecretDescription": "Opcional. Solo para una app que tiene un secreto.",
+  "mcp.panel.clientSecretSaved": "Secreto guardado. Introduce un secreto nuevo para reemplazarlo.",
+  "mcp.panel.clientSecretRemoved": "El secreto se elimina cuando guardas la app.",
+  "mcp.panel.removeClientSecret": "Eliminar secreto",
+  "mcp.panel.scopes": "Ámbitos",
+  "mcp.panel.scopesDescription": "Opcional. Separa los ámbitos con espacios.",
+  "mcp.panel.saveApp": "Guardar app",
+  "mcp.panel.removeApp": "Eliminar app",
+  "mcp.panel.appSaved": "App guardada. Inicia sesión para usarla.",
+  "mcp.panel.appRemoved": "App eliminada.",
+  "mcp.signIn.relayDescription":
+    "Comprueba que la página de inicio de sesión está en {page} y ábrela en tu navegador. Al terminar, OpenBot envía el inicio de sesión a {host}.",
+  "mcp.signIn.relayOpenDescription":
+    "Abre la página de inicio de sesión de {page} en tu navegador. Al terminar, pega aquí la dirección que muestra el navegador. Después, OpenBot envía el inicio de sesión a {host}.",
+  "mcp.signIn.relayDeviceDescription":
+    "Comprueba que la página de inicio de sesión está en {page}, ábrela en tu navegador y termina allí. {host} detecta el inicio de sesión por sí mismo.",
+  "mcp.signIn.relayOpen": "Abrir página de inicio de sesión",
+  "mcp.signIn.relayPasteHint": "Si el navegador no vuelve a OpenBot, copia la dirección que muestra y pégala aquí.",
+  "mcp.signIn.relayPasteRequired":
+    "OpenBot no puede obtener por sí solo el inicio de sesión del navegador. Al terminar, copia la dirección que muestra el navegador y pégala aquí.",
+  "mcp.signIn.relayAddress": "Dirección del navegador",
+  "mcp.signIn.relaySend": "Enviar",
+  "mcp.panel.callbackUrlRelayed":
+    "La página de inicio de sesión se abre en tu navegador y OpenBot en tu ordenador envía el inicio de sesión a {host}. Añade exactamente esta URL a las URL de redirección permitidas de la app.",
 } as const satisfies PartialTranslation<typeof source>;

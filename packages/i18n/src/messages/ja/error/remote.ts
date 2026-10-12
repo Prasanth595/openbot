@@ -111,7 +111,7 @@ export const messages = {
   "error.remote.operationFailed": "リモート操作に失敗しました。",
   "error.remote.connectionReplaced": "接続が置き換えられました。",
   "error.remote.desktopDidNotConnect": "デスクトップが接続しませんでした。",
-  "error.remote.desktopRestarted": "デスクトップが再起動しました。新しい認証済みセッションで再接続しています。",
+  "error.remote.connectionDropped": "サーバーにこの接続がなくなりました。再接続しています。",
   "error.remote.dataBeforeAuth": "ホストが認証の前にデータを送信しました。",
   "error.remote.eventStreamGap": "ホストのイベントストリームに欠落があります。",
   "error.remote.malformedEvent": "ホストが不正な形式のイベントを返しました。",

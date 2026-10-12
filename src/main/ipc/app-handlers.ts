@@ -11,7 +11,6 @@ import {
   type ExternalDestination,
   GROK_BOT_EXPORT_URL,
 } from "@openbot/contracts/ipc";
-import { sourceText } from "@openbot/i18n/source";
 import { app, type BrowserWindow, shell } from "electron";
 import { version as developmentVersion } from "../../../package.json";
 import type { AgentService } from "../../backend/agent-service";
@@ -66,6 +65,7 @@ export const EXTERNAL_DESTINATIONS: Record<ExternalDestination, string> = {
 };
 
 import { runCauseEffect } from "../../backend/effect-boundary";
+import { openHttpLink } from "../message-link-relay";
 import type { ResourceMonitor } from "../resource-monitor";
 import type { TraceFile } from "../trace-file";
 import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
@@ -176,13 +176,9 @@ export function appIpcHandlers({
       openExternal: payloadHandler(parseExternalDestination, (parsed) => {
         return shell.openExternal(EXTERNAL_DESTINATIONS[parsed]);
       }),
-      openUrl: payloadHandler(stringPayload("URL", INPUT_LIMITS.browserUrl), (url) => {
-        const parsed = new URL(url);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-          throw new Error(sourceText("error.app.externalLinkProtocol"));
-        }
-        return shell.openExternal(parsed.toString());
-      }),
+      openUrl: payloadHandler(stringPayload("URL", INPUT_LIMITS.browserUrl), (url) =>
+        openHttpLink(url, (address) => shell.openExternal(address)),
+      ),
     },
     maintenance: {
       exportData: handler(() =>

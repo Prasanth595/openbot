@@ -36,6 +36,23 @@ import { withTimeout } from "./with-timeout";
 
 /** What one server's sign-in leaves behind, and all of it: nothing else is kept between runs. */
 export const mcpOAuthRecordSchema = z.object({
+  /**
+   * An OAuth app the administrator registered with the authorization server themselves, for a
+   * server that does not offer RFC 7591 registration. When it is set, OpenBot never registers.
+   * The secret is optional: a public client has none.
+   */
+  app: z
+    .object({
+      clientId: z.string().min(1),
+      clientSecret: z.string().min(1).optional(),
+      scope: z.string().min(1).optional(),
+      /**
+       * The authorization server that first accepted the app. Its secret is sent to no other one, so
+       * a resource that later names another server cannot collect it. Unset until the first sign-in.
+       */
+      issuer: z.string().optional(),
+    })
+    .optional(),
   /** This installation's registration with that authorization server, from RFC 7591. */
   client: OAuthClientInformationFullSchema.optional(),
   tokens: OAuthTokensSchema.optional(),
@@ -56,6 +73,24 @@ export const mcpOAuthRecordSchema = z.object({
 });
 
 export type McpOAuthRecord = z.infer<typeof mcpOAuthRecordSchema>;
+type McpOAuthApp = NonNullable<McpOAuthRecord["app"]>;
+
+/** What a reader may see of a sign-in app. The secret itself never leaves the store. */
+export interface McpOAuthAppSummary {
+  clientId: string;
+  secretSaved: boolean;
+  scope: string;
+}
+
+/**
+ * A change to a sign-in app. `clientSecret: null` keeps the secret on file, so a form that never
+ * shows the secret can still save a new scope; an empty string removes it.
+ */
+export interface McpOAuthAppInput {
+  clientId: string;
+  clientSecret: string | null;
+  scope: string;
+}
 
 /**
  * Where the records are kept. Implemented in the main process, where `safeStorage` lives, so this
@@ -146,7 +181,17 @@ export interface McpOAuthAuthority {
   cancelSignIn: (url: string) => boolean;
   /** Whether this computer holds a token for this URL. Never the token itself. */
   signedIn: (url: string) => boolean;
+  /** Drops the tokens and keeps the sign-in app, so the next sign-in uses the same app. */
+  signOut: (url: string) => Effect.Effect<void, McpOperationError>;
+  /** Drops everything kept for this URL, the sign-in app included. Used when the row is removed. */
   forget: (url: string) => Effect.Effect<void, McpOperationError>;
+  /** The address the authorization server sends the grant back to. */
+  readonly redirectUrl: string;
+  signInApp: (url: string) => McpOAuthAppSummary | null;
+  /** Answers whether the change dropped the tokens on file. */
+  saveSignInApp: (url: string, app: McpOAuthAppInput) => Effect.Effect<boolean, McpOperationError>;
+  /** Drops the sign-in app and the tokens it earned. Answers whether there was one. */
+  removeSignInApp: (url: string) => Effect.Effect<boolean, McpOperationError>;
 }
 
 export class McpOAuth implements McpOAuthAuthority {
@@ -387,13 +432,96 @@ export class McpOAuth implements McpOAuthAuthority {
     return resource !== null && Boolean(this.#options.storage.read(resource)?.tokens);
   }
 
-  /** Forgets one server's registration and tokens. Used when the row is removed or signed out. */
+  get redirectUrl(): string {
+    return this.#options.redirectUrl;
+  }
+
+  /** Forgets one server's registration, tokens and sign-in app. Used when the row is removed. */
   readonly forget = Effect.fn("McpOAuth.forget")(function* (this: McpOAuth, url: string) {
     const resource = normalizeResource(url);
     if (!resource) return;
-    this.#generations.set(resource, (this.#generations.get(resource) ?? 0) + 1);
+    this.#invalidate(resource);
     yield* this.#options.storage.clear(resource);
   }).bind(this);
+
+  /**
+   * Forgets one server's registration and tokens, and keeps its sign-in app: the administrator
+   * registered that app by hand, and signing out of an account is not a reason to type it again.
+   */
+  readonly signOut = Effect.fn("McpOAuth.signOut")(function* (this: McpOAuth, url: string) {
+    const resource = normalizeResource(url);
+    if (!resource) return;
+    const app = this.#options.storage.read(resource)?.app;
+    this.#invalidate(resource);
+    if (app) yield* this.#options.storage.write(resource, { app });
+    else yield* this.#options.storage.clear(resource);
+  }).bind(this);
+
+  signInApp(url: string): McpOAuthAppSummary | null {
+    const resource = normalizeResource(url);
+    const app = resource ? this.#options.storage.read(resource)?.app : undefined;
+    return app ? { clientId: app.clientId, secretSaved: app.clientSecret !== undefined, scope: app.scope ?? "" } : null;
+  }
+
+  /**
+   * Saves the app the next sign-in uses. Another client ID is another client to the authorization
+   * server: the tokens and the registration on file belong to the old one, so they go, and a
+   * sign-in still running is cancelled before it can store tokens the old client earned.
+   */
+  readonly saveSignInApp = Effect.fn("McpOAuth.saveSignInApp")(function* (
+    this: McpOAuth,
+    url: string,
+    input: McpOAuthAppInput,
+  ): Effect.fn.Return<boolean, McpOperationError> {
+    const resource = normalizeResource(url);
+    if (!resource) return yield* mcpFailure(new Error(sourceText("error.backend.mcpSignInAppUrl")));
+    const record = this.#options.storage.read(resource) ?? {};
+    const clientId = input.clientId.trim();
+    const scope = input.scope.trim();
+    const clientSecret = input.clientSecret === null ? record.app?.clientSecret : input.clientSecret || undefined;
+    const app: McpOAuthApp = {
+      clientId,
+      ...(clientSecret ? { clientSecret } : {}),
+      ...(scope ? { scope } : {}),
+    };
+    const sameClient =
+      record.app !== undefined && record.app.clientId === app.clientId && record.app.clientSecret === app.clientSecret;
+    // The binding protects the secret, so a secret kept on file keeps it, also under another client
+    // ID. Only a new secret, or no secret, can go to another authorization server.
+    const issuer =
+      sameClient || (app.clientSecret && app.clientSecret === record.app?.clientSecret)
+        ? record.app?.issuer
+        : undefined;
+    const boundApp = { ...app, ...(issuer ? { issuer } : {}) };
+    if (sameClient) {
+      yield* this.#options.storage.write(resource, { ...record, app: boundApp });
+      return false;
+    }
+    this.#invalidate(resource);
+    yield* this.#options.storage.write(resource, {
+      app: boundApp,
+      ...(record.discovery ? { discovery: record.discovery } : {}),
+    });
+    return record.tokens !== undefined;
+  }).bind(this);
+
+  readonly removeSignInApp = Effect.fn("McpOAuth.removeSignInApp")(function* (
+    this: McpOAuth,
+    url: string,
+  ): Effect.fn.Return<boolean, McpOperationError> {
+    const resource = normalizeResource(url);
+    const record = resource ? this.#options.storage.read(resource) : null;
+    if (!resource || !record?.app) return false;
+    this.#invalidate(resource);
+    yield* this.#options.storage.write(resource, record.discovery ? { discovery: record.discovery } : {});
+    return true;
+  }).bind(this);
+
+  /** Refuses the later writes of every refresh and sign-in already running, and ends the sign-in. */
+  #invalidate(resource: string): void {
+    this.#generations.set(resource, (this.#generations.get(resource) ?? 0) + 1);
+    this.#attempts.get(resource)?.();
+  }
 
   /** A `state` makes the provider interactive; `null` keeps it silent. */
   #provider(
@@ -499,17 +627,20 @@ class McpOAuthClientProvider implements OAuthClientProvider {
    * What OpenBot registers itself as. `redirect_uris` holds the one address this run receives on,
    * so an authorization server will not send a grant anywhere else.
    *
-   * No `scope` and no `token_endpoint_auth_method`: the SDK takes the scope the server's own
-   * protected-resource metadata asks for, and picks an authentication method the server said it
-   * supports. Naming either here would be OpenBot guessing in front of an answer it already has.
+   * No `token_endpoint_auth_method`, and no `scope` unless a sign-in app names one: the SDK takes
+   * the scope the server's own protected-resource metadata asks for, and picks an authentication
+   * method the server said it supports. Naming either here would be OpenBot guessing in front of
+   * an answer it already has.
    */
   get clientMetadata(): OAuthClientMetadata {
+    const scope = this.#record().app?.scope;
     return {
       client_name: "OpenBot",
       client_uri: "https://openbot.run",
       redirect_uris: [this.#options.redirectUrl],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
+      ...(scope ? { scope } : {}),
     };
   }
 
@@ -543,6 +674,22 @@ class McpOAuthClientProvider implements OAuthClientProvider {
    */
   clientInformation(): OAuthClientInformationFull | undefined {
     const record = this.#record();
+    // A sign-in app is the client, always: the administrator registered it for this server, and
+    // the server offers no registration to fall back on. The first authorization server that accepts
+    // it binds it, as the SDK binds a registration; until then it carries no issuer. Another server
+    // is refused here, before the SDK can register with it or send it the secret.
+    if (record.app) {
+      const { issuer } = record.app;
+      if (issuer && this.#activeIssuer && !issuersMatch(issuer, this.#activeIssuer))
+        throw new Error(sourceText("error.backend.mcpSignInAppIssuerChanged"));
+      this.recordSecret(record.app.clientSecret);
+      return {
+        client_id: record.app.clientId,
+        ...(record.app.clientSecret ? { client_secret: record.app.clientSecret } : {}),
+        redirect_uris: [this.#options.redirectUrl],
+        ...(issuer ? { issuer } : {}),
+      };
+    }
     const client = this.#credential(record.client);
     this.recordSecret(record.client?.client_secret);
     if (!client) return this.#register();
@@ -576,6 +723,14 @@ class McpOAuthClientProvider implements OAuthClientProvider {
       Effect.gen({ self: this }, function* () {
         this.#registrationPending = false;
         this.recordSecret(information.client_secret);
+        // The SDK binds an unstamped client to its issuer after an exchange. For a sign-in app that
+        // binding is all that is written: the app is not a registration.
+        const { app } = this.#record();
+        if (app) {
+          if (!app.issuer && typeof information.issuer === "string" && information.client_id === app.clientId)
+            yield* this.#save({ app: { ...app, issuer: information.issuer } });
+          return;
+        }
         yield* this.#save({ client: information });
       }),
     );
@@ -632,7 +787,7 @@ class McpOAuthClientProvider implements OAuthClientProvider {
         // the browser. Loopback http stays, for a sign-in server on the user's own machine.
         if (!isAuthorizationUrlSafe(authorizationUrl))
           return yield* mcpFailure(new Error(sourceText("error.backend.mcpSignInNotWebPage")));
-        yield* mcpCall(() => this.#options.openExternal(authorizationUrl.toString()));
+        yield* mcpCall(() => this.#options.openExternal(withAppScope(authorizationUrl, this.#record().app).toString()));
       }),
     );
   }
@@ -708,15 +863,21 @@ class McpOAuthClientProvider implements OAuthClientProvider {
           }
           return;
         }
+        // A sign-in app stays through every refusal: the administrator typed it, and only they
+        // can change it.
+        const record = yield* mcpSync(() => this.#record());
+        const app = record.app ? { app: record.app } : {};
         if (scope === "all") {
           this.#codeVerifier = null;
-          yield* this.#options.storage.clear(this.#options.resource);
+          if (record.app) yield* this.#options.storage.write(this.#options.resource, app);
+          else yield* this.#options.storage.clear(this.#options.resource);
           return;
         }
-        const record = yield* mcpSync(() => this.#record());
         yield* this.#options.storage.write(
           this.#options.resource,
-          scope === "client" ? { tokens: record.tokens, obtainedAt: record.obtainedAt } : { client: record.client },
+          scope === "client"
+            ? { ...app, tokens: record.tokens, obtainedAt: record.obtainedAt }
+            : { ...app, client: record.client },
         );
       }),
     );
@@ -840,6 +1001,20 @@ export function describeUnusableRedirectUrl(redirectUrl: string): string | null 
   if (parsed.protocol === "https:")
     return `"${redirectUrl}" is a web address, which an MCP authorization server will not send a grant to.`;
   return null;
+}
+
+/**
+ * The scope a sign-in app names replaces the one the SDK chose from the server's metadata: the
+ * administrator registered the app for exactly that scope. `offline_access` asks for consent, as the
+ * SDK does, so the server issues a refresh token.
+ */
+function withAppScope(authorizationUrl: URL, app: McpOAuthApp | undefined): URL {
+  if (!app?.scope) return authorizationUrl;
+  const url = new URL(authorizationUrl);
+  url.searchParams.set("scope", app.scope);
+  if (app.scope.split(/\s+/).includes("offline_access") && !url.searchParams.has("prompt"))
+    url.searchParams.set("prompt", "consent");
+  return url;
 }
 
 /** Where a browser may be sent: a web page, or a sign-in server on the user's own machine. */

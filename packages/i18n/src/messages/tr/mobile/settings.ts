@@ -81,6 +81,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Yanıtları canlandır",
   "mobile.settings.animations.textRevealFooter":
     "Yanıt kelime kelime yazılır ve balonu yumuşakça büyür. Kapalıyken metin geldiği anda görünür.",
+  "mobile.settings.animations.searchTransitions": "Arama sonuçlarını canlandır",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Arama sonuçları ve arama mesajları değiştiğinde kısa bir bulanıklıkla belirip kaybolur. Hareket azaltıldığında yalnızca solarak değişir. Bu kapalıyken hemen değişir.",
   "mobile.settings.feedback.footer": "Bu cihazdaki uygulamadaki eylemler için dokunma geri bildirimi.",
   "mobile.settings.feedback.haptics": "Dokunsal",
   "mobile.settings.feedback.retry": "Dokunsal ayarını kaydetmeyi tekrar dene",

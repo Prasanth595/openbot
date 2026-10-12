@@ -12,4 +12,13 @@ export const messages = {
   "error.voice.prepareRequired":
     "Yerel ses dökümü kullanılamıyor. `bun run voice:prepare` komutunu çalıştırın ve OpenBot'u yeniden başlatın.",
   "error.voice.transcriptionFailed": "OpenBot bu kaydın dökümünü çıkaramadı.",
+  "error.voice.cloud.keyRequired": "ElevenLabs API anahtarınızı Ayarlar → Ses bölümünde ekleyin.",
+  "error.voice.cloud.keyRejected":
+    "ElevenLabs API anahtarını kabul etmedi. Anahtarı Ayarlar → Ses bölümünde kontrol edin.",
+  "error.voice.cloud.quotaExceeded": "ElevenLabs kotanız doldu.",
+  "error.voice.cloud.rateLimited": "ElevenLabs meşgul. Biraz sonra yeniden deneyin.",
+  "error.voice.cloud.termsRequired": "ElevenLabs hesabınızda ElevenLabs koşullarını kabul edin, sonra yeniden deneyin.",
+  "error.voice.cloud.streamEnded": "Dikte aktarımı sona erdi. Yeniden kaydedin.",
+  "error.voice.cloud.tooLong": "Kayıt çok uzun.",
+  "error.voice.cloud.keySaveFailed": "ElevenLabs API anahtarı kaydedilemedi.",
 } as const satisfies PartialTranslation<typeof source>;

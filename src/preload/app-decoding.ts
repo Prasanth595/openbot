@@ -82,6 +82,8 @@ import {
   type UpdateStatus,
   type VoiceModelStatus,
   type VoiceSettings,
+  type VoiceStream,
+  type VoiceStreamTranscript,
   type VoiceTranscriptionResult,
 } from "@openbot/contracts/ipc";
 import {
@@ -280,8 +282,10 @@ export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessio
 }
 
 export function decodeNotificationPreference(value: unknown): NotificationPreference {
+  const preference = decodeRecord(value, "notification preference");
   return {
-    desktopNotifications: requiredBoolean(decodeRecord(value, "notification preference"), "desktopNotifications"),
+    desktopNotifications: requiredBoolean(preference, "desktopNotifications"),
+    messagePreview: requiredBoolean(preference, "messagePreview"),
   };
 }
 
@@ -317,6 +321,15 @@ export function decodeVoiceSettings(value: unknown): VoiceSettings {
 
 export function decodeVoiceTranscriptionResult(value: unknown): VoiceTranscriptionResult {
   return { text: requiredString(decodeRecord(value, "voice transcription"), "text") };
+}
+
+export function decodeVoiceStream(value: unknown): VoiceStream {
+  return { streamId: requiredString(decodeRecord(value, "voice stream"), "streamId") };
+}
+
+export function decodeVoiceStreamTranscript(value: unknown): VoiceStreamTranscript {
+  const transcript = decodeRecord(value, "voice stream transcript");
+  return { streamId: requiredString(transcript, "streamId"), text: requiredString(transcript, "text") };
 }
 
 export function decodeExportResult(value: unknown): ExportResult {

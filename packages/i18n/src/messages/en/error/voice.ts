@@ -11,4 +11,12 @@ export const messages = defineMessages("error.voice", {
   "error.voice.prepareRequired":
     "Local voice transcription is unavailable. Run `bun run voice:prepare` and restart OpenBot.",
   "error.voice.transcriptionFailed": "OpenBot could not transcribe this recording.",
+  "error.voice.cloud.keyRequired": "Add your ElevenLabs API key in Settings → Voice.",
+  "error.voice.cloud.keyRejected": "ElevenLabs did not accept the API key. Check the key in Settings → Voice.",
+  "error.voice.cloud.quotaExceeded": "Your ElevenLabs quota is used up.",
+  "error.voice.cloud.rateLimited": "ElevenLabs is busy. Try again in a moment.",
+  "error.voice.cloud.termsRequired": "Accept the ElevenLabs terms in your ElevenLabs account, then try again.",
+  "error.voice.cloud.streamEnded": "The dictation stream ended. Record again.",
+  "error.voice.cloud.tooLong": "The recording is too long.",
+  "error.voice.cloud.keySaveFailed": "Could not save the ElevenLabs API key.",
 });
