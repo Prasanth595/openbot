@@ -15,7 +15,7 @@ export type OutboxTarget =
  * `waiting` has not reached the host: the server is offline, or an earlier message of the chat
  * goes first. `sent` has a host receipt and stays until the chat draws the host's own row.
  */
-export type OutboxState = "waiting" | "sending" | "failed" | "sent";
+type OutboxState = "waiting" | "sending" | "failed" | "sent";
 
 /** A file of an outbox message. Its bytes are in a file of this phone, named `fileName`. */
 export interface OutboxFile {
@@ -59,7 +59,7 @@ export interface OutboxMessage {
 export const OUTBOX_RETRY_WINDOW_MS = 12 * 60 * 60 * 1000;
 
 /** The prefix of a pending row's id. The host never stored this id, so the row has no actions. */
-export const OUTBOX_ROW_PREFIX = "outbox:";
+const OUTBOX_ROW_PREFIX = "outbox:";
 
 export function outboxRowId(message: Pick<OutboxMessage, "clientMessageId">): string {
   return `${OUTBOX_ROW_PREFIX}${message.clientMessageId}`;
