@@ -442,6 +442,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       hooks: {
         emit: (event) => this.#emit(event),
         ownsRoutine: (agentId, routineId) => this.#routines.getRecord(agentId, routineId) !== null,
+        hasRoutine: (agentId) => this.#routines.listRecordsFor(agentId).length > 0,
       },
     });
     this.#routines = new RoutineScheduler({

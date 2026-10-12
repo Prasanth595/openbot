@@ -2,7 +2,7 @@
 // this text is both the migration and the tail of the latest schema.
 //
 // An open wait is work an agent stopped before it was done, because it waits for something outside
-// the turn: a build, a reply, the next routine run. The agent opens it with `openbot.await_event`
+// the turn: a build, a deploy, the next routine run. The agent opens it with `openbot.await_event`
 // and closes it with `openbot.close_wait`; the user can cancel it. A closed or cancelled wait is
 // deleted, so every row is an open wait.
 //

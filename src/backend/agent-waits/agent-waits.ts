@@ -23,6 +23,8 @@ export interface AgentWaitsHooks {
   emit(event: AgentEvent): void;
   /** Whether this agent owns this routine. */
   ownsRoutine(agentId: string, routineId: string): boolean;
+  /** Whether this agent has a routine: only a routine run wakes a wait. */
+  hasRoutine(agentId: string): boolean;
 }
 
 export interface AgentWaitsOptions {
@@ -118,6 +120,8 @@ export class AgentWaits {
     if (!request) return openBotToolFailure(sourceText("error.backend.agentWaitNoRequest"));
     if (routineId && !this.#hooks.ownsRoutine(caller.agentId, routineId))
       return openBotToolFailure(sourceText("error.backend.agentWaitRoutineGone"));
+    if (!this.#hooks.hasRoutine(caller.agentId))
+      return openBotToolFailure(sourceText("error.backend.agentWaitNoRoutine"));
     const wait = this.#store.open({
       agentId: caller.agentId,
       requestMessageId: request.delivery.id,
