@@ -267,7 +267,7 @@ function StreamingTailText(props: { body: string; after: number }) {
 export function MessageLink(props: {
   url: string;
   /** The native tooltip. Omit it when the link text already shows the URL. */
-  title?: string;
+  title?: string | undefined;
   children: JSX.Element;
   onOpenLink: (url: string) => void;
 }) {
