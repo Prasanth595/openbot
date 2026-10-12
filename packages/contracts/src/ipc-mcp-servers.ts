@@ -334,8 +334,11 @@ export function relayCallbackQuery(address: string, state: string | null): strin
   }
 }
 
-/** The names a loopback callback can use. Any other address is not a callback on the computer that listens. */
-const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+/**
+ * The names a loopback callback can use. Any other address is not a callback on the computer that
+ * listens. The relay listener binds only `127.0.0.1`, so a `[::1]` callback is not relayed.
+ */
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost"]);
 
 /**
  * The loopback address that a sign-in page sends the browser back to, or `null`. A sign-in that returns

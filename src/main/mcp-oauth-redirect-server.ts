@@ -45,6 +45,8 @@ export interface McpOAuthRedirectServerOptions {
    * answers `"relayed"`, because it ends on the host and not here.
    */
   deliver: (state: string, code: string, query: string) => boolean | "relayed";
+  /** Hands a refusal to a sign-in that this computer relays, which ends on the host. */
+  relayRefusal: (state: string, query: string) => void;
   /** Read on each request, so the page uses the language that is set at that time. */
   language: Pick<LanguageService, "locale" | "translate">;
   /** Tried first; any free port is used when it cannot be bound. */
@@ -60,12 +62,13 @@ export interface McpOAuthRedirectServerOptions {
  */
 export async function startMcpOAuthRedirectServer({
   deliver,
+  relayRefusal,
   language,
   preferredPort,
 }: McpOAuthRedirectServerOptions): Promise<McpOAuthRedirectServer> {
   const server = await startLoopbackCallbackServer({
     path: MCP_OAUTH_REDIRECT_PATH,
-    receive: (url) => receiveGrant(url, deliver),
+    receive: (url) => receiveGrant(url, deliver, relayRefusal),
     language,
     port: { preferred: preferredPort },
     noPort: () => new Error("The MCP sign-in listener was given no port."),
@@ -77,15 +80,21 @@ export async function startMcpOAuthRedirectServer({
 }
 
 /** What a callback that passed the shared checks gets back. Every refusal below is one `return`. */
-function receiveGrant(url: URL, deliver: McpOAuthRedirectServerOptions["deliver"]): CallbackAnswer {
-  // An authorization server states a refusal here instead of sending a code. The sign-in itself
-  // ends on its own deadline, with the words the dialog already has; this page exists so the
-  // person reading the browser is not left on a blank one.
-  const failure = url.searchParams.get("error");
-  if (failure) return { status: 400, message: "error.mcp.redirectRefused" };
-
+function receiveGrant(
+  url: URL,
+  deliver: McpOAuthRedirectServerOptions["deliver"],
+  relayRefusal: McpOAuthRedirectServerOptions["relayRefusal"],
+): CallbackAnswer {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+  // An authorization server states a refusal here instead of sending a code. A local sign-in ends on
+  // its own deadline, with the words the dialog already has; a relayed one ends on the host at once.
+  // This page exists so the person reading the browser is not left on a blank one.
+  if (url.searchParams.get("error")) {
+    if (state) relayRefusal(state, url.search.slice(1));
+    return { status: 400, message: "error.mcp.redirectRefused" };
+  }
+
   if (!code || !state) return { status: 400, message: "error.mcp.redirectNotSignIn" };
   const delivered = deliver(state, code, url.search.slice(1));
   if (!delivered) return { status: 400, message: "error.mcp.redirectNoSignIn" };

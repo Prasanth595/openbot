@@ -1052,6 +1052,9 @@ export async function createApplicationServices({
       if (current && !current.isDestroyed()) showMainWindow(current);
       return true;
     },
+    relayRefusal: (state, query) => {
+      signInRelayClient.deliver(state, query);
+    },
   }).catch((error: unknown) => {
     logger.warn(
       "OpenBot could not listen for MCP sign-ins on this machine, so the openbot:// link is used instead. Servers that refuse it cannot be signed in to:",
