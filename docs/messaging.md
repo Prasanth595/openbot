@@ -205,7 +205,9 @@ while this computer has no Signal connection is lost, except for a hosted server
 - A hosted server sleeps after 15 minutes with no use, also with a live connection. A mention, a
   direct message, a thread reply or a button press starts it. Signal keeps that message, encrypted,
   for up to 10 minutes and gives it to the server when it connects, so the answer comes after the
-  server starts (a few minutes). A restart of Signal in that time loses it.
+  server starts (a few minutes). A restart of Signal in that time loses it. After a restart of
+  Signal, a Telegram or Discord message to a sleeping server starts it but is lost; send it again
+  when the server is on. Slack sends its message again by itself.
 - When an agent asks another OpenBot agent for something in a Slack conversation, the reply comes
   back to that conversation. The agent then posts its answer in the same thread, and the original
   message keeps its reactions.

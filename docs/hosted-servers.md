@@ -542,7 +542,11 @@ holds it:
    (64 events and 192 KB for each host). Slack gets 200, so it does not send the event again. Because
    the start runs after the answer and can fail, Signal asks for the start again once a minute while
    the host has kept events. Signal
-   cannot read a kept event, and a restart of Signal loses it.
+   cannot read a kept event, and a restart of Signal loses it. Signal also keeps the queue keys only
+   in memory, and a host sends its key only in its hello. So after a restart of Signal, a server that
+   sleeps still starts for an event, but Signal does not keep that event: Slack sends it again, and a
+   Telegram or Discord event is lost. This is accepted: it happens only to the events that arrive
+   before the host connects again. Signal keeps the keys of at most 100,000 hosts.
 4. Another Slack event of a hosted server gets 200 and is dropped: the host keeps only messages that
    address OpenBot, and joins the public channels again when its connection starts.
 5. When the host's socket connects again, Signal sends each kept event of the routes that the socket
