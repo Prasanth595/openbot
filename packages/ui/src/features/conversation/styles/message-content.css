@@ -1152,18 +1152,6 @@
   outline-offset: 3px;
 }
 
-[data-slot="bubble"][data-author="user"] .message-link {
-  text-decoration-color: var(--openbot-shadow-popover-ambient);
-}
-
-[data-slot="bubble"][data-author="user"] .message-link:hover {
-  color: var(--openbot-bg-canvas);
-}
-
-[data-slot="bubble"][data-author="user"] .message-link:focus-visible {
-  outline-color: var(--openbot-bg-overlay);
-}
-
 [data-slot="bubble"][data-author="user"] .message-citation-mark {
   background: var(--openbot-surface-light);
   color: var(--openbot-text-muted-on-light);
