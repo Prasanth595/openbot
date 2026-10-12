@@ -87,6 +87,15 @@ export interface ChatViewProps {
   loadOlder: () => void;
   needsAction?: boolean;
   notice?: string;
+  /** A message from search that the chat opens at, once its page is loaded. */
+  focusMessageId?: string | null;
+  /** True while the chat opens at a message from search, also before its page loads. */
+  holdOpening?: boolean;
+  onFocusPlaced?: () => void;
+  /** The loaded messages are a window around a searched message and do not reach the latest message. */
+  detached?: boolean;
+  /** Loads the latest messages in place of the window around a searched message. */
+  showLatestMessages?: () => Promise<void>;
 }
 
 const CHAT_BACK_EDGE_WIDTH = 24;
@@ -140,6 +149,11 @@ export function ChatView({
   loadOlder,
   needsAction = false,
   notice,
+  focusMessageId = null,
+  holdOpening = false,
+  onFocusPlaced,
+  detached = false,
+  showLatestMessages,
 }: ChatViewProps) {
   const { t, errorMessage } = useText();
   const { respondToApproval, respondToBrowserSecret, respondToBrowserTakeover, attachmentSupport, browserViewSupport } =
@@ -377,8 +391,17 @@ export function ChatView({
     ready,
     lastUserId,
     questionForm?.question ? (questionForm.messageId ?? null) : null,
+    holdOpening,
   );
   const atLatest = motion.atLatest;
+  // The end of a window around a searched message is not the latest message.
+  const showLatest = () => {
+    if (!detached || !showLatestMessages) {
+      motion.scrollToLatest();
+      return;
+    }
+    void showLatestMessages().then(motion.returnToLatest, () => undefined);
+  };
   const liquidGlassAvailable = isLiquidGlassAvailable() && !reducedTransparency;
   const server = servers.find((server) => server.id === target.serverId);
   const serverOnline = server?.state === "online";
@@ -443,7 +466,7 @@ export function ChatView({
   }, []);
 
   // Opening a chat reads it, as on desktop. After the user scrolls away, only the latest message in view reads it.
-  const seesLatest = atLatest || (motion.historyVisible && !motion.userScrolled);
+  const seesLatest = !detached && (atLatest || (motion.historyVisible && !motion.userScrolled));
   useEffect(() => {
     if (!sendingMessage && isFocused && appActive && seesLatest && serverOnline && readBoundary) markRead();
   }, [sendingMessage, isFocused, appActive, seesLatest, serverOnline, readBoundary, markRead]);
@@ -562,6 +585,8 @@ export function ChatView({
     }
 
     setSendError(null);
+    // The reply comes at the latest message, which a window around a searched message does not show.
+    if (detached) showLatest();
     // The send animation starts from the loaded history. Without it, as offline, the row shows at once:
     // the animation would hide the first message until a history that does not load.
     if (!sendsToQueue && ready) motion.beginSend();
@@ -752,6 +777,8 @@ export function ChatView({
               onDismissStarter={() => setShowStarter(false)}
               onSelectStarter={sendMessage}
               onRetryHistory={fetchHistory}
+              focusMessageId={focusMessageId}
+              onFocusPlaced={onFocusPlaced}
               upload={
                 sendingMessage && sendingUpload && !sendsToQueue
                   ? {
@@ -784,13 +811,13 @@ export function ChatView({
               pointerEvents="box-none"
               onLayout={motion.onComposerLayout}
             >
-              {!voiceOpen && !atLatest && motion.historyVisible && messages.length > 0 ? (
+              {!voiceOpen && (detached || !atLatest) && motion.historyVisible && messages.length > 0 ? (
                 <View className="absolute -top-14 self-center">
                   <ChatGlassIconButton
                     accessibilityLabel={t("mobile.chat.scrollToLatest")}
                     fallbackBackground={fieldBackground}
                     liquidGlassAvailable={liquidGlassAvailable}
-                    onPress={motion.scrollToLatest}
+                    onPress={showLatest}
                   >
                     <ArrowDown color={String(foreground)} size={22} />
                   </ChatGlassIconButton>

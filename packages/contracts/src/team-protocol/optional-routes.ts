@@ -13,6 +13,7 @@ import { AGENT_SESSION_SETTINGS_CODECS } from "./agent-session-settings-v1";
 import { AGENT_UPDATE_CODECS } from "./agent-update-v1";
 import { CONNECTORS_CODECS } from "./connectors-v1";
 import { CONTEXT_RESET_CODECS } from "./context-reset-v1";
+import { CONVERSATION_FILE_SEARCH_CODECS } from "./conversation-file-search-v1";
 import { EVENTS_CODECS } from "./events-v1";
 import { HOST_ADMIN_CODECS } from "./host-admin-v1";
 import { HOST_MEMBER_UPDATE_CODECS } from "./host-member-update-v1";
@@ -66,6 +67,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...MCP_SIGN_IN_APP_CODECS,
   ...SIGN_IN_RELAY_CODECS,
   ...CONNECTORS_CODECS,
+  ...CONVERSATION_FILE_SEARCH_CODECS,
 ]);
 
 export function optionalRouteCodec(path: string): OptionalRouteCodec | undefined {

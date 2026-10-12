@@ -63,6 +63,7 @@ export const messages = {
   "error.team.agentUpdateUnsupported": "To połączenie nie obsługuje aktualizowania agentów.",
   "error.team.contextResetUnsupported": "To połączenie nie obsługuje rozpoczynania nowego czatu.",
   "error.team.workspaceDirectoryUnsupported": "To połączenie nie obsługuje pokazywania folderów.",
+  "error.team.conversationFileSearchUnsupported": "To połączenie nie obsługuje wyszukiwania plików.",
   "error.team.agentImportUnsupported": "To połączenie nie obsługuje importowania agentów.",
   "error.team.liveActivityUnsupported": "Ten host nie może aktualizować Live Activity telefonu.",
   "error.team.agentUpdateTargetRequired": "Wymagany jest agent do zaktualizowania.",

@@ -83,6 +83,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Animer les réponses",
   "mobile.settings.animations.textRevealFooter":
     "Une réponse s’écrit mot par mot, et sa bulle grandit en douceur. Désactivé, le texte s’affiche dès son arrivée.",
+  "mobile.settings.animations.searchTransitions": "Animer les résultats de recherche",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Les résultats et les messages de la recherche apparaissent et disparaissent avec un léger flou quand ils changent. Quand les mouvements sont réduits, ils passent seulement en fondu. Si cette option est désactivée, ils changent immédiatement.",
   "mobile.settings.feedback.footer": "Retour tactile pour les actions de l’app sur cet appareil.",
   "mobile.settings.feedback.haptics": "Retour haptique",
   "mobile.settings.feedback.retry": "Réessayer d’enregistrer le réglage haptique",

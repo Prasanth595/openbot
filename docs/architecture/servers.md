@@ -80,6 +80,16 @@ the agent workspace; a symbolic link that leaves it is not listed. A missing pat
 message that names the path and the workspace. A client without the capability shows the file preview
 error. The desktop lists a local folder without the containment when the agent has no workspace limit.
 
+### Conversation files
+
+`conversation-file-search-v1` adds `POST /v1/conversation-files/search` with `{ query, cursor, limit? }`.
+Any member can send it. The host answers the files of agent chat messages whose name contains the
+query, newest first, with the agent, the message, the time and the attachment summary. An empty query
+lists the newest files. A page has at most 100 results (50 when `limit` is absent), and `nextCursor`
+gets the next page. Channel threads and the files of an agent hidden from the client are not listed.
+The capability is advertised only to protocol 7 clients. An older host answers 404, so a client
+sends the request only when the host advertises the capability.
+
 ### Agent import from a joined server
 
 `agent-import-v1` lets any member, not only an owner or admin, import a Grok Bot export into the host.

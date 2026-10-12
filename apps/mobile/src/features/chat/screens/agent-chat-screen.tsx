@@ -15,14 +15,21 @@ export function AgentChatScreen() {
     unstable_dismissalBoundsRect: { minX: 0, maxX: 24 },
   });
 
-  const { agentId } = useLocalSearchParams<{ agentId: string }>();
+  const { agentId, messageId } = useLocalSearchParams<{ agentId: string; messageId?: string }>();
   const { agents } = useMobileWorkspace();
   const foreground = useThemeColor("foreground");
   const resolvedAgentId = Array.isArray(agentId) ? agentId[0] : agentId;
+  const resolvedMessageId = Array.isArray(messageId) ? messageId[0] : messageId;
   const agent = agents.find((candidate) => candidate.id === resolvedAgentId);
 
   if (agent) {
-    return <MobileChatView key={`${agent.serverId}:${agent.id}`} agent={agent} />;
+    return (
+      <MobileChatView
+        key={`${agent.serverId}:${agent.id}`}
+        agent={agent}
+        focusMessageId={resolvedMessageId || undefined}
+      />
+    );
   }
 
   return (

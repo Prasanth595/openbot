@@ -30,6 +30,8 @@ export function useChatMotion(
   ready: boolean,
   lastUserId: string | null,
   requiredInputId: string | null = null,
+  /** The chat opens at a message from search: do not move to the latest message while it loads. */
+  holdOpening = false,
 ) {
   const ref = useAnimatedRef<Animated.ScrollView>();
   const setScrollRef = useCallback(
@@ -126,9 +128,13 @@ export function useChatMotion(
   const pending = useRef<{ baseline: string | null; first: boolean } | null>(null);
   const followLatest = useRef(true);
   const [keyboardLiftBehavior, setKeyboardLiftBehavior] = useState<"whenAtEnd" | "never">("whenAtEnd");
+  // Counts the returns to the latest messages from a window around a searched message.
+  const [latestGeneration, setLatestGeneration] = useState(0);
   const pendingRequiredInput = useRef<{ id: string; contentRevision: number } | null>(null);
   const lastRequiredInputId = useRef(requiredInputId);
   const frame = useRef<number | null>(null);
+  // Separate from `frame`, which each layout event starts again.
+  const openFrame = useRef<number | null>(null);
   const measurements = useRef<{
     layout: ChatLayout;
     inset: number;
@@ -148,8 +154,8 @@ export function useChatMotion(
     initialized: false,
     virtualized: false,
   });
-  const current = useRef({ ready, lastUserId, requiredInputId });
-  current.current = { ready, lastUserId, requiredInputId };
+  const current = useRef({ ready, lastUserId, requiredInputId, holdOpening });
+  current.current = { ready, lastUserId, requiredInputId, holdOpening };
 
   const finishFirstMessage = useCallback(() => setResponseVisible(true), []);
   const revealHistory = useCallback(() => setHistoryVisible(true), []);
@@ -158,6 +164,7 @@ export function useChatMotion(
     frame.current = requestAnimationFrame(() => {
       frame.current = null;
       const m = measurements.current;
+      if (current.current.holdOpening && !m.initialized) return;
       if (!current.current.ready || !m.layout.viewport || !m.composer) return;
       if (current.current.lastUserId && (m.tailId !== current.current.lastUserId || !m.layout.tailHeight)) return;
       if (m.layout.content + 2 < m.layout.tailY + m.layout.tailHeight) return;
@@ -229,7 +236,7 @@ export function useChatMotion(
   ]);
 
   useLayoutEffect(() => {
-    current.current = { ready, lastUserId, requiredInputId };
+    current.current = { ready, lastUserId, requiredInputId, holdOpening };
     if (requiredInputId !== lastRequiredInputId.current) {
       pendingRequiredInput.current =
         requiredInputId && followLatest.current
@@ -238,10 +245,11 @@ export function useChatMotion(
     }
     lastRequiredInputId.current = requiredInputId;
     position();
-  }, [position, ready, lastUserId, requiredInputId]);
+  }, [position, ready, lastUserId, requiredInputId, holdOpening]);
   useEffect(
     () => () => {
       if (frame.current !== null) cancelAnimationFrame(frame.current);
+      if (openFrame.current !== null) cancelAnimationFrame(openFrame.current);
     },
     [],
   );
@@ -360,7 +368,7 @@ export function useChatMotion(
   const responseStyle = useAnimatedStyle(() => ({ opacity: responseOpacity.get() }));
 
   const needsSendPosition = useCallback(() => pending.current !== null, []);
-  const needsInitialPosition = useCallback(() => !measurements.current.initialized, []);
+  const needsInitialPosition = useCallback(() => !measurements.current.initialized && !current.current.holdOpening, []);
 
   function beginSend() {
     followLatest.current = true;
@@ -381,7 +389,8 @@ export function useChatMotion(
     responseOpacity.set(1);
     setResponseVisible(true);
   }
-  function onScrollBeginDrag() {
+  /** The reader, not the chat, now chooses the position. */
+  function leaveLatest() {
     setUserScrolled(true);
     followLatest.current = false;
     setKeyboardLiftBehavior("never");
@@ -389,9 +398,40 @@ export function useChatMotion(
     if (frame.current !== null) cancelAnimationFrame(frame.current);
     frame.current = null;
     measurements.current.initialized = true;
+  }
+  function onScrollBeginDrag() {
+    leaveLatest();
+    if (openFrame.current !== null) cancelAnimationFrame(openFrame.current);
+    openFrame.current = null;
     revealed.set(true);
     setHistoryVisible(true);
     cancelSend();
+  }
+  /** Opens the chat with the row at content offset `y` under the header, instead of at the latest message. */
+  function openAt(y: number) {
+    leaveLatest();
+    if (openFrame.current !== null) cancelAnimationFrame(openFrame.current);
+    // Wait one frame for the content size of the same layout pass, then show the list in its place.
+    openFrame.current = requestAnimationFrame(() => {
+      const m = measurements.current;
+      ref.current?.scrollTo({
+        y: Math.max(0, Math.min(y - m.layout.header - 12, chatEndOffset(m.layout, m.inset))),
+        animated: false,
+      });
+      openFrame.current = requestAnimationFrame(() => {
+        openFrame.current = null;
+        revealed.set(true);
+        setHistoryVisible(true);
+      });
+    });
+  }
+  /** Positions the chat at the latest message again, after the latest page replaces a window around a searched message. */
+  function returnToLatest() {
+    followLatest.current = true;
+    setKeyboardLiftBehavior("whenAtEnd");
+    measurements.current.initialized = false;
+    setLatestGeneration((generation) => generation + 1);
+    position();
   }
   function onScrollEndDrag(event: { nativeEvent: Pick<NativeScrollEvent, "contentOffset"> }) {
     // Only a user scroll can resume following. Keyboard dismissal can make the
@@ -441,6 +481,9 @@ export function useChatMotion(
     needsInitialPosition,
     cancelSend,
     scrollToLatest,
+    openAt,
+    returnToLatest,
+    latestGeneration,
   };
 }
 

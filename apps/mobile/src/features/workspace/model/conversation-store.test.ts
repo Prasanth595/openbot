@@ -496,3 +496,39 @@ describe("mobile conversation windows", () => {
     ).toBe(working);
   });
 });
+
+describe("a chat opened at a searched message", () => {
+  it("keeps the window around the message until the latest page meets it or the reader asks for it", async () => {
+    const { store, frame } = setup();
+    const unsubscribe = store.subscribe("agent", () => {});
+    store.applyPage(page(["latest-1", "latest-2"], 3));
+    // A page that meets the loaded window adds its older messages to it.
+    store.applyAround(page(["older", "latest-1"], 3));
+    expect(store.get("agent")).toMatchObject({
+      detached: false,
+      messages: [{ id: "older" }, { id: "latest-1" }, { id: "latest-2" }],
+    });
+
+    // A page far from the window replaces it, and a latest page that does not meet it changes nothing.
+    store.applyAround(page(["searched", "after"], 3));
+    store.applyPage(page(["latest-2", "latest-3"], 4));
+    store.enqueue(delta(5, "a new reply"));
+    frame();
+    expect(store.get("agent")).toMatchObject({ detached: true, messages: [{ id: "searched" }, { id: "after" }] });
+
+    // The latest messages replace the window when the reader asks for them.
+    await store.loadLatest(
+      "agent",
+      async () => page(["latest-3", "reply"], 6),
+      () => true,
+      true,
+      true,
+    );
+    expect(store.get("agent")).toMatchObject({ detached: false, messages: [{ id: "latest-3" }, { id: "reply" }] });
+
+    // The window is not the chat that the next reader opens.
+    store.applyAround(page(["searched"], 6));
+    unsubscribe();
+    expect(store.get("agent")).toBeUndefined();
+  });
+});

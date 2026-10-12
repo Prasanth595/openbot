@@ -8,6 +8,11 @@ import { AGENT_UPDATE_ROUTES } from "./agent-update-v1";
 import { CONNECTORS_CAPABILITY, CONNECTORS_ROUTES } from "./connectors-v1";
 import { CONTEXT_RESET_ROUTES } from "./context-reset-v1";
 import {
+  CONVERSATION_FILE_SEARCH_CAPABILITY,
+  CONVERSATION_FILE_SEARCH_ROUTES,
+  decodeConversationFileSearchResponse,
+} from "./conversation-file-search-v1";
+import {
   legacyTeamCapabilities,
   TEAM_BOOTSTRAP_CAPABILITIES,
   TEAM_CURRENT_CAPABILITIES,
@@ -742,5 +747,74 @@ describe("connectors-v1", () => {
   it("is advertised only to a protocol 7 peer", () => {
     expect(TEAM_CURRENT_CAPABILITIES).toContain(CONNECTORS_CAPABILITY);
     expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(CONNECTORS_CAPABILITY);
+  });
+});
+
+describe("conversation-file-search-v1", () => {
+  const attachment = {
+    id: "attachment-1",
+    name: "report.pdf",
+    size: 2_048,
+    kind: "file",
+    mimeType: "application/pdf",
+    previewKind: "pdf",
+    previewUrl: "openbot-attachment://file/attachment-1",
+  };
+  const result = { agentId: "chief", messageId: "message-1", createdAt: "2026-10-12T08:00:00.000Z", attachment };
+  const page = { results: [result], nextCursor: "eyJ2ZXJzaW9uIjoxLCJvZmZzZXQiOjUwfQ" };
+
+  // An empty query lists the newest files. A field the contract does not name never reaches the host.
+  it("carries the query, the cursor and an optional limit to the host", () => {
+    const search = codec(CONVERSATION_FILE_SEARCH_ROUTES.search);
+    expect(search.request({ query: "", cursor: null, agentId: "chief" })).toEqual({ query: "", cursor: null });
+    expect(search.request({ query: "report", cursor: "next", limit: 20 })).toEqual({
+      query: "report",
+      cursor: "next",
+      limit: 20,
+    });
+  });
+
+  it("round-trips a page and drops what it does not name", () => {
+    const search = codec(CONVERSATION_FILE_SEARCH_ROUTES.search);
+    const sent = {
+      ...page,
+      total: 1,
+      results: [{ ...result, threadId: "thread-1", attachment: { ...attachment, path: "/x" } }],
+    };
+    expect(search.response(200, sent)).toEqual(page);
+    expect(decodeConversationFileSearchResponse(search.response(200, page))).toEqual(page);
+    expect(search.response(200, { results: [], nextCursor: null })).toEqual({ results: [], nextCursor: null });
+  });
+
+  it("rejects malformed payloads", () => {
+    const search = codec(CONVERSATION_FILE_SEARCH_ROUTES.search);
+    expect(() => search.request({ query: "x".repeat(256), cursor: null })).toThrow();
+    expect(() => search.request({ query: "report" })).toThrow();
+    expect(() => search.request({ query: "report", cursor: "x".repeat(2_049) })).toThrow();
+    expect(() => search.request({ query: "report", cursor: null, limit: -1 })).toThrow();
+    expect(() => search.response(200, { ...page, results: Array.from({ length: 101 }, () => result) })).toThrow();
+    expect(() => search.response(200, { results: [{ ...result, agentId: "" }], nextCursor: null })).toThrow();
+    expect(() =>
+      search.response(200, {
+        results: [{ ...result, attachment: { ...attachment, kind: "folder" } }],
+        nextCursor: null,
+      }),
+    ).toThrow();
+    expect(() =>
+      search.response(200, {
+        results: [{ ...result, attachment: { ...attachment, previewUrl: "x".repeat(2_049) } }],
+        nextCursor: null,
+      }),
+    ).toThrow();
+    expect(() =>
+      decodeConversationFileSearchResponse({ results: [{ ...result, attachment: null }], nextCursor: null }),
+    ).toThrow();
+  });
+
+  // A protocol 6 peer reads at most 64 capabilities.
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
+    expect(legacyTeamCapabilities(TEAM_CURRENT_CAPABILITIES)).not.toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
   });
 });

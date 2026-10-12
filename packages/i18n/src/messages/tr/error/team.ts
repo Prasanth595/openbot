@@ -63,6 +63,7 @@ export const messages = {
   "error.team.agentUpdateUnsupported": "Ajan güncelleme bu bağlantı tarafından desteklenmiyor.",
   "error.team.contextResetUnsupported": "Yeni bir sohbet başlatma bu bağlantı tarafından desteklenmiyor.",
   "error.team.workspaceDirectoryUnsupported": "Klasörleri gösterme bu bağlantı tarafından desteklenmiyor.",
+  "error.team.conversationFileSearchUnsupported": "Dosya arama bu bağlantı tarafından desteklenmiyor.",
   "error.team.agentImportUnsupported": "Ajan içe aktarma bu bağlantı tarafından desteklenmiyor.",
   "error.team.liveActivityUnsupported": "Bu ana makine bir telefonun Canlı Etkinliğini güncelleyemez.",
   "error.team.agentUpdateTargetRequired": "Güncellenecek bir ajan gereklidir.",

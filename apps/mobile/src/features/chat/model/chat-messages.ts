@@ -414,6 +414,17 @@ export function groupExchangeMarkers<T extends ChatMessage>(messages: readonly T
   return rows;
 }
 
+/**
+ * The row that shows a host message, for a chat that opens at a search result. A marker row has the
+ * message ID after its prefix, and a group row holds several markers. -1 when no row shows it.
+ */
+export function chatRowIndex(rows: readonly (ChatMessage | ExchangeGroup)[], messageId: string): number {
+  const ids = new Set([messageId, `exchange:${messageId}`, `routine:${messageId}`, `context-reset:${messageId}`]);
+  return rows.findIndex((row) =>
+    row.kind === "exchange-group" ? row.exchanges.some((marker) => ids.has(marker.id)) : ids.has(row.id),
+  );
+}
+
 function groupableExchange<T extends ChatMessage>(message: T): message is T & ExchangeMarker {
   return message.kind === "exchange" && !message.standalone;
 }

@@ -137,6 +137,7 @@ import { routeBrowser } from "./team-api/route-browser";
 import { routeChannels } from "./team-api/route-channels";
 import { routeConnectors } from "./team-api/route-connectors";
 import { routeContextReset } from "./team-api/route-context-reset";
+import { routeConversationFiles } from "./team-api/route-conversation-files";
 import { routeDirect } from "./team-api/route-direct";
 import { routeEvents } from "./team-api/route-events";
 import { routeFiles } from "./team-api/route-files";
@@ -732,6 +733,7 @@ export class TeamApiServer {
       if ((await routeContextReset(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeAgentMemoryPage(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeWorkspaceDirectory(context, this.#options.agents, hidden)) === "handled") return;
+      if ((await routeConversationFiles(context, this.#options.agents)) === "handled") return;
       if ((await this.#routeEvents(context)) === "handled") return;
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
       if (

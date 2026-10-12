@@ -64,6 +64,7 @@ export const messages = {
   "error.team.agentUpdateUnsupported": "Esta conexión no permite actualizar agentes.",
   "error.team.contextResetUnsupported": "Esta conexión no permite iniciar un nuevo chat.",
   "error.team.workspaceDirectoryUnsupported": "Esta conexión no permite mostrar carpetas.",
+  "error.team.conversationFileSearchUnsupported": "Esta conexión no permite buscar archivos.",
   "error.team.agentImportUnsupported": "Esta conexión no permite importar agentes.",
   "error.team.liveActivityUnsupported": "Este host no puede actualizar la Live Activity de un teléfono.",
   "error.team.agentUpdateTargetRequired": "Se requiere un agente para actualizar.",

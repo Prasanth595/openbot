@@ -87,7 +87,7 @@ interface HostServiceOptions {
   admin?: ForwardedApiOptions["admin"];
   appVersion: string;
   store: TeamStore;
-  agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads" | "searchConversationFiles">;
+  agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads">;
   agentsReady: NonNullable<ForwardedApiOptions["agentsReady"]>;
   skills: NonNullable<ForwardedApiOptions["skills"]>;
   sidebarLayout: NonNullable<ForwardedApiOptions["sidebarLayout"]>;

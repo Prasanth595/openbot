@@ -45,8 +45,11 @@ import Animated, {
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
+  withSequence,
   withTiming,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
@@ -62,6 +65,7 @@ import { useMessageArrivals } from "@/features/chat/components/use-message-arriv
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import {
   type ChatMessage,
+  chatRowIndex,
   type ExchangeGroup,
   groupExchangeMarkers,
   indexChatMessages,
@@ -90,20 +94,26 @@ import { useReplyHaptics } from "./use-reply-haptics";
 
 /** A row of the list. Thinking steps show in the activity row instead. */
 type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
-const TailLayoutContext = createContext<{
+const RowLayoutContext = createContext<{
   id: string | null;
   onTailStartLayout: ChatMotion["onTailStartLayout"];
+  /** The row of a message from search, until the chat opens at it. */
+  focusId: string | null;
+  onFocusLayout: (id: string, y: number) => void;
 } | null>(null);
+/** Rows above a message from search, so the reader sees what led to it. */
+const FOCUS_CONTEXT_ROWS = 2;
 
 function MessageCell({ children, item, onLayout, onFocusCapture, style }: CellRendererProps<VisibleMessage>) {
-  const tail = useContext(TailLayoutContext);
+  const rows = useContext(RowLayoutContext);
   const nativeProps = { style, onFocusCapture };
   return (
     <View
       {...nativeProps}
       onLayout={(event) => {
         onLayout?.(event);
-        if (item.id === tail?.id) tail.onTailStartLayout(item.id, event);
+        if (item.id === rows?.id) rows.onTailStartLayout(item.id, event);
+        if (item.id === rows?.focusId) rows.onFocusLayout(item.id, event.nativeEvent.layout.y);
       }}
     >
       {children}
@@ -261,6 +271,9 @@ interface ChatMessageListProps {
   } | null;
   /** The messages of this chat that wait on the phone or failed, by row id. */
   outboxStatuses?: ReadonlyMap<string, OutboxRowStatus>;
+  /** A message from search. The chat opens at its row and marks it for a moment. */
+  focusMessageId?: string | null;
+  onFocusPlaced?: () => void;
 }
 
 type ChatUpload = NonNullable<ChatMessageListProps["upload"]>;
@@ -626,6 +639,34 @@ const MessageRow = memo(function MessageRow({
   );
 });
 
+/** Marks the row of a message from search for a moment after the chat opens at it. */
+function FocusHighlight({ onDone }: { onDone: () => void }) {
+  const opacity = useSharedValue(0);
+  useEffect(() => {
+    // A change of color, not of place, so it shows also with reduced motion.
+    opacity.set(
+      withSequence(
+        withTiming(1, { duration: 160, reduceMotion: ReduceMotion.Never }),
+        withDelay(
+          1400,
+          withTiming(0, { duration: 500, reduceMotion: ReduceMotion.Never }, (finished) => {
+            if (finished) scheduleOnRN(onDone);
+          }),
+        ),
+      ),
+    );
+  }, [opacity, onDone]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.get() }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      className="bg-accent/15"
+      // Across the list padding, from above the row to the middle of the space below it.
+      style={[{ position: "absolute", left: -16, right: -16, top: -6, bottom: 4 }, style]}
+    />
+  );
+}
+
 /** Under a user message whose turn failed. A reason that is missing or not safe to show uses the fallback. */
 function TurnFailure({ reason }: { reason: string | undefined }) {
   const { t, errorMessage } = useText();
@@ -690,6 +731,8 @@ export function ChatMessageList({
   onRetryHistory,
   onReply,
   onOpenActions,
+  focusMessageId = null,
+  onFocusPlaced,
 }: ChatMessageListProps) {
   const { t, sourceText } = useText();
   const isFocused = useIsFocused();
@@ -785,22 +828,49 @@ export function ChatMessageList({
   );
   const tailIndex = visibleMessages.findLastIndex((message) => message.kind === "message" && message.author === "user");
   const tailId = visibleMessages[tailIndex]?.id ?? null;
-  const [boundary, setBoundary] = useState<ChatHistoryBoundary>({ firstId: null, headId: null });
+  const generation = motion.latestGeneration;
+  const [boundary, setBoundary] = useState<ChatHistoryBoundary & { generation: number }>({
+    firstId: null,
+    headId: null,
+    generation,
+  });
+  // The latest messages after a window around a searched message start again at the recent rows.
+  const currentBoundary = boundary.generation === generation ? boundary : { firstId: null, headId: null };
   const promptIndex = visibleMessages.findIndex((message) => message.id === questionForm?.messageId);
-  const historyStart = chatHistoryStart(visibleMessages, tailIndex, boundary);
-  const windowStart = promptIndex >= 0 ? Math.min(historyStart, promptIndex) : historyStart;
+  const focusIndex = focusMessageId ? chatRowIndex(visibleMessages, focusMessageId) : -1;
+  const historyStart = chatHistoryStart(visibleMessages, tailIndex, currentBoundary);
+  const windowStart = Math.min(
+    historyStart,
+    promptIndex >= 0 ? promptIndex : historyStart,
+    focusIndex >= 0 ? Math.max(0, focusIndex - FOCUS_CONTEXT_ROWS) : historyStart,
+  );
   const firstId = visibleMessages[windowStart]?.id ?? null;
   const headId = visibleMessages[0]?.id ?? null;
-  if (boundary.firstId !== firstId || boundary.headId !== headId) setBoundary({ firstId, headId });
+  if (boundary.firstId !== firstId || boundary.headId !== headId || boundary.generation !== generation)
+    setBoundary({ firstId, headId, generation });
   const windowMessages = useMemo(() => visibleMessages.slice(windowStart), [visibleMessages, windowStart]);
   const hasCachedOlder = windowStart > 0;
   const canLoadOlder = hasCachedOlder || (online && hasOlder && !olderLoading);
   const loadPrevious = () => {
     if (hasCachedOlder) {
       const first = visibleMessages[Math.max(0, windowStart - CHAT_HISTORY_BATCH)];
-      if (first) setBoundary({ firstId: first.id, headId });
+      if (first) setBoundary({ firstId: first.id, headId, generation });
     } else if (canLoadOlder) onLoadOlder();
   };
+  // The chat opens at the row of a message from search after the row has its place in the list.
+  const placedFocus = useRef<string | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const clearHighlight = useCallback(() => setHighlightId(null), []);
+  const focusId = historyState === "ready" && focusIndex >= 0 ? (visibleMessages[focusIndex]?.id ?? null) : null;
+  const focusHandlers = useRef({ openAt: motion.openAt, onFocusPlaced });
+  focusHandlers.current = { openAt: motion.openAt, onFocusPlaced };
+  const onFocusLayout = useCallback((id: string, y: number) => {
+    if (placedFocus.current === id) return;
+    placedFocus.current = id;
+    focusHandlers.current.openAt(y);
+    setHighlightId(id);
+    focusHandlers.current.onFocusPlaced?.();
+  }, []);
   const actionHandlers = useRef({ onReply, onOpenActions, onSelectQuestion });
   actionHandlers.current = { onReply, onOpenActions, onSelectQuestion };
   const actions = useMemo<MessageRowShared["actions"]>(
@@ -866,9 +936,14 @@ export function ChatMessageList({
     ],
   );
   const listRef = useRef<FlatList<VisibleMessage>>(null);
-  const tailLayout = useMemo(
-    () => ({ id: tailId, onTailStartLayout: motion.onTailStartLayout }),
-    [tailId, motion.onTailStartLayout],
+  const rowLayout = useMemo(
+    () => ({
+      id: tailId,
+      onTailStartLayout: motion.onTailStartLayout,
+      focusId,
+      onFocusLayout,
+    }),
+    [tailId, motion.onTailStartLayout, focusId, onFocusLayout],
   );
   const seekLatest = useCallback(() => {
     if (motion.needsInitialPosition() && visibleMessages.length) listRef.current?.scrollToEnd({ animated: false });
@@ -888,6 +963,7 @@ export function ChatMessageList({
           accessibilityElementsHidden={response && !responseVisible}
           importantForAccessibility={response && !responseVisible ? "no-hide-descendants" : "auto"}
         >
+          {item.id === highlightId ? <FocusHighlight onDone={clearHighlight} /> : null}
           <MessageRow
             message={item}
             isTailUser={index + windowStart === tailIndex}
@@ -914,6 +990,8 @@ export function ChatMessageList({
       upload,
       outboxStatuses,
       shared,
+      highlightId,
+      clearHighlight,
     ],
   );
   const activitySpec = (activity?: MobileAgentActivity): ChatActivitySpec | null => {
@@ -992,7 +1070,7 @@ export function ChatMessageList({
         !accessibilityHidden && (historyState !== "ready" || motion.historyVisible) ? "auto" : "no-hide-descendants"
       }
     >
-      <TailLayoutContext.Provider value={tailLayout}>
+      <RowLayoutContext.Provider value={rowLayout}>
         <FlatList
           ref={listRef}
           data={windowMessages}
@@ -1169,7 +1247,7 @@ export function ChatMessageList({
             </>
           }
         />
-      </TailLayoutContext.Provider>
+      </RowLayoutContext.Provider>
     </Animated.View>
   );
 }
