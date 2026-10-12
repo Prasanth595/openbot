@@ -84,7 +84,7 @@ function failureFor(category: string): VoiceStreamFailure {
 const NO_SPACE_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}]/u;
 
 /** Joins segments with a space, except between two characters of a script that writes none. */
-export function joinSegments(segments: readonly string[]): string {
+function joinSegments(segments: readonly string[]): string {
   let text = "";
   for (const segment of segments) {
     const next = segment.trim();
