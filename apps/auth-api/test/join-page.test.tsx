@@ -32,12 +32,12 @@ describe("invitation landing page", () => {
     window.history.replaceState({}, "", INVITE_URL);
     render(() => <JoinPage />);
     const openButton = await screen.findByRole("link", { name: "Open OpenBot" });
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
 
     openButton.addEventListener("click", (event) => event.preventDefault());
     fireEvent.click(openButton);
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/OpenBot did not open\?/u);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/If OpenBot did not open/u));
   });
 
   it("does not promise that every invitation is single-use or expires in 24 hours", async () => {

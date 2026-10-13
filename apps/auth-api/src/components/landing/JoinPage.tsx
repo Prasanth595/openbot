@@ -93,10 +93,13 @@ export function JoinPage() {
           </div>
         </Show>
 
-        <Show when={openAttempted() && !mobile()}>
-          <p class="join-card-note" role="status">
-            OpenBot did not open? Install it with Download OpenBot, or start OpenBot once so that it can open invitation
-            links. You can also use Open in browser.
+        <Show when={!mobile()}>
+          {/* The live region exists before the click, so screen readers announce the text when it appears. */}
+          <p class={openAttempted() ? "join-card-note" : undefined} role="status">
+            <Show when={openAttempted()}>
+              If OpenBot did not open, install it with Download OpenBot, or start OpenBot once so that it can open
+              invitation links. You can also use Open in browser.
+            </Show>
           </p>
         </Show>
         <Show when={mobile()}>

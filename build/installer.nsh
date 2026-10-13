@@ -10,8 +10,14 @@
 !macroend
 
 ; An update runs the old uninstaller first. Keep the key then, so that links work during the update.
+; Delete the key only when it still opens this copy. Another copy can own it now.
 !macro customUnInstall
   ${ifNot} ${isUpdated}
-    DeleteRegKey SHCTX "Software\Classes\openbot"
+    Push $0
+    ReadRegStr $0 SHCTX "Software\Classes\openbot\shell\open\command" ""
+    ${if} $0 == '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" "%1"'
+      DeleteRegKey SHCTX "Software\Classes\openbot"
+    ${endIf}
+    Pop $0
   ${endIf}
 !macroend
