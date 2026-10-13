@@ -183,6 +183,58 @@ describe("Private Email SMTP delivery", () => {
     expect(closed).toBe(true);
   });
 
+  it("uses AUTH PLAIN and pipelines the envelope when the relay offers both", async () => {
+    const writes: string[] = [];
+    const responses = [
+      "220 mail.privateemail.com ready",
+      "250-mail.privateemail.com",
+      "250-AUTH PLAIN LOGIN",
+      "250 PIPELINING",
+      "235 Authentication successful",
+      "250 Sender accepted",
+      "250 Recipient accepted",
+      "354 End data with <CR><LF>.<CR><LF>",
+      "250 Message accepted",
+    ].join("\r\n");
+    const connector: SmtpConnector = () => ({
+      opened: Promise.resolve(),
+      readable: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`${responses}\r\n`));
+          controller.close();
+        },
+      }),
+      writable: new WritableStream({
+        write(chunk) {
+          writes.push(new TextDecoder().decode(chunk));
+        },
+      }),
+      close() {},
+    });
+
+    await runApiEffect(
+      sendPrivateEmailCode(
+        {
+          host: "mail.privateemail.com",
+          port: 465,
+          username: "hello@openbot.run",
+          password: "app-password-value",
+          from: "hello@openbot.run",
+        },
+        { email: "person@example.com", code: "ABCD-EFGH", expiresAt: Date.now() + 10 * 60_000 },
+        connector,
+      ),
+    );
+
+    expect(writes).toEqual([
+      "EHLO openbot.run\r\n",
+      `AUTH PLAIN ${btoa("\0hello@openbot.run\0app-password-value")}\r\n`,
+      "MAIL FROM:<hello@openbot.run>\r\nRCPT TO:<person@example.com>\r\nDATA\r\n",
+      expect.stringContaining("ABCD-EFGH"),
+      "QUIT\r\n",
+    ]);
+  });
+
   it("rejects header injection before opening a socket", async () => {
     let connected = false;
     await expect(
