@@ -72,6 +72,7 @@ function SettingsModalStory(props: {
       platform: "ios",
       connectedAt: Date.now() - 86_400_000,
       lastActiveAt: Date.now() - 45_000,
+      via: "code",
     },
     {
       sessionId: "22222222-2222-4222-8222-222222222222",
@@ -79,6 +80,7 @@ function SettingsModalStory(props: {
       platform: "android",
       connectedAt: Date.now() - 3_600_000,
       lastActiveAt: Date.now() - 600_000,
+      via: "link",
     },
   ]);
 
@@ -135,6 +137,10 @@ function SettingsModalStory(props: {
           onUpdateAccountName={updateAccountName}
           onUpdateAccountAvatar={updateAccountAvatar}
           onCreateMobileConnect={createMobileConnect}
+          onCancelMobileConnect={mock.api.auth.cancelMobileConnect}
+          onGetMobileConnectLink={mock.api.auth.getMobileConnectLink}
+          onCreateMobileConnectLink={mock.api.auth.createMobileConnectLink}
+          onRevokeMobileConnectLink={mock.api.auth.revokeMobileConnectLink}
           onListMobileConnectedDevices={async () => mobileDevices()}
           onListAccountSessions={mock.api.auth.listAccountSessions}
           onRevokeAccountSession={mock.api.auth.revokeAccountSession}

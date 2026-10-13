@@ -115,7 +115,7 @@ const valid: [string, (value: unknown) => unknown, unknown][] = [
     "connected devices",
     decodeMobileConnectedDevices,
     [
-      { sessionId: "session-1", name: "Phone", platform: "ios", connectedAt: 1, lastActiveAt: 2 },
+      { sessionId: "session-1", name: "Phone", platform: "ios", connectedAt: 1, lastActiveAt: 2, via: "link" },
     ] satisfies MobileConnectedDevice[],
   ],
   [

@@ -37,6 +37,14 @@ interface MobileSessionUserRow extends UserRow {
   last_used_at: number;
 }
 
+interface HostBindingRow {
+  host_id: string | null;
+  host_fingerprint: string | null;
+  device_public_key: string | null;
+  owner_user_id: string | null;
+  user_id: string;
+}
+
 const SESSION_ACTIVITY_UPDATE_INTERVAL_MS = 15 * 60_000;
 
 class AuthDatabase extends Context.Service<AuthDatabase, D1Database>()("auth-api/D1AuthRepository/Database") {}
@@ -501,6 +509,25 @@ export class D1AuthRepository implements AuthRepository {
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
 
+  readonly cancelMobileAuthTickets = Effect.fn("D1AuthRepository.cancelMobileAuthTickets")(
+    function* (
+      this: D1AuthRepository,
+      input: { userId: string; serverId: string; now: number },
+    ): Effect.fn.Return<void, AuthStoreError, AuthDatabase> {
+      const database = yield* AuthDatabase;
+      yield* storeCall(() =>
+        database
+          .prepare(
+            `UPDATE team_auth_tickets SET consumed_at = ?
+         WHERE user_id = ? AND server_id = ? AND consumed_at IS NULL`,
+          )
+          .bind(input.now, input.userId, input.serverId)
+          .run(),
+      );
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly redeemTeamAuthTicket = Effect.fn("D1AuthRepository.redeemTeamAuthTicket")(
     function* (
       this: D1AuthRepository,
@@ -548,33 +575,16 @@ export class D1AuthRepository implements AuthRepository {
       const binding = yield* storeCall(() =>
         database
           .prepare(
-            `SELECT t.mobile_host_id, t.mobile_host_fingerprint, h.device_public_key, h.owner_user_id, t.user_id
+            `SELECT t.mobile_host_id AS host_id, t.mobile_host_fingerprint AS host_fingerprint,
+              h.device_public_key, h.owner_user_id, t.user_id
        FROM team_auth_tickets t LEFT JOIN remote_hosts h ON h.host_id = t.mobile_host_id
        WHERE t.ticket_hash = ? AND t.server_id = ? AND t.consumed_at IS NULL AND t.expires_at > ?`,
           )
           .bind(input.ticketHash, input.serverId, input.now)
-          .first<{
-            mobile_host_id: string | null;
-            mobile_host_fingerprint: string | null;
-            device_public_key: string | null;
-            owner_user_id: string | null;
-            user_id: string;
-          }>(),
+          .first<HostBindingRow>(),
       );
-      if (!binding) return null;
-      const devicePublicKey = binding.device_public_key;
-      if (
-        binding.mobile_host_id &&
-        (!devicePublicKey ||
-          binding.owner_user_id !== binding.user_id ||
-          (yield* sha256(devicePublicKey).pipe(
-            Effect.mapError(() => new AuthStoreError({ message: "Account store operation failed." })),
-          )) !== binding.mobile_host_fingerprint)
-      )
-        return null;
-      const tokenHash = yield* sha256(input.session.token).pipe(
-        Effect.mapError(() => new AuthStoreError({ message: "Account store operation failed." })),
-      );
+      if (!binding || !(yield* hostBindingMatches(binding))) return null;
+      const tokenHash = yield* storeHash(input.session.token);
       const [created, registered, , , consumed] = yield* storeCall(() =>
         database.batch([
           database
@@ -600,31 +610,7 @@ export class D1AuthRepository implements AuthRepository {
               input.now,
               binding.device_public_key,
             ),
-          database
-            .prepare(
-              `INSERT INTO mobile_auth_sessions(session_id, user_id, device_id, device_name, platform, created_at)
-           SELECT id, user_id, ?, ?, ?, ? FROM auth_sessions WHERE id = ?`,
-            )
-            .bind(input.device.id, input.device.name, input.device.platform, input.now, input.session.id),
-          database
-            .prepare(
-              `UPDATE auth_sessions SET revoked_at = ?
-           WHERE id <> ? AND revoked_at IS NULL
-             AND id IN (
-               SELECT session_id FROM mobile_auth_sessions
-               WHERE user_id = (SELECT user_id FROM mobile_auth_sessions WHERE session_id = ?)
-                 AND device_id = ?
-             )`,
-            )
-            .bind(input.now, input.session.id, input.session.id, input.device.id),
-          database
-            .prepare(
-              `DELETE FROM mobile_auth_sessions
-           WHERE session_id <> ?
-             AND user_id = (SELECT user_id FROM mobile_auth_sessions WHERE session_id = ?)
-             AND device_id = ?`,
-            )
-            .bind(input.session.id, input.session.id, input.device.id),
+          ...mobileSessionStatements(database, input, null),
           database
             .prepare(
               `UPDATE team_auth_tickets SET consumed_at = ?
@@ -634,19 +620,191 @@ export class D1AuthRepository implements AuthRepository {
         ]),
       );
       if (created?.meta.changes !== 1 || registered?.meta.changes !== 1 || consumed?.meta.changes !== 1) return null;
-      const user = yield* this.authenticate(input.session.token, input.now);
-      return user
-        ? {
-            sessionToken: input.session.token,
-            user,
-            ...(binding.mobile_host_id && binding.mobile_host_fingerprint
-              ? { host: { hostId: binding.mobile_host_id, fingerprint: binding.mobile_host_fingerprint } }
-              : {}),
-          }
-        : null;
+      return yield* this.#mobileSessionResult(input, binding);
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
+
+  readonly replaceMobileConnectLink = Effect.fn("D1AuthRepository.replaceMobileConnectLink")(
+    function* (
+      this: D1AuthRepository,
+      input: {
+        linkHash: string;
+        desktopSessionToken: string;
+        userId: string;
+        host: MobileConnectHostBinding;
+        createdAt: number;
+      },
+    ): Effect.fn.Return<boolean, AuthStoreError, AuthDatabase> {
+      const database = yield* AuthDatabase;
+      const host = yield* storeCall(() =>
+        database
+          .prepare("SELECT device_public_key, owner_user_id FROM remote_hosts WHERE host_id = ?")
+          .bind(input.host.hostId)
+          .first<Pick<HostBindingRow, "device_public_key" | "owner_user_id">>(),
+      );
+      if (
+        !host ||
+        !(yield* hostBindingMatches({
+          ...host,
+          host_id: input.host.hostId,
+          host_fingerprint: input.host.fingerprint,
+          user_id: input.userId,
+        }))
+      )
+        return false;
+      const desktopTokenHash = yield* storeHash(input.desktopSessionToken);
+      // The insert repeats the session and host checks, so a concurrent sign-out or host key change wins.
+      // The earlier links are revoked only when the new link exists.
+      const [inserted] = yield* storeCall(() =>
+        database.batch([
+          database
+            .prepare(
+              `INSERT INTO mobile_connect_links(
+             link_hash, user_id, desktop_session_id, host_id, host_fingerprint, created_at
+           )
+           SELECT ?, s.user_id, s.id, h.host_id, ?, ?
+           FROM auth_sessions s
+           JOIN remote_hosts h ON h.host_id = ? AND h.owner_user_id = s.user_id AND h.device_public_key = ?
+           WHERE s.token_hash = ? AND s.user_id = ? AND s.revoked_at IS NULL AND s.expires_at > ?
+             AND NOT EXISTS (SELECT 1 FROM mobile_auth_sessions m WHERE m.session_id = s.id)`,
+            )
+            .bind(
+              input.linkHash,
+              input.host.fingerprint,
+              input.createdAt,
+              input.host.hostId,
+              host.device_public_key,
+              desktopTokenHash,
+              input.userId,
+              input.createdAt,
+            ),
+          database
+            .prepare(
+              `UPDATE mobile_connect_links SET revoked_at = ?
+           WHERE user_id = ? AND host_id = ? AND revoked_at IS NULL AND link_hash <> ?
+             AND EXISTS (SELECT 1 FROM mobile_connect_links WHERE link_hash = ?)`,
+            )
+            .bind(input.createdAt, input.userId, input.host.hostId, input.linkHash, input.linkHash),
+        ]),
+      );
+      return inserted?.meta.changes === 1;
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  readonly revokeMobileConnectLink = Effect.fn("D1AuthRepository.revokeMobileConnectLink")(
+    function* (
+      this: D1AuthRepository,
+      input: { userId: string; hostId: string; now: number },
+    ): Effect.fn.Return<void, AuthStoreError, AuthDatabase> {
+      const database = yield* AuthDatabase;
+      // The phones that any link of this host signed in, also a replaced link's, are signed out with it.
+      // The revocation trigger ends their remote sessions and queues the disconnect.
+      yield* storeCall(() =>
+        database.batch([
+          database
+            .prepare(
+              `UPDATE auth_sessions SET revoked_at = ?
+           WHERE user_id = ? AND revoked_at IS NULL
+             AND id IN (
+               SELECT m.session_id FROM mobile_auth_sessions m
+               JOIN mobile_connect_links l ON l.link_hash = m.connect_link_hash
+               WHERE l.user_id = ? AND l.host_id = ?
+             )`,
+            )
+            .bind(input.now, input.userId, input.userId, input.hostId),
+          database
+            .prepare(
+              "UPDATE mobile_connect_links SET revoked_at = ? WHERE user_id = ? AND host_id = ? AND revoked_at IS NULL",
+            )
+            .bind(input.now, input.userId, input.hostId),
+        ]),
+      );
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  readonly redeemMobileConnectLink = Effect.fn("D1AuthRepository.redeemMobileConnectLink")(
+    function* (
+      this: D1AuthRepository,
+      input: {
+        linkHash: string;
+        now: number;
+        session: { id: string; token: string; expiresAt: number };
+        device: MobileAuthDeviceIdentity;
+      },
+    ): Effect.fn.Return<MobileAuthSessionResult | null, AuthStoreError, AuthDatabase> {
+      const database = yield* AuthDatabase;
+      // A link is valid while it is not revoked and the desktop session that created it is active.
+      const binding = yield* storeCall(() =>
+        database
+          .prepare(
+            `SELECT l.host_id, l.host_fingerprint, h.device_public_key, h.owner_user_id, l.user_id
+       FROM mobile_connect_links l
+       JOIN auth_sessions d ON d.id = l.desktop_session_id
+       JOIN remote_hosts h ON h.host_id = l.host_id
+       WHERE l.link_hash = ? AND l.revoked_at IS NULL
+         AND d.user_id = l.user_id AND d.revoked_at IS NULL AND d.expires_at > ?`,
+          )
+          .bind(input.linkHash, input.now)
+          .first<HostBindingRow>(),
+      );
+      if (!binding || !(yield* hostBindingMatches(binding))) return null;
+      const tokenHash = yield* storeHash(input.session.token);
+      const [created, registered, , , used] = yield* storeCall(() =>
+        database.batch([
+          database
+            .prepare(
+              `INSERT INTO auth_sessions(id, user_id, token_hash, expires_at, created_at, last_used_at)
+           SELECT ?, l.user_id, ?, ?, ?, ?
+           FROM mobile_connect_links l
+           JOIN auth_sessions d ON d.id = l.desktop_session_id
+           JOIN remote_hosts h ON h.host_id = l.host_id
+           WHERE l.link_hash = ? AND l.revoked_at IS NULL
+             AND d.user_id = l.user_id AND d.revoked_at IS NULL AND d.expires_at > ?
+             AND h.owner_user_id = l.user_id AND h.device_public_key = ?`,
+            )
+            .bind(
+              input.session.id,
+              tokenHash,
+              input.session.expiresAt,
+              input.now,
+              input.now,
+              input.linkHash,
+              input.now,
+              binding.device_public_key,
+            ),
+          ...mobileSessionStatements(database, input, input.linkHash),
+          database
+            .prepare(
+              `UPDATE mobile_connect_links SET last_used_at = ?, use_count = use_count + 1
+           WHERE link_hash = ? AND EXISTS (SELECT 1 FROM mobile_auth_sessions WHERE session_id = ?)`,
+            )
+            .bind(input.now, input.linkHash, input.session.id),
+        ]),
+      );
+      if (created?.meta.changes !== 1 || registered?.meta.changes !== 1 || used?.meta.changes !== 1) return null;
+      return yield* this.#mobileSessionResult(input, binding);
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  readonly #mobileSessionResult = Effect.fn("D1AuthRepository.mobileSessionResult")(function* (
+    this: D1AuthRepository,
+    input: { now: number; session: { token: string } },
+    binding: HostBindingRow,
+  ): Effect.fn.Return<MobileAuthSessionResult | null, AuthStoreError, AuthDatabase> {
+    const user = yield* this.authenticate(input.session.token, input.now);
+    if (!user) return null;
+    return {
+      sessionToken: input.session.token,
+      user,
+      ...(binding.host_id && binding.host_fingerprint
+        ? { host: { hostId: binding.host_id, fingerprint: binding.host_fingerprint } }
+        : {}),
+    };
+  });
 
   readonly authenticateMobileSession = Effect.fn("D1AuthRepository.authenticateMobileSession")(
     function* (
@@ -690,7 +848,8 @@ export class D1AuthRepository implements AuthRepository {
         database
           .prepare(
             `SELECT mobile_auth_sessions.session_id, mobile_auth_sessions.device_name,
-                mobile_auth_sessions.platform, auth_sessions.created_at, auth_sessions.last_used_at
+                mobile_auth_sessions.platform, auth_sessions.created_at, auth_sessions.last_used_at,
+                mobile_auth_sessions.connect_link_hash IS NOT NULL AS via_link
          FROM mobile_auth_sessions
          JOIN auth_sessions ON auth_sessions.id = mobile_auth_sessions.session_id
          WHERE mobile_auth_sessions.user_id = ?
@@ -705,6 +864,7 @@ export class D1AuthRepository implements AuthRepository {
             platform: MobileAuthDevice["platform"];
             created_at: number;
             last_used_at: number;
+            via_link: number;
           }>(),
       );
       return result.results.map((row) => ({
@@ -713,6 +873,7 @@ export class D1AuthRepository implements AuthRepository {
         platform: row.platform,
         connectedAt: row.created_at,
         lastActiveAt: row.last_used_at,
+        via: row.via_link === 1 ? "link" : "code",
       }));
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
@@ -834,6 +995,57 @@ export class D1AuthRepository implements AuthRepository {
     );
     return { id, email, name: null, avatarUrl: null };
   });
+}
+
+/** Registers the new mobile session and replaces the earlier session of the same device. */
+function mobileSessionStatements(
+  database: D1Database,
+  input: { now: number; session: { id: string }; device: MobileAuthDeviceIdentity },
+  linkHash: string | null,
+): D1PreparedStatement[] {
+  return [
+    database
+      .prepare(
+        `INSERT INTO mobile_auth_sessions(
+       session_id, user_id, device_id, device_name, platform, created_at, connect_link_hash
+     )
+     SELECT id, user_id, ?, ?, ?, ?, ? FROM auth_sessions WHERE id = ?`,
+      )
+      .bind(input.device.id, input.device.name, input.device.platform, input.now, linkHash, input.session.id),
+    database
+      .prepare(
+        `UPDATE auth_sessions SET revoked_at = ?
+     WHERE id <> ? AND revoked_at IS NULL
+       AND id IN (
+         SELECT session_id FROM mobile_auth_sessions
+         WHERE user_id = (SELECT user_id FROM mobile_auth_sessions WHERE session_id = ?)
+           AND device_id = ?
+       )`,
+      )
+      .bind(input.now, input.session.id, input.session.id, input.device.id),
+    database
+      .prepare(
+        `DELETE FROM mobile_auth_sessions
+     WHERE session_id <> ?
+       AND user_id = (SELECT user_id FROM mobile_auth_sessions WHERE session_id = ?)
+       AND device_id = ?`,
+      )
+      .bind(input.session.id, input.session.id, input.device.id),
+  ];
+}
+
+/**
+ * A host-bound credential is valid only while its account owns the host and the host key has the
+ * stored fingerprint. A legacy ticket has no host.
+ */
+const hostBindingMatches = Effect.fn("D1AuthRepository.hostBindingMatches")(function* (binding: HostBindingRow) {
+  if (!binding.host_id) return true;
+  if (!binding.device_public_key || binding.owner_user_id !== binding.user_id) return false;
+  return (yield* storeHash(binding.device_public_key)) === binding.host_fingerprint;
+});
+
+function storeHash(value: string): Effect.Effect<string, AuthStoreError> {
+  return sha256(value).pipe(Effect.mapError(() => new AuthStoreError({ message: "Account store operation failed." })));
 }
 
 function mapUser(row: UserRow): AuthUser {

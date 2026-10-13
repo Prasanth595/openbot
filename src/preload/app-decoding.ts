@@ -66,6 +66,7 @@ import {
   isVoiceLanguage,
   isVoiceModelId,
   type MobileConnectedDevice,
+  type MobileConnectLink,
   type MobileConnectTicket,
   type NotificationOpenedEvent,
   type NotificationPreference,
@@ -206,6 +207,11 @@ export function decodeMobileConnectTicket(value: unknown): MobileConnectTicket {
   return { qrData: requiredString(ticket, "qrData"), expiresAt: requiredNumber(ticket, "expiresAt") };
 }
 
+export function decodeMobileConnectLink(value: unknown): MobileConnectLink {
+  const link = decodeRecord(value, "Mobile Connect link");
+  return { url: requiredString(link, "url"), createdAt: requiredNumber(link, "createdAt") };
+}
+
 export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDevice[] {
   return decodeList(value, "connected device list", (device) => {
     const { platform } = device;
@@ -216,6 +222,7 @@ export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDev
       platform,
       connectedAt: requiredNumber(device, "connectedAt"),
       lastActiveAt: requiredNumber(device, "lastActiveAt"),
+      via: device.via === "link" ? "link" : "code",
     };
   });
 }

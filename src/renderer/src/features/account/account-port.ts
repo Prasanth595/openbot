@@ -8,7 +8,10 @@ export interface AccountPort {
   agent: Pick<OpenBotDesktopApi["agent"], "getUsage">;
   auth: Pick<
     OpenBotDesktopApi["auth"],
+    | "cancelMobileConnect"
     | "createMobileConnect"
+    | "createMobileConnectLink"
+    | "getMobileConnectLink"
     | "getState"
     | "listAccountSessions"
     | "listMobileConnectedDevices"
@@ -18,6 +21,7 @@ export interface AccountPort {
     | "retry"
     | "revokeAccountSession"
     | "revokeMobileConnectedDevice"
+    | "revokeMobileConnectLink"
     | "updateAvatar"
     | "updateName"
     | "verifyEmailCode"

@@ -28,6 +28,8 @@ const CHALLENGE_TTL_MS = 10 * 60_000;
 const RESEND_COOLDOWN_MS = 60_000;
 const TEAM_TICKET_TTL_MS = 2 * 60_000;
 const MOBILE_CONNECT_SERVER_ID = "00000000-0000-4000-8000-000000000002";
+// The host ID rule of `isMobileConnectHostBinding`.
+const MOBILE_CONNECT_HOST_ID_PATTERN = /^[A-Za-z0-9-]{1,128}$/u;
 const RATE_WINDOW_MS = 15 * 60_000;
 const AMBIGUOUS_DELIVERY_ERRORS = new Set(["smtp_delivery_unknown", "email_delivery_unknown"]);
 // A provider sender limit frees again as its window rolls forward, so the client waits and retries
@@ -467,6 +469,21 @@ export class AuthService {
     (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
   ).bind(this);
 
+  /** Cancels the Mobile Connect code that the desktop shows. A new code also replaces it. */
+  readonly cancelMobileAuthTickets = Effect.fn("AuthService.cancelMobileAuthTickets")(
+    function* (this: AuthService, sessionToken: string): Effect.fn.Return<void, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      const user = yield* this.authenticateDesktopSession(sessionToken);
+      if (!user) return yield* new AuthServiceError(401, "unauthorized", "The session is invalid.");
+      yield* dependencies.repository.cancelMobileAuthTickets({
+        userId: user.id,
+        serverId: MOBILE_CONNECT_SERVER_ID,
+        now: dependencies.now(),
+      });
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly redeemMobileAuthTicket = Effect.fn("AuthService.redeemMobileAuthTicket")(
     function* (
       this: AuthService,
@@ -480,19 +497,75 @@ export class AuthService {
       const now = dependencies.now();
       yield* this.#enforceRateLimit(`mobile-ticket-redeem:ip:${normalizeSourceIp(sourceIp)}`, 60, now);
       const ticketHash = yield* sha256(ticket);
-      const redeemed = yield* dependencies.repository.redeemMobileAuthTicket({
-        ticketHash,
-        serverId: MOBILE_CONNECT_SERVER_ID,
-        now,
-        session: {
-          id: crypto.randomUUID(),
-          token: randomToken(),
-          expiresAt: PERSISTENT_SESSION_EXPIRES_AT,
-        },
-        device,
-      });
+      // A value that is not a one-time ticket can be a persistent link. Each attempt gets its own session.
+      const redeemed =
+        (yield* dependencies.repository.redeemMobileAuthTicket({
+          ticketHash,
+          serverId: MOBILE_CONNECT_SERVER_ID,
+          now,
+          session: newMobileSession(),
+          device,
+        })) ??
+        (yield* dependencies.repository.redeemMobileConnectLink({
+          linkHash: ticketHash,
+          now,
+          session: newMobileSession(),
+          device,
+        }));
       yield* dependencies.flushSessionRevocations();
       return redeemed;
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /** A persistent Mobile Connect link for one host. It replaces the earlier link of that host. */
+  readonly createMobileConnectLink = Effect.fn("AuthService.createMobileConnectLink")(
+    function* (
+      this: AuthService,
+      sessionToken: string,
+      sourceIp: string,
+      host: MobileConnectHostBinding,
+    ): Effect.fn.Return<{ link: string; createdAt: number }, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      const user = yield* this.authenticateDesktopSession(sessionToken);
+      if (!user) return yield* new AuthServiceError(401, "unauthorized", "The session is invalid.");
+      const now = dependencies.now();
+      yield* this.#enforceRateLimit(`mobile-link:user:${user.id}`, 30, now);
+      yield* this.#enforceRateLimit(`mobile-link:ip:${normalizeSourceIp(sourceIp)}`, 60, now);
+      const link = randomToken();
+      const created = yield* dependencies.repository.replaceMobileConnectLink({
+        linkHash: yield* sha256(link),
+        desktopSessionToken: sessionToken,
+        userId: user.id,
+        host,
+        createdAt: now,
+      });
+      if (!created) {
+        return yield* new AuthServiceError(
+          409,
+          "mobile_host_mismatch",
+          "The Mobile Connect host identity does not match.",
+        );
+      }
+      return { link, createdAt: now };
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
+  readonly revokeMobileConnectLink = Effect.fn("AuthService.revokeMobileConnectLink")(
+    function* (
+      this: AuthService,
+      sessionToken: string,
+      hostId: string,
+    ): Effect.fn.Return<void, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      if (!MOBILE_CONNECT_HOST_ID_PATTERN.test(hostId)) {
+        return yield* new AuthServiceError(400, "invalid_mobile_host", "The Mobile Connect host ID is invalid.");
+      }
+      const user = yield* this.authenticateDesktopSession(sessionToken);
+      if (!user) return yield* new AuthServiceError(401, "unauthorized", "The session is invalid.");
+      yield* dependencies.repository.revokeMobileConnectLink({ userId: user.id, hostId, now: dependencies.now() });
+      yield* dependencies.flushSessionRevocations();
     },
     (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
   ).bind(this);
@@ -727,6 +800,10 @@ function validateTeamServerId(value: string): void {
   if (value === MOBILE_CONNECT_SERVER_ID) {
     throw new AuthServiceError(400, "invalid_server_id", "The team server ID is invalid.");
   }
+}
+
+function newMobileSession(): { id: string; token: string; expiresAt: number } {
+  return { id: crypto.randomUUID(), token: randomToken(), expiresAt: PERSISTENT_SESSION_EXPIRES_AT };
 }
 
 function normalizeMobileDevice(input: MobileAuthDeviceIdentity): MobileAuthDeviceIdentity {

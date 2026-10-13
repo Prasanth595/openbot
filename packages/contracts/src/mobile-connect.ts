@@ -35,6 +35,15 @@ export interface MobileConnectTicket {
   expiresAt: number;
 }
 
+/**
+ * A Mobile Connect link that does not expire. It signs in a phone each time it is used, until it is
+ * replaced, revoked, or the desktop session that made it ends.
+ */
+export interface MobileConnectLink {
+  url: string;
+  createdAt: number;
+}
+
 export type MobileDevicePlatform = "ios" | "android" | "unknown";
 
 export interface MobileConnectedDevice {
@@ -43,6 +52,8 @@ export interface MobileConnectedDevice {
   platform: MobileDevicePlatform;
   connectedAt: number;
   lastActiveAt: number;
+  /** How the phone signed in: a one-time code, or a permanent link. */
+  via: "code" | "link";
 }
 
 export interface AccountSession {

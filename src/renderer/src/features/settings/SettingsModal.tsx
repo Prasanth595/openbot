@@ -7,6 +7,7 @@ import type {
   DynamicIslandGeometry,
   HostedServersDesktopApi,
   MobileConnectedDevice,
+  MobileConnectLink,
   MobileConnectTicket,
   UpdateStatus,
 } from "@openbot/contracts/ipc";
@@ -52,6 +53,10 @@ export interface SettingsModalProps {
   onUpdateAccountName: (name: string) => Promise<void>;
   onUpdateAccountAvatar: (image: AvatarImageInput | null) => Promise<void>;
   onCreateMobileConnect?: () => Promise<MobileConnectTicket>;
+  onCancelMobileConnect?: () => Promise<void>;
+  onGetMobileConnectLink?: () => Promise<MobileConnectLink | null>;
+  onCreateMobileConnectLink?: () => Promise<MobileConnectLink>;
+  onRevokeMobileConnectLink?: () => Promise<void>;
   onListMobileConnectedDevices?: () => Promise<MobileConnectedDevice[]>;
   onRevokeMobileConnectedDevice?: (sessionId: string) => Promise<void>;
   onListAccountSessions?: () => Promise<AccountSession[]>;
@@ -264,6 +269,8 @@ export function SettingsModal(props: SettingsModalProps) {
           <SettingsMobileConnectTab
             store={mobileConnect}
             canCreateTicket={Boolean(props.onCreateMobileConnect)}
+            canCancelTicket={Boolean(props.onCancelMobileConnect)}
+            canManageLink={Boolean(props.onCreateMobileConnectLink && props.onRevokeMobileConnectLink)}
             canRevokeDevice={Boolean(props.onRevokeMobileConnectedDevice)}
           />
         </Tabs.Content>

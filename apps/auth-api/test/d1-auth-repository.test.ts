@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { AuthService } from "../src/server/auth-service";
+import { sha256 } from "../src/server/crypto";
 import { D1AuthRepository } from "../src/server/d1-auth-repository";
 import { runApiEffect } from "../src/server/effect-runtime";
+import { migratedDatabase, sqliteD1 } from "./sqlite-d1";
 
 const FIFTEEN_MINUTES_MS = 15 * 60_000;
 
@@ -110,6 +113,111 @@ describe("D1 auth sessions", () => {
       null,
       null,
     ]);
+  });
+});
+
+describe("persistent Mobile Connect links", () => {
+  it("signs in many phones until the link is replaced, revoked, or its desktop session or host key changes", async () => {
+    const database = migratedDatabase();
+    try {
+      const desktopToken = "desktop-token";
+      database.exec(`
+        INSERT INTO users(id, identity_key, email, created_at, updated_at) VALUES
+          ('owner', 'email:owner@example.com', 'owner@example.com', 1, 1),
+          ('other', 'email:other@example.com', 'other@example.com', 1, 1);
+        INSERT INTO auth_sessions(id, user_id, token_hash, expires_at, created_at, last_used_at)
+          VALUES ('desktop', 'owner', '${await runApiEffect(sha256(desktopToken))}', 8640000000000000, 1, 1);
+        INSERT INTO remote_hosts(host_id, owner_user_id, name, device_public_key, auth_epoch, created_at, updated_at) VALUES
+          ('host-a', 'owner', 'Desktop A', 'key-a', 1, 1, 1),
+          ('host-b', 'other', 'Desktop B', 'key-b', 1, 1, 1);
+      `);
+      const host = { hostId: "host-a", fingerprint: await runApiEffect(sha256("key-a")) };
+      let now = 1_000;
+      const service = new AuthService({
+        repository: new D1AuthRepository(sqliteD1(database)),
+        delivery: null,
+        now: () => now,
+      });
+      const createLink = () => runApiEffect(service.createMobileConnectLink(desktopToken, "203.0.113.4", host));
+      const redeem = (code: string) =>
+        runApiEffect(
+          service.redeemMobileAuthTicket(
+            code,
+            { id: crypto.randomUUID(), name: "Phone", platform: "ios" },
+            "203.0.113.5",
+          ),
+        );
+
+      const first = await createLink();
+      expect(first).toEqual({ link: expect.stringMatching(/^[A-Za-z0-9_-]{32,128}$/), createdAt: 1_000 });
+      now = 2_000;
+      const phoneA = await redeem(first.link);
+      const phoneB = await redeem(first.link);
+      expect(phoneA).toMatchObject({ user: { id: "owner" }, host });
+      expect(phoneB?.sessionToken).not.toBe(phoneA?.sessionToken);
+      await expect(runApiEffect(service.authenticateMobileSession(phoneB?.sessionToken ?? ""))).resolves.toMatchObject({
+        id: "owner",
+      });
+      expect(database.prepare("SELECT use_count, last_used_at FROM mobile_connect_links").get()).toEqual({
+        use_count: 2,
+        last_used_at: 2_000,
+      });
+      expect(JSON.stringify(database.prepare("SELECT * FROM mobile_connect_links").all())).not.toContain(first.link);
+
+      const second = await createLink();
+      await expect(redeem(first.link)).resolves.toBeNull();
+      await expect(redeem(second.link)).resolves.toMatchObject({ host });
+
+      const codePhone = await redeem(
+        (await runApiEffect(service.issueMobileAuthTicket(desktopToken, "203.0.113.4", host))).ticket,
+      );
+      expect(
+        (await runApiEffect(service.listMobileAuthDevices(desktopToken))).map((device) => device.via).sort(),
+      ).toEqual(["code", "link", "link", "link"]);
+
+      await runApiEffect(service.revokeMobileConnectLink(desktopToken, "host-a"));
+      await runApiEffect(service.revokeMobileConnectLink(desktopToken, "host-a"));
+      await expect(redeem(second.link)).resolves.toBeNull();
+      // Revoking signs out every phone that a link of this host signed in, also the replaced link's.
+      await expect(runApiEffect(service.authenticateMobileSession(phoneA?.sessionToken ?? ""))).resolves.toBeNull();
+      await expect(
+        runApiEffect(service.authenticateMobileSession(codePhone?.sessionToken ?? "")),
+      ).resolves.toMatchObject({ id: "owner" });
+      expect(await runApiEffect(service.listMobileAuthDevices(desktopToken))).toEqual([
+        expect.objectContaining({ via: "code" }),
+      ]);
+      await expect(runApiEffect(service.revokeMobileConnectLink(desktopToken, "host/a"))).rejects.toMatchObject({
+        status: 400,
+        code: "invalid_mobile_host",
+      });
+
+      const third = await createLink();
+      database.exec("UPDATE remote_hosts SET device_public_key = 'substituted-key' WHERE host_id = 'host-a'");
+      await expect(redeem(third.link)).resolves.toBeNull();
+      database.exec("UPDATE remote_hosts SET device_public_key = 'key-a' WHERE host_id = 'host-a'");
+
+      await expect(
+        runApiEffect(
+          service.createMobileConnectLink(desktopToken, "203.0.113.4", {
+            hostId: "host-b",
+            fingerprint: await runApiEffect(sha256("key-b")),
+          }),
+        ),
+      ).rejects.toMatchObject({ status: 409, code: "mobile_host_mismatch" });
+
+      const ticket = await runApiEffect(service.issueMobileAuthTicket(desktopToken, "203.0.113.4", host));
+      await expect(redeem(ticket.ticket)).resolves.toMatchObject({ user: { id: "owner" }, host });
+      await expect(redeem(ticket.ticket)).resolves.toBeNull();
+      const cancelled = await runApiEffect(service.issueMobileAuthTicket(desktopToken, "203.0.113.4", host));
+      await runApiEffect(service.cancelMobileAuthTickets(desktopToken));
+      await expect(redeem(cancelled.ticket)).resolves.toBeNull();
+
+      const fourth = await createLink();
+      await runApiEffect(service.logout(desktopToken));
+      await expect(redeem(fourth.link)).resolves.toBeNull();
+    } finally {
+      database.close();
+    }
   });
 });
 
