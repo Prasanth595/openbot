@@ -361,7 +361,7 @@ async function oldComputer(): Promise<Computer> {
     args: [],
     env: [],
     headers: [],
-    url: "https://mcp.linear.app/sse?api_key=url_secret",
+    url: "https://mcp.example.com/api/mcp/s/path_secret/mcp?api_key=url_secret",
   });
   old.customProviders.push({
     id: "together",
@@ -428,6 +428,7 @@ describe("InstanceTransferService", () => {
       "agent_arg_secret",
       "pg_secret",
       "dsn_secret",
+      "path_secret",
     ])
       expect(text).not.toContain(secret);
     // The file appears only when it is complete.
@@ -484,7 +485,7 @@ describe("InstanceTransferService", () => {
       target.mcpServers.map((server) => [server.name, server.command, server.enabled, server.url, server.args]),
     ).toEqual([
       ["GitHub", "my-github", true, "", GITHUB_MCP.args],
-      ["Linear", "", false, "https://mcp.linear.app/sse", []],
+      ["Linear", "", false, "https://mcp.example.com", []],
     ]);
     expect(target.customProviders).toEqual([
       {
@@ -513,7 +514,7 @@ describe("InstanceTransferService", () => {
         "Goose: enter the values of GOOSE_KEY again in Settings.",
         "Goose: values that can hold a secret were removed from its arguments or address. Enter them again in Settings.",
         "Together: values that can hold a secret were removed from its arguments or address. Enter them again in Settings.",
-        "Linear: the MCP server is added turned off. Check its command, enter its values again, and turn it on in MCP settings.",
+        "Linear: the MCP server is added turned off. Check its command, enter its values and full address again, and turn it on in MCP settings.",
       ]),
     );
   });

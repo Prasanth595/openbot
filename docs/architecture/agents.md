@@ -367,7 +367,8 @@ No secret is in the file: MCP variable and header values are empty, custom provi
 headers, custom agents keep only the names of their variables, and `signedIn` lists provider ids,
 never tokens. Arguments and URLs can hold a token too, so the export empties the value of a flag or
 `name=value` argument whose name says it is a secret, and removes the user, password, query and
-fragment of a URL, also of a URL in an argument such as a connection string; `cleared` names each item it changed, and the import asks for those values again. Chat history, messaging connections, connectors, team and account sessions, browser
+fragment of a URL, also of a URL in an argument such as a connection string. An MCP address keeps only
+its origin, because some services keep the access key in the path; `cleared` names each item it changed, and the import asks for those values again. Chat history, messaging connections, connectors, team and account sessions, browser
 data, approval automation and the per-agent access, Computer Use and automation settings are not
 exported, so an imported agent gets the defaults of a new agent on the new computer. Shared tables
 (`Shared/Data/agent-data.db`) are left out because their owners are agent ids.

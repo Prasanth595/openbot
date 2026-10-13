@@ -350,7 +350,7 @@ export class InstanceTransferService {
         ...server,
         id: "",
         args: redact.args(server.name, server.args),
-        url: redact.url(server.name, server.url),
+        url: redact.origin(server.name, server.url),
         env: server.env.map(({ key }) => ({ key, value: "" })),
         headers: server.headers.map(({ key }) => ({ key, value: "" })),
       })),
@@ -845,7 +845,11 @@ const walk = Effect.fn("InstanceTransfer.walk")(function* (
       const name = relative(root, path).split(sep).join("/");
       if (skip(name) || isUnsafeArchivePath(name)) continue;
       if (entry.isDirectory()) pending.push(path);
-      else if (entry.isFile()) files.push({ name, path, size: (yield* archiveCall(() => lstat(path))).size });
+      else if (entry.isFile()) {
+        // A running agent can delete a file between `readdir` and `lstat`; that file is not exported.
+        const info = yield* Effect.result(archiveCall(() => lstat(path)));
+        if (Result.isSuccess(info)) files.push({ name, path, size: info.success.size });
+      }
     }
   }
   return files.sort((a, b) => a.name.localeCompare(b.name));
@@ -920,6 +924,19 @@ function createRedaction() {
       });
     },
     url,
+    /** Only the origin of an MCP address: some services keep the access key in the path. */
+    origin(owner: string, value: string): string {
+      if (!value) return value;
+      let parsed: URL;
+      try {
+        parsed = new URL(value);
+      } catch {
+        return value;
+      }
+      if (`${parsed.origin}/` === parsed.href || parsed.origin === parsed.href) return value;
+      names.add(owner);
+      return parsed.origin;
+    },
     cleared: () => [...names],
   };
 }

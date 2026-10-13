@@ -157,6 +157,10 @@ function ExportScreen(props: InstanceTransferViewProps) {
       }
     >
       <h3 class="agent-import-heading">{t("settings.transfer.export.title")}</h3>
+      {/* Outside the summary, so a summary that fails is shown and not left loading. */}
+      <Show when={props.exportError}>
+        {(error) => <Alert title={t("settings.transfer.export.failed")} description={error()} />}
+      </Show>
       <Show when={props.summary} fallback={<p class="agent-import-lede">{t("settings.transfer.loading")}</p>}>
         <SetupSummary totals={totals()} label={t("settings.transfer.summary.label")} />
         <ItemGroup class="settings-modal-card">
@@ -207,9 +211,6 @@ function ExportScreen(props: InstanceTransferViewProps) {
             disabled={busy()}
             onToggle={(key, include) => setExcluded(toggled(excluded(), key, include))}
           />
-        </Show>
-        <Show when={props.exportError}>
-          {(error) => <Alert title={t("settings.transfer.export.failed")} description={error()} />}
         </Show>
         <NotMoved />
         <div class="agent-import-actions instance-transfer-start">
