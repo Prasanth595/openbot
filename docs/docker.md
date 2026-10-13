@@ -107,18 +107,18 @@ In the container, `openbot status`, `login`, `mobile-connect`, `logout`, `name` 
 
 ## Upgrades
 
-OpenBot does not update itself in a container. A new image replaces it. Do not go back to an older
-tag: an older OpenBot cannot open a database that a newer one migrated, so it does not start.
-Migrations are forward-only. OpenBot does not make a database backup before migration or restore
-one after a failed upgrade.
+OpenBot does not update itself in a container. Replace the container to upgrade it.
+Do not use an older image on data that a newer release has opened. Database migrations only
+work forward. OpenBot makes no database backup before migration. It does not restore a backup
+if an upgrade fails.
 
 ### Choose a release
 
-Record the installed version with `docker compose exec openbot openbot version` (or
-`docker exec openbot openbot version`). Keep the deployed configuration and the exact release tag
-for that version. Do not use the current value of `latest` as the installed-release baseline.
+Read the installed version with `docker compose exec openbot openbot version` (or
+`docker exec openbot openbot version`). Keep its exact release tag and deployed configuration.
+The current `latest` tag does not identify the installed release.
 
-For a machine-readable candidate, read the published latest GitHub Release with `curl` and `jq`:
+Use `curl` and `jq` to read the latest published GitHub Release:
 
 ```bash
 set -euo pipefail
@@ -129,57 +129,67 @@ target_tag=$(curl -fsSL -H 'Accept: application/vnd.github+json' \
 printf '%s\n' "$target_tag"
 ```
 
-This is a candidate, not proof that its Docker image is ready. The workflow publishes the GitHub
-Release first, then pushes and checks the Docker image. Read the candidate's release notes. Compare
-versions as numbers and proceed only if the candidate is newer than the installed version.
-Use the image tag without `v`, for example `v0.31.0` becomes `ghcr.io/nightly-labs/openbot:0.31.0`.
-Check that the exact target image is available for your architecture, and pull it before stopping
-the installed container. Stop the upgrade if the image is unavailable; do not substitute `latest`.
+The GitHub Release is published before its Docker image. Read the release notes. Compare the
+version numbers and continue only if the target is newer than the installed version.
+Use the image tag without `v`: `v0.31.0` becomes `ghcr.io/nightly-labs/openbot:0.31.0`.
+
+Check the target image without downloading its layers:
+
+```bash
+docker manifest inspect "ghcr.io/nightly-labs/openbot:${target_tag#v}"
+```
+
+Check that the manifest lists your platform: `linux/amd64` or `linux/arm64`.
+Stop if the command fails or your platform is missing. Do not use `latest` instead.
 For access errors, see [Docker package access](RELEASING.md#docker-package-access).
 
 ### Check configuration
 
-Download `docker/compose.yaml` and `docker/seccomp.json` from each exact release tag into a separate
-review directory. Use URLs of this form, with the installed or target tag in place of `<tag>`:
-`https://raw.githubusercontent.com/nightly-labs/openbot/<tag>/docker/compose.yaml` and
-`https://raw.githubusercontent.com/nightly-labs/openbot/<tag>/docker/seccomp.json`.
-Do not download them over your deployed files, and do not use `main` for this comparison.
+Download `docker/compose.yaml` and `docker/seccomp.json` for both the installed and target
+release tags. Keep them in separate review directories. Use these URLs, with each release tag
+in place of `<tag>`:
 
-Compare the installed-release files with the target-release files to find upstream changes. Then
-compare your deployed files with the installed-release files to find your custom settings. Review
-and apply the required target changes while keeping your volume mapping, environment and other
-custom settings. Set the deployed image to the exact target version. Keep the sandbox and the
-other [security options](#security). Do not publish a port to make the upgrade work.
-If the installed-release files are missing or any configuration or security setting changes,
-stop unattended updates for operator review.
+- `https://raw.githubusercontent.com/nightly-labs/openbot/<tag>/docker/compose.yaml`
+- `https://raw.githubusercontent.com/nightly-labs/openbot/<tag>/docker/seccomp.json`
+
+Do not overwrite deployed files or use `main` for this comparison.
+Compare the two releases to find changes in OpenBot. Compare your deployed files with the
+installed-release files to find your custom settings.
+
+Apply the required target changes. Keep your volume mapping, environment and other custom
+settings. Set the deployed image to the exact target version. Keep the
+[security options](#security). Do not publish a port for the upgrade.
+If the installed-release files are missing, stop automatic updates and review the files.
+Do the same if any configuration or security setting changes.
 
 ### Back up and replace
 
-1. Disable other update jobs for this container. Pull the pinned target image with
-   `docker compose pull openbot`, then stop OpenBot with `docker compose stop openbot`. Confirm
-   that it has stopped and that no other container or process writes to the same data.
-2. Make a complete backup of the stopped volume or bind mount, outside the live data. Include all
-   of `/data`, hidden files, ownership and permissions. This includes the database, workspaces,
-   browser data, provider sign-ins, `/data/.local/share/keyrings` and
-   `/data/.config/openbot-container/keyring-password`. A copy of `openbot.db` alone is not enough.
-   Check that the backup is complete and readable. Protect it as secret data. Do not proceed if
-   the backup is missing or incomplete.
-3. Run `docker compose up -d openbot` with the reviewed configuration and the same persistent
-   volume. Keep the same Compose project name and volume mapping; a different project can create
-   an empty volume. Never run two OpenBot containers on this data at the same time. Do not use
-   `docker compose down -v` or delete the volume.
-4. Check the container logs, `openbot status`, `openbot version` and access from your app. If the
-   upgrade fails, stop the new container and inspect the error. Do not start an older image on
-   data that the new release has opened. There is no automatic rollback or backup restore.
+1. Disable other update jobs for this container. Run `docker compose pull openbot` to download
+   the pinned target image. Stop if the pull fails. Then run `docker compose stop openbot`.
+   Confirm that it has stopped and no other container or process writes to its data.
+2. Back up the complete stopped volume or bind mount outside the live data. Include all of
+   `/data`, hidden files, ownership and permissions: the database, workspaces, browser data,
+   provider sign-ins, `/data/.local/share/keyrings` and
+   `/data/.config/openbot-container/keyring-password`. A copy of `openbot.db` is not enough.
+   Check that the backup is complete and readable. Protect it as secret data.
+   Stop if the backup is missing or incomplete.
+3. Run `docker compose up -d openbot` with the reviewed configuration and the same data volume.
+   Keep the Compose project name and volume mapping. A different project can create an empty
+   volume. Never run two OpenBot containers on this data at the same time.
+   Do not run `docker compose down -v` or delete the volume.
+4. Check the logs, `openbot status`, `openbot version` and access from your app.
+   If the upgrade fails, stop the new container and read the error.
+   Do not start an older image on data that the new release has opened.
+   There is no automatic rollback or backup restore.
 
-For `docker run`, use the same checks and stopped backup. Pull the pinned image, stop and remove
-only the old container, then create its replacement with the same volume and reviewed options.
-Do not remove the volume or sign out as an upgrade step.
+For `docker run`, use the same checks and stopped backup. Pull the pinned image first.
+Stop and remove only the old container. Create its replacement with the same volume and
+reviewed options. Do not remove the volume or sign out to upgrade.
 
-An unattended updater must enforce these checks. It must stop on a failed release lookup, an
-unavailable target image, an unknown installed baseline, configuration or security changes, a
-missing complete stopped backup, or a failed upgrade. A job that only follows `latest` and
-recreates the container does not meet these requirements.
+An automatic update job must stop if the release lookup fails, the target image is unavailable,
+or the installed release is unknown. It must also stop for configuration or security changes,
+a missing complete stopped backup, or a failed upgrade. A job that only uses `latest` and
+replaces the container does not meet these requirements.
 
 ## Environment
 
