@@ -4,7 +4,6 @@ import { RemoteTeamDirectoryClient } from "@openbot/team-client";
 import { type Report, ReportQueue } from "@openbot/telemetry";
 import { Effect } from "effect";
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
-import { MobileChannelStore } from "../channels/model/channel-store";
 import { MobileConversationStore } from "../workspace/model/conversation-store";
 import { LiveWorkspaceStore } from "../workspace/model/live-workspace-store";
 import type { MobileWorkspaceContextValue } from "../workspace/model/workspace-types";
@@ -372,19 +371,11 @@ it("instruments message commands without sending their contents or changing the 
     changeQueue: async () => {},
     interruptTurn: async () => {},
     editQueue: async (agentId) => ({ agentId, deliveries: [] }),
-    channelStore: new MobileChannelStore(async () => {
-      throw new Error("Unexpected channel request");
-    }),
     servers: [],
     agents: [],
     activeAgents: [],
     hiddenAgents: [],
     pinnedAgentIds: [],
-    pinnedChannelIds: [],
-    hiddenChannelIds: [],
-    hideChannel: () => true,
-    unhideChannel: () => true,
-    toggleChannelPin: () => "pinned",
     liveState: new LiveWorkspaceStore(),
     serverDirectoryState: "ready",
     serverDirectoryError: null,

@@ -4,7 +4,6 @@ import { messages as mobileAgent } from "./mobile/agent";
 import { messages as mobileApp } from "./mobile/app";
 import { messages as mobileAuth } from "./mobile/auth";
 import { messages as mobileBrowser } from "./mobile/browser";
-import { messages as mobileChannel } from "./mobile/channel";
 import { messages as mobileChat } from "./mobile/chat";
 import { messages as mobileLink } from "./mobile/link";
 import { messages as mobileLiveActivity } from "./mobile/liveActivity";
@@ -25,7 +24,6 @@ export const ptMobile = {
   ...mobileBrowser,
   ...mobileSearch,
   ...mobileAgent,
-  ...mobileChannel,
   ...mobileAuth,
   ...mobileServer,
   ...mobileSettings,

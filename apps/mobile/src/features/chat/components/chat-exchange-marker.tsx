@@ -1,21 +1,16 @@
 import type { AgentExchangeSummary } from "@openbot/contracts/ipc";
 import type { MobileTranslate } from "@openbot/i18n/mobile";
-import { Link } from "expo-router";
 import { Typography } from "heroui-native";
 import { ChevronDown } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
-import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressable";
-import type { ChatMessage, ExchangeGroup, ExchangeMarker } from "@/features/chat/model/chat-messages";
+import type { ExchangeGroup, ExchangeMarker } from "@/features/chat/model/chat-messages";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
-type RoutingMarker = Extract<ChatMessage, { kind: "channel-routing" }>;
-
 interface MarkerContext {
-  agents: MobileAgent[];
   agentsById: ReadonlyMap<string, MobileAgent>;
   muted: ViewStyle["backgroundColor"];
 }
@@ -36,51 +31,22 @@ function exchangeAgentIds(exchange: AgentExchangeSummary) {
   return exchange.direction === "incoming" ? [exchange.senderAgentId] : exchange.recipientAgentIds;
 }
 
-/** One message to or from other agents, or a channel routing. */
-export function ChatExchangeMarker({
-  message,
-  agents,
-  agentsById,
-  muted,
-}: MarkerContext & { message: ExchangeMarker | RoutingMarker }) {
+/** One message to or from other agents. */
+export function ChatExchangeMarker({ message, agentsById, muted }: MarkerContext & { message: ExchangeMarker }) {
   const { t } = useText();
   const [open, setOpen] = useState(false);
-  const label =
-    message.kind === "channel-routing"
-      ? message.event.action === "assigned"
-        ? t("mobile.chat.exchange.assignedTo")
-        : t("mobile.chat.exchange.continuingWith")
-      : exchangeLabel(message.exchange, t);
-  const ids = message.kind === "channel-routing" ? [message.event.agentId] : exchangeAgentIds(message.exchange);
+  const label = exchangeLabel(message.exchange, t);
+  const ids = exchangeAgentIds(message.exchange);
   const badges = ids.map((id) => {
-    const legacyName =
-      message.kind === "channel-routing" && message.event.agentId === null ? message.event.agentName : null;
-    const legacyMatches = legacyName ? agents.filter((agent) => agent.name === legacyName) : [];
-    const participant = id ? agentsById.get(id) : legacyMatches.length === 1 ? legacyMatches[0] : undefined;
-    const badge = (
-      <AgentBadge
-        key={id ?? legacyName}
-        agent={participant}
-        name={
-          participant?.name ??
-          (message.kind === "channel-routing"
-            ? (legacyName ?? t("mobile.chat.exchange.unavailableAgent"))
-            : t("mobile.chat.exchange.unknownAgent"))
-        }
-        muted={muted}
-      />
-    );
-    return message.kind === "channel-routing" && participant ? (
-      <Link key={participant.id} href={{ pathname: "/chat/[agentId]", params: { agentId: participant.id } }} asChild>
-        <ChatLinkPressable
-          accessibilityRole="link"
-          accessibilityLabel={t("mobile.chat.exchange.openChat", { name: participant.name })}
-        >
-          {badge}
-        </ChatLinkPressable>
-      </Link>
-    ) : (
-      <View key={id ?? legacyName}>{badge}</View>
+    const participant = agentsById.get(id);
+    return (
+      <View key={id}>
+        <AgentBadge
+          agent={participant}
+          name={participant?.name ?? t("mobile.chat.exchange.unknownAgent")}
+          muted={muted}
+        />
+      </View>
     );
   });
   // Like desktop, a message to several agents names how many, and opens to list them.
@@ -93,7 +59,7 @@ export function ChatExchangeMarker({
             {label}
           </Typography.Paragraph>
           <AgentsToggle
-            agents={ids.map((id) => (id ? agentsById.get(id) : undefined))}
+            agents={ids.map((id) => agentsById.get(id))}
             label={agentCount}
             accessibilityLabel={agentCount}
             open={open}
@@ -119,7 +85,7 @@ export function ChatExchangeMarker({
  * Consecutive messages to and from other agents, drawn as one row as on desktop. The row names how
  * many messages and agents there are, and opens to show each message's own marker.
  */
-export function ChatExchangeGroup({ group, agents, agentsById, muted }: MarkerContext & { group: ExchangeGroup }) {
+export function ChatExchangeGroup({ group, agentsById, muted }: MarkerContext & { group: ExchangeGroup }) {
   const { t } = useText();
   const [open, setOpen] = useState(false);
   const ids = [...new Set(group.exchanges.flatMap(({ exchange }) => exchangeAgentIds(exchange)))];
@@ -149,7 +115,7 @@ export function ChatExchangeGroup({ group, agents, agentsById, muted }: MarkerCo
       </View>
       {open
         ? group.exchanges.map((item) => (
-            <ChatExchangeMarker key={item.id} message={item} agents={agents} agentsById={agentsById} muted={muted} />
+            <ChatExchangeMarker key={item.id} message={item} agentsById={agentsById} muted={muted} />
           ))
         : null}
     </View>

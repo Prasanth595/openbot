@@ -3,7 +3,6 @@ import { Typography } from "heroui-native";
 import { mobileUserName } from "@/features/auth/api/mobile-user-name";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { SettingsContent, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -11,7 +10,6 @@ import { useText } from "@/shared/lib/text";
 export function SettingsScreen() {
   const { session } = useMobileSession();
   const { t } = useText();
-  const { activeServer } = useMobileWorkspace();
   const displayName = session ? mobileUserName(session.user) : t("mobile.settings.home.profile");
   return (
     <SettingsContent>
@@ -57,13 +55,6 @@ export function SettingsScreen() {
       <SettingsSection title={t("mobile.settings.conversations.title")}>
         <SettingsRow onPress={() => router.push("/settings/hidden-chats")}>
           <Typography.Paragraph type="body-sm">{t("mobile.settings.conversations.hiddenChats")}</Typography.Paragraph>
-        </SettingsRow>
-        <SettingsRow
-          onPress={() => router.push({ pathname: "/settings/deleted-chats", params: { serverId: activeServer.id } })}
-        >
-          <Typography.Paragraph type="body-sm">
-            {t("mobile.settings.conversations.deletedChannels")}
-          </Typography.Paragraph>
         </SettingsRow>
       </SettingsSection>
       <SettingsSection>
