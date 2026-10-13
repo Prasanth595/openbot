@@ -109,8 +109,9 @@ export class JsonLineDecoder {
     let parsed: unknown;
     try {
       parsed = JSON.parse(line);
-    } catch (error) {
-      throw new Error(`Invalid JSONL from Codex App Server: ${String(error)}`);
+    } catch {
+      // Native parser errors can include private input text.
+      throw new Error("Invalid JSONL from Codex App Server.");
     }
 
     if (!isRpcMessage(parsed)) {

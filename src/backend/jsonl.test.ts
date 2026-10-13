@@ -26,5 +26,27 @@ describe("JsonLineDecoder", () => {
   it("rejects malformed lines", () => {
     const decoder = new JsonLineDecoder();
     expect(() => decoder.push("not-json\n")).toThrow("Invalid JSONL");
+
+    const privateText = "TESTKEY42-private-text";
+    for (const framing of ["line", "fragmented", "end"]) {
+      const malformedDecoder = new JsonLineDecoder();
+      let parseError: unknown;
+      try {
+        if (framing === "end") malformedDecoder.end(privateText);
+        else if (framing === "fragmented") {
+          malformedDecoder.push(privateText.slice(0, 4));
+          malformedDecoder.push(`${privateText.slice(4)}\n`);
+        } else malformedDecoder.push(`${privateText}\n`);
+      } catch (error) {
+        parseError = error;
+      }
+      expect(parseError).toBeInstanceOf(Error);
+      if (!(parseError instanceof Error)) throw new Error("Expected a JSONL parse error.");
+      expect(String(parseError)).not.toContain("TESTKEY42");
+      expect(parseError.message).not.toContain("TESTKEY42");
+      expect(parseError.stack).not.toContain("TESTKEY42");
+      expect(parseError.cause).toBeUndefined();
+      expect(parseError.message).toBe("Invalid JSONL from Codex App Server.");
+    }
   });
 });
