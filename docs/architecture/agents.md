@@ -365,7 +365,9 @@ flows between exported agents.
 
 No secret is in the file: MCP variable and header values are empty, custom providers have no key or
 headers, custom agents keep only the names of their variables, and `signedIn` lists provider ids,
-never tokens. Chat history, messaging connections, connectors, team and account sessions, browser
+never tokens. Arguments and URLs can hold a token too, so the export empties the value of a flag or
+`name=value` argument whose name says it is a secret, and removes the user, password, query and
+fragment of a URL; `cleared` names each item it changed, and the import asks for those values again. Chat history, messaging connections, connectors, team and account sessions, browser
 data, approval automation and the per-agent access, Computer Use and automation settings are not
 exported, so an imported agent gets the defaults of a new agent on the new computer. Shared tables
 (`Shared/Data/agent-data.db`) are left out because their owners are agent ids.
@@ -379,7 +381,7 @@ or off and saves the preferences and default model. Then it creates each selecte
 `AgentService` and the local skill library. Files go to the workspace root, and a name that is already
 there is saved beside it. An agent whose step fails is deleted with the skill revisions it published,
 and the others continue. A model that this computer does not offer, or whose provider is off, leaves
-the agent on the default model with a warning. Last, it adds MCP servers whose name is new, creates
+the agent on the default model with a warning. Last, it adds MCP servers whose name is new, turned off, because a file can name any command, creates
 missing sidebar sections by name and assigns the new agents, connects routine flows with the new
 routine ids, and copies Shared files that are not already there. The result lists the providers that
 were signed in on the other computer and are not signed in here, each with a sign-in button.

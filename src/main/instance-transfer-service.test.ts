@@ -42,7 +42,7 @@ const GITHUB_MCP: McpServerConfig = {
   transport: "stdio",
   enabled: true,
   command: "npx",
-  args: ["github-mcp"],
+  args: ["github-mcp", "--access-token", "ghp_arg_secret", "--read-only"],
   env: [{ key: "GITHUB_TOKEN", value: "ghp_secret" }],
   envPassthrough: [],
   workingDirectory: "",
@@ -345,11 +345,21 @@ async function oldComputer(): Promise<Computer> {
     toAgentId: "research",
     instruction: "Pass it on.",
   });
-  old.mcpServers.push(GITHUB_MCP);
+  old.mcpServers.push(GITHUB_MCP, {
+    ...GITHUB_MCP,
+    id: "mcp-2",
+    name: "Linear",
+    transport: "http",
+    command: "",
+    args: [],
+    env: [],
+    headers: [],
+    url: "https://mcp.linear.app/sse?api_key=url_secret",
+  });
   old.customProviders.push({
     id: "together",
     name: "Together",
-    baseUrl: "https://api.together.xyz/v1",
+    baseUrl: "https://user:pw_secret@api.together.xyz/v1?key=provider_secret",
     apiKey: "sk-secret",
     models: [{ id: "llama", name: "Llama" }],
     headers: [{ name: "X-Key", value: "header-secret" }],
@@ -358,7 +368,7 @@ async function oldComputer(): Promise<Computer> {
     id: "goose",
     name: "Goose",
     command: "goose",
-    args: ["acp"],
+    args: ["acp", "--api-key=agent_arg_secret"],
     env: [{ name: "GOOSE_KEY", value: "env-secret" }],
   });
   old.preferences = PREFERENCES;
@@ -397,7 +407,19 @@ describe("InstanceTransferService", () => {
     expect(entries).toContain("shared/report.csv");
     expect(entries.filter((name) => /\.env|\.git\/|\.openbot\/|openbot-site-hosting/u.test(name))).toEqual([]);
     const text = new TextDecoder().decode(bytes);
-    for (const secret of ["ghp_secret", "Bearer secret", "sk-secret", "header-secret", "env-secret", "TOKEN=secret"])
+    for (const secret of [
+      "ghp_secret",
+      "Bearer secret",
+      "sk-secret",
+      "header-secret",
+      "env-secret",
+      "TOKEN=secret",
+      "ghp_arg_secret",
+      "url_secret",
+      "pw_secret",
+      "provider_secret",
+      "agent_arg_secret",
+    ])
       expect(text).not.toContain(secret);
     // The file appears only when it is complete.
     expect(await readdir(base)).not.toContain("openbot-transfer.zip.part");
@@ -448,7 +470,13 @@ describe("InstanceTransferService", () => {
     expect(target.updates).toEqual([{ agentId: agent.id, notifications: false, busyMessageMode: "steer" }]);
 
     // An MCP server with a name that is already here is kept as it is.
-    expect(target.mcpServers.map((server) => [server.name, server.command])).toEqual([["GitHub", "my-github"]]);
+    // A server is added turned off, because a file can name any command.
+    expect(
+      target.mcpServers.map((server) => [server.name, server.command, server.enabled, server.url, server.args]),
+    ).toEqual([
+      ["GitHub", "my-github", true, "", GITHUB_MCP.args],
+      ["Linear", "", false, "https://mcp.linear.app/sse", []],
+    ]);
     expect(target.customProviders).toEqual([
       {
         id: "together",
@@ -459,7 +487,9 @@ describe("InstanceTransferService", () => {
         headers: [],
       },
     ]);
-    expect(target.customAgents).toEqual([{ id: "goose", name: "Goose", command: "goose", args: ["acp"], env: [] }]);
+    expect(target.customAgents).toEqual([
+      { id: "goose", name: "Goose", command: "goose", args: ["acp", "--api-key="], env: [] },
+    ]);
     expect(target.preferences).toEqual(PREFERENCES);
     expect(target.providersOff).toEqual(["cursor"]);
     expect(target.layout.sections.map((section) => section.name)).toEqual(["Work"]);
@@ -472,6 +502,9 @@ describe("InstanceTransferService", () => {
       expect.arrayContaining([
         "Together: enter its API key again in Settings.",
         "Goose: enter the values of GOOSE_KEY again in Settings.",
+        "Goose: values that can hold a secret were removed from its arguments or address. Enter them again in Settings.",
+        "Together: values that can hold a secret were removed from its arguments or address. Enter them again in Settings.",
+        "Linear: the MCP server is added turned off. Check its command, enter its values again, and turn it on in MCP settings.",
       ]),
     );
   });

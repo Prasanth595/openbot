@@ -118,6 +118,8 @@ const Settings = Schema.Struct({
       instruction: text(INPUT_LIMITS.routineInstruction),
     }),
   ).check(Schema.isMaxLength(512)),
+  /** MCP servers, providers and custom agents whose argument or URL values the export removed. */
+  cleared: Schema.optionalKey(Schema.Array(name(128)).check(Schema.isMaxLength(128))),
 });
 
 const Manifest = Schema.Struct({

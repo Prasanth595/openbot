@@ -71,7 +71,7 @@ export const INSTANCE_TRANSFER_PREVIEW: InstanceTransferPreview = {
 
 export const INSTANCE_TRANSFER_WARNINGS = [
   'Research: the model "llama-4-70b" is not available here, so the agent uses the default model.',
-  "GitHub: enter the values of its variables and headers again in MCP settings.",
+  "GitHub: the MCP server is added turned off. Check its command, enter its values again, and turn it on in MCP settings.",
 ];
 
 export const INSTANCE_TRANSFER_RESULT: Omit<InstanceTransferResult, "agents"> = {

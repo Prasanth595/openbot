@@ -54,7 +54,10 @@ export const messages = defineMessages("error.import", {
   "error.import.transferSettingSkipped": "{name} is not imported. {reason}",
   "error.import.transferProviderKey": "{name}: enter its API key again in Settings.",
   "error.import.transferAgentEnv": "{name}: enter the values of {names} again in Settings.",
-  "error.import.transferMcpValues": "{name}: enter the values of its variables and headers again in MCP settings.",
+  "error.import.transferMcpValues":
+    "{name}: the MCP server is added turned off. Check its command, enter its values again, and turn it on in MCP settings.",
+  "error.import.transferValuesCleared":
+    "{name}: values that can hold a secret were removed from its arguments or address. Enter them again in Settings.",
   "error.import.transferSharedKept":
     "{number} files in the Shared folder are already here, so they are kept as they are.",
 });

@@ -340,6 +340,7 @@ export class InstanceTransferService {
     for (const agentId of keys.keys())
       for (const link of yield* settings.routineFlowLinks(agentId).pipe(Effect.mapError(failure)))
         links.set(link.id, link);
+    const redact = createRedaction();
     const order = [
       ...layout.agentOrder,
       ...Object.keys(layout.agentAssignments).filter((id) => !layout.agentOrder.includes(id)),
@@ -348,13 +349,15 @@ export class InstanceTransferService {
       mcpServers: settings.mcpServers().map((server) => ({
         ...server,
         id: "",
+        args: redact.args(server.name, server.args),
+        url: redact.url(server.name, server.url),
         env: server.env.map(({ key }) => ({ key, value: "" })),
         headers: server.headers.map(({ key }) => ({ key, value: "" })),
       })),
       customProviders: settings.customProviders().map((provider) => ({
         id: provider.id,
         name: provider.name,
-        baseUrl: provider.baseUrl,
+        baseUrl: redact.url(provider.name, provider.baseUrl),
         models: provider.models,
         needsApiKey: provider.hasApiKey,
       })),
@@ -362,7 +365,7 @@ export class InstanceTransferService {
         id: agent.id,
         name: agent.name,
         command: agent.command,
-        args: agent.args,
+        args: redact.args(agent.name, agent.args),
         envNames: agent.envNames,
       })),
       defaults: yield* settings.defaults().pipe(Effect.mapError(failure)),
@@ -382,6 +385,7 @@ export class InstanceTransferService {
           ? [{ routineKey: link.routineId, fromAgentKey, toAgentKey, instruction: link.instruction }]
           : [];
       }),
+      cleared: redact.cleared(),
     };
   });
 
@@ -510,6 +514,7 @@ export class InstanceTransferService {
     warnings: string[],
   ) {
     const port = this.options.settings;
+    const cleared = new Set(settings.cleared ?? []);
     const attempt = function* (name: string, effect: Effect.Effect<unknown, unknown>) {
       const result = yield* Effect.result(effect);
       if (Result.isFailure(result))
@@ -535,6 +540,8 @@ export class InstanceTransferService {
       );
       if (saved && provider.needsApiKey)
         warnings.push(sourceText("error.import.transferProviderKey", { name: provider.name }));
+      if (saved && cleared.has(provider.name))
+        warnings.push(sourceText("error.import.transferValuesCleared", { name: provider.name }));
     }
 
     const customAgents = new Set((yield* Effect.orElseSucceed(port.customAgents(), () => [])).map((agent) => agent.id));
@@ -554,6 +561,8 @@ export class InstanceTransferService {
         warnings.push(
           sourceText("error.import.transferAgentEnv", { name: agent.name, names: agent.envNames.join(", ") }),
         );
+      if (saved && cleared.has(agent.name))
+        warnings.push(sourceText("error.import.transferValuesCleared", { name: agent.name }));
     }
 
     const off = new Set(port.providersOff());
@@ -569,9 +578,9 @@ export class InstanceTransferService {
     const servers = new Set(port.mcpServers().map((server) => server.name.toLowerCase()));
     for (const server of settings.mcpServers) {
       if (servers.has(server.name.toLowerCase())) continue;
-      const saved = yield* attempt(server.name, port.saveMcpServer({ ...server, id: "" }));
-      if (saved && server.env.length + server.headers.length > 0)
-        warnings.push(sourceText("error.import.transferMcpValues", { name: server.name }));
+      // A file can name any command, so an imported server stays off until the user checks it.
+      const saved = yield* attempt(server.name, port.saveMcpServer({ ...server, id: "", enabled: false }));
+      if (saved) warnings.push(sourceText("error.import.transferMcpValues", { name: server.name }));
     }
   });
 
@@ -865,6 +874,51 @@ const skillFolders = Effect.fn("InstanceTransfer.skillFolders")(function* (
   }
   return [...skills].map(([slug, files]) => ({ slug, files }));
 });
+
+/** A flag, a `KEY=value` argument or a header line whose name says it holds a secret. */
+const SECRET_NAME = /token|secret|password|passwd|api[-_]?key|apikey|auth|credential|private[-_]?key|access[-_]?key/iu;
+
+/**
+ * Removes values that can hold a secret from MCP and custom agent arguments and from URLs, and
+ * records whose values it removed, so the import can ask for them again.
+ */
+function createRedaction() {
+  const names = new Set<string>();
+  return {
+    args(owner: string, args: readonly string[]): string[] {
+      return args.map((arg, index) => {
+        const separator = /[=:]/u.exec(arg);
+        if (separator && separator.index > 0 && SECRET_NAME.test(arg.slice(0, separator.index))) {
+          names.add(owner);
+          return arg.slice(0, separator.index + 1);
+        }
+        const flag = args[index - 1];
+        if (!arg.startsWith("-") && flag?.startsWith("-") && !/[=:]/u.test(flag) && SECRET_NAME.test(flag)) {
+          names.add(owner);
+          return "";
+        }
+        return arg;
+      });
+    },
+    url(owner: string, value: string): string {
+      if (!value) return value;
+      let url: URL;
+      try {
+        url = new URL(value);
+      } catch {
+        return value;
+      }
+      if (!url.username && !url.password && !url.search && !url.hash) return value;
+      names.add(owner);
+      url.username = "";
+      url.password = "";
+      url.search = "";
+      url.hash = "";
+      return url.toString();
+    },
+    cleared: () => [...names],
+  };
+}
 
 /** Writes the archive to `<path>.part` one file at a time, then renames it. */
 const writeZipEffect = Effect.fn("InstanceTransfer.writeZip")(function* (
