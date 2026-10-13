@@ -916,13 +916,15 @@ if (!hasSingleInstanceLock) {
       // exists, so an AppImage writes its own first. On Windows the NSIS installer writes the scheme
       // (`build/installer.nsh`), and each start writes it again for installs from before that script.
       // A Windows development build does not register: the handler would be bare `electron.exe`.
+      // A macOS development build does not register either: macOS ignores the path and arguments and
+      // names the `com.github.Electron` bundle, so the link took `openbot://` from an installed
+      // OpenBot and opened some worktree's bare Electron.app. `bun run dev:slack` has a loopback return.
       await Effect.runPromise(
         installLinuxDesktopEntry({ platform: process.platform, environment: process.env, iconPath: appIconPath }),
       );
       if (
-        process.platform === "darwin" ||
         process.platform === "linux" ||
-        (process.platform === "win32" && app.isPackaged)
+        ((process.platform === "darwin" || process.platform === "win32") && app.isPackaged)
       ) {
         if (!app.setAsDefaultProtocolClient("openbot")) {
           logger.warn("Unable to register the openbot:// scheme. Invitation links will not open OpenBot.");
