@@ -398,7 +398,6 @@ it.each(["agents", "sections"] as const)("groups chats into sections when the %s
   if (first === "agents") {
     await act(async () => agents.resolve());
     expect(current.activeAgents).toHaveLength(2);
-    // The connected screen keeps its loader while agents wait for their first section read.
     expect(current.sidebarByServer.host).toBeUndefined();
     await act(async () => layout.resolve(initialLayout));
   } else {

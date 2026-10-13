@@ -276,16 +276,6 @@ const ServerScope = createSimpleContext({
       },
     );
 
-    // A remote host is online before it answers the handshake, so a load in that window cannot know
-    // which panels it serves. They load again once the handshake completes, whether or not the
-    // reload that the handshake also requests gets past the agent list.
-    createEffect(
-      () => transportReady() && Boolean(selectedServer()?.compatibility?.hostAppVersion),
-      (negotiated, previous) => {
-        if (negotiated && previous === false) untrack(() => void loadPanels());
-      },
-    );
-
     // "Select this agent once you are on its server" - written before the switch
     // by the marketplace and the Dynamic Island, consumed by whichever scope the
     // switch lands in. It is taken rather than read so a later mount cannot
