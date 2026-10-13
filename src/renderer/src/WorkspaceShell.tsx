@@ -74,6 +74,8 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
   const { conversations, retryConversation } = useConversation();
   const activeConversation = () => conversations[activeAgent()?.id ?? ""];
   const { activeDirectMember } = useDirectMessages();
+  const agentChatOpen = () =>
+    !agentSetupOpen() && !channelOpen() && !activeDirectMember() && layout.sidebarView() !== "routines";
 
   const blockedRemoteServer = createMemo(() => {
     const server = activeServer();
@@ -177,7 +179,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
               onManage={() => settings.openAppSettings(null, "hosted-servers")}
             />
           </Show>
-          <Show when={scope.loaded() && !channelOpen() && !activeDirectMember()}>
+          <Show when={scope.loaded() && agentChatOpen() && !serverOnboardingOpen()}>
             <ConversationLoadNotice
               name={activeAgent()?.name ?? ""}
               loading={!activeConversation()?.loaded && activeConversation()?.loading === true}
@@ -238,7 +240,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
       <Show when={activePeopleEnabled() && !agentSetupOpen() && !channelOpen() && activeDirectMember()?.id} keyed>
         <Show when={activeDirectMember()}>{(member) => <WorkspaceDirectConversation member={member()} />}</Show>
       </Show>
-      <Show when={!agentSetupOpen() && !channelOpen() && !activeDirectMember() && layout.sidebarView() !== "routines"}>
+      <Show when={agentChatOpen()}>
         <WorkspaceConversation account={props.account} />
       </Show>
       <Show when={!agentSetupOpen() && !channelOpen() && !activeDirectMember() && layout.sidebarView() === "routines"}>

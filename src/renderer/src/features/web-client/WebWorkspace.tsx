@@ -862,6 +862,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const firstAgent = () => workspace.state.agentsLoaded && workspace.profiles().length === 0 && createSupported();
   /** An open channel still takes the pane, as a channel closes the desktop form. */
   const agentFormOpen = () => creating() || (firstAgent() && !channelOpen());
+  const agentChatOpen = () => !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView();
   /**
    * The provider that a server's provider step chose, by server. In memory only, as on desktop: the
    * saved setup choice is of the desktop computer, not of the server.
@@ -1134,7 +1135,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   onRetry={() => void workspace.retryPanels()}
                 />
               </Show>
-              <Show when={workspace.state.status === "online"}>
+              <Show when={workspace.state.status === "online" && agentChatOpen()}>
                 <ConversationLoadNotice
                   name={workspace.selected()?.name ?? ""}
                   loading={!workspace.conversation()?.page && workspace.conversation()?.loading === true}
@@ -1663,7 +1664,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               )}
             </Show>
           </Show>
-          <Show when={!agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView()}>
+          <Show when={agentChatOpen()}>
             <Conversation
               runtime={runtime}
               onOpenMarketplace={() => setMarketplaceOpen(true)}
