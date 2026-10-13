@@ -68,7 +68,7 @@ interface CompletedRunRow {
  * unchanged.
  *
  * Any other row stops the group, and so does a run that did not complete: a failure keeps a row of
- * its own. A group also stops at the first unread message and at a new day, so the unread divider
+ * its own. An open run also keeps a row of its own, because its messages follow its row. A group also stops at the first unread message and at a new day, so the unread divider
  * and the day separator keep a row of their own.
  */
 export function groupRoutineRunMarkers(
@@ -101,7 +101,7 @@ export function groupRoutineRunMarkers(
 
   for (const message of messages) {
     const marker = completedRunMarker(message);
-    if (!marker) {
+    if (!marker || marker.expanded) {
       closeGroup();
       rows.push(message);
       continue;
