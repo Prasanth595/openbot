@@ -183,9 +183,9 @@ export const messages = {
   "error.provider.opencodeNetwork":
     "O OpenCode não conseguiu se conectar ao provedor do modelo. Verifique a conexão de rede do computador que executa o OpenBot e tente novamente.\n{detail}",
   "error.provider.opencodeNoAnswer":
-    "O modelo do OpenCode encerrou o turno sem resposta e sem erro. Tente novamente ou escolha outro modelo.",
+    "O modelo do OpenCode encerrou o turno sem resposta. Tente novamente ou escolha outro modelo.",
   "error.provider.opencodeReasoningWithoutAnswer":
-    "O modelo do OpenCode encerrou o turno depois do raciocínio, sem resposta e sem erro. Tente novamente ou escolha outro modelo.",
+    "O modelo do OpenCode encerrou o turno depois do raciocínio, sem resposta. Tente novamente ou escolha outro modelo.",
   "error.provider.chatgptPageFailed": "O OpenBot não conseguiu abrir a página de conexão do ChatGPT.",
   "error.provider.noneReady": "Nenhum provedor de agentes está pronto.",
   "error.provider.claudeTurnActive": "Aguarde o turno ativo do Claude terminar antes de atualizar seu contexto.",

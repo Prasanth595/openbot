@@ -180,9 +180,9 @@ export const messages = {
   "error.provider.opencodeNetwork":
     "OpenCode nie połączył się z dostawcą modelu. Sprawdź połączenie sieciowe komputera, na którym działa OpenBot, a potem spróbuj ponownie.\n{detail}",
   "error.provider.opencodeNoAnswer":
-    "Model OpenCode zakończył turę bez odpowiedzi i bez błędu. Spróbuj ponownie albo wybierz inny model.",
+    "Model OpenCode zakończył turę bez odpowiedzi. Spróbuj ponownie albo wybierz inny model.",
   "error.provider.opencodeReasoningWithoutAnswer":
-    "Model OpenCode zakończył turę po rozumowaniu, bez odpowiedzi i bez błędu. Spróbuj ponownie albo wybierz inny model.",
+    "Model OpenCode zakończył turę po rozumowaniu, bez odpowiedzi. Spróbuj ponownie albo wybierz inny model.",
   "error.provider.chatgptPageFailed": "Nie udało się otworzyć strony połączenia ChatGPT.",
   "error.provider.noneReady": "Żaden dostawca agentów nie jest gotowy.",
   "error.provider.claudeTurnActive": "Zaczekaj na zakończenie aktywnej tury Claude, zanim odświeżysz jego kontekst.",
