@@ -42,7 +42,14 @@ const GITHUB_MCP: McpServerConfig = {
   transport: "stdio",
   enabled: true,
   command: "npx",
-  args: ["github-mcp", "--access-token", "ghp_arg_secret", "--read-only"],
+  args: [
+    "github-mcp",
+    "--access-token",
+    "ghp_arg_secret",
+    "--read-only",
+    "postgresql://app:pg_secret@db.local/app",
+    "--dsn=mysql://root:dsn_secret@db.local/app",
+  ],
   env: [{ key: "GITHUB_TOKEN", value: "ghp_secret" }],
   envPassthrough: [],
   workingDirectory: "",
@@ -419,6 +426,8 @@ describe("InstanceTransferService", () => {
       "pw_secret",
       "provider_secret",
       "agent_arg_secret",
+      "pg_secret",
+      "dsn_secret",
     ])
       expect(text).not.toContain(secret);
     // The file appears only when it is complete.

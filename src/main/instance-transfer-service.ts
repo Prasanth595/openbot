@@ -884,6 +884,22 @@ const SECRET_NAME = /token|secret|password|passwd|api[-_]?key|apikey|auth|creden
  */
 function createRedaction() {
   const names = new Set<string>();
+  const url = (owner: string, value: string): string => {
+    if (!value) return value;
+    let parsed: URL;
+    try {
+      parsed = new URL(value);
+    } catch {
+      return value;
+    }
+    if (!parsed.username && !parsed.password && !parsed.search && !parsed.hash) return value;
+    names.add(owner);
+    parsed.username = "";
+    parsed.password = "";
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  };
   return {
     args(owner: string, args: readonly string[]): string[] {
       return args.map((arg, index) => {
@@ -897,25 +913,13 @@ function createRedaction() {
           names.add(owner);
           return "";
         }
-        return arg;
+        // A connection string keeps its password in the URL, as a positional value or after `=`.
+        const equals = arg.indexOf("=");
+        if (equals > 0) return arg.slice(0, equals + 1) + url(owner, arg.slice(equals + 1));
+        return url(owner, arg);
       });
     },
-    url(owner: string, value: string): string {
-      if (!value) return value;
-      let url: URL;
-      try {
-        url = new URL(value);
-      } catch {
-        return value;
-      }
-      if (!url.username && !url.password && !url.search && !url.hash) return value;
-      names.add(owner);
-      url.username = "";
-      url.password = "";
-      url.search = "";
-      url.hash = "";
-      return url.toString();
-    },
+    url,
     cleared: () => [...names],
   };
 }
