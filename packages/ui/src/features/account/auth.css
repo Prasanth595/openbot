@@ -752,6 +752,13 @@
   white-space: nowrap;
 }
 
+/* The reason a row is not ready is the sentence the user acts on, so it wraps rather than ends in an
+   ellipsis. */
+.provider-picker-status-message {
+  overflow: visible;
+  white-space: normal;
+}
+
 /* The agents that keep a provider on, on a line of its own below the row and in line with the name.
    The row grows to show the whole sentence, because the user must read which agents to change. */
 .provider-picker-check-error.provider-picker-used-by {

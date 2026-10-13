@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startAcpAuthentication } from "./acp-sign-in";
 import { CliLoginFlow } from "./agent/cli-login-flow";
 import { runCauseEffect } from "./effect-boundary";
+import { ProviderSignInError } from "./provider-client-effects";
 
 let root: string;
 let scope: Scope.Closeable;
@@ -112,6 +113,39 @@ describe("Gemini browser sign-in", () => {
     const login = await start(url, open);
     await expect(runCauseEffect(login.done)).rejects.toMatchObject({ message: browserError });
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it("keeps the server's reason when it refuses the sign-in", async () => {
+    // Antigravity refuses an account without a Gemini plan during onboarding (1.3.0).
+    const script = join(root, "refusing-server.cjs");
+    await writeFile(
+      script,
+      `
+      const readline = require("node:readline");
+      const send = (value) => console.log(JSON.stringify({ jsonrpc: "2.0", ...value }));
+      readline.createInterface({ input: process.stdin }).on("line", (line) => {
+        const request = JSON.parse(line);
+        if (request.method === "initialize")
+          send({ id: request.id, result: { protocolVersion: 1, authMethods: [{ id: "oauth-personal", name: "Google" }] } });
+        if (request.method === "authenticate")
+          send({ id: request.id, error: { code: -32000, message: "Onboarding failed: the account is not eligible", data: { reason: "onboarding_failed" } } });
+      });
+    `,
+    );
+    const login = await runCauseEffect(
+      startAcpAuthentication({
+        executable: process.execPath,
+        argv: [script],
+        env: {},
+        methodId: "oauth-personal",
+        timeoutMs: 5_000,
+      }).pipe(Effect.provideService(Scope.Scope, scope)),
+    );
+    const failure = await runCauseEffect(login.done).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(ProviderSignInError);
+    expect(failure).toMatchObject({
+      message: "The sign-in did not complete: Onboarding failed: the account is not eligible",
+    });
   });
 
   it("stops a pending sign-in on cancellation and permits a fresh attempt", async () => {

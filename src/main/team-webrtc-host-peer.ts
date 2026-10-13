@@ -54,7 +54,7 @@ import {
   encodeTeamProtocolV7WebRtcHttpResponse,
 } from "@openbot/contracts/team-protocol/v7-webrtc-adapter";
 import { sourceText } from "@openbot/i18n/source";
-import { Context, Deferred, Effect, Fiber, Layer, ManagedRuntime } from "effect";
+import { Context, Deferred, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect";
 import type * as Ws from "ws";
 import type { VerifiedRemoteSessionTicket } from "./central-auth-manager";
 import { contentDispositionFileName } from "./content-disposition";
@@ -129,6 +129,12 @@ export class TeamWebRtcHostPeer {
   #eventsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
   #eventsReconnectAttempts = 0;
   #nextEventSequence = 1;
+  // The highest sequence that the event sender sent, skipped, or found dropped.
+  #eventsSentThrough = 0;
+  // An event did not reach the client, so it must get `event-reset` before the next event.
+  #eventResetPending = false;
+  // The session that an event sender serves. One sender keeps the events in sequence order.
+  #eventSender: string | null = null;
   readonly #desktopSockets = new Map<string, Ws.WebSocket>();
   #sessionExpirationTimer: ReturnType<typeof setTimeout> | null = null;
   #sessionPreparation: Deferred.Deferred<void, RemoteWorkflowError> | null = null;
@@ -270,6 +276,8 @@ export class TeamWebRtcHostPeer {
     this.#events.clear();
     this.#responses.clear();
     this.#nextEventSequence = 1;
+    this.#eventsSentThrough = 0;
+    this.#eventResetPending = false;
     const expiresAt = connection.sessionExpiresAt * 1_000;
     if (expiresAt <= Date.now()) return;
     const session = yield* remoteDecode(() => this.#store.openRemoteSession({ ...connection, expiresAt }));
@@ -757,16 +765,14 @@ export class TeamWebRtcHostPeer {
         return;
       }
       const sequence = this.#nextEventSequence++;
-      if (this.#events.size >= MAXIMUM_BUFFERED_EVENTS) {
-        this.#events.clear();
-        this.#sendRecoverable(
-          this.#peerId,
-          "events",
-          encodeTeamProtocolV2Frame({ version: 2, type: "event-reset", nextSequence: sequence }),
-        );
-      }
+      // If this removes events that the sender did not send, the sender resets the client.
+      if (this.#events.size >= MAXIMUM_BUFFERED_EVENTS) this.#events.clear();
       this.#events.set(sequence, frame);
-      this.#sendRecoverable(this.#peerId, "events", frame);
+      const sessionId = this.#localSessionId;
+      if (sessionId && this.#eventSender !== sessionId) {
+        this.#eventSender = sessionId;
+        this.#dispatch(this.#sendEvents(sessionId));
+      }
     });
     socket.once("error", () => socket.close());
     socket.once("close", () => {
@@ -812,20 +818,44 @@ export class TeamWebRtcHostPeer {
     }
     if (frame.type !== "event-ack")
       return yield* new RemoteWorkflowError({ cause: new Error("The event frame is not client control data.") });
+    // Do not send `event-reset` here. The client can acknowledge an old event after the stream
+    // already reset it, and a second reset would move it back before the newer events it has.
     for (const sequence of this.#events.keys()) if (sequence <= frame.throughSequence) this.#events.delete(sequence);
-    const peerId = this.#peerId;
-    if (!peerId) return;
-    const bufferedEvents = [...this.#events].sort(([left], [right]) => left - right);
-    const firstSequence = bufferedEvents[0]?.[0];
-    if (firstSequence !== undefined && frame.throughSequence < firstSequence - 1) {
-      yield* HostPeerTransport.use((transport) =>
-        transport.send(
-          peerId,
-          "events",
-          encodeTeamProtocolV2Frame({ version: 2, type: "event-reset", nextSequence: firstSequence }),
-        ),
+  });
+
+  readonly #sendEvents = Effect.fn("TeamHostPeer.sendEvents")(function* (
+    this: TeamWebRtcHostPeer,
+    sessionId: string,
+  ): Effect.fn.Return<void, never, HostPeerTransport> {
+    const send = (peerId: string, data: string) =>
+      Effect.exit(HostPeerTransport.use((transport) => transport.send(peerId, "events", data))).pipe(
+        Effect.map(Exit.isSuccess),
       );
+    while (this.#localSessionId === sessionId && this.#peerId) {
+      const peerId = this.#peerId;
+      const sequence = this.#eventsSentThrough + 1;
+      if (sequence >= this.#nextEventSequence) break;
+      this.#eventsSentThrough = sequence;
+      const frame = this.#events.get(sequence);
+      // The buffer limit removed this event before it was sent.
+      if (frame === undefined) {
+        this.#eventResetPending = true;
+        continue;
+      }
+      if (this.#eventResetPending) {
+        // The client loads its state again after the reset, so only the newest event must follow it.
+        if (sequence + 1 < this.#nextEventSequence) continue;
+        const reset = encodeTeamProtocolV2Frame({ version: 2, type: "event-reset", nextSequence: sequence });
+        if (!(yield* send(peerId, reset))) continue;
+        if (this.#localSessionId !== sessionId) break;
+        this.#eventResetPending = false;
+      }
+      // A client disconnects on a sequence gap, so a failed event must be followed by a reset.
+      const sent = yield* send(peerId, frame);
+      if (this.#localSessionId !== sessionId) break;
+      if (!sent) this.#eventResetPending = true;
     }
+    if (this.#eventSender === sessionId) this.#eventSender = null;
   });
 
   readonly #failProtocol = Effect.fn("TeamHostPeer.failProtocol")(function* (this: TeamWebRtcHostPeer, peerId: string) {
@@ -970,7 +1000,8 @@ export class TeamWebRtcHostPeer {
     }
   });
 
-  #sendRecoverable(peerId: string, channel: "events" | "desktop", data: string | ArrayBuffer): void {
+  // Events use #sendEvents, which keeps their sequence order.
+  #sendRecoverable(peerId: string, channel: "desktop", data: string | ArrayBuffer): void {
     if (peerId !== this.#peerId) return;
     this.#dispatch(
       HostPeerTransport.use((transport) => transport.send(peerId, channel, data)).pipe(Effect.catch(() => Effect.void)),

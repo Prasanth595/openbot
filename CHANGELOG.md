@@ -6,6 +6,66 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.38.2] - 2026-10-13
+
+### Added
+
+- Italian interface. Choose Italiano in Settings > General > Language, or keep System default on a
+  computer that uses Italian. The web client uses it too.
+- A server sends iPhone notifications to its members when an agent finishes, stops with an error, or
+  needs input, an approval or a step in the browser. It sends no answer or error to a member who
+  uses a desktop app at that time. While the phone shows the Live Activity, the Live Activity shows
+  the event in place of a notification, and lights up the screen and plays the sound when the phone
+  chose that. It uses the choices of each phone, and seals the agent name and the text
+  so that Apple and the OpenBot account service cannot read them. The server keeps the phones that
+  get notifications, so they continue after a restart.
+- You can cancel a Gemini (or other browser) sign-in that waits for the browser. Before, the only way out was Restart, which opened another sign-in page.
+- While a provider connects, its row tells you to finish the sign-in in your browser.
+- Agents can now post to a connected Slack, Discord or Telegram place on their own initiative, from
+  any chat or routine run. Ask an agent to "post the summary to #bot-inflow", or put it in a routine
+  prompt. `openbot.messaging_list_places` lists the connections and their channels, and
+  `openbot.messaging_post` posts the text, redacted. Before, an agent could only answer the
+  conversation that addressed it.
+
+### Changed
+
+- When a queued message waits and no turn runs, the server log now names what holds the queue, so a
+  queue that does not start can be diagnosed.
+- The sign-in code email leaves about one second sooner. Before, OpenBot waited for 10 replies from the mail server, one after another, before it showed the code field. Now it waits for 5.
+- Agents show a draft before they send a message for you, and they send it only after you approve it. A routine whose instruction asks for a send still sends. Before a payment, an agent reads back the item, price and total and asks you to confirm.
+- Agents give the answer first and do not invent facts or sources. An agent says done only after it checks the result.
+- When you say stop, an agent also stops each teammate that it gave work to, and tells you which teammates stopped.
+- Agents look for a teammate earlier, when a task or part of it fits another agent's title and description. Before, they looked mostly after a failure. This helps when you have many agents.
+- A message from one agent to another now contains all that the other agent needs, without your other private details. When the answer comes back, the agent checks it and tells you which facts have a source.
+- For a repeated or timed request, such as "every morning", an agent creates a routine or offers one.
+- Server settings > Connectors shows the open connector in the header, for example "Connectors › GitHub". Select "Connectors" to go back to the list. The "All connectors" button is removed.
+
+### Fixed
+
+- Open OpenBot from an invitation link on Windows. Before, Open OpenBot on the invitation page did
+  nothing, because Windows had no handler for `openbot://` links.
+- Show help on the invitation page after Open OpenBot is pressed, in case OpenBot does not open.
+- Agents now show in their sections when a server starts or reconnects. Before, the sidebar sometimes showed them ungrouped until you refreshed the app.
+- Opening or writing to a chat no longer shows "Read state failed" when the read mark names a message
+  that is not saved yet or was removed, such as a queued message on a hosted server. Before, every
+  open and every send showed the error again.
+- The Google sign-in for Gemini no longer stops when you return to OpenBot before you finish it in the browser on the first-run screen.
+- A failed Gemini sign-in now shows the reason, such as a timeout or Google's own message. Before, every failure showed "OpenBot could not connect Gemini. Try again."
+- When Google refuses a saved Gemini API key, OpenBot says so. Before, it asked you to sign in with Google, which could not help while the key was saved.
+- OpenBot no longer opens a Google sign-in page by itself when it checks Gemini with an expired sign-in. It shows "Sign in with Google to use Gemini." at once, without a long wait.
+- A Gemini chat whose session was lost now starts a new session. Before, every next message in that chat failed.
+- When the Gemini plan's quota is reached, the turn fails with a clear message. Before, the quota notice was saved as Gemini's answer.
+- Gemini no longer asks for approval of a tool after you press Stop.
+- Gemini no longer shows a "Provider error" notification for each line of its internal log, such as after a Stop or a failed request. The failed turn says what happened.
+- When Gemini fails a request, for example because the API key is not valid, the turn fails with a clear message. Before, the error was saved as Gemini's answer.
+- The Gemini row in Settings always has an API key button, so a saved key can be replaced or removed while Gemini shows Connected.
+- After you cancel a sign-in, the provider row shows again why it is not connected.
+- Provider rows in Settings show why a provider is not ready, or why its download failed, as text. Before, the reason was only in a tooltip.
+- A Connect that fails in Settings, the model picker or the chat composer now shows why.
+- The Gemini row and other downloaded providers show "Update available" in Settings, as the update notification does.
+- On the first-run screen, the main button downloads the selected provider when it is not downloaded, and says Download.
+- The Server settings header no longer moves by 1 pixel when you open or close an MCP form.
+
 ## [0.38.1] - 2026-10-13
 
 ### Added

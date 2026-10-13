@@ -10,8 +10,8 @@ import { MessagingMemoryStore } from "./messaging-memory-store";
 import { type MessagingContextMessage, messagingPromptText } from "./messaging-prompt";
 import type { MessagingOperationFailed } from "./messaging-service";
 import { type MessagingLink, MessagingStore } from "./messaging-store";
-import { boundedHistory, parseMessagingTool } from "./messaging-tools";
-import type { ContextEntry } from "./messaging-types";
+import { boundedHistory, parseMessagingOutboundTool, parseMessagingTool } from "./messaging-tools";
+import type { ContextEntry, MessageTarget, MessagingPlace } from "./messaging-types";
 
 /** A file the agent attached to its answer, ready to upload. */
 export interface MessagingAnswerFile {
@@ -79,6 +79,19 @@ export interface MessagingHistory {
   messages: ContextEntry[];
 }
 
+/**
+ * What the platform side gives the outbound tools. Each answer is the result, or an error text
+ * that is safe to show the agent.
+ */
+export interface MessagingOutbound {
+  places(connectionId: string): Effect.Effect<{ places: MessagingPlace[] } | { error: string }>;
+  post(
+    connectionId: string,
+    target: MessageTarget,
+    markdown: string,
+  ): Effect.Effect<{ posted: true } | { error: string }>;
+}
+
 export interface MessagingThreadsHooks {
   schedule(agentId: string): void;
   queueChanged(agentId: string): void;
@@ -96,6 +109,8 @@ const AGENT_QUEUE_LIMIT = 20;
 const AUTHOR_QUEUE_LIMIT = 2;
 const CONTEXT_TIMEOUT_MS = 5_000;
 const HISTORY_TIMEOUT_MS = 15_000;
+/** What a messaging tool answers when its connection does not run. */
+export const MESSAGING_NOT_RUNNING = "This connection does not run now.";
 const PLATFORM_NAMES: Record<MessagingPlatform, string> = { slack: "Slack", discord: "Discord", telegram: "Telegram" };
 
 /**
@@ -129,6 +144,7 @@ export class MessagingThreads {
         limit: number,
       ) => Effect.Effect<MessagingHistory | null, MessagingOperationFailed>)
     | null = null;
+  #outbound: MessagingOutbound | null = null;
 
   constructor(database: OpenBotDatabase, mailbox: MailboxStore, hooks: MessagingThreadsHooks) {
     this.store = new MessagingStore(database);
@@ -166,6 +182,50 @@ export class MessagingThreads {
   ): void {
     this.#historySource = source;
   }
+
+  setOutbound(outbound: MessagingOutbound | null): void {
+    this.#outbound = outbound;
+  }
+
+  /**
+   * One outbound tool call, from any turn of any agent. The arguments name the connection and the
+   * place; only an enabled connection of this host can take a post.
+   */
+  readonly outboundTool = Effect.fn("MessagingThreads.outboundTool")(function* (
+    this: MessagingThreads,
+    tool: string,
+    args: unknown,
+  ): Effect.fn.Return<OpenBotToolResponse> {
+    const call = parseMessagingOutboundTool(tool, args);
+    if ("error" in call) return openBotToolFailure(call.error);
+    const enabled = this.store.connections().filter((record) => record.enabled);
+    if (call.tool === "messaging_list_places" && !call.connection)
+      return openBotToolResult({
+        connections: enabled.map((record) => ({
+          connection: record.connectionId,
+          platform: PLATFORM_NAMES[record.platform],
+          name: record.workspaceName,
+        })),
+      });
+    const record = enabled.find((candidate) => candidate.connectionId === call.connection);
+    if (!record)
+      return openBotToolFailure("No enabled connection has that id. Call openbot.messaging_list_places for the ids.");
+    const outbound = this.#outbound;
+    if (!outbound) return openBotToolFailure(MESSAGING_NOT_RUNNING);
+    // No deadline on a post: one that ended late could be sent again by the agent.
+    const answer =
+      call.tool === "messaging_list_places"
+        ? yield* outbound.places(record.connectionId).pipe(
+            Effect.timeout(HISTORY_TIMEOUT_MS),
+            Effect.catch(() => Effect.succeed({ error: "The platform did not answer. Try again in a minute." })),
+          )
+        : yield* outbound.post(
+            record.connectionId,
+            { platformChannelId: call.place, replyThreadId: call.replyTo },
+            call.text,
+          );
+    return "error" in answer ? openBotToolFailure(answer.error) : openBotToolResult(answer);
+  });
 
   /**
    * One messaging tool call of a turn in `link`. The link, not an argument, names the connection
@@ -219,7 +279,7 @@ export class MessagingThreads {
           : null;
         if (!history)
           return openBotToolFailure("The platform did not answer, or it limits reads now. Try again in a minute.");
-        if (!history.value) return openBotToolFailure("This connection does not run now.");
+        if (!history.value) return openBotToolFailure(MESSAGING_NOT_RUNNING);
         return openBotToolResult({
           place: history.value.place,
           scope: call.scope,

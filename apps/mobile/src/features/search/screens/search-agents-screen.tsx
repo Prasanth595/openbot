@@ -12,7 +12,6 @@ import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
-import { useChannels } from "@/features/channels/components/use-channels";
 import { MobileSearchResultRow } from "@/features/search/components/search-result-row";
 import { MobileSearchTextInput } from "@/features/search/components/search-text-input";
 import type { MobileSearchTextInputHandle } from "@/features/search/components/search-text-input.types";
@@ -35,7 +34,6 @@ import { useText } from "@/shared/lib/text";
 const FILTER_LABEL = {
   all: "mobile.search.filter.all",
   agents: "mobile.search.filter.agents",
-  channels: "mobile.search.filter.channels",
   messages: "mobile.search.filter.messages",
   files: "mobile.search.filter.files",
   routines: "mobile.search.filter.routines",
@@ -46,7 +44,6 @@ const FILTER_LABEL = {
 const FILTER_SYMBOL = {
   all: "square.grid.2x2",
   agents: "person.2",
-  channels: "number",
   messages: "bubble.left.and.bubble.right",
   files: "doc",
   routines: "calendar",
@@ -71,18 +68,10 @@ function continuesSearch(previous: readonly unknown[] | undefined, next: readonl
 
 export function SearchAgentsScreen() {
   const { t } = useText();
-  const {
-    activeAgents,
-    activeServer,
-    hiddenChannelIds,
-    searchMessages,
-    canSearchFiles,
-    searchFiles,
-    loadRoutineCalendar,
-  } = useMobileWorkspace();
+  const { activeAgents, activeServer, searchMessages, canSearchFiles, searchFiles, loadRoutineCalendar } =
+    useMobileWorkspace();
   const { session, sessionScope } = useMobileSession();
   const serverId = activeServer.id;
-  const channelState = useChannels(serverId);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<MobileSearchFilter>("all");
   const [muted, fieldBackground] = useThemeColor(["muted", "default"]);
@@ -98,18 +87,8 @@ export function SearchAgentsScreen() {
     void KeyboardController.dismiss();
   }, []);
   const filesSupported = canSearchFiles(serverId);
-  // As on desktop, a server without channels or without file search shows no filter for them.
-  const filters = MOBILE_SEARCH_FILTERS.filter(
-    (candidate) => (candidate !== "channels" || channelState.supported) && (candidate !== "files" || filesSupported),
-  );
-  const channels = useMemo(
-    () =>
-      channelState.supported
-        ? channelState.channels.filter((channel) => !channel.archived && !hiddenChannelIds.includes(channel.id))
-        : [],
-    [channelState.supported, channelState.channels, hiddenChannelIds],
-  );
-  const agentsById = useMemo(() => new Map(activeAgents.map((agent) => [agent.id, agent])), [activeAgents]);
+  // As on desktop, a server without file search shows no filter for it.
+  const filters = MOBILE_SEARCH_FILTERS.filter((candidate) => candidate !== "files" || filesSupported);
   // The pages of the Settings sheet and of the server sheets. They are not the desktop settings.
   const settings = useMemo(() => {
     const app = t("mobile.app.route.settings");
@@ -130,10 +109,6 @@ export function SearchAgentsScreen() {
     pages.push(
       { id: "privacy", title: t("mobile.settings.privacy.title"), detail: app },
       { id: "hiddenChats", title: t("mobile.settings.conversations.hiddenChats"), detail: app },
-    );
-    if (channelState.supported)
-      pages.push({ id: "deletedChannels", title: t("mobile.settings.conversations.deletedChannels"), detail: app });
-    pages.push(
       { id: "support", title: t("mobile.settings.home.support"), detail: app },
       { id: "about", title: t("mobile.settings.home.about"), detail: app },
       { id: "serverOptions", title: t("mobile.app.route.serverOptions"), detail: server },
@@ -142,7 +117,7 @@ export function SearchAgentsScreen() {
       { id: "serverUsage", title: t("mobile.server.drawer.usage"), detail: server },
     );
     return pages;
-  }, [t, activeServer.name, channelState.supported]);
+  }, [t, activeServer.name]);
 
   // Search the host after typing stops, as the desktop search does, not on each character.
   const [hostQuery, setHostQuery] = useState("");
@@ -178,17 +153,12 @@ export function SearchAgentsScreen() {
     enabled: filesSupported && sources.files,
     retry: false,
   });
-  // The phone already has the agents and channels it shows, so it asks the host only for their routines.
+  // The phone already has the agents it shows, so it asks the host only for their routines.
   const routineOwners = useMemo(
-    () => [
-      ...activeAgents.map((agent) => ({ kind: "agent" as const, agentId: agent.id })),
-      ...channels.map((channel) => ({ kind: "channel" as const, channelId: channel.id })),
-    ],
-    [activeAgents, channels],
+    () => activeAgents.map((agent) => ({ kind: "agent" as const, agentId: agent.id })),
+    [activeAgents],
   );
-  const routineOwnerKey = routineOwners
-    .map((owner) => (owner.kind === "agent" ? `a:${owner.agentId}` : `c:${owner.channelId}`))
-    .join(",");
+  const routineOwnerKey = routineOwners.map((owner) => `a:${owner.agentId}`).join(",");
   const routines = useQuery({
     // The routine calendar key, so the events that change routines refresh this list too.
     queryKey: ["server-routines", ...queryScope, "search", routineOwnerKey],
@@ -221,7 +191,6 @@ export function SearchAgentsScreen() {
         filter,
         reader: { memberId: membershipId || null, accountUserId },
         agents: activeAgents,
-        channels,
         settings,
         routines: !wanted.routines
           ? { status: "idle", items: [] }
@@ -253,7 +222,6 @@ export function SearchAgentsScreen() {
       membershipId,
       accountUserId,
       activeAgents,
-      channels,
       settings,
       wanted.routines,
       wanted.messages,
@@ -409,13 +377,7 @@ export function SearchAgentsScreen() {
                           exiting={item.exiting}
                           layout={item.layout}
                         >
-                          <MobileSearchResultRow
-                            result={result}
-                            query={query}
-                            serverId={serverId}
-                            agents={agentsById}
-                            onLeave={leave}
-                          />
+                          <MobileSearchResultRow result={result} query={query} serverId={serverId} onLeave={leave} />
                         </Animated.View>
                       ))}
                     </LayoutAnimationConfig>

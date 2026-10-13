@@ -708,6 +708,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
               expiresAt: Date.now() + 10 * 60_000,
             },
     cancelProviderCodeLogin: async () => clone(agentStatus),
+    cancelProviderSignIn: async () => clone(agentStatus),
     setProviderApiKey: async ({ provider, key }) => {
       if (!key.trim()) throw new Error("A provider key is required.");
       providerApiKeys.add(provider);

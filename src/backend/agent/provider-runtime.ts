@@ -20,6 +20,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
+import { classifyUserError } from "@openbot/user-errors";
 import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect";
 import { startAcpAuthentication } from "./../acp-sign-in";
 import { type AgentClient, AgentProcessExitError, type AgentProvider } from "./../agent-client";
@@ -38,6 +39,7 @@ import {
   decodeRecordResponse,
   getString,
 } from "./../protocol";
+import { ProviderSignInError } from "../provider-client-effects";
 import {
   BUILT_IN_PROVIDER_DRIVERS,
   type ProviderClientContext,
@@ -1877,10 +1879,7 @@ export class ProviderRuntime implements ProviderPort {
             const account = response.account;
             if (!account)
               return yield* new ProviderOperationFailed({
-                cause: new Error(
-                  this.#customProviderSignInMessage(provider) ??
-                    sourceText("error.provider.noAuthenticatedAccount", { provider: providerLabel(provider) }),
-                ),
+                cause: new ProviderSignInError({ message: this.#noAccountMessage(provider) }),
               });
             yield* providerStep(() => driver.validateAccount(account));
             transferred = true;
@@ -1990,14 +1989,36 @@ export class ProviderRuntime implements ProviderPort {
     });
   }
 
+  /** What an account check that finds no account reports. */
+  #noAccountMessage(provider: AgentProvider): string {
+    return (
+      this.#customProviderSignInMessage(provider) ??
+      sourceText("error.provider.noAuthenticatedAccount", { provider: providerLabel(provider) })
+    );
+  }
+
+  /** What a provider with no account says, as the start reports it. */
+  #signInRequiredMessage(provider: AgentProvider): string {
+    return (
+      this.#customProviderSignInMessage(provider) ??
+      (provider === "pi"
+        ? sourceText("error.provider.piSignIn")
+        : provider === "muse"
+          ? sourceText("error.provider.museSignIn")
+          : agentProviderDescriptor(provider).signInMessage)
+    );
+  }
+
   #clearProviderConnectionState(provider: AgentProvider): void {
     const current = this.#status.providers?.find((candidate) => candidate.id === provider);
     if (!current?.connectionState) return;
+    const signedOut = !this.#clients.has(provider) && current.state === "sign-in-required";
     this.#setStatus({
       providers: updateProviderStatus(this.#status.providers, provider, {
         state: this.#clients.has(provider) ? "available" : current.state,
         version: this.#cli.get(provider)?.version ?? current.version,
-        message: null,
+        // A canceled sign-in leaves the provider as it was, so the row says again why it waits.
+        message: signedOut ? this.#signInRequiredMessage(provider) : null,
         email: this.#accounts.get(provider)?.email ?? current.email ?? null,
       }),
     });
@@ -2017,7 +2038,10 @@ export class ProviderRuntime implements ProviderPort {
     const hasActiveClient = this.#clients.has(provider);
     const fallbackMessage = `OpenBot could not connect ${providerLabel(provider)}. Try again.`;
     const rawMessage = error instanceof Error ? error.message : String(error);
-    const message = /^(ChatGPT connection|OpenBot)/u.test(rawMessage) ? rawMessage : fallbackMessage;
+    const message =
+      error instanceof ProviderSignInError || /^(ChatGPT connection|OpenBot)/u.test(rawMessage)
+        ? rawMessage
+        : fallbackMessage;
     const status = hasActiveClient
       ? {
           state: "available" as const,
@@ -2108,6 +2132,24 @@ export class ProviderRuntime implements ProviderPort {
           yield* providerStep(() => this.#clearProviderConnectionState(provider));
           return this.status();
         }).pipe(
+          // A check that finds no account is an answer, not a failure: a removed key can leave a
+          // provider signed out. The process that still runs on the old credential must stop.
+          // A sign-in error with its own reason, such as a refused key, keeps that reason.
+          Effect.catch((failure) => {
+            const cause = failure.cause;
+            if (!(cause instanceof ProviderSignInError)) return Effect.fail(failure);
+            return Effect.gen({ self: this }, function* () {
+              yield* this.#stopProviderClient(provider);
+              this.#setProviderConnectionFailure(
+                provider,
+                cause.message === this.#noAccountMessage(provider)
+                  ? new ProviderSignInError({ message: this.#signInRequiredMessage(provider) })
+                  : cause,
+                cli?.version,
+              );
+              return this.status();
+            });
+          }),
           Effect.tapError((failure) =>
             Effect.sync(() => this.#setProviderConnectionFailure(provider, failure.cause, cli?.version)),
           ),
@@ -2213,13 +2255,7 @@ export class ProviderRuntime implements ProviderPort {
             .request("account/read", { refreshToken: false }, decodeAccountReadResult, 5_000)
             .pipe(toProviderOperationFailed);
           if (!account.account) {
-            const message =
-              this.#customProviderSignInMessage(provider) ??
-              (provider === "pi"
-                ? sourceText("error.provider.piSignIn")
-                : provider === "muse"
-                  ? sourceText("error.provider.museSignIn")
-                  : agentProviderDescriptor(provider).signInMessage);
+            const message = this.#signInRequiredMessage(provider);
             yield* candidate.stop().pipe(Effect.catch(() => Effect.void));
             this.#setStatus({
               providers: updateProviderStatus(this.#status.providers, provider, {
@@ -2282,17 +2318,26 @@ export class ProviderRuntime implements ProviderPort {
                 });
                 return message;
               }
+              // An expired sign-in fails the account check in the CLI's own words, such as Codex's
+              // "workspace routing discovery unauthorized (401)". Ask for a new sign-in instead.
+              const failed =
+                stage === "account" && classifyUserError(error) === "auth"
+                  ? new ProviderSignInError({
+                      message: sourceText("error.provider.signInExpired", { provider: providerLabel(provider) }),
+                    })
+                  : error;
               // The CLI's own words reach the status message and the joined start failure below, so
               // the MCP values go first. `providerFailureStatus` applies only the generic redaction.
-              const message = this.#redactMcp(error instanceof Error ? error.message : String(error));
-              const failure = providerFailureStatus(provider, error, cli?.version);
+              const message = this.#redactMcp(failed instanceof Error ? failed.message : String(failed));
+              const failure = providerFailureStatus(provider, failed, cli?.version);
               this.#setStatus({
                 providers: updateProviderStatus(this.#status.providers, provider, {
                   ...failure,
                   message: failure.message === null ? null : this.#redactMcp(failure.message),
                 }),
               });
-              if (!(error instanceof CodexCliError)) this.#emitProviderError(provider, "start_failed", error);
+              if (!(failed instanceof CodexCliError || failed instanceof ProviderSignInError))
+                this.#emitProviderError(provider, "start_failed", failed);
               return message;
             }),
           ),
@@ -2452,6 +2497,14 @@ export class ProviderRuntime implements ProviderPort {
       }
       if (isGlogBelowErrorDiagnostic(message)) {
         stderrLogger.info("A provider logged an info or warning record.", { provider: client.provider, message });
+        return;
+      }
+      if (client.provider === "antigravity") {
+        // Antigravity reports each failure in the protocol: a failed turn in its answer, a refused
+        // account as an authentication error, and a crash as the process exit, which keeps the last
+        // stderr line. Its stderr repeats them as harness records and Python tracebacks, one
+        // "Provider error" toast per line, and a canceled request after each Stop.
+        stderrLogger.warn("Gemini logged a diagnostic.", { provider: client.provider, message });
         return;
       }
       // Without the timestamp, a repeat of one failure is the same message, and the renderer shows

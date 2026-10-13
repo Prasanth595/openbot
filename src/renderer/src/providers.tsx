@@ -14,17 +14,10 @@ import { useAgents } from "./features/agents/agents-context";
 import { conversationPort } from "./features/conversation/conversation-port";
 import { hostCustomProvidersApi } from "./features/custom-providers/custom-providers-port";
 import { createCustomProvidersStore } from "./features/custom-providers/stores/custom-providers-store";
-import { createProviderCodeLogin } from "./features/provider-updates/provider-code-login";
+import { createProviderConnection } from "./features/provider-updates/provider-connection";
 import { createProviderRuntimeStore } from "./features/provider-updates/provider-runtime-store";
 import { remoteProviderRuntimes } from "./features/provider-updates/remote-provider-runtimes";
-import {
-  codeSignInProviders,
-  hostSignInProviders,
-  localCodeSignInProviders,
-  relaySignInProviders,
-  remoteAdminServer,
-  serverSupportsCapability,
-} from "./features/servers/server-capabilities";
+import { remoteAdminServer, serverSupportsCapability } from "./features/servers/server-capabilities";
 import { useServers } from "./features/servers/servers-context";
 import { hostProviderKeyApi, providerKeyApi } from "./features/settings/provider-key-api";
 import { usePlatform } from "./platform";
@@ -144,6 +137,12 @@ const Providers = createSimpleContext({
       }
     }
 
+    /** Ends a browser sign-in that Connect started. The provider then shows its state from before. */
+    async function cancelProviderSignIn(provider: AgentProviderId): Promise<void> {
+      const status = await providersPort().cancelProviderSignIn(provider);
+      flush(() => applyAgentStatus(status));
+    }
+
     /** Opens a connect attempt: the status that ends it is matched back to this scope by provider. */
     function beginProviderConnection(provider: AgentProviderId) {
       const analytics = desktopAnalytics.scope();
@@ -231,10 +230,10 @@ const Providers = createSimpleContext({
     });
 
     /**
-     * The code sign-in as the one object its surfaces take. Onboarding and Settings both offer it
-     * and would otherwise each assemble the same six pieces.
+     * The provider sign-in as the one object its surfaces take. Onboarding, Settings, the composer
+     * and the model picker all offer it, so each offers the same ways in.
      */
-    const codeLogin = createProviderCodeLogin({
+    const connection = createProviderConnection({
       agentStatus,
       applyStatus: applyAgentStatus,
       target: () => {
@@ -245,7 +244,6 @@ const Providers = createSimpleContext({
               submit: (provider, code) => providerAdmin().submitCodeLogin({ provider, code }, serverId),
               cancel: (provider) => providerAdmin().cancelCodeLogin(provider, serverId),
               hostSignIn: {
-                providers: hostSignInProviders(activeServer()),
                 hostName: activeServer()?.name ?? "",
                 runtime: conversationPort().browser,
                 clipboard: serverSupportsCapability(activeServer(), "browser-view-clipboard"),
@@ -254,7 +252,6 @@ const Providers = createSimpleContext({
                 cancel: (provider) => providerAdmin().cancelHostSignIn(provider, serverId),
               },
               relay: {
-                providers: relaySignInProviders(activeServer()),
                 hostName: activeServer()?.name ?? "",
                 start: (provider) => providerAdmin().startRelaySignIn(provider, serverId),
                 status: (provider) => providerAdmin().relaySignInStatus(provider, serverId),
@@ -269,10 +266,16 @@ const Providers = createSimpleContext({
               cancel: (provider) => providersPort().cancelProviderCodeLogin(provider),
             };
       },
-      providers: () =>
-        providerAdminServerId() ? codeSignInProviders(activeServer()) : localCodeSignInProviders(appInfo()?.platform),
+      // A member of a joined server cannot connect its providers. This computer's own are connected here.
+      place: () =>
+        providerAdminServerId()
+          ? { kind: "app-server", server: activeServer() }
+          : activeServer()?.kind === "remote"
+            ? null
+            : { kind: "computer", platform: appInfo()?.platform },
+      connectInBrowser: connectProvider,
       openVerificationUrl: (url) => void appPort().openUrl(url),
-      connection: {
+      analytics: {
         begin: (provider) => {
           const analytics = beginProviderConnection(provider);
           return () => endFailedProviderConnection(provider, analytics);
@@ -289,7 +292,8 @@ const Providers = createSimpleContext({
       refreshingProviders,
       applyAgentStatus,
       connectProvider,
-      codeLogin,
+      cancelProviderSignIn,
+      connection,
       openProviderInstallGuide,
       refreshAgentProviders,
       setProviderOn,

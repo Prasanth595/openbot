@@ -532,6 +532,8 @@ export const IPC_ENDPOINTS = {
   providers: {
     setProviderOn: request<{ provider: AgentProviderId; on: boolean }, AgentStatus>()("app:set-provider-on"),
     connectProvider: request<AgentProviderId, AgentStatus>()("app:connect-provider"),
+    /** Ends the sign-in that `connectProvider` started and that still waits for the browser. */
+    cancelProviderSignIn: request<AgentProviderId, AgentStatus>()("app:cancel-provider-sign-in"),
     refreshAgentProviders: request<undefined, AgentStatus>()("app:refresh-agent-providers"),
     /**
      * Restarts one provider's process after the turns that run on it end, and reads its version,

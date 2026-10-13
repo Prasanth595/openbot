@@ -329,11 +329,9 @@ export function createProviderRuntimeStore(
      * computer.
      */
     toolRuntimeStatuses: () => providerRuntimeSnapshot().toolRuntimes,
-    providerAvailableVersions: () => ({
-      codex: providerUpdate("codex").availableVersion,
-      claude: providerUpdate("claude").availableVersion,
-      grok: providerUpdate("grok").availableVersion,
-    }),
+    // Every managed provider, so a row and the notification agree that an update is available.
+    providerAvailableVersions: () =>
+      Object.fromEntries(PROVIDERS.map((provider) => [provider, providerUpdate(provider).availableVersion])),
     providerRuntimeDownloadsAvailable: () => Boolean(api()),
     applyProviderRuntimeSnapshot,
     startProviderUpdate,

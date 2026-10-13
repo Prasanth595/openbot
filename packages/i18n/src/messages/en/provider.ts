@@ -51,13 +51,19 @@ export const messages = defineMessages("provider", {
   "provider.restartPending": "Restarts after the current tasks stop",
   "provider.action.install": "Install",
   "provider.action.signIn": "Sign in",
+  "provider.action.apiKey": "API key",
   "provider.action.signInWithCode": "Log in with code",
+  "provider.action.pasteAddress": "Paste the address",
   "provider.aria.download": "Download {name}",
   "provider.aria.cancel": "Cancel {name}",
   "provider.aria.connect": "Connect {name}",
   "provider.aria.reconnect": "Reconnect {name}",
   "provider.aria.restart": "Restart {name}",
   "provider.aria.retry": "Retry {name}",
+  "provider.aria.cancelSignIn": "Cancel the {name} sign-in",
+  "provider.aria.apiKey": "{name} API key",
+  "provider.connecting.browserHint": "Finish the sign-in if a browser page opens.",
+  "provider.connecting.cancelFailed": "OpenBot could not cancel the {name} sign-in. Try again.",
   "provider.aria.install": "Install {name}",
   "provider.aria.signIn": "Sign in to {name}",
   "provider.aria.codeFallback": "Log in to {name} with a code",
@@ -95,6 +101,12 @@ export const messages = defineMessages("provider", {
   "provider.codeLogin.relayStarting": "Starting the {name} sign-in on {host}…",
   "provider.codeLogin.pageOpening": "Opening the {name} sign-in page on {host}…",
   "provider.codeLogin.linkStep": "Log in to {name}. OpenBot continues by itself.",
+
+  // A provider that only the OpenBot app can sign in, from a browser tab.
+  "provider.useApp.title": "Connect {name} in the OpenBot app",
+  "provider.useApp.description":
+    "The {name} sign-in returns to the computer that started it, and a browser tab cannot receive it. Connect {name} in the OpenBot app. The app finishes the sign-in by itself.",
+  "provider.useApp.download": "Get the app",
 
   // The agent model picker.
   "provider.picker.noEndpoints": "No endpoints yet",
@@ -134,7 +146,8 @@ export const messages = defineMessages("provider", {
   "provider.museKey.description": "Save a Meta API key on the host, or use the Muse CLI to sign in.",
   "provider.museKey.label": "Meta API key",
   "provider.geminiKey.title": "Gemini API key",
-  "provider.geminiKey.description": "Save a Gemini API key on the host, or select Connect to sign in with Google.",
+  "provider.geminiKey.description":
+    "Save a Gemini API key on this computer. A saved key is used instead of your Google account. To sign in with Google, remove the key and select Connect on the Gemini row.",
   "provider.geminiKey.label": "Gemini API key",
 
   // The optional OpenCode Go key dialog.

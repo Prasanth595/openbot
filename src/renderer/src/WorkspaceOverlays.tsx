@@ -288,13 +288,15 @@ function LeaveServer() {
   );
 }
 
-/** The hosted server restart confirmation that the server menu opens. */
+/** The hosted server restart that the server menu opens. */
 function RestartServer() {
+  const { servers } = useServers();
   const { restartConfirmServer, restartRestoreTarget, cancelRestartServer, restartConfirmedServer } =
     useServerSettings();
   return (
     <RestartServerDialog
       server={restartConfirmServer()}
+      servers={servers()}
       onClose={cancelRestartServer}
       onRestart={restartConfirmedServer}
       restoreFocusTarget={restartRestoreTarget()}
@@ -328,12 +330,12 @@ function ServerSettings(props: {
     downloadProviderRuntime,
     startProviderUpdate,
     cancelProviderRuntimeDownload,
-    connectProvider,
+    cancelProviderSignIn,
     openProviderInstallGuide,
     setProviderOn,
     restartProvider,
     cancelProviderRestart,
-    codeLogin,
+    connection,
     providerKeys,
     hostCustomProviders,
   } = useProviders();
@@ -511,12 +513,12 @@ function ServerSettings(props: {
       get providerKeys() {
         return providerRuntimeDownloadsAvailable() ? providerKeys() : undefined;
       },
-      get codeLogin() {
-        return providerRuntimeDownloadsAvailable() ? codeLogin : undefined;
+      get connection() {
+        return providerRuntimeDownloadsAvailable() ? connection : undefined;
       },
       // The browser sign-in, the install guide, the scan and custom agents are of this computer.
-      get onConnectProvider() {
-        return local && providerRuntimeDownloadsAvailable() ? connectProvider : undefined;
+      get onCancelProviderSignIn() {
+        return local && providerRuntimeDownloadsAvailable() ? cancelProviderSignIn : undefined;
       },
       get onInstallProvider() {
         return local && providerRuntimeDownloadsAvailable() ? openProviderInstallGuide : undefined;

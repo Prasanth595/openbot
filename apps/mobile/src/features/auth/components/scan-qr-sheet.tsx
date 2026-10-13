@@ -255,7 +255,7 @@ export function ScanQrSheet({
             className="absolute"
             style={[{ width: origin.width, height: origin.height }, buttonStyle]}
           >
-            <ScanQrButton width={origin.width} onPress={close} />
+            <ScanQrButton width={origin.width} height={origin.height} onPress={close} />
           </Animated.View>
         ) : null}
       </Animated.View>

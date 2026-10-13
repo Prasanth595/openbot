@@ -74,6 +74,8 @@ interface ProviderModelPickerProps {
   onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
   onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
   onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
+  /** A signed-out provider shows Connect only when this place has a way in. Without it, every one does. */
+  canConnectProvider?: (provider: AgentProviderId) => boolean;
   /** Endpoints the user named; served by OpenCode, separated out only by the picker. */
   customProviders?: readonly CustomProviderSummary[] | undefined;
   /** The user's own ACP agents; provider `acp`, drawn on the Custom tab with one group each. */
@@ -509,10 +511,14 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                   if (runtime()?.phase === "not-downloaded") return "Download" as const;
                   // No runtime snapshot here; signed-out/failed providers offer Connect if handled.
                   if (status().state === "sign-in-required" || status().state === "error") {
-                    return props.onConnectProvider ? ("Connect" as const) : undefined;
+                    return props.onConnectProvider && (props.canConnectProvider?.(status().id) ?? true)
+                      ? ("Connect" as const)
+                      : undefined;
                   }
                   return undefined;
                 };
+                /** A Connect that failed before the sign-in started. The status reports the rest. */
+                const [connectError, setConnectError] = createSignal<string | null>(null);
                 const runtimeMessage = () => {
                   const runtimeStatus = runtime();
                   if (runtimeStatus?.phase === "downloading") {
@@ -521,6 +527,10 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                     });
                   }
                   if (runtimeStatus?.phase === "finishing") return t("provider.status.settingUp");
+                  // A sign-in in progress has no message. It is not a failure.
+                  if (status().connectionState === "connecting") return t("provider.connecting.browserHint");
+                  const failed = connectError();
+                  if (failed) return failed;
                   const message = runtimeStatus?.message ?? status().message;
                   return message
                     ? text.sourceText(message)
@@ -570,8 +580,17 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                               onClick={() => {
                                 const target = status().id;
                                 if (action() === "Cancel") void props.onCancelProviderDownload?.(target);
-                                else if (action() === "Connect") void props.onConnectProvider?.(target);
-                                else void props.onDownloadProvider?.(target);
+                                else if (action() === "Connect") {
+                                  setConnectError(null);
+                                  void Promise.resolve(props.onConnectProvider?.(target)).catch((error: unknown) =>
+                                    setConnectError(
+                                      text.errorMessage(
+                                        error,
+                                        t("app.provider.connectFailedRetry", { name: railName(provider, t) }),
+                                      ),
+                                    ),
+                                  );
+                                } else void props.onDownloadProvider?.(target);
                               }}
                             >
                               {t(RUNTIME_ACTION_LABEL[action()])}

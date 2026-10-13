@@ -1,10 +1,10 @@
-import type { AgentEvent, ChannelSummary, SidebarLayoutSnapshot, TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import type { AgentEvent, SidebarLayoutSnapshot, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { HOST_ADMIN_CAPABILITY, HOST_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/host-admin-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import { remoteHostFingerprint } from "@openbot/team-client";
 import type { RemoteTeamConnectionUpdate } from "@openbot/team-client/remote-peer";
-import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, type PropsWithChildren, useImperativeHandle, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -286,40 +286,6 @@ it("shows a reconnected server online before its cached chats load again", async
   await act(async () => release());
 });
 
-it.each(["memories", "routines"] as const)("refreshes active channel %s after a remote edit", async (section) => {
-  await act(async () =>
-    root.render(
-      <QueryClientProvider client={queryClient}>
-        <MobileWorkspaceProvider>
-          <Workspace />
-        </MobileWorkspaceProvider>
-      </QueryClientProvider>,
-    ),
-  );
-  let records = ["original"];
-  const key = ["channel-info", session.apiUrl, session.user.id, 1, host.hostId, "channel", section];
-  const read = vi.fn(async () => records);
-  const observer = new QueryObserver(queryClient, { queryKey: key, queryFn: read, staleTime: Infinity });
-  const close = observer.subscribe(() => {});
-  await observer.refetch();
-  const reads = read.mock.calls.length;
-  await act(async () => emit({ type: "channels-changed", channelId: "channel", revision: 1 }));
-  expect(read).toHaveBeenCalledTimes(reads);
-  const otherKey = [...key.slice(0, 5), "other-channel", section];
-  queryClient.setQueryData(otherKey, ["unchanged"]);
-  records = [];
-  await act(async () =>
-    emit({
-      type: section === "memories" ? "channel-memories-changed" : "channel-routines-changed",
-      channelId: "channel",
-    }),
-  );
-  await vi.waitFor(() => expect(observer.getCurrentResult().data).toEqual([]));
-  expect(queryClient.getQueryData(otherKey)).toEqual(["unchanged"]);
-  expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(false);
-  close();
-});
-
 async function mountSidebar() {
   sidebarSupported = true;
   await act(async () =>
@@ -333,9 +299,7 @@ async function mountSidebar() {
   );
 }
 function sidebarRows() {
-  return mobileSidebarItems(current.sidebarByServer.host?.layout ?? null, current.activeAgents, []).map(
-    (item) => item.id,
-  );
+  return mobileSidebarItems(current.sidebarByServer.host?.layout ?? null, current.activeAgents).map((item) => item.id);
 }
 
 it("loads host sections and agent order, applies desktop events, and reloads after remount", async () => {
@@ -426,44 +390,6 @@ it("returns chats to Agents on section deletion and supports unassignment", asyn
   const deleted = { ...unassigned, revision: 3, sections: [], order: ["people", "unassigned"], agentAssignments: {} };
   await act(async () => emit({ type: "sidebar-layout-changed", layout: deleted }));
   expect(sidebarRows()).toEqual(["unassigned", "waiting", "working"]);
-});
-
-it("mixes channels and agents in the host order and retains new and orphaned chats", async () => {
-  await mountSidebar();
-  const channel: ChannelSummary = {
-    id: "channel",
-    name: "Planning",
-    title: "",
-    instructions: "",
-    members: [],
-    leadAgentId: null,
-    archived: false,
-    revision: 1,
-    createdAt: "2026-09-21T00:00:00Z",
-    unreadCount: 0,
-    activeTasks: 0,
-    lastMessage: null,
-  };
-  const layout = {
-    ...initialLayout,
-    agentOrder: ["waiting", "channel"],
-    agentAssignments: { waiting: "work", channel: "work", working: "deleted" },
-  };
-  expect(mobileSidebarItems(layout, current.activeAgents, [channel]).map((item) => item.id)).toEqual([
-    "work",
-    "waiting",
-    "channel",
-    "empty",
-    "unassigned",
-    "working",
-  ]);
-  const many = Array.from({ length: 2000 }, (_, index) => ({ ...channel, id: `channel-${index}` }));
-  const largeLayout = { ...initialLayout, agentAssignments: {}, agentOrder: many.map((item) => item.id).reverse() };
-  expect(
-    mobileSidebarItems(largeLayout, [], many)
-      .filter((item) => item.kind === "channel")
-      .map((item) => item.id),
-  ).toEqual(largeLayout.agentOrder);
 });
 
 it("keeps a desktop event that arrives during a layout read", async () => {

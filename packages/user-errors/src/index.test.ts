@@ -118,6 +118,7 @@ describe("provider authentication failures", () => {
     "The provider replied: Please try signing in again.",
     "Request rejected: invalid_api_key",
     "GET /v1/models failed: 401 Unauthorized",
+    "workspace routing discovery unauthorized (401)",
   ])("classifies %s as an authentication failure", (message) => {
     expect(classifyUserError(new Error(message))).toBe("auth");
   });

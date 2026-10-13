@@ -1,5 +1,4 @@
 import type {
-  ChannelSummary,
   ConversationFileSearchResult,
   ConversationMessage,
   ConversationSearchPage,
@@ -20,21 +19,6 @@ const agent: MobileAgent = {
   updatedLabel: "",
   avatarSeed: "chief",
   avatarHue: null,
-};
-
-const channel: ChannelSummary = {
-  id: "launch",
-  name: "Launch budget",
-  title: "",
-  instructions: "",
-  members: [{ agentId: "chief" }],
-  leadAgentId: "chief",
-  archived: false,
-  revision: 1,
-  createdAt: "2026-09-28T10:00:00.000Z",
-  unreadCount: 0,
-  activeTasks: 0,
-  lastMessage: null,
 };
 
 function message(id: string, text: string, extra: Partial<ConversationMessage> = {}): ConversationMessage {
@@ -87,7 +71,6 @@ function view(input: Partial<Parameters<typeof mobileSearchView>[0]>) {
     filter: "all",
     reader,
     agents: [agent],
-    channels: [channel],
     settings: [],
     routines: noRoutines,
     messages: idle,
@@ -114,7 +97,6 @@ it("shows a preview of each kind in All and every result in its filter", () => {
   expect(
     all.sections.map((section) => [section.key, section.results.map((result) => result.id), section.more]),
   ).toEqual([
-    ["channels", ["channel:launch"], false],
     ["messages", ["message:chief:a", "message:chief:b", "message:chief:c"], true],
     ["files", ["file:chief:message-budget:budget"], false],
     ["routines", ["routine:weekly"], false],
@@ -123,8 +105,8 @@ it("shows a preview of each kind in All and every result in its filter", () => {
   expect(view({ filter: "messages", messages }).sections[0]?.results).toHaveLength(4);
 });
 
-it("lists agents and channels before the user types, and asks for a word in Messages", () => {
-  expect(view({ query: "" }).sections.map((section) => section.key)).toEqual(["agents", "channels"]);
+it("lists agents before the user types, and asks for a word in Messages", () => {
+  expect(view({ query: "" }).sections.map((section) => section.key)).toEqual(["agents"]);
   expect(view({ query: "", filter: "messages" }).state).toBe("hint");
   expect(mobileSearchSources("all", "")).toEqual({ messages: false, files: false, routines: false });
   // The Files filter lists the newest files before the user types.
@@ -195,10 +177,10 @@ it("keeps the local matches while a host search loads or fails", () => {
     "loading",
   );
   expect(view({ filter: "messages", messages: { status: "error", items: [], hasMore: false } }).state).toBe("error");
-  expect(view({ messages: { status: "error", items: [], hasMore: false } })).toMatchObject({
+  expect(view({ query: "chief", messages: { status: "error", items: [], hasMore: false } })).toMatchObject({
     state: "results",
     failed: true,
-    sections: [{ key: "channels" }],
+    sections: [{ key: "agents" }],
   });
 });
 

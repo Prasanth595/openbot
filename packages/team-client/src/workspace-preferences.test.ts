@@ -22,25 +22,13 @@ describe("remote workspace preferences", () => {
     expect(open().read("host-a")).toEqual({ hidden: [], pinned: [] });
   });
 
-  it("preserves channel pins through restart without changing agent preferences", () => {
-    const values = new Map<string, string>();
-    const storage = {
-      get: (key: string) => values.get(key) ?? null,
-      set: (key: string, value: string) => {
-        values.set(key, value);
-      },
-    };
-    const open = (user = "alice") => createWorkspacePreferences("https://api.example.test", user, storage);
-    open().write("host", { hidden: ["agent-hidden"], pinned: ["agent-one"], pinnedChannels: ["channel-one"] });
-    expect(open().read("host")).toEqual({
-      hidden: ["agent-hidden"],
-      pinned: ["agent-one"],
-      pinnedChannels: ["channel-one"],
+  it("keeps the agent preferences of a record that an app version with channels saved", () => {
+    const preferences = createWorkspacePreferences("https://api.example.test", "alice", {
+      get: () =>
+        '{"version":1,"hidden":["agent-hidden"],"pinned":["agent-one"],"pinnedChannels":["channel-one"],"hiddenChannels":["channel-two"]}',
+      set: () => {},
     });
-    expect(open("bob").read("host")).toEqual({ hidden: [], pinned: [] });
-    expect(open().read("other-host")).toEqual({ hidden: [], pinned: [] });
-    open().write("host", { ...open().read("host"), pinnedChannels: [] });
-    expect(open().read("host")).toEqual({ hidden: ["agent-hidden"], pinned: ["agent-one"], pinnedChannels: [] });
+    expect(preferences.read("host")).toEqual({ hidden: ["agent-hidden"], pinned: ["agent-one"] });
   });
 
   it("reads storage once and keeps a failed write from changing the stored value", () => {

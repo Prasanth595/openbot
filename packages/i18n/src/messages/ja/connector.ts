@@ -79,7 +79,6 @@ export const messages = {
   "connector.hub.available": "利用可能",
   "connector.hub.open": "{name} を開く",
   "connector.hub.setUp": "設定",
-  "connector.hub.back": "すべてのコネクター",
   "connector.hub.usedBy": "{names} が使用中",
 
   // Server settings > Connectors > Slack.

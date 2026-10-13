@@ -86,7 +86,6 @@ export const messages = defineMessages("connector", {
   // {name} is the name of an integration, such as Slack.
   "connector.hub.open": "Open {name}",
   "connector.hub.setUp": "Set up",
-  "connector.hub.back": "All connectors",
   // {names} lists the agents, such as "Chief, Research".
   "connector.hub.usedBy": "Used by {names}",
 

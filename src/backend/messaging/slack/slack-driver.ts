@@ -16,6 +16,7 @@ import type {
   MessagingDriver,
   MessagingDriverOptions,
   MessagingIngress,
+  MessagingPlace,
   StatusReaction,
 } from "../messaging-types";
 import { MessagingAdapterError } from "../messaging-types";
@@ -35,6 +36,7 @@ const RECENT_THREAD_PAGES = 5;
 /** Message subtypes that a person or an app wrote, and not a join or a topic change. */
 const RECENT_SUBTYPES = new Set(["file_share", "bot_message", "thread_broadcast", "me_message"]);
 const CHANNEL_PAGE_LIMIT = 200;
+const PLACES_LIMIT = 500;
 
 const REACTIONS: Record<StatusReaction, string> = {
   received: "eyes",
@@ -364,6 +366,30 @@ class SlackAdapter implements MessagingAdapter {
     yield* Deferred.succeed(name, result);
     return result;
   }, Effect.uninterruptible);
+
+  /** The public and private channels that OpenBot is a member of: `chat:write` posts only there. */
+  readonly places = Effect.fnUntraced(function* (
+    this: SlackAdapter,
+  ): Effect.fn.Return<MessagingPlace[], MessagingAdapterError> {
+    const places: MessagingPlace[] = [];
+    let cursor: string | undefined;
+    do {
+      // `users.conversations` gives only the bot's own channels, so a large workspace needs few pages.
+      const page = yield* this.#api.call("users.conversations", {
+        types: "public_channel,private_channel",
+        exclude_archived: true,
+        limit: CHANNEL_PAGE_LIMIT,
+        cursor,
+      });
+      const channels = Array.isArray(page.channels) ? page.channels.filter(isDynamicRecord) : [];
+      for (const channel of channels)
+        if (isString(channel.id) && isString(channel.name))
+          places.push({ id: channel.id, name: `#${channel.name}`, kind: channel.is_private ? "private" : "channel" });
+      const next = isDynamicRecord(page.response_metadata) ? page.response_metadata.next_cursor : undefined;
+      cursor = isString(next) && next && places.length < PLACES_LIMIT ? next : undefined;
+    } while (cursor);
+    return places.slice(0, PLACES_LIMIT);
+  });
 
   readonly joinPublicPlaces = Effect.fnUntraced(function* (
     this: SlackAdapter,

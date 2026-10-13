@@ -130,51 +130,6 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
-          name="channel/[channelId]"
-          options={{
-            animation: pushAnimation,
-            contentStyle: { backgroundColor: background },
-            fullScreenGestureEnabled: false,
-            gestureEnabled: true,
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="channel-info/[channelId]"
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.85],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="channel-actions/[channelId]"
-          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.6],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
-          name="add-channel"
-          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.85],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
           name="add-agent"
           // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
           options={{

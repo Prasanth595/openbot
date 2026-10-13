@@ -1336,7 +1336,7 @@ describe("OpenBot connected desktop shell", () => {
    * is a notification rather than a last screen, so the dialog is gone by the time it arrives.
    */
   function CodeLoginProbe() {
-    const { codeLogin } = useProviders();
+    const { connection: codeLogin } = useProviders();
     const { agentStatus } = useAgents();
     const phase = () => {
       if (codeLogin.provider() === null) return "closed";
@@ -1346,7 +1346,7 @@ describe("OpenBot connected desktop shell", () => {
     const row = () => agentStatus().providers?.find((provider) => provider.id === "codex");
     return (
       <>
-        <button type="button" onClick={() => codeLogin.start("codex")}>
+        <button type="button" onClick={() => codeLogin.alternative("codex")}>
           Log in with code
         </button>
         <button type="button" onClick={() => codeLogin.cancel()}>
@@ -1473,11 +1473,18 @@ describe("OpenBot connected desktop shell", () => {
       ],
     }));
     window.openbot.providerAdmin.submitCodeLogin = submitCodeLogin;
+    // Claude's pasted code needs a terminal that only Linux gives it.
+    const appInfo = await window.openbot.getAppInfo();
+    vi.mocked(window.openbot.getAppInfo).mockResolvedValue({ ...appInfo, platform: "linux" });
     function PasteProbe() {
-      const { codeLogin } = useProviders();
+      const { connection: codeLogin } = useProviders();
       return (
         <>
-          <button type="button" onClick={() => codeLogin.start("claude")}>
+          <button
+            type="button"
+            disabled={codeLogin.alternativeKind("claude") !== "code"}
+            onClick={() => codeLogin.alternative("claude")}
+          >
             Log in with code
           </button>
           <button type="button" onClick={() => codeLogin.submit("pasted-code")}>
@@ -1492,6 +1499,7 @@ describe("OpenBot connected desktop shell", () => {
         <PasteProbe />
       </AppProviders>
     ));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Log in with code" })).toBeEnabled());
     await fireEvent.click(screen.getByRole("button", { name: "Log in with code" }));
     await waitFor(() => expect(screen.getByLabelText("Code sign-in")).toHaveTextContent("paste"));
     await fireEvent.click(screen.getByRole("button", { name: "Submit code" }));

@@ -226,11 +226,13 @@ export interface AuthRepository {
     state: "sent" | "failed",
     now: number,
   ): Effect.Effect<void, AuthStoreError>;
+  /** With `device`, the new session is a mobile session of that device. */
   verifyEmailChallenge(input: {
     idHash: string;
     codeHash: string;
     now: number;
     session: { id: string; token: string; expiresAt: number };
+    device?: MobileAuthDeviceIdentity;
   }): Effect.Effect<EmailVerificationResult, AuthStoreError>;
   incrementRateLimit(
     keyHash: string,
