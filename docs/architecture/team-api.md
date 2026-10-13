@@ -52,6 +52,13 @@ desktop keeps the link in its encrypted session file and deletes it at sign-out.
 signs out those phones, also when the link row went with its desktop session, and the device list
 shows each phone's method. `DELETE /v1/mobile-auth/ticket?host=` spends the unused one-time codes of
 that host when the desktop cancels the code that it shows.
+A phone can also sign in with an email code. It requests the code through `/v1/auth/email/start` and
+verifies it through `/v1/mobile-auth/email/verify`, which writes the `auth_sessions` row and its
+`mobile_auth_sessions` row in one batch; `/v1/auth/email/verify` would make a desktop session. This
+session has no host binding: the phone stores `signIn: "email"` with it, connects to every host in
+the account directory and pins each host key on first use, as the web client does. A stored session
+with no host and no marker is still a legacy QR session and is revoked. The development LAN allow
+list keeps both email routes on loopback, because a development code follows from its challenge ID.
 Desktop invitation QR codes contain the same one-use link as Copy link. The signed-in mobile
 scanner validates that link and opens the invitation review before acceptance. These codes join
 one server; Mobile Connect codes sign in to the desktop account and select the paired host.

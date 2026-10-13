@@ -193,6 +193,7 @@ export class D1AuthRepository implements AuthRepository {
         codeHash: string;
         now: number;
         session: { id: string; token: string; expiresAt: number };
+        device?: MobileAuthDeviceIdentity;
       },
     ): Effect.fn.Return<EmailVerificationResult, AuthStoreError, AuthDatabase> {
       const database = yield* AuthDatabase;
@@ -244,16 +245,28 @@ export class D1AuthRepository implements AuthRepository {
       const tokenHash = yield* sha256(input.session.token).pipe(
         Effect.mapError(() => new AuthStoreError({ message: "Account store operation failed." })),
       );
-      yield* storeCall(() =>
-        database
-          .prepare(
-            `INSERT INTO auth_sessions(
+      const insertSession = database
+        .prepare(
+          `INSERT INTO auth_sessions(
           id, user_id, token_hash, expires_at, created_at, last_used_at
         ) VALUES (?, ?, ?, ?, ?, ?)`,
-          )
-          .bind(input.session.id, user.id, tokenHash, input.session.expiresAt, input.now, input.now)
-          .run(),
-      );
+        )
+        .bind(input.session.id, user.id, tokenHash, input.session.expiresAt, input.now, input.now);
+      const device = input.device;
+      if (device) {
+        // One batch: a session without its mobile row would count as a desktop session.
+        const [created, registered] = yield* storeCall(() =>
+          database.batch([
+            insertSession,
+            ...mobileSessionStatements(database, { now: input.now, session: input.session, device }, null),
+          ]),
+        );
+        if (created?.meta.changes !== 1 || registered?.meta.changes !== 1) {
+          return yield* new AuthStoreError({ message: "Account store operation failed." });
+        }
+      } else {
+        yield* storeCall(() => insertSession.run());
+      }
       return {
         status: "verified",
         session: { sessionToken: input.session.token, user },

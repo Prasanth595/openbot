@@ -207,7 +207,7 @@ src/
   app/                  Expo Router routes and layouts only
     (app)/              routes available to an authenticated session
   features/
-    auth/               QR sign-in, session storage, and session context
+    auth/               QR and email sign-in, session storage, and session context
     agents/             agent list, agent actions, and pin transitions
     chat/               chat screen and its focused UI sections
     search/             search model, controls, results, and screen

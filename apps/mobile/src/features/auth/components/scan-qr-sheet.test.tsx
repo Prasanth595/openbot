@@ -3,6 +3,7 @@ import {
   act,
   createContext,
   type PropsWithChildren,
+  type ReactNode,
   type Ref,
   useContext,
   useEffect,
@@ -74,6 +75,7 @@ vi.mock("react-native", () => ({
   ScrollView: ({ children }: PropsWithChildren) => <div>{children}</div>,
   Pressable: () => null,
   StyleSheet: { absoluteFill: {} },
+  Keyboard: { dismiss: () => {} },
   useWindowDimensions: () => ({ width: 390, height: 844 }),
   Linking: { openSettings: native.openSettings },
   AppState: {
@@ -92,6 +94,8 @@ vi.mock("react-native", () => ({
 }));
 vi.mock("react-native-reanimated", () => ({
   default: { View: ({ children }: PropsWithChildren) => <div>{children}</div> },
+  LayoutAnimationConfig: ({ children }: PropsWithChildren) => children,
+  cubicBezier: () => "ease-out",
   ReduceMotion: { System: "system", Never: "never" },
   Easing: { bezier: () => ({ factory: () => (value: number) => value }), linear: (value: number) => value },
   withDelay: (_delay: number, animation: number) => animation,
@@ -139,8 +143,53 @@ vi.mock("expo-camera", () => ({
 vi.mock("@/features/auth/api/mobile-auth", () => ({ redeemMobileConnectUrl: vi.fn() }));
 vi.mock("@/features/auth/context/mobile-session-context", () => ({ useMobileSession: () => ({ connect: vi.fn() }) }));
 vi.mock("@/features/auth/components/app-logo", () => ({ AppLogo: () => null }));
+vi.mock("@/features/auth/components/sign-in-motion", () => ({
+  SIGN_IN_EASE_MOVE: (value: number) => value,
+  signInMotion: () => ({
+    enter: () => undefined,
+    fadeIn: () => undefined,
+    fadeOut: undefined,
+    textIn: undefined,
+    textOut: undefined,
+    moves: false,
+  }),
+}));
+vi.mock("@/features/auth/components/email-field", () => ({ EmailField: () => null }));
+vi.mock("@/features/auth/components/email-code-input", () => ({ EmailCodeInput: () => null }));
+vi.mock("@/features/auth/components/morph-label", () => ({
+  MorphLabel: () => null,
+  MorphText: ({ text, renderText }: { text: string; renderText: (text: string) => ReactNode }) => renderText(text),
+}));
+vi.mock("@/features/auth/model/use-email-sign-in", () => ({
+  formatTimer: String,
+  useEmailSignIn: () => ({
+    step: "options",
+    back: () => {},
+    email: "",
+    code: "",
+    challenge: null,
+    emailIssue: null,
+    codeIssue: null,
+    codeRejected: false,
+    needsNewCode: false,
+    notice: null,
+    rejection: 0,
+    retryIn: 0,
+    resendIn: 0,
+    deliveryUnconfirmed: false,
+    sending: false,
+    resending: false,
+    verifying: false,
+    verified: false,
+    busy: false,
+  }),
+}));
+vi.mock("@/shared/lib/motion", () => ({ useReducedMotion: () => native.reducedMotion }));
+vi.mock("react-native-keyboard-controller", () => ({
+  useReanimatedKeyboardAnimation: () => ({ height: { get: () => 0 }, progress: { get: () => 0 } }),
+}));
 vi.mock("@/shared/components/splash-backdrop", () => ({ SplashWallpaper: () => null }));
-vi.mock("expo-router", () => ({ Stack: { Screen: () => null } }));
+vi.mock("expo-router", () => ({ Stack: { Screen: () => null }, router: { push: vi.fn() } }));
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("expo-status-bar", () => ({ StatusBar: () => null }));
 vi.mock("lucide-react-native", () => ({ Camera: () => null, ScanLine: () => null, X: () => null }));
