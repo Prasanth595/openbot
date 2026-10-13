@@ -614,6 +614,23 @@ describe("InstanceTransferService", () => {
     expect(preview.warnings).toEqual(["Agent 1 in the file is invalid, so it is skipped."]);
   });
 
+  it("writes no OpenBot state or skill folder from the file into a workspace", async () => {
+    const path = await exportOld(await oldComputer());
+    const files = unzipSync(await readFile(path));
+    files["agents/research/workspace/.openbot/skills-lock.json"] = new TextEncoder().encode("{}");
+    files["agents/research/workspace/.agents/skills/planted/SKILL.md"] = new TextEncoder().encode(SKILL);
+    await writeFile(path, zipSync(files));
+    const target = await computer("new");
+    const preview = await runCauseEffect(target.service.stage(path));
+    const result = await runCauseEffect(
+      target.service.apply({ token: preview.token, keys: ["research"], includeSettings: false }),
+    );
+    const workspace = result.agents[0]?.workspacePath ?? "";
+    await expect(readFile(join(workspace, ".openbot", "skills-lock.json"))).rejects.toThrow();
+    await expect(readFile(join(workspace, ".agents", "skills", "planted", "SKILL.md"))).rejects.toThrow();
+    expect(await readFile(join(workspace, "notes", "plan.md"), "utf8")).toBe("Plan");
+  });
+
   it("refuses a file made by a newer version", async () => {
     const target = await computer("new");
     const path = join(base, "newer.zip");

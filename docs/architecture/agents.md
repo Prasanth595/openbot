@@ -381,7 +381,7 @@ custom agents that are missing, so an agent can keep a model on one of them (a w
 each added custom agent, and the routines of an agent on such a custom agent are added turned off), and turns providers on
 or off and saves the preferences and default model. Then it creates each selected agent through
 `AgentService` and the local skill library. Files go to the workspace root, and a name that is already
-there is saved beside it. An agent whose step fails is deleted with the skill revisions it published,
+there is saved beside it. Like the export, the import never writes `.openbot/` or the skill folders. An agent whose step fails is deleted with the skill revisions it published,
 and the others continue. A model that this computer does not offer, or whose provider is off, leaves
 the agent on the default model with a warning. Last, it adds MCP servers whose name is new, turned off, because a file can name any command, creates
 missing sidebar sections by name and assigns the new agents, connects routine flows with the new

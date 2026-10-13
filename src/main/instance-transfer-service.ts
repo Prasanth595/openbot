@@ -733,7 +733,12 @@ export class InstanceTransferService {
         Effect.gen({ self: this }, function* () {
           let agent = created;
           if (source.files)
-            yield* writeImportedFilesEffect(agent.workspacePath, read(source.files), source.name, warnings);
+            yield* writeImportedFilesEffect(
+              agent.workspacePath,
+              read(source.files).filter(([name]) => !isWorkspaceSkipped(name)),
+              source.name,
+              warnings,
+            );
           const library = this.options.skills.library();
           for (const skill of skills) {
             const current = (yield* library.list().pipe(Effect.mapError(failure))).find(
@@ -849,10 +854,13 @@ export class InstanceTransferService {
 const workspaceFiles = Effect.fn("InstanceTransfer.workspaceFiles")(function* (
   root: string,
 ): Effect.fn.Return<FileEntry[], ArchiveOperationError> {
-  return yield* walk(root, (name) =>
-    WORKSPACE_SKIPPED.some((skipped) => name === skipped || name.startsWith(`${skipped}/`)),
-  );
+  return yield* walk(root, isWorkspaceSkipped);
 });
+
+/** OpenBot's own workspace folders: an export leaves them out, and an import never writes them. */
+function isWorkspaceSkipped(name: string): boolean {
+  return WORKSPACE_SKIPPED.some((skipped) => name === skipped || name.startsWith(`${skipped}/`));
+}
 
 const walk = Effect.fn("InstanceTransfer.walk")(function* (
   root: string,
