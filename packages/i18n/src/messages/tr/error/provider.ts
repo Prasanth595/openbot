@@ -163,6 +163,7 @@ export const messages = {
     "{provider} CLI bir tur üzerinde çalışıyor. Bitmesini bekleyin, ardından güncelleyin.",
   "error.provider.cliSelectFailed": "OpenBot kurulu yönetilen CLI'yi seçemedi.",
   "error.provider.noAuthenticatedAccount": "{provider} kimliği doğrulanmış bir hesap döndürmedi.",
+  "error.provider.signInExpired": "{provider} oturumunuzun süresi doldu. Devam etmek için yeniden oturum açın.",
   "error.provider.cliActivateFailed": "OpenBot yönetilen CLI'yi etkinleştiremedi.",
   "error.provider.cliBusyReconnect":
     "{provider} CLI bir tur üzerinde çalışıyor. Bitmesini bekleyin, ardından tekrar bağlanın.",

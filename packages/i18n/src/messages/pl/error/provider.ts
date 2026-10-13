@@ -162,6 +162,7 @@ export const messages = {
   "error.provider.cliBusyUpdate": "{provider} CLI pracuje nad turą. Zaczekaj, aż skończy, a potem zaktualizuj.",
   "error.provider.cliSelectFailed": "Nie udało się wybrać zainstalowanego zarządzanego CLI.",
   "error.provider.noAuthenticatedAccount": "{provider} nie zwrócił uwierzytelnionego konta.",
+  "error.provider.signInExpired": "Logowanie do {provider} wygasło. Zaloguj się ponownie, aby kontynuować.",
   "error.provider.cliActivateFailed": "Nie udało się aktywować zarządzanego CLI.",
   "error.provider.cliBusyReconnect": "{provider} CLI pracuje nad turą. Zaczekaj, aż skończy, a potem połącz ponownie.",
   "error.provider.opencodeCredentialsRejected":

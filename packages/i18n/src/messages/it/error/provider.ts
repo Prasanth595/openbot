@@ -163,6 +163,7 @@ export const messages = {
   "error.provider.cliBusyUpdate": "La CLI di {provider} sta lavorando a un turno. Attendi che finisca, poi aggiorna.",
   "error.provider.cliSelectFailed": "OpenBot non è riuscito a selezionare la CLI gestita installata.",
   "error.provider.noAuthenticatedAccount": "{provider} non ha restituito un account autenticato.",
+  "error.provider.signInExpired": "L'accesso a {provider} è scaduto. Accedi di nuovo per continuare.",
   "error.provider.cliActivateFailed": "OpenBot non è riuscito ad attivare la CLI gestita.",
   "error.provider.cliBusyReconnect":
     "La CLI di {provider} sta lavorando a un turno. Attendi che finisca, poi ricollega.",
