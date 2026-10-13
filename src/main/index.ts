@@ -913,12 +913,17 @@ if (!hasSingleInstanceLock) {
         () => app.dock?.show() ?? Promise.resolve(),
       );
       // Linux registers the scheme through xdg-settings, which can only name a desktop entry that
-      // exists, so an AppImage writes its own first. Windows gets the scheme from the NSIS installer
-      // instead.
+      // exists, so an AppImage writes its own first. On Windows the NSIS installer writes the scheme
+      // (`build/installer.nsh`), and each start writes it again for installs from before that script.
+      // A Windows development build does not register: the handler would be bare `electron.exe`.
       await Effect.runPromise(
         installLinuxDesktopEntry({ platform: process.platform, environment: process.env, iconPath: appIconPath }),
       );
-      if (process.platform === "darwin" || process.platform === "linux") {
+      if (
+        process.platform === "darwin" ||
+        process.platform === "linux" ||
+        (process.platform === "win32" && app.isPackaged)
+      ) {
         if (!app.setAsDefaultProtocolClient("openbot")) {
           logger.warn("Unable to register the openbot:// scheme. Invitation links will not open OpenBot.");
         }
