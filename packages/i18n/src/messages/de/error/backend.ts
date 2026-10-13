@@ -170,6 +170,20 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Diese Agenten sind in dieser Routine bereits verbunden.",
   "error.backend.routineFlowCycle": "Diese Verbindung würde eine Schleife erzeugen.",
   "error.backend.routineFlowLinkLimit": "Eine Routine kann höchstens {limit} Verbindungen haben.",
+  "error.backend.agentWaitLimit":
+    "Dieser Agent hat bereits {count} offene Wartevorgänge. Schließe einen Wartevorgang mit openbot.close_wait, bevor du einen neuen öffnest.",
+  "error.backend.agentWaitGone":
+    "Dieser Wartevorgang ist nicht offen. Der Agent hat ihn geschlossen, oder jemand hat ihn abgebrochen.",
+  "error.backend.agentWaitNoRequest":
+    "Ein Wartevorgang braucht eine Nachricht, um fortzufahren. Dieser Durchlauf hat keine Nachricht.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Öffne einen Wartevorgang nur in deinem eigenen Chat. Eine Kanal- oder Messaging-Aufgabe kann nicht warten.",
+  "error.backend.agentWaitNoteRequired": "Gib eine kurze Notiz an, wofür der Wartevorgang ist.",
+  "error.backend.agentWaitRoutineGone": "Dieser Agent hat keine Routine mit dieser ID.",
+  "error.backend.agentWaitNoRoutine":
+    "Nur ein Lauf einer deiner Routinen weckt einen Wartevorgang, und du hast keine Routine. Erstelle eine mit openbot.create_routine und öffne dann den Wartevorgang.",
+  "error.backend.agentWaitRemoteUnsupported":
+    "Offene Wartevorgänge sind nur für Agenten auf diesem Computer verfügbar.",
   "error.backend.routineFlowHandoffFailed": "Die Routine konnte die Arbeit nicht an diesen Agenten übergeben.",
   "error.backend.mcpServerLimit": "OpenBot verwaltet bis zu {limit} MCP-Server.",
   "error.backend.mcpServerNameTaken": "Ein MCP-Server mit dem Namen {name} existiert bereits.",

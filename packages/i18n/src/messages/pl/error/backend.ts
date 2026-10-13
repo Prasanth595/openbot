@@ -160,6 +160,17 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Ci agenci są już połączeni w tej rutynie.",
   "error.backend.routineFlowCycle": "To połączenie utworzyłoby pętlę.",
   "error.backend.routineFlowLinkLimit": "Rutyna może mieć maksymalnie {limit} połączeń.",
+  "error.backend.agentWaitLimit":
+    "Ten agent ma już maksymalną liczbę otwartych oczekiwań: {count}. Zamknij oczekiwanie za pomocą openbot.close_wait, zanim otworzysz kolejne.",
+  "error.backend.agentWaitGone": "To oczekiwanie nie jest otwarte. Agent je zamknął albo ktoś je anulował.",
+  "error.backend.agentWaitNoRequest": "Oczekiwanie potrzebuje wiadomości, aby kontynuować. Ta tura nie ma wiadomości.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Otwieraj oczekiwanie tylko we własnym czacie. Zadanie kanału lub komunikatora nie może czekać.",
+  "error.backend.agentWaitNoteRequired": "Podaj krótką notatkę, na co jest to oczekiwanie.",
+  "error.backend.agentWaitRoutineGone": "Ten agent nie ma rutyny o tym identyfikatorze.",
+  "error.backend.agentWaitNoRoutine":
+    "Oczekiwanie budzi tylko uruchomienie jednej z twoich rutyn, a nie masz żadnej rutyny. Utwórz ją za pomocą openbot.create_routine, a potem otwórz oczekiwanie.",
+  "error.backend.agentWaitRemoteUnsupported": "Otwarte oczekiwania są dostępne tylko dla agentów na tym komputerze.",
   "error.backend.routineFlowHandoffFailed": "Rutyna nie mogła przekazać pracy temu agentowi.",
   "error.backend.mcpServerLimit": "OpenBot przechowuje maksymalnie {limit} serwerów MCP.",
   "error.backend.mcpServerNameTaken": "Serwer MCP o nazwie {name} już istnieje.",

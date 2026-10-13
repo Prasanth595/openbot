@@ -158,6 +158,17 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Эти агенты уже связаны в этой задаче.",
   "error.backend.routineFlowCycle": "Эта связь создаст цикл.",
   "error.backend.routineFlowLinkLimit": "У регулярной задачи может быть не больше {limit} связей.",
+  "error.backend.agentWaitLimit":
+    "У этого агента уже открыто максимальное число ожиданий: {count}. Закройте ожидание с помощью openbot.close_wait, прежде чем открывать новое.",
+  "error.backend.agentWaitGone": "Это ожидание не открыто. Агент закрыл его, или кто-то его отменил.",
+  "error.backend.agentWaitNoRequest": "Для продолжения ожиданию нужно сообщение. В этом ходе нет сообщения.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Открывайте ожидание только в своём чате. Задача канала или мессенджера не может ждать.",
+  "error.backend.agentWaitNoteRequired": "Кратко укажите, для чего это ожидание.",
+  "error.backend.agentWaitRoutineGone": "У этого агента нет регулярной задачи с таким id.",
+  "error.backend.agentWaitNoRoutine":
+    "Ожидание пробуждает только запуск одной из ваших регулярных задач, а у вас их нет. Создайте задачу с помощью openbot.create_routine, затем откройте ожидание.",
+  "error.backend.agentWaitRemoteUnsupported": "Открытые ожидания доступны только для агентов на этом компьютере.",
   "error.backend.routineFlowHandoffFailed": "Задаче не удалось передать работу этому агенту.",
   "error.backend.mcpServerLimit": "OpenBot хранит не более {limit} серверов MCP.",
   "error.backend.mcpServerNameTaken": "Сервер MCP с именем {name} уже существует.",
