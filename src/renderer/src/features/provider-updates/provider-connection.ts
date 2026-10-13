@@ -12,7 +12,17 @@ import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiv
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createSignal, flush, onCleanup } from "solid-js";
 import { actionToast } from "../../action-toast";
-import type { ProviderCodeLoginApi, ProviderCodeLoginOpener } from "../../components/provider-code-login-api";
+import type {
+  ProviderCodeLoginOpener,
+  ProviderConnectionApi,
+  ProviderUseApp,
+} from "../../components/provider-connection-api";
+import {
+  type ProviderCodeLoginMethod,
+  type ProviderConnectPlace,
+  type ProviderSignInMethod,
+  providerConnectRoute,
+} from "./provider-connect-route";
 
 /** The computer that runs the providers: it issues the code, and a cancel goes to the same one. */
 interface ProviderCodeLoginTarget {
@@ -20,9 +30,9 @@ interface ProviderCodeLoginTarget {
   /** Only a target that can start a `paste` sign-in has it. */
   submit?: (provider: AgentProviderId, code: string) => Promise<AgentStatus>;
   cancel: (provider: AgentProviderId) => Promise<AgentStatus>;
-  /** A joined server that opens a provider's sign-in page in its own browser, for the providers it names. */
+  /** A joined server that opens a provider's sign-in page in its own browser. */
   hostSignIn?: ProviderHostSignInTarget;
-  /** A joined server whose sign-in page opens in this computer's browser, for the providers it names. */
+  /** A joined server whose sign-in page opens in this computer's browser. */
   relay?: ProviderRelayTarget;
 }
 
@@ -31,7 +41,6 @@ interface ProviderCodeLoginTarget {
  * (`sign-in-relay-v1`). The callback goes to the host, not to this window.
  */
 interface ProviderRelayTarget {
-  providers: readonly AgentProviderId[];
   /** The host, as its server row names it. */
   hostName: string;
   start: (provider: AgentProviderId) => Promise<void>;
@@ -43,7 +52,6 @@ interface ProviderRelayTarget {
 
 /** How a joined server signs in a provider on a page in its own browser, and how this window shows it. */
 interface ProviderHostSignInTarget {
-  providers: readonly AgentProviderId[];
   /** The host, as its server row names it. */
   hostName: string;
   runtime: BrowserViewRuntime;
@@ -56,38 +64,51 @@ interface ProviderHostSignInTarget {
 /** How often the host is asked whether its sign-in page opened or the sign-in ended. */
 const HOST_SIGN_IN_POLL_MS = 1_000;
 
-export interface ProviderCodeLoginOptions {
+export interface ProviderConnectionOptions {
   /** The status of the computer that runs the providers. It says how a sign-in ends. */
   agentStatus: () => AgentStatus;
   applyStatus: (status: AgentStatus) => void;
   /** Read when a sign-in starts. The cancel of that sign-in goes to the same target. */
   target: () => ProviderCodeLoginTarget;
-  /** The providers the target signs in with a code. */
-  providers: () => readonly AgentProviderId[];
+  /**
+   * Where the user connects from. It decides which sign-in Connect and the ⋯ menu run. Null where
+   * the user cannot connect a provider, such as on a server the account does not administer.
+   */
+  place: () => ProviderConnectPlace | null;
+  /**
+   * The browser sign-in of this computer, which reports its end in the agent status. Without it, a
+   * provider whose Connect is that sign-in has no Connect.
+   */
+  connectInBrowser?: (provider: AgentProviderId) => Promise<void>;
   openVerificationUrl: (url: string) => void;
+  /** Opens the page that downloads the OpenBot app, for a provider that only the app can sign in. */
+  openAppDownload?: () => void;
   /**
    * A connect attempt, for analytics: begun when a sign-in starts, failed through the function it
    * returns, and dropped when the user cancels.
    */
-  connection?: {
+  analytics?: {
     begin: (provider: AgentProviderId) => () => void;
     drop: (provider: AgentProviderId) => void;
   };
 }
 
 /**
- * The sign-in the user finishes on another device, for a provider whose descriptor offers one.
+ * How every surface signs in a provider: `providerConnectRoute` picks the way in from the place, and
+ * this runs it. The browser sign-in of this computer is the caller's; this runs the sign-ins that
+ * open a dialog, which the user finishes there or on another device.
  *
  * Everything about how it ends arrives in the agent status, the same way a browser sign-in's
  * does, so this holds only what the status cannot say: which provider the open dialog belongs
  * to, and the code that provider issued. The code is a one-time handle and is meant to be read
  * out; nothing it is later traded for reaches the renderer.
  */
-export function createProviderCodeLogin(options: ProviderCodeLoginOptions): ProviderCodeLoginApi {
+export function createProviderConnection(options: ProviderConnectionOptions): ProviderConnectionApi {
   /** The provider whose code dialog is open, and the phase that dialog shows. */
   const [codeLoginProvider, setCodeLoginProvider] = createSignal<AgentProviderId | null>(null);
   const [codeLoginState, setCodeLoginState] = createSignal<ProviderCodeLoginState>({ phase: "starting" });
   const [codeLoginOpener, setCodeLoginOpener] = createSignal<ProviderCodeLoginOpener | null>(null);
+  const [useApp, setUseApp] = createSignal<ProviderUseApp | null>(null);
   let codeLoginExpiry: number | undefined;
   /** Whether the provider has been seen working on the open code sign-in. */
   let codeLoginStarted = false;
@@ -95,9 +116,25 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
   let codeLoginCancellation: Promise<void> = Promise.resolve();
   /** The computer that runs the open code sign-in. */
   let codeLoginTarget: ProviderCodeLoginTarget | undefined;
+  /** How the open sign-in runs. Its cancel and its retry go the same way. */
+  let codeLoginMethod: ProviderCodeLoginMethod = "code";
+
+  /** Runs one of the provider's routes. */
+  function run(
+    provider: AgentProviderId,
+    method: ProviderSignInMethod | null,
+    opener: ProviderCodeLoginOpener | null,
+  ): Promise<void> {
+    if (method === "browser") return options.connectInBrowser?.(provider) ?? Promise.resolve();
+    if (method === "use-app") setUseApp({ provider, opener });
+    else if (method === "relay" || method === "host-page" || method === "code")
+      void startProviderCodeLogin(provider, method, opener);
+    return Promise.resolve();
+  }
 
   async function startProviderCodeLogin(
     provider: AgentProviderId,
+    method: ProviderCodeLoginMethod,
     opener: ProviderCodeLoginOpener | null,
   ): Promise<void> {
     const generation = ++codeLoginGeneration;
@@ -107,16 +144,22 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     // this one.
     const target = options.target();
     codeLoginTarget = target;
+    codeLoginMethod = method;
     setCodeLoginOpener(opener);
     setCodeLoginProvider(provider);
     setCodeLoginState({ phase: "starting" });
-    const failConnection = options.connection?.begin(provider);
+    const failConnection = options.analytics?.begin(provider);
     try {
       // Cancellation emits a terminal status. Finish it before the next attempt can wait.
       await codeLoginCancellation;
       if (generation !== codeLoginGeneration) return;
-      const relay = target.relay;
-      if (relay?.providers.includes(provider)) {
+      const failed = () =>
+        new Error(
+          currentText().t("app.provider.connectFailedRetry", { name: agentProviderDescriptor(provider).displayName }),
+        );
+      if (method === "relay") {
+        const relay = target.relay;
+        if (!relay) throw failed();
         setCodeLoginState({ phase: "relay", hostName: relay.hostName, page: null });
         await relay.start(provider);
         if (generation !== codeLoginGeneration) {
@@ -126,8 +169,9 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
         await followRelaySignIn(provider, relay, generation);
         return;
       }
-      const host = target.hostSignIn;
-      if (host?.providers.includes(provider)) {
+      if (method === "host-page") {
+        const host = target.hostSignIn;
+        if (!host) throw failed();
         setCodeLoginState({ phase: "page", hostName: host.hostName, page: null });
         await host.start(provider);
         // A cancel sent while the start was on its way can reach the host first and find nothing to
@@ -249,8 +293,10 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
       }
       const state = codeLoginState();
       const shown = state.phase === "relay" ? state.page : null;
-      if (status.page && !samePage(shown, status.page))
-        setCodeLoginState({ phase: "relay", hostName: relay.hostName, page: status.page });
+      // A page whose callback comes back to this computer needs nothing pasted. When it does not
+      // come back, the ⋯ menu has the code.
+      const page = status.page?.listening ? { ...status.page, pasteable: false } : status.page;
+      if (page && !samePage(shown, page)) setCodeLoginState({ phase: "relay", hostName: relay.hostName, page });
       await new Promise((resolve) => window.setTimeout(resolve, HOST_SIGN_IN_POLL_MS));
     }
   }
@@ -311,12 +357,13 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     setCodeLoginProvider(null);
     const target = codeLoginTarget;
     if (!provider || !target) return;
-    options.connection?.drop(provider);
-    const cancel = target.relay?.providers.includes(provider)
-      ? target.relay.cancel
-      : target.hostSignIn?.providers.includes(provider)
-        ? target.hostSignIn.cancel
-        : target.cancel;
+    options.analytics?.drop(provider);
+    const cancel =
+      codeLoginMethod === "relay" && target.relay
+        ? target.relay.cancel
+        : codeLoginMethod === "host-page" && target.hostSignIn
+          ? target.hostSignIn.cancel
+          : target.cancel;
     codeLoginCancellation = cancel(provider)
       .then((status) => {
         if (generation === codeLoginGeneration) flush(() => options.applyStatus(status));
@@ -346,6 +393,7 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     codeLoginStarted = false;
     flush(() => setCodeLoginProvider(null));
     const opener = codeLoginOpener();
+    const method = codeLoginMethod;
     const name = agentProviderDescriptor(provider).displayName;
     const { t, sourceText } = currentText();
     if (outcome.kind === "connected") {
@@ -356,7 +404,10 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
       });
       return;
     }
-    const retry = { label: t("app.provider.newCode"), onClick: () => void startProviderCodeLogin(provider, opener) };
+    const retry = {
+      label: t("app.provider.newCode"),
+      onClick: () => void startProviderCodeLogin(provider, method, opener),
+    };
     if (outcome.kind === "expired") {
       actionToast.warning(t("app.provider.codeExpired", { name }), {
         ...{
@@ -428,12 +479,26 @@ export function createProviderCodeLogin(options: ProviderCodeLoginOptions): Prov
     clearCodeLoginExpiry();
   });
 
+  const route = (provider: AgentProviderId) => providerConnectRoute(provider, options.place());
+
   return {
-    providers: options.providers,
+    connectKind: (provider) => {
+      const connect = route(provider).connect;
+      if (connect === "browser") return options.connectInBrowser ? "browser" : null;
+      return connect === null ? null : "dialog";
+    },
+    alternativeKind: (provider) => {
+      const alternative = route(provider).alternative;
+      return alternative === "code" ? "code" : alternative === "relay" ? "address" : null;
+    },
     provider: codeLoginProvider,
     state: codeLoginState,
     opener: codeLoginOpener,
-    start: (provider, opener) => void startProviderCodeLogin(provider, opener ?? null),
+    connect: (provider, opener) => run(provider, route(provider).connect, opener ?? null),
+    alternative: (provider, opener) => run(provider, route(provider).alternative, opener ?? null),
+    useApp,
+    closeUseApp: () => setUseApp(null),
+    openAppDownload: options.openAppDownload,
     submit: (code) => void submitProviderCodeLogin(code),
     cancel: cancelProviderCodeLogin,
     openVerificationUrl: options.openVerificationUrl,

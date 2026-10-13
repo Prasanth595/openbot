@@ -1,9 +1,9 @@
-import { type AgentProviderId, agentProviderName } from "@openbot/contracts/agent-providers";
+import type { AgentProviderId } from "@openbot/contracts/agent-providers";
 import type { CentralAuthUser, UpdateAgentInput } from "@openbot/contracts/ipc";
 import { hasVisibleToasts } from "@openbot/ui";
-import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLoginDialog";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import { createMemo, Show } from "solid-js";
+import { createMemo } from "solid-js";
+import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { useNavigation } from "../../navigation";
 import { usePlatform } from "../../platform";
 import { useProviders } from "../../providers";
@@ -61,15 +61,15 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     providerRuntimeDownloadsAvailable,
     downloadProviderRuntime,
     cancelProviderRuntimeDownload,
-    connectProvider,
     providerAdminServerId,
-    codeLogin,
+    connection,
   } = useProviders();
   /**
-   * The composer's code sign-in, on this computer only. The dialog shows here only while this
-   * surface started it: Settings shows its own for the sign-ins it starts.
+   * The composer's sign-ins: Connect, and the code from the ⋯ menu. The dialog shows here only while
+   * this surface started it: Settings shows its own for the sign-ins it starts.
    */
-  const signInWithCode = (provider: AgentProviderId) => codeLogin.start(provider, "composer");
+  const connectFromComposer = (provider: AgentProviderId) => connection.connect(provider, "composer");
+  const signInWithCode = (provider: AgentProviderId) => connection.alternative(provider, "composer");
   // Not gated on the server: the picker needs these IDs to label a model it is already showing, and
   // a remote server's OpenCode has its own catalogue. Only the write paths are local-only.
   const { customProviders } = useCustomProviders();
@@ -219,15 +219,15 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         }
       : agent;
   });
-  /** Whether the composer offers the code sign-in for the agent's provider on this computer. */
+  /** Whether this window runs the sign-in of the agent's provider: on this computer, or on a server it administers. */
+  const composerSignIn = () => {
+    const provider = conversationAgent()?.provider;
+    return provider !== undefined && connection.connectKind(provider) !== null;
+  };
+  /** Whether the composer offers the code sign-in for the agent's provider, when its Connect is slow or fails. */
   const composerCodeSignIn = () => {
     const provider = conversationAgent()?.provider;
-    return (
-      activeServer()?.kind === "local" &&
-      !providerAdminServerId() &&
-      provider !== undefined &&
-      codeLogin.providers().includes(provider)
-    );
+    return composerSignIn() && provider !== undefined && connection.alternativeKind(provider) === "code";
   };
 
   /** Access of a joined server's agent goes to its host; every other field keeps the Team API route. */
@@ -284,8 +284,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         customAgents={activeServer()?.kind === "local" ? customAgents() : undefined}
         onDownloadProvider={providerDownloads() ? downloadProviderRuntime : undefined}
         onCancelProviderDownload={providerDownloads() ? cancelProviderRuntimeDownload : undefined}
-        onConnectProvider={localProviderDownloads() ? connectProvider : undefined}
-        onSignInProvider={activeServer()?.kind === "local" ? connectProvider : undefined}
+        onConnectProvider={localProviderDownloads() || providerAdminServerId() ? connectFromComposer : undefined}
+        onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
         onSignInWithCodeProvider={composerCodeSignIn() ? signInWithCode : undefined}
         onManageProviders={manageProviders() ? openProviderSettings : undefined}
         agent={conversationAgent()}
@@ -393,20 +393,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onOpenRemoteDesktop={openRemoteDesktopWorkspace}
         onStop={stopActiveTurn}
       />
-      <Show when={codeLogin.opener() === "composer" && codeLogin.provider()}>
-        {(provider) => (
-          <ProviderCodeLoginDialog
-            open={true}
-            providerName={agentProviderName(provider())}
-            state={codeLogin.state()}
-            onOpenVerificationUrl={codeLogin.openVerificationUrl}
-            onCancel={codeLogin.cancel}
-            onSubmitCode={codeLogin.submit}
-            onOpenRelayPage={codeLogin.openRelayPage}
-            onPasteRelayAddress={codeLogin.pasteRelayAddress}
-          />
-        )}
-      </Show>
+      <ProviderSignInDialogs api={connection} opener="composer" />
     </>
   );
 }

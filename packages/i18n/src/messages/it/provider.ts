@@ -46,6 +46,7 @@ export const messages = {
   "provider.action.install": "Installa",
   "provider.action.signIn": "Accedi",
   "provider.action.signInWithCode": "Accedi con un codice",
+  "provider.action.pasteAddress": "Incolla l’indirizzo",
   "provider.aria.download": "Scarica {name}",
   "provider.aria.cancel": "Annulla {name}",
   "provider.aria.connect": "Connetti {name}",
@@ -86,6 +87,10 @@ export const messages = {
   "provider.codeLogin.relayStarting": "Avvio dell'accesso a {name} su {host}…",
   "provider.codeLogin.pageOpening": "Apertura della pagina di accesso di {name} su {host}…",
   "provider.codeLogin.linkStep": "Accedi a {name}. OpenBot continua da solo.",
+  "provider.useApp.title": "Collega {name} nell’app OpenBot",
+  "provider.useApp.description":
+    "L’accesso a {name} torna al computer che lo ha avviato, e una scheda del browser non può riceverlo. Collega {name} nell’app OpenBot. L’app completa l’accesso da sola.",
+  "provider.useApp.download": "Scarica l’app",
 
   "provider.picker.noEndpoints": "Ancora nessun endpoint",
   "provider.picker.customCounts": "{endpoints} · {agents}",

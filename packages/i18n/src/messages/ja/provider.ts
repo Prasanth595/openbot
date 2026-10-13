@@ -48,6 +48,7 @@ export const messages = {
   "provider.action.signIn": "サインイン",
   "provider.action.apiKey": "API キー",
   "provider.action.signInWithCode": "コードでログイン",
+  "provider.action.pasteAddress": "アドレスを貼り付け",
   "provider.aria.download": "{name} をダウンロード",
   "provider.aria.cancel": "{name} をキャンセル",
   "provider.aria.connect": "{name} に接続",
@@ -92,6 +93,10 @@ export const messages = {
   "provider.codeLogin.relayStarting": "{host} で {name} のサインインを開始しています…",
   "provider.codeLogin.pageOpening": "{host} で {name} のサインインページを開いています…",
   "provider.codeLogin.linkStep": "{name} にログインします。OpenBot は自動で続行します。",
+  "provider.useApp.title": "OpenBot アプリで {name} に接続",
+  "provider.useApp.description":
+    "{name} のサインインは開始したコンピューターに戻るため、ブラウザーのタブでは受け取れません。OpenBot アプリで {name} に接続してください。アプリがサインインを自動で完了します。",
+  "provider.useApp.download": "アプリを入手",
 
   "provider.picker.noEndpoints": "エンドポイントはまだありません",
   "provider.picker.customCounts": "{endpoints} · {agents}",
