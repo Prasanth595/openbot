@@ -19,13 +19,19 @@ import type {
   MessagingPlace,
   StatusReaction,
 } from "../messaging-types";
-import { MessagingAdapterError } from "../messaging-types";
+import { MessagingAdapterError, MessagingConnectionError } from "../messaging-types";
 import { plainText, SLACK_ACTION_IDS, slackMentionIds } from "./slack-events";
 import { SlackEventsTransport } from "./slack-events-transport";
 import { slackChunks, slackMrkdwn } from "./slack-render";
 import { SlackApiError, SlackWebApi } from "./slack-web-api";
 
 const { io: adapterIo } = causeHelpers(MessagingAdapterError);
+
+function isTemporaryLookupFailure(failure: MessagingAdapterError): boolean {
+  const error = failure.cause;
+  if (error instanceof MessagingConnectionError) return false;
+  return !(error instanceof SlackApiError) || error.code.startsWith("http_") || error.code === "ratelimited";
+}
 
 /** Slack's own limit for one uploaded file is 1 GB; the host holds its uploads to this. */
 const UPLOAD_BYTES = 100 * 1024 * 1024;
@@ -344,9 +350,9 @@ class SlackAdapter implements MessagingAdapter {
           if (isString(candidate) && candidate.trim()) return candidate.trim();
         return userId;
       }),
-      Effect.catch(() =>
+      Effect.catch((failure) =>
         Effect.sync(() => {
-          this.#names.delete(userId);
+          if (isTemporaryLookupFailure(failure)) this.#names.delete(userId);
           return userId;
         }),
       ),
@@ -366,9 +372,9 @@ class SlackAdapter implements MessagingAdapter {
           ? `#${response.channel.name}`
           : platformChannelId,
       ),
-      Effect.catch(() =>
+      Effect.catch((failure) =>
         Effect.sync(() => {
-          this.#places.delete(platformChannelId);
+          if (isTemporaryLookupFailure(failure)) this.#places.delete(platformChannelId);
           return platformChannelId;
         }),
       ),
