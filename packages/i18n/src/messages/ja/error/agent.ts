@@ -2,8 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
-  "error.agent.historyUnavailable":
-    "このリクエストでは履歴を利用できません。最近の履歴をもう一度読み取るか、チャンネルの作業には channel_history を使用してください。",
+  "error.agent.historyUnavailable": "このリクエストでは履歴を利用できません。最近の履歴をもう一度読み取ってください。",
   "error.agent.toolRequestInvalid":
     "ツール検出の引数が無効です。宣言されたスキーマと、元の修飾されたツール名を使用してください。",
   "error.agent.approvalWhileDeleting": "エージェントの削除中は承認できません。",

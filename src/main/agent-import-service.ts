@@ -231,7 +231,7 @@ export class AgentImportService {
       return yield* archiveFailure(
         new Error(sourceText("error.import.manifestMissing", { manifest: AGENT_IMPORT_MANIFEST })),
       );
-    const { manifest, warnings } = yield* archiveSync(() =>
+    const { manifest, warnings, channelWarnings } = yield* archiveSync(() =>
       decodeImportManifest(
         extract(bytes, (name) => name === manifestName)[manifestName] ?? new Uint8Array(),
         this.agents.memoryLimit(),
@@ -292,10 +292,15 @@ export class AgentImportService {
           nameExists: existing.has(agent.name.toLowerCase()),
         };
       }),
-      // Channels are deprecated, so no group chat is offered. The host refuses a channel save, so an
-      // apply that still names one reports it in `skippedChannels`.
+      // Channels are deprecated, so no group chat is offered, and one warning replaces the warnings
+      // about each of them. The host refuses a channel save, so an apply that still names one
+      // reports it in `skippedChannels`.
       channels: [],
-      warnings: bounded(warnings),
+      warnings: bounded(
+        manifest.channels.length > 0 || channelWarnings.length > 0
+          ? [...warnings, sourceText("error.backend.channelsRetired")]
+          : warnings,
+      ),
     };
   });
 

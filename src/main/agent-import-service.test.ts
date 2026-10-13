@@ -382,11 +382,7 @@ describe("AgentImportService", () => {
         ),
       );
       expect(preview.warnings).toEqual([
-        "Tennis desk: members that are not agents in this export are left out.",
-        "Tennis desk: the lead is not a member, so the channel has no lead.",
-        "Tennis desk: members that are not agents in this export are left out.",
-        "Tennis desk: members that are not agents in this export are left out.",
-        "Tennis desk: the channel is skipped because none of its agents are in the export.",
+        "Channels are no longer supported. Put agents in one sidebar section to make them work together.",
       ]);
       await expect(runCauseEffect(service.stage(await exportWith([desk(), desk()], "twice.zip")))).rejects.toThrow(
         'Two channels use the key "desk".',

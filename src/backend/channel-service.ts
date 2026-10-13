@@ -63,7 +63,7 @@ export interface ChannelHooks {
   queueHoldChanged?(): void;
   /** A memory is not part of the channel revision, so a tool write needs its own notification. */
   memoriesChanged?(channelId: string): void;
-  /** Channels are retired: nothing can create, edit or restore one. `retire` archives the others. */
+  /** Channels are retired: no command can add work to one, and no channel starts work. `retire` archives them. */
   retired?: boolean;
   error(error: unknown): void;
 }
@@ -168,8 +168,9 @@ export class ChannelService {
       beforeApply: (command: ChannelCommand) => ChannelCommand | null = (queued) => queued,
     ) => {
       const operation = Effect.suspend(() => {
-        // `retire` archives every channel, so the archive guard refuses the other commands.
-        if (this.#retired && (command.type === "save" || command.type === "restore"))
+        // Retired channels only stop, archive and record reads. `retire` archives each channel, and
+        // until it runs no command may add work to one.
+        if (this.#retired && command.type !== "archive" && command.type !== "stop" && command.type !== "read")
           return Effect.fail(channelFailure(new Error(sourceText("error.backend.channelsRetired"))));
         const next = beforeApply(command);
         return next ? this.apply(next, actor) : channelSync(() => this.store.get(command.channelId));
@@ -658,7 +659,8 @@ export class ChannelService {
   readonly wake = Effect.fn("ChannelService.wake")(
     (channelId?: string): Effect.Effect<void, ChannelOperationError> =>
       Effect.gen({ self: this }, function* () {
-        if (this.#stopped) return;
+        // Retired channels start no work: `recover` wakes before `retire` archives them.
+        if (this.#stopped || this.#retired) return;
         const archived = yield* channelSync(() => this.store.archivedIds());
         for (const id of yield* channelSync(() => this.store.ids())) {
           if (this.#deletedChannels.has(id)) continue;
@@ -2324,7 +2326,7 @@ export class ChannelService {
   }
 
   /**
-   * Archives every channel and refuses to create, edit or restore one. Archiving stops the work
+   * Archives every channel and refuses each command that adds work to one. Archiving stops the work
    * of each channel and keeps its records, so no channel assignment holds the host. Run it after
    * `recover`, which settles the assignments of the previous run.
    */
@@ -2335,7 +2337,10 @@ export class ChannelService {
     const archived = yield* channelSync(() => this.store.archivedIds());
     for (const channelId of yield* channelSync(() => this.store.ids()))
       if (!archived.has(channelId))
-        yield* this.command({ type: "archive", operationId: `retire:${channelId}`, channelId }, RETIRE_ACTOR);
+        // One failure must not keep the other channels active. The next start archives what is left.
+        yield* this.command({ type: "archive", operationId: `retire:${channelId}`, channelId }, RETIRE_ACTOR).pipe(
+          Effect.catch((failure) => Effect.sync(() => this.hooks.error(failure.cause))),
+        );
   });
 
   readonly stop = Effect.fn("ChannelService.stop")(function* (

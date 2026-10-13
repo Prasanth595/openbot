@@ -403,6 +403,8 @@ export class ThreadLifecycle {
     const disabled = yield* this.codexOwnServersEffect(client, mcpServers, toolRuntimes);
     // The same single reading, so the manifest records the variables this session was started with.
     const environment = this.#agentEnvironment();
+    // The same single reading, so the manifest records the section-mates these instructions name.
+    const section = this.#sectionTeammates(agent.id);
     const config = yield* this.codexConfigEffect(agent, client, mcpServers, disabled, toolRuntimes, environment);
     const response = yield* client
       .request(
@@ -417,7 +419,7 @@ export class ThreadLifecycle {
           sandbox: codexSandboxMode(agent),
           ...this.#workspaceOnlyParam(agent, client),
           ...this.#computerUseParam(agent, client),
-          ...this.#instructions(agent, client),
+          ...this.#instructions(agent, client, section),
           ephemeral: false,
           serviceName: "openbot",
           dynamicTools: VISIBLE_DYNAMIC_TOOLS,
@@ -445,7 +447,7 @@ export class ThreadLifecycle {
           yield* threadIo(() =>
             writeFile(
               this.toolManifestPath(externalThreadId),
-              this.toolFingerprint(agent, mcpServers, disabled, toolRuntimes, environment),
+              this.toolFingerprint(agent, mcpServers, disabled, toolRuntimes, environment, section),
               {
                 mode: 0o600,
               },
@@ -645,8 +647,10 @@ export class ThreadLifecycle {
    * of a resumed session. It holds paths only. It is added only when it is not empty, so a
    * computer with no GitHub connection keeps the fingerprints it had.
    *
-   * The section-mates go in for the same reason as the profile: they are in the instructions. An
-   * agent with no section adds no value and keeps its fingerprint.
+   * The section-mates go in for the same reason as the profile: they are in the instructions. Only
+   * their sorted ids go in, so a reorder or a rename in the section does not drop the history of
+   * each agent in it; a member who joins or leaves does. An agent with no section adds no value and
+   * keeps its fingerprint.
    */
   private toolFingerprint(
     agent: AgentSummary,
@@ -654,8 +658,8 @@ export class ThreadLifecycle {
     disabled: Record<string, CodexDisabledMcpServer>,
     toolRuntimes: McpToolRuntimes,
     environment: Readonly<Record<string, string>>,
+    section: SectionTeammates | null,
   ): string {
-    const section = this.#sectionTeammates(agent.id);
     return createHash("sha256")
       .update(
         JSON.stringify([
@@ -679,7 +683,7 @@ export class ThreadLifecycle {
             ...(agentAutomationAllowed(agent) ? ["automation"] : []),
           ],
           ...(Object.keys(environment).length > 0 ? [Object.entries(environment).sort()] : []),
-          ...(section ? [[section.name, section.members.map((member) => [member.id, member.name, member.title])]] : []),
+          ...(section ? [section.members.map((member) => member.id).sort()] : []),
         ]),
       )
       .digest("hex");
@@ -721,7 +725,14 @@ export class ThreadLifecycle {
     const toolRuntimes = this.#toolRuntimes();
     const disabled = yield* this.codexOwnServersEffect(client, configs, toolRuntimes);
     const fingerprint = yield* threadStep(() =>
-      this.toolFingerprint(agent, configs, disabled, toolRuntimes, this.#agentEnvironment()),
+      this.toolFingerprint(
+        agent,
+        configs,
+        disabled,
+        toolRuntimes,
+        this.#agentEnvironment(),
+        this.#sectionTeammates(agent.id),
+      ),
     );
     return stored.success === fingerprint;
   });
@@ -730,14 +741,14 @@ export class ThreadLifecycle {
    * The developer instructions of a session start or resume, with what is connected now. Claude
    * gets the memories apart, and its client sends them with the turns: see `memoriesInTurns`.
    */
-  #instructions(agent: AgentSummary, client: AgentClient): DynamicRecord {
+  #instructions(agent: AgentSummary, client: AgentClient, section = this.#sectionTeammates(agent.id)): DynamicRecord {
     const memories = this.#memories.essentialFor(agent.id);
     const options = {
       passwordVault: this.#passwordVaultConnected(),
       memoryLimit: this.#memories.limit(),
       storedMemoryCount: this.#memories.listFor(agent.id).length,
       memoriesInTurns: client.provider === "claude",
-      sectionTeammates: this.#sectionTeammates(agent.id),
+      sectionTeammates: section,
     };
     const instructions = developerInstructions(
       agent,
