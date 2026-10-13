@@ -124,21 +124,23 @@ describe("LiveActivityPushService", () => {
     const send = vi.fn(async (_push: LiveActivityRelayPush) => "sent" as const);
     const push = service(send);
     snapshot.pendingApprovals.push(approval("ada", "npm test"));
-    expect(push.showsEvent("session-1", { sound: "openbot" })).toBe(false);
+    expect(push.showsEvent("session-1", { sound: "openbot" }, null)).toBe(false);
 
     push.register("session-1", viewer, registration);
     await vi.runOnlyPendingTimersAsync();
     expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ event: "update", alert: null }));
 
     // The view is the same, and the alert still goes.
-    expect(push.showsEvent("session-1", null)).toBe(true);
-    expect(push.showsEvent("session-1", { sound: "openbot" })).toBe(true);
+    expect(push.showsEvent("session-1", null, null)).toBe(true);
+    // A host that restarted got the token now, but the phone knows that iOS started the activity 8 hours ago.
+    expect(push.showsEvent("session-1", null, Date.now() - 8 * 60 * 60 * 1000)).toBe(false);
+    expect(push.showsEvent("session-1", { sound: "openbot" }, Date.now() - 60_000)).toBe(true);
     await vi.runOnlyPendingTimersAsync();
     expect(send).toHaveBeenCalledTimes(2);
     expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ priority: 10, alert: { sound: "openbot" } }));
 
     await vi.advanceTimersByTimeAsync(8 * 60 * 60 * 1000);
-    expect(push.showsEvent("session-1", { sound: "default" })).toBe(false);
+    expect(push.showsEvent("session-1", { sound: "default" }, null)).toBe(false);
     await Effect.runPromise(push.dispose());
   });
 

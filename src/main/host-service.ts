@@ -335,7 +335,8 @@ export class HostService extends EventEmitter<HostEvents> {
             // The desktop app of this computer runs as the owner.
             atHostComputer: (memberId) =>
               memberId === options.store.getOwnerMemberId() && (options.hostComputerInUse?.() ?? false),
-            liveActivityShows: (sessionId, alert) => this.#liveActivityPush?.showsEvent(sessionId, alert) ?? false,
+            liveActivityShows: (sessionId, alert, startedAt) =>
+              this.#liveActivityPush?.showsEvent(sessionId, alert, startedAt) ?? false,
             logger,
           })
         : undefined;

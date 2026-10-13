@@ -61,6 +61,7 @@ const registration: PushNotificationRegistration = {
   mutedUntil: null,
   preview: true,
   sound: "openbot",
+  liveActivityStartedAt: null,
 };
 
 const viewer = { memberId: "member-1", protocol: 7, capabilities: new Set<string>(["push-notifications-v1"]) };
@@ -121,7 +122,7 @@ const NOW = 1_790_000_000_000;
 let lastUseElsewhere: number | null;
 let atHostComputer: boolean;
 let liveActivity: boolean;
-let liveActivityAlerts: Array<{ sessionId: string; alert: LiveActivityRelayPush["alert"] }>;
+let liveActivityAlerts: Array<{ sessionId: string; alert: LiveActivityRelayPush["alert"]; startedAt: number | null }>;
 
 beforeEach(() => {
   listener = null;
@@ -143,8 +144,8 @@ function service(send: (push: NotificationRelayPush) => Promise<"sent" | "gone">
     memberActive: () => true,
     lastUseElsewhere: () => lastUseElsewhere,
     atHostComputer: () => atHostComputer,
-    liveActivityShows: (sessionId, alert) => {
-      if (liveActivity) liveActivityAlerts.push({ sessionId, alert });
+    liveActivityShows: (sessionId, alert, startedAt) => {
+      if (liveActivity) liveActivityAlerts.push({ sessionId, alert, startedAt });
       return liveActivity;
     },
     randomBytes: (size) => new Uint8Array(size).fill(4),
@@ -283,18 +284,19 @@ describe("PushNotificationService", () => {
     liveActivity = true;
     listener?.(completed("ada", "turn-1", { origin: "user" }));
     await vi.waitFor(() =>
-      expect(liveActivityAlerts).toEqual([{ sessionId: "session-1", alert: { sound: "openbot" } }]),
+      expect(liveActivityAlerts).toEqual([{ sessionId: "session-1", alert: { sound: "openbot" }, startedAt: null }]),
     );
-    // With its sound off, the activity updates silently, and still no notification goes.
-    push.register("session-1", viewer, { ...registration, sound: "none" });
+    // With its sound off, the activity updates silently, and still no notification goes. The phone gives
+    // the start of the activity, which a host restart does not know.
+    push.register("session-1", viewer, { ...registration, sound: "none", liveActivityStartedAt: 1_789_990_000 });
     listener?.(completed("ada", "turn-1"));
     await vi.waitFor(() => expect(liveActivityAlerts).toHaveLength(2));
-    expect(liveActivityAlerts[1]).toEqual({ sessionId: "session-1", alert: null });
+    expect(liveActivityAlerts[1]).toEqual({ sessionId: "session-1", alert: null, startedAt: 1_789_990_000_000 });
     // A phone with notifications off gets the sound of the activity, and never a notification.
     push.register("session-1", viewer, { ...registration, token: null });
     listener?.(completed("ada", "turn-1"));
     await vi.waitFor(() => expect(liveActivityAlerts).toHaveLength(3));
-    expect(liveActivityAlerts[2]).toEqual({ sessionId: "session-1", alert: { sound: "openbot" } });
+    expect(liveActivityAlerts[2]).toEqual({ sessionId: "session-1", alert: { sound: "openbot" }, startedAt: null });
     liveActivity = false;
     listener?.(completed("ada", "turn-1"));
     expect(send).not.toHaveBeenCalled();

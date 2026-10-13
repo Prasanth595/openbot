@@ -55,8 +55,9 @@ interface PushNotificationOptions {
   /**
    * Whether the session's phone shows a Live Activity of this host, which then shows the event in
    * place of a notification. With `alert`, the activity lights up the screen and plays the sound.
+   * `startedAt` is the start of the activity that the phone gives, in milliseconds, or `null`.
    */
-  liveActivityShows(sessionId: string, alert: LiveActivityRelayPush["alert"]): boolean;
+  liveActivityShows(sessionId: string, alert: LiveActivityRelayPush["alert"], startedAt: number | null): boolean;
   randomBytes(size: number): Uint8Array;
   now?: () => number;
   logger?: { warn(message: string, ...values: unknown[]): void };
@@ -205,7 +206,8 @@ export class PushNotificationService {
       // The Live Activity shows the event, and a notification would repeat it.
       // With a sound, the activity also lights up the screen and plays it; without one, it updates silently.
       const sound = soundOf(value);
-      if (this.#options.liveActivityShows(sessionId, sound ? { sound } : null)) continue;
+      const startedAt = value.liveActivityStartedAt === null ? null : value.liveActivityStartedAt * 1_000;
+      if (this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt)) continue;
       // A phone with notifications off registers for the sound of the Live Activity only.
       const token = value.token;
       if (token === null) continue;

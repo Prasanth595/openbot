@@ -39,7 +39,7 @@ to approve, with secrets redacted. Otherwise it is the fixed desktop text, such 
 The phone registers with every connected server that supports `push-notifications-v1`
 (`POST /v1/push-notifications/registration`): the APNs token of the app, the secret of that host (the
 same one as for the Live Activity), the language, the level, a mute end, the preview switch, the sound
-(`none` when Play sound is off) and `away`. One sound is for notifications and the Live Activity. With
+(`none` when Play sound is off), the start of its Live Activity of that host, and `away`. One sound is for notifications and the Live Activity. With
 notifications off, Live Activities on and Play sound on, it registers with no token: the host then
 sends no notification, and uses the registration only to make the Live Activity play the sound. It
 tells each host again after each connection and when a choice changes, and removes the registration
@@ -54,7 +54,8 @@ last 30 seconds (`powerMonitor.getSystemIdleState`) with the window open and des
 on, for the owner; or the member sent, answered, or typed from another session in the last 30
 seconds (`TeamApiServer.lastMemberUseElsewhere`, kept in memory). The time is short because a task
 can end at any time after the member leaves the computer. While the phone shows a Live Activity of
-this host that iOS still updates (8 hours from the token), the host sends no notification
+this host that iOS still updates (8 hours from its start, which the phone gives because a host that
+restarted does not know it), the host sends no notification
 (`LiveActivityPushService.showsEvent`). With a sound (Settings > Notifications > Sound), the next
 update of the activity alerts at once, so iOS lights up the screen, shows the activity, and plays
 that sound; with Play sound off, the activity updates silently. iOS does not tell the host when

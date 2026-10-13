@@ -68,6 +68,12 @@ export interface PushNotificationRegistration {
    * screen. With "none", notifications are silent and the activity updates without an alert.
    */
   sound: PushNotificationSound;
+  /**
+   * When iOS started the Live Activity that this host updates, in seconds since 1970, or `null` when
+   * the phone does not know or shows none. iOS stops its updates 8 hours later, also when the host
+   * restarted and got the same token again.
+   */
+  liveActivityStartedAt: number | null;
 }
 
 const pattern =
@@ -96,6 +102,7 @@ export const PUSH_NOTIFICATIONS_CODECS: ReadonlyMap<string, OptionalRouteCodec> 
         mutedUntil: nullable(count),
         preview: boolean,
         sound: oneOf(...PUSH_NOTIFICATION_SOUNDS),
+        liveActivityStartedAt: nullable(count),
       }),
       empty,
     ),

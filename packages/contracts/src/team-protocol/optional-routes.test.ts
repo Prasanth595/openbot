@@ -588,6 +588,7 @@ describe("push-notifications-v1", () => {
     mutedUntil: 1_800_000_000,
     preview: false,
     sound: "openbot",
+    liveActivityStartedAt: 1_790_000_000,
   };
 
   it("carries the push registration and nothing else", () => {

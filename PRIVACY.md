@@ -1000,8 +1000,8 @@ the screen and plays the sound instead. For this, the phone gives each connected
 encrypted host connection, the Apple push token of the app (none when notifications are off and only
 the Live Activity plays the sound), the 32-byte secret for
 that host (the one of the Live Activity), its interface language, and the choices of the user: the
-events of that server, a mute end, whether the notification shows a preview, and the sound, or none.
-The host
+events of that server, a mute end, whether the notification shows a preview, and the sound, or none,
+and when its Live Activity of that host started. The host
 keeps these values in a file that only the user of that computer can read, so it can notify the phone
 after a restart. It removes them when the phone removes them, when the member is removed or
 disabled, and when the account service or Apple refuses the phone.

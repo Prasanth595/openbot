@@ -68,7 +68,7 @@ interface Registration {
   photos: Map<string, string>;
   coordinator: DynamicIslandCoordinator;
   expiresAt: number;
-  /** When this host first got the token, as the start of the activity. A host restart moves it later. */
+  /** When this host first got the token. A host restart moves it later, so the start from the phone wins. */
   startedAt: number;
   /** The next update lights up the screen and plays this sound, in place of a notification. */
   alert: LiveActivityRelayPush["alert"];
@@ -156,13 +156,14 @@ export class LiveActivityPushService {
   /**
    * Whether the phone of the session shows an activity of this host that iOS still updates, so the
    * activity shows an event in place of a notification. With `alert`, its next update lights up the
-   * screen and plays the sound. iOS does not tell when the user removes the activity, so until the
-   * app runs again an event can go to an activity that is gone.
+   * screen and plays the sound. `startedAt` is the start that the phone gives, in milliseconds, or
+   * `null`. iOS does not tell when the user removes the activity, so until the app runs again an
+   * event can go to an activity that is gone.
    */
-  showsEvent(sessionId: string, alert: LiveActivityRelayPush["alert"]): boolean {
+  showsEvent(sessionId: string, alert: LiveActivityRelayPush["alert"], startedAt: number | null): boolean {
     const registration = this.#registrations.get(sessionId);
     if (!registration || !away(registration)) return false;
-    if (this.#now() >= registration.startedAt + ACTIVITY_LIFETIME_MS) return false;
+    if (this.#now() >= (startedAt ?? registration.startedAt) + ACTIVITY_LIFETIME_MS) return false;
     if (alert) {
       registration.alert = alert;
       this.#schedule(registration, EVENT_DELAY_MS);

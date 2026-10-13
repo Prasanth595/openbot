@@ -103,7 +103,19 @@ function decodeFile(parsed: unknown): StoredPushRegistration[] {
 /** Reads a registration that the frozen `push-notifications-v1` codec has accepted. */
 export function readPushRegistration(value: unknown): PushNotificationRegistration | null {
   if (!isDynamicRecord(value)) return null;
-  const { serverId, token, environment, secret, locale, away, level, mutedUntil, preview, sound } = value;
+  const {
+    serverId,
+    token,
+    environment,
+    secret,
+    locale,
+    away,
+    level,
+    mutedUntil,
+    preview,
+    sound,
+    liveActivityStartedAt,
+  } = value;
   if (!isString(serverId) || (token !== null && !isString(token)) || !isString(secret) || !isString(locale))
     return null;
   if (environment !== "production" && environment !== "development") return null;
@@ -112,6 +124,7 @@ export function readPushRegistration(value: unknown): PushNotificationRegistrati
   if (!choice) return null;
   if (typeof away !== "boolean" || typeof preview !== "boolean") return null;
   if (mutedUntil !== null && typeof mutedUntil !== "number") return null;
+  if (liveActivityStartedAt !== null && typeof liveActivityStartedAt !== "number") return null;
   return {
     serverId,
     token,
@@ -123,5 +136,6 @@ export function readPushRegistration(value: unknown): PushNotificationRegistrati
     mutedUntil,
     preview,
     sound: choice,
+    liveActivityStartedAt,
   };
 }

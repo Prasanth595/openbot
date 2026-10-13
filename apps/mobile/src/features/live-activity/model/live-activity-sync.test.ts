@@ -61,16 +61,16 @@ describe("LiveActivitySync", () => {
 
   it("gives the push token of the activity it shows, so only that activity gets host updates", async () => {
     const activity = instance("token-1");
-    const tokens = vi.fn<(token: string | null) => void>();
+    const tokens = vi.fn<(token: string | null, startedAt: number | null) => void>();
     const sync = new LiveActivitySync<{ title: string }>(
       fakeStarter([], () => activity),
       tokens,
     );
 
     await sync.show({ title: "Working" });
-    expect(tokens).toHaveBeenLastCalledWith("token-1");
+    expect(tokens).toHaveBeenLastCalledWith("token-1", STARTED_AT);
     await sync.show(null);
-    expect(tokens).toHaveBeenLastCalledWith(null);
+    expect(tokens).toHaveBeenLastCalledWith(null, null);
   });
 
   it("shows the app state again after the host changed the activity", async () => {
@@ -85,8 +85,11 @@ describe("LiveActivitySync", () => {
   });
 });
 
+const STARTED_AT = 1_790_000_000_000;
+
 function instance(token?: string) {
   return {
+    startedAt: STARTED_AT,
     update: vi.fn<LiveActivityInstance<{ title: string }>["update"]>(async () => undefined),
     end: vi.fn<LiveActivityInstance<{ title: string }>["end"]>(async () => undefined),
     watchPushToken(receive: (token: string) => void) {

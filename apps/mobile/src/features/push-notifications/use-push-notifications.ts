@@ -6,6 +6,7 @@ import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import { encodeLiveActivityBytes } from "@openbot/team-client/live-activity-seal";
 import { pushNotificationKeys } from "@openbot/team-client/push-notification-seal";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLiveActivityHost } from "@/features/live-activity/model/live-activity-host";
 import { liveActivityHostKeys, loadLiveActivitySecret } from "@/features/live-activity/model/live-activity-keys";
 import { useLiveActivitiesPreference } from "@/features/settings/model/live-activities";
 import {
@@ -42,6 +43,7 @@ const RETRY_MS = 30_000;
 export function usePushNotifications({ servers, foreground, post, supportsPush }: PushNotificationsInput): void {
   const preference = usePushNotificationPreference();
   const liveActivities = useLiveActivitiesPreference();
+  const activityHost = useLiveActivityHost();
   const [token, setToken] = useState<string | null>(null);
   const [secret, setSecret] = useState<Uint8Array | null>(null);
   /** What the phone last told each host, so an unchanged state is not sent again. */
@@ -152,6 +154,10 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
               mutedUntil: muted === null ? null : Math.ceil(muted / 1_000),
               preview: preference.preview,
               sound: registeredSound(preference),
+              liveActivityStartedAt:
+                activityHost.serverId === server.id && activityHost.startedAt !== null
+                  ? Math.floor(activityHost.startedAt / 1_000)
+                  : null,
             }
           : null;
       // A retry after a failed request sends the state again.
@@ -176,7 +182,7 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
         }
       });
     }
-  }, [servers, foreground, token, secret, preference, liveActivities, supportsPush, enqueue, attempt]);
+  }, [servers, foreground, token, secret, preference, liveActivities, activityHost, supportsPush, enqueue, attempt]);
 
   useEffect(() => {
     const sent = registered.current;
