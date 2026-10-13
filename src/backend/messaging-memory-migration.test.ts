@@ -26,7 +26,7 @@ function migrateUpTo(db: DatabaseSync, version: number): void {
   db.exec("DROP TRIGGER stop_at_version");
 }
 
-/** A Slack connection with a link, the rows that migration 35 must keep, from schema 25 on. */
+/** A Slack connection with a link, the rows that migration 36 must keep, from schema 25 on. */
 function seedConnection(db: DatabaseSync): void {
   db.prepare(`INSERT INTO projection_messaging_connections
     (connection_id, platform, workspace_id, workspace_name, enabled, bot_user_id, app_id, orchestrator_agent_id,
@@ -66,17 +66,17 @@ function databaseAtWithSeed(version: number): DatabaseSync {
 }
 
 describe("messaging memory migration", () => {
-  it.each(Array.from({ length: 27 }, (_, index) => index + 8))(
+  it.each(Array.from({ length: 28 }, (_, index) => index + 8))(
     "preserves every row from released schema %i",
     (version) => {
       const db = databaseAtWithSeed(version);
-      // The earlier migrations run first; the rows after them are what v35 must keep.
-      if (version < 34) migrateUpTo(db, 34);
+      // The earlier migrations run first; the rows after them are what v36 must keep.
+      if (version < 35) migrateUpTo(db, 35);
       if (version < 25) seedConnection(db);
       const before = contents(db);
       migrateOpenBotDatabase(db);
       expect(contents(db)).toEqual({ ...before, projection_messaging_memories: [] });
-      expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 35 });
+      expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 36 });
       expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
       expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
       expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
@@ -84,14 +84,14 @@ describe("messaging memory migration", () => {
   );
 
   it("rolls back the table and the marker after a late failure, then retries", () => {
-    const db = databaseAtWithSeed(34);
+    const db = databaseAtWithSeed(35);
     const before = contents(db);
-    db.exec(`CREATE TEMP TRIGGER fail_marker BEFORE INSERT ON schema_migrations WHEN new.version=35
+    db.exec(`CREATE TEMP TRIGGER fail_marker BEFORE INSERT ON schema_migrations WHEN new.version=36
       BEGIN SELECT RAISE(ABORT, 'late failure'); END;`);
-    expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 35 failed");
+    expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 36 failed");
     expect(contents(db)).toEqual(before);
     expect(memoryTables(db)).toEqual([]);
-    expect(db.prepare("SELECT version FROM schema_migrations WHERE version=35").all()).toEqual([]);
+    expect(db.prepare("SELECT version FROM schema_migrations WHERE version=36").all()).toEqual([]);
     expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
     db.exec("DROP TRIGGER fail_marker");
     migrateOpenBotDatabase(db);
@@ -99,18 +99,18 @@ describe("messaging memory migration", () => {
   });
 
   it("rejects newer and incomplete migration histories before it creates the table", () => {
-    const db = databaseAtWithSeed(34);
+    const db = databaseAtWithSeed(35);
     const before = contents(db);
-    db.exec("INSERT INTO schema_migrations VALUES(36,'now')");
+    db.exec("INSERT INTO schema_migrations VALUES(37,'now')");
     expect(() => migrateOpenBotDatabase(db)).toThrow("newer than this application supports");
-    db.exec("DELETE FROM schema_migrations WHERE version=36; DELETE FROM schema_migrations WHERE version=20");
+    db.exec("DELETE FROM schema_migrations WHERE version=37; DELETE FROM schema_migrations WHERE version=20");
     expect(() => migrateOpenBotDatabase(db)).toThrow("missing version 20");
     expect(contents(db)).toEqual(before);
     expect(memoryTables(db)).toEqual([]);
   });
 
   it("refuses a memory of no connection, and keeps a connection that has memories", () => {
-    const db = databaseAtWithSeed(34);
+    const db = databaseAtWithSeed(35);
     migrateOpenBotDatabase(db);
     const insert = db.prepare(`INSERT INTO projection_messaging_memories
       (memory_id, connection_id, text, normalized_text, origin, source_turn_id, created_at, updated_at,

@@ -147,6 +147,7 @@ import { ProfileSave, standingProfileChanged, toProfileSaveFailed } from "./agen
 import { isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
 import { type AgentClientFactory, ProviderRuntime, toProviderOperationFailed } from "./agent/provider-runtime";
 import { QueueControls } from "./agent/queue-controls";
+import { quietRoutineRun } from "./agent/routine-quiet-runs";
 import { type RoutineMutationOptions, RoutineScheduler, toRoutineOperationFailed } from "./agent/routine-scheduler";
 import { buildRuntimeSnapshot } from "./agent/runtime-snapshot";
 import { SessionSettings } from "./agent/session-settings";
@@ -752,9 +753,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       threads: this.#threads,
       hooks: {
         emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
-        // A deleted routine takes its runs with it, so a run without a record counts as scheduled:
-        // otherwise the import would bring back the answers that its quiet turns dropped.
-        quietRoutineDelivery: (deliveryId) => this.#routines.runForDelivery(deliveryId)?.kind !== "manual",
+        // A deleted routine takes its runs with it, so a run without a record counts as quiet:
+        // otherwise the import would bring back the answers that its quiet turns settled.
+        quietRoutineDelivery: (deliveryId) => {
+          const run = this.#routines.runForDelivery(deliveryId);
+          return run === null || quietRoutineRun(run);
+        },
         executionThreads: () => [...this.channels.store.executionThreads(), ...this.messaging.store.executionThreads()],
         deliveryThreadId: (deliveryId) => {
           const assignment = this.channels.store.assignmentForDelivery(deliveryId);
@@ -1359,7 +1363,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       }
     });
     return yield* this.#routines
-      .runWithPayload(input)
+      .runWithPayload({ ...input, source: "script" })
       .pipe(
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "run routine from automation", cause: failure.cause }),

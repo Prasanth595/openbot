@@ -4,8 +4,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { migrateOpenBotDatabase } from "./openbot-database-schema";
 
 // Failure modes: an upgrade loses a routine, trigger or run; an old routine gets a policy other than
-// "skip"; an old run reads as a missed-run record; a partial migration survives a failure; a retry
-// adds a column twice; a newer or incomplete history is changed; the new CHECKs accept bad values.
+// "skip"; an old run reads as a missed-run record or gets a source; a partial migration survives a
+// failure; a retry adds a column twice; a newer or incomplete history is changed; the new CHECKs accept
+// bad values.
 const databases: DatabaseSync[] = [];
 afterEach(() => {
   for (const db of databases.splice(0)) db.close();
@@ -104,10 +105,10 @@ function rows(db: DatabaseSync, tables?: readonly string[]): Record<string, Tabl
 }
 
 /**
- * What the upgrade adds to each old row: the "skip" policy, and no missed-run record. A source before
- * migration 27 also gets that migration's "wait" limit policy.
+ * What the upgrade adds to each old row: the "skip" policy, no missed-run record and no run source. A
+ * source before migration 27 also gets that migration's "wait" limit policy.
  */
-function withMissedColumns(before: Record<string, TableRow[]>): Record<string, TableRow[]> {
+function withAddedColumns(before: Record<string, TableRow[]>): Record<string, TableRow[]> {
   return Object.fromEntries(
     Object.entries(before).map(([table, tableRows]) => [
       table,
@@ -115,23 +116,23 @@ function withMissedColumns(before: Record<string, TableRow[]>): Record<string, T
         table.endsWith("_routines")
           ? { limit_policy: "wait", ...row, missed_policy: "skip" }
           : table.endsWith("_runs")
-            ? { ...row, missed_count: null, missed_until: null }
+            ? { missed_count: null, missed_until: null, ...row, run_source: null }
             : row,
       ),
     ]),
   );
 }
 
-describe("routine missed-run migration", () => {
-  it.each(Array.from({ length: 25 }, (_, index) => index + 8))(
+describe("routine missed-run and run source migrations", () => {
+  it.each(Array.from({ length: 27 }, (_, index) => index + 8))(
     "keeps every routine, trigger and run from released schema %i",
     (version) => {
       const db = databaseAt(version);
       seedRoutines(db, version);
       const before = rows(db);
       migrateOpenBotDatabase(db);
-      expect(rows(db, Object.keys(before))).toEqual(withMissedColumns(before));
-      expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 35 });
+      expect(rows(db, Object.keys(before))).toEqual(withAddedColumns(before));
+      expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 36 });
       expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
       expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
       expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
@@ -150,7 +151,7 @@ describe("routine missed-run migration", () => {
     expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
     db.exec("DROP TRIGGER fail_marker");
     migrateOpenBotDatabase(db);
-    expect(rows(db)).toEqual(withMissedColumns(before));
+    expect(rows(db)).toEqual(withAddedColumns(before));
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
   });
@@ -186,10 +187,67 @@ describe("routine missed-run migration", () => {
     const db = databaseAt(32);
     seedRoutines(db, 32);
     const before = rows(db);
-    db.exec("INSERT INTO schema_migrations VALUES(36, 'now')");
+    db.exec("INSERT INTO schema_migrations VALUES(37, 'now')");
     expect(() => migrateOpenBotDatabase(db)).toThrow("newer than this application supports");
-    db.exec("DELETE FROM schema_migrations WHERE version = 36; DELETE FROM schema_migrations WHERE version = 27");
+    db.exec("DELETE FROM schema_migrations WHERE version = 37; DELETE FROM schema_migrations WHERE version = 27");
     expect(() => migrateOpenBotDatabase(db)).toThrow("missing version 27");
+    expect(rows(db)).toEqual(before);
+  });
+});
+
+describe("routine run source migration", () => {
+  it("rolls back both columns and the marker after a late failure, then retries", () => {
+    const db = databaseAt(34);
+    seedRoutines(db, 34);
+    const before = rows(db);
+    db.exec(`CREATE TEMP TRIGGER fail_marker BEFORE INSERT ON schema_migrations WHEN new.version = 35
+      BEGIN SELECT RAISE(ABORT, 'late failure'); END;`);
+    expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 35 failed");
+    expect(rows(db)).toEqual(before);
+    expect(db.prepare("SELECT version FROM schema_migrations WHERE version = 35").all()).toEqual([]);
+    expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
+    db.exec("DROP TRIGGER fail_marker");
+    migrateOpenBotDatabase(db);
+    expect(rows(db)).toEqual(withAddedColumns(before));
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
+  });
+
+  it("keeps a column that a development build added before the marker", () => {
+    const db = databaseAt(34);
+    seedRoutines(db, 34);
+    db.exec(`ALTER TABLE projection_routine_runs ADD COLUMN run_source TEXT
+      CHECK(run_source IS NULL OR run_source IN ('test', 'script', 'webhook'))`);
+    db.prepare("UPDATE projection_routine_runs SET run_source = 'script' WHERE run_kind = 'manual'").run();
+    migrateOpenBotDatabase(db);
+    expect(db.prepare("SELECT run_source FROM projection_routine_runs ORDER BY rowid").all()).toEqual([
+      { run_source: null },
+      { run_source: "script" },
+    ]);
+    expect(db.prepare("SELECT run_source FROM projection_channel_routine_runs ORDER BY rowid").all()).toEqual([
+      { run_source: null },
+      { run_source: null },
+    ]);
+  });
+
+  it("rejects a source that the app cannot read", () => {
+    const db = databaseAt(34);
+    seedRoutines(db, 34);
+    migrateOpenBotDatabase(db);
+    for (const table of ["projection_routine_runs", "projection_channel_routine_runs"]) {
+      expect(() => db.prepare(`UPDATE ${table} SET run_source = 'manual'`).run()).toThrow(/CHECK constraint failed/u);
+      db.prepare(`UPDATE ${table} SET run_source = 'webhook' WHERE run_kind = 'manual'`).run();
+    }
+  });
+
+  it("rejects newer and incomplete migration histories before it changes a run", () => {
+    const db = databaseAt(34);
+    seedRoutines(db, 34);
+    const before = rows(db);
+    db.exec("INSERT INTO schema_migrations VALUES(37, 'now')");
+    expect(() => migrateOpenBotDatabase(db)).toThrow("newer than this application supports");
+    db.exec("DELETE FROM schema_migrations WHERE version = 37; DELETE FROM schema_migrations WHERE version = 33");
+    expect(() => migrateOpenBotDatabase(db)).toThrow("missing version 33");
     expect(rows(db)).toEqual(before);
   });
 });

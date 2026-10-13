@@ -72,6 +72,8 @@ export interface RoutineRunMarkerModel {
   status: "queued" | RoutineRunConversationEvent["status"];
   timestamp: string;
   previousTransitions?: RoutineRunMarkerTransition[];
+  /** Set when the run has messages in the chat: whether they show under the run. */
+  expanded?: boolean;
 }
 
 export type ChatActionMarkerModel =
@@ -107,6 +109,8 @@ export type ChatActionMarkerModel =
       routineName: string;
       runs: Array<{ id: string; marker: RoutineRunMarkerModel }>;
       timestamp: string;
+      /** Set when the timeline shows the runs as rows under the group: whether they show. */
+      expanded?: boolean;
     }
   | {
       kind: "hosted-site";

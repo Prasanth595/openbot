@@ -129,6 +129,8 @@ export const messages = {
   "routine.history.title": "Historia",
   "routine.history.empty": "Brak uruchomień.",
   "routine.history.manualRun": "Ręcznie · {time}",
+  "routine.history.scriptRun": "Skrypt · {time}",
+  "routine.history.webhookRun": "Webhook · {time}",
   "routine.history.openRun": "Otwórz {run} w czacie",
   "routine.history.today": "Dziś o {time}",
   "routine.history.yesterday": "Wczoraj o {time}",

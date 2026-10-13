@@ -187,7 +187,7 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   orchestrator agent) and `projection_messaging_threads` (one per external conversation, with the
   agent that answers it).
   Tokens are not in the database: `MessagingCredentialStore` keeps the bot token encrypted by
-  `safeStorage`, keyed by connection, and only its state crosses IPC. Migration 35 adds
+  `safeStorage`, keyed by connection, and only its state crosses IPC. Migration 36 adds
   `projection_messaging_memories`, the facts of each connection (`MessagingMemoryStore`, the same
   `MemoryStore` as agent and channel memories, with a connection for an owner). No code deletes a
   connection, so the table has no cascade: disconnect keeps the facts.

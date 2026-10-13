@@ -44,7 +44,7 @@ export const MESSAGING_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS messaging_threads_agent ON projection_messaging_threads(agent_id, updated_at DESC);
 `;
 
-// Shared by migration v35 and the separate new-database schema. IF NOT EXISTS throughout.
+// Shared by migration v36 and the separate new-database schema. IF NOT EXISTS throughout.
 //
 // Facts that agents save about one connection (a Slack workspace, a Discord server, a Telegram chat)
 // with messaging_remember. Every conversation of the connection sees them; the OpenBot user's own
