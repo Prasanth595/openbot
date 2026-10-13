@@ -1,6 +1,6 @@
 # OpenBot team launch catalog
 
-Version v2 contains 21 Skills and 16 Agents. One Skill, pstack, is unlisted: it does not show in Skills and installs only with the pstack Agent. Four Skills and four Agents are featured on first publication. All entries show the public OpenBot logo as their creator badge, use the publisher **OpenBot**, start with zero installs, and include no scheduled routines. They work from supplied material and available tools; they do not assume a connected inbox, CRM, ad account, or phone service.
+Version v2 contains 72 Skills and 16 Agents. The 52 pstack Skills are unlisted: they do not show in Skills and install only with the pstack Agent. Four Skills and four Agents are featured on first publication. All entries show the public OpenBot logo as their creator badge, use the publisher **OpenBot**, start with zero installs, and include no scheduled routines. They work from supplied material and available tools; they do not assume a connected inbox, CRM, ad account, or phone service.
 
 ## Review locally
 
@@ -82,7 +82,7 @@ Do not use the separate `skills:seed`, `agents:seed`, or `dev:seed` demo scripts
 | [data-quality-review](skills/data-quality-review/SKILL.md) | data-analytics | openbot |
 | [workflow-playbook](skills/workflow-playbook/SKILL.md) | automation | openbot |
 | [hiring-scorecard](skills/hiring-scorecard/SKILL.md) | other | openbot |
-| [pstack](bundles/pstack/SKILL.md) (unlisted) | coding | cursor |
+| `pstack-<name>`, one per folder of [bundles/pstack/skills](bundles/pstack/skills) (52, unlisted) | coding | cursor |
 
 ★ Featured on first publication. Existing Featured settings are preserved on reruns.
 
@@ -90,7 +90,7 @@ Do not use the separate `skills:seed`, `agents:seed`, or `dev:seed` demo scripts
 
 The 15 original OpenBot team Skills use the repository PolyForm Noncommercial 1.0.0 license. The five existing adapted Skills retain their pinned OpenAI or Anthropic source attribution and Apache-2.0 license. Each generated bundle contains the applicable LICENSE.txt and NOTICE.txt; the build also produces UPSTREAM_NOTICES.md.
 
-`bundles/pstack/` is an unchanged copy of the pstack plugin by Lauren Tan from the pinned `cursor/plugins` commit, under the MIT License. The build publishes every file of that folder, including its own `LICENSE` and `NOTICE.md`. Only its `SKILL.md` entry point and `NOTICE.md` are OpenBot additions. To update it, copy the new upstream files, update the pinned commit in `catalog.json` and `NOTICE.md`, and increase `catalogVersion`.
+`bundles/pstack/` is an unchanged copy of the `skills/` and `agents/` of the pstack plugin by Lauren Tan from the pinned `cursor/plugins` commit, under the MIT License. It is a pack in `catalog.json`: the build publishes each folder of `skills/` as the Skill `pstack-<folder>`, with the pack's `LICENSE`, a `NOTICE.md` and, when the Skill names a subagent, `agents/`. In Markdown, the build renames links, `/<name>` commands and `<name>` mentions of other pstack Skills to `pstack-<name>`, removes `disable-model-invocation` so `$pstack-<name>` works with every provider, and adds a closing `pstack in OpenBot` section. Links to files that no Skill installs go to the pinned commit. The pstack Agent lists the pack with `"packs": ["pstack"]`. To update it, copy the new upstream `skills/` and `agents/`, update the pinned commit in `catalog.json` and `NOTICE.md`, and increase `catalogVersion`.
 
 ## Check Agent preview switching
 

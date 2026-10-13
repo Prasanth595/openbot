@@ -135,13 +135,15 @@
       "category": "other",
       "source": "openbot",
       "featured": false
-    },
+    }
+  ],
+  "packs": [
     {
       "slug": "pstack",
-      "category": "coding",
       "source": "cursor",
-      "upstreamSkill": "pstack",
-      "featured": false,
+      "upstreamPath": "pstack",
+      "aliasPrefixes": ["principle-"],
+      "category": "coding",
       "unlisted": true
     }
   ],
@@ -297,9 +299,10 @@
       "slug": "pstack",
       "name": "pstack",
       "title": "Goes deep first, then writes less and better code",
-      "description": "Runs poteto's pstack workflows: rigorous playbooks, engineering principles, deliberate subagents, and verified work. Start with /pstack.",
+      "description": "Runs poteto's pstack workflows: rigorous playbooks, engineering principles, deliberate subagents, and verified work. Start with $pstack-poteto-mode.",
       "avatarHue": 55,
-      "skills": ["pstack"],
+      "skills": [],
+      "packs": ["pstack"],
       "category": "coding"
     }
   ]

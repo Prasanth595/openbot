@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { dirname, join, parse, resolve } from "node:path";
+import { dirname, join, parse, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type AvatarHue, isAvatarHue, isSkillCategory, type SkillCategory } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
@@ -27,15 +27,33 @@ interface UpstreamSource {
 type UpstreamProvider = "openai" | "anthropic" | "cursor";
 
 /**
- * A `cursor` skill is a vendored multi-file bundle in `bundles/<slug>/`, published with its own
- * license and notice files. An unlisted skill is installed only through the agents that pin it.
+ * A vendored plugin in `bundles/<slug>/`. Each folder of its `skills/` is published as the skill
+ * `<slug>-<folder>`, with its references to other skills of the pack renamed, so `$<slug>-<folder>`
+ * calls it with any provider. `aliasPrefixes` lets the text name a skill without that prefix, as
+ * pstack names `principle-fix-root-causes` the **fix-root-causes** principle.
  */
+interface PackSpec {
+  slug: string;
+  source: UpstreamProvider;
+  upstreamPath: string;
+  aliasPrefixes: string[];
+  category: SkillCategory;
+  unlisted: boolean;
+}
+
+interface PackSkill {
+  spec: PackSpec;
+  folder: string;
+  folders: string[];
+}
+
+/** An unlisted skill is installed only through the agents that pin it. */
 type SkillSpec = {
   slug: string;
   category: SkillCategory;
   featured: boolean;
   unlisted: boolean;
-} & ({ source: "openbot" } | { source: UpstreamProvider; upstreamSkill: string });
+} & ({ source: "openbot" } | { source: UpstreamProvider; upstreamSkill: string; pack?: PackSkill });
 
 interface AgentSpec {
   category: SkillCategory;
@@ -99,10 +117,10 @@ export async function buildProductionCatalog(outputArgument?: string): Promise<s
 
     for (const skill of spec.skills) {
       const archive =
-        skill.source === "cursor"
-          ? await vendoredArchive(skill.slug)
+        skill.source !== "openbot" && skill.pack
+          ? await packArchive(skill.pack, spec.sources[skill.source])
           : await promptArchive(skill, skill.source === "openbot" ? openbotLicense : license, spec.sources);
-      const preview = inspectGeneratedArchive(archive, skill.source === "cursor");
+      const preview = inspectGeneratedArchive(archive, skill.source !== "openbot" && skill.pack !== undefined);
       if (preview.slug !== skill.slug) {
         throw new Error(`Skill folder ${skill.slug} does not match its SKILL.md name (${preview.slug}).`);
       }
@@ -196,19 +214,147 @@ async function promptArchive(skill: SkillSpec, license: string, sources: Catalog
   );
 }
 
-/** Every file of the vendored bundle, unchanged. Only the entry `SKILL.md` must stay dependency-free. */
-async function vendoredArchive(slug: string): Promise<Uint8Array> {
-  const root = join(sourceRoot, "bundles", slug);
-  const files = await listRelativeFiles(root);
-  if (!files.includes("LICENSE") || !files.includes("NOTICE.md")) {
-    throw new Error(`Vendored skill ${slug} must include LICENSE and NOTICE.md.`);
+/**
+ * One skill folder of a pack, with the pack's `LICENSE`, its `NOTICE.md` and, when the skill names
+ * one, the pack's subagent prompts in `agents/`. Markdown is renamed by `renamePackReferences`; other
+ * files are copied unchanged. The upstream text is not checked against `dependencyPattern`.
+ */
+async function packArchive(pack: PackSkill, upstream: UpstreamSource): Promise<Uint8Array> {
+  const root = join(sourceRoot, "bundles", pack.spec.slug);
+  const folder = join(root, "skills", pack.folder);
+  const sources = new Map<string, string>();
+  for (const file of await listRelativeFiles(folder)) sources.set(file, `skills/${pack.folder}/${file}`);
+  if (
+    ["LICENSE", "NOTICE.md"].some((file) => sources.has(file)) ||
+    [...sources.keys()].some((file) => file.startsWith("agents/"))
+  ) {
+    throw new Error(`Pack skill ${pack.spec.slug}/${pack.folder} must not have its own LICENSE, NOTICE.md or agents/.`);
   }
-  validateSkillMarkdown(slug, await readFile(join(root, "SKILL.md"), "utf8"));
-  const entries: Record<string, [Uint8Array, { mtime: Date }]> = {};
-  for (const file of files) {
-    entries[file] = [new Uint8Array(await readFile(join(root, file))), { mtime: zipTimestamp }];
+  const texts = new Map<string, string>();
+  for (const [file, source] of sources) {
+    if (file.endsWith(".md")) texts.set(file, await readFile(join(root, source), "utf8"));
+  }
+  const agents = (await pathExists(join(root, "agents"))) ? await listRelativeFiles(join(root, "agents")) : [];
+  const named = agents.filter((agent) =>
+    [...texts.values()].some((text) => text.includes(agent.replace(/\.md$/u, ""))),
+  );
+  for (const agent of named.length > 0 ? agents : []) {
+    sources.set(`agents/${agent}`, `agents/${agent}`);
+    texts.set(`agents/${agent}`, await readFile(join(root, "agents", agent), "utf8"));
+  }
+  if (!texts.get("SKILL.md")?.startsWith("---\n")) {
+    throw new Error(`${pack.spec.slug}/${pack.folder}/SKILL.md must start with YAML frontmatter.`);
+  }
+
+  const entries: Record<string, [Uint8Array, { mtime: Date }]> = {
+    LICENSE: [new Uint8Array(await readFile(join(root, "LICENSE"))), { mtime: zipTimestamp }],
+    "NOTICE.md": [
+      utf8Bytes(packNotice(await readFile(join(root, "NOTICE.md"), "utf8"), pack, upstream)),
+      { mtime: zipTimestamp },
+    ],
+  };
+  for (const [file, source] of sources) {
+    const text = texts.get(file);
+    const renamed = text === undefined ? undefined : renamePackReferences(text, source, file, pack, upstream);
+    const bytes =
+      renamed === undefined
+        ? new Uint8Array(await readFile(join(root, source)))
+        : utf8Bytes(
+            file === "SKILL.md" ? packSkillMarkdown(renamed, pack, named.length > 0, [...sources.keys()]) : renamed,
+          );
+    entries[file] = [bytes, { mtime: zipTimestamp }];
   }
   return zipSync(entries, { level: 9 });
+}
+
+/** Sets the prefixed name, lets the model load the skill, and adds how the pack is installed. */
+function packSkillMarkdown(markdown: string, pack: PackSkill, hasAgents: boolean, files: string[]): string {
+  const prefix = pack.spec.slug;
+  const end = markdown.indexOf("\n---", 3);
+  const frontmatter = markdown
+    .slice(0, end)
+    .split("\n")
+    .filter((line) => line.trim() !== "disable-model-invocation: true")
+    .map((line) => (line.startsWith("name:") ? `name: ${prefix}-${pack.folder}` : line))
+    .join("\n");
+  const aliases = pack.spec.aliasPrefixes.map(
+    (alias) => ` A ${alias.replace(/-$/u, "")} \`<name>\` is \`${prefix}-${alias}<name>\`.`,
+  );
+  const notes = [
+    `This skill is part of ${prefix}. OpenBot installs each ${prefix} skill as its own skill: the skill \`<name>\` is \`${prefix}-<name>\`.${aliases.join("")} Call a skill with \`$${prefix}-<name>\`.`,
+    ...(hasAgents
+      ? [
+          'For `subagent_type: "<agent>"`, when your harness does not know that type, start a general subagent. Give it the body of `agents/<agent>.md` first, then the task.',
+        ]
+      : []),
+    ...(files.some((file) => /(^|\/)scripts\//u.test(file))
+      ? ["Run a script with its interpreter, such as `node`, `bun` or `bash`. Installed files are not executable."]
+      : []),
+  ];
+  return `${frontmatter}${markdown.slice(end).trimEnd()}\n\n## ${prefix} in OpenBot\n\n${notes.map((note) => `- ${note}`).join("\n")}\n`;
+}
+
+/**
+ * Renames what the upstream text calls another skill of the pack: relative links, slash commands,
+ * `name` and **name** mentions, and `<upstreamPath>/skills/<name>/` paths. A link to a file that no
+ * pack skill installs goes to the pinned upstream commit instead.
+ */
+function renamePackReferences(
+  text: string,
+  source: string,
+  file: string,
+  pack: PackSkill,
+  upstream: UpstreamSource,
+): string {
+  const prefix = pack.spec.slug;
+  const names = [...pack.folders].sort((left, right) => right.length - left.length).map(escapeRegExp);
+  const aliases = new Map(
+    pack.folders.flatMap((folder) =>
+      pack.spec.aliasPrefixes
+        .filter((alias) => folder.startsWith(alias))
+        .map((alias) => [folder.slice(alias.length), folder] as const),
+    ),
+  );
+  const named = names.join("|");
+  const installedFile = posix.join(`${prefix}-${pack.folder}`, file);
+  return text
+    .replace(/\]\(([^)\s]+)\)/gu, (link, target: string) => {
+      if (/^(?:[a-z][a-z0-9+.-]*:|#|\/)/iu.test(target)) return link;
+      const [path = "", anchor] = target.split("#", 2);
+      const resolved = posix.normalize(posix.join(posix.dirname(source), path));
+      const installed = installedPackPath(resolved, pack);
+      const next = installed
+        ? posix.relative(posix.dirname(installedFile), installed)
+        : `${upstream.repository}/blob/${upstream.commit}/${pack.spec.upstreamPath}/${resolved}`;
+      return `](${next}${anchor === undefined ? "" : `#${anchor}`})`;
+    })
+    .replace(
+      new RegExp(`(?<![\\w.-])${escapeRegExp(pack.spec.upstreamPath)}/skills/(${named})/`, "gu"),
+      `.agents/skills/${prefix}-$1/`,
+    )
+    .replace(new RegExp(`(?<![\\w/.$-])/(${named})(?![\\w/-]|\\.\\w)`, "gu"), `$${prefix}-$1`)
+    .replace(new RegExp(`\`(${named})\``, "gu"), `\`${prefix}-$1\``)
+    .replace(new RegExp(`\\*\\*(${named})\\*\\*`, "gu"), `**${prefix}-$1**`)
+    .replace(
+      new RegExp(`\\*\\*(${[...aliases.keys()].map(escapeRegExp).join("|") || "(?!)"})\\*\\*`, "gu"),
+      (_match, alias: string) => `**${prefix}-${aliases.get(alias)}**`,
+    );
+}
+
+/** Where a bundle path is installed, relative to the skills folder, or null when no skill has it. */
+function installedPackPath(path: string, pack: PackSkill): string | null {
+  const [root, folder, ...rest] = path.split("/");
+  if (root === "skills" && folder && pack.folders.includes(folder))
+    return posix.join(`${pack.spec.slug}-${folder}`, ...rest);
+  return null;
+}
+
+function packNotice(notice: string, pack: PackSkill, upstream: UpstreamSource): string {
+  return `${notice.trimEnd()}\n\nThis skill is the \`${pack.folder}\` folder of that plugin at commit \`${upstream.commit}\`. OpenBot\npublishes it as \`${pack.spec.slug}-${pack.folder}\`. The changes are: names of other ${pack.spec.slug} skills in links, commands\nand mentions start with \`${pack.spec.slug}-\`, \`disable-model-invocation\` is removed, the \`${pack.spec.slug} in OpenBot\`\nsection is added to \`SKILL.md\`, and links to files outside the skills go to the upstream commit.\n`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function skillLicense(source: SkillSpec["source"]): BuiltSkill["license"] {
@@ -292,10 +438,12 @@ async function loadCatalogSpec(): Promise<CatalogSpec> {
     throw new Error("Production catalog metadata is invalid.");
   }
   const sources = parseSources(raw.sources);
-  if (!Array.isArray(raw.skills) || !Array.isArray(raw.agents)) {
-    throw new Error("Production catalog skills and agents must be arrays.");
+  if (!Array.isArray(raw.skills) || !Array.isArray(raw.agents) || !Array.isArray(raw.packs)) {
+    throw new Error("Production catalog skills, packs and agents must be arrays.");
   }
-  const skills = raw.skills.map(parseSkillSpec);
+  const packs = raw.packs.map(parsePackSpec);
+  const packSkills = (await Promise.all(packs.map(expandPack))).flat();
+  const skills = [...raw.skills.map(parseSkillSpec), ...packSkills];
   const duplicateSkill = skills.find((skill, index) => skills.findIndex((item) => item.slug === skill.slug) !== index);
   if (duplicateSkill) throw new Error(`Duplicate production skill slug: ${duplicateSkill.slug}.`);
   return {
@@ -303,8 +451,49 @@ async function loadCatalogSpec(): Promise<CatalogSpec> {
     catalogVersion: raw.catalogVersion,
     sources,
     skills,
-    agents: raw.agents.map(parseAgentSpec),
+    agents: raw.agents.map((agent) => parseAgentSpec(agent, packSkills)),
   };
+}
+
+function parsePackSpec(value: unknown): PackSpec {
+  if (
+    !isDynamicRecord(value) ||
+    !isString(value.slug) ||
+    !/^[a-z0-9][a-z0-9-]{0,31}$/u.test(value.slug) ||
+    (value.source !== "openai" && value.source !== "anthropic" && value.source !== "cursor") ||
+    !isString(value.upstreamPath) ||
+    !Array.isArray(value.aliasPrefixes) ||
+    !value.aliasPrefixes.every(isString) ||
+    !isSkillCategory(value.category) ||
+    (value.unlisted !== undefined && typeof value.unlisted !== "boolean")
+  ) {
+    throw new Error("Production catalog contains an invalid pack.");
+  }
+  return {
+    slug: value.slug,
+    source: value.source,
+    upstreamPath: value.upstreamPath,
+    aliasPrefixes: value.aliasPrefixes,
+    category: value.category,
+    unlisted: value.unlisted === true,
+  };
+}
+
+async function expandPack(spec: PackSpec): Promise<SkillSpec[]> {
+  const entries = await readdir(join(sourceRoot, "bundles", spec.slug, "skills"), { withFileTypes: true });
+  const folders = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  return folders.map((folder) => ({
+    slug: `${spec.slug}-${folder}`,
+    category: spec.category,
+    featured: false,
+    unlisted: spec.unlisted,
+    source: spec.source,
+    upstreamSkill: `${spec.upstreamPath}/skills/${folder}`,
+    pack: { spec, folder, folders },
+  }));
 }
 
 function parseSources(value: unknown): CatalogSpec["sources"] {
@@ -333,10 +522,7 @@ function parseSkillSpec(value: unknown): SkillSpec {
     !isDynamicRecord(value) ||
     !isString(value.slug) ||
     !isSkillCategory(value.category) ||
-    (value.source !== "openai" &&
-      value.source !== "anthropic" &&
-      value.source !== "cursor" &&
-      value.source !== "openbot") ||
+    (value.source !== "openai" && value.source !== "anthropic" && value.source !== "openbot") ||
     (value.source !== "openbot" && !isString(value.upstreamSkill)) ||
     (value.featured !== undefined && typeof value.featured !== "boolean") ||
     (value.unlisted !== undefined && typeof value.unlisted !== "boolean") ||
@@ -355,7 +541,8 @@ function parseSkillSpec(value: unknown): SkillSpec {
   return { ...base, source: value.source, upstreamSkill: value.upstreamSkill };
 }
 
-function parseAgentSpec(value: unknown): AgentSpec {
+/** `packs` adds every skill of each named pack after `skills`. */
+function parseAgentSpec(value: unknown, packSkills: SkillSpec[]): AgentSpec {
   if (
     !isDynamicRecord(value) ||
     !isString(value.slug) ||
@@ -367,10 +554,19 @@ function parseAgentSpec(value: unknown): AgentSpec {
     !isNumber(value.avatarHue) ||
     !isAvatarHue(value.avatarHue) ||
     !Array.isArray(value.skills) ||
-    !value.skills.every(isString)
+    !value.skills.every(isString) ||
+    (value.packs !== undefined && (!Array.isArray(value.packs) || !value.packs.every(isString)))
   ) {
     throw new Error("Production catalog contains an invalid agent.");
   }
+  const packs = Array.isArray(value.packs) ? value.packs.filter(isString) : [];
+  const fromPacks = packs.flatMap((pack) => {
+    const slugs = packSkills.flatMap((skill) =>
+      skill.source !== "openbot" && skill.pack?.spec.slug === pack ? [skill.slug] : [],
+    );
+    if (slugs.length === 0) throw new Error(`Agent ${value.slug} references unknown pack ${pack}.`);
+    return slugs;
+  });
   return {
     slug: value.slug,
     name: value.name,
@@ -379,7 +575,7 @@ function parseAgentSpec(value: unknown): AgentSpec {
     featured: value.featured === true,
     description: value.description,
     avatarHue: value.avatarHue,
-    skills: value.skills,
+    skills: [...value.skills, ...fromPacks],
   };
 }
 
@@ -392,10 +588,10 @@ function createUpstreamNotices(spec: CatalogSpec, skills: BuiltSkill[]): string 
     skill.source.provider === "openbot"
       ? `- **${skill.slug}** — original OpenBot team instructions; PolyForm Noncommercial 1.0.0.`
       : skill.source.provider === "cursor"
-        ? `- **${skill.slug}** — unchanged copy of [${skill.source.upstreamSkill}](${skill.source.url}) from cursor commit \`${skill.source.commit}\`; MIT.`
+        ? `- **${skill.slug}** — copy of [${skill.source.upstreamSkill}](${skill.source.url}) from cursor commit \`${skill.source.commit}\`, with pstack skill names prefixed; MIT.`
         : `- **${skill.slug}** — derivative of [${skill.source.upstreamSkill}](${skill.source.url}) from ${skill.source.provider} commit \`${skill.source.commit}\`.`,
   );
-  return `# Upstream Notices\n\nThis catalog contains original OpenBot team skills under PolyForm Noncommercial 1.0.0, derivatives from the pinned OpenAI and Anthropic repositories under Apache License 2.0, and an unchanged copy of the pinned Cursor pstack plugin under the MIT License. Each bundle includes its applicable license and notice.\n\n${entries.join("\n")}\n\nCatalog version: \`${spec.catalogVersion}\`\n`;
+  return `# Upstream Notices\n\nThis catalog contains original OpenBot team skills under PolyForm Noncommercial 1.0.0, derivatives from the pinned OpenAI and Anthropic repositories under Apache License 2.0, and the skills of the pinned Cursor pstack plugin, with their names prefixed, under the MIT License. Each bundle includes its applicable license and notice.\n\n${entries.join("\n")}\n\nCatalog version: \`${spec.catalogVersion}\`\n`;
 }
 
 function upstreamSkillUrl(skill: Extract<SkillSpec, { upstreamSkill: string }>, upstream: UpstreamSource): string {
