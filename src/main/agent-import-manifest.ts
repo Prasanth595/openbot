@@ -62,7 +62,7 @@ export function decodeImportManifest(
   bytes: Uint8Array,
   agentMemoryLimit: number,
   now: () => Date = () => new Date(),
-): { manifest: ImportManifest; warnings: string[]; channelWarnings: string[] } {
+): { manifest: ImportManifest; warnings: string[]; hasChannels: boolean } {
   let value: unknown;
   try {
     value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
@@ -95,7 +95,7 @@ export function decodeImportManifest(
     throw new Error(sourceText("error.import.tooManyChannels", { limit: AGENT_IMPORT_LIMITS.channels }));
   const channelKeys = new Set<string>();
   const channels: ImportChannel[] = [];
-  // Apart from the agent warnings: channels are deprecated, so the preview does not offer them.
+  // Channels are deprecated, so the preview does not offer them or show their warnings.
   const channelWarnings: string[] = [];
   for (const [index, item] of channelValues.entries()) {
     const channel = decodeChannel(item, index, keys, channelWarnings, now);
@@ -110,7 +110,7 @@ export function decodeImportManifest(
   return {
     manifest: { sourceApp, exportedAt, agents, channels },
     warnings: warnings.slice(0, AGENT_IMPORT_LIMITS.warnings),
-    channelWarnings: channelWarnings.slice(0, AGENT_IMPORT_LIMITS.warnings),
+    hasChannels: channelValues.length > 0,
   };
 }
 

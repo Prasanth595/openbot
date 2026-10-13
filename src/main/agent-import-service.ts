@@ -231,7 +231,7 @@ export class AgentImportService {
       return yield* archiveFailure(
         new Error(sourceText("error.import.manifestMissing", { manifest: AGENT_IMPORT_MANIFEST })),
       );
-    const { manifest, warnings, channelWarnings } = yield* archiveSync(() =>
+    const { manifest, warnings, hasChannels } = yield* archiveSync(() =>
       decodeImportManifest(
         extract(bytes, (name) => name === manifestName)[manifestName] ?? new Uint8Array(),
         this.agents.memoryLimit(),
@@ -296,11 +296,7 @@ export class AgentImportService {
       // about each of them. The host refuses a channel save, so an apply that still names one
       // reports it in `skippedChannels`.
       channels: [],
-      warnings: bounded(
-        manifest.channels.length > 0 || channelWarnings.length > 0
-          ? [...warnings, sourceText("error.backend.channelsRetired")]
-          : warnings,
-      ),
+      warnings: bounded(hasChannels ? [...warnings, sourceText("error.backend.channelsRetired")] : warnings),
     };
   });
 
