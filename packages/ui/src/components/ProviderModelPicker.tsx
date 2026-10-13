@@ -74,6 +74,8 @@ interface ProviderModelPickerProps {
   onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
   onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
   onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
+  /** A signed-out provider shows Connect only when this place has a way in. Without it, every one does. */
+  canConnectProvider?: (provider: AgentProviderId) => boolean;
   /** Endpoints the user named; served by OpenCode, separated out only by the picker. */
   customProviders?: readonly CustomProviderSummary[] | undefined;
   /** The user's own ACP agents; provider `acp`, drawn on the Custom tab with one group each. */
@@ -509,7 +511,9 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                   if (runtime()?.phase === "not-downloaded") return "Download" as const;
                   // No runtime snapshot here; signed-out/failed providers offer Connect if handled.
                   if (status().state === "sign-in-required" || status().state === "error") {
-                    return props.onConnectProvider ? ("Connect" as const) : undefined;
+                    return props.onConnectProvider && (props.canConnectProvider?.(status().id) ?? true)
+                      ? ("Connect" as const)
+                      : undefined;
                   }
                   return undefined;
                 };

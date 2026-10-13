@@ -63,7 +63,6 @@ import type { RemoteConnectionFailure, RemoteRecoveryStatus, RemoteTeamDirectory
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
-import type { MobileChannelStore } from "@/features/channels/model/channel-store";
 import type { MobileConversationStore } from "./conversation-store";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
 
@@ -173,11 +172,14 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<void>;
   editQueue: (agentId: string, serverId: string, input: QueueEditRequest) => Promise<QueueSnapshot>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
-  channelStore: MobileChannelStore;
-  /** Local host first, then remote servers in the order saved on this device. */
+  /** The default server first, then the other servers in the order saved on this device. */
   servers: MobileServer[];
-  /** Saves the order of remote server IDs on this device. Returns false and keeps the old order on failure. */
+  /** Saves the order of the other servers on this device. Returns false and keeps the old order on failure. */
   reorderServers: (serverIds: string[]) => boolean;
+  /** The one server above the divider. With no saved choice, the paired host. */
+  defaultServerId: string | null;
+  /** Makes a server the default in place of the current one, or removes it with `null`. Returns false on failure. */
+  setDefaultServer: (serverId: string | null) => boolean;
   teamDirectory: RemoteTeamDirectoryClient;
   serverDirectoryState: MobileServerDirectoryState;
   serverDirectoryError: string | null;
@@ -186,11 +188,6 @@ export interface MobileWorkspaceContextValue {
   activeAgents: MobileAgent[];
   hiddenAgents: MobileAgent[];
   pinnedAgentIds: string[];
-  pinnedChannelIds: string[];
-  hiddenChannelIds: string[];
-  hideChannel: (channelId: string, serverId: string) => boolean;
-  unhideChannel: (channelId: string, serverId: string) => boolean;
-  toggleChannelPin: (channelId: string, serverId: string) => ToggleAgentPinResult;
   conversationStore: MobileConversationStore;
   /** Activity, unread agents, and browser requests. Read them with a selector hook, not from the context. */
   liveState: LiveWorkspaceStore;
@@ -241,10 +238,10 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<AgentMemorySelectionState>;
   loadAgentMemories: (agentId: string, serverId: string) => Promise<AgentMemory[]>;
   loadAgentRoutines: (agentId: string, serverId: string) => Promise<Routine[]>;
-  /** Every routine of the server, of agents and channels, with its runs in the range. */
+  /** Every routine of the server's agents, with its runs in the range. */
   /**
-   * `owners` are the agents and channels whose routines to read, when the caller already knows them.
-   * Without it, the phone reads the agent and channel lists of the host first.
+   * `owners` are the agents whose routines to read, when the caller already knows them.
+   * Without it, the phone reads the agent list of the host first.
    */
   loadRoutineCalendar: (
     input: RoutineCalendarInput,

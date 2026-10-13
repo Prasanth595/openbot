@@ -2,7 +2,7 @@ import type { MenuComponentRef } from "@expo/ui/community/menu";
 import { Link } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { createContext, type PropsWithChildren, useContext, useRef, useState } from "react";
+import { type PropsWithChildren, useRef, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import Animated, {
   CurvedTransition,
@@ -37,22 +37,15 @@ const PINNED_EXIT = FadeOut.duration(140).easing(EASE_OUT).reduceMotion(ReduceMo
 const PINNED_COLUMNS = 4;
 const PINNED_PADDING_X = 12;
 
-// The Android menu sizes its child to the child's content, so a full-width label does not truncate.
-// The pinned content gets the column width instead. iOS keeps its flexible layout.
-const PinnedItemWidthContext = createContext<number | undefined>(undefined);
-
-/** The width of one pinned item on Android. */
-export function usePinnedItemWidth(): number | undefined {
-  return useContext(PinnedItemWidthContext);
-}
-
-export function PinnedAgentsGrid({ agents, children }: PropsWithChildren<{ agents: MobileAgent[] }>) {
+export function PinnedAgentsGrid({ agents }: { agents: MobileAgent[] }) {
   const { width: windowWidth } = useWindowDimensions();
   const [gridWidth, setGridWidth] = useState<number>();
+  // The Android menu sizes its child to the child's content, so a full-width label does not truncate.
+  // The pinned content gets the column width instead. iOS keeps its flexible layout.
   const itemWidth = isAndroid ? ((gridWidth ?? windowWidth) - PINNED_PADDING_X * 2) / PINNED_COLUMNS : undefined;
   return (
     <Animated.View layout={PINNED_LAYOUT}>
-      {agents.length > 0 || children ? (
+      {agents.length > 0 ? (
         <Animated.View exiting={PINNED_EXIT} style={{ width: "100%" }}>
           <View
             onLayout={isAndroid ? (event) => setGridWidth(event.nativeEvent.layout.width) : undefined}
@@ -64,12 +57,9 @@ export function PinnedAgentsGrid({ agents, children }: PropsWithChildren<{ agent
               paddingVertical: 22,
             }}
           >
-            <PinnedItemWidthContext.Provider value={itemWidth}>
-              {agents.map((agent) => (
-                <PinnedAgentItem key={agent.id} agent={agent} />
-              ))}
-              {children}
-            </PinnedItemWidthContext.Provider>
+            {agents.map((agent) => (
+              <PinnedAgentItem key={agent.id} agent={agent} itemWidth={itemWidth} />
+            ))}
           </View>
         </Animated.View>
       ) : null}
@@ -77,7 +67,7 @@ export function PinnedAgentsGrid({ agents, children }: PropsWithChildren<{ agent
   );
 }
 
-function PinnedAgentItem({ agent }: { agent: MobileAgent }) {
+function PinnedAgentItem({ agent, itemWidth }: { agent: MobileAgent; itemWidth: number | undefined }) {
   const { t } = useText();
   const [background, accent] = useThemeColor(["background", "accent"]);
   const agentContextMenu = useAgentContextMenu(agent);
@@ -85,7 +75,6 @@ function PinnedAgentItem({ agent }: { agent: MobileAgent }) {
   const menu = useRef<MenuComponentRef>(null);
   const isUnread = useAgentUnread(agent.id);
   const waitReason = useAgentWaitReason(agent.id);
-  const itemWidth = usePinnedItemWidth();
 
   const openLabel = agent.title.trim()
     ? t("mobile.agent.list.openPinnedWithTitle", { name: agent.name, title: agent.title.trim() })
@@ -160,7 +149,7 @@ function PinnedAgentItem({ agent }: { agent: MobileAgent }) {
   );
 }
 
-export function PinnedChatItem({ children }: PropsWithChildren) {
+function PinnedChatItem({ children }: PropsWithChildren) {
   return (
     <Animated.View
       entering={PINNED_ENTER}

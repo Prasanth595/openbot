@@ -140,7 +140,6 @@ export const messages = {
   "mobile.settings.privacy.retry": "Reintentar guardar el ajuste de privacidad",
   "mobile.settings.conversations.title": "Conversaciones",
   "mobile.settings.conversations.hiddenChats": "Chats ocultos",
-  "mobile.settings.conversations.deletedChannels": "Canales eliminados",
   "mobile.settings.profile.nameUnsafe": "Elimina los saltos de línea y los caracteres de control de tu nombre.",
   "mobile.settings.profile.nameLength": "Usa entre 3 y 20 caracteres para tu nombre visible.",
   "mobile.settings.profile.saveFailed": "No se pudieron guardar los cambios. Vuelve a intentarlo.",

@@ -62,6 +62,7 @@ export const messages = {
   "provider.action.signIn": "Войти",
   "provider.action.apiKey": "Ключ API",
   "provider.action.signInWithCode": "Войти по коду",
+  "provider.action.pasteAddress": "Вставить адрес",
   "provider.aria.download": "Скачать: {name}",
   "provider.aria.cancel": "Отменить: {name}",
   "provider.aria.connect": "Подключить: {name}",
@@ -108,6 +109,10 @@ export const messages = {
   "provider.codeLogin.relayStarting": "Запуск входа в {name} на {host}…",
   "provider.codeLogin.pageOpening": "Открываем страницу входа {name} на {host}…",
   "provider.codeLogin.linkStep": "Войдите в {name}. OpenBot продолжит сам.",
+  "provider.useApp.title": "Подключите {name} в приложении OpenBot",
+  "provider.useApp.description":
+    "Вход в {name} возвращается на компьютер, который его начал, а вкладка браузера не может его принять. Подключите {name} в приложении OpenBot. Приложение завершит вход само.",
+  "provider.useApp.download": "Скачать приложение",
 
   "provider.picker.noEndpoints": "Эндпоинтов пока нет",
   "provider.picker.customCounts": "{endpoints} · {agents}",

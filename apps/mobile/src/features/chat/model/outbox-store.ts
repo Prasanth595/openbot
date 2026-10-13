@@ -38,7 +38,7 @@ export interface OutboxDelivery {
   beforeStore: (repeatSafe: boolean) => Promise<void>;
 }
 
-export type OutboxDeliveryResult = { messageId: string } | { messageId: null; historyPending: boolean };
+export type OutboxDeliveryResult = { messageId: string };
 
 export type OutboxDeliverer = (message: OutboxMessage, delivery: OutboxDelivery) => Promise<OutboxDeliveryResult>;
 
@@ -236,7 +236,6 @@ export class OutboxStore {
       repeatSafe: false,
       state: "waiting",
       messageId: null,
-      historyPending: false,
       error: null,
       returned: false,
     };
@@ -463,16 +462,7 @@ export class OutboxStore {
       return;
     }
     this.finishUpload(clientMessageId);
-    if (result.messageId !== null) {
-      this.update(clientMessageId, { state: "sent", messageId: result.messageId });
-    } else if (result.historyPending) {
-      this.update(clientMessageId, { state: "sent", historyPending: true });
-    } else {
-      // A channel send waited for its history: the chat already draws the host's row.
-      this.messages = this.messages.filter((message) => message.clientMessageId !== clientMessageId);
-      this.publish();
-      void this.forget(clientMessageId);
-    }
+    this.update(clientMessageId, { state: "sent", messageId: result.messageId });
     void this.persist();
     this.pump();
   }

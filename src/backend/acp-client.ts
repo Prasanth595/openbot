@@ -108,6 +108,8 @@ interface AcpTurn {
   thought: string;
   thoughtStarted: boolean;
   receivedOutput: boolean;
+  /** The model sent reasoning text. An empty OpenCode turn then names reasoning without an answer. */
+  reasoned: boolean;
   /**
    * The partial reply and the harness error that cut it. It becomes the answer when no text comes
    * after the error, because then the harness did not retry.
@@ -1526,6 +1528,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       thought: "",
       thoughtStarted: false,
       receivedOutput: false,
+      reasoned: false,
       interruptedAnswer: null,
       providerError: null,
       sdkFailureAt: null,
@@ -1575,9 +1578,11 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           method: "openbot/usage",
           params: { threadId: thread.id, turnId: turn.id, usage: response.usage },
         });
-      // OpenCode can swallow provider errors and report a successful, empty ACP turn.
-      // Do not invent the upstream cause or report that turn as a successful reply. A turn told not
-      // to answer ends empty on purpose, and an error there costs no answer the user waits for.
+      // OpenCode reports a model reply with no text, or with reasoning only, as a successful empty
+      // turn and logs no error. OpenCode 1.18.31 failed the prompt on a rate limit and on a refused
+      // connection; other provider errors can still end here. Do not invent the upstream cause or
+      // report that turn as a successful reply. A turn told not to answer ends empty on purpose, and
+      // an error there costs no answer the user waits for.
       if (
         this.provider === "opencode" &&
         response.stopReason === "end_turn" &&
@@ -1588,7 +1593,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           thread,
           turn,
           "failed",
-          "OpenCode returned no response. Check the selected model's sign-in and billing in OpenCode, then retry or choose another model.",
+          sourceText(
+            turn.reasoned ? "error.provider.opencodeReasoningWithoutAnswer" : "error.provider.opencodeNoAnswer",
+          ),
         );
         return;
       }
@@ -1691,6 +1698,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       return;
     }
     if (update.sessionUpdate === "agent_thought_chunk" && update.content.type === "text") {
+      if (update.content.text.trim()) turn.reasoned = true;
       this.#appendThought(thread, turn, update.content.text);
       return;
     }

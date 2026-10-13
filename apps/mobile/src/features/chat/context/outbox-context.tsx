@@ -11,7 +11,6 @@ import {
 } from "react";
 import { reportMobileNotification } from "@/features/analytics/failure-reports";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
-import { ChannelSend } from "@/features/channels/model/channel-send";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileWorkspaceContextValue } from "@/features/workspace/model/workspace-types";
 import { currentText } from "@/shared/lib/text";
@@ -108,45 +107,24 @@ async function deliverOutboxMessage(
   delivery: OutboxDelivery,
 ): Promise<OutboxDeliveryResult> {
   const { target } = message;
-  const control = { cancelled: delivery.cancelled, progress: delivery.progress, fileProgress: delivery.fileProgress };
-  if (target.kind === "agent") {
-    const repeatSafe = workspace.canRetryMessage(target.serverId);
-    const messageId = await uploadChatAttachments(delivery.files, {
-      ...control,
-      upload: (file, onProgress) => workspace.uploadAttachment(target.agentId, file, target.serverId, onProgress),
-      discard: (id) => workspace.discardAttachment(target.agentId, id, target.serverId),
-      send: async (ids) => {
-        await delivery.beforeStore(repeatSafe);
-        return workspace.sendMessage(
-          target.agentId,
-          message.text,
-          ids,
-          message.replyToMessageId,
-          target.serverId,
-          repeatSafe ? message.clientMessageId : undefined,
-        );
-      },
-    });
-    return { messageId };
-  }
-  const sender = new ChannelSend(
-    workspace.channelStore,
-    target.serverId,
-    target.channelId,
-    () => message.clientMessageId,
-  );
-  try {
-    const receipt = await sender.send(
-      message.text,
-      delivery.files,
-      message.replyToMessageId,
-      // The member that the message names at its start, as the person saw the channel.
-      target.recipientAgentId ? [{ agentId: target.recipientAgentId }] : [],
-      // The host keeps the receipt of a channel operation with the channel, so a repeat is always safe.
-      { ...control, beforeCommand: () => delivery.beforeStore(true) },
-    );
-    return { messageId: null, historyPending: receipt !== null };
-  } finally {
-    sender.dispose();
-  }
+  const repeatSafe = workspace.canRetryMessage(target.serverId);
+  const messageId = await uploadChatAttachments(delivery.files, {
+    cancelled: delivery.cancelled,
+    progress: delivery.progress,
+    fileProgress: delivery.fileProgress,
+    upload: (file, onProgress) => workspace.uploadAttachment(target.agentId, file, target.serverId, onProgress),
+    discard: (id) => workspace.discardAttachment(target.agentId, id, target.serverId),
+    send: async (ids) => {
+      await delivery.beforeStore(repeatSafe);
+      return workspace.sendMessage(
+        target.agentId,
+        message.text,
+        ids,
+        message.replyToMessageId,
+        target.serverId,
+        repeatSafe ? message.clientMessageId : undefined,
+      );
+    },
+  });
+  return { messageId };
 }

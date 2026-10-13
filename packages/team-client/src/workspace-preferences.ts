@@ -5,8 +5,6 @@ import { remoteHostFingerprint } from "./remote-directory";
 const WorkspacePreferences = Schema.Struct({
   hidden: Schema.mutableKey(Schema.mutable(Schema.Array(Schema.String))),
   pinned: Schema.mutableKey(Schema.mutable(Schema.Array(Schema.String))),
-  pinnedChannels: Schema.mutableKey(Schema.optional(Schema.mutable(Schema.Array(Schema.String)))),
-  hiddenChannels: Schema.mutableKey(Schema.optional(Schema.mutable(Schema.Array(Schema.String)))),
 });
 export type RemoteWorkspacePreferences = typeof WorkspacePreferences.Type;
 const StoredPreferences = Schema.Struct({ version: Schema.Literal(1), ...WorkspacePreferences.fields });
@@ -39,12 +37,8 @@ export function createWorkspacePreferences(
         () => new WorkspacePreferencesError({ message: sourceText("error.remote.preferencesUnreadable") }),
       ),
     );
-    const preferences: RemoteWorkspacePreferences = {
-      hidden: value.hidden,
-      pinned: value.pinned,
-      ...(value.pinnedChannels ? { pinnedChannels: value.pinnedChannels } : {}),
-      ...(value.hiddenChannels ? { hiddenChannels: value.hiddenChannels } : {}),
-    };
+    // An older app also saved `pinnedChannels` and `hiddenChannels`. The decode drops them.
+    const preferences: RemoteWorkspacePreferences = { hidden: value.hidden, pinned: value.pinned };
     cache.set(hostId, preferences);
     return preferences;
   });

@@ -1,4 +1,4 @@
-import type { ChannelSummary, SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
+import type { SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { SIDEBAR_UNASSIGNED_SECTION_ID } from "@openbot/contracts/ipc";
 import type { MobileTranslate } from "@openbot/i18n/mobile";
 import { currentText } from "@/shared/lib/text";
@@ -7,20 +7,15 @@ import type { MobileAgent } from "./workspace-types";
 export type MobileSidebarItem =
   | { kind: "waiting"; id: string; count: number }
   | { kind: "section"; id: string; name: string; empty: boolean }
-  | { kind: "agent"; id: string; agent: MobileAgent }
-  | { kind: "channel"; id: string; channel: ChannelSummary };
+  | { kind: "agent"; id: string; agent: MobileAgent };
 
 export function mobileSidebarItems(
   layout: SidebarLayoutSnapshot | null,
   agents: MobileAgent[],
-  channels: ChannelSummary[],
   collapsedSectionIds: ReadonlySet<string> = new Set(),
   t: MobileTranslate = currentText().t,
 ): MobileSidebarItem[] {
-  const chats: MobileSidebarItem[] = [
-    ...channels.map((channel) => ({ kind: "channel" as const, id: channel.id, channel })),
-    ...agents.map((agent) => ({ kind: "agent" as const, id: agent.id, agent })),
-  ];
+  const chats: MobileSidebarItem[] = agents.map((agent) => ({ kind: "agent" as const, id: agent.id, agent }));
   if (!layout) return chats;
   const positions = new Map(layout.agentOrder.map((id, index) => [id, index]));
   chats.sort((a, b) => (positions.get(a.id) ?? positions.size) - (positions.get(b.id) ?? positions.size));

@@ -3,7 +3,7 @@
     "name": "OpenBot",
     "slug": "openbot",
     "platforms": ["ios", "android"],
-    "version": "1.3.0",
+    "version": "1.3.1",
     "orientation": "portrait",
     "icon": "./assets/icons/app-icon.png",
     "scheme": "openbot",
@@ -72,8 +72,9 @@
           "granularPermissions": ["photo"]
         }
       ],
+      "expo-notifications",
       [
-        "expo-notifications",
+        "./plugins/with-ios-notification-sounds",
         {
           "sounds": [
             "./assets/sounds/openbot-task.wav",

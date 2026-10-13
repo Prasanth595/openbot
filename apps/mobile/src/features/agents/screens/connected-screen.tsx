@@ -31,8 +31,6 @@ import { EmptyAgentsScene } from "@/features/agents/components/empty-agents-scen
 import { PinnedAgentsGrid } from "@/features/agents/components/pinned-agents-grid";
 import { SidebarSectionHeader } from "@/features/agents/components/sidebar-section-header";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
-import { ChannelListRow } from "@/features/channels/components/channel-list";
-import { useChannels } from "@/features/channels/components/use-channels";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
@@ -179,10 +177,8 @@ export function ConnectedScreen() {
     activeAgents,
     activeServer,
     hiddenAgents,
-    hiddenChannelIds,
     markAllRead,
     pinnedAgentIds,
-    pinnedChannelIds,
     refreshServers,
     serverDirectoryError,
     serverDirectoryState,
@@ -190,11 +186,6 @@ export function ConnectedScreen() {
   } = useMobileWorkspace();
   const [collapsedByServer, setCollapsedByServer] = useState<Record<string, ReadonlySet<string>>>({});
   const collapsedSectionIds = collapsedByServer[activeServer.id];
-  const channels = useChannels(activeServer.id);
-  const channelAgents = useMemo(
-    () => new Map(agents.filter((agent) => agent.serverId === activeServer.id).map((agent) => [agent.id, agent])),
-    [agents, activeServer.id],
-  );
   const [foreground, muted] = useThemeColor(["foreground", "muted"]);
   const iconColor = String(foreground);
   const mutedColor = String(muted);
@@ -212,17 +203,10 @@ export function ConnectedScreen() {
   const pinnedAgents = pinnedAgentIds
     .map((agentId) => activeAgents.find((agent) => agent.id === agentId))
     .filter((agent): agent is (typeof activeAgents)[number] => Boolean(agent));
-  const hasHiddenChats =
-    hiddenAgents.length > 0 ||
-    channels.channels.some((channel) => !channel.archived && hiddenChannelIds.includes(channel.id));
-  const pinnedChannels = channels.channels.filter(
-    (channel) => !channel.archived && !hiddenChannelIds.includes(channel.id) && pinnedChannelIds.includes(channel.id),
-  );
-  const hasPins = pinnedAgents.length + pinnedChannels.length > 0;
+  const hasHiddenChats = hiddenAgents.length > 0;
+  const hasPins = pinnedAgents.length > 0;
   const unreadAgentIds = useUnreadAgentIds();
-  const hasUnread =
-    channels.channels.some((channel) => channel.unreadCount > 0) ||
-    agents.some((agent) => agent.serverId === activeServer.id && unreadAgentIds.includes(agent.id));
+  const hasUnread = agents.some((agent) => agent.serverId === activeServer.id && unreadAgentIds.includes(agent.id));
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const canMarkAllRead = hasUnread && !markingAllRead && activeServer.state === "online";
   const markAllChatsRead = () => {
@@ -256,15 +240,11 @@ export function ConnectedScreen() {
       ...mobileSidebarItems(
         sidebar?.layout ?? null,
         unpinnedAgents.filter((agent) => !waitingAgentIds.has(agent.id)),
-        channels.channels.filter(
-          (channel) =>
-            !hiddenChannelIds.includes(channel.id) && !channel.archived && !pinnedChannelIds.includes(channel.id),
-        ),
         undefined,
         t,
       ),
     ],
-    [sidebar?.layout, unpinnedAgents, waitingAgentIds, channels.channels, hiddenChannelIds, pinnedChannelIds, t],
+    [sidebar?.layout, unpinnedAgents, waitingAgentIds, t],
   );
   const visibleSectionIds = items.filter((item) => item.kind === "section").map((item) => item.id);
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
@@ -319,12 +299,11 @@ export function ConnectedScreen() {
         subactions: [
           { id: "add-agent", title: t("mobile.agent.home.addAgent") },
           ...(sidebar?.layout ? [{ id: "add-section", title: t("mobile.agent.sectionForm.newTitle") }] : []),
-          ...(channels.supported ? [{ id: "add-channel", title: t("mobile.agent.home.newChannel") }] : []),
         ],
       },
       ...(chatActions.length > 0 ? [{ id: "chats", title: "", displayInline: true, subactions: chatActions }] : []),
     ];
-  }, [hasHiddenChats, hasSelectedServer, canMarkAllRead, channels.supported, sidebar?.layout, t]);
+  }, [hasHiddenChats, hasSelectedServer, canMarkAllRead, sidebar?.layout, t]);
 
   return (
     <View className="flex-1 bg-background">
@@ -377,16 +356,12 @@ export function ConnectedScreen() {
               </AgentListRowReveal>
             ) : (
               <TransitioningChatRow
-                chatId={item.kind === "agent" ? item.agent.id : item.channel.id}
+                chatId={item.agent.id}
                 index={index + (hasPins ? 1 : 0)}
                 reveal={listReveal}
                 collapsed={collapsedChatIds.has(item.id)}
               >
-                {item.kind === "channel" ? (
-                  <ChannelListRow channel={item.channel} serverId={activeServer.id} agents={channelAgents} />
-                ) : (
-                  <AgentListRow agent={item.agent} leftInset={15} rightInset={24} />
-                )}
+                <AgentListRow agent={item.agent} leftInset={15} rightInset={24} />
               </TransitioningChatRow>
             )
           }
@@ -403,19 +378,7 @@ export function ConnectedScreen() {
                   </Button>
                 </View>
               ) : null}
-              <PinnedAgentsGrid agents={pinnedAgents}>
-                {pinnedChannels.length
-                  ? pinnedChannels.map((channel) => (
-                      <ChannelListRow
-                        key={channel.id}
-                        channel={channel}
-                        serverId={activeServer.id}
-                        agents={channelAgents}
-                        pinned
-                      />
-                    ))
-                  : null}
-              </PinnedAgentsGrid>
+              <PinnedAgentsGrid agents={pinnedAgents} />
             </AgentListRowReveal>
           }
           ListEmptyComponent={
@@ -504,8 +467,6 @@ export function ConnectedScreen() {
                       if (event.nativeEvent.event === "add-section")
                         router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
                       if (event.nativeEvent.event === "add-agent") router.push("/add-agent");
-                      if (event.nativeEvent.event === "add-channel")
-                        router.push({ pathname: "/add-channel", params: { serverId: activeServer.id } });
                       if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
                       if (event.nativeEvent.event === "mark-all-read") markAllChatsRead();
                     }}
@@ -564,14 +525,6 @@ export function ConnectedScreen() {
                     onPress={() => openFromMenu({ pathname: "/section-form", params: { serverId: activeServer.id } })}
                   >
                     {t("mobile.agent.sectionForm.newTitle")}
-                  </Stack.Toolbar.MenuAction>
-                ) : null}
-                {channels.supported ? (
-                  <Stack.Toolbar.MenuAction
-                    icon="number"
-                    onPress={() => openFromMenu({ pathname: "/add-channel", params: { serverId: activeServer.id } })}
-                  >
-                    {t("mobile.agent.home.newChannel")}
                   </Stack.Toolbar.MenuAction>
                 ) : null}
               </Stack.Toolbar.Menu>
