@@ -141,16 +141,27 @@ export function routineRunToggleKey(marker: RoutineRunMarker | RoutineRunGroupMa
 
 /**
  * The messages of each routine run's turn, by run id. The routine delivery names the run and the
- * turn it started, so each message of that turn belongs to the run.
+ * turn it started, so each message of that turn belongs to the run. A turn that also runs another
+ * delivery, such as a message from a person, or a second run, keeps its messages in place: they
+ * do not belong to one run.
  */
 export function routineRunTurnMessages(
   stored: readonly AgentMessage[],
   drawn: readonly AgentMessage[],
 ): Map<string, AgentMessage[]> {
   const runByTurn = new Map<string, string>();
+  const sharedTurns = new Set<string>();
   for (const message of stored) {
-    if (message.routine && message.turnId) runByTurn.set(message.turnId, message.routine.runId);
+    if (!message.turnId) continue;
+    if (message.routine) {
+      const runId = runByTurn.get(message.turnId);
+      if (runId !== undefined && runId !== message.routine.runId) sharedTurns.add(message.turnId);
+      runByTurn.set(message.turnId, message.routine.runId);
+    } else if (message.author === "you") {
+      sharedTurns.add(message.turnId);
+    }
   }
+  for (const turnId of sharedTurns) runByTurn.delete(turnId);
   const turns = new Map<string, AgentMessage[]>();
   if (runByTurn.size === 0) return turns;
   for (const message of drawn) {
