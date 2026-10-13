@@ -10,6 +10,7 @@ import type { AgentProviderId, AgentSummary, ConversationMessage, ConversationSn
 import {
   hostedSiteConversationEventItemType,
   hostedSiteConversationEventText,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   routineConversationEventItemType,
   routineRunConversationEventItemType,
 } from "@openbot/contracts/ipc";
@@ -952,6 +953,14 @@ describe("OpenBotDatabase", () => {
           routineRunEvent("routine-run-event-1", "2026-08-29T10:04:00.000Z"),
           routineEvent("routine-event-3", "2026-08-29T10:05:00.000Z"),
           hostedSiteEvent("hosted-site-event-1", "2026-08-29T10:06:00.000Z"),
+          {
+            id: "quiet-answer-1",
+            author: "assistant",
+            text: "Nothing to report",
+            createdAt: "2026-08-29T10:07:00.000Z",
+            status: "completed",
+            itemType: ROUTINE_QUIET_ANSWER_ITEM_TYPE,
+          },
         ],
       },
       "conversation.routine-history",
@@ -961,6 +970,7 @@ describe("OpenBotDatabase", () => {
       excludeRoutineEvents: true,
       excludeRoutineRunEvents: true,
       excludeHostedSiteEvents: true,
+      excludeRoutineQuietAnswers: true,
     });
     expect(latest.messages.map((message) => message.id)).toEqual(["reply-new"]);
     expect(latest.pageInfo.hasOlder).toBe(true);
@@ -971,12 +981,19 @@ describe("OpenBotDatabase", () => {
       agent.threadId,
       { type: "before", cursor: latest.pageInfo.olderCursor },
       1,
-      { excludeRoutineEvents: true, excludeRoutineRunEvents: true, excludeHostedSiteEvents: true },
+      {
+        excludeRoutineEvents: true,
+        excludeRoutineRunEvents: true,
+        excludeHostedSiteEvents: true,
+        excludeRoutineQuietAnswers: true,
+      },
     );
     expect(older.messages.map((message) => message.id)).toEqual(["reply-old"]);
     expect(older.pageInfo.hasOlder).toBe(false);
     expect(database.searchConversationMessages("Morning brief", agent.id).total).toBe(0);
     expect(database.searchConversationMessages("Launch page", agent.id).total).toBe(0);
+    // A quiet routine answer is not news, and a Team API client never gets it.
+    expect(database.searchConversationMessages("Nothing to report", agent.id).total).toBe(0);
     database.close();
   });
 
