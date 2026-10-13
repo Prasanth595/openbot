@@ -29,7 +29,7 @@ export function accountIpcHandlers({ centralAuth, host }: AccountIpcDependencies
       updateName: payloadHandler(parseProfileName, (name) => runCauseEffect(centralAuth.updateName(name))),
       updateAvatar: payloadHandler(parseAvatarImage, (parsed) => runCauseEffect(centralAuth.updateAvatar(parsed))),
       createMobileConnect: handler(() => runCauseEffect(createHostedMobileConnect({ centralAuth, host }))),
-      cancelMobileConnect: handler(() => runCauseEffect(centralAuth.cancelMobileConnect())),
+      cancelMobileConnect: handler(() => runCauseEffect(centralAuth.cancelMobileConnect(host.getMobileConnectHost()))),
       getMobileConnectLink: handler(() => centralAuth.getMobileConnectLink(host.getMobileConnectHost())),
       createMobileConnectLink: handler(() => runCauseEffect(createHostedMobileConnectLink({ centralAuth, host }))),
       revokeMobileConnectLink: handler(() =>

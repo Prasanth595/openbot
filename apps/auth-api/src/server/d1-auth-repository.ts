@@ -512,16 +512,16 @@ export class D1AuthRepository implements AuthRepository {
   readonly cancelMobileAuthTickets = Effect.fn("D1AuthRepository.cancelMobileAuthTickets")(
     function* (
       this: D1AuthRepository,
-      input: { userId: string; serverId: string; now: number },
+      input: { userId: string; serverId: string; hostId: string; now: number },
     ): Effect.fn.Return<void, AuthStoreError, AuthDatabase> {
       const database = yield* AuthDatabase;
       yield* storeCall(() =>
         database
           .prepare(
             `UPDATE team_auth_tickets SET consumed_at = ?
-         WHERE user_id = ? AND server_id = ? AND consumed_at IS NULL`,
+         WHERE user_id = ? AND server_id = ? AND mobile_host_id = ? AND consumed_at IS NULL`,
           )
-          .bind(input.now, input.userId, input.serverId)
+          .bind(input.now, input.userId, input.serverId, input.hostId)
           .run(),
       );
     },
@@ -708,9 +708,7 @@ export class D1AuthRepository implements AuthRepository {
               `UPDATE auth_sessions SET revoked_at = ?
            WHERE user_id = ? AND revoked_at IS NULL
              AND id IN (
-               SELECT m.session_id FROM mobile_auth_sessions m
-               JOIN mobile_connect_links l ON l.link_hash = m.connect_link_hash
-               WHERE l.user_id = ? AND l.host_id = ?
+               SELECT session_id FROM mobile_auth_sessions WHERE user_id = ? AND connect_link_host_id = ?
              )`,
             )
             .bind(input.now, input.userId, input.userId, input.hostId),
@@ -775,7 +773,7 @@ export class D1AuthRepository implements AuthRepository {
               input.now,
               binding.device_public_key,
             ),
-          ...mobileSessionStatements(database, input, input.linkHash),
+          ...mobileSessionStatements(database, input, binding.host_id),
           database
             .prepare(
               `UPDATE mobile_connect_links SET last_used_at = ?, use_count = use_count + 1
@@ -849,7 +847,7 @@ export class D1AuthRepository implements AuthRepository {
           .prepare(
             `SELECT mobile_auth_sessions.session_id, mobile_auth_sessions.device_name,
                 mobile_auth_sessions.platform, auth_sessions.created_at, auth_sessions.last_used_at,
-                mobile_auth_sessions.connect_link_hash IS NOT NULL AS via_link
+                mobile_auth_sessions.connect_link_host_id IS NOT NULL AS via_link
          FROM mobile_auth_sessions
          JOIN auth_sessions ON auth_sessions.id = mobile_auth_sessions.session_id
          WHERE mobile_auth_sessions.user_id = ?
@@ -1001,17 +999,17 @@ export class D1AuthRepository implements AuthRepository {
 function mobileSessionStatements(
   database: D1Database,
   input: { now: number; session: { id: string }; device: MobileAuthDeviceIdentity },
-  linkHash: string | null,
+  linkHostId: string | null,
 ): D1PreparedStatement[] {
   return [
     database
       .prepare(
         `INSERT INTO mobile_auth_sessions(
-       session_id, user_id, device_id, device_name, platform, created_at, connect_link_hash
+       session_id, user_id, device_id, device_name, platform, created_at, connect_link_host_id
      )
      SELECT id, user_id, ?, ?, ?, ?, ? FROM auth_sessions WHERE id = ?`,
       )
-      .bind(input.device.id, input.device.name, input.device.platform, input.now, linkHash, input.session.id),
+      .bind(input.device.id, input.device.name, input.device.platform, input.now, linkHostId, input.session.id),
     database
       .prepare(
         `UPDATE auth_sessions SET revoked_at = ?

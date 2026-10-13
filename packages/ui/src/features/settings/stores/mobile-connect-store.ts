@@ -317,6 +317,7 @@ export function createSettingsMobileConnectStore(props: MobileConnectStoreProps,
     return (
       devices.find(
         (device) =>
+          device.via === "code" &&
           !baselineSessionIds.has(device.sessionId) &&
           (panels.devices.loaded || device.connectedAt >= startedAt - 5_000),
       ) ?? null
@@ -345,7 +346,10 @@ export function createSettingsMobileConnectStore(props: MobileConnectStoreProps,
     if (!revealed || revealedAt === null || successDeviceName) return null;
     return (
       devices.find(
-        (device) => !linkBaselineSessionIds.has(device.sessionId) && device.connectedAt >= revealedAt - 5_000,
+        (device) =>
+          device.via === "link" &&
+          !linkBaselineSessionIds.has(device.sessionId) &&
+          device.connectedAt >= revealedAt - 5_000,
       ) ?? null
     );
   }

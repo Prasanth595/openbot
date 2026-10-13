@@ -175,6 +175,8 @@ describe("persistent Mobile Connect links", () => {
         (await runApiEffect(service.listMobileAuthDevices(desktopToken))).map((device) => device.via).sort(),
       ).toEqual(["code", "link", "link", "link"]);
 
+      // A replaced link's row can go with the desktop session that made it. Its phones still go at revoke.
+      database.exec("DELETE FROM mobile_connect_links WHERE revoked_at IS NOT NULL");
       await runApiEffect(service.revokeMobileConnectLink(desktopToken, "host-a"));
       await runApiEffect(service.revokeMobileConnectLink(desktopToken, "host-a"));
       await expect(redeem(second.link)).resolves.toBeNull();
@@ -209,7 +211,14 @@ describe("persistent Mobile Connect links", () => {
       await expect(redeem(ticket.ticket)).resolves.toMatchObject({ user: { id: "owner" }, host });
       await expect(redeem(ticket.ticket)).resolves.toBeNull();
       const cancelled = await runApiEffect(service.issueMobileAuthTicket(desktopToken, "203.0.113.4", host));
-      await runApiEffect(service.cancelMobileAuthTickets(desktopToken));
+      // A cancel on another desktop of the account does not spend this desktop's code.
+      await runApiEffect(service.cancelMobileAuthTickets(desktopToken, "host-c"));
+      expect(
+        database.prepare("SELECT COUNT(*) AS live FROM team_auth_tickets WHERE consumed_at IS NULL").get(),
+      ).toEqual({
+        live: 1,
+      });
+      await runApiEffect(service.cancelMobileAuthTickets(desktopToken, "host-a"));
       await expect(redeem(cancelled.ticket)).resolves.toBeNull();
 
       const fourth = await createLink();

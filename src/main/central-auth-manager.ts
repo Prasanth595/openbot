@@ -351,10 +351,19 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     (operation) => this.#owned(operation),
   ).bind(this);
 
-  /** Spends the one-time code that is shown, so it cannot sign in a phone. */
+  /** Spends the one-time code that this host shows, so it cannot sign in a phone. */
   readonly cancelMobileConnect = Effect.fn("CentralAuth.cancelMobileConnect")(
-    function* (this: CentralAuthManager): Effect.fn.Return<void, CentralAuthOperationError, CentralAuthTransport> {
-      yield* this.#authorizedRequestEffect("/v1/mobile-auth/ticket", { method: "DELETE" }, () => undefined);
+    function* (
+      this: CentralAuthManager,
+      host: MobileConnectHostBinding | null,
+    ): Effect.fn.Return<void, CentralAuthOperationError, CentralAuthTransport> {
+      // A code is always bound to the host that showed it. With no host, no code of this desktop exists.
+      if (!host) return;
+      yield* this.#authorizedRequestEffect(
+        `/v1/mobile-auth/ticket?host=${encodeURIComponent(host.hostId)}`,
+        { method: "DELETE" },
+        () => undefined,
+      );
     },
     (operation) => this.#owned(operation),
   ).bind(this);

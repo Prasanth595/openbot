@@ -469,15 +469,24 @@ export class AuthService {
     (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
   ).bind(this);
 
-  /** Cancels the Mobile Connect code that the desktop shows. A new code also replaces it. */
+  /** Cancels the Mobile Connect code that one desktop host shows. A new code also replaces it. */
   readonly cancelMobileAuthTickets = Effect.fn("AuthService.cancelMobileAuthTickets")(
-    function* (this: AuthService, sessionToken: string): Effect.fn.Return<void, AuthWorkflowFailure, AuthDependencies> {
+    function* (
+      this: AuthService,
+      sessionToken: string,
+      hostId: string,
+    ): Effect.fn.Return<void, AuthWorkflowFailure, AuthDependencies> {
       const dependencies = yield* AuthDependencies;
+      if (!MOBILE_CONNECT_HOST_ID_PATTERN.test(hostId)) {
+        return yield* new AuthServiceError(400, "invalid_mobile_host", "The Mobile Connect host ID is invalid.");
+      }
       const user = yield* this.authenticateDesktopSession(sessionToken);
       if (!user) return yield* new AuthServiceError(401, "unauthorized", "The session is invalid.");
+      // Only this desktop's code: another desktop of the account can show a code at the same time.
       yield* dependencies.repository.cancelMobileAuthTickets({
         userId: user.id,
         serverId: MOBILE_CONNECT_SERVER_ID,
+        hostId,
         now: dependencies.now(),
       });
     },

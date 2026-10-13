@@ -263,10 +263,11 @@ export interface AuthRepository {
     createdAt: number;
     expiresAt: number;
   }): Effect.Effect<void, AuthStoreError>;
-  /** Spends every Mobile Connect ticket of the user that is not used yet. */
+  /** Spends the unused Mobile Connect tickets of the user for one desktop host. */
   cancelMobileAuthTickets(input: {
     userId: string;
     serverId: string;
+    hostId: string;
     now: number;
   }): Effect.Effect<void, AuthStoreError>;
   redeemTeamAuthTicket(input: {
