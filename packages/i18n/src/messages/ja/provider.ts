@@ -57,6 +57,8 @@ export const messages = {
   "provider.aria.cancelSignIn": "{name} のサインインをキャンセル",
   "provider.aria.apiKey": "{name} の API キー",
   "provider.connecting.browserHint": "ブラウザのページが開いたら、サインインを完了してください。",
+  "provider.connecting.cancelFailed":
+    "OpenBot は {name} のサインインをキャンセルできませんでした。もう一度お試しください。",
   "provider.aria.install": "{name} をインストール",
   "provider.aria.signIn": "{name} にサインイン",
   "provider.aria.codeFallback": "コードで {name} にログイン",

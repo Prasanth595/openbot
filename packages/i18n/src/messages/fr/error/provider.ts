@@ -247,6 +247,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "La connexion n’a pas abouti : {reason}",
   "error.provider.acpSignInMethodMissing":
     "Ce fournisseur ne propose pas cette connexion sur cet ordinateur. Mettez à jour le fournisseur, puis réessayez.",
+  "error.provider.httpsSignInLinkOnly": "Seuls les liens de connexion HTTPS peuvent s’ouvrir dans le navigateur.",
   "error.provider.geminiKeyRefused":
     "Gemini a refusé la clé d’API enregistrée. Remplacez ou supprimez la clé dans les Réglages, puis reconnectez-vous.",
   "error.provider.messageTooLarge": "OpenBot a arrêté {provider}, car il a envoyé un message de plus de {limit} Mo.",

@@ -232,6 +232,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "O processo de entrada não foi concluído: {reason}",
   "error.provider.acpSignInMethodMissing":
     "Este provedor não oferece esta forma de entrada neste computador. Atualize o provedor e tente novamente.",
+  "error.provider.httpsSignInLinkOnly": "Só links de entrada HTTPS podem abrir no navegador.",
   "error.provider.geminiKeyRefused":
     "O Gemini recusou a chave de API salva. Substitua ou remova a chave nos Ajustes e conecte novamente.",
   "error.provider.messageTooLarge": "O OpenBot interrompeu {provider} porque enviou uma mensagem maior que {limit} MB.",

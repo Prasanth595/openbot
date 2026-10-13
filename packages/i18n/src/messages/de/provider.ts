@@ -62,6 +62,7 @@ export const messages = {
   "provider.aria.cancelSignIn": "Anmeldung bei {name} abbrechen",
   "provider.aria.apiKey": "API-Schlüssel für {name}",
   "provider.connecting.browserHint": "Schließe die Anmeldung ab, wenn sich eine Browserseite öffnet.",
+  "provider.connecting.cancelFailed": "OpenBot konnte die Anmeldung bei {name} nicht abbrechen. Versuche es erneut.",
   "provider.aria.install": "{name} installieren",
   "provider.aria.signIn": "Bei {name} anmelden",
   "provider.aria.codeFallback": "Mit Code bei {name} anmelden",

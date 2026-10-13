@@ -1878,11 +1878,7 @@ export class ProviderRuntime implements ProviderPort {
             const account = response.account;
             if (!account)
               return yield* new ProviderOperationFailed({
-                cause: new ProviderSignInError({
-                  message:
-                    this.#customProviderSignInMessage(provider) ??
-                    sourceText("error.provider.noAuthenticatedAccount", { provider: providerLabel(provider) }),
-                }),
+                cause: new ProviderSignInError({ message: this.#noAccountMessage(provider) }),
               });
             yield* providerStep(() => driver.validateAccount(account));
             transferred = true;
@@ -1990,6 +1986,14 @@ export class ProviderRuntime implements ProviderPort {
         connectionState,
       }),
     });
+  }
+
+  /** What an account check that finds no account reports. */
+  #noAccountMessage(provider: AgentProvider): string {
+    return (
+      this.#customProviderSignInMessage(provider) ??
+      sourceText("error.provider.noAuthenticatedAccount", { provider: providerLabel(provider) })
+    );
   }
 
   /** What a provider with no account says, as the start reports it. */
@@ -2129,19 +2133,22 @@ export class ProviderRuntime implements ProviderPort {
         }).pipe(
           // A check that finds no account is an answer, not a failure: a removed key can leave a
           // provider signed out. The process that still runs on the old credential must stop.
-          Effect.catch((failure) =>
-            failure.cause instanceof ProviderSignInError
-              ? Effect.gen({ self: this }, function* () {
-                  yield* this.#stopProviderClient(provider);
-                  this.#setProviderConnectionFailure(
-                    provider,
-                    new ProviderSignInError({ message: this.#signInRequiredMessage(provider) }),
-                    cli?.version,
-                  );
-                  return this.status();
-                })
-              : Effect.fail(failure),
-          ),
+          // A sign-in error with its own reason, such as a refused key, keeps that reason.
+          Effect.catch((failure) => {
+            const cause = failure.cause;
+            if (!(cause instanceof ProviderSignInError)) return Effect.fail(failure);
+            return Effect.gen({ self: this }, function* () {
+              yield* this.#stopProviderClient(provider);
+              this.#setProviderConnectionFailure(
+                provider,
+                cause.message === this.#noAccountMessage(provider)
+                  ? new ProviderSignInError({ message: this.#signInRequiredMessage(provider) })
+                  : cause,
+                cli?.version,
+              );
+              return this.status();
+            });
+          }),
           Effect.tapError((failure) =>
             Effect.sync(() => this.#setProviderConnectionFailure(provider, failure.cause, cli?.version)),
           ),

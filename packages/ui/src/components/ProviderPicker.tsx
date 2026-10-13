@@ -719,7 +719,14 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           size="xs"
                           aria-label={t("provider.aria.cancelSignIn", { name: option().name })}
                           disabled={props.disabled}
-                          onClick={() => void props.onCancelProviderSignIn?.(option().id)}
+                          onClick={() => {
+                            setConnectError(null);
+                            void Promise.resolve(props.onCancelProviderSignIn?.(option().id)).catch((error: unknown) =>
+                              setConnectError(
+                                errorMessage(error, t("provider.connecting.cancelFailed", { name: option().name })),
+                              ),
+                            );
+                          }}
                         >
                           {t("common.cancel")}
                         </Button>

@@ -221,6 +221,7 @@ export const messages = defineMessages("error.provider", {
   "error.provider.acpSignInFailedReason": "The sign-in did not complete: {reason}",
   "error.provider.acpSignInMethodMissing":
     "This provider does not offer this sign-in on this computer. Update the provider, then try again.",
+  "error.provider.httpsSignInLinkOnly": "Only HTTPS sign-in links can open in the browser.",
   "error.provider.geminiKeyRefused":
     "Gemini refused the saved API key. Replace or remove the key in Settings, then connect again.",
   "error.provider.messageTooLarge": "OpenBot stopped {provider} because it sent a message larger than {limit} MB.",

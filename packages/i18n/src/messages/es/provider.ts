@@ -62,6 +62,7 @@ export const messages = {
   "provider.aria.cancelSignIn": "Cancelar el inicio de sesión en {name}",
   "provider.aria.apiKey": "Clave de API de {name}",
   "provider.connecting.browserHint": "Completa el inicio de sesión si se abre una página del navegador.",
+  "provider.connecting.cancelFailed": "OpenBot no pudo cancelar el inicio de sesión en {name}. Inténtalo de nuevo.",
   "provider.aria.install": "Instalar {name}",
   "provider.aria.signIn": "Iniciar sesión en {name}",
   "provider.aria.codeFallback": "Iniciar sesión en {name} con un código",

@@ -37,7 +37,7 @@ export function providerIpcHandlers({
         runCauseEffect(
           service.connectProvider(provider, async (value) => {
             const url = new URL(value);
-            if (url.protocol !== "https:") throw new Error("Only HTTPS sign-in links can open in the browser.");
+            if (url.protocol !== "https:") throw new Error(sourceText("error.provider.httpsSignInLinkOnly"));
             await shell.openExternal(url.toString());
           }),
         ),

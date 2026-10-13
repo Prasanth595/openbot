@@ -235,6 +235,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "El inicio de sesión no se completó: {reason}",
   "error.provider.acpSignInMethodMissing":
     "Este proveedor no ofrece este inicio de sesión en este ordenador. Actualiza el proveedor y vuelve a intentarlo.",
+  "error.provider.httpsSignInLinkOnly": "Solo se pueden abrir en el navegador enlaces de inicio de sesión HTTPS.",
   "error.provider.geminiKeyRefused":
     "Gemini rechazó la clave de API guardada. Reemplaza o elimina la clave en Ajustes y vuelve a conectar.",
   "error.provider.messageTooLarge": "OpenBot detuvo {provider} porque envió un mensaje de más de {limit} MB.",

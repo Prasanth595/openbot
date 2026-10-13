@@ -229,6 +229,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "Вход не завершён: {reason}",
   "error.provider.acpSignInMethodMissing":
     "Этот провайдер не предлагает такой вход на этом компьютере. Обновите провайдера и повторите попытку.",
+  "error.provider.httpsSignInLinkOnly": "В браузере можно открыть только ссылки для входа по HTTPS.",
   "error.provider.geminiKeyRefused":
     "Gemini отклонил сохранённый ключ API. Замените или удалите ключ в настройках, затем подключитесь снова.",
   "error.provider.messageTooLarge": "OpenBot остановил {provider}, потому что он отправил сообщение больше {limit} МБ.",

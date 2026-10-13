@@ -231,6 +231,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "Oturum açma tamamlanmadı: {reason}",
   "error.provider.acpSignInMethodMissing":
     "Bu sağlayıcı bu bilgisayarda bu oturum açma yöntemini sunmuyor. Sağlayıcıyı güncelleyin, ardından tekrar deneyin.",
+  "error.provider.httpsSignInLinkOnly": "Tarayıcıda yalnızca HTTPS oturum açma bağlantıları açılabilir.",
   "error.provider.geminiKeyRefused":
     "Gemini kayıtlı API anahtarını reddetti. Ayarlar'da anahtarı değiştirin veya kaldırın, ardından yeniden bağlanın.",
   "error.provider.messageTooLarge":

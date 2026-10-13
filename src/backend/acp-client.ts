@@ -372,6 +372,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       confine: options.confine,
       label: () => this.#label,
       redact: (text) => this.#redact(text),
+      privateDiagnostic: options.interactiveSignInPrompt,
       diagnostic: (message, origin) => {
         // The prompt carries OAuth state, so it is not a diagnostic. Only an explicit sign-in opens it.
         if (options.interactiveSignInPrompt?.test(message)) {

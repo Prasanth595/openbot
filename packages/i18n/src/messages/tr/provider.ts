@@ -56,6 +56,7 @@ export const messages = {
   "provider.aria.cancelSignIn": "{name} oturum açmasını iptal et",
   "provider.aria.apiKey": "{name} API anahtarı",
   "provider.connecting.browserHint": "Bir tarayıcı sayfası açılırsa oturum açmayı tamamlayın.",
+  "provider.connecting.cancelFailed": "OpenBot, {name} oturum açma işlemini iptal edemedi. Yeniden deneyin.",
   "provider.aria.install": "{name} sağlayıcısını yükle",
   "provider.aria.signIn": "{name} giriş yap",
   "provider.aria.codeFallback": "{name} için kod ile giriş yap",

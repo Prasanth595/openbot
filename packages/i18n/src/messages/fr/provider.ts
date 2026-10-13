@@ -66,6 +66,7 @@ export const messages = {
   "provider.aria.cancelSignIn": "Annuler la connexion à {name}",
   "provider.aria.apiKey": "Clé d’API {name}",
   "provider.connecting.browserHint": "Terminez la connexion si une page du navigateur s’ouvre.",
+  "provider.connecting.cancelFailed": "OpenBot n’a pas pu annuler la connexion à {name}. Réessayez.",
   "provider.aria.install": "Installer {name}",
   "provider.aria.signIn": "Se connecter à {name}",
   "provider.aria.codeFallback": "Se connecter à {name} avec un code",

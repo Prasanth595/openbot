@@ -229,6 +229,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "Logowanie nie zostało ukończone: {reason}",
   "error.provider.acpSignInMethodMissing":
     "Ten dostawca nie oferuje tego logowania na tym komputerze. Zaktualizuj dostawcę i spróbuj ponownie.",
+  "error.provider.httpsSignInLinkOnly": "W przeglądarce można otworzyć tylko linki logowania HTTPS.",
   "error.provider.geminiKeyRefused":
     "Gemini odrzucił zapisany klucz API. Zastąp lub usuń klucz w Ustawieniach, a następnie połącz ponownie.",
   "error.provider.messageTooLarge":

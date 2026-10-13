@@ -239,6 +239,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "Die Anmeldung wurde nicht abgeschlossen: {reason}",
   "error.provider.acpSignInMethodMissing":
     "Dieser Anbieter bietet diese Anmeldung auf diesem Computer nicht an. Aktualisiere den Anbieter und versuche es dann erneut.",
+  "error.provider.httpsSignInLinkOnly": "Im Browser können nur HTTPS-Anmeldelinks geöffnet werden.",
   "error.provider.geminiKeyRefused":
     "Gemini hat den gespeicherten API-Schlüssel abgelehnt. Ersetze oder entferne den Schlüssel in den Einstellungen und verbinde dich dann erneut.",
   "error.provider.messageTooLarge":

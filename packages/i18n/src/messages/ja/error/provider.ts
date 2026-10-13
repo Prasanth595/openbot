@@ -233,6 +233,7 @@ export const messages = {
   "error.provider.acpSignInFailedReason": "サインインが完了しませんでした: {reason}",
   "error.provider.acpSignInMethodMissing":
     "このプロバイダはこのコンピュータでこのサインイン方法を提供していません。プロバイダを更新してから、もう一度お試しください。",
+  "error.provider.httpsSignInLinkOnly": "ブラウザで開けるのは HTTPS のサインインリンクだけです。",
   "error.provider.geminiKeyRefused":
     "Gemini は保存された API キーを拒否しました。設定でキーを置き換えるか削除してから、もう一度接続してください。",
   "error.provider.messageTooLarge":

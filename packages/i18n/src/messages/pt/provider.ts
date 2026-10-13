@@ -53,6 +53,7 @@ export const messages = {
   "provider.aria.cancelSignIn": "Cancelar a entrada no {name}",
   "provider.aria.apiKey": "Chave de API do {name}",
   "provider.connecting.browserHint": "Conclua a entrada se uma página do navegador abrir.",
+  "provider.connecting.cancelFailed": "O OpenBot não conseguiu cancelar a entrada em {name}. Tente novamente.",
   "provider.aria.install": "Instalar {name}",
   "provider.aria.signIn": "Entrar em {name}",
   "provider.aria.codeFallback": "Entrar em {name} com um código",

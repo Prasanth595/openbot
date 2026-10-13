@@ -71,6 +71,7 @@ export const messages = {
   "provider.aria.cancelSignIn": "Anuluj logowanie do {name}",
   "provider.aria.apiKey": "Klucz API {name}",
   "provider.connecting.browserHint": "Dokończ logowanie, jeśli otworzy się strona w przeglądarce.",
+  "provider.connecting.cancelFailed": "OpenBot nie mógł anulować logowania do {name}. Spróbuj ponownie.",
   "provider.aria.install": "Zainstaluj {name}",
   "provider.aria.signIn": "Zaloguj się do: {name}",
   "provider.aria.codeFallback": "Zaloguj się do: {name} kodem",

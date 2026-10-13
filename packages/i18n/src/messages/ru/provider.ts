@@ -71,6 +71,7 @@ export const messages = {
   "provider.aria.cancelSignIn": "Отменить вход в {name}",
   "provider.aria.apiKey": "Ключ API {name}",
   "provider.connecting.browserHint": "Завершите вход, если откроется страница в браузере.",
+  "provider.connecting.cancelFailed": "OpenBot не удалось отменить вход в {name}. Попробуйте ещё раз.",
   "provider.aria.install": "Установить: {name}",
   "provider.aria.signIn": "Войти в {name}",
   "provider.aria.codeFallback": "Войти в {name} по коду",

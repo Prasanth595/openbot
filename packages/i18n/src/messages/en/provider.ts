@@ -62,6 +62,7 @@ export const messages = defineMessages("provider", {
   "provider.aria.cancelSignIn": "Cancel the {name} sign-in",
   "provider.aria.apiKey": "{name} API key",
   "provider.connecting.browserHint": "Finish the sign-in if a browser page opens.",
+  "provider.connecting.cancelFailed": "OpenBot could not cancel the {name} sign-in. Try again.",
   "provider.aria.install": "Install {name}",
   "provider.aria.signIn": "Sign in to {name}",
   "provider.aria.codeFallback": "Log in to {name} with a code",
