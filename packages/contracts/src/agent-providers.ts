@@ -61,13 +61,23 @@ export interface AgentProviderDescriptor {
   /** Left-to-right order in the model picker and top-to-bottom in the onboarding list. */
   readonly pickerOrder: number;
   /**
-   * Whether this provider can be signed in with a code typed on another device.
+   * The sign-in that this computer's driver runs when the browser callback cannot reach OpenBot.
+   * `device`: a device code or a link that the user finishes on any device. `paste`: a code that
+   * the user pastes back, which only a computer where `pasteCodeSignInSupported` can run. `null`:
+   * none. It mirrors the driver's `codeSignIn` in `src/backend/provider-drivers.ts`, and
+   * `provider-drivers.test.ts` keeps the two in step.
    *
    * Declared here rather than beside the backend's sign-in driver because the picker decides
    * whether to offer the second sign-in before it has asked main anything, and a capability the
    * renderer guesses at is a button that fails when it is pressed.
    */
-  readonly codeSignIn: boolean;
+  readonly localCodeSignIn: "device" | "paste" | null;
+  /**
+   * Where the provider's sign-in page ends. `callback`: the page sends the browser to an address on
+   * the computer that started it, so a browser tab elsewhere must paste that address back. `page`:
+   * the user finishes on the page and the provider sees it by itself, so any browser can run it.
+   */
+  readonly signInPageEnd: "callback" | "page";
   /**
    * The workspace skill folders the CLI reads by itself, in its own order. OpenBot writes only
    * `.agents/skills` and `.claude/skills`, so each list names at least one of them.
@@ -112,7 +122,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "chatgpt",
     pickerOrder: 1,
-    codeSignIn: true,
+    localCodeSignIn: "device",
+    signInPageEnd: "callback",
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "command-sandbox",
     steer: "native",
@@ -129,7 +140,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: "claude-",
     authKind: "claude",
     pickerOrder: 0,
-    codeSignIn: false,
+    localCodeSignIn: "paste",
+    signInPageEnd: "callback",
     skillFolders: [".claude/skills"],
     workspaceEnforcement: "tool-sandbox",
     steer: "native",
@@ -146,7 +158,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: "grok-",
     authKind: "grok",
     pickerOrder: 2,
-    codeSignIn: false,
+    localCodeSignIn: "device",
+    signInPageEnd: "callback",
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
@@ -165,7 +178,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "opencode",
     pickerOrder: 3,
-    codeSignIn: false,
+    localCodeSignIn: null,
+    signInPageEnd: "callback",
     skillFolders: [".opencode/skills", ".agents/skills", ".claude/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
@@ -184,7 +198,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "antigravity",
     pickerOrder: 4,
-    codeSignIn: false,
+    localCodeSignIn: null,
+    signInPageEnd: "callback",
     skillFolders: [".gemini/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
@@ -203,7 +218,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "cursor",
     pickerOrder: 5,
-    codeSignIn: false,
+    localCodeSignIn: "device",
+    signInPageEnd: "callback",
     skillFolders: [".cursor/skills", ".claude/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
@@ -222,7 +238,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "cline",
     pickerOrder: 6,
-    codeSignIn: false,
+    localCodeSignIn: "device",
+    signInPageEnd: "callback",
     skillFolders: [".cline/skills", ".clinerules/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
@@ -239,7 +256,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "pi",
     pickerOrder: 7,
-    codeSignIn: false,
+    localCodeSignIn: null,
+    signInPageEnd: "callback",
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "native",
@@ -256,7 +274,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "muse",
     pickerOrder: 8,
-    codeSignIn: false,
+    localCodeSignIn: "device",
+    signInPageEnd: "page",
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "native",
@@ -276,7 +295,8 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     legacyModelPrefix: null,
     authKind: "acp",
     pickerOrder: 7,
-    codeSignIn: false,
+    localCodeSignIn: null,
+    signInPageEnd: "callback",
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",

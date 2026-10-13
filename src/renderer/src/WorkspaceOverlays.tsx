@@ -330,13 +330,12 @@ function ServerSettings(props: {
     downloadProviderRuntime,
     startProviderUpdate,
     cancelProviderRuntimeDownload,
-    connectProvider,
     cancelProviderSignIn,
     openProviderInstallGuide,
     setProviderOn,
     restartProvider,
     cancelProviderRestart,
-    codeLogin,
+    connection,
     providerKeys,
     hostCustomProviders,
   } = useProviders();
@@ -514,13 +513,10 @@ function ServerSettings(props: {
       get providerKeys() {
         return providerRuntimeDownloadsAvailable() ? providerKeys() : undefined;
       },
-      get codeLogin() {
-        return providerRuntimeDownloadsAvailable() ? codeLogin : undefined;
+      get connection() {
+        return providerRuntimeDownloadsAvailable() ? connection : undefined;
       },
       // The browser sign-in, the install guide, the scan and custom agents are of this computer.
-      get onConnectProvider() {
-        return local && providerRuntimeDownloadsAvailable() ? connectProvider : undefined;
-      },
       get onCancelProviderSignIn() {
         return local && providerRuntimeDownloadsAvailable() ? cancelProviderSignIn : undefined;
       },

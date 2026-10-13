@@ -47,6 +47,7 @@ export const messages = {
   "provider.action.signIn": "Giriş yap",
   "provider.action.apiKey": "API anahtarı",
   "provider.action.signInWithCode": "Kod ile giriş yap",
+  "provider.action.pasteAddress": "Adresi yapıştır",
   "provider.aria.download": "{name} sağlayıcısını indir",
   "provider.aria.cancel": "{name} için işlemi iptal et",
   "provider.aria.connect": "{name} sağlayıcısına bağlan",
@@ -90,6 +91,10 @@ export const messages = {
   "provider.codeLogin.relayStarting": "{name} oturum açma işlemi {host} üzerinde başlatılıyor…",
   "provider.codeLogin.pageOpening": "{name} oturum açma sayfası {host} üzerinde açılıyor…",
   "provider.codeLogin.linkStep": "{name} hesabına giriş yapın. OpenBot kendiliğinden devam eder.",
+  "provider.useApp.title": "{name} bağlantısını OpenBot uygulamasında yapın",
+  "provider.useApp.description":
+    "{name} girişi onu başlatan bilgisayara döner ve bir tarayıcı sekmesi bunu alamaz. {name} bağlantısını OpenBot uygulamasında yapın. Uygulama girişi kendiliğinden tamamlar.",
+  "provider.useApp.download": "Uygulamayı indir",
 
   "provider.picker.noEndpoints": "Henüz uç nokta yok",
   "provider.picker.customCounts": "{endpoints} · {agents}",

@@ -47,20 +47,20 @@ export function createSetupNext(providers: SetupProviders) {
   });
 
   /**
-   * How the button connects `provider` now, or undefined when it cannot. This computer connects in
-   * its own browser. A host has no browser the user can see, so it signs in with a code, or with the
-   * OpenCode key; each opens a dialog, which is the feedback.
+   * How the button connects `provider` now, or undefined when it cannot: the row's Connect, else the
+   * OpenCode key. A browser sign-in reports in a toast; a dialog sign-in, such as a host's, is its
+   * own feedback.
    */
   function connectAction(provider: AgentProviderId): (() => void) | undefined {
     const source = providers.props;
-    if (source.onConnectProvider) {
+    const kind = source.connection?.connectKind(provider);
+    if (kind === "browser") {
       return () => {
         toast.info(t("onboarding.toast.connecting", { provider: selectedOption()?.name ?? provider }));
         void providers.connectProvider(provider);
       };
     }
-    const codeLogin = source.codeLogin;
-    if (codeLogin?.providers().includes(provider)) return () => codeLogin.start(provider);
+    if (kind === "dialog") return () => void providers.connectProvider(provider);
     if (provider === "opencode" && source.providerKeys) return () => providers.signInProvider(provider);
     return undefined;
   }

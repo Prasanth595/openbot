@@ -97,6 +97,10 @@ export const messages = {
   "diagram.routine.recent": "Son çalıştırmalar",
   "diagram.routine.runLabel": "{status}, {time}",
   "diagram.routine.manual": "Elle",
+  "diagram.flows.unsupported":
+    "Bu sunucu rutin akışlarını desteklemiyor. Sunucuyu çalıştıran bilgisayardaki OpenBot'u güncelleyin.",
+  "diagram.flows.webhookAdminOnly":
+    "Bir webhook rutinini yalnızca bu sunucunun sahibi veya yöneticisi değiştirebilir ya da çalıştırabilir.",
   "diagram.flows.loadFailed": "Bu ajanın rutinleri yüklenemedi.",
   "diagram.flows.saveFailed": "Rutinlerdeki bu değişiklik kaydedilemedi.",
   "diagram.flows.runFailed": "Bu rutin başlatılamadı.",

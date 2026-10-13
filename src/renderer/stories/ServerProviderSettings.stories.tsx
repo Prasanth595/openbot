@@ -16,9 +16,9 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { createProviderRuntimeStore } from "../src/features/provider-updates/provider-runtime-store";
 import { ServerSettingsModal } from "../src/features/servers/ServerSettingsModal";
 import { STORY_HOST_STATUS, STORY_INVITES, STORY_PRESENCE, STORY_SERVERS } from "../src/preview/fixtures";
-import { createFakeCodeLogin } from "./code-login-fixture";
 import { createStoryDetection, STORY_DETECTED_PROVIDERS } from "./detected-providers-fixture";
 import { createMockOpenBot } from "./mock-openbot";
+import { createFakeConnection } from "./provider-connection-fixture";
 
 const localServer = localStoryServer();
 
@@ -151,7 +151,8 @@ function ServerProvidersStory(props: {
     preferredModel: null,
   });
   const [open, setOpen] = createSignal(true);
-  const codeLogin = createFakeCodeLogin({ finishAfterMs: 0 });
+  const codeConnection = createFakeConnection({ browser: fn(), finishAfterMs: 0 });
+  const browserConnection = createFakeConnection({ browser: fn(), alternative: [] });
   const [customProviders, setCustomProviders] = createSignal<CustomProviderSummary[]>(
     props.customProviderList ? [...STORY_CUSTOM_PROVIDERS] : [],
   );
@@ -233,7 +234,11 @@ function ServerProvidersStory(props: {
                         ? openCodeInstalledAgentStatus
                         : providerAgentStatus;
                 },
-                codeLogin: props.codeSignIn ? codeLogin : undefined,
+                connection: props.codeSignIn
+                  ? codeConnection
+                  : props.providerDownloads || props.providerUpdate
+                    ? browserConnection
+                    : undefined,
                 get providerRuntimeStatuses() {
                   return props.providerUpdate
                     ? runtimes.providerRuntimeStatuses()
@@ -255,8 +260,6 @@ function ServerProvidersStory(props: {
                   : props.providerDownloads
                     ? fn()
                     : undefined,
-                onConnectProvider:
-                  props.providerDownloads || props.providerUpdate || props.codeSignIn ? fn() : undefined,
                 onAddCustomProvider: addCustomProvider,
                 onDeleteCustomProvider: deleteCustomProvider,
                 get customProviders() {

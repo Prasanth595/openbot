@@ -64,6 +64,10 @@ export const messages = {
   "error.team.contextResetUnsupported": "To połączenie nie obsługuje rozpoczynania nowego czatu.",
   "error.team.workspaceDirectoryUnsupported": "To połączenie nie obsługuje pokazywania folderów.",
   "error.team.conversationFileSearchUnsupported": "To połączenie nie obsługuje wyszukiwania plików.",
+  "error.team.routineFlowsUnsupported":
+    "Ten serwer nie obsługuje przepływów rutyn. Zaktualizuj OpenBot na komputerze, na którym działa.",
+  "error.team.routineCanvasTooLarge":
+    "Ta kanwa rutyn jest za duża, aby wysłać ją na to urządzenie. Skróć instrukcje rutyn na komputerze, na którym działa serwer.",
   "error.team.agentImportUnsupported": "To połączenie nie obsługuje importowania agentów.",
   "error.team.liveActivityUnsupported": "Ten host nie może aktualizować Live Activity telefonu.",
   "error.team.pushNotificationsUnsupported": "Ten host nie może wysyłać powiadomień na telefon.",

@@ -1,5 +1,10 @@
 import type { AgentProviderId, ProviderRuntimeStatus } from "@openbot/contracts/ipc";
-import { freeModelsReady, ProviderPicker, type ProviderPickerOption } from "@openbot/ui/components/ProviderPicker";
+import {
+  freeModelsReady,
+  type ProviderConnection,
+  ProviderPicker,
+  type ProviderPickerOption,
+} from "@openbot/ui/components/ProviderPicker";
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
@@ -29,6 +34,17 @@ function runtime(status: Partial<ProviderRuntimeStatus>): ProviderRuntimeStatus 
   return { phase: "ready", progress: null, message: null, version: "1.18.30", ...status };
 }
 
+/** A connection whose Connect is this computer's browser sign-in, and whose ⋯ menu offers nothing. */
+function browserConnection(overrides: Partial<ProviderConnection> = {}): ProviderConnection {
+  return {
+    connectKind: () => "browser",
+    alternativeKind: () => null,
+    connect: vi.fn(),
+    alternative: vi.fn(),
+    ...overrides,
+  };
+}
+
 function renderPicker(
   options: ProviderPickerOption[],
   onSignInProvider = vi.fn(),
@@ -42,7 +58,7 @@ function renderPicker(
       allowUnavailableSelection
       onChange={vi.fn()}
       onInstallProvider={vi.fn()}
-      onConnectProvider={onConnectProvider}
+      connection={onConnectProvider ? browserConnection({ connect: onConnectProvider }) : undefined}
       onSignInProvider={onSignInProvider}
     />
   ));
@@ -151,7 +167,12 @@ describe("ProviderPicker", () => {
   });
 
   it("offers the code sign-in on a connected row, and not while the runtime is still downloading", () => {
-    const onSignInWithCodeProvider = vi.fn();
+    const codeOnly = (providers: AgentProviderId[]): ProviderConnection => ({
+      connectKind: () => null,
+      alternativeKind: (id) => (providers.includes(id) ? "code" : null),
+      connect: vi.fn(),
+      alternative: vi.fn(),
+    });
     const codex: ProviderPickerOption = { id: "codex", name: "ChatGPT", state: "available", message: null };
     const menu = (option: ProviderPickerOption) =>
       render(() => (
@@ -162,7 +183,7 @@ describe("ProviderPicker", () => {
           allowUnavailableSelection
           onChange={vi.fn()}
           onSignInProvider={vi.fn()}
-          onSignInWithCodeProvider={onSignInWithCodeProvider}
+          connection={codeOnly(["codex"])}
         />
       )).queryByRole("button", { name: "More actions for ChatGPT" });
 
@@ -173,18 +194,17 @@ describe("ProviderPicker", () => {
     expect(
       menu({ ...codex, runtimeStatus: runtime({ phase: "downloading", progress: 40, version: null }) }),
     ).toBeNull();
-    // Claude has a code sign-in only where the host can take a pasted code.
-    const claudeMenu = (codeSignInProviders: AgentProviderId[] | undefined) =>
+    // Claude has a code sign-in only where the connection offers one.
+    const claudeMenu = (providers: AgentProviderId[] | undefined) =>
       render(() => (
         <ProviderPicker
           value="claude"
           options={[{ ...claude, state: "available" }]}
           ariaLabel="AI providers"
           allowUnavailableSelection
-          codeSignInProviders={codeSignInProviders}
           onChange={vi.fn()}
           onSignInProvider={vi.fn()}
-          onSignInWithCodeProvider={onSignInWithCodeProvider}
+          connection={providers ? codeOnly(providers) : undefined}
         />
       )).queryByRole("button", { name: "More actions for Claude" });
     expect(claudeMenu(undefined)).toBeNull();
@@ -195,7 +215,7 @@ describe("ProviderPicker", () => {
   it("suggests the code sign-in when the browser sign-in does not finish", async () => {
     vi.useFakeTimers();
     try {
-      const onSignInWithCodeProvider = vi.fn();
+      const onAlternative = vi.fn();
       const [connectionState, setConnectionState] = createSignal<"connecting" | undefined>(undefined);
       const onConnectProvider = vi.fn(() => {
         setConnectionState("connecting");
@@ -215,9 +235,12 @@ describe("ProviderPicker", () => {
           ariaLabel="AI providers"
           allowUnavailableSelection
           onChange={vi.fn()}
-          onConnectProvider={onConnectProvider}
+          connection={browserConnection({
+            connect: onConnectProvider,
+            alternativeKind: (id) => (id === "codex" ? "code" : null),
+            alternative: onAlternative,
+          })}
           onSignInProvider={vi.fn()}
-          onSignInWithCodeProvider={onSignInWithCodeProvider}
         />
       ));
       const hint = () => view.queryByRole("button", { name: "Log in to ChatGPT with a code" });
@@ -232,7 +255,7 @@ describe("ProviderPicker", () => {
       setConnectionState(undefined);
       await vi.advanceTimersByTimeAsync(0);
       await fireEvent.click(view.getByRole("button", { name: "Log in to ChatGPT with a code" }));
-      expect(onSignInWithCodeProvider).toHaveBeenCalledWith("codex");
+      expect(onAlternative).toHaveBeenCalledWith("codex");
     } finally {
       vi.useRealTimers();
     }
@@ -325,7 +348,7 @@ describe("ProviderPicker", () => {
         refreshingProviders
         onChange={vi.fn()}
         onDownloadProvider={onDownloadProvider}
-        onConnectProvider={vi.fn()}
+        connection={browserConnection()}
       />
     ));
 
