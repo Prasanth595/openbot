@@ -1,7 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { assert, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { attachment, emitAgentEvent, emitAttachmentImport, installOpenbotStub, testServer } from "./app-test-harness";
+import {
+  attachment,
+  emitAgentEvent,
+  emitAttachmentImport,
+  installOpenbotStub,
+  subscriberCounts,
+  testServer,
+} from "./app-test-harness";
 import { CHANNEL_SELECTION_STORAGE_KEY } from "./features/channels/channel-selection";
 import { AccountDock } from "./lazy-views";
 
@@ -909,4 +916,64 @@ it("keeps the working indicator while the coordinator chooses an owner", async (
   // The lead is the coordinator. Its routing turn holds the task and posts nothing until it
   // decides, so the indicator is the only sign that the request is alive.
   expect(await within(chat).findByRole("status", { name: /^Chief is working: / })).toBeInTheDocument();
+});
+
+// Synthetic desktop imports; this does not verify the Windows clipboard (#1934).
+it("does not multiply synthetic pasted images after ten channel switches", async () => {
+  let unmount: (() => void) | undefined;
+  await openSavedChannel((dispose) => {
+    unmount = dispose;
+  });
+  const command = vi.spyOn(window.openbot.agent, "channelCommand");
+  const counts = [subscriberCounts().attachmentImport];
+  for (let cycle = 0; cycle < 10; cycle++) {
+    await fireEvent.click(screen.getByRole("button", { name: /^Chief, Chief of staff/ }));
+    await screen.findByRole("textbox", { name: "Message Chief" });
+    await fireEvent.click(channelRow("Project room"));
+    await screen.findByRole("textbox", { name: "Message to channel" });
+    counts.push(subscriberCounts().attachmentImport);
+  }
+  function importImages(requestId: string, images: ReturnType<typeof attachment>[]) {
+    assert(emitAttachmentImport);
+    emitAttachmentImport({ type: "started", requestId, serverId: "local" });
+    emitAttachmentImport({ type: "completed", requestId, serverId: "local", attachments: images });
+  }
+  importImages("synthetic-one", [attachment("synthetic-one", "synthetic-screenshot.png", "image")]);
+  const images = await screen.findAllByRole("button", { name: "Remove synthetic-screenshot.png" });
+  expect(images).toHaveLength(1);
+  expect(counts).toEqual(Array.from({ length: 11 }, () => 1));
+
+  // Keep distinct images, including matching filenames, and a later intentional paste.
+  importImages("synthetic-distinct", [attachment("synthetic-two", "synthetic-screenshot.png", "image")]);
+  await waitFor(() =>
+    expect(screen.getAllByRole("button", { name: "Remove synthetic-screenshot.png" })).toHaveLength(2),
+  );
+  importImages("synthetic-repeat", [attachment("synthetic-three", "synthetic-screenshot.png", "image")]);
+  await waitFor(() =>
+    expect(screen.getAllByRole("button", { name: "Remove synthetic-screenshot.png" })).toHaveLength(3),
+  );
+
+  await fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+  await waitFor(() =>
+    expect(command).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "send",
+        attachmentDraftIds: ["synthetic-one", "synthetic-two", "synthetic-three"],
+      }),
+    ),
+  );
+
+  await fireEvent.click(screen.getByRole("button", { name: /^Chief, Chief of staff/ }));
+  const composer = await screen.findByRole("textbox", { name: "Message Chief" });
+  composer.textContent = "Keep this agent draft";
+  await fireEvent.input(composer);
+  importImages("synthetic-agent", [attachment("synthetic-agent", "synthetic-agent.png", "image")]);
+  await screen.findByRole("button", { name: "Remove synthetic-agent.png" });
+  expect(composer).toHaveTextContent("Keep this agent draft");
+  expect(window.openbot.agent.discardDraftAttachment).not.toHaveBeenCalled();
+  expect(subscriberCounts().attachmentImport).toBe(1);
+
+  assert(unmount);
+  unmount();
+  expect(subscriberCounts().attachmentImport).toBe(0);
 });
