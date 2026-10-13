@@ -36,12 +36,18 @@ export function limitLineLength(overflow: () => Error, limitBytes = PROVIDER_LIN
   let lineBytes = 0;
   return new Transform({
     transform(chunk: Buffer, _encoding, callback) {
-      const first = chunk.indexOf(NEWLINE);
-      // `ended` is the line that stops at the first newline. A line between two newlines of one chunk
-      // is shorter than the chunk, so it is not measured.
-      const ended = first < 0 ? 0 : lineBytes + first;
-      lineBytes = first < 0 ? lineBytes + chunk.length : chunk.length - chunk.lastIndexOf(NEWLINE) - 1;
-      if (Math.max(ended, lineBytes) > limitBytes) callback(overflow());
+      let start = 0;
+      for (let newline = chunk.indexOf(NEWLINE); newline >= 0; newline = chunk.indexOf(NEWLINE, start)) {
+        lineBytes += newline - start;
+        if (lineBytes > limitBytes) {
+          callback(overflow());
+          return;
+        }
+        lineBytes = 0;
+        start = newline + 1;
+      }
+      lineBytes += chunk.length - start;
+      if (lineBytes > limitBytes) callback(overflow());
       else callback(null, chunk);
     },
   });
