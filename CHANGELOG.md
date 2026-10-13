@@ -38,6 +38,7 @@ All notable changes to OpenBot will be documented here. The project follows
 - Agents look for a teammate earlier, when a task or part of it fits another agent's title and description. Before, they looked mostly after a failure. This helps when you have many agents.
 - A message from one agent to another now contains all that the other agent needs, without your other private details. When the answer comes back, the agent checks it and tells you which facts have a source.
 - For a repeated or timed request, such as "every morning", an agent creates a routine or offers one.
+- Server settings > Connectors shows the open connector in the header, for example "Connectors › GitHub". Select "Connectors" to go back to the list. The "All connectors" button is removed.
 
 ### Fixed
 
@@ -63,6 +64,7 @@ All notable changes to OpenBot will be documented here. The project follows
 - A Connect that fails in Settings, the model picker or the chat composer now shows why.
 - The Gemini row and other downloaded providers show "Update available" in Settings, as the update notification does.
 - On the first-run screen, the main button downloads the selected provider when it is not downloaded, and says Download.
+- The Server settings header no longer moves by 1 pixel when you open or close an MCP form.
 
 ## [0.38.1] - 2026-10-13
 
