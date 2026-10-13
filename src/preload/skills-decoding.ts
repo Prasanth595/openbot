@@ -23,6 +23,7 @@ import {
   isAgentTemplateSkill,
   isAvatarHue,
   isAvatarSeed,
+  isMarketplaceSkillIncludes,
   isRoutineSchedule,
   isSkillCategory,
   isSkillNote,
@@ -88,6 +89,9 @@ export function decodeSkillDetail(value: unknown): MarketplaceSkillDetail {
     instructions: requiredString(item, "instructions"),
     ...(isString(item.examplePrompt) && item.examplePrompt.trim().length <= 1000
       ? { examplePrompt: item.examplePrompt.trim() }
+      : {}),
+    ...(isMarketplaceSkillIncludes(item.includes)
+      ? { includes: item.includes.map(({ skillId, versionId }) => ({ skillId, versionId })) }
       : {}),
   };
 }

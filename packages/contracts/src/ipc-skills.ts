@@ -44,12 +44,19 @@ export interface MarketplaceSkillSummary {
   updatedAt: string;
 }
 
+/** An approved skill version that installs with the skill that includes it. */
+export interface MarketplaceSkillInclude {
+  skillId: string;
+  versionId: string;
+}
+
 export interface MarketplaceSkillDetail extends MarketplaceSkillSummary {
   versionId: string;
   bundleSha256: string;
   files: string[];
   instructions: string;
   examplePrompt?: string;
+  includes?: MarketplaceSkillInclude[];
 }
 
 export interface MarketplaceSkillPage {
@@ -258,10 +265,20 @@ function isMarketplaceSkillDetail(value: unknown): value is MarketplaceSkillDeta
     isString(value.instructions) &&
     (value.examplePrompt === undefined || (isString(value.examplePrompt) && value.examplePrompt.length <= 1_000)) &&
     Array.isArray(value.files) &&
-    value.files.every(isString)
+    value.files.every(isString) &&
+    (value.includes === undefined || isMarketplaceSkillIncludes(value.includes))
   );
 }
 
+export function isMarketplaceSkillIncludes(value: unknown): value is MarketplaceSkillInclude[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= INPUT_LIMITS.agentSkills &&
+    value.every((item) => isDynamicRecord(item) && isString(item.skillId) && isString(item.versionId))
+  );
+}
+
+import { INPUT_LIMITS } from "./input-limits";
 import { decodeRecord, requiredNumber, requiredString } from "./ipc-decoding";
 import { isBoolean, isDynamicRecord, isNumber, isOneOf, isString } from "./runtime-values";
 

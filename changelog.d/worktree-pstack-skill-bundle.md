@@ -1,8 +1,8 @@
 ### Added
 
-- Add the pstack Agent to the Marketplace. It installs the 52 skills of the pstack plugin by Lauren
-  Tan, each as its own skill named `pstack-<name>`. Type `$pstack-poteto-mode` or `$pstack-why` to
-  use one. The pstack skills do not show in Skills, because they come only with the Agent.
+- Add the pstack skill to the Marketplace. Install it on the agents you choose, and it adds all 52
+  skills of the pstack plugin by Lauren Tan, each as its own skill. Type `$pstack-poteto-mode`,
+  `$pstack-why` or another `$pstack-<name>` to use one. Removing pstack removes them all.
 
 ### Changed
 

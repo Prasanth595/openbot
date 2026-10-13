@@ -112,6 +112,7 @@ function detailMarketplace(bundle: Uint8Array): SkillMarketplace {
     bundle_key: "bundle",
     bundle_sha256: "hash",
     files_json: '["SKILL.md"]',
+    includes_json: "[]",
     icon_key: null,
     updated_at: 0,
     creator_name: "Author",

@@ -38,6 +38,7 @@ interface PublishedSkill {
   bundle: string;
   bundleSha256: string;
   files: string[];
+  includes: Array<{ skillId: string; versionId: string }>;
 }
 
 interface PublishedAgent {
@@ -71,7 +72,7 @@ export function createPublicationSql(publication: Publication, publishedAt: numb
     const bundleKey = remoteBundleKey(skill);
     statements.push(
       `INSERT INTO marketplace_skills(id, slug, owner_user_id, approved_version_id, installs, featured, unlisted, show_creator_avatar, created_at, updated_at) VALUES (${sql(skill.id)}, ${sql(skill.slug)}, ${sql(owner.id)}, NULL, 0, ${skill.featured ? 1 : 0}, ${skill.unlisted ? 1 : 0}, 1, ${publishedAt}, ${publishedAt}) ON CONFLICT(id) DO UPDATE SET slug = excluded.slug, owner_user_id = excluded.owner_user_id, unlisted = excluded.unlisted, show_creator_avatar = excluded.show_creator_avatar, updated_at = excluded.updated_at;`,
-      `INSERT INTO marketplace_skill_versions(id, skill_id, version, name, description, category, status, rejection_note, bundle_key, bundle_sha256, files_json, icon_key, created_at, reviewed_at) VALUES (${sql(skill.versionId)}, ${sql(skill.id)}, ${skill.version}, ${sql(skill.name)}, ${sql(skill.description)}, ${sql(skill.category)}, 'approved', NULL, ${sql(bundleKey)}, ${sql(skill.bundleSha256)}, ${sql(JSON.stringify(skill.files))}, ${sql(remoteIconKey(skill))}, ${publishedAt}, ${publishedAt}) ON CONFLICT(id) DO NOTHING;`,
+      `INSERT INTO marketplace_skill_versions(id, skill_id, version, name, description, category, status, rejection_note, bundle_key, bundle_sha256, files_json, includes_json, icon_key, created_at, reviewed_at) VALUES (${sql(skill.versionId)}, ${sql(skill.id)}, ${skill.version}, ${sql(skill.name)}, ${sql(skill.description)}, ${sql(skill.category)}, 'approved', NULL, ${sql(bundleKey)}, ${sql(skill.bundleSha256)}, ${sql(JSON.stringify(skill.files))}, ${sql(JSON.stringify(skill.includes))}, ${sql(remoteIconKey(skill))}, ${publishedAt}, ${publishedAt}) ON CONFLICT(id) DO NOTHING;`,
       /* The version row is immutable except for its artwork, which a release before the catalog
          carried icons left empty. Only that column is repaired here. */
       `UPDATE marketplace_skill_versions SET icon_key = ${sql(remoteIconKey(skill))} WHERE id = ${sql(skill.versionId)};`,
@@ -188,6 +189,10 @@ async function readPublication(root: string): Promise<Publication> {
   };
 }
 
+function isSkillPin(value: unknown): value is { skillId: string; versionId: string } {
+  return isDynamicRecord(value) && isString(value.skillId) && isString(value.versionId);
+}
+
 function parseSkill(value: unknown): PublishedSkill {
   if (
     !isDynamicRecord(value) ||
@@ -204,7 +209,9 @@ function parseSkill(value: unknown): PublishedSkill {
     !isString(value.icon) ||
     !isString(value.bundleSha256) ||
     !Array.isArray(value.files) ||
-    !value.files.every(isString)
+    !value.files.every(isString) ||
+    !Array.isArray(value.includes) ||
+    !value.includes.every(isSkillPin)
   ) {
     throw new Error("Generated production catalog contains an invalid skill.");
   }
@@ -222,6 +229,7 @@ function parseSkill(value: unknown): PublishedSkill {
     icon: value.icon,
     bundleSha256: value.bundleSha256,
     files: value.files,
+    includes: value.includes.map(({ skillId, versionId }) => ({ skillId, versionId })),
   };
 }
 
