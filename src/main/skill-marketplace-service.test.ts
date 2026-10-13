@@ -406,6 +406,27 @@ describe("SkillMarketplaceService", () => {
       for (const name of ["pack", "pack-a", "pack-b"])
         await expect(readFile(join(folder(provider, name), "SKILL.md"))).rejects.toThrow();
 
+    // A lock entry from before packs has no `folders`: its `skills/` stays inside its own folder.
+    const lockFile = join(agent.workspacePath, ".openbot", "skills-lock.json");
+    await install();
+    const lock = JSON.parse(await readFile(lockFile, "utf8"));
+    expect(lock.skills["pack-1"].folders).toEqual(["pack-a", "pack-b"]);
+    delete lock.skills["pack-1"].folders;
+    await writeFile(lockFile, JSON.stringify(lock));
+    for (const provider of [".agents", ".claude"] as const) {
+      await rm(folder(provider, "pack-a"), { recursive: true });
+      await rm(folder(provider, "pack-b"), { recursive: true });
+      await mkdir(join(folder(provider, "pack"), "skills", "pack-a", "references"), { recursive: true });
+      await mkdir(join(folder(provider, "pack"), "skills", "pack-b"), { recursive: true });
+      await writeFile(join(folder(provider, "pack"), "skills", "pack-a", "SKILL.md"), skill("pack-a"));
+      await writeFile(join(folder(provider, "pack"), "skills", "pack-a", "references", "notes.md"), "Notes");
+      await writeFile(join(folder(provider, "pack"), "skills", "pack-b", "SKILL.md"), skill("pack-b"));
+    }
+    await expect(runCauseEffect(service.listInstalled(agent.id))).resolves.toEqual([
+      expect.objectContaining({ skillId: "pack-1", state: "installed" }),
+    ]);
+    await runCauseEffect(service.uninstall({ agentId: agent.id, skillId: "pack-1" }));
+
     await install();
     await setEnabled(false);
     const keptFile = join(folder(".agents", "pack-a"), "SKILL.md");

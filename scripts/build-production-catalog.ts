@@ -508,6 +508,9 @@ async function packSkillSpec(spec: PackSpec): Promise<SkillSpec> {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+  // The app installs only a child whose folder name is a valid skill slug.
+  const invalid = folders.find((folder) => !/^[a-z0-9][a-z0-9-]{0,63}$/u.test(`${spec.slug}-${folder}`));
+  if (invalid) throw new Error(`Pack ${spec.slug} has a skill folder that is not a valid slug: ${invalid}.`);
   return {
     slug: spec.slug,
     category: spec.category,
