@@ -41,4 +41,20 @@ export const messages = defineMessages("error.import", {
   "error.import.hostBusy": "The server is reading other exports. Try again in a few minutes.",
   "error.import.skillKept":
     '{name}: the server already has the skill "{skill}", so the agent uses that skill. Ask an admin to update it.',
+  // Instance transfer between two OpenBot computers.
+  "error.import.transferNotFile": "This file is not an OpenBot transfer file.",
+  "error.import.transferNewer": "A newer version of OpenBot made this file. Update OpenBot and try again.",
+  "error.import.transferEmpty": "The file contains no agents and no settings.",
+  "error.import.transferTooLarge":
+    "A transfer file must be under 2 GB and 50,000 files. Turn off workspace files, or export fewer agents.",
+  "error.import.transferAgentInvalid": "Agent {number} in the file is invalid, so it is skipped.",
+  "error.import.transferSettingsInvalid": "The app settings in the file are invalid, so they are not imported.",
+  "error.import.transferModelMissing":
+    '{name}: the model "{model}" is not available here, so the agent uses the default model.',
+  "error.import.transferSettingSkipped": "{name} is not imported. {reason}",
+  "error.import.transferProviderKey": "{name}: enter its API key again in Settings.",
+  "error.import.transferAgentEnv": "{name}: enter the values of {names} again in Settings.",
+  "error.import.transferMcpValues": "{name}: enter the values of its variables and headers again in MCP settings.",
+  "error.import.transferSharedKept":
+    "{number} files in the Shared folder are already here, so they are kept as they are.",
 });

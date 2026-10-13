@@ -32,6 +32,7 @@ The architecture notes are in one file for each topic:
   - [Agent communication policy](architecture/agents.md#agent-communication-policy)
   - [Prompt-driven agent profiles](architecture/agents.md#prompt-driven-agent-profiles)
   - [Agent import](architecture/agents.md#agent-import)
+  - [Instance transfer](architecture/agents.md#instance-transfer)
   - [Agent templates](architecture/agents.md#agent-templates)
 - [Analytics](architecture/analytics.md)
   - [Mobile product analytics](architecture/analytics.md#mobile-product-analytics)

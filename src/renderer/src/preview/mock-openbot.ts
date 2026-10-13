@@ -88,6 +88,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { AGENT_IMPORT_PREVIEW, AGENT_IMPORT_SKILL } from "../../stories/agent-import-fixtures";
 import { filePreviewForPath } from "../../stories/file-previews";
+import { INSTANCE_TRANSFER_PREVIEW } from "../../stories/instance-transfer-fixtures";
 import { toggleChannelMember } from "../features/channels/channels-draft";
 import {
   STORY_AGENT_TEMPLATE_DETAIL,
@@ -2055,6 +2056,42 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       discard: async () => undefined,
       readSkill: async () => AGENT_IMPORT_SKILL,
       saveSkill: async () => ({ saved: true }),
+    },
+    instanceTransfer: {
+      summary: async () =>
+        clone({
+          agents: agents.map((agent, index) => ({
+            id: agent.id,
+            name: agent.name,
+            title: agent.title,
+            avatarSeed: agent.avatarSeed,
+            avatarHue: agent.avatarHue,
+            avatarUrl: agent.avatarUrl,
+            skillCount: index % 4,
+            routineCount: routines.get(agent.id)?.length ?? 0,
+            memoryCount: memories.get(agent.id)?.length ?? 0,
+            fileCount: index * 37,
+            fileBytes: index * 3_400_000,
+          })),
+        }),
+      export: async () => ({
+        saved: true,
+        fileName: `openbot-transfer-${new Date().toISOString().slice(0, 10)}.zip`,
+        warnings: [],
+      }),
+      showExport: async () => undefined,
+      choose: async () => clone(INSTANCE_TRANSFER_PREVIEW),
+      apply: async ({ token, keys }) => {
+        if (token !== INSTANCE_TRANSFER_PREVIEW.token)
+          throw new Error("The export is no longer open. Choose it again.");
+        const imported = INSTANCE_TRANSFER_PREVIEW.agents
+          .filter((agent) => keys.includes(agent.key))
+          .map((agent) => createAgentSummary({ name: agent.name, title: agent.title, description: agent.description }));
+        agents = [...agents, ...imported];
+        emitAgentEvent({ type: "agents-changed", agents });
+        return clone({ agents: imported, skipped: [], signIn: ["claude"], warnings: [] });
+      },
+      discard: async () => undefined,
     },
     remoteDesktop: mockTeam.remoteDesktop,
   };

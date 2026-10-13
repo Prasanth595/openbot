@@ -338,6 +338,52 @@ memory step fails is deleted. Step 1 offers two ways to add the export agent: it
 `agent-import:read-skill` and `agent-import:save-skill` give that skill from the app's resources
 (`extraResources` in `electron-builder.yml`); main opens the save dialog, so the renderer names no path. No schema change is needed.
 
+## Instance transfer
+
+Settings > Transfer moves this computer's agents and app settings to another OpenBot computer with
+one `.zip` file. It is a separate format from the Grok Bot agent import. The first screen asks which
+computer this is; the old computer exports, the new one imports. Only the local host has the tab:
+remote hosts, the web client and mobile do not.
+
+The file has `openbot-transfer.json` at its root, `agents/<key>/` folders (`avatar.<ext>`,
+`skills/<slug>/` and `workspace/`), and `shared/` for `~/OpenBot/Shared`. The manifest is
+`{ format: "openbot-instance-transfer", version: 1, source, agents, settings, shared, signedIn }`.
+`src/main/instance-transfer-manifest.ts` writes and reads it with Effect `Schema`; it is a contract
+between app versions, so add only optional fields and raise `version` for a change of meaning. A file
+with a higher `version` is refused. An invalid agent is left out with a warning and the others are
+offered; invalid settings are left out the same way.
+
+Each agent carries its profile (name, title, instructions, avatar seed and image), provider, model
+and reasoning effort, notifications and busy-message mode, its routines (schedule, limit and missed
+policies), its memories (with the essential or searchable choice the user made) and the skill folders
+in `.agents/skills` and `.claude/skills` that OpenBot does not manage. Workspace files are optional
+and leave out `.openbot/`, the skill folders, links, and every path `isUnsafeArchivePath` refuses
+(`.git`, `node_modules`, `.env*`, private keys, nested archives). Settings are optional: MCP servers,
+custom model providers, custom ACP agents, the default model, the providers that are off, language,
+logo colour, notification, busy-message and memory-limit preferences, sidebar sections and routine
+flows between exported agents.
+
+No secret is in the file: MCP variable and header values are empty, custom providers have no key or
+headers, custom agents keep only the names of their variables, and `signedIn` lists provider ids,
+never tokens. Chat history, messaging connections, connectors, team and account sessions, browser
+data, approval automation and the per-agent access, Computer Use and automation settings are not
+exported, so an imported agent gets the defaults of a new agent on the new computer. Shared tables
+(`Shared/Data/agent-data.db`) are left out because their owners are agent ids.
+
+`InstanceTransferService` (`src/main/instance-transfer-service.ts`) writes the archive one file at a
+time, stored and not compressed, to `<name>.zip.part`, and renames it when it is complete. Import uses
+the same checks as the agent import (`src/main/agent-archive.ts`): the file stays under a single-use
+token with its SHA-256, under 2 GB and 50,000 files. `apply` first adds the custom providers and
+custom agents that are missing, so an agent can keep a model on one of them, and turns providers on
+or off and saves the preferences and default model. Then it creates each selected agent through
+`AgentService` and the local skill library. Files go to the workspace root, and a name that is already
+there is saved beside it. An agent whose step fails is deleted with the skill revisions it published,
+and the others continue. A model that this computer does not offer, or whose provider is off, leaves
+the agent on the default model with a warning. Last, it adds MCP servers whose name is new, creates
+missing sidebar sections by name and assigns the new agents, connects routine flows with the new
+routine ids, and copies Shared files that are not already there. The result lists the providers that
+were signed in on the other computer and are not signed in here, each with a sign-in button.
+
 ## Agent templates
 
 An agent template is a link-only copy of one local agent: the name, title and instructions, the

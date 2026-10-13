@@ -163,7 +163,7 @@ function decodePreviewChannel(value: unknown): AgentImportPreviewChannel {
   };
 }
 
-function decodeSkipped(value: unknown, label: string): AgentImportSkipped[] {
+export function decodeAgentImportSkipped(value: unknown, label: string): AgentImportSkipped[] {
   if (!Array.isArray(value)) invalid("import result");
   return value.map((item): AgentImportSkipped => {
     const entry = record(item, label);
@@ -177,7 +177,7 @@ function decodeSkipped(value: unknown, label: string): AgentImportSkipped[] {
   });
 }
 
-function decodePreviewAgent(value: unknown): AgentImportPreviewAgent {
+export function decodeAgentImportPreviewAgent(value: unknown): AgentImportPreviewAgent {
   const agent = record(value, "imported agent");
   if (
     !isAgentImportKey(agent.key) ||
@@ -220,7 +220,7 @@ export function decodeAgentImportPreview(value: unknown): AgentImportPreview | n
     token: preview.token,
     sourceApp: preview.sourceApp,
     exportedAt: preview.exportedAt,
-    agents: preview.agents.map(decodePreviewAgent),
+    agents: preview.agents.map(decodeAgentImportPreviewAgent),
     channels: preview.channels.map(decodePreviewChannel),
     warnings: messages(preview.warnings, "import warnings"),
   };
@@ -237,9 +237,9 @@ export function decodeAgentImportResult(value: unknown): AgentImportResult {
   });
   return {
     agents: result.agents,
-    skipped: decodeSkipped(result.skipped, "skipped agent"),
+    skipped: decodeAgentImportSkipped(result.skipped, "skipped agent"),
     channels,
-    skippedChannels: decodeSkipped(result.skippedChannels, "skipped channel"),
+    skippedChannels: decodeAgentImportSkipped(result.skippedChannels, "skipped channel"),
     warnings: messages(result.warnings, "import warnings"),
   };
 }

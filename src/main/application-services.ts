@@ -138,6 +138,7 @@ import { HostedServerStartRetry } from "./hosted-server-start-retry";
 import { HostedSiteDesktopService } from "./hosted-site-service";
 import { IdleRestart } from "./idle-restart";
 import { loadIngressQueueKey } from "./ingress-queue-key";
+import { InstanceTransferService } from "./instance-transfer-service";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
 import { LogoColorService } from "./logo-color-service";
@@ -200,7 +201,7 @@ import {
   configureAttachmentProtocol,
   configureServerLogoProtocols,
 } from "./session-configuration";
-import { readSetupState } from "./setup-store";
+import { readSetupState, writeSetupState } from "./setup-store";
 import { SignInRelayClient } from "./sign-in-relay-client";
 import { agentPrintedLink, SignInRelayHost } from "./sign-in-relay-host";
 import { SignalIngress } from "./signal-ingress";
@@ -436,6 +437,7 @@ export interface ApplicationServices {
   marketplaceAgents: AgentMarketplaceService;
   agentTemplates: AgentTemplateService;
   agentImport: AgentImportService;
+  instanceTransfer: InstanceTransferService;
   voice: VoiceTranscriptionService;
   dynamicIsland: DynamicIslandWindowController;
   cuaDriver: CuaDriverRuntime;
@@ -1641,6 +1643,61 @@ export async function createApplicationServices({
     undefined,
     join(app.getPath("userData"), "agent-import-uploads"),
   );
+  // The same owners the Settings screens write through, so an import has their checks and restarts.
+  const instanceTransfer = new InstanceTransferService({
+    agents: service,
+    skills: { library: () => skills.requireLocalLibrary(), installLocal: (input) => skills.installLocal(input) },
+    sharedRoot: store.sharedRoot,
+    appVersion: app.getVersion(),
+    settings: {
+      mcpServers: () => service.listMcpServers(),
+      saveMcpServer: (config) => service.saveMcpServer({ config }),
+      customProviders: () => customProviderChanges.list(),
+      saveCustomProvider: (input) => customProviderChanges.save(input),
+      customAgents: () => customAgentChanges.list(),
+      saveCustomAgent: (input) => customAgentChanges.save(input),
+      defaults: () =>
+        readSetupState(setupFile).pipe(
+          Effect.map((state) =>
+            state.preferredProvider ? { provider: state.preferredProvider, model: state.preferredModel } : null,
+          ),
+        ),
+      saveDefaults: (provider, model) =>
+        writeSetupState(setupFile, { preferredProvider: provider, preferredModel: model }).pipe(
+          Effect.andThen(service.setPreferredProvider(provider, model)),
+        ),
+      providersOff: () => providerUse.off(),
+      setProviderOn: (provider, on) => service.setProviderOn(provider, on),
+      preferences: () => ({
+        language: language.preference.language,
+        logoColor: logoColor.preference.color,
+        ...notificationPreference.get(),
+        busyMessageMode: busyMessageMode.get().mode,
+        agentMemoryLimit: agentMemoryLimit.get().limit,
+      }),
+      savePreferences: (preferences) =>
+        Effect.all([
+          language.set({ language: preferences.language }),
+          logoColor.set({ color: preferences.logoColor }),
+          notificationPreference.set({
+            desktopNotifications: preferences.desktopNotifications,
+            messagePreview: preferences.messagePreview,
+          }),
+          busyMessageMode.set({ mode: preferences.busyMessageMode }),
+          agentMemoryLimit
+            .set({ limit: preferences.agentMemoryLimit })
+            .pipe(Effect.tap(() => Effect.sync(() => service.memoryLimitChanged()))),
+        ]),
+      sidebar: () => sidebarLayout.getSnapshot(),
+      mutateSidebar: (action) => sidebarLayout.mutate(action, service.sidebarChatIds()),
+      routineFlowLinks: (agentId) => routineFlowRuntime.canvas(agentId).pipe(Effect.map((canvas) => canvas.links)),
+      connectRoutineFlow: (input) => routineFlowRuntime.connect(input),
+      signedInProviders: () =>
+        (service.getStatus().providers ?? [])
+          .filter((provider) => provider.state === "available" && !provider.off)
+          .map((provider) => provider.id),
+    },
+  });
   const mcpHostSignIns = new McpHostSignIns({ service, browser });
   const providerSignIns = new ProviderHostSignIns({ service, browser });
   // The flows end with the sign-ins they relay, which `mcpHostSignIns` and `providerSignIns` close.
@@ -2341,6 +2398,7 @@ export async function createApplicationServices({
     marketplaceAgents,
     agentTemplates,
     agentImport,
+    instanceTransfer,
     voice,
     dynamicIsland,
     cuaDriver,

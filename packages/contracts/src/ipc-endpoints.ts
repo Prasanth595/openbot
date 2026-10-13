@@ -225,6 +225,14 @@ import type {
   ReplaceHostedSiteInput,
 } from "./ipc-hosted-sites";
 import type {
+  ApplyInstanceTransferInput,
+  ExportInstanceInput,
+  InstanceExportResult,
+  InstanceTransferPreview,
+  InstanceTransferResult,
+  InstanceTransferSummary,
+} from "./ipc-instance-transfer";
+import type {
   AgentPublicationPreview,
   AgentSubmission,
   InstallMarketplaceAgentInput,
@@ -1224,6 +1232,16 @@ export const IPC_ENDPOINTS = {
     readSkill: request<undefined, string>()("agent-import:read-skill"),
     saveSkill: request<undefined, ExportResult>()("agent-import:save-skill"),
   },
+  // Bound against the instance transfer service: this computer's agents and app settings in one file
+  // for another OpenBot computer. Local only, and main opens both file dialogs.
+  instanceTransfer: {
+    summary: request<undefined, InstanceTransferSummary>()("instance-transfer:summary"),
+    export: request<ExportInstanceInput, InstanceExportResult>()("instance-transfer:export"),
+    showExport: request<undefined, void>()("instance-transfer:show-export"),
+    choose: request<undefined, InstanceTransferPreview | null>()("instance-transfer:choose"),
+    apply: request<ApplyInstanceTransferInput, InstanceTransferResult>()("instance-transfer:apply"),
+    discard: request<string, void>()("instance-transfer:discard"),
+  },
   // The plugin deep link, its own group because its registrar holds the pending link rather than a
   // service. `takePendingListing` is what a window that finished loading after the link arrived
   // asks for; `openListing` is the same slug pushed to a window that was already there.
@@ -1333,6 +1351,7 @@ export const IPC_GROUP_PATHS = {
   mcpServers: "agent",
   storage: "storage",
   agentImport: "agentImport",
+  instanceTransfer: "instanceTransfer",
   plugins: "plugins",
   host: "host",
   events: "events",

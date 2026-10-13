@@ -36,6 +36,7 @@
 @import "@openbot/ui/styles/chart.css";
 @import "@openbot/ui/features/files/files.css";
 @import "@openbot/ui/features/import/agent-import.css";
+@import "@openbot/ui/features/transfer/instance-transfer.css";
 @import "./features/settings/settings-modal.css";
 @import "./features/settings/opencode-key-dialog.css";
 @import "./features/settings/settings-mobile-connect.css";

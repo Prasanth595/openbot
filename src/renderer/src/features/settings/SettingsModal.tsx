@@ -30,8 +30,10 @@ import { voiceSupported } from "../conversation/voice-status";
 import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
+import { SettingsTransferTab } from "./SettingsTransferTab";
 import { SettingsVoiceTab } from "./SettingsVoiceTab";
 import { navItem, navItems, type SettingsTab } from "./settings-tabs";
+import { createSettingsTransferStore } from "./settings-transfer-store";
 import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
@@ -99,6 +101,7 @@ export function SettingsModal(props: SettingsModalProps) {
   );
   const hostedServers = createSettingsHostedServersStore(props, () => activeTab() === "billing");
   const voice = createSettingsVoiceStore(() => props.open && activeTab() === "voice");
+  const transfer = createSettingsTransferStore(() => props.open && activeTab() === "transfer");
   let handledHostedServerDeleteNonce = 0;
   createEffect(
     () => (props.open ? props.hostedServerDeleteRequest : null),
@@ -147,7 +150,8 @@ export function SettingsModal(props: SettingsModalProps) {
         value === "profile" ||
         value === "billing" ||
         value === "mobile-connect" ||
-        value === "updates"
+        value === "updates" ||
+        value === "transfer"
       ) {
         setActiveTab(value);
       }
@@ -276,6 +280,10 @@ export function SettingsModal(props: SettingsModalProps) {
             onUpdateSetting={updateSetting}
             selectMount={modalElement}
           />
+        </Tabs.Content>
+
+        <Tabs.Content value="transfer" class="settings-modal-tab-panel" data-tab="transfer">
+          <SettingsTransferTab store={transfer} />
         </Tabs.Content>
       </SettingsDialogShell>
     </Tabs.Root>
