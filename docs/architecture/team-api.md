@@ -61,7 +61,8 @@ with no host and no marker is still a legacy QR session and is revoked. The deve
 list keeps both email routes on loopback, because a development code follows from its challenge ID.
 Desktop invitation QR codes contain the same one-use link as Copy link. The signed-in mobile
 scanner validates that link and opens the invitation review before acceptance. These codes join
-one server; Mobile Connect codes sign in to the desktop account and select the paired host.
+one server; Mobile Connect codes sign in to the desktop account. Mobile keeps the paired host as the
+default server above the drawer divider until the user changes it, and opens on the first server.
 Both clients read account-wide membership from D1's indexed `remote_memberships` / `remote_hosts`
 join. An offline paired desktop does not remove other memberships, and mobile connects directly
 to each host independently. A cold launch refreshes the account directory. Both clients check again

@@ -400,6 +400,8 @@ it("instruments message commands without sending their contents or changing the 
     removeServer: unexpected,
     refreshServers: unexpected,
     reorderServers: () => false,
+    defaultServerId: null,
+    setDefaultServer: () => false,
     refreshServer: unexpected,
     hostedServerStarting: () => {},
     canEditServerIdentity: () => false,

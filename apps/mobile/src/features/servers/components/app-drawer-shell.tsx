@@ -47,7 +47,8 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const insets = useSafeAreaInsets();
   const { session } = useMobileSession();
   const { t } = useText();
-  const { activeServer, reorderServers, selectServer, servers } = useMobileWorkspace();
+  const { activeServer, setDefaultServer, defaultServerId, reorderServers, selectServer, servers } =
+    useMobileWorkspace();
   const [muted] = useThemeColor(["muted"]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerProgress = useSharedValue(0);
@@ -209,11 +210,13 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
               listTopInset={drawerListTopInset}
               muted={muted}
               open={drawerOpen}
+              defaultServerId={defaultServerId}
               servers={servers}
               session={session}
               sideInset={drawerSideInset}
               topInset={insets.top}
               onNavigate={navigateAfterClosing}
+              onSetDefault={setDefaultServer}
               onReorder={reorderServers}
               onSelectServer={(serverId) => {
                 selectServer(serverId);
