@@ -25,7 +25,6 @@ describe("production catalog publication", () => {
       skills: [
         {
           featured: true,
-          unlisted: false,
           id: "openbot-curated-skill-example",
           versionId: "openbot-curated-version-example-v1-deadbeefdeadbeef",
           slug: "example",
@@ -37,7 +36,6 @@ describe("production catalog publication", () => {
           icon: "skills/example.icon.svg",
           bundleSha256: "a".repeat(64),
           files: ["LICENSE.txt", "NOTICE.txt", "SKILL.md"],
-          includes: [],
         },
       ],
       agents: [
@@ -115,14 +113,14 @@ CREATE TABLE users (
 );
 CREATE TABLE marketplace_skills (
   id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, owner_user_id TEXT NOT NULL REFERENCES users(id),
-  approved_version_id TEXT, installs INTEGER NOT NULL DEFAULT 0, featured INTEGER NOT NULL DEFAULT 0, unlisted INTEGER NOT NULL DEFAULT 0, show_creator_avatar INTEGER NOT NULL DEFAULT 0,
+  approved_version_id TEXT, installs INTEGER NOT NULL DEFAULT 0, featured INTEGER NOT NULL DEFAULT 0, show_creator_avatar INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
 );
 CREATE TABLE marketplace_skill_versions (
   id TEXT PRIMARY KEY, skill_id TEXT NOT NULL REFERENCES marketplace_skills(id), version INTEGER NOT NULL,
   name TEXT NOT NULL, description TEXT NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL,
   rejection_note TEXT, bundle_key TEXT NOT NULL UNIQUE, bundle_sha256 TEXT NOT NULL,
-  files_json TEXT NOT NULL CHECK(json_valid(files_json)), includes_json TEXT NOT NULL DEFAULT '[]', icon_key TEXT, created_at INTEGER NOT NULL,
+  files_json TEXT NOT NULL CHECK(json_valid(files_json)), icon_key TEXT, created_at INTEGER NOT NULL,
   reviewed_at INTEGER, UNIQUE(skill_id, version)
 );
 CREATE TABLE marketplace_agents (

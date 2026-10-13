@@ -112,7 +112,6 @@ function detailMarketplace(bundle: Uint8Array): SkillMarketplace {
     bundle_key: "bundle",
     bundle_sha256: "hash",
     files_json: '["SKILL.md"]',
-    includes_json: "[]",
     icon_key: null,
     updated_at: 0,
     creator_name: "Author",
@@ -214,7 +213,7 @@ function unusedBucket(): R2Bucket {
   };
 }
 
-function catalogMarketplace(unlisted: string[] = []): SkillMarketplace {
+function catalogMarketplace(): SkillMarketplace {
   const database = migratedDatabase();
   database
     .prepare("INSERT INTO users(id, identity_key, email, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
@@ -233,8 +232,6 @@ function catalogMarketplace(unlisted: string[] = []): SkillMarketplace {
     insertVersion.run(`version-${row.id}`, row.id, row.id, row.id, `bundle-${row.id}`, row.updatedAt);
     approve.run(`version-${row.id}`, row.id);
   }
-  const unlist = database.prepare("UPDATE marketplace_skills SET unlisted = 1 WHERE id = ?");
-  for (const id of unlisted) unlist.run(id);
   return new SkillMarketplace({ DB: sqliteD1(database), SKILLS: unusedBucket() });
 }
 
@@ -263,11 +260,5 @@ describe("skill marketplace catalog paging", () => {
     // v1 cursor, and the rest of the catalog follows it. No skill may go missing.
     const walked = await walkCatalog(catalogMarketplace(), true);
     expect([...new Set(walked)].sort()).toEqual(CATALOG_ORDER);
-  });
-
-  it("leaves an unlisted skill out of the catalog", async () => {
-    const [hidden] = CATALOG_ORDER;
-    if (!hidden) throw new Error("The catalog fixture is empty");
-    expect(await walkCatalog(catalogMarketplace([hidden]), false)).toEqual(CATALOG_ORDER.slice(1));
   });
 });

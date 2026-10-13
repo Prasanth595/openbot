@@ -95,7 +95,7 @@ export function isAgentTemplateCardPng(bytes: Uint8Array): boolean {
 }
 
 export const AGENT_TEMPLATE_LIMITS = {
-  skills: 64,
+  skills: 32,
   embeddedSkills: 10,
   skillMarkdown: 65_536,
   skillName: 80,

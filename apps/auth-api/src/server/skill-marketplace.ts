@@ -1,11 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  isMarketplaceSkillIncludes,
-  isSkillCategory,
-  type MarketplaceSkillInclude,
-  SKILL_DESCRIPTION_MAX_LENGTH,
-  type SkillCategory,
-} from "@openbot/contracts/ipc";
+import { isSkillCategory, SKILL_DESCRIPTION_MAX_LENGTH, type SkillCategory } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { Effect, Result, Schema } from "effect";
 import { unzipSync } from "fflate";
@@ -44,7 +38,6 @@ interface ApprovedRow {
   bundle_key: string;
   bundle_sha256: string;
   files_json: string;
-  includes_json: string;
   icon_key: string | null;
   updated_at: number;
   creator_name: string | null;
@@ -90,7 +83,7 @@ export class SkillMarketplace {
       Effect.gen({ self: this }, function* () {
         const bindings = yield* MarketplaceStorage;
 
-        const clauses = ["skills.approved_version_id = versions.id", "skills.unlisted = 0"];
+        const clauses = ["skills.approved_version_id = versions.id"];
         const values: unknown[] = [];
         const queryInput = normalizeMarketplaceQuery(input.query);
         if (queryInput) {
@@ -184,7 +177,6 @@ export class SkillMarketplace {
           files: yield* marketplaceDecode(() => parseFiles(row.files_json)),
           instructions: preview.instructions,
           ...(preview.examplePrompt ? { examplePrompt: preview.examplePrompt } : {}),
-          ...(yield* marketplaceDecode(() => includedSkills(row.includes_json))),
         };
       }),
     )().pipe(Effect.provide(MarketplaceStorage.layer(this.bindings)));
@@ -216,7 +208,6 @@ export class SkillMarketplace {
           files: yield* marketplaceDecode(() => parseFiles(row.files_json)),
           instructions: preview.instructions,
           ...(preview.examplePrompt ? { examplePrompt: preview.examplePrompt } : {}),
-          ...(yield* marketplaceDecode(() => includedSkills(row.includes_json))),
         };
       }),
     )().pipe(Effect.provide(MarketplaceStorage.layer(this.bindings)));
@@ -635,7 +626,7 @@ export class SkillMarketplace {
           bindings.DB.prepare(
             `SELECT skills.id, skills.slug, skills.installs, skills.featured, skills.updated_at,
               versions.id AS version_id, versions.name, versions.description, versions.category,
-              versions.version, versions.bundle_key, versions.bundle_sha256, versions.files_json, versions.includes_json, versions.icon_key,
+              versions.version, versions.bundle_key, versions.bundle_sha256, versions.files_json, versions.icon_key,
               skills.show_creator_avatar, users.avatar_url AS creator_avatar_url, users.name AS creator_name, users.email AS creator_email
        FROM marketplace_skills skills
        JOIN marketplace_skill_versions versions ON versions.id = skills.approved_version_id
@@ -662,7 +653,7 @@ export class SkillMarketplace {
             `SELECT skills.id, skills.slug, skills.installs, skills.featured, skills.updated_at,
               versions.name, versions.description, versions.category, versions.version,
               versions.id AS version_id, versions.bundle_key, versions.bundle_sha256,
-              versions.files_json, versions.includes_json, versions.icon_key, skills.show_creator_avatar, users.avatar_url AS creator_avatar_url, users.name AS creator_name, users.email AS creator_email
+              versions.files_json, versions.icon_key, skills.show_creator_avatar, users.avatar_url AS creator_avatar_url, users.name AS creator_name, users.email AS creator_email
        FROM marketplace_skills skills
        JOIN marketplace_skill_versions versions ON versions.skill_id = skills.id
        JOIN users ON users.id = skills.owner_user_id
@@ -811,12 +802,6 @@ function slugify(name: string): string {
 function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
-/** Omitted when empty, so a skill without included skills keeps its released response. */
-function includedSkills(value: string): { includes?: MarketplaceSkillInclude[] } {
-  const parsed = JSON.parse(value);
-  return isMarketplaceSkillIncludes(parsed) && parsed.length > 0 ? { includes: parsed } : {};
-}
-
 function parseFiles(value: string): string[] {
   const parsed = JSON.parse(value);
   return Array.isArray(parsed) ? parsed : [];

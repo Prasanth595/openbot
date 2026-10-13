@@ -282,4 +282,136 @@ describe("SkillMarketplaceService", () => {
       runCauseEffect(service.install({ agentId: agent.id, skillId: "local-skill-1", versionId: "version-7" })),
     ).rejects.toThrow("A local skill has no published version.");
   });
+
+  /*
+   * A pack installs each `skills/<slug>-<name>/` as a folder of its own, under one lock entry. Ways
+   * it can lose or leak files: a folder the user already has is overwritten; disable, enable or
+   * removal misses a pack folder; a removed disabled pack deletes files the user put back.
+   */
+  it("installs each skill of a pack as its own folder and removes them together", async () => {
+    const skill = (name: string) => encoder.encode(`---\nname: ${name}\ndescription: The ${name} skill.\n---\n`);
+    const bundle = zipSync({
+      "SKILL.md": skill("pack"),
+      "skills/pack-a/SKILL.md": skill("pack-a"),
+      "skills/pack-a/references/notes.md": encoder.encode("Notes"),
+      "skills/pack-b/SKILL.md": skill("pack-b"),
+    });
+    const hash = createHash("sha256").update(bundle).digest("hex");
+    const sessionPath = join(root, "session.bin");
+    await writeFile(
+      sessionPath,
+      Buffer.from(JSON.stringify({ version: 2, sessionToken: "token", teamHostTokens: {} })).toString("base64"),
+    );
+    const requests: string[] = [];
+    const auth = new CentralAuthManager({
+      apiUrl: "http://127.0.0.1:3100",
+      storagePath: sessionPath,
+      encrypt: (value) => Buffer.from(value),
+      decrypt: (value) => value.toString(),
+      fetch: async (input, init) => {
+        const path = new URL(input instanceof Request ? input.url : input).pathname;
+        requests.push(`${init?.method ?? "GET"} ${path}`);
+        if (path === "/v1/me")
+          return Response.json({ id: "user-1", email: "ada@example.com", name: "Ada", avatarUrl: null });
+        if (path === "/v1/skills/pack-1")
+          return Response.json({
+            id: "pack-1",
+            slug: "pack",
+            name: "pack",
+            description: "The pack skill.",
+            category: "coding",
+            creatorName: "Ada",
+            version: 1,
+            installs: 0,
+            featured: false,
+            iconUrl: null,
+            updatedAt: "2026-10-13T00:00:00.000Z",
+            versionId: "version-1",
+            bundleSha256: hash,
+            files: [],
+            instructions: "The pack skill.",
+          });
+        if (path.endsWith("/content"))
+          return new Response(Uint8Array.from(bundle).buffer, { headers: { "Content-Type": "application/zip" } });
+        if (path.endsWith("/install")) return Response.json({ installed: true });
+        return new Response(null, { status: 404 });
+      },
+    });
+    await runCauseEffect(auth.initialize());
+    const agent: AgentSummary = {
+      id: "coder",
+      provider: "codex",
+      name: "Coder",
+      title: "",
+      description: "",
+      notifications: true,
+      model: "gpt-5.6-luna",
+      reasoningEffort: "medium",
+      threadId: null,
+      workspacePath: join(root, "coder"),
+      preview: "",
+      updatedAt: null,
+      avatarSeed: "coder",
+      avatarHue: null,
+      avatarUrl: null,
+    };
+    const service = new SkillMarketplaceService(
+      auth,
+      () => [agent],
+      () => Effect.void,
+    );
+    const folder = (provider: ".agents" | ".claude", name: string) =>
+      join(agent.workspacePath, provider, "skills", name);
+    const install = () => runCauseEffect(service.install({ agentId: agent.id, skillId: "pack-1" }));
+    const setEnabled = (enabled: boolean) =>
+      runCauseEffect(service.setEnabled({ agentId: agent.id, skillId: "pack-1", enabled }));
+
+    const userFile = join(folder(".claude", "pack-b"), "SKILL.md");
+    await mkdir(dirname(userFile), { recursive: true });
+    await writeFile(userFile, "The user's own skill");
+    await expect(install()).rejects.toThrow("pack-b");
+    await expect(readFile(userFile, "utf8")).resolves.toBe("The user's own skill");
+    await rm(dirname(userFile), { recursive: true });
+
+    requests.length = 0;
+    await expect(install()).resolves.toMatchObject({ state: "installed" });
+    expect(requests.filter((request) => request.startsWith("POST"))).toEqual(["POST /v1/skills/pack-1/install"]);
+    for (const provider of [".agents", ".claude"] as const) {
+      await expect(readFile(join(folder(provider, "pack-a"), "references", "notes.md"), "utf8")).resolves.toBe("Notes");
+      await expect(readFile(join(folder(provider, "pack-b"), "SKILL.md"), "utf8")).resolves.toContain("pack-b");
+      await expect(readFile(join(folder(provider, "pack"), "SKILL.md"), "utf8")).resolves.toContain("name: pack");
+    }
+    await expect(runCauseEffect(service.listInstalled(agent.id))).resolves.toEqual([
+      expect.objectContaining({ skillId: "pack-1", state: "installed" }),
+    ]);
+    const tags = await runCauseEffect(service.listInstalledForChatTags(agent.id));
+    expect(tags.map((tag) => tag.name).sort()).toEqual(["pack", "pack-a", "pack-b"]);
+
+    await setEnabled(false);
+    for (const name of ["pack", "pack-a", "pack-b"]) await expect(readFile(folder(".agents", name))).rejects.toThrow();
+    await setEnabled(true);
+    await expect(runCauseEffect(service.listInstalled(agent.id))).resolves.toEqual([
+      expect.objectContaining({ state: "installed", enabled: true }),
+    ]);
+
+    await writeFile(join(folder(".agents", "pack-a"), "SKILL.md"), "Edited");
+    await expect(runCauseEffect(service.listInstalled(agent.id))).resolves.toEqual([
+      expect.objectContaining({ state: "modified" }),
+    ]);
+    await expect(runCauseEffect(service.uninstall({ agentId: agent.id, skillId: "pack-1" }))).rejects.toThrow(
+      "local changes",
+    );
+    await runCauseEffect(service.uninstall({ agentId: agent.id, skillId: "pack-1", removeModified: true }));
+    for (const provider of [".agents", ".claude"] as const)
+      for (const name of ["pack", "pack-a", "pack-b"])
+        await expect(readFile(join(folder(provider, name), "SKILL.md"))).rejects.toThrow();
+
+    await install();
+    await setEnabled(false);
+    const keptFile = join(folder(".agents", "pack-a"), "SKILL.md");
+    await mkdir(dirname(keptFile), { recursive: true });
+    await writeFile(keptFile, "Put back by the user");
+    await runCauseEffect(service.uninstall({ agentId: agent.id, skillId: "pack-1" }));
+    await expect(readFile(keptFile, "utf8")).resolves.toBe("Put back by the user");
+  });
 });

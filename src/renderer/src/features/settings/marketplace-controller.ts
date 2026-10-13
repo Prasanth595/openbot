@@ -5,7 +5,6 @@ import type {
   MarketplaceAgentDetail,
   MarketplaceAgentSummary,
   MarketplaceSkillDetail,
-  MarketplaceSkillInclude,
   MarketplaceSkillSummary,
   McpServerConfig,
   McpSignInRelayPage,
@@ -279,23 +278,14 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
   );
 
   /**
-   * Installs the skill on each agent, or removes it, one agent at a time, with the skills it
-   * includes. A failure does not stop the loop: each agent gets its try, and one sentence names the
-   * agents that did not change.
+   * Installs the skill on each agent, or removes it, one agent at a time. A failure does not stop
+   * the loop: each agent gets its try, and one sentence names the agents that did not change.
    */
   async function setSkill(skill: MarketplaceSkillSummary, agentIds: readonly string[], on: boolean) {
     const key = `skill:${skill.id}`;
     if (agentIds.length === 0 || busy[key]) return;
     mark(key, true);
     setError(null);
-    let includes: readonly MarketplaceSkillInclude[];
-    try {
-      includes = (await calls().skills.get(skill.id)).includes ?? [];
-    } catch (cause) {
-      mark(key, false);
-      setError(marketplaceErrorMessage(cause), cause);
-      return;
-    }
     const failed: string[] = [];
     let reason = "";
     let lastCause: unknown;
@@ -303,13 +293,8 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
       const action = on ? (installedSkill(agentId, skill.id) ? "update" : "install") : "uninstall";
       const analytics = desktopAnalytics.scope();
       try {
-        if (on) await installSkill(agentId, skill.id, includes);
-        else {
-          for (const include of includes)
-            if (installedSkill(agentId, include.skillId))
-              await skillCalls().uninstall({ agentId, skillId: include.skillId });
-          await skillCalls().uninstall({ agentId, skillId: skill.id });
-        }
+        if (on) await skillCalls().install({ agentId, skillId: skill.id, replaceModified: false });
+        else await skillCalls().uninstall({ agentId, skillId: skill.id });
         analytics.track("marketplace_action", {
           entity: "skill",
           action,
@@ -588,21 +573,6 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     const current = relayed();
     const serverId = props.pluginServerId;
     if (relay && current && serverId) void relay.cancel(current.url, serverId).catch(() => undefined);
-  }
-
-  /** The skill, then each skill it includes at its pinned version. A failure takes back what it added. */
-  async function installSkill(agentId: string, skillId: string, includes: readonly MarketplaceSkillInclude[]) {
-    const added: string[] = [];
-    try {
-      for (const target of [{ skillId }, ...includes]) {
-        const held = Boolean(installedSkill(agentId, target.skillId));
-        await skillCalls().install({ agentId, ...target, replaceModified: false });
-        if (!held) added.push(target.skillId);
-      }
-    } catch (cause) {
-      await undoSkills(agentId, added);
-      throw cause;
-    }
   }
 
   /** Takes back only what this attempt installed. A skill the agent already had is the user's. */

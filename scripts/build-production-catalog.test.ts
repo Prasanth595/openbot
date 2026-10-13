@@ -25,26 +25,19 @@ describe("production marketplace catalog", () => {
     );
     const catalog = await readCatalog(join(first, "catalog.json"));
     const skills = catalog.skills;
-    expect(skills).toHaveLength(73);
+    expect(skills).toHaveLength(21);
     const pack = new Map<string, Record<string, Uint8Array>>();
     for (const value of skills) {
       const bytes = new Uint8Array(await readFile(join(first, value.bundle)));
       const bundle = unzipSync(bytes);
       if (value.slug === "pstack") {
-        // The listed pstack skill installs every pstack skill with it.
-        expect(value.unlisted).toBe(false);
-        expect(value.includes).toEqual(
-          skills
-            .filter((skill) => skill.slug.startsWith("pstack-"))
-            .map(({ id, versionId }) => ({ skillId: id, versionId })),
-        );
-        continue;
-      }
-      if (value.slug.startsWith("pstack-")) {
         expect(Object.keys(bundle)).toEqual(expect.arrayContaining(["LICENSE", "NOTICE.md", "SKILL.md"]));
         expect(new TextDecoder().decode(bundle.LICENSE)).toContain("MIT License");
-        expect(value.unlisted).toBe(true);
-        pack.set(value.slug, bundle);
+        // The app installs each `skills/pstack-<name>/` folder as a skill of its own.
+        for (const [path, file] of Object.entries(bundle)) {
+          const [, child = "", ...rest] = path.split("/");
+          if (path.startsWith("skills/")) pack.set(child, { ...pack.get(child), [rest.join("/")]: file });
+        }
         continue;
       }
       expect(Object.keys(bundle).sort()).toEqual(["LICENSE.txt", "NOTICE.txt", "SKILL.md"]);
@@ -139,8 +132,6 @@ interface GeneratedSkill {
   icon: string;
   category: string;
   slug: string;
-  unlisted: boolean;
-  includes: Array<{ skillId: string; versionId: string }>;
 }
 
 interface GeneratedAgent {
@@ -162,10 +153,7 @@ function parseGeneratedSkill(value: unknown): GeneratedSkill {
     !isString(value.bundle) ||
     !isString(value.icon) ||
     !isString(value.category) ||
-    !isString(value.slug) ||
-    typeof value.unlisted !== "boolean" ||
-    !Array.isArray(value.includes) ||
-    !value.includes.every((item) => isDynamicRecord(item) && isString(item.skillId) && isString(item.versionId))
+    !isString(value.slug)
   ) {
     throw new Error("Generated catalog contains an invalid skill.");
   }
@@ -177,8 +165,6 @@ function parseGeneratedSkill(value: unknown): GeneratedSkill {
     icon: value.icon,
     category: value.category,
     slug: value.slug,
-    unlisted: value.unlisted,
-    includes: value.includes,
   };
 }
 
