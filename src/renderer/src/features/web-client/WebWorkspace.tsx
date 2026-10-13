@@ -1715,6 +1715,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               onDownloadProvider={providerSettings()?.onDownloadProvider}
               onCancelProviderDownload={providerSettings()?.onCancelProviderDownload}
               onConnectProvider={providerSettings() ? connectFromComposer : undefined}
+              canConnectProvider={(provider) =>
+                (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
+              }
               onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
               onManageProviders={
                 providerSettings()

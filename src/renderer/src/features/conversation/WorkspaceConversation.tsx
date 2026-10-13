@@ -285,6 +285,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onDownloadProvider={providerDownloads() ? downloadProviderRuntime : undefined}
         onCancelProviderDownload={providerDownloads() ? cancelProviderRuntimeDownload : undefined}
         onConnectProvider={localProviderDownloads() || providerAdminServerId() ? connectFromComposer : undefined}
+        canConnectProvider={(provider) => connection.connectKind(provider) !== null}
         onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
         onSignInWithCodeProvider={composerCodeSignIn() ? signInWithCode : undefined}
         onManageProviders={manageProviders() ? openProviderSettings : undefined}

@@ -294,8 +294,11 @@ export function createProviderConnection(options: ProviderConnectionOptions): Pr
       const state = codeLoginState();
       const shown = state.phase === "relay" ? state.page : null;
       // A page whose callback comes back to this computer needs nothing pasted. When it does not
-      // come back, the ⋯ menu has the code.
-      const page = status.page?.listening ? { ...status.page, pasteable: false } : status.page;
+      // come back, the ⋯ menu has the code. With no code, the address paste stays.
+      const page =
+        status.page?.listening && route(provider).alternative === "code"
+          ? { ...status.page, pasteable: false }
+          : status.page;
       if (page && !samePage(shown, page)) setCodeLoginState({ phase: "relay", hostName: relay.hostName, page });
       await new Promise((resolve) => window.setTimeout(resolve, HOST_SIGN_IN_POLL_MS));
     }
