@@ -57,6 +57,7 @@ export const messages = {
   "provider.action.signIn": "Se connecter",
   "provider.action.apiKey": "Clé d’API",
   "provider.action.signInWithCode": "Se connecter avec un code",
+  "provider.action.pasteAddress": "Coller l’adresse",
   "provider.aria.download": "Télécharger {name}",
   "provider.aria.cancel": "Annuler {name}",
   "provider.aria.connect": "Connecter {name}",
@@ -100,6 +101,10 @@ export const messages = {
   "provider.codeLogin.relayStarting": "Démarrage de la connexion à {name} sur {host}…",
   "provider.codeLogin.pageOpening": "Ouverture de la page de connexion de {name} sur {host}…",
   "provider.codeLogin.linkStep": "Connectez-vous à {name}. OpenBot continue tout seul.",
+  "provider.useApp.title": "Connectez {name} dans l’app OpenBot",
+  "provider.useApp.description":
+    "La connexion à {name} revient sur l’ordinateur qui l’a lancée, et un onglet du navigateur ne peut pas la recevoir. Connectez {name} dans l’app OpenBot. L’app termine la connexion toute seule.",
+  "provider.useApp.download": "Télécharger l’app",
 
   "provider.picker.noEndpoints": "Aucun point de terminaison pour l’instant",
   "provider.picker.customCounts": "{endpoints} · {agents}",
