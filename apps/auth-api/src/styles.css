@@ -1060,6 +1060,10 @@ a {
   line-height: 1.5;
 }
 
+.join-card-status-empty {
+  margin: 0;
+}
+
 @media (max-width: 520px) {
   .join-page {
     padding-right: 14px;

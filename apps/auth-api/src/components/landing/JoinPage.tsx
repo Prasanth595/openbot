@@ -95,7 +95,7 @@ export function JoinPage() {
 
         <Show when={!mobile()}>
           {/* The live region exists before the click, so screen readers announce the text when it appears. */}
-          <p class={openAttempted() ? "join-card-note" : undefined} role="status">
+          <p class={openAttempted() ? "join-card-note" : "join-card-status-empty"} role="status">
             <Show when={openAttempted()}>
               If OpenBot did not open, install it with Download OpenBot, or start OpenBot once so that it can open
               invitation links. You can also use Open in browser.
