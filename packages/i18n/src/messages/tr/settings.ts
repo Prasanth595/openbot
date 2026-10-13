@@ -227,6 +227,8 @@ export const messages = {
   "settings.profile.sessions.kind.desktop": "Masaüstü",
   "settings.profile.sessions.kind.mobile": "Mobil",
   "settings.profile.sessions.kind.hostedServer": "Barındırılan sunucu",
+  "settings.profile.sessions.hostedServerNote":
+    "Bağlantıyı kesmek sunucunun oturumunu kapatır. Yeniden oturum açması için sunucuyu yeniden başlatın.",
   "settings.profile.sessions.details": "{kind} · Giriş yapıldı: {signedIn} · Son etkinlik: {lastActive}",
   "settings.profile.sessions.disconnectLabel": "{signedIn} tarihli {name} oturumunun bağlantısını kes",
   "settings.profile.sessions.loadFailed": "Hesap oturumları yüklenemedi. Lütfen tekrar deneyin.",

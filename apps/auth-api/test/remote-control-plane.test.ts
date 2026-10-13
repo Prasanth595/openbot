@@ -314,7 +314,7 @@ describe("RemoteControlPlane", () => {
       database.close();
     }
   });
-  it("names the session of a hosted server and refuses to revoke it", async () => {
+  it("names the session of a hosted server and lets the owner revoke it", async () => {
     const database = migratedDatabase();
     try {
       const currentId = "00000000-0000-4000-8000-000000000001";
@@ -344,11 +344,9 @@ describe("RemoteControlPlane", () => {
         lastActiveAt: 1,
         hostedServer: true,
       });
-      await expect(runApiEffect(service.revokeAccountSession("current-token", serverSessionId))).rejects.toMatchObject({
-        status: 403,
-        code: "hosted_server_session_protected",
-      });
-      expect(await runApiEffect(service.authenticate("server-token"))).toMatchObject({ id: "owner" });
+      // A leaked token of the server must stay revocable.
+      await runApiEffect(service.revokeAccountSession("current-token", serverSessionId));
+      expect(await runApiEffect(service.authenticate("server-token"))).toBeNull();
     } finally {
       database.close();
     }

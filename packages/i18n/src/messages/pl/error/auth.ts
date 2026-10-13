@@ -24,6 +24,4 @@ export const messages = {
     "Połączenie zakończyło się, zanim OpenBot potwierdził dostarczenie. Sprawdź skrzynkę, aby nie wysyłać kolejnego kodu.",
   "error.auth.deliveryUnknown":
     "OpenBot nie mógł potwierdzić, czy kod logowania został wysłany. Sprawdź skrzynkę, zanim wyślesz go ponownie.",
-  "error.auth.hostedServerSessionProtected":
-    "Sesji hostowanych serwerów nie można odłączyć. Zamiast tego uruchom ponownie lub usuń serwer.",
 } as const satisfies PartialTranslation<typeof source>;

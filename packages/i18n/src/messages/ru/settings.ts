@@ -229,6 +229,8 @@ export const messages = {
   "settings.profile.sessions.kind.desktop": "Компьютер",
   "settings.profile.sessions.kind.mobile": "Мобильное",
   "settings.profile.sessions.kind.hostedServer": "Облачный сервер",
+  "settings.profile.sessions.hostedServerNote":
+    "Отключение завершает сеанс сервера. Перезапустите сервер, чтобы он снова вошёл.",
   "settings.profile.sessions.details": "{kind} · вход: {signedIn} · последняя активность: {lastActive}",
   "settings.profile.sessions.disconnectLabel": "Отключить сеанс {name} от {signedIn}",
   "settings.profile.sessions.loadFailed": "Не удалось загрузить сеансы аккаунта. Повторите.",

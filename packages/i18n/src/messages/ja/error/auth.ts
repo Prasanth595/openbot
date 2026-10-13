@@ -25,6 +25,4 @@ export const messages = {
     "OpenBot が配信を確認する前に接続が終了しました。別のコードを送信しないように、配信を確認してください。",
   "error.auth.deliveryUnknown":
     "サインインコードが送信されたかどうかを OpenBot が確認できませんでした。再送信する前に配信を確認してください。",
-  "error.auth.hostedServerSessionProtected":
-    "ホスト型サーバーのセッションは接続解除できません。代わりにサーバーを再起動または削除してください。",
 } as const satisfies PartialTranslation<typeof source>;

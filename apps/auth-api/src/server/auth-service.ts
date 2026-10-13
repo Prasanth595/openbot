@@ -7,7 +7,6 @@ import {
   ONE_TIME_CODE_LENGTH,
   validateProfileName,
 } from "@openbot/contracts/validation";
-import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer, Result, Schema } from "effect";
 import { randomToken, sha256 } from "./crypto";
 import type { AuthStoreError } from "./d1-auth-repository";
@@ -568,22 +567,15 @@ export class AuthService {
         return yield* new AuthServiceError(400, "invalid_session", "The session ID is invalid.");
       const user = yield* this.authenticate(sessionToken);
       if (!user) return yield* new AuthServiceError(401, "unauthorized", "The session is invalid.");
-      const sessions = yield* dependencies.repository.listAccountSessions(user.id, sessionToken, dependencies.now());
-      const target = sessions.find((session) => session.sessionId === sessionId);
-      // A revoked hosted server stays offline until it starts again. Its owner restarts or deletes it instead.
-      if (target?.hostedServer) {
-        return yield* new AuthServiceError(
-          403,
-          "hosted_server_session_protected",
-          sourceText("error.auth.hostedServerSessionProtected"),
-        );
-      }
-      if (target?.kind === "desktop" && !(yield* this.authenticateDesktopSession(sessionToken))) {
-        return yield* new AuthServiceError(
-          403,
-          "desktop_session_protected",
-          "Desktop sessions cannot be disconnected from mobile.",
-        );
+      if (!(yield* this.authenticateDesktopSession(sessionToken))) {
+        const sessions = yield* dependencies.repository.listAccountSessions(user.id, sessionToken, dependencies.now());
+        if (sessions.some((session) => session.sessionId === sessionId && session.kind === "desktop")) {
+          return yield* new AuthServiceError(
+            403,
+            "desktop_session_protected",
+            "Desktop sessions cannot be disconnected from mobile.",
+          );
+        }
       }
       yield* dependencies.repository.revokeAccountSession(user.id, sessionId, dependencies.now());
       yield* dependencies.flushSessionRevocations();

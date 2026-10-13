@@ -232,6 +232,8 @@ export const messages = {
   "settings.profile.sessions.kind.desktop": "Escritorio",
   "settings.profile.sessions.kind.mobile": "Móvil",
   "settings.profile.sessions.kind.hostedServer": "Servidor alojado",
+  "settings.profile.sessions.hostedServerNote":
+    "Desconectar cierra la sesión del servidor. Reinicia el servidor para volver a iniciar sesión.",
   "settings.profile.sessions.details": "{kind} · Sesión iniciada {signedIn} · Última actividad {lastActive}",
   "settings.profile.sessions.disconnectLabel": "Desconectar la sesión de {name} del {signedIn}",
   "settings.profile.sessions.loadFailed": "No se pudieron cargar las sesiones de la cuenta. Vuelve a intentarlo.",

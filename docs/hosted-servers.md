@@ -468,10 +468,10 @@ signed out after its next start.
 A VM that never signed in keeps its claim in its env file. Each start of that server makes the claim
 work again for one hour, so a VM that missed the first hour, or whose plan ended before it signed in,
 signs in at its next start. After the 10 minutes that follow the first redeem, the Worker never
-accepts the claim again, until the session of the server is revoked: then its next start makes
+accepts the claim again, until the owner revokes the session of the server: then its next start makes
 the claim work again, and the server signs in with a new session. The account device list shows the
-session with the server name and `hostedServer: true`, and `revokeAccountSession` refuses it with 403
-`hosted_server_session_protected`, so the owner cannot revoke it there; only a change in D1 can. A new `REMOTE_TICKET_PRIVATE_JWK` changes
+session with the server name and `hostedServer: true`, so the owner can see which session to revoke
+when its token leaks. A new `REMOTE_TICKET_PRIVATE_JWK` changes
 each claim, so a VM that has no working session cannot sign in after the change; delete that server.
 
 A start that cannot reach the account server does not use the claim. The start retry signs in

@@ -234,6 +234,8 @@ export const messages = {
   "settings.profile.sessions.kind.desktop": "Desktop",
   "settings.profile.sessions.kind.mobile": "Mobil",
   "settings.profile.sessions.kind.hostedServer": "Gehosteter Server",
+  "settings.profile.sessions.hostedServerNote":
+    "Trennen meldet den Server ab. Starte den Server neu, um ihn wieder anzumelden.",
   "settings.profile.sessions.details": "{kind} · Angemeldet {signedIn} · Zuletzt aktiv {lastActive}",
   "settings.profile.sessions.disconnectLabel": "Sitzung von {name} vom {signedIn} trennen",
   "settings.profile.sessions.loadFailed": "Die Kontositzungen konnten nicht geladen werden. Versuche es erneut.",

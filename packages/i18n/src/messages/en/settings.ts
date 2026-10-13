@@ -236,6 +236,8 @@ export const messages = defineMessages("settings", {
   "settings.profile.sessions.kind.desktop": "Desktop",
   "settings.profile.sessions.kind.mobile": "Mobile",
   "settings.profile.sessions.kind.hostedServer": "Hosted server",
+  "settings.profile.sessions.hostedServerNote":
+    "Disconnect signs the server out. Restart the server to sign it in again.",
   // {kind} is Desktop or Mobile. {signedIn} and {lastActive} are a date and a time.
   "settings.profile.sessions.details": "{kind} · Signed in {signedIn} · Last active {lastActive}",
   "settings.profile.sessions.disconnectLabel": "Disconnect {name} session from {signedIn}",

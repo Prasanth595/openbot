@@ -185,25 +185,25 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
                         lastActive: sessionTime(session.lastActiveAt),
                       })}
                     </ItemDescription>
+                    <Show when={session.hostedServer && !session.current}>
+                      <ItemDescription>{t("settings.profile.sessions.hostedServerNote")}</ItemDescription>
+                    </Show>
                   </ItemContent>
                   <ItemActions>
                     <Show when={!session.current} fallback={<Badge>{t("settings.profile.sessions.thisDevice")}</Badge>}>
-                      {/* The account service refuses to revoke a hosted server. Restart or delete it instead. */}
-                      <Show when={!session.hostedServer}>
-                        <Button
-                          variant="outline"
-                          aria-label={t("settings.profile.sessions.disconnectLabel", {
-                            name: session.name,
-                            signedIn: sessionTime(session.connectedAt),
-                          })}
-                          disabled={Boolean(props.store.state.sessions.revokingId) || !props.canRevokeSession}
-                          onClick={() => void props.store.revokeSession(session.sessionId)}
-                        >
-                          {props.store.state.sessions.revokingId === session.sessionId
-                            ? t("settings.disconnect.pending")
-                            : t("settings.disconnect.action")}
-                        </Button>
-                      </Show>
+                      <Button
+                        variant="outline"
+                        aria-label={t("settings.profile.sessions.disconnectLabel", {
+                          name: session.name,
+                          signedIn: sessionTime(session.connectedAt),
+                        })}
+                        disabled={Boolean(props.store.state.sessions.revokingId) || !props.canRevokeSession}
+                        onClick={() => void props.store.revokeSession(session.sessionId)}
+                      >
+                        {props.store.state.sessions.revokingId === session.sessionId
+                          ? t("settings.disconnect.pending")
+                          : t("settings.disconnect.action")}
+                      </Button>
                     </Show>
                   </ItemActions>
                 </Item>

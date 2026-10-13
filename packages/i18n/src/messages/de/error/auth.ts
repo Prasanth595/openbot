@@ -26,6 +26,4 @@ export const messages = {
     "Die Verbindung wurde beendet, bevor OpenBot die Zustellung bestätigt hat. Prüfe die Zustellung, um keinen weiteren Code zu senden.",
   "error.auth.deliveryUnknown":
     "OpenBot konnte nicht bestätigen, ob der Anmeldecode gesendet wurde. Prüfe die Zustellung, bevor du ihn erneut sendest.",
-  "error.auth.hostedServerSessionProtected":
-    "Sitzungen gehosteter Server können nicht getrennt werden. Starte den Server stattdessen neu oder lösche ihn.",
 } as const satisfies PartialTranslation<typeof source>;
