@@ -331,6 +331,8 @@ async function oldComputer(): Promise<Computer> {
   await writeFile(join(old.root, "avatars", "research.png"), PNG);
   old.avatars.set("research", { mimeType: "image/png", bytes: PNG });
   await writeFile(join(old.root, "Shared", "report.csv"), "a,b");
+  await mkdir(join(old.root, "Shared", "Data"), { recursive: true });
+  await writeFile(join(old.root, "Shared", "Data", "agent-data.db"), "SQLite format 3");
   old.routines.set("research", [
     routineFixture("routine-1", {
       agentId: "research",
@@ -412,7 +414,9 @@ describe("InstanceTransferService", () => {
     expect(entries).toContain("agents/research/workspace/notes/plan.md");
     expect(entries).toContain("agents/research/skills/web-brief/SKILL.md");
     expect(entries).toContain("shared/report.csv");
-    expect(entries.filter((name) => /\.env|\.git\/|\.openbot\/|openbot-site-hosting/u.test(name))).toEqual([]);
+    expect(
+      entries.filter((name) => /\.env|\.git\/|\.openbot\/|openbot-site-hosting|agent-data\.db/u.test(name)),
+    ).toEqual([]);
     const text = new TextDecoder().decode(bytes);
     for (const secret of [
       "ghp_secret",

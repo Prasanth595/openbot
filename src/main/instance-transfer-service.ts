@@ -89,6 +89,11 @@ const ARCHIVE: ArchiveLimits = {
   expandedTooLarge: sourceText("error.import.transferTooLarge"),
   invalid: sourceText("error.import.transferNotFile"),
 };
+/**
+ * `Data/` in `~/OpenBot/Shared` holds the shared tables database. It is open while the app runs, and
+ * its owner records name agent ids of this computer, so a transfer never copies it.
+ */
+const SHARED_DATA = "Data";
 /** Skill folders are copied here, published to the local library, and removed again. */
 const SKILL_STAGING = ".openbot/import-skills";
 /** Workspace folders an export leaves out: OpenBot's own state and the installed skills, which travel as skills. */
@@ -302,7 +307,7 @@ export class InstanceTransferService {
 
     let shared: typeof SHARED_FOLDER | null = null;
     if (input.includeFiles) {
-      const sharedFiles = yield* workspaceFiles(this.options.sharedRoot);
+      const sharedFiles = yield* walk(this.options.sharedRoot, isSharedData);
       if (sharedFiles.length > 0) shared = SHARED_FOLDER;
       for (const file of sharedFiles) {
         bytes += file.size;
@@ -653,7 +658,7 @@ export class InstanceTransferService {
     for (const [name, data] of Object.entries(files)) {
       const inner = name.slice(folder.length + 1);
       const target = resolve(base, inner);
-      if (isUnsafeEntry(inner) || !isPathInside(base, target)) continue;
+      if (isUnsafeEntry(inner) || isSharedData(inner) || !isPathInside(base, target)) continue;
       const written = yield* Effect.result(
         Effect.gen(function* () {
           yield* archiveCall(() => mkdir(dirname(target), { recursive: true }));
@@ -939,6 +944,10 @@ function createRedaction() {
     },
     cleared: () => [...names],
   };
+}
+
+function isSharedData(name: string): boolean {
+  return name === SHARED_DATA || name.startsWith(`${SHARED_DATA}/`);
 }
 
 /** Writes the archive to `<path>.part` one file at a time, then renames it. */
