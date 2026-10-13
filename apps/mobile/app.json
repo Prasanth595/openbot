@@ -72,8 +72,9 @@
           "granularPermissions": ["photo"]
         }
       ],
+      "expo-notifications",
       [
-        "expo-notifications",
+        "./plugins/with-ios-notification-sounds",
         {
           "sounds": [
             "./assets/sounds/openbot-task.wav",
