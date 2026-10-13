@@ -344,7 +344,12 @@ class SlackAdapter implements MessagingAdapter {
           if (isString(candidate) && candidate.trim()) return candidate.trim();
         return userId;
       }),
-      Effect.catch(() => Effect.succeed(userId)),
+      Effect.catch(() =>
+        Effect.sync(() => {
+          this.#names.delete(userId);
+          return userId;
+        }),
+      ),
     );
     yield* Deferred.succeed(name, result);
     return result;
@@ -361,7 +366,12 @@ class SlackAdapter implements MessagingAdapter {
           ? `#${response.channel.name}`
           : platformChannelId,
       ),
-      Effect.catch(() => Effect.succeed(platformChannelId)),
+      Effect.catch(() =>
+        Effect.sync(() => {
+          this.#places.delete(platformChannelId);
+          return platformChannelId;
+        }),
+      ),
     );
     yield* Deferred.succeed(name, result);
     return result;
