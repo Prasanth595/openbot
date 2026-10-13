@@ -1,7 +1,7 @@
 /** The sidebar's agent, channel and section confirmations share one pending delete state. */
 
 import { ConfirmDialog } from "@openbot/ui";
-import { Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { ChannelAvatar } from "../channels/ChannelAvatar";
@@ -9,6 +9,7 @@ import { useSidebarScope } from "./sidebar-scope";
 
 export function SidebarDialogs() {
   const {
+    getAgentListElement,
     closeDelete,
     confirmDelete,
     confirmSectionDelete,
@@ -20,6 +21,10 @@ export function SidebarDialogs() {
     sectionDeleteTarget,
   } = useSidebarScope();
   const { t } = useText();
+  const [agentDialog, setAgentDialog] = createSignal<ReturnType<typeof deleteTarget>>();
+  createEffect(deleteTarget, (agent) => {
+    if (agent) setAgentDialog(agent);
+  });
   const shared = {
     get confirmLabel() {
       return t("common.delete");
@@ -32,16 +37,21 @@ export function SidebarDialogs() {
   // Each dialog unmounts with its target, so its text never shows an empty name while it closes.
   return (
     <>
-      <Show when={deleteTarget()}>
+      <Show when={agentDialog()}>
         {(agent) => (
           <ConfirmDialog
             {...shared}
-            open
+            open={Boolean(deleteTarget())}
+            restoreFocusTarget={getAgentListElement()}
             pending={deleting()}
             error={deleteError()}
             media={<AgentAvatar agent={agent()} style={{ width: "44px", height: "44px" }} />}
             title={t("sidebar.delete.title", { name: agent().name })}
-            description={t("sidebar.delete.agentDescription")}
+            description={
+              props.onRestoreLastDeletedAgent
+                ? t("sidebar.delete.retainedAgentDescription")
+                : t("sidebar.delete.agentDescription")
+            }
             onConfirm={confirmDelete}
           />
         )}

@@ -2,6 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.recoveryLocalOnly": "Il recupero degli agenti è disponibile solo su questo computer.",
   "error.agent.historyUnavailable":
     "La cronologia non è disponibile per questa richiesta. Rileggi la cronologia recente.",
   "error.agent.toolRequestInvalid":

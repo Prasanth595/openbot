@@ -644,6 +644,11 @@ export class ConversationRuntime {
     }
   }
 
+  /** All bound sessions, including unloaded sessions that can still send delayed events. */
+  boundAgentThreads(agentId: string): string[] {
+    return [...this.#threadToAgent].filter(([, owner]) => owner === agentId).map(([threadId]) => threadId);
+  }
+
   /** Every loaded provider session of this agent, its channel threads included, with its client. */
   loadedAgentThreads(agentId: string): Array<[externalThreadId: string, client: AgentClient]> {
     const loaded: Array<[string, AgentClient]> = [];

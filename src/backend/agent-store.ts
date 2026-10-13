@@ -148,6 +148,7 @@ export class AgentStore {
   readonly #automationRoot: string;
   readonly #profileCreationRecovery: ProfileCreationRecovery;
   readonly #database: OpenBotDatabase;
+  #retained: StoredAgent[] = [];
   #state: StoredState = { version: 2, examplesInitialized: false, agents: [] };
   readonly #avatarUpdateQueue = Semaphore.makeUnsafe(1);
   readonly #creationQueue = Semaphore.makeUnsafe(1);
@@ -203,6 +204,11 @@ export class AgentStore {
       );
 
       yield* this.#database.initialize();
+      this.#retained = this.#database.retainedAgents().map((stored) => {
+        const read = readStoredAgent(stored);
+        if ("unreadable" in read) throw new Error(unreadableProfileMessage(read));
+        return normalizeStoredAgent(read.agent);
+      });
       const persisted = this.#database.listAgents();
       if (persisted.length > 0 || this.#database.hasAggregateEvents("agents", "agents")) {
         // Repaired field by field rather than accepted or refused as a whole. One stored value this build
@@ -775,13 +781,59 @@ export class AgentStore {
     };
   }
 
+  retainedAgents(): AgentSummary[] {
+    return this.#retained.map((agent) => ({ ...agent }));
+  }
+
+  isRetained(id: string): boolean {
+    return this.#retained.some((agent) => agent.id === id);
+  }
+
+  lastRetainedAgent(): AgentSummary | null {
+    const id = this.#database.lastRetainedAgentId();
+    const agent = this.#retained.find((candidate) => candidate.id === id);
+    return agent ? { ...agent } : null;
+  }
+
+  retainAgent = Effect.fn("AgentStore.retainAgent")(function* (this: AgentStore, id: string) {
+    return yield* storedSync(() => {
+      const agent = this.#requireAgent(id);
+      const remaining = this.#state.agents.filter((candidate) => candidate.id !== id);
+      this.#database.retainAgent(`agents:retain:${randomUUID()}`, agent, remaining);
+      this.#retained.push(agent);
+      this.#state.agents = remaining;
+      return { ...agent };
+    });
+  }).bind(this);
+
+  restoreLastRetainedAgent = Effect.fn("AgentStore.restoreLastRetainedAgent")(function* (this: AgentStore) {
+    return yield* storedSync(() => {
+      const agent = this.lastRetainedAgent();
+      if (!agent) return null;
+      if (this.#state.agents.length >= INPUT_LIMITS.agents)
+        throw new Error(sourceText("error.agent.hostLimit", { limit: INPUT_LIMITS.agents }));
+      if (this.#state.agents.some((candidate) => candidate.id === agent.id))
+        throw new Error(sourceText("error.agent.deletionBusy"));
+      const read = readStoredAgent(agent);
+      if ("unreadable" in read) throw new Error(unreadableProfileMessage(read));
+      const restored = normalizeStoredAgent(read.agent);
+      const next = [restored, ...this.#state.agents];
+      this.#database.restoreRetainedAgent(`agents:restore:${randomUUID()}`, agent, next);
+      this.#state.agents = next;
+      this.#retained = this.#retained.filter((candidate) => candidate.id !== agent.id);
+      return { ...restored };
+    });
+  }).bind(this);
+
   deleteAgent = Effect.fn("AgentStore.deleteAgent")(function* (
     this: AgentStore,
     id: string,
   ): Effect.fn.Return<AgentSummary | null, StoredStateFailure> {
     try {
       validateAgentId(id);
-      const agent = this.#state.agents.find((candidate) => candidate.id === id);
+      const agent =
+        this.#state.agents.find((candidate) => candidate.id === id) ??
+        this.#retained.find((candidate) => candidate.id === id);
       for (const path of [
         join(this.#avatarsRoot, id),
         `${join(this.#avatarsRoot, id)}.openbot-stage`,
@@ -811,6 +863,7 @@ export class AgentStore {
       const remaining = this.#state.agents.filter((candidate) => candidate.id !== id);
       this.#database.hardDeleteAgent(`agents:hard-delete:${randomUUID()}`, id, agent?.threadId ?? null, remaining);
       this.#state.agents = remaining;
+      this.#retained = this.#retained.filter((candidate) => candidate.id !== id);
       return agent ? { ...agent } : null;
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -837,7 +890,10 @@ export class AgentStore {
     name?: string,
     title?: string,
   ): Effect.fn.Return<AgentSummary, StoredStateFailure> {
-    yield* storedSync(() => validateAgentId(id));
+    yield* storedSync(() => {
+      validateAgentId(id);
+      if (this.isRetained(id)) throw new Error(sourceText("error.agent.unknown", { id }));
+    });
     const existing = this.#state.agents.find((agent) => agent.id === id);
     if (existing) {
       yield* storedIO(() => mkdir(existing.workspacePath, { recursive: true, mode: 0o700 }));
@@ -854,6 +910,7 @@ export class AgentStore {
   ): Effect.fn.Return<AgentSummary, StoredStateFailure> {
     try {
       validateAgentId(id);
+      if (this.isRetained(id)) throw new Error(sourceText("error.agent.unknown", { id }));
       const existing = this.#state.agents.find((agent) => agent.id === id);
       if (existing) {
         yield* storedIO(() => mkdir(existing.workspacePath, { recursive: true, mode: 0o700 }));

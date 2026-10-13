@@ -54,6 +54,7 @@ export interface AgentRemovalOptions {
  */
 export class AgentRemoval {
   readonly #deleting = new Set<string>();
+  readonly #retainedBlocks = new Map<string, () => void>();
   readonly #store: AgentStore;
   readonly #mailbox: MailboxStore;
   readonly #conversation: ConversationRuntime;
@@ -92,14 +93,40 @@ export class AgentRemoval {
 
   /** The agents whose deletion is running. The routine scheduler leaves them out. */
   deleting(): ReadonlySet<string> {
-    return this.#deleting;
+    return new Set([...this.#deleting, ...this.#store.retainedAgents().map((agent) => agent.id)]);
   }
 
-  readonly delete = Effect.fn("AgentRemoval.delete")(function* (this: AgentRemoval, agentId: string) {
+  initializeRetention(): void {
+    for (const agent of this.#store.retainedAgents()) this.#blockRetained(agent.id);
+  }
+
+  #blockRetained(id: string): void {
+    if (!this.#retainedBlocks.has(id)) this.#retainedBlocks.set(id, this.#mailbox.blockAgentDeliveries(id));
+  }
+
+  readonly restoreLast = Effect.fn("AgentRemoval.restoreLast")(function* (this: AgentRemoval) {
+    if (this.#deleting.size > 0)
+      return yield* new AgentRemovalFailed({ cause: new Error(sourceText("error.agent.deletionBusy")) });
+    const agent = yield* this.#store.restoreLastRetainedAgent().pipe(toAgentRemovalFailed);
+    if (!agent) return null;
+    this.#retainedBlocks.get(agent.id)?.();
+    this.#retainedBlocks.delete(agent.id);
+    this.#routines.arm();
+    this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
+    return agent;
+  }, Effect.uninterruptible);
+
+  readonly delete = Effect.fn("AgentRemoval.delete")(function* (this: AgentRemoval, agentId: string, retain = false) {
     const agent = yield* removalStep(() => {
       if (this.#deleting.has(agentId)) throw new Error(sourceText("error.agent.deletionBusy"));
-      const candidate = this.#store.list().find((entry) => entry.id === agentId);
-      if (this.#mailbox.hasUnfinishedDelivery(agentId) || this.#conversation.workingSnapshot(agentId)?.activeTurnId) {
+      const candidate = [...this.#store.list(), ...this.#store.retainedAgents()].find((entry) => entry.id === agentId);
+      if (retain && (!candidate || this.#store.isRetained(agentId) || this.#duplication.isPending(agentId)))
+        throw new Error(sourceText("error.agent.deletionBusy"));
+      if (
+        this.#mailbox.hasUnfinishedDelivery(agentId) ||
+        this.#conversation.workingSnapshot(agentId)?.activeTurnId ||
+        (retain && !this.#compaction.mayDrain(agentId))
+      ) {
         throw new Error(sourceText("error.agent.stopBeforeDelete"));
       }
       return candidate;
@@ -114,9 +141,22 @@ export class AgentRemoval {
       ({ wasPending }) =>
         Effect.gen({ self: this }, function* () {
           yield* removalStep(() => this.#routines.arm());
-          yield* this.deleteData(agent ?? { id: agentId, threadId: null });
+          if (retain && agent) {
+            yield* this.#threads.releaseAgentSessions(agentId);
+            yield* this.#store.retainAgent(agentId).pipe(toAgentRemovalFailed);
+            yield* this.#closeBrowserTabsEffect(agent);
+            yield* removalStep(() => {
+              this.#conversation.forgetAgent(agentId);
+              this.#turn.forgetAgent(agentId);
+              this.#drain.forgetAgent(agentId);
+              this.#hostedSites.forgetAgent(agentId);
+              this.#compaction.forgetAgent(agentId);
+            });
+          } else yield* this.deleteData(agent ?? { id: agentId, threadId: null });
           yield* removalStep(() => {
-            this.#channels.removeDeletedMembers(new Set(this.#store.list().map((candidate) => candidate.id)));
+            this.#channels.removeDeletedMembers(
+              new Set([...this.#store.list(), ...this.#store.retainedAgents()].map((candidate) => candidate.id)),
+            );
             this.#duplication.forget(agentId);
             if (!wasPending) this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
           });
@@ -125,6 +165,11 @@ export class AgentRemoval {
         Effect.sync(() => {
           release();
           releaseDeliveries();
+          if (this.#store.isRetained(agentId)) this.#blockRetained(agentId);
+          else {
+            this.#retainedBlocks.get(agentId)?.();
+            this.#retainedBlocks.delete(agentId);
+          }
           this.#deleting.delete(agentId);
           this.#routines.arm();
           if (this.#store.list().some((candidate) => candidate.id === agentId)) this.#drain.scheduleDrain(agentId);

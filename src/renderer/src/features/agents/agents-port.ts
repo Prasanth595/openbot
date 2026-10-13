@@ -9,6 +9,9 @@ export interface AgentsPort {
     OpenBotDesktopApi["agent"],
     | "createAgent"
     | "deleteAgent"
+    | "removeAgentForRecovery"
+    | "lastDeletedAgent"
+    | "restoreLastDeletedAgent"
     | "duplicateAgent"
     | "getAgentAdminSettings"
     | "getAgentHostSettings"

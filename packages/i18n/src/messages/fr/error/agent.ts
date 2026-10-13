@@ -2,6 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.recoveryLocalOnly": "La récupération des agents est disponible uniquement sur cet ordinateur.",
   "error.agent.historyUnavailable":
     "L’historique n’est pas disponible pour cette demande. Relisez l’historique récent.",
   "error.agent.toolRequestInvalid":

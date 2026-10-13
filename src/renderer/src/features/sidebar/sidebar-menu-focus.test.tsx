@@ -5,6 +5,8 @@ import { fireEvent, render, screen, within } from "@solidjs/testing-library";
 import type { JSX } from "@solidjs/web";
 import { createSignal } from "solid-js";
 import { afterEach, expect, it, vi } from "vitest";
+import { toAgentProfile } from "../../app-message-projection";
+import { AGENTS } from "../../app-test-harness";
 
 function renderSidebar(overrides: Partial<SidebarProps> = {}, extra?: () => JSX.Element) {
   const onMutateLayout = vi.fn(async () => {});
@@ -15,7 +17,6 @@ function renderSidebar(overrides: Partial<SidebarProps> = {}, extra?: () => JSX.
       <textarea aria-label="Conversation draft" />
       <Sidebar
         serverName="Test server"
-        agents={[]}
         activeAgentId=""
         people={[]}
         directThreads={[]}
@@ -42,6 +43,7 @@ function renderSidebar(overrides: Partial<SidebarProps> = {}, extra?: () => JSX.
         onOpenMarketplace={noop}
         onOpenSearch={noop}
         {...overrides}
+        agents={overrides.agents ?? []}
       />
       {extra?.()}
     </>
@@ -444,4 +446,127 @@ it("waits for an actual controlled close rather than a rejected close request", 
   expect(onOpenChange).toHaveBeenCalledWith(false);
   expect(action).not.toHaveBeenCalled();
   expect(item).toHaveFocus();
+});
+
+it.each([{ ctrlKey: true }, { metaKey: true }])(
+  "restores from focused sidebar navigation with %j",
+  async (modifier) => {
+    const restore = vi.fn(async () => {});
+    renderSidebar({ onRestoreLastDeletedAgent: restore, canRestoreLastDeletedAgent: true });
+    const navigation = screen.getByRole("navigation", { name: "Chat list" });
+    navigation.focus();
+    expect(navigation).toHaveFocus();
+    await fireEvent.keyDown(navigation, { key: "z", ...modifier });
+    expect(restore).toHaveBeenCalledOnce();
+  },
+);
+
+it("offers restore in the empty agents area and invokes the action", async () => {
+  const restore = vi.fn(async () => {});
+  renderSidebar({ onRestoreLastDeletedAgent: restore, canRestoreLastDeletedAgent: true });
+  await fireEvent.contextMenu(screen.getByLabelText("Sidebar free area"));
+  const item = await screen.findByRole("menuitem", { name: "Restore last deleted agent" });
+  await fireEvent.pointerUp(item, { button: 0 });
+  expect(restore).toHaveBeenCalledOnce();
+});
+
+it("preserves editor undo and does not restore through an open dialog", async () => {
+  const restore = vi.fn(async () => {});
+  renderSidebar({ onRestoreLastDeletedAgent: restore, canRestoreLastDeletedAgent: true });
+  const navigation = screen.getByRole("navigation", { name: "Chat list" });
+  for (const editor of [
+    document.createElement("input"),
+    document.createElement("textarea"),
+    document.createElement("div"),
+  ]) {
+    if (editor.tagName === "DIV") editor.setAttribute("contenteditable", "true");
+    navigation.append(editor);
+    const event = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+    editor.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    editor.remove();
+  }
+  const dialog = document.createElement("div");
+  dialog.setAttribute("role", "dialog");
+  document.body.append(dialog);
+  try {
+    await fireEvent.keyDown(navigation, { key: "z", ctrlKey: true });
+    expect(restore).not.toHaveBeenCalled();
+  } finally {
+    dialog.remove();
+  }
+});
+
+it("does not consume redo or a shortcut with no available undo", async () => {
+  const restore = vi.fn(async () => {});
+  renderSidebar({ onRestoreLastDeletedAgent: restore, canRestoreLastDeletedAgent: false });
+  const navigation = screen.getByRole("navigation", { name: "Chat list" });
+  const event = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+  navigation.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
+  expect(restore).not.toHaveBeenCalled();
+  await fireEvent.contextMenu(screen.getByLabelText("Sidebar free area"));
+  expect(await screen.findByRole("menuitem", { name: "Restore last deleted agent" })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+});
+
+it.each(["undo", "user focus", "disposed scope"])("closes actual agent deletion safely with %s", async (mode) => {
+  const [agents, setAgents] = createSignal([toAgentProfile(AGENTS[0])]);
+  const done = Promise.withResolvers<void>();
+  const restore = vi.fn(async () => {
+    setAgents([toAgentProfile(AGENTS[0])]);
+  });
+  const view = renderSidebar({
+    get agents() {
+      return agents();
+    },
+    onDeleteAgent: async () => {
+      await done.promise;
+      setAgents([]);
+    },
+    onRestoreLastDeletedAgent: restore,
+    canRestoreLastDeletedAgent: true,
+  });
+  const row = screen.getByRole("button", { name: new RegExp(`^${AGENTS[0].name}`) });
+  row.focus();
+  await fireEvent.contextMenu(row);
+  const menuDelete = await screen.findByRole("menuitem", { name: "Delete agent" });
+  const schedule = controlCloseSchedule();
+  await fireEvent.pointerUp(menuDelete, { button: 0 });
+  await finishClose(schedule);
+  const dialog = screen.getByRole("alertdialog");
+  const confirm = within(dialog).getByRole("button", { name: "Delete" });
+  expect(confirm).toHaveFocus();
+  await fireEvent.click(confirm);
+  if (mode === "disposed scope") {
+    view.unmount();
+    const other = document.createElement("input");
+    document.body.append(other);
+    other.focus();
+    done.resolve();
+    await finishClose(schedule);
+    expect(other).toHaveFocus();
+    other.remove();
+    return;
+  }
+  done.resolve();
+  await schedule.close();
+  if (mode === "user focus") {
+    const draft = screen.getByRole("textbox", { name: "Conversation draft" });
+    draft.focus();
+    await schedule.frame();
+    await schedule.frame();
+    expect(draft).toHaveFocus();
+    expect(restore).not.toHaveBeenCalled();
+    return;
+  }
+  await finishClose(schedule);
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  const navigation = screen.getByRole("navigation", { name: "Chat list" });
+  expect(navigation).toHaveFocus();
+  await fireEvent.keyDown(navigation, { key: "z", ctrlKey: true });
+  expect(restore).toHaveBeenCalledOnce();
+  expect(screen.getByRole("button", { name: new RegExp(`^${AGENTS[0].name}`) })).toBeInTheDocument();
 });

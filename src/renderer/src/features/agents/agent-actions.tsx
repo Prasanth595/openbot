@@ -4,6 +4,7 @@ import { classifyFailure } from "@openbot/telemetry";
 import type { AgentProfile } from "@openbot/ui/data";
 import type { FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
 import { currentText } from "@openbot/ui/text";
+import { createEffect, createSignal } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { desktopAnalytics } from "../../analytics";
 import { toAgentProfile, withoutAgent } from "../../app-message-projection";
@@ -64,6 +65,47 @@ const AgentActions = createSimpleContext({
     const { setSidebarLayout, removePinnedSidebarItemEverywhere } = useSidebar();
     const { clearDirectSelection } = useDirectMessages();
     const { selectAgent } = useNavigation();
+
+    const [lastDeleted, setLastDeleted] = createSignal<AgentSummary | null>(null);
+    const [restoring, setRestoring] = createSignal(false);
+    let recoveryQuery = 0;
+    createEffect(
+      () => ({ server: activeServer(), serverId: activeServerId(), agents: agentList() }),
+      ({ server, serverId }) => {
+        const query = ++recoveryQuery;
+        setLastDeleted(null);
+        if (server?.kind === "remote") return;
+        void agentsPort()
+          .agent.lastDeletedAgent(serverId)
+          .then((agent) => {
+            if (scopeIsCurrent() && query === recoveryQuery) setLastDeleted(agent);
+          })
+          .catch(() => {});
+      },
+    );
+
+    async function restoreLastDeletedAgent() {
+      if (activeServer()?.kind === "remote" || restoring() || !lastDeleted()) return;
+      const serverId = activeServerId();
+      setRestoring(true);
+      try {
+        const agent = await agentsPort().agent.restoreLastDeletedAgent(serverId);
+        if (!scopeIsCurrent()) return;
+        setLastDeleted(null);
+        if (agent) {
+          addNewAgent(agent);
+          selectAgent(agent.id);
+        }
+      } catch (error) {
+        if (!scopeIsCurrent()) return;
+        const { t, errorMessage } = currentText();
+        actionToast.error(t("agent.error.restoreFailed"), {
+          description: errorMessage(error, t("agent.error.restoreFailed")),
+        });
+      } finally {
+        if (scopeIsCurrent()) setRestoring(false);
+      }
+    }
 
     /** Asks the host for the agent. */
     function requestNewAgent(draft: NewAgentDraft) {
@@ -163,26 +205,29 @@ const AgentActions = createSimpleContext({
     async function deleteAgent(agentId: string) {
       if (agentSetupOpen() && creatingAgent()) return;
       const serverId = activeServerId();
+      const local = activeServer()?.kind !== "remote";
       const analytics = desktopAnalytics.scope();
       const properties = analyticsAgentProperties(agentId);
       const marketplaceAgent = Boolean(agentList().find((agent) => agent.id === agentId)?.marketplaceSource);
       try {
-        await agentsPort().agent.deleteAgent(agentId);
+        if (local) await agentsPort().agent.removeAgentForRecovery(agentId, serverId);
+        else await agentsPort().agent.deleteAgent(agentId, serverId);
+        analytics.track("agent_action", { action: "delete", result: "succeeded", ...(properties ?? {}) });
+        if (marketplaceAgent) {
+          analytics.track("marketplace_action", { entity: "agent", action: "uninstall", result: "succeeded" });
+        }
+        if (!scopeIsCurrent()) return;
         const remaining = agentList().filter((agent) => agent.id !== agentId);
         setAgentList(remaining);
         setActiveAgentId((current) => (current === agentId ? (remaining[0]?.id ?? "") : current));
         setSettingsRequest((current) => (current?.agentId === agentId ? null : current));
         removeConversation(agentId);
-        setUiErrors((current) => withoutAgent(current, agentConversationKey(activeServerId(), agentId)));
+        setUiErrors((current) => withoutAgent(current, agentConversationKey(serverId, agentId)));
         setActiveTurns((current) => withoutAgent(current, agentId));
         setFailedTurns((current) => withoutAgent(current, agentId));
         setQueues((current) => withoutAgent(current, agentId));
         setPendingPrompts((current) => withoutAgent(current, agentId));
-        removePinnedSidebarItemEverywhere({ kind: "agent", id: agentId });
-        analytics.track("agent_action", { action: "delete", result: "succeeded", ...(properties ?? {}) });
-        if (marketplaceAgent) {
-          analytics.track("marketplace_action", { entity: "agent", action: "uninstall", result: "succeeded" });
-        }
+        if (!local) removePinnedSidebarItemEverywhere({ kind: "agent", id: agentId });
       } catch (error) {
         analytics.track("agent_action", {
           action: "delete",
@@ -203,7 +248,15 @@ const AgentActions = createSimpleContext({
       }
     }
 
-    return { createAgent, createAgentInPlace, editAgent, duplicateAgent, deleteAgent };
+    return {
+      createAgent,
+      createAgentInPlace,
+      editAgent,
+      duplicateAgent,
+      deleteAgent,
+      restoreLastDeletedAgent,
+      canRestoreLastDeletedAgent: () => lastDeleted() !== null && !restoring(),
+    };
   },
 });
 

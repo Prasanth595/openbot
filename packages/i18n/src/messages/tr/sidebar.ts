@@ -2,6 +2,10 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sidebar";
 
 export const messages = {
+  "sidebar.delete.retainedAgentDescription":
+    "Yerel ajan uygulamadan kaldırılır; rutinleri ve mesajları durdurulur. Kimliği, sohbeti, anıları, ayarları ve dosyaları bu bilgisayarda tutulur. Kaldırılan ajanları kenar çubuğundan en son kaldırılan ajandan başlayarak geri yükleyebilirsiniz.",
+  "sidebar.retainedAgentsNotice": "Veriler bu bilgisayarda saklanır.",
+  "sidebar.restoreLastDeletedAgent": "Son silinen ajanı geri yükle",
   "sidebar.frame.label": "Ajan gezintisi",
   "sidebar.nav.label": "Sohbet listesi",
   "sidebar.nav.freeArea": "Kenar çubuğu boş alanı",

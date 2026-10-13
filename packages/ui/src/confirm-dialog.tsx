@@ -55,6 +55,7 @@ export function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
   const pending = () => Boolean(props.pending) || running();
   const tone = () => props.tone ?? "destructive";
   const cancelDisabled = () => pending() && !props.dismissWhilePending;
+  let content: HTMLDivElement | undefined;
   let confirmButton: HTMLButtonElement | undefined;
   let cancelButton: HTMLButtonElement | undefined;
   // A controlled dialog has no Kobalte trigger, so it keeps the element that opened it itself.
@@ -86,6 +87,7 @@ export function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
       <AlertDialog.Portal>
         <AlertDialog.Overlay class="ui-confirm-dialog-overlay">
           <AlertDialog.Content
+            ref={content}
             class="ui-confirm-dialog"
             data-tone={tone()}
             onOpenAutoFocus={(event) => {
@@ -96,6 +98,17 @@ export function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
               target?.focus({ preventScroll: true });
             }}
             onCloseAutoFocus={(event) => {
+              const active = document.activeElement;
+              // Closing a disposed scope or an async action must not take focus from another control.
+              if (
+                props.restoreFocusTarget &&
+                active !== document.body &&
+                active !== props.restoreFocusTarget &&
+                !content?.contains(active)
+              ) {
+                event.preventDefault();
+                return;
+              }
               const target = props.restoreFocusTarget ?? restoreTarget;
               if (!target?.isConnected) return;
               event.preventDefault();
@@ -103,7 +116,12 @@ export function ConfirmDialog(props: ConfirmDialogProps): JSX.Element {
               // The enclosing dialog resumes its focus trap after the child closes.
               restoreFrame = requestAnimationFrame(() => {
                 restoreFrame = requestAnimationFrame(() => {
-                  if (!props.open && target.isConnected) target.focus({ preventScroll: true });
+                  if (
+                    !props.open &&
+                    target.isConnected &&
+                    (document.activeElement === target || document.activeElement === document.body)
+                  )
+                    target.focus({ preventScroll: true });
                 });
               });
             }}

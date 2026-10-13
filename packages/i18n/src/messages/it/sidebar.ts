@@ -2,6 +2,10 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sidebar";
 
 export const messages = {
+  "sidebar.delete.retainedAgentDescription":
+    "L’agente locale viene rimosso dall’app e le sue routine e i suoi messaggi vengono fermati. Identità, conversazione, memorie, impostazioni e file restano su questo computer. Puoi annullare l’ultima rimozione dalla barra laterale. Puoi ripristinare gli agenti rimossi dalla barra laterale, dal più recente al più vecchio.",
+  "sidebar.retainedAgentsNotice": "I dati restano su questo computer.",
+  "sidebar.restoreLastDeletedAgent": "Ripristina l’ultimo agente eliminato",
   "sidebar.frame.label": "Navigazione degli agenti",
   "sidebar.nav.label": "Elenco delle chat",
   "sidebar.nav.freeArea": "Area libera della barra laterale",

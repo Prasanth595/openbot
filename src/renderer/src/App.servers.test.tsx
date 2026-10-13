@@ -168,7 +168,7 @@ describe("OpenBot connected desktop shell", () => {
       { ...AGENTS[1], id: "research", name: "Research" },
     ]);
     let finishDelete: (() => void) | undefined;
-    vi.mocked(window.openbot.agent.deleteAgent).mockReturnValueOnce(
+    vi.mocked(window.openbot.agent.removeAgentForRecovery).mockReturnValueOnce(
       new Promise((resolve) => {
         finishDelete = resolve;
       }),
@@ -178,7 +178,7 @@ describe("OpenBot connected desktop shell", () => {
     await fireEvent.contextMenu(screen.getByRole("button", { name: /Research, Outbound specialist/ }));
     await fireEvent.pointerUp(screen.getByRole("menuitem", { name: "Delete agent" }), { button: 0 });
     await fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    await waitFor(() => expect(window.openbot.agent.deleteAgent).toHaveBeenCalledWith("research"));
+    await waitFor(() => expect(window.openbot.agent.removeAgentForRecovery).toHaveBeenCalledWith("research", "local"));
 
     // A main-process server switch can arrive while the delete dialog is waiting.
     emitServers?.([testServer("local", false), testServer("remote-1", true)]);
@@ -1348,7 +1348,7 @@ describe("OpenBot connected desktop shell", () => {
     expect(screen.getByRole("heading", { name: "Chief" })).toBeInTheDocument();
   });
 
-  it("confirms and persistently deletes an agent from its context menu", async () => {
+  it("confirms and retains an agent from its context menu", async () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
     const sales = screen.getByRole("button", { name: /Sales Outbound/ });
@@ -1356,10 +1356,12 @@ describe("OpenBot connected desktop shell", () => {
     await fireEvent.pointerUp(screen.getByRole("menuitem", { name: "Delete agent" }), { button: 0 });
     const dialog = screen.getByRole("alertdialog", { name: "Delete Sales Outbound?" });
     expect(dialog).toHaveTextContent(
-      "This removes the agent and its OpenBot conversation from the app. Its queue, memories, routines, and workspace are deleted. History stored separately by the connected CLI provider is not deleted.",
+      "This removes the local agent from the app and stops its routines and messages. Its identity, conversation, memories, settings, and files stay on this computer. You can restore removed agents from the sidebar, newest first.",
     );
     await fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    await waitFor(() => expect(window.openbot.agent.deleteAgent).toHaveBeenCalledWith("sales-outbound"));
+    await waitFor(() =>
+      expect(window.openbot.agent.removeAgentForRecovery).toHaveBeenCalledWith("sales-outbound", "local"),
+    );
     await waitFor(() => expect(screen.queryByRole("button", { name: /Sales Outbound/ })).not.toBeInTheDocument());
   });
 

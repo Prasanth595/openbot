@@ -2,6 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agent";
 
 export const messages = {
+  "agent.error.restoreFailed": "Impossibile ripristinare l’agente.",
   "agent.access.workspaceOnly": "Solo workspace",
   "agent.setup.nameFallback": "Nuovo agente",
   "agent.setup.titleAdditional": "Crea un nuovo agente",

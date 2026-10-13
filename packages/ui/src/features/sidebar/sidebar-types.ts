@@ -78,6 +78,8 @@ export interface SidebarProps {
   duplicatingAgentIds?: ReadonlySet<string>;
   onDuplicateAgent?: (agentId: string) => Promise<void>;
   onDeleteAgent: (agentId: string) => Promise<void>;
+  onRestoreLastDeletedAgent?: (() => Promise<void>) | undefined;
+  canRestoreLastDeletedAgent?: boolean;
   compact: boolean;
   /** A card under the chat list, such as an announcement. The compact sidebar has no room for it. */
   footer?: JSX.Element;

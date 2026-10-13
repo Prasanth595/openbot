@@ -6,6 +6,7 @@
 
 import type { ChannelSummary, SidebarSection } from "@openbot/contracts/ipc";
 import { createMemo, createStore } from "solid-js";
+import type { AgentProfile } from "../../../data";
 import { currentText } from "../../../text";
 import type { SidebarProps } from "../sidebar-types";
 
@@ -15,6 +16,7 @@ import type { SidebarProps } from "../sidebar-types";
  * closing the dialog cannot leave a "Deleting…" button or the previous attempt's message behind.
  */
 interface SidebarPendingDelete {
+  agent?: AgentProfile;
   deleting: boolean;
   error: string | null;
   /** The agent, channel or section, whichever `kind` names. */
@@ -59,7 +61,7 @@ export function createSidebarPendingStore(deps: {
 
   const deleteTarget = createMemo(() => {
     const deletion = pending.deletion;
-    return deletion?.kind === "agent" ? props.agents.find((agent) => agent.id === deletion.id) : undefined;
+    return deletion?.kind === "agent" ? deletion.agent : undefined;
   });
   const channelDeleteTarget = createMemo<ChannelSummary | undefined>(() => {
     const deletion = pending.deletion;
@@ -74,7 +76,13 @@ export function createSidebarPendingStore(deps: {
 
   function openDelete(kind: SidebarPendingDelete["kind"], id: string): void {
     setPending((state) => {
-      state.deletion = { deleting: false, error: null, id, kind };
+      state.deletion = {
+        deleting: false,
+        error: null,
+        id,
+        kind,
+        ...(kind === "agent" ? { agent: props.agents.find((agent) => agent.id === id) } : {}),
+      };
     });
   }
 

@@ -2,6 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.recoveryLocalOnly": "Восстановление агентов доступно только на этом компьютере.",
   "error.agent.historyUnavailable": "История недоступна для этого запроса. Прочитайте недавнюю историю ещё раз.",
   "error.agent.toolRequestInvalid":
     "Некорректные аргументы поиска инструментов. Используйте объявленную схему и исходное полное имя инструмента.",

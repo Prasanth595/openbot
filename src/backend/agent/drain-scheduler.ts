@@ -162,6 +162,7 @@ export class DrainScheduler {
 
   /** The first clause of `mayDrain` that holds this agent, or null when none does. */
   #heldBy(agentId: string): string | null {
+    if (this.#store.isRetained(agentId)) return "removed";
     if (this.#settingsHolds.has(agentId)) return "session-settings";
     if (this.#conversation.workingSnapshot(agentId)?.activeTurnId) return "active-turn";
     if (!(this.#channels?.mayDrain(agentId) ?? true)) return "channel";

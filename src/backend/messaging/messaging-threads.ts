@@ -295,6 +295,7 @@ export class MessagingThreads {
     input: MessagingReceiveInput,
   ): Effect.fn.Return<MessagingReceiveResult, MessagingThreadFailed> {
     if (this.#mailbox.deliveryForKey(input.idempotencyKey)) return { status: "duplicate" };
+    const validateRoute = yield* threadsStep(() => this.#mailbox.prepareDelivery([input.agentId]));
     const link = this.store.ensureLink({
       connectionId: input.connectionId,
       agentId: input.agentId,
@@ -306,6 +307,11 @@ export class MessagingThreads {
     // The link decides the agent: a conversation that already has one keeps it, even when another
     // message routed it elsewhere at the same time.
     const agentId = link.agentId;
+    const validateAgent = yield* threadsStep(() => this.#mailbox.prepareDelivery([agentId]));
+    const assertAdmission = () => {
+      validateRoute();
+      validateAgent();
+    };
     // One admission at a time for each agent: the enqueue awaits file copies, and the queue limits
     // must count the requests before it.
     const previous = this.#admissions.get(agentId);
@@ -313,7 +319,8 @@ export class MessagingThreads {
     this.#admissions.set(agentId, completed);
     return yield* Effect.gen({ self: this }, function* () {
       if (previous) yield* Deferred.await(previous);
-      return yield* this.#admit(agentId, link, input);
+      yield* threadsStep(assertAdmission);
+      return yield* this.#admit(agentId, link, input, assertAdmission);
     }).pipe(
       Effect.ensuring(
         Effect.sync(() => {
@@ -329,6 +336,7 @@ export class MessagingThreads {
     agentId: string,
     link: MessagingLink,
     input: MessagingReceiveInput,
+    assertAdmission: () => void,
   ): Effect.fn.Return<MessagingReceiveResult, MessagingThreadFailed> {
     // Only external messages count: a teammate's answer to a request from here is the agent's own work.
     const pending = yield* threadsStep(() =>
@@ -350,6 +358,7 @@ export class MessagingThreads {
         text: input.text || "(The message has no text.)",
         sourcePaths: input.sourcePaths,
         idempotencyKey: input.idempotencyKey,
+        assertAdmission,
       })
       .pipe(toMessagingThreadFailed);
     const deliveryId = receipt.deliveries[0]?.id;

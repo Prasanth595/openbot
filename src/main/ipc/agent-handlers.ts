@@ -354,6 +354,22 @@ export function agentIpcHandlers({
         remote: (parsed, serverId) =>
           runCauseEffect(remoteServers.setAgentAvatar(parsed.agentId, parsed.image, serverId)),
       }),
+      removeAgentForRecovery: scopedHandler(parseAgentId, {
+        local: (agentId) => runCauseEffect(service.removeAgentForRecovery(agentId)),
+        remote: () => {
+          throw new Error(sourceText("error.agent.recoveryLocalOnly"));
+        },
+      }),
+      lastDeletedAgent: scopedQueryHandler({
+        local: () => service.lastDeletedAgent(),
+        remote: () => null,
+      }),
+      restoreLastDeletedAgent: scopedQueryHandler({
+        local: () => runCauseEffect(service.restoreLastDeletedAgent()),
+        remote: () => {
+          throw new Error(sourceText("error.agent.recoveryLocalOnly"));
+        },
+      }),
       deleteAgent: scopedHandler(parseAgentId, {
         local: async (agentId) => {
           await runCauseEffect(service.deleteAgent(agentId));

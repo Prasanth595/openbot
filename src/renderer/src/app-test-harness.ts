@@ -947,6 +947,9 @@ export function installOpenbotStub(): void {
         avatarUrl: input.image ? "openbot-avatar://agent/chief?v=test" : null,
       })),
       deleteAgent: vi.fn().mockResolvedValue(undefined),
+      removeAgentForRecovery: vi.fn().mockResolvedValue(undefined),
+      lastDeletedAgent: vi.fn().mockResolvedValue(null),
+      restoreLastDeletedAgent: vi.fn().mockResolvedValue(null),
       readConversation: vi.fn().mockImplementation(async (agentId) => ({
         agentId,
         threadId: null,

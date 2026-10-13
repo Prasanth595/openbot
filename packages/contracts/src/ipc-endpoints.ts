@@ -965,6 +965,9 @@ export const IPC_ENDPOINTS = {
     updateAgent: scopedRequest<UpdateAgentInput, AgentSummary>()("agent:update"),
     setAvatar: scopedRequest<SetAgentAvatarInput, AgentSummary>()("agent:set-avatar"),
     deleteAgent: scopedRequest<string, void>()("agent:delete"),
+    removeAgentForRecovery: scopedRequest<string, void>()("agent:remove-for-recovery"),
+    lastDeletedAgent: scopedQuery<AgentSummary | null>()("agent:last-deleted"),
+    restoreLastDeletedAgent: scopedQuery<AgentSummary | null>()("agent:restore-last-deleted"),
     readConversation: scopedRequest<string, ConversationWithReadState>()("agent:read-conversation"),
     readConversationPage: scopedRequest<ReadConversationPageInput, ConversationPage>()("agent:read-conversation-page"),
     searchConversationMessages: scopedRequest<SearchConversationMessagesInput, ConversationSearchPage>()(

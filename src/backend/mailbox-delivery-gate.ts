@@ -1,13 +1,20 @@
 import { sourceText } from "@openbot/i18n/source";
 /** Prevents delivery insertion across asynchronous agent deletion and attachment preparation. */
 export class MailboxDeliveryGate {
-  readonly #blockedAgents = new Set<string>();
+  readonly #blockedAgents = new Map<string, number>();
   readonly #versions = new Map<string, number>();
 
   block(agentId: string): () => void {
-    this.#blockedAgents.add(agentId);
+    this.#blockedAgents.set(agentId, (this.#blockedAgents.get(agentId) ?? 0) + 1);
     this.#versions.set(agentId, (this.#versions.get(agentId) ?? 0) + 1);
-    return () => this.#blockedAgents.delete(agentId);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const remaining = (this.#blockedAgents.get(agentId) ?? 0) - 1;
+      if (remaining > 0) this.#blockedAgents.set(agentId, remaining);
+      else this.#blockedAgents.delete(agentId);
+    };
   }
 
   prepare(agentIds: string[]): () => void {

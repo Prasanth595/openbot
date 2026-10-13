@@ -48,6 +48,60 @@ export class AgentRoster {
     ).map((row) => JSON.parse(requiredStringColumn(row, "agent_json")));
   }
 
+  /** Retained profiles are durable events, separate from roster replacement. No automatic expiry. */
+  retainedAgents(): AgentSummary[] {
+    return databaseRows(
+      this.#core.connection
+        .prepare(`
+      SELECT payload_json FROM orchestration_events event
+      WHERE aggregate_type = 'agent-retention'
+        AND sequence = (SELECT MAX(sequence) FROM orchestration_events latest
+          WHERE latest.aggregate_type = 'agent-retention' AND latest.aggregate_id = event.aggregate_id)
+        AND event_type = 'agent.retained'
+      ORDER BY sequence
+    `)
+        .all(),
+    ).map((row) => JSON.parse(requiredStringColumn(row, "payload_json")).agent);
+  }
+
+  lastRetainedAgentId(): string | null {
+    const row = databaseRow(
+      this.#core.connection
+        .prepare(`
+        SELECT aggregate_id FROM orchestration_events event
+        WHERE aggregate_type = 'agent-retention' AND event_type = 'agent.retained'
+          AND sequence = (SELECT MAX(sequence) FROM orchestration_events latest
+            WHERE latest.aggregate_type = 'agent-retention' AND latest.aggregate_id = event.aggregate_id)
+        ORDER BY sequence DESC LIMIT 1
+      `)
+        .get(),
+    );
+    return row ? requiredStringColumn(row, "aggregate_id") : null;
+  }
+
+  /** Profile and active roster commit together; original files and other projections stay. */
+  retainAgent(commandId: string, agent: AgentSummary, remainingAgents: AgentSummary[]): void {
+    this.#core.dispatch(
+      commandId,
+      [{ aggregateType: "agent-retention", aggregateId: agent.id, eventType: "agent.retained", payload: { agent } }],
+      () => {
+        this.replaceAgents(`${commandId}:roster`, remainingAgents, "agent.removed-for-recovery");
+        return null;
+      },
+    );
+  }
+
+  restoreRetainedAgent(commandId: string, agent: AgentSummary, agents: AgentSummary[]): void {
+    this.#core.dispatch(
+      commandId,
+      [{ aggregateType: "agent-retention", aggregateId: agent.id, eventType: "agent.restored", payload: {} }],
+      () => {
+        this.replaceAgents(`${commandId}:roster`, agents, "agent.restored");
+        return null;
+      },
+    );
+  }
+
   /**
    * Every thread row no agent claims as its own `thread_id`.
    *
@@ -70,6 +124,10 @@ export class AgentRoster {
           `SELECT thread_id, agent_id FROM projection_threads
            WHERE thread_id NOT IN (SELECT thread_id FROM projection_agents WHERE thread_id IS NOT NULL)
              AND thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)
+             AND agent_id NOT IN (SELECT aggregate_id FROM orchestration_events e
+               WHERE aggregate_type = 'agent-retention' AND event_type = 'agent.retained'
+                 AND sequence = (SELECT MAX(sequence) FROM orchestration_events latest
+                   WHERE latest.aggregate_type = 'agent-retention' AND latest.aggregate_id = e.aggregate_id))
            ORDER BY thread_id`,
         )
         .all(),
@@ -157,6 +215,13 @@ export class AgentRoster {
       ],
       (db, sequences) => {
         const sequence = sequences[0] ?? 0;
+        // Remove retention receipts before their events.
+        const retentionFilter = "aggregate_type = 'agent-retention' AND aggregate_id = ?";
+        db.prepare(`DELETE FROM orchestration_command_receipts WHERE command_id IN (
+          SELECT command_id FROM orchestration_events WHERE ${retentionFilter}
+        )`).run(agentId);
+        db.prepare(`DELETE FROM orchestration_events WHERE ${retentionFilter}`).run(agentId);
+
         for (const table of ["agent_usage_records", "agent_usage_checkpoints", "agent_usage_activity"])
           db.prepare(`DELETE FROM ${table} WHERE agent_id = ?`).run(agentId);
         db.prepare(

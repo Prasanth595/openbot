@@ -228,8 +228,17 @@ export class ThreadLifecycle {
     this: ThreadLifecycle,
     agentId: string,
   ) {
+    const loaded = this.#conversation.loadedAgentThreads(agentId);
+    // Detach before awaiting close: a closing client can still deliver queued notifications.
+    // Durable session records and files stay available for restore or a failed deletion.
+    for (const threadId of this.#conversation.boundAgentThreads(agentId)) {
+      this.#conversation.unbindThread(threadId);
+      this.#conversation.unloadThread(threadId);
+      this.#compaction.forgetThread(threadId);
+      this.#pendingHandoffs.delete(threadId);
+    }
     yield* Effect.forEach(
-      this.#conversation.loadedAgentThreads(agentId),
+      loaded,
       ([externalThreadId, client]) =>
         Effect.gen({ self: this }, function* () {
           const releaseThread = client.releaseThread?.bind(client);
@@ -241,7 +250,6 @@ export class ThreadLifecycle {
                   Effect.sync(() => this.#hooks.logReleaseFailure(client.provider, failure.cause)),
                 ),
               );
-          this.#conversation.unloadThread(externalThreadId);
         }),
       { concurrency: "unbounded", discard: true },
     );

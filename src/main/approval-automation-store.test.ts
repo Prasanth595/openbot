@@ -15,6 +15,21 @@ afterEach(async () => {
 });
 
 describe("approval automation store", () => {
+  it("keeps retained grants across settings writes while denying approval until restoration", async () => {
+    let inactive = ["agent-1"];
+    const automation = new ApprovalAutomation({
+      path: join(await temporaryRoot(), "automation.json"),
+      initial: { turbo: false, defaultAutoApprove: false, autoApproveOverrides: { "agent-1": true } },
+      knownAgentIds: () => ["agent-1", "agent-2"],
+      inactiveAgentIds: () => inactive,
+    });
+    expect(automation.autoApproves("agent-1")).toBe(false);
+    await runCauseEffect(automation.set({ agentId: "agent-2", autoApprove: true }));
+    expect(automation.current().autoApproveOverrides["agent-1"]).toBe(true);
+    inactive = [];
+    expect(automation.autoApproves("agent-1")).toBe(true);
+  });
+
   it("enables ordinary auto-approval when no preference exists", async () => {
     const root = await temporaryRoot();
     await expect(runCauseEffect(readApprovalAutomation(join(root, "automation.json"), []))).resolves.toEqual({

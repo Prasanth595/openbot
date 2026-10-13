@@ -2,6 +2,10 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sidebar";
 
 export const messages = {
+  "sidebar.delete.retainedAgentDescription":
+    "ローカルエージェントをアプリから削除し、ルーティンとメッセージを停止します。識別情報、会話、メモリ、設定、ファイルはこのコンピューターに保持されます。削除したエージェントは、サイドバーから新しい順に復元できます。",
+  "sidebar.retainedAgentsNotice": "削除したデータはこのコンピューターに残ります。",
+  "sidebar.restoreLastDeletedAgent": "最後に削除したエージェントを復元",
   "sidebar.frame.label": "エージェントのナビゲーション",
   "sidebar.nav.label": "チャット一覧",
   "sidebar.nav.freeArea": "サイドバーの空き領域",

@@ -1285,7 +1285,11 @@ describe("MailboxStore", () => {
   });
 
   it("rejects deliveries during deletion and permits new work after release", async () => {
+    const stale = store.prepareDelivery(["chief"]);
+    const retainedOwner = store.blockAgentDeliveries("chief");
     const release = store.blockAgentDeliveries("chief");
+    release();
+    release();
     await expect(
       runCauseEffect(
         store.enqueue({
@@ -1297,40 +1301,47 @@ describe("MailboxStore", () => {
     ).rejects.toThrow("The recipient is being deleted.");
     expect(store.listQueue("chief").deliveries).toEqual([]);
     expect(store.listQueue("sales").deliveries).toEqual([]);
-    release();
+    retainedOwner();
+    retainedOwner();
+    expect(() => stale()).toThrow();
     await runCauseEffect(store.enqueue({ sender: { kind: "user" }, recipientAgentIds: ["chief"], text: "Retry" }));
     expect(store.listQueue("chief").deliveries).toMatchObject([{ text: "Retry", status: "queued" }]);
   });
 
-  it("rejects prepared attachments after deletion finishes without restoring deleted deliveries", async () => {
-    const source = join(root, "overlapping.txt");
-    await writeFile(source, "Keep this draft available for retry.");
-    const [draft] = await runCauseEffect(store.prepareAttachments([source]));
-    assert(draft);
-    const sending = runCauseEffect(
-      store.enqueue({
-        sender: { kind: "user" },
-        recipientAgentIds: ["chief"],
-        text: "Overlapping delivery",
-        draftIds: [draft.id],
-      }),
-    );
-    // Enqueue has reached asynchronous attachment preparation, but cannot insert yet.
-    const release = store.blockAgentDeliveries("chief");
-    const rejected = expect(sending).rejects.toThrow("The recipient is being deleted.");
-    release();
-    await rejected;
-    await runCauseEffect(store.deleteAgentData("chief"));
-    await runCauseEffect(
-      store.enqueue({ sender: { kind: "user" }, recipientAgentIds: ["sales"], text: "Unrelated write" }),
-    );
-    expect(store.listQueue("chief").deliveries).toEqual([]);
-    expect(await readdir(join(root, "Shared", "Transfers"))).toEqual([]);
-    await expect(runCauseEffect(store.resolveAttachment(draft.id))).resolves.toBeTruthy();
-    const restored = new MailboxStore(join(root, "user-data"), join(root, "Shared"));
-    await runCauseEffect(restored.initialize());
-    expect(restored.listQueue("chief").deliveries).toEqual([]);
-  });
+  it.each(["chief", "sales"])(
+    "rejects prepared attachments after recipient or caller removal (%s)",
+    async (blockedAgent) => {
+      const source = join(root, "overlapping.txt");
+      await writeFile(source, "Keep this draft available for retry.");
+      const [draft] = await runCauseEffect(store.prepareAttachments([source]));
+      assert(draft);
+      const assertAdmission = store.prepareDelivery(["sales"]);
+      const sending = runCauseEffect(
+        store.enqueue({
+          sender: { kind: "user" },
+          recipientAgentIds: ["chief"],
+          text: "Overlapping delivery",
+          draftIds: [draft.id],
+          assertAdmission,
+        }),
+      );
+      // Enqueue has reached asynchronous attachment preparation, but cannot insert yet.
+      const release = store.blockAgentDeliveries(blockedAgent);
+      const rejected = expect(sending).rejects.toThrow("The recipient is being deleted.");
+      release();
+      await rejected;
+      await runCauseEffect(store.deleteAgentData("chief"));
+      await runCauseEffect(
+        store.enqueue({ sender: { kind: "user" }, recipientAgentIds: ["sales"], text: "Unrelated write" }),
+      );
+      expect(store.listQueue("chief").deliveries).toEqual([]);
+      expect(await readdir(join(root, "Shared", "Transfers"))).toEqual([]);
+      await expect(runCauseEffect(store.resolveAttachment(draft.id))).resolves.toBeTruthy();
+      const restored = new MailboxStore(join(root, "user-data"), join(root, "Shared"));
+      await runCauseEffect(restored.initialize());
+      expect(restored.listQueue("chief").deliveries).toEqual([]);
+    },
+  );
 
   it("removes deleted agent deliveries while preserving messages visible to other agents", async () => {
     await runCauseEffect(

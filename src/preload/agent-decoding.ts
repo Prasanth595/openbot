@@ -167,3 +167,7 @@ export function decodeAgentSessionSettingsFromMain(value: unknown): AgentSession
   if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
   return value;
 }
+
+export function decodeNullableAgent(value: unknown): AgentSummary | null {
+  return value === null ? null : decodeAgent(value);
+}

@@ -253,7 +253,7 @@ export class RoutineScheduler implements RoutineDueSource {
   }
 
   skipMissed(now: Date, held?: RoutineHoldWindow): void {
-    this.#routines.skipMissed(now, held);
+    this.#routines.skipMissed(now, held, this.#hooks.excludedAgents());
   }
 
   create(input: CreateRoutineInput, options: RoutineMutationOptions = {}): Routine {

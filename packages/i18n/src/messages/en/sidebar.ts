@@ -1,6 +1,10 @@
 import { defineMessages } from "../../message";
 
 export const messages = defineMessages("sidebar", {
+  "sidebar.delete.retainedAgentDescription":
+    "This removes the local agent from the app and stops its routines and messages. Its identity, conversation, memories, settings, and files stay on this computer. You can restore removed agents from the sidebar, newest first.",
+  "sidebar.retainedAgentsNotice": "Removed data stays on this computer.",
+  "sidebar.restoreLastDeletedAgent": "Restore last deleted agent",
   "sidebar.frame.label": "Agent navigation",
   "sidebar.nav.label": "Chat list",
   "sidebar.nav.freeArea": "Sidebar free area",

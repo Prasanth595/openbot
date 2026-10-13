@@ -12,6 +12,7 @@ import { SidebarEmptyState } from "./SidebarEmptyState";
 import { SidebarPinnedGroup } from "./SidebarPinnedGroup";
 import { SidebarSectionList } from "./SidebarSectionList";
 import { SidebarWaitingGroup } from "./SidebarWaitingGroup";
+import { shouldRestoreAgent } from "./sidebar-agent-undo";
 import { useSidebarScope } from "./sidebar-scope";
 
 export function SidebarNav() {
@@ -43,6 +44,12 @@ export function SidebarNav() {
       onDragLeave={handleListDragLeave}
       onDrop={dropSidebarNativeDrag}
       onScroll={scrollFades.measure}
+      tabindex={0}
+      onKeyDown={(event) => {
+        if (!props.onRestoreLastDeletedAgent || !props.canRestoreLastDeletedAgent || !shouldRestoreAgent(event)) return;
+        event.preventDefault();
+        void props.onRestoreLastDeletedAgent();
+      }}
     >
       <div class="agent-list-content">
         <Show
@@ -77,7 +84,8 @@ export function SidebarNav() {
           props.onCreateChannel ||
           layoutMutable() ||
           props.onMarkAllRead ||
-          props.onToggleArchivedChannels
+          props.onToggleArchivedChannels ||
+          props.onRestoreLastDeletedAgent
         }
       >
         <ContextMenu.Root modal={false}>
@@ -88,6 +96,17 @@ export function SidebarNav() {
                 <ContextMenu.Item onSelect={() => props.onCreateAgent()}>
                   <Bot class="agent-context-icon size-4" aria-hidden="true" />
                   <span>{t("sidebar.new.agent")}</span>
+                </ContextMenu.Item>
+              </Show>
+              <Show when={props.onRestoreLastDeletedAgent}>
+                <ContextMenu.Item
+                  disabled={!props.canRestoreLastDeletedAgent}
+                  onSelect={() => void props.onRestoreLastDeletedAgent?.()}
+                >
+                  <span>{t("sidebar.restoreLastDeletedAgent")}</span>
+                </ContextMenu.Item>
+                <ContextMenu.Item disabled>
+                  <span>{t("sidebar.retainedAgentsNotice")}</span>
                 </ContextMenu.Item>
               </Show>
               <Show when={props.onCreateChannel}>

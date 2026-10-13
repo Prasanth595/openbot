@@ -114,6 +114,19 @@ export class OpenBotDatabase {
     return this.#core.dispatch(commandId, events, project);
   }
 
+  retainedAgents(): AgentSummary[] {
+    return this.#roster.retainedAgents();
+  }
+  lastRetainedAgentId(): string | null {
+    return this.#roster.lastRetainedAgentId();
+  }
+  retainAgent(commandId: string, agent: AgentSummary, remaining: AgentSummary[]): void {
+    this.#roster.retainAgent(commandId, agent, remaining);
+  }
+  restoreRetainedAgent(commandId: string, agent: AgentSummary, agents: AgentSummary[]): void {
+    this.#roster.restoreRetainedAgent(commandId, agent, agents);
+  }
+
   commandResult(commandId: string): unknown | undefined {
     return this.#core.commandResult(commandId);
   }

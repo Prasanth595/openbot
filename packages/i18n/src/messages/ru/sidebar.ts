@@ -2,6 +2,10 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sidebar";
 
 export const messages = {
+  "sidebar.delete.retainedAgentDescription":
+    "Локальный агент будет убран из приложения, а его регулярные задачи и сообщения остановлены. Его идентификатор, разговор, память, настройки и файлы останутся на этом компьютере. Последнее удаление можно отменить на боковой панели. Удалённых агентов можно восстановить на боковой панели, начиная с последнего удаления.",
+  "sidebar.retainedAgentsNotice": "Данные остаются на этом компьютере.",
+  "sidebar.restoreLastDeletedAgent": "Восстановить последнего удалённого агента",
   "sidebar.frame.label": "Навигация по агентам",
   "sidebar.nav.label": "Список чатов",
   "sidebar.nav.freeArea": "Свободная область боковой панели",

@@ -154,6 +154,8 @@ interface EnqueueInput {
   draftIds?: string[];
   sourcePaths?: string[];
   idempotencyKey?: string;
+  /** Keeps the caller's admission valid through attachment preparation. */
+  assertAdmission?: () => void;
 }
 
 /** A file a chat message carries or an agent made, as the Storage view lists it. */
@@ -419,6 +421,7 @@ export class MailboxStore {
 
       const recipients = [...new Set(input.recipientAgentIds)];
       const validateRecipients = this.prepareDelivery(recipients);
+      input.assertAdmission?.();
       if (recipients.length === 0) throw new Error(sourceText("error.backend.recipientRequired"));
       if (recipients.length > INPUT_LIMITS.messageRecipients) {
         throw new Error(sourceText("error.backend.recipientLimit", { limit: INPUT_LIMITS.messageRecipients }));
@@ -455,6 +458,7 @@ export class MailboxStore {
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       try {
         validateRecipients();
+        input.assertAdmission?.();
       } catch (error) {
         yield* this.#files
           .remove(this.#files.transferRoot(messageId))

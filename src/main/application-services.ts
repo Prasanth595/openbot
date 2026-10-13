@@ -921,11 +921,12 @@ export async function createApplicationServices({
     initial: await runCauseEffect(
       readApprovalAutomation(
         approvalAutomationFile,
-        store.list().map((agent) => agent.id),
+        [...store.list(), ...store.retainedAgents()].map((agent) => agent.id),
         join(app.getPath("userData"), LEGACY_APPROVAL_AUTOMATION_FILE),
       ),
     ),
-    knownAgentIds: () => store.list().map((agent) => agent.id),
+    knownAgentIds: () => [...store.list(), ...store.retainedAgents()].map((agent) => agent.id),
+    inactiveAgentIds: () => store.retainedAgents().map((agent) => agent.id),
   });
   /*
    * The installed CLIs are the computer's, the partial downloads are this profile's.

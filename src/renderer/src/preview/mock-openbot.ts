@@ -269,6 +269,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let dynamicIslandPresentation: DynamicIslandPresentation = { serverId: "local", mode: "idle" };
   let agentStatus = clone(options.agentStatus ?? STORY_AGENT_STATUS);
   let agents = clone(options.agents ?? STORY_AGENT_SUMMARIES);
+  const retainedAgents = new Map<string, AgentSummary>();
+  const lastDeletedAgent = () => Array.from(retainedAgents.values()).at(-1) ?? null;
   const sessionSettings = new Map<string, AgentSessionSettings>();
   function previewSessionSettings(agentId: string): AgentSessionSettings {
     const agent = agents.find((candidate) => candidate.id === agentId);
@@ -1443,7 +1445,27 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         emitAgentEvent({ type: "agents-changed", agents });
         return clone(updated);
       },
+      lastDeletedAgent: async () => clone(lastDeletedAgent()),
+      removeAgentForRecovery: async (agentId) => {
+        const agent = agents.find((candidate) => candidate.id === agentId);
+        if (!agent) throw new Error("Agent not found");
+        retainedAgents.set(agentId, clone(agent));
+
+        agents = agents.filter((candidate) => candidate.id !== agentId);
+        emitAgentEvent({ type: "agents-changed", agents });
+      },
+      restoreLastDeletedAgent: async () => {
+        const agent = lastDeletedAgent();
+        if (!agent) return null;
+        retainedAgents.delete(agent.id);
+
+        agents = [agent, ...agents];
+        emitAgentEvent({ type: "agents-changed", agents });
+        return clone(agent);
+      },
       deleteAgent: async (agentId) => {
+        retainedAgents.delete(agentId);
+
         agents = agents.filter((agent) => agent.id !== agentId);
         queues.delete(agentId);
         memories.delete(agentId);

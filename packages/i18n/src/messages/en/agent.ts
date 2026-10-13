@@ -1,6 +1,7 @@
 import { defineMessages } from "../../message";
 
 export const messages = defineMessages("agent", {
+  "agent.error.restoreFailed": "Could not restore the agent.",
   "agent.access.workspaceOnly": "Workspace only",
   "agent.setup.nameFallback": "New agent",
   "agent.setup.titleAdditional": "Create a new agent",

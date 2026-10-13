@@ -1152,7 +1152,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    * the layout is reconciled, which would silently drop where the user put a channel.
    */
   sidebarChatIds(): Set<string> {
-    const ids = new Set(this.listAgents().map((agent) => agent.id));
+    const ids = new Set([...this.listAgents(), ...this.#store.retainedAgents()].map((agent) => agent.id));
     for (const channelId of this.channels.store.ids()) ids.add(channelId);
     return ids;
   }
@@ -2198,6 +2198,30 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return agent;
   }
 
+  lastDeletedAgent(): AgentSummary | null {
+    return this.#store.lastRetainedAgent();
+  }
+
+  removeAgentForRecovery(agentId: string): Effect.Effect<void, AgentLifecycleFailed> {
+    return this.#removal
+      .delete(agentId, true)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "removeAgentForRecovery", cause: failure.cause }),
+        ),
+      );
+  }
+
+  restoreLastDeletedAgent(): Effect.Effect<AgentSummary | null, AgentLifecycleFailed> {
+    return this.#removal
+      .restoreLast()
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "restoreLastDeletedAgent", cause: failure.cause }),
+        ),
+      );
+  }
+
   deleteAgent(agentId: string): Effect.Effect<void, AgentLifecycleFailed> {
     return this.#removal
       .delete(agentId)
@@ -2226,6 +2250,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           (failure) => new AgentLifecycleFailed({ operation: "initialize agent store", cause: failure.cause }),
         ),
       );
+    this.#removal.initializeRetention();
     yield* this.#mailbox
       .initialize()
       .pipe(
@@ -2236,7 +2261,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     yield* lifecycleStep("restore channel links", () => {
       this.#mcp.migrateCatalogBridgesToHttp();
       this.channels.restoreDeliveryLinks();
-      this.channels.removeDeletedMembers(new Set(this.#store.list().map((agent) => agent.id)));
+      this.channels.removeDeletedMembers(
+        new Set([...this.#store.list(), ...this.#store.retainedAgents()].map((agent) => agent.id)),
+      );
     });
     yield* this.#threads
       .reconcileProviderSessionFiles()

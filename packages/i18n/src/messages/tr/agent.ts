@@ -2,6 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agent";
 
 export const messages = {
+  "agent.error.restoreFailed": "Ajan geri yüklenemedi.",
   "agent.access.workspaceOnly": "Yalnızca çalışma alanı",
   "agent.setup.nameFallback": "Yeni ajan",
   "agent.setup.titleAdditional": "Yeni bir ajan oluştur",

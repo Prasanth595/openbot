@@ -1,6 +1,7 @@
 import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("error.agent", {
+  "error.agent.recoveryLocalOnly": "Agent recovery is available only on this computer.",
   "error.agent.historyUnavailable": "History is unavailable for this request. Read recent history again.",
   "error.agent.toolRequestInvalid":
     "Invalid tool discovery arguments. Use the declared schema and an original qualified tool name.",
