@@ -1,7 +1,7 @@
 ### Changed
 
-- The "Connectors" and "MCP" links in the Server settings header no longer show a background on hover. Only the text gets brighter.
+- The "MCP" link in the Server settings header no longer shows a background on hover. Only the text gets brighter.
 
 ### Fixed
 
-- The `›` between "Connectors" and the open connector, and in MCP forms, has the same space on both sides.
+- In an MCP form, the `›` in the Server settings header had more space on its left than on its right. Now the space is the same on both sides.

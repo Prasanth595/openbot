@@ -134,8 +134,8 @@
 }
 
 /*
- * A detail view inside a section keeps the header as the way back, the same breadcrumb the agent
- * skills modal uses, rather than a back row above the panel.
+ * A detail view inside a section keeps the header as the way back, as the agent skills modal does,
+ * rather than a back row above the panel.
  */
 .settings-modal-crumbs {
   min-width: 0;
