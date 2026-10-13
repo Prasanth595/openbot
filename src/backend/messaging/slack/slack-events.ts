@@ -125,8 +125,8 @@ export function slackMentionIds(text: string, botUserId: string): string[] {
 
 /**
  * Slack's markup as plain text: OpenBot's own mention goes, other mentions stay as ids, a
- * channel link keeps its name, a link keeps its label and address, and the three escaped
- * characters come back.
+ * channel link keeps its name, a date keeps its fallback and optional link, a link keeps its
+ * label and address, and the three escaped characters come back.
  */
 export function plainText(text: string, botUserId: string): string {
   return text
@@ -134,6 +134,10 @@ export function plainText(text: string, botUserId: string): string {
     .replace(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g, "@$1")
     .replace(/<#[A-Z0-9]+\|([^>]*)>/g, "#$1")
     .replace(/<!(here|channel|everyone)>/g, "@$1")
+    .replace(
+      /<!date\^\d+\^[^<>^|]+(?:\^(https?:\/\/[^<>^|\s]+))?\|([^<>]*)>/g,
+      (_match, link: string | undefined, fallback: string) => (link ? `${fallback} (${link})` : fallback),
+    )
     .replace(/<(https?:[^|>]+)\|([^>]+)>/g, "$2 ($1)")
     .replace(/<(https?:[^>]+)>/g, "$1")
     .replaceAll("&lt;", "<")
