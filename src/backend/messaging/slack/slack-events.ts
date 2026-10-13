@@ -132,6 +132,10 @@ export function plainText(text: string, botUserId: string): string {
   return text
     .replaceAll(`<@${botUserId}>`, "")
     .replace(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g, "@$1")
+    .replace(
+      /<!subteam\^([A-Z0-9]+)(?:\|([^>]+))?>/g,
+      (_match, id: string, label: string | undefined) => label ?? `@group:${id}`,
+    )
     .replace(/<#[A-Z0-9]+\|([^>]*)>/g, "#$1")
     .replace(/<!(here|channel|everyone)>/g, "@$1")
     .replace(/<(https?:[^|>]+)\|([^>]+)>/g, "$2 ($1)")
