@@ -118,4 +118,43 @@ export const messages = {
     one: "Apertura della pagina di accesso su {host}. OpenBot smette di aspettare dopo {count} minuto.",
     other: "Apertura della pagina di accesso su {host}. OpenBot smette di aspettare dopo {count} minuti.",
   },
+  "mcp.panel.appTitle": "App di accesso",
+  "mcp.panel.appDescription":
+    "Usa un'app OAuth che hai registrato presso il provider del server. OpenBot la usa quando il server non può registrare OpenBot da solo. Lascia vuoto per far registrare OpenBot.",
+  "mcp.panel.appSaveFirst": "Prima salva questo server. Poi puoi aggiungere un'app di accesso.",
+  "mcp.panel.appUrlChanged": "Prima salva il nuovo URL del server. L'app di accesso appartiene all'URL salvato.",
+  "mcp.panel.appLoadFailed": "Impossibile leggere l'app di accesso.",
+  "mcp.panel.callbackUrl": "URL di callback",
+  "mcp.panel.callbackUrlDescription":
+    "Aggiungi esattamente questo URL agli URL di reindirizzamento consentiti dell'app.",
+  "mcp.panel.callbackUrlOnHost":
+    "{host} accede con il proprio browser, quindi questo URL è su {host}. Aggiungi esattamente questo URL agli URL di reindirizzamento consentiti dell'app.",
+  "mcp.panel.callbackUrlUnavailable": "Nessun URL di callback disponibile.",
+  "mcp.panel.copyCallbackUrl": "Copia l'URL di callback",
+  "mcp.panel.clientId": "ID client",
+  "mcp.panel.clientSecret": "Secret del client",
+  "mcp.panel.clientSecretDescription": "Facoltativo. Solo per un'app che ha un secret.",
+  "mcp.panel.clientSecretSaved": "Secret salvato. Inserisci un nuovo secret per sostituirlo.",
+  "mcp.panel.clientSecretRemoved": "Il secret viene rimosso quando salvi l'app.",
+  "mcp.panel.removeClientSecret": "Rimuovi il secret",
+  "mcp.panel.scopes": "Scope",
+  "mcp.panel.scopesDescription": "Facoltativo. Separa gli scope con spazi.",
+  "mcp.panel.saveApp": "Salva l'app",
+  "mcp.panel.removeApp": "Rimuovi l'app",
+  "mcp.panel.appSaved": "App salvata. Accedi per usarla.",
+  "mcp.panel.appRemoved": "App rimossa.",
+  "mcp.signIn.relayDescription":
+    "Controlla che la pagina di accesso sia su {page}, poi aprila nel browser. Quando hai finito, OpenBot invia l'accesso a {host}.",
+  "mcp.signIn.relayOpenDescription":
+    "Apri nel browser la pagina di accesso di {page}. Quando hai finito, incolla qui l'indirizzo che mostra il browser. OpenBot poi invia l'accesso a {host}.",
+  "mcp.signIn.relayDeviceDescription":
+    "Controlla che la pagina di accesso sia su {page}, poi aprila nel browser e completa l'accesso lì. {host} vede l'accesso da solo.",
+  "mcp.signIn.relayOpen": "Apri la pagina di accesso",
+  "mcp.signIn.relayPasteHint": "Se il browser non torna a OpenBot, copia l'indirizzo che mostra e incollalo qui.",
+  "mcp.signIn.relayPasteRequired":
+    "OpenBot non può ottenere l'accesso dal browser da solo. Quando hai finito, copia l'indirizzo che mostra il browser e incollalo qui.",
+  "mcp.signIn.relayAddress": "Indirizzo del browser",
+  "mcp.signIn.relaySend": "Invia",
+  "mcp.panel.callbackUrlRelayed":
+    "La pagina di accesso si apre nel tuo browser, e OpenBot sul tuo computer invia l'accesso a {host}. Aggiungi esattamente questo URL agli URL di reindirizzamento consentiti dell'app.",
 } as const satisfies PartialTranslation<typeof source>;

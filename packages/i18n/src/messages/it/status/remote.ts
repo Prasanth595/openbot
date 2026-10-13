@@ -18,7 +18,6 @@ export const messages = {
   "status.remote.stageCompatibility": "Controllo della compatibilità del desktop: {reason}",
   "status.remote.stageAgents": "Caricamento degli agenti: {reason}",
   "status.remote.stageReads": "Caricamento dello stato di lettura: {reason}",
-  "status.remote.stageConversations": "Caricamento delle conversazioni: {reason}",
   "status.remote.suspendedDetail": "Aggiorna OpenBot Mobile o l'app desktop prima di connetterti.\n{detail}",
   "status.remote.cooldownDetail":
     "Connessione non riuscita dopo {limit} tentativi. Nuovo tentativo tra {minutes}:{seconds}.\n{detail}",

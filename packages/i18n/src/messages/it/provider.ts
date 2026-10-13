@@ -54,6 +54,7 @@ export const messages = {
   "provider.aria.retry": "Riprova con {name}",
   "provider.aria.install": "Installa {name}",
   "provider.aria.signIn": "Accedi a {name}",
+  "provider.aria.codeFallback": "Accedi a {name} con un codice",
   "provider.aria.moreActions": "Altre azioni per {name}",
 
   "provider.aria.use": "Usa {name} in OpenBot",
@@ -80,6 +81,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Questo accesso si è interrotto.",
   "provider.codeLogin.pasteExpiresIn": "In attesa di te. Questo accesso si interrompe tra {time}.",
   "provider.codeLogin.linkTitle": "Accedi a {name} su un altro dispositivo",
+  "provider.codeLogin.pageTitle": "Accedi a {name}",
+  "provider.codeLogin.pageDescription": "Questa pagina è aperta nel browser su {host}. Accedi da qui.",
+  "provider.codeLogin.relayStarting": "Avvio dell'accesso a {name} su {host}…",
+  "provider.codeLogin.pageOpening": "Apertura della pagina di accesso di {name} su {host}…",
   "provider.codeLogin.linkStep": "Accedi a {name}. OpenBot continua da solo.",
 
   "provider.picker.noEndpoints": "Ancora nessun endpoint",
@@ -118,6 +123,10 @@ export const messages = {
   "provider.museKey.title": "Chiave API Meta per Muse",
   "provider.museKey.description": "Salva una chiave API Meta sull'host, oppure accedi con la CLI di Muse.",
   "provider.museKey.label": "Chiave API Meta",
+  "provider.geminiKey.title": "Chiave API di Gemini",
+  "provider.geminiKey.description":
+    "Salva una chiave API di Gemini sull'host, oppure seleziona Connetti per accedere con Google.",
+  "provider.geminiKey.label": "Chiave API di Gemini",
 
   "provider.openCodeKey.title": "Accedi a OpenCode Go",
   "provider.openCodeKey.description":

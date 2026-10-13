@@ -102,6 +102,8 @@ export const messages = {
   "error.provider.localOnly": "I provider si possono modificare solo sul computer che esegue gli agenti.",
   "error.provider.keyRequired": "Serve una chiave del provider.",
   "error.provider.keyTooLong": "La chiave del provider è troppo lunga.",
+  "error.provider.keyInvalidCharacters":
+    "La chiave del provider contiene uno spazio o un carattere che una chiave non può contenere.",
   "error.provider.noModel": "Il provider selezionato non ha modelli disponibili.",
   "error.provider.noModelNamed": "{provider} non ha modelli disponibili.",
   "error.provider.acpNoModels":
@@ -149,6 +151,7 @@ export const messages = {
     "{provider} non ha risposto in tempo. Il computer potrebbe essere occupato. Aggiorna i provider per riprovare.",
   "error.provider.noCodeSignIn": "Non si può accedere a {provider} con un codice.",
   "error.provider.codeLoginNoLink": "Il provider non ha mostrato un link di accesso. Riprova.",
+  "error.provider.hostSignInEnded": "{provider} non ha completato l'accesso. Riprova.",
   "error.provider.codeLoginNotWaiting": "Nessun accesso è in attesa di un codice. Riavvia l'accesso.",
   "error.provider.codeLoginBadCode": "Incolla il codice mostrato dalla pagina di accesso.",
   "error.provider.codeLoginRefused": "Il provider non ha accettato il codice. Riavvia l'accesso.",

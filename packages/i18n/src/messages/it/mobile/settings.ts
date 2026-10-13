@@ -39,6 +39,7 @@ export const messages = {
   "mobile.settings.support.empty": "Ancora nessun evento.",
   "mobile.settings.sessions.kindDesktop": "desktop",
   "mobile.settings.sessions.kindMobile": "dispositivo mobile",
+  "mobile.settings.sessions.kindHostedServer": "server ospitato",
   "mobile.settings.sessions.title": "Dispositivi con accesso",
   "mobile.settings.sessions.loading": "Caricamento sessioni…",
   "mobile.settings.sessions.refresh": "Aggiorna sessioni",
@@ -81,6 +82,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Anima le risposte",
   "mobile.settings.animations.textRevealFooter":
     "Una risposta viene scritta parola per parola e il suo fumetto cresce con fluidità. Se è disattivato, il testo appare man mano che arriva.",
+  "mobile.settings.animations.searchTransitions": "Anima i risultati di ricerca",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Quando cambiano, i risultati e i messaggi di ricerca compaiono e scompaiono con una breve sfocatura. Con il movimento ridotto, si dissolvono soltanto. Quando l'opzione è disattivata, cambiano subito.",
   "mobile.settings.feedback.footer": "Feedback al tocco per le azioni nell'app su questo dispositivo.",
   "mobile.settings.feedback.haptics": "Feedback aptico",
   "mobile.settings.feedback.retry": "Riprova a salvare l'impostazione del feedback aptico",

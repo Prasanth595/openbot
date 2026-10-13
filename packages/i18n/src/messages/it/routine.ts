@@ -109,6 +109,8 @@ export const messages = {
   "routine.history.title": "Cronologia",
   "routine.history.empty": "Nessuna esecuzione per ora.",
   "routine.history.manualRun": "Manuale · {time}",
+  "routine.history.scriptRun": "Script · {time}",
+  "routine.history.webhookRun": "Webhook · {time}",
   "routine.history.openRun": "Apri {run} nella chat",
   "routine.history.today": "Oggi, ore {time}",
   "routine.history.yesterday": "Ieri, ore {time}",

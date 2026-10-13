@@ -55,11 +55,20 @@ export const messages = {
   "connector.github.disconnectEffectTools": "Ogni agente perde i tool GitHub, gh e git.",
   "connector.github.disconnectEffectRevoke": "Poi si apre GitHub, dove puoi revocare OpenBot.",
   "connector.github.disconnectEffectKept": "Chat, file e memoria degli agenti restano su questo computer.",
+  "connector.github.descriptionHost":
+    "Ogni agente su {host} può usare i tuoi repository, issue e pull request GitHub, oltre a gh e git.",
+  "connector.github.connectedSummaryHost": {
+    one: "{count} repository · ogni agente su {host}",
+    other: "{count} repository · ogni agente su {host}",
+  },
+  "connector.github.disconnectConfirmDescriptionHost": "Disconnetti rimuove l'accesso di @{login} da {host}.",
+  "connector.github.disconnectEffectKeptHost": "Chat, file e memoria degli agenti restano su {host}.",
   "connector.github.keepConnected": "Resta connesso",
   "connector.github.close": "Chiudi",
   "connector.dangerZone": "Zona pericolosa",
 
   "connector.hub.onThisComputer": "Su questo computer",
+  "connector.hub.onHost": "Su {host}",
   "connector.hub.notSetUp": "Non configurato",
   "connector.hub.available": "Disponibile",
   "connector.hub.open": "Apri {name}",
@@ -126,6 +135,8 @@ export const messages = {
   "connector.slack.disconnectTitle": "Disconnettere {workspace}?",
   "connector.slack.disconnectDescription":
     "OpenBot smette di rispondere in {workspace} e rimuove da questo computer il suo token Slack.",
+  "connector.slack.disconnectDescriptionHost":
+    "OpenBot smette di rispondere in {workspace} e rimuove da {host} il suo token Slack.",
   "connector.slack.disconnectEffect":
     "Le persone in {workspace} non possono più raggiungere i tuoi agenti tramite @OpenBot.",
   "connector.slack.removeEffectKept": "Le conversazioni e lo Slack Orchestrator restano in OpenBot.",
@@ -188,6 +199,8 @@ export const messages = {
   "connector.discord.disconnectTitle": "Disconnettere {workspace}?",
   "connector.discord.disconnectDescription":
     "OpenBot smette di rispondere in {workspace} e rimuove da questo computer la connessione a Discord.",
+  "connector.discord.disconnectDescriptionHost":
+    "OpenBot smette di rispondere in {workspace} e rimuove da {host} la connessione a Discord.",
   "connector.discord.disconnectEffect":
     "Le persone in {workspace} non possono più raggiungere i tuoi agenti tramite @OpenBot.",
   "connector.discord.removeEffectKept": "Le conversazioni e il Discord Orchestrator restano in OpenBot.",
@@ -223,6 +236,8 @@ export const messages = {
     "Il bot OpenBot non è più in questa chat. Disconnetti la chat, poi aggiungi di nuovo il bot.",
   "connector.telegram.helpRelayUnavailable":
     "OpenBot non può ricevere i messaggi di Telegram su questo computer. Accedi, dai un nome a questo computer nelle impostazioni del server e tieni OpenBot aperto.",
+  "connector.telegram.helpRelayUnavailableHost":
+    "OpenBot su {host} non può ricevere i messaggi di Telegram. Su {host}, accedi, dai un nome al server nelle impostazioni del server e tieni OpenBot aperto.",
   "connector.telegram.helpError":
     "OpenBot non riesce a raggiungere questa chat. Riconnettiti, oppure disconnetti la chat.",
   "connector.telegram.retryAt": "Telegram ha chiesto a OpenBot di aspettare. Riprova alle {time}.",

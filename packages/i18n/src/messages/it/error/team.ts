@@ -68,6 +68,11 @@ export const messages = {
   "error.team.contextResetUnsupported": "L'avvio di una nuova chat non è supportato da questa connessione.",
   "error.team.workspaceDirectoryUnsupported":
     "La visualizzazione delle cartelle non è supportata da questa connessione.",
+  "error.team.conversationFileSearchUnsupported": "Questa connessione non supporta la ricerca nei file.",
+  "error.team.routineFlowsUnsupported":
+    "Questo server non supporta i flussi di routine. Aggiorna OpenBot sul computer che lo esegue.",
+  "error.team.routineCanvasTooLarge":
+    "La tela di questa routine è troppo grande per essere inviata a questo dispositivo. Accorcia le istruzioni della routine sul computer che esegue il server.",
   "error.team.agentImportUnsupported": "L'importazione di agenti non è supportata da questa connessione.",
   "error.team.liveActivityUnsupported": "Questo host non può aggiornare la Live Activity di un telefono.",
   "error.team.agentUpdateTargetRequired": "Serve un agente da aggiornare.",
@@ -104,4 +109,12 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Le impostazioni dell'agente non sono supportate da questa connessione.",
   "error.team.adminRequired": "Serve l'accesso come amministratore.",
   "error.team.requestTooLarge": "Il corpo della richiesta è troppo grande.",
+  "error.team.signInRelayUnsupported": "Questo server non può inoltrare gli accessi. Aggiorna OpenBot sull'host.",
+  "error.team.connectorsUnsupported":
+    "Questo server non può gestire le proprie connessioni da qui. Aggiorna OpenBot sull'host.",
+  "error.team.connectorPageRefused": "Il server ha inviato una pagina che OpenBot non apre.",
+  "error.team.signInRelayUnknown": "Questo accesso è terminato o non esiste.",
+  "error.team.signInRelayUsed": "Questo accesso è già stato inviato.",
+  "error.team.signInRelayMismatch": "Questo indirizzo non appartiene a questo accesso.",
+  "error.team.signInRelayLinkUnknown": "Nessun agente su questo server ha mostrato questo link di accesso.",
 } as const satisfies PartialTranslation<typeof source>;

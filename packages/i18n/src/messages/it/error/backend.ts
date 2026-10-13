@@ -54,6 +54,8 @@ export const messages = {
   "error.backend.channelNotFound": "Canale non trovato.",
   "error.backend.channelMemberUnavailable": "Un membro del canale non è disponibile.",
   "error.backend.channelArchived": "Ripristina questo canale prima di inviare messaggi o modificare le attività.",
+  "error.backend.channelsRetired":
+    "I canali non sono più supportati. Metti gli agenti in una sezione della barra laterale per farli lavorare insieme.",
   "error.backend.channelReferenceUnavailable": "Il messaggio del canale a cui si fa riferimento non è disponibile.",
   "error.backend.channelTaskNotFound": "Attività del canale non trovata.",
   "error.backend.channelTaskComplete": "Questa attività è già completata.",
@@ -161,9 +163,20 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Questi agenti sono già collegati in questa routine.",
   "error.backend.routineFlowCycle": "Questo collegamento creerebbe un ciclo.",
   "error.backend.routineFlowLinkLimit": "Una routine può avere al massimo {limit} collegamenti.",
+  "error.backend.agentWaitLimit":
+    "Questo agente ha già {count} attese aperte. Chiudi un'attesa con openbot.close_wait prima di aprirne un'altra.",
+  "error.backend.agentWaitGone": "Questa attesa non è aperta. L'agente l'ha chiusa, oppure qualcuno l'ha annullata.",
+  "error.backend.agentWaitNoRequest":
+    "Un'attesa ha bisogno di un messaggio per continuare. Questo turno non ha messaggi.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Apri un'attesa solo nella tua chat. Un canale o un'attività di messaggistica non può attendere.",
+  "error.backend.agentWaitNoteRequired": "Scrivi una breve nota che spieghi a cosa serve l'attesa.",
+  "error.backend.agentWaitRoutineGone": "Questo agente non ha una routine con questo id.",
+  "error.backend.agentWaitNoRoutine":
+    "Solo un'esecuzione di una delle tue routine risveglia un'attesa, e non hai routine. Creane una con openbot.create_routine, poi apri l'attesa.",
+  "error.backend.agentWaitRemoteUnsupported":
+    "Le attese aperte sono disponibili solo per gli agenti su questo computer.",
   "error.backend.routineFlowHandoffFailed": "La routine non è riuscita a passare il lavoro a questo agente.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "I flussi delle routine sono disponibili solo per gli agenti su questo computer.",
   "error.backend.mcpServerLimit": "OpenBot conserva fino a {limit} server MCP.",
   "error.backend.mcpServerNameTaken": "Esiste già un server MCP chiamato {name}.",
   "error.backend.mcpServerNoAnswer": "Il server non ha risposto entro {seconds} secondi.",
@@ -261,4 +274,11 @@ export const messages = {
     "Il server ha risposto {status}. Controlla la chiave API o le altre credenziali.",
   "error.backend.mcpServerHttpUrl":
     "Il server ha risposto {status}. Controlla l'URL. Il link potrebbe essere sbagliato, scaduto o eliminato.",
+  "error.backend.mcpSignInAppUrl": "L'app di accesso richiede un URL del server valido.",
+  "error.backend.mcpSignInAppClientId": "Inserisci l'ID client dell'app di accesso.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Il server di accesso di questo server MCP è cambiato, quindi OpenBot non gli ha inviato l'app di accesso. Se la modifica è corretta, rimuovi l'app di accesso e aggiungila di nuovo.",
+  "error.backend.mcpSignInAppNoServer":
+    "Salva questo server MCP come server con URL prima di aggiungere un'app di accesso.",
+  "error.backend.mcpSignInAppUnavailable": "Questo computer non può conservare un'app di accesso.",
 } as const satisfies PartialTranslation<typeof source>;
