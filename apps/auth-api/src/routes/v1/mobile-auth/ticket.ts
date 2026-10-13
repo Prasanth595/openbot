@@ -36,6 +36,17 @@ export const Route = createFileRoute("/v1/mobile-auth/ticket")({
           }),
           remoteControlPlaneErrorResponse,
         ),
+      DELETE: ({ request }) =>
+        runApiResponse(
+          Effect.gen(function* () {
+            const token = bearerToken(request);
+            if (!token) return apiError(401, "unauthorized", "Sign in is required.");
+            const hostId = new URL(request.url).searchParams.get("host") ?? "";
+            yield* requestAuthService().cancelMobileAuthTickets(token, hostId);
+            return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+          }),
+          remoteControlPlaneErrorResponse,
+        ),
     },
   },
 });

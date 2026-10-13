@@ -627,11 +627,14 @@ message. The answers go from the computer to the Slack Web API directly.
   workspace name and IDs, which agent is its Slack Orchestrator, and one row per Slack
   thread that an agent answers. The messages of that thread are kept as a conversation of that
   agent, with the Slack display name of each author, and files people send are kept with the agent's
-  attachments. Disconnect revokes and removes the token and keeps the conversations; deleting an
-  agent removes its conversations.
+  attachments. The database also holds the short facts about the workspace that its agents save
+  (workspace memories); every conversation of that workspace shows them to the agent that answers.
+  Disconnect revokes and removes the token and keeps the conversations and the workspace memories;
+  deleting an agent removes its conversations and keeps the workspace memories.
 - **Read from Slack.** The messages that mention OpenBot, the replies in a thread an agent answers,
-  its direct messages, the files in them, the display names of their authors, the names of the
-  channels, and earlier messages of a thread as context. OpenBot joins every public channel of the
+  its direct messages, the files in them, the display names of their authors and of the people they
+  mention, the names of the channels, earlier messages of a thread as context, and, when an agent
+  asks for them, the newest messages of the channel or thread it answers in. OpenBot joins every public channel of the
   workspace, and Slack sends every message of each channel that OpenBot is in; the computer keeps
   only the messages that address OpenBot or continue a conversation.
 - **Given to the Slack Orchestrator.** Every new Slack request goes first to the orchestrator agent,
@@ -666,7 +669,8 @@ holds it. Unlike Slack, both directions go through Signal:
 - **From the computer.** The computer sends its posts, edits, reactions, files and name lookups to
   Signal, which makes each call to Discord for it, only in the Discord servers linked to that
   computer. To give context, the computer asks Signal for the earlier messages of a channel after the
-  first message of a conversation.
+  first message of a conversation, and, when an agent asks for them, for the newest messages of the
+  channel it answers in. It also asks for the names of the people that a message mentions.
 
 Signal does not store or log a message, a file or a token; it keeps the server and channel names and
 IDs in memory to check each call. It answers a direct message to OpenBot with one fixed sentence and
@@ -675,8 +679,8 @@ passes nothing on.
 - **Stored on the host.** The Discord server's name and ID, which agent is its Discord Orchestrator,
   and one row per conversation that an agent answers, kept as a conversation of that agent with the
   Discord display name of each author. Files people send are kept with the agent's attachments.
-  Disconnect removes the link and keeps the conversations; deleting an agent removes its
-  conversations.
+  Workspace memories are kept as for Slack. Disconnect removes the link and keeps the conversations
+  and the workspace memories; deleting an agent removes its conversations.
 - **Given to the Discord Orchestrator.** As for Slack.
 - **Sent to Discord.** As for Slack: the answers, attached files of at most 10 MB, status posts,
   reactions, and redacted approval requests. A post never pings anyone.
@@ -711,8 +715,9 @@ short-lived signed addresses, in transit only.
   conversation that an agent answers. The messages of that conversation are kept as a conversation
   of that agent, with the Telegram name of each author, and files people send are kept with the
   agent's attachments. The names of authors and the last messages of a chat are also kept in memory
-  for context, until OpenBot quits. Disconnect makes the bot leave the chat, unlinks it and keeps
-  the conversations; deleting an agent removes its conversations.
+  for context, until OpenBot quits. Workspace memories are kept for each chat, as for Slack.
+  Disconnect makes the bot leave the chat, unlinks it and keeps the conversations and the workspace
+  memories; deleting an agent removes its conversations.
 - **Read from Telegram.** The messages that mention the bot, replies to it and the other messages of a
   reply chain that Telegram sends, the messages of a direct chat, the message that a request
   answers, the files in them, the names of their authors and the name of the chat. With privacy

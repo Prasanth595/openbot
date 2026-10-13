@@ -1,6 +1,6 @@
 # OpenBot team launch catalog
 
-Version v2 contains 20 Skills and 15 Agents. Four Skills and four Agents are featured on first publication. All entries show the public OpenBot logo as their creator badge, use the publisher **OpenBot**, start with zero installs, and include no scheduled routines. They work from supplied material and available tools; they do not assume a connected inbox, CRM, ad account, or phone service.
+Version v2 contains 21 Skills and 15 Agents. The `pstack` Skill installs 52 skills `pstack-<name>` with it. Four Skills and four Agents are featured on first publication. All entries show the public OpenBot logo as their creator badge, use the publisher **OpenBot**, start with zero installs, and include no scheduled routines. They work from supplied material and available tools; they do not assume a connected inbox, CRM, ad account, or phone service. The `pstack` Skill is the exception: it is the upstream text, unchanged in substance, and some of its skills use MCP servers, connectors or web links when the agent has them.
 
 ## Review locally
 
@@ -81,12 +81,15 @@ Do not use the separate `skills:seed`, `agents:seed`, or `dev:seed` demo scripts
 | [data-quality-review](skills/data-quality-review/SKILL.md) | data-analytics | openbot |
 | [workflow-playbook](skills/workflow-playbook/SKILL.md) | automation | openbot |
 | [hiring-scorecard](skills/hiring-scorecard/SKILL.md) | other | openbot |
+| `pstack`, with the 52 skills `pstack-<name>` of [bundles/pstack/skills](bundles/pstack/skills) | coding | cursor |
 
 ★ Featured on first publication. Existing Featured settings are preserved on reruns.
 
 ## Attribution
 
 The 15 original OpenBot team Skills use the repository PolyForm Noncommercial 1.0.0 license. The five existing adapted Skills retain their pinned OpenAI or Anthropic source attribution and Apache-2.0 license. Each generated bundle contains the applicable LICENSE.txt and NOTICE.txt; the build also produces UPSTREAM_NOTICES.md.
+
+`bundles/pstack/` is an unchanged copy of the `skills/` and `agents/` of the pstack plugin by Lauren Tan from the pinned `cursor/plugins` commit, under the MIT License. It is a pack in `catalog.json`: the build publishes it as the one Skill `pstack`. Its archive holds an index `SKILL.md`, the `LICENSE`, a `NOTICE.md`, and each folder of `skills/` as `skills/pstack-<folder>/`. The app installs each of those as a skill folder of its own, beside `pstack`, under one lock entry: one download and one install receipt. In Markdown, the build renames links, `/<name>` commands and `<name>` mentions of other pstack skills to `pstack-<name>`, removes `disable-model-invocation` so `$pstack-<name>` works with every provider, copies `agents/` into each skill that names a subagent, and adds a closing `pstack in OpenBot` section. Links to files that no skill installs go to the pinned commit. To update it, copy the new upstream `skills/` and `agents/`, update the pinned commit in `catalog.json` and `NOTICE.md`, and increase `catalogVersion`.
 
 ## Check Agent preview switching
 

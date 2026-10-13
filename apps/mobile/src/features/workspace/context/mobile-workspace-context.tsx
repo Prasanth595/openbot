@@ -646,6 +646,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const othersHeld = hold !== null && hold.serverId === activeServerId;
   const wakeReconnect = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(wakeReconnect.current), []);
+  /** The account server says that the hosted server starts, so the app connects to it again soon. */
+  const hostedServerStarting = useCallback((hostId: string) => {
+    clearTimeout(wakeReconnect.current);
+    wakeReconnect.current = setTimeout(() => connections.current.get(hostId)?.refresh(), WAKE_RECONNECT_DELAY_MS);
+  }, []);
   // A hosted server that stopped for no use starts again only for use: the selected server, with the
   // app in the foreground. It connects again when the account server says that it starts.
   const wakeSelectedServer = useCallback(
@@ -653,11 +658,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       if (!foregroundRef.current || hostId !== activeServerIdRef.current) return;
       void runTeamEffect(wakeHostedServer(hostId)).then((waking) => {
         if (!waking || hostId !== activeServerIdRef.current) return;
-        clearTimeout(wakeReconnect.current);
-        wakeReconnect.current = setTimeout(() => connections.current.get(hostId)?.refresh(), WAKE_RECONNECT_DELAY_MS);
+        hostedServerStarting(hostId);
       });
     },
-    [wakeHostedServer],
+    [wakeHostedServer, hostedServerStarting],
   );
   /** The last failed attempt of each server that asked for a wake. */
   const wakeAttempts = useRef(new Map<string, number>());
@@ -1342,6 +1346,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         connections.current.get(serverId)?.refresh();
         await refreshHosts();
       },
+      hostedServerStarting,
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
       canManageAgentSkills: (serverId) => administers(serverId, SKILLS_ADMIN_CAPABILITY),
@@ -1624,6 +1629,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     refreshHosts,
     refreshMemberships,
     readRefresh,
+    hostedServerStarting,
     request,
     serverDirectoryError,
     teamApi,

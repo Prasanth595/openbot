@@ -38,6 +38,7 @@ export const messages = defineMessages("mobile.settings", {
   "mobile.settings.support.empty": "No events yet.",
   "mobile.settings.sessions.kindDesktop": "desktop",
   "mobile.settings.sessions.kindMobile": "mobile",
+  "mobile.settings.sessions.kindHostedServer": "hosted server",
   "mobile.settings.sessions.title": "Signed-in devices",
   "mobile.settings.sessions.loading": "Loading sessions…",
   "mobile.settings.sessions.refresh": "Refresh sessions",

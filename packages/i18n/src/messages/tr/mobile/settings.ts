@@ -39,6 +39,7 @@ export const messages = {
   "mobile.settings.support.empty": "Henüz olay yok.",
   "mobile.settings.sessions.kindDesktop": "masaüstü",
   "mobile.settings.sessions.kindMobile": "mobil",
+  "mobile.settings.sessions.kindHostedServer": "barındırılan sunucu",
   "mobile.settings.sessions.title": "Giriş yapılmış cihazlar",
   "mobile.settings.sessions.loading": "Oturumlar yükleniyor…",
   "mobile.settings.sessions.refresh": "Oturumları yenile",

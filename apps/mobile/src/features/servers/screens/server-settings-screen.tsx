@@ -1,4 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { WAKE_RECONNECT_STATES } from "@openbot/team-client/hosted-server-wake";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
@@ -23,20 +24,24 @@ import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { haptics } from "@/shared/lib/haptics";
 import { type AvatarPhoto, pickAvatarPhoto } from "@/shared/lib/pick-avatar-photo";
-import { useText } from "@/shared/lib/text";
+import { currentText, useText } from "@/shared/lib/text";
 
 export function ServerSettingsScreen() {
   const { t, sourceText, errorMessage } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { servers, leaveServer, removeServer, refreshServer } = useMobileWorkspace();
+  const { servers, leaveServer, removeServer, refreshServer, hostedServerStarting } = useMobileWorkspace();
   const server = servers.find((item) => item.id === serverId);
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [restarting, setRestarting] = useState(false);
+  const [restarted, setRestarted] = useState<string | null>(null);
   const { session } = useMobileSession();
   const owner = server?.role === "owner";
-  // Billing deletes a hosted server, so Remove shows only after the hosted servers are known.
+  // Billing deletes a hosted server, so Remove and Restart show only after the hosted servers are known.
   const [hostedServerIds, setHostedServerIds] = useState<ReadonlySet<string> | null>(null);
+  // The same rule as the Restart item of the desktop server menu.
+  const canRestart = server?.kind === "remote" && owner && Boolean(hostedServerIds?.has(serverId));
   useEffect(() => {
     if (!session || !owner) return;
     let current = true;
@@ -57,6 +62,7 @@ export function ServerSettingsScreen() {
     locked.current = true;
     setBusy(true);
     setError(null);
+    setRestarted(null);
     try {
       await operation();
       void haptics.notification("success");
@@ -90,7 +96,7 @@ export function ServerSettingsScreen() {
         </SettingsRow>
         <SettingsRow disclosure={false} disabled={busy} onPress={() => void perform(() => refreshServer(serverId))}>
           <Typography.Paragraph type="body-sm">
-            {busy ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
+            {busy && !restarting ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
           </Typography.Paragraph>
         </SettingsRow>
         {server.role !== "owner" ? (
@@ -118,6 +124,48 @@ export function ServerSettingsScreen() {
           >
             <Typography.Paragraph type="body-sm" className="text-danger-text">
               {t("mobile.server.settings.leave")}
+            </Typography.Paragraph>
+          </SettingsRow>
+        ) : canRestart ? (
+          // The account server stops the hosted server and starts it again. The app connects again after it.
+          <SettingsRow
+            disclosure={false}
+            disabled={busy}
+            onPress={() =>
+              Alert.alert(
+                t("mobile.server.settings.restartTitle", { name: server.name }),
+                t("mobile.server.settings.restartBody"),
+                [
+                  { text: t("common.cancel"), style: "cancel" },
+                  {
+                    text: t("mobile.server.settings.restartConfirm"),
+                    onPress: () =>
+                      void perform(
+                        async () => {
+                          if (!session) throw new Error(currentText().t("mobile.server.hosted.restartFailed"));
+                          setRestarting(true);
+                          try {
+                            const hosted = await hostedServerCalls(session).restart(serverId);
+                            // The connection drops when the server stops. The app connects again, as after a wake.
+                            if (WAKE_RECONNECT_STATES.has(hosted.state)) hostedServerStarting(serverId);
+                          } finally {
+                            setRestarting(false);
+                          }
+                          setRestarted(currentText().t("mobile.server.settings.restarted", { name: server.name }));
+                        },
+                        // The account server explains a refusal, such as a server that cannot restart now.
+                        (caught) => {
+                          const text = currentText();
+                          return text.errorMessage(caught, text.t("mobile.server.hosted.restartFailed"));
+                        },
+                      ),
+                  },
+                ],
+              )
+            }
+          >
+            <Typography.Paragraph type="body-sm">
+              {restarting ? t("mobile.server.settings.restarting") : t("mobile.server.settings.restart")}
             </Typography.Paragraph>
           </SettingsRow>
         ) : hostedServerIds && !hostedServerIds.has(serverId) ? (
@@ -153,6 +201,7 @@ export function ServerSettingsScreen() {
             </Typography.Paragraph>
           </SettingsRow>
         ) : null}
+        {restarted ? <SettingsNote>{restarted}</SettingsNote> : null}
         {error ? <SettingsNote>{error}</SettingsNote> : null}
       </SettingsSection>
     </SettingsContent>

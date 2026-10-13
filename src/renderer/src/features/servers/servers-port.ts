@@ -33,7 +33,7 @@ export interface ServersPort {
   auth: Pick<OpenBotDesktopApi["auth"], "onEvent">;
   browser: Pick<OpenBotDesktopApi["browser"], "setVisible">;
   hostAdmin: Pick<OpenBotDesktopApi["hostAdmin"], "getUpdateStatus" | "updateIdentity">;
-  hostedServers: Pick<OpenBotDesktopApi["hostedServers"], "list" | "wake">;
+  hostedServers: Pick<OpenBotDesktopApi["hostedServers"], "list" | "restart" | "wake">;
   host: Pick<
     OpenBotDesktopApi["host"],
     "configure" | "getStatus" | "onEvent" | "recheckScreenRecording" | "start" | "stop" | "updateIdentity"

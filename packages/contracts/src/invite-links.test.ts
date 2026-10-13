@@ -42,6 +42,10 @@ describe("OpenBot invite links", () => {
   it("converts a canonical invitation to the desktop fallback scheme", () => {
     expect(toOpenBotInviteUrl(createInviteUrl(payload))).toBe(createOpenBotInviteUrl(payload));
     expect(parseInviteUrl(createOpenBotInviteUrl(payload))).toEqual(payload);
+    // Windows can pass the link to OpenBot with a slash before the query.
+    expect(parseInviteUrl(createOpenBotInviteUrl(payload).replace("openbot://join?", "openbot://join/?"))).toEqual(
+      payload,
+    );
   });
 
   it("reads an invitation from the browser client's entry and refuses any other host", () => {

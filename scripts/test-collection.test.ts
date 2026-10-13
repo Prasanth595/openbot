@@ -27,6 +27,10 @@ const delegatedWorkspaces = ["apps/auth-api", "apps/site-router", "remote/api"];
 // check skips test files. They assert nothing, so collecting them would be meaningless.
 const readNotRun = ["tools/ui-foundation/fixtures/"];
 
+// Upstream files that a marketplace skill publishes unchanged. Their tests run in the upstream
+// repository, with its own runner and dependencies.
+const vendored = ["marketplace/production-catalog/bundles/"];
+
 // `--others --exclude-standard` adds the files git would accept but has not been given
 // yet, so the test a developer is writing right now is checked before it is committed,
 // while .gitignore still keeps node_modules and every build directory out.
@@ -68,7 +72,7 @@ describe("test collection", () => {
     expect(tracked.length).toBeGreaterThan(100);
 
     const collected = new Set(collectedTestFiles());
-    const exempt = [...delegatedWorkspaces.map((workspace) => `${workspace}/`), ...readNotRun];
+    const exempt = [...delegatedWorkspaces.map((workspace) => `${workspace}/`), ...readNotRun, ...vendored];
     const uncollected = tracked.filter(
       (path) => !collected.has(path) && !exempt.some((prefix) => path.startsWith(prefix)),
     );

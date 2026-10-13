@@ -55,7 +55,7 @@ export interface BrowserApiServices {
   hostLogo: (hostId: string, version: string) => ReturnType<typeof readHostLogo>;
   hosting: () => Pick<
     HostedServerService,
-    "list" | "plans" | "create" | "checkout" | "delete" | "wake" | "status" | "lifecycle"
+    "list" | "plans" | "create" | "checkout" | "delete" | "wake" | "restart" | "status" | "lifecycle"
   >;
   inviteEmailDelivery: () => TeamInviteEmailDelivery | null;
   /** The billing service, or null when this deployment has no Stripe key. */
@@ -347,7 +347,7 @@ const handleHosting = Effect.fn("BrowserApi.handleHosting")(function* (
     );
   }
   const [, encodedServerId, action] =
-    /^v2\/hosting\/servers\/([^/]+)(?:\/(wake|checkout|status|lifecycle))?$/u.exec(path) ?? [];
+    /^v2\/hosting\/servers\/([^/]+)(?:\/(wake|restart|checkout|status|lifecycle))?$/u.exec(path) ?? [];
   if (encodedServerId === undefined) return null;
   const serverId = decodeURIComponent(encodedServerId);
   if (action === "lifecycle" && request.method === "POST") {
@@ -358,6 +358,7 @@ const handleHosting = Effect.fn("BrowserApi.handleHosting")(function* (
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   }
   if (action === "wake" && request.method === "POST") return json(yield* services.hosting().wake(user, serverId));
+  if (action === "restart" && request.method === "POST") return json(yield* services.hosting().restart(user, serverId));
   if (action === "status" && request.method === "GET") return json(yield* services.hosting().status(user, serverId));
   if (action === "checkout" && request.method === "POST") {
     return json(yield* services.hosting().checkout(user, serverId, returnTo));

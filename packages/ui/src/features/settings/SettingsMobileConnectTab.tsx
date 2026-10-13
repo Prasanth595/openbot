@@ -10,7 +10,9 @@ import {
   Badge,
   Button,
   CircleCheck,
+  ConfirmDialog,
   CopyButton,
+  Eye,
   Info,
   Item,
   ItemActions,
@@ -35,6 +37,8 @@ import type { SettingsMobileConnectStore } from "./stores/mobile-connect-store";
 interface SettingsMobileConnectTabProps {
   store: SettingsMobileConnectStore;
   canCreateTicket: boolean;
+  canCancelTicket: boolean;
+  canManageLink: boolean;
   canRevokeDevice: boolean;
 }
 
@@ -92,7 +96,7 @@ function devicePlatformLabel(platform: MobileConnectedDevice["platform"], t: App
 }
 
 export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
-  const { t } = useText();
+  const { t, format } = useText();
   const [platform, setPlatform] = createSignal<MobilePlatformLogoVariant>("ios");
   return (
     <SettingsSection title={t("settings.mobileConnect.title")} description={t("settings.mobileConnect.description")}>
@@ -167,7 +171,7 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
       <ItemGroup class="settings-modal-card settings-mobile-connect-card">
         <Item class="settings-modal-row settings-mobile-connect-action-row">
           <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
-            2
+            {props.canManageLink ? "2.1" : "2"}
           </ItemMedia>
           <ItemContent>
             <ItemTitle>{t("settings.mobileConnect.signIn.title")}</ItemTitle>
@@ -182,6 +186,7 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
           </ItemContent>
           <ItemActions>
             <Button
+              class="settings-mobile-connect-generate"
               type="button"
               size="sm"
               loading={props.store.state.connect.busy}
@@ -204,7 +209,7 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
               aria-hidden={session().collapsing ? "true" : undefined}
             >
               <div class="settings-mobile-connect-code-collapse-body">
-                <div class="settings-mobile-connect-code" aria-live="polite">
+                <div class="settings-mobile-connect-link">
                   <Show
                     when={!props.store.expired()}
                     fallback={
@@ -219,49 +224,35 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
                       </div>
                     }
                   >
-                    <div
-                      class="settings-mobile-connect-qr-stage"
-                      data-success={session().successDeviceName ? "" : undefined}
-                    >
-                      <QrCode value={session().ticket.qrData} label={t("settings.mobileConnect.qrLabel")} />
-                      <Show when={session().successDeviceName}>
-                        <div class="settings-mobile-connect-success-mark" aria-hidden="true">
-                          <CircleCheck />
-                        </div>
-                      </Show>
+                    <div class="settings-mobile-connect-link-bar">
+                      <Text class="settings-mobile-connect-expiry" variant="caption" aria-atomic="true">
+                        {t("settings.mobileConnect.expiresIn", { time: props.store.expiryLabel() })}
+                      </Text>
+                      <div class="settings-mobile-connect-link-actions">
+                        <CopyButton
+                          variant="outline"
+                          size="sm"
+                          value={session().ticket.qrData}
+                          label={t("settings.mobileConnect.code.copy")}
+                          copiedLabel={t("settings.mobileConnect.app.linkCopied")}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive-ghost"
+                          loading={props.store.state.connect.cancelling}
+                          disabled={!props.canCancelTicket || props.store.state.connect.busy}
+                          onClick={() => void props.store.cancelTicket()}
+                        >
+                          {t("settings.mobileConnect.code.cancel")}
+                        </Button>
+                      </div>
                     </div>
-                    <div class="settings-mobile-connect-code-copy">
-                      <Show
-                        when={session().successDeviceName}
-                        fallback={
-                          <>
-                            <Text class="settings-mobile-connect-code-title" variant="body">
-                              {t("settings.mobileConnect.scan.title")}
-                            </Text>
-                            <Text variant="caption" tone="muted">
-                              {t("settings.mobileConnect.scan.description")}
-                            </Text>
-                            <Text class="settings-mobile-connect-expiry" variant="caption" aria-atomic="true">
-                              {t("settings.mobileConnect.expiresIn", { time: props.store.expiryLabel() })}
-                            </Text>
-                          </>
-                        }
-                      >
-                        {(deviceName) => (
-                          <>
-                            <Text
-                              class="settings-mobile-connect-code-title settings-mobile-connect-success-title"
-                              variant="body"
-                            >
-                              {t("settings.mobileConnect.connected.title")}
-                            </Text>
-                            <Text variant="caption" tone="muted" role="status">
-                              {t("settings.mobileConnect.connected.description", { name: deviceName() })}
-                            </Text>
-                          </>
-                        )}
-                      </Show>
-                    </div>
+                    <MobileConnectQr
+                      value={session().ticket.qrData}
+                      label={t("settings.mobileConnect.qrLabel")}
+                      successDeviceName={session().successDeviceName}
+                    />
                   </Show>
                 </div>
               </div>
@@ -269,6 +260,115 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
           )}
         </Show>
       </ItemGroup>
+
+      <Show when={props.canManageLink}>
+        <ItemGroup class="settings-modal-card settings-mobile-connect-card">
+          <Item class="settings-modal-row settings-mobile-connect-action-row">
+            <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
+              2.2
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>{t("settings.mobileConnect.link.title")}</ItemTitle>
+              <ItemDescription>{t("settings.mobileConnect.link.description")}</ItemDescription>
+              <Show when={props.store.state.link.error}>
+                {(error) => (
+                  <ItemDescription class="settings-modal-error" role="alert">
+                    {error()}
+                  </ItemDescription>
+                )}
+              </Show>
+            </ItemContent>
+            <ItemActions>
+              <Button
+                class="settings-mobile-connect-generate"
+                type="button"
+                size="sm"
+                loading={props.store.state.link.busy === "create"}
+                loadingLabel={t("settings.mobileConnect.generating")}
+                disabled={!props.store.state.link.loaded || props.store.state.link.busy !== null}
+                onClick={() =>
+                  props.store.state.link.link ? props.store.setLinkConfirm("replace") : void props.store.createLink()
+                }
+              >
+                {props.store.state.link.link
+                  ? t("settings.mobileConnect.link.replace")
+                  : t("settings.mobileConnect.link.create")}
+              </Button>
+            </ItemActions>
+          </Item>
+
+          <Show when={props.store.state.link.link}>
+            {(link) => (
+              <div class="settings-mobile-connect-link">
+                <div class="settings-mobile-connect-link-bar">
+                  <Text variant="caption" tone="muted">
+                    {t("settings.mobileConnect.link.created", {
+                      date: format.date(link().createdAt, { dateStyle: "medium", timeStyle: "short" }),
+                    })}
+                  </Text>
+                  <div class="settings-mobile-connect-link-actions">
+                    <Button type="button" size="sm" variant="outline" onClick={() => props.store.toggleLinkRevealed()}>
+                      <Eye aria-hidden="true" />
+                      {props.store.state.link.revealed
+                        ? t("settings.mobileConnect.link.hide")
+                        : t("settings.mobileConnect.link.show")}
+                    </Button>
+                    <CopyButton
+                      variant="outline"
+                      size="sm"
+                      value={link().url}
+                      label={t("settings.mobileConnect.link.copy")}
+                      copiedLabel={t("settings.mobileConnect.app.linkCopied")}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive-ghost"
+                      disabled={props.store.state.link.busy !== null}
+                      onClick={() => props.store.setLinkConfirm("revoke")}
+                    >
+                      {t("settings.mobileConnect.link.revoke")}
+                    </Button>
+                  </div>
+                </div>
+                {/* Always mounted, so showing and hiding the link animate like the one-time code. */}
+                <div
+                  class="settings-mobile-connect-link-reveal"
+                  data-expanded={props.store.state.link.revealed ? "" : undefined}
+                  aria-hidden={props.store.state.link.revealed ? undefined : "true"}
+                  inert={props.store.state.link.revealed ? undefined : true}
+                >
+                  <div class="settings-mobile-connect-code-collapse-body">
+                    <MobileConnectQr
+                      value={link().url}
+                      label={t("settings.mobileConnect.link.qrLabel")}
+                      successDeviceName={props.store.state.link.successDeviceName}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </Show>
+        </ItemGroup>
+
+        <ConfirmDialog
+          open={props.store.state.link.confirm === "replace"}
+          onCancel={() => props.store.setLinkConfirm(null)}
+          onConfirm={() => props.store.createLink()}
+          tone="default"
+          title={t("settings.mobileConnect.link.replaceConfirm.title")}
+          description={t("settings.mobileConnect.link.confirm.description")}
+          confirmLabel={t("settings.mobileConnect.link.replace")}
+        />
+        <ConfirmDialog
+          open={props.store.state.link.confirm === "revoke"}
+          onCancel={() => props.store.setLinkConfirm(null)}
+          onConfirm={() => props.store.revokeLink()}
+          title={t("settings.mobileConnect.link.revokeConfirm.title")}
+          description={t("settings.mobileConnect.link.revokeConfirm.description")}
+          confirmLabel={t("settings.mobileConnect.link.revoke")}
+        />
+      </Show>
 
       <section class="settings-mobile-devices" aria-labelledby="settings-mobile-devices-title">
         <div class="settings-mobile-devices-heading">
@@ -311,6 +411,7 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
                     <tr>
                       <th scope="col">{t("settings.mobileConnect.devices.column.device")}</th>
                       <th scope="col">{t("settings.mobileConnect.devices.column.platform")}</th>
+                      <th scope="col">{t("settings.mobileConnect.devices.column.via")}</th>
                       <th scope="col">{t("settings.mobileConnect.devices.column.connected")}</th>
                       <th scope="col">{t("settings.mobileConnect.devices.column.lastActive")}</th>
                       <th scope="col">
@@ -335,6 +436,11 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
                               </Show>
                               {devicePlatformLabel(device.platform, t)}
                             </span>
+                          </td>
+                          <td>
+                            {device.via === "link"
+                              ? t("settings.mobileConnect.devices.via.link")
+                              : t("settings.mobileConnect.devices.via.code")}
                           </td>
                           <td>{props.store.deviceTimeLabel(device.connectedAt)}</td>
                           <td>{props.store.deviceTimeLabel(device.lastActiveAt)}</td>
@@ -382,5 +488,48 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
         </Show>
       </section>
     </SettingsSection>
+  );
+}
+
+/** The QR code of a sign-in code or link, with the scan steps, or the phone that it connected. */
+function MobileConnectQr(props: { value: string; label: string; successDeviceName: string | null }) {
+  const { t } = useText();
+  return (
+    <div class="settings-mobile-connect-link-code" aria-live="polite">
+      <div class="settings-mobile-connect-qr-stage" data-success={props.successDeviceName ? "" : undefined}>
+        <QrCode value={props.value} size={132} label={props.label} />
+        <Show when={props.successDeviceName}>
+          <div class="settings-mobile-connect-success-mark" aria-hidden="true">
+            <CircleCheck />
+          </div>
+        </Show>
+      </div>
+      <div class="settings-mobile-connect-code-copy">
+        <Show
+          when={props.successDeviceName}
+          fallback={
+            <>
+              <Text class="settings-mobile-connect-code-title" variant="body">
+                {t("settings.mobileConnect.scan.title")}
+              </Text>
+              <Text variant="caption" tone="muted">
+                {t("settings.mobileConnect.scan.description")}
+              </Text>
+            </>
+          }
+        >
+          {(deviceName) => (
+            <>
+              <Text class="settings-mobile-connect-code-title settings-mobile-connect-success-title" variant="body">
+                {t("settings.mobileConnect.connected.title")}
+              </Text>
+              <Text variant="caption" tone="muted" role="status">
+                {t("settings.mobileConnect.connected.description", { name: deviceName() })}
+              </Text>
+            </>
+          )}
+        </Show>
+      </div>
+    </div>
   );
 }

@@ -203,6 +203,15 @@ class TelegramAdapter implements MessagingAdapter {
     return Effect.sync(() => this.#state.history(threadKey, afterId, beforeId));
   }
 
+  /** Telegram has no history API: this is what the host saw of the chat since it started. */
+  recent(
+    _platformChannelId: string,
+    threadKey: string | null,
+    limit: number,
+  ): Effect.Effect<ContextEntry[], MessagingAdapterError> {
+    return Effect.sync(() => this.#state.recent(threadKey, limit));
+  }
+
   readonly download = Effect.fnUntraced(function* (
     this: TelegramAdapter,
     file: InboundFile,

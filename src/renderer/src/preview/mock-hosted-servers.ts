@@ -44,6 +44,7 @@ const NEXT_STATE: Partial<Record<HostedServerState, HostedServerState>> = {
   awaiting_payment: "starting",
   starting: "running",
   waking: "running",
+  stopping: "waking",
 };
 
 /** One stopped server and one whose plan ended, so the preview shows the start and renew actions. */
@@ -185,5 +186,6 @@ export function createMockHostedServers(billingPlans?: BillingServerPlan[]): Hos
       servers = servers.filter((entry) => entry.serverId !== serverId);
     },
     wake: async (serverId) => update(serverId, { state: "waking" }),
+    restart: async (serverId) => update(serverId, { state: "stopping" }),
   };
 }

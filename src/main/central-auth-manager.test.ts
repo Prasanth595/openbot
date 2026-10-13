@@ -62,6 +62,58 @@ describe("CentralAuthManager", () => {
     }
   });
 
+  it("keeps the persistent Mobile Connect link encrypted across restarts and removes it at sign-out", async () => {
+    const root = await createRoot();
+    const storagePath = join(root, "session.bin");
+    await writeFile(
+      storagePath,
+      Buffer.from(`encrypted:${JSON.stringify({ version: 2, sessionToken: "session-token" })}`).toString("base64"),
+    );
+    const host = { hostId: "00000000-0000-4000-8000-000000000000", fingerprint: "a".repeat(43) };
+    const link = "persistent-link_1234567890abcdefghijklmnopq";
+    const requests: string[] = [];
+    const options = {
+      apiUrl: "http://127.0.0.1:3100",
+      storagePath,
+      encrypt: (value: string) => Buffer.from(`encrypted:${value}`),
+      decrypt: (value: Buffer) => value.toString().replace("encrypted:", ""),
+      fetch: vi.fn<typeof fetch>(async (input, init) => {
+        const url = new URL(String(input));
+        requests.push(`${init?.method ?? "GET"} ${url.pathname}${url.search}`);
+        if (url.pathname === "/v1/me")
+          return Response.json({ id: "user-1", email: "person@example.com", name: null, avatarUrl: null });
+        if (url.pathname === "/v1/mobile-auth/link" && init?.method === "POST")
+          return Response.json({ link, createdAt: 1_000 });
+        if (url.pathname === "/health/live") return Response.json({ ok: true });
+        return new Response(null, { status: 204 });
+      }),
+    };
+    const first = new CentralAuthManager(options);
+    await runCauseEffect(first.initialize());
+    const created = await runCauseEffect(first.createMobileConnectLink(host));
+    expect(created).toEqual({
+      url: `openbot://mobile-connect?api=http%3A%2F%2F127.0.0.1%3A3100&ticket=${link}&host=${host.hostId}&fingerprint=${host.fingerprint}`,
+      createdAt: 1_000,
+    });
+    expect(Buffer.from(await readFile(storagePath, "utf8"), "base64").toString()).toMatch(/^encrypted:/u);
+
+    const restarted = new CentralAuthManager(options);
+    await runCauseEffect(restarted.initialize());
+    expect(restarted.getMobileConnectLink(host)).toEqual(created);
+    expect(restarted.getMobileConnectLink({ ...host, fingerprint: "b".repeat(43) })).toBeNull();
+
+    await runCauseEffect(restarted.revokeMobileConnectLink(host));
+    expect(requests).toContain(`DELETE /v1/mobile-auth/link?host=${host.hostId}`);
+    expect(restarted.getMobileConnectLink(host)).toBeNull();
+
+    await runCauseEffect(restarted.createMobileConnectLink(host));
+    await runCauseEffect(restarted.logout());
+    await expect(readFile(storagePath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    const signedOut = new CentralAuthManager(options);
+    await runCauseEffect(signedOut.initialize());
+    expect(signedOut.getMobileConnectLink(host)).toBeNull();
+  });
+
   it("does not let an older profile read undo a local edit or restore a logged-out account", async () => {
     const root = await createRoot();
     const storagePath = join(root, "session.bin");
@@ -266,6 +318,8 @@ describe("CentralAuthManager", () => {
         platform: "ios",
         connectedAt: 1_000,
         lastActiveAt: 2_000,
+        // The response has no `via`: an older account service, where every phone used a one-time code.
+        via: "code",
       },
     ]);
     await runCauseEffect(manager.revokeMobileConnectedDevice("11111111-1111-4111-8111-111111111111"));

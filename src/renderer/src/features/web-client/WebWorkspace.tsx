@@ -51,6 +51,7 @@ import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { DiagramModelChoice } from "@openbot/ui/features/diagrams/DiagramNewAgentCard";
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
+import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import {
   ConversationLoadNotice,
   ServerConnectionNotice,
@@ -687,6 +688,21 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (leaveRequest()?.removeOwned) await workspace.removeOwnedHost(host);
     else await workspace.leaveHost(host);
   }
+  /** The hosted server that the restart confirmation asks about, and the element that asked. */
+  const [restartRequest, setRestartRequest] = createSignal<{ hostId: string; trigger: HTMLElement | null } | null>(
+    null,
+  );
+  const restartServer = createMemo(() => servers().find((item) => item.id === restartRequest()?.hostId) ?? null);
+  createEffect(
+    () => restartRequest() !== null && restartServer() === null,
+    (gone) => {
+      if (gone) setRestartRequest(null);
+    },
+  );
+  async function restartHost(): Promise<void> {
+    const hostId = restartRequest()?.hostId;
+    if (hostId) await hostedServerCalls.restart(hostId);
+  }
   createEffect(
     () => props.billingReturn,
     (billingReturn) => {
@@ -1187,6 +1203,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   canRemove={canRemoveOwnedServer}
                   onDelete={deleteHostedServer}
                   canDelete={(id) => hostedServerIds().has(id)}
+                  onRestart={(hostId, trigger) => setRestartRequest({ hostId, trigger })}
+                  canRestart={(id) => hostedServerIds().has(id)}
                 />
               </Show>
               <Sidebar
@@ -1247,6 +1265,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   canRemove: canRemoveOwnedServer,
                   onDelete: deleteHostedServer,
                   canDelete: (id) => hostedServerIds().has(id),
+                  onRestart: (hostId, trigger) => setRestartRequest({ hostId, trigger }),
+                  canRestart: (id) => hostedServerIds().has(id),
                 }}
                 agents={workspace.profiles()}
                 activeAgentId={channelOpen() ? "" : (workspace.state.selectedId ?? "")}
@@ -1549,6 +1569,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 onClose={() => setLeaveRequest(null)}
                 onLeave={leaveHost}
                 restoreFocusTarget={leaveRequest()?.trigger}
+              />
+              <RestartServerDialog
+                server={restartServer()}
+                onClose={() => setRestartRequest(null)}
+                onRestart={restartHost}
+                restoreFocusTarget={restartRequest()?.trigger}
               />
               <BillingDialog
                 open={billingOpen()}

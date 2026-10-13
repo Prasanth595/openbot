@@ -66,6 +66,7 @@ import {
   isVoiceLanguage,
   isVoiceModelId,
   type MobileConnectedDevice,
+  type MobileConnectLink,
   type MobileConnectTicket,
   type NotificationOpenedEvent,
   type NotificationPreference,
@@ -206,6 +207,11 @@ export function decodeMobileConnectTicket(value: unknown): MobileConnectTicket {
   return { qrData: requiredString(ticket, "qrData"), expiresAt: requiredNumber(ticket, "expiresAt") };
 }
 
+export function decodeMobileConnectLink(value: unknown): MobileConnectLink {
+  const link = decodeRecord(value, "Mobile Connect link");
+  return { url: requiredString(link, "url"), createdAt: requiredNumber(link, "createdAt") };
+}
+
 export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDevice[] {
   return decodeList(value, "connected device list", (device) => {
     const { platform } = device;
@@ -216,14 +222,16 @@ export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDev
       platform,
       connectedAt: requiredNumber(device, "connectedAt"),
       lastActiveAt: requiredNumber(device, "lastActiveAt"),
+      via: device.via === "link" ? "link" : "code",
     };
   });
 }
 
 export function decodeAccountSessions(value: unknown): AccountSession[] {
   return decodeList(value, "account session list", (session) => {
-    const { kind } = session;
+    const { kind, hostedServer } = session;
     if (!isOneOf(["desktop", "mobile"] as const, kind)) throw new Error("Invalid kind.");
+    if (hostedServer !== undefined && !isBoolean(hostedServer)) throw new Error("Invalid hostedServer.");
     return {
       sessionId: requiredString(session, "sessionId"),
       name: requiredString(session, "name"),
@@ -231,6 +239,7 @@ export function decodeAccountSessions(value: unknown): AccountSession[] {
       current: requiredBoolean(session, "current"),
       connectedAt: requiredNumber(session, "connectedAt"),
       lastActiveAt: requiredNumber(session, "lastActiveAt"),
+      ...(hostedServer === undefined ? {} : { hostedServer }),
     };
   });
 }

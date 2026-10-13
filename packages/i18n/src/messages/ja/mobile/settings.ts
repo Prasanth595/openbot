@@ -40,6 +40,7 @@ export const messages = {
   "mobile.settings.support.empty": "まだイベントはありません。",
   "mobile.settings.sessions.kindDesktop": "デスクトップ",
   "mobile.settings.sessions.kindMobile": "モバイル",
+  "mobile.settings.sessions.kindHostedServer": "ホスト型サーバー",
   "mobile.settings.sessions.title": "サインイン中のデバイス",
   "mobile.settings.sessions.loading": "セッションを読み込んでいます…",
   "mobile.settings.sessions.refresh": "セッションを更新",

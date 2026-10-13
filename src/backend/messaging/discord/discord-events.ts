@@ -30,6 +30,7 @@ export function discordInboundMessage(message: DiscordInboundMessage): InboundMe
     requiresLink: false,
     authorId: message.authorId,
     text: discordPlainText(message.content),
+    mentionedUserIds: discordMentionIds(message.content),
     files: message.attachments.map((attachment) => ({
       id: attachment.id,
       name: attachment.filename,
@@ -63,6 +64,11 @@ export function discordCustomId(action: DiscordButtonAction, token: string): str
 
 function isButtonAction(value: string | undefined): value is DiscordButtonAction {
   return DISCORD_BUTTON_ACTIONS.some((action) => action === value);
+}
+
+/** The users that Discord markup mentions. `discordPlainText` writes each as `@<id>`. */
+export function discordMentionIds(text: string): string[] {
+  return [...new Set([...text.matchAll(/<@!?([0-9]+)>/g)].map((match) => match[1] ?? ""))].filter(Boolean);
 }
 
 /**

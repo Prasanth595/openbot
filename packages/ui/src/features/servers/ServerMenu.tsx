@@ -190,6 +190,8 @@ export function ServerMenu(props: ServerMenuProps) {
                       onLeave={props.onLeave}
                       onDelete={props.onDelete}
                       canDelete={props.canDelete}
+                      onRestart={props.onRestart}
+                      canRestart={props.canRestart}
                       onRemove={props.onRemove}
                       canRemove={props.canRemove}
                     />
@@ -243,6 +245,8 @@ export function ServerMenu(props: ServerMenuProps) {
                           onLeave={props.onLeave}
                           onDelete={props.onDelete}
                           canDelete={props.canDelete}
+                          onRestart={props.onRestart}
+                          canRestart={props.canRestart}
                           onRemove={props.onRemove}
                           canRemove={props.canRemove}
                         />
@@ -280,6 +284,8 @@ export function ServerMenu(props: ServerMenuProps) {
                       onLeave={props.onLeave}
                       onDelete={props.onDelete}
                       canDelete={props.canDelete}
+                      onRestart={props.onRestart}
+                      canRestart={props.canRestart}
                       onRemove={props.onRemove}
                       canRemove={props.canRemove}
                     />
@@ -352,6 +358,8 @@ export function ServerMenu(props: ServerMenuProps) {
                   onLeave={props.onLeave}
                   onDelete={props.onDelete}
                   canDelete={props.canDelete}
+                  onRestart={props.onRestart}
+                  canRestart={props.canRestart}
                   onRemove={props.onRemove}
                   canRemove={props.canRemove}
                 />

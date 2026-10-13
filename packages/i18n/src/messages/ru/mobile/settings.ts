@@ -44,6 +44,7 @@ export const messages = {
   "mobile.settings.support.empty": "Событий пока нет.",
   "mobile.settings.sessions.kindDesktop": "компьютер",
   "mobile.settings.sessions.kindMobile": "телефон",
+  "mobile.settings.sessions.kindHostedServer": "облачный сервер",
   "mobile.settings.sessions.title": "Устройства с входом",
   "mobile.settings.sessions.loading": "Загрузка сеансов…",
   "mobile.settings.sessions.refresh": "Обновить сеансы",

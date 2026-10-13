@@ -214,6 +214,23 @@ export class HostedServerDesktopService {
     (operation) => operation.pipe(Effect.provide(this.#platform)),
   ).bind(this);
 
+  /** The owner restarts the server. The connection drops when the server stops, and the client reconnects. */
+  readonly restart = Effect.fn("HostedServer.restart")(
+    function* (this: HostedServerDesktopService, serverId: string) {
+      this.#statusCheck.forget(serverId);
+      const platform = yield* AccountServicePlatform;
+      const server = yield* platform.request(
+        `/v2/hosting/servers/${encodeURIComponent(serverId)}/restart`,
+        { method: "POST" },
+        decodeSummary,
+        30_000,
+      );
+      if (WAKE_RECONNECT_STATES.has(server.state)) this.onWake(serverId);
+      return server;
+    },
+    (operation) => operation.pipe(Effect.provide(this.#platform)),
+  ).bind(this);
+
   unavailableHost(serverId: string, wake: boolean): Effect.Effect<HostedServerAvailability> {
     return this.#statusCheck.unavailable(serverId, { wake });
   }
