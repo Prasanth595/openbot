@@ -33,9 +33,8 @@ const CORE_TEAM_LAYOUT = {
   agentOrder: ["chief", "sales-outbound"],
 };
 
-function expectChiefInCoreTeam(sectionToggle: HTMLElement): void {
-  const section = sectionToggle.closest<HTMLElement>("[data-section-id]");
-  if (!section) throw new Error("Shared sidebar section is missing.");
+async function expectChiefInCoreTeam(): Promise<void> {
+  const section = await screen.findByRole("region", { name: "Core team" });
   expect(within(section).getByRole("button", { name: /Chief, Chief of staff/ })).toBeInTheDocument();
 }
 
@@ -510,7 +509,7 @@ describe("OpenBot connected desktop shell", () => {
     // A starting host holds the agent list, so the reload that the handshake requests fails.
     vi.mocked(window.openbot.agent.listAgents).mockRejectedValue(new Error("Agents are still loading"));
     emitServers?.([local, negotiated]);
-    expectChiefInCoreTeam(await screen.findByRole("button", { name: "Core team" }));
+    await expectChiefInCoreTeam();
   });
 
   it.each(["agents", "sections"] as const)("groups agents into sections when the %s answer first", async (first) => {
@@ -531,7 +530,7 @@ describe("OpenBot connected desktop shell", () => {
       agents.resolve(AGENTS);
       await screen.findByRole("heading", { name: "Chief" });
     }
-    expectChiefInCoreTeam(await screen.findByRole("button", { name: "Core team" }));
+    await expectChiefInCoreTeam();
   });
 
   it("keeps a remote approval when Review in OpenBot switches to its host", async () => {

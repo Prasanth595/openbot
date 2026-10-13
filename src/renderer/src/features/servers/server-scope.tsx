@@ -167,8 +167,10 @@ const ServerScope = createSimpleContext({
 
     async function loadPanels() {
       const generation = loadGeneration;
-      const isCurrent = () => scopeIsCurrent() && generation === loadGeneration;
       const server = selectedServer();
+      const sequence = server?.connectionSequence;
+      const isCurrent = () =>
+        scopeIsCurrent() && generation === loadGeneration && sequence === selectedServer()?.connectionSequence;
       setConnection((draft) => {
         draft.panelsFailed = false;
         draft.panelsLoading = true;
@@ -182,7 +184,9 @@ const ServerScope = createSimpleContext({
       const reads = [
         loadSidebarLayout(server)
           .then((value) => {
-            if (value && isCurrent()) setSidebarLayout(value);
+            // A layout event can land while this read is in flight. The newer revision stays.
+            if (value && isCurrent())
+              setSidebarLayout((current) => (value.revision >= current.revision ? value : current));
           })
           .catch(failed),
       ];
