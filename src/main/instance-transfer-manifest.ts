@@ -133,8 +133,6 @@ const Manifest = Schema.Struct({
   signedIn: Schema.Array(Provider).check(Schema.isMaxLength(32)),
 });
 
-export type TransferRoutine = typeof Routine.Type;
-export type TransferMemory = typeof Memory.Type;
 export type TransferAgent = typeof Agent.Type;
 export type TransferSettings = typeof Settings.Type;
 

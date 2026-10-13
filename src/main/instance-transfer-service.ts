@@ -105,7 +105,7 @@ const AVATAR_EXTENSIONS: Record<AvatarImageInput["mimeType"], string> = {
 };
 
 /** The agent operations a transfer uses, as `AgentService` offers them. */
-export interface InstanceTransferAgents {
+interface InstanceTransferAgents {
   listAgents(): AgentSummary[];
   listRoutines(agentId: string): Routine[];
   listMemories(agentId: string): AgentMemory[];
@@ -128,7 +128,7 @@ export interface InstanceTransferAgents {
 export type TransferPreferences = TransferSettings["preferences"];
 
 /** The app settings an export reads and an import writes. Main wires each to its owner. */
-export interface InstanceTransferSettings {
+interface InstanceTransferSettings {
   mcpServers(): McpServerConfig[];
   saveMcpServer(config: McpServerConfig): Effect.Effect<unknown, unknown>;
   customProviders(): CustomProviderSummary[];
