@@ -4,6 +4,7 @@ import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
 import { createSignal } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { createFakeConnection } from "./provider-connection-fixture";
 
 const options: ProviderPickerOption[] = [
   {
@@ -53,10 +54,10 @@ export const BrowserSignInStalled: Story = {
   args: {
     allowUnavailableSelection: true,
     onSignInProvider: fn(),
-    onSignInWithCodeProvider: fn(),
   },
   render: (args) => {
     const [connecting, setConnecting] = createSignal(false);
+    const connection = createFakeConnection({ browser: () => void setConnecting(true), finishAfterMs: 0 });
     return (
       <ProviderPicker
         {...args}
@@ -70,7 +71,7 @@ export const BrowserSignInStalled: Story = {
               }
             : option,
         )}
-        onConnectProvider={() => setConnecting(true)}
+        connection={connection}
       />
     );
   },
@@ -152,7 +153,7 @@ export const UserOwnedCliUpdate: Story = {
           }
         : option,
     ),
-    onConnectProvider: fn(),
+    connection: createFakeConnection({ browser: fn(), alternative: [] }),
     onUpdateProvider: fn(),
   },
 };

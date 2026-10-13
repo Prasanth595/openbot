@@ -53,6 +53,7 @@ export const messages = defineMessages("provider", {
   "provider.action.signIn": "Sign in",
   "provider.action.apiKey": "API key",
   "provider.action.signInWithCode": "Log in with code",
+  "provider.action.pasteAddress": "Paste the address",
   "provider.aria.download": "Download {name}",
   "provider.aria.cancel": "Cancel {name}",
   "provider.aria.connect": "Connect {name}",
@@ -100,6 +101,12 @@ export const messages = defineMessages("provider", {
   "provider.codeLogin.relayStarting": "Starting the {name} sign-in on {host}…",
   "provider.codeLogin.pageOpening": "Opening the {name} sign-in page on {host}…",
   "provider.codeLogin.linkStep": "Log in to {name}. OpenBot continues by itself.",
+
+  // A provider that only the OpenBot app can sign in, from a browser tab.
+  "provider.useApp.title": "Connect {name} in the OpenBot app",
+  "provider.useApp.description":
+    "The {name} sign-in returns to the computer that started it, and a browser tab cannot receive it. Connect {name} in the OpenBot app. The app finishes the sign-in by itself.",
+  "provider.useApp.download": "Get the app",
 
   // The agent model picker.
   "provider.picker.noEndpoints": "No endpoints yet",
