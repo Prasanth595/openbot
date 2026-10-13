@@ -190,7 +190,7 @@ export class MessagingThreads {
         const saved = Result.try(() =>
           this.memories.saveFromTool(link.connectionId, {
             text: call.text,
-            memoryId: call.memoryId,
+            ...(call.memoryId ? { memoryId: call.memoryId } : {}),
             sourceTurnId: turnId,
             commandId: `messaging-memory:tool:${turnId}:${callId}`,
           }),
