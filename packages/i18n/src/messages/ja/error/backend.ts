@@ -163,6 +163,18 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "これらのエージェントはこのルーティンですでに接続されています。",
   "error.backend.routineFlowCycle": "この接続はループになります。",
   "error.backend.routineFlowLinkLimit": "1 つのルーティンの接続は最大 {limit} 個です。",
+  "error.backend.agentWaitLimit":
+    "このエージェントにはすでに開いている待機が {count} 件あります。別の待機を開く前に、openbot.close_wait で待機を閉じてください。",
+  "error.backend.agentWaitGone": "この待機は開いていません。エージェントが閉じたか、誰かがキャンセルしました。",
+  "error.backend.agentWaitNoRequest": "待機を続行するにはメッセージが必要です。このターンにはメッセージがありません。",
+  "error.backend.agentWaitOwnChatOnly":
+    "待機は自分のチャットでのみ開いてください。チャンネルやメッセージングのタスクは待機できません。",
+  "error.backend.agentWaitNoteRequired": "待機の目的を示す短いメモを入力してください。",
+  "error.backend.agentWaitRoutineGone": "このエージェントにはこの ID のルーティンがありません。",
+  "error.backend.agentWaitNoRoutine":
+    "待機を再開できるのは自分のルーティンの実行だけですが、ルーティンがありません。openbot.create_routine でルーティンを作成してから、待機を開いてください。",
+  "error.backend.agentWaitRemoteUnsupported":
+    "開いている待機は、このコンピューター上のエージェントでのみ使用できます。",
   "error.backend.routineFlowHandoffFailed": "ルーティンはこのエージェントに作業を渡せませんでした。",
   "error.backend.mcpServerLimit": "OpenBot に保存できる MCP サーバーは {limit} 個までです。",
   "error.backend.mcpServerNameTaken": "{name} という名前の MCP サーバーはすでに存在します。",

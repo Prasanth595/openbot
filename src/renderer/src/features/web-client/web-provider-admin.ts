@@ -47,16 +47,10 @@ import { Effect } from "effect";
 import { createEffect, createMemo } from "solid-js";
 import { hostCustomProvidersApi } from "../custom-providers/custom-providers-port";
 import { createCustomProvidersStore } from "../custom-providers/stores/custom-providers-store";
-import { createProviderCodeLogin } from "../provider-updates/provider-code-login";
+import { createProviderConnection } from "../provider-updates/provider-connection";
 import { createProviderRuntimeStore } from "../provider-updates/provider-runtime-store";
 import { remoteProviderRuntimes } from "../provider-updates/remote-provider-runtimes";
-import {
-  codeSignInProviders,
-  hostSignInProviders,
-  relaySignInProviders,
-  remoteAdminServer,
-  serverSupportsCapability,
-} from "../servers/server-capabilities";
+import { remoteAdminServer, serverSupportsCapability } from "../servers/server-capabilities";
 import type { HostProviderSettings } from "../settings/ProviderSettingsSection";
 import { hostProviderKeyApi } from "../settings/provider-key-api";
 import { webProviderRelay } from "./web-provider-relay";
@@ -234,7 +228,7 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
     const id = serverId();
     return id ? hostProviderKeyApi(() => admin, id, openWebDestination) : undefined;
   });
-  const codeLogin = createProviderCodeLogin({
+  const connection = createProviderConnection({
     agentStatus: options.status,
     applyStatus: options.setStatus,
     target: () => {
@@ -244,7 +238,6 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
         submit: (provider: AgentProviderId, code: string) => admin.submitCodeLogin({ provider, code }, id ?? ""),
         cancel: (provider: AgentProviderId) => admin.cancelCodeLogin(provider, id ?? ""),
         hostSignIn: {
-          providers: hostSignInProviders(options.server()),
           hostName: options.server()?.name ?? "",
           runtime: options.browser,
           clipboard: serverSupportsCapability(options.server(), "browser-view-clipboard"),
@@ -253,7 +246,6 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
           cancel: (provider: AgentProviderId) => admin.cancelHostSignIn(provider, id ?? ""),
         },
         relay: {
-          providers: relaySignInProviders(options.server()),
           hostName: options.server()?.name ?? "",
           start: (provider: AgentProviderId) => admin.startRelaySignIn(provider, id ?? ""),
           status: (provider: AgentProviderId) => admin.relaySignInStatus(provider, id ?? ""),
@@ -264,13 +256,15 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
         },
       };
     },
-    providers: () => codeSignInProviders(options.server()),
+    place: () => ({ kind: "web-server", server: options.server() }),
     openVerificationUrl: (url) => void window.open(url, "_blank", "noopener"),
+    // The web client is served by the site that has the download page.
+    openAppDownload: () => void window.open("/download", "_blank", "noopener"),
   });
   // The host sends status events, but a browser that reconnects in the middle can miss the one that
   // ends the sign-in. The status is read again while the code is on screen.
   createEffect(
-    () => codeLogin.provider() !== null && codeLogin.state().phase !== "starting",
+    () => connection.provider() !== null && connection.state().phase !== "starting",
     (waiting) => {
       if (!waiting) return;
       const host = serverId();
@@ -332,7 +326,7 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
     get providerKeys() {
       return providerKeys();
     },
-    codeLogin,
+    connection,
   };
   return () => (serverId() ? settings : undefined);
 }
