@@ -1,5 +1,5 @@
 import type { HostedServerIssue } from "@openbot/contracts/ipc";
-import { Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { Button } from "../../button";
 import { ErrorReference } from "../../error-reference";
 import { useText } from "../../text";
@@ -100,6 +100,64 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
         actions={actions()}
       />
     </Show>
+  );
+}
+
+// A history that loads faster than this does not cover the chat, so a fast switch does not flash.
+const CONVERSATION_LOADING_DELAY_MS = 150;
+
+export interface ConversationLoadNoticeProps {
+  /** The agent whose history loads. */
+  name: string;
+  /** The first page of the history is loading. */
+  loading: boolean;
+  /** Why the history did not load. The notice then shows Retry. */
+  error: string | null;
+  onRetry: () => void;
+}
+
+/**
+ * While an agent's history loads for the first time, the crew of the app loading screen covers the
+ * chat, and jumps out when the history is ready. A failed load shows the notice with Retry.
+ */
+export function ConversationLoadNotice(props: ConversationLoadNoticeProps) {
+  const { t } = useText();
+  const waiting = () => props.loading && !props.error;
+  // Each wait gets its own screen: a screen that started its exit cannot load again.
+  const [screen, setScreen] = createSignal<number | null>(null);
+  let screens = 0;
+  createEffect(waiting, (current) => {
+    if (!current) return;
+    const timer = setTimeout(() => {
+      screens += 1;
+      setScreen(screens);
+    }, CONVERSATION_LOADING_DELAY_MS);
+    return () => clearTimeout(timer);
+  });
+  return (
+    <>
+      <Show when={screen()} keyed>
+        {(key) => (
+          <AppLoadingScreen
+            ready={!waiting()}
+            label={t("server.connection.loading", { name: props.name })}
+            title={t("server.connection.loading", { name: props.name })}
+            onExited={() => setScreen((current) => (current === key ? null : current))}
+          />
+        )}
+      </Show>
+      <Show when={props.error}>
+        {(error) => (
+          <ServerConnectionNotice
+            name={props.name}
+            phase="blocked"
+            initial={false}
+            detail={error()}
+            onRetry={props.onRetry}
+          />
+        )}
+      </Show>
+    </>
   );
 }
 

@@ -51,7 +51,11 @@ import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { DiagramModelChoice } from "@openbot/ui/features/diagrams/DiagramNewAgentCard";
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
-import { ServerConnectionNotice, ServerPanelLoadNotice } from "@openbot/ui/features/servers/ServerConnectionNotice";
+import {
+  ConversationLoadNotice,
+  ServerConnectionNotice,
+  ServerPanelLoadNotice,
+} from "@openbot/ui/features/servers/ServerConnectionNotice";
 import { ServerRail } from "@openbot/ui/features/servers/ServerRail";
 import { createSettingsHostedServersStore } from "@openbot/ui/features/settings/stores/hosted-servers-store";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
@@ -1130,19 +1134,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   onRetry={() => void workspace.retryPanels()}
                 />
               </Show>
-              <Show
-                when={
-                  workspace.state.status === "online" &&
-                  (workspace.conversation()?.error ||
-                    (!workspace.conversation()?.page && workspace.conversation()?.loading))
-                }
-              >
-                <ServerConnectionNotice
+              <Show when={workspace.state.status === "online"}>
+                <ConversationLoadNotice
                   name={workspace.selected()?.name ?? ""}
-                  phase={workspace.conversation()?.error ? "blocked" : "loading"}
-                  initial={false}
-                  detail={workspace.conversation()?.error ?? null}
-                  busy={workspace.conversation()?.loading === true}
+                  loading={!workspace.conversation()?.page && workspace.conversation()?.loading === true}
+                  error={workspace.conversation()?.error ?? null}
                   onRetry={() => {
                     const id = workspace.state.selectedId;
                     if (id) void workspace.select(id);

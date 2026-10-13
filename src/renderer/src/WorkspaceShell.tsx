@@ -1,5 +1,9 @@
 import type { CentralAuthUser } from "@openbot/contracts/ipc";
-import { ServerConnectionNotice, ServerPanelLoadNotice } from "@openbot/ui/features/servers/ServerConnectionNotice";
+import {
+  ConversationLoadNotice,
+  ServerConnectionNotice,
+  ServerPanelLoadNotice,
+} from "@openbot/ui/features/servers/ServerConnectionNotice";
 import { useText } from "@openbot/ui/text";
 import { createMemo, Loading, Show } from "solid-js";
 import { WorkspaceAccountDock } from "./features/account/WorkspaceAccountDock";
@@ -173,20 +177,11 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
               onManage={() => settings.openAppSettings(null, "hosted-servers")}
             />
           </Show>
-          <Show
-            when={
-              scope.loaded() &&
-              !channelOpen() &&
-              !activeDirectMember() &&
-              (activeConversation()?.loadError || (!activeConversation()?.loaded && activeConversation()?.loading))
-            }
-          >
-            <ServerConnectionNotice
+          <Show when={scope.loaded() && !channelOpen() && !activeDirectMember()}>
+            <ConversationLoadNotice
               name={activeAgent()?.name ?? ""}
-              phase={activeConversation()?.loadError ? "blocked" : "loading"}
-              initial={false}
-              detail={activeConversation()?.loadError ?? null}
-              busy={activeConversation()?.loading === true}
+              loading={!activeConversation()?.loaded && activeConversation()?.loading === true}
+              error={activeConversation()?.loadError ?? null}
               onRetry={retryConversation}
             />
           </Show>
