@@ -148,6 +148,7 @@ vi.mock("@/features/auth/context/mobile-session-context", () => ({ useMobileSess
 vi.mock("@/features/auth/components/app-logo", () => ({ AppLogo: () => null }));
 vi.mock("@/features/auth/components/sign-in-motion", () => ({
   SIGN_IN_EASE_MOVE: (value: number) => value,
+  SIGN_IN_TEXT_EASE: (value: number) => value,
   signInMotion: () => ({
     enter: () => undefined,
     fadeIn: () => undefined,

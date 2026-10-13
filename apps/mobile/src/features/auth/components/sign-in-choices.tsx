@@ -1,9 +1,10 @@
 import { Button, Spinner } from "heroui-native";
 import type { Ref } from "react";
 import { View } from "react-native";
-import Animated, { cubicBezier, Easing, FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, { cubicBezier, FadeIn, FadeOut } from "react-native-reanimated";
 
 import { SIGN_IN_CONTROL_HEIGHT, useSignInColors } from "@/features/auth/components/sign-in-colors";
+import { SIGN_IN_TEXT_EASE } from "@/features/auth/components/sign-in-motion";
 import { haptics } from "@/shared/lib/haptics";
 
 // The iOS sheet curve: the move starts at once and settles without overshoot.
@@ -12,9 +13,8 @@ const MOVE_MS = 300;
 // A label change is a quiet fade with no movement: the button itself already moves. The old label
 // fades out, and the new one fades in as the old one is nearly gone, so two labels never show at
 // full strength together.
-const SOFT = Easing.bezier(0.45, 0, 0.55, 1);
-const LABEL_OUT = FadeOut.duration(120).easing(SOFT);
-const LABEL_IN = FadeIn.duration(180).delay(100).easing(SOFT);
+const LABEL_OUT = FadeOut.duration(120).easing(SIGN_IN_TEXT_EASE);
+const LABEL_IN = FadeIn.duration(180).delay(100).easing(SIGN_IN_TEXT_EASE);
 /**
  * One of the two sign-in buttons. Both stay on the screen in every step and keep their color: the
  * lavender button is the main action, the gray one the other choice. A step change moves them down

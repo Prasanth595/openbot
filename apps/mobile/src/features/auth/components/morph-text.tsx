@@ -1,24 +1,19 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { type TextLayoutEvent, View } from "react-native";
-import Animated, { Easing, FadeIn, FadeInUp, FadeOut, Keyframe, LinearTransition } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 
-// A soft, symmetric curve: the letters drift into place without a fast start.
-const SOFT = Easing.bezier(0.45, 0, 0.55, 1);
+import {
+  SIGN_IN_TEXT_EASE as SOFT,
+  SIGN_IN_TEXT_IN as TEXT_IN,
+  SIGN_IN_TEXT_OUT as TEXT_OUT,
+} from "@/features/auth/components/sign-in-motion";
+
 const MOVE_MS = 360;
 const CHAR_MOVE = LinearTransition.duration(MOVE_MS).easing(SOFT);
 const CHAR_OUT = FadeOut.duration(160).easing(SOFT);
 const CHAR_IN = FadeIn.duration(220).delay(140).easing(SOFT);
 // The animation props come off when every letter is in place. The letters stay mounted.
 const SETTLE_MS = MOVE_MS + 200;
-// A text that cannot change letter by letter fades: out first, then the new text in.
-const TEXT_OUT = new Keyframe({
-  0: { opacity: 1, transform: [{ translateY: 0 }] },
-  100: { opacity: 0, transform: [{ translateY: -3 }], easing: SOFT },
-}).duration(180);
-const TEXT_IN = FadeInUp.duration(260)
-  .delay(140)
-  .easing(SOFT)
-  .withInitialValues({ opacity: 0, transform: [{ translateY: 3 }] });
 
 type Morph = { from: string; to: string; stage: "from" | "to" };
 type TextProps = { onTextLayout?: (event: TextLayoutEvent) => void };
