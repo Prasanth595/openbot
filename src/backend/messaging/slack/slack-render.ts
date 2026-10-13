@@ -26,7 +26,7 @@ function escapeSlack(text: string): string {
 }
 
 function blockMrkdwn(line: string): string {
-  const heading = /^#{1,6}\s+(.*)$/.exec(line);
+  const heading = /^ {0,3}#{1,6}\s+(.*)$/.exec(line);
   if (heading) return `**${heading[1]}**`;
   const bullet = /^(\s*)[-*+]\s+(.*)$/.exec(line);
   if (bullet) return `${bullet[1]}• ${bullet[2]}`;

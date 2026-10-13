@@ -74,7 +74,7 @@ export function escapeHtml(text: string): string {
 }
 
 function blockHtml(line: string): string {
-  const heading = /^#{1,6}\s+(.*)$/u.exec(line);
+  const heading = /^ {0,3}#{1,6}\s+(.*)$/u.exec(line);
   if (heading) return `<b>${inlineHtml(heading[1] ?? "")}</b>`;
   const bullet = /^(\s*)[-*+]\s+(.*)$/u.exec(line);
   if (bullet) return `${bullet[1]}• ${inlineHtml(bullet[2] ?? "")}`;
