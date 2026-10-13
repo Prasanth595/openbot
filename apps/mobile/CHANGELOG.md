@@ -7,6 +7,47 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
+## [1.3.1] - In review
+
+### Added
+
+- The owner of a hosted server can restart it from Server settings. The app asks before the restart.
+  The server stops and starts again, and the app connects again when the server is back.
+- Italian interface. Choose Italiano in Settings > App language, or keep System default on an
+  iPhone that uses Italian.
+- Get a notification when an agent finishes, stops with an error, or needs your input, an approval,
+  or a step in the browser while OpenBot is not on screen. It shows the agent name and the start of
+  the reply, the question, or the action to approve, and a tap opens the chat. Apple and the OpenBot
+  account service cannot read the text. An answer or an error does not come while you use the
+  desktop app. While the Live Activity shows, no notification comes: the Live Activity shows the
+  event, and with Play sound on it lights up the screen and plays the sound, also with notifications
+  off. The server must run an OpenBot version with this change.
+- Settings > Notifications now has the notification and Live Activity settings on one screen. It
+  turns notifications on or off, hides the reply preview, and sets the one sound of notifications
+  and the Live Activity: Play sound on or off, and the OpenBot sound of the desktop app, one of the
+  four sounds of the desktop sound themes, or the iOS sound. The app plays a sound when you choose
+  it. For each server you can choose all activity, only the events that need you, or nothing, and
+  mute the server for a time, as in the desktop app. Server settings have the same choices.
+- Sign in with your email and a one-time code, the same as on the web. You no longer need to scan a
+  QR code from the desktop app. The app then shows every server that your account can use.
+
+### Changed
+
+- You can choose a default server. Press and hold a server and choose Make default. The default
+  server stays at the top of the server list, and the app opens on the first server in the list. So
+  you can start on a remote or cloud server instead of your local server. Your local server stays the
+  default until you change it.
+
+### Removed
+
+- The app no longer shows channels, with any version of OpenBot on your computer. You cannot make a new channel, and Settings no longer has Deleted channels. Search and the routine calendar show only agents. To make agents work together, put them in one sidebar section.
+
+### Fixed
+
+- Signed-in devices now show a hosted server with its name, as a hosted server. Before, the list
+  showed it as "Desktop".
+- On Android, the app no longer closes when an agent avatar fades because its computer goes offline or comes back online.
+
 ## [1.3.0] - 2026-10-13
 
 ### Added
