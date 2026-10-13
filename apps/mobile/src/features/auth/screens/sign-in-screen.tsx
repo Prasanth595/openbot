@@ -31,8 +31,10 @@ import {
 
 const HERO_SIZE = 72;
 const HELP_GAP = 12;
-// The widest sign-in column. The code needs it for eight slots; the first choice stays narrower.
-const FORM_MAX_WIDTH = 320;
+// The widest sign-in column: the field, both buttons and the eight code slots share this width.
+const FORM_MAX_WIDTH = 340;
+// The side margin of the sign-in column. The code needs the width for eight slots.
+const SIDE_MARGIN = 24;
 // Space between the lowest control and the keyboard.
 const KEYBOARD_GAP = 24;
 // The lift moves with the slots, with the same curve and duration.
@@ -195,7 +197,7 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
   });
   const isFocused = useIsFocused();
   const { width: windowWidth } = useWindowDimensions();
-  const formWidth = Math.min(FORM_MAX_WIDTH, windowWidth - 64);
+  const formWidth = Math.min(FORM_MAX_WIDTH, windowWidth - 2 * SIDE_MARGIN);
   const { connect } = useMobileSession();
   const reducedMotion = useReducedMotion();
   const signIn = useEmailSignIn({ connect, reduced: reducedMotion });
@@ -321,8 +323,9 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
         accessibilityElementsHidden={scannerOpen}
         importantForAccessibility={scannerOpen ? "no-hide-descendants" : "auto"}
         className="flex-1"
-        contentContainerClassName="items-center px-8"
+        contentContainerClassName="items-center"
         contentContainerStyle={{
+          paddingHorizontal: SIDE_MARGIN,
           paddingTop: contentTop,
           paddingBottom: insets.bottom + 32,
         }}
@@ -332,7 +335,11 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
       >
         <Animated.View style={liftStyle} className="w-full items-center">
           <LayoutAnimationConfig skipEntering>
-            <View className="w-full max-w-80 items-center" style={{ gap: HELP_GAP }} onLayout={reportHero}>
+            <View
+              className="w-full items-center"
+              style={{ gap: HELP_GAP, maxWidth: FORM_MAX_WIDTH }}
+              onLayout={reportHero}
+            >
               <View
                 className="w-full items-center gap-8"
                 onLayout={({ nativeEvent: { layout } }) => {

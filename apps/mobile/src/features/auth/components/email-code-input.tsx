@@ -118,13 +118,13 @@ export function EmailCodeInput({
     <Animated.View style={shake} className="w-full">
       <Animated.View style={pulse}>
         <View
-          className="w-full flex-row items-center gap-1.5"
+          className="w-full flex-row items-center gap-1"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
           {slots.slice(0, GROUP_SIZE)}
-          <Animated.View entering={motion.enter(GROUP_SIZE * SLOT_STAGGER_MS)} className="mx-0.5">
-            <View className="h-0.5 w-2 rounded-full" style={{ backgroundColor: colors.muted }} />
+          <Animated.View entering={motion.enter(GROUP_SIZE * SLOT_STAGGER_MS)}>
+            <View className="h-0.5 w-1.5 rounded-full" style={{ backgroundColor: colors.muted }} />
           </Animated.View>
           {slots.slice(GROUP_SIZE)}
         </View>
