@@ -466,7 +466,12 @@ function buttons(body: MessageBody): DiscordButton[] {
 
 /** Status text is written by the host and is short; this keeps it within Discord's limit. */
 function clip(text: string): string {
-  return text.length > DISCORD_MESSAGE_TEXT_LIMIT ? `${text.slice(0, DISCORD_MESSAGE_TEXT_LIMIT - 1)}…` : text;
+  if (text.length <= DISCORD_MESSAGE_TEXT_LIMIT) return text;
+  let end = DISCORD_MESSAGE_TEXT_LIMIT - 1;
+  const previous = text.charCodeAt(end - 1);
+  const next = text.charCodeAt(end);
+  if (previous >= 0xd800 && previous <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) end -= 1;
+  return `${text.slice(0, end)}…`;
 }
 
 /** The smallest Discord id of a message sent at `milliseconds`. */
