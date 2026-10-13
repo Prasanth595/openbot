@@ -1572,6 +1572,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               />
               <RestartServerDialog
                 server={restartServer()}
+                servers={servers()}
                 onClose={() => setRestartRequest(null)}
                 onRestart={restartHost}
                 restoreFocusTarget={restartRequest()?.trigger}

@@ -153,6 +153,7 @@
     "./features/servers/AddServerDialog": "./src/features/servers/AddServerDialog.tsx",
     "./features/servers/HostedServerPricing": "./src/features/servers/HostedServerPricing.tsx",
     "./features/servers/add-server-dialog.css": "./src/features/servers/add-server-dialog.css",
+    "./features/servers/restart-server-dialog.css": "./src/features/servers/restart-server-dialog.css",
     "./features/servers/JoinServerDialog": "./src/features/servers/JoinServerDialog.tsx",
     "./features/servers/join-server-dialog.css": "./src/features/servers/join-server-dialog.css",
     "./features/servers/LeaveServerDialog": "./src/features/servers/LeaveServerDialog.tsx",

@@ -288,13 +288,15 @@ function LeaveServer() {
   );
 }
 
-/** The hosted server restart confirmation that the server menu opens. */
+/** The hosted server restart that the server menu opens. */
 function RestartServer() {
+  const { servers } = useServers();
   const { restartConfirmServer, restartRestoreTarget, cancelRestartServer, restartConfirmedServer } =
     useServerSettings();
   return (
     <RestartServerDialog
       server={restartConfirmServer()}
+      servers={servers()}
       onClose={cancelRestartServer}
       onRestart={restartConfirmedServer}
       restoreFocusTarget={restartRestoreTarget()}
