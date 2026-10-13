@@ -588,7 +588,9 @@ Before creating the first tag or any later release:
 11. confirm the canary update does not crash in `CFURLConnectionSynchronous`, preserves data, starts
     the new version, and can run three provider downloads with restricted memory;
 12. on Windows 10 and 11 x64, confirm that normal exit, restart, and sign-out do not start NSIS, while
-    `Restart and install` does start it;
+    `Restart and install` does start it. With OpenBot closed and with it open, confirm that Open
+    OpenBot on a `/join` page opens OpenBot and shows the invitation once, and that uninstall
+    removes `HKCU\Software\Classes\openbot`;
 13. on Ubuntu 24.04 x64 with the AppArmor profile from `build/linux/openbot.apparmor` installed,
     confirm the AppImage starts with the sandbox on, that `xdg-open 'openbot://join?...'` focuses the
     running application, that a provider downloads in-app, that the server rail is drawn, and that the

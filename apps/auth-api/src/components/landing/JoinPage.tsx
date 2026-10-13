@@ -12,6 +12,7 @@ export function JoinPage() {
   const [downloadUrl, setDownloadUrl] = createSignal<string>(OPENBOT_DOWNLOAD_LINKS.macos);
   const [mobile, setMobile] = createSignal(false);
   const [invalid, setInvalid] = createSignal(false);
+  const [openAttempted, setOpenAttempted] = createSignal(false);
 
   onSettled(() => {
     setMobile(
@@ -72,7 +73,7 @@ export function JoinPage() {
               }
             >
               {(href) => (
-                <Button href={href()} variant="primary" size="lg" icon="open">
+                <Button href={href()} variant="primary" size="lg" icon="open" onClick={() => setOpenAttempted(true)}>
                   Open OpenBot
                 </Button>
               )}
@@ -92,6 +93,12 @@ export function JoinPage() {
           </div>
         </Show>
 
+        <Show when={openAttempted() && !mobile()}>
+          <p class="join-card-note" role="status">
+            OpenBot did not open? Install it with Download OpenBot, or start OpenBot once so that it can open invitation
+            links. You can also use Open in browser.
+          </p>
+        </Show>
         <Show when={mobile()}>
           <p class="join-card-note">
             If OpenBot is installed, tap Open OpenBot. You can also paste this link into Add server in the app.
