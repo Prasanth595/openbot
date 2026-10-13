@@ -50,7 +50,7 @@ export const messages = defineMessages("error.import", {
   "error.import.transferAgentInvalid": "Agent {number} in the file is invalid, so it is skipped.",
   "error.import.transferSettingsInvalid": "The app settings in the file are invalid, so they are not imported.",
   "error.import.transferModelMissing":
-    '{name}: the model "{model}" is not available here, so the agent uses the default model.',
+    '{name}: the model "{model}" is not available here yet, so the agent uses the default model. Choose the model again when its provider is ready.',
   "error.import.transferSettingSkipped": "{name} is not imported. {reason}",
   "error.import.transferDefaultsSkipped": "The default model is not imported. {reason}",
   "error.import.transferPreferencesSkipped": "The app preferences are not imported. {reason}",

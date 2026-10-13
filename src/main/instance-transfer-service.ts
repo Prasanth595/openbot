@@ -490,7 +490,9 @@ export class InstanceTransferService {
 
     const warnings: string[] = [];
     const settings = input.includeSettings ? staged.manifest.settings : null;
-    // Providers and custom agents first, so an agent that uses one of their models can choose it.
+    // Providers and custom agents first, so their warnings come first. Their models are not listed yet:
+    // a save does not wait for model discovery, and an imported provider has no key. An agent on one
+    // of them starts on the default model, and the warning asks the user to choose the model again.
     const customAgents = settings ? yield* this.#applyProviders(settings, warnings) : new Map<string, string>();
 
     const imported: AgentSummary[] = [];
