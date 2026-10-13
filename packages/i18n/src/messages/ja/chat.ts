@@ -46,6 +46,8 @@ export const messages = {
   "chat.marker.openSkill": "スキル {name} を開く",
   "chat.marker.hideHistory": "{name} の履歴を隠す",
   "chat.marker.showHistory": "{name} の履歴を表示",
+  "chat.marker.hideRunMessages": "{name} のメッセージを隠す",
+  "chat.marker.showRunMessages": "{name} のメッセージを表示",
   "chat.marker.hideRoutineHistory": "ルーティンの履歴を隠す",
   "chat.marker.showRoutineHistory": "ルーティンの履歴を表示",
   "chat.marker.earlierStates": "ルーティンの以前の状態",

@@ -56,6 +56,8 @@ export const messages = defineMessages("chat", {
   "chat.marker.openSkill": "Open skill {name}",
   "chat.marker.hideHistory": "Hide history for {name}",
   "chat.marker.showHistory": "Show history for {name}",
+  "chat.marker.hideRunMessages": "Hide the messages of {name}",
+  "chat.marker.showRunMessages": "Show the messages of {name}",
   "chat.marker.hideRoutineHistory": "Hide history for routine",
   "chat.marker.showRoutineHistory": "Show history for routine",
   "chat.marker.earlierStates": "Earlier routine states",

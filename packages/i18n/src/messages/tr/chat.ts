@@ -46,6 +46,8 @@ export const messages = {
   "chat.marker.openSkill": "{name} becerisini aç",
   "chat.marker.hideHistory": "{name} için geçmişi gizle",
   "chat.marker.showHistory": "{name} için geçmişi göster",
+  "chat.marker.hideRunMessages": "{name} mesajlarını gizle",
+  "chat.marker.showRunMessages": "{name} mesajlarını göster",
   "chat.marker.hideRoutineHistory": "Rutin için geçmişi gizle",
   "chat.marker.showRoutineHistory": "Rutin için geçmişi göster",
   "chat.marker.earlierStates": "Önceki rutin durumları",
