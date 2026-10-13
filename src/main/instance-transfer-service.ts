@@ -42,7 +42,6 @@ import {
   type McpServerConfig,
   type Routine,
   type RoutineFlowLink,
-  type SaveCustomAgentInput,
   type SaveCustomProviderInput,
   type SetAgentMemoryInclusionInput,
   type SidebarLayoutAction,
@@ -135,7 +134,6 @@ export interface InstanceTransferSettings {
   customProviders(): CustomProviderSummary[];
   saveCustomProvider(input: SaveCustomProviderInput): Effect.Effect<unknown, unknown>;
   customAgents(): Effect.Effect<CustomAgentSummary[], unknown>;
-  saveCustomAgent(input: SaveCustomAgentInput): Effect.Effect<unknown, unknown>;
   defaults(): Effect.Effect<{ provider: AgentProviderId; model: string | null } | null, unknown>;
   saveDefaults(provider: AgentProviderId, model: string | null): Effect.Effect<unknown, unknown>;
   providersOff(): readonly AgentProviderId[];
@@ -493,14 +491,14 @@ export class InstanceTransferService {
     // Providers and custom agents first, so their warnings come first. Their models are not listed yet:
     // a save does not wait for model discovery, and an imported provider has no key. An agent on one
     // of them starts on the default model, and the warning asks the user to choose the model again.
-    const customAgents = settings ? yield* this.#applyProviders(settings, warnings) : new Map<string, string>();
+    if (settings) yield* this.#applyProviders(settings, warnings);
 
     const imported: AgentSummary[] = [];
     const skipped: AgentImportSkipped[] = [];
     const agentIds = new Map<string, string>();
     const routineIds = new Map<string, string>();
     for (const agent of selected) {
-      const result = yield* Effect.result(this.#importAgent(bytes, staged, agent, routineIds, customAgents, warnings));
+      const result = yield* Effect.result(this.#importAgent(bytes, staged, agent, routineIds, warnings));
       if (Result.isFailure(result)) {
         skipped.push({ key: agent.key, name: agent.name, reason: message(result.failure.cause) });
       } else {
@@ -554,32 +552,17 @@ export class InstanceTransferService {
         warnings.push(sourceText("error.import.transferValuesCleared", { name: provider.name }));
     }
 
+    // Saving a custom agent starts its command to list its models, so the import never saves one.
+    // The warning names the command, and the user adds the agent again after checking it.
     const customAgents = new Set((yield* Effect.orElseSucceed(port.customAgents(), () => [])).map((agent) => agent.id));
-    /** The custom agents this import adds, with the command line each runs. */
-    const added = new Map<string, string>();
     for (const agent of settings.customAgents) {
       if (customAgents.has(agent.id)) continue;
-      const saved = yield* attempt(
-        named(agent.name),
-        port.saveCustomAgent({
-          id: agent.id,
-          name: agent.name,
-          command: agent.command,
-          args: [...agent.args],
-          env: [],
-        }),
-      );
-      if (saved && agent.envNames.length > 0)
+      const command = [agent.command, ...agent.args].join(" ");
+      warnings.push(sourceText("error.import.transferCustomAgentCommand", { name: agent.name, command }));
+      if (agent.envNames.length > 0)
         warnings.push(
           sourceText("error.import.transferAgentEnv", { name: agent.name, names: agent.envNames.join(", ") }),
         );
-      if (saved && cleared.has(agent.name))
-        warnings.push(sourceText("error.import.transferValuesCleared", { name: agent.name }));
-      if (!saved) continue;
-      // A custom agent has no off state, so the warning names the command the file gave it.
-      const command = [agent.command, ...agent.args].join(" ");
-      added.set(agent.id, command);
-      warnings.push(sourceText("error.import.transferCustomAgentCommand", { name: agent.name, command }));
     }
 
     const off = new Set(port.providersOff());
@@ -605,7 +588,6 @@ export class InstanceTransferService {
       const saved = yield* attempt(named(server.name), port.saveMcpServer({ ...server, id: "", enabled: false }));
       if (saved) warnings.push(sourceText("error.import.transferMcpValues", { name: server.name }));
     }
-    return added;
   });
 
   readonly #applyLayout = Effect.fn("InstanceTransfer.applyLayout")(function* (
@@ -692,7 +674,6 @@ export class InstanceTransferService {
     staged: StagedTransfer,
     source: TransferAgent,
     routineIds: Map<string, string>,
-    customAgents: ReadonlyMap<string, string>,
     warnings: string[],
   ): Effect.fn.Return<AgentSummary, ArchiveOperationError> {
     const prefix = agentPrefix(source.key);
@@ -767,11 +748,6 @@ export class InstanceTransferService {
             );
           }
 
-          // An agent on a custom agent that this file added would run the file's command on a schedule,
-          // so its routines stay off until the user checks that command.
-          const fileCommand = source.provider === "acp" && customAgents.has(source.model.split("/")[0] ?? "");
-          if (fileCommand && source.routines.some((routine) => routine.active))
-            warnings.push(sourceText("error.import.transferRoutinesOff", { name: source.name }));
           for (const routine of source.routines) {
             const created = yield* archiveSync(() =>
               this.options.agents.createRoutine(
@@ -779,7 +755,7 @@ export class InstanceTransferService {
                   agentId: agent.id,
                   name: routine.name,
                   instruction: routine.instruction,
-                  active: routine.active && !fileCommand,
+                  active: routine.active,
                   timezone: validTimezone(routine.timezone) ? routine.timezone : this.#timezone(),
                   schedule: routine.schedule,
                   ...(routine.limitPolicy ? { limitPolicy: routine.limitPolicy } : {}),

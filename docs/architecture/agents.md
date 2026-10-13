@@ -376,10 +376,10 @@ exported, so an imported agent gets the defaults of a new agent on the new compu
 `InstanceTransferService` (`src/main/instance-transfer-service.ts`) writes the archive one file at a
 time, stored and not compressed, to `<name>.zip.part`, and renames it when it is complete. Import uses
 the same checks as the agent import (`src/main/agent-archive.ts`): the file stays under a single-use
-token with its SHA-256, under 2 GB and 50,000 files. `apply` first adds the custom providers and
-custom agents that are missing (a warning names the command of each added custom agent, and the routines of
-an agent on such a custom agent are added turned off), and turns providers on or off and saves the
-preferences and default model. The models of an added provider are not listed yet: a save does not wait for
+token with its SHA-256, under 2 GB and 50,000 files. `apply` first adds the custom providers that are missing, and
+turns providers on or off and saves the preferences and default model. It never saves a custom ACP agent:
+a saved custom agent starts its command to list its models, so a warning names the agent and its command,
+and the user adds it again after checking it. The models of an added provider are not listed yet: a save does not wait for
 model discovery, and the provider has no key until the user enters it. So an agent on such a model starts
 on the default model, and a warning asks the user to choose it again when the provider is ready. Then it creates each selected agent through
 `AgentService` and the local skill library. Files go to the workspace root, and a name that is already

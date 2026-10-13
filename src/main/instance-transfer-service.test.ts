@@ -211,7 +211,6 @@ async function computer(name: string): Promise<Computer> {
             resolvedCommand: null,
           })),
         ),
-      saveCustomAgent: (input) => Effect.sync(() => state.customAgents.push(input)),
       defaults: () => Effect.succeed({ provider: "claude", model: "claude-opus-5-5" }),
       saveDefaults: () => Effect.void,
       providersOff: () => state.providersOff,
@@ -501,9 +500,8 @@ describe("InstanceTransferService", () => {
         headers: [],
       },
     ]);
-    expect(target.customAgents).toEqual([
-      { id: "goose", name: "Goose", command: "goose", args: ["acp", "--api-key="], env: [] },
-    ]);
+    // A custom agent runs its command when it is saved, so the import leaves it out.
+    expect(target.customAgents).toEqual([]);
     expect(target.preferences).toEqual(PREFERENCES);
     expect(target.providersOff).toEqual(["cursor"]);
     expect(target.layout.sections.map((section) => section.name)).toEqual(["Work"]);
@@ -516,30 +514,9 @@ describe("InstanceTransferService", () => {
       expect.arrayContaining([
         "Together: enter its API key again in Settings.",
         "Goose: enter the values of GOOSE_KEY again in Settings.",
-        "Goose: values that can hold a secret were removed from its arguments or address. Enter them again in Settings.",
+        'Goose: custom agents are not imported, because they run a command. Check the command "goose acp --api-key=" and add the agent again in Settings.',
         "Together: values that can hold a secret were removed from its arguments or address. Enter them again in Settings.",
         "Linear: the MCP server is added turned off. Check its command, enter its values and full address again, and turn it on in MCP settings.",
-      ]),
-    );
-  });
-
-  it("turns off the routines of an agent that runs a custom agent from the file", async () => {
-    const old = await oldComputer();
-    const [research] = old.agents;
-    if (!research) throw new Error("The old computer has no agent.");
-    old.agents[0] = { ...research, provider: "acp", model: "goose/default" };
-    const path = await exportOld(old);
-    const target = await computer("new");
-    const preview = await runCauseEffect(target.service.stage(path));
-    const result = await runCauseEffect(
-      target.service.apply({ token: preview.token, keys: ["research"], includeSettings: true }),
-    );
-    const agentId = result.agents[0]?.id ?? "";
-    expect(target.routines.get(agentId)?.map((routine) => routine.active)).toEqual([false]);
-    expect(result.warnings).toEqual(
-      expect.arrayContaining([
-        'Goose: this custom agent runs "goose acp --api-key=". Check the command in Settings before an agent uses it.',
-        "Research: its routines are added turned off, because it uses a custom agent from the file. Turn them on after you check that agent.",
       ]),
     );
   });

@@ -1655,7 +1655,6 @@ export async function createApplicationServices({
       customProviders: () => customProviderChanges.list(),
       saveCustomProvider: (input) => customProviderChanges.save(input),
       customAgents: () => customAgentChanges.list(),
-      saveCustomAgent: (input) => customAgentChanges.save(input),
       defaults: () =>
         readSetupState(setupFile).pipe(
           Effect.map((state) =>

@@ -56,9 +56,7 @@ export const messages = defineMessages("error.import", {
   "error.import.transferPreferencesSkipped": "The app preferences are not imported. {reason}",
   "error.import.transferRoutineFlowSkipped": "A routine flow is not imported. {reason}",
   "error.import.transferCustomAgentCommand":
-    '{name}: this custom agent runs "{command}". Check the command in Settings before an agent uses it.',
-  "error.import.transferRoutinesOff":
-    "{name}: its routines are added turned off, because it uses a custom agent from the file. Turn them on after you check that agent.",
+    '{name}: custom agents are not imported, because they run a command. Check the command "{command}" and add the agent again in Settings.',
   "error.import.transferFilesGone": "{number} files were deleted while the export ran, so they are not in the file.",
   "error.import.transferProviderKey": "{name}: enter its API key again in Settings.",
   "error.import.transferAgentEnv": "{name}: enter the values of {names} again in Settings.",
