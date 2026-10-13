@@ -1745,15 +1745,13 @@ export async function createApplicationServices({
     sendLiveActivityPush: (hostId, push) => centralAuth.sendLiveActivityPush(hostId, push).pipe(toRemoteWorkflowError),
     sendPushNotification: (hostId, push) => centralAuth.sendPushNotification(hostId, push).pipe(toRemoteWorkflowError),
     pushNotificationStore,
-    // The open window shows the event. While this computer is in use, the desktop also notifies.
+    // The owner is at this computer only with recent input, also when the window was left in focus.
+    // Then the focused window shows the event, or the desktop notifies.
     hostComputerInUse: () => {
       const window = windows.getMainWindow();
       if (!window || window.isDestroyed()) return false;
-      if (window.isFocused()) return true;
-      return (
-        notificationPreference.get().desktopNotifications &&
-        powerMonitor.getSystemIdleState(DESKTOP_USE_MS / 1_000) === "active"
-      );
+      if (powerMonitor.getSystemIdleState(DESKTOP_USE_MS / 1_000) !== "active") return false;
+      return window.isFocused() || notificationPreference.get().desktopNotifications;
     },
     verifyRemoteSessionTicket: (ticket) => centralAuth.verifyRemoteSessionTicket(ticket).pipe(toRemoteWorkflowError),
     endRemoteSession: (sessionId) => centralAuth.endRemoteSession(sessionId).pipe(toRemoteWorkflowError),

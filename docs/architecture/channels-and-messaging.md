@@ -49,9 +49,9 @@ registrations in `openbot-push-notifications-v1.json` in the user data folder, r
 user, so a phone that does not connect after the host restarts still gets notifications. It sends
 only while the phone is away or its connection is closed. An event that waits for the member (input,
 an approval, a browser step) always goes. An answer or a failure does not go while the member uses a
-desktop app: the window of the host's own desktop app has focus, or that computer was in use in the
-last 30 seconds (`powerMonitor.getSystemIdleState`) with the window open and desktop notifications
-on, for the owner; or the member sent, answered, or typed from another session in the last 30
+desktop app: that computer had input in the last 30 seconds (`powerMonitor.getSystemIdleState`), and
+the window of the host's own desktop app has focus or is open with desktop notifications on, for
+the owner; or the member sent, answered, or typed from another session in the last 30
 seconds (`TeamApiServer.lastMemberUseElsewhere`, kept in memory). The time is short because a task
 can end at any time after the member leaves the computer. While the phone shows a Live Activity of
 this host that iOS still updates (8 hours from its start, which the phone gives because a host that
