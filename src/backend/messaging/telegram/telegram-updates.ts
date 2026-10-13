@@ -275,6 +275,7 @@ function inboundFiles(message: DynamicRecord): InboundFile[] {
   const files: InboundFile[] = [];
   const add = (value: unknown, fallbackName: string, fallbackType: string) => {
     if (!isDynamicRecord(value) || !isString(value.file_id)) return;
+    if (files.some((file) => file.id === value.file_id)) return;
     files.push({
       id: value.file_id,
       name: isString(value.file_name) && value.file_name ? value.file_name : fallbackName,
