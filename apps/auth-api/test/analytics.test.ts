@@ -57,7 +57,7 @@ describe("landing analytics", () => {
       __referrer: "",
       surface: "landing",
       environment: "production",
-      event_schema_version: 8,
+      event_schema_version: 9,
     });
     const campaignPath = "/?utm_source=twitter&utm_medium=ad&utm_campaign=mutli";
     expect(client.trackScreenView).toHaveBeenCalledOnce();
