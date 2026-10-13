@@ -377,6 +377,12 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         // The prompt carries OAuth state, so it is not a diagnostic. Only an explicit sign-in opens it.
         if (options.interactiveSignInPrompt?.test(message)) {
           if (this.#signInPrompt) Deferred.doneUnsafe(this.#signInPrompt, Exit.void);
+          else {
+            // The token stopped being valid after the account check, and the server now waits five
+            // minutes for a browser that does not open. The process ends, so its request fails now.
+            this.#signedIn = false;
+            this.emit("exit", new Error(options.signInMessage));
+          }
           return;
         }
         const failedSession = options.provider === "antigravity" ? GEMINI_SDK_FAILURE.exec(message)?.[1] : undefined;
