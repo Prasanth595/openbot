@@ -523,6 +523,27 @@ describe("InstanceTransferService", () => {
     );
   });
 
+  it("turns off the routines of an agent that runs a custom agent from the file", async () => {
+    const old = await oldComputer();
+    const [research] = old.agents;
+    if (!research) throw new Error("The old computer has no agent.");
+    old.agents[0] = { ...research, provider: "acp", model: "goose/default" };
+    const path = await exportOld(old);
+    const target = await computer("new");
+    const preview = await runCauseEffect(target.service.stage(path));
+    const result = await runCauseEffect(
+      target.service.apply({ token: preview.token, keys: ["research"], includeSettings: true }),
+    );
+    const agentId = result.agents[0]?.id ?? "";
+    expect(target.routines.get(agentId)?.map((routine) => routine.active)).toEqual([false]);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        'Goose: this custom agent runs "goose acp --api-key=". Check the command in Settings before an agent uses it.',
+        "Research: its routines are added turned off, because it uses a custom agent from the file. Turn them on after you check that agent.",
+      ]),
+    );
+  });
+
   it("adds no app setting when the user leaves them out", async () => {
     const path = await exportOld(await oldComputer());
     const target = await computer("new");

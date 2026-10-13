@@ -377,7 +377,8 @@ exported, so an imported agent gets the defaults of a new agent on the new compu
 time, stored and not compressed, to `<name>.zip.part`, and renames it when it is complete. Import uses
 the same checks as the agent import (`src/main/agent-archive.ts`): the file stays under a single-use
 token with its SHA-256, under 2 GB and 50,000 files. `apply` first adds the custom providers and
-custom agents that are missing, so an agent can keep a model on one of them, and turns providers on
+custom agents that are missing, so an agent can keep a model on one of them (a warning names the command of
+each added custom agent, and the routines of an agent on such a custom agent are added turned off), and turns providers on
 or off and saves the preferences and default model. Then it creates each selected agent through
 `AgentService` and the local skill library. Files go to the workspace root, and a name that is already
 there is saved beside it. An agent whose step fails is deleted with the skill revisions it published,
