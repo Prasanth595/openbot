@@ -109,6 +109,8 @@ export const messages = {
   "routine.history.title": "Çalıştırma geçmişi",
   "routine.history.empty": "Henüz çalıştırma yok.",
   "routine.history.manualRun": "Manuel · {time}",
+  "routine.history.scriptRun": "Betik · {time}",
+  "routine.history.webhookRun": "Webhook · {time}",
   "routine.history.openRun": "{run} çalıştırmasını sohbette aç",
   "routine.history.today": "Bugün saat {time}",
   "routine.history.yesterday": "Dün saat {time}",

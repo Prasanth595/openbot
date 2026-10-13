@@ -188,12 +188,21 @@ export interface RoutineMissedRuns {
   until: string | null;
 }
 
+/**
+ * What started a run with no trigger. A run from before the source was stored has none, and a host
+ * that does not store it leaves it out; read both as a test run.
+ */
+export const ROUTINE_RUN_SOURCES = ["test", "script", "webhook"] as const;
+export type RoutineRunSource = (typeof ROUTINE_RUN_SOURCES)[number];
+
 /** A run without its owner and without the handle that names the work it started. */
 export interface RoutineRunFields {
   id: string;
   routineId: string;
   triggerId: string | null;
   kind: "scheduled" | "manual";
+  /** Set only on a manual run that records what started it. */
+  source?: RoutineRunSource;
   scheduledFor: string;
   routineName: string;
   instruction: string;
@@ -217,6 +226,7 @@ export function isRoutineRunFields(value: unknown): value is RoutineRunFields {
     isString(value.routineId) &&
     (value.triggerId === null || isString(value.triggerId)) &&
     isOneOf(["scheduled", "manual"] as const, value.kind) &&
+    (value.source === undefined || isOneOf(ROUTINE_RUN_SOURCES, value.source)) &&
     isString(value.scheduledFor) &&
     isString(value.routineName) &&
     isString(value.instruction) &&

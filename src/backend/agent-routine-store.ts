@@ -11,6 +11,7 @@ import {
   type OwnedRoutine,
   type OwnedRoutineRun,
   type ReceivedWebhookEvent,
+  type RoutineRunStart,
   RoutineStore,
   type WebhookReceiveResult,
 } from "./routine-store";
@@ -100,10 +101,10 @@ export class AgentRoutineStore extends RoutineStore {
   createRun(
     routine: Pick<Routine, "id" | "agentId" | "name" | "instruction">,
     triggerId: string | null,
-    kind: RoutineRun["kind"],
+    start: RoutineRunStart,
     scheduledFor: string,
   ): RoutineRun {
-    return toRun(this.createRunRow(runSource(routine), triggerId, kind, scheduledFor));
+    return toRun(this.createRunRow(runSource(routine), triggerId, start, scheduledFor));
   }
 
   receiveWebhook(agentId: string, routineId: string, event: ReceivedWebhookEvent): WebhookReceiveResult<RoutineRun> {

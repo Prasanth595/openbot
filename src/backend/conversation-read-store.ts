@@ -10,19 +10,21 @@ import {
   HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX,
   MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX,
   ROUTINE_EVENT_ITEM_TYPE_PREFIX,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX,
   SKILL_EVENT_ITEM_TYPE_PREFIX,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
-import { ORDER_KEY_COLUMNS, ORDER_KEY_DESC, ORDERED_THREAD_MESSAGES } from "./database/conversation-queries";
+import {
+  type ConversationMarkerExclusions,
+  ORDER_KEY_COLUMNS,
+  ORDER_KEY_DESC,
+  ORDERED_THREAD_MESSAGES,
+} from "./database/conversation-queries";
 import type { OpenBotDatabase } from "./openbot-database";
 
-export interface ConversationMarkerExclusions {
-  excludeRoutineEvents?: boolean;
-  excludeRoutineRunEvents?: boolean;
-  excludeHostedSiteEvents?: boolean;
-}
+export type { ConversationMarkerExclusions } from "./database/conversation-queries";
 
 export class ConversationReadStore {
   constructor(readonly database: OpenBotDatabase) {}
@@ -256,6 +258,7 @@ export class ConversationReadStore {
     const unreadFilter = `author != 'user'
       AND COALESCE(item_type, '') != 'commentary'
       AND COALESCE(item_type, '') != 'plan'
+      AND COALESCE(item_type, '') != '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}'
       AND COALESCE(item_type, '') != 'agent_attachment'
       AND COALESCE(item_type, '') NOT LIKE '${CHAT_VISUAL_ITEM_TYPE_PREFIX}%'
       AND COALESCE(item_type, '') != '${AGENT_EXCHANGE_ITEM_TYPE}'
@@ -357,6 +360,7 @@ function stateFromSnapshot(snapshot: ConversationSnapshot, throughMessageId: str
         message.author !== "user" &&
         message.itemType !== "commentary" &&
         message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+        message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE &&
         message.itemType !== "agent_attachment" &&
         !message.itemType?.startsWith(CHAT_VISUAL_ITEM_TYPE_PREFIX) &&
         message.itemType !== AGENT_EXCHANGE_ITEM_TYPE &&
