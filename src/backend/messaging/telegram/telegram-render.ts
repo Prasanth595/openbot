@@ -35,7 +35,7 @@ export function telegramHtml(markdown: string): string {
       fence.push(escapeHtml(line));
       continue;
     }
-    const quoted = /^>\s?(.*)$/u.exec(line);
+    const quoted = /^ {0,3}>\s?(.*)$/u.exec(line);
     if (quoted) {
       quote.push(inlineHtml(quoted[1] ?? ""));
       continue;
