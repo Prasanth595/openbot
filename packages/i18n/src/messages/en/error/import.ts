@@ -57,6 +57,8 @@ export const messages = defineMessages("error.import", {
   "error.import.transferRoutineFlowSkipped": "The import left out a routine flow. {reason}",
   "error.import.transferCustomAgentCommand":
     '{name}: custom agents are not imported, because they run a command. Check the command "{command}" and add the agent again in Settings.',
+  "error.import.transferSkillLimit":
+    "{name}: only the first {limit} of its {total} skills are in the file, because an agent can have {limit} skills.",
   "error.import.transferFilesGone": "{number} files were deleted while the export ran, so they are not in the file.",
   "error.import.transferProviderKey": "{name}: enter its API key again in Settings.",
   "error.import.transferAgentEnv": "{name}: enter the values of {names} again in Settings.",

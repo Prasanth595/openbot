@@ -521,6 +521,26 @@ describe("InstanceTransferService", () => {
     );
   });
 
+  it("exports at most the skills that an import accepts", async () => {
+    const old = await oldComputer();
+    const skills = join(old.root, "workspaces", "research", ".agents", "skills");
+    for (let index = 0; index < 40; index += 1) {
+      const slug = `extra-${String(index).padStart(2, "0")}`;
+      await mkdir(join(skills, slug), { recursive: true });
+      await writeFile(join(skills, slug, "SKILL.md"), SKILL.replace("Web brief", slug));
+    }
+    const path = join(base, "many.zip");
+    const exported = await runCauseEffect(
+      old.service.exportTo(path, { agentIds: ["research"], includeFiles: false, includeSettings: false }),
+    );
+    expect(exported.warnings).toEqual([
+      "Research: only the first 32 of its 41 skills are in the file, because an agent can have 32 skills.",
+    ]);
+    const target = await computer("new");
+    const preview = await runCauseEffect(target.service.stage(path));
+    expect(preview.agents.map((agent) => [agent.name, agent.skillCount])).toEqual([["Research", 32]]);
+  });
+
   it("adds no app setting when the user leaves them out", async () => {
     const path = await exportOld(await oldComputer());
     const target = await computer("new");

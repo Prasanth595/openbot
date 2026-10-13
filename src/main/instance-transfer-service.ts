@@ -228,6 +228,7 @@ export class InstanceTransferService {
     const agents = selected.filter((agent): agent is AgentSummary => agent !== undefined);
 
     const entries: Array<{ name: string; read: () => Promise<Uint8Array> }> = [];
+    const warnings: string[] = [];
     const keys = new Map<string, string>();
     const manifestAgents: TransferAgent[] = [];
     let bytes = 0;
@@ -245,7 +246,17 @@ export class InstanceTransferService {
       }
 
       const skills: string[] = [];
-      for (const skill of yield* skillFolders(agent.workspacePath)) {
+      // An import refuses an agent with more skills than the limit, so the export keeps the first ones.
+      const folders = yield* skillFolders(agent.workspacePath);
+      if (folders.length > INPUT_LIMITS.agentSkills)
+        warnings.push(
+          sourceText("error.import.transferSkillLimit", {
+            name: agent.name,
+            limit: INPUT_LIMITS.agentSkills,
+            total: folders.length,
+          }),
+        );
+      for (const skill of folders.slice(0, INPUT_LIMITS.agentSkills)) {
         const folder = `${prefix}skills/${skill.slug}`;
         skills.push(folder);
         for (const file of skill.files) {
@@ -332,7 +343,7 @@ export class InstanceTransferService {
     return {
       saved: true,
       fileName: basename(path),
-      warnings: gone > 0 ? [sourceText("error.import.transferFilesGone", { number: gone })] : [],
+      warnings: gone > 0 ? [...warnings, sourceText("error.import.transferFilesGone", { number: gone })] : warnings,
     };
   }).bind(this);
 
@@ -889,7 +900,7 @@ const skillFolders = Effect.fn("InstanceTransfer.skillFolders")(function* (
       skills.set(slug, files);
     }
   }
-  return [...skills].map(([slug, files]) => ({ slug, files }));
+  return [...skills].sort(([a], [b]) => a.localeCompare(b)).map(([slug, files]) => ({ slug, files }));
 });
 
 /** A flag, a `KEY=value` argument or a header line whose name says it holds a secret. */
