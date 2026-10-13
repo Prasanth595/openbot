@@ -8,6 +8,7 @@ import {
   OPENBOT_DOWNLOAD_PAGE_LINKS,
   OPENBOT_LINKS,
 } from "./landing-links";
+import { MOBILE_APPS } from "./mobile-apps";
 
 export const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
@@ -60,8 +61,8 @@ const LANDING_PLACEMENTS = [
   "content_related",
   "other",
 ] as const satisfies readonly LandingPlacement[];
-/** The platforms the landing page can send a visitor to a download for. */
-type LandingDownloadPlatform = "linux" | "macos" | "windows";
+/** The platforms the landing page can send a visitor to a download or a phone app store for. */
+type LandingDownloadPlatform = "linux" | "macos" | "windows" | "ios" | "android";
 type LandingDestination =
   | "download_page"
   | "download_section"
@@ -161,6 +162,8 @@ const DOWNLOAD_PLATFORMS_BY_HREF = new Map<string, LandingDownloadPlatform>([
   [OPENBOT_DOWNLOAD_LINKS.linux, "linux"],
   [OPENBOT_ALTERNATE_DOWNLOAD_LINKS.macos, "macos"],
   [OPENBOT_ALTERNATE_DOWNLOAD_LINKS.linux, "linux"],
+  [MOBILE_APPS.ios.href, "ios"],
+  [MOBILE_APPS.android.href, "android"],
 ]);
 
 const LINK_DESTINATIONS = new Map<string, LandingDestination>([
@@ -405,10 +408,10 @@ function isSafeLandingProperty(name: LandingEventName, key: string, value: unkno
   if (key === "slug") return typeof value === "string" && PUBLISHED_SLUGS.has(value);
   if (key === "depth") return isOneOf(["start", "half", "end"] as const, value);
   // The invitation page only ever offers the two platforms it can detect; the download events cover
-  // every platform the site links to, Linux included.
+  // every platform the site links to, Linux and the phone apps included.
   if (key === "platform") {
     if (name === "join_page_action") return value === "macos" || value === "windows";
-    return isOneOf(["linux", "macos", "windows"] as const, value);
+    return isOneOf(["linux", "macos", "windows", "ios", "android"] as const, value);
   }
   if (key === "placement") return isOneOf(LANDING_PLACEMENTS, value);
   if (key === "destination") return [...LINK_DESTINATIONS.values()].some((destination) => destination === value);
