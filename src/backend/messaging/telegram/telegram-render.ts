@@ -88,10 +88,12 @@ function inlineHtml(line: string): string {
     .map((part) => {
       if (part.length > 2 && part.startsWith("`") && part.endsWith("`"))
         return `<code>${escapeHtml(part.slice(1, -1))}</code>`;
+      let marker = "\uE002";
+      while (part.includes(marker)) marker += "\uE002";
       const links: string[] = [];
       const text = part.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gu, (_match, label: string, url: string) => {
         links.push(`<a href="${escapeHtml(url).replaceAll('"', "&quot;")}">${escapeHtml(inertMentions(label))}</a>`);
-        return `${links.length - 1}`;
+        return `${marker}${links.length - 1}${marker}`;
       });
       return escapeHtml(inertMentions(text))
         .replace(
@@ -101,7 +103,7 @@ function inlineHtml(line: string): string {
         .replace(/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/gu, "<i>$1</i>")
         .replace(/(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?![\w_])/gu, "<i>$1</i>")
         .replace(/~~(.+?)~~/gu, "<s>$1</s>")
-        .replace(/(\d+)/gu, (_match, index: string) => links[Number(index)] ?? "");
+        .replace(new RegExp(`${marker}(\\d+)${marker}`, "gu"), (_match, index: string) => links[Number(index)] ?? "");
     })
     .join("");
 }

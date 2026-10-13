@@ -39,16 +39,18 @@ function inlineMrkdwn(line: string): string {
     .split(/(`[^`]*`)/)
     .map((part) => {
       if (part.startsWith("`") && part.endsWith("`") && part.length > 1) return part;
+      let marker = "\uE001";
+      while (part.includes(marker)) marker += "\uE001";
       const bold: string[] = [];
       return part
         .replace(/\*\*(.+?)\*\*|__(.+?)__/g, (_match, a: string | undefined, b: string | undefined) => {
           bold.push(a ?? b ?? "");
-          return `\uE001${bold.length - 1}\uE001`;
+          return `${marker}${bold.length - 1}${marker}`;
         })
         .replace(/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/g, "_$1_")
         .replace(/~~(.+?)~~/g, "~$1~")
         .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "<$2|$1>")
-        .replace(/\uE001(\d+)\uE001/g, (_match, index: string) => `*${bold[Number(index)]}*`);
+        .replace(new RegExp(`${marker}(\\d+)${marker}`, "g"), (_match, index: string) => `*${bold[Number(index)]}*`);
     })
     .join("");
 }
