@@ -196,6 +196,9 @@ whole list, with the ID of each fact. The prompt marks the facts as data, not in
 
 - A connection keeps at most 32 facts of 500 characters each.
 - A fact is not saved from a direct message, because every channel of the workspace would see it.
+  A fact saved in a private channel is not refused: every channel and direct message of the
+  workspace sees it too. Anyone who can reach OpenBot in the workspace, in a direct message too,
+  can ask the agent to forget a fact.
 - The agent's own memories (`openbot.remember`) stay separate. They are private to the OpenBot user.
 - A disconnect keeps the facts. When you connect the same workspace again, the agent sees them again.
 - OpenBot has no screen for these facts yet. Ask the agent in the workspace to forget a fact.

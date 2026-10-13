@@ -981,14 +981,17 @@ export class MessagingService {
       }
     }
     const { adapter } = live;
-    const authorName = yield* adapter.authorName(message.authorId).pipe(toMessagingOperationFailed);
-    const named = withMentionNames(
-      message.text,
-      yield* mentionNames(message.mentionedUserIds, (userId) => adapter.authorName(userId)),
+    const [authorName, mentioned, place] = yield* Effect.all(
+      [
+        adapter.authorName(message.authorId).pipe(toMessagingOperationFailed),
+        mentionNames(message.mentionedUserIds, (userId) => adapter.authorName(userId)),
+        message.isDirect
+          ? Effect.succeed(null)
+          : adapter.placeName(message.platformChannelId).pipe(toMessagingOperationFailed),
+      ],
+      { concurrency: "unbounded" },
     );
-    const place = message.isDirect
-      ? null
-      : yield* adapter.placeName(message.platformChannelId).pipe(toMessagingOperationFailed);
+    const named = withMentionNames(message.text, mentioned);
     // A conversation keeps its agent. A new one goes to the workspace's orchestrator, which asks its
     // teammates; without one, nothing answers.
     const agentId = existing?.agentId ?? this.#orchestrator(live.record);

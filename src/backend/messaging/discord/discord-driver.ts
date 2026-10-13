@@ -40,6 +40,7 @@ const HISTORY_PAGES = 3;
 const RECENT_WINDOWS_MS = [3_600_000, 86_400_000, 604_800_000];
 /** The most `listMessages` calls of one history tool call. */
 const RECENT_CALLS = 6;
+const CLOCK_MARGIN_MS = 60_000;
 const DISCORD_EPOCH_MS = 1_420_070_400_000n;
 const RATE_LIMIT_NOTICE_MS = 5_000;
 /** Signal answers a rate limit at once. A call waits and tries again, as a Slack call does. */
@@ -264,11 +265,12 @@ class DiscordAdapter implements MessagingAdapter {
   ): Effect.fn.Return<ContextEntry[], MessagingAdapterError> {
     const now = Date.now();
     if (threadKey) {
-      const chain = yield* this.#chain(platformChannelId, threadKey, snowflakeAt(now) + 1n);
+      // A margin past now: this computer's clock can be behind Discord's.
+      const chain = yield* this.#chain(platformChannelId, threadKey, snowflakeAt(now + CLOCK_MARGIN_MS));
       return (yield* this.#entries(chain.filter((message) => discordPlainText(message.content)))).slice(-limit);
     }
     let calls = 0;
-    let visible: DiscordHistoryMessage[] = [];
+    let visible: DiscordHistoryMessage[] | null = null;
     for (const window of RECENT_WINDOWS_MS) {
       const read: DiscordHistoryMessage[] = [];
       let cursor = (snowflakeAt(now - window) - 1n).toString();
@@ -281,9 +283,13 @@ class DiscordAdapter implements MessagingAdapter {
         complete = !last || batch.length < DISCORD_LIST_MESSAGES_LIMIT;
         if (last) cursor = last.id;
       }
+      // A longer time that was not read to its end has only its oldest messages: the shorter time
+      // before it, read to its end, is newer.
+      if (!complete && visible) break;
       visible = read.filter((message) => discordPlainText(message.content));
       if (!complete || visible.length >= limit || calls >= RECENT_CALLS) break;
     }
+    if (!visible) return [];
     visible.sort((left, right) => compareSnowflakes(left.id, right.id));
     return (yield* this.#entries(visible)).slice(-limit);
   });

@@ -72,7 +72,10 @@ export function messagingPromptText(input: MessagingPromptInput): string {
 
 /** One fact on one line, so a saved fact cannot close the block or start a section of its own. */
 function memoryLine(text: string): string {
-  return text.replace(/\s+/g, " ").replaceAll("</workspace_memories", "< /workspace_memories").trim();
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/<\s*\/\s*workspace_memories/gi, "< /workspace_memories")
+    .trim();
 }
 
 /** The newest messages that fit, kept in their order. */

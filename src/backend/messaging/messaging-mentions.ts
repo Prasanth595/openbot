@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Fiber, Option } from "effect";
 import type { MessagingAdapterError } from "./messaging-types";
 
 /**
@@ -6,25 +6,38 @@ import type { MessagingAdapterError } from "./messaging-types";
  * prompt context has a short deadline.
  */
 const NAME_LOOKUPS = 20;
+/**
+ * How long a message waits for the names. The lookups go on after this, so their names are in the
+ * adapter's cache for the next message, but this one keeps the ids: a name lookup must not cost the
+ * prompt its context, which has a deadline of its own.
+ */
+const NAME_DEADLINE_MS = 1_500;
 
 /**
- * The display name of each user id, for `withMentionNames`. An id whose lookup fails, or that is past
- * the lookup limit, keeps no name and so stays an id.
+ * The display name of each user id, for `withMentionNames`. An id whose lookup fails, that is past
+ * the lookup limit, or that is not named by the deadline keeps no name and so stays an id.
  */
-export function mentionNames(
+export const mentionNames = Effect.fnUntraced(function* (
   ids: Iterable<string>,
   nameOf: (userId: string) => Effect.Effect<string, MessagingAdapterError>,
-): Effect.Effect<ReadonlyMap<string, string>> {
-  return Effect.forEach(
-    [...new Set(ids)].slice(0, NAME_LOOKUPS),
-    (id) =>
-      nameOf(id).pipe(
-        Effect.map((name) => [id, name.replace(/\s+/g, " ").trim()] as const),
-        Effect.catch(() => Effect.succeed([id, ""] as const)),
-      ),
-    { concurrency: 4 },
-  ).pipe(Effect.map((entries) => new Map(entries.filter(([id, name]) => name && name !== id))));
-}
+) {
+  const distinct = [...new Set(ids)].slice(0, NAME_LOOKUPS);
+  if (distinct.length === 0) return new Map<string, string>();
+  // Detached: `nameOf` is uninterruptible, and the deadline must not wait for it.
+  const lookups = yield* Effect.forkDetach(
+    Effect.forEach(
+      distinct,
+      (id) =>
+        nameOf(id).pipe(
+          Effect.map((name) => [id, name.replace(/\s+/g, " ").trim()] as const),
+          Effect.catch(() => Effect.succeed([id, ""] as const)),
+        ),
+      { concurrency: 4 },
+    ),
+  );
+  const entries = yield* Fiber.join(lookups).pipe(Effect.timeoutOption(NAME_DEADLINE_MS));
+  return new Map(Option.getOrElse(entries, () => []).filter(([id, name]) => name && name !== id));
+});
 
 /** Writes each `@<id>` that has a name as `@<name>`. */
 export function withMentionNames(text: string, names: ReadonlyMap<string, string>): string {

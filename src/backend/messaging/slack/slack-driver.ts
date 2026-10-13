@@ -29,8 +29,9 @@ const { io: adapterIo } = causeHelpers(MessagingAdapterError);
 /** Slack's own limit for one uploaded file is 1 GB; the host holds its uploads to this. */
 const UPLOAD_BYTES = 100 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
-/** One page of a thread from its start: the history tool keeps its newest messages. */
+/** A page of a thread, read from its start: the history tool keeps the newest messages. */
 const RECENT_THREAD_LIMIT = 200;
+const RECENT_THREAD_PAGES = 5;
 /** Message subtypes that a person or an app wrote, and not a join or a topic change. */
 const RECENT_SUBTYPES = new Set(["file_share", "bot_message", "thread_broadcast", "me_message"]);
 const CHANNEL_PAGE_LIMIT = 200;
@@ -235,8 +236,9 @@ class SlackAdapter implements MessagingAdapter {
   });
 
   /**
-   * The newest messages of a channel, or of one thread, for the agent's history tool. The call fails
-   * at once when Slack limits it: the agent can try again, and the connection does not wait.
+   * The newest messages of a channel, or of one thread, for the agent's history tool. A history read
+   * fails at once when Slack limits it: the agent can try again, and the connection does not wait.
+   * The author and place names use the adapter's cached lookups, which wait for a limit as usual.
    */
   readonly recent = Effect.fnUntraced(function* (
     this: SlackAdapter,
@@ -244,14 +246,11 @@ class SlackAdapter implements MessagingAdapter {
     threadKey: string | null,
     limit: number,
   ): Effect.fn.Return<ContextEntry[], MessagingAdapterError> {
-    const response = threadKey
-      ? yield* this.#api.call(
-          "conversations.replies",
-          { channel: platformChannelId, ts: threadKey, limit: RECENT_THREAD_LIMIT },
-          { rateLimitRetries: 0 },
-        )
-      : yield* this.#api.call("conversations.history", { channel: platformChannelId, limit }, { rateLimitRetries: 0 });
-    const messages = Array.isArray(response.messages) ? response.messages.filter(isDynamicRecord) : [];
+    const messages = threadKey
+      ? yield* this.#threadReplies(platformChannelId, threadKey)
+      : yield* this.#api
+          .call("conversations.history", { channel: platformChannelId, limit }, { rateLimitRetries: 0 })
+          .pipe(Effect.map(responseMessages));
     const kept = messages.filter(
       (message) =>
         isString(message.ts) &&
@@ -259,6 +258,31 @@ class SlackAdapter implements MessagingAdapter {
         (isString(message.user) || message.bot_id !== undefined),
     );
     return (yield* this.#entries(kept, threadKey === null)).slice(-limit);
+  });
+
+  /**
+   * A thread from its start. Slack gives replies oldest first, so the newest ones are on the last
+   * page; a longer thread keeps the first pages only.
+   */
+  readonly #threadReplies = Effect.fnUntraced(function* (
+    this: SlackAdapter,
+    platformChannelId: string,
+    threadKey: string,
+  ): Effect.fn.Return<DynamicRecord[], MessagingAdapterError> {
+    const messages: DynamicRecord[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < RECENT_THREAD_PAGES; page += 1) {
+      const response = yield* this.#api.call(
+        "conversations.replies",
+        { channel: platformChannelId, ts: threadKey, limit: RECENT_THREAD_LIMIT, cursor },
+        { rateLimitRetries: 0 },
+      );
+      messages.push(...responseMessages(response));
+      const metadata = isDynamicRecord(response.response_metadata) ? response.response_metadata : {};
+      cursor = isString(metadata.next_cursor) && metadata.next_cursor ? metadata.next_cursor : undefined;
+      if (!cursor) break;
+    }
+    return messages;
   });
 
   /** Slack messages as context, oldest first, with each mention named. */
@@ -417,6 +441,10 @@ export interface SlackDriverOptions {
   origin?: string;
   /** The relay that brings the workspace's events. Without it, no workspace connects. */
   ingress?: MessagingIngress;
+}
+
+function responseMessages(response: DynamicRecord): DynamicRecord[] {
+  return Array.isArray(response.messages) ? response.messages.filter(isDynamicRecord) : [];
 }
 
 /** Each workspace installed the OpenBot app, and its events come through the ingress relay. */
