@@ -787,11 +787,7 @@ export class HostedServerService {
       );
       if (!row) return yield* notFound();
       if (row.desired_state === "stopped") {
-        return yield* new HostedServerServiceError(
-          402,
-          "plan_required",
-          "The plan of this server ended. Renew it to start the server.",
-        );
+        return yield* new HostedServerServiceError(402, "plan_required", sourceText("error.billing.planRequired"));
       }
       const sandboxId = row.provider_sandbox_id;
       const boat = dependencies.boat;
@@ -817,8 +813,7 @@ export class HostedServerService {
       yield* boat.stopSandbox(sandboxId).pipe(
         Effect.catch((error) =>
           Effect.gen(function* () {
-            if (!(error instanceof BoatApiError && error.status === 409)) return yield* error;
-            // 409: the sandbox cannot stop in its current state.
+            // The sandbox did not stop, so a later restart must send the stop again.
             yield* hostedCall(() =>
               dependencies.database
                 .prepare(
@@ -828,6 +823,8 @@ export class HostedServerService {
                 .bind(dependencies.now(), serverId)
                 .run(),
             );
+            if (!(error instanceof BoatApiError && error.status === 409)) return yield* error;
+            // 409: the sandbox cannot stop in its current state.
             return yield* new HostedServerServiceError(
               409,
               "hosted_server_restart_busy",
