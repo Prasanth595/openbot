@@ -1,5 +1,40 @@
 [
   {
+    "version": "0.38.1",
+    "date": "2026-10-13",
+    "notices": [
+      "Put agents that work together in one sidebar section. Channels are no longer supported, and OpenBot archives and hides them. Your channel history stays on your computer for now. The next release removes channels and their data."
+    ],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "A message in Slack, Discord or Telegram starts a hosted server that sleeps. The server answers it when it starts.",
+          "The Routines canvas is in the web app and on joined servers.",
+          "Dictation can use ElevenLabs Scribe v2 Realtime with your own API key. Select it in Settings > Voice.",
+          "A permanent Mobile Connect link signs in a phone each time you use it, until you revoke it.",
+          "Agents in Slack, Discord or Telegram can save short facts about the workspace and read earlier messages of the channel or thread.",
+          "The owner of a hosted server can restart it from the server menu."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Desktop notifications show the start of the agent's reply, its question or the command to approve. Turn off \"Show message preview\" in Settings > Notifications to show only the fixed text.",
+          "An account can have 50 hosted servers."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Claude background subagents keep running after the agent's turn ends, and the agent's answer after them shows in the chat.",
+          "OpenBot uses Electron 44.7.0, which can stop rare crashes while the app is idle on macOS.",
+          "Account sessions show a hosted server with its name, not as \"Desktop\"."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.38.0",
     "date": "2026-10-12",
     "notices": [],

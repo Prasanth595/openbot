@@ -6,6 +6,89 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-10-13
+
+### Added
+
+- A mention, a direct message, a thread reply or a button press in Slack, Discord or Telegram starts
+  a hosted server that sleeps. Signal keeps that message, encrypted for the server, for up to
+  10 minutes, and the server answers it when it starts.
+- Dictation can use ElevenLabs Scribe v2 Realtime with your own API key. Select it in **Settings → Voice** and save the key. The text shows while you speak, and a finished sentence stays fixed. The audio goes to ElevenLabs only when you select this model.
+- The Routines canvas is now in the web app and on joined servers. Switch the sidebar to Routines to see an agent's routines, connect agents, edit their tasks, run a routine and ask the agent to edit the canvas. A member who can see an agent can change its canvas; only an owner or admin sees and changes webhook settings. The server must run this version of OpenBot.
+- Visual replies and HTML files show as pages in the web app, as on desktop. The page runs in a sandboxed frame and cannot read the web app.
+- Image attachments show as thumbnails in the web app, and audio and video attachments of 10 MB or less play in the chat after you select Play.
+- The iPhone app can search the files in the chats of this computer.
+- An agent can stop a request and wait for an event outside its turn, such as a build or a nightly run. The chat shows each open wait above the composer. The next routine run of the agent, or a local script that names the wait, continues the request with the original message and the agent's note. Use the ⋯ menu of a wait to show its request or cancel it.
+- Generate a permanent Mobile Connect link in Settings > Mobile Connect. You can show it again, copy
+  it, replace it or revoke it. The link signs in a phone each time you use it, until you revoke it
+  or sign out on this computer. Revoking the link also disconnects the phones that signed in with
+  it.
+- Copy or cancel a one-time Mobile Connect code. A cancelled code cannot sign in a phone.
+- See in Connected devices whether each phone signed in with a one-time code or a permanent link.
+- Agents that answer in Slack, Discord or Telegram can save short facts about the workspace, such as who owns a project. Every new conversation in that Slack workspace, Discord server or Telegram chat sees them, in every channel. The agent's own chat does not. A fact from a direct message is not saved.
+- An agent that answers in Slack, Discord or Telegram can read more of the channel or thread when a message refers to something earlier.
+- The owner of a hosted server can restart it from the server menu, on desktop and on the web.
+  Restart server is above Leave server and Delete server. The server stops and starts again, and
+  the app connects again when the server is back.
+- Add the pstack skill to the Marketplace. Install it on the agents you choose, and it adds the 52
+  skills of the pstack plugin by Lauren Tan, each as its own skill. Type `$pstack-poteto-mode`,
+  `$pstack-why` or another `$pstack-<name>` to use one. Removing pstack removes them all.
+
+### Changed
+
+- Desktop notifications now show the start of the agent's reply when it finishes, the question when
+  it needs your input, and the command when it needs your approval. Before, they showed only
+  "Finished working.", "Needs your input." or "Needs your approval.". Secrets in the text are
+  hidden. To show only the fixed text, turn off "Show message preview" in Settings → Notifications.
+- An account can now have 50 hosted servers. Before, the limit was 3.
+- A hosted server with a Slack, Discord or Telegram connection now sleeps after 15 minutes with no use,
+  as other hosted servers do. Before, a live connection kept it on all the time.
+- Long chats in the web app and on joined servers show the "Earlier" part of the day rail for messages that are not loaded yet, as on this computer. The server must run this version of OpenBot.
+- Agents in one sidebar section now know their section teammates and send work to them first. To make agents work together, put them in one section.
+- When you open an agent whose history is not loaded yet, the loading crew covers the chat until the
+  history is ready. Before, a banner showed a Retry button that you could not use. A failed load
+  still shows the notice with Retry.
+- The chat now keeps the answer of a quiet routine run. Each routine run row opens and closes the
+  messages of its run. A quiet run that has finished starts closed, a run that reported something
+  starts open, and a run that is in progress stays open until it finishes. A quiet answer does not
+  count as unread and does not change the chat preview.
+- In Slack and Discord, a mention of a person shows that person's name to the agent, not an ID.
+
+### Deprecated
+
+- **Put agents that work together in one sidebar section.** Channels are no longer supported. OpenBot archives every channel when it starts and hides channels on the desktop, the web and the iPhone app. Agents in one section know each other and send work to each other first. Your channel history stays on your computer for now. The next release removes channels and their data.
+
+### Fixed
+
+- Keep a link in your own message readable when you put the pointer on it. Before, the link text
+  almost disappeared into the bubble. A link that shows its full address no longer opens a tooltip
+  with the same address.
+- A remote connection that Signal refuses for a reason other than a rate limit, such as an invalid ticket, reconnects at once. Before, OpenBot waited 60 seconds as if Signal had limited its rate.
+- An image you paste or drop in an agent chat sends again after you had a channel open. Before, the closed channel deleted the attachment as it arrived, and sending failed with "Attachment draft no longer exists".
+- Claude background subagents keep running after the agent's turn ends. Before, OpenBot stopped the idle Claude process after 10 minutes and ended every subagent with "Stream closed", so long research had to start again.
+- The live view of a remote server's browser now stops when you hide the browser, change the tab, or close a sign-in page. Before, the server kept sending the old view.
+- A browser password request now shows the preview of its own page. Before, a slow preview of an earlier request could replace it.
+- When a server connection was lost while OpenBot checked it, for example when you came back to the app, the status showed a short countdown before it connected again. Now it connects again at once.
+- A Claude agent's answer after a background subagent or command ends now shows in the chat. Before, Claude wrote that answer, but OpenBot did not show it, because no message of yours had started the turn.
+- The chat over the Routines canvas shows the agent's answer once, not twice.
+- Start the channel task that has waited longest for the host first. Before, a busy channel could
+  start its newer tasks again and again while an older task of another channel stayed queued.
+- Wait between connection attempts to a team server that is offline. Before, the app tried again
+  about once each second, and Signal could then block the app for a minute.
+- The web client connects to a hosted server that starts within about 5 seconds after the server is ready. Before, it could wait up to 2 minutes between attempts.
+- While a hosted server starts, the web client shows why the last connection attempt failed, with its error code.
+- An owner or admin of a server sees its Slack, Discord and Telegram connectors in the web client's Server settings, as in the desktop app. Before, the web client showed only GitHub. A Slack or Discord install that the web client starts returns to the web client tab.
+- OpenBot uses Electron 44.7.0. This update has V8 engine fixes that can stop rare crashes of the
+  app while it is idle on macOS.
+- A routine run that a local script or a webhook starts can now end quietly, as a scheduled run does.
+  Before, OpenBot sent it as a Test run, so the agent always wrote a report. The run history now
+  shows "Script" or "Webhook" for these runs, not "Manual".
+- A client now connects again when it asks to start a hosted server that is stopping. Before, it
+  stopped the reconnects and showed the server as offline until the next status check.
+- Account sessions now show a hosted server with its name, as a hosted server. Before, the list
+  showed it as "Desktop", so an owner could disconnect the server by mistake. Disconnect still signs
+  the server out; a restart signs it in again.
+
 ## [0.38.0] - 2026-10-12
 
 ### Added
