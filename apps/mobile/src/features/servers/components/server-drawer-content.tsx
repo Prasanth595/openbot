@@ -33,11 +33,13 @@ interface ServerDrawerContentProps {
   listTopInset: number;
   muted: ViewStyle["backgroundColor"];
   open: boolean;
+  defaultServerId: string | null;
   servers: MobileServer[];
   session: MobileSession;
   sideInset: number;
   topInset: number;
   onNavigate: (href: Href) => void;
+  onSetDefault: (serverId: string | null) => boolean;
   onReorder: (serverIds: string[]) => boolean;
   onSelectServer: (serverId: string) => void;
 }
@@ -61,11 +63,13 @@ export function ServerDrawerContent({
   listTopInset,
   muted,
   open,
+  defaultServerId,
   servers,
   session,
   sideInset,
   topInset,
   onNavigate,
+  onSetDefault,
   onReorder,
   onSelectServer,
 }: ServerDrawerContentProps) {
@@ -81,16 +85,27 @@ export function ServerDrawerContent({
   const [dragging, setDragging] = useState(false);
   // The iOS menu host sizes to its content, so a row in a menu gets the slot width explicitly.
   const [rowWidth, setRowWidth] = useState<number>();
-  const localServers = servers.filter((server) => server.kind === "local");
-  const remoteIds = servers.filter((server) => server.kind !== "local").map((server) => server.id);
-  const canReorder = remoteIds.length > 1;
-  const menuActions: MenuAction[] = [
-    { id: "options", title: t("mobile.server.drawer.options"), image: "gearshape" },
-    { id: "routines", title: t("mobile.server.drawer.routines"), image: "calendar" },
-    { id: "usage", title: t("mobile.server.drawer.usage"), image: "chart.bar" },
-  ];
-  if (canReorder)
-    menuActions.push({ id: "reorder", title: t("mobile.server.drawer.editOrder"), image: "arrow.up.arrow.down" });
+  // The one default server stays above the divider. The app opens on the first server of the list.
+  const defaultServers = servers.filter((server) => server.id === defaultServerId);
+  const listedServers = servers.filter((server) => server.id !== defaultServerId);
+  const listedIds = listedServers.map((server) => server.id);
+  const canReorder = listedIds.length > 1;
+  function menuActions(serverId: string): MenuAction[] {
+    const listActions: MenuAction[] = [
+      serverId === defaultServerId
+        ? { id: "removeDefault", title: t("mobile.server.drawer.removeDefault"), image: "star.slash" }
+        : { id: "makeDefault", title: t("mobile.server.drawer.makeDefault"), image: "star" },
+    ];
+    if (canReorder)
+      listActions.push({ id: "reorder", title: t("mobile.server.drawer.editOrder"), image: "arrow.up.arrow.down" });
+    return [
+      { id: "options", title: t("mobile.server.drawer.options"), image: "gearshape" },
+      { id: "routines", title: t("mobile.server.drawer.routines"), image: "calendar" },
+      { id: "usage", title: t("mobile.server.drawer.usage"), image: "chart.bar" },
+      // The inline section draws a divider above the actions that change the list.
+      { id: "list", title: "", displayInline: true, subactions: listActions },
+    ];
+  }
 
   // A drag cut short by leaving edit mode never reports its end, so leaving also releases the scroll lock.
   const stopEditing = () => {
@@ -117,9 +132,13 @@ export function ServerDrawerContent({
   }, [open, session]);
 
   function move(serverId: string, targetIndex: number) {
-    const next = moveServerId(remoteIds, serverId, targetIndex);
-    if (next.join("\n") !== remoteIds.join("\n")) onReorder(next);
+    const next = moveServerId(listedIds, serverId, targetIndex);
+    if (next.join("\n") !== listedIds.join("\n")) onReorder(next);
   }
+
+  const toggleDefault = (serverId: string) => {
+    if (onSetDefault(serverId === defaultServerId ? null : serverId)) void haptics.selection();
+  };
 
   const openOptions = (serverId: string) => onNavigate({ pathname: "/server-settings", params: { serverId } });
   const openRoutines = (serverId: string) => onNavigate({ pathname: "/server-routines", params: { serverId } });
@@ -127,7 +146,7 @@ export function ServerDrawerContent({
 
   function renderRow(serverItem: MobileServer, width?: number) {
     const selected = serverItem.id === activeServerId;
-    const remoteIndex = remoteIds.indexOf(serverItem.id);
+    const listIndex = listedIds.indexOf(serverItem.id);
     const serverLabel = serverKindLabel(serverItem, t);
     const accessibilityActions = [
       ...(editing
@@ -136,9 +155,12 @@ export function ServerDrawerContent({
             { name: "options", label: t("mobile.server.drawer.serverOptions") },
             { name: "routines", label: t("mobile.server.drawer.routines") },
             { name: "usage", label: t("mobile.server.drawer.usage") },
+            serverItem.id === defaultServerId
+              ? { name: "removeDefault", label: t("mobile.server.drawer.removeDefault") }
+              : { name: "makeDefault", label: t("mobile.server.drawer.makeDefault") },
           ]),
-      ...(remoteIndex > 0 ? [{ name: "moveUp", label: t("mobile.server.drawer.moveUp") }] : []),
-      ...(remoteIndex >= 0 && remoteIndex < remoteIds.length - 1
+      ...(listIndex > 0 ? [{ name: "moveUp", label: t("mobile.server.drawer.moveUp") }] : []),
+      ...(listIndex >= 0 && listIndex < listedIds.length - 1
         ? [{ name: "moveDown", label: t("mobile.server.drawer.moveDown") }]
         : []),
     ];
@@ -154,8 +176,9 @@ export function ServerDrawerContent({
           if (action === "options") openOptions(serverItem.id);
           if (action === "routines") openRoutines(serverItem.id);
           if (action === "usage") openUsage(serverItem.id);
-          if (action === "moveUp") move(serverItem.id, remoteIndex - 1);
-          if (action === "moveDown") move(serverItem.id, remoteIndex + 1);
+          if (action === "makeDefault" || action === "removeDefault") toggleDefault(serverItem.id);
+          if (action === "moveUp") move(serverItem.id, listIndex - 1);
+          if (action === "moveDown") move(serverItem.id, listIndex + 1);
         }}
         className={`flex-row items-center gap-3 rounded-2xl px-2.5 ${selected ? "bg-control" : ""}`}
         onPress={editing ? undefined : () => onSelectServer(serverItem.id)}
@@ -212,11 +235,13 @@ export function ServerDrawerContent({
             }
           : null)}
         shouldOpenOnLongPress
-        actions={menuActions}
+        actions={menuActions(serverItem.id)}
         onPressAction={(event) => {
           if (event.nativeEvent.event === "options") openOptions(serverItem.id);
           if (event.nativeEvent.event === "routines") openRoutines(serverItem.id);
           if (event.nativeEvent.event === "usage") openUsage(serverItem.id);
+          if (event.nativeEvent.event === "makeDefault" || event.nativeEvent.event === "removeDefault")
+            toggleDefault(serverItem.id);
           if (event.nativeEvent.event === "reorder") setEditing(true);
         }}
       >
@@ -235,16 +260,16 @@ export function ServerDrawerContent({
         scrollEnabled={!dragging}
         showsVerticalScrollIndicator={false}
       >
-        {localServers.map((serverItem) =>
+        {defaultServers.map((serverItem) =>
           editing ? rowSlot(serverItem, renderRow(serverItem)) : withMenu(serverItem),
         )}
-        {localServers.length && remoteIds.length ? (
+        {defaultServers.length && listedIds.length ? (
           <View accessibilityElementsHidden className="mx-2.5 my-4 h-px bg-grouped-border" />
         ) : null}
         {editing ? (
           <SortableServerList
             color={mutedColor}
-            ids={remoteIds}
+            ids={listedIds}
             renderRow={(id) => {
               const serverItem = servers.find((candidate) => candidate.id === id);
               return serverItem ? renderRow(serverItem) : null;
@@ -253,9 +278,9 @@ export function ServerDrawerContent({
             onReorder={onReorder}
           />
         ) : (
-          servers.filter((serverItem) => serverItem.kind !== "local").map(withMenu)
+          listedServers.map(withMenu)
         )}
-        {editing && localServers.length ? (
+        {editing ? (
           <Typography.Paragraph type="body-xs" className="px-3 pt-3 text-text-secondary">
             {t("mobile.server.drawer.orderHint")}
           </Typography.Paragraph>

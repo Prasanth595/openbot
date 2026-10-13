@@ -172,10 +172,14 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<void>;
   editQueue: (agentId: string, serverId: string, input: QueueEditRequest) => Promise<QueueSnapshot>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
-  /** Local host first, then remote servers in the order saved on this device. */
+  /** The default server first, then the other servers in the order saved on this device. */
   servers: MobileServer[];
-  /** Saves the order of remote server IDs on this device. Returns false and keeps the old order on failure. */
+  /** Saves the order of the other servers on this device. Returns false and keeps the old order on failure. */
   reorderServers: (serverIds: string[]) => boolean;
+  /** The one server above the divider. With no saved choice, the paired host. */
+  defaultServerId: string | null;
+  /** Makes a server the default in place of the current one, or removes it with `null`. Returns false on failure. */
+  setDefaultServer: (serverId: string | null) => boolean;
   teamDirectory: RemoteTeamDirectoryClient;
   serverDirectoryState: MobileServerDirectoryState;
   serverDirectoryError: string | null;

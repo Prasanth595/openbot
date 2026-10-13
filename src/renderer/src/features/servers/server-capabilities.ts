@@ -7,6 +7,7 @@ import {
 } from "@openbot/contracts/ipc";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import { PROVIDER_HOST_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
+import { PROVIDERS_ADMIN_CODE_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v1";
 import { PROVIDERS_SIGN_IN_V3_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v3";
 import { PROVIDERS_V4_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v4";
 import { SIGN_IN_RELAY_PROVIDERS } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
@@ -124,35 +125,35 @@ export function serverCanAdminister(
 }
 
 /**
- * The providers that a code sign-in reaches on `server`. A host with `providers-v4` signs in Codex,
- * Grok, Cursor and Cline, and Claude when it also has `providers-v3`, which only a host that can run
- * the Claude pasted code advertises. A host with `providers-v3` alone signs in Codex, Claude and Grok.
- * This computer, and an older host, sign in with a code only the providers whose descriptor says so:
- * this computer has a browser for the others. A host with `provider-host-sign-in-v1` adds the
- * providers it signs in on its own browser's page, and a host with `sign-in-relay-v1` the providers
- * it signs in on a page in this computer's browser.
+ * The providers that the host's own code route signs in on `server`: a device code, a pasted code
+ * or a link. A host with `providers-v4` signs in its providers, and the pasted-code ones only when
+ * it also has `providers-v3`, which only a host that can run a pasted code advertises. A host with
+ * `providers-v3` alone signs in its own list, and a host with `providers-v1` alone Codex only. The
+ * providers that a host signs in on a page are in `hostSignInProviders` and `relaySignInProviders`.
  */
-export function codeSignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
-  const host = [...new Set([...hostSignInProviders(server), ...relaySignInProviders(server)])];
-  if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v4")) {
+export function serverCodeRouteProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
+  if (server?.kind !== "remote") return [];
+  if (serverSupportsCapability(server, "providers-v4")) {
     const paste = serverSupportsCapability(server, "providers-v3");
-    return [
-      ...new Set([...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), ...host]),
-    ];
+    return PROVIDERS_V4_SIGN_IN_PROVIDERS.filter(
+      (provider) => paste || agentProviderDescriptor(provider).localCodeSignIn !== "paste",
+    );
   }
-  if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v3"))
-    return [...new Set([...PROVIDERS_SIGN_IN_V3_PROVIDERS, ...host])];
-  return AGENT_PROVIDERS.filter((provider) => agentProviderDescriptor(provider).codeSignIn || host.includes(provider));
+  if (serverSupportsCapability(server, "providers-v3")) return PROVIDERS_SIGN_IN_V3_PROVIDERS;
+  return serverSupportsCapability(server, "providers-v1") ? PROVIDERS_ADMIN_CODE_SIGN_IN_PROVIDERS : [];
 }
 
 /**
- * The providers that a code sign-in reaches on this computer: every provider whose driver has one,
- * for when the browser callback cannot reach OpenBot. Claude's pasted code needs a terminal that
- * only Linux gives it. Muse has a device code on this computer only: no Team API protocol carries it.
+ * The providers that a code sign-in reaches on this computer, for when the browser callback cannot
+ * reach OpenBot: each provider whose driver has one. A pasted code needs a terminal that only some
+ * platforms give it.
  */
 export function localCodeSignInProviders(platform: string | undefined): readonly AgentProviderId[] {
   const paste = platform !== undefined && pasteCodeSignInSupported(platform);
-  return [...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), "muse"];
+  return AGENT_PROVIDERS.filter((provider) => {
+    const codeSignIn = agentProviderDescriptor(provider).localCodeSignIn;
+    return codeSignIn === "device" || (codeSignIn === "paste" && paste);
+  });
 }
 
 /** `server` when it is a joined server this account may manage through `capability`, otherwise undefined. */

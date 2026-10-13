@@ -104,7 +104,14 @@ import {
   reducePendingApprovals,
 } from "@/features/workspace/model/pending-approvals";
 import { applyMobileQueueEvent } from "@/features/workspace/model/queue-cache";
-import { decodeServerOrder, serverAccent, serverOrderKey, sortServers } from "@/features/workspace/model/server-order";
+import {
+  decodeDefaultServer,
+  decodeServerOrder,
+  defaultServerKey,
+  serverAccent,
+  serverOrderKey,
+  sortServers,
+} from "@/features/workspace/model/server-order";
 import { applyServerRecovery, serverKind } from "@/features/workspace/model/server-status";
 import { trustedHostKeys } from "@/features/workspace/model/trusted-host-keys";
 import {
@@ -197,7 +204,36 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const removedServers = useRef(new Set<string>());
   const readRefresh = useMemo(() => createRemoteReadRefresh(), []);
   const serverCapabilities = useRef(new Map<string, string[]>());
-  const [activeServerId, setActiveServerId] = useState<string | null>(session.host?.hostId ?? null);
+  const orderKey = serverOrderKey(session.apiUrl, session.user.id);
+  const storedServerOrder = useMemo(() => {
+    try {
+      return decodeServerOrder(SecureStore.getItem(orderKey));
+    } catch {
+      return [];
+    }
+  }, [orderKey]);
+  const [savedServerOrder, setSavedServerOrder] = useState<{ key: string; ids: string[] } | null>(null);
+  const serverOrder = savedServerOrder?.key === orderKey ? savedServerOrder.ids : storedServerOrder;
+  const serverOrderRef = useRef(serverOrder);
+  serverOrderRef.current = serverOrder;
+  const defaultKey = defaultServerKey(session.apiUrl, session.user.id);
+  const storedDefaultServer = useMemo(() => {
+    try {
+      return decodeDefaultServer(SecureStore.getItem(defaultKey), session.host?.hostId);
+    } catch {
+      return session.host?.hostId ?? null;
+    }
+  }, [defaultKey, session.host?.hostId]);
+  const [savedDefaultServer, setSavedDefaultServer] = useState<{ key: string; id: string | null } | null>(null);
+  const defaultServerId = savedDefaultServer?.key === defaultKey ? savedDefaultServer.id : storedDefaultServer;
+  const defaultServerIdRef = useRef(defaultServerId);
+  defaultServerIdRef.current = defaultServerId;
+  const orderedServers = useMemo(
+    () => sortServers(servers, serverOrder, defaultServerId),
+    [servers, serverOrder, defaultServerId],
+  );
+  // The app opens on the first server of the list. The directory corrects a saved server that is gone.
+  const [activeServerId, setActiveServerId] = useState<string | null>(() => defaultServerId ?? serverOrder[0] ?? null);
   const activeServerIdRef = useRef(activeServerId);
   activeServerIdRef.current = activeServerId;
   const conversationStore = useMemo(
@@ -220,17 +256,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     [session.apiUrl, session.user.id],
   );
   const [preferences, setPreferences] = useState<Record<string, RemoteWorkspacePreferences>>({});
-  const orderKey = serverOrderKey(session.apiUrl, session.user.id);
-  const storedServerOrder = useMemo(() => {
-    try {
-      return decodeServerOrder(SecureStore.getItem(orderKey));
-    } catch {
-      return [];
-    }
-  }, [orderKey]);
-  const [savedServerOrder, setSavedServerOrder] = useState<{ key: string; ids: string[] } | null>(null);
-  const serverOrder = savedServerOrder?.key === orderKey ? savedServerOrder.ids : storedServerOrder;
-  const orderedServers = useMemo(() => sortServers(servers, serverOrder), [servers, serverOrder]);
   const preferencesRef = useRef(preferences);
   preferencesRef.current = preferences;
   const hiddenAgentIds = (activeServerId ? preferences[activeServerId]?.hidden : null) ?? NO_IDS;
@@ -302,7 +327,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           };
         });
       });
-      setActiveServerId((current) => (hosts.some((host) => host.hostId === current) ? current : null));
+      setActiveServerId((current) =>
+        hosts.some((host) => host.hostId === current)
+          ? current
+          : (sortServers(
+              hosts.map((host) => ({ id: host.hostId })),
+              serverOrderRef.current,
+              defaultServerIdRef.current,
+            )[0]?.id ?? null),
+      );
     },
     [
       liveState,
@@ -1082,7 +1115,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       serverAgentIds.current.delete(serverId);
       if (activeServerId === serverId) {
         loadGeneration.current += 1;
-        setActiveServerId(session.host?.hostId ?? null);
+        const remaining = servers.filter((candidate) => candidate.id !== serverId);
+        setActiveServerId(sortServers(remaining, serverOrder, defaultServerId)[0]?.id ?? null);
       }
       setServers((current) => current.filter((candidate) => candidate.id !== serverId));
       setSidebarByServer((current) => Object.fromEntries(Object.entries(current).filter(([id]) => id !== serverId)));
@@ -1193,6 +1227,34 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
           });
           setSavedServerOrder({ key: orderKey, ids: serverIds });
+          return true;
+        } catch (error) {
+          showFailureAlert(
+            error,
+            "settings",
+            currentText().t("mobile.workspace.alert.serverOrderTitle"),
+            currentText().t("mobile.workspace.alert.serverOrderBody"),
+          );
+          return false;
+        }
+      },
+      defaultServerId,
+      setDefaultServer: (serverId) => {
+        const previous = servers.some((server) => server.id === defaultServerId) ? defaultServerId : null;
+        const listed = orderedServers
+          .filter((server) => server.id !== defaultServerId && server.id !== serverId)
+          .map((server) => server.id);
+        // The server that is no longer the default goes to the top of the list.
+        const order = previous && previous !== serverId ? [previous, ...listed] : listed;
+        try {
+          SecureStore.setItem(orderKey, JSON.stringify(order), {
+            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          });
+          SecureStore.setItem(defaultKey, JSON.stringify(serverId), {
+            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          });
+          setSavedServerOrder({ key: orderKey, ids: order });
+          setSavedDefaultServer({ key: defaultKey, id: serverId });
           return true;
         } catch (error) {
           showFailureAlert(
@@ -1544,7 +1606,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     servers,
     orderedServers,
     orderKey,
-    session.host,
+    defaultKey,
+    defaultServerId,
+    serverOrder,
     session.apiUrl,
     session.user.id,
     sessionScope,

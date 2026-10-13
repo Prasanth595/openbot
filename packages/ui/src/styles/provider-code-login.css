@@ -156,6 +156,13 @@
   text-align: center;
 }
 
+/* The app hand-off has no phase to show: only its two actions, in the order of a dialog footer. */
+.provider-use-app-actions {
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: var(--openbot-space-2);
+}
+
 .provider-code-login-close {
   position: absolute;
   top: var(--openbot-space-3);

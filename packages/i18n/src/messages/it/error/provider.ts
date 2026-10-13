@@ -234,6 +234,12 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini non è riuscito ad aprire la pagina di accesso. Installa un browser e xdg-utils, poi collegati da una sessione desktop su questo host. Un server senza desktop non può completare questo accesso.",
   "error.provider.acpSignInFailed": "L'accesso non è stato completato.",
+  "error.provider.acpSignInFailedReason": "L'accesso non è stato completato: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Questo provider non offre questo metodo di accesso su questo computer. Aggiorna il provider, poi riprova.",
+  "error.provider.httpsSignInLinkOnly": "Solo i link di accesso HTTPS possono aprirsi nel browser.",
+  "error.provider.geminiKeyRefused":
+    "Gemini ha rifiutato la chiave API salvata. Sostituisci o rimuovi la chiave nelle Impostazioni, poi connettiti di nuovo.",
   "error.provider.messageTooLarge":
     "OpenBot ha fermato {provider} perché ha inviato un messaggio più grande di {limit} MB.",
   "error.provider.customAgentIdInvalid":
