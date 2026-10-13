@@ -1,0 +1,6 @@
+### Changed
+
+- Agents show a draft before they send a message for you, and they send it only after you approve it. Before a payment, an agent reads back the item, price and total and asks you to confirm.
+- Agents give the answer first and do not invent facts or sources. An agent says done only after it checks the result.
+- When you say stop, an agent also stops each teammate that it gave work to, and tells you which teammates stopped.
+- For a repeated or timed request, such as "every morning", an agent creates a routine or offers one.
