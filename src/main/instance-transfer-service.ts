@@ -13,7 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
-import { AGENT_PROVIDERS, type AgentProviderId, agentProviderName } from "@openbot/contracts/agent-providers";
+import type { AgentProviderId } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_IMPORT_LIMITS,
@@ -48,6 +48,7 @@ import {
   type SidebarLayoutSnapshot,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
+import { INSTANCE_TRANSFER_REMOTE_BYTES } from "@openbot/contracts/team-protocol/instance-transfer-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Result } from "effect";
 import { Zip, ZipPassThrough, zipSync } from "fflate";
@@ -94,6 +95,18 @@ const ARCHIVE: ArchiveLimits = {
  * its owner records name agent ids of this computer, so a transfer never copies it.
  */
 const SHARED_DATA = "data";
+/** A file sent to or from a member of a joined client: one WebRTC file transfer. */
+const REMOTE_ARCHIVE: ArchiveLimits = {
+  archiveBytes: INSTANCE_TRANSFER_REMOTE_BYTES,
+  files: INSTANCE_TRANSFER_LIMITS.files,
+  tooLarge: sourceText("error.import.transferRemoteTooLarge"),
+  expandedTooLarge: sourceText("error.import.transferRemoteTooLarge"),
+  invalid: sourceText("error.import.transferNotFile"),
+};
+/** The owner of the files the local user reads. A member's owner is the member id. */
+const LOCAL_OWNER = "local";
+/** A file that a member sent and nobody applied is removed after this. */
+const UPLOAD_TTL_MS = 30 * 60_000;
 /** Skill folders are copied here, published to the local library, and removed again. */
 const SKILL_STAGING = ".openbot/import-skills";
 /** Workspace folders an export leaves out: OpenBot's own state and the installed skills, which travel as skills. */
@@ -125,21 +138,15 @@ interface InstanceTransferAgents {
   deleteAgent(agentId: string): Effect.Effect<void, unknown>;
 }
 
-export type TransferPreferences = TransferSettings["preferences"];
-
-/** The app settings an export reads and an import writes. Main wires each to its owner. */
+/** The server settings an export reads and an import writes. Main wires each to its owner. */
 interface InstanceTransferSettings {
   mcpServers(): McpServerConfig[];
   saveMcpServer(config: McpServerConfig): Effect.Effect<unknown, unknown>;
   customProviders(): CustomProviderSummary[];
   saveCustomProvider(input: SaveCustomProviderInput): Effect.Effect<unknown, unknown>;
   customAgents(): Effect.Effect<CustomAgentSummary[], unknown>;
-  defaults(): Effect.Effect<{ provider: AgentProviderId; model: string | null } | null, unknown>;
-  saveDefaults(provider: AgentProviderId, model: string | null): Effect.Effect<unknown, unknown>;
+  /** Read only: an agent keeps its model only when its provider is on. */
   providersOff(): readonly AgentProviderId[];
-  setProviderOn(provider: AgentProviderId, on: boolean): Effect.Effect<unknown, unknown>;
-  preferences(): TransferPreferences;
-  savePreferences(preferences: TransferPreferences): Effect.Effect<unknown, unknown>;
   sidebar(): SidebarLayoutSnapshot;
   mutateSidebar(action: SidebarLayoutAction): Effect.Effect<SidebarLayoutSnapshot, unknown>;
   routineFlowLinks(agentId: string): Effect.Effect<RoutineFlowLink[], unknown>;
@@ -155,6 +162,8 @@ export interface InstanceTransferOptions {
   /** `~/OpenBot/Shared`. */
   sharedRoot: string;
   appVersion: string;
+  /** Where a file sent by a member of a joined client, or made for one, waits. */
+  uploadDirectory?: string;
   timezone?: () => string;
   now?: () => Date;
 }
@@ -168,6 +177,10 @@ interface FileEntry {
 
 interface StagedTransfer {
   token: string;
+  /** Only the owner can apply or discard the token: the local user or one member. */
+  owner: string;
+  /** A file the service wrote for a member, removed when the token ends. */
+  temporary: boolean;
   path: string;
   sha256: string;
   manifest: TransferManifest;
@@ -175,19 +188,13 @@ interface StagedTransfer {
 }
 
 export class InstanceTransferService {
-  #staged: StagedTransfer | null = null;
-  #lastExport: string | null = null;
+  readonly #staged = new Map<string, StagedTransfer>();
   readonly #timezone: () => string;
   readonly #now: () => Date;
 
   constructor(private readonly options: InstanceTransferOptions) {
     this.#timezone = options.timezone ?? (() => Intl.DateTimeFormat().resolvedOptions().timeZone);
     this.#now = options.now ?? (() => new Date());
-  }
-
-  /** The path of the last saved export, for "Show in Finder". */
-  lastExport(): string | null {
-    return this.#lastExport;
   }
 
   /** What each agent would carry: the export screen shows it before anything is written. */
@@ -220,6 +227,7 @@ export class InstanceTransferService {
     this: InstanceTransferService,
     path: string,
     input: ExportInstanceInput,
+    limits: ArchiveLimits = ARCHIVE,
   ): Effect.fn.Return<InstanceExportResult, ArchiveOperationError> {
     const all = this.options.agents.listAgents();
     const selected = input.agentIds.map((id) => all.find((agent) => agent.id === id));
@@ -324,8 +332,8 @@ export class InstanceTransferService {
         entries.push({ name: `${SHARED_FOLDER}/${file.name}`, read: () => readFile(file.path) });
       }
     }
-    if (entries.length + 1 > ARCHIVE.files || bytes > ARCHIVE.archiveBytes)
-      return yield* archiveFailure(new Error(ARCHIVE.tooLarge));
+    if (entries.length + 1 > limits.files || bytes > limits.archiveBytes)
+      return yield* archiveFailure(new Error(limits.tooLarge));
 
     const manifest: TransferManifestFile = {
       format: INSTANCE_TRANSFER_FORMAT,
@@ -339,12 +347,29 @@ export class InstanceTransferService {
     const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
     entries.unshift({ name: INSTANCE_TRANSFER_MANIFEST, read: () => Promise.resolve(manifestBytes) });
     const gone = yield* writeZipEffect(path, entries);
-    this.#lastExport = path;
     return {
       saved: true,
       fileName: basename(path),
       warnings: gone > 0 ? [...warnings, sourceText("error.import.transferFilesGone", { number: gone })] : warnings,
     };
+  }).bind(this);
+
+  /**
+   * Writes an export for a member of a joined client to a new file in the upload folder. The caller
+   * sends it and removes it. The file stays under what one WebRTC file transfer can carry.
+   */
+  readonly exportForMember = Effect.fn("InstanceTransfer.exportForMember")(function* (
+    this: InstanceTransferService,
+    input: ExportInstanceInput,
+  ): Effect.fn.Return<string, ArchiveOperationError> {
+    const directory = this.options.uploadDirectory;
+    if (!directory) return yield* archiveFailure(new Error("Instance transfer uploads are not available."));
+    yield* archiveCall(() => mkdir(directory, { recursive: true, mode: 0o700 }));
+    const path = join(directory, `${randomUUID()}.zip`);
+    yield* this.exportTo(path, input, REMOTE_ARCHIVE).pipe(
+      Effect.tapError(() => archiveCall(() => rm(path, { force: true })).pipe(Effect.ignore)),
+    );
+    return path;
   }).bind(this);
 
   readonly #readSettings = Effect.fn("InstanceTransfer.readSettings")(function* (
@@ -387,9 +412,6 @@ export class InstanceTransferService {
         args: redact.args(agent.name, agent.args),
         envNames: agent.envNames,
       })),
-      defaults: yield* settings.defaults().pipe(Effect.mapError(failure)),
-      providersOff: [...settings.providersOff()],
-      preferences: settings.preferences(),
       sidebarSections: layout.sections.map((section) => ({
         name: section.name,
         agentKeys: order.flatMap((agentId) => {
@@ -408,14 +430,42 @@ export class InstanceTransferService {
     };
   });
 
-  /** Reads and checks a transfer file. A new file replaces the one read before. */
+  /** Reads and checks a transfer file. A new file replaces the one the same owner read before. */
   readonly stage = Effect.fn("InstanceTransfer.stage")(function* (
     this: InstanceTransferService,
     path: string,
+    owner = LOCAL_OWNER,
+  ): Effect.fn.Return<InstanceTransferPreview, ArchiveOperationError> {
+    return yield* this.#stageFile(path, owner, false, ARCHIVE);
+  }).bind(this);
+
+  /** A file that a member of a joined client sends: the service keeps it until the token ends. */
+  readonly stageUpload = Effect.fn("InstanceTransfer.stageUpload")(function* (
+    this: InstanceTransferService,
+    read: () => Promise<Uint8Array>,
+    owner: string,
+  ): Effect.fn.Return<InstanceTransferPreview, ArchiveOperationError> {
+    const directory = this.options.uploadDirectory;
+    if (!directory) return yield* archiveFailure(new Error("Instance transfer uploads are not available."));
+    const bytes = yield* archiveCall(() => read());
+    yield* archiveCall(() => mkdir(directory, { recursive: true, mode: 0o700 }));
+    const path = join(directory, `${randomUUID()}.zip`);
+    yield* archiveCall(() => writeFile(path, bytes, { flag: "wx", mode: 0o600 }));
+    return yield* this.#stageFile(path, owner, true, REMOTE_ARCHIVE).pipe(
+      Effect.tapError(() => archiveCall(() => rm(path, { force: true })).pipe(Effect.ignore)),
+    );
+  }).bind(this);
+
+  readonly #stageFile = Effect.fn("InstanceTransfer.stageFile")(function* (
+    this: InstanceTransferService,
+    path: string,
+    owner: string,
+    temporary: boolean,
+    limits: ArchiveLimits,
   ): Effect.fn.Return<InstanceTransferPreview, ArchiveOperationError> {
     // The file read before stays staged until this one is checked, so a bad file keeps it.
-    const bytes = yield* readArchiveEffect(path, ARCHIVE);
-    const entries = yield* archiveSync(() => listEntries(bytes, ARCHIVE));
+    const bytes = yield* readArchiveEffect(path, limits);
+    const entries = yield* archiveSync(() => listEntries(bytes, limits));
     if (!entries.has(INSTANCE_TRANSFER_MANIFEST))
       return yield* archiveFailure(new Error(sourceText("error.import.transferNotFile")));
     const { manifest, warnings } = yield* archiveSync(() =>
@@ -441,12 +491,21 @@ export class InstanceTransferService {
     const existing = new Set(this.options.agents.listAgents().map((agent) => agent.name.toLowerCase()));
     const staged: StagedTransfer = {
       token: randomUUID(),
+      owner,
+      temporary,
       path,
       sha256: sha256(bytes),
       manifest: { ...manifest, agents },
       avatars,
     };
-    this.#staged = staged;
+    yield* this.#release(owner);
+    this.#staged.set(staged.token, staged);
+    if (temporary) {
+      // A member who leaves the import open does not keep the file on the host.
+      setTimeout(() => {
+        if (this.#staged.get(staged.token) === staged) void Effect.runPromise(this.#drop(staged));
+      }, UPLOAD_TTL_MS).unref();
+    }
     return {
       token: staged.token,
       appVersion: manifest.appVersion,
@@ -471,20 +530,47 @@ export class InstanceTransferService {
       hasSettings: manifest.settings !== null,
       warnings: bounded(warnings),
     };
+  });
+
+  readonly discard = Effect.fn("InstanceTransfer.discard")(function* (
+    this: InstanceTransferService,
+    token: string,
+    owner = LOCAL_OWNER,
+  ) {
+    const staged = this.#staged.get(token);
+    if (staged && staged.owner === owner) yield* this.#drop(staged);
   }).bind(this);
 
-  discard(token: string): void {
-    if (this.#staged?.token === token) this.#staged = null;
-  }
+  readonly #release = Effect.fn("InstanceTransfer.release")(function* (this: InstanceTransferService, owner: string) {
+    for (const staged of [...this.#staged.values()]) if (staged.owner === owner) yield* this.#drop(staged);
+  });
+
+  readonly #drop = Effect.fn("InstanceTransfer.drop")(function* (
+    this: InstanceTransferService,
+    staged: StagedTransfer,
+  ) {
+    this.#staged.delete(staged.token);
+    if (staged.temporary) yield* archiveCall(() => rm(staged.path, { force: true })).pipe(Effect.ignore);
+  });
 
   readonly apply = Effect.fn("InstanceTransfer.apply")(function* (
     this: InstanceTransferService,
     input: ApplyInstanceTransferInput,
+    owner = LOCAL_OWNER,
   ): Effect.fn.Return<InstanceTransferResult, ArchiveOperationError> {
-    const staged = this.#staged;
-    if (!staged || staged.token !== input.token)
+    const staged = this.#staged.get(input.token);
+    // Another member's token reads as a closed file, so the answer does not show that it exists.
+    if (!staged || staged.owner !== owner)
       return yield* archiveFailure(new Error(sourceText("error.import.exportClosed")));
-    this.#staged = null;
+    this.#staged.delete(staged.token);
+    return yield* this.#applyStaged(staged, input).pipe(Effect.ensuring(this.#drop(staged)));
+  }).bind(this);
+
+  readonly #applyStaged = Effect.fn("InstanceTransfer.applyStaged")(function* (
+    this: InstanceTransferService,
+    staged: StagedTransfer,
+    input: ApplyInstanceTransferInput,
+  ): Effect.fn.Return<InstanceTransferResult, ArchiveOperationError> {
     const selected = staged.manifest.agents.filter((agent) => input.keys.includes(agent.key));
     if (selected.length !== input.keys.length)
       return yield* archiveFailure(new Error(sourceText("error.import.agentNotInExport")));
@@ -493,7 +579,7 @@ export class InstanceTransferService {
         new Error(sourceText("error.import.serverAgentLimit", { limit: INPUT_LIMITS.agents })),
       );
     // The file is read again rather than held since `stage`, and only the same bytes are accepted.
-    const bytes = yield* readArchiveEffect(staged.path, ARCHIVE);
+    const bytes = yield* readArchiveEffect(staged.path, staged.temporary ? REMOTE_ARCHIVE : ARCHIVE);
     if (sha256(bytes) !== staged.sha256)
       return yield* archiveFailure(new Error(sourceText("error.import.exportChanged")));
 
@@ -527,7 +613,7 @@ export class InstanceTransferService {
       signIn: staged.manifest.signedIn.filter((provider) => !signedIn.has(provider)),
       warnings: bounded(warnings),
     };
-  }).bind(this);
+  });
 
   readonly #applyProviders = Effect.fn("InstanceTransfer.applyProviders")(function* (
     this: InstanceTransferService,
@@ -575,22 +661,6 @@ export class InstanceTransferService {
           sourceText("error.import.transferAgentEnv", { name: agent.name, names: agent.envNames.join(", ") }),
         );
     }
-
-    const off = new Set(port.providersOff());
-    const wanted = new Set(settings.providersOff);
-    for (const provider of AGENT_PROVIDERS) {
-      if (off.has(provider) === wanted.has(provider)) continue;
-      yield* attempt(named(agentProviderName(provider)), port.setProviderOn(provider, !wanted.has(provider)));
-    }
-    if (settings.defaults)
-      yield* attempt(
-        (reason) => sourceText("error.import.transferDefaultsSkipped", { reason }),
-        port.saveDefaults(settings.defaults.provider, settings.defaults.model),
-      );
-    yield* attempt(
-      (reason) => sourceText("error.import.transferPreferencesSkipped", { reason }),
-      port.savePreferences(settings.preferences),
-    );
 
     const servers = new Set(port.mcpServers().map((server) => server.name.toLowerCase()));
     for (const server of settings.mcpServers) {

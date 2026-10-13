@@ -553,7 +553,7 @@ function registerIpcHandlers({
         ? join(process.resourcesPath, "agent-import", "grok-bot", "SKILL.md")
         : resolve(__dirname, "../../resources/agent-import/grok-bot/SKILL.md"),
     }),
-    ...instanceTransferIpcHandlers({ instanceTransfer, getMainWindow, translate: language.translate }),
+    ...instanceTransferIpcHandlers({ instanceTransfer, remoteServers, getMainWindow, translate: language.translate }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,

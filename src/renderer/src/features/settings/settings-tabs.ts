@@ -6,7 +6,6 @@ import {
   Mic,
   MousePointer2,
   PanelTop,
-  RefreshCw,
   Server,
   Settings,
   Smartphone,
@@ -23,7 +22,6 @@ export type SettingsTab =
   | "billing"
   | "mobile-connect"
   | "updates"
-  | "transfer"
   | "hosted-servers";
 
 /**
@@ -92,12 +90,6 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     titleKey: "settings.tab.updates.title",
     descriptionKey: "settings.tab.updates.description",
     icon: CircleArrowDown,
-  },
-  {
-    value: "transfer",
-    titleKey: "settings.tab.transfer.title",
-    descriptionKey: "settings.tab.transfer.description",
-    icon: RefreshCw,
   },
   {
     value: "hosted-servers",

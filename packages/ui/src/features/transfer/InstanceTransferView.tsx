@@ -63,7 +63,8 @@ export interface InstanceTransferViewProps {
   onImport: (keys: string[], includeSettings: boolean) => void;
   onCancelImport: () => void;
   onImportDone: () => void;
-  onSignIn: (provider: AgentProviderId) => void;
+  /** Absent for a joined server: its providers are signed in on that computer. */
+  onSignIn?: ((provider: AgentProviderId) => void) | undefined;
 }
 
 /**
@@ -427,7 +428,7 @@ function ImportReview(props: {
 
 function ImportResult(props: {
   result: InstanceTransferResult;
-  onSignIn: (provider: AgentProviderId) => void;
+  onSignIn?: ((provider: AgentProviderId) => void) | undefined;
   onDone: () => void;
 }) {
   const { t } = useText();
@@ -450,9 +451,16 @@ function ImportResult(props: {
           <div class="agent-import-actions instance-transfer-start">
             <For each={props.result.signIn}>
               {(provider) => (
-                <Button type="button" size="sm" variant="secondary" onClick={() => props.onSignIn(provider)}>
-                  {t("settings.transfer.result.signInButton", { provider: agentProviderName(provider) })}
-                </Button>
+                <Show
+                  when={props.onSignIn}
+                  fallback={<span class="instance-transfer-chip">{agentProviderName(provider)}</span>}
+                >
+                  {(signIn) => (
+                    <Button type="button" size="sm" variant="secondary" onClick={() => signIn()(provider)}>
+                      {t("settings.transfer.result.signInButton", { provider: agentProviderName(provider) })}
+                    </Button>
+                  )}
+                </Show>
               )}
             </For>
           </div>

@@ -209,3 +209,50 @@ export function decodeInstanceTransferResult(value: unknown): InstanceTransferRe
     warnings: messages(result.warnings, "transfer warnings"),
   };
 }
+
+/** A remote host's summary: `instance-transfer-v1` carries no avatar addresses. */
+export function decodeRemoteInstanceTransferSummary(value: unknown): InstanceTransferSummary {
+  const summary = record(value, "transfer summary");
+  if (!Array.isArray(summary.agents)) invalid("transfer summary");
+  return decodeInstanceTransferSummary({
+    agents: summary.agents.map((agent) => ({ ...record(agent, "transfer agent"), avatarUrl: null })),
+  });
+}
+
+/** A remote host's preview: `instance-transfer-v1` carries no avatars. */
+export function decodeRemoteInstanceTransferPreview(value: unknown): InstanceTransferPreview {
+  const preview = record(value, "transfer preview");
+  if (!Array.isArray(preview.agents)) invalid("transfer preview");
+  const decoded = decodeInstanceTransferPreview({
+    ...preview,
+    agents: preview.agents.map((agent) => ({ ...record(agent, "transfer agent"), avatarUrl: null })),
+  });
+  if (!decoded) invalid("transfer preview");
+  return decoded;
+}
+
+/** A remote host's result: the new agents by id and name. */
+export interface RemoteInstanceTransferResult extends Omit<InstanceTransferResult, "agents"> {
+  agents: { agentId: string; name: string }[];
+}
+
+export function decodeRemoteInstanceTransferResult(value: unknown): RemoteInstanceTransferResult {
+  const result = record(value, "transfer result");
+  if (!Array.isArray(result.agents)) invalid("transfer result");
+  const agents = result.agents.map((item) => {
+    const entry = record(item, "transferred agent");
+    if (!isIdentifier(entry.agentId) || !isBoundedString(entry.name, INPUT_LIMITS.agentName))
+      invalid("transferred agent");
+    return { agentId: entry.agentId, name: entry.name };
+  });
+  return { ...decodeInstanceTransferResult({ ...result, agents: [] }), agents };
+}
+
+/** The remote result, with the new agents read from the host's agent list. */
+export function resolveRemoteInstanceTransferResult(
+  result: RemoteInstanceTransferResult,
+  agents: readonly AgentSummary[],
+): InstanceTransferResult {
+  const ids = new Set(result.agents.map((agent) => agent.agentId));
+  return { ...result, agents: agents.filter((agent) => ids.has(agent.id)) };
+}

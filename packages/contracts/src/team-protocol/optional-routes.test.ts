@@ -23,6 +23,7 @@ import { HOST_ADMIN_ROUTES } from "./host-admin-v1";
 import { HOST_RELEASE_ROUTES } from "./host-release-v1";
 import { HOST_UPDATE_ROUTES, hostRestartEvent } from "./host-update-v1";
 import { HOSTED_SITES_ROUTES } from "./hosted-sites-v1";
+import { INSTANCE_TRANSFER_ROUTES } from "./instance-transfer-v1";
 import { LIVE_ACTIVITY_PUSH_ROUTES } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_APP_CAPABILITY, MCP_SIGN_IN_APP_ROUTES } from "./mcp-sign-in-app-v1";
 import { optionalRouteCodec } from "./optional-routes";
@@ -487,6 +488,79 @@ describe("agent-publish-v1", () => {
         routines: [{ ...preview.routines[0], schedule: { kind: "yearly" } }],
       }),
     ).toThrow();
+  });
+});
+
+describe("instance-transfer-v1", () => {
+  const summaryAgent = {
+    id: "a1",
+    name: "Research",
+    title: "Analyst",
+    avatarSeed: "research",
+    avatarHue: null,
+    skillCount: 1,
+    routineCount: 2,
+    memoryCount: 3,
+    fileCount: 4,
+    fileBytes: 5,
+  };
+  const previewAgent = {
+    key: "research",
+    name: "Research",
+    title: "Analyst",
+    description: "You are research.",
+    skillCount: 1,
+    routineCount: 0,
+    memoryCount: 2,
+    fileCount: 3,
+    fileBytes: 400,
+    nameExists: false,
+  };
+  const preview = {
+    token: "token-1",
+    appVersion: "0.9.4",
+    exportedAt: null,
+    agents: [previewAgent],
+    hasSettings: true,
+    warnings: [],
+  };
+
+  it("sends no avatar, no avatar address and no workspace path", () => {
+    expect(
+      codec(INSTANCE_TRANSFER_ROUTES.summary).response(200, {
+        agents: [{ ...summaryAgent, avatarUrl: "openbot-avatar://a1/1" }],
+      }),
+    ).toEqual({ agents: [summaryAgent] });
+    expect(
+      codec(INSTANCE_TRANSFER_ROUTES.stage).response(200, {
+        ...preview,
+        agents: [{ ...previewAgent, avatarUrl: "data:image/png;base64,AAAA" }],
+      }),
+    ).toEqual(preview);
+    const result = {
+      agents: [{ agentId: "a1", name: "Research", workspacePath: "/Users/host/OpenBot/a1" }],
+      skipped: [],
+      signIn: ["claude"],
+      warnings: [],
+    };
+    expect(codec(INSTANCE_TRANSFER_ROUTES.apply).response(200, result)).toEqual({
+      ...result,
+      agents: [{ agentId: "a1", name: "Research" }],
+    });
+    const exportInput = { agentIds: ["a1"], includeFiles: true, includeSettings: false };
+    expect(codec(INSTANCE_TRANSFER_ROUTES.export).request(exportInput)).toEqual(exportInput);
+    const applyInput = { token: "token-1", keys: ["research"], includeSettings: true, timezone: "Europe/Warsaw" };
+    expect(codec(INSTANCE_TRANSFER_ROUTES.apply).request(applyInput)).toEqual(applyInput);
+    expect(codec(INSTANCE_TRANSFER_ROUTES.discard).request({ token: "token-1" })).toEqual({ token: "token-1" });
+  });
+
+  it("rejects malformed payloads", () => {
+    expect(() =>
+      codec(INSTANCE_TRANSFER_ROUTES.summary).response(200, { agents: [{ ...summaryAgent, id: 1 }] }),
+    ).toThrow();
+    expect(() => codec(INSTANCE_TRANSFER_ROUTES.export).request({ agentIds: ["a1"] })).toThrow();
+    expect(() => codec(INSTANCE_TRANSFER_ROUTES.apply).request({ token: "token-1", keys: ["research"] })).toThrow();
+    expect(() => codec(INSTANCE_TRANSFER_ROUTES.discard).request({})).toThrow();
   });
 });
 

@@ -42,6 +42,8 @@ export const messages = defineMessages("error.import", {
   "error.import.skillKept":
     '{name}: the server already has the skill "{skill}", so the agent uses that skill. Ask an admin to update it.',
   // Instance transfer between two OpenBot computers.
+  "error.import.transferRemoteTooLarge":
+    "A transfer file for a joined server must be under 100 MB. Turn off workspace files, or export fewer agents.",
   "error.import.transferNotFile": "This file is not an OpenBot transfer file.",
   "error.import.transferNewer": "A newer version of OpenBot made this file. Update OpenBot and try again.",
   "error.import.transferEmpty": "The file contains no agents and no settings.",
@@ -52,8 +54,6 @@ export const messages = defineMessages("error.import", {
   "error.import.transferModelMissing":
     '{name}: the model "{model}" is not available here yet, so the agent uses the default model. Choose the model again when its provider is ready.',
   "error.import.transferSettingSkipped": "{name} is not imported. {reason}",
-  "error.import.transferDefaultsSkipped": "This computer keeps its default model. {reason}",
-  "error.import.transferPreferencesSkipped": "The app preferences are not imported. {reason}",
   "error.import.transferRoutineFlowSkipped": "The import left out a routine flow. {reason}",
   "error.import.transferCustomAgentCommand":
     '{name}: custom agents are not imported, because they run a command. Check the command "{command}" and add the agent again in Settings.',

@@ -41,6 +41,7 @@ import {
   HOST_RELEASE_CAPABILITY,
   HOST_UPDATE_CAPABILITY,
   HOSTED_SITES_CAPABILITY,
+  INSTANCE_TRANSFER_CAPABILITY,
   isTeamCurrentCapability,
   LIVE_ACTIVITY_PUSH_CAPABILITY,
   legacyTeamCapabilities,
@@ -148,6 +149,7 @@ import { routeFiles } from "./team-api/route-files";
 import { routeHostAdmin } from "./team-api/route-host-admin";
 import { routeHostUpdate } from "./team-api/route-host-update";
 import { routeHostedSites } from "./team-api/route-hosted-sites";
+import { routeInstanceTransfer } from "./team-api/route-instance-transfer";
 import { routeLiveActivityPush } from "./team-api/route-live-activity-push";
 import { routeMcpServers } from "./team-api/route-mcp";
 import { routeMcpSignIn } from "./team-api/route-mcp-sign-in";
@@ -772,6 +774,7 @@ export class TeamApiServer {
         return;
       if ((await this.#routeEvents(context)) === "handled") return;
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
+      if ((await routeInstanceTransfer(context, this.#options.instanceTransfer, newAgentHidden)) === "handled") return;
       if (
         (await routeLiveActivityPush(context, this.#options.liveActivityPush, () =>
           this.hiddenAgentIds(context.protocol, context.capabilities),
@@ -1569,6 +1572,7 @@ export class TeamApiServer {
           return this.#options.admin?.update !== undefined;
         if (capability === EVENTS_CAPABILITY) return this.#options.events !== undefined;
         if (capability === AGENT_IMPORT_CAPABILITY) return this.#options.agentImport !== undefined;
+        if (capability === INSTANCE_TRANSFER_CAPABILITY) return this.#options.instanceTransfer !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
         if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
         if (capability === PUSH_NOTIFICATIONS_CAPABILITY) return this.#options.pushNotifications !== undefined;

@@ -7,12 +7,9 @@
 // still offered, and invalid settings are left out with a warning.
 
 import { isAgentProvider } from "@openbot/contracts/agent-providers";
-import { isAppLanguage } from "@openbot/contracts/app-language";
-import { isAppLogoColor } from "@openbot/contracts/app-logo-color";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   isAgentImportKey,
-  isAgentMemoryLimit,
   isAvatarHue,
   isBusyMessageMode,
   isMcpServerConfig,
@@ -97,16 +94,6 @@ const Settings = Schema.Struct({
       envNames: Schema.Array(text(256)).check(Schema.isMaxLength(64)),
     }),
   ).check(Schema.isMaxLength(32)),
-  defaults: Schema.NullOr(Schema.Struct({ provider: Provider, model: Schema.NullOr(name(256)) })),
-  providersOff: Schema.Array(Provider).check(Schema.isMaxLength(32)),
-  preferences: Schema.Struct({
-    language: guarded(isAppLanguage),
-    logoColor: guarded(isAppLogoColor),
-    desktopNotifications: Schema.Boolean,
-    messagePreview: Schema.Boolean,
-    busyMessageMode: guarded(isBusyMessageMode),
-    agentMemoryLimit: guarded(isAgentMemoryLimit),
-  }),
   sidebarSections: Schema.Array(
     Schema.Struct({ name: name(128), agentKeys: Schema.Array(Key).check(Schema.isMaxLength(INPUT_LIMITS.agents)) }),
   ).check(Schema.isMaxLength(64)),

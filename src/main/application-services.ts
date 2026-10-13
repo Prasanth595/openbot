@@ -203,7 +203,7 @@ import {
   configureAttachmentProtocol,
   configureServerLogoProtocols,
 } from "./session-configuration";
-import { readSetupState, writeSetupState } from "./setup-store";
+import { readSetupState } from "./setup-store";
 import { SignInRelayClient } from "./sign-in-relay-client";
 import { agentPrintedLink, SignInRelayHost } from "./sign-in-relay-host";
 import { SignalIngress } from "./signal-ingress";
@@ -1652,44 +1652,14 @@ export async function createApplicationServices({
     skills: { library: () => skills.requireLocalLibrary(), installLocal: (input) => skills.installLocal(input) },
     sharedRoot: store.sharedRoot,
     appVersion: app.getVersion(),
+    uploadDirectory: join(app.getPath("userData"), "instance-transfer-uploads"),
     settings: {
       mcpServers: () => service.listMcpServers(),
       saveMcpServer: (config) => service.saveMcpServer({ config }),
       customProviders: () => customProviderChanges.list(),
       saveCustomProvider: (input) => customProviderChanges.save(input),
       customAgents: () => customAgentChanges.list(),
-      defaults: () =>
-        readSetupState(setupFile).pipe(
-          Effect.map((state) =>
-            state.preferredProvider ? { provider: state.preferredProvider, model: state.preferredModel } : null,
-          ),
-        ),
-      saveDefaults: (provider, model) =>
-        writeSetupState(setupFile, { preferredProvider: provider, preferredModel: model }).pipe(
-          Effect.andThen(service.setPreferredProvider(provider, model)),
-        ),
       providersOff: () => providerUse.off(),
-      setProviderOn: (provider, on) => service.setProviderOn(provider, on),
-      preferences: () => ({
-        language: language.preference.language,
-        logoColor: logoColor.preference.color,
-        ...notificationPreference.get(),
-        busyMessageMode: busyMessageMode.get().mode,
-        agentMemoryLimit: agentMemoryLimit.get().limit,
-      }),
-      savePreferences: (preferences) =>
-        Effect.all([
-          language.set({ language: preferences.language }),
-          logoColor.set({ color: preferences.logoColor }),
-          notificationPreference.set({
-            desktopNotifications: preferences.desktopNotifications,
-            messagePreview: preferences.messagePreview,
-          }),
-          busyMessageMode.set({ mode: preferences.busyMessageMode }),
-          agentMemoryLimit
-            .set({ limit: preferences.agentMemoryLimit })
-            .pipe(Effect.tap(() => Effect.sync(() => service.memoryLimitChanged()))),
-        ]),
       sidebar: () => sidebarLayout.getSnapshot(),
       mutateSidebar: (action) => sidebarLayout.mutate(action, service.sidebarChatIds()),
       routineFlowLinks: (agentId) => routineFlowRuntime.canvas(agentId).pipe(Effect.map((canvas) => canvas.links)),
@@ -1757,6 +1727,8 @@ export async function createApplicationServices({
     hostedSites,
     // Present, so the host advertises `agent-import-v1`. Any member can import.
     agentImport,
+    // Present, so the host advertises `instance-transfer-v1`. Only owners and admins.
+    instanceTransfer,
     // Present, so the host advertises `routine-flows-v1`. Any member who can see the agents.
     routineFlows: routineFlowRuntime,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.

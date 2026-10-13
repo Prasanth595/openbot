@@ -44,6 +44,7 @@ import type { AgentImportService } from "../agent-import-service";
 import type { BrowserViewGateway } from "../browser-view-gateway";
 import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
+import type { InstanceTransferService } from "../instance-transfer-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
@@ -192,6 +193,12 @@ export type TeamApiHostedSites = Pick<HostedSiteDesktopService, "listServerSites
 /** Its presence is what `#protocolSupport` advertises `agent-import-v1` on. Any member can use it. */
 export type TeamApiAgentImport = Pick<AgentImportService, "stageUpload" | "apply" | "discard">;
 
+/** Its presence is what `#protocolSupport` advertises `instance-transfer-v1` on. Only admins use it. */
+export type TeamApiInstanceTransfer = Pick<
+  InstanceTransferService,
+  "summary" | "exportForMember" | "stageUpload" | "apply" | "discard"
+>;
+
 /**
  * Its presence is what `#protocolSupport` advertises `routine-flows-v1` on. Any member who can see
  * every agent a flow touches can use it.
@@ -321,6 +328,7 @@ export interface TeamApiOptions {
   storage?: TeamApiStorage;
   hostedSites?: TeamApiHostedSites;
   agentImport?: TeamApiAgentImport;
+  instanceTransfer?: TeamApiInstanceTransfer;
   routineFlows?: TeamApiRoutineFlows;
   admin?: TeamApiAdmin;
   appVersion?: string;

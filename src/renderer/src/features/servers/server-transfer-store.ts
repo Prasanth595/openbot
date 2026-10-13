@@ -1,5 +1,9 @@
-import type { AgentProviderId } from "@openbot/contracts/agent-providers";
-import type { InstanceTransferPreview, InstanceTransferResult, InstanceTransferSummary } from "@openbot/contracts/ipc";
+import type {
+  InstanceTransferPreview,
+  InstanceTransferResult,
+  InstanceTransferSummary,
+  OpenBotDesktopApi,
+} from "@openbot/contracts/ipc";
 import { toast } from "@openbot/ui";
 import type {
   InstanceExportOptions,
@@ -9,9 +13,11 @@ import type {
 } from "@openbot/ui/features/transfer/InstanceTransferView";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore } from "solid-js";
-import { transferPort } from "./transfer-port";
 
-interface SettingsTransferState {
+/** The transfer calls of one server. Main routes them to this computer or to a joined host. */
+export type ServerTransferCalls = OpenBotDesktopApi["instanceTransfer"];
+
+interface ServerTransferState {
   screen: InstanceTransferScreen;
   summary: InstanceTransferSummary | null;
   exportPhase: InstanceExportPhase;
@@ -24,7 +30,7 @@ interface SettingsTransferState {
   importError: string | null;
 }
 
-const INITIAL: SettingsTransferState = {
+const INITIAL: ServerTransferState = {
   screen: "home",
   summary: null,
   exportPhase: "options",
@@ -37,20 +43,17 @@ const INITIAL: SettingsTransferState = {
   importError: null,
 };
 
-/**
- * The Transfer tab's view of one export and one import. It is created by the settings dialog, so a
- * running export or import keeps its state while another tab is open.
- */
-export function createSettingsTransferStore(active: () => boolean) {
-  const [state, setState] = createStore<SettingsTransferState>({ ...INITIAL });
+/** The Transfer section's view of one export and one import of one server. */
+export function createServerTransferStore(serverId: string, calls: ServerTransferCalls) {
+  const [state, setState] = createStore<ServerTransferState>({ ...INITIAL });
 
   // The agents are read again each time the export screen opens.
   createEffect(
-    () => active() && state.screen === "export" && state.exportPhase === "options",
+    () => state.screen === "export" && state.exportPhase === "options",
     (load) => {
       if (!load) return;
-      void transferPort()
-        .instanceTransfer.summary()
+      void calls
+        .summary(serverId)
         .then((summary) =>
           setState((draft) => {
             draft.summary = summary;
@@ -77,8 +80,8 @@ export function createSettingsTransferStore(active: () => boolean) {
       draft.exportPhase = "exporting";
       draft.exportError = null;
     });
-    void transferPort()
-      .instanceTransfer.export(options)
+    void calls
+      .export(options, serverId)
       .then((result) =>
         setState((draft) => {
           draft.exportPhase = result.saved ? "saved" : "options";
@@ -95,7 +98,7 @@ export function createSettingsTransferStore(active: () => boolean) {
   }
 
   function showExport(): void {
-    void transferPort().instanceTransfer.showExport().catch(report);
+    void calls.showExport().catch(report);
   }
 
   function exportAgain(): void {
@@ -111,8 +114,8 @@ export function createSettingsTransferStore(active: () => boolean) {
       draft.importPhase = "reading";
       draft.importError = null;
     });
-    void transferPort()
-      .instanceTransfer.choose()
+    void calls
+      .choose(serverId)
       .then((preview) =>
         setState((draft) => {
           // A closed dialog keeps the file that was open before.
@@ -135,8 +138,8 @@ export function createSettingsTransferStore(active: () => boolean) {
       draft.importPhase = "importing";
       draft.importError = null;
     });
-    void transferPort()
-      .instanceTransfer.apply({ token, keys, includeSettings })
+    void calls
+      .apply({ token, keys, includeSettings }, serverId)
       .then((result) =>
         setState((draft) => {
           draft.importPhase = "done";
@@ -156,7 +159,7 @@ export function createSettingsTransferStore(active: () => boolean) {
 
   function cancelImport(): void {
     const token = state.preview?.token;
-    if (token) void transferPort().instanceTransfer.discard(token).catch(report);
+    if (token) void calls.discard(token, serverId).catch(report);
     setState((draft) => {
       draft.importPhase = "idle";
       draft.preview = null;
@@ -172,25 +175,8 @@ export function createSettingsTransferStore(active: () => boolean) {
     });
   }
 
-  function signIn(provider: AgentProviderId): void {
-    void transferPort().connectProvider(provider).catch(report);
-  }
-
-  return {
-    state,
-    setScreen,
-    exportFile,
-    showExport,
-    exportAgain,
-    choose,
-    importFile,
-    cancelImport,
-    importDone,
-    signIn,
-  };
+  return { state, setScreen, exportFile, showExport, exportAgain, choose, importFile, cancelImport, importDone };
 }
-
-export type SettingsTransferStore = ReturnType<typeof createSettingsTransferStore>;
 
 function message(
   error: unknown,

@@ -21,20 +21,12 @@ import { Effect } from "effect";
 import { unzipSync, zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { runCauseEffect } from "../backend/effect-boundary";
-import { InstanceTransferService, type TransferPreferences } from "./instance-transfer-service";
+import { InstanceTransferService } from "./instance-transfer-service";
 import { LocalSkillLibrary } from "./local-skill-library";
 import { SkillMarketplaceFailure } from "./skill-marketplace-service";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const SKILL = "---\nname: Web brief\ndescription: Write a short cited brief.\n---\nSearch, then cite.";
-const PREFERENCES: TransferPreferences = {
-  language: "pl",
-  logoColor: "blue",
-  desktopNotifications: true,
-  messagePreview: false,
-  busyMessageMode: "steer",
-  agentMemoryLimit: 128,
-};
 const SCHEDULE = { kind: "daily", time: "09:00" } as const;
 const GITHUB_MCP: McpServerConfig = {
   id: "mcp-1",
@@ -69,7 +61,6 @@ interface Computer {
   mcpServers: McpServerConfig[];
   customProviders: SaveCustomProviderInput[];
   customAgents: SaveCustomAgentInput[];
-  preferences: TransferPreferences;
   providersOff: AgentProviderId[];
   layout: SidebarLayoutSnapshot;
   links: ConnectRoutineFlowInput[];
@@ -94,7 +85,6 @@ async function computer(name: string): Promise<Computer> {
     mcpServers: [],
     customProviders: [],
     customAgents: [],
-    preferences: { ...PREFERENCES, language: "en", busyMessageMode: "queue" },
     providersOff: [],
     layout: { revision: 1, sections: [], order: ["people", "unassigned"], agentAssignments: {}, agentOrder: [] },
     links: [],
@@ -211,20 +201,7 @@ async function computer(name: string): Promise<Computer> {
             resolvedCommand: null,
           })),
         ),
-      defaults: () => Effect.succeed({ provider: "claude", model: "claude-opus-5-5" }),
-      saveDefaults: () => Effect.void,
       providersOff: () => state.providersOff,
-      setProviderOn: (provider, on) =>
-        Effect.sync(() => {
-          state.providersOff = on
-            ? state.providersOff.filter((id) => id !== provider)
-            : [...state.providersOff, provider];
-        }),
-      preferences: () => state.preferences,
-      savePreferences: (preferences) =>
-        Effect.sync(() => {
-          state.preferences = preferences;
-        }),
       sidebar: () => state.layout,
       mutateSidebar: (action: SidebarLayoutAction) =>
         Effect.sync(() => {
@@ -379,8 +356,6 @@ async function oldComputer(): Promise<Computer> {
     args: ["acp", "--api-key=agent_arg_secret"],
     env: [{ name: "GOOSE_KEY", value: "env-secret" }],
   });
-  old.preferences = PREFERENCES;
-  old.providersOff = ["cursor"];
   old.layout = {
     revision: 4,
     sections: [{ id: "work", name: "Work" }],
@@ -502,8 +477,8 @@ describe("InstanceTransferService", () => {
     ]);
     // A custom agent runs its command when it is saved, so the import leaves it out.
     expect(target.customAgents).toEqual([]);
-    expect(target.preferences).toEqual(PREFERENCES);
-    expect(target.providersOff).toEqual(["cursor"]);
+    // App preferences, the default model and the providers that are off belong to the app, not the server.
+    expect(target.providersOff).toEqual([]);
     expect(target.layout.sections.map((section) => section.name)).toEqual(["Work"]);
     expect(target.layout.agentAssignments[agent.id]).toBe("section-1");
     expect(target.links).toEqual([
@@ -548,7 +523,6 @@ describe("InstanceTransferService", () => {
     await runCauseEffect(target.service.apply({ token: preview.token, keys: ["research"], includeSettings: false }));
     expect(target.mcpServers).toEqual([]);
     expect(target.customProviders).toEqual([]);
-    expect(target.preferences.language).toBe("en");
   });
 
   it("deletes an agent that fails to import and still imports the others", async () => {

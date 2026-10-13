@@ -105,6 +105,23 @@ gets the existing skill and the result warns. `POST /v1/agent-import/discard` re
 desktop, main opens the dialog, reads the file and sends it (`agent-import:choose` is server-scoped);
 the web client uses the browser chooser and ships the export skill in its bundle.
 
+### Instance transfer with a joined server
+
+`instance-transfer-v1` moves a server's agents and server settings to or from an OpenBot transfer file
+(see [Instance transfer](agents.md#instance-transfer)). Only an owner or admin can use it: the file holds
+every agent's memories and files, and an import adds server settings. It is protocol 7 only. Every file
+that crosses the connection is at most 100 MB, the size of one WebRTC file transfer; a computer's own
+server keeps the 2 GB limit. `POST /v1/instance-transfer/summary` lists the agents with their counts and
+no avatar address. `POST /v1/instance-transfer/export` takes `{ agentIds, includeFiles, includeSettings }`,
+writes the file to `instance-transfer-uploads/` in the host's user data, sends it as an attachment and
+removes it. `POST /v1/instance-transfer/stage` takes the raw `.zip` and answers the preview without
+avatars, under a token that only the caller can apply or discard; an upload nobody applies is removed
+after 30 minutes. `POST /v1/instance-transfer/apply` takes `{ token, keys, includeSettings, timezone }`
+and answers the new agents by id and name, which the client reads with the agent list.
+`POST /v1/instance-transfer/discard` releases the token. On desktop, main opens both dialogs and moves
+the file (`instance-transfer:*` is server-scoped). The web client does not show the Transfer section: its
+downloads are limited to 10 MB.
+
 ### Routine flows
 
 `routine-flows-v1` serves the routine canvas (see [Routine flows](agents.md#routine-flows)) to a
@@ -158,6 +175,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `agent-install-v1` | Add an agent from a listing or a shared template, by id | `agentAdmin` |
 | `agent-update-v1` | Update an agent added from a listing to the listing's current version, by id | `agentAdmin` |
 | `providers-v1` | Code sign-in, provider API keys, managed runtimes, custom endpoints | `providerAdmin` |
+| `instance-transfer-v1` | Export and import the server's agents and server settings as a transfer file | `instanceTransfer` |
 | `providers-v3` | Code sign-in for Codex, Claude and Grok; send the code a Claude sign-in page shows | `providerAdmin` |
 | `providers-v4` | Code or link sign-in and managed runtimes, Cursor and Cline included | `providerAdmin` |
 | `host-admin-v1` | Server name and logo | `hostAdmin` |

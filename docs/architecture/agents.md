@@ -340,10 +340,13 @@ memory step fails is deleted. Step 1 offers two ways to add the export agent: it
 
 ## Instance transfer
 
-Settings > Transfer moves this computer's agents and app settings to another OpenBot computer with
-one `.zip` file. It is a separate format from the Grok Bot agent import. The first screen asks which
-computer this is; the old computer exports, the new one imports. Only the local host has the tab:
-remote hosts, the web client and mobile do not.
+Server settings > Transfer moves a server's agents and server settings to another OpenBot server with
+one `.zip` file. It is a separate format from the Grok Bot agent import. The first screen offers "Export
+from this server" and "Import into this server". The section shows for this computer's server, and for a
+joined server with `instance-transfer-v1` when the user is an owner or admin (see
+[Instance transfer with a joined server](servers.md#instance-transfer-with-a-joined-server)). The web
+client and mobile do not show it. App preferences, the default model and the providers that are off
+belong to the app, not to a server, so they are not in the file.
 
 The file has `openbot-transfer.json` at its root, `agents/<key>/` folders (`avatar.<ext>`,
 `skills/<slug>/` and `workspace/`), and `shared/` for `~/OpenBot/Shared`. The manifest is
@@ -358,10 +361,9 @@ and reasoning effort, notifications and busy-message mode, its routines (schedul
 policies), its memories (with the essential or searchable choice the user made) and the skill folders
 in `.agents/skills` and `.claude/skills` that OpenBot does not manage. Workspace files are optional
 and leave out `.openbot/`, the skill folders, links, and every path `isUnsafeArchivePath` refuses
-(`.git`, `node_modules`, `.env*`, private keys, nested archives). Settings are optional: MCP servers,
-custom model providers, custom ACP agents, the default model, the providers that are off, language,
-logo colour, notification, busy-message and memory-limit preferences, sidebar sections and routine
-flows between exported agents.
+(`.git`, `node_modules`, `.env*`, private keys, nested archives). Server settings are optional: MCP servers,
+custom model providers, custom ACP agents (as a warning, see below), sidebar sections and routine flows
+between exported agents.
 
 No secret is in the file: MCP variable and header values are empty, custom providers have no key or
 headers, custom agents keep only the names of their variables, and `signedIn` lists provider ids,
@@ -376,8 +378,7 @@ exported, so an imported agent gets the defaults of a new agent on the new compu
 `InstanceTransferService` (`src/main/instance-transfer-service.ts`) writes the archive one file at a
 time, stored and not compressed, to `<name>.zip.part`, and renames it when it is complete. Import uses
 the same checks as the agent import (`src/main/agent-archive.ts`): the file stays under a single-use
-token with its SHA-256, under 2 GB and 50,000 files. `apply` first adds the custom providers that are missing, and
-turns providers on or off and saves the preferences and default model. It never saves a custom ACP agent:
+token with its SHA-256, under 2 GB and 50,000 files. `apply` first adds the custom providers that are missing. It never saves a custom ACP agent:
 a saved custom agent starts its command to list its models, so a warning names the agent and its command,
 and the user adds it again after checking it. The models of an added provider are not listed yet: a save does not wait for
 model discovery, and the provider has no key until the user enters it. So an agent on such a model starts

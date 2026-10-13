@@ -1238,15 +1238,16 @@ export const IPC_ENDPOINTS = {
     readSkill: request<undefined, string>()("agent-import:read-skill"),
     saveSkill: request<undefined, ExportResult>()("agent-import:save-skill"),
   },
-  // Bound against the instance transfer service: this computer's agents and app settings in one file
-  // for another OpenBot computer. Local only, and main opens both file dialogs.
+  // Bound against the instance transfer service: a server's agents and server settings in one file for
+  // another server. A remote server is reached with `instance-transfer-v1`; main opens both file
+  // dialogs and moves the file. `showExport` reveals the file this computer saved last.
   instanceTransfer: {
-    summary: request<undefined, InstanceTransferSummary>()("instance-transfer:summary"),
-    export: request<ExportInstanceInput, InstanceExportResult>()("instance-transfer:export"),
+    summary: scopedQuery<InstanceTransferSummary, "required">()("instance-transfer:summary"),
+    export: scopedRequest<ExportInstanceInput, InstanceExportResult, "required">()("instance-transfer:export"),
     showExport: request<undefined, void>()("instance-transfer:show-export"),
-    choose: request<undefined, InstanceTransferPreview | null>()("instance-transfer:choose"),
-    apply: request<ApplyInstanceTransferInput, InstanceTransferResult>()("instance-transfer:apply"),
-    discard: request<string, void>()("instance-transfer:discard"),
+    choose: scopedQuery<InstanceTransferPreview | null, "required">()("instance-transfer:choose"),
+    apply: scopedRequest<ApplyInstanceTransferInput, InstanceTransferResult, "required">()("instance-transfer:apply"),
+    discard: scopedRequest<string, void, "required">()("instance-transfer:discard"),
   },
   // The plugin deep link, its own group because its registrar holds the pending link rather than a
   // service. `takePendingListing` is what a window that finished loading after the link arrived
