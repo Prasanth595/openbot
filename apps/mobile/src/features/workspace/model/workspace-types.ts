@@ -178,6 +178,9 @@ export interface MobileWorkspaceContextValue {
   servers: MobileServer[];
   /** Saves the order of remote server IDs on this device. Returns false and keeps the old order on failure. */
   reorderServers: (serverIds: string[]) => boolean;
+  startupServerId: string | null;
+  /** Saves or clears the startup choice on this device, also when the host is offline. */
+  setStartupServer: (serverId: string | null) => boolean;
   teamDirectory: RemoteTeamDirectoryClient;
   serverDirectoryState: MobileServerDirectoryState;
   serverDirectoryError: string | null;

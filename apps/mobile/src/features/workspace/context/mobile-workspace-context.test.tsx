@@ -1,4 +1,10 @@
-import type { AgentEvent, ChannelSummary, SidebarLayoutSnapshot, TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import type {
+  AgentEvent,
+  ChannelSummary,
+  ConversationPage,
+  SidebarLayoutSnapshot,
+  TeamRealtimeEvent,
+} from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { HOST_ADMIN_CAPABILITY, HOST_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/host-admin-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -8,7 +14,9 @@ import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react
 import { act, type PropsWithChildren, useImperativeHandle, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
+import { liveActivityRoute, resetLiveActivityActions } from "@/features/live-activity/model/live-activity-link";
 import type { RemoteTeamTransportRef } from "../components/remote-team-transport";
+import { startupServerKey } from "../model/server-order";
 import { mobileSidebarItems } from "../model/sidebar-layout";
 import { MobileWorkspaceProvider, useMobileWorkspace } from "./mobile-workspace-context";
 
@@ -39,8 +47,16 @@ const session = {
   user: { id: "user", name: "User", email: "user@example.com", avatarUrl: null },
   host: { hostId: host.hostId, fingerprint: remoteHostFingerprint(host.devicePublicKey) },
 };
+let sessionScope = 1;
+let directoryHosts = [host];
+let readDirectory = async () => Response.json({ hosts: directoryHosts });
+const connectionSelections: { hostId: string; selected: string }[] = [];
+const offlineHosts = new Set<string>();
+const disconnectServer = new Map<string, () => void>();
+const conversationServers: string[] = [];
+const promptServers: string[] = [];
 vi.mock("@/features/auth/context/mobile-session-context", () => ({
-  useMobileSession: () => ({ session, sessionScope: 1 }),
+  useMobileSession: () => ({ session, sessionScope }),
 }));
 // Native storage, lifecycle, and the DOM bridge have no runtime in this React harness.
 vi.mock("react-native", () => ({
@@ -57,7 +73,7 @@ vi.mock("react-native", () => ({
   },
 }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => crypto.randomUUID() }));
-vi.mock("expo/fetch", () => ({ fetch: async () => Response.json({ hosts: [host] }) }));
+vi.mock("expo/fetch", () => ({ fetch: () => readDirectory() }));
 vi.mock("expo-secure-store", () => ({
   getItem: (key: string) => native.storage.get(key) ?? null,
   setItem: (key: string, value: string) => native.storage.set(key, value),
@@ -107,13 +123,18 @@ vi.mock("../components/remote-team-transport", () => ({
     onConnectionUpdate(update: RemoteTeamConnectionUpdate): void;
   }) => {
     const callbacks = useRef({ onTeamEvent, onConnectionUpdate });
+    const connectedHost = useRef("");
     callbacks.current = { onTeamEvent, onConnectionUpdate };
     useImperativeHandle(
       ref,
       () => ({
         connect: async (hostId: string) => {
+          connectedHost.current = hostId;
+          connectionSelections.push({ hostId, selected: current.activeServer.id });
           emit = (event) => callbacks.current.onTeamEvent(hostId, event);
           disconnect = () => callbacks.current.onConnectionUpdate({ hostId, state: "offline", message: null });
+          disconnectServer.set(hostId, disconnect);
+          if (offlineHosts.has(hostId)) throw new Error("Server offline");
           if (reconnectSnapshot) emit(reconnectSnapshot);
         },
         disconnect: async () => {},
@@ -124,6 +145,10 @@ vi.mock("../components/remote-team-transport", () => ({
           body?: TeamProtocolV2Json,
         ): Promise<T> => {
           sent.push({ method, path, body });
+          if (path === TEAM_API_ROUTES.respond.prompt) {
+            promptServers.push(connectedHost.current);
+            return decode({});
+          }
           if (path === TEAM_API_ROUTES.agent.interrupt("working")) return decode({});
           if (path === TEAM_API_ROUTES.sidebarLayout.state || path === TEAM_API_ROUTES.sidebarLayout.actions)
             return decode(await sidebarRequest(method, body));
@@ -138,20 +163,24 @@ vi.mock("../components/remote-team-transport", () => ({
             });
           if (path === TEAM_API_ROUTES.agents.all)
             return decode(
-              ["working", "waiting"].map((id) => ({
-                id,
-                name: id,
-                title: "",
-                description: "",
-                preview: "",
-                updatedAt: null,
-                avatarSeed: "first-bot",
-                avatarHue: null,
-              })),
+              (connectedHost.current === "host" ? ["working", "waiting"] : ["remote-working", "remote-waiting"]).map(
+                (id) => ({
+                  id,
+                  name: id,
+                  title: "",
+                  description: "",
+                  preview: "",
+                  updatedAt: null,
+                  avatarSeed: "first-bot",
+                  avatarHue: null,
+                }),
+              ),
             );
           if (path === TEAM_API_ROUTES.agents.conversationReads) return decode({});
-          if (path.startsWith(TEAM_API_ROUTES.agent.conversationPage("working")))
+          if (path.startsWith(TEAM_API_ROUTES.agent.conversationPage("working"))) {
+            conversationServers.push(connectedHost.current);
             return decode(await conversationPage());
+          }
           if (path === HOST_ADMIN_ROUTES.identity) {
             if (identityFailure) throw identityFailure;
             return decode({});
@@ -189,6 +218,227 @@ afterEach(async () => {
   Object.assign(host, { name: "Desktop", logoKey: null, role: "owner" });
   sidebarRequest.mockReset();
   sidebarRequest.mockResolvedValue(initialLayout);
+  directoryHosts = [host];
+  readDirectory = async () => Response.json({ hosts: directoryHosts });
+  connectionSelections.length = 0;
+  offlineHosts.clear();
+  disconnectServer.clear();
+  conversationServers.length = 0;
+  promptServers.length = 0;
+  resetLiveActivityActions();
+  session.apiUrl = "https://account.example.com";
+  session.user.id = "user";
+  sessionScope = 1;
+});
+
+const remoteHost = { ...host, hostId: "remote", name: "Remote", membershipId: "remote-membership" };
+
+async function renderWorkspace() {
+  await act(async () =>
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <MobileWorkspaceProvider key={`${session.apiUrl}:${session.user.id}:${sessionScope}`}>
+          <Workspace />
+        </MobileWorkspaceProvider>
+      </QueryClientProvider>,
+    ),
+  );
+}
+
+async function remountWorkspace() {
+  await act(() => root.unmount());
+  root = createRoot(container);
+  await renderWorkspace();
+}
+
+it("saves an offline startup choice across remount, keeps it on resume, and clears it without switching", async () => {
+  directoryHosts = [host, remoteHost];
+  offlineHosts.add("remote");
+  await renderWorkspace();
+  expect(current.servers.find((server) => server.id === "remote")?.state).not.toBe("online");
+  await act(() => expect(current.setStartupServer("remote")).toBe(true));
+  expect(current.activeServer.id).toBe("host");
+  await remountWorkspace();
+  expect(current.activeServer.id).toBe("remote");
+  expect(connectionSelections.slice(-2).map((selection) => selection.selected)).toEqual(["remote", "remote"]);
+  await act(() => disconnectServer.get("remote")?.());
+  expect(current.activeServer.id).toBe("remote");
+  await act(async () => current.refreshServers());
+  expect(current.activeServer.id).toBe("remote");
+  await act(() => current.selectServer("host"));
+  await act(() => {
+    native.state = "background";
+    for (const listener of native.listeners) listener(native.state);
+  });
+  await act(() => {
+    native.state = "active";
+    for (const listener of native.listeners) listener(native.state);
+  });
+  expect(current.activeServer.id).toBe("host");
+  expect(current.startupServerId).toBe("remote");
+  await act(() => expect(current.setStartupServer(null)).toBe(true));
+  expect(current.activeServer.id).toBe("host");
+  await remountWorkspace();
+  expect(current.startupServerId).toBeNull();
+  expect(current.activeServer.id).toBe("host");
+});
+
+it("keeps explicit navigation selected through a delayed directory and later refresh", async () => {
+  native.storage.set(startupServerKey(session.apiUrl, session.user.id), "remote");
+  let resolveDirectory = (_response: Response) => {};
+  const delayed = new Promise<Response>((resolve) => {
+    resolveDirectory = resolve;
+  });
+  readDirectory = () => delayed;
+  await renderWorkspace();
+  expect(current.serverDirectoryState).toBe("loading");
+  await act(() => current.selectServer("host"));
+  await act(() => resolveDirectory(Response.json({ hosts: [host, remoteHost] })));
+  expect(current.activeServer.id).toBe("host");
+  expect(current.startupServerId).toBe("remote");
+  readDirectory = async () => Response.json({ hosts: [host, remoteHost] });
+  await act(async () => current.refreshServers());
+  expect(current.activeServer.id).toBe("host");
+  // Chat links resolve an agent and pass its server explicitly, independent of the startup choice.
+  await act(async () => current.loadConversation("working", "host"));
+  expect(current.conversationStore.get("working")?.threadId).toBe("thread");
+});
+
+it("invalidates a stale choice only after an authoritative directory result", async () => {
+  const key = startupServerKey(session.apiUrl, session.user.id);
+  native.storage.set(key, "remote");
+  readDirectory = async () => {
+    throw new Error("Directory offline");
+  };
+  await renderWorkspace();
+  expect(current.serverDirectoryState).toBe("error");
+  expect(current.startupServerId).toBe("remote");
+  expect(native.storage.get(key)).toBe("remote");
+  readDirectory = async () => Response.json({ hosts: [host] });
+  await act(async () => current.refreshServers());
+  expect(current.startupServerId).toBeNull();
+  expect(current.activeServer.id).toBe("host");
+  expect(connectionSelections.map((selection) => selection.hostId)).not.toContain("remote");
+  await remountWorkspace();
+  expect(current.startupServerId).toBeNull();
+});
+
+it("loads a cold Live Activity chat destination from its server despite a different startup choice", async () => {
+  native.storage.set(startupServerKey(session.apiUrl, session.user.id), "remote");
+  const route = liveActivityRoute("openbot://live-activity?server=host&agent=working");
+  expect(route).toBe("/chat/working");
+  let resolveDirectory = (_response: Response) => {};
+  readDirectory = () =>
+    new Promise<Response>((resolve) => {
+      resolveDirectory = resolve;
+    });
+  await renderWorkspace();
+  await act(() => resolveDirectory(Response.json({ hosts: [host, remoteHost] })));
+  expect(current.activeServer.id).toBe("remote");
+  // The chat screen resolves the route's agent, then its view passes that agent's server to every request.
+  const destination = current.agents.find((agent) => agent.id === "working");
+  expect(destination?.serverId).toBe("host");
+  await act(async () => current.loadConversation("working", destination?.serverId));
+  expect(conversationServers.at(-1)).toBe("host");
+  expect(current.conversationStore.get("working")?.threadId).toBe("thread");
+  expect(current.activeServer.id).toBe("remote");
+});
+
+function promptPage(): ConversationPage {
+  return {
+    ...workingPage,
+    activeTurnId: "prompt-turn",
+    messages: [
+      {
+        id: "prompt-message",
+        turnId: "prompt-turn",
+        author: "assistant",
+        text: "",
+        createdAt: "2026-10-13T00:00:00Z",
+        status: "completed",
+        questionPrompt: {
+          requestId: "linked-prompt",
+          questions: [{ id: "choice", header: "Choice", question: "Which option?", isSecret: false, options: null }],
+          resolution: null,
+        },
+      },
+    ],
+  };
+}
+
+it("answers a linked prompt and refreshes its host while the startup server stays selected", async () => {
+  native.storage.set(startupServerKey(session.apiUrl, session.user.id), "remote");
+  directoryHosts = [host, remoteHost];
+  conversationPage = async () => promptPage();
+  await renderWorkspace();
+  await act(async () => current.loadConversation("working", "host"));
+  conversationServers.length = 0;
+  const input = { requestId: "linked-prompt", answers: { choice: ["First"] } };
+  await act(async () => current.respondToPrompt("working", input));
+  expect(promptServers).toEqual(["host"]);
+  expect(sent.filter((request) => request.path === TEAM_API_ROUTES.respond.prompt)).toEqual([
+    { method: "POST", path: TEAM_API_ROUTES.respond.prompt, body: input },
+  ]);
+  expect(conversationServers).toEqual(["host"]);
+  expect(current.activeServer.id).toBe("remote");
+});
+
+it.each(["offline", "wrong-request", "resolved", "wrong-turn", "no-active-turn"])(
+  "rejects a linked prompt with %s while another startup server stays online",
+  async (reason) => {
+    native.storage.set(startupServerKey(session.apiUrl, session.user.id), "remote");
+    directoryHosts = [host, remoteHost];
+    const page = promptPage();
+    const message = page.messages[0];
+    if (!message?.questionPrompt) throw new Error("Missing prompt fixture");
+    if (reason === "resolved") message.questionPrompt.resolution = { status: "expired" };
+    if (reason === "wrong-turn") message.turnId = "old-turn";
+    if (reason === "no-active-turn") page.activeTurnId = null;
+    conversationPage = async () => page;
+    await renderWorkspace();
+    await act(async () => current.loadConversation("working", "host"));
+    if (reason === "offline") {
+      offlineHosts.add("host");
+      const disconnectTarget = disconnectServer.get("host");
+      if (!disconnectTarget) throw new Error("Missing target connection");
+      await act(() => disconnectTarget());
+      expect(current.servers.find((server) => server.id === "host")?.state).toBe("offline");
+    }
+    conversationServers.length = 0;
+    await act(async () => {
+      await expect(
+        current.respondToPrompt("working", {
+          requestId: reason === "wrong-request" ? "another-prompt" : "linked-prompt",
+          answers: { choice: ["First"] },
+        }),
+      ).rejects.toThrow();
+    });
+    expect(promptServers).toEqual([]);
+    expect(conversationServers).toEqual([]);
+    expect(current.activeServer.id).toBe("remote");
+    expect(current.activeServer.state).toBe("online");
+  },
+);
+
+it("isolates account and API origin choices, and reloads them for a new session scope", async () => {
+  directoryHosts = [host, remoteHost];
+  await renderWorkspace();
+  await act(() => current.setStartupServer("remote"));
+  sessionScope += 1;
+  await renderWorkspace();
+  expect(current.activeServer.id).toBe("remote");
+  session.user.id = "other-user";
+  await renderWorkspace();
+  expect(current.startupServerId).toBeNull();
+  expect(current.activeServer.id).toBe("host");
+  session.user.id = "user";
+  session.apiUrl = "https://other-account.example.com";
+  await renderWorkspace();
+  expect(current.startupServerId).toBeNull();
+  session.apiUrl = "https://account.example.com/path";
+  await renderWorkspace();
+  expect(current.startupServerId).toBe("remote");
+  expect(current.activeServer.id).toBe("remote");
 });
 
 it.each(["foreground", "manual"])(

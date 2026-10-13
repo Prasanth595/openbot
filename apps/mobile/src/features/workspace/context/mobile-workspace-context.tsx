@@ -109,7 +109,13 @@ import {
   reducePendingApprovals,
 } from "@/features/workspace/model/pending-approvals";
 import { applyMobileQueueEvent } from "@/features/workspace/model/queue-cache";
-import { decodeServerOrder, serverAccent, serverOrderKey, sortServers } from "@/features/workspace/model/server-order";
+import {
+  decodeServerOrder,
+  serverAccent,
+  serverOrderKey,
+  sortServers,
+  startupServerKey,
+} from "@/features/workspace/model/server-order";
 import { applyServerRecovery, serverKind } from "@/features/workspace/model/server-status";
 import { trustedHostKeys } from "@/features/workspace/model/trusted-host-keys";
 import {
@@ -202,7 +208,27 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const removedServers = useRef(new Set<string>());
   const readRefresh = useMemo(() => createRemoteReadRefresh(), []);
   const serverCapabilities = useRef(new Map<string, string[]>());
-  const [activeServerId, setActiveServerId] = useState<string | null>(session.host?.hostId ?? null);
+  const startupKey = startupServerKey(session.apiUrl, session.user.id);
+  const [startupServerId, setStartupServerId] = useState<string | null>(() => {
+    try {
+      return SecureStore.getItem(startupKey) || null;
+    } catch {
+      return null;
+    }
+  });
+  const startupServerIdRef = useRef(startupServerId);
+  startupServerIdRef.current = startupServerId;
+  const clearUnavailableStartupServer = useCallback(() => {
+    try {
+      SecureStore.setItem(startupKey, "", { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY });
+    } catch {
+      // The next launch validates the disk record again. Never select the removed host.
+    }
+    startupServerIdRef.current = null;
+    setStartupServerId(null);
+  }, [startupKey]);
+  // Read before any connection mounts. Directory refreshes and foreground returns never reapply it.
+  const [activeServerId, setActiveServerId] = useState<string | null>(startupServerId ?? session.host?.hostId ?? null);
   const activeServerIdRef = useRef(activeServerId);
   activeServerIdRef.current = activeServerId;
   const conversationStore = useMemo(
@@ -309,7 +335,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           };
         });
       });
-      setActiveServerId((current) => (hosts.some((host) => host.hostId === current) ? current : null));
+      if (startupServerIdRef.current && !available.has(startupServerIdRef.current)) {
+        // Only an authoritative directory result invalidates the saved choice, not connection loss.
+        clearUnavailableStartupServer();
+      }
+      setActiveServerId((current) => {
+        if (current && available.has(current)) return current;
+        const localId = session.host?.hostId;
+        return localId && available.has(localId) ? localId : null;
+      });
     },
     [
       liveState,
@@ -320,6 +354,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       queryClient,
       readRefresh,
       conversationStore,
+      clearUnavailableStartupServer,
     ],
   );
 
@@ -1140,6 +1175,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     };
     /** Drops a server that this account left or removed, and its local state. */
     const forgetServer = (serverId: string) => {
+      if (startupServerIdRef.current === serverId) clearUnavailableStartupServer();
       removedServers.current.add(serverId);
       readRefresh.invalidate(serverId);
       directoryGeneration.current += 1;
@@ -1256,6 +1292,21 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       },
       channelStore,
       servers: orderedServers,
+      startupServerId,
+      setStartupServer: (serverId) => {
+        if (serverId !== null && !serversRef.current.some((server) => server.id === serverId)) return false;
+        try {
+          SecureStore.setItem(startupKey, serverId ?? "", {
+            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          });
+          setStartupServerId(serverId);
+          startupServerIdRef.current = serverId;
+          return true;
+        } catch (error) {
+          showFailureAlert(error, "settings", currentText().t("mobile.server.drawer.startupSaveFailed"));
+          return false;
+        }
+      },
       reorderServers: (serverIds) => {
         try {
           SecureStore.setItem(orderKey, JSON.stringify(serverIds), {
@@ -1525,6 +1576,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       },
       respondToPrompt: async (agentId, input) => {
         const agent = agents.find((candidate) => candidate.id === agentId);
+        const server = servers.find((candidate) => candidate.id === agent?.serverId);
         const snapshot = conversationStore.get(agentId);
         const message = snapshot?.messages.find(
           (item) =>
@@ -1533,8 +1585,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             item.questionPrompt.resolution === null,
         );
         if (
-          agent?.serverId !== activeServer.id ||
-          activeServer.state !== "online" ||
+          server?.state !== "online" ||
           !message?.questionPrompt ||
           message.questionPrompt.resolution ||
           !snapshot?.activeTurnId ||
@@ -1542,12 +1593,18 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         ) {
           throw new Error(currentText().t("mobile.workspace.error.formUnavailable"));
         }
-        await request("POST", TEAM_API_ROUTES.respond.prompt, ignoreResponse, {
-          requestId: input.requestId,
-          answers: input.answers,
-        });
+        await request(
+          "POST",
+          TEAM_API_ROUTES.respond.prompt,
+          ignoreResponse,
+          {
+            requestId: input.requestId,
+            answers: input.answers,
+          },
+          server.id,
+        );
         // The answer is committed even if a subsequent refresh loses connection.
-        void loadConversation(agentId).catch(() => undefined);
+        void loadConversation(agentId, server.id).catch(() => undefined);
       },
       hideAgent: (agentId) => {
         const saved = updatePreferences(activeServer.id, (current) => ({
@@ -1635,6 +1692,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     session.apiUrl,
     session.user.id,
     sessionScope,
+    startupKey,
+    startupServerId,
+    clearUnavailableStartupServer,
     queryClient,
     liveState,
     preferences,

@@ -34,12 +34,14 @@ interface ServerDrawerContentProps {
   muted: ViewStyle["backgroundColor"];
   open: boolean;
   servers: MobileServer[];
+  startupServerId: string | null;
   session: MobileSession;
   sideInset: number;
   topInset: number;
   onNavigate: (href: Href) => void;
   onReorder: (serverIds: string[]) => boolean;
   onSelectServer: (serverId: string) => void;
+  onSetStartupServer: (serverId: string | null) => boolean;
 }
 
 /** Local or Remote, with the connection state only when it needs attention. The dot shows online or offline. */
@@ -62,12 +64,14 @@ export function ServerDrawerContent({
   muted,
   open,
   servers,
+  startupServerId,
   session,
   sideInset,
   topInset,
   onNavigate,
   onReorder,
   onSelectServer,
+  onSetStartupServer,
 }: ServerDrawerContentProps) {
   const { t } = useText();
   const { theme } = useUniwind();
@@ -127,6 +131,7 @@ export function ServerDrawerContent({
 
   function renderRow(serverItem: MobileServer, width?: number) {
     const selected = serverItem.id === activeServerId;
+    const startup = serverItem.id === startupServerId;
     const remoteIndex = remoteIds.indexOf(serverItem.id);
     const serverLabel = serverKindLabel(serverItem, t);
     const accessibilityActions = [
@@ -136,6 +141,8 @@ export function ServerDrawerContent({
             { name: "options", label: t("mobile.server.drawer.serverOptions") },
             { name: "routines", label: t("mobile.server.drawer.routines") },
             { name: "usage", label: t("mobile.server.drawer.usage") },
+            { name: "startup", label: t("mobile.server.drawer.useAtStartup") },
+            ...(startup ? [{ name: "clearStartup", label: t("mobile.server.drawer.clearStartup") }] : []),
           ]),
       ...(remoteIndex > 0 ? [{ name: "moveUp", label: t("mobile.server.drawer.moveUp") }] : []),
       ...(remoteIndex >= 0 && remoteIndex < remoteIds.length - 1
@@ -147,13 +154,15 @@ export function ServerDrawerContent({
         key={serverItem.id}
         accessibilityRole="button"
         accessibilityState={{ selected }}
-        accessibilityLabel={`${serverItem.name}, ${serverLabel}, ${serverStatusLabel(serverItem, t)}`}
+        accessibilityLabel={`${serverItem.name}, ${serverLabel}, ${serverStatusLabel(serverItem, t)}${startup ? `, ${t("mobile.server.drawer.startupServer")}` : ""}`}
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={(event) => {
           const action = event.nativeEvent.actionName;
           if (action === "options") openOptions(serverItem.id);
           if (action === "routines") openRoutines(serverItem.id);
           if (action === "usage") openUsage(serverItem.id);
+          if (action === "startup") onSetStartupServer(serverItem.id);
+          if (action === "clearStartup") onSetStartupServer(null);
           if (action === "moveUp") move(serverItem.id, remoteIndex - 1);
           if (action === "moveDown") move(serverItem.id, remoteIndex + 1);
         }}
@@ -212,12 +221,24 @@ export function ServerDrawerContent({
             }
           : null)}
         shouldOpenOnLongPress
-        actions={menuActions}
+        actions={[
+          ...menuActions,
+          {
+            id: "startup",
+            title: t("mobile.server.drawer.useAtStartup"),
+            state: serverItem.id === startupServerId ? "on" : "off",
+          },
+          ...(serverItem.id === startupServerId
+            ? [{ id: "clearStartup", title: t("mobile.server.drawer.clearStartup") }]
+            : []),
+        ]}
         onPressAction={(event) => {
           if (event.nativeEvent.event === "options") openOptions(serverItem.id);
           if (event.nativeEvent.event === "routines") openRoutines(serverItem.id);
           if (event.nativeEvent.event === "usage") openUsage(serverItem.id);
           if (event.nativeEvent.event === "reorder") setEditing(true);
+          if (event.nativeEvent.event === "startup") onSetStartupServer(serverItem.id);
+          if (event.nativeEvent.event === "clearStartup") onSetStartupServer(null);
         }}
       >
         {renderRow(serverItem, rowWidth)}

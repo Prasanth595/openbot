@@ -355,8 +355,8 @@ function AuthenticatedStack() {
 }
 
 export default function AuthenticatedLayout() {
-  const { session } = useMobileSession();
-  const workspaceKey = session ? `${session.apiUrl}:${session.user.id}` : "signed-out";
+  const { session, sessionScope } = useMobileSession();
+  const workspaceKey = session ? `${session.apiUrl}:${session.user.id}:${sessionScope}` : "signed-out";
 
   return (
     <MobileWorkspaceProvider key={workspaceKey}>

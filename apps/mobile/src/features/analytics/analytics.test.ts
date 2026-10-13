@@ -409,6 +409,8 @@ it("instruments message commands without sending their contents or changing the 
     removeServer: unexpected,
     refreshServers: unexpected,
     reorderServers: () => false,
+    startupServerId: null,
+    setStartupServer: () => false,
     refreshServer: unexpected,
     canEditServerIdentity: () => false,
     canManageEvents: () => false,
