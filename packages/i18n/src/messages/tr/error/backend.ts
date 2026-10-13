@@ -156,6 +156,17 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Bu ajanlar bu rutinde zaten bağlı.",
   "error.backend.routineFlowCycle": "Bu bağlantı bir döngü oluşturur.",
   "error.backend.routineFlowLinkLimit": "Bir rutinde en fazla {limit} bağlantı olabilir.",
+  "error.backend.agentWaitLimit":
+    "Bu ajanın zaten {count} açık beklemesi var. Başka bir bekleme açmadan önce openbot.close_wait ile bir beklemeyi kapatın.",
+  "error.backend.agentWaitGone": "Bu bekleme açık değil. Ajan onu kapattı veya biri iptal etti.",
+  "error.backend.agentWaitNoRequest": "Beklemenin devam etmesi için bir mesaj gerekir. Bu turda mesaj yok.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Beklemeyi yalnızca kendi sohbetinizde açın. Bir kanal veya mesajlaşma görevi bekleyemez.",
+  "error.backend.agentWaitNoteRequired": "Beklemenin ne için olduğunu belirten kısa bir not yazın.",
+  "error.backend.agentWaitRoutineGone": "Bu ajanın bu kimliğe sahip bir rutini yok.",
+  "error.backend.agentWaitNoRoutine":
+    "Bir beklemeyi yalnızca rutinlerinizden birinin çalıştırılması uyandırır ve hiç rutininiz yok. openbot.create_routine ile bir rutin oluşturun, ardından beklemeyi açın.",
+  "error.backend.agentWaitRemoteUnsupported": "Açık beklemeler yalnızca bu bilgisayardaki ajanlar için kullanılabilir.",
   "error.backend.routineFlowHandoffFailed": "Rutin işi bu ajana aktaramadı.",
   "error.backend.mcpServerLimit": "OpenBot en fazla {limit} MCP sunucusu tutar.",
   "error.backend.mcpServerNameTaken": "{name} adında bir MCP sunucusu zaten mevcut.",

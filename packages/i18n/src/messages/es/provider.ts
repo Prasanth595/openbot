@@ -53,6 +53,7 @@ export const messages = {
   "provider.action.signIn": "Iniciar sesión",
   "provider.action.apiKey": "Clave de API",
   "provider.action.signInWithCode": "Iniciar sesión con código",
+  "provider.action.pasteAddress": "Pegar la dirección",
   "provider.aria.download": "Descargar {name}",
   "provider.aria.cancel": "Cancelar {name}",
   "provider.aria.connect": "Conectar {name}",
@@ -95,6 +96,10 @@ export const messages = {
   "provider.codeLogin.relayStarting": "Iniciando el inicio de sesión de {name} en {host}…",
   "provider.codeLogin.pageOpening": "Abriendo la página de inicio de sesión de {name} en {host}…",
   "provider.codeLogin.linkStep": "Inicia sesión en {name}. OpenBot continúa automáticamente.",
+  "provider.useApp.title": "Conecta {name} en la app de OpenBot",
+  "provider.useApp.description":
+    "El inicio de sesión de {name} vuelve al ordenador que lo inició, y una pestaña del navegador no puede recibirlo. Conecta {name} en la app de OpenBot. La app termina el inicio de sesión sola.",
+  "provider.useApp.download": "Descargar la app",
   "provider.picker.noEndpoints": "Aún no hay endpoints",
   "provider.picker.customCounts": "{endpoints} · {agents}",
   "provider.picker.agentModel": "Modelo del agente",
