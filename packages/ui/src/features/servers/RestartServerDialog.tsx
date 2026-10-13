@@ -1,5 +1,5 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
-import { Alert, AlertContent, AlertDescription, AlertDialog, AlertIcon, Button, Spinner, toast } from "@openbot/ui";
+import { ConfirmDialog, Spinner, toast } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, For, onCleanup, Show, untrack } from "solid-js";
 import { CircleCheck, CircleDot, RotateCcw, TriangleAlert } from "../../icons";
@@ -43,10 +43,7 @@ export function RestartServerDialog(props: {
   let wentDown = false;
   let lastIssue: RestartServer["hostedIssue"] = null;
   let clock: ReturnType<typeof setInterval> | undefined;
-  let cancelButton: HTMLButtonElement | undefined;
   let primaryButton: HTMLButtonElement | undefined;
-  let opener: HTMLElement | undefined;
-  let restoreFrame: number | undefined;
 
   const restarting = () => phase() === "stopping" || phase() === "starting";
   const restartServer = () => props.servers.find((server) => server.id === restartId()) ?? null;
@@ -57,10 +54,7 @@ export function RestartServerDialog(props: {
     if (clock !== undefined) clearInterval(clock);
     clock = undefined;
   }
-  onCleanup(() => {
-    stopClock();
-    if (restoreFrame !== undefined) cancelAnimationFrame(restoreFrame);
-  });
+  onCleanup(stopClock);
 
   function reset(): void {
     run += 1;
@@ -236,118 +230,56 @@ export function RestartServerDialog(props: {
     return t("server.settings.restartTitle");
   };
 
+  // One list for all phases, so that the body does not render it again on each read.
+  const steps = (
+    <ol class="restart-server-steps" aria-label={t("server.settings.restartSteps")}>
+      <For each={STEPS}>
+        {(step, index) => (
+          <li
+            class="restart-server-step"
+            data-status={stepStatus(index())}
+            aria-current={stepStatus(index()) === "active" ? "step" : undefined}
+          >
+            <span class="restart-server-step-icon" aria-hidden="true">
+              <StepIcon status={stepStatus(index())} />
+            </span>
+            <span class="restart-server-step-text">
+              <span class="restart-server-step-label">{t(step.label)}</span>
+              <span class="restart-server-step-detail">{t(step.detail)}</span>
+            </span>
+          </li>
+        )}
+      </For>
+    </ol>
+  );
+
   return (
-    <AlertDialog.Root
+    <ConfirmDialog
       open={props.server !== null}
-      onOpenChange={(open) => {
-        if (!open) close();
+      tone="default"
+      icon={phase() === "failed" ? <TriangleAlert /> : <RotateCcw />}
+      initialFocus={restarting() || phase() === "confirm" ? "cancel" : "confirm"}
+      restoreFocusTarget={props.restoreFocusTarget}
+      title={title()}
+      description={description()}
+      confirmLabel={primaryLabel()}
+      pendingLabel={t("server.settings.restarting")}
+      cancelLabel={restarting() ? t("server.settings.restartHide") : secondaryLabel()}
+      pending={restarting()}
+      dismissWhilePending
+      hideCancel={phase() === "online"}
+      error={error() ?? undefined}
+      confirmRef={(element) => {
+        primaryButton = element;
+      }}
+      onCancel={close}
+      onConfirm={() => {
+        if (phase() === "online") close();
+        else void restart();
       }}
     >
-      <AlertDialog.Portal>
-        <AlertDialog.Overlay class="ui-confirm-dialog-overlay">
-          <AlertDialog.Content
-            class="ui-confirm-dialog restart-server-dialog"
-            data-tone="default"
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              const active = document.activeElement;
-              opener = active instanceof HTMLElement && active !== document.body ? active : undefined;
-              (restarting() || phase() === "confirm" ? cancelButton : primaryButton)?.focus({ preventScroll: true });
-            }}
-            onCloseAutoFocus={(event) => {
-              const target = props.restoreFocusTarget ?? opener;
-              if (!target?.isConnected) return;
-              event.preventDefault();
-              target.focus({ preventScroll: true });
-              // The enclosing dialog resumes its focus trap after this one closes.
-              restoreFrame = requestAnimationFrame(() => {
-                restoreFrame = requestAnimationFrame(() => {
-                  if (props.server === null && target.isConnected) target.focus({ preventScroll: true });
-                });
-              });
-            }}
-          >
-            <div class="ui-confirm-dialog-main">
-              <span class="ui-confirm-dialog-icon" aria-hidden="true">
-                <Show when={phase() === "failed"} fallback={<RotateCcw />}>
-                  <TriangleAlert />
-                </Show>
-              </span>
-              <div class="ui-confirm-dialog-content">
-                <AlertDialog.Title as="h2" class="ui-confirm-dialog-title">
-                  {title()}
-                </AlertDialog.Title>
-                <AlertDialog.Description class="ui-confirm-dialog-description">{description()}</AlertDialog.Description>
-                <Show when={phase() !== "confirm"}>
-                  <div class="ui-confirm-dialog-body">
-                    <ol class="restart-server-steps" aria-label={t("server.settings.restartSteps")}>
-                      <For each={STEPS}>
-                        {(step, index) => (
-                          <li
-                            class="restart-server-step"
-                            data-status={stepStatus(index())}
-                            aria-current={stepStatus(index()) === "active" ? "step" : undefined}
-                          >
-                            <span class="restart-server-step-icon" aria-hidden="true">
-                              <StepIcon status={stepStatus(index())} />
-                            </span>
-                            <span class="restart-server-step-text">
-                              <span class="restart-server-step-label">{t(step.label)}</span>
-                              <span class="restart-server-step-detail">{t(step.detail)}</span>
-                            </span>
-                          </li>
-                        )}
-                      </For>
-                    </ol>
-                  </div>
-                </Show>
-                <Show when={error()}>
-                  <Alert tone="danger" report={false} role="alert" class="ui-confirm-dialog-error">
-                    <AlertIcon>
-                      <TriangleAlert />
-                    </AlertIcon>
-                    <AlertContent>
-                      <AlertDescription>{error()}</AlertDescription>
-                    </AlertContent>
-                  </Alert>
-                </Show>
-              </div>
-            </div>
-            <footer class="ui-confirm-dialog-actions">
-              <Show when={phase() !== "online"}>
-                <Button
-                  ref={(element: HTMLButtonElement) => {
-                    cancelButton = element;
-                  }}
-                  variant="ghost"
-                  type="button"
-                  onClick={() => close()}
-                >
-                  <Show when={restarting()} fallback={secondaryLabel()}>
-                    {t("server.settings.restartHide")}
-                  </Show>
-                </Button>
-              </Show>
-              <Button
-                ref={(element: HTMLButtonElement) => {
-                  primaryButton = element;
-                }}
-                type="button"
-                class="ui-confirm-dialog-confirm"
-                loading={restarting()}
-                loadingLabel={t("server.settings.restarting")}
-                onClick={() => {
-                  if (phase() === "online") close();
-                  else void restart();
-                }}
-              >
-                {primaryLabel()}
-              </Button>
-            </footer>
-          </AlertDialog.Content>
-        </AlertDialog.Overlay>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
+      {phase() === "confirm" ? undefined : steps}
+    </ConfirmDialog>
   );
 }
 
