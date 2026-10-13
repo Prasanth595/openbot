@@ -142,8 +142,8 @@ export function routineRunToggleKey(marker: RoutineRunMarker | RoutineRunGroupMa
 /**
  * The messages of each routine run's turn, by run id. The routine delivery names the run and the
  * turn it started, so each message of that turn belongs to the run. A turn that also runs another
- * delivery, such as a message from a person, or a second run, keeps its messages in place: they
- * do not belong to one run.
+ * delivery, such as a message from a person or a teammate, or a second run, keeps its messages in
+ * place: they do not belong to one run.
  */
 export function routineRunTurnMessages(
   stored: readonly AgentMessage[],
@@ -157,7 +157,7 @@ export function routineRunTurnMessages(
       const runId = runByTurn.get(message.turnId);
       if (runId !== undefined && runId !== message.routine.runId) sharedTurns.add(message.turnId);
       runByTurn.set(message.turnId, message.routine.runId);
-    } else if (message.author === "you") {
+    } else if (message.author === "you" || fromTeammate(message)) {
       sharedTurns.add(message.turnId);
     }
   }
@@ -173,6 +173,11 @@ export function routineRunTurnMessages(
     turns.set(runId, messages);
   }
   return turns;
+}
+
+/** A teammate's message. The agent's own message to a teammate is an outgoing exchange. */
+function fromTeammate(message: AgentMessage): boolean {
+  return message.senderAgentId !== undefined && message.exchange?.direction !== "outgoing";
 }
 
 /**
