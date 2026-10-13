@@ -130,7 +130,6 @@ export function slackMentionIds(text: string, botUserId: string): string[] {
  */
 export function plainText(text: string, botUserId: string): string {
   return text
-    .replaceAll(`<@${botUserId}>`, "")
     .replace(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g, (_match, id: string) => (id === botUserId ? "" : `@${id}`))
     .replace(/<#[A-Z0-9]+\|([^>]*)>/g, "#$1")
     .replace(/<!(here|channel|everyone)>/g, "@$1")
