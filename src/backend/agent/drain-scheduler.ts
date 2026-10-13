@@ -1,5 +1,6 @@
 import { AGENT_PROVIDERS } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
 import { type AgentProvider, ProviderTurnActiveError } from "../agent-client";
 import type { AgentStore } from "../agent-store";
@@ -32,6 +33,8 @@ import { codexSandboxPolicy, workspaceWritableRoots } from "./workspace-sandbox"
 
 /** Shown to the user when a message names a model of an endpoint that was taken out. */
 export const REMOVED_ENDPOINT_MESSAGE = sourceText("error.agent.endpointRemoved");
+
+const logger = createOpenBotLogger("drain-scheduler");
 
 export interface DrainHooks {
   emitError(code: string, error: unknown, agentId?: string): void;
@@ -102,6 +105,8 @@ export class DrainScheduler {
   readonly #messaging: MessagingThreads | undefined;
   readonly #drainingAgents = new Set<string>();
   readonly #settingsHolds = new Map<string, number>();
+  /** The last hold `#reportHold` logged per agent, so a waiting queue logs once per reason. */
+  readonly #reportedHolds = new Map<string, string>();
   /**
    * The model each agent's running turn was started with, by turn id. The agent record can be moved
    * to another model while that turn runs, but the CLI keeps the session it opened, so this is the
@@ -152,16 +157,35 @@ export class DrainScheduler {
 
   /** The clauses of this agent's own state. `#heldByMachine` adds the memory and the turn slots. */
   mayDrain(agentId: string): boolean {
-    return (
-      !this.#settingsHolds.has(agentId) &&
-      !this.#conversation.workingSnapshot(agentId)?.activeTurnId &&
-      (this.#channels?.mayDrain(agentId) ?? true) &&
-      this.#profileSave.mayDrain(agentId) &&
-      this.#duplication.mayDrain(agentId) &&
-      this.#compaction.mayDrain(agentId) &&
-      this.#routines.mayDrain(agentId) &&
-      this.#usageLimits.mayDrain(agentId)
-    );
+    return this.#heldBy(agentId) === null;
+  }
+
+  /** The first clause of `mayDrain` that holds this agent, or null when none does. */
+  #heldBy(agentId: string): string | null {
+    if (this.#settingsHolds.has(agentId)) return "session-settings";
+    if (this.#conversation.workingSnapshot(agentId)?.activeTurnId) return "active-turn";
+    if (!(this.#channels?.mayDrain(agentId) ?? true)) return "channel";
+    if (!this.#profileSave.mayDrain(agentId)) return "profile-save";
+    if (!this.#duplication.mayDrain(agentId)) return "duplication";
+    if (!this.#compaction.mayDrain(agentId)) return "compaction";
+    if (!this.#routines.mayDrain(agentId)) return "routine";
+    if (!this.#usageLimits.mayDrain(agentId)) return "usage-limit";
+    return null;
+  }
+
+  /**
+   * Logs once why a queued message of this agent waits, and again only when the reason changes. A
+   * queue that never starts again then names the clause that holds it.
+   */
+  #reportHold(agentId: string, reason: string): void {
+    if (this.#reportedHolds.get(agentId) === reason || !this.#mailbox.nextQueued(agentId)) return;
+    this.#reportedHolds.set(agentId, reason);
+    const working = reason === "active-turn" ? this.#conversation.workingSnapshot(agentId) : undefined;
+    logger.info("A queued message waits.", {
+      agentId,
+      reason,
+      ...(working ? { threadId: working.threadId, turnId: working.activeTurnId } : {}),
+    });
   }
 
   scheduleDrain(agentId: string): void {
@@ -186,14 +210,14 @@ export class DrainScheduler {
   }
 
   #scheduleDrain(agentId: string): void {
-    if (
-      this.#hooks.isStopping() ||
-      !this.#providers.isReady() ||
-      this.#drainingAgents.has(agentId) ||
-      this.#scheduledDrains.has(agentId) ||
-      !this.mayDrain(agentId) ||
-      this.#heldByMachine(agentId)
-    ) {
+    if (this.#hooks.isStopping() || this.#scheduledDrains.has(agentId)) return;
+    const hold =
+      (!this.#providers.isReady() && "providers-not-ready") ||
+      (this.#drainingAgents.has(agentId) && "drain-running") ||
+      this.#heldBy(agentId) ||
+      (this.#heldByMachine(agentId) && "machine");
+    if (hold) {
+      this.#reportHold(agentId, hold);
       return;
     }
     this.#scheduledDrains.add(agentId);
@@ -235,6 +259,7 @@ export class DrainScheduler {
     this.#drainingAgents.delete(agentId);
     this.#scheduledDrains.delete(agentId);
     this.#slotWaiters.delete(agentId);
+    this.#reportedHolds.delete(agentId);
     this.retrySlotWaiters();
   }
 
@@ -242,6 +267,7 @@ export class DrainScheduler {
     this.#drainingAgents.clear();
     this.#scheduledDrains.clear();
     this.#slotWaiters.clear();
+    this.#reportedHolds.clear();
   }
 
   /**
@@ -274,19 +300,23 @@ export class DrainScheduler {
   }
 
   readonly #drainAgent = Effect.fn("DrainScheduler.drainAgent")(function* (this: DrainScheduler, agentId: string) {
-    if (
-      this.#hooks.isStopping() ||
-      this.#drainingAgents.has(agentId) ||
-      !this.mayDrain(agentId) ||
-      !this.#providers.isReady() ||
+    if (this.#hooks.isStopping()) return;
+    const hold =
+      (this.#drainingAgents.has(agentId) && "drain-running") ||
+      this.#heldBy(agentId) ||
+      (!this.#providers.isReady() && "providers-not-ready") ||
       // Before the try, so the delivery is not rescheduled in a loop while the CLI is replaced.
       // ProviderRuntime schedules this agent again once the new client is ready.
-      this.#deliveryProviders(agentId).some((provider) => this.#providers.isReplacingCli(provider)) ||
+      (this.#deliveryProviders(agentId).some((provider) => this.#providers.isReplacingCli(provider)) &&
+        "provider-cli-replaced") ||
       // Last, because it records the agent as waiting. Another drain can take the last slot
       // between the schedule and this start.
-      this.#heldByMachine(agentId)
-    )
+      (this.#heldByMachine(agentId) && "machine");
+    if (hold) {
+      this.#reportHold(agentId, hold);
       return;
+    }
+    this.#reportedHolds.delete(agentId);
     this.#drainingAgents.add(agentId);
     yield* Effect.gen({ self: this }, function* () {
       const snapshot = this.#conversation.workingSnapshot(agentId);
