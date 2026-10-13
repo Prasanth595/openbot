@@ -28,7 +28,7 @@ import {
   telegramOrchestrator,
 } from "@openbot/ui/features/settings/TelegramIntegrationPanel";
 import { useText } from "@openbot/ui/text";
-import { createSignal, Match, onCleanup, onSettled, Show, Switch } from "solid-js";
+import { createEffect, createSignal, Match, onSettled, Show, Switch } from "solid-js";
 import type { DiscordConnectorController } from "./discord-connector";
 import { type GitHubConnectorController, githubPanelProps } from "./github-connector";
 import { type OnePasswordConnectorController, onePasswordPanelProps } from "./onepassword-connector";
@@ -84,12 +84,32 @@ export function ConnectorsPanel(props: {
 }) {
   const { t } = useText();
   const [view, setView] = createSignal<View>("hub");
-  const open = (next: View) => {
-    setView(next);
-    props.onDetailChange?.(next === "hub" ? null : { title: t(PAGE_TITLE[next]), back: () => open("hub") });
+  /** The integration page on screen: the hub shows when the open integration is no longer passed. */
+  const page = (): Exclude<View, "hub"> | null => {
+    const open = view();
+    if (open === "hub") return null;
+    const controllers = {
+      github: props.github,
+      onepassword: props.onePassword,
+      bitwarden: props.bitwarden,
+      slack: props.slack,
+      discord: props.discord,
+      telegram: props.telegram,
+    };
+    return controllers[open] ? open : null;
   };
-  // The dialog outlives this panel, so a header must not keep naming a page that is gone.
-  onCleanup(() => props.onDetailChange?.(null));
+  // The dialog outlives this panel, so the cleanup clears a header that would name a page that is gone.
+  createEffect(
+    () => {
+      const open = page();
+      return open ? t(PAGE_TITLE[open]) : null;
+    },
+    (title) => {
+      if (title === null) return;
+      props.onDetailChange?.({ title, back: () => setView("hub") });
+      return () => props.onDetailChange?.(null);
+    },
+  );
   // The Slack, Discord and Telegram states change on their own and main sends no event, so they are
   // read while the section shows.
   onSettled(() => props.slack?.watch());
@@ -121,7 +141,7 @@ export function ConnectorsPanel(props: {
             : host
               ? t("connector.github.descriptionHost", { host })
               : t("connector.github.description"),
-      onOpen: () => open("github"),
+      onOpen: () => setView("github"),
     };
   };
   const onePasswordRow = (onePassword: OnePasswordConnectorController): IntegrationsHubRow => {
@@ -137,7 +157,7 @@ export function ConnectorsPanel(props: {
         status.state === "connected" && status.loginCount !== null
           ? t("connector.onePassword.loginCount", { count: status.loginCount })
           : t("connector.onePassword.description"),
-      onOpen: () => open("onepassword"),
+      onOpen: () => setView("onepassword"),
     };
   };
   const messagingRow = (
@@ -165,7 +185,7 @@ export function ConnectorsPanel(props: {
               ? t(text.summaryConnected, { workspace })
               : t(text.summaryNoAgent, { workspace }),
       agents: orchestrator ? [orchestrator] : [],
-      onOpen: () => open(platform),
+      onOpen: () => setView(platform),
     };
   };
   const telegramRow = (telegram: TelegramConnectorController): IntegrationsHubRow => {
@@ -188,7 +208,7 @@ export function ConnectorsPanel(props: {
               ? t("connector.telegram.summaryConnected", { count })
               : t("connector.telegram.summaryNoAgent", { count }),
       agents: orchestrator ? [orchestrator] : [],
-      onOpen: () => open("telegram"),
+      onOpen: () => setView("telegram"),
     };
   };
   const rows = () => {
@@ -208,7 +228,7 @@ export function ConnectorsPanel(props: {
           ? t("connector.bitwarden.connected")
           : t("connector.bitwarden.disconnected"),
         summary: t("connector.bitwarden.description"),
-        onOpen: () => open("bitwarden"),
+        onOpen: () => setView("bitwarden"),
       });
     return list;
   };

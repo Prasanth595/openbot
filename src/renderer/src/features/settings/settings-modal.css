@@ -147,8 +147,8 @@
 /*
  * The parent crumb is a ghost button, so `.ui-button` would otherwise win the type properties and
  * draw it smaller than the title it sits in. The selector carries the modal class to take those
- * back. Negative margins cancel the hover chip's padding, so the header keeps the same height and the
- * crumb text keeps the title's left edge.
+ * back. Negative margins cancel the hover chip's padding and border, so the header keeps the same height
+ * and the crumb text keeps the title's left edge.
  */
 .settings-modal .settings-modal-crumb-parent {
   min-width: 0;
@@ -158,8 +158,8 @@
   border-radius: var(--openbot-radius-md);
   background: transparent;
   color: var(--openbot-text-muted);
-  margin-block: calc(-1 * var(--openbot-space-1));
-  margin-inline-start: calc(-1 * var(--openbot-space-2));
+  margin-block: calc(-1 * var(--openbot-space-1) - 1px);
+  margin-inline-start: calc(-1 * var(--openbot-space-2) - 1px);
   padding: var(--openbot-space-1) var(--openbot-space-2);
   font-size: inherit;
   font-weight: inherit;
