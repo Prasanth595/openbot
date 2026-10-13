@@ -132,6 +132,7 @@ import { Route as V2RemoteHostsHostIdDiscordRouteRouteImport } from './routes/v2
 import { Route as V2RemoteHostsHostIdInvitesRouteImport } from './routes/v2/remote/hosts/$hostId/invites'
 import { Route as V2RemoteHostsHostIdLiveActivityRouteImport } from './routes/v2/remote/hosts/$hostId/live-activity'
 import { Route as V2RemoteHostsHostIdLogoRouteImport } from './routes/v2/remote/hosts/$hostId/logo'
+import { Route as V2RemoteHostsHostIdNotificationRouteImport } from './routes/v2/remote/hosts/$hostId/notification'
 import { Route as V2RemoteHostsHostIdSlackDisconnectRouteImport } from './routes/v2/remote/hosts/$hostId/slack-disconnect'
 import { Route as V2RemoteHostsHostIdSlackRouteRouteImport } from './routes/v2/remote/hosts/$hostId/slack-route'
 import { Route as V2RemoteHostsHostIdTelegramDisconnectRouteImport } from './routes/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -800,6 +801,12 @@ const V2RemoteHostsHostIdLogoRoute = V2RemoteHostsHostIdLogoRouteImport.update({
   path: '/v2/remote/hosts/$hostId/logo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V2RemoteHostsHostIdNotificationRoute =
+  V2RemoteHostsHostIdNotificationRouteImport.update({
+    id: '/v2/remote/hosts/$hostId/notification',
+    path: '/v2/remote/hosts/$hostId/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const V2RemoteHostsHostIdSlackDisconnectRoute =
   V2RemoteHostsHostIdSlackDisconnectRouteImport.update({
     id: '/v2/remote/hosts/$hostId/slack-disconnect',
@@ -1013,6 +1020,7 @@ export interface FileRoutesByFullPath {
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
   '/v2/remote/hosts/$hostId/live-activity': typeof V2RemoteHostsHostIdLiveActivityRoute
   '/v2/remote/hosts/$hostId/logo': typeof V2RemoteHostsHostIdLogoRoute
+  '/v2/remote/hosts/$hostId/notification': typeof V2RemoteHostsHostIdNotificationRoute
   '/v2/remote/hosts/$hostId/slack-disconnect': typeof V2RemoteHostsHostIdSlackDisconnectRoute
   '/v2/remote/hosts/$hostId/slack-route': typeof V2RemoteHostsHostIdSlackRouteRoute
   '/v2/remote/hosts/$hostId/telegram-disconnect': typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -1153,6 +1161,7 @@ export interface FileRoutesByTo {
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
   '/v2/remote/hosts/$hostId/live-activity': typeof V2RemoteHostsHostIdLiveActivityRoute
   '/v2/remote/hosts/$hostId/logo': typeof V2RemoteHostsHostIdLogoRoute
+  '/v2/remote/hosts/$hostId/notification': typeof V2RemoteHostsHostIdNotificationRoute
   '/v2/remote/hosts/$hostId/slack-disconnect': typeof V2RemoteHostsHostIdSlackDisconnectRoute
   '/v2/remote/hosts/$hostId/slack-route': typeof V2RemoteHostsHostIdSlackRouteRoute
   '/v2/remote/hosts/$hostId/telegram-disconnect': typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -1294,6 +1303,7 @@ export interface FileRoutesById {
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
   '/v2/remote/hosts/$hostId/live-activity': typeof V2RemoteHostsHostIdLiveActivityRoute
   '/v2/remote/hosts/$hostId/logo': typeof V2RemoteHostsHostIdLogoRoute
+  '/v2/remote/hosts/$hostId/notification': typeof V2RemoteHostsHostIdNotificationRoute
   '/v2/remote/hosts/$hostId/slack-disconnect': typeof V2RemoteHostsHostIdSlackDisconnectRoute
   '/v2/remote/hosts/$hostId/slack-route': typeof V2RemoteHostsHostIdSlackRouteRoute
   '/v2/remote/hosts/$hostId/telegram-disconnect': typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -1436,6 +1446,7 @@ export interface FileRouteTypes {
     | '/v2/remote/hosts/$hostId/invites'
     | '/v2/remote/hosts/$hostId/live-activity'
     | '/v2/remote/hosts/$hostId/logo'
+    | '/v2/remote/hosts/$hostId/notification'
     | '/v2/remote/hosts/$hostId/slack-disconnect'
     | '/v2/remote/hosts/$hostId/slack-route'
     | '/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -1576,6 +1587,7 @@ export interface FileRouteTypes {
     | '/v2/remote/hosts/$hostId/invites'
     | '/v2/remote/hosts/$hostId/live-activity'
     | '/v2/remote/hosts/$hostId/logo'
+    | '/v2/remote/hosts/$hostId/notification'
     | '/v2/remote/hosts/$hostId/slack-disconnect'
     | '/v2/remote/hosts/$hostId/slack-route'
     | '/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -1716,6 +1728,7 @@ export interface FileRouteTypes {
     | '/v2/remote/hosts/$hostId/invites'
     | '/v2/remote/hosts/$hostId/live-activity'
     | '/v2/remote/hosts/$hostId/logo'
+    | '/v2/remote/hosts/$hostId/notification'
     | '/v2/remote/hosts/$hostId/slack-disconnect'
     | '/v2/remote/hosts/$hostId/slack-route'
     | '/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -1843,6 +1856,7 @@ export interface RootRouteChildren {
   V2RemoteHostsHostIdInvitesRoute: typeof V2RemoteHostsHostIdInvitesRoute
   V2RemoteHostsHostIdLiveActivityRoute: typeof V2RemoteHostsHostIdLiveActivityRoute
   V2RemoteHostsHostIdLogoRoute: typeof V2RemoteHostsHostIdLogoRoute
+  V2RemoteHostsHostIdNotificationRoute: typeof V2RemoteHostsHostIdNotificationRoute
   V2RemoteHostsHostIdSlackDisconnectRoute: typeof V2RemoteHostsHostIdSlackDisconnectRoute
   V2RemoteHostsHostIdSlackRouteRoute: typeof V2RemoteHostsHostIdSlackRouteRoute
   V2RemoteHostsHostIdTelegramDisconnectRoute: typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -2723,6 +2737,13 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof V2RemoteHostsHostIdLogoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v2/remote/hosts/$hostId/notification': {
+      id: '/v2/remote/hosts/$hostId/notification'
+      path: '/v2/remote/hosts/$hostId/notification'
+      fullPath: '/v2/remote/hosts/$hostId/notification'
+      preLoaderRoute: typeof V2RemoteHostsHostIdNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v2/remote/hosts/$hostId/slack-disconnect': {
       id: '/v2/remote/hosts/$hostId/slack-disconnect'
       path: '/v2/remote/hosts/$hostId/slack-disconnect'
@@ -3069,6 +3090,7 @@ const rootRouteChildren: RootRouteChildren = {
   V2RemoteHostsHostIdInvitesRoute: V2RemoteHostsHostIdInvitesRoute,
   V2RemoteHostsHostIdLiveActivityRoute: V2RemoteHostsHostIdLiveActivityRoute,
   V2RemoteHostsHostIdLogoRoute: V2RemoteHostsHostIdLogoRoute,
+  V2RemoteHostsHostIdNotificationRoute: V2RemoteHostsHostIdNotificationRoute,
   V2RemoteHostsHostIdSlackDisconnectRoute:
     V2RemoteHostsHostIdSlackDisconnectRoute,
   V2RemoteHostsHostIdSlackRouteRoute: V2RemoteHostsHostIdSlackRouteRoute,

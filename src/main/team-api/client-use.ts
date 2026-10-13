@@ -14,6 +14,7 @@ import { HOSTED_SITES_ROUTES } from "@openbot/contracts/team-protocol/hosted-sit
 import { LIVE_ACTIVITY_PUSH_ROUTES } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import { PROVIDERS_RUNTIMES_V2_ROUTES } from "@openbot/contracts/team-protocol/providers-v2";
+import { PUSH_NOTIFICATIONS_ROUTES } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_ROUTES } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
@@ -34,6 +35,8 @@ const PASSIVE_ROUTES: ReadonlySet<string> = new Set([
   HOST_MEMBER_UPDATE_ROUTES.status,
   LIVE_ACTIVITY_PUSH_ROUTES.register,
   LIVE_ACTIVITY_PUSH_ROUTES.remove,
+  PUSH_NOTIFICATIONS_ROUTES.register,
+  PUSH_NOTIFICATIONS_ROUTES.remove,
   STORAGE_ROUTES.usage,
   AGENT_ADMIN_ROUTES.settings,
   AGENT_HOST_SETTINGS_ROUTES.settings,

@@ -233,9 +233,10 @@ reconciliation. The server context menu controls mute for local and remote serve
 
 `renderer-forwarders.ts` continues to deliver live events for muted servers, but suppresses
 system notifications. Remote notification content uses the source server's agent list. Both
-server mute and per-agent notification settings apply. Unread state is unchanged. Mobile does
-not deliver system notifications; it shows agent state in its Live Activity. Mute settings are not
-synchronized between devices.
+server mute and per-agent notification settings apply. Unread state is unchanged. The iPhone app
+has its own level and mute for each server, which the host applies to the notifications it sends to
+that phone (see [iPhone notifications](channels-and-messaging.md#iphone-notifications)). Mute
+settings are not synchronized between devices.
 
 ## Billing
 

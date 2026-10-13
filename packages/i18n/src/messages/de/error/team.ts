@@ -73,6 +73,7 @@ export const messages = {
     "Diese Routinenansicht ist zu groß, um sie an dieses Gerät zu senden. Kürze die Routinenanweisungen auf dem Computer, auf dem der Server läuft.",
   "error.team.agentImportUnsupported": "Diese Verbindung unterstützt das Importieren von Agenten nicht.",
   "error.team.liveActivityUnsupported": "Dieser Host kann die Live Activity eines Telefons nicht aktualisieren.",
+  "error.team.pushNotificationsUnsupported": "Dieser Host kann keine Mitteilungen an ein Telefon senden.",
   "error.team.agentUpdateTargetRequired": "Ein Agent zum Aktualisieren ist erforderlich.",
   "error.team.queueEditUnsupported": "Dieser Client unterstützt das Bearbeiten der Warteschlange nicht.",
   "error.team.skillsUnsupported": "Diese Verbindung unterstützt keine Fähigkeiten.",

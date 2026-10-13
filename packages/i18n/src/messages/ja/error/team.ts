@@ -70,6 +70,7 @@ export const messages = {
     "このルーティンキャンバスは大きすぎるため、このデバイスに送信できません。サーバーを実行しているコンピュータでルーティンの指示を短くしてください。",
   "error.team.agentImportUnsupported": "この接続ではエージェントをインポートできません。",
   "error.team.liveActivityUnsupported": "このホストはスマートフォンのライブアクティビティを更新できません。",
+  "error.team.pushNotificationsUnsupported": "このホストはスマートフォンに通知を送信できません。",
   "error.team.agentUpdateTargetRequired": "更新するエージェントを指定してください。",
   "error.team.queueEditUnsupported": "このクライアントはキューの編集に対応していません。",
   "error.team.skillsUnsupported": "この接続ではスキルを利用できません。",

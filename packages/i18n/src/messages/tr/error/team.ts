@@ -70,6 +70,7 @@ export const messages = {
     "Bu rutin tuvali bu cihaza gönderilemeyecek kadar büyük. Sunucuyu çalıştıran bilgisayarda rutin talimatlarını kısaltın.",
   "error.team.agentImportUnsupported": "Ajan içe aktarma bu bağlantı tarafından desteklenmiyor.",
   "error.team.liveActivityUnsupported": "Bu ana makine bir telefonun Canlı Etkinliğini güncelleyemez.",
+  "error.team.pushNotificationsUnsupported": "Bu ana makine bir telefona bildirim gönderemez.",
   "error.team.agentUpdateTargetRequired": "Güncellenecek bir ajan gereklidir.",
   "error.team.queueEditUnsupported": "Bu istemci kuyruk düzenlemeyi desteklemiyor.",
   "error.team.skillsUnsupported": "Beceriler bu bağlantı tarafından desteklenmiyor.",

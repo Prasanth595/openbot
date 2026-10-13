@@ -75,6 +75,7 @@ export const messages = {
     "Ce canevas de routines est trop volumineux pour être envoyé à cet appareil. Raccourcissez les instructions des routines sur l’ordinateur qui exécute le serveur.",
   "error.team.agentImportUnsupported": "L’importation d’agents n’est pas prise en charge par cette connexion.",
   "error.team.liveActivityUnsupported": "Cet hôte ne peut pas mettre à jour l’activité en direct d’un téléphone.",
+  "error.team.pushNotificationsUnsupported": "Cet hôte ne peut pas envoyer de notifications à un téléphone.",
   "error.team.agentUpdateTargetRequired": "Un agent à mettre à jour est requis.",
   "error.team.queueEditUnsupported": "Ce client ne prend pas en charge la modification de la file d’attente.",
   "error.team.skillsUnsupported": "Les compétences ne sont pas prises en charge par cette connexion.",

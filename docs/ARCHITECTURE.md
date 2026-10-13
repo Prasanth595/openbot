@@ -46,6 +46,7 @@ The architecture notes are in one file for each topic:
   - [Hosted servers](architecture/servers.md#hosted-servers)
 - [Channels, messaging, and mobile](architecture/channels-and-messaging.md)
   - [iPhone Live Activity updates](architecture/channels-and-messaging.md#iphone-live-activity-updates)
+  - [iPhone notifications](architecture/channels-and-messaging.md#iphone-notifications)
   - [Shared channel chats](architecture/channels-and-messaging.md#shared-channel-chats)
   - [Messaging connections](architecture/channels-and-messaging.md#messaging-connections)
   - [Mobile chat queue](architecture/channels-and-messaging.md#mobile-chat-queue)

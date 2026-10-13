@@ -122,7 +122,11 @@ export function SearchAgentsScreen() {
       { id: "language", title: t("mobile.settings.language.title"), detail: app },
       { id: "haptics", title: t("mobile.settings.feedback.haptics"), detail: app },
     ];
-    if (isIOS) pages.push({ id: "liveActivities", title: t("mobile.settings.liveActivities.title"), detail: app });
+    if (isIOS)
+      pages.push(
+        { id: "notifications", title: t("mobile.settings.notifications.title"), detail: app },
+        { id: "liveActivities", title: t("mobile.settings.liveActivities.title"), detail: app },
+      );
     pages.push(
       { id: "privacy", title: t("mobile.settings.privacy.title"), detail: app },
       { id: "hiddenChats", title: t("mobile.settings.conversations.hiddenChats"), detail: app },

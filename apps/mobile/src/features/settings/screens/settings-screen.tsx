@@ -44,10 +44,10 @@ export function SettingsScreen() {
         <SettingsRow onPress={() => router.push("/settings/haptics")}>
           <Typography.Paragraph type="body-sm">{t("mobile.settings.feedback.haptics")}</Typography.Paragraph>
         </SettingsRow>
-        {/* Live Activities exist only on iOS. */}
+        {/* Notifications come through Apple, and Live Activities exist only on iOS. One screen has both. */}
         {isIOS ? (
-          <SettingsRow onPress={() => router.push("/settings/live-activities")}>
-            <Typography.Paragraph type="body-sm">{t("mobile.settings.liveActivities.title")}</Typography.Paragraph>
+          <SettingsRow onPress={() => router.push("/settings/notifications")}>
+            <Typography.Paragraph type="body-sm">{t("mobile.settings.notifications.title")}</Typography.Paragraph>
           </SettingsRow>
         ) : null}
         <SettingsRow onPress={() => router.push("/settings/privacy")}>

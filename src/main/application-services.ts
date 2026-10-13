@@ -21,6 +21,8 @@ import { HOSTED_UPDATE_TRIGGER, HostedUpdateAdapter } from "./hosted-update-adap
 import { LocalSkillLibrary } from "./local-skill-library";
 import { localSkillTools } from "./local-skill-tools";
 import { MAC_PERMISSION_URLS } from "./mac-permission-urls";
+import { PushNotificationStore } from "./push-notification-store";
+import { DESKTOP_USE_MS } from "./push-notifications";
 import { RemoteWorkflowError, toRemoteWorkflowError } from "./remote-service-effects";
 /**
  * The composition root. Every long-lived service the desktop app owns is built here, in one
@@ -64,7 +66,7 @@ import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { REMOTE_ACCOUNT_CHECK_INTERVAL_MS } from "@openbot/team-client";
-import { app, type BrowserWindow, clipboard, nativeImage, safeStorage, screen, shell } from "electron";
+import { app, type BrowserWindow, clipboard, nativeImage, powerMonitor, safeStorage, screen, shell } from "electron";
 import { pasteCodeLoginSupported } from "../backend/agent/cli-code-login";
 import { toMcpGatewayFailed } from "../backend/agent/mcp-gateway";
 import { AgentLifecycleFailed, AgentService } from "../backend/agent-service";
@@ -245,6 +247,7 @@ const LANGUAGE_PREFERENCE_FILE = "openbot-language-preference-v1.json";
 const LOGO_COLOR_PREFERENCE_FILE = "openbot-logo-color-preference-v1.json";
 const UPDATE_PREFERENCE_FILE = "openbot-update-preference-v1.json";
 const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
+const PUSH_NOTIFICATION_FILE = "openbot-push-notifications-v1.json";
 const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
@@ -1721,6 +1724,8 @@ export async function createApplicationServices({
   // The live view of a sign-in page in this host's browser: only on Linux, where the Gemini CLI has
   // always printed its page. The relay takes the page on every platform.
   const providerHostSignIns = process.platform === "linux" ? providerSignIns : undefined;
+  const pushNotificationStore = new PushNotificationStore(join(app.getPath("userData"), PUSH_NOTIFICATION_FILE));
+  await runCauseEffect(pushNotificationStore.load());
   const host = new HostService({
     appVersion: app.getVersion(),
     store: teamStore,
@@ -1794,6 +1799,16 @@ export async function createApplicationServices({
     registerRemoteHost: (input) => centralAuth.registerRemoteHost(input).pipe(toRemoteWorkflowError),
     issueRemoteHostTicket: (hostId) => centralAuth.issueRemoteHostTicket(hostId).pipe(toRemoteWorkflowError),
     sendLiveActivityPush: (hostId, push) => centralAuth.sendLiveActivityPush(hostId, push).pipe(toRemoteWorkflowError),
+    sendPushNotification: (hostId, push) => centralAuth.sendPushNotification(hostId, push).pipe(toRemoteWorkflowError),
+    pushNotificationStore,
+    // The owner is at this computer only with recent input, also when the window was left in focus.
+    // Then the focused window shows the event, or the desktop notifies.
+    hostComputerInUse: () => {
+      const window = windows.getMainWindow();
+      if (!window || window.isDestroyed()) return false;
+      if (powerMonitor.getSystemIdleState(DESKTOP_USE_MS / 1_000) !== "active") return false;
+      return window.isFocused() || notificationPreference.get().desktopNotifications;
+    },
     verifyRemoteSessionTicket: (ticket) => centralAuth.verifyRemoteSessionTicket(ticket).pipe(toRemoteWorkflowError),
     endRemoteSession: (sessionId) => centralAuth.endRemoteSession(sessionId).pipe(toRemoteWorkflowError),
     remoteControlPlaneUrl: centralAuth.resolveApiUrl("/"),

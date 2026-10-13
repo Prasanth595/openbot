@@ -1,4 +1,9 @@
 export interface LiveActivityInstance<Props> {
+  /**
+   * When iOS started the activity, in milliseconds, or `null` when the app does not know, as for one
+   * that an older version started. iOS stops its updates 8 hours later.
+   */
+  readonly startedAt: number | null;
   update(props: Props, staleDate?: Date): Promise<void>;
   end(dismissalPolicy: "default" | "immediate"): Promise<void>;
   /** Calls `receive` with the push token of this activity, now and each time iOS changes it. */
@@ -16,15 +21,21 @@ export interface LiveActivityStarter<Props> {
  */
 export class LiveActivitySync<Props> {
   readonly #starter: LiveActivityStarter<Props>;
-  readonly #onPushToken: (token: string | null) => void;
+  readonly #onPushToken: (token: string | null, startedAt: number | null) => void;
   #activity: LiveActivityInstance<Props> | null = null;
   #stopWatch: (() => void) | null = null;
   /** The state the activity shows, or `null` when it is not known. */
   #shown: string | null;
   #queue: Promise<void> = Promise.resolve();
 
-  /** `onPushToken` receives the token the host updates the activity with, or `null` when there is no activity. */
-  constructor(starter: LiveActivityStarter<Props>, onPushToken: (token: string | null) => void = () => undefined) {
+  /**
+   * `onPushToken` receives the token the host updates the activity with and the start of the activity,
+   * or `null` when there is no activity.
+   */
+  constructor(
+    starter: LiveActivityStarter<Props>,
+    onPushToken: (token: string | null, startedAt: number | null) => void = () => undefined,
+  ) {
     this.#starter = starter;
     this.#onPushToken = onPushToken;
     // An activity from an earlier launch shows old state. Keep one to update and end the others.
@@ -79,8 +90,8 @@ export class LiveActivitySync<Props> {
     this.#stopWatch?.();
     this.#stopWatch = null;
     this.#activity = activity;
-    this.#onPushToken(null);
-    if (activity) this.#stopWatch = activity.watchPushToken((token) => this.#onPushToken(token));
+    this.#onPushToken(null, null);
+    if (activity) this.#stopWatch = activity.watchPushToken((token) => this.#onPushToken(token, activity.startedAt));
   }
 }
 

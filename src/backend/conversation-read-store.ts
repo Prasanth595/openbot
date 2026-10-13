@@ -136,9 +136,9 @@ export class ConversationReadStore {
   ): ConversationReadState {
     if (!threadId) return emptyReadState();
     const requestedKey = throughMessageId ? this.#messageOrderKey(threadId, throughMessageId) : undefined;
-    if (throughMessageId && !requestedKey) {
-      throw new Error(sourceText("error.backend.readBoundaryUnavailable"));
-    }
+    // A device can name a message the thread does not hold: a queued message that is not saved yet,
+    // or one that was cancelled or removed. The cursor stays, and the next mark moves it.
+    if (throughMessageId && !requestedKey) return this.readStateForThread(memberId, threadId, options);
     const stored = this.#storedCursor(threadId, memberId);
     let nextThroughMessageId = throughMessageId;
     if (stored && (!throughMessageId || this.#isAfter(threadId, stored, requestedKey))) {
