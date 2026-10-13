@@ -83,6 +83,7 @@ import type {
   InstallAgentTemplateResult,
   PublishAgentTemplateInput,
 } from "./ipc-agent-templates";
+import type { AgentWaitsSnapshot, CancelAgentWaitInput } from "./ipc-agent-waits";
 import type {
   AgentSummary,
   AvatarImageInput,
@@ -978,6 +979,8 @@ export const IPC_ENDPOINTS = {
     sendMessage: scopedRequest<SendMessageInput, QueuedMessageReceipt>()("agent:send-message"),
     setMessageReaction: scopedRequest<SetMessageReactionInput, void>()("agent:set-message-reaction"),
     listQueue: scopedRequest<string, QueueSnapshot>()("agent:list-queue"),
+    listWaits: scopedRequest<string, AgentWaitsSnapshot>()("agent:list-waits"),
+    cancelWait: scopedRequest<CancelAgentWaitInput, void>()("agent:cancel-wait"),
     acknowledgeFailedTurn: scopedRequest<AcknowledgeFailedTurnInput, void>()("agent:acknowledge-failed-turn"),
     cancelQueuedMessage: scopedRequest<CancelQueuedMessageInput, void>()("agent:cancel-queued-message"),
     steerQueuedMessage: scopedRequest<SteerQueuedMessageInput, void>()("agent:steer-queued-message"),

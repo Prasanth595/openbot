@@ -1,15 +1,17 @@
 import { AppLogo } from "@openbot/brand";
 import { createSignal, onSettled, Show } from "solid-js";
 import { Button } from "../ui/button";
+import { handOffToWebClient } from "./web-messaging-handoff";
 
 /**
- * The page that returns a Slack install to the desktop app. The install callback redirects here with
- * a sealed grant, or an error code, in the fragment. The page only builds the `openbot://` link:
- * only the host can open the grant.
+ * The page that returns a Slack install to the desktop app, or to the browser client tab that started
+ * it. The install callback redirects here with a sealed grant, or an error code, in the fragment. The
+ * page only builds the `openbot://` link or passes the grant on: only the host can open the grant.
  */
 export function SlackConnectPage() {
   const [openUrl, setOpenUrl] = createSignal("");
   const [failure, setFailure] = createSignal<string | null>(null);
+  const [webClient, setWebClient] = createSignal(false);
 
   onSettled(() => {
     const page = new URL(window.location.href);
@@ -21,15 +23,21 @@ export function SlackConnectPage() {
       setFailure(fragment.get("error") ?? "slack_failed");
       return;
     }
+    // When the client tab that started the install is gone, the start-again message shows.
+    const handoff = handOffToWebClient("slack", fragment);
+    if (handoff) {
+      void handoff.then((received) => (received ? setWebClient(true) : setFailure("slack_tab_closed")));
+      return;
+    }
     setOpenUrl(target);
     window.location.assign(target);
   });
 
-  return <SlackConnectView openUrl={openUrl()} failure={failure()} />;
+  return <SlackConnectView openUrl={openUrl()} failure={failure()} webClient={webClient()} />;
 }
 
 /** The page's card: the link back to OpenBot, or why Slack did not finish. */
-export function SlackConnectView(props: { openUrl: string; failure: string | null }) {
+export function SlackConnectView(props: { openUrl: string; failure: string | null; webClient?: boolean }) {
   return (
     <main class="join-page">
       <a class="landing-brand join-page-brand" href="/" aria-label="OpenBot home">
@@ -50,7 +58,11 @@ export function SlackConnectView(props: { openUrl: string; failure: string | nul
             </p>
           }
         >
-          <p class="join-card-copy">OpenBot finishes the Slack connection on your computer.</p>
+          <p class="join-card-copy">
+            {props.webClient
+              ? "Your OpenBot tab finishes the Slack connection. You can close this tab."
+              : "OpenBot finishes the Slack connection on your computer."}
+          </p>
           <Show when={props.openUrl}>
             {(href) => (
               <div class="join-card-actions join-card-actions-single">

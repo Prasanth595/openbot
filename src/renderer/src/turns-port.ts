@@ -8,10 +8,12 @@ export interface TurnsPort {
   agent: Pick<
     OpenBotDesktopApi["agent"],
     | "cancelQueuedMessage"
+    | "cancelWait"
     | "clearContext"
     | "interrupt"
     | "listQueue"
     | "listRoutines"
+    | "listWaits"
     | "reorderQueue"
     | "respondToApproval"
     | "respondToBrowserTakeover"

@@ -64,6 +64,7 @@ import {
   parseAgentId,
   parseApprovalResponse,
   parseBrowserTakeoverResponse,
+  parseCancelAgentWait,
   parseCancelMessageLink,
   parseCancelQueuedMessage,
   parseChannelId,
@@ -440,6 +441,17 @@ export function agentIpcHandlers({
         local: (agentId) => service.listQueue(agentId),
         remote: (agentId, serverId) =>
           runCauseEffect(remoteServers.request(serverId, TEAM_API_ROUTES.agent.queue(agentId), decodeQueueSnapshot)),
+      }),
+      // Open waits are local only: the Team API has no route for them.
+      listWaits: scopedHandler(parseAgentId, {
+        local: (agentId) => service.listWaits(agentId),
+        remote: (agentId) => ({ agentId, waits: [] }),
+      }),
+      cancelWait: scopedHandler(parseCancelAgentWait, {
+        local: (parsed) => service.cancelWait(parsed.agentId, parsed.waitId),
+        remote: () => {
+          throw new Error(sourceText("error.backend.agentWaitRemoteUnsupported"));
+        },
       }),
       acknowledgeFailedTurn: scopedHandler(parseAcknowledgeFailedTurn, {
         local: (parsed) => service.acknowledgeFailedTurn(parsed.agentId, parsed.turnId),

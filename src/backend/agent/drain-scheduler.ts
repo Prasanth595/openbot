@@ -430,6 +430,7 @@ export class DrainScheduler {
             snapshot,
             routineRun:
               item.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(item.delivery.id) : null,
+            wokenWaits: item.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(item.delivery.id) : [],
             executionText: execution?.text,
           }),
         ),

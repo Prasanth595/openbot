@@ -2,6 +2,7 @@ import type {
   AgentApproval,
   AgentContextState,
   AgentEvent,
+  AgentWaitsSnapshot,
   QueueSnapshot,
   RoutineFields,
 } from "@openbot/contracts/ipc";
@@ -82,6 +83,8 @@ const Turns = createSimpleContext({
     const [contextStates, setContextStates] = createSignal<Record<string, AgentContextState>>({});
     const [usageLimits, setUsageLimits] = createSignal<Record<string, number | null>>({});
     const [queues, setQueues] = createSignal<Record<string, QueueSnapshot>>(seed?.queues ?? {});
+    // Only the active agent's open waits load; a `waits-changed` event updates any agent.
+    const [waits, setWaits] = createSignal<Record<string, AgentWaitsSnapshot>>({});
     const [routinesByConversation, setRoutinesByConversation] = createSignal<
       Record<string, RoutineSnapshot | undefined>
     >({});
@@ -103,6 +106,7 @@ const Turns = createSimpleContext({
     );
     const completedTurnByAgent = new Map<string, string>();
     const queueSnapshotRequests = new Map<string, number>();
+    const waitSnapshotRequests = new Map<string, number>();
     const routineSnapshotRequests = new Map<string, number>();
 
     function refreshRoutineIds(agentId: string, serverId: string): void {
@@ -147,6 +151,27 @@ const Turns = createSimpleContext({
       () => ({ agentId: activeAgentId(), agentPhase: agentStatus().phase, serverId: activeServerId() }),
       ({ agentId, serverId }) => {
         if (agentId) loadQueue(agentId, serverId);
+      },
+    );
+
+    function loadWaits(agentId: string, serverId: string): void {
+      const request = (waitSnapshotRequests.get(agentId) ?? 0) + 1;
+      waitSnapshotRequests.set(agentId, request);
+      void turnsPort()
+        .agent.listWaits(agentId)
+        .then((snapshot) => {
+          if (!scopeIsCurrent() || waitSnapshotRequests.get(agentId) !== request) return;
+          setWaits((current) => ({ ...current, [agentId]: snapshot }));
+        })
+        .catch((error) => {
+          if (scopeIsCurrent()) appendUiError(agentId, error, currentText().t("app.errorStatus.waitsLoad"), serverId);
+        });
+    }
+
+    createEffect(
+      () => ({ agentId: activeAgentId(), agentPhase: agentStatus().phase, serverId: activeServerId() }),
+      ({ agentId, serverId }) => {
+        if (agentId) loadWaits(agentId, serverId);
       },
     );
 
@@ -281,6 +306,15 @@ const Turns = createSimpleContext({
         });
     }
 
+    function cancelWait(waitId: string) {
+      const agent = activeAgent();
+      if (!agent) return;
+      const serverId = activeServerId();
+      void turnsPort()
+        .agent.cancelWait({ agentId: agent.id, waitId })
+        .catch((error) => appendUiError(agent.id, error, currentText().t("app.errorStatus.waitCancel"), serverId));
+    }
+
     function steerQueuedMessage(deliveryId: string) {
       const agent = activeAgent();
       const turnId = agent ? activeTurns()[agent.id] : null;
@@ -362,6 +396,10 @@ const Turns = createSimpleContext({
       const agent = activeAgent();
       return agent ? queues()[agent.id] : undefined;
     });
+    const activeWaits = createMemo(() => {
+      const agent = activeAgent();
+      return agent ? (waits()[agent.id]?.waits ?? []) : [];
+    });
     const activeRoutineSnapshot = createMemo(() => {
       const agent = activeAgent();
       return agent ? routinesByConversation()[agentConversationKey(activeServerId(), agent.id)] : undefined;
@@ -392,6 +430,8 @@ const Turns = createSimpleContext({
       setUsageLimits,
       queues,
       setQueues,
+      setWaits,
+      waitSnapshotRequests,
       routinesByConversation,
       pendingPrompts,
       setPendingPrompts,
@@ -404,6 +444,7 @@ const Turns = createSimpleContext({
       completedTurnByAgent,
       queueSnapshotRequests,
       activeQueue,
+      activeWaits,
       activeRoutineIds,
       activeRoutines,
       refreshRoutineIds,
@@ -412,6 +453,7 @@ const Turns = createSimpleContext({
       respondToApprovalRequest,
       respondToBrowserTakeover,
       cancelQueuedMessage,
+      cancelWait,
       steerQueuedMessage,
       updateQueuedMessage,
       reorderQueue,

@@ -19,6 +19,7 @@ import type { ManagedProviderId } from "@openbot/contracts/agent-providers";
 import { parseHostedSiteList } from "@openbot/contracts/hosted-sites";
 import {
   type AddedAgent,
+  type AddMessagingOrchestratorResult,
   type AgentAdminSettings,
   type AgentProviderId,
   type AgentStatus,
@@ -39,6 +40,7 @@ import {
   decodeHostAgentTemplatePublication,
   decodeHostGitHubConnectorRepositories,
   decodeHostGitHubConnectorStatus,
+  decodeHostMessagingOverview,
   decodeHostReleaseStatus,
   decodeHostUpdateStatus,
   decodeInstalledSkills,
@@ -56,15 +58,21 @@ import {
   decodeStorageUsage,
   type GetStorageUsageInput,
   type GitHubConnectorRepositories,
+  type HostAddMessagingOrchestratorInput,
   type HostedSiteList,
   type HostGitHubConnectorStatus,
+  type HostMessagingConnectInput,
+  type HostMessagingPlatformInput,
+  type HostMessagingWorkspaceInput,
   type HostReleaseStatus,
+  type HostSetMessagingEnabledInput,
   type HostUpdateSettingsChange,
   type HostUpdateStatus,
   type InstallAgentTemplateInput,
   type InstalledSkill,
   type InstallMarketplaceAgentInput,
   type InstallSkillInput,
+  isAddMessagingOrchestratorResult,
   isAgentStatus,
   isSharedTable,
   type McpServerConfig,
@@ -73,6 +81,7 @@ import {
   type McpSignInState,
   type McpSignInStatus,
   type McpTestResult,
+  type MessagingOverview,
   type ProviderCodeLoginStart,
   type ProviderHostSignInStatus,
   type ProviderRuntimeSnapshot,
@@ -94,7 +103,7 @@ import {
   type UpdateHostIdentityInput,
   type UpdateRestartMode,
 } from "@openbot/contracts/ipc";
-import { guardedListDecoder } from "@openbot/contracts/ipc-decoding";
+import { decodeRecord, guardedListDecoder, nullableString, requiredBoolean } from "@openbot/contracts/ipc-decoding";
 import {
   decodeEventActivity,
   decodeEventRoutines,
@@ -825,5 +834,78 @@ export function githubConnectorRepositories(
 ): Effect.Effect<GitHubConnectorRepositories, TeamAdminRequestError> {
   return adminCall(() =>
     request("POST", CONNECTORS_ROUTES.githubRepositories, decodeHostGitHubConnectorRepositories, {}),
+  );
+}
+
+/** The host's Slack workspaces, Discord servers or Telegram chats (`connectors-v1`). */
+export function messagingConnectorOverview(
+  request: TeamApiRequest,
+  input: HostMessagingPlatformInput,
+): Effect.Effect<MessagingOverview, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", CONNECTORS_ROUTES.messagingOverview, decodeHostMessagingOverview, { ...input }),
+  );
+}
+
+/** The platform's page that the client opens. `url` is null when a reconnect needs no page. */
+export interface MessagingConnectorPage {
+  url: string | null;
+  nonce: string | null;
+}
+function decodeMessagingPage(value: unknown): MessagingConnectorPage {
+  const record = decodeRecord(value, "messaging page");
+  return { url: nullableString(record, "url"), nonce: nullableString(record, "nonce") };
+}
+export function messagingConnectorConnect(
+  request: TeamApiRequest,
+  input: HostMessagingConnectInput,
+): Effect.Effect<MessagingConnectorPage, TeamAdminRequestError> {
+  return adminCall(() => request("POST", CONNECTORS_ROUTES.messagingConnect, decodeMessagingPage, { ...input }));
+}
+export function messagingConnectorReconnect(
+  request: TeamApiRequest,
+  input: HostMessagingWorkspaceInput,
+): Effect.Effect<MessagingConnectorPage, TeamAdminRequestError> {
+  return adminCall(() => request("POST", CONNECTORS_ROUTES.messagingReconnect, decodeMessagingPage, { ...input }));
+}
+
+/** Sends the sealed grant of a Slack or Discord install to the host that started it. */
+export function messagingConnectorComplete(
+  request: TeamApiRequest,
+  input: { platform: "slack" | "discord"; nonce: string; grant: string },
+): Effect.Effect<boolean, TeamAdminRequestError> {
+  return adminCall(() =>
+    request(
+      "POST",
+      CONNECTORS_ROUTES.messagingComplete,
+      (value) => requiredBoolean(decodeRecord(value, "messaging install"), "accepted"),
+      { ...input },
+    ),
+  );
+}
+export function messagingConnectorDisconnect(
+  request: TeamApiRequest,
+  input: HostMessagingWorkspaceInput,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", CONNECTORS_ROUTES.messagingDisconnect, ignoreResponse, { ...input }));
+}
+export function messagingConnectorSetEnabled(
+  request: TeamApiRequest,
+  input: HostSetMessagingEnabledInput,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", CONNECTORS_ROUTES.messagingEnabled, ignoreResponse, { ...input }));
+}
+
+function decodeMessagingOrchestrator(value: unknown): AddMessagingOrchestratorResult {
+  if (!isAddMessagingOrchestratorResult(value)) throw new Error("Invalid messaging orchestrator response.");
+  return value;
+}
+/** The orchestrator starts on the host's default provider and model. */
+export function messagingConnectorAddOrchestrator(
+  request: TeamApiRequest,
+  input: HostAddMessagingOrchestratorInput,
+): Effect.Effect<AddMessagingOrchestratorResult, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", CONNECTORS_ROUTES.messagingOrchestrator, decodeMessagingOrchestrator, { ...input }),
   );
 }

@@ -155,6 +155,16 @@ export const messages = defineMessages("error.backend", {
   "error.backend.routineFlowDuplicate": "These agents are already connected in this routine.",
   "error.backend.routineFlowCycle": "This connection would make a loop.",
   "error.backend.routineFlowLinkLimit": "A routine can have at most {limit} connections.",
+  "error.backend.agentWaitLimit":
+    "This agent already has {count} open waits. Close a wait with openbot.close_wait before you open another one.",
+  "error.backend.agentWaitGone": "This wait is not open. The agent closed it, or someone cancelled it.",
+  "error.backend.agentWaitNoRequest": "A wait needs a message to continue. This turn has no message.",
+  "error.backend.agentWaitOwnChatOnly": "Open a wait only in your own chat. A channel or messaging task cannot wait.",
+  "error.backend.agentWaitNoteRequired": "Give a short note that says what the wait is for.",
+  "error.backend.agentWaitRoutineGone": "This agent has no routine with this id.",
+  "error.backend.agentWaitNoRoutine":
+    "Only a run of one of your routines wakes a wait, and you have no routine. Create one with openbot.create_routine, then open the wait.",
+  "error.backend.agentWaitRemoteUnsupported": "Open waits are only available for agents on this computer.",
   "error.backend.routineFlowHandoffFailed": "The routine could not pass the work on to this agent.",
   "error.backend.mcpServerLimit": "OpenBot keeps up to {limit} MCP servers.",
   "error.backend.mcpServerNameTaken": "An MCP server named {name} already exists.",

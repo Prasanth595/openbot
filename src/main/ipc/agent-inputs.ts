@@ -3,6 +3,7 @@ import {
   type AcknowledgeFailedTurnInput,
   type AgentIpcRequest,
   type AgentMemorySelectionChange,
+  type CancelAgentWaitInput,
   type CancelMessageLinkInput,
   type CancelQueuedMessageInput,
   type ChooseAttachmentsInput,
@@ -702,6 +703,14 @@ export function parseCancelQueuedMessage(value: unknown): CancelQueuedMessageInp
   return {
     agentId: requireString(value.agentId, "agentId"),
     deliveryId: requireString(value.deliveryId, "deliveryId"),
+  };
+}
+
+export function parseCancelAgentWait(value: unknown): CancelAgentWaitInput {
+  if (!isObject(value)) throw new Error("Invalid wait cancellation request.");
+  return {
+    agentId: requireString(value.agentId, "agentId"),
+    waitId: requireString(value.waitId, "waitId"),
   };
 }
 

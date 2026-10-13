@@ -83,7 +83,11 @@ import { readChannelSelection, writeChannelSelection } from "../channels/channel
 import { ChannelsControllerProvider } from "../channels/channels-context";
 import { createChannelsController } from "../channels/channels-controller";
 import { globalSearchChannels } from "../channels/global-search-channels";
+import { createDiscordConnector } from "../connectors/discord-connector";
 import { createGitHubConnector } from "../connectors/github-connector";
+import { hostMessagingApi } from "../connectors/host-messaging-port";
+import { createSlackConnector } from "../connectors/slack-connector";
+import { createTelegramConnector } from "../connectors/telegram-connector";
 import { Conversation, createConversationController } from "../conversation/Conversation";
 import { clearStoredQueueEdit } from "../conversation/composer-draft";
 import { ConversationControllerProvider } from "../conversation/conversation-controller-context";
@@ -116,6 +120,7 @@ import { createWebFileSaver } from "./web-file-download";
 import { webGitHubConnectorPort } from "./web-github-connector";
 import { createWebHostedServerCalls } from "./web-hosted-servers";
 import { createWebAgentTemplateCalls, createWebMarketplaceCalls } from "./web-marketplace";
+import { webHostMessaging } from "./web-messaging-connector";
 import { createWebServerNotifications } from "./web-notification-preferences";
 import { createWebNotificationRouting } from "./web-notification-routing";
 import { requestWebNotificationPermission } from "./web-notifications";
@@ -589,24 +594,36 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     relaySupported: () => workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY),
   });
   const marketplaceCalls = createWebMarketplaceCalls(props.accountFetch, hostRequest);
-  // The host's GitHub connection, for an owner or admin, when the host has a GitHub App.
+  // The host's connectors, for an owner or admin. GitHub shows when the host has a GitHub App.
+  const connectorsEnabled = createMemo(
+    () =>
+      workspace.state.capabilities.includes(CONNECTORS_CAPABILITY) &&
+      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+  );
   const githubPort = webGitHubConnectorPort(() => hostRequest());
   const githubController = createGitHubConnector(
     () => githubPort,
     () => server()?.name ?? null,
   );
-  const githubEnabled = createMemo(
-    () =>
-      workspace.state.capabilities.includes(CONNECTORS_CAPABILITY) &&
-      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
-  );
   createEffect(
-    () => githubEnabled() && server()?.id,
+    () => connectorsEnabled() && server()?.id,
     (id) => {
       if (id) githubController.reload();
     },
   );
-  const githubConnector = () => (githubEnabled() && githubController.status().available ? githubController : undefined);
+  const githubConnector = () =>
+    connectorsEnabled() && githubController.status().available ? githubController : undefined;
+  const webMessaging = webHostMessaging(hostRequest);
+  onCleanup(webMessaging.dispose);
+  const hostMessaging = {
+    messaging: hostMessagingApi(
+      () => (connectorsEnabled() ? server()?.id : undefined),
+      () => webMessaging.api,
+    ),
+  };
+  const slackController = createSlackConnector(() => hostMessaging);
+  const discordController = createDiscordConnector(() => hostMessaging);
+  const telegramController = createTelegramConnector(() => hostMessaging);
   const agentTemplateCalls = createWebAgentTemplateCalls(props.accountFetch, hostRequest);
   const [marketplaceOpen, setMarketplaceOpen] = createSignal(false);
   // A link opens its overlay once it has arrived, which can be after sign-in.
@@ -1078,12 +1095,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   initial={!workspace.state.workspaceLoaded}
                   issue={workspace.state.hostedIssue}
                   detail={
-                    !workspace.state.hostedSleep && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
                       ? (workspace.state.connectionError?.message ?? null)
                       : null
                   }
                   reference={
-                    !workspace.state.hostedSleep && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
                       ? (workspace.state.connectionError?.reference ?? null)
                       : null
                   }
@@ -1424,6 +1441,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     server={target()}
                     hostStatus={null}
                     githubConnector={githubConnector()}
+                    slackConnector={connectorsEnabled() ? slackController : undefined}
+                    discordConnector={connectorsEnabled() ? discordController : undefined}
+                    telegramConnector={connectorsEnabled() ? telegramController : undefined}
+                    connectorAgents={workspace.profiles()}
                     members={serverSettings.state.members}
                     invites={serverSettings.state.invites}
                     loading={serverSettings.state.loading}

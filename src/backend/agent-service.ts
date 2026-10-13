@@ -14,6 +14,7 @@ import type {
   AgentSessionSettings,
   AgentStatus,
   AgentSummary,
+  AgentWaitsSnapshot,
   AttachmentDataInput,
   AvatarImageInput,
   CancelMcpSignInInput,
@@ -159,6 +160,8 @@ import { toUsageReadFailed, UsageLimitGate } from "./agent/usage-limit-gate";
 import type { AgentProvider } from "./agent-client";
 import type { AgentTables } from "./agent-data/agent-tables";
 import type { AgentStore } from "./agent-store";
+import { AgentWaitStore } from "./agent-waits/agent-wait-store";
+import { AgentWaits } from "./agent-waits/agent-waits";
 import { automationRunCommand } from "./automation-command";
 import { toChannelOperationError } from "./channel-effects";
 import { ChannelRoutineScheduler } from "./channel-routine-scheduler";
@@ -309,6 +312,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #browser: AgentBrowserHost;
   readonly #reader: ConversationReader;
   readonly #memories: AgentMemories;
+  readonly #waits: AgentWaits;
   readonly #tables: AgentTables | null;
   readonly #routines: RoutineScheduler;
   readonly #routineTimer: RoutineTimer;
@@ -443,8 +447,18 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       () => this.#initialized && !this.#stopping,
       (code, error) => this.#emitError(code, error),
     );
+    this.#waits = new AgentWaits({
+      store: new AgentWaitStore({ database: store.database }),
+      mailbox,
+      hooks: {
+        emit: (event) => this.#emit(event),
+        ownsRoutine: (agentId, routineId) => this.#routines.getRecord(agentId, routineId) !== null,
+        hasRoutine: (agentId) => this.#routines.listRecordsFor(agentId).length > 0,
+      },
+    });
     this.#routines = new RoutineScheduler({
       timer: this.#routineTimer,
+      waits: this.#waits,
       store,
       mailbox,
       conversation: this.#conversation,
@@ -1031,6 +1045,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       hostedSites: this.#hostedSites,
       routines: this.#routines,
       memories: this.#memories,
+      waits: this.#waits,
       drain: this.#drain,
       tables: this.#tables,
       sidebarLayout: this.#sidebarLayout,
@@ -1334,7 +1349,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   /** A run that a local script starts through the automation server. Only for agents that allow it. */
   readonly runRoutineFromAutomation = Effect.fn("AgentService.runRoutineFromAutomation")(function* (
     this: AgentService,
-    input: TestRoutineInput & { payload: string },
+    input: TestRoutineInput & { payload: string; waitId?: string },
   ) {
     yield* lifecycleStep("validate automation run", () => {
       this.#requireAutomationAllowed(input.agentId);
@@ -2692,6 +2707,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   listQueue(agentId: string): QueueSnapshot {
     return this.#mailboxSync.queueSnapshot(agentId);
+  }
+
+  listWaits(agentId: string): AgentWaitsSnapshot {
+    return this.#waits.list(agentId);
+  }
+
+  /** The user cancels an open wait. */
+  cancelWait(agentId: string, waitId: string): void {
+    this.#waits.cancel(agentId, waitId);
   }
 
   acknowledgeFailedTurn(agentId: string, turnId: string): void {
