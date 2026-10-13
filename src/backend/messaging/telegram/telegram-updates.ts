@@ -268,7 +268,7 @@ function withoutMention(
   let result = text;
   for (const { offset, length } of cuts.sort((left, right) => right.offset - left.offset))
     result = result.slice(0, offset) + result.slice(offset + length);
-  return { text: result.replace(/[ \t]{2,}/gu, " ").trim(), mentioned: cuts.length > 0 };
+  return { text: result.trim(), mentioned: cuts.length > 0 };
 }
 
 function inboundFiles(message: DynamicRecord): InboundFile[] {
