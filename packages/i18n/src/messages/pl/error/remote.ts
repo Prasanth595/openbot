@@ -107,7 +107,7 @@ export const messages = {
   "error.remote.operationFailed": "Zdalna operacja nie powiodła się.",
   "error.remote.connectionReplaced": "Połączenie zostało zastąpione.",
   "error.remote.desktopDidNotConnect": "Komputer nie połączył się.",
-  "error.remote.desktopRestarted": "Komputer uruchomił się ponownie. Ponowne łączenie z nową uwierzytelnioną sesją.",
+  "error.remote.connectionDropped": "Serwer nie ma już tego połączenia. Ponowne łączenie.",
   "error.remote.dataBeforeAuth": "Host wysłał dane przed uwierzytelnieniem.",
   "error.remote.eventStreamGap": "W strumieniu zdarzeń hosta jest luka.",
   "error.remote.malformedEvent": "Host zwrócił uszkodzone zdarzenie.",

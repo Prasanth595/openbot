@@ -4,10 +4,11 @@ import type { AcpRegistrySettingsApi } from "@openbot/ui/features/custom-provide
 import type { CustomAgentSettingsApi } from "@openbot/ui/features/custom-providers/CustomAgentSettings";
 import { providerDiagnosticsText } from "@openbot/ui/features/provider-diagnostics/provider-diagnostics";
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
+import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import type { BitwardenConnectorPanelProps } from "@openbot/ui/features/settings/BitwardenConnectorPanel";
 import type { HostedSiteDeleteResult } from "@openbot/ui/features/settings/stores/hosted-sites-store";
 import { currentText } from "@openbot/ui/text";
-import { createEffect, Loading, Show } from "solid-js";
+import { createEffect, createMemo, Loading, Show } from "solid-js";
 import { actionToast } from "./action-toast";
 import { desktopAnalytics } from "./analytics";
 import { appPort } from "./app-port";
@@ -17,6 +18,8 @@ import { useAgents } from "./features/agents/agents-context";
 import { createBitwardenConnector } from "./features/connectors/bitwarden-connector";
 import { createDiscordConnector } from "./features/connectors/discord-connector";
 import { createGitHubConnector, type GitHubConnectorController } from "./features/connectors/github-connector";
+import { hostGitHubConnectorPort } from "./features/connectors/github-connector-port";
+import { hostMessagingApi } from "./features/connectors/host-messaging-port";
 import {
   createOnePasswordConnector,
   type OnePasswordConnectorController,
@@ -33,7 +36,12 @@ import { useRemoteDesktop } from "./features/remote-desktop/remote-desktop-conte
 import { AddServerOverlay } from "./features/servers/AddServerOverlay";
 import { mcpToolRuntimeNote } from "./features/servers/mcp-servers";
 import { useServerActions } from "./features/servers/server-actions";
-import { remoteMcpSignIn, serverCanAdminister, serverSupportsCapability } from "./features/servers/server-capabilities";
+import {
+  remoteAdminServer,
+  remoteMcpSignIn,
+  serverCanAdminister,
+  serverSupportsCapability,
+} from "./features/servers/server-capabilities";
 import { useServerSelection } from "./features/servers/server-selection";
 import { useServerSettings } from "./features/servers/server-settings";
 import { useServerSwitch } from "./features/servers/server-switch";
@@ -62,6 +70,28 @@ interface AccountProps {
 }
 
 /**
+ * The GitHub connection of the joined server that `server` names, when this account manages it there
+ * and the host has a GitHub App. The status is read again when the server changes.
+ */
+function createHostGitHubConnector(
+  server: () => ServerSummary | undefined,
+): () => GitHubConnectorController | undefined {
+  const target = createMemo(() => remoteAdminServer(server(), "connectors-v1"));
+  const port = hostGitHubConnectorPort(() => target()?.id);
+  const controller = createGitHubConnector(
+    () => port,
+    () => target()?.name ?? null,
+  );
+  createEffect(
+    () => target()?.id,
+    (id) => {
+      if (id) controller.reload();
+    },
+  );
+  return () => (target() && controller.status().available ? controller : undefined);
+}
+
+/**
  * Everything the workspace raises over itself: modals, dialogs and the two
  * full-window takeovers.
  *
@@ -82,10 +112,13 @@ export function WorkspaceOverlays(props: AccountProps) {
   const { skillsMarketplaceOpen } = useSettings();
   const { serverSettingsOpen, serverSettingsTarget } = useServerSettings();
   /* One GitHub connection of this computer, which Server settings and the Marketplace both show.
-     A build with no GitHub App has none. */
+     A build with no GitHub App has none. A joined server with `connectors-v1` has its own, which an
+     owner or admin manages from here; the Marketplace and Server settings can show two servers. */
   const github = createGitHubConnector();
-  const githubFor = (server: ServerSummary | undefined) =>
-    server?.kind === "local" && github.status().available ? github : undefined;
+  const marketplaceHostGitHub = createHostGitHubConnector(activeServer);
+  const settingsHostGitHub = createHostGitHubConnector(serverSettingsTarget);
+  const githubFor = (server: ServerSummary | undefined, host: () => GitHubConnectorController | undefined) =>
+    server?.kind === "local" ? (github.status().available ? github : undefined) : host();
   /* The 1Password connection of this computer. The browser that fills its logins runs here too. */
   const onePassword = createOnePasswordConnector();
   const bitwarden = createBitwardenConnector();
@@ -96,13 +129,16 @@ export function WorkspaceOverlays(props: AccountProps) {
   createEffect(
     () => skillsMarketplaceOpen() || serverSettingsOpen(),
     (open) => {
-      if (open) github.reload();
+      if (!open) return;
+      github.reload();
+      marketplaceHostGitHub()?.reload();
+      settingsHostGitHub()?.reload();
     },
   );
   return (
     <>
       <SkillsMarketplace
-        githubConnector={githubFor(activeServer())}
+        githubConnector={githubFor(activeServer(), marketplaceHostGitHub)}
         onePasswordConnector={onePasswordFor(activeServer())}
         bitwardenConnector={bitwardenFor(activeServer())}
       />
@@ -110,8 +146,9 @@ export function WorkspaceOverlays(props: AccountProps) {
       <JoinServer account={props.account} />
       <AddServer />
       <LeaveServer />
+      <RestartServer />
       <ServerSettings
-        githubConnector={githubFor(serverSettingsTarget())}
+        githubConnector={githubFor(serverSettingsTarget(), settingsHostGitHub)}
         onePasswordConnector={onePasswordFor(serverSettingsTarget())}
         bitwardenConnector={bitwardenFor(serverSettingsTarget())}
       />
@@ -251,6 +288,20 @@ function LeaveServer() {
   );
 }
 
+/** The hosted server restart confirmation that the server menu opens. */
+function RestartServer() {
+  const { restartConfirmServer, restartRestoreTarget, cancelRestartServer, restartConfirmedServer } =
+    useServerSettings();
+  return (
+    <RestartServerDialog
+      server={restartConfirmServer()}
+      onClose={cancelRestartServer}
+      onRestart={restartConfirmedServer}
+      restoreFocusTarget={restartRestoreTarget()}
+    />
+  );
+}
+
 /**
  * Settings for one server, which is any server on the rail rather than the
  * active one - hence the target held by the domain instead of `activeServer()`.
@@ -341,9 +392,15 @@ function ServerSettings(props: {
     serverSettingsMcpError,
     serverSettingsMcpSignIns,
     serverSettingsMcpSignInPages,
+    serverSettingsMcpSignInRelays,
+    openMcpSignInRelay,
+    pasteMcpSignInRelay,
     signInMcpServer,
     cancelMcpSignIn,
     signOutMcpServer,
+    mcpSignInApp,
+    saveMcpSignInApp,
+    removeMcpSignInApp,
     refreshMcpServers,
     saveMcpServer,
     removeMcpServer,
@@ -373,6 +430,15 @@ function ServerSettings(props: {
   const slack = createSlackConnector(undefined, orchestratorModels, collapseOrchestratorSection);
   const discord = createDiscordConnector(undefined, orchestratorModels, collapseOrchestratorSection);
   const telegram = createTelegramConnector(undefined, orchestratorModels, collapseOrchestratorSection);
+  // A joined server with `connectors-v1` has its own connections, which an owner or admin manages
+  // from here. Their orchestrators start on the host's default provider and model.
+  const hostMessagingTarget = createMemo(() => remoteAdminServer(serverSettingsTarget(), "connectors-v1"));
+  const hostMessaging = { messaging: hostMessagingApi(() => hostMessagingTarget()?.id) };
+  const hostSlack = createSlackConnector(() => hostMessaging);
+  const hostDiscord = createDiscordConnector(() => hostMessaging);
+  const hostTelegram = createTelegramConnector(() => hostMessaging);
+  const messagingFor = <T,>(server: ServerSummary, local: T, host: T) =>
+    server.kind === "local" ? local : hostMessagingTarget() ? host : undefined;
   // The workspace belongs to the selected server. For another server, the switch comes first and
   // the agent is published for the scope it lands in; a message there opens as its agent's chat.
   const openOnServer = (server: ServerSummary, agentId: string, open: () => void) => {
@@ -562,8 +628,8 @@ function ServerSettings(props: {
           onRemoveMcpServer={removeMcpServer}
           onSetMcpServerEnabled={setMcpServerEnabled}
           onTestMcpServer={testMcpServer}
-          // A sign-in opens the browser of the computer that runs the server. A remote host's page
-          // shows here through the live view, which streams the active server only.
+          // A remote host with `sign-in-relay-v1` opens the page in this computer's browser. An older
+          // host's page shows here through the live view, which streams the active server only.
           mcpSignIn={
             server().kind === "local" || remoteMcpSignIn(server())
               ? {
@@ -575,11 +641,21 @@ function ServerSettings(props: {
                           runtime: conversationPort().browser,
                           clipboard: serverSupportsCapability(server(), "browser-view-clipboard"),
                           pages: serverSettingsMcpSignInPages(),
+                          relay: serverSupportsCapability(server(), "sign-in-relay-v1")
+                            ? {
+                                pages: serverSettingsMcpSignInRelays(),
+                                open: openMcpSignInRelay,
+                                paste: pasteMcpSignInRelay,
+                              }
+                            : undefined,
                         }
                       : undefined,
                   start: signInMcpServer,
                   cancel: cancelMcpSignIn,
                   signOut: signOutMcpServer,
+                  app: serverSupportsCapability(server(), "mcp-sign-in-app-v1")
+                    ? { load: mcpSignInApp, save: saveMcpSignInApp, remove: removeMcpSignInApp }
+                    : undefined,
                 }
               : undefined
           }
@@ -615,12 +691,12 @@ function ServerSettings(props: {
           githubConnector={props.githubConnector}
           onePasswordConnector={props.onePasswordConnector}
           bitwardenConnector={props.bitwardenConnector}
-          // Slack and Discord are connected on the computer that runs the agents: they open this
-          // computer's browser and return to its `openbot://` link.
-          slackConnector={server().kind === "local" ? slack : undefined}
-          discordConnector={server().kind === "local" ? discord : undefined}
-          // A Telegram chat links to this computer: main opens the `t.me` link in this computer's browser.
-          telegramConnector={server().kind === "local" ? telegram : undefined}
+          // Slack and Discord are connected on the computer that runs the agents. Their pages open in
+          // this computer's browser and return to its `openbot://` link, which main sends on to a
+          // joined server. A Telegram chat links to the host by its `t.me` code.
+          slackConnector={messagingFor(server(), slack, hostSlack)}
+          discordConnector={messagingFor(server(), discord, hostDiscord)}
+          telegramConnector={messagingFor(server(), telegram, hostTelegram)}
           connectorAgents={agentList()}
           // The feed listens on this computer, so a calendar app on another one cannot read it.
           routineFeed={
@@ -696,6 +772,10 @@ function AppSettings(props: AccountProps) {
         onUpdateAccountName={auth.updateAccountName}
         onUpdateAccountAvatar={auth.updateAccountAvatar}
         onCreateMobileConnect={auth.createMobileConnect}
+        onCancelMobileConnect={auth.cancelMobileConnect}
+        onGetMobileConnectLink={auth.getMobileConnectLink}
+        onCreateMobileConnectLink={auth.createMobileConnectLink}
+        onRevokeMobileConnectLink={auth.revokeMobileConnectLink}
         onListMobileConnectedDevices={auth.listMobileConnectedDevices}
         onRevokeMobileConnectedDevice={auth.revokeMobileConnectedDevice}
         onListAccountSessions={auth.listAccountSessions}

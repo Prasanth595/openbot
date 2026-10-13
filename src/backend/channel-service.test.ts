@@ -1137,6 +1137,47 @@ describe("shared channel coordination", () => {
     expect(service.store.messages("channel-1").some((message) => message.id === "history-receipt")).toBe(true);
   });
 
+  it("keeps a member's thinking out of the history another member reads", async () => {
+    const task = await send("Write the report");
+    const reply = (id: string, text: string, itemType?: string): ChannelMessage => ({
+      id,
+      channelId: "channel-1",
+      sequence: 0,
+      author: { kind: "agent", id: "agent-a", name: "A" },
+      taskId: task.id,
+      superseded: false,
+      message: {
+        id,
+        author: "assistant",
+        text,
+        status: "completed",
+        createdAt: "2026-09-07T12:00:00.000Z",
+        turnId: "turn-a",
+        ...(itemType ? { itemType } : {}),
+      },
+    });
+    service.store.update(service.store.get("channel-1"), {
+      messages: [
+        reply("turn-a:reasoning", "PRIVATE_THINKING", "commentary"),
+        reply("turn-b:thought:1", "PRIVATE_THOUGHT", "commentary"),
+        reply("turn-a:narration:0", "The draft is in report.md.", "commentary"),
+        reply("turn-a:assistant", "The report is ready."),
+      ],
+    });
+    const history = new ChannelHistory(service.store, vi.fn<ChannelTextModel>(), service.memories);
+    const prepared = await runChannel(
+      history.prepare(task, required(data.store.list()[0]), required(data.store.list()[0])),
+    );
+    // Claude rejects a request that carries another model's thinking, for every member of the channel.
+    expect(prepared.text).toContain("The report is ready.");
+    expect(prepared.text).not.toContain("PRIVATE_THINKING");
+    expect(prepared.text).not.toContain("PRIVATE_THOUGHT");
+    // Text between tool calls can be the only answer of a turn, so the other members keep it.
+    expect(prepared.text).toContain("The draft is in report.md.");
+    // The reader still sees the thinking in the channel.
+    expect(service.store.messages("channel-1").some((message) => message.id === "turn-a:reasoning")).toBe(true);
+  });
+
   it("transfers one owner and waits for the declared task dependency", async () => {
     const task = await send("Write the report");
     const assignment = required(service.store.assignments("channel-1")[0]);
@@ -1635,6 +1676,27 @@ describe("shared channel coordination", () => {
     expect(data.mailbox.hasUnfinishedDelivery("agent-b")).toBe(true);
   });
 
+  it("frees the agents held behind channel work when channels are retired, and refuses new channels", async () => {
+    await send("Inspect project A");
+    await runChannel(
+      data.mailbox.enqueue({
+        sender: { kind: "user" },
+        recipientAgentIds: ["agent-b"],
+        text: "Draft the release note",
+        idempotencyKey: "test:channel-hold:retired",
+      }),
+    );
+    expect(service.mayDrain("agent-b")).toBe(false);
+    await runChannel(service.retire());
+    // Retirement archives a channel with work in it; a hold left behind would keep every agent queued.
+    expect(service.store.archivedIds().has("channel-1")).toBe(true);
+    expect(service.mayDrain("agent-b")).toBe(true);
+    expect(data.mailbox.listQueue("agent-b").deliveries.map((delivery) => delivery.status)).toEqual(["queued"]);
+    await expect(
+      runChannel(service.command({ type: "save", channelId: "channel-2", operationId: operationId(), draft }, actor)),
+    ).rejects.toThrow("Channels are no longer supported.");
+  });
+
   it("schedules the agents held behind a channel assignment when it fails to start", async () => {
     await send("Inspect project A");
     const deliveryId = required(service.store.assignments("channel-1").find((item) => item.deliveryId)?.deliveryId);
@@ -1730,6 +1792,137 @@ describe("shared channel coordination", () => {
     // is cancelled on arrival. It carries the agents that waited behind the reservation with it.
     await vi.waitFor(() => expect(schedule.mock.calls.map(([agentId]) => agentId)).toContain("agent-b"));
     expect(service.mayDrain("agent-b")).toBe(true);
+  });
+
+  it("starts the task that waited longest for the host before a newer task of another channel", async () => {
+    await runChannel(data.store.getOrCreate("agent-c"));
+    const members = data.store.list().map((agent) => ({ agentId: agent.id }));
+    await runChannel(
+      service.command(
+        { type: "save", channelId: "channel-1", operationId: operationId(), draft: { ...draft, members } },
+        actor,
+      ),
+    );
+    await runChannel(
+      service.command(
+        {
+          type: "save",
+          channelId: "channel-2",
+          operationId: operationId(),
+          draft: { ...draft, members, title: "Second channel" },
+        },
+        actor,
+      ),
+    );
+    const sendTo = (channelId: string, recipientAgentId: string) =>
+      runChannel(
+        service.command(
+          {
+            type: "send",
+            channelId,
+            operationId: operationId(),
+            text: `Work for ${recipientAgentId}`,
+            recipientAgentId,
+            replyToMessageId: null,
+            attachmentDraftIds: [],
+          },
+          actor,
+        ),
+      );
+    // Channel 1 holds the host. A task of channel 2 waits for it, then a newer task of channel 1.
+    await sendTo("channel-1", "agent-a");
+    await vi.waitFor(() => expect(service.store.assignments("channel-1")).toHaveLength(1));
+    await sendTo("channel-2", "agent-b");
+    await sendTo("channel-1", "agent-c");
+    const starting = required(service.store.assignments("channel-1")[0]);
+    const deliveryId = required(starting.deliveryId);
+    await runChannel(service.prepare(required(data.mailbox.getDelivery(deliveryId))));
+    await runChannel(data.mailbox.markStarting(deliveryId));
+    await runChannel(data.mailbox.markRunning(deliveryId, "turn-host"));
+    await runChannel(service.accepted(deliveryId, "session-host", "turn-host"));
+    const older = required(service.store.tasks("channel-2")[0]);
+    const newer = required(service.store.tasks("channel-1").find((item) => item.ownerAgentId === "agent-c"));
+    expect(older.state).toBe("queued");
+    expect(newer.state).toBe("queued");
+
+    // The first assignment ends. Pump channel 1 alone, as if it came first: its newer task must not
+    // take the host from the older task of channel 2.
+    const wake = vi.spyOn(service, "wake").mockImplementation(() => Effect.void);
+    await runChannel(data.mailbox.markTerminal(deliveryId, "completed"));
+    service.event({
+      type: "turn-completed",
+      agentId: "agent-a",
+      threadId: service.store.context("channel-1", "agent-a").threadId,
+      turnId: "turn-host",
+      status: "completed",
+    });
+    wake.mockRestore();
+    await runChannel(service.wake("channel-1"));
+    await runChannel(service.wake("channel-2"));
+    await vi.waitFor(() => expect(service.store.assignments("channel-2")).toHaveLength(1));
+    expect(service.store.assignments("channel-2")[0]?.taskId).toBe(older.id);
+    expect(service.store.assignments("channel-1").some((item) => item.taskId === newer.id)).toBe(false);
+  });
+
+  it("lets a waiting task that its own channel skips hold back no task of another channel", async () => {
+    await runChannel(data.store.getOrCreate("agent-c"));
+    const members = data.store.list().map((agent) => ({ agentId: agent.id }));
+    for (const [channelId, title] of [
+      ["channel-1", draft.title],
+      ["channel-2", "Second channel"],
+    ] as const)
+      await runChannel(
+        service.command(
+          { type: "save", channelId, operationId: operationId(), draft: { ...draft, members, title } },
+          actor,
+        ),
+      );
+    const root = await send("Lead the work");
+    const deliveryId = required(required(service.store.assignments("channel-1")[0]).deliveryId);
+    await runChannel(service.prepare(required(data.mailbox.getDelivery(deliveryId))));
+    await runChannel(data.mailbox.markStarting(deliveryId));
+    await runChannel(data.mailbox.markRunning(deliveryId, "root-turn"));
+    await runChannel(service.accepted(deliveryId, "session-root", "root-turn"));
+    // The child waits behind the host that its root holds, so it takes a place in the queue.
+    busy.mockClear();
+    await runChannel(
+      service.tool("channel-1", "agent-a", "root-turn", "child-1", "channel_assign", {
+        recipientAgentId: "agent-b",
+        task: "Inspect project B",
+        expectedResult: "Findings B",
+        sourceMessageIds: [root.requestMessageId],
+        resources: ["workspace:/work/b"],
+      }),
+    );
+    await vi.waitFor(() => expect(busy).toHaveBeenCalledWith("agent-b"));
+
+    // Only the root stops. Its child stays queued, and its pump skips it while the root is paused.
+    service.deliveryUncertain(deliveryId);
+    await runChannel(data.mailbox.markTerminal(deliveryId, "completed"));
+    service.event({
+      type: "turn-completed",
+      agentId: "agent-a",
+      threadId: service.store.context("channel-1", "agent-a").threadId,
+      turnId: "root-turn",
+      status: "completed",
+    });
+    await runChannel(
+      service.command(
+        {
+          type: "send",
+          channelId: "channel-2",
+          operationId: operationId(),
+          text: "Other work",
+          recipientAgentId: "agent-c",
+          replyToMessageId: null,
+          attachmentDraftIds: [],
+        },
+        actor,
+      ),
+    );
+
+    await vi.waitFor(() => expect(service.store.assignments("channel-2")).toHaveLength(1));
+    expect(service.store.tasks("channel-1").find((item) => item.parentTaskId === root.id)?.state).toBe("queued");
   });
 
   it("keeps channel deliveries ahead of normal messages queued during attachment copying", async () => {

@@ -76,7 +76,11 @@ interface ChannelChange {
   assignments: ChannelAssignment[];
 }
 
-/** Owns durable channel records. Every change and its retry receipt commit together. */
+/**
+ * Owns durable channel records. Every change and its retry receipt commit together.
+ *
+ * Deprecated: channels are archived at start. The next release removes this store and its tables.
+ */
 export class ChannelStore {
   constructor(readonly database: OpenBotDatabase) {}
 

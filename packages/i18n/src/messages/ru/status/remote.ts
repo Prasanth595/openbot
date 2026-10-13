@@ -18,7 +18,6 @@ export const messages = {
   "status.remote.stageCompatibility": "Проверка совместимости компьютера: {reason}",
   "status.remote.stageAgents": "Загрузка агентов: {reason}",
   "status.remote.stageReads": "Загрузка статуса прочтения: {reason}",
-  "status.remote.stageConversations": "Загрузка диалогов: {reason}",
   "status.remote.suspendedDetail":
     "Обновите OpenBot Mobile или приложение для компьютера, прежде чем подключаться.\n{detail}",
   "status.remote.cooldownDetail":

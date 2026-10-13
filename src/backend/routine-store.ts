@@ -5,6 +5,7 @@ import type {
   RoutineLimitPolicy,
   RoutineMissedPolicy,
   RoutineRunFields,
+  RoutineRunSource,
   RoutineRunStatus,
   RoutineSchedule,
 } from "@openbot/contracts/ipc";
@@ -13,6 +14,7 @@ import {
   ROUTINE_LIMIT_POLICIES,
   ROUTINE_MISSED_COUNT_LIMIT,
   ROUTINE_MISSED_POLICIES,
+  ROUTINE_RUN_SOURCES,
 } from "@openbot/contracts/ipc";
 import type { EventFilter, EventJsonValue, EventRoutineOwner } from "@openbot/contracts/ipc-events";
 import { type DynamicRecord, isDynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
@@ -65,6 +67,9 @@ export interface RoutineTables {
 export interface OwnedRoutine extends RoutineFields {
   ownerId: string;
 }
+
+/** What starts a run: its trigger, or the source of a manual run. */
+export type RoutineRunStart = "scheduled" | RoutineRunSource;
 
 /** A run read back with its owner and the handle that names the work it started. */
 export interface OwnedRoutineRun extends RoutineRunFields {
@@ -172,7 +177,8 @@ export class RoutineStore {
 
   protected get runColumns(): string {
     return `run_id, routine_id, ${this.tables.ownerColumn}, trigger_id, run_kind, scheduled_for, routine_name,
-            instruction, ${this.tables.handleColumn}, status, error, missed_count, missed_until, created_at, updated_at`;
+            instruction, ${this.tables.handleColumn}, status, error, missed_count, missed_until, run_source, created_at,
+            updated_at`;
   }
 
   protected listRoutines(ownerId: string): OwnedRoutine[] {
@@ -510,12 +516,12 @@ export class RoutineStore {
           aggregateType: runAggregate,
           aggregateId: routineId,
           eventType: `${eventPrefix}.run-created`,
-          payload: { runId, triggerId: null, kind: "manual", scheduledFor: event.receivedAt },
+          payload: { runId, triggerId: null, kind: "manual", source: "webhook", scheduledFor: event.receivedAt },
         },
       ],
       (db, sequences): WebhookReceiveResult => {
         insertWebhookReceipt(db, { ...receipt, status: "started", reason: null, runId });
-        this.#insertRun(db, runId, { ...routine, instruction }, null, "manual", event.receivedAt, sequences[0] ?? 0);
+        this.#insertRun(db, runId, { ...routine, instruction }, null, "webhook", event.receivedAt, sequences[0] ?? 0);
         return { kind: "started", run: this.#requireRun(runId) };
       },
     );
@@ -816,7 +822,7 @@ export class RoutineStore {
   protected createRunRow(
     routine: RunSource,
     triggerId: string | null,
-    kind: OwnedRoutineRun["kind"],
+    start: RoutineRunStart,
     scheduledFor: string,
   ): OwnedRoutineRun {
     const { commandPrefix, eventPrefix, runAggregate } = this.tables;
@@ -831,11 +837,11 @@ export class RoutineStore {
           aggregateType: runAggregate,
           aggregateId: routine.id,
           eventType: `${eventPrefix}.run-created`,
-          payload: { runId, triggerId, kind, scheduledFor },
+          payload: { runId, triggerId, ...runStartColumns(start), scheduledFor },
         },
       ],
       (db, sequences) => {
-        this.#insertRun(db, runId, routine, triggerId, kind, scheduledFor, sequences[0] ?? 0);
+        this.#insertRun(db, runId, routine, triggerId, start, scheduledFor, sequences[0] ?? 0);
         return this.#requireRun(runId);
       },
     );
@@ -846,23 +852,25 @@ export class RoutineStore {
     runId: string,
     routine: RunSource,
     triggerId: string | null,
-    kind: OwnedRoutineRun["kind"],
+    start: RoutineRunStart,
     scheduledFor: string,
     sequence: number,
   ): void {
     const { runTable, ownerColumn, handleColumn } = this.tables;
     const createdAt = new Date().toISOString();
+    const { kind, source } = runStartColumns(start);
     db.prepare(
       `INSERT INTO ${runTable} (
-         run_id, routine_id, ${ownerColumn}, trigger_id, run_kind, scheduled_for, routine_name, instruction,
-         ${handleColumn}, status, error, created_at, updated_at, last_event_sequence
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 'queued', NULL, ?, ?, ?)`,
+         run_id, routine_id, ${ownerColumn}, trigger_id, run_kind, run_source, scheduled_for, routine_name,
+         instruction, ${handleColumn}, status, error, created_at, updated_at, last_event_sequence
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'queued', NULL, ?, ?, ?)`,
     ).run(
       runId,
       routine.id,
       routine.ownerId,
       triggerId,
       kind,
+      source ?? null,
       scheduledFor,
       routine.name,
       routine.instruction,
@@ -992,6 +1000,10 @@ export class RoutineStore {
     if (!isRoutineRunStatus(status)) throw new Error("The stored routine run status is invalid.");
     const kind = requiredStringColumn(row, "run_kind");
     if (kind !== "scheduled" && kind !== "manual") throw new Error("The stored routine run kind is invalid.");
+    const source = optionalStringColumn(row, "run_source");
+    if (source !== null && !isOneOf(ROUTINE_RUN_SOURCES, source)) {
+      throw new Error("The stored routine run source is invalid.");
+    }
     const missedCount = row.missed_count;
     return {
       id: requiredStringColumn(row, "run_id"),
@@ -999,6 +1011,7 @@ export class RoutineStore {
       ownerId: requiredStringColumn(row, this.tables.ownerColumn),
       triggerId: optionalStringColumn(row, "trigger_id"),
       kind,
+      ...(source === null ? {} : { source }),
       scheduledFor: requiredStringColumn(row, "scheduled_for"),
       routineName: requiredStringColumn(row, "routine_name"),
       instruction: requiredStringColumn(row, "instruction"),
@@ -1158,6 +1171,11 @@ function scheduleColumn(row: DynamicRecord): RoutineSchedule {
   const value = JSON.parse(requiredStringColumn(row, "schedule_json"));
   if (!isRoutineSchedule(value)) throw new Error("The stored routine schedule is invalid.");
   return value;
+}
+
+/** The stored kind of a run, and the source of a manual one. */
+function runStartColumns(start: RoutineRunStart): Pick<RoutineRunFields, "kind" | "source"> {
+  return start === "scheduled" ? { kind: "scheduled" } : { kind: "manual", source: start };
 }
 
 function isRoutineRunStatus(value: string): value is RoutineRunStatus {

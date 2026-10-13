@@ -290,9 +290,27 @@ class MemoryAuthRepository implements AuthRepository {
         platform: input.device.platform,
         connectedAt: input.now,
         lastActiveAt: input.now,
+        via: "code",
       });
       return { sessionToken: input.session.token, user: ticket.user };
     });
+  }
+
+  // Persistent links run against SQLite in d1-auth-repository.test.ts.
+  cancelMobileAuthTickets(): Effect.Effect<void, AuthStoreError> {
+    return Effect.void;
+  }
+
+  replaceMobileConnectLink(): Effect.Effect<boolean, AuthStoreError> {
+    return Effect.succeed(false);
+  }
+
+  revokeMobileConnectLink(): Effect.Effect<void, AuthStoreError> {
+    return Effect.void;
+  }
+
+  redeemMobileConnectLink(): Effect.Effect<null, AuthStoreError> {
+    return Effect.succeed(null);
   }
 
   authenticateMobileSession(sessionToken: string, now: number): Effect.Effect<AuthUser | null, AuthStoreError> {

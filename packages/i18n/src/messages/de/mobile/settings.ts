@@ -42,6 +42,7 @@ export const messages = {
   "mobile.settings.support.empty": "Noch keine Ereignisse.",
   "mobile.settings.sessions.kindDesktop": "Desktop",
   "mobile.settings.sessions.kindMobile": "Mobil",
+  "mobile.settings.sessions.kindHostedServer": "Gehosteter Server",
   "mobile.settings.sessions.title": "Angemeldete Geräte",
   "mobile.settings.sessions.loading": "Sitzungen werden geladen…",
   "mobile.settings.sessions.refresh": "Sitzungen aktualisieren",
@@ -85,6 +86,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Antworten animieren",
   "mobile.settings.animations.textRevealFooter":
     "Eine Antwort erscheint Wort für Wort, und ihre Sprechblase wächst sanft mit. Wenn dies aus ist, wird der Text angezeigt, sobald er ankommt.",
+  "mobile.settings.animations.searchTransitions": "Suchergebnisse animieren",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Suchergebnisse und Suchhinweise blenden mit einer kurzen Unschärfe ein und aus, wenn sie sich ändern. Wenn Bewegungen reduziert sind, blenden sie nur ein und aus. Wenn dies aus ist, ändern sie sich sofort.",
   "mobile.settings.feedback.footer": "Haptisches Feedback für Aktionen in der App auf diesem Gerät.",
   "mobile.settings.feedback.haptics": "Haptik",
   "mobile.settings.feedback.retry": "Haptikeinstellung erneut speichern",

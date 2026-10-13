@@ -28,11 +28,13 @@ import { z } from "zod";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
+import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
 import type { ProviderSession } from "../database/provider-sessions";
 import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
+import type { MessagingThreads } from "../messaging/messaging-threads";
 import { CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH, htmlPreviewToolSchema, htmlRenderToolSchema } from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
@@ -118,9 +120,11 @@ export interface OpenBotToolRouterOptions {
   browserUploads: BrowserUploads;
   attachments: AttachmentGateway;
   channels: ChannelService;
+  messaging: MessagingThreads;
   hostedSites: HostedSiteCoordinator;
   routines: RoutineScheduler;
   memories: AgentMemories;
+  waits: AgentWaits;
   drain: DrainScheduler;
   tables: AgentTables | null;
   sidebarLayout: AgentSidebar | null;
@@ -150,9 +154,11 @@ export class OpenBotToolRouter {
   readonly #browserUploads: BrowserUploads;
   readonly #attachments: AttachmentGateway;
   readonly #channels: ChannelService;
+  readonly #messaging: MessagingThreads;
   readonly #hostedSites: HostedSiteCoordinator;
   readonly #routines: RoutineScheduler;
   readonly #memories: AgentMemories;
+  readonly #waits: AgentWaits;
   readonly #drain: DrainScheduler;
   readonly #tables: AgentTables | null;
   readonly #sidebarLayout: AgentSidebar | null;
@@ -178,9 +184,11 @@ export class OpenBotToolRouter {
     this.#browserUploads = options.browserUploads;
     this.#attachments = options.attachments;
     this.#channels = options.channels;
+    this.#messaging = options.messaging;
     this.#hostedSites = options.hostedSites;
     this.#routines = options.routines;
     this.#memories = options.memories;
+    this.#waits = options.waits;
     this.#drain = options.drain;
     this.#tables = options.tables;
     this.#sidebarLayout = options.sidebarLayout;
@@ -556,6 +564,15 @@ export class OpenBotToolRouter {
     }
 
     const executionThreadId = this.#conversation.publicThreadId(senderAgentId, params.threadId);
+    if (params.tool.startsWith("messaging_")) {
+      // Only the agent that answers a platform conversation, in that conversation's own thread.
+      const link = this.#messaging.store.linkForThread(executionThreadId);
+      if (!link || link.agentId !== senderAgentId)
+        return openBotToolFailure(
+          "Messaging tools work only in a turn that answers a Slack, Discord or Telegram message.",
+        );
+      return yield* this.#messaging.tool(link, params.turnId, params.callId, params.tool, params.arguments);
+    }
     const channelId = this.#channels.store.channelForThread(executionThreadId);
     if (channelId && (params.tool.startsWith("channel_") || params.tool === "send_message")) {
       if (params.tool === "send_message") throw new Error("Use channel_assign or channel_transfer for channel work.");
@@ -691,6 +708,14 @@ export class OpenBotToolRouter {
 
     const memoryResult = this.#memories.handleTool(params, senderAgentId, this.#hooks.redactMcp);
     if (memoryResult) return memoryResult;
+
+    const waitResult = this.#waits.handleTool(params, {
+      agentId: senderAgentId,
+      inExecutionThread: this.#conversation.isExecutionThread(
+        this.#conversation.publicThreadId(senderAgentId, params.threadId),
+      ),
+    });
+    if (waitResult) return waitResult;
 
     const tableResult = yield* handleDataTool(params.tool, params.arguments, senderAgentId, this.#tables);
     if (tableResult) return tableResult;

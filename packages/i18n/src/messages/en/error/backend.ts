@@ -52,6 +52,8 @@ export const messages = defineMessages("error.backend", {
   "error.backend.channelNotFound": "Channel not found.",
   "error.backend.channelMemberUnavailable": "A channel member is unavailable.",
   "error.backend.channelArchived": "Restore this channel before sending messages or changing tasks.",
+  "error.backend.channelsRetired":
+    "Channels are no longer supported. Put agents in one sidebar section to make them work together.",
   "error.backend.channelReferenceUnavailable": "The referenced channel message is unavailable.",
   "error.backend.channelTaskNotFound": "Channel task not found.",
   "error.backend.channelTaskComplete": "This task is already complete.",
@@ -153,8 +155,17 @@ export const messages = defineMessages("error.backend", {
   "error.backend.routineFlowDuplicate": "These agents are already connected in this routine.",
   "error.backend.routineFlowCycle": "This connection would make a loop.",
   "error.backend.routineFlowLinkLimit": "A routine can have at most {limit} connections.",
+  "error.backend.agentWaitLimit":
+    "This agent already has {count} open waits. Close a wait with openbot.close_wait before you open another one.",
+  "error.backend.agentWaitGone": "This wait is not open. The agent closed it, or someone cancelled it.",
+  "error.backend.agentWaitNoRequest": "A wait needs a message to continue. This turn has no message.",
+  "error.backend.agentWaitOwnChatOnly": "Open a wait only in your own chat. A channel or messaging task cannot wait.",
+  "error.backend.agentWaitNoteRequired": "Give a short note that says what the wait is for.",
+  "error.backend.agentWaitRoutineGone": "This agent has no routine with this id.",
+  "error.backend.agentWaitNoRoutine":
+    "Only a run of one of your routines wakes a wait, and you have no routine. Create one with openbot.create_routine, then open the wait.",
+  "error.backend.agentWaitRemoteUnsupported": "Open waits are only available for agents on this computer.",
   "error.backend.routineFlowHandoffFailed": "The routine could not pass the work on to this agent.",
-  "error.backend.routineFlowRemoteUnsupported": "Routine flows are only available for agents on this computer.",
   "error.backend.mcpServerLimit": "OpenBot keeps up to {limit} MCP servers.",
   "error.backend.mcpServerNameTaken": "An MCP server named {name} already exists.",
   "error.backend.mcpServerNoAnswer": "The server did not answer in {seconds} seconds.",
@@ -247,4 +258,10 @@ export const messages = defineMessages("error.backend", {
   "error.backend.mcpServerHttpCredentials": "The server answered {status}. Check the API key or other credentials.",
   "error.backend.mcpServerHttpUrl":
     "The server answered {status}. Check the URL. The link may be wrong, expired, or deleted.",
+  "error.backend.mcpSignInAppUrl": "The sign-in app needs a valid server URL.",
+  "error.backend.mcpSignInAppClientId": "Enter the client ID of the sign-in app.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "The sign-in server of this MCP server changed, so OpenBot did not send it the sign-in app. If the change is correct, remove the sign-in app and add it again.",
+  "error.backend.mcpSignInAppNoServer": "Save this MCP server as a URL server before you add a sign-in app.",
+  "error.backend.mcpSignInAppUnavailable": "This computer cannot keep a sign-in app.",
 });

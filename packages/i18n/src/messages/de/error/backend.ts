@@ -56,6 +56,8 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "Ein Kanalmitglied ist nicht verfügbar.",
   "error.backend.channelArchived":
     "Stelle diesen Kanal wieder her, bevor du Nachrichten sendest oder Aufgaben änderst.",
+  "error.backend.channelsRetired":
+    "Kanäle werden nicht mehr unterstützt. Lege Agenten in einen Seitenleistenbereich, damit sie zusammenarbeiten.",
   "error.backend.channelReferenceUnavailable": "Die referenzierte Kanalnachricht ist nicht verfügbar.",
   "error.backend.channelTaskNotFound": "Kanalaufgabe nicht gefunden.",
   "error.backend.channelTaskComplete": "Diese Aufgabe ist bereits abgeschlossen.",
@@ -169,7 +171,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Diese Verbindung würde eine Schleife erzeugen.",
   "error.backend.routineFlowLinkLimit": "Eine Routine kann höchstens {limit} Verbindungen haben.",
   "error.backend.routineFlowHandoffFailed": "Die Routine konnte die Arbeit nicht an diesen Agenten übergeben.",
-  "error.backend.routineFlowRemoteUnsupported": "Routinenabläufe sind nur für Agenten auf diesem Computer verfügbar.",
   "error.backend.mcpServerLimit": "OpenBot verwaltet bis zu {limit} MCP-Server.",
   "error.backend.mcpServerNameTaken": "Ein MCP-Server mit dem Namen {name} existiert bereits.",
   "error.backend.mcpServerNoAnswer": "Der Server hat innerhalb von {seconds} Sekunden nicht geantwortet.",
@@ -272,4 +273,11 @@ export const messages = {
     "Der Server hat mit {status} geantwortet. Prüfe den API-Schlüssel oder andere Zugangsdaten.",
   "error.backend.mcpServerHttpUrl":
     "Der Server hat mit {status} geantwortet. Prüfe die URL. Der Link ist möglicherweise falsch, abgelaufen oder gelöscht.",
+  "error.backend.mcpSignInAppUrl": "Die Anmelde-App braucht eine gültige Server-URL.",
+  "error.backend.mcpSignInAppClientId": "Gib die Client-ID der Anmelde-App ein.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Der Anmeldeserver dieses MCP-Servers hat sich geändert, daher hat OpenBot ihm die Anmelde-App nicht gesendet. Wenn die Änderung korrekt ist, entferne die Anmelde-App und füge sie erneut hinzu.",
+  "error.backend.mcpSignInAppNoServer":
+    "Speichere diesen MCP-Server als URL-Server, bevor du eine Anmelde-App hinzufügst.",
+  "error.backend.mcpSignInAppUnavailable": "Dieser Computer kann keine Anmelde-App speichern.",
 } as const satisfies PartialTranslation<typeof source>;

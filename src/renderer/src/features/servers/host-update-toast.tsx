@@ -128,9 +128,10 @@ function showProgress(options: HostUpdateWatch, watch: Watch, status: HostUpdate
       const { t, format } = currentText();
       const now = current();
       const version = now.availableVersion ?? now.currentVersion;
-      return now.phase === "checking"
-        ? t("server.update.status.checking")
-        : t("server.update.status.downloading", { version, progress: format.percent((now.progress ?? 0) / 100) });
+      if (now.phase === "checking") return t("server.update.status.checking");
+      return now.progress === null
+        ? t("server.update.status.downloadingUnknown", { version })
+        : t("server.update.status.downloading", { version, progress: format.percent(now.progress / 100) });
     };
     return {
       show: setCurrent,

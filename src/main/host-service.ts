@@ -27,6 +27,7 @@ import type {
   SetTeamTypingInput,
   TeamMemberSummary,
   TeamPresenceSnapshot,
+  TeamRole,
   TeamSessionSummary,
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
@@ -75,15 +76,19 @@ interface HostServiceOptions {
   channels?: ChannelService;
   mcpServers?: ForwardedApiOptions["mcpServers"];
   mcpSignIns?: ForwardedApiOptions["mcpSignIns"];
+  signInRelay?: ForwardedApiOptions["signInRelay"];
+  connectors?: ForwardedApiOptions["connectors"];
+  providerHostSignIns?: ForwardedApiOptions["providerHostSignIns"];
   mcpToolRuntimePreparation?: ForwardedApiOptions["mcpToolRuntimePreparation"];
   storage?: ForwardedApiOptions["storage"];
   hostedSites?: ForwardedApiOptions["hostedSites"];
   events?: ForwardedApiOptions["events"];
   agentImport?: ForwardedApiOptions["agentImport"];
+  routineFlows?: ForwardedApiOptions["routineFlows"];
   admin?: ForwardedApiOptions["admin"];
   appVersion: string;
   store: TeamStore;
-  agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads" | "searchConversationFiles">;
+  agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads">;
   agentsReady: NonNullable<ForwardedApiOptions["agentsReady"]>;
   skills: NonNullable<ForwardedApiOptions["skills"]>;
   sidebarLayout: NonNullable<ForwardedApiOptions["sidebarLayout"]>;
@@ -295,11 +300,15 @@ export class HostService extends EventEmitter<HostEvents> {
       channels: options.channels,
       mcpServers: options.mcpServers,
       mcpSignIns: options.mcpSignIns,
+      signInRelay: options.signInRelay,
+      connectors: options.connectors,
+      providerHostSignIns: options.providerHostSignIns,
       mcpToolRuntimePreparation: options.mcpToolRuntimePreparation,
       storage: options.storage,
       hostedSites: options.hostedSites,
       events: options.events,
       agentImport: options.agentImport,
+      routineFlows: options.routineFlows,
       // The identity route changes this host's name and logo through `updateIdentity`, so a change
       // from a joined admin runs every step a local one does.
       admin: {
@@ -791,6 +800,7 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: string;
         username: string;
         sessionToken: string;
+        role: TeamRole;
       },
       RemoteWorkflowError,
       HostApiRuntime
@@ -825,6 +835,8 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: identity.publicKey,
         username,
         sessionToken: authenticated.sessionToken,
+        // An owner can promote the test client, so the client shows what the host allows it.
+        role: authenticated.member.role,
       };
     },
     (operation) => this.#provide(operation),

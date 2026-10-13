@@ -16,6 +16,20 @@ export interface MobileAgentActivity {
 export type MobileAgentActivities = Record<string, MobileAgentActivity>;
 
 /**
+ * The live activity, unless the conversation already shows its turn as finished. Turn events and
+ * conversation reads arrive by separate channels, so `turn-started` can arrive after the read that
+ * holds the finished reply. A turn with messages that is not the active turn has ended.
+ */
+export function openTurnActivity(
+  activity: MobileAgentActivity | undefined,
+  conversation: { activeTurnId: string | null; messages: readonly { turnId?: string | null }[] } | undefined,
+): MobileAgentActivity | undefined {
+  const turnId = activity?.turnId;
+  if (!turnId || !conversation || conversation.activeTurnId === turnId) return activity;
+  return conversation.messages.some((message) => message.turnId === turnId) ? undefined : activity;
+}
+
+/**
  * The face an avatar wears for an activity. An agent that waits on an answer holds its resting
  * face and stops moving; anything else it does is work. The mood table itself is shared with the
  * desktop, so the two cannot drift.

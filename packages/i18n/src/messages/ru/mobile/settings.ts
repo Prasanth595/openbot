@@ -44,6 +44,7 @@ export const messages = {
   "mobile.settings.support.empty": "Событий пока нет.",
   "mobile.settings.sessions.kindDesktop": "компьютер",
   "mobile.settings.sessions.kindMobile": "телефон",
+  "mobile.settings.sessions.kindHostedServer": "облачный сервер",
   "mobile.settings.sessions.title": "Устройства с входом",
   "mobile.settings.sessions.loading": "Загрузка сеансов…",
   "mobile.settings.sessions.refresh": "Обновить сеансы",
@@ -86,6 +87,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Анимация ответов",
   "mobile.settings.animations.textRevealFooter":
     "Ответ появляется слово за словом, а его облачко плавно растёт. Если выключить, текст показывается сразу по мере поступления.",
+  "mobile.settings.animations.searchTransitions": "Анимация результатов поиска",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Результаты и сообщения поиска плавно появляются и исчезают с лёгким размытием, когда меняются. Когда движение уменьшено, они только плавно появляются и исчезают. Если выключено, они меняются сразу.",
   "mobile.settings.feedback.footer": "Тактильный отклик на действия в приложении на этом устройстве.",
   "mobile.settings.feedback.haptics": "Вибрация",
   "mobile.settings.feedback.retry": "Повторить сохранение настройки вибрации",

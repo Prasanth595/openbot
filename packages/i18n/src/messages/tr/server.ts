@@ -159,6 +159,7 @@ export const messages = {
   "server.rail.schedule": "Zamanlama",
   "server.rail.settings": "Sunucu ayarları",
   "server.rail.remove": "Sunucuyu kaldır",
+  "server.rail.restart": "Sunucuyu yeniden başlat",
   "server.rail.leave": "Sunucudan ayrıl",
   "server.rail.delete": "Sunucuyu sil",
   "server.select.failedTitle": "Sunucu seçilemedi",
@@ -283,6 +284,12 @@ export const messages = {
     "Bu sunucuya erişiminizi kaybedeceksiniz. Tekrar katılmak için başka bir davete ihtiyacınız olacak.",
   "server.settings.leaving": "Ayrılınıyor…",
   "server.settings.leftTitle": "{name} sunucusundan ayrıldınız",
+  "server.settings.restartConfirmTitle": "{name} yeniden başlatılsın mı?",
+  "server.settings.restartConfirmDescription":
+    "Sunucu durur ve yeniden başlar. Bu yaklaşık bir dakika sürer. Çalışan ajan turları durur ve üyeler sunucu geri gelene kadar bağlantıyı kaybeder. Dosyalar ve sohbetler korunur.",
+  "server.settings.restartTitle": "Yeniden başlat",
+  "server.settings.restarting": "Yeniden başlatılıyor…",
+  "server.settings.restartedTitle": "{name} yeniden başlatılıyor",
   "server.members.removeTitle": "{name} kaldırılsın mı?",
   "server.members.removeDescription": "Bu kişi sunucuya ve paylaşılan konuşmalarına erişimini kaybedecek.",
   "server.members.remove": "Üyeyi kaldır",
@@ -390,6 +397,7 @@ export const messages = {
   "server.update.status.available": "{version} sürümü mevcut.",
   // {progress} %42 gibi bir yüzdedir.
   "server.update.status.downloading": "{version} indiriliyor · {progress}",
+  "server.update.status.downloadingUnknown": "{version} indiriliyor…",
   "server.update.status.ready": "{version} indirildi.",
   "server.update.status.installing": "{name}, güncellemeyi yüklemek için yeniden başlatılıyor.",
   "server.update.status.upToDate": "{name} üzerinde OpenBot güncel.",

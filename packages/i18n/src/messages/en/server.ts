@@ -155,8 +155,9 @@ export const messages = defineMessages("server", {
   "server.rail.usage": "Usage",
   "server.rail.schedule": "Routines",
   "server.rail.settings": "Server settings",
-  // The last items of the server menu. Leave is for a joined server; delete is for a hosted server that the user owns.
+  // The last items of the server menu. Leave is for a joined server; restart and delete are for a hosted server that the user owns.
   "server.rail.remove": "Remove server",
+  "server.rail.restart": "Restart server",
   "server.rail.leave": "Leave server",
   "server.rail.delete": "Delete server",
   "server.select.failedTitle": "Could not select the server",
@@ -279,6 +280,12 @@ export const messages = defineMessages("server", {
     "You will lose access to this server. You will need another invitation to join again.",
   "server.settings.leaving": "Leaving…",
   "server.settings.leftTitle": "You left {name}",
+  "server.settings.restartConfirmTitle": "Restart {name}?",
+  "server.settings.restartConfirmDescription":
+    "The server stops and starts again. This takes about a minute. Running agent turns stop, and members lose the connection until the server is back. Files and chats stay.",
+  "server.settings.restartTitle": "Restart",
+  "server.settings.restarting": "Restarting…",
+  "server.settings.restartedTitle": "{name} is restarting",
   "server.members.removeTitle": "Remove {name}?",
   "server.members.removeDescription": "This person will lose access to the server and its shared conversations.",
   "server.members.remove": "Remove member",
@@ -375,6 +382,8 @@ export const messages = defineMessages("server", {
   "server.update.status.available": "{version} is available.",
   // {progress} is a percent, such as 42%.
   "server.update.status.downloading": "Downloading {version} · {progress}",
+  // Before the host knows the size, or while it waits to start the download.
+  "server.update.status.downloadingUnknown": "Downloading {version}…",
   "server.update.status.ready": "{version} is downloaded.",
   "server.update.status.installing": "{name} is restarting to install the update.",
   "server.update.status.upToDate": "OpenBot is up to date on {name}.",

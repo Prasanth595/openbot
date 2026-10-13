@@ -52,8 +52,8 @@ const ONEPASSWORD_STATUS = {
 } as const satisfies Record<OnePasswordConnectorStatus["state"], { status: IntegrationStatus; label: string }>;
 
 /**
- * Server settings > Connectors: the list of this computer's integrations, and the page of the one
- * the user opens. Each integration is passed only when this computer has it.
+ * Server settings > Connectors: the list of the server's integrations, and the page of the one the
+ * user opens. Each integration is passed only when the server has it. `hostName` names a joined server.
  */
 export function ConnectorsPanel(props: {
   github?: GitHubConnectorController | undefined;
@@ -63,6 +63,7 @@ export function ConnectorsPanel(props: {
   discord?: DiscordConnectorController | undefined;
   telegram?: TelegramConnectorController | undefined;
   agents: AgentProfile[];
+  hostName?: string | undefined;
 }) {
   const { t } = useText();
   const [view, setView] = createSignal<View>("hub");
@@ -82,6 +83,7 @@ export function ConnectorsPanel(props: {
   const githubRow = (github: GitHubConnectorController): IntegrationsHubRow => {
     const status = github.status();
     const header = GITHUB_STATUS[status.state];
+    const host = github.hostName();
     return {
       id: "github",
       name: t("connector.github.title"),
@@ -93,7 +95,9 @@ export function ConnectorsPanel(props: {
           ? `@${status.login ?? ""}`
           : status.state === "expired"
             ? t("connector.github.expiredTitle")
-            : t("connector.github.description"),
+            : host
+              ? t("connector.github.descriptionHost", { host })
+              : t("connector.github.description"),
       onOpen: () => setView("github"),
     };
   };
@@ -194,7 +198,7 @@ export function ConnectorsPanel(props: {
   );
 
   return (
-    <Switch fallback={<IntegrationsHub rows={rows()} />}>
+    <Switch fallback={<IntegrationsHub rows={rows()} hostName={props.hostName} />}>
       <Match when={view() === "github" && props.github}>
         {(github) => (
           <div class="integrations-hub">
@@ -241,6 +245,7 @@ export function ConnectorsPanel(props: {
                   onReconnect={open().controller.reconnect}
                   onSetEnabled={open().controller.setEnabled}
                   onAddOrchestrator={open().controller.addOrchestrator}
+                  hostName={props.hostName}
                 />
               )}
             </Show>
@@ -263,6 +268,7 @@ export function ConnectorsPanel(props: {
                   onReconnect={telegram().reconnect}
                   onSetEnabled={telegram().setEnabled}
                   onAddOrchestrator={telegram().addOrchestrator}
+                  hostName={props.hostName}
                 />
               )}
             </Show>

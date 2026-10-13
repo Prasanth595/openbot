@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelNotFound": "No se encontró el canal.",
   "error.backend.channelMemberUnavailable": "Un miembro del canal no está disponible.",
   "error.backend.channelArchived": "Restaura este canal antes de enviar mensajes o cambiar tareas.",
+  "error.backend.channelsRetired":
+    "Los canales ya no son compatibles. Pon los agentes en una sección de la barra lateral para que trabajen juntos.",
   "error.backend.channelReferenceUnavailable": "El mensaje del canal al que se hace referencia no está disponible.",
   "error.backend.channelTaskNotFound": "No se encontró la tarea del canal.",
   "error.backend.channelTaskComplete": "Esta tarea ya está completada.",
@@ -162,8 +164,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Esta conexión crearía un bucle.",
   "error.backend.routineFlowLinkLimit": "Una rutina puede tener un máximo de {limit} conexiones.",
   "error.backend.routineFlowHandoffFailed": "La rutina no pudo pasar el trabajo a este agente.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "Los flujos de rutinas solo están disponibles para los agentes de este equipo.",
   "error.backend.mcpServerLimit": "OpenBot mantiene hasta {limit} servidores MCP.",
   "error.backend.mcpServerNameTaken": "Ya existe un servidor MCP llamado {name}.",
   "error.backend.mcpServerNoAnswer": "El servidor no respondió en {seconds} segundos.",
@@ -262,4 +262,11 @@ export const messages = {
     "El servidor respondió {status}. Comprueba la clave API u otras credenciales.",
   "error.backend.mcpServerHttpUrl":
     "El servidor respondió {status}. Comprueba la URL. El enlace puede ser incorrecto, haber caducado o haberse eliminado.",
+  "error.backend.mcpSignInAppUrl": "La app de inicio de sesión necesita una URL de servidor válida.",
+  "error.backend.mcpSignInAppClientId": "Introduce el ID de cliente de la app de inicio de sesión.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "El servidor de inicio de sesión de este servidor MCP cambió, así que OpenBot no le envió la app de inicio de sesión. Si el cambio es correcto, quita la app de inicio de sesión y agrégala de nuevo.",
+  "error.backend.mcpSignInAppNoServer":
+    "Guarda este servidor MCP como servidor de URL antes de añadir una app de inicio de sesión.",
+  "error.backend.mcpSignInAppUnavailable": "Este ordenador no puede guardar una app de inicio de sesión.",
 } as const satisfies PartialTranslation<typeof source>;

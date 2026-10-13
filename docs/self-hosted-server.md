@@ -40,6 +40,7 @@ open a database that a newer one migrated. It also refuses a computer that is a 
 | --- | --- |
 | `openbot status` | Show the version, the account, the server state and a staged update. |
 | `openbot login [<email>] [--name <name>]` | Sign in with an email code. |
+| `openbot mobile-connect` | Show a Mobile Connect QR code for the phone app (see [Phone app](#phone-app)). |
 | `openbot logout` | Sign out. The server is not available until the next sign-in. |
 | `openbot name <name>` | Change the server name. |
 | `openbot logs [-f]` | Show the journal of `openbot.service`. |
@@ -50,6 +51,24 @@ open a database that a newer one migrated. It also refuses a computer that is a 
 
 Run the account commands with `sudo` or as the service user. Other users cannot open the control
 socket.
+
+## Phone app
+
+The phone app has no email sign-in. It signs in with a Mobile Connect code. A server has no screen
+for the code, so `openbot mobile-connect` shows it in the terminal:
+
+1. Sign in the server with `openbot login`.
+2. Run `openbot mobile-connect`. In a container, run `docker exec -it <container> openbot mobile-connect`.
+3. In the phone app, select **Scan QR code** and scan the code in the terminal.
+
+The code signs the phone in to the account of the server. It works for one sign-in and expires after
+two minutes. The phone then shows all servers of the account, and it opens this server first. The
+phone connects through the account server and Signal, as the desktop app does. The server publishes
+no port.
+
+If the phone app is already connected to the same account from the desktop app, the server is
+already in its server list. Remove a phone from the account in the desktop app, in
+**Settings > Mobile Connect**.
 
 ## Remove
 

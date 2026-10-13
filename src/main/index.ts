@@ -91,6 +91,7 @@ import {
   showMainWindow,
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
+import { MessageLinkRelay, openHttpLink } from "./message-link-relay";
 import { watchRemoteHostDirectory } from "./remote-server-host-directory";
 import { createRendererForwarders } from "./renderer-forwarders";
 import { sendToRenderer } from "./renderer-ipc";
@@ -284,9 +285,9 @@ const {
   forwardUpdateStatus,
   forwardUpdatePreference,
   forwardVoiceModelStatus,
+  forwardVoiceStreamTranscript,
   forwardProviderRuntimeStatus,
   forwardGitHubConnectorStatus,
-  forwardRoutineFlowsChanged,
   forwardOnePasswordConnectorStatus,
   forwardBitwardenConnectorStatus,
   forwardHostStatus,
@@ -307,6 +308,7 @@ const {
   getTranslate: () => services?.language.translate ?? translateFor("en"),
   getFormat: () => createFormat(services?.language.locale ?? "en"),
   desktopNotificationsEnabled: () => services?.notificationPreference.get().desktopNotifications ?? true,
+  notificationPreviewEnabled: () => services?.notificationPreference.get().messagePreview ?? true,
 });
 
 // Resolved once, safely: every `app.setPath("userData", ...)` above has already run.
@@ -426,6 +428,8 @@ function attachWindowsSessionEndHandlers(window: BrowserWindow): void {
 
 function registerIpcHandlers({
   service,
+  signInRelayClient,
+  relayedMessagingInstalls,
   providerRuntimes,
   providerCredentials,
   messaging,
@@ -522,7 +526,7 @@ function registerIpcHandlers({
     ...accountIpcHandlers({ centralAuth, host }),
     ...skillIpcHandlers({ skills, getMainWindow, translate: language.translate }),
     ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
-    ...githubConnectorIpcHandlers({ githubConnector }),
+    ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector }),
     ...bitwardenConnectorIpcHandlers({ bitwardenConnector }),
     ...billingIpcHandlers({ billing }),
@@ -566,7 +570,7 @@ function registerIpcHandlers({
     ...memoryIpcHandlers({ service, remoteServers }),
     ...sharedTableIpcHandlers({ service, remoteServers }),
     ...routineIpcHandlers({ service, remoteServers }),
-    ...routineFlowIpcHandlers({ routineFlows }),
+    ...routineFlowIpcHandlers({ routineFlows, remoteServers }),
     ...channelMemoryIpcHandlers({ service, remoteServers }),
     ...channelRoutineIpcHandlers({ service, remoteServers }),
     ...agentAdminIpcHandlers({
@@ -584,8 +588,14 @@ function registerIpcHandlers({
       runtimes: providerRuntimes,
       customProviders: customProviderChanges,
       remoteServers,
+      relay: signInRelayClient,
     }),
-    ...messagingIpcHandlers({ messaging }),
+    ...messagingIpcHandlers({
+      messaging,
+      remoteServers,
+      relayedInstalls: relayedMessagingInstalls,
+      openExternal: (url) => shell.openExternal(url),
+    }),
     ...mcpServerIpcHandlers({
       service,
       remoteServers,
@@ -594,6 +604,7 @@ function registerIpcHandlers({
       },
       ensureToolRuntimesReady: () => providerRuntimes.ensureToolRuntimesReady(),
       toolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
+      relay: signInRelayClient,
     }),
     ...attachmentIpcHandlers({ service, mailbox, remoteServers, getMainWindow, translate: language.translate }),
     ...storageIpcHandlers({
@@ -605,7 +616,19 @@ function registerIpcHandlers({
       agents: () => service.listAgents(),
       openPath: (path) => shell.openPath(path),
     }),
-    ...agentIpcHandlers({ service, sidebarLayout, host, remoteServers, skills }),
+    ...agentIpcHandlers({
+      service,
+      sidebarLayout,
+      host,
+      remoteServers,
+      skills,
+      messageLinks: new MessageLinkRelay({
+        remoteServers,
+        relay: signInRelayClient,
+        openUrl: (url) => openHttpLink(url, (address) => shell.openExternal(address)),
+      }),
+      openExternal: (address) => shell.openExternal(address),
+    }),
     ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView }),
   });
 }
@@ -774,13 +797,15 @@ function takeRendererDeepLink(link: DeepLink | null): RendererDeepLink | null {
 }
 
 /**
- * Hands a Slack install the sealed token it is waiting for. As with an MCP grant, a link this run did
- * not start does nothing and raises no window.
+ * Hands a Slack install the sealed token it is waiting for. An install that this computer opened for
+ * a joined server sends the token on to that server. As with an MCP grant, a link this run did not
+ * start does nothing and raises no window.
  */
 function receiveSlackSignIn(link: Extract<DeepLink, { kind: "slack-workspace" }>): void {
-  const messaging = services?.messaging;
-  if (!messaging) return;
-  void Effect.runPromise(messaging.completeSlackWorkspace(link.nonce, link.grant))
+  const current = services;
+  if (!current) return;
+  void Effect.runPromise(current.messaging.completeSlackWorkspace(link.nonce, link.grant))
+    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("slack", link.nonce, link.grant))
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);
@@ -791,13 +816,15 @@ function receiveSlackSignIn(link: Extract<DeepLink, { kind: "slack-workspace" }>
 }
 
 /**
- * Hands a Discord install the sealed guild link it is waiting for. As with a Slack install, a link
- * this run did not start does nothing and raises no window.
+ * Hands a Discord install the sealed guild link it is waiting for, or sends it on to the joined server
+ * that started it. As with a Slack install, a link this run did not start does nothing and raises no
+ * window.
  */
 function receiveDiscordSignIn(link: Extract<DeepLink, { kind: "discord-guild" }>): void {
-  const messaging = services?.messaging;
-  if (!messaging) return;
-  void Effect.runPromise(messaging.completeDiscordGuild(link.nonce, link.grant))
+  const current = services;
+  if (!current) return;
+  void Effect.runPromise(current.messaging.completeDiscordGuild(link.nonce, link.grant))
+    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("discord", link.nonce, link.grant))
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);
@@ -810,12 +837,18 @@ function receiveDiscordSignIn(link: Extract<DeepLink, { kind: "discord-guild" }>
 /**
  * Hands one MCP sign-in the grant it is waiting for, and shows the window that asked for it.
  *
- * The grant travels no further. A `state` this run did not start finds no sign-in and does nothing,
- * which is what makes a forged or replayed link inert - so an unknown one raises no window either.
+ * The grant travels no further, except to the joined server whose relayed sign-in waits for that
+ * `state`. A `state` that nothing started finds no sign-in and does nothing, which is what makes a
+ * forged or replayed link inert - so an unknown one raises no window either.
  */
 function receiveMcpAuthorizationCode(state: string, code: string): void {
   const elsewhere = services?.mcpOAuth.openedElsewhere(state) ?? false;
-  if (!services?.mcpOAuth.receiveAuthorizationCode(state, code) || elsewhere) return;
+  if (!services?.mcpOAuth.receiveAuthorizationCode(state, code)) {
+    // A joined server's sign-in that waits on this computer; it ends on the host, so no window shows.
+    services?.signInRelayClient.deliver(state, new URLSearchParams({ code, state }).toString());
+    return;
+  }
+  if (elsewhere) return;
   const window = windowHolder.current;
   if (window && !window.isDestroyed()) showMainWindow(window);
 }
@@ -912,6 +945,7 @@ if (!hasSingleInstanceLock) {
         forwardBrowserDisplayState,
         forwardProviderRuntimeStatus,
         forwardVoiceModelStatus,
+        forwardVoiceStreamTranscript,
         prepareForUpdateInstall,
       });
       services = built;
@@ -1013,7 +1047,6 @@ if (!hasSingleInstanceLock) {
       host.on("directTyping", (event) => forwardDirectTyping("local", event));
       remoteDesktop.on("changed", forwardRemoteDesktopSessions);
       built.githubConnector.onChanged(forwardGitHubConnectorStatus);
-      built.routineFlows.onChanged(forwardRoutineFlowsChanged);
       built.onePasswordConnector.onChanged(forwardOnePasswordConnectorStatus);
       built.bitwardenConnector.onChanged(forwardBitwardenConnectorStatus);
       remoteServers.on("changed", forwardServers);

@@ -63,7 +63,10 @@ import {
   isProviderDetectionSettings,
   isRemoteDesktopSetupStatus,
   isRemoteDesktopTestStatus,
+  isVoiceLanguage,
+  isVoiceModelId,
   type MobileConnectedDevice,
+  type MobileConnectLink,
   type MobileConnectTicket,
   type NotificationOpenedEvent,
   type NotificationPreference,
@@ -79,6 +82,9 @@ import {
   type UpdatePreference,
   type UpdateStatus,
   type VoiceModelStatus,
+  type VoiceSettings,
+  type VoiceStream,
+  type VoiceStreamTranscript,
   type VoiceTranscriptionResult,
 } from "@openbot/contracts/ipc";
 import {
@@ -201,6 +207,11 @@ export function decodeMobileConnectTicket(value: unknown): MobileConnectTicket {
   return { qrData: requiredString(ticket, "qrData"), expiresAt: requiredNumber(ticket, "expiresAt") };
 }
 
+export function decodeMobileConnectLink(value: unknown): MobileConnectLink {
+  const link = decodeRecord(value, "Mobile Connect link");
+  return { url: requiredString(link, "url"), createdAt: requiredNumber(link, "createdAt") };
+}
+
 export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDevice[] {
   return decodeList(value, "connected device list", (device) => {
     const { platform } = device;
@@ -211,14 +222,16 @@ export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDev
       platform,
       connectedAt: requiredNumber(device, "connectedAt"),
       lastActiveAt: requiredNumber(device, "lastActiveAt"),
+      via: device.via === "link" ? "link" : "code",
     };
   });
 }
 
 export function decodeAccountSessions(value: unknown): AccountSession[] {
   return decodeList(value, "account session list", (session) => {
-    const { kind } = session;
+    const { kind, hostedServer } = session;
     if (!isOneOf(["desktop", "mobile"] as const, kind)) throw new Error("Invalid kind.");
+    if (hostedServer !== undefined && !isBoolean(hostedServer)) throw new Error("Invalid hostedServer.");
     return {
       sessionId: requiredString(session, "sessionId"),
       name: requiredString(session, "name"),
@@ -226,6 +239,7 @@ export function decodeAccountSessions(value: unknown): AccountSession[] {
       current: requiredBoolean(session, "current"),
       connectedAt: requiredNumber(session, "connectedAt"),
       lastActiveAt: requiredNumber(session, "lastActiveAt"),
+      ...(hostedServer === undefined ? {} : { hostedServer }),
     };
   });
 }
@@ -277,8 +291,10 @@ export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessio
 }
 
 export function decodeNotificationPreference(value: unknown): NotificationPreference {
+  const preference = decodeRecord(value, "notification preference");
   return {
-    desktopNotifications: requiredBoolean(decodeRecord(value, "notification preference"), "desktopNotifications"),
+    desktopNotifications: requiredBoolean(preference, "desktopNotifications"),
+    messagePreview: requiredBoolean(preference, "messagePreview"),
   };
 }
 
@@ -295,15 +311,34 @@ const VOICE_MODEL_PHASES: readonly VoiceModelStatus["phase"][] = ["missing", "do
 
 export function decodeVoiceModelStatus(value: unknown): VoiceModelStatus {
   const status = decodeRecord(value, "voice model status");
-  const { phase, progress } = status;
-  if (!isOneOf(VOICE_MODEL_PHASES, phase) || (progress !== null && !isNumber(progress))) {
+  const { modelId, phase, progress } = status;
+  if (!isVoiceModelId(modelId) || !isOneOf(VOICE_MODEL_PHASES, phase) || (progress !== null && !isNumber(progress))) {
     throw new Error("Invalid voice model status.");
   }
-  return { phase, progress, message: nullableString(status, "message") };
+  return { modelId, phase, progress, message: nullableString(status, "message") };
+}
+
+export function decodeVoiceModelStatuses(value: unknown): VoiceModelStatus[] {
+  return decodeList(value, "voice model status list", decodeVoiceModelStatus);
+}
+
+export function decodeVoiceSettings(value: unknown): VoiceSettings {
+  const { modelId, language } = decodeRecord(value, "voice settings");
+  if (!isVoiceModelId(modelId) || !isVoiceLanguage(language)) throw new Error("Invalid voice settings.");
+  return { modelId, language };
 }
 
 export function decodeVoiceTranscriptionResult(value: unknown): VoiceTranscriptionResult {
   return { text: requiredString(decodeRecord(value, "voice transcription"), "text") };
+}
+
+export function decodeVoiceStream(value: unknown): VoiceStream {
+  return { streamId: requiredString(decodeRecord(value, "voice stream"), "streamId") };
+}
+
+export function decodeVoiceStreamTranscript(value: unknown): VoiceStreamTranscript {
+  const transcript = decodeRecord(value, "voice stream transcript");
+  return { streamId: requiredString(transcript, "streamId"), text: requiredString(transcript, "text") };
 }
 
 export function decodeExportResult(value: unknown): ExportResult {

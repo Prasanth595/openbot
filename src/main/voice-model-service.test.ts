@@ -61,7 +61,12 @@ describe("VoiceModelService", () => {
     const fetchMock = vi.fn(async () => new Response());
     const service = serviceFor(directory, fetchMock);
 
-    expect(await Effect.runPromise(service.prepare())).toEqual({ phase: "ready", progress: 100, message: null });
+    expect(await Effect.runPromise(service.prepare())).toEqual({
+      modelId: "parakeet-tdt-0.6b-v3",
+      phase: "ready",
+      progress: 100,
+      message: null,
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -89,8 +94,18 @@ describe("VoiceModelService", () => {
 
     const first = Effect.runPromise(service.prepare());
     const second = Effect.runPromise(service.prepare());
-    await expect(second).resolves.toEqual({ phase: "ready", progress: 100, message: null });
-    await expect(first).resolves.toEqual({ phase: "ready", progress: 100, message: null });
+    await expect(second).resolves.toEqual({
+      modelId: "parakeet-tdt-0.6b-v3",
+      phase: "ready",
+      progress: 100,
+      message: null,
+    });
+    await expect(first).resolves.toEqual({
+      modelId: "parakeet-tdt-0.6b-v3",
+      phase: "ready",
+      progress: 100,
+      message: null,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(await readFile(join(directory, "encoder.onnx"))).toEqual(Buffer.from(encoder));
     expect(await readFile(join(directory, "tokens.txt"))).toEqual(Buffer.from(tokens));
@@ -135,6 +150,7 @@ describe("VoiceModelService", () => {
     await Effect.runPromise(service.shutdown());
 
     await expect(preparation).resolves.toEqual({
+      modelId: "parakeet-tdt-0.6b-v3",
       phase: "error",
       progress: null,
       message: "Voice model download was stopped.",

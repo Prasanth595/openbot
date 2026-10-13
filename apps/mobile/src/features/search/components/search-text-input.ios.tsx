@@ -8,10 +8,10 @@ import { Pressable, View } from "react-native";
 import type { MobileSearchTextInputProps } from "@/features/search/components/search-text-input.types";
 import { useText } from "@/shared/lib/text";
 
-export function MobileSearchTextInput({ ref, value, onChangeText }: MobileSearchTextInputProps) {
+export function MobileSearchTextInput({ ref, value, onChangeText, editable = true }: MobileSearchTextInputProps) {
   const { t } = useText();
   const input = useRef<TextInputRef>(null);
-  useImperativeHandle(ref, () => ({ focus: () => input.current?.focus() }), []);
+  useImperativeHandle(ref, () => ({ focus: () => input.current?.focus(), blur: () => input.current?.blur() }), []);
   const [foreground, muted, background] = useThemeColor(["foreground", "muted", "background"]);
   const nativeValue = useNativeState(value);
   const clear = () => {
@@ -27,6 +27,7 @@ export function MobileSearchTextInput({ ref, value, onChangeText }: MobileSearch
           autoCapitalize="none"
           autoCorrect={false}
           autoFocus
+          editable={editable}
           placeholder={t("common.search")}
           placeholderTextColor={muted}
           returnKeyType="search"

@@ -23,6 +23,7 @@ import {
   parseHostedServerName,
 } from "@openbot/contracts/hosted-servers";
 import { isDynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
+import type { RouteHostState } from "@openbot/contracts/signal-protocol/ingress-queue";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer, Result, Schema } from "effect";
 import { type AccountAnalytics, type AccountAnalyticsEvent, NO_ACCOUNT_ANALYTICS } from "./account-analytics";
@@ -51,7 +52,7 @@ const CLAIM_REDEEM_RETRY_MS = 10 * 60_000;
 const STUCK_AFTER_MS = 2 * 60_000;
 /** boat retries a delivery for hours, so a delivery ID is kept longer than the 5 minute replay window. */
 const DELIVERY_RETENTION_MS = 7 * 24 * 60 * 60_000;
-const MAX_SERVERS_PER_ACCOUNT = 3;
+const MAX_SERVERS_PER_ACCOUNT = 50;
 const TICK_BATCH_SIZE = 20;
 /**
  * A server that waits for its first payment this long is removed. Its Checkout page (35 minutes)
@@ -746,7 +747,6 @@ export class HostedServerService {
       user: AuthUser,
       serverId: string,
     ): Effect.fn.Return<HostedServerSummary, HostedFailure, HostedServerDependencies> {
-      const dependencies = yield* HostedServerDependencies;
       const row = yield* this.#requireUsableRow(user, serverId);
       if (row.desired_state === "stopped") {
         return yield* new HostedServerServiceError(
@@ -755,28 +755,126 @@ export class HostedServerService {
           "The plan of this server ended. Renew it to start the server.",
         );
       }
-      if (row.desired_state === "idle") {
-        const now = dependencies.now();
-        // The start counts as use, so the server does not stop again before its first client connects.
-        yield* hostedCall(() =>
-          dependencies.database
-            .prepare(
-              `UPDATE hosted_servers SET desired_state = 'running', last_active_at = ?, updated_at = ?
-           WHERE server_id = ? AND desired_state = 'idle'`,
-            )
-            .bind(now, now, row.server_id)
-            .run(),
-        );
-        // A server that still stops starts again when the provider reports that it stopped.
-        yield* this.#wakeForClient(yield* this.#requireRow(serverId));
-      } else if (!(yield* this.#retrySetup(row))) {
-        yield* this.#wakeForClient(row);
-      }
+      yield* this.#startForUse(row);
       const current = yield* this.#requireRow(serverId);
       // A client asks for a start because it cannot reach the server. When the row says it runs, a lost
       // provider event can hide a stop, so the provider is asked.
       if (current.observed_state === "running" && current.provider_sandbox_id) yield* this.#refresh(current);
       return summary(yield* this.#requireRow(serverId));
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /**
+   * The owner restarts a server that runs but does not answer. boat stops the sandbox and saves the disk,
+   * and the restart after the stop (`#observe`) resumes it, as after a resize. A server that does not run
+   * starts as on a wake.
+   */
+  readonly restart = Effect.fn("HostedServerService.restart")(
+    function* (
+      this: HostedServerService,
+      user: AuthUser,
+      serverId: string,
+    ): Effect.fn.Return<HostedServerSummary, HostedFailure, HostedServerDependencies> {
+      const dependencies = yield* HostedServerDependencies;
+      const row = yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT ${ROW_COLUMNS} FROM hosted_servers WHERE server_id = ? AND owner_user_id = ? AND desired_state != 'deleted'`,
+          )
+          .bind(serverId, user.id)
+          .first<HostedServerRow>(),
+      );
+      if (!row) return yield* notFound();
+      if (row.desired_state === "stopped") {
+        return yield* new HostedServerServiceError(402, "plan_required", sourceText("error.billing.planRequired"));
+      }
+      const sandboxId = row.provider_sandbox_id;
+      const boat = dependencies.boat;
+      if (row.observed_state !== "running" || !sandboxId) {
+        yield* this.#startForUse(row);
+        return summary(yield* this.#requireRow(serverId));
+      }
+      if (!boat)
+        return yield* new HostedServerServiceError(503, "hosting_not_configured", "Hosting is not configured.");
+      // The restart counts as use, so a sleeping server runs again and does not stop before a client connects.
+      const now = dependencies.now();
+      const claimed = yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `UPDATE hosted_servers SET desired_state = 'running', observed_state = 'stopping', last_active_at = ?,
+           updated_at = ?
+         WHERE server_id = ? AND desired_state IN ('running', 'idle') AND observed_state = 'running'`,
+          )
+          .bind(now, now, serverId)
+          .run(),
+      );
+      if (claimed.meta.changes !== 1) return summary(yield* this.#requireRow(serverId));
+      yield* boat.stopSandbox(sandboxId).pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            // The sandbox did not stop, so a later restart must send the stop again.
+            yield* hostedCall(() =>
+              dependencies.database
+                .prepare(
+                  `UPDATE hosted_servers SET observed_state = 'running', updated_at = ?
+             WHERE server_id = ? AND observed_state = 'stopping'`,
+                )
+                .bind(dependencies.now(), serverId)
+                .run(),
+            );
+            if (!(error instanceof BoatApiError && error.status === 409)) return yield* error;
+            // 409: the sandbox cannot stop in its current state.
+            return yield* new HostedServerServiceError(
+              409,
+              "hosted_server_restart_busy",
+              sourceText("error.billing.restartBusy"),
+            );
+          }),
+        ),
+      );
+      return summary(yield* this.#requireRow(serverId));
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /**
+   * What Signal does with a Slack, Discord or Telegram event for a host with no `ingress` socket. Only
+   * signed Signal requests reach this, for the host of a linked route; no user is signed in. It changes
+   * nothing, so it answers before the platform's deadline; `startForRoute` starts the server.
+   */
+  readonly routeState = Effect.fn("HostedServerService.routeState")(
+    function* (
+      this: HostedServerService,
+      hostId: string,
+    ): Effect.fn.Return<RouteHostState, HostedFailure, HostedServerDependencies> {
+      const dependencies = yield* HostedServerDependencies;
+      const row = yield* hostedCall(() =>
+        dependencies.database
+          .prepare(`SELECT ${ROW_COLUMNS} FROM hosted_servers WHERE server_id = ? AND desired_state != 'deleted'`)
+          .bind(hostId)
+          .first<HostedServerRow>(),
+      );
+      if (!row) return "not_hosted";
+      // A plan that ended, or a server that was never paid, does not start.
+      if (row.desired_state === "stopped" || row.observed_state === "awaiting_payment") return "ended";
+      return row.desired_state === "idle" ? "sleeping" : "starting";
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /** Starts a hosted server for a connector event, as for a client. Signal does not wait for it. */
+  readonly startForRoute = Effect.fn("HostedServerService.startForRoute")(
+    function* (
+      this: HostedServerService,
+      hostId: string,
+    ): Effect.fn.Return<void, HostedFailure, HostedServerDependencies> {
+      const row = yield* this.#requireRow(hostId);
+      if (row.desired_state === "stopped" || row.desired_state === "deleted") return;
+      yield* this.#startForUse(row);
+      const current = yield* this.#requireRow(hostId);
+      // As for a client: the host has no socket, and a lost provider event can hide a stop.
+      if (current.observed_state === "running" && current.provider_sandbox_id) yield* this.#refresh(current);
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
@@ -1862,6 +1960,31 @@ export class HostedServerService {
         }),
       ),
     );
+  });
+
+  /** Starts a server that a client or a connector event needs. Its plan did not end. */
+  readonly #startForUse = Effect.fn("HostedServerService.startForUse")(function* (
+    this: HostedServerService,
+    row: HostedServerRow,
+  ): Effect.fn.Return<void, HostedFailure, HostedServerDependencies> {
+    const dependencies = yield* HostedServerDependencies;
+    if (row.desired_state === "idle") {
+      const now = dependencies.now();
+      // The start counts as use, so the server does not stop again before its first client connects.
+      yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `UPDATE hosted_servers SET desired_state = 'running', last_active_at = ?, updated_at = ?
+           WHERE server_id = ? AND desired_state = 'idle'`,
+          )
+          .bind(now, now, row.server_id)
+          .run(),
+      );
+      // A server that still stops starts again when the provider reports that it stopped.
+      yield* this.#wakeForClient(yield* this.#requireRow(row.server_id));
+    } else if (!(yield* this.#retrySetup(row))) {
+      yield* this.#wakeForClient(row);
+    }
   });
 
   /** The row keeps the reason of a failed resume, so the client gets it in the summary, not as a 500. */

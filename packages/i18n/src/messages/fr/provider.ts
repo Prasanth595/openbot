@@ -64,6 +64,7 @@ export const messages = {
   "provider.aria.retry": "Réessayer {name}",
   "provider.aria.install": "Installer {name}",
   "provider.aria.signIn": "Se connecter à {name}",
+  "provider.aria.codeFallback": "Se connecter à {name} avec un code",
   "provider.aria.moreActions": "Autres actions pour {name}",
 
   "provider.aria.use": "Utiliser {name} dans OpenBot",
@@ -89,6 +90,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Cette connexion s’est arrêtée.",
   "provider.codeLogin.pasteExpiresIn": "En attente. Cette connexion s’arrête dans {time}.",
   "provider.codeLogin.linkTitle": "Connectez-vous à {name} sur un autre appareil",
+  "provider.codeLogin.pageTitle": "Se connecter à {name}",
+  "provider.codeLogin.pageDescription": "Cette page est ouverte dans le navigateur de {host}. Connectez-vous ici.",
+  "provider.codeLogin.relayStarting": "Démarrage de la connexion à {name} sur {host}…",
+  "provider.codeLogin.pageOpening": "Ouverture de la page de connexion de {name} sur {host}…",
   "provider.codeLogin.linkStep": "Connectez-vous à {name}. OpenBot continue tout seul.",
 
   "provider.picker.noEndpoints": "Aucun point de terminaison pour l’instant",
@@ -128,6 +133,10 @@ export const messages = {
   "provider.museKey.description":
     "Enregistrez une clé d’API Meta sur l’hôte, ou utilisez la CLI Muse pour vous connecter.",
   "provider.museKey.label": "Clé d’API Meta",
+  "provider.geminiKey.title": "Clé d’API Gemini",
+  "provider.geminiKey.description":
+    "Enregistrez une clé d’API Gemini sur l’hôte, ou sélectionnez Connecter pour vous connecter avec Google.",
+  "provider.geminiKey.label": "Clé d’API Gemini",
   "provider.openCodeKey.title": "Se connecter à OpenCode Go",
   "provider.openCodeKey.description":
     "Les modèles gratuits ne demandent pas de compte. Une clé donne accès aux modèles Go payants.",

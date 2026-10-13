@@ -55,6 +55,7 @@ export const messages = {
   "provider.aria.retry": "{name} を再試行",
   "provider.aria.install": "{name} をインストール",
   "provider.aria.signIn": "{name} にサインイン",
+  "provider.aria.codeFallback": "コードで {name} にログイン",
   "provider.aria.moreActions": "{name} のその他の操作",
   "provider.aria.use": "OpenBot で {name} を使用",
   "provider.use.inUse": {
@@ -79,6 +80,11 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "このログインは停止しました。",
   "provider.codeLogin.pasteExpiresIn": "待機しています。このログインは残り {time} で停止します。",
   "provider.codeLogin.linkTitle": "別のデバイスで {name} にログイン",
+  "provider.codeLogin.pageTitle": "{name} にサインイン",
+  "provider.codeLogin.pageDescription":
+    "このページは {host} のブラウザーで開いています。ここでサインインしてください。",
+  "provider.codeLogin.relayStarting": "{host} で {name} のサインインを開始しています…",
+  "provider.codeLogin.pageOpening": "{host} で {name} のサインインページを開いています…",
   "provider.codeLogin.linkStep": "{name} にログインします。OpenBot は自動で続行します。",
 
   "provider.picker.noEndpoints": "エンドポイントはまだありません",
@@ -116,6 +122,10 @@ export const messages = {
   "provider.museKey.title": "Muse 用の Meta API キー",
   "provider.museKey.description": "ホストに Meta API キーを保存するか、Muse CLI を使ってサインインしてください。",
   "provider.museKey.label": "Meta API キー",
+  "provider.geminiKey.title": "Gemini API キー",
+  "provider.geminiKey.description":
+    "ホストに Gemini API キーを保存するか、「接続」を選択して Google でサインインしてください。",
+  "provider.geminiKey.label": "Gemini API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",
   "provider.openCodeKey.description": "無料モデルにアカウントは不要です。キーがあると有料の Go モデルを使えます。",

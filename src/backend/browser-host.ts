@@ -727,6 +727,7 @@ export class BrowserHost {
     if (!tab) return;
     const tabIds = [...this.#tabs.keys()];
     const closedIndex = tabIds.indexOf(tabId);
+    const browserHadFocus = tab.focusedAtPageClose === true || this.#tabHasFocus();
     this.#unmountView(tab.view);
     this.#tabs.delete(tabId);
     // A popup that a private page opened without an opener is not its child, but it holds the same sign-in.
@@ -747,7 +748,8 @@ export class BrowserHost {
         null;
       const active = this.#activeTabId ? this.#tabs.get(this.#activeTabId) : undefined;
       if (active) {
-        active.focusOnVisible = true;
+        // An agent or a page can close the tab while the person types in the app.
+        active.focusOnVisible = browserHadFocus;
         yield* this.#wake(active);
       }
     }
@@ -1846,6 +1848,7 @@ export class BrowserHost {
     const changed = () => this.#emitChanged();
     contents.on("close", () => {
       tab.closing = true;
+      tab.focusedAtPageClose = contents.isFocused();
     });
     contents.once("destroyed", () => {
       // Finish native destruction before removing the view and draining queued work.
@@ -2077,7 +2080,8 @@ export class BrowserHost {
           this.#bindTabEvents(popup);
           tab.popupFailure = undefined;
           this.#activeTabId = popup.id;
-          popup.focusOnVisible = true;
+          // An agent click also opens popups. Focus follows only a person who uses the page.
+          popup.focusOnVisible = this.#tabHasFocus();
           this.#syncAttachedView();
           this.#emitChanged();
           this.#schedulePersist();
@@ -2362,6 +2366,12 @@ export class BrowserHost {
       timeoutMs,
     ).pipe(Effect.ensuring(Effect.sync(markScripted)));
   });
+
+  /** Whether one of the browser's own tabs has focus. */
+  #tabHasFocus(): boolean {
+    const focusedContents = webContents.getFocusedWebContents();
+    return focusedContents !== null && [...this.#tabs.values()].some((tab) => tab.contents === focusedContents);
+  }
 
   /** The app contents that has focus, unless it is one of the browser's own tabs. */
   #focusedContentsOutsideTabs(): WebContents | null {

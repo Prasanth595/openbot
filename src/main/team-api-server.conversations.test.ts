@@ -9,11 +9,16 @@ import type { AccountUsage, AgentSummary, ConversationWithReadState, CreateAgent
 import {
   hostedSiteConversationEventItemType,
   hostedSiteConversationEventText,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   routineConversationEventItemType,
   routineRunConversationEventItemType,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
-import { TEAM_BOOTSTRAP_CAPABILITIES } from "@openbot/contracts/team-protocol/current";
+import {
+  TEAM_BOOTSTRAP_CAPABILITIES,
+  TEAM_CURRENT_CAPABILITIES,
+  TEAM_HISTORY_EXTENT_CAPABILITY,
+} from "@openbot/contracts/team-protocol/current";
 import {
   TEAM_CAPABILITIES_HEADER,
   TEAM_PROTOCOL_V1_CAPABILITIES,
@@ -21,6 +26,7 @@ import {
 } from "@openbot/contracts/team-protocol/v1";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
 import { TEAM_PROTOCOL_V5 } from "@openbot/contracts/team-protocol/v5";
+import { TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import {
   createAgents,
@@ -86,6 +92,14 @@ describe("TeamApiServer conversations", () => {
           itemType: routineRunConversationEventItemType("running", "routine-1", "run-1"),
         },
         {
+          id: "quiet-answer-1",
+          author: "assistant",
+          text: "The check passed. Nothing to report.",
+          createdAt: "2026-08-19T10:02:30.000Z",
+          status: "completed",
+          itemType: ROUTINE_QUIET_ANSWER_ITEM_TYPE,
+        },
+        {
           id: "hosted-site-event-1",
           author: "system",
           source: "system",
@@ -115,12 +129,13 @@ describe("TeamApiServer conversations", () => {
           avatarHue: input.avatarHue,
         })),
     );
+    // No client can put a quiet routine answer inside its run, so no client gets one.
+    const clientMessages = localConversation.messages.filter(
+      (message) => message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE,
+    );
     const legacyConversation = {
       ...localConversation,
-      messages: [
-        { ...localConversation.messages[0], text: "Ask @Research to use Sources (skill)." },
-        ...localConversation.messages.slice(1),
-      ],
+      messages: [{ ...clientMessages[0], text: "Ask @Research to use Sources (skill)." }, ...clientMessages.slice(1)],
     };
     /**
      * Everything the fake agent service hands the host is current-shaped, so it says `agentId`. Everything
@@ -128,7 +143,7 @@ describe("TeamApiServer conversations", () => {
      * still says `botId`. Both vocabularies in one file is the shim doing its job, not a missed rename.
      */
     const { agentId: localAgentId, ...localConversationRest } = localConversation;
-    const wireConversation = { ...localConversationRest, botId: localAgentId };
+    const wireConversation = { ...localConversationRest, messages: clientMessages, botId: localAgentId };
     const wireLegacyConversation = { ...wireConversation, messages: legacyConversation.messages };
     const sendMessage = vi.fn<TeamApiAgents["sendMessage"]>(() =>
       Effect.sync(() => ({
@@ -165,13 +180,14 @@ describe("TeamApiServer conversations", () => {
           if (options.excludeRoutineEvents && message.itemType?.startsWith("routine-event:")) return false;
           if (options.excludeRoutineRunEvents && message.itemType?.startsWith("routine-run-event:")) return false;
           if (options.excludeHostedSiteEvents && message.itemType?.startsWith("hosted-site-event:")) return false;
+          if (options.excludeRoutineQuietAnswers && message.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE) return false;
           return true;
         });
         return {
           ...localConversation,
           messages,
           references: {},
-          // The day rail's unloaded length is local IPC only; every released adapter drops it.
+          // The day rail's unloaded length: only history-extent-v1 carries it over the Team API.
           pageInfo: { hasOlder: false, olderCursor: null, olderCount: 40, oldestAt: "2026-09-01T00:00:00.000Z" },
           readState: {
             unreadCount: 0,
@@ -346,6 +362,7 @@ describe("TeamApiServer conversations", () => {
       excludeRoutineEvents: true,
       excludeRoutineRunEvents: true,
       excludeHostedSiteEvents: true,
+      excludeRoutineQuietAnswers: true,
     });
     await expect(
       jsonRequest(base, "/v1/agents/chief/conversation-page?limit=10", {
@@ -357,11 +374,31 @@ describe("TeamApiServer conversations", () => {
       excludeRoutineEvents: false,
       excludeRoutineRunEvents: false,
       excludeHostedSiteEvents: false,
+      excludeRoutineQuietAnswers: true,
     });
-    for (const capabilities of [TEAM_BOOTSTRAP_CAPABILITIES, TEAM_PROTOCOL_V1_CAPABILITIES]) {
+    // The day rail's unloaded length crosses only under history-extent-v1.
+    await expect(
+      jsonRequest(base, "/v1/agents/chief/conversation-page?limit=10", {
+        token: token,
+        capabilities: [...TEAM_CURRENT_CAPABILITIES],
+        protocol: TEAM_PROTOCOL_V7,
+      }),
+    ).resolves.toMatchObject({
+      pageInfo: { hasOlder: false, olderCursor: null, olderCount: 40, oldestAt: "2026-09-01T00:00:00.000Z" },
+    });
+    for (const [capabilities, protocol] of [
+      [
+        TEAM_CURRENT_CAPABILITIES.filter((capability) => capability !== TEAM_HISTORY_EXTENT_CAPABILITY),
+        TEAM_PROTOCOL_V7,
+      ],
+      // A released adapter ignores the capability.
+      [TEAM_BOOTSTRAP_CAPABILITIES, undefined],
+      [TEAM_PROTOCOL_V1_CAPABILITIES, undefined],
+    ] as const) {
       const page = await jsonRequest(base, "/v1/agents/chief/conversation-page?limit=10", {
         token: token,
         capabilities: [...capabilities],
+        ...(protocol ? { protocol } : {}),
       });
       expect(page).toMatchObject({ pageInfo: { hasOlder: false, olderCursor: null } });
       expect(page).not.toHaveProperty("pageInfo.olderCount");
@@ -374,6 +411,7 @@ describe("TeamApiServer conversations", () => {
       excludeRoutineEvents: true,
       excludeRoutineRunEvents: true,
       excludeHostedSiteEvents: true,
+      excludeRoutineQuietAnswers: true,
     });
     await expect(
       jsonRequest(base, "/v1/agents/conversation-reads", {
@@ -387,6 +425,7 @@ describe("TeamApiServer conversations", () => {
       excludeRoutineEvents: false,
       excludeRoutineRunEvents: false,
       excludeHostedSiteEvents: false,
+      excludeRoutineQuietAnswers: true,
     });
     await expect(
       jsonRequest(base, "/v1/agents/chief/conversation/read", {

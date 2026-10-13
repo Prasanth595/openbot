@@ -16,4 +16,6 @@ export const messages = defineMessages("error.messaging", {
   "error.messaging.telegramUnsupported": "This computer cannot connect to Telegram.",
   "error.messaging.telegramRelayUnavailable":
     "OpenBot cannot reach Telegram on this computer. Sign in, give this computer a name, and try again.",
+  // The agent gets this when a connected workspace has too many saved facts.
+  "error.messaging.memoryLimit": "A connected workspace can have up to {limit} memories. Delete one first.",
 });

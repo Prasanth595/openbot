@@ -4,6 +4,7 @@ import { McpOperationError } from "../backend/mcp-effects";
 
 import { readFile, rm } from "node:fs/promises";
 import { sourceText } from "@openbot/i18n/source";
+import { registerSecretValue } from "@openbot/logging";
 import { Effect, Result, Semaphore } from "effect";
 import { z } from "zod";
 import { writeFileAtomically } from "../backend/atomic-json-file";
@@ -71,8 +72,10 @@ export class McpOAuthStore implements McpOAuthStorage {
       this.#loadError = null;
       this.#unreadableServers = null;
       const result = yield* Effect.result(this.#read());
-      if (Result.isSuccess(result)) this.#records = result.success;
-      else
+      if (Result.isSuccess(result)) {
+        this.#records = result.success;
+        for (const record of result.success.values()) registerAppSecret(record);
+      } else
         this.#loadError =
           result.failure.cause instanceof Error
             ? result.failure.cause
@@ -101,12 +104,19 @@ export class McpOAuthStore implements McpOAuthStorage {
           return yield* new McpOperationError({ cause: new Error(sourceText("error.mcp.signInFileUnreadable")) });
         }
         const next = yield* mcpSync(() => this.#editableRecords());
+        registerAppSecret(record);
         // An empty record is the absence of one. `invalidateCredentials("all")` arrives as a clear, and
         // dropping everything about a server arrives here as an object with nothing in it. A record
         // that names only where the authorization server was found is not empty: the SDK saves
         // discovery state before it registers, and deleting it here would send the code exchange
-        // back to default discovery.
-        if (record.client === undefined && record.tokens === undefined && record.discovery === undefined)
+        // back to default discovery. A sign-in app alone is not empty either: the administrator saves
+        // it before the first sign-in.
+        if (
+          record.app === undefined &&
+          record.client === undefined &&
+          record.tokens === undefined &&
+          record.discovery === undefined
+        )
           next.delete(resource);
         else next.set(resource, record);
         yield* this.#commit(next);
@@ -144,6 +154,7 @@ export class McpOAuthStore implements McpOAuthStorage {
     const result = yield* Effect.result(this.#read());
     if (Result.isSuccess(result)) {
       this.#records = result.success;
+      for (const record of result.success.values()) registerAppSecret(record);
       this.#loadError = null;
     }
   });
@@ -235,4 +246,9 @@ export class McpOAuthStore implements McpOAuthStorage {
       Effect.mapError(({ cause }) => new McpOperationError({ cause })),
     );
   });
+}
+
+/** A sign-in app's secret is masked in every log line, as the other stored credentials are. */
+function registerAppSecret(record: McpOAuthRecord): void {
+  if (record.app?.clientSecret) registerSecretValue(record.app.clientSecret);
 }

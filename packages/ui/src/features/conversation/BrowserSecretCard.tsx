@@ -47,14 +47,11 @@ export function BrowserSecretCard(props: {
       setPreview(null);
       setPreviewHidden(false);
       setPreviewStatus("loading");
-      let active = true;
-      onCleanup(() => {
-        active = false;
-      });
       if (!props.loadPreview) {
         setPreviewStatus("failed");
         return;
       }
+      let active = true;
       void props.loadPreview(props.request.tabId).then(
         (image) => {
           if (!active || previewHidden()) return;
@@ -65,6 +62,9 @@ export function BrowserSecretCard(props: {
           if (active && !previewHidden()) setPreviewStatus("failed");
         },
       );
+      return () => {
+        active = false;
+      };
     },
   );
   const respond = async (decision: "submit" | "cancel" | "takeover") => {

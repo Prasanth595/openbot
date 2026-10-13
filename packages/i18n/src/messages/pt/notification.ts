@@ -4,6 +4,7 @@ import type { messages as source } from "../en/notification";
 export const messages = {
   "notification.needsInput": "Precisa de uma resposta sua.",
   "notification.needsApproval": "Precisa da sua aprovação.",
+  "notification.needsApprovalFor": "Precisa da sua aprovação: {action}",
   "notification.finished": "Terminou o trabalho.",
   "notification.failed": "Parou com um erro.",
   "notification.usageLimit.title": "A conta {provider} atingiu o limite",

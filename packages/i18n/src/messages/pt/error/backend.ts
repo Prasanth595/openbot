@@ -58,6 +58,8 @@ export const messages = {
   "error.backend.channelNotFound": "Canal não encontrado.",
   "error.backend.channelMemberUnavailable": "Um membro do canal está indisponível.",
   "error.backend.channelArchived": "Restaure este canal antes de enviar mensagens ou alterar tarefas.",
+  "error.backend.channelsRetired":
+    "Os canais não são mais compatíveis. Coloque os agentes em uma seção da barra lateral para que trabalhem juntos.",
   "error.backend.channelReferenceUnavailable": "A mensagem do canal usada como referência está indisponível.",
   "error.backend.channelTaskNotFound": "Tarefa do canal não encontrada.",
   "error.backend.channelTaskComplete": "Esta tarefa já está concluída.",
@@ -165,7 +167,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Esta conexão criaria um loop.",
   "error.backend.routineFlowLinkLimit": "Uma rotina pode ter no máximo {limit} conexões.",
   "error.backend.routineFlowHandoffFailed": "A rotina não conseguiu passar o trabalho para este agente.",
-  "error.backend.routineFlowRemoteUnsupported": "Fluxos de rotina só estão disponíveis para agentes neste computador.",
   "error.backend.mcpServerLimit": "O OpenBot mantém até {limit} servidores MCP.",
   "error.backend.mcpServerNameTaken": "Já existe um servidor MCP chamado {name}.",
   "error.backend.mcpServerNoAnswer": "O servidor não respondeu em {seconds} segundos.",
@@ -262,4 +263,11 @@ export const messages = {
     "O servidor respondeu com {status}. Verifique a chave de API ou outras credenciais.",
   "error.backend.mcpServerHttpUrl":
     "O servidor respondeu com {status}. Verifique a URL. O link pode estar incorreto, expirado ou excluído.",
+  "error.backend.mcpSignInAppUrl": "O app de autenticação precisa de uma URL de servidor válida.",
+  "error.backend.mcpSignInAppClientId": "Digite o ID do cliente do app de autenticação.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "O servidor de autenticação deste servidor MCP mudou, então o OpenBot não enviou o app de autenticação a ele. Se a mudança estiver correta, remova o app de autenticação e adicione-o de novo.",
+  "error.backend.mcpSignInAppNoServer":
+    "Salve este servidor MCP como servidor de URL antes de adicionar um app de autenticação.",
+  "error.backend.mcpSignInAppUnavailable": "Este computador não consegue guardar um app de autenticação.",
 } as const satisfies PartialTranslation<typeof source>;

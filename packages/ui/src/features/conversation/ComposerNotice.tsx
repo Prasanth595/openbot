@@ -3,6 +3,7 @@ import type { AppFormat } from "@openbot/i18n";
 import { Button, ErrorReference, TriangleAlert } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
+import { createCodeSignInFallback } from "../../components/createCodeSignInFallback";
 import { useText } from "../../text";
 import { CloseIcon } from "./ConversationIcons";
 
@@ -10,12 +11,11 @@ import { CloseIcon } from "./ConversationIcons";
  * The shared slab every composer notice uses: a warning-toned card in the queue's shape, above the
  * input and under the queue, because the user reads that column top to bottom before they send.
  *
- * `tone` is the only difference between the states. It is `danger` when the user cannot send at all
- * and the wait is not in their hands, and `warning` when one press puts the state right.
+ * `tone` is `danger` for errors and spent plan windows, and `warning` for account setup notices.
  *
  * `onDismiss` decides the rest. A notice the user can clear gets the close button, Escape, and
  * `role="alert"`, because a state the user did not ask for has to announce itself. The states they
- * walked into - a signed-out provider, a spent plan window - stay until they are resolved, so they
+ * walked into, such as a signed-out provider, stay until they are resolved, so they
  * only report. `title` is optional: a failure the provider already stated in a sentence gains
  * nothing from a label that repeats the word "error" above it.
  */
@@ -107,6 +107,8 @@ function NoticeContent(props: {
 export function ComposerSignInNotice(props: {
   provider: AgentProviderId;
   onSignIn: (provider: AgentProviderId) => void | Promise<void>;
+  /** The code sign-in, offered when the browser sign-in that `onSignIn` starts is slow or fails. */
+  onSignInWithCode?: ((provider: AgentProviderId) => void) | undefined;
   signingIn?: boolean;
   onShown?: () => void;
 }) {
@@ -123,9 +125,11 @@ export function ComposerSignInNotice(props: {
    */
   const [starting, setStarting] = createSignal(false);
   const busy = () => starting() || Boolean(props.signingIn);
+  const codeFallback = createCodeSignInFallback(() => Boolean(props.signingIn));
   const signIn = async () => {
     if (busy()) return;
     setStarting(true);
+    codeFallback.startedInBrowser();
     try {
       await props.onSignIn(props.provider);
     } finally {
@@ -138,17 +142,36 @@ export function ComposerSignInNotice(props: {
       title={t("composer.signIn.title")}
       body={t("composer.signIn.body", { provider: providerName() })}
       action={
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          loading={busy()}
-          loadingLabel={t("composer.signIn.pending")}
-          aria-label={t("composer.signIn.label", { provider: providerName() })}
-          onClick={() => void signIn()}
-        >
-          {t("composer.signIn.action")}
-        </Button>
+        <>
+          <Show when={props.onSignInWithCode && codeFallback.offered() ? props.onSignInWithCode : undefined}>
+            {(signInWithCode) => (
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                class="composer-notice-code-fallback"
+                aria-label={t("provider.aria.codeFallback", { name: providerName() })}
+                onClick={() => {
+                  codeFallback.startedWithCode();
+                  signInWithCode()(props.provider);
+                }}
+              >
+                {t("provider.action.signInWithCode")}
+              </Button>
+            )}
+          </Show>
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            loading={busy()}
+            loadingLabel={t("composer.signIn.pending")}
+            aria-label={t("composer.signIn.label", { provider: providerName() })}
+            onClick={() => void signIn()}
+          >
+            {t("composer.signIn.action")}
+          </Button>
+        </>
       }
     />
   );
@@ -210,16 +233,14 @@ function formatUsageReset(resetsAt: number | null | undefined, format: AppFormat
 }
 
 /**
- * The plan limit, used up: the provider accepts no more turns on this model until its window resets.
- *
- * It carries no button on purpose. Nothing the user presses here gives them more quota - only time
- * does, or a different model, and the model picker under this notice already does that. So the card
- * says when the limit resets instead, which is the one fact the user needs to plan around it.
+ * A spent plan window can coexist with paid credits. Dismissing the notice only hides the reading;
+ * the provider still decides whether to accept the next turn.
  */
 export function ComposerUsageLimitNotice(props: {
   provider: AgentProviderId;
   resetsAt?: number | null;
   onShown?: () => void;
+  onDismiss: () => void;
 }) {
   const { t, format } = useText();
   createEffect(
@@ -234,5 +255,7 @@ export function ComposerUsageLimitNotice(props: {
       ? t("composer.usageLimit.resets", { provider, reset })
       : t("composer.usageLimit.selectModel", { provider });
   };
-  return <ComposerNotice tone="danger" title={t("composer.usageLimit.title")} body={body()} />;
+  return (
+    <ComposerNotice tone="danger" title={t("composer.usageLimit.title")} body={body()} onDismiss={props.onDismiss} />
+  );
 }

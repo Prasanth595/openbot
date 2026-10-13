@@ -188,3 +188,43 @@ it("retains background failures and defers membership requests and retries until
   expect(load).toHaveBeenCalledTimes(3);
   expect(status).toHaveBeenLastCalledWith("host", { phase: "online", attempt: 0, remainingSeconds: 0 }, null);
 });
+
+// After a long absence the peer replaces its connection when it becomes active. The first attempt
+// showed the server online while that replacement ran and its requests failed.
+it.each([
+  { seconds: 10, phases: ["online"] },
+  { seconds: 170, phases: ["connecting", "online"] },
+])("reports a return to the app after $seconds s away", async ({ seconds, phases }) => {
+  vi.useFakeTimers();
+  const directory = new RemoteTeamDirectoryClient({ apiUrl: "https://example.com", token: "test", fetch });
+  const seen: string[] = [];
+  // Stable, as the workspace passes them: a new callback makes a new recovery controller.
+  const register = () => {};
+  const load = (id: string, key: string, client: RemoteTeamTransportRef) => client.connect(id, key);
+  const status = (_id: string, value: RemoteRecoveryStatus) => {
+    seen.push(value.phase);
+  };
+  const events = () => {};
+  const render = (active: boolean) =>
+    root.render(
+      <ServerConnection
+        hostId="remote"
+        publicKey="key"
+        active={active}
+        directory={directory}
+        register={register}
+        load={load}
+        onStatus={status}
+        onTeamEvent={events}
+      />,
+    );
+  await act(async () => render(true));
+  expect(seen).toEqual(["connecting", "online"]);
+  await act(async () => render(false));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(seconds * 1_000);
+  });
+  seen.length = 0;
+  await act(async () => render(true));
+  expect(seen).toEqual(phases);
+});

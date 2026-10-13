@@ -7,6 +7,7 @@ import type {
   DynamicIslandGeometry,
   HostedServersDesktopApi,
   MobileConnectedDevice,
+  MobileConnectLink,
   MobileConnectTicket,
   UpdateStatus,
 } from "@openbot/contracts/ipc";
@@ -26,10 +27,13 @@ import { createSettingsUpdatesStore } from "@openbot/ui/features/settings/stores
 import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { ComputerUseSetup } from "../computer-use/ComputerUseSetup";
+import { voiceSupported } from "../conversation/voice-status";
 import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
+import { SettingsVoiceTab } from "./SettingsVoiceTab";
 import { navItem, navItems, type SettingsTab } from "./settings-tabs";
+import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
   open: boolean;
@@ -49,6 +53,10 @@ export interface SettingsModalProps {
   onUpdateAccountName: (name: string) => Promise<void>;
   onUpdateAccountAvatar: (image: AvatarImageInput | null) => Promise<void>;
   onCreateMobileConnect?: () => Promise<MobileConnectTicket>;
+  onCancelMobileConnect?: () => Promise<void>;
+  onGetMobileConnectLink?: () => Promise<MobileConnectLink | null>;
+  onCreateMobileConnectLink?: () => Promise<MobileConnectLink>;
+  onRevokeMobileConnectLink?: () => Promise<void>;
   onListMobileConnectedDevices?: () => Promise<MobileConnectedDevice[]>;
   onRevokeMobileConnectedDevice?: (sessionId: string) => Promise<void>;
   onListAccountSessions?: () => Promise<AccountSession[]>;
@@ -95,6 +103,7 @@ export function SettingsModal(props: SettingsModalProps) {
     () => props.open && activeTab() === "billing",
   );
   const hostedServers = createSettingsHostedServersStore(props, () => activeTab() === "billing");
+  const voice = createSettingsVoiceStore(() => props.open && activeTab() === "voice");
   let handledHostedServerDeleteNonce = 0;
   createEffect(
     () => (props.open ? props.hostedServerDeleteRequest : null),
@@ -107,6 +116,8 @@ export function SettingsModal(props: SettingsModalProps) {
 
   // The Dynamic Island exists only on macOS, so other platforms get no tab for it.
   const isMac = () => props.appInfo?.platform === "darwin";
+  // Linux builds carry no speech recognition runtime.
+  const hasVoice = () => voiceSupported(props.appInfo?.platform);
   createEffect(
     () => {
       const tab = props.open ? props.openTab : undefined;
@@ -117,7 +128,12 @@ export function SettingsModal(props: SettingsModalProps) {
     },
   );
   const visibleNavItems = () =>
-    navItems.filter((item) => (item.value !== "dynamic-island" || isMac()) && item.value !== "hosted-servers");
+    navItems.filter(
+      (item) =>
+        (item.value !== "dynamic-island" || isMac()) &&
+        (item.value !== "voice" || hasVoice()) &&
+        item.value !== "hosted-servers",
+    );
 
   const title = () => i18n.t(navItem(activeTab()).titleKey);
   const description = () => i18n.t(navItem(activeTab()).descriptionKey);
@@ -130,6 +146,7 @@ export function SettingsModal(props: SettingsModalProps) {
       if (
         value === "general" ||
         value === "notifications" ||
+        (value === "voice" && hasVoice()) ||
         (value === "dynamic-island" && isMac()) ||
         value === "computer-use" ||
         value === "profile" ||
@@ -208,6 +225,12 @@ export function SettingsModal(props: SettingsModalProps) {
           />
         </Tabs.Content>
 
+        <Show when={hasVoice()}>
+          <Tabs.Content value="voice" class="settings-modal-tab-panel" data-tab="voice">
+            <SettingsVoiceTab store={voice} selectMount={modalElement} />
+          </Tabs.Content>
+        </Show>
+
         <Show when={isMac()}>
           <Tabs.Content value="dynamic-island" class="settings-modal-tab-panel" data-tab="dynamic-island">
             <SettingsDynamicIslandTab
@@ -246,6 +269,8 @@ export function SettingsModal(props: SettingsModalProps) {
           <SettingsMobileConnectTab
             store={mobileConnect}
             canCreateTicket={Boolean(props.onCreateMobileConnect)}
+            canCancelTicket={Boolean(props.onCancelMobileConnect)}
+            canManageLink={Boolean(props.onCreateMobileConnectLink && props.onRevokeMobileConnectLink)}
             canRevokeDevice={Boolean(props.onRevokeMobileConnectedDevice)}
           />
         </Tabs.Content>

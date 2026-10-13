@@ -1,5 +1,5 @@
 import { AGENT_MEMORY_CONTEXT_BUDGET_BYTES, essentialMemoryBytes } from "@openbot/contracts/agent-memory-context";
-import type { AcpRegistryEntry, AgentSessionSettings } from "@openbot/contracts/ipc";
+import type { AcpRegistryEntry, AgentSessionSettings, McpSignInApp, McpSignInAppState } from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
   type AgentEvent,
@@ -65,6 +65,8 @@ import {
   type ReorderQueueInput,
   type RespondToPromptInput,
   type Routine,
+  type RoutineFlowLink,
+  type RoutineFlowStep,
   type RoutineRun,
   type RoutineSchedule,
   type SendMessageInput,
@@ -129,9 +131,11 @@ import { createMockSkills, type MockSkillsOptions } from "./mock-skills";
 import { createMockStorage } from "./mock-storage";
 import { clone, type Listener, type MockRuntime, matchesQuery } from "./mock-support";
 import { createMockTeam, type MockTeamOptions } from "./mock-team";
+import { createMockVoice, type MockVoiceOptions } from "./mock-voice";
 
 export interface MockOpenBotOptions
   extends MockProviderRuntimeOptions,
+    MockVoiceOptions,
     MockAuthOptions,
     MockBrowserOptions,
     MockTeamOptions,
@@ -152,6 +156,10 @@ export interface MockOpenBotOptions
   memories?: Record<string, AgentMemory[]>;
   tables?: SharedTable[];
   routines?: Record<string, Routine[]>;
+  /** Runs keyed by routine id, newest first. */
+  routineRuns?: Record<string, RoutineRun[]>;
+  routineFlowLinks?: RoutineFlowLink[];
+  routineFlowSteps?: RoutineFlowStep[];
   customProviders?: CustomProviderSummary[];
 }
 
@@ -297,6 +305,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     mcpServers
       .filter((server) => server.transport === "http")
       .map((server) => ({ mcpServerId: server.id, signedIn: mcpSignedIn.has(server.id) }));
+  let mcpSignInApps: Record<string, McpSignInApp> = {};
+  const mcpSignInAppState = (mcpServerId: string): McpSignInAppState => ({
+    redirectUrl: "http://127.0.0.1:28417/mcp-auth",
+    app: mcpSignInApps[mcpServerId] ?? null,
+  });
   let sidebarLayout: SidebarLayoutSnapshot = {
     revision: 0,
     sections: [],
@@ -420,7 +433,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
 
   let tables: SharedTable[] = clone(options.tables ?? STORY_SHARED_TABLES);
   const routines = new Map<string, Routine[]>(Object.entries(clone(options.routines ?? {})));
-  const routineRuns = new Map<string, RoutineRun[]>();
+  const routineRuns = new Map<string, RoutineRun[]>(Object.entries(clone(options.routineRuns ?? {})));
 
   function emitAgentEvent(event: AgentEvent): void {
     emit(agentListeners, event);
@@ -539,6 +552,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     (agentId) => agents.find((entry) => entry.id === agentId)?.name ?? agentId,
   );
   const mockProviderRuntimes = createMockProviderRuntimes(options, runtime);
+  const mockVoice = createMockVoice(options, runtime);
   const mockAuth = createMockAuth(options, runtime);
   const mockSkills = createMockSkills(options, (agentId) => emitAgentEvent({ type: "skills-changed", agentId }));
   const { installedSkills, readInstalledSkills } = mockSkills;
@@ -672,13 +686,27 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     restartProvider: async () => clone(agentStatus),
     cancelProviderRestart: async () => clone(agentStatus),
     // A code that never completes: the preview has no provider to finish the sign-in, so this shows
-    // the waiting screen and leaves it there.
-    startProviderCodeLogin: async () => ({
-      kind: "code",
-      userCode: "KTQ4-B62MX",
-      verificationUrl: "https://auth.openai.com/codex/device",
-      expiresAt: Date.now() + 10 * 60_000,
-    }),
+    // the waiting screen and leaves it there. Claude signs in with a code its page shows, which the
+    // user pastes back, and Cursor with a page that signs its CLI in by itself.
+    startProviderCodeLogin: async (provider) =>
+      provider === "claude"
+        ? {
+            kind: "paste",
+            verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
+            expiresAt: Date.now() + 10 * 60_000,
+          }
+        : provider === "cursor"
+          ? {
+              kind: "link",
+              verificationUrl: "https://cursor.com/loginDeepControl?mode=login&redirectTarget=cli",
+              expiresAt: Date.now() + 10 * 60_000,
+            }
+          : {
+              kind: "code",
+              userCode: "KTQ4-B62MX",
+              verificationUrl: "https://auth.openai.com/codex/device",
+              expiresAt: Date.now() + 10 * 60_000,
+            },
     cancelProviderCodeLogin: async () => clone(agentStatus),
     setProviderApiKey: async ({ provider, key }) => {
       if (!key.trim()) throw new Error("A provider key is required.");
@@ -695,13 +723,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     }),
     providerRuntimes: mockProviderRuntimes.providerRuntimes,
     openUrl: async () => undefined,
-    voice: {
-      getModelStatus: async () => ({ phase: "ready", progress: 100, message: null }),
-      prepareModel: async () => ({ phase: "ready", progress: 100, message: null }),
-      transcribe: async () => ({ text: "Mock voice transcript" }),
-      onModelStatus: () => () => undefined,
-    },
-    routineFlows: mockRoutineFlows({ routines, routineRuns }),
+    voice: mockVoice.voice,
+    routineFlows: mockRoutineFlows(
+      { routines, routineRuns, links: options.routineFlowLinks, steps: options.routineFlowSteps },
+      (agentId) => emitAgentEvent({ type: "routine-flows-changed", agentId }),
+    ),
     auth: mockAuth.auth,
     skills: mockSkills.skills,
     hostedSites: {
@@ -888,25 +914,19 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     messaging: createMockMessaging(() => agents[0]?.id ?? "preview-agent"),
     // Preview has one host, so every server answers from the same providers as this computer.
     providerAdmin: {
-      // A host signs Claude in with a code its page shows, which the user pastes back, and Cursor
-      // with a page that signs its CLI in by itself.
-      startCodeLogin: async (provider) =>
-        provider === "claude"
-          ? {
-              kind: "paste",
-              verificationUrl: "https://claude.com/cai/oauth/authorize?code=true",
-              expiresAt: Date.now() + 10 * 60_000,
-            }
-          : provider === "cursor"
-            ? {
-                kind: "link",
-                verificationUrl: "https://cursor.com/loginDeepControl?mode=login&redirectTarget=cli",
-                expiresAt: Date.now() + 10 * 60_000,
-              }
-            : api.startProviderCodeLogin(provider),
+      startCodeLogin: (provider) => api.startProviderCodeLogin(provider),
       // As with the code above, the preview has no provider to finish the sign-in.
       submitCodeLogin: async () => clone(agentStatus),
       cancelCodeLogin: (provider) => api.cancelProviderCodeLogin(provider),
+      // The preview has no host browser, so its Gemini sign-in waits with no page until it is cancelled.
+      startHostSignIn: async () => undefined,
+      hostSignInStatus: async () => ({ tabId: null, result: null }),
+      cancelHostSignIn: async () => clone(agentStatus),
+      startRelaySignIn: async () => undefined,
+      relaySignInStatus: async () => ({ page: null, result: null }),
+      openRelaySignIn: async () => undefined,
+      pasteRelaySignIn: async () => undefined,
+      cancelRelaySignIn: async () => clone(agentStatus),
       getApiKeyState: (provider) => api.getProviderApiKeyState(provider),
       setApiKey: (input) => api.setProviderApiKey(input),
       clearApiKey: (provider) => api.clearProviderApiKey(provider),
@@ -1258,6 +1278,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         }),
       // The preview is this computer, which shows no host page.
       mcpSignInPage: async () => null,
+      mcpSignInRelay: async () => null,
+      openMcpSignInRelay: async () => undefined,
+      completeMcpSignInRelay: async () => undefined,
       cancelMcpSignIn: async () => {
         cancelPendingMcpSignIn?.();
       },
@@ -1266,6 +1289,21 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return mcpSignInStates();
       },
       listMcpSignIns: async () => mcpSignInStates(),
+      // The preview keeps no secret: it remembers only that one was given.
+      mcpSignInApp: async ({ mcpServerId }) => mcpSignInAppState(mcpServerId),
+      saveMcpSignInApp: async ({ mcpServerId, clientId, clientSecret, scope }) => {
+        const secretSaved =
+          clientSecret === null ? (mcpSignInApps[mcpServerId]?.secretSaved ?? false) : clientSecret !== "";
+        mcpSignInApps = { ...mcpSignInApps, [mcpServerId]: { clientId, secretSaved, scope } };
+        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        return mcpSignInAppState(mcpServerId);
+      },
+      removeMcpSignInApp: async ({ mcpServerId }) => {
+        const { [mcpServerId]: _removed, ...rest } = mcpSignInApps;
+        mcpSignInApps = rest;
+        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        return mcpSignInAppState(mcpServerId);
+      },
       getSidebarLayout: async () => clone(sidebarLayout),
       mutateSidebarLayout: async (action) => {
         sidebarLayout = applySidebarLayoutAction(sidebarLayout, action);
@@ -1599,6 +1637,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           readState: { unreadCount: 0, firstUnreadMessageId: null, throughMessageId: null },
         };
       },
+      openMessageLink: async () => null,
+      pasteMessageLink: async () => undefined,
+      cancelMessageLink: async () => undefined,
       searchConversationMessages: async (input) => {
         const query = input.query.trim().replace(/\s+/g, " ").toLocaleLowerCase();
         const results = agents.flatMap((agent) =>
@@ -1760,6 +1801,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         });
       },
       listQueue: async (agentId) => clone(queues.get(agentId) ?? emptyQueue(agentId)),
+      listWaits: async (agentId) => ({ agentId, waits: [] }),
+      cancelWait: async () => undefined,
       acknowledgeFailedTurn: async () => undefined,
       cancelQueuedMessage: async (input) => {
         const queue = queues.get(input.agentId) ?? emptyQueue(input.agentId);
@@ -1869,7 +1912,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return () => agentListeners.delete(listener);
       },
       onScopedEvent: (listener) => {
-        const scopedListener = (event: AgentEvent) => listener({ serverId: "local", event });
+        const scopedListener = (event: AgentEvent) => listener({ serverId: mockTeam.activeServerId(), event });
         agentListeners.add(scopedListener);
         return () => agentListeners.delete(scopedListener);
       },
@@ -1883,7 +1926,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone(updateStatus);
       },
       download: async () => {
-        updateStatus = { ...updateStatus, phase: "downloading", progress: 0 };
+        updateStatus = { ...updateStatus, phase: "downloading", progress: null };
         emit(updateListeners, updateStatus);
         const downloadSteps = [
           { delay: 350, expectedPhase: "downloading", phase: "downloading", progress: 28 },
@@ -1934,7 +1977,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       onPreference: () => () => undefined,
     },
     notifications: {
-      getPreference: async () => ({ desktopNotifications: true }),
+      getPreference: async () => ({ desktopNotifications: true, messagePreview: true }),
       setPreference: async (input) => ({ ...input }),
       test: async () => undefined,
       openSettings: async () => undefined,

@@ -17,6 +17,7 @@ import {
   type DuplicateAgentResult,
   isAgentEvent,
   isTeamRealtimeEvent,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   type SidebarLayoutSnapshot,
   type TeamMemberSummary,
   type TeamPresenceSnapshot,
@@ -33,6 +34,7 @@ import {
   AGENT_PUBLISH_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
+  CONNECTORS_CAPABILITY,
   EVENTS_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
@@ -43,20 +45,25 @@ import {
   LIVE_ACTIVITY_PUSH_CAPABILITY,
   legacyTeamCapabilities,
   MCP_SERVERS_CAPABILITY,
+  MCP_SIGN_IN_APP_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
+  PROVIDER_HOST_SIGN_IN_CAPABILITY,
   PROVIDERS_ADMIN_CAPABILITY,
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
   QUIET_TURN_CAPABILITY,
+  ROUTINE_FLOWS_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
+  SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
   SKILLS_EVENTS_CAPABILITY,
   STORAGE_CAPABILITY,
   supportsTeamSemanticTags,
   TEAM_AGENT_ACTIVITY_CAPABILITY,
   TEAM_CURRENT_CAPABILITIES,
+  TEAM_HISTORY_EXTENT_CAPABILITY,
   type TeamCurrentCapability,
 } from "@openbot/contracts/team-protocol/current";
 import {
@@ -131,7 +138,9 @@ import { routeAgentSessionSettings } from "./team-api/route-agent-session-settin
 import { routeAgents } from "./team-api/route-agents";
 import { routeBrowser } from "./team-api/route-browser";
 import { routeChannels } from "./team-api/route-channels";
+import { routeConnectors } from "./team-api/route-connectors";
 import { routeContextReset } from "./team-api/route-context-reset";
+import { routeConversationFiles } from "./team-api/route-conversation-files";
 import { routeDirect } from "./team-api/route-direct";
 import { routeEvents } from "./team-api/route-events";
 import { routeFiles } from "./team-api/route-files";
@@ -141,9 +150,13 @@ import { routeHostedSites } from "./team-api/route-hosted-sites";
 import { routeLiveActivityPush } from "./team-api/route-live-activity-push";
 import { routeMcpServers } from "./team-api/route-mcp";
 import { routeMcpSignIn } from "./team-api/route-mcp-sign-in";
+import { routeMcpSignInApp } from "./team-api/route-mcp-sign-in-app";
+import { routeProviderHostSignIn } from "./team-api/route-provider-host-sign-in";
 import { routeProviders } from "./team-api/route-providers";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
+import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
+import { routeSignInRelay } from "./team-api/route-sign-in-relay";
 import { routeSkillsAdmin } from "./team-api/route-skills-admin";
 import { routeStorage } from "./team-api/route-storage";
 import { routeTeam } from "./team-api/route-team";
@@ -702,6 +715,12 @@ export class TeamApiServer {
       )
         return;
       if ((await routeMcpSignIn(context, this.#options.mcpServers && this.#options.mcpSignIns)) === "handled") return;
+      if ((await routeMcpSignInApp(context, this.#options.mcpServers && this.#options.mcpSignIns)) === "handled")
+        return;
+      if ((await routeSignInRelay(context, this.#options.mcpServers && this.#options.signInRelay)) === "handled")
+        return;
+      if ((await routeConnectors(context, this.#options.connectors)) === "handled") return;
+      if ((await routeProviderHostSignIn(context, this.#options.providerHostSignIns)) === "handled") return;
       if ((await routeStorage(context, this.#options.storage)) === "handled") return;
       if ((await routeHostedSites(context, this.#options.hostedSites)) === "handled") return;
       if ((await routeAgentAdmin(context, this.#options.admin, hidden)) === "handled") return;
@@ -718,6 +737,9 @@ export class TeamApiServer {
       if ((await routeContextReset(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeAgentMemoryPage(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeWorkspaceDirectory(context, this.#options.agents, hidden)) === "handled") return;
+      if ((await routeConversationFiles(context, this.#options.agents)) === "handled") return;
+      if ((await routeRoutineFlows(context, this.#options.routineFlows, this.#options.agents, hidden)) === "handled")
+        return;
       if ((await this.#routeEvents(context)) === "handled") return;
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
       if (
@@ -1017,7 +1039,8 @@ export class TeamApiServer {
         event.type === "conversation" &&
         (!connection.capabilities.has("routine-event-markers") ||
           !connection.capabilities.has("routine-run-event-markers") ||
-          !connection.capabilities.has("hosted-site-event-markers"))
+          !connection.capabilities.has("hosted-site-event-markers") ||
+          event.snapshot.messages.some((message) => message.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE))
       ) {
         const key = `${eventProtocol(connection.capabilities)}:${connection.capabilities.has("opencode")}:${connection.capabilities.has("routine-event-markers")}:${connection.capabilities.has("routine-run-event-markers")}:${connection.capabilities.has("hosted-site-event-markers")}:${encodingOptions.preserveSemanticTags}`;
         let filtered = filteredConversationPayloads.get(key);
@@ -1391,7 +1414,10 @@ export class TeamApiServer {
   #json(response: ServerResponse, status: number, value: object | null): RouteOutcome {
     const route = this.#responseRoutes.get(response);
     if (!route) throw new Error("Team API response route is unavailable.");
-    const options = { preserveSemanticTags: supportsTeamSemanticTags(route.capabilities) };
+    const options = {
+      preserveSemanticTags: supportsTeamSemanticTags(route.capabilities),
+      historyExtent: route.capabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
+    };
     // The body is encoded before the head is written. A response the negotiated protocol cannot
     // represent - a route its frozen adapter does not classify - makes the encoder throw, and with
     // the headers already sent that throw could neither answer the caller nor end the request: it
@@ -1409,7 +1435,7 @@ export class TeamApiServer {
         : value;
     const sideRoute = teamSideRouteCodec(route.path);
     const body = sideRoute
-      ? JSON.stringify(sideRoute.response(route.path, status, visibleValue))
+      ? JSON.stringify(sideRoute.response(route.path, status, visibleValue, options))
       : teamHttpCodec(route.protocol).encodeResponse(route.method, route.path, status, visibleValue, options);
     response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
     response.end(`${body}\n`);
@@ -1473,6 +1499,12 @@ export class TeamApiServer {
         if (capability === MCP_SERVERS_CAPABILITY) return this.#options.mcpServers !== undefined;
         if (capability === MCP_SIGN_IN_CAPABILITY)
           return this.#options.mcpServers !== undefined && this.#options.mcpSignIns !== undefined;
+        if (capability === MCP_SIGN_IN_APP_CAPABILITY)
+          return this.#options.mcpServers !== undefined && this.#options.mcpSignIns !== undefined;
+        if (capability === SIGN_IN_RELAY_CAPABILITY)
+          return this.#options.mcpServers !== undefined && this.#options.signInRelay !== undefined;
+        if (capability === CONNECTORS_CAPABILITY) return this.#options.connectors !== undefined;
+        if (capability === PROVIDER_HOST_SIGN_IN_CAPABILITY) return this.#options.providerHostSignIns !== undefined;
         if (capability === STORAGE_CAPABILITY) return this.#options.storage !== undefined;
         if (capability === HOSTED_SITES_CAPABILITY) return this.#options.hostedSites !== undefined;
         if (capability === AGENT_ADMIN_CAPABILITY) return this.#options.admin?.agents !== undefined;
@@ -1503,6 +1535,7 @@ export class TeamApiServer {
         if (capability === EVENTS_CAPABILITY) return this.#options.events !== undefined;
         if (capability === AGENT_IMPORT_CAPABILITY) return this.#options.agentImport !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
+        if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
         return true;
       }),
     };
@@ -1635,6 +1668,7 @@ function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
     return "channel-chats-v1";
   if (event.type === "agent-session-settings-changed") return AGENT_SESSION_SETTINGS_CAPABILITY;
   if (event.type === "skills-changed") return SKILLS_EVENTS_CAPABILITY;
+  if (event.type === "routine-flows-changed") return ROUTINE_FLOWS_CAPABILITY;
   if (event.type === "turn-progress") return TEAM_AGENT_ACTIVITY_CAPABILITY;
   if (event.type === "runtime-snapshot") return "agent-runtime-snapshots";
   if (event.type === "sidebar-layout-changed") return "sidebar-layout";

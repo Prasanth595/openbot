@@ -106,6 +106,8 @@ export const messages = {
   "error.provider.localOnly": "Os provedores só podem ser alterados no computador que executa os agentes.",
   "error.provider.keyRequired": "É necessário informar uma chave de provedor.",
   "error.provider.keyTooLong": "A chave do provedor é muito longa.",
+  "error.provider.keyInvalidCharacters":
+    "A chave do provedor contém um espaço ou um caractere que uma chave não pode conter.",
   "error.provider.noModel": "O provedor selecionado não tem nenhum modelo disponível.",
   "error.provider.noModelNamed": "{provider} não tem nenhum modelo disponível.",
   "error.provider.acpNoModels":
@@ -151,6 +153,7 @@ export const messages = {
     "{provider} não respondeu a tempo. O computador pode estar ocupado. Atualize os provedores para tentar de novo.",
   "error.provider.noCodeSignIn": "Não é possível entrar em {provider} com um código.",
   "error.provider.codeLoginNoLink": "O provedor não mostrou um link para entrar. Tente novamente.",
+  "error.provider.hostSignInEnded": "A entrada em {provider} não foi concluída. Tente novamente.",
   "error.provider.codeLoginNotWaiting":
     "Nenhum processo de entrada está aguardando um código. Inicie o processo novamente.",
   "error.provider.codeLoginBadCode": "Cole o código mostrado na página de entrada.",

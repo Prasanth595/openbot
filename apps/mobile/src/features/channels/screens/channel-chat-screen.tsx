@@ -1,6 +1,6 @@
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, usePreventZoomTransitionDismissal } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ChatView } from "@/features/chat/components/chat-view";
 import { useQuestionPrompt } from "@/features/chat/components/use-question-prompt";
 import { projectChannelMessages } from "@/features/chat/model/chat-messages";
@@ -8,7 +8,6 @@ import { useApprovalRequests } from "@/features/workspace/components/use-live-wo
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { useText } from "@/shared/lib/text";
 import { useChannels } from "../components/use-channels";
-import { ChannelSend } from "../model/channel-send";
 import { channelTaskActivities, channelTasksNeedingAction } from "../model/channel-task-actions";
 
 export function ChannelChatScreen() {
@@ -54,8 +53,6 @@ function ChannelChat({ channelId, serverId }: { channelId: string; serverId: str
     );
     return serverApprovals.filter((approval) => workers.has(approval.agentId));
   }, [serverApprovals, channel?.archived, page?.tasks]);
-  const [sender] = useState(() => new ChannelSend(state.store, serverId, channelId, Crypto.randomUUID));
-  useEffect(() => () => sender.dispose(), [sender]);
   const [olderLoading, setOlderLoading] = useState(false);
   const [olderError, setOlderError] = useState(false);
   const readThrough = useRef(0);
@@ -69,7 +66,8 @@ function ChannelChat({ channelId, serverId }: { channelId: string; serverId: str
         readThrough.current = 0;
       });
   }, [state.store, serverId, channelId, throughSequence]);
-  const canSend = online && Boolean(channel) && !channel?.archived;
+  // The phone keeps a message while the server is offline and sends it when it is back.
+  const canSend = Boolean(channel) && !channel?.archived;
   const [selectedPromptId, selectPrompt] = useState<string | null>(null);
   const pendingPrompts = messages.filter((message) => message.kind === "question" && !message.prompt.resolution);
   const activePrompt = pendingPrompts.find((message) => message.id === selectedPromptId) ?? pendingPrompts[0];
@@ -77,7 +75,7 @@ function ChannelChat({ channelId, serverId }: { channelId: string; serverId: str
   const questionForm = useQuestionPrompt(
     promptAuthor?.kind === "agent" ? promptAuthor.id : "",
     activePrompt?.kind === "question" ? activePrompt : undefined,
-    canSend,
+    online && canSend,
     (agentId, input) => state.store.respondToPrompt(serverId, channelId, agentId, input),
   );
   return (
@@ -119,9 +117,6 @@ function ChannelChat({ channelId, serverId }: { channelId: string; serverId: str
           .catch(() => setOlderError(true))
           .finally(() => setOlderLoading(false));
       }}
-      send={(body, files, replyToMessageId, upload) =>
-        sender.send(body, files, replyToMessageId, channel?.members ?? [], upload)
-      }
       notice={channel?.archived ? t("mobile.channel.chat.deletedNotice") : undefined}
       needsAction={channelTasksNeedingAction(page?.tasks ?? []).length > 0 && !channel?.archived}
     />

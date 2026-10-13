@@ -46,7 +46,10 @@ export interface InboundMessage {
   /** True for a reply that does not name OpenBot: it counts only in a conversation that already has an agent. */
   requiresLink: boolean;
   authorId: string;
+  /** Text with each user mention as `@<user id>`; `mentionedUserIds` lists those ids. */
   text: string;
+  /** The users the text mentions, without OpenBot, so the service can name them. */
+  mentionedUserIds: string[];
   files: InboundFile[];
 }
 
@@ -140,6 +143,16 @@ export interface MessagingAdapter {
     afterId: string | null,
     beforeId: string,
   ): Effect.Effect<ContextEntry[], MessagingAdapterError>;
+  /**
+   * The newest messages of a place, oldest first, posts by bots included, for the agent's history
+   * tool. With `threadKey`, only that conversation; with null, the whole channel or chat. At most
+   * `limit` messages; the platform can give fewer.
+   */
+  recent(
+    platformChannelId: string,
+    threadKey: string | null,
+    limit: number,
+  ): Effect.Effect<ContextEntry[], MessagingAdapterError>;
   /** Downloads one file to `destination`. Refuses a file larger than `maxBytes`. */
   download(file: InboundFile, destination: string, maxBytes: number): Effect.Effect<void, MessagingAdapterError>;
   authorName(userId: string): Effect.Effect<string, MessagingAdapterError>;
@@ -176,11 +189,16 @@ export interface MessagingTransport {
  * Telegram, one update of a chat, whose secret header Signal has checked. Discord and Telegram get no
  * answer.
  */
-export type IngressDelivery =
+export type IngressDelivery = (
   | { platform: "slack"; kind: "events" | "interactivity"; retryNum: number | null; body: Uint8Array }
   | { platform: "discord"; delivery: DiscordDelivery }
   // `linked` marks the `/start <code>` update that the account service just linked to this host.
-  | { platform: "telegram"; botId: string; body: Uint8Array; linked: boolean };
+  | { platform: "telegram"; botId: string; body: Uint8Array; linked: boolean }
+) & {
+  // Signal kept it while this hosted server started (`queued-delivery`). It can come before its
+  // connection has a transport, and nothing sends it again.
+  queued?: boolean;
+};
 
 /** The HTTP answer the platform gets. A body only for a URL check or a button reply. */
 export interface IngressAnswer {

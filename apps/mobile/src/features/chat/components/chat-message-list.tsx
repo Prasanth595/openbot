@@ -1,3 +1,4 @@
+import type { BrowserTakeoverRequest } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useIsFocused } from "expo-router";
 import { Button, Typography } from "heroui-native";
@@ -28,7 +29,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { AccessibilityInfo, type CellRendererProps, FlatList, Pressable, View, type ViewStyle } from "react-native";
+import {
+  AccessibilityInfo,
+  type CellRendererProps,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { KeyboardChatScrollView, type KeyboardChatScrollViewProps } from "react-native-keyboard-controller";
 import Animated, {
   Easing,
@@ -53,6 +62,7 @@ import { useMessageArrivals } from "@/features/chat/components/use-message-arriv
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import {
   type ChatMessage,
+  chatRowIndex,
   type ExchangeGroup,
   groupExchangeMarkers,
   indexChatMessages,
@@ -65,6 +75,7 @@ import { agentActivityMood, type MobileAgentActivity } from "@/features/workspac
 import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import type { ChatBubbleMessage } from "../context/message-actions-context";
 import { CHAT_HISTORY_BATCH, type ChatHistoryBoundary, chatHistoryStart } from "../model/chat-layout";
@@ -75,24 +86,31 @@ import { uploadProgressAt } from "../model/upload-progress";
 import { ChatAttachmentView } from "./chat-attachment";
 import { ChatImageGeneration, imageGenerationStatus } from "./chat-image-generation";
 import { ChatMessageGesture } from "./chat-message-gesture";
+import { ChatOutboxStatus, OutboxMessageMenu, type OutboxRowStatus } from "./chat-outbox-status";
 import { useReplyHaptics } from "./use-reply-haptics";
 
 /** A row of the list. Thinking steps show in the activity row instead. */
 type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
-const TailLayoutContext = createContext<{
+const RowLayoutContext = createContext<{
   id: string | null;
   onTailStartLayout: ChatMotion["onTailStartLayout"];
+  /** The row of a message from search, until the chat opens at it. */
+  focusId: string | null;
+  onFocusLayout: (id: string, y: number) => void;
 } | null>(null);
+/** Rows above a message from search, so the reader sees what led to it. */
+const FOCUS_CONTEXT_ROWS = 2;
 
 function MessageCell({ children, item, onLayout, onFocusCapture, style }: CellRendererProps<VisibleMessage>) {
-  const tail = useContext(TailLayoutContext);
+  const rows = useContext(RowLayoutContext);
   const nativeProps = { style, onFocusCapture };
   return (
     <View
       {...nativeProps}
       onLayout={(event) => {
         onLayout?.(event);
-        if (item.id === tail?.id) tail.onTailStartLayout(item.id, event);
+        if (item.id === rows?.id) rows.onTailStartLayout(item.id, event);
+        if (item.id === rows?.focusId) rows.onFocusLayout(item.id, event.nativeEvent.layout.y);
       }}
     >
       {children}
@@ -139,24 +157,28 @@ function ChatBubble({
 }: PropsWithChildren<{
   agent: boolean;
   collapsed?: boolean;
-  /** Off when Settings turns reply animation off: the bubble takes each new size at once. */
+  /** Off when Settings turns reply animation off: the background takes each new size at once. */
   animateSize: boolean;
   className: string;
   style: ComponentProps<typeof Animated.View>["style"];
 }>) {
+  // An animated size needs a layout event in JS for each new size. Android sends them late enough
+  // that the background trails the text, so there, as with the animation off, the background fills
+  // the bubble in the same layout pass as the text.
+  const sized = agent && animateSize && !isAndroid;
   const size = useSharedValue({ width: 0, height: 0, measured: false });
   const shown = useSharedValue(collapsed ? 0 : 1);
   useEffect(() => {
     shown.set(collapsed ? 0 : withTiming(1, REPLY_APPEAR));
   }, [collapsed, shown]);
   const background = useAnimatedStyle(() => {
+    if (!sized) return { opacity: shown.get() };
     const { width, height, measured } = size.get();
     // The first measurement is adopted without motion; only later growth during streaming animates.
-    const animate = measured && animateSize;
     return {
       opacity: shown.get(),
-      width: animate ? withTiming(width, REPLY_SIZE) : width,
-      height: animate ? withTiming(height, REPLY_SIZE) : height,
+      width: measured ? withTiming(width, REPLY_SIZE) : width,
+      height: measured ? withTiming(height, REPLY_SIZE) : height,
     };
   });
   return (
@@ -164,7 +186,7 @@ function ChatBubble({
       className={className}
       style={style}
       onLayout={
-        agent
+        sized
           ? ({ nativeEvent }) => {
               const previous = size.get();
               size.set({
@@ -180,9 +202,11 @@ function ChatBubble({
           content once, without a layout animation moving its native anchor. */}
       {agent ? (
         <Animated.View
+          // A new view when the setting changes, so a filled background keeps no animated size.
+          key={sized ? "sized" : "filled"}
           pointerEvents="none"
           className="absolute left-0 top-0 rounded-[30px] bg-control/60"
-          style={[{ borderCurve: "circular" }, background]}
+          style={[{ borderCurve: "circular" }, sized ? null : StyleSheet.absoluteFill, background]}
         />
       ) : null}
       {children}
@@ -199,6 +223,8 @@ interface ChatMessageListProps {
   agents: MobileAgent[];
   motion: ChatMotion;
   sending: boolean;
+  /** The host accepted the sent message, and its turn does not show yet. */
+  awaitingTurn: boolean;
   keyboardOffset: number;
   canSend: boolean;
   online: boolean;
@@ -208,6 +234,8 @@ interface ChatMessageListProps {
   onSelectQuestion?: (messageId: string) => void;
   /** The approvals that this chat's agents wait on, shown below the activity as on the desktop. */
   approvals?: readonly PendingApproval[];
+  /** The browser requests that this chat's agents wait on. The phone shows them above the composer. */
+  browserRequests?: readonly BrowserTakeoverRequest[];
   serverName?: string;
   onRespondApproval?: (approval: PendingApproval, decision: ApprovalDecision) => Promise<void>;
   fieldBackground: ViewStyle["backgroundColor"];
@@ -238,6 +266,11 @@ interface ChatMessageListProps {
     cancelling: boolean;
     cancel: () => void;
   } | null;
+  /** The messages of this chat that wait on the phone or failed, by row id. */
+  outboxStatuses?: ReadonlyMap<string, OutboxRowStatus>;
+  /** A message from search. The chat opens at its row. */
+  focusMessageId?: string | null;
+  onFocusPlaced?: () => void;
 }
 
 type ChatUpload = NonNullable<ChatMessageListProps["upload"]>;
@@ -374,6 +407,7 @@ const MessageRow = memo(function MessageRow({
   source,
   questionForm,
   upload,
+  outbox,
   shared,
 }: {
   message: VisibleMessage;
@@ -385,6 +419,8 @@ const MessageRow = memo(function MessageRow({
   questionForm?: QuestionPromptController;
   /** Set only on the row whose files are uploading. */
   upload?: ChatUpload;
+  /** Set only on a message that waits on the phone or failed. */
+  outbox?: OutboxRowStatus;
   shared: MessageRowShared;
 }) {
   const { t } = useText();
@@ -589,10 +625,13 @@ const MessageRow = memo(function MessageRow({
         >
           {rendered}
         </ChatMessageGesture>
+      ) : outbox ? (
+        <OutboxMessageMenu status={outbox}>{rendered}</OutboxMessageMenu>
       ) : (
         rendered
       )}
       {message.author === "user" && message.status === "failed" ? <TurnFailure reason={message.failureReason} /> : null}
+      {outbox ? <ChatOutboxStatus status={outbox} /> : null}
     </View>
   );
 });
@@ -618,9 +657,11 @@ function TurnFailure({ reason }: { reason: string | undefined }) {
 }
 
 const NO_APPROVALS: readonly PendingApproval[] = [];
+const NO_BROWSER_REQUESTS: readonly BrowserTakeoverRequest[] = [];
 
 export function ChatMessageList({
   upload,
+  outboxStatuses,
   target,
   accessibilityHidden = false,
   activity,
@@ -628,6 +669,7 @@ export function ChatMessageList({
   agents,
   motion,
   sending,
+  awaitingTurn,
   keyboardOffset,
   canSend,
   online,
@@ -636,6 +678,7 @@ export function ChatMessageList({
   questionForm,
   onSelectQuestion,
   approvals = NO_APPROVALS,
+  browserRequests = NO_BROWSER_REQUESTS,
   serverName = "",
   onRespondApproval,
   fieldBackground,
@@ -657,6 +700,8 @@ export function ChatMessageList({
   onRetryHistory,
   onReply,
   onOpenActions,
+  focusMessageId = null,
+  onFocusPlaced,
 }: ChatMessageListProps) {
   const { t, sourceText } = useText();
   const isFocused = useIsFocused();
@@ -752,22 +797,49 @@ export function ChatMessageList({
   );
   const tailIndex = visibleMessages.findLastIndex((message) => message.kind === "message" && message.author === "user");
   const tailId = visibleMessages[tailIndex]?.id ?? null;
-  const [boundary, setBoundary] = useState<ChatHistoryBoundary>({ firstId: null, headId: null });
+  const generation = motion.latestGeneration;
+  const [boundary, setBoundary] = useState<ChatHistoryBoundary & { generation: number }>({
+    firstId: null,
+    headId: null,
+    generation,
+  });
+  // The latest messages after a window around a searched message start again at the recent rows.
+  const currentBoundary = boundary.generation === generation ? boundary : { firstId: null, headId: null };
   const promptIndex = visibleMessages.findIndex((message) => message.id === questionForm?.messageId);
-  const historyStart = chatHistoryStart(visibleMessages, tailIndex, boundary);
-  const windowStart = promptIndex >= 0 ? Math.min(historyStart, promptIndex) : historyStart;
+  const focusIndex = focusMessageId ? chatRowIndex(visibleMessages, focusMessageId) : -1;
+  const historyStart = chatHistoryStart(visibleMessages, tailIndex, currentBoundary);
+  // A message from search starts the window just above its row, so the row renders at once while the
+  // list waits for it. A start further up can leave the row past the rows that the list renders.
+  const windowStart =
+    focusIndex >= 0
+      ? Math.max(0, focusIndex - FOCUS_CONTEXT_ROWS)
+      : promptIndex >= 0
+        ? Math.min(historyStart, promptIndex)
+        : historyStart;
   const firstId = visibleMessages[windowStart]?.id ?? null;
   const headId = visibleMessages[0]?.id ?? null;
-  if (boundary.firstId !== firstId || boundary.headId !== headId) setBoundary({ firstId, headId });
+  if (boundary.firstId !== firstId || boundary.headId !== headId || boundary.generation !== generation)
+    setBoundary({ firstId, headId, generation });
   const windowMessages = useMemo(() => visibleMessages.slice(windowStart), [visibleMessages, windowStart]);
   const hasCachedOlder = windowStart > 0;
   const canLoadOlder = hasCachedOlder || (online && hasOlder && !olderLoading);
   const loadPrevious = () => {
     if (hasCachedOlder) {
       const first = visibleMessages[Math.max(0, windowStart - CHAT_HISTORY_BATCH)];
-      if (first) setBoundary({ firstId: first.id, headId });
+      if (first) setBoundary({ firstId: first.id, headId, generation });
     } else if (canLoadOlder) onLoadOlder();
   };
+  // The chat opens at the row of a message from search after the row has its place in the list.
+  const placedFocus = useRef<string | null>(null);
+  const focusId = historyState === "ready" && focusIndex >= 0 ? (visibleMessages[focusIndex]?.id ?? null) : null;
+  const focusHandlers = useRef({ openAt: motion.openAt, onFocusPlaced });
+  focusHandlers.current = { openAt: motion.openAt, onFocusPlaced };
+  const onFocusLayout = useCallback((id: string, y: number) => {
+    if (placedFocus.current === id) return;
+    placedFocus.current = id;
+    focusHandlers.current.openAt(y);
+    focusHandlers.current.onFocusPlaced?.();
+  }, []);
   const actionHandlers = useRef({ onReply, onOpenActions, onSelectQuestion });
   actionHandlers.current = { onReply, onOpenActions, onSelectQuestion };
   const actions = useMemo<MessageRowShared["actions"]>(
@@ -833,9 +905,14 @@ export function ChatMessageList({
     ],
   );
   const listRef = useRef<FlatList<VisibleMessage>>(null);
-  const tailLayout = useMemo(
-    () => ({ id: tailId, onTailStartLayout: motion.onTailStartLayout }),
-    [tailId, motion.onTailStartLayout],
+  const rowLayout = useMemo(
+    () => ({
+      id: tailId,
+      onTailStartLayout: motion.onTailStartLayout,
+      focusId,
+      onFocusLayout,
+    }),
+    [tailId, motion.onTailStartLayout, focusId, onFocusLayout],
   );
   const seekLatest = useCallback(() => {
     if (motion.needsInitialPosition() && visibleMessages.length) listRef.current?.scrollToEnd({ animated: false });
@@ -864,6 +941,7 @@ export function ChatMessageList({
             }
             questionForm={item.id === questionForm?.messageId ? questionForm : undefined}
             upload={upload?.messageId === item.id ? upload : undefined}
+            outbox={outboxStatuses?.get(item.id)}
             shared={shared}
           />
         </Animated.View>
@@ -878,6 +956,7 @@ export function ChatMessageList({
       messagesById,
       questionForm,
       upload,
+      outboxStatuses,
       shared,
     ],
   );
@@ -892,7 +971,11 @@ export function ChatMessageList({
         message.body.trim() &&
         (!activity?.agentId || !message.speaker || message.speaker.id === activity.agentId),
     );
-    const thinkingDetail = !replying && latestThinking?.kind === "thinking" ? latestThinking.steps.at(-1)?.text : null;
+    // One run of text, as desktop shows it: the row clamps the label, and blank lines would fill it.
+    const thinkingDetail =
+      !replying && latestThinking?.kind === "thinking"
+        ? latestThinking.steps.at(-1)?.text.replace(/\s+/gu, " ").trim()
+        : null;
     const activityLabel =
       sending && !activity
         ? t("common.sending")
@@ -903,7 +986,9 @@ export function ChatMessageList({
             ? t("mobile.chat.activity.waitingForAnswer")
             : approvals.some((approval) => approval.agentId === (activity?.agentId ?? target.id))
               ? t("mobile.chat.activity.waitingForApproval")
-              : t("mobile.chat.activity.waitingOnDesktop")
+              : browserRequests.some((request) => request.agentId === (activity?.agentId ?? target.id))
+                ? t("mobile.chat.activity.waitingForBrowser")
+                : t("mobile.chat.activity.waitingOnDesktop")
           : thinkingDetail
             ? thinkingDetail
             : activity?.phase === "responding"
@@ -918,15 +1003,14 @@ export function ChatMessageList({
       : target.kind === "agent"
         ? target
         : undefined;
-    if (!(activity || sending || messages.some(isStreamingReply) || pendingReveal)) return null;
+    // As on desktop, the conversation's own turn keeps the row: turn events can arrive late.
+    if (!(activity || sending || awaitingTurn || activeTurnId || messages.some(isStreamingReply) || pendingReveal))
+      return null;
     return {
       // The agent, not the signal that reported it: a turn moves from the local send flag to the
       // host's activity to the reply without remounting the avatar.
       key: activity?.agentId ?? activityAgent?.id ?? target.id,
       label: activityLabel,
-      labelKey:
-        (thinkingDetail && latestThinking?.kind === "thinking" ? latestThinking.steps.at(-1)?.id : activityLabel) ??
-        activityLabel,
       accessibilityLabel: `${activityAgent?.name ?? target.name}: ${activityLabel}`,
       agent: activityAgent,
       mood: animateMessages ? agentActivityMood(activity) : "idle",
@@ -938,7 +1022,6 @@ export function ChatMessageList({
         motion.responseVisible &&
         !reducedMotion &&
         activity?.phase !== "waiting",
-      reveal: animateMessages && motion.historyVisible && motion.responseVisible && !reducedMotion,
     };
   };
   const activityRows = useActivityPresence(
@@ -953,7 +1036,7 @@ export function ChatMessageList({
         !accessibilityHidden && (historyState !== "ready" || motion.historyVisible) ? "auto" : "no-hide-descendants"
       }
     >
-      <TailLayoutContext.Provider value={tailLayout}>
+      <RowLayoutContext.Provider value={rowLayout}>
         <FlatList
           ref={listRef}
           data={windowMessages}
@@ -1028,23 +1111,14 @@ export function ChatMessageList({
                   }
                   accessibilityState={{ busy: true }}
                 />
-              ) : historyState !== "ready" ? (
+              ) : historyState === "error" ? (
                 <View className="flex-1 items-center justify-center gap-2">
                   <Typography.Paragraph align="center" className="text-text-secondary">
-                    {historyState === "waiting"
-                      ? t("mobile.chat.history.waiting")
-                      : t("mobile.chat.history.loadFailed")}
+                    {t("mobile.chat.history.loadFailed")}
                   </Typography.Paragraph>
-                  {historyState === "waiting" ? (
-                    <Typography.Paragraph type="body-xs" align="center" className="text-muted">
-                      {t("mobile.chat.history.loadsOnReconnect")}
-                    </Typography.Paragraph>
-                  ) : null}
-                  {historyState === "error" ? (
-                    <Button variant="tertiary" onPress={onRetryHistory}>
-                      <Button.Label>{t("common.tryAgain")}</Button.Label>
-                    </Button>
-                  ) : null}
+                  <Button variant="tertiary" onPress={onRetryHistory}>
+                    <Button.Label>{t("common.tryAgain")}</Button.Label>
+                  </Button>
                 </View>
               ) : null}
             </>
@@ -1139,7 +1213,7 @@ export function ChatMessageList({
             </>
           }
         />
-      </TailLayoutContext.Provider>
+      </RowLayoutContext.Provider>
     </Animated.View>
   );
 }

@@ -79,6 +79,8 @@ export function AgentEventBridge() {
     setPendingApprovals,
     completedTurnByAgent,
     queueSnapshotRequests,
+    setWaits,
+    waitSnapshotRequests,
     refreshRoutineIds,
   } = useTurns();
   const { setBrowserControlState, applyBrowserChange } = useBrowserTabs();
@@ -161,6 +163,10 @@ export function AgentEventBridge() {
           ...current,
           [event.snapshot.agentId]: event.snapshot,
         }));
+        return;
+      case "waits-changed":
+        waitSnapshotRequests.set(event.snapshot.agentId, (waitSnapshotRequests.get(event.snapshot.agentId) ?? 0) + 1);
+        setWaits((current) => ({ ...current, [event.snapshot.agentId]: event.snapshot }));
         return;
       case "routines-changed":
         refreshRoutineIds(event.agentId, activeServerId());

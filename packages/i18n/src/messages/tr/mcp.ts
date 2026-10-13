@@ -116,4 +116,42 @@ export const messages = {
     one: "Oturum açma sayfası {host} üzerinde açılıyor. OpenBot {count} dakika sonra beklemeyi bırakır.",
     other: "Oturum açma sayfası {host} üzerinde açılıyor. OpenBot {count} dakika sonra beklemeyi bırakır.",
   },
+  "mcp.panel.appTitle": "Oturum açma uygulaması",
+  "mcp.panel.appDescription":
+    "Sunucunun sağlayıcısına kaydettiğiniz bir OAuth uygulamasını kullanın. Sunucu OpenBot'u kendisi kaydedemediğinde OpenBot bu uygulamayı kullanır. OpenBot'un kendini kaydetmesi için boş bırakın.",
+  "mcp.panel.appSaveFirst": "Önce bu sunucuyu kaydedin. Ardından oturum açma uygulaması ekleyebilirsiniz.",
+  "mcp.panel.appUrlChanged": "Önce yeni sunucu URL'sini kaydedin. Oturum açma uygulaması kayıtlı URL'ye aittir.",
+  "mcp.panel.appLoadFailed": "Oturum açma uygulaması okunamadı.",
+  "mcp.panel.callbackUrl": "Geri çağırma URL'si",
+  "mcp.panel.callbackUrlDescription": "Bu URL'yi tam olarak uygulamanın izin verilen yönlendirme URL'lerine ekleyin.",
+  "mcp.panel.callbackUrlOnHost":
+    "{host} kendi tarayıcısıyla oturum açar, bu yüzden bu URL {host} üzerindedir. Bu URL'yi tam olarak uygulamanın izin verilen yönlendirme URL'lerine ekleyin.",
+  "mcp.panel.callbackUrlUnavailable": "Kullanılabilir geri çağırma URL'si yok.",
+  "mcp.panel.copyCallbackUrl": "Geri çağırma URL'sini kopyala",
+  "mcp.panel.clientId": "İstemci kimliği",
+  "mcp.panel.clientSecret": "İstemci gizli anahtarı",
+  "mcp.panel.clientSecretDescription": "İsteğe bağlı. Yalnızca gizli anahtarı olan bir uygulama için.",
+  "mcp.panel.clientSecretSaved": "Gizli anahtar kaydedildi. Değiştirmek için yeni bir gizli anahtar girin.",
+  "mcp.panel.clientSecretRemoved": "Uygulamayı kaydettiğinizde gizli anahtar kaldırılır.",
+  "mcp.panel.removeClientSecret": "Gizli anahtarı kaldır",
+  "mcp.panel.scopes": "Kapsamlar",
+  "mcp.panel.scopesDescription": "İsteğe bağlı. Kapsamları boşlukla ayırın.",
+  "mcp.panel.saveApp": "Uygulamayı kaydet",
+  "mcp.panel.removeApp": "Uygulamayı kaldır",
+  "mcp.panel.appSaved": "Uygulama kaydedildi. Kullanmak için oturum açın.",
+  "mcp.panel.appRemoved": "Uygulama kaldırıldı.",
+  "mcp.signIn.relayDescription":
+    "Oturum açma sayfasının {page} üzerinde olduğunu kontrol edin, sonra tarayıcınızda açın. Bitirdiğinizde OpenBot oturum açmayı {host} sunucusuna gönderir.",
+  "mcp.signIn.relayOpenDescription":
+    "{page} oturum açma sayfasını tarayıcınızda açın. Bitirdiğinizde tarayıcının gösterdiği adresi buraya yapıştırın. OpenBot ardından oturum açmayı {host} sunucusuna gönderir.",
+  "mcp.signIn.relayDeviceDescription":
+    "Oturum açma sayfasının {page} üzerinde olduğunu kontrol edin, sonra tarayıcınızda açıp oturum açmayı orada bitirin. {host} oturum açmayı kendisi algılar.",
+  "mcp.signIn.relayOpen": "Oturum açma sayfasını aç",
+  "mcp.signIn.relayPasteHint": "Tarayıcı OpenBot'a geri dönmezse gösterdiği adresi kopyalayıp buraya yapıştırın.",
+  "mcp.signIn.relayPasteRequired":
+    "OpenBot oturum açmayı tarayıcıdan kendisi alamaz. Bitirdiğinizde tarayıcının gösterdiği adresi kopyalayıp buraya yapıştırın.",
+  "mcp.signIn.relayAddress": "Tarayıcı adresi",
+  "mcp.signIn.relaySend": "Gönder",
+  "mcp.panel.callbackUrlRelayed":
+    "Oturum açma sayfası tarayıcınızda açılır ve bilgisayarınızdaki OpenBot oturum açmayı {host} sunucusuna gönderir. Bu URL'yi tam olarak uygulamanın izin verilen yönlendirme URL'lerine ekleyin.",
 } as const satisfies PartialTranslation<typeof source>;

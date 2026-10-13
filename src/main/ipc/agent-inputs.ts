@@ -3,6 +3,8 @@ import {
   type AcknowledgeFailedTurnInput,
   type AgentIpcRequest,
   type AgentMemorySelectionChange,
+  type CancelAgentWaitInput,
+  type CancelMessageLinkInput,
   type CancelQueuedMessageInput,
   type ChooseAttachmentsInput,
   type CreateAgentInput,
@@ -32,8 +34,10 @@ import {
   type ListRoutineRunsInput,
   type MarkConversationReadInput,
   type OpenAttachmentInput,
+  type OpenMessageLinkInput,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
+  type PasteMessageLinkInput,
   type ReadConversationPageInput,
   type ReorderQueueInput,
   type RespondToApprovalInput,
@@ -406,6 +410,27 @@ export function parseReadConversationPage(value: unknown): ReadConversationPageI
   };
 }
 
+export function parseOpenMessageLink(value: unknown): OpenMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return {
+    agentId: requireString(value.agentId, "agentId", INPUT_LIMITS.identifier),
+    url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl),
+  };
+}
+
+export function parsePasteMessageLink(value: unknown): PasteMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return {
+    url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl),
+    address: requireString(value.address, "Address", INPUT_LIMITS.signInRelayAddress),
+  };
+}
+
+export function parseCancelMessageLink(value: unknown): CancelMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return { url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl) };
+}
+
 export function parseSearchConversationMessages(value: unknown): SearchConversationMessagesInput {
   if (!isObject(value)) throw new Error("Invalid conversation search request.");
   const query = requireString(value.query, "query", INPUT_LIMITS.messageText);
@@ -678,6 +703,14 @@ export function parseCancelQueuedMessage(value: unknown): CancelQueuedMessageInp
   return {
     agentId: requireString(value.agentId, "agentId"),
     deliveryId: requireString(value.deliveryId, "deliveryId"),
+  };
+}
+
+export function parseCancelAgentWait(value: unknown): CancelAgentWaitInput {
+  if (!isObject(value)) throw new Error("Invalid wait cancellation request.");
+  return {
+    agentId: requireString(value.agentId, "agentId"),
+    waitId: requireString(value.waitId, "waitId"),
   };
 }
 

@@ -3,13 +3,16 @@ import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CentralAuthState, HostStatus } from "@openbot/contracts/ipc";
+import type { MobileConnectHostBinding } from "@openbot/contracts/mobile-connect";
 import { Effect } from "effect";
+import QRCode from "qrcode";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCauseEffect } from "../backend/effect-boundary";
 import { RemoteWorkflowError, remoteCall } from "./remote-service-effects";
 import { ServerMode, takeServerModeEnvironment } from "./server-mode";
 
 const SESSION_TOKEN = "session-token-that-must-stay-in-main";
+const MOBILE_CONNECT_URL = "openbot://mobile-connect?api=https%3A%2F%2Fapi.example&ticket=t";
 
 let directory: string;
 let server: ServerMode | null = null;
@@ -66,6 +69,9 @@ function fixture() {
         return state;
       }),
     ),
+    createMobileConnect: vi.fn((_host: MobileConnectHostBinding) =>
+      Effect.succeed({ qrData: MOBILE_CONNECT_URL, expiresAt: 120_000 }),
+    ),
   };
   const host = {
     getStatus: () => hostStatus,
@@ -78,7 +84,13 @@ function fixture() {
     ),
     start: vi.fn(() =>
       remoteCall(async () => {
-        hostStatus = { ...hostStatus, phase: "online" };
+        hostStatus = {
+          ...hostStatus,
+          phase: "online",
+          serverId: "host-1",
+          apiOnline: true,
+          apiUrl: "wss://host.example",
+        };
         return hostStatus;
       }),
     ),
@@ -88,6 +100,8 @@ function fixture() {
         return hostStatus;
       }),
     ),
+    getMobileConnectHost: () =>
+      hostStatus.serverId ? { hostId: hostStatus.serverId, fingerprint: "f".repeat(43) } : null,
   };
   const mode = new ServerMode({
     environment: { controlSocketPath: join(directory, "control.sock") },
@@ -198,6 +212,23 @@ describe("ServerMode control socket", () => {
     const status = await send("GET", "/v1/status");
     expect(status.text).toContain("server=unconfigured\nserver_message=Refused. account=x\n");
     expect(status.text.match(/^account=/gmu)).toHaveLength(1);
+  });
+
+  it("shows a Mobile Connect code only to a signed-in server, for its own host", async () => {
+    const { mode, centralAuth } = fixture();
+    server = mode;
+    await runCauseEffect(server.listen());
+    expect(await send("POST", "/v1/mobile-connect")).toEqual({ status: 409, text: "error=account_signed_out\n" });
+    expect(centralAuth.createMobileConnect).not.toHaveBeenCalled();
+
+    await send("POST", "/v1/login/verify", "challenge=challenge-1&code=123456");
+    const answer = await send("POST", "/v1/mobile-connect");
+    expect(answer.status).toBe(200);
+    expect(answer.text).not.toContain(SESSION_TOKEN);
+    expect(centralAuth.createMobileConnect).toHaveBeenCalledWith({ hostId: "host-1", fingerprint: "f".repeat(43) });
+    const qr = Buffer.from(/^qr=(.*)$/mu.exec(answer.text)?.[1] ?? "", "base64").toString("utf8");
+    expect(qr).toBe(await QRCode.toString(MOBILE_CONNECT_URL, { type: "terminal", small: true }));
+    expect(answer.text).toContain("expires_at=120000\n");
   });
 
   it("refuses a body that is too large and an unknown request", async () => {

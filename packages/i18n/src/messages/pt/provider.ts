@@ -51,6 +51,7 @@ export const messages = {
   "provider.aria.retry": "Tentar {name} novamente",
   "provider.aria.install": "Instalar {name}",
   "provider.aria.signIn": "Entrar em {name}",
+  "provider.aria.codeFallback": "Entrar em {name} com um código",
   "provider.aria.moreActions": "Mais ações para {name}",
   "provider.aria.use": "Usar {name} no OpenBot",
   "provider.use.inUse": {
@@ -75,6 +76,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Esta tentativa de acesso terminou.",
   "provider.codeLogin.pasteExpiresIn": "Aguardando você. Esta tentativa de acesso termina em {time}.",
   "provider.codeLogin.linkTitle": "Entre em {name} em outro dispositivo",
+  "provider.codeLogin.pageTitle": "Entrar em {name}",
+  "provider.codeLogin.pageDescription": "Esta página está aberta no navegador de {host}. Entre aqui.",
+  "provider.codeLogin.relayStarting": "Iniciando a autenticação do {name} em {host}…",
+  "provider.codeLogin.pageOpening": "Abrindo a página de entrada de {name} em {host}…",
   "provider.codeLogin.linkStep": "Entre em {name}. O OpenBot continua sozinho.",
   "provider.picker.noEndpoints": "Nenhum endpoint ainda",
   "provider.picker.customCounts": "{endpoints} · {agents}",
@@ -111,6 +116,10 @@ export const messages = {
   "provider.museKey.title": "Chave de API da Meta para o Muse",
   "provider.museKey.description": "Salve uma chave de API da Meta no host ou use a CLI do Muse para entrar.",
   "provider.museKey.label": "Chave de API da Meta",
+  "provider.geminiKey.title": "Chave de API do Gemini",
+  "provider.geminiKey.description":
+    "Salve uma chave de API do Gemini no host ou selecione Conectar para entrar com o Google.",
+  "provider.geminiKey.label": "Chave de API do Gemini",
   "provider.openCodeKey.title": "Entrar no OpenCode Go",
   "provider.openCodeKey.description":
     "Os modelos gratuitos não exigem uma conta. Uma chave libera os modelos pagos do Go.",

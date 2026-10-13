@@ -57,9 +57,10 @@ async function setup() {
   let sandboxes = 0;
   /**
    * The next sandbox creates that boat refuses, as a boat trial does, whether boat refuses a smaller
-   * machine, and the next creates whose answer is lost after boat made the sandbox.
+   * machine, the next creates whose answer is lost after boat made the sandbox, and whether boat refuses a
+   * stop.
    */
-  const refusals = { creates: 0, shrink: false, lostAnswers: 0, beforeAnswer: () => {} };
+  const refusals = { creates: 0, shrink: false, lostAnswers: 0, beforeAnswer: () => {}, stop: false };
   /** boat keeps the body of a create for its idempotency key, and returns the same sandbox for the same body. */
   const created = new Map<string, { body: string; id: string }>();
   const boatFetch = async (input: string, init: RequestInit) => {
@@ -93,6 +94,9 @@ async function setup() {
       }
       refusals.beforeAnswer();
       return Response.json({ ok: true, status: "provisioning", sandbox: { id, state: "provisioning" } });
+    }
+    if (refusals.stop && call.path.endsWith("/stop")) {
+      return Response.json({ ok: false, code: "sandbox_busy" }, { status: 409 });
     }
     if (refusals.shrink && call.path.endsWith("/resume") && isDynamicRecord(call.body) && call.body.type === "small") {
       return Response.json({ ok: false, code: "type_too_small" }, { status: 409 });
@@ -232,7 +236,7 @@ describe("hosted servers", () => {
       available: false,
       lifecycleAvailable: true,
       servers: [],
-      maxServers: 3,
+      maxServers: 50,
     });
     await expect(
       runApiEffect(context.service.create(stranger, STARTER, "create-key-0000001", RETURN)),
@@ -857,6 +861,49 @@ describe("hosted servers", () => {
     expect(context.state(server.serverId)).toMatchObject({ last_wake_reason: "message" });
   });
 
+  it("lets only the owner restart a running server, and resumes it after the stop", async () => {
+    const context = await setup();
+    const server = await createRunningServer(context);
+    context.database
+      .prepare(
+        `INSERT INTO remote_memberships(membership_id, host_id, user_id, role, status, created_at, updated_at)
+         VALUES ('member-1', ?, 'member', 'member', 'active', 1, 1)`,
+      )
+      .run(server.serverId);
+    const stops = () => context.boatCalls.filter((call) => call.path === "/sandboxes/bx_1/stop").length;
+    const resumes = () => context.boatCalls.filter((call) => call.path === "/sandboxes/bx_1/resume").length;
+
+    await expect(runApiEffect(context.service.restart(member, server.serverId))).rejects.toMatchObject({
+      status: 404,
+    });
+    context.refusals.stop = true;
+    await expect(runApiEffect(context.service.restart(owner, server.serverId))).rejects.toMatchObject({
+      status: 409,
+      code: "hosted_server_restart_busy",
+    });
+    expect(context.state(server.serverId)).toMatchObject({ desired_state: "running", observed_state: "running" });
+
+    context.refusals.stop = false;
+    context.clock.now += MINUTE;
+    await expect(runApiEffect(context.service.restart(owner, server.serverId))).resolves.toMatchObject({
+      state: "stopping",
+    });
+    // A second restart during the stop does not stop the sandbox again.
+    await expect(runApiEffect(context.service.restart(owner, server.serverId))).resolves.toMatchObject({
+      state: "stopping",
+    });
+    expect(stops()).toBe(2);
+
+    context.clock.now += MINUTE;
+    await runApiEffect(context.service.handleWebhook(context.boatWebhook("sandbox.archived", "archived")));
+    expect(resumes()).toBe(1);
+    expect(context.state(server.serverId)).toMatchObject({
+      desired_state: "running",
+      observed_state: "waking",
+      last_wake_reason: "restart",
+    });
+  });
+
   it("stops a server with no use for 15 minutes, keeps it, and starts it on the next use", async () => {
     const context = await setup();
     const server = await createRunningServer(context);
@@ -932,6 +979,30 @@ describe("hosted servers", () => {
     });
     expect(calls("/sandboxes/bx_1/resume").map((call) => call.body)).toEqual([{ ttlSeconds: LEASE }]);
     expect(context.state(server.serverId)).toMatchObject({ desired_state: "running", last_wake_reason: "message" });
+  });
+
+  it("looks up a sleeping server for a connector event without starting it, and starts it on request", async () => {
+    const context = await setup();
+    const server = await createRunningServer(context);
+    await runApiEffect(context.service.redeemClaim(context.claims[0]));
+    context.clock.now += 16 * MINUTE;
+    await runApiEffect(context.service.tick(context.clock.now));
+    await runApiEffect(context.service.handleWebhook(context.boatWebhook("sandbox.archived", "archived")));
+    const resumes = () => context.boatCalls.filter((call) => call.path === "/sandboxes/bx_1/resume");
+    expect(context.state(server.serverId)).toMatchObject({ desired_state: "idle", observed_state: "stopped" });
+
+    await expect(runApiEffect(context.service.routeState("not-a-hosted-server"))).resolves.toBe("not_hosted");
+    await expect(runApiEffect(context.service.routeState(server.serverId))).resolves.toBe("sleeping");
+    expect(resumes()).toHaveLength(0);
+    expect(context.state(server.serverId)).toMatchObject({ desired_state: "idle" });
+
+    await runApiEffect(context.service.startForRoute(server.serverId));
+    expect(resumes()).toHaveLength(1);
+    expect(context.state(server.serverId)).toMatchObject({
+      desired_state: "running",
+      observed_state: "waking",
+      last_wake_reason: "message",
+    });
   });
 
   it("starts an idle server before its next routine run, once for each reported run", async () => {

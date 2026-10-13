@@ -69,6 +69,7 @@ export const messages = {
   "provider.aria.retry": "Spróbuj ponownie: {name}",
   "provider.aria.install": "Zainstaluj {name}",
   "provider.aria.signIn": "Zaloguj się do: {name}",
+  "provider.aria.codeFallback": "Zaloguj się do: {name} kodem",
   "provider.aria.moreActions": "Więcej działań: {name}",
 
   "provider.aria.use": "Używaj {name} w OpenBot",
@@ -97,6 +98,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "To logowanie zostało przerwane.",
   "provider.codeLogin.pasteExpiresIn": "Czekamy na ciebie. To logowanie wygaśnie za {time}.",
   "provider.codeLogin.linkTitle": "Zaloguj się do {name} na innym urządzeniu",
+  "provider.codeLogin.pageTitle": "Zaloguj się do {name}",
+  "provider.codeLogin.pageDescription": "Ta strona jest otwarta w przeglądarce na {host}. Zaloguj się tutaj.",
+  "provider.codeLogin.relayStarting": "Uruchamianie logowania do {name} na {host}…",
+  "provider.codeLogin.pageOpening": "Otwieranie strony logowania {name} na {host}…",
   "provider.codeLogin.linkStep": "Zaloguj się do {name}. OpenBot będzie kontynuować samodzielnie.",
 
   "provider.picker.noEndpoints": "Brak endpointów",
@@ -135,6 +140,10 @@ export const messages = {
   "provider.museKey.title": "Klucz API Meta dla Muse",
   "provider.museKey.description": "Zapisz klucz API Meta na hoście lub zaloguj się przez Muse CLI.",
   "provider.museKey.label": "Klucz API Meta",
+  "provider.geminiKey.title": "Klucz API Gemini",
+  "provider.geminiKey.description":
+    "Zapisz klucz API Gemini na hoście albo wybierz „Połącz”, aby zalogować się przez Google.",
+  "provider.geminiKey.label": "Klucz API Gemini",
 
   "provider.openCodeKey.title": "Zaloguj się do OpenCode Go",
   "provider.openCodeKey.description": "Darmowe modele nie wymagają konta. Klucz odblokowuje płatne modele Go.",

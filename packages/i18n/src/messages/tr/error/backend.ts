@@ -54,6 +54,8 @@ export const messages = {
   "error.backend.channelNotFound": "Kanal bulunamadı.",
   "error.backend.channelMemberUnavailable": "Bir kanal üyesi kullanılamıyor.",
   "error.backend.channelArchived": "Mesaj göndermeden veya görevleri değiştirmeden önce bu kanalı geri yükleyin.",
+  "error.backend.channelsRetired":
+    "Kanallar artık desteklenmiyor. Birlikte çalışmaları için ajanları kenar çubuğunda aynı bölüme koyun.",
   "error.backend.channelReferenceUnavailable": "Referans verilen kanal mesajı kullanılamıyor.",
   "error.backend.channelTaskNotFound": "Kanal görevi bulunamadı.",
   "error.backend.channelTaskComplete": "Bu görev zaten tamamlandı.",
@@ -155,8 +157,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Bu bağlantı bir döngü oluşturur.",
   "error.backend.routineFlowLinkLimit": "Bir rutinde en fazla {limit} bağlantı olabilir.",
   "error.backend.routineFlowHandoffFailed": "Rutin işi bu ajana aktaramadı.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "Rutin akışları yalnızca bu bilgisayardaki ajanlar için kullanılabilir.",
   "error.backend.mcpServerLimit": "OpenBot en fazla {limit} MCP sunucusu tutar.",
   "error.backend.mcpServerNameTaken": "{name} adında bir MCP sunucusu zaten mevcut.",
   "error.backend.mcpServerNoAnswer": "Sunucu {seconds} saniye içinde yanıt vermedi.",
@@ -251,4 +251,11 @@ export const messages = {
     "Sunucu {status} yanıtı verdi. API anahtarını veya diğer kimlik bilgilerini denetleyin.",
   "error.backend.mcpServerHttpUrl":
     "Sunucu {status} yanıtı verdi. URL'yi denetleyin. Bağlantı yanlış, süresi dolmuş veya silinmiş olabilir.",
+  "error.backend.mcpSignInAppUrl": "Oturum açma uygulaması için geçerli bir sunucu URL'si gerekir.",
+  "error.backend.mcpSignInAppClientId": "Oturum açma uygulamasının istemci kimliğini girin.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Bu MCP sunucusunun oturum açma sunucusu değişti, bu yüzden OpenBot oturum açma uygulamasını ona göndermedi. Değişiklik doğruysa oturum açma uygulamasını kaldırıp yeniden ekleyin.",
+  "error.backend.mcpSignInAppNoServer":
+    "Oturum açma uygulaması eklemeden önce bu MCP sunucusunu URL sunucusu olarak kaydedin.",
+  "error.backend.mcpSignInAppUnavailable": "Bu bilgisayar oturum açma uygulaması saklayamaz.",
 } as const satisfies PartialTranslation<typeof source>;

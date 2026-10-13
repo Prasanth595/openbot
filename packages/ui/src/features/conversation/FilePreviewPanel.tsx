@@ -63,6 +63,8 @@ interface FilePreviewPanelProps {
    * shows the page, and the source on request. Without it the panel shows the source.
    */
   pageUrl?: string | null | undefined;
+  /** The page itself, for a client that has no page URL. It replaces `pageUrl`. */
+  pageHtml?: string | null | undefined;
   onOpenExternally: () => void;
   allowExternalOpen?: boolean;
   onDownload?: () => void;
@@ -84,8 +86,10 @@ export default function FilePreviewPanel(props: FilePreviewPanelProps) {
   const file = () => (props.directory ? null : props.preview);
   const previewKind = () => file()?.previewKind;
   const pageUrl = () => (previewKind() === "text" ? props.pageUrl : null) ?? null;
+  const pageHtml = () => (previewKind() === "text" ? props.pageHtml : null) ?? null;
+  const hasPage = () => pageHtml() !== null || pageUrl() !== null;
   const showsSourceText = () =>
-    (previewKind() === "text" && (rawSource() || !pageUrl())) || (previewKind() === "markdown" && rawSource());
+    (previewKind() === "text" && (rawSource() || !hasPage())) || (previewKind() === "markdown" && rawSource());
   const title = () => props.directory?.name ?? props.preview?.name ?? "";
   /** The whole text of a text or Markdown file. Copy takes all of it; the view shows up to `TEXT_LIMIT`. */
   const source = createMemo(() => {
@@ -208,7 +212,7 @@ export default function FilePreviewPanel(props: FilePreviewPanelProps) {
             <Code class="browser-toolbar-icon" />
           </Button>
         </Show>
-        <Show when={pageUrl()}>
+        <Show when={hasPage()}>
           <Button
             variant="ghost"
             type="button"
@@ -346,8 +350,14 @@ export default function FilePreviewPanel(props: FilePreviewPanelProps) {
             onOpenWorkspaceFile={props.onOpenWorkspaceFile}
           />
         </Show>
-        <Show when={!rawSource() && pageUrl()}>
-          {(url) => <ChatVisual fill src={url()} title={title()} onOpenLink={props.onOpenLink} />}
+        <Show when={!rawSource() && hasPage()}>
+          <ChatVisual
+            fill
+            src={pageUrl() ?? undefined}
+            html={pageHtml() ?? undefined}
+            title={title()}
+            onOpenLink={props.onOpenLink}
+          />
         </Show>
         <Show when={showsSourceText()}>
           <FileSourceText name={title()} text={text().value} wrap={wrapLines()} />

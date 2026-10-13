@@ -127,7 +127,6 @@ interface ChatComposerProps {
   menuProgress: SharedValue<number>;
   stopping?: boolean;
   attachments: ChatAttachments;
-  sending: boolean;
   sendRetryVersion: number;
   replyTarget: ChatBubbleMessage | null;
   replyFocusVersion: number;
@@ -187,7 +186,6 @@ export function ChatComposer({
   menuProgress,
   stopping = false,
   attachments,
-  sending,
   sendRetryVersion,
   replyTarget,
   replyFocusVersion,
@@ -212,12 +210,9 @@ export function ChatComposer({
         )
         .slice(0, 8)
     : [];
+  // What the bar has to stay open for. A send takes the text and the files out of
+  // the composer at once, so a draft is always a new one.
   const hasDraft = Boolean(draft.trim()) || attachments.items.length > 0;
-  // What the bar has to stay open for. Attachments drop out of it the moment a
-  // send starts: they are waiting for their upload then, and the bar already
-  // stops showing them. Text does not drop out, because a draft typed during a
-  // send is a real one waiting to be queued.
-  const composing = Boolean(draft.trim()) || (attachments.items.length > 0 && !sending);
   const inputRef = useRef<TextInput>(null);
   const isFocused = useIsFocused();
   const latestTextRef = useRef(draft);
@@ -276,7 +271,7 @@ export function ChatComposer({
     TOOLBAR_HEIGHT,
     Math.min(MAX_INPUT_LINES, wrap.lines) * lineHeight + FIELD_VERTICAL_PADDING,
   );
-  const attachmentsOpen = !sending && attachments.items.length > 0;
+  const attachmentsOpen = attachments.items.length > 0;
   const reducedMotion = useReducedMotion();
   const shapeDuration = reducedMotion ? 0 : SHAPE_DURATION;
   // Settings can keep the composer open, and reduced motion always does.
@@ -319,7 +314,7 @@ export function ChatComposer({
     // it, which is why it is safe to run on every open.
     if (menuOpen && openedWith?.focused) inputRef.current?.focus();
   }, [menuOpen, openedWith]);
-  const anchored = composing || Boolean(openedWith?.expanded);
+  const anchored = hasDraft || Boolean(openedWith?.expanded);
   const held = useSharedValue(anchored ? 1 : 0);
   useEffect(() => {
     held.set(
@@ -522,11 +517,8 @@ export function ChatComposer({
     );
   }, [suggestionsVisible, suggestions.length, query?.query]);
 
-  // The draft clears the moment a send starts, so the control must not read
-  // its appearance from the draft alone: it would flip to an empty state
-  // under the user's own press.
-  const busy = sending || attachments.preparing;
-  const attachmentsBlocked = disabled || sending || attachments.preparing;
+  const busy = attachments.preparing;
+  const attachmentsBlocked = disabled || attachments.preparing;
   const leadingBlocked = attachmentsBlocked;
   // The card covers this glyph and draws the same corner, so the two trade
   // places on one progress: the glyph is gone by the time the card is drawn,
@@ -558,7 +550,7 @@ export function ChatComposer({
   });
 
   function requestSend(): void {
-    if (disabled || sending || attachments.preparing) return;
+    if (disabled || attachments.preparing) return;
     const action = sendGate.request();
     if (action === "blur") inputRef.current?.blur();
     else if (action === "send") onSend(latestTextRef.current);
@@ -743,11 +735,7 @@ export function ChatComposer({
                   >
                     {/* The tint lets the glass and the glow through, so the glyph
                         takes the text colour, like Cancel and Continue. */}
-                    {sending ? (
-                      <Spinner size="sm" color={String(foreground)} />
-                    ) : (
-                      <ArrowUp color={String(voice.canSend ? foreground : muted)} size={24} strokeWidth={2.2} />
-                    )}
+                    <ArrowUp color={String(voice.canSend ? foreground : muted)} size={24} strokeWidth={2.2} />
                   </Pressable>
                 </GlassView>
               ) : (
@@ -765,11 +753,7 @@ export function ChatComposer({
                   }}
                   onPress={voice.send}
                 >
-                  {sending ? (
-                    <Spinner size="sm" color={voiceAccent.glyph} />
-                  ) : (
-                    <ArrowUp color={voiceAccent.glyph} size={24} strokeWidth={2.2} />
-                  )}
+                  <ArrowUp color={voiceAccent.glyph} size={24} strokeWidth={2.2} />
                 </Pressable>
               )}
             </Animated.View>
@@ -865,7 +849,7 @@ export function ChatComposer({
                       item={item}
                       index={index}
                       count={attachments.items.length}
-                      disabled={sending || attachments.preparing}
+                      disabled={attachments.preparing}
                       foreground={foreground}
                       raised={raised}
                       onPreview={() => {
@@ -932,7 +916,7 @@ export function ChatComposer({
                     onBlur={() => setFocused(false)}
                     onChangeText={(text) => {
                       sendGate.edit();
-                      const pasted = !sending ? largePastedText(latestTextRef.current, text) : null;
+                      const pasted = largePastedText(latestTextRef.current, text);
                       if (pasted) {
                         // Keep the pasted text until its attachment is durable. A failed write must not lose it.
                         latestTextRef.current = text;
@@ -962,14 +946,14 @@ export function ChatComposer({
                       onChangeDraft(next);
                     }}
                     onSubmitEditing={({ nativeEvent }) => {
-                      if (!disabled && !sending && sendGate.submit())
+                      if (!disabled && sendGate.submit())
                         onSend(editMentionDraft(latestTextRef.current, nativeEvent.text));
                     }}
                     onEndEditing={({ nativeEvent: { text } }) => {
                       // Native editing can end before the send button's release event,
                       // while TextInput.isFocused() is still waiting for onBlur.
                       latestTextRef.current = editMentionDraft(latestTextRef.current, text);
-                      if (sendGate.commit() && !disabled && !sending) onSend(latestTextRef.current);
+                      if (sendGate.commit() && !disabled) onSend(latestTextRef.current);
                     }}
                   >
                     {/* TextInput requires native text children for editable attributed text. */}
@@ -1149,13 +1133,13 @@ export function ChatComposer({
                   : [{ label: t("common.open"), onPress: () => void shareLocalAttachment(previewItem) }]),
                 {
                   label: t("mobile.chat.attachment.replace"),
-                  disabled: sending || attachments.preparing,
+                  disabled: attachments.preparing,
                   onPress: () => void attachments.replace(previewItem.id),
                 },
                 {
                   label: t("common.remove"),
                   variant: "danger-soft" as const,
-                  disabled: sending || attachments.preparing,
+                  disabled: attachments.preparing,
                   onPress: () => attachments.remove(previewItem.id),
                 },
               ]

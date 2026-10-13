@@ -106,6 +106,8 @@ export const messages = {
   "error.provider.localOnly": "Los proveedores solo se pueden cambiar en el equipo que ejecuta los agentes.",
   "error.provider.keyRequired": "Se requiere una clave de proveedor.",
   "error.provider.keyTooLong": "La clave del proveedor es demasiado larga.",
+  "error.provider.keyInvalidCharacters":
+    "La clave del proveedor contiene un espacio o un carácter que una clave no puede contener.",
   "error.provider.noModel": "El proveedor seleccionado no tiene ningún modelo disponible.",
   "error.provider.noModelNamed": "{provider} no tiene ningún modelo disponible.",
   "error.provider.acpNoModels":
@@ -150,6 +152,7 @@ export const messages = {
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. Actualiza los proveedores para intentarlo de nuevo.",
   "error.provider.noCodeSignIn": "No se puede iniciar sesión en {provider} con un código.",
   "error.provider.codeLoginNoLink": "El proveedor no mostró un enlace de inicio de sesión. Inténtalo de nuevo.",
+  "error.provider.hostSignInEnded": "No se completó el inicio de sesión en {provider}. Inténtalo de nuevo.",
   "error.provider.codeLoginNotWaiting": "Ningún inicio de sesión está esperando un código. Inicia sesión de nuevo.",
   "error.provider.codeLoginBadCode": "Pega el código que muestra la página de inicio de sesión.",
   "error.provider.codeLoginRefused": "El proveedor no aceptó el código. Inicia sesión de nuevo.",

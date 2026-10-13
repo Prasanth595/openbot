@@ -114,6 +114,8 @@ export const messages = {
   "error.provider.localOnly": "Les fournisseurs ne peuvent être modifiés que sur l’ordinateur qui exécute les agents.",
   "error.provider.keyRequired": "Une clé de fournisseur est requise.",
   "error.provider.keyTooLong": "La clé de fournisseur est trop longue.",
+  "error.provider.keyInvalidCharacters":
+    "La clé de fournisseur contient une espace ou un caractère qu’une clé ne peut pas contenir.",
   "error.provider.noModel": "Le fournisseur sélectionné n’a aucun modèle disponible.",
   "error.provider.noModelNamed": "{provider} n’a aucun modèle disponible.",
   "error.provider.acpNoModels":
@@ -163,6 +165,7 @@ export const messages = {
     "{provider} n’a pas répondu à temps. L’ordinateur est peut-être occupé. Actualisez les fournisseurs pour réessayer.",
   "error.provider.noCodeSignIn": "{provider} ne permet pas de se connecter avec un code.",
   "error.provider.codeLoginNoLink": "Le fournisseur n’a pas affiché de lien de connexion. Réessayez.",
+  "error.provider.hostSignInEnded": "La connexion à {provider} n’a pas abouti. Réessayez.",
   "error.provider.codeLoginNotWaiting": "Aucune connexion n’attend de code. Relancez la connexion.",
   "error.provider.codeLoginBadCode": "Collez le code affiché par la page de connexion.",
   "error.provider.codeLoginRefused": "Le fournisseur n’a pas accepté le code. Relancez la connexion.",

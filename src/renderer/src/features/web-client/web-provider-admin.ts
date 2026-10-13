@@ -21,6 +21,7 @@ import { PROVIDERS_V5_CAPABILITY, PROVIDERS_V5_ROUTES } from "@openbot/contracts
 import { runTeamEffect } from "@openbot/team-client";
 import {
   cancelProviderCodeLogin,
+  cancelProviderHostSignIn,
   cancelProviderRuntime,
   checkProviderRuntimeUpdates,
   clearProviderApiKey,
@@ -31,12 +32,15 @@ import {
   listCustomProviders,
   type ProviderCodeLoginRoutes,
   type ProviderRuntimeRoutes,
+  providerHostSignInStatus,
   saveCustomProvider,
   setProviderApiKey,
   startProviderCodeLogin,
+  startProviderHostSignIn,
   submitProviderCodeLogin,
 } from "@openbot/team-client/team-admin-requests";
 import type { TeamApiRequest } from "@openbot/team-client/team-api-requests";
+import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import type { AcpRegistrySettingsApi } from "@openbot/ui/features/custom-providers/AcpRegistrySettings";
 import { currentText } from "@openbot/ui/text";
 import { Effect } from "effect";
@@ -46,9 +50,16 @@ import { createCustomProvidersStore } from "../custom-providers/stores/custom-pr
 import { createProviderCodeLogin } from "../provider-updates/provider-code-login";
 import { createProviderRuntimeStore } from "../provider-updates/provider-runtime-store";
 import { remoteProviderRuntimes } from "../provider-updates/remote-provider-runtimes";
-import { codeSignInProviders, remoteAdminServer, serverSupportsCapability } from "../servers/server-capabilities";
+import {
+  codeSignInProviders,
+  hostSignInProviders,
+  relaySignInProviders,
+  remoteAdminServer,
+  serverSupportsCapability,
+} from "../servers/server-capabilities";
 import type { HostProviderSettings } from "../settings/ProviderSettingsSection";
 import { hostProviderKeyApi } from "../settings/provider-key-api";
+import { webProviderRelay } from "./web-provider-relay";
 
 /** How often the host status is read while a code sign-in waits, in case a status event is lost. */
 const CODE_LOGIN_POLL_MS = 3000;
@@ -103,6 +114,16 @@ function webProviderAdmin(
           Effect.mapError((error) => error.cause),
         ),
       ),
+    startHostSignIn: async (provider, serverId) =>
+      runTeamEffect(startProviderHostSignIn(request(serverId), provider).pipe(Effect.mapError((error) => error.cause))),
+    hostSignInStatus: async (provider, serverId) =>
+      runTeamEffect(
+        providerHostSignInStatus(request(serverId), provider).pipe(Effect.mapError((error) => error.cause)),
+      ),
+    cancelHostSignIn: async (provider, serverId) =>
+      runTeamEffect(
+        cancelProviderHostSignIn(request(serverId), provider).pipe(Effect.mapError((error) => error.cause)),
+      ),
     getApiKeyState: async (provider, serverId) =>
       runTeamEffect(
         getProviderApiKeyState(request(serverId), provider, keyRoutes()).pipe(Effect.mapError((error) => error.cause)),
@@ -141,6 +162,7 @@ function webProviderAdmin(
       runTeamEffect(saveCustomProvider(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
     deleteCustomProvider: async (input, serverId) =>
       runTeamEffect(deleteCustomProvider(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
+    ...webProviderRelay(request),
   };
 }
 
@@ -150,6 +172,8 @@ export interface WebProviderSettingsOptions {
   status: () => AgentStatus;
   setStatus: (status: AgentStatus) => void;
   readStatus: () => Promise<AgentStatus>;
+  /** The host's browser, which shows a provider's sign-in page that the host opened. */
+  browser: BrowserViewRuntime;
 }
 
 /**
@@ -219,6 +243,25 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
         start: (provider: AgentProviderId) => admin.startCodeLogin(provider, id ?? ""),
         submit: (provider: AgentProviderId, code: string) => admin.submitCodeLogin({ provider, code }, id ?? ""),
         cancel: (provider: AgentProviderId) => admin.cancelCodeLogin(provider, id ?? ""),
+        hostSignIn: {
+          providers: hostSignInProviders(options.server()),
+          hostName: options.server()?.name ?? "",
+          runtime: options.browser,
+          clipboard: serverSupportsCapability(options.server(), "browser-view-clipboard"),
+          start: (provider: AgentProviderId) => admin.startHostSignIn(provider, id ?? ""),
+          status: (provider: AgentProviderId) => admin.hostSignInStatus(provider, id ?? ""),
+          cancel: (provider: AgentProviderId) => admin.cancelHostSignIn(provider, id ?? ""),
+        },
+        relay: {
+          providers: relaySignInProviders(options.server()),
+          hostName: options.server()?.name ?? "",
+          start: (provider: AgentProviderId) => admin.startRelaySignIn(provider, id ?? ""),
+          status: (provider: AgentProviderId) => admin.relaySignInStatus(provider, id ?? ""),
+          open: (provider: AgentProviderId) => admin.openRelaySignIn(provider, id ?? ""),
+          paste: (provider: AgentProviderId, address: string) =>
+            admin.pasteRelaySignIn({ provider, address }, id ?? ""),
+          cancel: (provider: AgentProviderId) => admin.cancelRelaySignIn(provider, id ?? ""),
+        },
       };
     },
     providers: () => codeSignInProviders(options.server()),

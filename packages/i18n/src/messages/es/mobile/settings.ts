@@ -42,6 +42,7 @@ export const messages = {
   "mobile.settings.support.empty": "Aún no hay eventos.",
   "mobile.settings.sessions.kindDesktop": "Escritorio",
   "mobile.settings.sessions.kindMobile": "Móvil",
+  "mobile.settings.sessions.kindHostedServer": "Servidor alojado",
   "mobile.settings.sessions.title": "Dispositivos con sesión iniciada",
   "mobile.settings.sessions.loading": "Cargando sesiones…",
   "mobile.settings.sessions.refresh": "Actualizar sesiones",
@@ -85,6 +86,9 @@ export const messages = {
   "mobile.settings.animations.textReveal": "Animar respuestas",
   "mobile.settings.animations.textRevealFooter":
     "Una respuesta se escribe palabra por palabra y su burbuja crece de forma fluida. Si esta opción está desactivada, el texto aparece a medida que llega.",
+  "mobile.settings.animations.searchTransitions": "Animar resultados de búsqueda",
+  "mobile.settings.animations.searchTransitionsFooter":
+    "Los resultados y los mensajes de la búsqueda aparecen y desaparecen con un breve desenfoque cuando cambian. Con el movimiento reducido, solo se desvanecen. Si está desactivado, cambian al instante.",
   "mobile.settings.feedback.footer": "Respuesta táctil para las acciones en la aplicación en este dispositivo.",
   "mobile.settings.feedback.haptics": "Respuesta háptica",
   "mobile.settings.feedback.retry": "Reintentar guardar el ajuste háptico",

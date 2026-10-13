@@ -108,6 +108,8 @@ export const messages = {
   "routine.history.title": "Historique des exécutions",
   "routine.history.empty": "Aucune exécution pour le moment.",
   "routine.history.manualRun": "Manuelle · {time}",
+  "routine.history.scriptRun": "Script · {time}",
+  "routine.history.webhookRun": "Webhook · {time}",
   "routine.history.openRun": "Ouvrir {run} dans la discussion",
   "routine.history.today": "Aujourd’hui à {time}",
   "routine.history.yesterday": "Hier à {time}",

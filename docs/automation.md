@@ -70,11 +70,17 @@ The agents that allow local scripts, with their routines:
 
 ### `POST /v1/agents/:agentId/routines/:routineId/run`
 
-Body: `{ "payload"?: string }`, with `Content-Type: application/json`. The run starts the same way as
+Body: `{ "payload"?: string, "waitId"?: string }`, with `Content-Type: application/json`. The run starts the same way as
 **Test run**, also for a paused routine. The payload goes after the routine's instruction, under the
 heading `--- event from a local script ---`, with a line that tells the agent to read it as data,
 not as instructions. The run history keeps it, so a run that a restart
 interrupts sends it again.
+
+An agent can stop a request and wait for an event: it opens a wait with `openbot.await_event` and
+gives the user its wait ID. A run without `waitId` wakes every open wait of the agent that has no
+routine or has this routine. A run with `waitId` wakes only that wait. When no such wait is open,
+the run starts without a wait. The run's input repeats the request and the agent's note, so the
+agent can continue the request.
 
 Answer: `202 { "runId": string, "deliveryId": string | null }`.
 
@@ -84,7 +90,7 @@ set to skip at the limit drops the run instead, and its run history shows it as 
 
 | Status | Reason |
 | --- | --- |
-| 400 | The body is not JSON, or `payload` is not a string. |
+| 400 | The body is not JSON, `payload` is not a string, or `waitId` is not a wait ID. |
 | 401 | The token is missing or wrong. |
 | 403 | The request has an `Origin` header or a foreign `Host`, or the agent does not allow local scripts. |
 | 404 | The agent or the routine does not exist. |

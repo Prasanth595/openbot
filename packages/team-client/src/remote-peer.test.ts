@@ -1,6 +1,6 @@
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import type { SignalClientMessage } from "@openbot/contracts/signal-protocol/messages";
+import { SIGNAL_TURN_REFRESH_INTERVAL_MS, type SignalClientMessage } from "@openbot/contracts/signal-protocol/messages";
 import {
   decodeTeamProtocolV2FileChunk,
   decodeTeamProtocolV2FileControlFrame,
@@ -30,6 +30,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+
+/** The fields of a WebRTC stats report that the peer reads to find the selected path. */
+interface TestStats {
+  type: string;
+  selectedCandidatePairId?: string;
+  localCandidateId?: string;
+  bytesReceived?: number;
+  remoteCandidateId?: string;
+  candidateType?: string;
+}
 
 const channelFixture = {
   id: "channel-one",
@@ -258,6 +268,49 @@ describe("browser remote peer recovery", () => {
     expect(result).toMatchObject({ ok: false });
     expect(network.updates.at(-1)).toMatchObject({ state: "online" });
     // Vitest reports an unhandled rejection here if validation registered an abandoned request.
+    await network.runtime.dispose();
+  });
+
+  // Signal sends the `connectionId` of a refresh back in its `ready`. Sent with this connection's ID,
+  // the answer read as a kept path whose deadline had passed, so the peer asked again at once, until
+  // Signal closed the socket for its message limit.
+  it.each([
+    { candidateType: "host", restarts: 0 },
+    { candidateType: "relay", restarts: 1 },
+  ])("renews TURN credentials once per interval on a $candidateType path", async ({ candidateType, restarts }) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const connection = network.connection();
+    connection.candidateType = candidateType;
+    const socket = network.socket();
+    const send = socket.send.bind(socket);
+    const refreshes: unknown[] = [];
+    socket.send = (data: string) => {
+      send(data);
+      const message = JSON.parse(data);
+      if (message.type !== "turn-refresh") return;
+      refreshes.push(message);
+      // Bounded, so a peer that asks in a loop fails the test instead of running forever.
+      if (refreshes.length <= 3)
+        queueMicrotask(() =>
+          socket.receive({
+            type: "ready",
+            version: 1,
+            connectionId: message.connectionId,
+            resumeToken: "resume-2",
+            iceServers: [{ urls: "turn:localhost" }],
+          }),
+        );
+    };
+
+    await vi.advanceTimersByTimeAsync(SIGNAL_TURN_REFRESH_INTERVAL_MS);
+    await vi.waitFor(() => expect(connection.configurations).toHaveLength(1));
+    await vi.advanceTimersByTimeAsync(SIGNAL_TURN_REFRESH_INTERVAL_MS - 1_000);
+    expect(refreshes).toEqual([{ type: "turn-refresh", version: 1, connectionId: null }]);
+    expect(connection.iceRestarts).toBe(restarts);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(refreshes).toHaveLength(2);
     await network.runtime.dispose();
   });
 
@@ -572,6 +625,40 @@ describe("browser remote peer recovery", () => {
     await expect(network.connect()).resolves.toMatchObject({ ok: true });
     expect(network.bootstraps()).toBe(3);
     response.resolve();
+    await network.runtime.dispose();
+  });
+
+  it("keeps a peer whose path still receives data while a busy host answers the compatibility read late", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const response = deferred();
+    const requested = deferred();
+    let silent = false;
+    const network = await setupNetwork({
+      beforeResponse: async () => {
+        if (!silent) return;
+        requested.resolve();
+        await response.promise;
+      },
+    });
+    await network.connect();
+    await network.runtime.execute({ id: "answered", type: "request", method: "GET", path: "/v1/agents", body: {} });
+    silent = true;
+    let settled = false;
+    const check = network.runtime
+      .execute({ id: "busy-check", type: "request", method: "GET", path: "/v1/compatibility", body: {} })
+      .finally(() => {
+        settled = true;
+      });
+    await requested.promise;
+    // The host's WebRTC process acknowledges data while its main process is busy for 20 s.
+    for (let second = 0; second < 20; second += 1) {
+      network.connection().bytesReceived += 100;
+      await vi.advanceTimersByTimeAsync(1_000);
+    }
+    expect({ settled, state: network.updates.at(-1)?.state }).toEqual({ settled: false, state: "online" });
+    response.resolve();
+    await check;
+    expect(network.bootstraps()).toBe(1);
     await network.runtime.dispose();
   });
 
@@ -968,6 +1055,24 @@ describe("browser remote peer recovery", () => {
     await network.runtime.dispose();
   });
 
+  it("reconnects without the rate wait when Signal closes an expired session", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const socket = network.socket();
+    // Signal closes an expired session with 1008 too, after an error frame that names it (#1867).
+    socket.receive({
+      type: "error",
+      version: 1,
+      code: "authentication_required",
+      message: "The remote session expired.",
+    });
+    socket.close(1008);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(network.sockets.length).toBeGreaterThan(1);
+    await network.runtime.dispose();
+  });
+
   it.each(["initial", "replacement"])("excludes the rate wait from the %s connection timeout", async (kind) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     let refuseHello = kind === "initial";
@@ -991,6 +1096,31 @@ describe("browser remote peer recovery", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await expect(connecting).resolves.toMatchObject({ ok: true });
     expect(network.sockets).toHaveLength(2);
+    await network.runtime.dispose();
+  });
+
+  // iOS suspends the app, so the path of a peer can be dead on a return. A short absence keeps the
+  // path. After 30 s the host stopped using it, so the peer renews Signal and restarts ICE. After 160 s
+  // Signal has told the host to drop the connection, so the peer is replaced on the same session, with
+  // no resume hello and no offline update.
+  it.each([
+    { seconds: 10, tokens: ["ticket"], restarts: 0, sessions: [null] },
+    { seconds: 60, tokens: ["ticket", "resume"], restarts: 1, sessions: [null] },
+    { seconds: 170, tokens: ["ticket", "ticket"], restarts: 0, sessions: [null, "session-1"] },
+  ])("returns to the app after $seconds s away", async ({ seconds, tokens, restarts, sessions }) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const network = await setupNetwork();
+    await network.connect();
+    const first = network.connection();
+    network.runtime.setActive(false);
+    await vi.advanceTimersByTimeAsync(seconds * 1_000);
+    network.runtime.setActive(true);
+    // The phone's recovery connects on each return.
+    await expect(network.connect()).resolves.toMatchObject({ ok: true });
+    await vi.waitFor(() => expect(network.hellos.map((hello) => hello.token)).toEqual(tokens));
+    await vi.waitFor(() => expect(first.iceRestarts).toBe(restarts));
+    expect(network.keptSessions).toEqual(sessions);
+    expect(network.updates.filter((update) => update.state === "offline")).toEqual([]);
     await network.runtime.dispose();
   });
 
@@ -1459,7 +1589,30 @@ async function setupNetwork(
         channel.onopen?.();
       }
     }
-    setConfiguration() {}
+    readonly configurations: RTCConfiguration[] = [];
+    setConfiguration(value: RTCConfiguration) {
+      this.configurations.push(value);
+    }
+    /** The type of the local candidate in the selected pair. */
+    candidateType = "host";
+    /** The bytes that the selected pair received. A test raises it to stand for a path that still works. */
+    bytesReceived = 0;
+    async getStats() {
+      return new Map<string, TestStats>([
+        ["transport", { type: "transport", selectedCandidatePairId: "pair" }],
+        [
+          "pair",
+          {
+            type: "candidate-pair",
+            localCandidateId: "local",
+            remoteCandidateId: "remote",
+            bytesReceived: this.bytesReceived,
+          },
+        ],
+        ["local", { type: "local-candidate", candidateType: this.candidateType }],
+        ["remote", { type: "remote-candidate", candidateType: "host" }],
+      ]);
+    }
     iceRestarts = 0;
     restartIce() {
       this.iceRestarts += 1;

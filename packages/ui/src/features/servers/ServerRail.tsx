@@ -263,6 +263,8 @@ export function ServerRail(props: ServerRailProps) {
               onLeave={props.onLeave}
               onDelete={props.onDelete}
               canDelete={props.canDelete}
+              onRestart={props.onRestart}
+              canRestart={props.canRestart}
               onRemove={props.onRemove}
               canRemove={props.canRemove}
               onSetMuted={props.onSetMuted}
@@ -315,6 +317,8 @@ export function ServerRail(props: ServerRailProps) {
                     onLeave={props.onLeave}
                     onDelete={props.onDelete}
                     canDelete={props.canDelete}
+                    onRestart={props.onRestart}
+                    canRestart={props.canRestart}
                     onRemove={props.onRemove}
                     canRemove={props.canRemove}
                     onSetMuted={props.onSetMuted}
@@ -461,6 +465,8 @@ function ServerRailButton(
                 onLeave={props.onLeave}
                 onDelete={props.onDelete}
                 canDelete={props.canDelete}
+                onRestart={props.onRestart}
+                canRestart={props.canRestart}
                 onRemove={props.onRemove}
                 canRemove={props.canRemove}
               />

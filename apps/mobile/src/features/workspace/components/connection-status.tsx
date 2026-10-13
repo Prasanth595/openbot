@@ -7,10 +7,9 @@ import { AnimatedCounter } from "@/features/workspace/components/connection-coun
 import { ConnectionStatusReveal } from "@/features/workspace/components/connection-status-reveal";
 import { recoveryAttempt, recoveryCountdown, serverStatusLabel } from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
-import { ErrorReference } from "@/shared/components/error-reference";
 import { useText } from "@/shared/lib/text";
 
-function ConnectionStatusText({ server }: { server: MobileServer }) {
+function ConnectionStatusText({ server, note }: { server: MobileServer; note: string | null }) {
   const { t, sourceText } = useText();
   const recovery = server.recoveryStatus;
   const reconnecting = recovery && recovery.phase !== "online" && recovery.phase !== "suspended";
@@ -19,11 +18,7 @@ function ConnectionStatusText({ server }: { server: MobileServer }) {
     ? t("mobile.workspace.status.attempt", { attempt: recoveryAttempt(recovery), limit: REMOTE_RETRY_LIMIT })
     : server.connectionMessage && sourceText(server.connectionMessage);
   const remainingSeconds = reconnecting ? recoveryCountdown(recovery) : null;
-  // The status line shows the attempt while it reconnects, so the failure that caused it goes below.
-  // Otherwise the detail of the status line already holds the failure.
-  const failure = server.connectionFailure;
-  const failureText = reconnecting && failure ? sourceText(failure.message) : null;
-  const reference = failure?.reference ?? null;
+  // The chat keeps to the attempt and the countdown. The failure that caused a retry is in the support log.
 
   return (
     <View
@@ -34,8 +29,7 @@ function ConnectionStatusText({ server }: { server: MobileServer }) {
         remainingSeconds !== null && remainingSeconds > 0
           ? t("mobile.workspace.status.retryIn", { seconds: remainingSeconds })
           : null,
-        failureText,
-        reference ? t("error.reference.label", { code: reference }) : null,
+        note,
       ]
         .filter(Boolean)
         .join(". ")}
@@ -60,29 +54,29 @@ function ConnectionStatusText({ server }: { server: MobileServer }) {
         ) : null}
         <ConnectionCountdown seconds={remainingSeconds} />
       </View>
-      {failureText ? (
+      {note ? (
         <Typography.Paragraph
           type="body-xs"
           align="center"
-          className="text-text-secondary"
-          numberOfLines={2}
+          className="text-muted"
+          numberOfLines={1}
           maxFontSizeMultiplier={1.2}
         >
-          {failureText}
+          {note}
         </Typography.Paragraph>
       ) : null}
-      <ErrorReference reference={reference} align="center" numberOfLines={1} />
     </View>
   );
 }
 
-export function ConnectionStatus({ server }: { server: MobileServer | undefined }) {
+/** Under the reconnect status: what the chat waits for, such as its history. */
+export function ConnectionStatus({ server, note = null }: { server: MobileServer | undefined; note?: string | null }) {
   return (
     <ConnectionStatusReveal
       value={server && !server.initialConnectionPending && server.state !== "online" ? server : null}
       collapseOnHide
     >
-      {(displayed) => <ConnectionStatusText server={displayed} />}
+      {(displayed) => <ConnectionStatusText server={displayed} note={note} />}
     </ConnectionStatusReveal>
   );
 }

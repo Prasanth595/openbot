@@ -13,6 +13,7 @@ import {
   type McpTestResult,
 } from "@openbot/contracts/ipc";
 import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
+import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { describe, expect, it, vi } from "vitest";
 import { NO_MCP_TOOL_RUNTIMES } from "../../backend/mcp-provider-shapes";
 import { ProviderRuntimeFailure } from "../provider-runtime-effects";
@@ -93,11 +94,15 @@ function setup(options: {
     cancelMcpSignIn: () => undefined,
     signOutMcpServer: () => Effect.succeed([]),
     listMcpSignIns: () => [],
+    mcpSignInApp: () => ({ redirectUrl: null, app: null }),
+    saveMcpSignInApp: () => Effect.succeed({ redirectUrl: null, app: null }),
+    removeMcpSignInApp: () => Effect.succeed({ redirectUrl: null, app: null }),
   };
   const remoteCalls: RemoteRequestInit[] = [];
   const remoteServers = {
+    // The live view only: the relay has its own tests.
     supportsCapability: (_serverId: string, capability: string) =>
-      options.signIn !== false || capability !== MCP_SIGN_IN_CAPABILITY,
+      capability !== SIGN_IN_RELAY_CAPABILITY && (options.signIn !== false || capability !== MCP_SIGN_IN_CAPABILITY),
     // Generic like the manager: the host answers what the codec below decodes.
     request: <T>(
       _serverId: string,
@@ -119,6 +124,12 @@ function setup(options: {
       startToolRuntimes: () => undefined,
       ensureToolRuntimesReady,
       toolRuntimes: () => NO_MCP_TOOL_RUNTIMES,
+      relay: {
+        run: () => Effect.die("The relay is not used here."),
+        page: () => null,
+        open: async () => undefined,
+        paste: () => undefined,
+      },
     }).mcpServers,
   );
   const listener = registrations.get(IPC_ENDPOINTS.mcpServers.testMcpServer.channel);

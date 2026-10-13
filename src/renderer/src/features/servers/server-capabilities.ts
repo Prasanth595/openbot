@@ -2,11 +2,14 @@ import {
   AGENT_PROVIDERS,
   type AgentProviderId,
   agentProviderDescriptor,
+  pasteCodeSignInSupported,
   type ServerSummary,
 } from "@openbot/contracts/ipc";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
+import { PROVIDER_HOST_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_SIGN_IN_V3_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v3";
 import { PROVIDERS_V4_SIGN_IN_PROVIDERS } from "@openbot/contracts/team-protocol/providers-v4";
+import { SIGN_IN_RELAY_PROVIDERS } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 
 /**
  * Whether a server can be asked for a capability-gated feature. A local server
@@ -28,6 +31,10 @@ export function serverSupportsCapability(
       capability === "browser-view-clipboard" ||
       capability === "mcp-servers-v1" ||
       capability === "mcp-sign-in-v1" ||
+      capability === "mcp-sign-in-app-v1" ||
+      capability === "sign-in-relay-v1" ||
+      capability === "connectors-v1" ||
+      capability === "provider-host-sign-in-v1" ||
       capability === "storage-v1" ||
       capability === "hosted-sites-v1" ||
       capability === "agent-admin-v1" ||
@@ -49,6 +56,7 @@ export function serverSupportsCapability(
       capability === "host-release-v1" ||
       capability === "events-v1" ||
       capability === "context-reset-v1" ||
+      capability === "routine-flows-v1" ||
       capability === "agent-import-v1") &&
     server?.kind === "remote"
   ) {
@@ -58,16 +66,42 @@ export function serverSupportsCapability(
 }
 
 /**
- * Whether a joined server signs in to an MCP server for this computer: the host opens the page in
- * its own browser, and the live view shows it. The live view streams the active server only.
+ * Whether a joined server signs in to an MCP server for this computer. With `sign-in-relay-v1` the
+ * page opens in this computer's browser and the callback is relayed to the host. An older host opens
+ * the page in its own browser, and the live view shows it; the live view streams the active server only.
  */
 export function remoteMcpSignIn(server: ServerSummary | undefined): boolean {
+  if (server?.kind !== "remote") return false;
+  if (serverSupportsCapability(server, "sign-in-relay-v1")) return true;
   return (
-    server?.kind === "remote" &&
     server.active &&
     serverSupportsCapability(server, "mcp-sign-in-v1") &&
     serverSupportsCapability(server, "browser-view")
   );
+}
+
+/**
+ * The providers a joined server signs in on a page in its own browser, which the live view shows
+ * here. Only a Linux host advertises it, and the live view streams the active server only.
+ */
+export function hostSignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
+  return server?.kind === "remote" &&
+    server.active &&
+    serverSupportsCapability(server, "provider-host-sign-in-v1") &&
+    serverSupportsCapability(server, "browser-view")
+    ? PROVIDER_HOST_SIGN_IN_PROVIDERS
+    : [];
+}
+
+/**
+ * The providers a joined server signs in on a page in this computer's browser, with the callback
+ * relayed to the host (`sign-in-relay-v1`). The user's own browser keeps their sessions, so these win
+ * over the host's code and live view.
+ */
+export function relaySignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
+  return server?.kind === "remote" && serverSupportsCapability(server, "sign-in-relay-v1")
+    ? SIGN_IN_RELAY_PROVIDERS
+    : [];
 }
 
 /** An owner or admin of a joined server. This computer is always its own administrator. */
@@ -94,16 +128,31 @@ export function serverCanAdminister(
  * Grok, Cursor and Cline, and Claude when it also has `providers-v3`, which only a host that can run
  * the Claude pasted code advertises. A host with `providers-v3` alone signs in Codex, Claude and Grok.
  * This computer, and an older host, sign in with a code only the providers whose descriptor says so:
- * this computer has a browser for the others.
+ * this computer has a browser for the others. A host with `provider-host-sign-in-v1` adds the
+ * providers it signs in on its own browser's page, and a host with `sign-in-relay-v1` the providers
+ * it signs in on a page in this computer's browser.
  */
 export function codeSignInProviders(server: ServerSummary | undefined): readonly AgentProviderId[] {
+  const host = [...new Set([...hostSignInProviders(server), ...relaySignInProviders(server)])];
   if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v4")) {
     const paste = serverSupportsCapability(server, "providers-v3");
-    return PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude");
+    return [
+      ...new Set([...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), ...host]),
+    ];
   }
   if (server?.kind === "remote" && serverSupportsCapability(server, "providers-v3"))
-    return PROVIDERS_SIGN_IN_V3_PROVIDERS;
-  return AGENT_PROVIDERS.filter((provider) => agentProviderDescriptor(provider).codeSignIn);
+    return [...new Set([...PROVIDERS_SIGN_IN_V3_PROVIDERS, ...host])];
+  return AGENT_PROVIDERS.filter((provider) => agentProviderDescriptor(provider).codeSignIn || host.includes(provider));
+}
+
+/**
+ * The providers that a code sign-in reaches on this computer: every provider whose driver has one,
+ * for when the browser callback cannot reach OpenBot. Claude's pasted code needs a terminal that
+ * only Linux gives it. Muse has a device code on this computer only: no Team API protocol carries it.
+ */
+export function localCodeSignInProviders(platform: string | undefined): readonly AgentProviderId[] {
+  const paste = platform !== undefined && pasteCodeSignInSupported(platform);
+  return [...PROVIDERS_V4_SIGN_IN_PROVIDERS.filter((provider) => paste || provider !== "claude"), "muse"];
 }
 
 /** `server` when it is a joined server this account may manage through `capability`, otherwise undefined. */

@@ -97,7 +97,6 @@ export const messages = {
   "diagram.routine.recent": "Execuções recentes",
   "diagram.routine.runLabel": "{status}, {time}",
   "diagram.routine.manual": "Manualmente",
-  "diagram.flows.remoteOnly": "Fluxos de rotina só estão disponíveis para agentes neste computador.",
   "diagram.flows.loadFailed": "Não foi possível carregar as rotinas deste agente.",
   "diagram.flows.saveFailed": "Não foi possível salvar esta mudança nas rotinas.",
   "diagram.flows.runFailed": "Não foi possível iniciar esta rotina.",

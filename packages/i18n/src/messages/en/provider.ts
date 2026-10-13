@@ -60,6 +60,7 @@ export const messages = defineMessages("provider", {
   "provider.aria.retry": "Retry {name}",
   "provider.aria.install": "Install {name}",
   "provider.aria.signIn": "Sign in to {name}",
+  "provider.aria.codeFallback": "Log in to {name} with a code",
   "provider.aria.moreActions": "More actions for {name}",
 
   // The switch that turns a provider on or off in OpenBot. While an agent uses the provider, the
@@ -89,6 +90,10 @@ export const messages = defineMessages("provider", {
   "provider.codeLogin.pasteExpired": "This login has stopped.",
   "provider.codeLogin.pasteExpiresIn": "Waiting for you. This login stops in {time}.",
   "provider.codeLogin.linkTitle": "Log in to {name} on another device",
+  "provider.codeLogin.pageTitle": "Sign in to {name}",
+  "provider.codeLogin.pageDescription": "This page is open in the browser on {host}. Sign in here.",
+  "provider.codeLogin.relayStarting": "Starting the {name} sign-in on {host}…",
+  "provider.codeLogin.pageOpening": "Opening the {name} sign-in page on {host}…",
   "provider.codeLogin.linkStep": "Log in to {name}. OpenBot continues by itself.",
 
   // The agent model picker.
@@ -128,6 +133,9 @@ export const messages = defineMessages("provider", {
   "provider.museKey.title": "Meta API key for Muse",
   "provider.museKey.description": "Save a Meta API key on the host, or use the Muse CLI to sign in.",
   "provider.museKey.label": "Meta API key",
+  "provider.geminiKey.title": "Gemini API key",
+  "provider.geminiKey.description": "Save a Gemini API key on the host, or select Connect to sign in with Google.",
+  "provider.geminiKey.label": "Gemini API key",
 
   // The optional OpenCode Go key dialog.
   "provider.openCodeKey.title": "Sign in to OpenCode Go",

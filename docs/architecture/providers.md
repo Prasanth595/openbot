@@ -1,5 +1,8 @@
 # Providers
 
+To add a provider, or to see how a provider signs in on a joined server, read
+[Integrations and sign-in](integrations.md#add-a-provider).
+
 ## Built-in tool discovery
 
 `agent/tool-catalog.ts` exposes seven direct tools and three discovery tools to every adapter.
@@ -308,9 +311,14 @@ VM. A browser on another computer cannot complete this loopback callback. A serv
 desktop can install and start Gemini, but cannot complete the interactive Google sign-in.
 
 The local Settings > Providers screen offers Connect for both a managed runtime and an
-external runtime. Remote-host settings do not offer this action: Gemini has no supported
-device-code flow or client-side OAuth callback forwarding. Open OpenBot in the host's desktop
-session to connect it. A runtime status of "Runtime installed" means only that the files are
+external runtime. Gemini has no device-code flow, so a remote host signs it in on a page in its
+own browser. A Linux host advertises `provider-host-sign-in-v1` (Team API v7 only). Connect sends
+`start` to the host. The host runs the same sign-in as its own Connect, and opens the Google link
+from the CLI in a private tab of its browser. The client polls `status`, shows that tab through
+the live view (`browser-view`), and closes the dialog on the `result`. The Google callback goes to
+`127.0.0.1` on the host, so the host's browser completes it. No route carries the link or a
+credential, and every route requires an owner or admin. A host on another platform does not
+advertise the capability; open OpenBot in the host's desktop session to connect it there. A runtime status of "Runtime installed" means only that the files are
 available; "Connected" requires a successful provider check. A known authentication or launch
 error takes priority over runtime readiness.
 
@@ -372,7 +380,8 @@ or provide early turn completion while its background tasks continue to run.
 Team API v1–v4 do not know `antigravity`. The host hides Gemini agents, models, status, and
 sign-in state from peers on those versions, and the `providers-v1` routes omit it. Team API v5
 carries Gemini, and the `providers-v2` runtime routes let an owner or admin download or cancel the
-host's Gemini runtime. Gemini signs in through a browser on the host, so no peer route signs it in.
+host's Gemini runtime. Gemini signs in through a browser on the host. The `provider-host-sign-in-v1`
+routes let an owner or admin start that sign-in and see the page through the live view.
 
 ### Cursor
 

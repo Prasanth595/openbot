@@ -36,7 +36,12 @@ import {
   ProviderDetectionSettings,
   type ProviderDetectionSettingsValue,
 } from "@openbot/ui/features/custom-providers/ProviderDetectionSettings";
-import { OpenCodeKeyDialog, type ProviderKeyApi } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
+import {
+  isKeyDialogProvider,
+  type KeyDialogProvider,
+  OpenCodeKeyDialog,
+  type ProviderKeyApi,
+} from "@openbot/ui/features/settings/OpenCodeKeyDialog";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, createStore, Show, untrack } from "solid-js";
 import type { ProviderCodeLoginApi } from "../../components/provider-code-login-api";
@@ -297,7 +302,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
  */
 function createProviderKeyState(props: { readonly open: boolean; readonly providerKeys?: ProviderKeyApi | undefined }) {
   const [keyDialogOpen, setKeyDialogOpen] = createSignal(false);
-  const [keyProvider, setKeyProvider] = createSignal<"opencode" | "muse">("opencode");
+  const [keyProvider, setKeyProvider] = createSignal<KeyDialogProvider>("opencode");
   const [openCodeKeyStatus, setOpenCodeKeyStatus] = createSignal<ProviderApiKeyStatus | undefined>(undefined);
   async function refreshOpenCodeKeyStatus(): Promise<void> {
     const keys = props.providerKeys;
@@ -326,9 +331,9 @@ function createProviderKeyState(props: { readonly open: boolean; readonly provid
     keyDialogOpen,
     keyProvider,
     openCodeKeyStatus,
-    /** OpenCode is the only provider whose sign-in is a pasted key, so it is the only row served. */
+    /** Only the providers whose sign-in can be a pasted key are served: OpenCode, Muse and Gemini. */
     openKeyDialog(provider: AgentProviderId): void {
-      if (provider === "opencode" || provider === "muse") {
+      if (isKeyDialogProvider(provider)) {
         setKeyProvider(provider);
         setKeyDialogOpen(true);
       }
@@ -372,6 +377,8 @@ function ProviderSettingsDialogs(props: {
             onOpenVerificationUrl={api().openVerificationUrl}
             onCancel={api().cancel}
             onSubmitCode={api().submit}
+            onOpenRelayPage={api().openRelayPage}
+            onPasteRelayAddress={api().pasteRelayAddress}
           />
         )}
       </Show>

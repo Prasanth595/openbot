@@ -102,6 +102,7 @@ export const messages = {
   "error.provider.localOnly": "Провайдеров можно изменить только на компьютере, где работают агенты.",
   "error.provider.keyRequired": "Нужен ключ провайдера.",
   "error.provider.keyTooLong": "Ключ провайдера слишком длинный.",
+  "error.provider.keyInvalidCharacters": "Ключ провайдера содержит пробел или символ, который не может быть в ключе.",
   "error.provider.noModel": "У выбранного провайдера нет доступной модели.",
   "error.provider.noModelNamed": "У {provider} нет доступной модели.",
   "error.provider.acpNoModels":
@@ -150,6 +151,7 @@ export const messages = {
     "{provider} не ответил вовремя. Возможно, компьютер занят. Обновите провайдеров, чтобы повторить попытку.",
   "error.provider.noCodeSignIn": "В {provider} нельзя войти с помощью кода.",
   "error.provider.codeLoginNoLink": "Провайдер не показал ссылку для входа. Повторите попытку.",
+  "error.provider.hostSignInEnded": "Вход в {provider} не завершён. Повторите попытку.",
   "error.provider.codeLoginNotWaiting": "Нет входа, который ждал бы код. Начните вход заново.",
   "error.provider.codeLoginBadCode": "Вставьте код, который показывает страница входа.",
   "error.provider.codeLoginRefused": "Провайдер не принял код. Начните вход заново.",

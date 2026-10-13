@@ -18,6 +18,7 @@ async function withServer(
   const delivered: Delivered[] = [];
   const server = await startMcpOAuthRedirectServer({
     language: { locale: "en", translate: translateFor("en") },
+    relayRefusal: () => undefined,
     deliver: (state, code) => {
       if (!accept(state)) return false;
       delivered.push({ state, code });
@@ -113,6 +114,7 @@ describe("the MCP sign-in listener", () => {
   it("stops answering once it is closed", async () => {
     const server = await startMcpOAuthRedirectServer({
       language: { locale: "en", translate: translateFor("en") },
+      relayRefusal: () => undefined,
       deliver: () => true,
     });
     const { redirectUrl } = server;

@@ -2,7 +2,7 @@
   "name": "openbot",
   "productName": "OpenBot",
   "desktopName": "openbot.desktop",
-  "version": "0.36.0",
+  "version": "0.38.1",
   "description": "A local-first multi-agent desktop workspace for Codex, Claude, and Grok.",
   "author": {
     "name": "Norbert Bodziony",
@@ -300,7 +300,7 @@
     "@types/node": "catalog:",
     "@types/qrcode": "^1.5.6",
     "@types/ws": "8.18.1",
-    "electron": "44.5.1",
+    "electron": "44.7.0",
     "electron-builder": "26.15.7",
     "electron-vite": "5.0.0",
     "jsdom": "catalog:",

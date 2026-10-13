@@ -60,6 +60,7 @@ export const messages = {
   "provider.aria.retry": "{name} erneut versuchen",
   "provider.aria.install": "{name} installieren",
   "provider.aria.signIn": "Bei {name} anmelden",
+  "provider.aria.codeFallback": "Mit Code bei {name} anmelden",
   "provider.aria.moreActions": "Weitere Aktionen für {name}",
   "provider.aria.use": "{name} in OpenBot verwenden",
   "provider.use.inUse": {
@@ -85,6 +86,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Diese Anmeldung wurde beendet.",
   "provider.codeLogin.pasteExpiresIn": "Warten auf dich. Diese Anmeldung endet in {time}.",
   "provider.codeLogin.linkTitle": "Auf einem anderen Gerät bei {name} anmelden",
+  "provider.codeLogin.pageTitle": "Bei {name} anmelden",
+  "provider.codeLogin.pageDescription": "Diese Seite ist im Browser auf {host} geöffnet. Melde dich hier an.",
+  "provider.codeLogin.relayStarting": "Die Anmeldung bei {name} wird auf {host} gestartet…",
+  "provider.codeLogin.pageOpening": "Die Anmeldeseite von {name} wird auf {host} geöffnet…",
   "provider.codeLogin.linkStep": "Melde dich bei {name} an. OpenBot fährt automatisch fort.",
   "provider.picker.noEndpoints": "Noch keine Endpunkte",
   "provider.picker.customCounts": "{endpoints} · {agents}",
@@ -122,6 +127,10 @@ export const messages = {
   "provider.museKey.description":
     "Speichere einen Meta-API-Schlüssel auf dem Host oder melde dich mit der Muse CLI an.",
   "provider.museKey.label": "Meta-API-Schlüssel",
+  "provider.geminiKey.title": "Gemini-API-Schlüssel",
+  "provider.geminiKey.description":
+    "Speichere einen Gemini-API-Schlüssel auf dem Host, oder wähle „Verbinden“, um dich mit Google anzumelden.",
+  "provider.geminiKey.label": "Gemini-API-Schlüssel",
   "provider.openCodeKey.title": "Bei OpenCode Go anmelden",
   "provider.openCodeKey.description":
     "Kostenlose Modelle benötigen kein Konto. Ein Schlüssel schaltet die kostenpflichtigen Go-Modelle frei.",

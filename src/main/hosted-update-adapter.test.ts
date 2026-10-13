@@ -67,20 +67,17 @@ describe("HostedUpdateAdapter", () => {
     expect(downloaded).not.toHaveBeenCalled();
   });
 
-  it("uses a release that the timer staged, and asks again when a newer one is out", async () => {
+  it("asks root also for a release that the timer staged, because root answers after the disk restore", async () => {
     writeFileSync(paths.stagedReady, "1.1.0\n");
-    const current = adapter("1.1.0");
-    await current.updater.downloadUpdate((await current.updater.checkForUpdates()).cancellationToken);
-    expect(current.downloaded).toHaveBeenCalledWith({ version: "1.1.0" });
-    expect(existsSync(stageRequest())).toBe(false);
+    const { updater, downloaded } = adapter("1.1.0");
+    const download = updater.downloadUpdate((await updater.checkForUpdates()).cancellationToken);
 
-    const newer = adapter("1.2.0");
-    const check = await newer.updater.checkForUpdates();
-    const download = newer.updater.downloadUpdate(check.cancellationToken);
     await vi.waitFor(() => expect(existsSync(stageRequest())).toBe(true));
-    check.cancellationToken?.cancel();
-    await expect(download).rejects.toThrow();
-    expect(newer.downloaded).not.toHaveBeenCalled();
+    expect(downloaded).not.toHaveBeenCalled();
+    rmSync(stageRequest());
+
+    await download;
+    expect(downloaded).toHaveBeenCalledWith({ version: "1.1.0" });
   });
 
   it("asks root to install with a request file", () => {

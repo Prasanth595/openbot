@@ -1747,6 +1747,14 @@ export class MailboxStore {
     );
   }
 
+  /** As {@link hasUnfinishedDelivery}, without the `queued` deliveries that a usage limit holds. */
+  hasStartedDelivery(agentId: string): boolean {
+    return this.#state.deliveries.some(
+      (delivery) =>
+        delivery.recipientAgentId === agentId && (delivery.status === "starting" || delivery.status === "running"),
+    );
+  }
+
   unresolvedDeliveries(): DeliveryContext[] {
     return this.#state.deliveries
       .filter((delivery) => delivery.status === "starting" || delivery.status === "running")

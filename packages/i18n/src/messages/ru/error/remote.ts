@@ -107,8 +107,7 @@ export const messages = {
   "error.remote.operationFailed": "Удалённая операция не удалась.",
   "error.remote.connectionReplaced": "Подключение заменено.",
   "error.remote.desktopDidNotConnect": "Компьютер не подключился.",
-  "error.remote.desktopRestarted":
-    "Компьютер перезапустился. Выполняется повторное подключение с новой аутентифицированной сессией.",
+  "error.remote.connectionDropped": "У сервера больше нет этого подключения. Повторное подключение.",
   "error.remote.dataBeforeAuth": "Хост прислал данные до аутентификации.",
   "error.remote.eventStreamGap": "В потоке событий хоста есть пропуск.",
   "error.remote.malformedEvent": "Хост вернул искажённое событие.",

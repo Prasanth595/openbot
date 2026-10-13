@@ -1351,6 +1351,9 @@ describe("ServerSettingsModal providers", () => {
       }),
       cancel: vi.fn(() => setProvider(null)),
       openVerificationUrl: vi.fn(),
+      openRelayPage: vi.fn(async () => undefined),
+      pasteRelayAddress: vi.fn(async () => undefined),
+      opener: () => null,
     };
     render(() => <ProvidersSection agentStatus={codexSignedOutStatus} codeLogin={codeLogin} />);
 

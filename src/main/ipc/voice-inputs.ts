@@ -1,4 +1,17 @@
-import { VOICE_AUDIO_LIMITS, type VoiceTranscriptionInput } from "@openbot/contracts/ipc";
+import {
+  isVoiceLanguage,
+  isVoiceModelId,
+  VOICE_API_KEY_MAX_LENGTH,
+  VOICE_AUDIO_LIMITS,
+  VOICE_STREAM_LIMITS,
+  type VoiceApiKeyInput,
+  type VoiceModelRequest,
+  type VoiceSettings,
+  type VoiceStream,
+  type VoiceStreamAudio,
+  type VoiceTranscriptionInput,
+} from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import { isObject } from "./validation";
 
 export function parseVoiceTranscription(input: unknown): VoiceTranscriptionInput {
@@ -29,4 +42,43 @@ export function parseVoiceTranscription(input: unknown): VoiceTranscriptionInput
 
 function ascii(value: Uint8Array, start: number, end: number): string {
   return String.fromCharCode(...value.subarray(start, end));
+}
+
+export function parseVoiceModelRequest(input: unknown): VoiceModelRequest {
+  if (!isObject(input) || !isVoiceModelId(input.modelId)) throw new Error("A known voice model is required.");
+  return { modelId: input.modelId };
+}
+
+export function parseVoiceSettings(input: unknown): VoiceSettings {
+  if (!isObject(input) || !isVoiceModelId(input.modelId) || !isVoiceLanguage(input.language)) {
+    throw new Error("Voice settings need a known model and language.");
+  }
+  return { modelId: input.modelId, language: input.language };
+}
+
+/** The one place an ElevenLabs key from the renderer enters main. Null removes the saved key. */
+export function parseVoiceApiKey(input: unknown): VoiceApiKeyInput {
+  if (!isObject(input)) throw new Error(sourceText("error.provider.keyRequired"));
+  if (input.key === null) return { key: null };
+  if (typeof input.key !== "string" || !input.key.trim()) throw new Error(sourceText("error.provider.keyRequired"));
+  if (input.key.length > VOICE_API_KEY_MAX_LENGTH) throw new Error(sourceText("error.provider.keyTooLong"));
+  const key = input.key.trim();
+  // The key goes into an HTTP header, which refuses other characters when the socket opens.
+  if (!/^[\x21-\x7e]+$/u.test(key)) throw new Error(sourceText("error.provider.keyInvalidCharacters"));
+  return { key };
+}
+
+export function parseVoiceStream(input: unknown): VoiceStream {
+  if (!isObject(input) || typeof input.streamId !== "string" || !input.streamId || input.streamId.length > 64)
+    throw new Error("A voice stream is required.");
+  return { streamId: input.streamId };
+}
+
+export function parseVoiceStreamAudio(input: unknown): VoiceStreamAudio {
+  const { streamId } = parseVoiceStream(input);
+  if (!isObject(input) || !(input.pcm instanceof Uint8Array)) throw new Error("Voice audio is required.");
+  // 16-bit samples: an odd length cannot be PCM.
+  if (input.pcm.byteLength % 2 !== 0 || input.pcm.byteLength > VOICE_STREAM_LIMITS.maximumChunkBytes)
+    throw new Error("Voice audio has an invalid length.");
+  return { streamId, pcm: input.pcm };
 }

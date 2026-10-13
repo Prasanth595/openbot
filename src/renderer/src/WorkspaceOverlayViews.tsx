@@ -18,6 +18,7 @@ import {
   remoteUpdateServer,
   serverCanAdminister,
   serverRoleCanAdminister,
+  serverSupportsCapability,
 } from "./features/servers/server-capabilities";
 import type { MarketplaceCalls } from "./features/settings/marketplace-calls";
 import type { MarketplaceAgentRow } from "./features/settings/marketplace-controller";
@@ -139,6 +140,9 @@ export function MarketplaceOverlay(props: {
             manage() && serverCanAdminister(props.server, MCP_SERVERS_CAPABILITY) ? props.server?.id : undefined
           }
           pluginHostName={manage() ? remoteAdminServer(props.server, MCP_SERVERS_CAPABILITY)?.name : undefined}
+          pluginSignInRelay={
+            props.server?.kind === "remote" && serverSupportsCapability(props.server, "sign-in-relay-v1")
+          }
           onRunPluginPrompt={
             composerFree()
               ? (agentId, prompt) =>

@@ -12,12 +12,13 @@ import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
 import {
   refreshHostedServerAvailability,
   useHostedServerAvailability,
-} from "@/features/servers/model/hosted-server-checkout";
+} from "@/features/servers/model/hosted-server-availability";
 import type { MobileServer } from "@/features/workspace/context/mobile-workspace-context";
 import { moveServerId } from "@/features/workspace/model/server-order";
 import { serverStatusLabel } from "@/features/workspace/model/server-status";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
+import { devFeatureOverride } from "@/shared/lib/dev-feature-overrides";
 import { haptics } from "@/shared/lib/haptics";
 import { refreshMobileFeatures, useMobileFeature } from "@/shared/lib/mobile-features";
 import { isAndroid } from "@/shared/lib/platform";
@@ -104,11 +105,11 @@ export function ServerDrawerContent({
     setDragging(false);
   }, [open]);
 
-  // As on desktop, the plus button opens the plans when the account can create hosted servers and
-  // the feature flag of this build allows the purchase.
-  const accountCanCreate = useHostedServerAvailability((state) => state.userId === session.user.id && state.available);
+  // The plus button opens the plans and the account's hosted servers when the account can have
+  // hosted servers and the feature flag of this build is on. A development build can override both.
+  const accountHasPlans = useHostedServerAvailability((state) => state.userId === session.user.id && state.available);
   const cloudServersOn = useMobileFeature(session.apiUrl, "cloudServers");
-  const canCreateServer = accountCanCreate && cloudServersOn;
+  const showsPlans = devFeatureOverride("cloudServers") ?? (accountHasPlans && cloudServersOn);
   useEffect(() => {
     if (!open) return;
     void refreshHostedServerAvailability(session.user.id, hostedServerCalls(session));
@@ -285,11 +286,11 @@ export function ServerDrawerContent({
           </ServerDrawerIconButton>
         ) : (
           <ServerDrawerIconButton
-            accessibilityLabel={canCreateServer ? t("mobile.server.drawer.add") : t("mobile.server.drawer.join")}
+            accessibilityLabel={showsPlans ? t("mobile.server.drawer.add") : t("mobile.server.drawer.join")}
             color={mutedColor}
             fallbackVariant="filled"
             systemName="plus"
-            onPress={() => onNavigate(canCreateServer ? "/hosted-server" : "/add-server")}
+            onPress={() => onNavigate(showsPlans ? "/hosted-server" : "/add-server")}
           >
             <Plus color={mutedColor} size={18} strokeWidth={2} />
           </ServerDrawerIconButton>

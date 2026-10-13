@@ -44,7 +44,12 @@ browser. A joined server shows no Slack page.
   orchestrator posts it. Until you add the orchestrator, Slack gets "No agent can answer here yet".
 - Each conversation is its own OpenBot thread of that agent, so it does not mix with the agent's own
   chat.
-- The agent sees earlier messages of the thread as context, and the files of the message.
+- The agent sees earlier messages of the thread as context, and the files of the message. A
+  mention of a person shows that person's Slack name.
+- The agent can save short facts about the workspace, such as who owns a project. Every new
+  conversation of the workspace sees them, in every channel. The agent's own chat does not. A fact
+  from a direct message is not saved. See [Workspace memories](#workspace-memories).
+- The agent can read more of the channel or thread when a message refers to something earlier.
 - 👀 means the message arrived. "Working on it…" is replaced by the answer. ✅, ❌ or ⏹ shows the end.
   Every post comes from OpenBot and names no agent.
 - An approval appears in the thread with **Approve** and **Deny**. Only the person who wrote the
@@ -182,12 +187,33 @@ The workspace row says what is wrong.
 | Cannot receive events | This computer cannot reach Signal: it is signed out, has no name, or Signal is down. | Sign in, name this computer in **Server settings**, keep OpenBot open. |
 | "Another OpenBot server already answers this Slack workspace" | Another account connected the workspace. | Disconnect it on that server, then try again. |
 
+## Workspace memories
+
+Each connection (a Slack workspace, a Discord server or a Telegram chat) has its own list of facts.
+The agent that answers saves a fact with `openbot.messaging_remember` and deletes one with
+`openbot.messaging_forget_memory`. Every prompt of every conversation of that connection shows the
+whole list, with the ID of each fact. The prompt marks the facts as data, not instructions.
+
+- A connection keeps at most 32 facts of 500 characters each.
+- A fact is not saved from a direct message, because every channel of the workspace would see it.
+  A fact saved in a private channel is not refused: every channel and direct message of the
+  workspace sees it too. Anyone who can reach OpenBot in the workspace, in a direct message too,
+  can ask the agent to forget a fact.
+- The agent's own memories (`openbot.remember`) stay separate. They are private to the OpenBot user.
+- A disconnect keeps the facts. When you connect the same workspace again, the agent sees them again.
+- OpenBot has no screen for these facts yet. Ask the agent in the workspace to forget a fact.
+
+`openbot.messaging_history` reads the newest messages of the conversation's own channel or thread:
+30 by default, 100 at most. It reads no other place. Slack can limit it to one read a minute; it
+then fails at once, and the agent can try again. Discord gives the text only of messages that
+mention OpenBot, and of bot posts. Telegram gives what this computer saw since it started.
+
 ## Limits
 
 These limits are for Slack. Discord's are in [apps/discord-app/README.md](../apps/discord-app/README.md#limits-of-discord),
 and these also apply to Discord: the host must run, the queue limits, who can give work, and that a
-hosted server stays awake while a connection is live. Discord sends an event once: an event that
-arrives while this computer has no Signal connection is lost.
+hosted server that sleeps starts for a message. Discord sends an event once: an event that arrives
+while this computer has no Signal connection is lost, except for a hosted server that starts.
 
 - The host must run. Slack sends an event again after about 1 and 5 minutes when this computer does
   not answer, then drops it.
@@ -202,13 +228,19 @@ arrives while this computer has no Signal connection is lost.
 - Anyone who can post in the workspace, guests and Slack Connect members included, can give the
   agents work. They run with the access you gave them. With Turbo or **Always allow**, they run
   commands without asking.
-- A hosted server stays awake while a Slack connection is live.
+- A hosted server sleeps after 15 minutes with no use, also with a live connection. A mention, a
+  direct message, a thread reply or a button press starts it. Signal keeps that message, encrypted,
+  for up to 10 minutes and gives it to the server when it connects, so the answer comes after the
+  server starts (a few minutes). A restart of Signal in that time loses it. After a restart of
+  Signal, a Telegram or Discord message to a sleeping server starts it but is lost; send it again
+  when the server is on. Slack sends its message again by itself.
 - When an agent asks another OpenBot agent for something in a Slack conversation, the reply comes
   back to that conversation. The agent then posts its answer in the same thread, and the original
   message keeps its reactions.
 - A question the agent asks is answered on the host. Slack shows nothing for it.
 - Telegram does not send an update again. An update that arrives while this computer is off, or
-  while it cannot reach Signal, is lost.
+  while it cannot reach Signal, is lost. A hosted server that sleeps starts for a message or a button
+  press, and gets it when it connects.
 - In a basic Telegram group (not a supergroup), OpenBot finds the reply chain in memory. After a
   restart, a reply to an older message starts a new conversation.
 - When a Telegram group becomes a supergroup, it gets a new ID. OpenBot shows the chat as removed:
@@ -222,9 +254,11 @@ A platform is one `MessagingDriver` (`src/backend/messaging/messaging-types.ts`)
 core changes:
 
 - `createAdapter` implements `MessagingAdapter`: post, edit, react, upload, download, history,
-  author and place names, and mentions.
+  recent (for the history tool), author and place names, and mentions.
 - `createTransport` implements `MessagingTransport` and turns the platform's events into
   `InboundMessage` and `InboundAction` values. It must not need a public address on the host.
+  `InboundMessage.mentionedUserIds` lists the users that the text mentions as `@<id>`, so the core
+  can name them.
 - `requiredCredential` names the stored value without which a connection does not start.
 
 | Platform | Transport | Conversation key | Notes |

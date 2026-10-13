@@ -67,11 +67,23 @@ export const messages = {
   "connector.github.disconnectEffectTools": "Każdy agent traci narzędzia GitHub, gh i git.",
   "connector.github.disconnectEffectRevoke": "Potem otworzy się GitHub, gdzie możesz cofnąć dostęp dla OpenBot.",
   "connector.github.disconnectEffectKept": "Czaty, pliki i pamięć agentów zostają na tym komputerze.",
+  // The same text for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.github.descriptionHost":
+    "Każdy agent na serwerze {host} może używać twoich repozytoriów, zgłoszeń i pull requestów z GitHub oraz gh i git.",
+  "connector.github.connectedSummaryHost": {
+    one: "{count} repozytorium · każdy agent na serwerze {host}",
+    few: "{count} repozytoria · każdy agent na serwerze {host}",
+    many: "{count} repozytoriów · każdy agent na serwerze {host}",
+    other: "{count} repozytorium · każdy agent na serwerze {host}",
+  },
+  "connector.github.disconnectConfirmDescriptionHost": "Odłączenie usuwa logowanie @{login} z serwera {host}.",
+  "connector.github.disconnectEffectKeptHost": "Czaty, pliki i pamięć agentów zostają na serwerze {host}.",
   "connector.github.keepConnected": "Nie odłączaj",
   "connector.github.close": "Zamknij",
   "connector.dangerZone": "Strefa zagrożenia",
 
   "connector.hub.onThisComputer": "Na tym komputerze",
+  "connector.hub.onHost": "Na {host}",
   "connector.hub.notSetUp": "Nieskonfigurowane",
   "connector.hub.available": "Dostępne",
   "connector.hub.open": "Otwórz {name}",
@@ -138,6 +150,8 @@ export const messages = {
   "connector.slack.disconnectTitle": "Odłączyć {workspace}?",
   "connector.slack.disconnectDescription":
     "OpenBot przestaje odpowiadać w {workspace} i usuwa swój token Slack z tego komputera.",
+  "connector.slack.disconnectDescriptionHost":
+    "OpenBot przestaje odpowiadać w {workspace} i usuwa swój token Slack z {host}.",
   "connector.slack.disconnectEffect":
     "Ludzie w {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
   "connector.slack.removeEffectKept": "Rozmowy i Slack Orchestrator zostają w OpenBot.",
@@ -203,6 +217,8 @@ export const messages = {
   "connector.discord.disconnectTitle": "Odłączyć {workspace}?",
   "connector.discord.disconnectDescription":
     "OpenBot przestaje odpowiadać w {workspace} i usuwa połączenie z Discord z tego komputera.",
+  "connector.discord.disconnectDescriptionHost":
+    "OpenBot przestaje odpowiadać w {workspace} i usuwa połączenie z Discord z {host}.",
   "connector.discord.disconnectEffect":
     "Ludzie w {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
   "connector.discord.removeEffectKept": "Rozmowy i Discord Orchestrator zostają w OpenBot.",
@@ -243,6 +259,8 @@ export const messages = {
   "connector.telegram.helpRemoved": "Bota OpenBot nie ma już w tym czacie. Odłącz czat, a potem dodaj bota ponownie.",
   "connector.telegram.helpRelayUnavailable":
     "OpenBot nie może odbierać wiadomości z Telegram na tym komputerze. Zaloguj się, nadaj temu komputerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
+  "connector.telegram.helpRelayUnavailableHost":
+    "OpenBot na {host} nie może odbierać wiadomości z Telegram. Na {host} zaloguj się, nadaj serwerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
   "connector.telegram.helpError": "OpenBot nie może połączyć się z tym czatem. Połącz ponownie lub odłącz czat.",
   "connector.telegram.retryAt": "Telegram poprosił OpenBot o czekanie. Kolejna próba o {time}.",
   "connector.telegram.pause": "Wstrzymaj",

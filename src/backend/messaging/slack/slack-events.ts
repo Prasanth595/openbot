@@ -36,6 +36,7 @@ export function slackInboundMessage(payload: unknown, workspaceId: string, botUs
     platformMessageId: ts,
     authorId: user,
     text: plainText(isString(event.text) ? event.text : "", botUserId),
+    mentionedUserIds: slackMentionIds(isString(event.text) ? event.text : "", botUserId),
     files: inboundFiles(event.files),
   };
   if (event.type === "app_mention") {
@@ -114,6 +115,12 @@ function inboundFiles(value: unknown): InboundFile[] {
         ]
       : [],
   );
+}
+
+/** The users that Slack markup mentions, without OpenBot. `plainText` writes each as `@<id>`. */
+export function slackMentionIds(text: string, botUserId: string): string[] {
+  const ids = [...text.matchAll(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g)].map((match) => match[1] ?? "");
+  return [...new Set(ids)].filter((id) => id && id !== botUserId);
 }
 
 /**

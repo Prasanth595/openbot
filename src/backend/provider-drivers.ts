@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import type { ClientSideConnection, InitializeResponse } from "@agentclientprotocol/sdk";
 import type { AgentAuthState, AgentProviderId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
@@ -53,10 +54,10 @@ import {
   type SpawnTarget,
 } from "./process-confinement";
 import type { AccountReadResult } from "./protocol";
-import { type ProviderClientOperationError, providerFailure } from "./provider-client-effects";
+import { type ProviderClientOperationError, providerCall, providerFailure } from "./provider-client-effects";
 
 /** One command OpenBot runs against a provider's own CLI, waiting for the process to exit. */
-export interface ProviderCliCommand {
+interface ProviderCliCommand {
   readonly argv: readonly string[];
   readonly env: (cli: AgentCliInfo) => Record<string, string>;
   readonly timeoutMs: number;
@@ -109,13 +110,44 @@ type ProviderSignIn =
 
 /**
  * A sign-in the user finishes on another device, for a host with no browser the user can see.
- * `codex-device` is the Codex app-server device code. `cli` spawns the provider's CLI and reads its
- * link: `device` prints a code the user confirms, `paste` waits for the code the provider's page
- * shows, which the user copies back, and `link` is a page that signs the CLI in by itself.
+ * `codex-device` is the Codex app-server device code. `muse-device` is the device code a `muse serve`
+ * host asks Meta for. `cli` spawns the provider's CLI and reads its link: `device` prints a code the
+ * user confirms, `paste` waits for the code the provider's page shows, which the user copies back,
+ * and `link` is a page that signs the CLI in by itself.
  */
 type ProviderCodeSignIn =
   | { kind: "codex-device" }
+  | { kind: "muse-device"; timeoutMs: number }
   | { kind: "cli"; flow: "device" | "paste" | "link"; command: ProviderCliCommand };
+
+/**
+ * The Gemini API key sign-in, the other way in when Google's browser sign-in cannot reach this
+ * computer. The CLI saves only the chosen method, never the key, so the key goes in
+ * `GEMINI_API_KEY` at every spawn. A saved key wins over a Google account: the user saved it last.
+ * A profile-generation client gets the key but not the agent environment, as before.
+ */
+function antigravityKeyOptions(context: ProviderClientContext, agentEnvironment: boolean) {
+  const key = () => context.apiKey("antigravity");
+  return {
+    extraEnv: () => {
+      const saved = key();
+      return {
+        ...(agentEnvironment ? context.agentEnvironment?.() : {}),
+        ...(saved ? { GEMINI_API_KEY: saved } : {}),
+      };
+    },
+    redactValues: () => {
+      const saved = key();
+      return saved ? [saved] : [];
+    },
+    authenticate: (connection: ClientSideConnection, initialization: InitializeResponse) =>
+      key() && initialization.authMethods?.some((method) => method.id === GEMINI_API_KEY_METHOD)
+        ? providerCall(() => connection.authenticate({ methodId: GEMINI_API_KEY_METHOD })).pipe(Effect.asVoid)
+        : Effect.void,
+  };
+}
+
+const GEMINI_API_KEY_METHOD = "gemini-api-key";
 
 /**
  * Google's registry starts the Linux build with an empty `--uid=`, and the other builds with no
@@ -289,6 +321,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       kind: "cli-command",
       command: { argv: ["login"], env: () => ({ MUSE_NO_AUTO_UPDATE: "1" }), timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     },
+    // On this computer only: no Team API protocol carries a Muse code sign-in.
+    codeSignIn: { kind: "muse-device", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     resolveCli: resolveMuseCli,
     createClient: (cli, timeout, context, confinement) =>
       new MuseAgentClient(cli, {
@@ -478,7 +512,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         ...(confinement
           ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityStatePaths()) }
           : {}),
-        extraEnv: () => ({ ...context.agentEnvironment?.() }),
+        ...antigravityKeyOptions(context, true),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
         servesModel: context.servesModel,
         mcpServers: context.mcpServers,
@@ -495,6 +529,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         argv: ANTIGRAVITY_ARGV,
         profileGeneration: true,
         env: {},
+        ...antigravityKeyOptions(context, false),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
         servesModel: context.servesModel,
       }),

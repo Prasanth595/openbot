@@ -154,10 +154,13 @@ export function RoutineRunHistory(props: RoutineRunHistoryProps) {
 function RunRow(props: { run: RoutineRunFields; onOpenRun?: ((messageId: string) => void) | undefined }) {
   const text = useText();
   const { t } = text;
-  const label = () =>
-    props.run.kind === "manual"
-      ? t("routine.history.manualRun", { time: formatRoutineRunTime(props.run.scheduledFor, text) })
-      : formatRoutineRunTime(props.run.scheduledFor, text);
+  const label = () => {
+    const time = formatRoutineRunTime(props.run.scheduledFor, text);
+    if (props.run.kind !== "manual") return time;
+    if (props.run.source === "script") return t("routine.history.scriptRun", { time });
+    if (props.run.source === "webhook") return t("routine.history.webhookRun", { time });
+    return t("routine.history.manualRun", { time });
+  };
   const late = () => lateStart(props.run);
   const content = (
     <>

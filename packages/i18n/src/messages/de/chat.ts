@@ -46,6 +46,8 @@ export const messages = {
   "chat.marker.openSkill": "Fähigkeit {name} öffnen",
   "chat.marker.hideHistory": "Verlauf für {name} ausblenden",
   "chat.marker.showHistory": "Verlauf für {name} anzeigen",
+  "chat.marker.hideRunMessages": "Nachrichten von {name} ausblenden",
+  "chat.marker.showRunMessages": "Nachrichten von {name} anzeigen",
   "chat.marker.hideRoutineHistory": "Routinenverlauf ausblenden",
   "chat.marker.showRoutineHistory": "Routinenverlauf anzeigen",
   "chat.marker.earlierStates": "Frühere Routinenzustände",

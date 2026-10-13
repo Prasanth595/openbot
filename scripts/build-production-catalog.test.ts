@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { unzipSync } from "fflate";
 import { afterEach, describe, expect, it } from "vitest";
@@ -25,10 +25,21 @@ describe("production marketplace catalog", () => {
     );
     const catalog = await readCatalog(join(first, "catalog.json"));
     const skills = catalog.skills;
-    expect(skills).toHaveLength(20);
+    expect(skills).toHaveLength(21);
+    const pack = new Map<string, Record<string, Uint8Array>>();
     for (const value of skills) {
       const bytes = new Uint8Array(await readFile(join(first, value.bundle)));
       const bundle = unzipSync(bytes);
+      if (value.slug === "pstack") {
+        expect(Object.keys(bundle)).toEqual(expect.arrayContaining(["LICENSE", "NOTICE.md", "SKILL.md"]));
+        expect(new TextDecoder().decode(bundle.LICENSE)).toContain("MIT License");
+        // The app installs each `skills/pstack-<name>/` folder as a skill of its own.
+        for (const [path, file] of Object.entries(bundle)) {
+          const [, child = "", ...rest] = path.split("/");
+          if (path.startsWith("skills/")) pack.set(child, { ...pack.get(child), [rest.join("/")]: file });
+        }
+        continue;
+      }
       expect(Object.keys(bundle).sort()).toEqual(["LICENSE.txt", "NOTICE.txt", "SKILL.md"]);
       const license = new TextDecoder().decode(bundle["LICENSE.txt"]);
       expect(license).toContain(
@@ -40,6 +51,8 @@ describe("production marketplace catalog", () => {
       );
       await expect(readFile(join(first, value.bundle))).resolves.toEqual(await readFile(join(second, value.bundle)));
     }
+    expect(pack.size).toBe(52);
+    expectPackReferencesResolve(pack);
   });
 
   it("gives every skill the artwork of its category", async () => {
@@ -84,6 +97,27 @@ describe("production marketplace catalog", () => {
     ).toThrow("forbidden external dependency");
   });
 });
+
+/** Each pstack skill calls itself by its prefixed name, and its links reach a file that is installed. */
+function expectPackReferencesResolve(pack: Map<string, Record<string, Uint8Array>>): void {
+  const upstreamNames = [...pack.keys()].map((slug) => slug.slice("pstack-".length)).join("|");
+  const oldCommand = new RegExp(`(?<![\\w/.$-])/(?:${upstreamNames})(?![\\w/-]|\\.\\w)`, "u");
+  for (const [slug, bundle] of pack) {
+    const skill = new TextDecoder().decode(bundle["SKILL.md"]);
+    expect(skill).toMatch(new RegExp(`^---\\nname: ${slug}\\n`, "u"));
+    expect(skill.split("\n---")[0]).not.toContain("disable-model-invocation");
+    for (const [file, bytes] of Object.entries(bundle)) {
+      if (!file.endsWith(".md")) continue;
+      const text = new TextDecoder().decode(bytes);
+      expect(text, `${slug}/${file}`).not.toMatch(oldCommand);
+      for (const [, target = ""] of text.matchAll(/\]\(([^)#\s]+\.md)(?:#[^)]*)?\)/gu)) {
+        if (/^[a-z]+:/u.test(target)) continue;
+        const [owner = "", ...rest] = posix.normalize(posix.join(slug, posix.dirname(file), target)).split("/");
+        expect(pack.get(owner)?.[rest.join("/")], `${slug}/${file} links ${target}`).toBeDefined();
+      }
+    }
+  }
+}
 
 async function temporaryRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "openbot-production-catalog-test-"));

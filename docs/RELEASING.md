@@ -543,12 +543,14 @@ runtime and no remote desktop runtime, so voice prompts and remote desktop repor
 unavailable there. The NVIDIA Parakeet TDT 0.6B v3 int8 model is not part of an application or update
 artifact. OpenBot downloads its four pinned files on first voice use, checks the size and SHA-256 of
 each, and keeps the verified files in `runtimes/parakeet-tdt-0.6b-v3-int8` in the user data directory
-for later offline use. At startup, a packaged application removes the old `runtimes/whisper`
-directory if it exists.
+for later offline use. The optional Whisper large-v3 turbo int8 model, which takes a fixed dictation
+language, is downloaded the same way only when the user selects Download in Settings > Voice. Its
+three pinned files go in `runtimes/whisper-turbo-int8`. At startup, a packaged application removes
+the old `runtimes/whisper` directory if it exists.
 
 The release workflow stops if the macOS update ZIP, the Windows NSIS installer, or the Linux AppImage
 is larger than 700 MiB, or if the DMG is larger than 750 MiB. It also stops if update metadata has a wrong size or SHA-512, if
-the voice model is present, or if the application contains a second native Claude runtime.
+a voice model is present, or if the application contains a second native Claude runtime.
 
 If a release is bad, publish a newer patch version. Do not replace an already published version with
 different binaries.

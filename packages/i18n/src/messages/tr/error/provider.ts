@@ -103,6 +103,8 @@ export const messages = {
   "error.provider.localOnly": "Sağlayıcılar yalnızca ajanları çalıştıran bilgisayarda değiştirilebilir.",
   "error.provider.keyRequired": "Bir sağlayıcı anahtarı gereklidir.",
   "error.provider.keyTooLong": "Sağlayıcı anahtarı çok uzun.",
+  "error.provider.keyInvalidCharacters":
+    "Sağlayıcı anahtarı, bir anahtarda bulunamayacak bir boşluk veya karakter içeriyor.",
   "error.provider.noModel": "Seçilen sağlayıcının kullanılabilir modeli yok.",
   "error.provider.noModelNamed": "{provider} sağlayıcısının kullanılabilir modeli yok.",
   "error.provider.acpNoModels": "ACP CLI hiçbir ACP modeli tanıtmadı. OpenBot bir yedek model tahmin etmeyecektir.",
@@ -147,6 +149,7 @@ export const messages = {
     "{provider} zamanında yanıt vermedi. Bilgisayar meşgul olabilir. Tekrar denemek için sağlayıcıları yenileyin.",
   "error.provider.noCodeSignIn": "{provider} bir kod ile oturum açamaz.",
   "error.provider.codeLoginNoLink": "Sağlayıcı bir oturum açma bağlantısı göstermedi. Tekrar deneyin.",
+  "error.provider.hostSignInEnded": "{provider} oturum açma işlemi tamamlanmadı. Tekrar deneyin.",
   "error.provider.codeLoginNotWaiting": "Hiçbir oturum açma işlemi bir kod beklemiyor. Oturum açmayı tekrar başlatın.",
   "error.provider.codeLoginBadCode": "Oturum açma sayfasının gösterdiği kodu yapıştırın.",
   "error.provider.codeLoginRefused": "Sağlayıcı kodu kabul etmedi. Oturum açmayı tekrar başlatın.",

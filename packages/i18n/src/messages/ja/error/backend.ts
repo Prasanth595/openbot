@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "チャンネルのメンバーを使用できません。",
   "error.backend.channelArchived":
     "メッセージを送信したりタスクを変更したりする前に、このチャンネルを復元してください。",
+  "error.backend.channelsRetired":
+    "チャンネルはサポートされなくなりました。エージェントを同じサイドバーのセクションに入れると、一緒に作業できます。",
   "error.backend.channelReferenceUnavailable": "参照先のチャンネルメッセージを使用できません。",
   "error.backend.channelTaskNotFound": "チャンネルのタスクが見つかりません。",
   "error.backend.channelTaskComplete": "このタスクはすでに完了しています。",
@@ -162,8 +164,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "この接続はループになります。",
   "error.backend.routineFlowLinkLimit": "1 つのルーティンの接続は最大 {limit} 個です。",
   "error.backend.routineFlowHandoffFailed": "ルーティンはこのエージェントに作業を渡せませんでした。",
-  "error.backend.routineFlowRemoteUnsupported":
-    "ルーティンのフローは、このコンピュータ上のエージェントでのみ利用できます。",
   "error.backend.mcpServerLimit": "OpenBot に保存できる MCP サーバーは {limit} 個までです。",
   "error.backend.mcpServerNameTaken": "{name} という名前の MCP サーバーはすでに存在します。",
   "error.backend.mcpServerNoAnswer": "サーバーは {seconds} 秒以内に応答しませんでした。",
@@ -262,4 +262,11 @@ export const messages = {
     "サーバーは {status} を返しました。API キーまたはその他の認証情報を確認してください。",
   "error.backend.mcpServerHttpUrl":
     "サーバーは {status} を返しました。URL を確認してください。リンクが間違っているか、期限切れか、削除されている可能性があります。",
+  "error.backend.mcpSignInAppUrl": "サインインアプリには有効なサーバー URL が必要です。",
+  "error.backend.mcpSignInAppClientId": "サインインアプリのクライアント ID を入力してください。",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "この MCP サーバーのサインインサーバーが変わったため、OpenBot はサインインアプリを送信しませんでした。この変更が正しい場合は、サインインアプリを削除してからもう一度追加してください。",
+  "error.backend.mcpSignInAppNoServer":
+    "サインインアプリを追加する前に、この MCP サーバーを URL サーバーとして保存してください。",
+  "error.backend.mcpSignInAppUnavailable": "このコンピューターではサインインアプリを保存できません。",
 } as const satisfies PartialTranslation<typeof source>;

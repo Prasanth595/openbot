@@ -50,6 +50,8 @@ class FakeSlack {
   readonly uploads = new Map<string, Buffer>();
   readonly files = new Map<string, Buffer>();
   readonly replies = new Map<string, DynamicRecord[]>();
+  /** The newest messages of channel C1, newest first, as `conversations.history` gives them. */
+  channelHistory: DynamicRecord[] = [];
   appId = "A1";
   rejectBotToken = false;
   rateLimitOnce: string | null = null;
@@ -186,7 +188,7 @@ class FakeSlack {
       case "conversations.replies":
         return reply({ messages: this.replies.get(params.ts ?? "") ?? [] });
       case "conversations.history":
-        return reply({ messages: [] });
+        return reply({ messages: params.channel === "C1" ? this.channelHistory : [] });
       case "chat.postMessage":
         this.#ts += 1;
         return reply({ ts: `${this.#ts}.000` });
@@ -268,7 +270,7 @@ afterEach(async () => {
  * A workspace that installed the OpenBot app, as `completeSlackWorkspace` leaves it, with `agent` as
  * its orchestrator unless `orchestrator` is false.
  */
-async function connected(options: { autoComplete?: boolean; orchestrator?: boolean } = {}) {
+async function connected(options: { autoComplete?: boolean; orchestrator?: boolean; start?: boolean } = {}) {
   const started = await startService(root, { provider: "codex", autoComplete: options.autoComplete ?? true });
   service = started.service;
   const agent: AgentSummary = await runCauseEffect(started.store.getOrCreate("slack-agent"));
@@ -305,8 +307,10 @@ async function connected(options: { autoComplete?: boolean; orchestrator?: boole
     appId: "A1",
     orchestratorAgentId: options.orchestrator === false ? null : agent.id,
   });
-  await runCauseEffect(messaging.start());
-  await waitFor(() => workspace()?.state === "connected");
+  if (options.start !== false) {
+    await runCauseEffect(messaging.start());
+    await waitFor(() => workspace()?.state === "connected");
+  }
   return { ...started, agent, credentials, events, overview: workspace() };
 }
 
@@ -365,6 +369,26 @@ describe.sequential("Slack messaging end to end", () => {
     report.mention = { prompt: prompt.split("\n").slice(0, 3), reactions: reactions.length };
   });
 
+  // A hosted server that Signal started gets the kept mention as soon as its socket opens, which can be
+  // before the connection has started. Nothing sends it again, so it must wait, not fail.
+  it("keeps a mention that Signal kept until the connection starts", async () => {
+    const { client } = await connected({ start: false });
+    const body = JSON.stringify({ type: "event_callback", api_app_id: "A1", ...slack.mention("hello", "50.000") });
+    const kept = runCauseEffect(
+      messaging?.deliver("T1", {
+        platform: "slack",
+        kind: "events",
+        retryNum: null,
+        body: Buffer.from(body),
+        queued: true,
+      }) ?? Effect.die("No messaging service."),
+    );
+    await runCauseEffect(messaging?.start() ?? Effect.void);
+    await expect(kept).resolves.toEqual({ status: 200 });
+    await waitFor(() => turnStarts(client).length === 1);
+    expect(promptOf(turnStarts(client)[0] ?? { params: {} })).toContain("hello");
+  });
+
   it("keeps history retrieval inside one messaging link", async () => {
     const { agent, client, store } = await connected();
     await slack.send("events_api", slack.mention("LINK_ONE_PRIVATE", "801.000"));
@@ -394,6 +418,97 @@ describe.sequential("Slack messaging end to end", () => {
     expect(own.result).toMatchObject({ success: true });
     expect(JSON.stringify(openBotToolPayload(own.result))).toContain("LINK_TWO_PRIVATE");
     expect(JSON.stringify(openBotToolPayload(own.result))).not.toContain("LINK_ONE_PRIVATE");
+  });
+
+  // Failure modes: a mention or a context message keeps a raw user id; a fact saved in one thread does
+  // not reach a new thread of the workspace; a replace adds a near copy; the cap does not hold; a
+  // direct message writes a workspace fact; a memory id of another workspace deletes its fact; a
+  // forgotten fact stays in the event log; the history tool reads a channel that an argument names.
+  it("shares a workspace's facts across its threads, names mentions, and reads only its own channel", async () => {
+    const { agent, client, store } = await connected();
+    const memories = service?.messaging.memories;
+    if (!memories) throw new Error("No messaging memories.");
+    slack.replies.set("899.000", [{ ts: "899.000", user: "UCAROL", text: "cc <@UBOB>" }]);
+    await slack.send("events_api", slack.mention("ask <@UBOB> about it", "900.000", { thread_ts: "899.000" }));
+    await waitFor(() => slack.of("chat.update").some((call) => call.params.text === "CODEX_DONE"));
+    const first = promptOf(turnStarts(client)[0] ?? { params: null });
+    expect(first).toContain("--- message ---\nask @Name UBOB about it");
+    expect(first).toContain("Name UCAROL: cc @Name UBOB");
+    expect(first).not.toContain("<workspace_memories>");
+
+    const sessionOf = (threadKey: string) => {
+      const link = service?.messaging.store.links(agent.id).find((candidate) => candidate.threadKey === threadKey);
+      const session = link && store.database.listProviderSessions(link.threadId).at(-1);
+      if (!session) throw new Error(`No session for thread ${threadKey}.`);
+      return session.externalSessionId;
+    };
+    const call = async (session: string, name: string, args: DynamicRecord) =>
+      (await callOpenBotTool(client, session, "tool_call", { name: `openbot.${name}`, arguments: args })).result;
+    const thread = sessionOf("899.000");
+
+    const saved = await call(thread, "messaging_remember", { text: "Bob owns the release." });
+    expect(saved).toMatchObject({ success: true });
+    const memoryId = String(openBotToolPayload(saved).memoryId);
+    const replaced = await call(thread, "messaging_remember", { text: "Bob owns the Friday release.", memoryId });
+    expect(openBotToolPayload(replaced)).toMatchObject({ accepted: true, memoryId, count: 1 });
+
+    slack.channelHistory = [
+      { ts: "898.000", user: "UCAROL", text: "Release moves to Friday, <@UBOB>", reply_count: 2 },
+      { ts: "897.000", user: "UBOT", text: "Noted." },
+    ];
+    const history = await call(thread, "messaging_history", {});
+    expect(history).toMatchObject({ success: true });
+    expect(openBotToolPayload(history).messages).toEqual([
+      { author: "OpenBot", sentAt: expect.any(String), text: "Noted." },
+      {
+        author: "Name UCAROL",
+        sentAt: expect.any(String),
+        text: "Release moves to Friday, @Name UBOB (thread with 2 replies)",
+      },
+    ]);
+    expect(await call(thread, "messaging_history", { channel: "C2" })).toMatchObject({ success: false });
+    expect(slack.of("conversations.history").map((request) => request.params.channel)).toEqual(["C1"]);
+
+    // A new thread of the workspace sees the fact, with its id.
+    await slack.send("events_api", slack.mention("what about the release?", "950.000"));
+    await waitFor(() => turnStarts(client).length === 2);
+    expect(promptOf(turnStarts(client)[1] ?? { params: null })).toContain(
+      `<workspace_memories>\n[${memoryId}] Bob owns the Friday release.\n</workspace_memories>`,
+    );
+
+    // A fact of another workspace cannot be forgotten from here.
+    const db = store.database.connection;
+    const { connectionId: otherId } = service?.messaging.store.ensureConnection("slack", "T2", "Other") ?? {};
+    if (!otherId) throw new Error("No second connection.");
+    const foreign = memories.saveFromTool(otherId, { text: "Other fact.", sourceTurnId: "t", commandId: "c-other" });
+    expect(openBotToolPayload(await call(thread, "messaging_forget_memory", { memoryId: foreign.id }))).toMatchObject({
+      accepted: false,
+    });
+    expect(memories.list(otherId)).toHaveLength(1);
+
+    // Forgetting removes the text from the event log too.
+    expect(openBotToolPayload(await call(thread, "messaging_forget_memory", { memoryId }))).toEqual({ accepted: true });
+    const payloads = db
+      .prepare("SELECT payload_json FROM orchestration_events WHERE aggregate_type = 'messaging-memory'")
+      .all()
+      .map((row) => String(row.payload_json));
+    expect(payloads.some((payload) => payload.includes("Friday"))).toBe(false);
+
+    // The cap holds.
+    const connectionId = service?.messaging.store.links(agent.id)[0]?.connectionId ?? "";
+    for (let index = 0; index < 32; index += 1)
+      memories.saveFromTool(connectionId, { text: `Fact ${index}.`, sourceTurnId: "t", commandId: `c-${index}` });
+    const full = await call(thread, "messaging_remember", { text: "One more fact." });
+    expect(JSON.stringify(full)).toContain("up to 32 memories");
+
+    // A direct message is private: its facts are not saved for the workspace.
+    await slack.send("events_api", slack.direct("remember this", "960.000"));
+    await waitFor(() => service?.messaging.store.links(agent.id).some((link) => link.isDirect) ?? false);
+    await waitFor(() => turnStarts(client).length === 3);
+    const direct = await call(sessionOf("960.000"), "messaging_remember", { text: "A private fact." });
+    expect(direct).toMatchObject({ success: false });
+    expect(memories.list(connectionId).some((memory) => memory.text === "A private fact.")).toBe(false);
+    report.workspaceMemories = { sharedAcrossThreads: true, cap: 32, historyCalls: 1 };
   });
 
   it("runs a redelivered event once, and a reply without a mention only in a known thread", async () => {
@@ -481,7 +596,7 @@ describe.sequential("Slack messaging end to end", () => {
   it("stops on a token Slack no longer accepts, and keeps the workspace when an agent is deleted", async () => {
     const { agent, credentials } = await connected();
     slack.rejectBotToken = true;
-    await runCauseEffect(messaging?.reconnect("slack", "T1") ?? Effect.succeed(undefined));
+    await runCauseEffect(messaging?.reconnect("slack", "T1", true) ?? Effect.succeed(null));
     await waitFor(() => workspace()?.state === "invalid_token");
     slack.rejectBotToken = false;
 

@@ -1,8 +1,8 @@
-import type { OpenBotDesktopApi } from "@openbot/contracts/ipc";
+import type { MessagingConnectorApi } from "./host-messaging-port";
 
-/** What the Discord page reaches in main: the Discord servers of this computer. */
+/** What the Discord page reaches in main: the Discord servers of this computer or of a joined server. */
 export interface DiscordConnectorPort {
-  messaging: OpenBotDesktopApi["messaging"];
+  messaging: MessagingConnectorApi;
 }
 
 /** Read on each call: tests and stories replace `window.openbot` per case. */

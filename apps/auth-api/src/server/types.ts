@@ -161,6 +161,8 @@ export interface MobileAuthDevice {
   platform: "ios" | "android" | "unknown";
   connectedAt: number;
   lastActiveAt: number;
+  /** How the phone signed in: a one-time code, or a permanent link. */
+  via: "code" | "link";
 }
 
 export interface MobileAuthDeviceIdentity {
@@ -261,6 +263,13 @@ export interface AuthRepository {
     createdAt: number;
     expiresAt: number;
   }): Effect.Effect<void, AuthStoreError>;
+  /** Spends the unused Mobile Connect tickets of the user for one desktop host. */
+  cancelMobileAuthTickets(input: {
+    userId: string;
+    serverId: string;
+    hostId: string;
+    now: number;
+  }): Effect.Effect<void, AuthStoreError>;
   redeemTeamAuthTicket(input: {
     ticketHash: string;
     serverId: string;
@@ -269,6 +278,21 @@ export interface AuthRepository {
   redeemMobileAuthTicket(input: {
     ticketHash: string;
     serverId: string;
+    now: number;
+    session: { id: string; token: string; expiresAt: number };
+    device: MobileAuthDeviceIdentity;
+  }): Effect.Effect<MobileAuthSessionResult | null, AuthStoreError>;
+  /** Stores a new link and revokes the earlier links of the same user and host. False when the session or host does not match. */
+  replaceMobileConnectLink(input: {
+    linkHash: string;
+    desktopSessionToken: string;
+    userId: string;
+    host: import("@openbot/contracts/mobile-connect").MobileConnectHostBinding;
+    createdAt: number;
+  }): Effect.Effect<boolean, AuthStoreError>;
+  revokeMobileConnectLink(input: { userId: string; hostId: string; now: number }): Effect.Effect<void, AuthStoreError>;
+  redeemMobileConnectLink(input: {
+    linkHash: string;
     now: number;
     session: { id: string; token: string; expiresAt: number };
     device: MobileAuthDeviceIdentity;

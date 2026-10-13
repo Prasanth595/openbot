@@ -34,6 +34,7 @@ import {
   createWorkspacePreferences,
   mergeRemoteUnreadIds,
   type RemoteConnectionFailure,
+  type RemoteConnectionStage,
   type RemoteRecoveryStatus,
   RemoteTeamDirectoryClient,
   type RemoteTeamHost,
@@ -138,6 +139,8 @@ export type {
 } from "@/features/workspace/model/workspace-types";
 
 const NO_IDS: string[] = [];
+/** The longest that the servers which are not selected wait for the selected one on a return to the app. */
+const OTHER_SERVERS_RETURN_DELAY_MS = 3_000;
 const EMPTY_SERVER: MobileServer = {
   id: "unavailable",
   name: "OpenBot",
@@ -524,62 +527,84 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           })
           .catch(() => undefined);
       }
-      if (compatibility.capabilities.includes("sidebar-layout")) {
-        try {
-          const layout = await client.request("GET", TEAM_API_ROUTES.sidebarLayout.state, decodeSidebarLayout);
-          if (!context.isCurrent()) return;
-          applySidebarLayout(serverId, layout);
-        } catch (error) {
-          if (!context.isCurrent()) return;
-          const text = currentText();
-          const message = text.errorMessage(error, text.t("mobile.workspace.error.sectionsLoadFailed"));
-          setSidebarByServer((current) => ({
-            ...current,
-            [serverId]: {
-              layout: current[serverId]?.layout ?? null,
-              error: message,
+      // The sections, the agents and the read state do not depend on each other, so they load together.
+      // The first read that fails names the stage.
+      let failed = false;
+      const step = <T,>(stage: RemoteConnectionStage, read: Promise<T>) =>
+        read.catch((error: unknown) => {
+          if (!failed) context.stage = stage;
+          failed = true;
+          throw error;
+        });
+      const sections = compatibility.capabilities.includes("sidebar-layout")
+        ? client.request("GET", TEAM_API_ROUTES.sidebarLayout.state, decodeSidebarLayout).then(
+            (layout) => {
+              if (context.isCurrent()) applySidebarLayout(serverId, layout);
             },
-          }));
-        }
-      } else {
-        setSidebarByServer((current) => ({ ...current, [serverId]: { layout: null, error: null } }));
-      }
-      context.stage = "agents";
-      const summaries = await client.request("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries);
-      if (!context.isCurrent()) return;
-      replaceServerAgents(serverId, summaries);
-      context.stage = "reads";
-      await runTeamEffect(
-        readRefresh.refresh(
-          serverId,
-          () =>
-            Effect.tryPromise(() =>
-              client.request("GET", TEAM_API_ROUTES.agents.conversationReads, decodeConversationReads),
-            ),
-          applyConversationReads,
-          () => context.isCurrent() && !removedServers.current.has(serverId),
+            (error: unknown) => {
+              if (!context.isCurrent()) return;
+              const text = currentText();
+              const message = text.errorMessage(error, text.t("mobile.workspace.error.sectionsLoadFailed"));
+              setSidebarByServer((current) => ({
+                ...current,
+                [serverId]: {
+                  layout: current[serverId]?.layout ?? null,
+                  error: message,
+                },
+              }));
+            },
+          )
+        : setSidebarByServer((current) => ({ ...current, [serverId]: { layout: null, error: null } }));
+      const [summaries] = await Promise.all([
+        step(
+          "agents",
+          client.request("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries).then((summaries) => {
+            if (context.isCurrent()) replaceServerAgents(serverId, summaries);
+            return summaries;
+          }),
         ),
-      );
+        step(
+          "reads",
+          runTeamEffect(
+            readRefresh.refresh(
+              serverId,
+              () =>
+                Effect.tryPromise(() =>
+                  client.request("GET", TEAM_API_ROUTES.agents.conversationReads, decodeConversationReads),
+                ),
+              applyConversationReads,
+              () => context.isCurrent() && !removedServers.current.has(serverId),
+            ),
+          ),
+        ),
+        sections,
+      ]);
       if (!context.isCurrent()) return;
-      context.stage = "conversations";
+      // The server is usable now, so the reconnect status does not wait for every cached chat. They
+      // load again after it, the open chat first. A lost connection stops them, and the next attempt
+      // loads them again; a chat that does not load here loads when it opens.
       const ordered = [...summaries].sort(
         (a, b) => Number(conversationStore.isObserved(b.id)) - Number(conversationStore.isObserved(a.id)),
       );
-      for (const agent of ordered) {
-        if (!context.isCurrent()) return;
-        if (!conversationStore.get(agent.id)) continue;
-        await conversationStore.loadLatest(
-          agent.id,
-          () =>
-            client.request(
-              "GET",
-              `${TEAM_API_ROUTES.agent.conversationPage(agent.id)}?limit=50`,
-              decodeConversationPage,
-            ),
-          context.isCurrent,
-          true,
-        );
-      }
+      void (async () => {
+        for (const agent of ordered) {
+          if (!context.isCurrent()) return;
+          if (!conversationStore.get(agent.id)) continue;
+          await conversationStore
+            .loadLatest(
+              agent.id,
+              () =>
+                client.request(
+                  "GET",
+                  `${TEAM_API_ROUTES.agent.conversationPage(agent.id)}?limit=50`,
+                  decodeConversationPage,
+                ),
+              context.isCurrent,
+              true,
+            )
+            .catch(() => undefined);
+        }
+      })();
       context.stage = "connection";
     },
     [
@@ -613,8 +638,19 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   );
   const foregroundRef = useRef(foreground);
   foregroundRef.current = foreground;
+  /**
+   * Set on background entry with the selected server. Until it clears, the other servers stay
+   * inactive. A new selection ends it, so the server that the user leaves keeps its attempt.
+   */
+  const [hold, setHold] = useState<{ serverId: string | null } | null>(null);
+  const othersHeld = hold !== null && hold.serverId === activeServerId;
   const wakeReconnect = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(wakeReconnect.current), []);
+  /** The account server says that the hosted server starts, so the app connects to it again soon. */
+  const hostedServerStarting = useCallback((hostId: string) => {
+    clearTimeout(wakeReconnect.current);
+    wakeReconnect.current = setTimeout(() => connections.current.get(hostId)?.refresh(), WAKE_RECONNECT_DELAY_MS);
+  }, []);
   // A hosted server that stopped for no use starts again only for use: the selected server, with the
   // app in the foreground. It connects again when the account server says that it starts.
   const wakeSelectedServer = useCallback(
@@ -622,11 +658,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       if (!foregroundRef.current || hostId !== activeServerIdRef.current) return;
       void runTeamEffect(wakeHostedServer(hostId)).then((waking) => {
         if (!waking || hostId !== activeServerIdRef.current) return;
-        clearTimeout(wakeReconnect.current);
-        wakeReconnect.current = setTimeout(() => connections.current.get(hostId)?.refresh(), WAKE_RECONNECT_DELAY_MS);
+        hostedServerStarting(hostId);
       });
     },
-    [wakeHostedServer],
+    [wakeHostedServer, hostedServerStarting],
   );
   /** The last failed attempt of each server that asked for a wake. */
   const wakeAttempts = useRef(new Map<string, number>());
@@ -637,6 +672,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           server.id === hostId ? applyServerRecovery(server, status, failure?.message ?? null, failure) : server,
         ),
       );
+      if (status.phase === "online" && hostId === activeServerIdRef.current) setHold(null);
       // The status repeats each second while it waits, so each failed attempt asks once.
       if (status.phase === "online") wakeAttempts.current.delete(hostId);
       if (status.phase !== "waiting" && status.phase !== "cooldown") return;
@@ -663,8 +699,28 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     directoryRefresh.setActive(foreground);
   }, [foreground, directoryRefresh, conversationStore]);
 
+  // On a return to the app the selected server connects first; the others follow when it is online,
+  // or after a short wait. The phone then sets up the connection the user waits for alone, and the
+  // tickets of the other servers reach the account service later.
+  useEffect(() => {
+    if (!foreground) {
+      setHold({ serverId: activeServerIdRef.current });
+      return;
+    }
+    if (!activeServerIdRef.current) {
+      setHold(null);
+      return;
+    }
+    const timer = setTimeout(() => setHold(null), OTHER_SERVERS_RETURN_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [foreground]);
+  // A selection made during the hold ends it, also when the user then selects the first server again.
+  useEffect(() => {
+    if (hold && hold.serverId !== activeServerId) setHold(null);
+  }, [hold, activeServerId]);
+
   const loadConversation = useCallback(
-    async (agentId: string, serverId = activeServerIdRef.current, refresh = false) => {
+    async (agentId: string, serverId = activeServerIdRef.current, refresh = false, attach = false) => {
       const generation = loadGeneration.current;
       return conversationStore.loadLatest(
         agentId,
@@ -678,7 +734,36 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           ),
         () => generation === loadGeneration.current && Boolean(serverId) && !removedServers.current.has(serverId ?? ""),
         refresh,
+        attach,
       );
+    },
+    [request, conversationStore],
+  );
+  // A stable function: an open chat reloads its history when this changes.
+  const loadLatestMessages = useCallback(
+    async (agentId: string, serverId?: string) => {
+      await loadConversation(agentId, serverId, true, true);
+    },
+    [loadConversation],
+  );
+  const loadConversationAround = useCallback(
+    async (agentId: string, messageId: string, serverId = activeServerIdRef.current) => {
+      const generation = loadGeneration.current;
+      // A query parameter never reaches the JSON adapters. A host that does not know `around` sends the
+      // latest page, which does not hold an older message, so the chat then opens at the latest message.
+      const page = await request(
+        "GET",
+        `${TEAM_API_ROUTES.agent.conversationPage(agentId)}?limit=50&around=${encodeURIComponent(messageId)}`,
+        decodeConversationPage,
+        undefined,
+        serverId,
+      );
+      if (page.agentId !== agentId) throw new Error("The server returned a page for another conversation.");
+      const current =
+        generation === loadGeneration.current && Boolean(serverId) && !removedServers.current.has(serverId ?? "");
+      if (!current || !page.messages.some((message) => message.id === messageId)) return false;
+      conversationStore.applyAround(page);
+      return true;
     },
     [request, conversationStore],
   );
@@ -920,10 +1005,14 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       const write = (readWrites.current.get(agentId) ?? Promise.resolve())
         .then(async () => {
           if (generation !== loadGeneration.current) return;
+          const cached = conversationStore.get(agentId);
+          // A window around a searched message does not hold the latest message.
           const snapshot =
             visibleMessageId !== undefined
               ? null
-              : (conversationStore.get(agentId) ?? (await loadConversation(agentId, serverId)));
+              : cached && !cached.detached
+                ? cached
+                : await loadConversation(agentId, serverId);
           if (generation !== loadGeneration.current) return;
           const throughMessageId = visibleMessageId !== undefined ? visibleMessageId : snapshot?.messages.at(-1)?.id;
           if (throughMessageId === undefined) return;
@@ -1257,6 +1346,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         connections.current.get(serverId)?.refresh();
         await refreshHosts();
       },
+      hostedServerStarting,
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
       canManageAgentSkills: (serverId) => administers(serverId, SKILLS_ADMIN_CAPABILITY),
@@ -1392,6 +1482,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           interruptAgentTurn(teamApi(serverId), agentId, turnId).pipe(Effect.mapError((error) => error.cause)),
         ),
       loadConversation,
+      loadConversationAround,
+      loadLatestMessages,
       loadOlderMessages,
       uploadAttachment: async (agentId, input, targetServerId, onProgress) => {
         const serverId = targetServerId ?? agents.find((candidate) => candidate.id === agentId)?.serverId;
@@ -1407,7 +1499,14 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           discardAttachmentDraft(teamApi(serverId), attachmentId).pipe(Effect.mapError((error) => error.cause)),
         );
       },
-      sendMessage: async (agentId, text, attachmentDraftIds = [], replyToMessageId = null, targetServerId) => {
+      sendMessage: async (
+        agentId,
+        text,
+        attachmentDraftIds = [],
+        replyToMessageId = null,
+        targetServerId,
+        clientMessageId,
+      ) => {
         const serverId = targetServerId ?? agents.find((candidate) => candidate.id === agentId)?.serverId;
         if (!serverId) throw new Error(currentText().t("mobile.workspace.error.agentUnavailable"));
         const receipt = await request(
@@ -1423,6 +1522,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             replyToMessageId,
             // The host uses this phone's zone for a routine the agent creates from the message.
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            ...(clientMessageId ? { clientMessageId } : {}),
           },
           serverId,
         );
@@ -1518,6 +1618,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     directoryRefresh,
     hiddenAgentIds,
     loadConversation,
+    loadConversationAround,
+    loadLatestMessages,
     loadOlderMessages,
     markAgentRead,
     markAllRead,
@@ -1527,6 +1629,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     refreshHosts,
     refreshMemberships,
     readRefresh,
+    hostedServerStarting,
     request,
     serverDirectoryError,
     teamApi,
@@ -1553,7 +1656,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             key={server.id}
             hostId={server.id}
             publicKey={server.publicKey}
-            active={foreground}
+            active={foreground && (!othersHeld || server.id === activeServerId)}
             directory={directory}
             register={registerConnection}
             load={loadServer}

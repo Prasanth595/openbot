@@ -8,6 +8,7 @@ import type { AgentProvider } from "./agent-client";
 import type { AgentService } from "./agent-service";
 import {
   FakeAgentClient,
+  fakeClaudeCli,
   notification,
   startAgentTestFixture,
   startService,
@@ -129,6 +130,29 @@ describe.sequential("AgentService: usage limit", () => {
 
     const delivery = () => started.mailbox.getDelivery(receipt.deliveries[0]?.id ?? "")?.delivery;
     await waitFor(() => delivery()?.status === "completed");
+    expect(service.getRuntimeSnapshot().usageLimits).toEqual([]);
+  });
+
+  it("lets a held agent move to another provider and runs the held queue there", async () => {
+    process.env.OPENBOT_CLAUDE_PATH = await fakeClaudeCli();
+    const codex = new PlanClient("codex");
+    const started = await startService(root, {
+      preferredProvider: "codex",
+      client: (provider) => (provider === "codex" ? codex : new FakeAgentClient(provider)),
+    });
+    service = started.service;
+    const events: AgentEvent[] = [];
+    service.on("event", (event) => events.push(event));
+
+    const receipt = await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Write the morning plan." }));
+    await waitFor(() => events.some((event) => event.type === "usage-limit-reached"));
+    // The held message is queued, and the switch is the only way out before the plan resets.
+    await runCauseEffect(service.updateAgent({ agentId: "chief", provider: "claude", model: "claude-sonnet-5" }));
+
+    const delivery = () => started.mailbox.getDelivery(receipt.deliveries[0]?.id ?? "")?.delivery;
+    await waitFor(() => delivery()?.status === "completed");
+    expect(codex.turnStarts).toBe(1);
+    expect(started.clientFor("claude")?.requests.some((request) => request.method === "turn/start")).toBe(true);
     expect(service.getRuntimeSnapshot().usageLimits).toEqual([]);
   });
 

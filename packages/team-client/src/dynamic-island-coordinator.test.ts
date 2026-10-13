@@ -255,6 +255,33 @@ describe("DynamicIslandCoordinator", () => {
     });
   });
 
+  it("shows a longer reply from each runtime snapshot when no deltas arrive", () => {
+    const coordinator = new DynamicIslandCoordinator(() => text);
+    const research = agent("research", "Research");
+    coordinator.applyEvent(
+      scoped("remote", runtimeSnapshot({ agents: [research], latestMessages: [runtimeMessage("anchor")] })),
+      "local",
+    );
+    const reply = (body: string) => ({ ...runtimeMessage("reply"), text: body });
+    // Live Activity gets only runtime snapshots, so a later snapshot is the only way the reply grows.
+    coordinator.applyEvent(
+      scoped("remote", runtimeSnapshot({ agents: [research], latestMessages: [reply("The first words")] })),
+      "local",
+    );
+    coordinator.applyEvent(
+      scoped(
+        "remote",
+        runtimeSnapshot({ agents: [research], latestMessages: [reply("The first words of the whole reply.")] }),
+      ),
+      "local",
+    );
+
+    expect(coordinator.presentation(["remote"])).toMatchObject({
+      mode: "message",
+      message: { text: "The first words of the whole reply." },
+    });
+  });
+
   it("does not count or display non-reply items from a full conversation", () => {
     const coordinator = new DynamicIslandCoordinator(() => text);
     seedAgents(coordinator, "remote", [agent("research", "Research")]);

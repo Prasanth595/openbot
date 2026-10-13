@@ -1,5 +1,10 @@
 import { supportedAttachmentExtensions } from "@openbot/contracts/attachment-files";
-import { accountUsageCoversModel, canPreviewAttachment } from "@openbot/contracts/ipc";
+import {
+  type AgentWait,
+  accountUsageCoversModel,
+  canPreviewAttachment,
+  type QueueSnapshot,
+} from "@openbot/contracts/ipc";
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
@@ -30,10 +35,11 @@ import {
 } from "@openbot/ui/features/conversation/ComposerNotice";
 import { ComposerCompactionNotice, ContextUsageMeter } from "@openbot/ui/features/conversation/ContextUsage";
 import { CloseIcon, StopIcon } from "@openbot/ui/features/conversation/ConversationIcons";
+import { type OpenWaitItem, OpenWaits } from "@openbot/ui/features/conversation/OpenWaits";
 import { RichMessageText } from "@openbot/ui/features/conversation/RichMessageText";
 import { VoiceRecordingMorph } from "@openbot/ui/features/conversation/VoiceRecordingMorph";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createSignal, For, Loading, lazy, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, For, Loading, lazy, Show } from "solid-js";
 import { reportErrorBanner, reportNotification } from "../../error-reports";
 import { deviceSendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "../../send-shortcut-preference";
 import { useConversationViewScope } from "./conversation-scope";
@@ -41,6 +47,8 @@ import { voiceButtonLabel, voiceSupported } from "./voice-status";
 
 // Module scope: the composer remounts on navigation, and a dismissed notice must stay dismissed.
 const [dismissedCompactions, setDismissedCompactions] = createSignal<Record<string, string>>({});
+// Keyed by provider account, then by chat: a recovered window clears every chat of that account.
+const [dismissedUsageLimits, setDismissedUsageLimits] = createStore<Record<string, Record<string, string>>>({});
 
 /** @internal Stable HMR boundary for conversation composer. */
 export function ConversationComposer() {
@@ -103,10 +111,17 @@ export function ConversationComposer() {
   let skillPickerChosen = false;
   // A pending Save keeps its exact request for retry. Block changes until retry or cancel.
   const savePending = () => Boolean(editingDeliveryId() && editingPendingSave());
+  // A provider start, restart or server reconnect is short. Keys typed in it must not drop, so only a
+  // lasting stop locks the text. Sending still waits for the agent. Without an agent, no draft keeps the text.
+  const editorLocked = () =>
+    !agentReady() &&
+    !(props.agent && (props.agentStatus.phase === "starting" || props.agentStatus.phase === "restarting"));
   // The mention picker grows out of the same edge as the queue, so only one of them holds it.
   const queueVisible = () => queuePanelVisible() && !pickerOpen();
   const awaitingVisible = () => awaitingReplies().length > 0 && !pickerOpen();
-  const slotOpen = () => queueVisible() || awaitingVisible();
+  const waitItems = createMemo(() => openWaitItems(props.waits ?? [], props.queue));
+  const waitsVisible = () => waitItems().length > 0 && Boolean(props.onCancelWait) && !pickerOpen();
+  const slotOpen = () => queueVisible() || awaitingVisible() || waitsVisible();
   const voiceAvailable = () => !props.runtime && voiceSupported(props.platform);
   const context = () =>
     props.contextState?.agentId === props.agent?.id && props.contextState?.threadId === props.agent?.threadId
@@ -138,21 +153,58 @@ export function ConversationComposer() {
   const [now, setNow] = createSignal(Date.now());
   /**
    * The first plan window that is spent and has not ended yet. `usedPercent` is what the provider
-   * reports, so it can pass 100 slightly; anything at or over the line refuses the next turn.
+   * reports, so it can pass 100 slightly. A spent plan does not say whether paid credits remain.
    */
   const usageExhausted = createMemo(() => {
     const provider = props.agent?.provider;
-    if (!provider || signInRequired() || !accountUsageCoversModel(provider, props.agent?.model)) return null;
+    if (!provider) return null;
     for (const limit of props.accountUsage?.limits ?? []) {
       if (limit.id !== provider) continue;
-      for (const plan of [limit.primary, limit.secondary]) {
+      for (const window of ["primary", "secondary"] as const) {
+        const plan = limit[window];
         if (!plan || plan.usedPercent < 100) continue;
         if (plan.resetsAt !== null && plan.resetsAt * 1_000 <= now()) continue;
-        return { provider, resetsAt: plan.resetsAt };
+        return {
+          provider,
+          resetsAt: plan.resetsAt,
+          key: JSON.stringify([window, plan.windowDurationMins, plan.resetsAt]),
+        };
       }
     }
     return null;
   });
+  const usageNoticeAccount = () =>
+    JSON.stringify([
+      props.agent?.provider,
+      props.agentStatus.providers?.find((status) => status.id === props.agent?.provider)?.email,
+    ]);
+  const usageNotice = () => {
+    const spent = usageExhausted();
+    return spent &&
+      !signInRequired() &&
+      accountUsageCoversModel(spent.provider, props.agent?.model) &&
+      dismissedUsageLimits[usageNoticeAccount()]?.[currentChatConversationKey() ?? ""] !== spent.key
+      ? spent
+      : null;
+  };
+  // Retain dismissal across navigation and identical readings. A recovered window can warn again,
+  // including providers that report no reset time. A pending usage load is not recovery.
+  createEffect(
+    () => ({
+      account: usageNoticeAccount(),
+      spent: usageExhausted(),
+      loaded: props.accountUsage?.limits.some(
+        (limit) => limit.id === props.agent?.provider && (limit.primary !== null || limit.secondary !== null),
+      ),
+    }),
+    ({ account, spent, loaded }) => {
+      if (loaded && !spent) {
+        setDismissedUsageLimits((state) => {
+          delete state[account];
+        });
+      }
+    },
+  );
   // The card has to leave on its own. Nothing else reads usage again until the next turn, and the
   // user waiting for the reset is the one least likely to send one.
   createEffect(
@@ -160,7 +212,7 @@ export function ConversationComposer() {
     (resetsAt) => {
       if (resetsAt === null) return;
       const timer = window.setTimeout(() => setNow(Date.now()), Math.max(0, resetsAt * 1_000 - Date.now()));
-      onCleanup(() => window.clearTimeout(timer));
+      return () => window.clearTimeout(timer);
     },
   );
   const attachmentAccept = () => {
@@ -239,6 +291,22 @@ export function ConversationComposer() {
         <div class="agent-queue-slot-inner">
           <Show when={awaitingVisible()}>
             <AwaitingReplies items={awaitingReplies()} onDismiss={dismissAwaitingReplies} />
+          </Show>
+          <Show when={waitsVisible() && props.onCancelWait}>
+            {(cancelWait) => (
+              <OpenWaits
+                items={waitItems()}
+                onCancel={cancelWait()}
+                onShowRequest={
+                  props.onOpenSearchMessage
+                    ? (waitId) => {
+                        const wait = props.waits?.find((entry) => entry.id === waitId);
+                        if (wait) void props.onOpenSearchMessage?.(wait.requestMessageId);
+                      }
+                    : undefined
+                }
+              />
+            )}
           </Show>
           <Show when={queueVisible()}>
             <Loading>
@@ -320,10 +388,11 @@ export function ConversationComposer() {
           />
         )}
       </Show>
-      <Show when={signInRequired()}>
-        {(status) => (
+      {/* Keyed on the provider: a sign-in that failed for one provider says nothing about the next. */}
+      <Show when={signInRequired()?.id} keyed>
+        {(provider) => (
           <ComposerSignInNotice
-            provider={status().id}
+            provider={provider}
             onShown={() =>
               reportNotification({
                 operation: "provider",
@@ -331,19 +400,29 @@ export function ConversationComposer() {
                 cause_code: "authentication",
                 severity: "warning",
                 presentation: "banner",
-                provider: status().id,
+                provider,
               })
             }
-            signingIn={status().connectionState === "connecting"}
+            signingIn={signInRequired()?.connectionState === "connecting"}
             onSignIn={(provider) => props.onSignInProvider?.(provider)}
+            onSignInWithCode={props.onSignInWithCodeProvider}
           />
         )}
       </Show>
-      <Show when={usageExhausted()}>
+      <Show when={usageNotice()}>
         {(spent) => (
           <ComposerUsageLimitNotice
             provider={spent().provider}
             resetsAt={spent().resetsAt}
+            onDismiss={() => {
+              const account = usageNoticeAccount();
+              const chat = currentChatConversationKey() ?? "";
+              const window = spent().key;
+              setDismissedUsageLimits((state) => {
+                state[account] = { ...state[account], [chat]: window };
+              });
+              setComposerFocusRequest((current) => current + 1);
+            }}
             onShown={() =>
               reportNotification({
                 operation: "turn",
@@ -431,10 +510,7 @@ export function ConversationComposer() {
             </For>
           </div>
         </Show>
-        <div
-          class="composer-input-label"
-          data-live-transcript={voiceLiveText() ? (currentDraft().text.trim() ? "append" : "replace") : undefined}
-        >
+        <div class="composer-input-label">
           <ComposerEditor
             agentId={props.agent?.id}
             agents={props.agents}
@@ -443,7 +519,7 @@ export function ConversationComposer() {
             mcpServers={mcpServers()}
             attachments={currentDraft().attachments}
             value={currentDraft().text}
-            disabled={submitting() || voicePhase() === "transcribing" || !agentReady() || savePending()}
+            disabled={submitting() || voicePhase() === "transcribing" || editorLocked() || savePending()}
             placeholder={
               !agentReady()
                 ? props.agentsConnecting
@@ -471,6 +547,7 @@ export function ConversationComposer() {
             onSubmit={submitComposer}
             sendShortcut={deviceSendShortcut(props.platform)}
             onPickerOpenChange={setPickerOpen}
+            dictation={{ text: voiceLiveText(), final: voicePhase() === "transcribing" }}
             onPasteFiles={(files) => {
               if (props.runtime?.importFiles) void props.runtime.importFiles(files);
             }}
@@ -480,17 +557,6 @@ export function ConversationComposer() {
                 : attachmentAction(attachment, "open")
             }
           />
-          <Show when={voiceLiveText()}>
-            {(text) => (
-              <p
-                class="voice-live-transcript"
-                aria-live="polite"
-                data-final={voicePhase() === "transcribing" ? "" : undefined}
-              >
-                {text()}
-              </p>
-            )}
-          </Show>
         </div>
         <div class="composer-toolbar">
           <Input
@@ -640,6 +706,27 @@ export function ConversationComposer() {
       </div>
     </div>
   );
+}
+
+/**
+ * A wait is resuming while the run that woke it waits in the queue or runs. A woken wait whose run
+ * ended is open only because the agent did not close it.
+ */
+function openWaitItems(waits: readonly AgentWait[], queue: QueueSnapshot | undefined): OpenWaitItem[] {
+  const pending = new Set(
+    queue?.deliveries
+      .filter(
+        (delivery) => delivery.status === "queued" || delivery.status === "starting" || delivery.status === "running",
+      )
+      .map((delivery) => delivery.id),
+  );
+  return waits.map((wait) => ({
+    id: wait.id,
+    note: wait.note,
+    request: wait.requestText,
+    openedAt: wait.createdAt,
+    state: wait.wakeDeliveryId && pending.has(wait.wakeDeliveryId) ? "resuming" : wait.wokenAt ? "woken" : "waiting",
+  }));
 }
 
 const QueuePanel = lazy(() =>

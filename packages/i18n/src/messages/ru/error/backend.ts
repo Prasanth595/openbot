@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelNotFound": "Канал не найден.",
   "error.backend.channelMemberUnavailable": "Участник канала недоступен.",
   "error.backend.channelArchived": "Восстановите этот канал, прежде чем отправлять сообщения или менять задачи.",
+  "error.backend.channelsRetired":
+    "Каналы больше не поддерживаются. Поместите агентов в один раздел боковой панели, чтобы они работали вместе.",
   "error.backend.channelReferenceUnavailable": "Сообщение канала, на которое сделана ссылка, недоступно.",
   "error.backend.channelTaskNotFound": "Задача канала не найдена.",
   "error.backend.channelTaskComplete": "Эта задача уже выполнена.",
@@ -157,8 +159,6 @@ export const messages = {
   "error.backend.routineFlowCycle": "Эта связь создаст цикл.",
   "error.backend.routineFlowLinkLimit": "У регулярной задачи может быть не больше {limit} связей.",
   "error.backend.routineFlowHandoffFailed": "Задаче не удалось передать работу этому агенту.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "Цепочки регулярных задач доступны только для агентов на этом компьютере.",
   "error.backend.mcpServerLimit": "OpenBot хранит не более {limit} серверов MCP.",
   "error.backend.mcpServerNameTaken": "Сервер MCP с именем {name} уже существует.",
   "error.backend.mcpServerNoAnswer": "Сервер не ответил за {seconds} с.",
@@ -251,4 +251,11 @@ export const messages = {
   "error.backend.mcpServerHttpCredentials": "Сервер ответил {status}. Проверьте API-ключ или другие учётные данные.",
   "error.backend.mcpServerHttpUrl":
     "Сервер ответил {status}. Проверьте URL. Ссылка может быть неверной, устаревшей или удалённой.",
+  "error.backend.mcpSignInAppUrl": "Для приложения входа нужен правильный URL сервера.",
+  "error.backend.mcpSignInAppClientId": "Введите ID клиента приложения входа.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Сервер входа этого MCP-сервера изменился, поэтому OpenBot не отправил ему приложение входа. Если это изменение верно, удалите приложение входа и добавьте его снова.",
+  "error.backend.mcpSignInAppNoServer":
+    "Сохраните этот MCP-сервер как URL-сервер, прежде чем добавлять приложение входа.",
+  "error.backend.mcpSignInAppUnavailable": "Этот компьютер не может хранить приложение входа.",
 } as const satisfies PartialTranslation<typeof source>;

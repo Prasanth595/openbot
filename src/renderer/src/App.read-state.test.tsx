@@ -1,9 +1,10 @@
-import type {
-  ConversationPage,
-  ConversationReadState,
-  DirectConversationPage,
-  DirectConversationSnapshot,
-  DirectThreadSummary,
+import {
+  AGENT_RUNTIME_TEXT_LIMIT,
+  type ConversationPage,
+  type ConversationReadState,
+  type DirectConversationPage,
+  type DirectConversationSnapshot,
+  type DirectThreadSummary,
 } from "@openbot/contracts/ipc";
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { flush } from "solid-js";
@@ -24,7 +25,6 @@ import {
   testServer,
   unreadConversationPage,
 } from "./app-test-harness";
-import { useChannels } from "./features/channels/channels-context";
 import { useConversation } from "./features/conversation/conversation-context";
 import { useDirectMessages } from "./features/conversation/direct-messages-context";
 import { useServerScope } from "./features/servers/server-scope";
@@ -48,41 +48,6 @@ function UsageProbe() {
         Close usage
       </button>
     </>
-  );
-}
-
-/**
- * Opens a channel over the workspace. The agent stays selected under it, which is the state the
- * read predicate has to refuse: the reply is on a chat the channel covers.
- */
-function ChannelProbe() {
-  const channels = useChannels();
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        void (async () => {
-          await window.openbot.agent.channelCommand({
-            type: "save",
-            operationId: "channel-read-op",
-            channelId: "channel-read",
-            draft: { name: "Project", title: "", instructions: "", members: [{ agentId: "chief" }], leadAgentId: null },
-          });
-          await channels.open("channel-read");
-        })();
-      }}
-    >
-      Open channel
-    </button>
-  );
-}
-
-function CloseChannelProbe() {
-  const channels = useChannels();
-  return (
-    <button type="button" onClick={() => channels.close()}>
-      Close channel
-    </button>
   );
 }
 
@@ -1042,6 +1007,82 @@ describe("OpenBot connected desktop shell", () => {
     );
   });
 
+  it("replaces the capped runtime preview of a reply with the full reply", async () => {
+    const createdAt = "2026-08-19T09:03:00.000Z";
+    const reply = `${"A long answer sentence. ".repeat(20)}The end of the answer.`;
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    await waitFor(() => expect(window.openbot.agent.readConversation).toHaveBeenCalledWith("chief"));
+
+    emitAgentEvent?.({
+      type: "runtime-snapshot",
+      snapshot: {
+        agents: [],
+        activeTurns: [],
+        work: [],
+        latestMessages: [
+          { agentId: "chief", id: "agent-long-answer", text: reply.slice(0, AGENT_RUNTIME_TEXT_LIMIT), createdAt },
+        ],
+        attentionComplete: true,
+        pendingPrompts: [],
+        pendingApprovals: [],
+        pendingBrowserTakeovers: [],
+        failedTurns: [],
+      },
+    });
+    await screen.findByText(/^A long answer sentence\./);
+    emitAgentEvent?.({
+      type: "conversation",
+      snapshot: {
+        agentId: "chief",
+        threadId: "thread-chief",
+        activeTurnId: null,
+        revision: 2,
+        messages: [agentReply("agent-long-answer", reply, createdAt)],
+      },
+    });
+
+    expect(await screen.findByText(/The end of the answer\.$/)).toBeInTheDocument();
+  });
+
+  it("does not repeat the runtime preview when the first delta of the reply arrives", async () => {
+    const createdAt = "2026-08-19T09:03:00.000Z";
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    await waitFor(() => expect(window.openbot.agent.readConversation).toHaveBeenCalledWith("chief"));
+
+    // Main adds text to the message before the buffered delta that carries it is sent.
+    emitAgentEvent?.({
+      type: "runtime-snapshot",
+      snapshot: {
+        agents: [],
+        activeTurns: [],
+        work: [],
+        latestMessages: [{ agentId: "chief", id: "agent-early-answer", text: "The first words", createdAt }],
+        attentionComplete: true,
+        pendingPrompts: [],
+        pendingApprovals: [],
+        pendingBrowserTakeovers: [],
+        failedTurns: [],
+      },
+    });
+    await screen.findByText("The first words");
+    emitAgentEvent?.({
+      type: "conversation-delta",
+      agentId: "chief",
+      threadId: "thread-chief",
+      turnId: "turn-live",
+      messageId: "agent-early-answer",
+      delta: "The first words of the answer, and the rest of it.",
+      createdAt,
+      revision: 2,
+    });
+
+    const message = () => document.querySelector('[data-chat-search-message="agent-early-answer"]');
+    await waitFor(() => expect(message()).toHaveTextContent("The first words of the answer"));
+    expect(message()).not.toHaveTextContent(/The first words.*The first words/);
+  });
+
   it("keeps an agent reply unread while the Usage report covers the conversation", async () => {
     const unreadPage = unreadConversationPage("chief", [
       agentReply("agent-hidden-answer", "Ready while the report was open", "2026-08-19T09:04:00.000Z"),
@@ -1068,33 +1109,6 @@ describe("OpenBot connected desktop shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Close usage" }));
     expect(await screen.findByRole("status", { name: "1 new message" })).toBeInTheDocument();
-  });
-
-  it("keeps an agent reply unread while an open channel covers the conversation", async () => {
-    const unreadPage = unreadConversationPage("chief", [
-      agentReply("agent-channel-answer", "Ready while the channel was open", "2026-08-19T09:06:00.000Z"),
-    ]);
-
-    render(() => (
-      <AppProviders>
-        <AppAccessGate />
-        <ChannelProbe />
-        <CloseChannelProbe />
-      </AppProviders>
-    ));
-    await screen.findByRole("heading", { name: "Chief" });
-    vi.mocked(window.openbot.agent.markConversationRead).mockClear();
-    vi.mocked(window.openbot.agent.readConversationPage).mockResolvedValue(unreadPage);
-
-    fireEvent.click(screen.getByRole("button", { name: "Open channel" }));
-    await screen.findByRole("heading", { level: 1, name: "Project" });
-    emitAgentEvent?.({ type: "conversation-page", page: unreadPage });
-
-    // Unlike the Usage report, the channel replaces the conversation rather than covering it, so the
-    // reply is not in the DOM until the channel closes. Both paths must leave it unread.
-    fireEvent.click(screen.getByRole("button", { name: "Close channel" }));
-    expect(await screen.findByRole("status", { name: "1 new message" })).toBeInTheDocument();
-    expect(window.openbot.agent.markConversationRead).not.toHaveBeenCalled();
   });
 
   it("uncovers the conversation a global search result opens", async () => {

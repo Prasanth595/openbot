@@ -29,6 +29,7 @@ import type {
   VoiceLiveTranscript,
 } from "./conversation-types";
 import { createPendingSendStore } from "./stores/pending-send-store";
+import type { VoiceCloudStream } from "./stores/voice-store";
 
 const SETTINGS_PANEL_DEFAULT = 296;
 const BROWSER_PANEL_DEFAULT = 380;
@@ -65,6 +66,8 @@ interface ConversationResources {
   voiceChunks: Blob[];
   /** The live transcription in flight, so the final pass waits for it instead of racing it. */
   voiceLiveRequest: Promise<void> | undefined;
+  /** The ElevenLabs stream of the recording, when the selected model streams. */
+  voiceCloudStream: VoiceCloudStream | undefined;
   /** Stops the microphone level meter that draws the recording waveform. */
   voiceMeterStop: (() => void) | undefined;
   voiceAgentId: string | undefined;
@@ -226,6 +229,7 @@ export function createStableConversationState(
     voiceElapsedTimer: undefined,
     voiceChunks: [],
     voiceLiveRequest: undefined,
+    voiceCloudStream: undefined,
     voiceMeterStop: undefined,
     voiceAgentId: undefined,
     voiceServerId: undefined,

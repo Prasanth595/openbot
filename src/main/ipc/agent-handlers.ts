@@ -41,6 +41,7 @@ import type { AgentService } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { HostService } from "../host-service";
+import { type MessageLinkRelay, openHttpLink } from "../message-link-relay";
 import {
   decodeAccountUsageFromHost,
   decodeAgentAnalyticsFromHost,
@@ -63,13 +64,17 @@ import {
   parseAgentId,
   parseApprovalResponse,
   parseBrowserTakeoverResponse,
+  parseCancelAgentWait,
+  parseCancelMessageLink,
   parseCancelQueuedMessage,
   parseChannelId,
   parseCreateAgent,
   parseInterrupt,
   parseMarkConversationRead,
   parseMessageReaction,
+  parseOpenMessageLink,
   parseOptionalAgentId,
+  parsePasteMessageLink,
   parsePromptResponse,
   parseQueueEdit,
   parseReadConversationPage,
@@ -113,6 +118,8 @@ export interface AgentIpcDependencies {
   host: HostService;
   remoteServers: RemoteServerManager;
   skills: SkillMarketplaceService;
+  messageLinks: Pick<MessageLinkRelay, "open" | "paste" | "cancel">;
+  openExternal: (url: string) => Promise<void>;
 }
 
 export function agentIpcHandlers({
@@ -121,6 +128,8 @@ export function agentIpcHandlers({
   host,
   remoteServers,
   skills,
+  messageLinks,
+  openExternal,
 }: AgentIpcDependencies): Pick<IpcGroupHandlers, "agent"> {
   return {
     agent: {
@@ -367,6 +376,21 @@ export function agentIpcHandlers({
             remoteServers.readAgentConversationPage(parsed.agentId, parsed.anchor, parsed.limit, serverId),
           ),
       }),
+      openMessageLink: scopedHandler(parseOpenMessageLink, {
+        local: async ({ url }) => {
+          await openHttpLink(url, openExternal);
+          return null;
+        },
+        remote: ({ agentId, url }, serverId) => messageLinks.open(serverId, agentId, url),
+      }),
+      pasteMessageLink: scopedHandler(parsePasteMessageLink, {
+        local: () => Promise.reject(new Error(sourceText("error.mcp.relayEnded"))),
+        remote: ({ url, address }, serverId) => messageLinks.paste(serverId, url, address),
+      }),
+      cancelMessageLink: scopedHandler(parseCancelMessageLink, {
+        local: async () => undefined,
+        remote: ({ url }, serverId) => messageLinks.cancel(serverId, url),
+      }),
       searchConversationMessages: scopedHandler(parseSearchConversationMessages, {
         local: (parsed) =>
           host.searchAgentConversationMessages(parsed.query, parsed.agentId, parsed.cursor, parsed.limit),
@@ -417,6 +441,17 @@ export function agentIpcHandlers({
         local: (agentId) => service.listQueue(agentId),
         remote: (agentId, serverId) =>
           runCauseEffect(remoteServers.request(serverId, TEAM_API_ROUTES.agent.queue(agentId), decodeQueueSnapshot)),
+      }),
+      // Open waits are local only: the Team API has no route for them.
+      listWaits: scopedHandler(parseAgentId, {
+        local: (agentId) => service.listWaits(agentId),
+        remote: (agentId) => ({ agentId, waits: [] }),
+      }),
+      cancelWait: scopedHandler(parseCancelAgentWait, {
+        local: (parsed) => service.cancelWait(parsed.agentId, parsed.waitId),
+        remote: () => {
+          throw new Error(sourceText("error.backend.agentWaitRemoteUnsupported"));
+        },
       }),
       acknowledgeFailedTurn: scopedHandler(parseAcknowledgeFailedTurn, {
         local: (parsed) => service.acknowledgeFailedTurn(parsed.agentId, parsed.turnId),

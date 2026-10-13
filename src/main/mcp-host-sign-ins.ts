@@ -1,32 +1,37 @@
-// MCP sign-ins that an administrator starts on this host from another computer (`mcp-sign-in-v1`).
+// MCP sign-ins that an administrator starts on this host from another computer (`mcp-sign-in-v1`, and
+// `sign-in-relay-v1` through `SignInRelayHost`).
 
 import type {
+  McpSignInAppInput,
+  McpSignInAppState,
   McpSignInState,
   McpSignInStatus,
   McpTestResult,
+  SaveMcpSignInAppInput,
   SignOutMcpServerInput,
   TestMcpServerInput,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
-import { createOpenBotLogger, toLogValue } from "@openbot/logging";
-import { Duration, Effect, Exit, Scope } from "effect";
+import { Cause, Exit, Option } from "effect";
 import type { AgentService } from "../backend/agent-service";
 import type { BrowserHost } from "../backend/browser-host";
-import { runCauseEffect } from "../backend/effect-boundary";
 import { normalizeResource } from "../backend/mcp-oauth-provider";
+import { HostSignInPages } from "./host-sign-in-pages";
 
-const logger = createOpenBotLogger("mcp-host-sign-ins");
-
-/** How long a finished sign-in still answers `status`, so the client that polls it reads the end. */
-const RESULT_KEPT_MS = 60_000;
 /** The bound of an error on the wire, as `mcp-sign-in-v1` reads it. */
 const ERROR_LIMIT = 2_000;
 
-/** Changed in place while the sign-in runs; `status` answers a copy. */
-type HostSignIn = McpSignInStatus;
-
 export interface McpHostSignInDependencies {
-  service: Pick<AgentService, "signInMcpServer" | "cancelMcpSignIn" | "signOutMcpServer" | "listMcpSignIns">;
+  service: Pick<
+    AgentService,
+    | "signInMcpServer"
+    | "cancelMcpSignIn"
+    | "signOutMcpServer"
+    | "listMcpSignIns"
+    | "mcpSignInApp"
+    | "saveMcpSignInApp"
+    | "removeMcpSignInApp"
+  >;
   browser: Pick<BrowserHost, "openPrivate" | "privateTab" | "close">;
 }
 
@@ -40,36 +45,47 @@ export interface McpHostSignInDependencies {
  */
 export class McpHostSignIns {
   readonly #dependencies: McpHostSignInDependencies;
-  readonly #signIns = new Map<string, HostSignIn>();
-  readonly #scope = Scope.makeUnsafe();
+  readonly #pages: HostSignInPages<string, McpTestResult>;
 
   constructor(dependencies: McpHostSignInDependencies) {
     this.#dependencies = dependencies;
+    this.#pages = new HostSignInPages(dependencies.browser);
   }
 
-  readonly start = Effect.fn("McpHostSignIns.start")(function* (this: McpHostSignIns, input: TestMcpServerInput) {
-    const key = signInKey(input.config.url);
-    const signIn: HostSignIn = { tabId: null, result: null };
-    this.#signIns.set(key, signIn);
-    const { service } = this.#dependencies;
-    yield* Effect.forkIn(
-      service
-        .signInMcpServer(input, (url) => runCauseEffect(this.#show(key, signIn, url)))
-        .pipe(
-          Effect.catch((failure) => Effect.succeed({ toolCount: 0, error: failureText(failure.cause) })),
-          Effect.flatMap((result) => this.#finish(key, signIn, result)),
-        ),
-      this.#scope,
-      { startImmediately: true },
+  start(input: TestMcpServerInput) {
+    return this.#pages.start(
+      signInKey(input.config.url),
+      (openPage) => this.#dependencies.service.signInMcpServer(input, openPage),
+      resultOf,
     );
-  }).bind(this);
+  }
+
+  /**
+   * The same sign-in, with no tab: the page address waits in `relayPage` for the administrator's own
+   * computer to open, and the grant comes back through `SignInRelayHost`.
+   */
+  startRelay(input: TestMcpServerInput) {
+    return this.#pages.start(
+      signInKey(input.config.url),
+      (openPage) => this.#dependencies.service.signInMcpServer(input, openPage),
+      resultOf,
+      "relay",
+    );
+  }
+
+  /** The page address of a relayed sign-in, and how it ended. */
+  relayStatus(url: string): { pageUrl: string | null; result: McpTestResult | null } {
+    const key = signInKey(url);
+    return { pageUrl: this.#pages.pageUrl(key), result: this.status(url).result };
+  }
 
   status(url: string): McpSignInStatus {
-    const signIn = this.#signIns.get(signInKey(url));
-    if (!signIn)
-      return { tabId: null, result: { toolCount: 0, error: sourceText("error.backend.mcpSignInAbandonedGeneric") } };
-    // A provider can sign in through a popup; the live view follows it and returns when it closes.
-    return { tabId: signIn.tabId && this.#dependencies.browser.privateTab(signIn.tabId), result: signIn.result };
+    return (
+      this.#pages.status(signInKey(url)) ?? {
+        tabId: null,
+        result: { toolCount: 0, error: sourceText("error.backend.mcpSignInAbandonedGeneric") },
+      }
+    );
   }
 
   cancel(url: string): void {
@@ -84,52 +100,32 @@ export class McpHostSignIns {
     return this.#dependencies.service.listMcpSignIns();
   }
 
-  readonly close = Effect.fn("McpHostSignIns.close")(function* (this: McpHostSignIns) {
-    yield* Scope.close(this.#scope, Exit.void);
-  }).bind(this);
+  /** The sign-in app of one row (`mcp-sign-in-app-v1`). The next `start` uses it. */
+  app(input: McpSignInAppInput): McpSignInAppState {
+    return this.#dependencies.service.mcpSignInApp(input);
+  }
 
-  /** The page opens; a sign-in that a later one replaced or that already ended closes it again. */
-  readonly #show = Effect.fn("McpHostSignIns.show")(function* (
-    this: McpHostSignIns,
-    key: string,
-    signIn: HostSignIn,
-    url: string,
-  ) {
-    const tab = yield* this.#dependencies.browser.openPrivate(url);
-    if (this.#signIns.get(key) === signIn && signIn.result === null) {
-      signIn.tabId = tab.id;
-      return;
-    }
-    yield* this.#closeTab(tab.id);
-  });
+  saveApp(input: SaveMcpSignInAppInput) {
+    return this.#dependencies.service.saveMcpSignInApp(input);
+  }
 
-  readonly #finish = Effect.fn("McpHostSignIns.finish")(function* (
-    this: McpHostSignIns,
-    key: string,
-    signIn: HostSignIn,
-    result: McpTestResult,
-  ) {
-    signIn.result = result;
-    const tabId = signIn.tabId;
-    signIn.tabId = null;
-    if (tabId) yield* this.#closeTab(tabId);
-    yield* Effect.sleep(Duration.millis(RESULT_KEPT_MS));
-    if (this.#signIns.get(key) === signIn) this.#signIns.delete(key);
-  });
+  removeApp(input: McpSignInAppInput) {
+    return this.#dependencies.service.removeMcpSignInApp(input);
+  }
 
-  #closeTab(tabId: string) {
-    return this.#dependencies.browser
-      .close(tabId)
-      .pipe(
-        Effect.catch((error) =>
-          Effect.sync(() => logger.warn("Unable to close an MCP sign-in tab", { error: toLogValue(error) })),
-        ),
-      );
+  close() {
+    return this.#pages.close();
   }
 }
 
 function signInKey(url: string): string {
   return normalizeResource(url) ?? url;
+}
+
+function resultOf(exit: Exit.Exit<McpTestResult, { cause: unknown }>): McpTestResult {
+  if (Exit.isSuccess(exit)) return exit.value;
+  const failure = Cause.findErrorOption(exit.cause);
+  return { toolCount: 0, error: failureText(Option.isSome(failure) ? failure.value.cause : undefined) };
 }
 
 function failureText(cause: unknown): string {

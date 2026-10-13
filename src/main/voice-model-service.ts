@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { createReadStream, existsSync } from "node:fs";
 import { mkdir, open, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type { VoiceModelStatus } from "@openbot/contracts/ipc";
+import type { LocalVoiceModelId, VoiceModelStatus } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Exit, Fiber, Result, Schema, Scope, Stream } from "effect";
 import { causeHelpers } from "../backend/effect-boundary";
@@ -52,11 +52,49 @@ export const PARAKEET_MODEL_FILES: readonly VoiceModelFile[] = [
   },
 ];
 
+const WHISPER_TURBO_MODEL_REVISION = "2ca6ff69fc878651b770880507669577ac41c2ff";
+const WHISPER_TURBO_MODEL_BASE_URL = `https://huggingface.co/csukuangfj/sherpa-onnx-whisper-turbo/resolve/${WHISPER_TURBO_MODEL_REVISION}`;
+
+/**
+ * The directory name of Whisper turbo in `<userData>/runtimes`. It is not `whisper`: startup
+ * deletes that directory, which held the Whisper model of earlier versions.
+ */
+export const WHISPER_TURBO_MODEL_DIRECTORY = "whisper-turbo-int8";
+
+/** OpenAI Whisper large-v3 turbo (MIT), int8 ONNX export for sherpa-onnx. */
+const WHISPER_TURBO_MODEL_FILES: readonly VoiceModelFile[] = [
+  {
+    name: "turbo-encoder.int8.onnx",
+    url: `${WHISPER_TURBO_MODEL_BASE_URL}/turbo-encoder.int8.onnx`,
+    bytes: 674_716_297,
+    sha256: "b02dcdf54f348741e93fe732b67d933c8dcb6735655f710640143081db38878b",
+  },
+  {
+    name: "turbo-decoder.int8.onnx",
+    url: `${WHISPER_TURBO_MODEL_BASE_URL}/turbo-decoder.int8.onnx`,
+    bytes: 361_080_764,
+    sha256: "20accd02388482eb3a46bd615631adfdc85e1eb2c7db9ea3f02a40ffe6b81547",
+  },
+  {
+    name: "turbo-tokens.txt",
+    url: `${WHISPER_TURBO_MODEL_BASE_URL}/turbo-tokens.txt`,
+    bytes: 816_730,
+    sha256: "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126",
+  },
+];
+
+/** The files of each model. */
+const VOICE_MODEL_FILES: Record<LocalVoiceModelId, readonly VoiceModelFile[]> = {
+  "parakeet-tdt-0.6b-v3": PARAKEET_MODEL_FILES,
+  "whisper-turbo": WHISPER_TURBO_MODEL_FILES,
+};
+
 interface VoiceModelEvents {
   status: [status: VoiceModelStatus];
 }
 
 interface VoiceModelServiceOptions {
+  modelId?: LocalVoiceModelId;
   directory: string;
   files?: readonly VoiceModelFile[];
   fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -69,6 +107,7 @@ interface VerifiedFile {
 }
 
 export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
+  readonly modelId: LocalVoiceModelId;
   readonly #directory: string;
   readonly #files: readonly VoiceModelFile[];
   readonly #totalBytes: number;
@@ -79,16 +118,19 @@ export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
    * whose size or modification time changed is hashed again.
    */
   readonly #verified = new Map<string, VerifiedFile>();
-  #status: VoiceModelStatus = { phase: "missing", progress: null, message: null };
+  #status: Omit<VoiceModelStatus, "modelId"> = { phase: "missing", progress: null, message: null };
   #preparation: Fiber.Fiber<VoiceModelStatus, VoiceOperationError> | null = null;
   readonly #scope = Scope.makeUnsafe();
   #abortController: AbortController | null = null;
   #stopping = false;
+  /** The user stopped the download in progress, so it ends as missing rather than failed. */
+  #cancelled = false;
 
   constructor(options: VoiceModelServiceOptions) {
     super();
+    this.modelId = options.modelId ?? "parakeet-tdt-0.6b-v3";
     this.#directory = options.directory;
-    this.#files = options.files ?? PARAKEET_MODEL_FILES;
+    this.#files = options.files ?? VOICE_MODEL_FILES[this.modelId];
     this.#totalBytes = this.#files.reduce((total, file) => total + file.bytes, 0);
     this.#fetch = options.fetch ?? fetch;
   }
@@ -106,6 +148,7 @@ export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
 
   readonly prepare = Effect.fn("VoiceModel.prepare")(function* (this: VoiceModelService) {
     if (this.#preparation) return yield* Fiber.join(this.#preparation);
+    this.#cancelled = false;
     const fiber = yield* Effect.forkIn(
       Effect.gen({ self: this }, function* () {
         if (yield* this.#isComplete()) {
@@ -115,6 +158,10 @@ export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
         }
         if (this.#stopping) {
           this.#setStatus({ phase: "error", progress: null, message: sourceText("error.voice.downloadStopped") });
+          return this.#copyStatus();
+        }
+        if (this.#cancelled) {
+          this.#setStatus({ phase: "missing", progress: null, message: null });
           return this.#copyStatus();
         }
         const controller = new AbortController();
@@ -135,7 +182,10 @@ export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
             this.#setStatus({ phase: "ready", progress: 100, message: null });
           }).pipe(Effect.ensuring(Effect.sync(() => controller.abort()))),
         );
-        if (Result.isFailure(downloaded)) {
+        if (Result.isFailure(downloaded) && this.#cancelled) {
+          // Files that completed stay verified, so the next download starts at the first one missing.
+          this.#setStatus({ phase: "missing", progress: null, message: null });
+        } else if (Result.isFailure(downloaded)) {
           const cause = downloaded.failure.cause;
           const stopped = cause instanceof Error && cause.name === "AbortError";
           this.#setStatus({
@@ -157,6 +207,16 @@ export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
       }
     });
     return yield* Fiber.join(fiber);
+  }).bind(this);
+
+  /** Stops the download in progress, if any, and answers the status after it ends. */
+  readonly cancel = Effect.fn("VoiceModel.cancel")(function* (this: VoiceModelService) {
+    const preparation = this.#preparation;
+    if (!preparation) return yield* this.getStatus();
+    this.#cancelled = true;
+    this.#abortController?.abort();
+    yield* Fiber.await(preparation);
+    return this.#copyStatus();
   }).bind(this);
 
   readonly shutdown = Effect.fn("VoiceModel.shutdown")(function* (this: VoiceModelService) {
@@ -263,13 +323,13 @@ export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
     });
   }
 
-  #setStatus(status: VoiceModelStatus): void {
+  #setStatus(status: Omit<VoiceModelStatus, "modelId">): void {
     this.#status = status;
     this.emit("status", this.#copyStatus());
   }
 
   #copyStatus(): VoiceModelStatus {
-    return { ...this.#status };
+    return { modelId: this.modelId, ...this.#status };
   }
 }
 

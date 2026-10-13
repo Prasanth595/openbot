@@ -15,7 +15,9 @@ describe("OpenBot connected desktop shell", () => {
 
     await fireEvent.click(await screen.findByRole("button", { name: "Create prompt with voice" }));
 
-    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true, video: false });
+    await waitFor(() =>
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true, video: false }),
+    );
     expect(
       await screen.findByText("Microphone access is blocked. Allow OpenBot to use the microphone in system settings."),
     ).toBeInTheDocument();
@@ -59,12 +61,12 @@ describe("OpenBot connected desktop shell", () => {
 
     await fireEvent.click(await screen.findByRole("button", { name: "Create prompt with voice" }));
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
-    reportModelStatus?.({ phase: "downloading", progress: 47, message: null });
+    reportModelStatus?.({ modelId: "parakeet-tdt-0.6b-v3", phase: "downloading", progress: 47, message: null });
     await waitFor(() => {
       expect(screen.getAllByRole("status").some((status) => status.textContent?.includes("47%"))).toBe(true);
     });
 
-    resolvePreparation?.({ phase: "ready", progress: 100, message: null });
+    resolvePreparation?.({ modelId: "parakeet-tdt-0.6b-v3", phase: "ready", progress: 100, message: null });
     await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledOnce());
   });
 
@@ -92,7 +94,12 @@ describe("OpenBot connected desktop shell", () => {
       expect(screen.getByRole("button", { name: "Studio Mac server" })).toHaveAttribute("aria-pressed", "true"),
     );
 
-    resolvePreparation?.({ phase: "error", progress: 0, message: "Local voice setup failed" });
+    resolvePreparation?.({
+      modelId: "parakeet-tdt-0.6b-v3",
+      phase: "error",
+      progress: 0,
+      message: "Local voice setup failed",
+    });
     await waitFor(() => expect(screen.getByRole("button", { name: "Create prompt with voice" })).toBeEnabled());
     expect(screen.queryByText("Local voice setup failed")).not.toBeInTheDocument();
     await fireEvent.click(screen.getByRole("button", { name: "Local server" }));
@@ -130,7 +137,7 @@ describe("OpenBot connected desktop shell", () => {
     expect(screen.queryByRole("button", { name: "Downloading voice model" })).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Create prompt with voice" })).toBeEnabled());
 
-    resolvePreparation?.({ phase: "ready", progress: 100, message: null });
+    resolvePreparation?.({ modelId: "parakeet-tdt-0.6b-v3", phase: "ready", progress: 100, message: null });
     await waitFor(() => expect(screen.getByRole("button", { name: "Create prompt with voice" })).toBeEnabled());
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
   });

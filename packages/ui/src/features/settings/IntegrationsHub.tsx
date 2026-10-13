@@ -37,14 +37,22 @@ const FACES = 4;
  * Server settings > Connectors: one quiet row per integration. The whole row opens its page. A row
  * that is set up sorts into the first section with its status; the others wait below with Set up.
  */
-export function IntegrationsHub(props: { rows: IntegrationsHubRow[] }) {
+export function IntegrationsHub(props: {
+  rows: IntegrationsHubRow[];
+  /** The joined server's name, when the integrations are that server's and not this computer's. */
+  hostName?: string | undefined;
+}) {
   const { t } = useText();
   const active = () => props.rows.filter((row) => row.status !== "idle");
   const idle = () => props.rows.filter((row) => row.status === "idle");
   return (
     <div class="integrations-hub">
       <Show when={active().length > 0}>
-        <SettingsSection title={t("connector.hub.onThisComputer")}>
+        <SettingsSection
+          title={
+            props.hostName ? t("connector.hub.onHost", { host: props.hostName }) : t("connector.hub.onThisComputer")
+          }
+        >
           <ItemGroup class="settings-modal-card">
             <For each={active()}>{(row) => <HubRow row={row} />}</For>
           </ItemGroup>

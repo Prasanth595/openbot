@@ -6,6 +6,7 @@ export const messages = {
   // notifications, raised by the web client while its tab is open.
   "notification.needsInput": "Nécessite votre réponse.",
   "notification.needsApproval": "Nécessite votre approbation.",
+  "notification.needsApprovalFor": "Nécessite votre approbation : {action}",
   "notification.finished": "Travail terminé.",
   "notification.failed": "Arrêté à cause d’une erreur.",
   "notification.usageLimit.title": "Le compte {provider} a atteint sa limite",

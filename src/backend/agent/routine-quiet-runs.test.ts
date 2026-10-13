@@ -2,6 +2,7 @@ import {
   CONVERSATION_PLAN_ITEM_TYPE,
   type ConversationMessage,
   type ConversationSnapshot,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
 } from "@openbot/contracts/ipc";
 import { describe, expect, it } from "vitest";
 import { isNoUpdateAnswer, ROUTINE_NO_UPDATE_MARKER, settleQuietRoutineTurn } from "./routine-quiet-runs";
@@ -86,13 +87,15 @@ describe("settleQuietRoutineTurn", () => {
     }
   });
 
-  it("drops each text answer after a no-update tool call, also when there is none", () => {
+  it("keeps each text answer after a no-update tool call as a quiet answer, also when there is none", () => {
     const answered = snapshot([
       message("thinking", "Reading the queue.", { itemType: "commentary" }),
       message("answer", "Nada acionável nesta varredura."),
     ]);
     expect(settleQuietRoutineTurn(answered, "turn-1", true)).toBe(true);
-    expect(ids(answered)).toEqual([]);
+    expect(answered.messages).toEqual([
+      expect.objectContaining({ id: "answer", itemType: ROUTINE_QUIET_ANSWER_ITEM_TYPE }),
+    ]);
 
     const silent = snapshot([message("thinking", "Reading the queue.", { itemType: "commentary" })]);
     expect(settleQuietRoutineTurn(silent, "turn-1", true)).toBe(true);

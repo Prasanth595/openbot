@@ -2,7 +2,10 @@ import type {
   AvatarImageInput,
   InviteSummary,
   McpServerConfig,
+  McpSignInAppState,
+  McpSignInRelayPage,
   McpTestResult,
+  SaveMcpSignInAppInput,
   ServerSummary,
   TeamInviteSummary,
   TeamPresenceMember,
@@ -14,9 +17,12 @@ import {
   cancelMcpSignIn as cancelMcpSignInRequest,
   listMcpServers,
   listMcpSignIns as listMcpSignInsRequest,
+  mcpSignInApp as mcpSignInAppRequest,
   mcpSignInStatus,
   removeMcpServer as removeMcpServerRequest,
+  removeMcpSignInApp as removeMcpSignInAppRequest,
   saveMcpServer as saveMcpServerRequest,
+  saveMcpSignInApp as saveMcpSignInAppRequest,
   setMcpServerEnabled as setMcpServerEnabledRequest,
   signOutMcpServer as signOutMcpServerRequest,
   startMcpSignIn,
@@ -28,6 +34,7 @@ import { Effect } from "effect";
 import { createEffect, createStore, untrack } from "solid-js";
 import { mcpSignInRecord } from "../servers/mcp-servers";
 import { serverCanAdminister, serverRoleCanAdminister } from "../servers/server-capabilities";
+import { webMcpRelay } from "./web-mcp-relay";
 import type { WebAdminRuntime } from "./web-runtime";
 
 interface WebServerSettingsState {
@@ -42,6 +49,8 @@ interface WebServerSettingsState {
   mcpSignIns: Record<string, boolean>;
   /** The host tab of each sign-in page, by the address it signs in to, while the sign-in waits. */
   mcpSignInPages: Record<string, string>;
+  /** The relayed sign-in page of each sign-in that waits in this browser (`sign-in-relay-v1`). */
+  mcpSignInRelays: Record<string, McpSignInRelayPage>;
 }
 
 /**
@@ -59,6 +68,8 @@ export function createWebServerSettings(options: {
   admin: () => WebAdminRuntime | undefined;
   presence: () => TeamPresenceSnapshot | null;
   refreshHosts: () => Promise<void>;
+  /** Whether the host relays sign-ins (`sign-in-relay-v1`), so the page opens in this browser. */
+  relaySupported: () => boolean;
 }) {
   const [state, setState] = createStore<WebServerSettingsState>({
     open: false,
@@ -70,7 +81,14 @@ export function createWebServerSettings(options: {
     mcpError: null,
     mcpSignIns: {},
     mcpSignInPages: {},
+    mcpSignInRelays: {},
   });
+  const relay = webMcpRelay((url, page) =>
+    setState((draft) => {
+      if (page) draft.mcpSignInRelays[url] = page;
+      else delete draft.mcpSignInRelays[url];
+    }),
+  );
   /** Bumped by every open and refresh, so a slower earlier load cannot paint over a newer one. */
   let request = 0;
   /** The same guard for the MCP list. It loads from a different event, so it has its own counter. */
@@ -233,6 +251,7 @@ export function createWebServerSettings(options: {
     const url = config.url;
     const run = <T>(effect: Effect.Effect<T, { cause: unknown }>) =>
       runTeamEffect(effect.pipe(Effect.mapError((error) => error.cause)));
+    if (options.relaySupported()) return signInRelayed(admin, config);
     await run(startMcpSignIn(admin.request, { config }));
     try {
       while (true) {
@@ -251,6 +270,15 @@ export function createWebServerSettings(options: {
     }
   }
 
+  /** A relayed sign-in waits in this browser: see `webMcpRelay`. */
+  async function signInRelayed(admin: WebAdminRuntime, config: McpServerConfig): Promise<McpTestResult> {
+    try {
+      return await relay.signIn(admin.request, config);
+    } finally {
+      void refreshMcpSignIns().catch(() => undefined);
+    }
+  }
+
   /** The host answers each change with the whole list. A read still in flight has the old list. */
   async function mutateMcp(mutate: (admin: WebAdminRuntime) => Promise<McpServerConfig[]>): Promise<void> {
     const configs = await mutate(requireAdmin().admin);
@@ -259,6 +287,15 @@ export function createWebServerSettings(options: {
       draft.mcp = configs;
       draft.mcpError = null;
     });
+  }
+
+  /** A changed or removed app drops the sign-in that the old client held, so the badges are read again. */
+  async function changeMcpSignInApp(
+    change: (admin: WebAdminRuntime) => Effect.Effect<McpSignInAppState, { cause: unknown }>,
+  ): Promise<McpSignInAppState> {
+    const result = await runTeamEffect(change(requireAdmin().admin).pipe(Effect.mapError((error) => error.cause)));
+    void refreshMcpSignIns().catch(() => undefined);
+    return result;
   }
 
   return {
@@ -296,6 +333,8 @@ export function createWebServerSettings(options: {
       ),
     refreshMcpSignIns,
     signInMcpServer,
+    pasteMcpSignInRelay: relay.paste,
+    openMcpSignInRelay: relay.open,
     cancelMcpSignIn: async (url: string): Promise<void> => {
       await runTeamEffect(
         cancelMcpSignInRequest(requireAdmin().admin.request, { url }).pipe(Effect.mapError((error) => error.cause)),
@@ -311,6 +350,16 @@ export function createWebServerSettings(options: {
         draft.mcpSignIns = mcpSignInRecord(states);
       });
     },
+    mcpSignInApp: (mcpServerId: string): Promise<McpSignInAppState> =>
+      runTeamEffect(
+        mcpSignInAppRequest(requireAdmin().admin.request, { mcpServerId }).pipe(
+          Effect.mapError((error) => error.cause),
+        ),
+      ),
+    saveMcpSignInApp: (input: SaveMcpSignInAppInput) =>
+      changeMcpSignInApp((admin) => saveMcpSignInAppRequest(admin.request, input)),
+    removeMcpSignInApp: (mcpServerId: string) =>
+      changeMcpSignInApp((admin) => removeMcpSignInAppRequest(admin.request, { mcpServerId })),
     testMcpServer: (config: McpServerConfig): Promise<McpTestResult> =>
       runTeamEffect(
         testMcpServerRequest(requireAdmin().admin.request, { config }).pipe(Effect.mapError((error) => error.cause)),

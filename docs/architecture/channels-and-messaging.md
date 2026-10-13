@@ -28,6 +28,11 @@ to, so one host cannot sign an action for another.
 
 ## Shared channel chats
 
+> **Deprecated.** The application archives every channel at start (`ChannelService.retire`), the host
+> does not advertise `channel-chats-v1`, and agents get no channel tools. The data stays in
+> `openbot.db`. The next release removes the channel code and data. Agents in one sidebar section work
+> together through `section_teammates` in their instructions.
+
 Channels are separate from sidebar sections. A channel has one host, a purpose, participating agents,
 a selected lead, and linked agent conversations. Agent membership selects who can receive work.
 It does not restrict human access: each authenticated server member can read and use its channels.
@@ -182,7 +187,10 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   orchestrator agent) and `projection_messaging_threads` (one per external conversation, with the
   agent that answers it).
   Tokens are not in the database: `MessagingCredentialStore` keeps the bot token encrypted by
-  `safeStorage`, keyed by connection, and only its state crosses IPC.
+  `safeStorage`, keyed by connection, and only its state crosses IPC. Migration 36 adds
+  `projection_messaging_memories`, the facts of each connection (`MessagingMemoryStore`, the same
+  `MemoryStore` as agent and channel memories, with a connection for an owner). No code deletes a
+  connection, so the table has no cascade: disconnect keeps the facts.
 - **Orchestrator.** A message in a thread that has a link goes to the link's agent. A new conversation
   goes to the workspace's orchestrator; without one, Slack is told that no agent answers. The
   orchestrator is a normal agent (`slack-orchestrator.ts`): its description is its standing remit, and
@@ -203,7 +211,15 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   a Slack turn carries `messagingReturn`, the origin of that turn; `MailboxStore.enqueue` gives the
   answer to it that origin as `messaging`, so the answer runs in the same execution thread, and its
   turn posts to Slack as a follow-up. `DrainScheduler` asks `MessagingThreads.prepare` for the thread
-  and the prompt, which frames the text as external input and adds earlier messages of the thread.
+  and the prompt, which frames the text as external input and adds earlier messages of the thread
+  and the connection's facts, rebuilt each turn, so a new fact needs no provider-thread reload.
+  `MessagingService.#receive` names each user mention (`InboundMessage.mentionedUserIds`) with the
+  adapter's name cache; the adapters do the same for context messages.
+- **Tools.** `messaging_remember`, `messaging_forget_memory` and `messaging_history` are deferred
+  `openbot` tools. `OpenBotToolRouter` finds the link from the calling turn's execution thread and
+  refuses a call from any other thread; no argument names a connection or a channel. The history
+  tool calls the adapter's `recent` through `MessagingThreads.setHistorySource`. A fact is not saved
+  from a direct message.
 - **Order.** The one-turn-per-agent rule is unchanged, so Slack requests wait behind the agent's own
   work and behind channel work that holds the host. The Slack thread shows a waiting post.
 - **Replies.** `MessagingThreads` reports each turn start and end. `MessagingService` posts a status
@@ -218,12 +234,15 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   no invitation. It joins each new public channel on `channel_created`. A private channel needs
   `/invite`.
 - **Deduplication.** An in-memory set drops a redelivered event at once; the mailbox idempotency key
-  covers a restart. Events that arrive while no socket is open are lost after Slack's retries.
+  covers a restart, and a kept event that Signal sends again. Events that arrive while no socket is
+  open are lost after Slack's retries, except for a hosted server that starts.
 - **Screen.** **Server settings → Connectors → Slack** on the computer that runs the agents shows
   each workspace and its orchestrator, and a two-step dialog connects the workspace and adds the
   orchestrator on the model the user picks (`messaging:*`). A remote server shows no Slack page,
-  because the install returns to the host's own browser. A live connection counts as use, so a
-  hosted server does not idle out. **Connectors → Discord** is the same page for Discord
+  because the install returns to the host's own browser. A live connection does not count as use:
+  a hosted server sleeps, and Signal starts it for the next message that addresses OpenBot and keeps
+  that message, sealed to the host, until the host connects
+  ([Connector events](../hosted-servers.md#connector-events)). **Connectors → Discord** is the same page for Discord
   (`SlackIntegrationPanel` with `platform="discord"`). **Connectors → Telegram** has its own page
   (`TelegramIntegrationPanel`), with one row per chat and one orchestrator for all chats.
 

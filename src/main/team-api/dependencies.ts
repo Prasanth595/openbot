@@ -35,16 +35,21 @@ import type { Logger } from "@openbot/logging";
 import type { AgentService } from "../../backend/agent-service";
 import type { BrowserHost } from "../../backend/browser-host";
 import type { MailboxStore } from "../../backend/mailbox-store";
+import type { MessagingService } from "../../backend/messaging/messaging-service";
+import type { RoutineFlowsHandle } from "../../backend/routine-flows/routine-flows";
 import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { StorageUsageService } from "../../backend/storage-usage";
 import type { TeamChatStore } from "../../backend/team-chat-store";
 import type { AgentImportService } from "../agent-import-service";
 import type { BrowserViewGateway } from "../browser-view-gateway";
+import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
+import type { ProviderHostSignIns } from "../provider-host-sign-ins";
 import type { RemoteScreenGateway } from "../remote-screen-gateway";
+import type { SignInRelayHost } from "../sign-in-relay-host";
 import type { TeamStore } from "../team-store";
 
 type TeamApiAgentMethods = Pick<
@@ -98,6 +103,7 @@ type TeamApiAgentMethods = Pick<
   | "readConversationFor"
   | "readConversationPageFor"
   | "searchConversationMessages"
+  | "searchConversationFiles"
   | "markConversationRead"
   | "markConversationUnread"
   | "prepareImportedAttachments"
@@ -137,7 +143,45 @@ export type TeamApiMcpServers = Pick<
 >;
 
 /** Its presence, beside `mcpServers`, is what `#protocolSupport` advertises `mcp-sign-in-v1` on. */
-export type TeamApiMcpSignIns = Pick<McpHostSignIns, "start" | "status" | "cancel" | "signOut" | "list">;
+export type TeamApiMcpSignIns = Pick<
+  McpHostSignIns,
+  "start" | "status" | "cancel" | "signOut" | "list" | "app" | "saveApp" | "removeApp"
+>;
+
+/** `connectors-v1`: the GitHub connection and the messaging connections of this host. */
+export interface TeamApiConnectors {
+  github: Pick<GitHubConnectorService, "status" | "pages" | "connect" | "cancel" | "disconnect" | "repositories">;
+  messaging: Pick<
+    MessagingService,
+    | "slackOverview"
+    | "discordOverview"
+    | "telegramOverview"
+    | "connectSlackWorkspace"
+    | "connectDiscordGuild"
+    | "connectTelegramChat"
+    | "completeSlackWorkspace"
+    | "completeDiscordGuild"
+    | "disconnectSlackWorkspace"
+    | "disconnectDiscordGuild"
+    | "disconnectTelegramChat"
+    | "reconnect"
+    | "setEnabled"
+    | "addOrchestrator"
+    | "addTelegramOrchestrator"
+  >;
+}
+
+/** Its presence, beside `mcpServers`, is what `#protocolSupport` advertises `sign-in-relay-v1` on. */
+export type TeamApiSignInRelay = Pick<
+  SignInRelayHost,
+  "startMcp" | "startProvider" | "startLink" | "status" | "complete" | "cancel"
+>;
+
+/**
+ * Its presence is what `#protocolSupport` advertises `provider-host-sign-in-v1` on. Only a Linux host
+ * passes it: there the Gemini CLI prints its sign-in page instead of opening a browser.
+ */
+export type TeamApiProviderHostSignIns = Pick<ProviderHostSignIns, "start" | "status" | "cancel">;
 
 /** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
 export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
@@ -146,6 +190,15 @@ export type TeamApiHostedSites = Pick<HostedSiteDesktopService, "listServerSites
 
 /** Its presence is what `#protocolSupport` advertises `agent-import-v1` on. Any member can use it. */
 export type TeamApiAgentImport = Pick<AgentImportService, "stageUpload" | "apply" | "discard">;
+
+/**
+ * Its presence is what `#protocolSupport` advertises `routine-flows-v1` on. Any member who can see
+ * every agent a flow touches can use it.
+ */
+export type TeamApiRoutineFlows = Pick<
+  RoutineFlowsHandle,
+  "canvas" | "savePosition" | "removePosition" | "connect" | "disconnect" | "updateLink" | "agentsOf"
+>;
 
 /**
  * The admin routes, one member per optional capability. A member's presence is what
@@ -259,11 +312,15 @@ export interface TeamApiOptions {
   channels?: ChannelService;
   mcpServers?: TeamApiMcpServers;
   mcpSignIns?: TeamApiMcpSignIns;
+  signInRelay?: TeamApiSignInRelay;
+  connectors?: TeamApiConnectors;
+  providerHostSignIns?: TeamApiProviderHostSignIns;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;
   hostedSites?: TeamApiHostedSites;
   agentImport?: TeamApiAgentImport;
+  routineFlows?: TeamApiRoutineFlows;
   admin?: TeamApiAdmin;
   appVersion?: string;
   store: TeamStore;

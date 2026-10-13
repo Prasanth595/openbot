@@ -28,10 +28,15 @@ import {
   Trash2,
 } from "@openbot/ui";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
-import { McpSignInPageDialog } from "@openbot/ui/features/settings/McpSignInPage";
+import {
+  McpSignInPageDialog,
+  McpSignInRelayDialog,
+  type McpSignInRelaySource,
+} from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createStore, For, onCleanup, Show } from "solid-js";
+import { type McpPanelSignInApp, McpSignInAppSection } from "./McpSignInAppSection";
 import {
   emptyMcpConfig,
   isMcpSignInCancelled,
@@ -115,6 +120,8 @@ export interface McpPanelSignIn {
   /** Stops the wait for the browser; the pending `start` then answers that it was cancelled. */
   cancel: (url: string) => Promise<void>;
   signOut: (id: string) => Promise<void>;
+  /** A pre-registered OAuth app for a server without client registration. Absent when the host has none. */
+  app?: McpPanelSignInApp | undefined;
 }
 
 interface McpPanelRemoteSignIn {
@@ -124,6 +131,17 @@ interface McpPanelRemoteSignIn {
   clipboard: boolean;
   /** The host tab with the sign-in page, by the address it signs in to, once the host opened it. */
   pages: Record<string, string>;
+  /** A host with `sign-in-relay-v1` opens no tab: the page is in the user's own browser. Absent for an older host. */
+  relay?: McpPanelRelay | undefined;
+}
+
+interface McpPanelRelay {
+  /** The relayed sign-in page, by the address it signs in to, while it waits. */
+  pages: Record<string, McpSignInRelaySource>;
+  /** Sends the address that the browser shows at the end of the sign-in. */
+  paste: (url: string, address: string) => Promise<void>;
+  /** Opens the page in the user's browser. Nothing opens it before the user saw its host name and asked. */
+  open: (url: string) => void | Promise<void>;
 }
 
 /** A test or a sign-in that has answered. */
@@ -362,10 +380,18 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
         : Object.entries(state.tests)
             .filter(([, entry]) => entry.test.status === "signing-in")
             .map(([rowId, entry]) => ({ url: entry.config.url, name: entry.config.name, rowId }))[0];
-      const tabId = waiting ? remote.pages[waiting.url] : undefined;
-      return waiting && tabId ? { ...waiting, tabId, remote } : null;
+      if (!waiting) return null;
+      const relay = remote.relay?.pages[waiting.url];
+      if (relay) return { ...waiting, tabId: null, relay, remote };
+      const tabId = remote.pages[waiting.url];
+      return tabId ? { ...waiting, tabId, relay: null, remote } : null;
     },
-    { equals: (previous, next) => previous?.tabId === next?.tabId },
+    {
+      equals: (previous, next) =>
+        previous?.tabId === next?.tabId &&
+        previous?.relay?.authorizeHost === next?.relay?.authorizeHost &&
+        previous?.relay?.listening === next?.relay?.listening,
+    },
   );
 
   // The dialog leaves with its sign-in, before it can give the focus back, and what opened it can be
@@ -379,7 +405,7 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
       if (previous === undefined || rowId === previous) return;
       const target = previous === null ? formTestButton : menuButtons[previous];
       requestAnimationFrame(() => {
-        if (target?.isConnected && !document.querySelector(".mcp-sign-in-page-dialog"))
+        if (target?.isConnected && !document.querySelector(".mcp-sign-in-page-dialog, .mcp-sign-in-relay-dialog"))
           target.focus({ preventScroll: true });
       });
     },
@@ -984,6 +1010,19 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
                 </For>
               </McpRowList>
             </SettingsSection>
+
+            <Show when={props.signIn?.app}>
+              {(app) => (
+                <McpSignInAppSection
+                  api={app()}
+                  mcpServerId={state.editingId}
+                  urlChanged={state.draft.url.trim() !== state.baseline.url.trim()}
+                  hostName={props.signIn?.remote?.hostName}
+                  relayed={props.signIn?.remote?.relay !== undefined}
+                  disabled={disabled()}
+                />
+              )}
+            </Show>
           </SlidingTabs.Content>
         </SlidingTabs.ContentSlot>
 
@@ -1081,12 +1120,28 @@ export function ServerMcpPanel(props: ServerMcpPanelProps) {
       {/* Keyed by the page, so each sign-in opens a dialog of its own and a Cancel does not carry over. */}
       <Show when={remotePage()} keyed>
         {(page) => (
-          <McpSignInPageDialog
-            name={page.name}
-            hostName={page.remote.hostName}
-            page={{ runtime: page.remote.runtime, tabId: page.tabId, clipboard: page.remote.clipboard }}
-            onCancel={() => cancelSignIn(page.url)}
-          />
+          <Show
+            when={page.relay}
+            fallback={
+              <McpSignInPageDialog
+                name={page.name}
+                hostName={page.remote.hostName}
+                page={{ runtime: page.remote.runtime, tabId: page.tabId ?? "", clipboard: page.remote.clipboard }}
+                onCancel={() => cancelSignIn(page.url)}
+              />
+            }
+          >
+            {(relay) => (
+              <McpSignInRelayDialog
+                name={page.name}
+                hostName={page.remote.hostName}
+                page={relay()}
+                onOpen={() => page.remote.relay?.open(page.url)}
+                onPaste={(address) => page.remote.relay?.paste(page.url, address) ?? Promise.resolve()}
+                onCancel={() => cancelSignIn(page.url)}
+              />
+            )}
+          </Show>
         )}
       </Show>
 

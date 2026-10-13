@@ -40,6 +40,7 @@ import type {
   TeamMemberSummary,
   TeamPresenceSnapshot,
   TeamRealtimeEvent,
+  TeamRole,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
 import {
@@ -163,6 +164,8 @@ export interface DevelopmentRemoteServerConnection {
   publicKey: string;
   username: string;
   sessionToken: string;
+  /** The role that the host gives the technical member. A file from an older host has none. */
+  role?: TeamRole | undefined;
 }
 
 const REMOTE_DUPLICATION_TIMEOUT_MS = TEAM_WEBRTC_REMOTE_REQUEST_TIMEOUT_MILLISECONDS;
@@ -777,7 +780,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
         encryptedToken: yield* remoteDecode(() => this.#store.sealToken(input.sessionToken)),
         remoteDesktopAvailable: false,
         logoVersion: verifiedIdentity.logoVersion,
-        role: "member",
+        role: input.role ?? "member",
       };
       this.#connections.setCompatibility(stored.id, verifiedIdentity.compatibility);
       this.#connections.clearIssue(stored.id);

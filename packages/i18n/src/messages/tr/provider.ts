@@ -54,6 +54,7 @@ export const messages = {
   "provider.aria.retry": "{name} için tekrar dene",
   "provider.aria.install": "{name} sağlayıcısını yükle",
   "provider.aria.signIn": "{name} giriş yap",
+  "provider.aria.codeFallback": "{name} için kod ile giriş yap",
   "provider.aria.moreActions": "{name} için diğer eylemler",
 
   "provider.aria.use": "OpenBot'ta {name} kullan",
@@ -79,6 +80,10 @@ export const messages = {
   "provider.codeLogin.pasteExpired": "Bu giriş işlemi durduruldu.",
   "provider.codeLogin.pasteExpiresIn": "Sizi bekliyor. Bu giriş işlemi {time} içinde sona erecek.",
   "provider.codeLogin.linkTitle": "{name} hesabına başka bir cihazda giriş yapın",
+  "provider.codeLogin.pageTitle": "{name} oturumu aç",
+  "provider.codeLogin.pageDescription": "Bu sayfa {host} üzerindeki tarayıcıda açık. Burada oturum açın.",
+  "provider.codeLogin.relayStarting": "{name} oturum açma işlemi {host} üzerinde başlatılıyor…",
+  "provider.codeLogin.pageOpening": "{name} oturum açma sayfası {host} üzerinde açılıyor…",
   "provider.codeLogin.linkStep": "{name} hesabına giriş yapın. OpenBot kendiliğinden devam eder.",
 
   "provider.picker.noEndpoints": "Henüz uç nokta yok",
@@ -118,6 +123,10 @@ export const messages = {
   "provider.museKey.description":
     "Ana makineye bir Meta API anahtarı kaydedin veya oturum açmak için Muse CLI'yi kullanın.",
   "provider.museKey.label": "Meta API anahtarı",
+  "provider.geminiKey.title": "Gemini API anahtarı",
+  "provider.geminiKey.description":
+    "Ana makineye bir Gemini API anahtarı kaydedin veya Google ile oturum açmak için Bağlan'ı seçin.",
+  "provider.geminiKey.label": "Gemini API anahtarı",
   "provider.openCodeKey.title": "OpenCode Go'ya giriş yapın",
   "provider.openCodeKey.description":
     "Ücretsiz modeller hesap gerektirmez. Bir anahtar, ücretli Go modellerinin kilidini açar.",

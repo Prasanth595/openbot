@@ -71,6 +71,16 @@ export const messages = {
   "connector.github.disconnectEffectTools": "Tüm ajanlar GitHub araçlarını, gh ve git erişimini kaybeder.",
   "connector.github.disconnectEffectRevoke": "Ardından OpenBot yetkisini kaldırabileceğiniz GitHub açılır.",
   "connector.github.disconnectEffectKept": "Sohbetler, dosyalar ve ajan hafızası bu bilgisayarda kalır.",
+  // The same text for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.github.descriptionHost":
+    "{host} sunucusundaki her ajan GitHub depolarınızı, sorunlarınızı (issues), çekme isteklerinizi (pull requests), gh ve git araçlarını kullanabilir.",
+  "connector.github.connectedSummaryHost": {
+    one: "{count} depo · {host} sunucusundaki her ajan",
+    other: "{count} depo · {host} sunucusundaki her ajan",
+  },
+  "connector.github.disconnectConfirmDescriptionHost":
+    "Bağlantıyı kesmek @{login} oturumunu {host} sunucusundan kaldırır.",
+  "connector.github.disconnectEffectKeptHost": "Sohbetler, dosyalar ve ajan hafızası {host} sunucusunda kalır.",
   "connector.github.keepConnected": "Bağlı kal",
   "connector.github.close": "Kapat",
   // Bir entegrasyon sayfasının onu kaldıran eylemi içeren son bölümü.
@@ -78,6 +88,7 @@ export const messages = {
 
   // Sunucu ayarları > Bağlayıcılar: entegrasyonlar listesi. Her satır kendi sayfasını açar.
   "connector.hub.onThisComputer": "Bu bilgisayarda",
+  "connector.hub.onHost": "{host} üzerinde",
   "connector.hub.notSetUp": "Ayarlanmadı",
   "connector.hub.available": "Kullanılabilir",
   // {name} Slack gibi bir entegrasyonun adıdır.
@@ -149,6 +160,8 @@ export const messages = {
   "connector.slack.disconnectTitle": "{workspace} bağlantısı kesilsin mi?",
   "connector.slack.disconnectDescription":
     "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack token'ını bu bilgisayardan kaldırır.",
+  "connector.slack.disconnectDescriptionHost":
+    "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack token'ını {host} üzerinden kaldırır.",
   "connector.slack.disconnectEffect": "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.slack.removeEffectKept": "Konuşmalar ve Slack Düzenleyicisi OpenBot'ta kalır.",
   "connector.slack.keep": "Bağlı tut",
@@ -216,6 +229,8 @@ export const messages = {
   "connector.discord.disconnectTitle": "{workspace} bağlantısı kesilsin mi?",
   "connector.discord.disconnectDescription":
     "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını bu bilgisayardan kaldırır.",
+  "connector.discord.disconnectDescriptionHost":
+    "OpenBot {workspace} içinde yanıt vermeyi bırakır ve Discord bağlantısını {host} üzerinden kaldırır.",
   "connector.discord.disconnectEffect":
     "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.discord.removeEffectKept": "Konuşmalar ve Discord Düzenleyicisi OpenBot'ta kalır.",
@@ -253,6 +268,8 @@ export const messages = {
     "OpenBot botu artık bu sohbette değil. Sohbetin bağlantısını kesin, sonra botu yeniden ekleyin.",
   "connector.telegram.helpRelayUnavailable":
     "OpenBot bu bilgisayarda Telegram mesajlarını alamıyor. Oturum açın, Sunucu ayarlarında bu bilgisayara bir ad verin ve OpenBot'u açık tutun.",
+  "connector.telegram.helpRelayUnavailableHost":
+    "{host} üzerindeki OpenBot Telegram mesajlarını alamıyor. {host} üzerinde oturum açın, Sunucu ayarlarında sunucuya bir ad verin ve OpenBot'u açık tutun.",
   "connector.telegram.helpError": "OpenBot bu sohbete ulaşamıyor. Yeniden bağlanın veya sohbetin bağlantısını kesin.",
   "connector.telegram.retryAt": "Telegram OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.telegram.pause": "Duraklat",

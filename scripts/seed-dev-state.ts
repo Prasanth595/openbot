@@ -593,7 +593,12 @@ async function seedRoutineRun(
   status: "succeeded" | "failed",
   error: string | null = null,
 ): Promise<void> {
-  const run = routines.createRun(routine, kind === "scheduled" ? routine.trigger.id : null, kind, scheduledFor);
+  const run = routines.createRun(
+    routine,
+    kind === "scheduled" ? routine.trigger.id : null,
+    kind === "scheduled" ? "scheduled" : "test",
+    scheduledFor,
+  );
   const receipt = await runCauseEffect(
     mailbox.enqueue({
       sender: {
@@ -1260,7 +1265,7 @@ async function seedLaunchRoom(
   routines.attachRequest(standupRun.id, requestStandup);
   routines.updateRunStatus(standupRun.id, "succeeded");
   // A fire that never reached the channel: the run holds the error and no request message.
-  const blockedRun = routines.createRun(standup, null, "manual", clock.at(4 * HOUR));
+  const blockedRun = routines.createRun(standup, null, "test", clock.at(4 * HOUR));
   routines.updateRunStatus(blockedRun.id, "failed", "Every member was busy when the routine fired.");
 
   const memories = new ChannelMemoryStore(store.database);

@@ -74,7 +74,7 @@ import { deviceSendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "..
 import { AgentMemoriesModal } from "../conversation/AgentMemoriesModal";
 import { AgentRoutinesSettings } from "../conversation/AgentRoutinesSettings";
 import { attachmentFilePreview } from "../conversation/attachment-preview";
-import { htmlAttachmentPageUrl } from "../conversation/chat-visual-url";
+import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "../conversation/chat-visual-url";
 import { EMPTY_DRAFT } from "../conversation/composer-draft";
 import { useConversationController } from "../conversation/conversation-controller-context";
 import type { ComposerDraft } from "../conversation/conversation-types";
@@ -170,7 +170,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
         });
       };
       load();
-      onCleanup(port.subscribe(load));
+      return port.subscribe(load);
     },
   );
   createEffect(
@@ -185,7 +185,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
         });
       };
       load();
-      onCleanup(port.subscribe(load));
+      return port.subscribe(load);
     },
   );
   // The drafts live in the conversation controller, so each channel keeps its own through a switch
@@ -212,11 +212,45 @@ export function ChannelConversation(props: ChannelConversationProps) {
         updateDraft(selectedId, (draft) => ({ ...draft, attachments: [...draft.attachments, ...attachments] }));
     });
   /** Dropped or pasted files. Only a browser runtime imports them here; the desktop preload imports its own. */
-  const canImportFiles = () => Boolean(runtime().importAttachments && channels.state.page?.channel.archived === false);
+  const canImportFiles = () =>
+    Boolean(
+      (runtime().importAttachments || runtime().onAttachmentImport) && channels.state.page?.channel.archived === false,
+    );
   const importFiles = (files: File[]) => {
     const importAttachments = runtime().importAttachments;
     if (importAttachments && canImportFiles() && files.length > 0) addAttachments(() => importAttachments(files));
   };
+  // The desktop preload imports a drop or a paste itself and reports it here. The channel open when the
+  // import starts owns the result. A result that no channel owns is discarded, so it does not stay on disk.
+  const desktopImports = new Map<string, PromiseWithResolvers<AttachmentSummary[]>>();
+  createEffect(
+    () => runtime().onAttachmentImport,
+    (onAttachmentImport) => {
+      if (!onAttachmentImport) return;
+      // Returned, not `onCleanup`: an effect callback has no owner, so a closed channel kept its listener
+      // and discarded every import the agent composer then showed (#1866).
+      const unsubscribe = onAttachmentImport((event) => {
+        if (event.type === "started") {
+          if (!canImportFiles()) return;
+          const pending = Promise.withResolvers<AttachmentSummary[]>();
+          desktopImports.set(event.requestId, pending);
+          addAttachments(() => pending.promise);
+          return;
+        }
+        const pending = desktopImports.get(event.requestId);
+        desktopImports.delete(event.requestId);
+        if (event.type === "error") pending?.reject(new Error(event.message));
+        else if (pending) pending.resolve(event.attachments);
+        else
+          for (const attachment of event.attachments)
+            void runtime().agent.discardDraftAttachment?.(attachment.id, event.serverId);
+      });
+      return () => {
+        unsubscribe();
+        desktopImports.clear();
+      };
+    },
+  );
   const [dropActive, setDropActive] = createSignal(false);
   const [copyError, setCopyError] = createSignal<UserErrorDetails | null>(null);
   createEffect(
@@ -809,6 +843,7 @@ export function ChannelConversation(props: ChannelConversationProps) {
                               onPreview={(attachment) => void previewChannelAttachment(attachment)}
                               onAttachmentAction={channelAttachmentAction}
                               onDownload={(attachment) => channelAttachmentAction(attachment, "download")}
+                              mediaSource={runtime().attachmentMedia}
                               actions={
                                 <MessageActions
                                   message={entry()?.message ?? initialEntry.message}
@@ -1099,6 +1134,9 @@ export function ChannelConversation(props: ChannelConversationProps) {
                     onOpenWorkspaceFile={() => undefined}
                     sourceUrl={file().attachment.previewUrl}
                     pageUrl={htmlAttachmentPageUrl(file().attachment)}
+                    pageHtml={
+                      runtime().visualPage ? htmlAttachmentPageHtml(file().attachment, file().preview) : undefined
+                    }
                     onOpenExternally={() => channelAttachmentAction(file().attachment, "open")}
                     onDownload={() => channelAttachmentAction(file().attachment, "download")}
                     onReveal={
