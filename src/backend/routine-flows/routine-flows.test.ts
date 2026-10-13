@@ -86,7 +86,7 @@ async function setup() {
 
   /** A run of the routine that its own agent answered, or that failed. */
   const finishRun = (outcome: { answer: string } | { error: string }, of: Routine = routine) => {
-    const run = routines.createRun(of, null, "manual", new Date().toISOString());
+    const run = routines.createRun(of, null, "test", new Date().toISOString());
     const deliveryId = `owner-${run.id}`;
     routines.attachDelivery(run.id, deliveryId);
     if ("answer" in outcome) {

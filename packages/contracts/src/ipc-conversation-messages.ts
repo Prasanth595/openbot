@@ -263,8 +263,15 @@ function isConversationDelivery(value: unknown): boolean {
 }
 
 /**
+ * The item type of a text answer that a quiet routine run kept: the run had nothing to report, so the
+ * answer is not news. It does not count as unread, change the preview, or go to a Team API client.
+ * The desktop chat shows it inside the run, which starts collapsed.
+ */
+export const ROUTINE_QUIET_ANSWER_ITEM_TYPE = "routine_quiet_answer";
+
+/**
  * The answer an agent gave in one turn: its last message of that turn that says something to the
- * reader. Commentary, a question prompt and a plan are not the answer.
+ * reader. Commentary, a question prompt, a plan and a quiet routine answer are not the answer.
  */
 export function latestTurnAnswer(
   messages: readonly ConversationMessage[],
@@ -279,6 +286,7 @@ export function latestTurnAnswer(
         message.itemType !== "commentary" &&
         message.itemType !== "question_prompt" &&
         message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+        message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE &&
         message.text.trim(),
     );
 }

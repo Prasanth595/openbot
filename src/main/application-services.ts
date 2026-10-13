@@ -1253,6 +1253,7 @@ export async function createApplicationServices({
     browser,
     visualPreview: new ChatVisualPreviewer(),
     hostMemory,
+    retireChannels: true,
     requestTimeoutMs: 30_000,
     offProviders: providerUse.off(),
     saveProviderUse: (provider, on) =>
@@ -1676,7 +1677,8 @@ export async function createApplicationServices({
     mailbox,
     browser,
     chat: teamChatStore,
-    channels: service.channels,
+    // No `channels`: channels are deprecated, so the host does not advertise `channel-chats-v1`
+    // and every client hides them. `retireChannels` archives them at start.
     // Present, so the host advertises `mcp-servers-v1`. The routes are admin-only.
     mcpServers: service,
     // Present, so the host advertises `mcp-sign-in-v1`. The routes are admin-only.

@@ -54,6 +54,8 @@ export const messages = {
   "error.backend.channelNotFound": "Kanal bulunamadı.",
   "error.backend.channelMemberUnavailable": "Bir kanal üyesi kullanılamıyor.",
   "error.backend.channelArchived": "Mesaj göndermeden veya görevleri değiştirmeden önce bu kanalı geri yükleyin.",
+  "error.backend.channelsRetired":
+    "Kanallar artık desteklenmiyor. Birlikte çalışmaları için ajanları kenar çubuğunda aynı bölüme koyun.",
   "error.backend.channelReferenceUnavailable": "Referans verilen kanal mesajı kullanılamıyor.",
   "error.backend.channelTaskNotFound": "Kanal görevi bulunamadı.",
   "error.backend.channelTaskComplete": "Bu görev zaten tamamlandı.",

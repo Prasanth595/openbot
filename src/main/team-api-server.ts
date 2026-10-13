@@ -17,6 +17,7 @@ import {
   type DuplicateAgentResult,
   isAgentEvent,
   isTeamRealtimeEvent,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   type SidebarLayoutSnapshot,
   type TeamMemberSummary,
   type TeamPresenceSnapshot,
@@ -1038,7 +1039,8 @@ export class TeamApiServer {
         event.type === "conversation" &&
         (!connection.capabilities.has("routine-event-markers") ||
           !connection.capabilities.has("routine-run-event-markers") ||
-          !connection.capabilities.has("hosted-site-event-markers"))
+          !connection.capabilities.has("hosted-site-event-markers") ||
+          event.snapshot.messages.some((message) => message.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE))
       ) {
         const key = `${eventProtocol(connection.capabilities)}:${connection.capabilities.has("opencode")}:${connection.capabilities.has("routine-event-markers")}:${connection.capabilities.has("routine-run-event-markers")}:${connection.capabilities.has("hosted-site-event-markers")}:${encodingOptions.preserveSemanticTags}`;
         let filtered = filteredConversationPayloads.get(key);

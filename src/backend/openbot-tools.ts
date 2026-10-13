@@ -30,7 +30,6 @@ import {
   CLOSE_WAIT_TOOL,
   closeWaitToolSchema,
 } from "./agent-waits/agent-waits";
-import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
 import { ROUTINE_FLOW_TOOL_DEFINITIONS } from "./routine-flows/routine-flow-tools";
 import { routineScheduleZodSchema } from "./routine-tool-schema";
 
@@ -83,8 +82,8 @@ export const htmlPreviewToolSchema = z.object({
 });
 
 /** Shared declarations for Codex, Grok, and Claude. Service handlers enforce execution rules. */
+// Channel tools are left out: channels are deprecated and archived at start.
 export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
-  ...CHANNEL_TOOL_DEFINITIONS,
   ...HISTORY_TOOL_DEFINITIONS,
   ...DATA_TOOL_DEFINITIONS,
   ...LOCAL_SKILL_TOOL_DEFINITIONS,
@@ -258,7 +257,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: ROUTINE_NO_UPDATE_TOOL,
     description:
-      "Use only in a scheduled routine run, when the routine task gives nothing to report. OpenBot then removes your text answers of this run and sends no notification; the run history still shows the run. Do not call it when you report anything. In a manual Test run, the user sees your answer.",
+      "Use only in a scheduled, script or webhook routine run, when the routine task gives nothing to report. OpenBot then collapses your text answers of this run into the run in the chat and sends no notification; the run history still shows the run. Do not call it when you report anything. In a manual Test run, the user sees your answer.",
     shape: {},
   },
   {

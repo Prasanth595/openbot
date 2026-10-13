@@ -2,8 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
-  "error.agent.historyUnavailable":
-    "Historia jest niedostępna dla tego żądania. Odczytaj ponownie najnowszą historię lub użyj channel_history do pracy z kanałem.",
+  "error.agent.historyUnavailable": "Historia jest niedostępna dla tego żądania. Odczytaj ponownie najnowszą historię.",
   "error.agent.toolRequestInvalid":
     "Nieprawidłowe argumenty wyszukiwania narzędzi. Użyj zadeklarowanego schematu i oryginalnej kwalifikowanej nazwy narzędzia.",
   "error.agent.approvalWhileDeleting": "Nie można udzielić zatwierdzenia podczas usuwania agenta.",

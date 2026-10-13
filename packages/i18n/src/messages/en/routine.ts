@@ -108,6 +108,8 @@ export const messages = defineMessages("routine", {
   "routine.history.title": "History",
   "routine.history.empty": "No runs yet.",
   "routine.history.manualRun": "Manual · {time}",
+  "routine.history.scriptRun": "Script · {time}",
+  "routine.history.webhookRun": "Webhook · {time}",
   "routine.history.openRun": "Open {run} in chat",
   "routine.history.today": "Today at {time}",
   "routine.history.yesterday": "Yesterday at {time}",
