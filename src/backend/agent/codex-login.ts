@@ -1,5 +1,6 @@
 import type { ProviderCodeLoginStart } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
+import { classifyUserError } from "@openbot/user-errors";
 import { Deferred, Effect, Result, Schema } from "effect";
 import type { AgentClient } from "./../agent-client";
 import { type CodexCliInfo, resolveCodexCli } from "./../cli";
@@ -273,7 +274,15 @@ export class CodexLoginFlow {
             if (!this.#host.hasActiveClient()) {
               const existing = yield* client
                 .request("account/read", { refreshToken: false }, decodeAccountReadResult)
-                .pipe(toCodexLoginFailed);
+                .pipe(
+                  toCodexLoginFailed,
+                  // An expired sign-in fails this check too, such as "workspace routing discovery
+                  // unauthorized (401)". Read it as no account, so that the new sign-in can start.
+                  Effect.catchIf(
+                    (failure) => classifyUserError(failure.cause) === "auth",
+                    () => Effect.succeed({ account: null }),
+                  ),
+                );
               const account = existing.account;
               if (account?.type === "chatgpt") {
                 yield* this.#host.activate(client, resolved, account).pipe(toCodexLoginFailed);
