@@ -104,6 +104,7 @@ export function ConversationTimeline() {
     messageVirtualizer,
     newMessageCount,
     timelineMessages,
+    toggleRoutineRun,
     timelineIndexById,
     unreadBoundaryMessageId,
     moveChatSearch,
@@ -447,6 +448,7 @@ export function ConversationTimeline() {
                                         onSelectAgent={props.onSelectAgent}
                                         onOpenRoutine={openRoutineSettings}
                                         onOpenHostedSite={(url) => void openExternalMessageUrl(url)}
+                                        onToggleRoutineRun={toggleRoutineRun}
                                       />
                                     }
                                   >

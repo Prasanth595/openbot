@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "チャンネルのメンバーを使用できません。",
   "error.backend.channelArchived":
     "メッセージを送信したりタスクを変更したりする前に、このチャンネルを復元してください。",
+  "error.backend.channelsRetired":
+    "チャンネルはサポートされなくなりました。エージェントを同じサイドバーのセクションに入れると、一緒に作業できます。",
   "error.backend.channelReferenceUnavailable": "参照先のチャンネルメッセージを使用できません。",
   "error.backend.channelTaskNotFound": "チャンネルのタスクが見つかりません。",
   "error.backend.channelTaskComplete": "このタスクはすでに完了しています。",

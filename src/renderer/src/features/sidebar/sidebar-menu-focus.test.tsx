@@ -89,7 +89,7 @@ it.each([
 ])("keeps the real plus editor usable when %s with %s selection", async (order, method) => {
   const { onMutateLayout } = renderSidebar();
   const schedule = controlCloseSchedule();
-  const trigger = screen.getByRole("button", { name: "New agent or channel" });
+  const trigger = screen.getByRole("button", { name: "New agent or section" });
   trigger.focus();
   const draft = screen.getByRole("textbox", { name: "Conversation draft" });
   await fireEvent.input(draft, { target: { value: "Keep the unsent body" } });
@@ -201,7 +201,7 @@ it("renames through the actual header menu after its trigger disconnects", async
 });
 
 async function openEditor() {
-  const trigger = screen.getByRole("button", { name: "New agent or channel" });
+  const trigger = screen.getByRole("button", { name: "New agent or section" });
   trigger.focus();
   await fireEvent.keyDown(trigger, { key: "Enter" });
   const item = await screen.findByRole("menuitem", { name: "New section" });
@@ -271,7 +271,7 @@ it("keeps validation and failed saves editable for another attempt", async () =>
 it.each(["Escape", "outside"])("restores the plus trigger on ordinary %s dismissal", async (dismiss) => {
   renderSidebar();
   const schedule = controlCloseSchedule();
-  const trigger = screen.getByRole("button", { name: "New agent or channel" });
+  const trigger = screen.getByRole("button", { name: "New agent or section" });
   trigger.focus();
   await fireEvent.pointerDown(trigger, { button: 0 });
   const menu = await screen.findByRole("menu");
@@ -287,7 +287,7 @@ it.each(["Escape", "outside"])("restores the plus trigger on ordinary %s dismiss
 
 it("does not let old restore callbacks steal a rapidly reopened menu or its next editor", async () => {
   renderSidebar();
-  const trigger = screen.getByRole("button", { name: "New agent or channel" });
+  const trigger = screen.getByRole("button", { name: "New agent or section" });
   trigger.focus();
   await fireEvent.pointerDown(trigger, { button: 0 });
   const menu = await screen.findByRole("menu");
@@ -319,7 +319,7 @@ it("hands the real New channel menu action to a Dialog without an expired menu r
       </Dialog.Portal>
     </Dialog.Root>
   ));
-  const trigger = screen.getByRole("button", { name: "New agent or channel" });
+  const trigger = screen.getByRole("button", { name: "New agent or section" });
   trigger.focus();
   await fireEvent.pointerDown(trigger, { button: 0 });
   const item = await screen.findByRole("menuitem", { name: "New channel" });
@@ -362,7 +362,7 @@ it("keeps ordinary Item selection immediate and a non-closing Item open", async 
 it("drops a selected handoff when the menu owner unmounts", async () => {
   const onCreateChannel = vi.fn();
   const { unmount } = renderSidebar({ onCreateChannel });
-  await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or channel" }), { button: 0 });
+  await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or section" }), { button: 0 });
   const item = await screen.findByRole("menuitem", { name: "New channel" });
   const schedule = controlCloseSchedule();
   await fireEvent.pointerUp(item, { button: 0 });

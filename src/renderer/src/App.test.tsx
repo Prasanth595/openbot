@@ -567,7 +567,7 @@ describe("OpenBot connected desktop shell", () => {
   it.each(["", "   "])("creates an additional agent with a blank purpose (%j)", async (purpose) => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
-    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or channel" }), { button: 0 });
+    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or section" }), { button: 0 });
     await fireEvent.pointerUp(await screen.findByRole("menuitem", { name: "New agent" }), { button: 0 });
     await screen.findByRole("heading", { name: "Create a new agent" });
 
@@ -600,7 +600,7 @@ describe("OpenBot connected desktop shell", () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
 
-    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or channel" }), { button: 0 });
+    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or section" }), { button: 0 });
     await fireEvent.pointerUp(await screen.findByRole("menuitem", { name: "New agent" }), { button: 0 });
     expect(await screen.findByRole("heading", { name: "Create a new agent" })).toBeInTheDocument();
     expect(window.openbot.agent.createAgent).not.toHaveBeenCalled();
@@ -652,7 +652,7 @@ describe("OpenBot connected desktop shell", () => {
     render(() => <App />);
     await screen.findByRole("heading", { name: "Chief" });
 
-    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or channel" }), { button: 0 });
+    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or section" }), { button: 0 });
     await fireEvent.pointerUp(await screen.findByRole("menuitem", { name: "New agent" }), { button: 0 });
     expect(await screen.findByRole("heading", { name: "Create a new agent" })).toBeInTheDocument();
     // The hard-coded codex default would fail against this catalog; the saved choice stands instead.
@@ -680,7 +680,7 @@ describe("OpenBot connected desktop shell", () => {
     await fireEvent.click(await screen.findByRole("button", { name: /Alice/ }));
     expect(await screen.findByRole("main", { name: "Direct conversation with Alice" })).toBeInTheDocument();
 
-    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or channel" }), { button: 0 });
+    await fireEvent.pointerDown(screen.getByRole("button", { name: "New agent or section" }), { button: 0 });
     await fireEvent.pointerUp(await screen.findByRole("menuitem", { name: "New agent" }), { button: 0 });
 
     expect(await screen.findByRole("heading", { name: "Create a new agent" })).toBeInTheDocument();

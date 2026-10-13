@@ -51,7 +51,11 @@ import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { DiagramModelChoice } from "@openbot/ui/features/diagrams/DiagramNewAgentCard";
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
-import { ServerConnectionNotice, ServerPanelLoadNotice } from "@openbot/ui/features/servers/ServerConnectionNotice";
+import {
+  ConversationLoadNotice,
+  ServerConnectionNotice,
+  ServerPanelLoadNotice,
+} from "@openbot/ui/features/servers/ServerConnectionNotice";
 import { ServerRail } from "@openbot/ui/features/servers/ServerRail";
 import { createSettingsHostedServersStore } from "@openbot/ui/features/settings/stores/hosted-servers-store";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
@@ -858,6 +862,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const firstAgent = () => workspace.state.agentsLoaded && workspace.profiles().length === 0 && createSupported();
   /** An open channel still takes the pane, as a channel closes the desktop form. */
   const agentFormOpen = () => creating() || (firstAgent() && !channelOpen());
+  const agentChatOpen = () => !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView();
   /**
    * The provider that a server's provider step chose, by server. In memory only, as on desktop: the
    * saved setup choice is of the desktop computer, not of the server.
@@ -1130,19 +1135,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   onRetry={() => void workspace.retryPanels()}
                 />
               </Show>
-              <Show
-                when={
-                  workspace.state.status === "online" &&
-                  (workspace.conversation()?.error ||
-                    (!workspace.conversation()?.page && workspace.conversation()?.loading))
-                }
-              >
-                <ServerConnectionNotice
+              <Show when={workspace.state.status === "online" && agentChatOpen()}>
+                <ConversationLoadNotice
                   name={workspace.selected()?.name ?? ""}
-                  phase={workspace.conversation()?.error ? "blocked" : "loading"}
-                  initial={false}
-                  detail={workspace.conversation()?.error ?? null}
-                  busy={workspace.conversation()?.loading === true}
+                  loading={!workspace.conversation()?.page && workspace.conversation()?.loading === true}
+                  error={workspace.conversation()?.error ?? null}
                   onRetry={() => {
                     const id = workspace.state.selectedId;
                     if (id) void workspace.select(id);
@@ -1667,7 +1664,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               )}
             </Show>
           </Show>
-          <Show when={!agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView()}>
+          <Show when={agentChatOpen()}>
             <Conversation
               runtime={runtime}
               onOpenMarketplace={() => setMarketplaceOpen(true)}

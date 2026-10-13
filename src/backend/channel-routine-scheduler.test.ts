@@ -353,7 +353,7 @@ describe("ChannelRoutineScheduler", () => {
 
   it("resumes a queued run whose request id was saved before the command", async () => {
     const persisted = new ChannelRoutineStore(data.store.database);
-    const run = persisted.createRun(routine, null, "manual", "2026-08-25T12:00:00.000Z");
+    const run = persisted.createRun(routine, null, "test", "2026-08-25T12:00:00.000Z");
     persisted.attachRequest(run.id, "request-after-restart");
 
     expect(persisted.pendingRuns()).toEqual([
