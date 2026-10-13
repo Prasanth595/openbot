@@ -4,11 +4,13 @@
 
 import {
   DISCORD_CUSTOM_ID_PREFIX,
+  DISCORD_LIST_CHANNELS_LIMIT,
   DISCORD_LIST_MESSAGES_LIMIT,
   DISCORD_MESSAGE_TEXT_LIMIT,
   type DiscordApiErrorCode,
   type DiscordApiRequest,
   type DiscordButton,
+  type DiscordChannelSummary,
   type DiscordHistoryMessage,
 } from "@openbot/contracts/signal-protocol/discord-api";
 import { Effect, Schema } from "effect";
@@ -64,6 +66,7 @@ const discordApiRequestSchema = z.discriminatedUnion("op", [
   }),
   z.strictObject({ op: z.literal("member"), guildId: snowflakeSchema, userId: snowflakeSchema }),
   z.strictObject({ op: z.literal("channel"), guildId: snowflakeSchema, channelId: snowflakeSchema }),
+  z.strictObject({ op: z.literal("listChannels"), guildId: snowflakeSchema }),
   z.strictObject({
     op: z.literal("interactionReply"),
     guildId: snowflakeSchema,
@@ -133,6 +136,7 @@ type DiscordApiResult =
   | { messageId: string }
   | { name: string }
   | { messages: DiscordHistoryMessage[] }
+  | { channels: DiscordChannelSummary[] }
   | Record<string, never>;
 
 export interface DiscordApi {
@@ -145,6 +149,14 @@ const channelSchema = z.object({
   guild_id: snowflakeSchema.optional(),
   name: z.string().nullish(),
 });
+const guildChannelsSchema = z.array(
+  z.object({ id: snowflakeSchema, type: z.number().int(), name: z.string().nullish() }),
+);
+const activeThreadsSchema = z.object({
+  threads: z.array(z.object({ id: snowflakeSchema, guild_id: snowflakeSchema.optional(), name: z.string().nullish() })),
+});
+/** Text and announcement channels: the guild channels that take a message. */
+const POSTABLE_CHANNEL_TYPES = new Set([0, 5]);
 const userSchema = z.object({
   id: snowflakeSchema,
   username: z.string(),
@@ -298,6 +310,24 @@ export function makeDiscordApi(transport: DiscordTransport, state: DiscordState)
       case "channel": {
         const channel = yield* guildChannel(request.guildId, request.channelId);
         return { name: channel.name };
+      }
+      case "listChannels": {
+        const guildChannels = yield* send({ method: "GET", route: `/guilds/${request.guildId}/channels` }).pipe(
+          Effect.flatMap((value) => decode(guildChannelsSchema, value)),
+        );
+        const active = yield* send({ method: "GET", route: `/guilds/${request.guildId}/threads/active` }).pipe(
+          Effect.flatMap((value) => decode(activeThreadsSchema, value)),
+        );
+        const channels: DiscordChannelSummary[] = [
+          ...guildChannels
+            .filter((channel) => POSTABLE_CHANNEL_TYPES.has(channel.type))
+            .map((channel) => ({ id: channel.id, name: channel.name ?? "", kind: "channel" as const })),
+          ...active.threads
+            .filter((thread) => thread.guild_id === undefined || thread.guild_id === request.guildId)
+            .map((thread) => ({ id: thread.id, name: thread.name ?? "", kind: "thread" as const })),
+        ].slice(0, DISCORD_LIST_CHANNELS_LIMIT);
+        for (const channel of channels) state.rememberChannel(channel.id, request.guildId, channel.name);
+        return { channels };
       }
       case "interactionReply": {
         const token = state.interactionToken(request.interactionId, request.guildId);

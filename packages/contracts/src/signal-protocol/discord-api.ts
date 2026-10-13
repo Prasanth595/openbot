@@ -17,6 +17,9 @@ export const DISCORD_MESSAGE_TEXT_LIMIT = 2_000;
 /** The most messages one `listMessages` call returns. Discord's own page limit. */
 export const DISCORD_LIST_MESSAGES_LIMIT = 100;
 
+/** The most channels and threads one `listChannels` call returns. */
+export const DISCORD_LIST_CHANNELS_LIMIT = 500;
+
 /** The largest file a host uploads through Signal: Discord's default upload limit for a bot. */
 export const DISCORD_UPLOAD_BYTES_LIMIT = 10 * 1024 * 1024;
 
@@ -103,6 +106,8 @@ export type DiscordApiRequest =
   | { op: "listMessages"; guildId: string; channelId: string; after: string; limit: number }
   | { op: "member"; guildId: string; userId: string }
   | { op: "channel"; guildId: string; channelId: string }
+  /** The guild's text and announcement channels and its active threads. */
+  | { op: "listChannels"; guildId: string }
   /** A reply that only the person who pressed a button sees. */
   | { op: "interactionReply"; guildId: string; interactionId: string; content: string }
   /**
@@ -119,6 +124,13 @@ export interface DiscordHistoryMessage {
   content: string;
   replyToId: string | null;
   sentAt: string;
+}
+
+/** One place of `listChannels`. A thread is a channel too: a post to its id goes into the thread. */
+export interface DiscordChannelSummary {
+  id: string;
+  name: string;
+  kind: "channel" | "thread";
 }
 
 export const DISCORD_API_ERROR_CODES = [
@@ -253,6 +265,16 @@ export function decodeDiscordHistory(value: unknown): DiscordHistoryMessage[] {
       replyToId: nullableSnowflake(item.replyToId),
       sentAt: text(item.sentAt),
     };
+  });
+}
+
+export function decodeDiscordChannels(value: unknown): DiscordChannelSummary[] {
+  const channels = record(value).channels;
+  if (!Array.isArray(channels) || channels.length > DISCORD_LIST_CHANNELS_LIMIT) invalid();
+  return channels.map((entry) => {
+    const item = record(entry);
+    if (item.kind !== "channel" && item.kind !== "thread") invalid();
+    return { id: snowflake(item.id), name: text(item.name), kind: item.kind };
   });
 }
 

@@ -208,6 +208,26 @@ whole list, with the ID of each fact. The prompt marks the facts as data, not in
 then fails at once, and the agent can try again. Discord gives the text only of messages that
 mention OpenBot, and of bot posts. Telegram gives what this computer saw since it started.
 
+## Posts that an agent sends
+
+Any agent can post to a connected place on its own initiative, in any turn: in the user's own chat,
+in a routine run, or in a turn that answers a platform message. Tell it where in the request or the
+routine prompt, for example "post the summary to #bot-inflow on Discord".
+
+- `openbot.messaging_list_places` with no arguments lists the enabled connections and their IDs.
+  With `connection`, it lists the places OpenBot can post in: the Slack channels it is a member of,
+  the Discord text and announcement channels and active threads, or the Telegram chat itself.
+- `openbot.messaging_post` posts markdown as OpenBot to `place`. `replyTo` puts the post in a
+  thread: a Slack thread ts, a Discord message ID, or a Telegram message ID. The text is redacted
+  before it leaves this computer, and a Discord post pings nobody.
+- A routine posts only when its run calls the tool. The scheduler does not post the run's answer.
+- A reply to the post reaches an agent only as usual: it must mention OpenBot, and it goes to the
+  Orchestrator.
+- There is no list of allowed channels and no approval. Anyone who can give the agents work can ask
+  them to post in any place that OpenBot can see. A Slack private channel needs an `/invite`.
+- Discord listing needs a Signal that knows the `listChannels` call. An older Signal refuses it
+  with `signal_outdated`; posting works with any Signal.
+
 ## Limits
 
 These limits are for Slack. Discord's are in [apps/discord-app/README.md](../apps/discord-app/README.md#limits-of-discord),

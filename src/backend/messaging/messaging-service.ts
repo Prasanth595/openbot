@@ -37,20 +37,23 @@ import type { MessagingConnectionRecord, MessagingLink } from "./messaging-store
 import type { MessagingActivity, MessagingHistory, MessagingHistoryScope, MessagingThreads } from "./messaging-threads";
 import {
   type ConnectionIdentity,
+  DiscordApiError,
   type InboundAction,
   type InboundMessage,
   type IngressAnswer,
   type IngressDelivery,
   type MessageTarget,
   type MessagingAdapter,
+  type MessagingAdapterError,
   MessagingConnectionError,
   type MessagingDriver,
   type MessagingIngress,
   type MessagingTransport,
+  TelegramCallError,
 } from "./messaging-types";
 import { type SlackAppPort, SlackConnect, type SlackConnectFailed } from "./slack/slack-connect";
 import { slackOrchestratorMemories, slackOrchestratorProfile } from "./slack/slack-orchestrator";
-import { SlackWebApi } from "./slack/slack-web-api";
+import { SlackApiError, SlackWebApi } from "./slack/slack-web-api";
 import { type TelegramAppPort, telegramLinkUrl } from "./telegram/telegram-connect";
 import { telegramOrchestratorMemories, telegramOrchestratorProfile } from "./telegram/telegram-orchestrator";
 import { parseTelegramUpdate, telegramLink, telegramRemoval } from "./telegram/telegram-updates";
@@ -220,6 +223,10 @@ export class MessagingService {
     );
     this.#threads.setContextSource((link, origin) => this.#promptContext(link, origin));
     this.#threads.setHistorySource((link, scope, limit) => this.#recentMessages(link, scope, limit));
+    this.#threads.setOutbound({
+      places: (connectionId) => this.#outboundPlaces(connectionId),
+      post: (connectionId, target, markdown) => this.#outboundPost(connectionId, target, markdown),
+    });
     this.#ingress?.handle((workspaceId, delivery) => this.deliver(workspaceId, delivery));
     const records = this.#threads.store.connections();
     yield* this.#credentials.retain(new Set(records.map((record) => record.connectionId)));
@@ -245,6 +252,7 @@ export class MessagingService {
     for (const waiters of [...this.#transportWaiters.values()]) for (const ready of [...waiters]) ready();
     this.#threads.setContextSource(null);
     this.#threads.setHistorySource(null);
+    this.#threads.setOutbound(null);
     this.#ingress?.handle(null);
     this.#endTelegramLinkLease();
     yield* Effect.forEach(
@@ -1142,6 +1150,35 @@ export class MessagingService {
     return { platform: live.record.platform, place, messages };
   });
 
+  /** The places of a connection, for the agent's `messaging_list_places` tool. */
+  readonly #outboundPlaces = Effect.fn("MessagingService.outboundPlaces")(function* (
+    this: MessagingService,
+    connectionId: string,
+  ) {
+    const live = this.#live.get(connectionId);
+    if (!live?.identity) return { error: NOT_RUNNING };
+    return yield* live.adapter.places().pipe(
+      Effect.map((places) => ({ places })),
+      Effect.catch((failure) => Effect.succeed({ error: refusal(failure) })),
+    );
+  });
+
+  /** A post that an agent sends on its own initiative, for the agent's `messaging_post` tool. */
+  readonly #outboundPost = Effect.fn("MessagingService.outboundPost")(function* (
+    this: MessagingService,
+    connectionId: string,
+    target: MessageTarget,
+    markdown: string,
+  ) {
+    const live = this.#live.get(connectionId);
+    if (!live?.identity) return { error: NOT_RUNNING };
+    // The place is outside this computer, so a secret in the text must not reach it.
+    return yield* live.adapter.postAnswer(target, redactText(markdown), null).pipe(
+      Effect.as({ posted: true as const }),
+      Effect.catch((failure) => Effect.succeed({ error: refusal(failure) })),
+    );
+  });
+
   readonly #activity = Effect.fn("MessagingService.activity")(function* (
     this: MessagingService,
     activity: MessagingActivity,
@@ -1469,6 +1506,18 @@ export class MessagingService {
 /** Where to answer when the message that started the work is not known: the conversation's thread. */
 function linkTarget(link: MessagingLink): MessageTarget {
   return { platformChannelId: link.platformChannelId, replyThreadId: link.threadKey };
+}
+
+const NOT_RUNNING = "This connection does not run now.";
+
+/** The platform's error code, such as Slack's `not_in_channel`, and never its text or a token. */
+function refusal(failure: MessagingAdapterError): string {
+  const cause = failure.cause;
+  const code =
+    cause instanceof SlackApiError || cause instanceof DiscordApiError || cause instanceof TelegramCallError
+      ? cause.code
+      : "no_answer";
+  return `The platform refused the call: ${code}. Check the connection and place ids with openbot.messaging_list_places.`;
 }
 
 function token(): string {

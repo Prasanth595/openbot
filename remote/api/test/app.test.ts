@@ -452,6 +452,7 @@ describe("Discord route", () => {
     expect(otherChannel.status).toBe(403);
     expect(await otherChannel.json()).toEqual({ error: { code: "forbidden" } });
     expect((await call(second.token, { op: "member", guildId: "100", userId: "1" })).status).toBe(403);
+    expect((await call(second.token, { op: "listChannels", guildId: "100" })).status).toBe(403);
     expect((await call(null, { ...message, guildId: "100", channelId: "110" })).status).toBe(401);
     expect((await call("x".repeat(43), { ...message, guildId: "100", channelId: "110" })).status).toBe(401);
     expect(discordCalls.slice(sent).filter((request) => request.method !== "GET")).toEqual([]);
