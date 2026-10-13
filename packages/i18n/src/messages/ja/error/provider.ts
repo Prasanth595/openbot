@@ -182,6 +182,10 @@ export const messages = {
     "モデルプロバイダー側で障害が発生しました。お使いの接続は原因ではありません。後でもう一度試すか、別のモデルを選んでください。\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode がモデルプロバイダーに接続できませんでした。OpenBot を実行しているコンピューターのネットワーク接続を確認してから、もう一度お試しください。\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "OpenCode のモデルが、回答もエラーもないままターンを終了しました。もう一度お試しいただくか、別のモデルを選択してください。",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "OpenCode のモデルが、推論のあと回答もエラーもないままターンを終了しました。もう一度お試しいただくか、別のモデルを選択してください。",
   "error.provider.chatgptPageFailed": "OpenBot は ChatGPT の接続ページを開けませんでした。",
   "error.provider.noneReady": "準備ができているエージェントのプロバイダーがありません。",
   "error.provider.claudeTurnActive": "コンテキストを更新する前に、実行中の Claude のターンが終わるまでお待ちください。",

@@ -172,6 +172,10 @@ export const messages = defineMessages("error.provider", {
     "The model provider failed on its side. Your connection is not the cause. Try again later or choose another model.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode could not connect to the model provider. Check the network connection of the computer that runs OpenBot, then try again.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "The OpenCode model ended the turn with no answer and no error. Try again, or choose another model.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "The OpenCode model ended the turn after its reasoning, with no answer and no error. Try again, or choose another model.",
   "error.provider.chatgptPageFailed": "OpenBot could not open the ChatGPT connection page.",
   "error.provider.noneReady": "No agent provider is ready.",
   "error.provider.claudeTurnActive": "Wait for the active Claude turn before refreshing its context.",

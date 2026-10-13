@@ -181,6 +181,10 @@ export const messages = {
     "Model sağlayıcısı kendi tarafında başarısız oldu. Bağlantınız bunun nedeni değildir. Daha sonra tekrar deneyin veya başka bir model seçin.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode model sağlayıcısına bağlanamadı. OpenBot'u çalıştıran bilgisayarın ağ bağlantısını kontrol edin, ardından tekrar deneyin.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "OpenCode modeli turu yanıt vermeden ve hata bildirmeden bitirdi. Tekrar deneyin veya başka bir model seçin.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "OpenCode modeli turu akıl yürütmesinden sonra yanıt vermeden ve hata bildirmeden bitirdi. Tekrar deneyin veya başka bir model seçin.",
   "error.provider.chatgptPageFailed": "OpenBot ChatGPT bağlantı sayfasını açamadı.",
   "error.provider.noneReady": "Hiçbir ajan sağlayıcısı hazır değil.",
   "error.provider.claudeTurnActive": "Bağlamını yenilemeden önce etkin Claude turunun bitmesini bekleyin.",

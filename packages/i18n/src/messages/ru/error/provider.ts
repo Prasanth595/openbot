@@ -180,6 +180,10 @@ export const messages = {
     "У провайдера моделей произошёл сбой на его стороне. Дело не в вашем соединении. Повторите позже или выберите другую модель.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode не смог подключиться к провайдеру моделей. Проверьте сетевое подключение компьютера, где работает OpenBot, и повторите попытку.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "Модель OpenCode завершила ход без ответа и без ошибки. Повторите попытку или выберите другую модель.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "Модель OpenCode завершила ход после рассуждения, без ответа и без ошибки. Повторите попытку или выберите другую модель.",
   "error.provider.chatgptPageFailed": "OpenBot не смог открыть страницу подключения ChatGPT.",
   "error.provider.noneReady": "Ни один провайдер агентов не готов.",
   "error.provider.claudeTurnActive": "Дождитесь завершения текущего хода Claude, прежде чем обновлять его контекст.",

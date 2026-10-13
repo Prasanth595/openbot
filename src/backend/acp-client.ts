@@ -1575,20 +1575,24 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           method: "openbot/usage",
           params: { threadId: thread.id, turnId: turn.id, usage: response.usage },
         });
-      // OpenCode can swallow provider errors and report a successful, empty ACP turn.
-      // Do not invent the upstream cause or report that turn as a successful reply. A turn told not
-      // to answer ends empty on purpose, and an error there costs no answer the user waits for.
+      // OpenCode reports a model reply with no text, or with reasoning only, as a successful empty
+      // turn and logs no error. A provider error fails the prompt instead. Do not invent the upstream
+      // cause or report that turn as a successful reply. A turn told not to answer ends empty on
+      // purpose, and an error there costs no answer the user waits for.
       if (
         this.provider === "opencode" &&
         response.stopReason === "end_turn" &&
         !turn.receivedOutput &&
         !turn.answerOptional
       ) {
+        const reasoned =
+          turn.thought.trim() !== "" ||
+          turn.messages.some((item) => item.type === "agentMessage" && Boolean(item.text?.trim()));
         yield* this.#completeTurn(
           thread,
           turn,
           "failed",
-          "OpenCode returned no response. Check the selected model's sign-in and billing in OpenCode, then retry or choose another model.",
+          sourceText(reasoned ? "error.provider.opencodeReasoningWithoutAnswer" : "error.provider.opencodeNoAnswer"),
         );
         return;
       }

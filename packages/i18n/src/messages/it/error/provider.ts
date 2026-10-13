@@ -181,6 +181,10 @@ export const messages = {
     "Il provider del modello è andato in errore dal suo lato. La tua connessione non c'entra. Riprova più tardi o scegli un altro modello.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode non è riuscito a connettersi al provider del modello. Controlla la connessione di rete del computer che esegue OpenBot, poi riprova.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "Il modello OpenCode ha terminato il turno senza risposta e senza errori. Riprova o scegli un altro modello.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "Il modello OpenCode ha terminato il turno dopo il ragionamento, senza risposta e senza errori. Riprova o scegli un altro modello.",
   "error.provider.chatgptPageFailed": "OpenBot non è riuscito ad aprire la pagina di connessione di ChatGPT.",
   "error.provider.noneReady": "Nessun provider di agenti è pronto.",
   "error.provider.claudeTurnActive": "Attendi il turno attivo di Claude prima di aggiornare il suo contesto.",
