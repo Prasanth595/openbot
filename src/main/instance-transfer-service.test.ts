@@ -619,6 +619,7 @@ describe("InstanceTransferService", () => {
     const files = unzipSync(await readFile(path));
     files["agents/research/workspace/.openbot/skills-lock.json"] = new TextEncoder().encode("{}");
     files["agents/research/workspace/.agents/skills/planted/SKILL.md"] = new TextEncoder().encode(SKILL);
+    files["agents/research/workspace/.OpenBot/state.json"] = new TextEncoder().encode("{}");
     await writeFile(path, zipSync(files));
     const target = await computer("new");
     const preview = await runCauseEffect(target.service.stage(path));
@@ -628,7 +629,21 @@ describe("InstanceTransferService", () => {
     const workspace = result.agents[0]?.workspacePath ?? "";
     await expect(readFile(join(workspace, ".openbot", "skills-lock.json"))).rejects.toThrow();
     await expect(readFile(join(workspace, ".agents", "skills", "planted", "SKILL.md"))).rejects.toThrow();
+    await expect(readFile(join(workspace, ".OpenBot", "state.json"))).rejects.toThrow();
     expect(await readFile(join(workspace, "notes", "plan.md"), "utf8")).toBe("Plan");
+  });
+
+  it("keeps the file read before when the next file is invalid", async () => {
+    const path = await exportOld(await oldComputer());
+    const target = await computer("new");
+    const preview = await runCauseEffect(target.service.stage(path));
+    const bad = join(base, "bad.zip");
+    await writeFile(bad, zipSync({ "openbot-transfer.json": new TextEncoder().encode("{}") }));
+    await expect(runCauseEffect(target.service.stage(bad))).rejects.toThrow();
+    const result = await runCauseEffect(
+      target.service.apply({ token: preview.token, keys: ["research"], includeSettings: false }),
+    );
+    expect(result.agents.map((agent) => agent.name)).toEqual(["Research"]);
   });
 
   it("refuses a file made by a newer version", async () => {

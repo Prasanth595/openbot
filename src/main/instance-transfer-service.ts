@@ -94,7 +94,7 @@ const ARCHIVE: ArchiveLimits = {
  * `Data/` in `~/OpenBot/Shared` holds the shared tables database. It is open while the app runs, and
  * its owner records name agent ids of this computer, so a transfer never copies it.
  */
-const SHARED_DATA = "Data";
+const SHARED_DATA = "data";
 /** Skill folders are copied here, published to the local library, and removed again. */
 const SKILL_STAGING = ".openbot/import-skills";
 /** Workspace folders an export leaves out: OpenBot's own state and the installed skills, which travel as skills. */
@@ -404,7 +404,7 @@ export class InstanceTransferService {
     this: InstanceTransferService,
     path: string,
   ): Effect.fn.Return<InstanceTransferPreview, ArchiveOperationError> {
-    this.#staged = null;
+    // The file read before stays staged until this one is checked, so a bad file keeps it.
     const bytes = yield* readArchiveEffect(path, ARCHIVE);
     const entries = yield* archiveSync(() => listEntries(bytes, ARCHIVE));
     if (!entries.has(INSTANCE_TRANSFER_MANIFEST))
@@ -859,7 +859,9 @@ const workspaceFiles = Effect.fn("InstanceTransfer.workspaceFiles")(function* (
 
 /** OpenBot's own workspace folders: an export leaves them out, and an import never writes them. */
 function isWorkspaceSkipped(name: string): boolean {
-  return WORKSPACE_SKIPPED.some((skipped) => name === skipped || name.startsWith(`${skipped}/`));
+  // A disk that ignores case writes `.OpenBot/` into `.openbot/`, so the check ignores case too.
+  const lower = name.toLowerCase();
+  return WORKSPACE_SKIPPED.some((skipped) => lower === skipped || lower.startsWith(`${skipped}/`));
 }
 
 const walk = Effect.fn("InstanceTransfer.walk")(function* (
@@ -980,7 +982,8 @@ function named(name: string): (reason: string) => string {
 }
 
 function isSharedData(name: string): boolean {
-  return name === SHARED_DATA || name.startsWith(`${SHARED_DATA}/`);
+  const lower = name.toLowerCase();
+  return lower === SHARED_DATA || lower.startsWith(`${SHARED_DATA}/`);
 }
 
 /** Writes the archive to `<path>.part` one file at a time, then renames it. */
