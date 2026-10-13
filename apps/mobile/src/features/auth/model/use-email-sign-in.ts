@@ -179,7 +179,9 @@ export function useEmailSignIn({ connect, reduced }: { connect: (session: Mobile
   const leaving = useRef(false);
   /** The previous step: code to email, email to the sign-in options. */
   async function back() {
-    if (pending === "verify" || verified || leaving.current) return;
+    // A send or a verify ends on the code step or in the app, so the way back waits for it. The
+    // Android back button calls this directly, without the disabled state of the on-screen button.
+    if (pending === "send" || pending === "verify" || verified || leaving.current) return;
     const target = step === "code" ? "email" : "options";
     // Back to the options, the keyboard closes first and the screen changes after it is gone, so
     // the two movements do not overlap. Back to the email, the keyboard stays for the field.
