@@ -24,15 +24,6 @@
   overflow: hidden;
 }
 
-.settings-mobile-connect-code {
-  min-height: 244px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--openbot-space-6);
-  padding: var(--openbot-space-6);
-}
-
 .settings-mobile-connect-qr-stage {
   position: relative;
   flex: 0 0 auto;
@@ -288,7 +279,7 @@
 }
 
 @media (max-width: 720px) {
-  .settings-mobile-connect-code {
+  .settings-mobile-connect-link-code {
     align-items: center;
     flex-direction: column;
     text-align: center;
@@ -325,10 +316,11 @@
   display: contents;
 }
 
-/* The numbers of the two cards: install the app, then sign in. */
+/* The numbers of the cards: install the app, then sign in with a code (2.1) or the permanent link (2.2). */
 .settings-mobile-connect-step.ui-item-media {
-  width: 24px;
+  min-width: 24px;
   height: 24px;
+  padding-inline: var(--openbot-space-1-5);
   display: inline-grid;
   flex: 0 0 auto;
   align-self: flex-start;
@@ -341,6 +333,60 @@
   font-variant-numeric: tabular-nums;
   font-weight: var(--openbot-weight-medium);
   line-height: 1;
+}
+
+/* The permanent link card: step 2.2, the other way to do step 2.1. The link and its QR code stay
+ * hidden until the user shows them, and open and close like the one-time code. */
+/* One width for the Generate buttons of 2.1 and 2.2, so their text column does not move when the
+ * label changes or differs between the cards. A longer translation still grows the button. */
+.settings-mobile-connect-generate.ui-button {
+  min-width: 160px;
+}
+
+.settings-mobile-connect-link {
+  padding: var(--openbot-space-3) var(--openbot-space-4);
+}
+
+.settings-mobile-connect-link-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--openbot-space-2) var(--openbot-space-4);
+}
+
+.settings-mobile-connect-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--openbot-space-2);
+}
+
+.settings-mobile-connect-link-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--openbot-duration-overlay) var(--openbot-ease-out),
+    opacity var(--openbot-duration-normal) ease-out;
+}
+
+.settings-mobile-connect-link-reveal[data-expanded] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* The same layout as the install card: the QR code beside its text. */
+.settings-mobile-connect-link-code {
+  display: flex;
+  align-items: center;
+  gap: var(--openbot-space-6);
+  padding-top: var(--openbot-space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-mobile-connect-link-reveal {
+    transition: none;
+  }
 }
 
 .settings-mobile-app-tab {

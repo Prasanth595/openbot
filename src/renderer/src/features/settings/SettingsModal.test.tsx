@@ -469,6 +469,7 @@ describe("SettingsModal", () => {
         platform: "ios",
         connectedAt: Date.now(),
         lastActiveAt: Date.now(),
+        via: "code",
       });
       await vi.advanceTimersByTimeAsync(4_999);
       expect(onListMobileConnectedDevices).toHaveBeenCalledTimes(requestsBeforePolling);
@@ -497,6 +498,7 @@ describe("SettingsModal", () => {
       platform: "ios",
       connectedAt: Date.now() - 60_000,
       lastActiveAt: Date.now(),
+      via: "code",
     };
     let resolveInitialDevices: ((devices: MobileConnectedDevice[]) => void) | undefined;
     const initialDevices = new Promise<MobileConnectedDevice[]>((resolve) => {
@@ -595,6 +597,7 @@ describe("SettingsModal", () => {
         platform: "ios" as const,
         connectedAt: Date.now() - 60_000,
         lastActiveAt: Date.now(),
+        via: "code" as const,
       },
     ]);
     const onRevokeMobileConnectedDevice = vi.fn(async () => undefined);

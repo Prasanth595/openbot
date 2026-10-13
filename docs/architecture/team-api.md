@@ -44,6 +44,14 @@ needs the published host. The separate development test-client role never auto-p
 Mobile Connect tickets and QR codes bind the started host ID and SHA-256 public-key fingerprint.
 Mobile verifies that binding at redemption and against the directory, pins the key, and selects
 that host rather than the first account-owned desktop. Legacy unbound QR codes require regeneration.
+A permanent Mobile Connect link uses the same URL and redemption route, so released phone apps
+accept it. It has the same host binding and redeems more than once. D1 keeps only its hash. It stops
+working when the desktop replaces or revokes it, or when the desktop session that made it ends. The
+desktop keeps the link in its encrypted session file and deletes it at sign-out.
+`mobile_auth_sessions.connect_link_host_id` records the host whose link signed in a phone. A revoke
+signs out those phones, also when the link row went with its desktop session, and the device list
+shows each phone's method. `DELETE /v1/mobile-auth/ticket?host=` spends the unused one-time codes of
+that host when the desktop cancels the code that it shows.
 Desktop invitation QR codes contain the same one-use link as Copy link. The signed-in mobile
 scanner validates that link and opens the invitation review before acceptance. These codes join
 one server; Mobile Connect codes sign in to the desktop account and select the paired host.

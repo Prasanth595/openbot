@@ -129,6 +129,8 @@ person.
 
 The shared package validator handles local and marketplace bundles. The existing installer owns per-agent files, hashes, disabled storage, and both provider directories. Local installations skip marketplace downloads and receipt requests. Installation operations are serialized per agent; a library revision does not update installed copies.
 
+A pack is one bundle that holds skills of its own in `skills/<slug>-<name>/SKILL.md`. The installer writes each one as the sibling folder `<slug>-<name>` in both provider directories, so a provider finds it and `$<slug>-<name>` lists it, and keeps them all under the pack's one lock entry: install, update, disable, enable and removal act on every folder together, with one download and one install receipt.
+
 The backend local skill tools derive the agent from the calling provider session. Main-process IPC validates local library inputs independently of sender validation. The renderer reads local previews through that bridge. The released Team API adapters are unchanged; local creation and revision are not exposed as remote operations.
 
 ## Plugin distribution

@@ -93,6 +93,7 @@ const workingPage = {
   pageInfo: { hasOlder: false, olderCursor: null },
 };
 let conversationPage = async (): Promise<unknown> => workingPage;
+let agentsAnswered: Promise<void> = Promise.resolve();
 let emit = (_event: AgentEvent | TeamRealtimeEvent) => {};
 let disconnect = () => {};
 let reconnectSnapshot: AgentEvent | null = null;
@@ -136,7 +137,8 @@ vi.mock("../components/remote-team-transport", () => ({
                 ...(hostAdminSupported ? [HOST_ADMIN_CAPABILITY] : []),
               ],
             });
-          if (path === TEAM_API_ROUTES.agents.all)
+          if (path === TEAM_API_ROUTES.agents.all) {
+            await agentsAnswered;
             return decode(
               ["working", "waiting"].map((id) => ({
                 id,
@@ -149,6 +151,7 @@ vi.mock("../components/remote-team-transport", () => ({
                 avatarHue: null,
               })),
             );
+          }
           if (path === TEAM_API_ROUTES.agents.conversationReads) return decode({});
           if (path.startsWith(TEAM_API_ROUTES.agent.conversationPage("working")))
             return decode(await conversationPage());
@@ -183,6 +186,7 @@ afterEach(async () => {
   sent.length = 0;
   reconnectSnapshot = null;
   conversationPage = async () => workingPage;
+  agentsAnswered = Promise.resolve();
   sidebarSupported = false;
   hostAdminSupported = false;
   identityFailure = null;
@@ -383,6 +387,24 @@ it("sends section actions to the chosen host and keeps a newer event over an act
     );
   });
   expect(current.sidebarByServer.host?.layout).toEqual(changed);
+});
+
+it.each(["agents", "sections"] as const)("groups chats into sections when the %s answer first", async (first) => {
+  const agents = Promise.withResolvers<void>();
+  const layout = Promise.withResolvers<SidebarLayoutSnapshot>();
+  agentsAnswered = agents.promise;
+  sidebarRequest.mockReturnValueOnce(layout.promise);
+  await mountSidebar();
+  if (first === "agents") {
+    await act(async () => agents.resolve());
+    expect(current.activeAgents).toHaveLength(2);
+    expect(current.sidebarByServer.host).toBeUndefined();
+    await act(async () => layout.resolve(initialLayout));
+  } else {
+    await act(async () => layout.resolve(initialLayout));
+    await act(async () => agents.resolve());
+  }
+  expect(sidebarRows()).toEqual(["work", "waiting", "working", "empty"]);
 });
 
 it("keeps chats visible on layout failure and recovers on retry", async () => {

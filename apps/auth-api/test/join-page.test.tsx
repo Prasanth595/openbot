@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@solidjs/testing-library";
+import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { JoinPage } from "../src/components/landing/JoinPage";
 
@@ -26,6 +26,18 @@ describe("invitation landing page", () => {
     await waitFor(() => expect(openButton).toHaveAttribute("href", expect.stringMatching(/^openbot:\/\/join\?/u)));
     expect(screen.getByRole("link", { name: "Download OpenBot" })).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+  });
+
+  it("shows what to do when OpenBot does not open", async () => {
+    window.history.replaceState({}, "", INVITE_URL);
+    render(() => <JoinPage />);
+    const openButton = await screen.findByRole("link", { name: "Open OpenBot" });
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+
+    openButton.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(openButton);
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/If OpenBot did not open/u));
   });
 
   it("does not promise that every invitation is single-use or expires in 24 hours", async () => {

@@ -228,11 +228,7 @@ export class ChannelRoutineScheduler implements RoutineDueSource {
     const run =
       routine.limitPolicy === "skip" && this.#hooks.usageLimited(routine.channelId)
         ? yield* channelRoutineStep(() =>
-            this.#routines.updateRunStatus(
-              this.#routines.createRun(routine, null, "manual", now).id,
-              "cancelled",
-              null,
-            ),
+            this.#routines.updateRunStatus(this.#routines.createRun(routine, null, "test", now).id, "cancelled", null),
           )
         : yield* this.#fireEffect(routine, null, now);
     this.#changed(routine.channelId);
@@ -379,7 +375,7 @@ export class ChannelRoutineScheduler implements RoutineDueSource {
     scheduledFor: string,
   ) {
     const run = yield* channelRoutineStep(() => {
-      const created = this.#routines.createRun(routine, triggerId, triggerId ? "scheduled" : "manual", scheduledFor);
+      const created = this.#routines.createRun(routine, triggerId, triggerId ? "scheduled" : "test", scheduledFor);
       return created.requestMessageId ? created : this.#routines.attachRequest(created.id, randomUUID());
     });
     return yield* this.#issueEffect(run);

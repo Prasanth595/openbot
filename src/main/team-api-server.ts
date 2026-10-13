@@ -17,6 +17,7 @@ import {
   type DuplicateAgentResult,
   isAgentEvent,
   isTeamRealtimeEvent,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   type SidebarLayoutSnapshot,
   type TeamMemberSummary,
   type TeamPresenceSnapshot,
@@ -52,6 +53,7 @@ import {
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
+  PUSH_NOTIFICATIONS_CAPABILITY,
   QUIET_TURN_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
@@ -152,6 +154,7 @@ import { routeMcpSignIn } from "./team-api/route-mcp-sign-in";
 import { routeMcpSignInApp } from "./team-api/route-mcp-sign-in-app";
 import { routeProviderHostSignIn } from "./team-api/route-provider-host-sign-in";
 import { routeProviders } from "./team-api/route-providers";
+import { routePushNotifications } from "./team-api/route-push-notifications";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
 import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
@@ -164,6 +167,9 @@ import { TeamStoreError } from "./team-store";
 
 const EVENT_PAYLOAD_LIMIT = 256 * 1_024;
 const TYPING_TIMEOUT_MS = 5_000;
+/** Past this many sessions, the user actions older than the age below are dropped. */
+const SESSION_USE_LIMIT = 200;
+const SESSION_USE_MAX_AGE_MS = 60 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1_000;
 const RATE_LIMIT_SWEEP_MS = 60_000;
 const RATE_LIMIT_ATTEMPTS = 5;
@@ -179,6 +185,8 @@ const logger = createOpenBotLogger("team-api-server");
 interface EventClientState {
   token: string;
   memberId: string;
+  /** The session of the connection, which records its member's actions. */
+  sessionId: string | null;
   capabilities: Set<string>;
   includeConversationEvents: boolean;
   typingAgentId: string | null;
@@ -246,6 +254,8 @@ export class TeamApiServer {
   #port: number | null = null;
   #heartbeat: ReturnType<typeof setInterval> | null = null;
   #lastClientUseAt: number | null = null;
+  /** The last user action of each session, so a phone can stay quiet while its member uses another app. */
+  readonly #sessionUse = new Map<string, { memberId: string; at: number }>();
   #agentListener: ((event: AgentEvent) => void) | null = null;
   #sidebarLayoutListener: ((layout: SidebarLayoutSnapshot) => void) | null = null;
   #localTypingAgentId: string | null = null;
@@ -430,6 +440,27 @@ export class TeamApiServer {
    */
   lastClientUseAt(): number | null {
     return this.#lastClientUseAt;
+  }
+
+  /** The last user action of a member from a session other than `sessionId`, as `lastClientUseAt` counts them. */
+  lastMemberUseElsewhere(memberId: string, sessionId: string): number | null {
+    let last: number | null = null;
+    for (const [other, use] of this.#sessionUse) {
+      if (other !== sessionId && use.memberId === memberId && (last === null || use.at > last)) last = use.at;
+    }
+    return last;
+  }
+
+  #recordClientUse(sessionId: string | null, memberId: string): void {
+    const now = Date.now();
+    this.#lastClientUseAt = now;
+    if (!sessionId) return;
+    this.#sessionUse.set(sessionId, { memberId, at: now });
+    // A session that has ended stays until it is old, so the map keeps one entry for each recent session.
+    if (this.#sessionUse.size > SESSION_USE_LIMIT) {
+      for (const [other, use] of this.#sessionUse)
+        if (now - use.at > SESSION_USE_MAX_AGE_MS) this.#sessionUse.delete(other);
+    }
   }
 
   setLocalTyping(agentId: string | null, typing: boolean): void {
@@ -669,13 +700,13 @@ export class TeamApiServer {
       if (!authenticated || !token) {
         return this.#json(response, 401, { error: sourceText("error.team.authenticationRequired") });
       }
-      if (isClientUse(method, url.pathname)) this.#lastClientUseAt = Date.now();
+      if (isClientUse(method, url.pathname)) this.#recordClientUse(authenticated.sessionId, authenticated.member.id);
       const context = this.#requestContext(request, response, url, token, authenticated);
       // Before `hidden`: the response projection must see the agents that the roster sends.
       if (method === "GET" && url.pathname === TEAM_API_ROUTES.agents.all && this.#options.agentsReady) {
         await runCauseEffect(this.#options.agentsReady());
       }
-      const hidden = this.#hiddenAgentIds(context.protocol, context.capabilities);
+      const hidden = this.hiddenAgentIds(context.protocol, context.capabilities);
       // Every protocol gets the projection, also with no hidden agent: a provider status row, a
       // model or an auth state of a local-only provider can be in the response.
       const responseRoute = this.#responseRoutes.get(response);
@@ -743,10 +774,11 @@ export class TeamApiServer {
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
       if (
         (await routeLiveActivityPush(context, this.#options.liveActivityPush, () =>
-          this.#hiddenAgentIds(context.protocol, context.capabilities),
+          this.hiddenAgentIds(context.protocol, context.capabilities),
         )) === "handled"
       )
         return;
+      if ((await routePushNotifications(context, this.#options.pushNotifications)) === "handled") return;
       if ((await this.#routeAgents(context)) === "handled") return;
 
       // The only 404 in the Team API.
@@ -1038,7 +1070,8 @@ export class TeamApiServer {
         event.type === "conversation" &&
         (!connection.capabilities.has("routine-event-markers") ||
           !connection.capabilities.has("routine-run-event-markers") ||
-          !connection.capabilities.has("hosted-site-event-markers"))
+          !connection.capabilities.has("hosted-site-event-markers") ||
+          event.snapshot.messages.some((message) => message.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE))
       ) {
         const key = `${eventProtocol(connection.capabilities)}:${connection.capabilities.has("opencode")}:${connection.capabilities.has("routine-event-markers")}:${connection.capabilities.has("routine-run-event-markers")}:${connection.capabilities.has("hosted-site-event-markers")}:${encodingOptions.preserveSemanticTags}`;
         let filtered = filteredConversationPayloads.get(key);
@@ -1101,9 +1134,11 @@ export class TeamApiServer {
     supportsSnapshotTransport: boolean,
     acceptsCapabilityDeclaration: boolean,
   ): void {
+    const sessionId = this.#options.store.authenticateSession(token)?.sessionId ?? null;
     const connection: EventClientState = {
       token,
       memberId,
+      sessionId,
       capabilities: new Set(
         acceptsCapabilityDeclaration
           ? []
@@ -1190,10 +1225,12 @@ export class TeamApiServer {
         client.close(1003, "Invalid team event payload");
       }
     });
-    // iOS can suspend a phone before it says that it goes away. Its closed connection says so.
-    const sessionId = this.#options.store.authenticateSession(token)?.sessionId;
     client.once("close", () => {
-      if (sessionId) this.#options.liveActivityPush?.disconnected(sessionId);
+      // iOS can suspend a phone before it says that it goes away. Its closed connection says so.
+      if (sessionId) {
+        this.#options.liveActivityPush?.disconnected(sessionId);
+        this.#options.pushNotifications?.disconnected(sessionId);
+      }
       if (connection.typingTimer) clearTimeout(connection.typingTimer);
       if (connection.directTypingTimer) clearTimeout(connection.directTypingTimer);
       const directTypingRecipientId = connection.directTypingRecipientId;
@@ -1252,7 +1289,7 @@ export class TeamApiServer {
   }
 
   #setClientTyping(connection: EventClientState, agentId: string | null): void {
-    this.#lastClientUseAt = Date.now();
+    this.#recordClientUse(connection.sessionId, connection.memberId);
     const changed = connection.typingAgentId !== agentId;
     connection.typingAgentId = agentId;
     if (connection.typingTimer) clearTimeout(connection.typingTimer);
@@ -1269,7 +1306,7 @@ export class TeamApiServer {
   }
 
   #setClientDirectTyping(connection: EventClientState, recipientMemberId: string | null): void {
-    this.#lastClientUseAt = Date.now();
+    this.#recordClientUse(connection.sessionId, connection.memberId);
     const previousRecipientId = connection.directTypingRecipientId;
     const changed = previousRecipientId !== recipientMemberId;
     const recipientAlreadyActive = recipientMemberId
@@ -1470,7 +1507,7 @@ export class TeamApiServer {
   }
 
   /** The agents this client cannot see: a provider its protocol does not know, or one it cannot describe. */
-  #hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>): Set<string> {
+  hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>): Set<string> {
     const agents = this.#options.agents.listAgents();
     const hidden = hiddenProviderAgentIds(agents, protocol);
     for (const id of this.#unrepresentableAgentIds(
@@ -1534,6 +1571,7 @@ export class TeamApiServer {
         if (capability === AGENT_IMPORT_CAPABILITY) return this.#options.agentImport !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
         if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
+        if (capability === PUSH_NOTIFICATIONS_CAPABILITY) return this.#options.pushNotifications !== undefined;
         return true;
       }),
     };

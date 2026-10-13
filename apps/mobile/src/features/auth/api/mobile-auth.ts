@@ -184,6 +184,7 @@ const accountSessionSchema = z.object({
   current: z.boolean(),
   connectedAt: z.number().finite(),
   lastActiveAt: z.number().finite(),
+  hostedServer: z.boolean().optional(),
 });
 export type MobileAccountSession = z.infer<typeof accountSessionSchema>;
 

@@ -51,6 +51,7 @@ function agentMemoryTables(limit: () => number): MemoryTables {
   return {
     table: "projection_agent_memories",
     ownerColumn: "agent_id",
+    ownerKey: "agentId",
     aggregateType: "agent-memory",
     limit,
     limitMessage: (current) => sourceText("error.backend.agentMemoryLimit", { limit: current }),

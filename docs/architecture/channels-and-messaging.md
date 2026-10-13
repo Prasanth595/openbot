@@ -26,7 +26,61 @@ library, so the phone composes its layout with the two widget keys and the App G
 state carry an HMAC signature, which the app checks with the key of the host that the action goes
 to, so one host cannot sign an action for another.
 
+## iPhone notifications
+
+A host sends an iOS notification when an agent finishes a turn, stops with an error, or waits for
+input, an approval, or a step in the browser (`browser-takeover-requested`, also for a password or a
+code). For all but the browser step, it decides as the desktop does: `notificationForAgentEvent` in
+`@openbot/team-client` applies the level of the server (`all` or `needs-me`), the switch of the agent,
+and the quiet routine runs. The title is the agent name. When the phone shows previews, the text is the
+preview of a desktop notification: the start of the answer of that turn, the question, or the action
+to approve, with secrets redacted. Otherwise it is the fixed desktop text, such as "Finished working.".
+
+The phone registers with every connected server that supports `push-notifications-v1`
+(`POST /v1/push-notifications/registration`): the APNs token of the app, the secret of that host (the
+same one as for the Live Activity), the language, the level, a mute end, the preview switch, the sound
+(`none` when Play sound is off), the start of its Live Activity of that host, and `away`. One sound is for notifications and the Live Activity. With
+notifications off, Live Activities on and Play sound on, it registers with no token: the host then
+sends no notification, and uses the registration only to make the Live Activity play the sound. It
+tells each host again after each connection and when a choice changes, and removes the registration
+when nothing is left for that host or the user signs out. A level of
+"Nothing" and a mute with no end remove it too. `PushNotificationService` in `src/main` keeps the
+registrations in `openbot-push-notifications-v1.json` in the user data folder, readable only by the
+user, so a phone that does not connect after the host restarts still gets notifications. It sends
+only while the phone is away or its connection is closed. An event that waits for the member (input,
+an approval, a browser step) always goes. An answer or a failure does not go while the member uses a
+desktop app: that computer had input in the last 30 seconds (`powerMonitor.getSystemIdleState`), and
+the window of the host's own desktop app has focus or is open with desktop notifications on, for
+the owner; or the member sent, answered, or typed from another session in the last 30
+seconds (`TeamApiServer.lastMemberUseElsewhere`, kept in memory). The time is short because a task
+can end at any time after the member leaves the computer. While the phone shows a Live Activity of
+this host that iOS still updates (8 hours from its start, which the phone gives because a host that
+restarted does not know it), the host sends no notification
+(`LiveActivityPushService.showsEvent`). With a sound (Settings > Notifications > Sound), the next
+update of the activity alerts at once, so iOS lights up the screen, shows the activity, and plays
+that sound; with Play sound off, the activity updates silently. iOS does not tell the host when
+the user removes the activity, so until the app runs again such an event shows nowhere.
+
+`push-notification-seal.ts` seals the notification with keys of their own, made from the host secret.
+The host sends it to `POST /v2/remote/hosts/:hostId/notification` with its machine credential and the
+account session of the phone. The Worker checks the credential and a per-host rate limit, and sends
+nothing for a session that has ended, a revoked membership, or a signed-out device, because the host
+does not learn about these. It makes the APNs alert itself, with "OpenBot" as the only text,
+`mutable-content`, the sound, and the sealed bytes. It stores and logs nothing. A `410` answer, from
+the Worker or Apple, removes the registration.
+
+The Notification Service Extension of the app (`apps/mobile/plugins/with-notification-service.js`,
+`NotificationService.swift`) opens the seal with the keys that the app writes into the App Group
+file `push-notifications.json`, and shows the agent name and the text. It refuses content that names
+another server than the one whose keys open it. A notification that it cannot open keeps the app
+name only. A tap opens the chat of the agent.
+
 ## Shared channel chats
+
+> **Deprecated.** The application archives every channel at start (`ChannelService.retire`), the host
+> does not advertise `channel-chats-v1`, and agents get no channel tools. The data stays in
+> `openbot.db`. The next release removes the channel code and data. Agents in one sidebar section work
+> together through `section_teammates` in their instructions.
 
 Channels are separate from sidebar sections. A channel has one host, a purpose, participating agents,
 a selected lead, and linked agent conversations. Agent membership selects who can receive work.
@@ -182,7 +236,10 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   orchestrator agent) and `projection_messaging_threads` (one per external conversation, with the
   agent that answers it).
   Tokens are not in the database: `MessagingCredentialStore` keeps the bot token encrypted by
-  `safeStorage`, keyed by connection, and only its state crosses IPC.
+  `safeStorage`, keyed by connection, and only its state crosses IPC. Migration 36 adds
+  `projection_messaging_memories`, the facts of each connection (`MessagingMemoryStore`, the same
+  `MemoryStore` as agent and channel memories, with a connection for an owner). No code deletes a
+  connection, so the table has no cascade: disconnect keeps the facts.
 - **Orchestrator.** A message in a thread that has a link goes to the link's agent. A new conversation
   goes to the workspace's orchestrator; without one, Slack is told that no agent answers. The
   orchestrator is a normal agent (`slack-orchestrator.ts`): its description is its standing remit, and
@@ -203,7 +260,15 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   a Slack turn carries `messagingReturn`, the origin of that turn; `MailboxStore.enqueue` gives the
   answer to it that origin as `messaging`, so the answer runs in the same execution thread, and its
   turn posts to Slack as a follow-up. `DrainScheduler` asks `MessagingThreads.prepare` for the thread
-  and the prompt, which frames the text as external input and adds earlier messages of the thread.
+  and the prompt, which frames the text as external input and adds earlier messages of the thread
+  and the connection's facts, rebuilt each turn, so a new fact needs no provider-thread reload.
+  `MessagingService.#receive` names each user mention (`InboundMessage.mentionedUserIds`) with the
+  adapter's name cache; the adapters do the same for context messages.
+- **Tools.** `messaging_remember`, `messaging_forget_memory` and `messaging_history` are deferred
+  `openbot` tools. `OpenBotToolRouter` finds the link from the calling turn's execution thread and
+  refuses a call from any other thread; no argument names a connection or a channel. The history
+  tool calls the adapter's `recent` through `MessagingThreads.setHistorySource`. A fact is not saved
+  from a direct message.
 - **Order.** The one-turn-per-agent rule is unchanged, so Slack requests wait behind the agent's own
   work and behind channel work that holds the host. The Slack thread shows a waiting post.
 - **Replies.** `MessagingThreads` reports each turn start and end. `MessagingService` posts a status

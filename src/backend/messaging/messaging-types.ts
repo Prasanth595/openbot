@@ -46,7 +46,10 @@ export interface InboundMessage {
   /** True for a reply that does not name OpenBot: it counts only in a conversation that already has an agent. */
   requiresLink: boolean;
   authorId: string;
+  /** Text with each user mention as `@<user id>`; `mentionedUserIds` lists those ids. */
   text: string;
+  /** The users the text mentions, without OpenBot, so the service can name them. */
+  mentionedUserIds: string[];
   files: InboundFile[];
 }
 
@@ -139,6 +142,16 @@ export interface MessagingAdapter {
     threadKey: string,
     afterId: string | null,
     beforeId: string,
+  ): Effect.Effect<ContextEntry[], MessagingAdapterError>;
+  /**
+   * The newest messages of a place, oldest first, posts by bots included, for the agent's history
+   * tool. With `threadKey`, only that conversation; with null, the whole channel or chat. At most
+   * `limit` messages; the platform can give fewer.
+   */
+  recent(
+    platformChannelId: string,
+    threadKey: string | null,
+    limit: number,
   ): Effect.Effect<ContextEntry[], MessagingAdapterError>;
   /** Downloads one file to `destination`. Refuses a file larger than `maxBytes`. */
   download(file: InboundFile, destination: string, maxBytes: number): Effect.Effect<void, MessagingAdapterError>;

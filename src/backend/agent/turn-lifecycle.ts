@@ -580,8 +580,8 @@ export class TurnLifecycle {
   }).bind(this);
 
   /**
-   * Records a call to the no-update tool. `quiet` when the turn runs only scheduled routine runs, so
-   * its completion drops the text answers; `shown` when a person waits for the answer, as in a Test
+   * Records a call to the no-update tool. `quiet` when the turn runs only quiet routine runs, so
+   * its completion keeps the text answers as quiet answers; `shown` when a person waits for the answer, as in a Test
    * run; null when no routine run started the turn. The completion decides again, because a message
    * can join the turn after the call.
    */
@@ -592,7 +592,7 @@ export class TurnLifecycle {
     return this.#quietRoutineTurn(threadId, deliveries) ? "quiet" : "shown";
   }
 
-  /** Only a turn that runs nothing but scheduled routine runs, outside a channel or messaging thread. */
+  /** Only a turn that runs nothing but quiet routine runs, outside a channel or messaging thread. */
   #quietRoutineTurn(threadId: string | null, deliveries: readonly DeliveryContext[]): boolean {
     return (
       deliveries.length > 0 &&
@@ -705,8 +705,8 @@ export class TurnLifecycle {
     if (deliveries.some((delivery) => delivery.delivery.sender.kind === "agent")) {
       dropPlaceholderAnswers(snapshot, turnId);
     }
-    // Only a turn that ran nothing but scheduled routine runs: a person who wrote in the same turn,
-    // or who started a Test, script or webhook run, waits for the answer.
+    // Only a turn that ran nothing but scheduled, script or webhook runs: a person who wrote in the
+    // same turn, or who started a Test run, waits for the answer.
     const quiet =
       outcome === "completed" &&
       this.#quietRoutineTurn(snapshot.threadId, deliveries) &&

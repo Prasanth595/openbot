@@ -318,9 +318,14 @@ One-time setup:
 2. Add environment secrets `EXPO_TOKEN`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_PRIVATE_KEY`.
    The Expo token needs access to the OpenBot project. The Apple secrets are the Key ID, Issuer ID,
    and full `.p8` contents of an App Store Connect team API key with the App Manager role.
-3. Keep the iOS distribution certificate and provisioning profile configured in EAS. CI downloads
+3. Keep the iOS distribution certificate and provisioning profiles configured in EAS. CI downloads
    these existing credentials. If they expire or need repair, update them interactively through
-   EAS before retrying; the upload API key is not passed to the build step.
+   EAS before retrying; the upload API key is not passed to the build step. Each target has its own
+   profile: the app, `ExpoWidgetsTarget` (`run.openbot.mobile.ExpoWidgetsTarget`) and
+   `OpenBotNotificationService` (`run.openbot.mobile.NotificationService`, the Notification Service
+   Extension). Both extensions need the App Group `group.run.openbot.mobile`. When a release adds a
+   target, set up its profile interactively once (`bunx eas-cli credentials -p ios`) before CI builds
+   it. Keep the saved push key; do not let EAS make a new one.
 4. Keep the OpenPanel variables in EAS `production` with `Plain text` or `Sensitive` visibility.
    `Secret` variables are unavailable to this local build. Do not copy these values into source.
 5. Ensure App Store Connect has the app `run.openbot.mobile` and the intended TestFlight group.

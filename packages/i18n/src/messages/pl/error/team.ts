@@ -66,6 +66,7 @@ export const messages = {
   "error.team.conversationFileSearchUnsupported": "To połączenie nie obsługuje wyszukiwania plików.",
   "error.team.agentImportUnsupported": "To połączenie nie obsługuje importowania agentów.",
   "error.team.liveActivityUnsupported": "Ten host nie może aktualizować Live Activity telefonu.",
+  "error.team.pushNotificationsUnsupported": "Ten host nie może wysyłać powiadomień na telefon.",
   "error.team.agentUpdateTargetRequired": "Wymagany jest agent do zaktualizowania.",
   "error.team.queueEditUnsupported": "Ten klient nie obsługuje edycji kolejki.",
   "error.team.skillsUnsupported": "To połączenie nie obsługuje umiejętności.",

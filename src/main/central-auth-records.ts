@@ -91,6 +91,12 @@ export function decodeTicketResponse(value: unknown): { ticket: string; expiresA
   return { ticket: requiredString(record, "ticket"), expiresAt: record.expiresAt };
 }
 
+export function decodeMobileConnectLinkResponse(value: unknown): { link: string; createdAt: number } {
+  const record = decodeRecord(value, "Mobile Connect link");
+  if (!isNumber(record.createdAt)) throw new Error("Invalid Mobile Connect link date.");
+  return { link: requiredString(record, "link"), createdAt: record.createdAt };
+}
+
 export function decodeMobileConnectedDevices(value: unknown): { devices: MobileConnectedDevice[] } {
   const record = decodeRecord(value, "mobile devices");
   if (!Array.isArray(record.devices)) throw new Error("Invalid mobile device list.");
@@ -112,6 +118,8 @@ function decodeMobileConnectedDevice(value: unknown): MobileConnectedDevice {
     platform,
     connectedAt: record.connectedAt,
     lastActiveAt: record.lastActiveAt,
+    // An account service from before permanent links sends none: its phones all used a one-time code.
+    via: record.via === "link" ? "link" : "code",
   };
 }
 

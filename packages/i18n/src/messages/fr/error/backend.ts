@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelNotFound": "Canal introuvable.",
   "error.backend.channelMemberUnavailable": "Un membre du canal est indisponible.",
   "error.backend.channelArchived": "Restaurez ce canal avant d’envoyer des messages ou de modifier des tâches.",
+  "error.backend.channelsRetired":
+    "Les canaux ne sont plus pris en charge. Placez les agents dans une section de la barre latérale pour qu’ils travaillent ensemble.",
   "error.backend.channelReferenceUnavailable": "Le message de canal référencé est indisponible.",
   "error.backend.channelTaskNotFound": "Tâche de canal introuvable.",
   "error.backend.channelTaskComplete": "Cette tâche est déjà terminée.",

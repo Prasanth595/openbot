@@ -20,6 +20,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { AgentService } from "../backend/agent-service";
 import {
+  callOpenBotTool,
+  inputRecords,
+  openBotToolPayload,
   startAgentTestFixture,
   startService,
   stopAgentTestFixture,
@@ -48,6 +51,8 @@ class FakeSignal {
   /** Answers the next call of this operation with a Discord rate limit, as Signal does. */
   rateLimitNext: string | null = null;
   rateLimited = 0;
+  /** What `listMessages` answers, oldest first. */
+  listed: DynamicRecord[] = [];
   #server: Server | null = null;
   #sockets: WebSocketServer | null = null;
   #socket: WebSocket | null = null;
@@ -80,9 +85,9 @@ class FakeSignal {
           this.#messageId += 1;
           return reply(200, { messageId: String(this.#messageId) });
         case "listMessages":
-          return reply(200, { messages: [] });
+          return reply(200, { messages: this.listed });
         case "member":
-          return reply(200, { name: "Alice" });
+          return reply(200, { name: call.userId === "555" ? "Bob" : "Alice" });
         case "channel":
           return reply(200, { name: "general" });
         default:
@@ -299,6 +304,55 @@ describe.sequential("OpenBot Discord app end to end", () => {
     await waitFor(() => started.service.messaging.store.links(orchestratorId).length === 2);
     await waitFor(() => turns().length === 3);
 
+    // A person's mention is named; a role keeps its id, as Signal has no role names.
+    const named = mention("1004");
+    if (named.kind !== "message") throw new Error("Not a message.");
+    signal.deliver(GUILD_ID, { ...named, message: { ...named.message, content: "ask <@555> and <@&666>" } });
+    await waitFor(() => turns().length === 4);
+    const prompt = inputRecords(turns()[3]?.params)
+      .map((item) => (isString(item.text) ? item.text : ""))
+      .join("\n");
+    expect(prompt).toContain("--- message ---\nask @Bob and @role:666");
+
+    // The history tool reads the link's own channel, in a bounded number of calls.
+    signal.listed = [
+      {
+        id: "990",
+        authorId: "555",
+        authorName: "Bob",
+        authorIsBot: false,
+        content: "<@444> see <@555>",
+        replyToId: null,
+        sentAt: "2026-10-06T09:00:00.000Z",
+      },
+      {
+        id: "991",
+        authorId: APP_ID,
+        authorName: "OpenBot",
+        authorIsBot: true,
+        content: "Done.",
+        replyToId: null,
+        sentAt: "2026-10-06T09:01:00.000Z",
+      },
+    ];
+    const namedLink = started.service.messaging.store.links(orchestratorId).find((item) => item.threadKey === "1004");
+    const session = namedLink && started.store.database.listProviderSessions(namedLink.threadId).at(-1);
+    if (!session) throw new Error("The named mention has no session.");
+    const listedBefore = signal.of("listMessages").length;
+    const history = await callOpenBotTool(started.client, session.externalSessionId, "tool_call", {
+      name: "openbot.messaging_history",
+      arguments: {},
+    });
+    expect(openBotToolPayload(history.result).messages).toEqual([
+      { author: "Bob", sentAt: "2026-10-06T09:00:00.000Z", text: "@Alice see @Bob" },
+      { author: "OpenBot (bot)", sentAt: "2026-10-06T09:01:00.000Z", text: "Done." },
+    ]);
+    const historyCalls = signal.of("listMessages").slice(listedBefore);
+    expect(historyCalls.length).toBeGreaterThan(0);
+    expect(historyCalls.length).toBeLessThanOrEqual(6);
+    expect(historyCalls.every((call) => call.channelId === CHANNEL_ID)).toBe(true);
+    signal.listed = [];
+
     // An event of a guild that this host does not have does nothing.
     signal.deliver("999", mention("1003"));
 
@@ -306,7 +360,7 @@ describe.sequential("OpenBot Discord app end to end", () => {
     signal.deliver(GUILD_ID, { kind: "removed" });
     await waitFor(() => connection()?.state === "invalid_token");
     expect(unlinked).toEqual([GUILD_ID]);
-    expect(turns()).toHaveLength(3);
+    expect(turns()).toHaveLength(4);
     // Reconnect cannot bring a removed bot back: it starts the install again.
     const installs = authorizations.length;
     await runCauseEffect(messaging.reconnect("discord", GUILD_ID, true));
@@ -316,7 +370,7 @@ describe.sequential("OpenBot Discord app end to end", () => {
     // Connected again, the guild keeps its conversations and its agent.
     await connect();
     await waitFor(() => connection()?.state === "connected");
-    expect(started.service.messaging.store.links(orchestratorId)).toHaveLength(2);
+    expect(started.service.messaging.store.links(orchestratorId)).toHaveLength(3);
     expect(connection()?.orchestratorAgentId).toBe(orchestratorId);
 
     // The guild was unlinked while this computer was off: the next session does not name it.
@@ -350,6 +404,8 @@ describe.sequential("OpenBot Discord app end to end", () => {
           replyChainKept: true,
           removedUnlinked: true,
           conversationKept: true,
+          mentionsNamed: true,
+          historyCalls: historyCalls.length,
           calls: signal.calls.length,
         },
         null,

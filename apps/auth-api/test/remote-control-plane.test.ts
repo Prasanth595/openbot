@@ -15,7 +15,7 @@ import {
   RemoteTicketSigner,
   verifyRemoteServiceSignature,
 } from "../src/server/remote-control-plane";
-import { sqliteD1 } from "./sqlite-d1";
+import { migratedDatabase, sqliteD1 } from "./sqlite-d1";
 
 /** The account server reads the plan of a host for its member limit and its connector links. */
 function applyPlanMigrations(database: DatabaseSync): void {
@@ -310,6 +310,43 @@ describe("RemoteControlPlane", () => {
         ended_at: now,
       });
       expect(delivered).toEqual([{ type: "remote-session-ended", hostId: "host", sessionId: "live-desktop" }]);
+    } finally {
+      database.close();
+    }
+  });
+  it("names the session of a hosted server and lets the owner revoke it", async () => {
+    const database = migratedDatabase();
+    try {
+      const currentId = "00000000-0000-4000-8000-000000000001";
+      const serverSessionId = "00000000-0000-4000-8000-000000000002";
+      database.exec(`
+        INSERT INTO users(id, identity_key, email, created_at, updated_at) VALUES ('owner', 'email:owner@example.com', 'owner@example.com', 1, 1);
+        INSERT INTO hosted_servers(server_id, owner_user_id, name, size, plan, billing_interval, currency, desired_state, observed_state, idempotency_key, auth_session_id, created_at, updated_at)
+          VALUES ('server', 'owner', 'Cloud one', 'small', 'starter', 'month', 'eur', 'running', 'running', 'key', '${serverSessionId}', 1, 1);
+      `);
+      const insert = database.prepare(
+        "INSERT INTO auth_sessions(id, token_hash, user_id, created_at, last_used_at, expires_at) VALUES (?, ?, 'owner', 1, 1, 8640000000000000)",
+      );
+      insert.run(currentId, await runApiEffect(sha256("current-token")));
+      insert.run(serverSessionId, await runApiEffect(sha256("server-token")));
+      const service = new AuthService({
+        repository: new D1AuthRepository(sqliteD1(database)),
+        now: () => 2,
+        delivery: { send: () => Effect.void },
+        flushSessionRevocations: () => Effect.void,
+      });
+      expect(await runApiEffect(service.listAccountSessions("current-token"))).toContainEqual({
+        sessionId: serverSessionId,
+        name: "Cloud one",
+        kind: "desktop",
+        current: false,
+        connectedAt: 1,
+        lastActiveAt: 1,
+        hostedServer: true,
+      });
+      // A leaked token of the server must stay revocable.
+      await runApiEffect(service.revokeAccountSession("current-token", serverSessionId));
+      expect(await runApiEffect(service.authenticate("server-token"))).toBeNull();
     } finally {
       database.close();
     }

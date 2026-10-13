@@ -1,5 +1,10 @@
 // @vitest-environment node
-import { type AgentEvent, type Routine, routineRunConversationEvent } from "@openbot/contracts/ipc";
+import {
+  type AgentEvent,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
+  type Routine,
+  routineRunConversationEvent,
+} from "@openbot/contracts/ipc";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ROUTINE_NO_UPDATE_MARKER, ROUTINE_NO_UPDATE_TOOL } from "./agent/routine-quiet-runs";
 import { AgentRoutineStore } from "./agent-routine-store";
@@ -39,6 +44,7 @@ interface RoutineRunResult {
   prompt: string | null;
   completed: Extract<AgentEvent, { type: "turn-completed" }>;
   assistantTexts: string[];
+  quietAnswers: string[];
   runStatuses: string[];
   unreadCount: number | undefined;
   preview: string | undefined;
@@ -48,13 +54,13 @@ interface RoutineRunResult {
 
 /**
  * Runs one routine through the whole service: a provider turn that answers `output`, the turn
- * completion and the run marker. A scheduled run is left pending before a restart, which the start
- * resumes, so the test needs no clock. With `noUpdateTool`, the agent calls the no-update tool
+ * completion and the run marker. A scheduled or script run is left pending before a restart, which the
+ * start resumes, so the test needs no clock. With `noUpdateTool`, the agent calls the no-update tool
  * before it answers.
  */
 async function runRoutine(options: {
   output: string;
-  kind: "scheduled" | "manual";
+  kind: "scheduled" | "script" | "test";
   noUpdateTool?: boolean;
 }): Promise<RoutineRunResult> {
   const clients: FakeAgentClient[] = [];
@@ -105,12 +111,12 @@ async function runRoutine(options: {
   expect((await runCauseEffect(service.readConversationPageFor(agent.id, MEMBER))).readState?.unreadCount).toBe(0);
 
   const events: AgentEvent[] = [];
-  if (options.kind === "scheduled") {
+  if (options.kind !== "test") {
     await runCauseEffect(service.stop());
     new AgentRoutineStore(store.database).createRun(
       routine,
-      routine.trigger.id,
-      "scheduled",
+      options.kind === "scheduled" ? routine.trigger.id : null,
+      options.kind,
       "2026-10-08T09:00:00.000Z",
     );
     service = build();
@@ -142,7 +148,10 @@ async function runRoutine(options: {
     prompt: prompt ?? null,
     completed,
     assistantTexts: conversation.messages
-      .filter((message) => message.author === "assistant")
+      .filter((message) => message.author === "assistant" && message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE)
+      .map((message) => message.text),
+    quietAnswers: conversation.messages
+      .filter((message) => message.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE)
       .map((message) => message.text),
     runStatuses: conversation.messages.flatMap((message) => routineRunConversationEvent(message)?.status ?? []),
     unreadCount: (await runCauseEffect(service.readConversationPageFor(agent.id, MEMBER))).readState?.unreadCount,
@@ -180,7 +189,7 @@ describe.sequential("AgentService: routine runs that answer only the no-update m
   });
 
   it("shows the result of a Test run, which someone waits for", async () => {
-    const result = await runRoutine({ output: ROUTINE_NO_UPDATE_MARKER, kind: "manual" });
+    const result = await runRoutine({ output: ROUTINE_NO_UPDATE_MARKER, kind: "test" });
 
     expect(result.prompt).not.toContain("answer with exactly");
     expect(result.assistantTexts).toEqual([ROUTINE_NO_UPDATE_MARKER]);
@@ -200,14 +209,29 @@ describe.sequential("AgentService: routine runs that answer only the no-update m
     expect(result.prompt).toContain(ROUTINE_NO_UPDATE_TOOL);
     expect(result.toolStatus).toBe("quiet");
     expect(result.assistantTexts).toEqual([]);
+    // The chat keeps the sentence inside the collapsed run.
+    expect(result.quietAnswers).toEqual(["Nada acionável nesta varredura."]);
     expect(result.runs).toEqual([expect.objectContaining({ kind: "scheduled", status: "succeeded" })]);
     expect(result.unreadCount).toBe(0);
     expect(result.completed).toMatchObject({ status: "completed", origin: "routine", quiet: true });
     expect(result.preview).toBe(PREVIEW_BEFORE);
   });
 
+  it("posts nothing for a script run that calls the no-update tool", async () => {
+    const result = await runRoutine({ output: "Nothing new.", kind: "script", noUpdateTool: true });
+
+    expect(result.prompt).toContain(`This is a script run. Follow the notification conditions`);
+    expect(result.toolStatus).toBe("quiet");
+    expect(result.assistantTexts).toEqual([]);
+    expect(result.quietAnswers).toEqual(["Nothing new."]);
+    expect(result.runs).toEqual([expect.objectContaining({ kind: "manual", source: "script", status: "succeeded" })]);
+    expect(result.unreadCount).toBe(0);
+    expect(result.completed).toMatchObject({ status: "completed", origin: "routine", quiet: true });
+    expect(result.preview).toBe(PREVIEW_BEFORE);
+  });
+
   it("shows the answer of a Test run that calls the no-update tool", async () => {
-    const result = await runRoutine({ output: "Nothing new.", kind: "manual", noUpdateTool: true });
+    const result = await runRoutine({ output: "Nothing new.", kind: "test", noUpdateTool: true });
 
     expect(result.toolStatus).toBe("shown");
     expect(result.assistantTexts).toEqual(["Nothing new."]);

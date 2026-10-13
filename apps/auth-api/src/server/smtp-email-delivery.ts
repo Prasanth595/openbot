@@ -34,6 +34,8 @@ interface PreparedEmailMessage {
 interface SmtpAttemptState {
   submissionStarted: boolean;
   accepted: boolean;
+  // Milliseconds from the connect call to each reply, for the timing log. No addresses or content.
+  replyAt: Record<string, number>;
 }
 
 interface SmtpSocket {
@@ -178,17 +180,21 @@ const sendPrivateEmailAttempt = Effect.fn("SmtpEmail.attempt")(function* (
   message: PreparedEmailMessage,
   connect: SmtpConnector,
 ): Effect.fn.Return<void, SmtpFailure> {
-  const state: SmtpAttemptState = { submissionStarted: false, accepted: false };
+  const startedAt = Date.now();
+  const state: SmtpAttemptState = { submissionStarted: false, accepted: false, replyAt: {} };
   const outcome: { error: SmtpFailure | null; closeConfirmed: boolean } = { error: null, closeConfirmed: false };
   yield* Effect.acquireUseRelease(
     Effect.gen(function* () {
       const socket = yield* smtpValidate(() =>
         connect({ hostname: config.host, port: config.port }, { secureTransport: "on", allowHalfOpen: false }),
       );
-      const session = yield* Effect.forkChild(Effect.result(runSmtpSession(socket, config, message, state)), {
-        uninterruptible: false,
-        startImmediately: true,
-      });
+      const session = yield* Effect.forkChild(
+        Effect.result(runSmtpSession(socket, config, message, state, startedAt)),
+        {
+          uninterruptible: false,
+          startImmediately: true,
+        },
+      );
       return { socket, session };
     }),
     ({ session }) =>
@@ -213,6 +219,11 @@ const sendPrivateEmailAttempt = Effect.fn("SmtpEmail.attempt")(function* (
         yield* Fiber.interrupt(session);
       }),
   );
+  console.info("SMTP session timing:", {
+    accepted: state.accepted,
+    totalMs: Date.now() - startedAt,
+    replyAtMs: state.replyAt,
+  });
   if (state.accepted) return;
   if (outcome.error && !isRetryableSmtpError(outcome.error)) return yield* outcome.error;
   if (state.submissionStarted || !outcome.closeConfirmed) return yield* new SmtpError("smtp_delivery_unknown");
@@ -250,37 +261,62 @@ function isRetryableSmtpError(error: Error): boolean {
   return ["smtp_transport_failed", "smtp_timeout", "smtp_connection_closed"].includes(error.message);
 }
 
+// Each round trip to the relay costs about 190 ms from Europe, so the session sends as few as it
+// can: `AUTH PLAIN` carries the credentials in one command (RFC 4954), and with `PIPELINING`
+// (RFC 2920) the envelope and `DATA` leave in one write. The replies still arrive in order, so each
+// stage keeps its own refusal. The relay owns the message after the `250` that follows it, so the
+// session sends `QUIT` and does not wait for `221`.
 const runSmtpSession = Effect.fn("SmtpEmail.session")(function* (
   socket: SmtpSocket,
   config: SmtpEmailConfig,
   message: PreparedEmailMessage,
   state: SmtpAttemptState,
+  startedAt: number,
 ): Effect.fn.Return<void, SmtpFailure> {
   yield* smtpCall(() => socket.opened);
   const reader = new SmtpResponseReader(socket.readable.getReader());
   const writer = socket.writable.getWriter();
+  const expect = (expectedCodes: number[], stage: string) =>
+    reader.expect(expectedCodes, stage).pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          state.replyAt[stage] = Date.now() - startedAt;
+        }),
+      ),
+    );
 
-  yield* reader.expect([220], "greeting");
+  yield* expect([220], "greeting");
   yield* writeCommand(writer, "EHLO openbot.run");
-  yield* reader.expect([250], "ehlo");
-  yield* writeCommand(writer, "AUTH LOGIN");
-  yield* reader.expect([334], "auth_username");
-  yield* writeCommand(writer, encodeBase64(config.username));
-  yield* reader.expect([334], "auth_password");
-  yield* writeCommand(writer, encodeBase64(config.password));
-  yield* reader.expect([235], "auth");
-  yield* writeCommand(writer, `MAIL FROM:<${config.from}>`);
-  yield* reader.expect([250], "mail_from");
-  yield* writeCommand(writer, `RCPT TO:<${message.email}>`);
-  yield* reader.expect([250, 251], "recipient");
-  yield* writeCommand(writer, "DATA");
-  yield* reader.expect([354], "data");
+  const extensions = yield* expect([250], "ehlo");
+  if (extensions.some((line) => /^AUTH\b.*\bPLAIN\b/iu.test(line))) {
+    yield* writeCommand(writer, `AUTH PLAIN ${encodeBase64(`\0${config.username}\0${config.password}`)}`);
+  } else {
+    yield* writeCommand(writer, "AUTH LOGIN");
+    yield* expect([334], "auth_username");
+    yield* writeCommand(writer, encodeBase64(config.username));
+    yield* expect([334], "auth_password");
+    yield* writeCommand(writer, encodeBase64(config.password));
+  }
+  yield* expect([235], "auth");
+  const mailFrom = `MAIL FROM:<${config.from}>`;
+  const recipient = `RCPT TO:<${message.email}>`;
+  if (extensions.some((line) => /^PIPELINING$/iu.test(line))) {
+    yield* writeCommand(writer, `${mailFrom}\r\n${recipient}\r\nDATA`);
+    yield* expect([250], "mail_from");
+    yield* expect([250, 251], "recipient");
+  } else {
+    yield* writeCommand(writer, mailFrom);
+    yield* expect([250], "mail_from");
+    yield* writeCommand(writer, recipient);
+    yield* expect([250, 251], "recipient");
+    yield* writeCommand(writer, "DATA");
+  }
+  yield* expect([354], "data");
   state.submissionStarted = true;
   yield* writeCommand(writer, `${createMimeMessage(config.from, message)}\r\n.`);
-  yield* reader.expect([250], "message");
+  yield* expect([250], "message");
   state.accepted = true;
   yield* writeCommand(writer, "QUIT");
-  yield* reader.expect([221], "quit");
 });
 
 class SmtpResponseReader {
@@ -293,7 +329,7 @@ class SmtpResponseReader {
     this: SmtpResponseReader,
     expectedCodes: number[],
     stage: string,
-  ): Effect.fn.Return<void, SmtpFailure> {
+  ): Effect.fn.Return<string[], SmtpFailure> {
     let responseCode: number | null = null;
     const lines: string[] = [];
     while (true) {
@@ -309,6 +345,8 @@ class SmtpResponseReader {
     if (!expectedCodes.includes(responseCode)) {
       return yield* new SmtpReplyError(stage, responseCode, lines.join(" "));
     }
+    // The reply text without the code, such as `PIPELINING` from an `EHLO` reply.
+    return lines.map((line) => line.slice(4));
   }).bind(this);
 
   readonly #readLine = Effect.fn("SmtpResponseReader.readLine")(function* (

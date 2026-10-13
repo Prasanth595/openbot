@@ -9,6 +9,7 @@ import {
   ChevronRight,
   type ContextMenu,
   LogOut,
+  RotateCcw,
   Trash2,
 } from "@openbot/ui";
 import { For, Show } from "solid-js";
@@ -72,9 +73,12 @@ export interface ServerActionCallbacks {
   onRemove?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
   canRemove?: ((serverId: string) => boolean) | undefined;
   canDelete?: ((serverId: string) => boolean) | undefined;
+  /** Asks to restart a hosted server. The menu shows it to the owner when `canRestart` accepts the server. */
+  onRestart?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
+  canRestart?: ((serverId: string) => boolean) | undefined;
 }
 
-/** Mute, notification level, usage, schedule, settings, and leave or delete for one server. */
+/** Mute, notification level, usage, schedule, settings, restart, and leave or delete for one server. */
 export function ServerActionItems(
   props: ServerActionCallbacks & {
     menu: ServerActionMenu;
@@ -94,6 +98,11 @@ export function ServerActionItems(
     props.server.kind === "remote" &&
     props.server.role === "owner" &&
     Boolean(props.canRemove?.(props.server.id));
+  const canRestart = () =>
+    Boolean(props.onRestart) &&
+    props.server.kind === "remote" &&
+    props.server.role === "owner" &&
+    Boolean(props.canRestart?.(props.server.id));
   // A component, so the JSX below can use it as a tag. The menu does not change after render.
   const Menu = props.menu;
   return (
@@ -188,8 +197,14 @@ export function ServerActionItems(
           <span>{t("server.rail.settings")}</span>
         </Menu.Item>
       </Show>
-      <Show when={canLeave() || canDelete() || canRemove()}>
+      <Show when={canRestart() || canLeave() || canDelete() || canRemove()}>
         <Menu.Separator />
+        <Show when={canRestart()}>
+          <Menu.Item onSelect={() => props.onRestart?.(props.server.id, props.trigger())}>
+            <RotateCcw class="agent-context-icon size-4" aria-hidden="true" />
+            <span>{t("server.rail.restart")}</span>
+          </Menu.Item>
+        </Show>
         <Show when={canLeave()}>
           <Menu.Item
             class="ui-action-menu-danger agent-context-danger"

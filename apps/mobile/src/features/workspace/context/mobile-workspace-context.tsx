@@ -22,6 +22,7 @@ import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-pro
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
+import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -84,6 +85,7 @@ import {
 import { BROWSER_VIEW_PAGE_SIZE } from "@/features/browser/model/browser-view-bridge";
 import { MobileChannelStore } from "@/features/channels/model/channel-store";
 import { useLiveActivity } from "@/features/live-activity/use-live-activity";
+import { usePushNotifications } from "@/features/push-notifications/use-push-notifications";
 import { fetch } from "@/features/support/model/logged-fetch";
 import { supportLog } from "@/features/support/model/support-log";
 import type { RemoteTeamTransportRef } from "@/features/workspace/components/remote-team-transport";
@@ -402,6 +404,16 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     loadAgentAvatar,
     supportsPush: supportsLiveActivityPush,
   });
+  const supportsPushNotifications = useCallback(
+    (serverId: string) => serverCapabilities.current.get(serverId)?.includes(PUSH_NOTIFICATIONS_CAPABILITY) === true,
+    [],
+  );
+  usePushNotifications({
+    servers,
+    foreground,
+    post: postLiveActivityAction,
+    supportsPush: supportsPushNotifications,
+  });
   /** The shared Team API requests, sent to one server. */
   const teamApi = useCallback(
     (serverId?: string, onUploadProgress?: (fraction: number) => void): TeamApiRequest =>
@@ -646,6 +658,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const othersHeld = hold !== null && hold.serverId === activeServerId;
   const wakeReconnect = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(wakeReconnect.current), []);
+  /** The account server says that the hosted server starts, so the app connects to it again soon. */
+  const hostedServerStarting = useCallback((hostId: string) => {
+    clearTimeout(wakeReconnect.current);
+    wakeReconnect.current = setTimeout(() => connections.current.get(hostId)?.refresh(), WAKE_RECONNECT_DELAY_MS);
+  }, []);
   // A hosted server that stopped for no use starts again only for use: the selected server, with the
   // app in the foreground. It connects again when the account server says that it starts.
   const wakeSelectedServer = useCallback(
@@ -653,11 +670,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       if (!foregroundRef.current || hostId !== activeServerIdRef.current) return;
       void runTeamEffect(wakeHostedServer(hostId)).then((waking) => {
         if (!waking || hostId !== activeServerIdRef.current) return;
-        clearTimeout(wakeReconnect.current);
-        wakeReconnect.current = setTimeout(() => connections.current.get(hostId)?.refresh(), WAKE_RECONNECT_DELAY_MS);
+        hostedServerStarting(hostId);
       });
     },
-    [wakeHostedServer],
+    [wakeHostedServer, hostedServerStarting],
   );
   /** The last failed attempt of each server that asked for a wake. */
   const wakeAttempts = useRef(new Map<string, number>());
@@ -1342,7 +1358,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         connections.current.get(serverId)?.refresh();
         await refreshHosts();
       },
+      hostedServerStarting,
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
+      canSendNotifications: (serverId) =>
+        servers.some((server) => server.id === serverId && server.state === "online") &&
+        supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
       canManageAgentSkills: (serverId) => administers(serverId, SKILLS_ADMIN_CAPABILITY),
       canManageSharedTables: (serverId) => administers(serverId, SHARED_TABLES_CAPABILITY),
@@ -1624,6 +1644,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     refreshHosts,
     refreshMemberships,
     readRefresh,
+    hostedServerStarting,
     request,
     serverDirectoryError,
     teamApi,
@@ -1639,6 +1660,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     liveState,
     preferences,
     updatePreferences,
+    supportsPushNotifications,
   ]);
 
   return (

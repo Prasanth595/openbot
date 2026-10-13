@@ -2321,6 +2321,40 @@ export class RemoteControlPlane {
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
 
+  /**
+   * Whether a member's device session on this host is still open: not ended, the membership active,
+   * and the account session of the device not signed out. The notification relay sends nothing for a
+   * closed one, because a host does not learn when the account service ends a session.
+   */
+  readonly sessionOpen = Effect.fn("RemoteControlPlane.sessionOpen")(
+    function* (
+      this: RemoteControlPlane,
+      hostId: string,
+      sessionId: string,
+    ): Effect.fn.Return<boolean, RemoteFailure, RemoteDependencies> {
+      const dependencies = yield* RemoteDependencies;
+      const now = dependencies.now();
+      const row = yield* remoteCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT 1 AS open FROM remote_sessions s
+           JOIN remote_memberships m
+             ON m.membership_id = s.membership_id AND m.host_id = s.host_id AND m.status = 'active'
+          WHERE s.session_id = ? AND s.host_id = ? AND s.ended_at IS NULL AND s.expires_at > ?
+            AND (s.auth_session_hash IS NULL OR EXISTS(
+              SELECT 1 FROM auth_sessions
+               WHERE token_hash = s.auth_session_hash AND user_id = s.user_id AND revoked_at IS NULL AND expires_at > ?
+            ))
+          LIMIT 1`,
+          )
+          .bind(sessionId, hostId, now, now)
+          .first<{ open: number }>(),
+      );
+      return row !== null;
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly #requireRole = Effect.fn("RemoteControlPlane.requireRole")(function* (
     this: RemoteControlPlane,
     hostId: string,

@@ -28,6 +28,7 @@
     "./dynamic-island-presentation": "./src/dynamic-island-presentation.ts",
     "./live-activity-props": "./src/live-activity-props.ts",
     "./live-activity-seal": "./src/live-activity-seal.ts",
+    "./push-notification-seal": "./src/push-notification-seal.ts",
     "./usage-series": "./src/usage-series.ts"
   },
   "scripts": {

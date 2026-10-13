@@ -12,7 +12,7 @@ export const messages = {
   "sidebar.new.agent": "Yeni ajan",
   "sidebar.new.channel": "Yeni kanal",
   "sidebar.new.section": "Yeni bölüm",
-  "sidebar.new.menu": "Yeni ajan veya kanal",
+  "sidebar.new.menu": "Yeni ajan veya bölüm",
   "sidebar.markAllRead": "Tümünü okundu olarak işaretle",
   "sidebar.topbar.openSettings": "{name} için ayarları aç",
   "sidebar.topbar.expand": "Kenar çubuğunu genişlet",

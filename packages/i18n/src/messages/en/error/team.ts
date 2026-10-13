@@ -69,6 +69,7 @@ export const messages = defineMessages("error.team", {
     "This routine canvas is too large to send to this device. Shorten the routine instructions on the computer that runs the server.",
   "error.team.agentImportUnsupported": "Importing agents is not supported by this connection.",
   "error.team.liveActivityUnsupported": "This host cannot update the Live Activity of a phone.",
+  "error.team.pushNotificationsUnsupported": "This host cannot send notifications to a phone.",
   "error.team.agentUpdateTargetRequired": "An agent to update is required.",
   "error.team.queueEditUnsupported": "This client does not support queue editing.",
   "error.team.skillsUnsupported": "Skills are not supported by this connection.",

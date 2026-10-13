@@ -31,7 +31,7 @@ export function useServerActions() {
     refreshHostedServersAvailable,
   } = useServers();
   const { selectServer } = useServerSelection();
-  const { openServerSettings, requestLeaveServer } = useServerSettings();
+  const { openServerSettings, requestLeaveServer, requestRestartServer } = useServerSettings();
   const { openHostedServerDelete } = useSettings();
 
   /** Local servers above the saved remote-server order, as the rail draws them. */
@@ -88,6 +88,8 @@ export function useServerActions() {
     canRemove: (serverId) => hostedServersLoaded() && !hostedServerIds().has(serverId),
     onDelete: openHostedServerDelete,
     canDelete: (serverId) => hostedServerIds().has(serverId),
+    onRestart: requestRestartServer,
+    canRestart: (serverId) => hostedServerIds().has(serverId),
   } satisfies ServerActionCallbacks;
 
   return { orderedServers, select, add, addCreatesServer: hostedServersAvailable, callbacks };

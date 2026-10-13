@@ -35,20 +35,26 @@ are notices only and direct the person to OpenBot. Messages and routine runs sha
 
 ## Quiet routine runs
 
-A scheduled run of an agent routine can end without a message, in two ways. The agent calls the
-`routine_no_update` tool, which the scheduled-run prompt names, or the user asks in the routine task
+A scheduled, script or webhook run of an agent routine can end without news, in two ways. No person
+waits for the answer of such a run (`quietRoutineRun`). The run history stores what started a manual
+run in `run_source` (`test`, `script` or `webhook`); a manual run from before migration 35 has none
+and is read as a Test run. The agent calls the
+`routine_no_update` tool, which the run prompt names, or the user asks in the routine task
 for an answer of only `[[no-update]]`. Models often write a short sentence instead of an exact
-token, so the tool is the main path. There is no setting or column. The tool and the marker do not
+token, so the tool is the main path. There is no setting. The tool and the marker do not
 depend on the language of the answer (`src/backend/agent/routine-quiet-runs.ts`). The tool call is
 held in memory until the turn completes; the history import finds it again by the tool name, as
-it finds the marker by its text. When a turn that ran only scheduled routine runs completes and every
+it finds the marker by its text. When a turn that ran only quiet routine runs completes and every
 answer is the marker, or the agent called the tool and the turn gave no file, image or question, the
-turn drops its answers, thinking and plan from the conversation, puts back the agent preview from
+turn drops its markers, thinking and plan from the conversation. Each other text answer stays with the
+item type `routine_quiet_answer`. A quiet answer does not count as unread, does not change the agent
+preview, and no Team API client gets it; the desktop chat shows it under its run, which starts closed.
+The turn puts back the agent preview from
 before the run (the run start shows the task there; memory only, so after a restart the task stays),
 and its `turn-completed`
 event has `quiet: true`, which stops the desktop notification and the completion sound. The run
-marker and the run history stay. A marker inside a longer answer is a report and is shown. Test runs,
-and script or webhook runs, which are also manual runs, are never quiet.
+marker and the run history stay. A marker inside a longer answer is a report and is shown. A Test run
+is never quiet.
 
 `quiet` reaches remote clients too. The released Team API event projects a fixed key list, so the
 current v6 adapter puts `quiet` beside the frozen `turn-completed` projection

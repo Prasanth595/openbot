@@ -36,6 +36,7 @@ interface TestStats {
   type: string;
   selectedCandidatePairId?: string;
   localCandidateId?: string;
+  bytesReceived?: number;
   remoteCandidateId?: string;
   candidateType?: string;
 }
@@ -624,6 +625,40 @@ describe("browser remote peer recovery", () => {
     await expect(network.connect()).resolves.toMatchObject({ ok: true });
     expect(network.bootstraps()).toBe(3);
     response.resolve();
+    await network.runtime.dispose();
+  });
+
+  it("keeps a peer whose path still receives data while a busy host answers the compatibility read late", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const response = deferred();
+    const requested = deferred();
+    let silent = false;
+    const network = await setupNetwork({
+      beforeResponse: async () => {
+        if (!silent) return;
+        requested.resolve();
+        await response.promise;
+      },
+    });
+    await network.connect();
+    await network.runtime.execute({ id: "answered", type: "request", method: "GET", path: "/v1/agents", body: {} });
+    silent = true;
+    let settled = false;
+    const check = network.runtime
+      .execute({ id: "busy-check", type: "request", method: "GET", path: "/v1/compatibility", body: {} })
+      .finally(() => {
+        settled = true;
+      });
+    await requested.promise;
+    // The host's WebRTC process acknowledges data while its main process is busy for 20 s.
+    for (let second = 0; second < 20; second += 1) {
+      network.connection().bytesReceived += 100;
+      await vi.advanceTimersByTimeAsync(1_000);
+    }
+    expect({ settled, state: network.updates.at(-1)?.state }).toEqual({ settled: false, state: "online" });
+    response.resolve();
+    await check;
+    expect(network.bootstraps()).toBe(1);
     await network.runtime.dispose();
   });
 
@@ -1560,10 +1595,20 @@ async function setupNetwork(
     }
     /** The type of the local candidate in the selected pair. */
     candidateType = "host";
+    /** The bytes that the selected pair received. A test raises it to stand for a path that still works. */
+    bytesReceived = 0;
     async getStats() {
       return new Map<string, TestStats>([
         ["transport", { type: "transport", selectedCandidatePairId: "pair" }],
-        ["pair", { type: "candidate-pair", localCandidateId: "local", remoteCandidateId: "remote" }],
+        [
+          "pair",
+          {
+            type: "candidate-pair",
+            localCandidateId: "local",
+            remoteCandidateId: "remote",
+            bytesReceived: this.bytesReceived,
+          },
+        ],
         ["local", { type: "local-candidate", candidateType: this.candidateType }],
         ["remote", { type: "remote-candidate", candidateType: "host" }],
       ]);

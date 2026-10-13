@@ -9,11 +9,17 @@ import type {
   CentralAuthState,
   CentralAuthUser,
   MobileConnectedDevice,
+  MobileConnectLink,
   MobileConnectTicket,
 } from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
-import { createMobileConnectUrl, type MobileConnectHostBinding } from "@openbot/contracts/mobile-connect";
+import {
+  createMobileConnectUrl,
+  isMobileConnectHostBinding,
+  type MobileConnectHostBinding,
+} from "@openbot/contracts/mobile-connect";
+import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import {
   decodeRemoteSession,
   decodeRemoteSessionTicket,
@@ -40,6 +46,7 @@ import {
   decodeCreatedRemoteInvite,
   decodeEmailChallenge,
   decodeMobileConnectedDevices,
+  decodeMobileConnectLinkResponse,
   decodeRecordHealth,
   decodeRegisteredRemoteHost,
   decodeRemoteHosts,
@@ -75,6 +82,15 @@ interface CentralAuthManagerOptions {
   startupRetryDelaysMs?: readonly number[];
   emailCodeRequestTimeoutMs?: number;
 }
+
+/** The persistent Mobile Connect link of this desktop. The account service keeps only its hash. */
+interface StoredMobileConnectLink {
+  host: MobileConnectHostBinding;
+  token: string;
+  createdAt: number;
+}
+
+const MOBILE_CONNECT_LINK_TOKEN = /^[A-Za-z0-9_-]{32,128}$/u;
 
 interface EmailCodeRequest {
   email: string;
@@ -129,6 +145,8 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   #state: CentralAuthState = { status: "loading" };
   #sessionToken: string | null = null;
   readonly #teamHostTokens = new Map<string, string>();
+  /** Belongs to the session that made it: the account service rejects it when that session ends. */
+  #mobileConnectLink: StoredMobileConnectLink | null = null;
   #sessionWrites = Semaphore.makeUnsafe(1);
   /** The account the stored host credentials were issued to, or none while signed out. */
   #sessionAccountId: string | null = null;
@@ -334,6 +352,99 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     (operation) => this.#owned(operation),
   ).bind(this);
 
+  /** Spends the one-time code that this host shows, so it cannot sign in a phone. */
+  readonly cancelMobileConnect = Effect.fn("CentralAuth.cancelMobileConnect")(
+    function* (
+      this: CentralAuthManager,
+      host: MobileConnectHostBinding | null,
+    ): Effect.fn.Return<void, CentralAuthOperationError, CentralAuthTransport> {
+      // A code is always bound to the host that showed it. With no host, no code of this desktop exists.
+      if (!host) return;
+      yield* this.#authorizedRequestEffect(
+        `/v1/mobile-auth/ticket?host=${encodeURIComponent(host.hostId)}`,
+        { method: "DELETE" },
+        () => undefined,
+      );
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  /** The stored persistent link, if it was made for this host identity. */
+  getMobileConnectLink(host: MobileConnectHostBinding | null): MobileConnectLink | null {
+    const stored = this.#mobileConnectLink;
+    if (
+      !stored ||
+      !host ||
+      this.#state.status !== "signed_in" ||
+      stored.host.hostId !== host.hostId ||
+      stored.host.fingerprint !== host.fingerprint
+    )
+      return null;
+    return this.#mobileConnectLinkView(stored);
+  }
+
+  /** Makes a new persistent link. The account service revokes the link that it replaces. */
+  readonly createMobileConnectLink = Effect.fn("CentralAuth.createMobileConnectLink")(
+    function* (
+      this: CentralAuthManager,
+      host: MobileConnectHostBinding,
+    ): Effect.fn.Return<MobileConnectLink, CentralAuthOperationError, CentralAuthTransport> {
+      const sessionToken = this.#sessionToken;
+      const result = yield* this.#authorizedRequestEffect(
+        "/v1/mobile-auth/link",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ host }),
+        },
+        decodeMobileConnectLinkResponse,
+      );
+      if (!MOBILE_CONNECT_LINK_TOKEN.test(result.link) || !Number.isFinite(result.createdAt)) {
+        return yield* new CentralAuthOperationError({
+          cause: new Error("The account service returned an invalid Mobile Connect link."),
+        });
+      }
+      const stored = { host, token: result.link, createdAt: result.createdAt };
+      // A sign-out during the request ended the session that the link belongs to.
+      if (this.#sessionToken === sessionToken) {
+        this.#mobileConnectLink = stored;
+        yield* this.#writeStoredSession();
+      }
+      return this.#mobileConnectLinkView(stored);
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  readonly revokeMobileConnectLink = Effect.fn("CentralAuth.revokeMobileConnectLink")(
+    function* (
+      this: CentralAuthManager,
+      host: MobileConnectHostBinding | null,
+    ): Effect.fn.Return<void, CentralAuthOperationError, CentralAuthTransport> {
+      const hostId = this.#mobileConnectLink?.host.hostId ?? host?.hostId;
+      if (!hostId) return;
+      yield* this.#authorizedRequestEffect(
+        `/v1/mobile-auth/link?host=${encodeURIComponent(hostId)}`,
+        { method: "DELETE" },
+        () => undefined,
+      );
+      if (this.#mobileConnectLink?.host.hostId !== hostId) return;
+      this.#mobileConnectLink = null;
+      yield* this.#writeStoredSession();
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  #mobileConnectLinkView(stored: StoredMobileConnectLink): MobileConnectLink {
+    return {
+      url: createMobileConnectUrl({
+        apiUrl: this.#options.mobileConnectApiUrl,
+        ticket: stored.token,
+        host: stored.host,
+      }),
+      createdAt: stored.createdAt,
+    };
+  }
+
   readonly listMobileConnectedDevices = Effect.fn("CentralAuth.listMobileConnectedDevices")(
     function* (
       this: CentralAuthManager,
@@ -364,6 +475,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
                   current: z.boolean(),
                   connectedAt: z.number().finite(),
                   lastActiveAt: z.number().finite(),
+                  hostedServer: z.boolean().exactOptional(),
                 }),
               ),
             })
@@ -723,6 +835,38 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
             if (error instanceof AuthApiError && error.status === 410) return "gone";
             return yield* new CentralAuthOperationError({ cause: error });
           }),
+        ),
+      );
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  /**
+   * Sends one notification through the account service to Apple. The host sealed the agent name and
+   * the text with keys that only the phone has. Returns `gone` when the session of the phone ended
+   * or Apple refused the token.
+   */
+  readonly sendPushNotification = Effect.fn("CentralAuth.sendPushNotification")(
+    function* (
+      this: CentralAuthManager,
+      hostId: string,
+      push: NotificationRelayPush,
+    ): Effect.fn.Return<"sent" | "gone", CentralAuthOperationError, CentralAuthTransport> {
+      const machineToken = yield* this.#hostMachineToken(hostId);
+      return yield* this.#requestEffect(
+        `/v2/remote/hosts/${encodeURIComponent(hostId)}/notification`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ machineToken, ...push }),
+        },
+        () => undefined,
+      ).pipe(
+        Effect.as("sent" as const),
+        Effect.catch(({ cause: error }) =>
+          error instanceof AuthApiError && error.status === 410
+            ? Effect.succeed("gone" as const)
+            : Effect.fail(new CentralAuthOperationError({ cause: error })),
         ),
       );
     },
@@ -1280,6 +1424,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
           this.#teamHostTokens.clear();
         }
         this.#sessionToken = session.sessionToken;
+        this.#mobileConnectLink = null;
         sessionApplied = true;
         yield* this.#writeStoredSession();
         return this.#setState({
@@ -1342,7 +1487,9 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         this.#teamHostTokens.clear();
       }
       const previousToken = this.#sessionToken;
+      const previousMobileConnectLink = this.#mobileConnectLink;
       this.#sessionToken = redeemed.sessionToken;
+      this.#mobileConnectLink = null;
       // The claim is spent. A session that is not stored ends at the next start, so a failed write fails
       // the redeem, and the session is not kept in memory. The start retry redeems the claim again in its
       // retry window.
@@ -1352,6 +1499,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
       if (Result.isFailure(attempt7)) {
         const error = attempt7.failure.cause;
         this.#sessionToken = previousToken;
+        this.#mobileConnectLink = previousMobileConnectLink;
         return yield* new CentralAuthOperationError({ cause: error });
       }
       const user = this.#resolveUserAvatar(redeemed.user);
@@ -1548,6 +1696,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         version: 2,
         sessionToken: this.#sessionToken,
         teamHostTokens: Object.fromEntries(this.#teamHostTokens),
+        ...(this.#mobileConnectLink ? { mobileConnectLink: this.#mobileConnectLink } : {}),
       });
       const encrypted = yield* authDecode(() => this.#options.encrypt(value).toString("base64"));
       yield* authCall(() => mkdir(dirname(this.#options.storagePath), { recursive: true }));
@@ -1576,6 +1725,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     this.#sessionToken = null;
     this.#sessionAccountId = null;
     this.#teamHostTokens.clear();
+    this.#mobileConnectLink = null;
     // Through the same chain as the writes, so a write already in flight cannot put the
     // file back after it is removed.
     yield* this.#sessionWrites
@@ -1587,6 +1737,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     if (!value.trimStart().startsWith("{")) {
       this.#sessionToken = value;
       this.#teamHostTokens.clear();
+      this.#mobileConnectLink = null;
       return;
     }
     const stored = JSON.parse(value);
@@ -1602,6 +1753,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         }
       }
     }
+    this.#mobileConnectLink = restoreMobileConnectLink(stored.mobileConnectLink);
   }
 
   #setState(state: CentralAuthState): CentralAuthState {
@@ -1833,4 +1985,13 @@ function errorMessage(error: unknown, fallback: string): string {
 function isTransientStartupError(error: unknown): boolean {
   if (error instanceof NetworkBlockedError) return false;
   return !(error instanceof AuthApiError) || error.status >= 500;
+}
+
+/** An invalid stored link is dropped, not the session: the user can make a new link. */
+function restoreMobileConnectLink(value: unknown): StoredMobileConnectLink | null {
+  if (!isDynamicRecord(value)) return null;
+  const { host, token, createdAt } = value;
+  if (!isMobileConnectHostBinding(host) || !isString(token) || !MOBILE_CONNECT_LINK_TOKEN.test(token)) return null;
+  if (!isNumber(createdAt) || !Number.isFinite(createdAt)) return null;
+  return { host: { hostId: host.hostId, fingerprint: host.fingerprint }, token, createdAt };
 }

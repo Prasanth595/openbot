@@ -48,6 +48,7 @@ import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
 import type { ProviderHostSignIns } from "../provider-host-sign-ins";
+import type { PushNotificationService } from "../push-notifications";
 import type { RemoteScreenGateway } from "../remote-screen-gateway";
 import type { SignInRelayHost } from "../sign-in-relay-host";
 import type { TeamStore } from "../team-store";
@@ -348,6 +349,8 @@ export interface TeamApiOptions {
   onSessionRevoked?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
   /** Sends Live Activity updates to members' phones. Absent when this host has no account credential. */
   liveActivityPush?: LiveActivityPushService;
+  /** Sends notifications to members' phones. Absent when this host has no account credential. */
+  pushNotifications?: PushNotificationService;
   rateLimitCapacity?: number;
   now?: () => number;
   logger?: Logger;

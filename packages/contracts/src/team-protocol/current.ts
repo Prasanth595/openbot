@@ -40,6 +40,7 @@ import { PROVIDERS_RUNTIMES_V2_CAPABILITY } from "./providers-v2";
 import { PROVIDERS_SIGN_IN_V3_CAPABILITY } from "./providers-v3";
 import { PROVIDERS_V4_CAPABILITY } from "./providers-v4";
 import { PROVIDERS_V5_CAPABILITY } from "./providers-v5";
+import { PUSH_NOTIFICATIONS_CAPABILITY } from "./push-notifications-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "./queue-edit-v1";
 import { QUIET_TURN_CAPABILITY } from "./quiet-turn-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "./routine-flows-v1";
@@ -100,6 +101,7 @@ export {
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
+  PUSH_NOTIFICATIONS_CAPABILITY,
   QUIET_TURN_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
@@ -182,6 +184,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   CONVERSATION_FILE_SEARCH_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
   TEAM_HISTORY_EXTENT_CAPABILITY,
+  PUSH_NOTIFICATIONS_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -261,7 +264,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== CONNECTORS_CAPABILITY &&
     capability !== CONVERSATION_FILE_SEARCH_CAPABILITY &&
     capability !== ROUTINE_FLOWS_CAPABILITY &&
-    capability !== TEAM_HISTORY_EXTENT_CAPABILITY,
+    capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
+    capability !== PUSH_NOTIFICATIONS_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -282,6 +286,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== CONNECTORS_CAPABILITY &&
       capability !== CONVERSATION_FILE_SEARCH_CAPABILITY &&
       capability !== ROUTINE_FLOWS_CAPABILITY &&
-      capability !== TEAM_HISTORY_EXTENT_CAPABILITY,
+      capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
+      capability !== PUSH_NOTIFICATIONS_CAPABILITY,
   );
 }

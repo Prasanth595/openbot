@@ -34,6 +34,7 @@ import type { OwnedRoutineRecord, ReceivedWebhookEvent, RoutineHoldWindow, Routi
 import type { RoutineDueSource, RoutineTimer } from "../routine-timer";
 import { type ConversationRuntime, withDatabaseTransaction } from "./conversation-runtime";
 import { routineStatusForDelivery } from "./delivery-content";
+import { quietRoutineRun } from "./routine-quiet-runs";
 import {
   localTimezone,
   type OpenBotToolResponse,
@@ -216,12 +217,12 @@ export class RoutineScheduler implements RoutineDueSource {
   }
 
   /**
-   * Whether the run of this delivery may end without a message, when the agent answers only the
-   * no-update marker. Only a scheduled run: a Test run and a script or webhook run are started by
-   * someone who waits for the result.
+   * Whether the run of this delivery may end without a message, when the agent has nothing to
+   * report. Not a Test run: the person who started it waits for the result.
    */
   quietRunForDelivery(deliveryId: string): boolean {
-    return this.#routines.runForDelivery(deliveryId)?.kind === "scheduled";
+    const run = this.#routines.runForDelivery(deliveryId);
+    return run !== null && quietRoutineRun(run);
   }
 
   /**
@@ -443,13 +444,13 @@ export class RoutineScheduler implements RoutineDueSource {
         }
       });
     }
-    return yield* this.runWithPayload({ ...input, payload: "" });
+    return yield* this.runWithPayload({ ...input, payload: "", source: "test" });
   });
 
   /** Store the event in the run instruction so recovery retains it. */
   readonly runWithPayload = Effect.fn("RoutineScheduler.runWithPayload")(function* (
     this: RoutineScheduler,
-    input: TestRoutineInput & { payload: string; waitId?: string },
+    input: TestRoutineInput & { payload: string; source: "test" | "script"; waitId?: string },
   ) {
     const run = yield* routineStep(() => {
       if (!this.mayDrain(input.agentId)) throw new RoutineInputError(sourceText("error.backend.routineWaitForAgent"));
@@ -470,7 +471,7 @@ export class RoutineScheduler implements RoutineDueSource {
       return this.#routines.createRun(
         { id: routine.id, agentId: routine.ownerId, name: routine.name, instruction },
         null,
-        "manual",
+        input.source,
         new Date().toISOString(),
       );
     });

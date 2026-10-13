@@ -89,7 +89,12 @@ function service(send: (push: LiveActivityRelayPush) => Promise<"sent" | "gone">
 const viewer = {
   memberId: "member-1",
   hiddenAgentIds: () => new Set(["hidden"]),
-  readOptions: { excludeRoutineEvents: false, excludeRoutineRunEvents: false, excludeHostedSiteEvents: false },
+  readOptions: {
+    excludeRoutineEvents: false,
+    excludeRoutineRunEvents: false,
+    excludeHostedSiteEvents: false,
+    excludeRoutineQuietAnswers: true,
+  },
 };
 
 describe("LiveActivityPushService", () => {
@@ -112,6 +117,30 @@ describe("LiveActivityPushService", () => {
     expect(sent).toMatchObject({ token: registration.token, event: "update", priority: 10 });
     // The relay and Apple see sealed bytes only.
     expect(JSON.stringify(sent)).not.toMatch(/npm test|Ada|hidden-secret|approval/iu);
+    await Effect.runPromise(push.dispose());
+  });
+
+  it("alerts at once in place of a notification, and not after iOS ended the activity", async () => {
+    const send = vi.fn(async (_push: LiveActivityRelayPush) => "sent" as const);
+    const push = service(send);
+    snapshot.pendingApprovals.push(approval("ada", "npm test"));
+    expect(push.showsEvent("session-1", { sound: "openbot" }, null)).toBe(false);
+
+    push.register("session-1", viewer, registration);
+    await vi.runOnlyPendingTimersAsync();
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ event: "update", alert: null }));
+
+    // The view is the same, and the alert still goes.
+    expect(push.showsEvent("session-1", null, null)).toBe(true);
+    // A host that restarted got the token now, but the phone knows that iOS started the activity 8 hours ago.
+    expect(push.showsEvent("session-1", null, Date.now() - 8 * 60 * 60 * 1000)).toBe(false);
+    expect(push.showsEvent("session-1", { sound: "openbot" }, Date.now() - 60_000)).toBe(true);
+    await vi.runOnlyPendingTimersAsync();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ priority: 10, alert: { sound: "openbot" } }));
+
+    await vi.advanceTimersByTimeAsync(8 * 60 * 60 * 1000);
+    expect(push.showsEvent("session-1", { sound: "default" }, null)).toBe(false);
     await Effect.runPromise(push.dispose());
   });
 

@@ -118,6 +118,7 @@ import { ConversationRuntime } from "./agent/conversation-runtime";
 import { CustomEndpoints, toEndpointChangeFailed } from "./agent/custom-endpoints";
 import { agentNamesById, displayMessageReferences } from "./agent/delivery-content";
 import { DeltaBuffer } from "./agent/delta-buffer";
+import type { SectionTeammates } from "./agent/developer-instructions";
 import { DrainScheduler } from "./agent/drain-scheduler";
 import { DuplicationGate, toAgentDuplicationFailed } from "./agent/duplication-gate";
 import type { FailureContext, FailureSignal } from "./agent/failure-signal";
@@ -146,6 +147,7 @@ import { ProfileSave, standingProfileChanged, toProfileSaveFailed } from "./agen
 import { isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
 import { type AgentClientFactory, ProviderRuntime, toProviderOperationFailed } from "./agent/provider-runtime";
 import { QueueControls } from "./agent/queue-controls";
+import { quietRoutineRun } from "./agent/routine-quiet-runs";
 import { type RoutineMutationOptions, RoutineScheduler, toRoutineOperationFailed } from "./agent/routine-scheduler";
 import { buildRuntimeSnapshot } from "./agent/runtime-snapshot";
 import { SessionSettings } from "./agent/session-settings";
@@ -286,10 +288,17 @@ export interface AgentServiceOptions {
    * while memory is low, and only a fixed number of turns run at the same time.
    */
   hostMemory?: HostMemory | null;
+  /**
+   * Archives every channel when the providers are ready and refuses new channel work. Channels are
+   * deprecated; the application sets this, and tests leave it off to keep testing the channel code.
+   */
+  retireChannels?: boolean;
 }
 
 /** How long a user send's `clientMessageId` answers a retry. A retry follows a lost reply, not a day. */
 const USER_SEND_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** The `send_message` recipient limit, so one message can reach every section-mate the prompt names. */
+const MAX_SECTION_TEAMMATES = 32;
 
 export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly channels: ChannelService;
@@ -345,6 +354,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #stoppedTurns = new Map<string, string>();
   #initialized = false;
   #stopping = false;
+  readonly #retireChannels: boolean;
 
   constructor(options: AgentServiceOptions) {
     super();
@@ -368,7 +378,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       githubConnector = null,
       hostMemory = null,
       busyMessageMode = () => DEFAULT_BUSY_MESSAGE_MODE,
+      retireChannels = false,
     } = options;
+    this.#retireChannels = retireChannels;
     this.#developmentDefaults = developmentDefaults;
     this.#busyMessageMode = busyMessageMode;
     this.#localSkillTools = localSkillTools;
@@ -502,6 +514,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           Effect.gen({ self: this }, function* () {
             yield* this.#boot.reconcileUnresolvedDeliveries();
             yield* this.channels.recover();
+            // A failure must not skip the drains below; the next start archives what is left.
+            if (this.#retireChannels)
+              yield* this.channels
+                .retire()
+                .pipe(
+                  Effect.catch((failure) =>
+                    Effect.sync(() => logger.warn("Could not archive the channels.", { error: failure.cause })),
+                  ),
+                );
             this.#channelRoutines.reconcileAll();
             yield* this.#boot.backfillProviderHistory().pipe(Effect.forkIn(this.#scope));
             for (const agent of this.#store.list()) this.#drain.scheduleDrain(agent.id);
@@ -712,6 +733,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
+      sectionTeammates: (agentId) => this.sectionTeammates(agentId),
       hooks: {
         logRecovery: (agentId, provider, outcome) =>
           logger.warn("Recovered an unavailable provider session.", { agentId, provider, outcome }),
@@ -731,9 +753,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       threads: this.#threads,
       hooks: {
         emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
-        // A deleted routine takes its runs with it, so a run without a record counts as scheduled:
-        // otherwise the import would bring back the answers that its quiet turns dropped.
-        quietRoutineDelivery: (deliveryId) => this.#routines.runForDelivery(deliveryId)?.kind !== "manual",
+        // A deleted routine takes its runs with it, so a run without a record counts as quiet:
+        // otherwise the import would bring back the answers that its quiet turns settled.
+        quietRoutineDelivery: (deliveryId) => {
+          const run = this.#routines.runForDelivery(deliveryId);
+          return run === null || quietRoutineRun(run);
+        },
         executionThreads: () => [...this.channels.store.executionThreads(), ...this.messaging.store.executionThreads()],
         deliveryThreadId: (deliveryId) => {
           const assignment = this.channels.store.assignmentForDelivery(deliveryId);
@@ -744,6 +769,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
     });
     this.channels = new ChannelService(store.database, mailbox, {
+      retired: this.#retireChannels,
       agents: () => this.listAgents(),
       generate: (lead, prompt) =>
         Effect.gen({ self: this }, function* () {
@@ -1020,6 +1046,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       browserUploads: this.#browserUploads,
       attachments: this.#attachments,
       channels: this.channels,
+      messaging: this.messaging,
       hostedSites: this.#hostedSites,
       routines: this.#routines,
       memories: this.#memories,
@@ -1096,6 +1123,27 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   listAgents(): AgentSummary[] {
     return this.#duplication.visibleAgents(this.#store.list());
+  }
+
+  /**
+   * The other agents in the agent's sidebar section, in sidebar order, for its instructions. Null when
+   * the agent has no section of the user's, or is in the Integrations section: the orchestrators there
+   * serve unrelated integrations and choose teammates by fit.
+   */
+  sectionTeammates(agentId: string): SectionTeammates | null {
+    const layout = this.#sidebarLayout?.getSnapshot();
+    const section = layout?.sections.find((entry) => entry.id === layout.agentAssignments[agentId]);
+    if (!layout || !section || section.name === sourceText("status.messaging.integrationsSection")) return null;
+    const rank = (id: string) => {
+      const index = layout.agentOrder.indexOf(id);
+      return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+    };
+    const members = this.listAgents()
+      .filter((agent) => agent.id !== agentId && layout.agentAssignments[agent.id] === section.id)
+      .sort((a, b) => rank(a.id) - rank(b.id))
+      .slice(0, MAX_SECTION_TEAMMATES)
+      .map((agent) => ({ id: agent.id, name: agent.name, title: agent.title }));
+    return members.length > 0 ? { name: section.name, members } : null;
   }
 
   /**
@@ -1315,7 +1363,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       }
     });
     return yield* this.#routines
-      .runWithPayload(input)
+      .runWithPayload({ ...input, source: "script" })
       .pipe(
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "run routine from automation", cause: failure.cause }),

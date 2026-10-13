@@ -3,6 +3,19 @@ import { runApiEffect } from "../src/server/effect-runtime";
 import { createEmailCodeDelivery } from "../src/server/email-delivery";
 import { type SmtpConnector, sendPrivateEmailCode, sendPrivateTeamInvite } from "../src/server/smtp-email-delivery";
 
+// What mail.privateemail.com offers: `AUTH PLAIN` and `PIPELINING`.
+const PIPELINING_SUCCESS_RESPONSES = [
+  "220 mail.privateemail.com ready",
+  "250-mail.privateemail.com",
+  "250-AUTH PLAIN LOGIN",
+  "250 PIPELINING",
+  "235 Authentication successful",
+  "250 Sender accepted",
+  "250 Recipient accepted",
+  "354 End data with <CR><LF>.<CR><LF>",
+  "250 Message accepted",
+].join("\r\n");
+
 const SUCCESS_RESPONSES = [
   "220 mail.privateemail.com ready",
   "250-mail.privateemail.com",
@@ -130,7 +143,7 @@ describe("Private Email SMTP delivery", () => {
         opened: Promise.resolve(),
         readable: new ReadableStream({
           start(controller) {
-            controller.enqueue(new TextEncoder().encode(`${SUCCESS_RESPONSES}\r\n`));
+            controller.enqueue(new TextEncoder().encode(`${PIPELINING_SUCCESS_RESPONSES}\r\n`));
             controller.close();
           },
         }),
@@ -167,19 +180,15 @@ describe("Private Email SMTP delivery", () => {
       { hostname: "mail.privateemail.com", port: 465 },
       { secureTransport: "on", allowHalfOpen: false },
     ]);
-    expect(writes.slice(0, 8)).toEqual([
+    expect(writes).toEqual([
       "EHLO openbot.run\r\n",
-      "AUTH LOGIN\r\n",
-      `${btoa("hello@openbot.run")}\r\n`,
-      `${btoa("app-password-value")}\r\n`,
-      "MAIL FROM:<hello@openbot.run>\r\n",
-      "RCPT TO:<person@example.com>\r\n",
-      "DATA\r\n",
+      `AUTH PLAIN ${btoa("\0hello@openbot.run\0app-password-value")}\r\n`,
+      "MAIL FROM:<hello@openbot.run>\r\nRCPT TO:<person@example.com>\r\nDATA\r\n",
       expect.stringContaining("ABCD-EFGH"),
+      "QUIT\r\n",
     ]);
-    expect(writes[7]).toContain("Subject: Your OpenBot sign-in code");
-    expect(writes[7]?.endsWith("\r\n.\r\n")).toBe(true);
-    expect(writes[8]).toBe("QUIT\r\n");
+    expect(writes[3]).toContain("Subject: Your OpenBot sign-in code");
+    expect(writes[3]?.endsWith("\r\n.\r\n")).toBe(true);
     expect(closed).toBe(true);
   });
 

@@ -109,6 +109,8 @@ export const messages = {
   "routine.history.title": "実行履歴",
   "routine.history.empty": "まだ実行されていません。",
   "routine.history.manualRun": "手動 · {time}",
+  "routine.history.scriptRun": "スクリプト · {time}",
+  "routine.history.webhookRun": "Webhook · {time}",
   "routine.history.openRun": "{run} をチャットで開く",
   "routine.history.today": "今日 {time}",
   "routine.history.yesterday": "昨日 {time}",

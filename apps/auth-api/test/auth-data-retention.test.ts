@@ -22,6 +22,7 @@ describe("auth data retention", () => {
     expect(ids(database, "team_auth_tickets", "ticket_hash")).toEqual(["active"]);
     expect(ids(database, "remote_sessions", "session_id")).toEqual(["active"]);
     expect(ids(database, "remote_invites", "invite_id")).toEqual(["active"]);
+    expect(ids(database, "mobile_connect_links", "link_hash")).toEqual(["active"]);
     expect(ids(database, "users", "id")).toEqual(["user"]);
     expect(ids(database, "team_tunnels", "server_id")).toEqual(["server"]);
   });
@@ -103,12 +104,19 @@ function createDatabase(): DatabaseSync {
       used_at INTEGER,
       revoked_at INTEGER
     );
+    CREATE TABLE mobile_connect_links (
+      link_hash TEXT PRIMARY KEY,
+      revoked_at INTEGER
+    );
   `);
   return database;
 }
 
 function insertFixtures(database: DatabaseSync, now: number): void {
   database.prepare("INSERT INTO users(id) VALUES (?)").run("user");
+  const link = database.prepare("INSERT INTO mobile_connect_links(link_hash, revoked_at) VALUES (?, ?)");
+  link.run("active", null);
+  link.run("revoked", now - 1);
   database.prepare("INSERT INTO team_tunnels(server_id, user_id) VALUES (?, ?)").run("server", "user");
   const challenge = database.prepare(
     "INSERT INTO email_login_challenges(id_hash, expires_at, consumed_at) VALUES (?, ?, ?)",

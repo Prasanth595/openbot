@@ -32,8 +32,9 @@ import type { MessagingOrigin } from "../mailbox-store";
 import type { SidebarLayoutStore } from "../sidebar-layout-store";
 import { type DiscordAppPort, DiscordConnect, type DiscordConnectFailed } from "./discord/discord-connect";
 import { discordOrchestratorMemories, discordOrchestratorProfile } from "./discord/discord-orchestrator";
+import { mentionNames, withMentionNames } from "./messaging-mentions";
 import type { MessagingConnectionRecord, MessagingLink } from "./messaging-store";
-import type { MessagingActivity, MessagingThreads } from "./messaging-threads";
+import type { MessagingActivity, MessagingHistory, MessagingHistoryScope, MessagingThreads } from "./messaging-threads";
 import {
   type ConnectionIdentity,
   type InboundAction,
@@ -218,6 +219,7 @@ export class MessagingService {
       this.#agents.onEvent((event) => this.#agentEvent(event)),
     );
     this.#threads.setContextSource((link, origin) => this.#promptContext(link, origin));
+    this.#threads.setHistorySource((link, scope, limit) => this.#recentMessages(link, scope, limit));
     this.#ingress?.handle((workspaceId, delivery) => this.deliver(workspaceId, delivery));
     const records = this.#threads.store.connections();
     yield* this.#credentials.retain(new Set(records.map((record) => record.connectionId)));
@@ -242,6 +244,7 @@ export class MessagingService {
     // The kept deliveries that wait for a connection go now: nothing will start it.
     for (const waiters of [...this.#transportWaiters.values()]) for (const ready of [...waiters]) ready();
     this.#threads.setContextSource(null);
+    this.#threads.setHistorySource(null);
     this.#ingress?.handle(null);
     this.#endTelegramLinkLease();
     yield* Effect.forEach(
@@ -978,10 +981,17 @@ export class MessagingService {
       }
     }
     const { adapter } = live;
-    const authorName = yield* adapter.authorName(message.authorId).pipe(toMessagingOperationFailed);
-    const place = message.isDirect
-      ? null
-      : yield* adapter.placeName(message.platformChannelId).pipe(toMessagingOperationFailed);
+    const [authorName, mentioned, place] = yield* Effect.all(
+      [
+        adapter.authorName(message.authorId).pipe(toMessagingOperationFailed),
+        mentionNames(message.mentionedUserIds, (userId) => adapter.authorName(userId)),
+        message.isDirect
+          ? Effect.succeed(null)
+          : adapter.placeName(message.platformChannelId).pipe(toMessagingOperationFailed),
+      ],
+      { concurrency: "unbounded" },
+    );
+    const named = withMentionNames(message.text, mentioned);
     // A conversation keeps its agent. A new one goes to the workspace's orchestrator, which asks its
     // teammates; without one, nothing answers.
     const agentId = existing?.agentId ?? this.#orchestrator(live.record);
@@ -1001,9 +1011,7 @@ export class MessagingService {
       () =>
         Effect.gen({ self: this }, function* () {
           const { paths, skipped } = yield* this.#download(adapter, message, staging);
-          const text = skipped.length
-            ? `${message.text}\n\n(Files that did not arrive: ${skipped.join(", ")})`
-            : message.text;
+          const text = skipped.length ? `${named}\n\n(Files that did not arrive: ${skipped.join(", ")})` : named;
           const result = yield* this.#threads
             .receive({
               connectionId: live.record.connectionId,
@@ -1011,7 +1019,7 @@ export class MessagingService {
               platformChannelId: message.platformChannelId,
               threadKey: message.threadKey,
               isDirect: message.isDirect,
-              title: message.isDirect ? authorName : `${place} · ${message.text.slice(0, 80) || authorName}`,
+              title: message.isDirect ? authorName : `${place} · ${named.slice(0, 80) || authorName}`,
               text,
               sourcePaths: paths,
               origin: { authorId: message.authorId, authorName, platformMessageId: message.platformMessageId },
@@ -1114,6 +1122,24 @@ export class MessagingService {
       .history(link.platformChannelId, link.threadKey, link.historyCursor, origin.platformMessageId)
       .pipe(Effect.catch(() => Effect.succeed([])));
     return { workspaceName, place, messages, cursor: origin.platformMessageId, skippedFiles: [] };
+  });
+
+  /** The newest messages of a link's own place, for the agent's `messaging_history` tool. */
+  readonly #recentMessages = Effect.fn("MessagingService.recentMessages")(function* (
+    this: MessagingService,
+    link: MessagingLink,
+    scope: MessagingHistoryScope,
+    limit: number,
+  ): Effect.fn.Return<MessagingHistory | null, MessagingOperationFailed> {
+    const live = this.#live.get(link.connectionId);
+    if (!live?.identity) return null;
+    const place = link.isDirect
+      ? "direct message"
+      : yield* live.adapter.placeName(link.platformChannelId).pipe(toMessagingOperationFailed);
+    const messages = yield* live.adapter
+      .recent(link.platformChannelId, scope === "conversation" ? link.threadKey : null, limit)
+      .pipe(toMessagingOperationFailed);
+    return { platform: live.record.platform, place, messages };
   });
 
   readonly #activity = Effect.fn("MessagingService.activity")(function* (

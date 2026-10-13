@@ -156,6 +156,7 @@ export const messages = {
   "server.rail.schedule": "Routinen",
   "server.rail.settings": "Servereinstellungen",
   "server.rail.remove": "Server entfernen",
+  "server.rail.restart": "Server neu starten",
   "server.rail.leave": "Server verlassen",
   "server.rail.delete": "Server löschen",
   "server.select.failedTitle": "Server konnte nicht ausgewählt werden",
@@ -284,6 +285,12 @@ export const messages = {
     "Du verlierst den Zugriff auf diesen Server. Du brauchst eine neue Einladung, um erneut beizutreten.",
   "server.settings.leaving": "Wird verlassen…",
   "server.settings.leftTitle": "Du hast {name} verlassen",
+  "server.settings.restartConfirmTitle": "{name} neu starten?",
+  "server.settings.restartConfirmDescription":
+    "Der Server stoppt und startet wieder. Das dauert etwa eine Minute. Laufende Agenten-Antworten stoppen, und Mitglieder verlieren die Verbindung, bis der Server zurück ist. Dateien und Chats bleiben erhalten.",
+  "server.settings.restartTitle": "Neu starten",
+  "server.settings.restarting": "Wird neu gestartet…",
+  "server.settings.restartedTitle": "{name} startet neu",
   "server.members.removeTitle": "{name} entfernen?",
   "server.members.removeDescription":
     "Diese Person verliert den Zugriff auf den Server und seine geteilten Unterhaltungen.",

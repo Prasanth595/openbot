@@ -58,6 +58,8 @@ export const messages = {
   "error.backend.channelNotFound": "Canal não encontrado.",
   "error.backend.channelMemberUnavailable": "Um membro do canal está indisponível.",
   "error.backend.channelArchived": "Restaure este canal antes de enviar mensagens ou alterar tarefas.",
+  "error.backend.channelsRetired":
+    "Os canais não são mais compatíveis. Coloque os agentes em uma seção da barra lateral para que trabalhem juntos.",
   "error.backend.channelReferenceUnavailable": "A mensagem do canal usada como referência está indisponível.",
   "error.backend.channelTaskNotFound": "Tarefa do canal não encontrada.",
   "error.backend.channelTaskComplete": "Esta tarefa já está concluída.",
