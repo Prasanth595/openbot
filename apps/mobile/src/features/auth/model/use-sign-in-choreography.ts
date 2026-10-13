@@ -64,26 +64,40 @@ export function useSignInChoreography(step: SignInStep, reduced: boolean, focusF
   const shown = useRef(step);
   const focus = useRef(focusField);
   focus.current = focusField;
+  // The field can take focus only after a render shows it: before that it is not editable. A
+  // request that comes earlier waits for the effect below, which runs after that render.
+  const fieldShown = useRef(stage.top === "field");
+  const focusWaits = useRef(false);
+  useEffect(() => {
+    fieldShown.current = stage.top === "field";
+    if (fieldShown.current && focusWaits.current) {
+      focusWaits.current = false;
+      focus.current();
+    }
+  }, [stage.top]);
   useEffect(() => {
     const from = shown.current;
     shown.current = step;
     const phases = PHASES[`${from}>${step}`];
     if (from === step) return;
+    focusWaits.current = false;
+    const requestFocus = () => {
+      if (fieldShown.current) focus.current();
+      else focusWaits.current = true;
+    };
     if (reduced || !phases) {
       setStage(STAGES[step]);
-      if (step === "email") {
-        const frame = requestAnimationFrame(() => focus.current());
-        return () => cancelAnimationFrame(frame);
-      }
+      if (step === "email") requestFocus();
       return;
     }
     const timers = phases.map(([delay, change]) =>
       setTimeout(
-        () => (change === "focus" ? focus.current() : setStage((current) => ({ ...current, ...change }))),
+        () => (change === "focus" ? requestFocus() : setStage((current) => ({ ...current, ...change }))),
         delay,
       ),
     );
     return () => {
+      focusWaits.current = false;
       for (const timer of timers) clearTimeout(timer);
     };
   }, [reduced, step]);
