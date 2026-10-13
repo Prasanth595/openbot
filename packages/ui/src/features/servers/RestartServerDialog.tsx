@@ -14,6 +14,9 @@ const STEPS = [
   { label: "server.settings.restartStepStart", detail: "server.settings.restartStepStartDetail" },
 ] as const;
 
+/** The start limit of desktop and web. A server that is not back by then did not start. */
+const RESTART_LIMIT_SECONDS = 5 * 60;
+
 /**
  * Asks before the owner restarts a hosted server, then shows the restart until the server is online
  * again or does not start. A failed request stays in the dialog. The owner can hide the dialog while
@@ -34,6 +37,8 @@ export function RestartServerDialog(props: {
   const [error, setError] = createSignal<string | null>(null);
   const [elapsed, setElapsed] = createSignal(0);
   const [restartId, setRestartId] = createSignal<string | null>(null);
+  /** The current restart. A result of an earlier restart that the dialog no longer follows is ignored. */
+  let run = 0;
   let requestDone = false;
   let wentDown = false;
   let lastIssue: RestartServer["hostedIssue"] = null;
@@ -58,6 +63,7 @@ export function RestartServerDialog(props: {
   });
 
   function reset(): void {
+    run += 1;
     stopClock();
     setRestartId(null);
     setPhase("confirm");
@@ -69,8 +75,22 @@ export function RestartServerDialog(props: {
   createEffect(
     () => props.server?.id ?? null,
     (id) => {
-      if (id === null || untrack(() => id === restartId() && restarting())) return;
-      reset();
+      if (id === null) return;
+      untrack(() => {
+        if (!restarting()) return reset();
+        if (id === restartId()) {
+          // The dialog shows the restart again, so the toast from Hide closes.
+          toast.dismiss(toastId());
+          return;
+        }
+        // The dialog follows one restart. The hidden restart of the other server keeps a toast
+        // that does not wait for the result.
+        toast.info(t("server.settings.restartedTitle", { name: restartServer()?.name ?? "" }), {
+          id: toastId(),
+          description: t("server.settings.restartHiddenDescription"),
+        });
+        reset();
+      });
     },
   );
 
@@ -91,7 +111,10 @@ export function RestartServerDialog(props: {
     reset();
   }
 
-  /** The server goes offline when it stops, and comes back online when it starts again. */
+  /**
+   * The server goes offline when it stops, and comes back online when it starts again. A server that
+   * sends no result fails at the start limit.
+   */
   function follow(server: Pick<RestartServer, "state" | "hostedIssue"> | null): void {
     if (!requestDone || !restarting() || !server) return;
     const issue = server.hostedIssue ?? null;
@@ -100,7 +123,8 @@ export function RestartServerDialog(props: {
       return;
     }
     lastIssue = issue;
-    if (server.state !== "online") {
+    // An incompatible server runs; only its version differs from this app.
+    if (server.state !== "online" && server.state !== "incompatible") {
       wentDown = true;
       if (phase() === "stopping") setPhase("starting");
     } else if (wentDown) finish("online");
@@ -124,10 +148,17 @@ export function RestartServerDialog(props: {
     setError(null);
     setElapsed(0);
     setPhase("stopping");
-    clock = setInterval(() => setElapsed((seconds) => seconds + 1), 1000);
+    const current = ++run;
+    let seconds = 0;
+    clock = setInterval(() => {
+      seconds += 1;
+      setElapsed(seconds);
+      if (seconds >= RESTART_LIMIT_SECONDS) finish("failed");
+    }, 1000);
     try {
       await props.onRestart();
     } catch (failure) {
+      if (current !== run || !restarting()) return;
       const message = errorMessage(failure, t("server.settings.actionFailed"));
       if (!props.server) {
         toast.error(t("server.settings.restartFailedTitle", { name: name() }), { id: toastId(), description: message });
@@ -139,6 +170,7 @@ export function RestartServerDialog(props: {
       setError(message);
       return;
     }
+    if (current !== run || !restarting()) return;
     requestDone = true;
     // An issue from before the restart is not its result. A new issue, or the same issue after it
     // cleared, is.
