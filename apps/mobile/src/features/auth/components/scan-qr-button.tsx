@@ -1,8 +1,6 @@
 import { Button } from "heroui-native";
-import { View } from "react-native";
 import { useCSSVariable } from "uniwind";
 
-import { MorphLabel } from "@/features/auth/components/morph-label";
 import type { ScanQrButtonProps } from "@/features/auth/components/scan-qr-button.types";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
@@ -27,11 +25,9 @@ export function ScanQrButton({ onPress, width }: ScanQrButtonProps) {
         onPress();
       }}
     >
-      {/* The same label as the sign-in button that the scanner opens from, letter for letter, so
-          the copy does not move the text. */}
-      <View className="flex-row items-center gap-2">
-        <MorphLabel text={t("mobile.auth.scanQrCode")} morphKey="scan" color={labelColor} reduced />
-      </View>
+      <Button.Label className="font-sans font-semibold" style={{ color: labelColor }}>
+        {t("mobile.auth.scanQrCode")}
+      </Button.Label>
     </Button>
   );
 }

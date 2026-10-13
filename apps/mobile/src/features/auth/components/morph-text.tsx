@@ -1,4 +1,3 @@
-import { Button } from "heroui-native";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { type TextLayoutEvent, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeInUp, FadeOut, Keyframe, LinearTransition } from "react-native-reanimated";
@@ -134,30 +133,4 @@ export function MorphText({
       </View>
     </View>
   );
-}
-
-/**
- * A button label that rearranges its letters into a new label. The QR scanner draws a copy of the
- * Scan QR code button with this same label, so the copy matches the button letter for letter.
- */
-export function MorphLabel({
-  text,
-  morphKey,
-  color,
-  dimmed = false,
-  reduced,
-}: {
-  text: string;
-  morphKey: string;
-  color: string;
-  dimmed?: boolean;
-  reduced: boolean;
-}) {
-  const style = { color, opacity: dimmed ? 0.5 : 1 };
-  const label = (content: string, props?: TextProps) => (
-    <Button.Label className="font-sans font-semibold" style={style} {...props}>
-      {content}
-    </Button.Label>
-  );
-  return <MorphText text={text} morphKey={morphKey} reduced={reduced} renderText={label} renderLetter={label} />;
 }

@@ -12,7 +12,7 @@ import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { redeemMobileConnectUrl } from "@/features/auth/api/mobile-auth";
 import { AppLogo } from "@/features/auth/components/app-logo";
 import type { EmailCodeInputHandle } from "@/features/auth/components/email-code-input";
-import { MorphText } from "@/features/auth/components/morph-label";
+import { MorphText } from "@/features/auth/components/morph-text";
 import { type ScannerOrigin, ScanQrSheet } from "@/features/auth/components/scan-qr-sheet";
 import { SignInControls } from "@/features/auth/components/sign-in-controls";
 import { SIGN_IN_EASE_MOVE, type SignInMotion, signInMotion } from "@/features/auth/components/sign-in-motion";

@@ -1,19 +1,24 @@
 import { Button, Spinner } from "heroui-native";
 import type { Ref } from "react";
 import { View } from "react-native";
-import Animated, { cubicBezier } from "react-native-reanimated";
+import Animated, { cubicBezier, Easing, FadeIn, FadeOut } from "react-native-reanimated";
 
-import { MorphLabel } from "@/features/auth/components/morph-label";
 import { SIGN_IN_CONTROL_HEIGHT, useSignInColors } from "@/features/auth/components/sign-in-colors";
 import { haptics } from "@/shared/lib/haptics";
 
 // The iOS sheet curve: the move starts at once and settles without overshoot.
 const MOVE_EASING = cubicBezier(0.32, 0.72, 0, 1);
 const MOVE_MS = 300;
+// A label change is a quiet fade with no movement: the button itself already moves. The old label
+// fades out, and the new one fades in as the old one is nearly gone, so two labels never show at
+// full strength together.
+const SOFT = Easing.bezier(0.45, 0, 0.55, 1);
+const LABEL_OUT = FadeOut.duration(120).easing(SOFT);
+const LABEL_IN = FadeIn.duration(180).delay(100).easing(SOFT);
 /**
  * One of the two sign-in buttons. Both stay on the screen in every step and keep their color: the
  * lavender button is the main action, the gray one the other choice. A step change moves them down
- * or up one slot, and then changes their labels. Nothing mounts or unmounts, so nothing can flash.
+ * or up one slot, and their labels fade to the new ones. The buttons never mount or unmount.
  */
 export function SignInChoiceButton({
   ref,
@@ -34,7 +39,7 @@ export function SignInChoiceButton({
   /** Lavender, or the gray surface. It does not change. */
   brand: boolean;
   label: string;
-  /** The label rearranges its letters when this changes. A countdown keeps one key. */
+  /** The label fades to the new one when this changes. A countdown keeps one key. */
   labelKey?: string;
   onPress: () => void;
   /** Shows a spinner and ignores presses. */
@@ -87,10 +92,17 @@ export function SignInChoiceButton({
             onPress();
           }}
         >
-          <View className="flex-row items-center gap-2">
+          <Animated.View
+            key={labelKey}
+            entering={reduced ? undefined : LABEL_IN}
+            exiting={reduced ? undefined : LABEL_OUT}
+            className="flex-row items-center gap-2"
+          >
             {busy ? <Spinner size="sm" color={textColor} /> : null}
-            <MorphLabel text={label} morphKey={labelKey} color={textColor} dimmed={waiting} reduced={reduced} />
-          </View>
+            <Button.Label className="font-sans font-semibold" style={{ color: textColor, opacity: waiting ? 0.5 : 1 }}>
+              {label}
+            </Button.Label>
+          </Animated.View>
         </Button>
       </View>
     </Animated.View>

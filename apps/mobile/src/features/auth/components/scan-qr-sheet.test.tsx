@@ -96,6 +96,9 @@ vi.mock("react-native-reanimated", () => ({
   default: { View: ({ children }: PropsWithChildren) => <div>{children}</div> },
   LayoutAnimationConfig: ({ children }: PropsWithChildren) => children,
   cubicBezier: () => "ease-out",
+  // The label fades of the sign-in buttons. Tests do not run layout animations.
+  FadeIn: { duration: () => ({ delay: () => ({ easing: () => undefined }) }) },
+  FadeOut: { duration: () => ({ easing: () => undefined }) },
   ReduceMotion: { System: "system", Never: "never" },
   Easing: { bezier: () => ({ factory: () => (value: number) => value }), linear: (value: number) => value },
   withDelay: (_delay: number, animation: number) => animation,
@@ -156,8 +159,7 @@ vi.mock("@/features/auth/components/sign-in-motion", () => ({
 }));
 vi.mock("@/features/auth/components/email-field", () => ({ EmailField: () => null }));
 vi.mock("@/features/auth/components/email-code-input", () => ({ EmailCodeInput: () => null }));
-vi.mock("@/features/auth/components/morph-label", () => ({
-  MorphLabel: () => null,
+vi.mock("@/features/auth/components/morph-text", () => ({
   MorphText: ({ text, renderText }: { text: string; renderText: (text: string) => ReactNode }) => renderText(text),
 }));
 vi.mock("@/features/auth/model/use-email-sign-in", () => ({
