@@ -399,11 +399,16 @@ function SingleChatActionMarker(
   const routineHistory = () => (props.marker.kind === "routine-run" ? props.marker.previousTransitions : undefined);
   const historyId = () =>
     props.marker.kind === "routine-run" ? `routine-run-history-${props.marker.runId}` : undefined;
-  // A run with messages in the chat opens and closes them with its toggle, in place of the history.
+  // A run with messages in the chat opens and closes them with its toggle. An open run also shows its
+  // earlier states, with no animation, because its messages also show with none.
   const messagesRun = () =>
     props.marker.kind === "routine-run" && props.marker.expanded !== undefined && props.onToggleRoutineRun
       ? props.marker
       : undefined;
+  const historyShown = () => {
+    const run = messagesRun();
+    return (run ? run.expanded === true : historyMounted()) && (routineHistory()?.length ?? 0) > 0;
+  };
   return (
     <Marker
       class={`chat-action-marker chat-action-marker-${props.marker.kind}`}
@@ -507,12 +512,12 @@ function SingleChatActionMarker(
             </Button>
           </Show>
         </MarkerContent>
-        <Show when={historyMounted() && routineHistory()}>
+        <Show when={historyShown() && routineHistory()}>
           {(transitions) => (
             <RoutineRunHistory
               id={historyId()}
               transitions={transitions()}
-              open={historyExpanded()}
+              open={messagesRun() !== undefined || historyExpanded()}
               onClosed={() => setHistoryMounted(historyExpanded())}
             />
           )}
