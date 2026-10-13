@@ -26,6 +26,9 @@ export const INPUT_LIMITS = {
   // Half the default agent cap. A channel packet is rebuilt every turn and the memories block is paid in
   // full each time, against `ChannelHistory.prepare`'s hard character budget.
   channelMemories: 32,
+  // The facts of one messaging connection. Like a channel packet, every external message pays for the
+  // whole block, so the cap matches the channel one.
+  messagingMemories: 32,
   agentMemoryText: 500,
   agentRoutines: 64,
   routineName: 80,

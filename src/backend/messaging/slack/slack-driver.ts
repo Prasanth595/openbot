@@ -4,6 +4,7 @@ import { SLACK_BOT_SCOPES } from "@openbot/contracts/slack-app";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Result } from "effect";
 import { causeHelpers } from "../../effect-boundary";
+import { mentionNames, withMentionNames } from "../messaging-mentions";
 import type { MessagingAnswerFile } from "../messaging-threads";
 import type {
   ConnectionIdentity,
@@ -18,7 +19,7 @@ import type {
   StatusReaction,
 } from "../messaging-types";
 import { MessagingAdapterError } from "../messaging-types";
-import { plainText, SLACK_ACTION_IDS } from "./slack-events";
+import { plainText, SLACK_ACTION_IDS, slackMentionIds } from "./slack-events";
 import { SlackEventsTransport } from "./slack-events-transport";
 import { slackChunks, slackMrkdwn } from "./slack-render";
 import { SlackApiError, SlackWebApi } from "./slack-web-api";
@@ -28,6 +29,10 @@ const { io: adapterIo } = causeHelpers(MessagingAdapterError);
 /** Slack's own limit for one uploaded file is 1 GB; the host holds its uploads to this. */
 const UPLOAD_BYTES = 100 * 1024 * 1024;
 const HISTORY_LIMIT = 100;
+/** One page of a thread from its start: the history tool keeps its newest messages. */
+const RECENT_THREAD_LIMIT = 200;
+/** Message subtypes that a person or an app wrote, and not a join or a topic change. */
+const RECENT_SUBTYPES = new Set(["file_share", "bot_message", "thread_broadcast", "me_message"]);
 const CHANNEL_PAGE_LIMIT = 200;
 
 const REACTIONS: Record<StatusReaction, string> = {
@@ -220,20 +225,76 @@ class SlackAdapter implements MessagingAdapter {
       limit: HISTORY_LIMIT,
     });
     const messages = Array.isArray(response.messages) ? response.messages.filter(isDynamicRecord) : [];
-    const entries: ContextEntry[] = [];
-    for (const message of messages) {
+    const kept = messages.filter((message) => {
       const ts = message.ts;
       const user = message.user;
-      if (!isString(ts) || !isString(user) || user === this.#botUserId || message.bot_id !== undefined) continue;
-      if (Number(ts) >= Number(beforeId) || (afterId && Number(ts) <= Number(afterId))) continue;
+      if (!isString(ts) || !isString(user) || user === this.#botUserId || message.bot_id !== undefined) return false;
+      return Number(ts) < Number(beforeId) && !(afterId && Number(ts) <= Number(afterId));
+    });
+    return yield* this.#entries(kept, false);
+  });
+
+  /**
+   * The newest messages of a channel, or of one thread, for the agent's history tool. The call fails
+   * at once when Slack limits it: the agent can try again, and the connection does not wait.
+   */
+  readonly recent = Effect.fnUntraced(function* (
+    this: SlackAdapter,
+    platformChannelId: string,
+    threadKey: string | null,
+    limit: number,
+  ): Effect.fn.Return<ContextEntry[], MessagingAdapterError> {
+    const response = threadKey
+      ? yield* this.#api.call(
+          "conversations.replies",
+          { channel: platformChannelId, ts: threadKey, limit: RECENT_THREAD_LIMIT },
+          { rateLimitRetries: 0 },
+        )
+      : yield* this.#api.call("conversations.history", { channel: platformChannelId, limit }, { rateLimitRetries: 0 });
+    const messages = Array.isArray(response.messages) ? response.messages.filter(isDynamicRecord) : [];
+    const kept = messages.filter(
+      (message) =>
+        isString(message.ts) &&
+        (message.subtype === undefined || RECENT_SUBTYPES.has(String(message.subtype))) &&
+        (isString(message.user) || message.bot_id !== undefined),
+    );
+    return (yield* this.#entries(kept, threadKey === null)).slice(-limit);
+  });
+
+  /** Slack messages as context, oldest first, with each mention named. */
+  readonly #entries = Effect.fnUntraced(function* (
+    this: SlackAdapter,
+    messages: DynamicRecord[],
+    withReplyCounts: boolean,
+  ): Effect.fn.Return<ContextEntry[], MessagingAdapterError> {
+    const raw = messages.map((message) => (isString(message.text) ? message.text : ""));
+    const names = yield* mentionNames(
+      raw.flatMap((text) => slackMentionIds(text, this.#botUserId)),
+      (userId) => this.authorName(userId),
+    );
+    const entries: ContextEntry[] = [];
+    for (const [index, message] of messages.entries()) {
+      const ts = String(message.ts);
+      const replies = withReplyCounts && typeof message.reply_count === "number" ? message.reply_count : 0;
+      const text = withMentionNames(plainText(raw[index] ?? "", this.#botUserId), names);
       entries.push({
         id: ts,
-        authorName: yield* this.authorName(user),
-        text: plainText(isString(message.text) ? message.text : "", this.#botUserId),
+        authorName: yield* this.#author(message),
+        text: replies ? `${text} (thread with ${replies} replies)` : text,
         sentAt: new Date(Number(ts) * 1000).toISOString(),
       });
     }
     return entries.sort((left, right) => Number(left.id) - Number(right.id));
+  });
+
+  readonly #author = Effect.fnUntraced(function* (this: SlackAdapter, message: DynamicRecord) {
+    if (message.user === this.#botUserId) return "OpenBot";
+    if (message.bot_id !== undefined || !isString(message.user)) {
+      const profile = isDynamicRecord(message.bot_profile) ? message.bot_profile.name : undefined;
+      const name = isString(message.username) ? message.username : isString(profile) ? profile : "a bot";
+      return `${name} (bot)`;
+    }
+    return yield* this.authorName(message.user);
   });
 
   download(file: InboundFile, destination: string, maxBytes: number): Effect.Effect<void, MessagingAdapterError> {

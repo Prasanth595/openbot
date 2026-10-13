@@ -157,6 +157,8 @@ function messageEvent(
       requiresLink: !isDirect && !mentioned && !replyToBot,
       authorId,
       text,
+      // A Telegram mention is already a readable `@username`.
+      mentionedUserIds: [],
       files: inboundFiles(message),
     },
   };

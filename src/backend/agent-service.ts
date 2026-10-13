@@ -1042,6 +1042,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       browserUploads: this.#browserUploads,
       attachments: this.#attachments,
       channels: this.channels,
+      messaging: this.messaging,
       hostedSites: this.#hostedSites,
       routines: this.#routines,
       memories: this.#memories,

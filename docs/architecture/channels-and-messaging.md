@@ -187,7 +187,10 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   orchestrator agent) and `projection_messaging_threads` (one per external conversation, with the
   agent that answers it).
   Tokens are not in the database: `MessagingCredentialStore` keeps the bot token encrypted by
-  `safeStorage`, keyed by connection, and only its state crosses IPC.
+  `safeStorage`, keyed by connection, and only its state crosses IPC. Migration 35 adds
+  `projection_messaging_memories`, the facts of each connection (`MessagingMemoryStore`, the same
+  `MemoryStore` as agent and channel memories, with a connection for an owner). No code deletes a
+  connection, so the table has no cascade: disconnect keeps the facts.
 - **Orchestrator.** A message in a thread that has a link goes to the link's agent. A new conversation
   goes to the workspace's orchestrator; without one, Slack is told that no agent answers. The
   orchestrator is a normal agent (`slack-orchestrator.ts`): its description is its standing remit, and
@@ -208,7 +211,15 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   a Slack turn carries `messagingReturn`, the origin of that turn; `MailboxStore.enqueue` gives the
   answer to it that origin as `messaging`, so the answer runs in the same execution thread, and its
   turn posts to Slack as a follow-up. `DrainScheduler` asks `MessagingThreads.prepare` for the thread
-  and the prompt, which frames the text as external input and adds earlier messages of the thread.
+  and the prompt, which frames the text as external input and adds earlier messages of the thread
+  and the connection's facts, rebuilt each turn, so a new fact needs no provider-thread reload.
+  `MessagingService.#receive` names each user mention (`InboundMessage.mentionedUserIds`) with the
+  adapter's name cache; the adapters do the same for context messages.
+- **Tools.** `messaging_remember`, `messaging_forget_memory` and `messaging_history` are deferred
+  `openbot` tools. `OpenBotToolRouter` finds the link from the calling turn's execution thread and
+  refuses a call from any other thread; no argument names a connection or a channel. The history
+  tool calls the adapter's `recent` through `MessagingThreads.setHistorySource`. A fact is not saved
+  from a direct message.
 - **Order.** The one-turn-per-agent rule is unchanged, so Slack requests wait behind the agent's own
   work and behind channel work that holds the host. The Slack thread shows a waiting post.
 - **Replies.** `MessagingThreads` reports each turn start and end. `MessagingService` posts a status

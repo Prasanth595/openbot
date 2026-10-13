@@ -131,7 +131,7 @@ describe("routine missed-run migration", () => {
       const before = rows(db);
       migrateOpenBotDatabase(db);
       expect(rows(db, Object.keys(before))).toEqual(withMissedColumns(before));
-      expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 34 });
+      expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 35 });
       expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
       expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
       expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
@@ -186,9 +186,9 @@ describe("routine missed-run migration", () => {
     const db = databaseAt(32);
     seedRoutines(db, 32);
     const before = rows(db);
-    db.exec("INSERT INTO schema_migrations VALUES(35, 'now')");
+    db.exec("INSERT INTO schema_migrations VALUES(36, 'now')");
     expect(() => migrateOpenBotDatabase(db)).toThrow("newer than this application supports");
-    db.exec("DELETE FROM schema_migrations WHERE version = 35; DELETE FROM schema_migrations WHERE version = 27");
+    db.exec("DELETE FROM schema_migrations WHERE version = 36; DELETE FROM schema_migrations WHERE version = 27");
     expect(() => migrateOpenBotDatabase(db)).toThrow("missing version 27");
     expect(rows(db)).toEqual(before);
   });
