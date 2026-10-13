@@ -126,10 +126,11 @@ export function boundedHistory(messages: readonly ContextEntry[]): { author: str
   const kept: { author: string; sentAt: string; text: string }[] = [];
   let characters = 0;
   for (const message of [...messages].reverse()) {
-    const text =
-      message.text.length > HISTORY_MESSAGE_CHARACTERS
-        ? `${message.text.slice(0, HISTORY_MESSAGE_CHARACTERS)}…`
-        : message.text;
+    let cut = HISTORY_MESSAGE_CHARACTERS;
+    const before = message.text.charCodeAt(cut - 1);
+    const after = message.text.charCodeAt(cut);
+    if (before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff) cut -= 1;
+    const text = message.text.length > HISTORY_MESSAGE_CHARACTERS ? `${message.text.slice(0, cut)}…` : message.text;
     characters += text.length + message.authorName.length;
     if (characters > HISTORY_CHARACTERS) break;
     kept.unshift({ author: message.authorName, sentAt: message.sentAt, text });
