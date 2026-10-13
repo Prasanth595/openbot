@@ -1,5 +1,5 @@
 import type { HostedServerIssue } from "@openbot/contracts/ipc";
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { Button } from "../../button";
 import { ErrorReference } from "../../error-reference";
 import { useText } from "../../text";
@@ -125,9 +125,14 @@ export function ConversationLoadNotice(props: ConversationLoadNoticeProps) {
   const waiting = () => props.loading && !props.error;
   // Each wait gets its own screen: a screen that started its exit cannot load again.
   const [screen, setScreen] = createSignal<number | null>(null);
+  // The screen that started its exit. It stays ready, so a new wait does not stop its exit.
+  const [exiting, setExiting] = createSignal<number | null>(null);
   let screens = 0;
   createEffect(waiting, (current) => {
-    if (!current) return;
+    if (!current) {
+      setExiting(untrack(screen));
+      return;
+    }
     const timer = setTimeout(() => {
       screens += 1;
       setScreen(screens);
@@ -139,7 +144,7 @@ export function ConversationLoadNotice(props: ConversationLoadNoticeProps) {
       <Show when={screen()} keyed>
         {(key) => (
           <AppLoadingScreen
-            ready={!waiting()}
+            ready={key === exiting() || !waiting()}
             label={t("server.connection.loading", { name: props.name })}
             title={t("server.connection.loading", { name: props.name })}
             onExited={() => setScreen((current) => (current === key ? null : current))}
