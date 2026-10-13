@@ -222,8 +222,9 @@ export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDev
 
 export function decodeAccountSessions(value: unknown): AccountSession[] {
   return decodeList(value, "account session list", (session) => {
-    const { kind } = session;
+    const { kind, hostedServer } = session;
     if (!isOneOf(["desktop", "mobile"] as const, kind)) throw new Error("Invalid kind.");
+    if (hostedServer !== undefined && !isBoolean(hostedServer)) throw new Error("Invalid hostedServer.");
     return {
       sessionId: requiredString(session, "sessionId"),
       name: requiredString(session, "name"),
@@ -231,6 +232,7 @@ export function decodeAccountSessions(value: unknown): AccountSession[] {
       current: requiredBoolean(session, "current"),
       connectedAt: requiredNumber(session, "connectedAt"),
       lastActiveAt: requiredNumber(session, "lastActiveAt"),
+      ...(hostedServer === undefined ? {} : { hostedServer }),
     };
   });
 }

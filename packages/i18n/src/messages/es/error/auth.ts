@@ -26,4 +26,6 @@ export const messages = {
     "La conexión terminó antes de que OpenBot confirmara la entrega. Comprueba la entrega para evitar enviar otro código.",
   "error.auth.deliveryUnknown":
     "OpenBot no pudo confirmar si se envió el código de inicio de sesión. Comprueba la entrega antes de enviarlo de nuevo.",
+  "error.auth.hostedServerSessionProtected":
+    "Las sesiones de los servidores alojados no se pueden desconectar. Reinicia o elimina el servidor.",
 } as const satisfies PartialTranslation<typeof source>;

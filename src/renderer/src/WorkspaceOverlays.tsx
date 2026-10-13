@@ -4,6 +4,7 @@ import type { AcpRegistrySettingsApi } from "@openbot/ui/features/custom-provide
 import type { CustomAgentSettingsApi } from "@openbot/ui/features/custom-providers/CustomAgentSettings";
 import { providerDiagnosticsText } from "@openbot/ui/features/provider-diagnostics/provider-diagnostics";
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
+import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import type { BitwardenConnectorPanelProps } from "@openbot/ui/features/settings/BitwardenConnectorPanel";
 import type { HostedSiteDeleteResult } from "@openbot/ui/features/settings/stores/hosted-sites-store";
 import { currentText } from "@openbot/ui/text";
@@ -145,6 +146,7 @@ export function WorkspaceOverlays(props: AccountProps) {
       <JoinServer account={props.account} />
       <AddServer />
       <LeaveServer />
+      <RestartServer />
       <ServerSettings
         githubConnector={githubFor(serverSettingsTarget(), settingsHostGitHub)}
         onePasswordConnector={onePasswordFor(serverSettingsTarget())}
@@ -282,6 +284,20 @@ function LeaveServer() {
       onClose={cancelLeaveServer}
       onLeave={leaveConfirmedServer}
       restoreFocusTarget={leaveRestoreTarget()}
+    />
+  );
+}
+
+/** The hosted server restart confirmation that the server menu opens. */
+function RestartServer() {
+  const { restartConfirmServer, restartRestoreTarget, cancelRestartServer, restartConfirmedServer } =
+    useServerSettings();
+  return (
+    <RestartServerDialog
+      server={restartConfirmServer()}
+      onClose={cancelRestartServer}
+      onRestart={restartConfirmedServer}
+      restoreFocusTarget={restartRestoreTarget()}
     />
   );
 }

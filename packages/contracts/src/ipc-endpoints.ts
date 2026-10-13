@@ -868,6 +868,8 @@ export const IPC_ENDPOINTS = {
     delete: request<DeleteHostedServerInput, void>()("hosted-servers:delete"),
     lifecycle: request<HostedServerLifecycleInput, void>()("hosted-servers:lifecycle"),
     wake: request<string, HostedServerSummary>()("hosted-servers:wake"),
+    // Owner only. Stops a running server and starts it again; a server that does not run starts.
+    restart: request<string, HostedServerSummary>()("hosted-servers:restart"),
   },
   marketplaceAgents: {
     list: request<MarketplaceAgentQuery | undefined, MarketplaceAgentPage>()("marketplace-agents:list"),

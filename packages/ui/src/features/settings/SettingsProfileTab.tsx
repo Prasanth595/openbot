@@ -1,4 +1,4 @@
-import type { CentralAuthUser } from "@openbot/contracts/ipc";
+import type { AccountSession, CentralAuthUser } from "@openbot/contracts/ipc";
 import {
   Badge,
   Button,
@@ -40,6 +40,12 @@ const SESSION_TITLE_SEPARATOR = " · ";
 export function SettingsProfileTab(props: SettingsProfileTabProps) {
   const { t, format } = useText();
   const sessionTime = (timestamp: number) => format.date(timestamp, SESSION_TIME_FORMAT);
+  const sessionKind = (session: AccountSession) => {
+    if (session.hostedServer) return t("settings.profile.sessions.kind.hostedServer");
+    return session.kind === "desktop"
+      ? t("settings.profile.sessions.kind.desktop")
+      : t("settings.profile.sessions.kind.mobile");
+  };
   return (
     <>
       <SettingsSection title={t("settings.profile.identity.title")}>
@@ -174,10 +180,7 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
                     </ItemTitle>
                     <ItemDescription>
                       {t("settings.profile.sessions.details", {
-                        kind:
-                          session.kind === "desktop"
-                            ? t("settings.profile.sessions.kind.desktop")
-                            : t("settings.profile.sessions.kind.mobile"),
+                        kind: sessionKind(session),
                         signedIn: sessionTime(session.connectedAt),
                         lastActive: sessionTime(session.lastActiveAt),
                       })}
@@ -185,19 +188,22 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
                   </ItemContent>
                   <ItemActions>
                     <Show when={!session.current} fallback={<Badge>{t("settings.profile.sessions.thisDevice")}</Badge>}>
-                      <Button
-                        variant="outline"
-                        aria-label={t("settings.profile.sessions.disconnectLabel", {
-                          name: session.name,
-                          signedIn: sessionTime(session.connectedAt),
-                        })}
-                        disabled={Boolean(props.store.state.sessions.revokingId) || !props.canRevokeSession}
-                        onClick={() => void props.store.revokeSession(session.sessionId)}
-                      >
-                        {props.store.state.sessions.revokingId === session.sessionId
-                          ? t("settings.disconnect.pending")
-                          : t("settings.disconnect.action")}
-                      </Button>
+                      {/* The account service refuses to revoke a hosted server. Restart or delete it instead. */}
+                      <Show when={!session.hostedServer}>
+                        <Button
+                          variant="outline"
+                          aria-label={t("settings.profile.sessions.disconnectLabel", {
+                            name: session.name,
+                            signedIn: sessionTime(session.connectedAt),
+                          })}
+                          disabled={Boolean(props.store.state.sessions.revokingId) || !props.canRevokeSession}
+                          onClick={() => void props.store.revokeSession(session.sessionId)}
+                        >
+                          {props.store.state.sessions.revokingId === session.sessionId
+                            ? t("settings.disconnect.pending")
+                            : t("settings.disconnect.action")}
+                        </Button>
+                      </Show>
                     </Show>
                   </ItemActions>
                 </Item>

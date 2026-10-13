@@ -4,6 +4,7 @@ import type { messages as source } from "../../en/error/billing";
 export const messages = {
   "error.billing.lifecycleFailed": "Sunucu planı değiştirilemedi. Faturalandırma'yı yenileyin ve tekrar deneyin.",
   "error.billing.confirmMismatch": "Silmek için sunucu adını yazın.",
+  "error.billing.restartBusy": "Sunucu şu anda yeniden başlatılamıyor. Bir dakika sonra tekrar deneyin.",
   // Masaüstü ve web istemcilerinin oluşturduğu faturalandırma hataları.
   "error.billing.invalidRequest": "Faturalandırma isteği geçersiz.",
   "error.billing.invalidResponse": "Faturalandırma yanıtı geçersiz.",

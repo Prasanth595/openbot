@@ -173,6 +173,7 @@ export interface RemoteTeamDiagnostic {
     | "signal-ready"
     | "signal-retry"
     | "host-waiting"
+    | "host-busy"
     | "peer-state"
     | "route"
     | "ice-recovery"
@@ -287,6 +288,12 @@ const HOST_WAIT_RENEW_MS = 60_000;
 const COMPATIBILITY_REQUEST_TIMEOUT_MS = 3_000;
 /** The first read on a new peer also waits for a slow relay path, such as TURN over TLS on mobile data. */
 const FIRST_COMPATIBILITY_REQUEST_TIMEOUT_MS = 10_000;
+/**
+ * A host whose main process is busy answers the check late, but its WebRTC process still receives
+ * and acknowledges the request. While the path receives data, the check waits this long in total
+ * before it replaces the peer, so a busy host does not cause a reconnect loop.
+ */
+const BUSY_HOST_COMPATIBILITY_TIMEOUT_MS = 60_000;
 const REQUEST_TIMEOUT_MS = 10 * 60_000 + 30_000;
 /**
  * The host gets no answer to its ICE consent checks while the phone is suspended, and stops using a
@@ -494,14 +501,34 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     return `${candidate?.candidateType ?? "unknown"}/${candidate?.protocol ?? "unknown"}`;
   }
 
-  /** The two candidates of the pair that carries the data, or null before ICE selects one. */
-  function selectedCandidates(stats: RTCStatsReport) {
+  /** The candidate pair that carries the data, or undefined before ICE selects one. */
+  function selectedPair(stats: RTCStatsReport) {
     const reports = [...stats.values()];
     const transport = reports.find((report) => report.type === "transport" && report.selectedCandidatePairId);
-    const pair =
+    return (
       (transport ? stats.get(transport.selectedCandidatePairId) : undefined) ??
-      reports.find((report) => report.type === "candidate-pair" && report.state === "succeeded" && report.nominated);
+      reports.find((report) => report.type === "candidate-pair" && report.state === "succeeded" && report.nominated)
+    );
+  }
+
+  /** The two candidates of the pair that carries the data, or null before ICE selects one. */
+  function selectedCandidates(stats: RTCStatsReport) {
+    const pair = selectedPair(stats);
     return pair ? { local: stats.get(pair.localCandidateId), remote: stats.get(pair.remoteCandidateId) } : null;
+  }
+
+  /**
+   * A count that grows while the host's WebRTC process answers on the selected path: received bytes
+   * and ICE consent answers. Null when there is no pair or no stats.
+   */
+  function receivedOnPath(connection: RTCPeerConnection) {
+    return peerCall(() => connection.getStats()).pipe(
+      Effect.map((stats) => {
+        const pair = selectedPair(stats);
+        return pair ? (Number(pair.bytesReceived) || 0) + (Number(pair.responsesReceived) || 0) : null;
+      }),
+      Effect.catch(() => Effect.succeed(null)),
+    );
   }
 
   /** Whether the path goes through a TURN server, whose allocation keeps the credentials it was made with. */
@@ -1326,24 +1353,49 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
             },
           }),
         );
+        // Read before the send, so the acknowledgement of this request counts as an answer of the path.
+        const connection = state.connection;
+        let pathReceived = checksConnection && connection ? yield* receivedOnPath(connection) : null;
         const answer = Deferred.makeUnsafe<{ status: number; body: TeamProtocolV2Json }, RemotePeerError>();
         const response = yield* Effect.acquireUseRelease(
           // Registered before the send, so a fast response finds its request.
           Effect.sync(() => {
             const reject = (error: Error) => Deferred.doneUnsafe(answer, Effect.fail(peerError(error)));
-            const timer = setTimeout(
-              () => {
-                pendingRequests.delete(requestId);
-                const error = new Error(sourceText("error.remote.desktopRequestTimeout"));
-                reject(error);
-                if (checksConnection) failPeer(state, error, actions);
-              },
-              checksConnection ? Math.min(compatibilityTimeout, timeoutMs) : timeoutMs,
-            );
+            const expire = () => {
+              if (pendingRequests.get(requestId) !== pending) return;
+              pendingRequests.delete(requestId);
+              const error = new Error(sourceText("error.remote.desktopRequestTimeout"));
+              reject(error);
+              if (checksConnection) failPeer(state, error, actions);
+            };
+            const busyHostDeadline = Date.now() + Math.min(BUSY_HOST_COMPATIBILITY_TIMEOUT_MS, timeoutMs);
+            // A path that still receives data reaches a host that is only slow. A path that receives
+            // nothing, as after a network change, is replaced at once.
+            const checkPath = () => {
+              if (!connection || pathReceived === null || Date.now() >= busyHostDeadline) return expire();
+              const before = pathReceived;
+              void runPeerEffect(receivedOnPath(connection)).then((received) => {
+                if (pendingRequests.get(requestId) !== pending) return;
+                if (received === null || received <= before) return expire();
+                pathReceived = received;
+                diagnose(state, "host-busy", "compatibility check waits");
+                pending.timer = setTimeout(checkPath, Math.min(compatibilityTimeout, busyHostDeadline - Date.now()));
+              }, expire);
+            };
             const resolve = (value: { status: number; body: TeamProtocolV2Json }) =>
               Deferred.doneUnsafe(answer, Effect.succeed(value));
-            pendingRequests.set(requestId, { method, path, resolve, reject, timer });
-            return timer;
+            const pending: PendingRequest = {
+              method,
+              path,
+              resolve,
+              reject,
+              timer: setTimeout(
+                checksConnection ? checkPath : expire,
+                checksConnection ? Math.min(compatibilityTimeout, timeoutMs) : timeoutMs,
+              ),
+            };
+            pendingRequests.set(requestId, pending);
+            return pending;
           }),
           () =>
             // The frame is sent in the work scope: a request that stops waiting does not cut a frame.
@@ -1359,9 +1411,9 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
               workScope,
               { startImmediately: true },
             ).pipe(Effect.andThen(Deferred.await(answer))),
-          (timer) =>
+          (pending) =>
             Effect.sync(() => {
-              clearTimeout(timer);
+              clearTimeout(pending.timer);
               pendingRequests.delete(requestId);
             }),
         );

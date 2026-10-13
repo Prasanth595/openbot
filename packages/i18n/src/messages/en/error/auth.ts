@@ -24,4 +24,6 @@ export const messages = defineMessages("error.auth", {
     "The connection ended before OpenBot confirmed delivery. Check delivery to avoid sending another code.",
   "error.auth.deliveryUnknown":
     "OpenBot could not confirm whether the sign-in code was sent. Check delivery before sending again.",
+  "error.auth.hostedServerSessionProtected":
+    "Hosted server sessions cannot be disconnected. Restart or delete the server instead.",
 });

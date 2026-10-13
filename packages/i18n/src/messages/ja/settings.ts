@@ -226,6 +226,7 @@ export const messages = {
   "settings.profile.sessions.thisDevice": "このデバイス",
   "settings.profile.sessions.kind.desktop": "デスクトップ",
   "settings.profile.sessions.kind.mobile": "モバイル",
+  "settings.profile.sessions.kind.hostedServer": "ホスト型サーバー",
   "settings.profile.sessions.details": "{kind} · サインイン {signedIn} · 最終利用 {lastActive}",
   "settings.profile.sessions.disconnectLabel": "{signedIn} からの {name} のセッションの接続を解除",
   "settings.profile.sessions.loadFailed": "アカウントのセッションを読み込めませんでした。もう一度お試しください。",

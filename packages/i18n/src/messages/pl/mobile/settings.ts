@@ -44,6 +44,7 @@ export const messages = {
   "mobile.settings.support.empty": "Brak zdarzeń.",
   "mobile.settings.sessions.kindDesktop": "komputer",
   "mobile.settings.sessions.kindMobile": "telefon",
+  "mobile.settings.sessions.kindHostedServer": "hostowany serwer",
   "mobile.settings.sessions.title": "Zalogowane urządzenia",
   "mobile.settings.sessions.loading": "Wczytywanie sesji…",
   "mobile.settings.sessions.refresh": "Odśwież sesje",

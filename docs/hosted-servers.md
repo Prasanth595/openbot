@@ -164,7 +164,14 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    or that was not running at the plan change, gets the new machine at its next resume. When the data does not fit a smaller machine, boat refuses it
    (`409 type_too_small`); the server then starts on its old machine, and the Worker does not try
    again until the next plan change.
-9. **Delete.** `DELETE /v2/hosting/servers/:id` with `{confirmName}`. The Worker first closes the
+9. **Restart.** The owner selects Restart server in the server menu, above Leave or Delete.
+   `POST /v2/hosting/servers/:id/restart` (owner only) moves a `running` row to `stopping` and stops
+   the sandbox. The `archived` webhook (or the cron) then resumes it with the wake reason `restart`.
+   A row in any other state gets a wake. boat answers `409` when the sandbox is busy; the Worker
+   puts the row back to `running` and answers `409 hosted_server_restart_busy`. The Worker uses stop
+   and resume because the production boat key has no command access. The clients connect again as
+   after a wake: a wake reply of `stopping` now also starts the reconnects.
+10. **Delete.** `DELETE /v2/hosting/servers/:id` with `{confirmName}`. The Worker first closes the
    open Checkout page. When the user paid on it just now, the Worker keeps the server and answers
    `409 hosted_server_paid`, so the owner sees the server before a second delete cancels the plan.
    Then it cancels the open plan now, with no refund. A Stripe failure stops the delete (502), so
@@ -461,8 +468,10 @@ signed out after its next start.
 A VM that never signed in keeps its claim in its env file. Each start of that server makes the claim
 work again for one hour, so a VM that missed the first hour, or whose plan ended before it signed in,
 signs in at its next start. After the 10 minutes that follow the first redeem, the Worker never
-accepts the claim again, until the owner revokes the session of the server: then its next start makes
-the claim work again, and the server signs in with a new session. A new `REMOTE_TICKET_PRIVATE_JWK` changes
+accepts the claim again, until the session of the server is revoked: then its next start makes
+the claim work again, and the server signs in with a new session. The account device list shows the
+session with the server name and `hostedServer: true`, and `revokeAccountSession` refuses it with 403
+`hosted_server_session_protected`, so the owner cannot revoke it there; only a change in D1 can. A new `REMOTE_TICKET_PRIVATE_JWK` changes
 each claim, so a VM that has no working session cannot sign in after the change; delete that server.
 
 A start that cannot reach the account server does not use the claim. The start retry signs in

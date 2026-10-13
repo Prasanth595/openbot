@@ -5,6 +5,7 @@ export const messages = {
   "error.billing.lifecycleFailed":
     "No se pudo cambiar el plan del servidor. Actualiza Facturación e inténtalo de nuevo.",
   "error.billing.confirmMismatch": "Escribe el nombre del servidor para eliminarlo.",
+  "error.billing.restartBusy": "El servidor no puede reiniciarse ahora. Inténtalo de nuevo en un minuto.",
   "error.billing.invalidRequest": "La solicitud de facturación no es válida.",
   "error.billing.invalidResponse": "La respuesta de facturación no es válida.",
   "error.billing.notStripePage": "La página de facturación no es una página de Stripe.",

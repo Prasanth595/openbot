@@ -90,6 +90,7 @@ function setup() {
       delete: vi.fn(),
       status: vi.fn(),
       wake: vi.fn(),
+      restart: vi.fn(),
     }),
     inviteEmailDelivery: () => ({ send: vi.fn().mockReturnValue(Effect.succeed(undefined)) }),
     signalUrl: () => "wss://signal.example.test",

@@ -26,4 +26,6 @@ export const messages = {
     "OpenBot teslimatı onaylamadan önce bağlantı kesildi. Başka bir kod göndermekten kaçınmak için teslimatı kontrol edin.",
   "error.auth.deliveryUnknown":
     "OpenBot giriş kodunun gönderilip gönderilmediğini onaylayamadı. Tekrar göndermeden önce teslimatı kontrol edin.",
+  "error.auth.hostedServerSessionProtected":
+    "Barındırılan sunucu oturumlarının bağlantısı kesilemez. Bunun yerine sunucuyu yeniden başlatın veya silin.",
 } as const satisfies PartialTranslation<typeof source>;

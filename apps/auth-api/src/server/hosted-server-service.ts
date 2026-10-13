@@ -766,6 +766,82 @@ export class HostedServerService {
   ).bind(this);
 
   /**
+   * The owner restarts a server that runs but does not answer. boat stops the sandbox and saves the disk,
+   * and the restart after the stop (`#observe`) resumes it, as after a resize. A server that does not run
+   * starts as on a wake.
+   */
+  readonly restart = Effect.fn("HostedServerService.restart")(
+    function* (
+      this: HostedServerService,
+      user: AuthUser,
+      serverId: string,
+    ): Effect.fn.Return<HostedServerSummary, HostedFailure, HostedServerDependencies> {
+      const dependencies = yield* HostedServerDependencies;
+      const row = yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT ${ROW_COLUMNS} FROM hosted_servers WHERE server_id = ? AND owner_user_id = ? AND desired_state != 'deleted'`,
+          )
+          .bind(serverId, user.id)
+          .first<HostedServerRow>(),
+      );
+      if (!row) return yield* notFound();
+      if (row.desired_state === "stopped") {
+        return yield* new HostedServerServiceError(
+          402,
+          "plan_required",
+          "The plan of this server ended. Renew it to start the server.",
+        );
+      }
+      const sandboxId = row.provider_sandbox_id;
+      const boat = dependencies.boat;
+      if (row.observed_state !== "running" || !sandboxId) {
+        yield* this.#startForUse(row);
+        return summary(yield* this.#requireRow(serverId));
+      }
+      if (!boat)
+        return yield* new HostedServerServiceError(503, "hosting_not_configured", "Hosting is not configured.");
+      // The restart counts as use, so a sleeping server runs again and does not stop before a client connects.
+      const now = dependencies.now();
+      const claimed = yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `UPDATE hosted_servers SET desired_state = 'running', observed_state = 'stopping', last_active_at = ?,
+           updated_at = ?
+         WHERE server_id = ? AND desired_state IN ('running', 'idle') AND observed_state = 'running'`,
+          )
+          .bind(now, now, serverId)
+          .run(),
+      );
+      if (claimed.meta.changes !== 1) return summary(yield* this.#requireRow(serverId));
+      yield* boat.stopSandbox(sandboxId).pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            if (!(error instanceof BoatApiError && error.status === 409)) return yield* error;
+            // 409: the sandbox cannot stop in its current state.
+            yield* hostedCall(() =>
+              dependencies.database
+                .prepare(
+                  `UPDATE hosted_servers SET observed_state = 'running', updated_at = ?
+             WHERE server_id = ? AND observed_state = 'stopping'`,
+                )
+                .bind(dependencies.now(), serverId)
+                .run(),
+            );
+            return yield* new HostedServerServiceError(
+              409,
+              "hosted_server_restart_busy",
+              sourceText("error.billing.restartBusy"),
+            );
+          }),
+        ),
+      );
+      return summary(yield* this.#requireRow(serverId));
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /**
    * What Signal does with a Slack, Discord or Telegram event for a host with no `ingress` socket. Only
    * signed Signal requests reach this, for the host of a linked route; no user is signed in. It changes
    * nothing, so it answers before the platform's deadline; `startForRoute` starts the server.

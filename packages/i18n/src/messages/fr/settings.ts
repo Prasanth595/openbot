@@ -240,6 +240,7 @@ export const messages = {
   "settings.profile.sessions.thisDevice": "Cet appareil",
   "settings.profile.sessions.kind.desktop": "Ordinateur",
   "settings.profile.sessions.kind.mobile": "Mobile",
+  "settings.profile.sessions.kind.hostedServer": "Serveur hébergé",
   "settings.profile.sessions.details": "{kind} · Connecté le {signedIn} · Dernière activité le {lastActive}",
   "settings.profile.sessions.disconnectLabel": "Déconnecter la session {name} ouverte le {signedIn}",
   "settings.profile.sessions.loadFailed": "Impossible de charger les sessions du compte. Réessayez.",

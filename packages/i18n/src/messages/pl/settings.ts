@@ -228,6 +228,7 @@ export const messages = {
   "settings.profile.sessions.thisDevice": "To urządzenie",
   "settings.profile.sessions.kind.desktop": "Komputer",
   "settings.profile.sessions.kind.mobile": "Urządzenie mobilne",
+  "settings.profile.sessions.kind.hostedServer": "Hostowany serwer",
   "settings.profile.sessions.details": "{kind} · Zalogowano {signedIn} · Ostatnia aktywność {lastActive}",
   "settings.profile.sessions.disconnectLabel": "Odłącz sesję {name} z {signedIn}",
   "settings.profile.sessions.loadFailed": "Nie udało się wczytać sesji konta. Spróbuj ponownie.",

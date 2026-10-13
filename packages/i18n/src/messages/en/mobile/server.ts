@@ -43,6 +43,7 @@ export const messages = defineMessages("mobile.server", {
   "mobile.server.hosted.loading": "Loading plans…",
   "mobile.server.hosted.loadFailed": "Could not load the plans. Try again.",
   "mobile.server.hosted.wakeFailed": "Could not start the server. Try again.",
+  "mobile.server.hosted.restartFailed": "Could not restart the server. Try again.",
   "mobile.server.hosted.unavailable": "Cloud servers are not available for this account.",
   // The name of a server before the first read of its name.
   "mobile.server.hosted.defaultName": "Cloud server",
@@ -160,6 +161,13 @@ export const messages = defineMessages("mobile.server", {
   "mobile.server.settings.members": "Members",
   "mobile.server.settings.refreshing": "Refreshing…",
   "mobile.server.settings.refresh": "Refresh connection",
+  "mobile.server.settings.restart": "Restart server",
+  "mobile.server.settings.restarting": "Restarting…",
+  "mobile.server.settings.restartTitle": "Restart {name}?",
+  "mobile.server.settings.restartBody":
+    "The server stops and starts again. This takes about a minute. Running agent turns stop, and members lose the connection until the server is back. Files and chats stay.",
+  "mobile.server.settings.restartConfirm": "Restart",
+  "mobile.server.settings.restarted": "{name} is restarting",
   "mobile.server.settings.leaveTitle": "Leave {name}?",
   "mobile.server.settings.leaveBody": "You will need another invitation to join again.",
   "mobile.server.settings.leave": "Leave server",

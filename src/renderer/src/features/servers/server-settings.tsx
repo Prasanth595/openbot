@@ -95,6 +95,19 @@ const ServerSettings = createSimpleContext({
         if (gone) setLeaveRequest(null);
       },
     );
+    /** The hosted server that the restart confirmation from the server menu asks about, and the element that asked. */
+    const [restartRequest, setRestartRequest] = createSignal<{ serverId: string; trigger: HTMLElement | null } | null>(
+      null,
+    );
+    const restartConfirmServer = createMemo(
+      () => servers().find((server) => server.id === restartRequest()?.serverId) ?? null,
+    );
+    createEffect(
+      () => restartRequest() !== null && restartConfirmServer() === null,
+      (gone) => {
+        if (gone) setRestartRequest(null);
+      },
+    );
 
     createEffect(
       () => ({ open: serverSettingsOpen(), id: serverSettingsTargetId() }),
@@ -382,6 +395,13 @@ const ServerSettings = createSimpleContext({
       if (serverSettingsTarget()?.id === server.id) setServerSettingsOpen(false);
     }
 
+    /** Restarts the hosted server that the confirmation from the server menu asks about. */
+    async function restartConfirmedServer(): Promise<void> {
+      const server = restartConfirmServer();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      await serversPort().hostedServers.restart(server.id);
+    }
+
     async function removeMembership(server: ServerSummary): Promise<void> {
       const analytics = desktopAnalytics.scope();
       const action = server.role === "owner" ? "server_removed" : "server_left";
@@ -659,6 +679,11 @@ const ServerSettings = createSimpleContext({
       requestLeaveServer: (serverId: string, trigger: HTMLElement | null) => setLeaveRequest({ serverId, trigger }),
       cancelLeaveServer: () => setLeaveRequest(null),
       leaveConfirmedServer,
+      restartConfirmServer,
+      restartRestoreTarget: () => restartRequest()?.trigger ?? null,
+      requestRestartServer: (serverId: string, trigger: HTMLElement | null) => setRestartRequest({ serverId, trigger }),
+      cancelRestartServer: () => setRestartRequest(null),
+      restartConfirmedServer,
       serverSettingsMcp,
       serverSettingsMcpError,
       serverSettingsMcpSignIns,

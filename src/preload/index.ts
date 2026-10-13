@@ -671,6 +671,7 @@ const openbotApi: OpenBotDesktopApi = {
     openCheckout: decodeHostedServer,
     delete: decodeVoid,
     wake: decodeHostedServer,
+    restart: decodeHostedServer,
   }),
   customProviders: bridgeGroup(IPC_ENDPOINTS.customProviders, {
     list: decodeCustomProviders,

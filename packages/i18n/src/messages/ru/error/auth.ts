@@ -25,4 +25,6 @@ export const messages = {
     "Соединение оборвалось, прежде чем OpenBot подтвердил доставку. Проверьте доставку, чтобы не отправлять код повторно.",
   "error.auth.deliveryUnknown":
     "OpenBot не смог подтвердить, отправлен ли код входа. Проверьте доставку, прежде чем отправлять снова.",
+  "error.auth.hostedServerSessionProtected":
+    "Сеансы облачных серверов нельзя отключить. Вместо этого перезапустите или удалите сервер.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -113,7 +113,7 @@ export function AccountSessionsScreen() {
                   ? "mobile.settings.sessions.rowRevocable"
                   : "mobile.settings.sessions.row",
               {
-                kind: t(SESSION_KIND_KEYS[item.kind]),
+                kind: t(item.hostedServer ? "mobile.settings.sessions.kindHostedServer" : SESSION_KIND_KEYS[item.kind]),
                 date: format.date(new Date(item.lastActiveAt), LAST_ACTIVE_FORMAT),
               },
             )}

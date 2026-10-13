@@ -39,6 +39,7 @@ export const messages = {
   "mobile.settings.support.empty": "Nenhum evento ainda.",
   "mobile.settings.sessions.kindDesktop": "computador",
   "mobile.settings.sessions.kindMobile": "celular",
+  "mobile.settings.sessions.kindHostedServer": "servidor hospedado",
   "mobile.settings.sessions.title": "Dispositivos conectados",
   "mobile.settings.sessions.loading": "Carregando sessões…",
   "mobile.settings.sessions.refresh": "Atualizar sessões",
