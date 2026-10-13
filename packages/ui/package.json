@@ -272,6 +272,7 @@
     "./features/import/AgentImportView": "./src/features/import/AgentImportView.tsx",
     "./components/GlobalSearch": "./src/components/GlobalSearch.tsx",
     "./components/ProviderCodeLoginDialog": "./src/components/ProviderCodeLoginDialog.tsx",
+    "./components/ProviderUseAppDialog": "./src/components/ProviderUseAppDialog.tsx",
     "./components/QuestionPromptBubble": "./src/components/QuestionPromptBubble.tsx",
     "./features/conversation/DirectConversation": "./src/features/conversation/DirectConversation.tsx",
     "./features/conversation/createChatVirtualizer": "./src/features/conversation/createChatVirtualizer.ts",

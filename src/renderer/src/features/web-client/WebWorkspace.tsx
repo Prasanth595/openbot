@@ -4,6 +4,7 @@ import {
   type AddedAgent,
   type AgentApproval,
   type AgentModelOption,
+  type AgentProviderId,
   type AgentStatus,
   type AppInfo,
   type BrowserTakeoverRequest,
@@ -66,6 +67,7 @@ import { Effect } from "effect";
 import { createEffect, createMemo, createSignal, Loading, lazy, onCleanup, onSettled, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { toAgentMessage } from "../../app-message-projection";
+import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { isGlobalSearchShortcut } from "../../global-search-shortcut";
 import { LayoutProvider, useLayout } from "../../layout";
 import { AgentUsagePanel } from "../../lazy-views";
@@ -544,6 +546,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     readStatus: () => workspace.runtime.status(),
     browser: workspace.runtime.browser,
   });
+  const connectFromComposer = (provider: AgentProviderId) =>
+    providerSettings()?.connection?.connect(provider, "composer");
+  /** Whether the composer's sign-in notice can connect the agent's provider from this tab. */
+  const composerSignIn = () => {
+    const provider = conversationAgent()?.provider;
+    return provider !== undefined && (providerSettings()?.connection?.connectKind(provider) ?? null) !== null;
+  };
   const runtime = createWebConversationRuntime(
     workspace.runtime,
     () => workspace.state.host?.hostId ?? "",
@@ -1700,11 +1709,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               }
               accountUsage={usageReading.accountUsage()}
               // As in the desktop app on a joined host: an owner or admin downloads the host's
-              // providers, and the sign-in stays in the host's settings.
+              // providers, and Connect runs the provider's route for this tab.
               providerRuntimeStatuses={providerSettings()?.providerRuntimeStatuses}
               customProviders={providerSettings()?.customProviders}
               onDownloadProvider={providerSettings()?.onDownloadProvider}
               onCancelProviderDownload={providerSettings()?.onCancelProviderDownload}
+              onConnectProvider={providerSettings() ? connectFromComposer : undefined}
+              canConnectProvider={(provider) =>
+                (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
+              }
+              onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
               onManageProviders={
                 providerSettings()
                   ? (trigger: HTMLElement) => {
@@ -1823,6 +1837,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   void workspace.run(() => workspace.runtime.stop(page.agentId, page.activeTurnId ?? ""));
               }}
             />
+            <ProviderSignInDialogs api={providerSettings()?.connection} opener="composer" />
           </Show>
         </WorkspaceFrame>
       </ChannelsControllerProvider>

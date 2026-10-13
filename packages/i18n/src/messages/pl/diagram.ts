@@ -101,6 +101,10 @@ export const messages = {
   "diagram.routine.recent": "Ostatnie uruchomienia",
   "diagram.routine.runLabel": "{status}, {time}",
   "diagram.routine.manual": "Ręcznie",
+  "diagram.flows.unsupported":
+    "Ten serwer nie obsługuje przepływów rutyn. Zaktualizuj OpenBot na komputerze, na którym działa.",
+  "diagram.flows.webhookAdminOnly":
+    "Tylko właściciel lub administrator tego serwera może zmienić lub uruchomić rutynę z webhookiem.",
   "diagram.flows.loadFailed": "Nie udało się wczytać rutyn tego agenta.",
   "diagram.flows.saveFailed": "Nie udało się zapisać tej zmiany w rutynach.",
   "diagram.flows.runFailed": "Nie udało się uruchomić tej rutyny.",
