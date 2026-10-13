@@ -25,6 +25,7 @@ import { loadLiveActivitiesPreference } from "@/features/settings/model/live-act
 import { loadAgentColorMessages } from "@/features/settings/model/message-color";
 import { useMotionPreferences } from "@/features/settings/model/motion";
 import { loadMotionPreferences } from "@/features/settings/model/motion-storage";
+import { loadPushNotificationPreference } from "@/features/settings/model/push-notifications";
 import { installSupportLog } from "@/features/support/model/support-log-capture";
 import { AppLoadingOverlayProvider, useAppLoadingOverlay } from "@/shared/components/app-loading-overlay";
 import { BloubAnimationProvider } from "@/shared/components/bloub-loader";
@@ -171,6 +172,7 @@ export default function RootLayout() {
     void loadHapticsPreference().catch(() => undefined);
     void loadAgentColorMessages().catch(() => undefined);
     void loadLiveActivitiesPreference().catch(() => undefined);
+    void loadPushNotificationPreference().catch(() => undefined);
     void loadMotionPreferences().catch(() => undefined);
     void loadDictationLanguage().catch(() => undefined);
     void loadAppLanguage().catch(() => undefined);

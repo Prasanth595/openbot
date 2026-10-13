@@ -19,6 +19,7 @@ import {
   isMobileConnectHostBinding,
   type MobileConnectHostBinding,
 } from "@openbot/contracts/mobile-connect";
+import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import {
   decodeRemoteSession,
   decodeRemoteSessionTicket,
@@ -834,6 +835,38 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
             if (error instanceof AuthApiError && error.status === 410) return "gone";
             return yield* new CentralAuthOperationError({ cause: error });
           }),
+        ),
+      );
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  /**
+   * Sends one notification through the account service to Apple. The host sealed the agent name and
+   * the text with keys that only the phone has. Returns `gone` when the session of the phone ended
+   * or Apple refused the token.
+   */
+  readonly sendPushNotification = Effect.fn("CentralAuth.sendPushNotification")(
+    function* (
+      this: CentralAuthManager,
+      hostId: string,
+      push: NotificationRelayPush,
+    ): Effect.fn.Return<"sent" | "gone", CentralAuthOperationError, CentralAuthTransport> {
+      const machineToken = yield* this.#hostMachineToken(hostId);
+      return yield* this.#requestEffect(
+        `/v2/remote/hosts/${encodeURIComponent(hostId)}/notification`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ machineToken, ...push }),
+        },
+        () => undefined,
+      ).pipe(
+        Effect.as("sent" as const),
+        Effect.catch(({ cause: error }) =>
+          error instanceof AuthApiError && error.status === 410
+            ? Effect.succeed("gone" as const)
+            : Effect.fail(new CentralAuthOperationError({ cause: error })),
         ),
       );
     },

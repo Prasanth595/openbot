@@ -30,6 +30,7 @@ export type MobileSearchSettingId =
   | "animations"
   | "language"
   | "haptics"
+  | "notifications"
   | "liveActivities"
   | "privacy"
   | "hiddenChats"

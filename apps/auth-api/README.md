@@ -241,12 +241,19 @@ requests. It does not carry Team API or Remote Desktop data.
 To deploy your own copy of this Worker with your own Signal, see
 [Self-hosted remote access](../../docs/self-hosting.md).
 
-### Live Activity relay
+### Live Activity and notification relay
 
 `POST /v2/remote/hosts/:hostId/live-activity` forwards a sealed iPhone Live Activity update from a
 host to Apple Push Notification service. The host seals the content for the phone, so the Worker
 cannot read it. The Worker checks the host credential and `LIVE_ACTIVITY_RATE_LIMITER`, makes the
-APNs payload itself with no alert text, and stores and logs nothing.
+APNs payload itself, and stores and logs nothing. An update that shows an event that notifies the
+member has an `alert` with the sound of the phone and "OpenBot" as its only text (iOS shows the text
+on Apple Watch only); a host cannot give the text.
+
+`POST /v2/remote/hosts/:hostId/notification` forwards a sealed iPhone notification in the same way.
+It has its own key in `LIVE_ACTIVITY_RATE_LIMITER`, and it sends nothing for a device session that
+has ended (`RemoteControlPlane.sessionOpen`), because the host does not learn about the end. The
+alert has "OpenBot" as its only text and `mutable-content`; the app opens the sealed bytes.
 
 The relay is off until `APNS_PRIVATE_KEY` (the `.p8` key text) and `APNS_KEY_ID` are set. Create
 the key in Apple Developer > Keys with the Apple Push Notifications service, then add both to the

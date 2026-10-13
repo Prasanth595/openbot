@@ -120,6 +120,28 @@ describe("LiveActivityPushService", () => {
     await Effect.runPromise(push.dispose());
   });
 
+  it("alerts at once in place of a notification, and not after iOS ended the activity", async () => {
+    const send = vi.fn(async (_push: LiveActivityRelayPush) => "sent" as const);
+    const push = service(send);
+    snapshot.pendingApprovals.push(approval("ada", "npm test"));
+    expect(push.showsEvent("session-1", { sound: "openbot" })).toBe(false);
+
+    push.register("session-1", viewer, registration);
+    await vi.runOnlyPendingTimersAsync();
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ event: "update", alert: null }));
+
+    // The view is the same, and the alert still goes.
+    expect(push.showsEvent("session-1", null)).toBe(true);
+    expect(push.showsEvent("session-1", { sound: "openbot" })).toBe(true);
+    await vi.runOnlyPendingTimersAsync();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ priority: 10, alert: { sound: "openbot" } }));
+
+    await vi.advanceTimersByTimeAsync(8 * 60 * 60 * 1000);
+    expect(push.showsEvent("session-1", { sound: "default" })).toBe(false);
+    await Effect.runPromise(push.dispose());
+  });
+
   it("ends the activity when nothing needs the member, and forgets a token that Apple refused", async () => {
     const send = vi.fn(async (_push: LiveActivityRelayPush) => "sent" as const);
     const push = service(send);

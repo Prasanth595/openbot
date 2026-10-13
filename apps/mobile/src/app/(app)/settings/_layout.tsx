@@ -31,7 +31,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="animations" options={{ title: t("mobile.settings.animations.title") }} />
       <Stack.Screen name="language" options={{ title: t("mobile.settings.language.title") }} />
       <Stack.Screen name="haptics" options={{ title: t("mobile.settings.feedback.haptics") }} />
-      <Stack.Screen name="live-activities" options={{ title: t("mobile.settings.liveActivities.title") }} />
+      <Stack.Screen name="notifications" options={{ title: t("mobile.settings.notifications.title") }} />
       <Stack.Screen name="privacy" options={{ title: t("mobile.settings.privacy.title") }} />
       <Stack.Screen name="sessions" options={{ title: t("mobile.app.route.accountSessions") }} />
       <Stack.Screen name="about" options={{ title: t("mobile.app.route.about") }} />

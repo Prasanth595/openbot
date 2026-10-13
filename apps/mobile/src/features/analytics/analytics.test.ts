@@ -412,6 +412,7 @@ it("instruments message commands without sending their contents or changing the 
     refreshServer: unexpected,
     hostedServerStarting: () => {},
     canEditServerIdentity: () => false,
+    canSendNotifications: () => false,
     canManageEvents: () => false,
     listEventRoutines: unexpected,
     saveEventRoutine: unexpected,

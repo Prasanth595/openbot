@@ -22,6 +22,7 @@ import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-pro
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
+import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -84,6 +85,7 @@ import {
 import { BROWSER_VIEW_PAGE_SIZE } from "@/features/browser/model/browser-view-bridge";
 import { MobileChannelStore } from "@/features/channels/model/channel-store";
 import { useLiveActivity } from "@/features/live-activity/use-live-activity";
+import { usePushNotifications } from "@/features/push-notifications/use-push-notifications";
 import { fetch } from "@/features/support/model/logged-fetch";
 import { supportLog } from "@/features/support/model/support-log";
 import type { RemoteTeamTransportRef } from "@/features/workspace/components/remote-team-transport";
@@ -401,6 +403,16 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     post: postLiveActivityAction,
     loadAgentAvatar,
     supportsPush: supportsLiveActivityPush,
+  });
+  const supportsPushNotifications = useCallback(
+    (serverId: string) => serverCapabilities.current.get(serverId)?.includes(PUSH_NOTIFICATIONS_CAPABILITY) === true,
+    [],
+  );
+  usePushNotifications({
+    servers,
+    foreground,
+    post: postLiveActivityAction,
+    supportsPush: supportsPushNotifications,
   });
   /** The shared Team API requests, sent to one server. */
   const teamApi = useCallback(
@@ -1348,6 +1360,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       },
       hostedServerStarting,
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
+      canSendNotifications: (serverId) =>
+        servers.some((server) => server.id === serverId && server.state === "online") &&
+        supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
       canManageAgentSkills: (serverId) => administers(serverId, SKILLS_ADMIN_CAPABILITY),
       canManageSharedTables: (serverId) => administers(serverId, SHARED_TABLES_CAPABILITY),
@@ -1645,6 +1660,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     liveState,
     preferences,
     updatePreferences,
+    supportsPushNotifications,
   ]);
 
   return (

@@ -1,7 +1,7 @@
 import { router, useGlobalSearchParams, useSegments } from "expo-router";
 import { Stack } from "expo-router/stack";
 import { useThemeColor } from "heroui-native/hooks";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TextInput } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { AgentPinTransitionProvider } from "@/features/agents/components/agent-pin-transition";
@@ -13,6 +13,7 @@ import { MessageActionsProvider } from "@/features/chat/context/message-actions-
 import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
+import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
 import { useReducedMotion } from "@/shared/lib/motion";
@@ -34,26 +35,27 @@ function AuthenticatedStack() {
   openChat.current = segments.at(-2) === "chat" && typeof openAgentId === "string" ? openAgentId : null;
   const onChatList = useRef(false);
   onChatList.current = segments.at(-1) === "connected";
-  useEffect(
-    () =>
-      setLiveActivityNavigator((agentId) => {
-        // Opening the chat that shows already would mount it again and load it again.
-        if (agentId !== null && openChat.current === agentId) return;
-        // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
-        if (router.canDismiss()) router.dismissAll();
-        if (agentId === null) return;
-        // The home row opens the chat, as it does for search, so the chat zooms from the row avatar
-        // and back. The gate waits until the list shows. A chat without a row opens without zoom.
-        navigationGate.request(
-          () => {
-            if (!navigationGate.openFromHome(agentId))
-              router.push({ pathname: "/chat/[agentId]", params: { agentId } });
-          },
-          () => onChatList.current,
-        );
-      }),
+  /** Opens a chat, or the chat list for `null`, from a Live Activity or a notification. */
+  const openFromOutside = useCallback(
+    (agentId: string | null) => {
+      // Opening the chat that shows already would mount it again and load it again.
+      if (agentId !== null && openChat.current === agentId) return;
+      // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
+      if (router.canDismiss()) router.dismissAll();
+      if (agentId === null) return;
+      // The home row opens the chat, as it does for search, so the chat zooms from the row avatar
+      // and back. The gate waits until the list shows. A chat without a row opens without zoom.
+      navigationGate.request(
+        () => {
+          if (!navigationGate.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId } });
+        },
+        () => onChatList.current,
+      );
+    },
     [navigationGate],
   );
+  useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
+  useNotificationTaps(openFromOutside, () => openChat.current);
 
   return (
     <ChatNavigationGateContext value={navigationGate}>

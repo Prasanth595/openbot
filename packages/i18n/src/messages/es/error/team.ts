@@ -71,6 +71,7 @@ export const messages = {
     "Este lienzo de rutinas es demasiado grande para enviarlo a este dispositivo. Acorta las instrucciones de las rutinas en el equipo que ejecuta el servidor.",
   "error.team.agentImportUnsupported": "Esta conexión no permite importar agentes.",
   "error.team.liveActivityUnsupported": "Este host no puede actualizar la Live Activity de un teléfono.",
+  "error.team.pushNotificationsUnsupported": "Este host no puede enviar notificaciones a un teléfono.",
   "error.team.agentUpdateTargetRequired": "Se requiere un agente para actualizar.",
   "error.team.queueEditUnsupported": "Este cliente no admite la edición de la cola.",
   "error.team.skillsUnsupported": "Esta conexión no admite habilidades.",

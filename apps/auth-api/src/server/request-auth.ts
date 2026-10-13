@@ -19,7 +19,7 @@ import { enforceHostedSiteReportRateLimit as enforceReportRateLimit } from "./ho
 import { resolveHostedSiteScope } from "./hosted-site-server";
 import { HostedSiteService } from "./hosted-site-service";
 import { JsonBodyError } from "./json-body";
-import { type ApnsLiveActivitySender, sharedApnsSender } from "./live-activity-relay";
+import { type ApnsRelaySender, sharedApnsSender } from "./live-activity-relay";
 import { MarketplaceQueryError } from "./marketplace-pagination";
 import {
   enforceMarketplaceMutation,
@@ -161,18 +161,25 @@ export function githubInstallationTokensErrorResponse(error: unknown): Response 
 }
 
 /**
- * The Live Activity relay: the Apple sender and the limit for each host. `null` when this Worker has
- * no Apple key or no limiter, so the relay is off.
+ * The Apple relay for Live Activity updates and notifications: the Apple sender and the limits for
+ * each host. `null` when this Worker has no Apple key or no limiter, so the relay is off.
  */
-export function requestLiveActivityRelay(): {
-  sender: ApnsLiveActivitySender;
+export function requestApnsRelay(): {
+  sender: ApnsRelaySender;
   /** A host sends a few updates a minute for each phone. More is a fault or misuse. */
   allow(hostId: string): Effect.Effect<boolean, AuthOperationError>;
+  /** A host sends one notification for each event that waits for a member, under a separate limit. */
+  allowNotification(hostId: string): Effect.Effect<boolean, AuthOperationError>;
 } | null {
   const bindings = requireWorkerBindings(env);
   const { APNS_PRIVATE_KEY, APNS_KEY_ID, APNS_TEAM_ID, APNS_TOPIC, APNS_ORIGIN, LIVE_ACTIVITY_RATE_LIMITER } = bindings;
   if (!APNS_PRIVATE_KEY || !APNS_KEY_ID || !APNS_TEAM_ID || !APNS_TOPIC || !LIVE_ACTIVITY_RATE_LIMITER) return null;
   const origin = developmentApnsOrigin(APNS_ORIGIN);
+  const limit = (key: string) =>
+    Effect.tryPromise({
+      try: () => LIVE_ACTIVITY_RATE_LIMITER.limit({ key }),
+      catch: () => new AuthOperationError({ message: "Account operation failed." }),
+    }).pipe(Effect.map((result) => result.success));
   return {
     sender: sharedApnsSender({
       // A deploy passes the key as one line, with `\n` for each line break.
@@ -182,11 +189,8 @@ export function requestLiveActivityRelay(): {
       topic: APNS_TOPIC,
       ...(origin ? { origin } : {}),
     }),
-    allow: (hostId) =>
-      Effect.tryPromise({
-        try: () => LIVE_ACTIVITY_RATE_LIMITER.limit({ key: `host:${hostId}` }),
-        catch: () => new AuthOperationError({ message: "Account operation failed." }),
-      }).pipe(Effect.map((result) => result.success)),
+    allow: (hostId) => limit(`host:${hostId}`),
+    allowNotification: (hostId) => limit(`notification:host:${hostId}`),
   };
 }
 

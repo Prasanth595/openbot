@@ -75,6 +75,7 @@ export const messages = {
     "La tela di questa routine è troppo grande per essere inviata a questo dispositivo. Accorcia le istruzioni della routine sul computer che esegue il server.",
   "error.team.agentImportUnsupported": "L'importazione di agenti non è supportata da questa connessione.",
   "error.team.liveActivityUnsupported": "Questo host non può aggiornare la Live Activity di un telefono.",
+  "error.team.pushNotificationsUnsupported": "Questo host non può inviare notifiche a un telefono.",
   "error.team.agentUpdateTargetRequired": "Serve un agente da aggiornare.",
   "error.team.queueEditUnsupported": "Questo client non supporta la modifica della coda.",
   "error.team.skillsUnsupported": "Le skill non sono supportate da questa connessione.",

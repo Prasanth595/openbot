@@ -28,6 +28,7 @@ import { MCP_SIGN_IN_APP_CAPABILITY, MCP_SIGN_IN_APP_ROUTES } from "./mcp-sign-i
 import { optionalRouteCodec } from "./optional-routes";
 import { PROVIDERS_ADMIN_ROUTES } from "./providers-v1";
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "./providers-v3";
+import { PUSH_NOTIFICATIONS_CAPABILITY, PUSH_NOTIFICATIONS_ROUTES } from "./push-notifications-v1";
 import { SHARED_TABLES_ROUTES } from "./shared-tables-v1";
 import { SIGN_IN_RELAY_CAPABILITY, SIGN_IN_RELAY_ROUTES } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_ROUTES } from "./skills-admin-v1";
@@ -572,6 +573,51 @@ describe("live-activity-push-v1", () => {
     expect(() => request({ ...registration, secret: "short" })).toThrow();
     expect(() => request({ ...registration, photos: [{ agentId: "chief", file: "../secret.png" }] })).toThrow();
     expect(() => request({ ...registration, environment: "staging" })).toThrow();
+  });
+});
+
+describe("push-notifications-v1", () => {
+  const registration = {
+    serverId: "server-1",
+    token: "ab".repeat(32),
+    environment: "production",
+    secret: "A".repeat(43),
+    locale: "pl",
+    away: true,
+    level: "needs-me",
+    mutedUntil: 1_800_000_000,
+    preview: false,
+    sound: "openbot",
+  };
+
+  it("carries the push registration and nothing else", () => {
+    expect(codec(PUSH_NOTIFICATIONS_ROUTES.register).request({ ...registration, name: "Ada" })).toEqual(registration);
+    expect(codec(PUSH_NOTIFICATIONS_ROUTES.register).request({ ...registration, mutedUntil: null })).toEqual({
+      ...registration,
+      mutedUntil: null,
+    });
+    // A phone with notifications off registers for the sound of the Live Activity only.
+    expect(codec(PUSH_NOTIFICATIONS_ROUTES.register).request({ ...registration, token: null })).toEqual({
+      ...registration,
+      token: null,
+    });
+    expect(codec(PUSH_NOTIFICATIONS_ROUTES.register).response(200, {})).toEqual({});
+    expect(codec(PUSH_NOTIFICATIONS_ROUTES.remove).request({})).toEqual({});
+  });
+
+  it("refuses a token or secret that could reach a path or a header, and unknown choices", () => {
+    const request = codec(PUSH_NOTIFICATIONS_ROUTES.register).request;
+    expect(() => request({ ...registration, token: "../../3/device" })).toThrow();
+    expect(() => request({ ...registration, secret: "short" })).toThrow();
+    expect(() => request({ ...registration, environment: "staging" })).toThrow();
+    expect(() => request({ ...registration, level: "nothing" })).toThrow();
+    expect(() => request({ ...registration, sound: "../alarm.caf" })).toThrow();
+    expect(() => request({ ...registration, mutedUntil: -1 })).toThrow();
+  });
+
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(PUSH_NOTIFICATIONS_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(PUSH_NOTIFICATIONS_CAPABILITY);
   });
 });
 

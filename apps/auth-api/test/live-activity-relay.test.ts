@@ -1,7 +1,7 @@
 import { exportPKCS8, generateKeyPair } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import { runApiEffect } from "../src/server/effect-runtime";
-import { ApnsLiveActivitySender, readLiveActivityRelayPush } from "../src/server/live-activity-relay";
+import { ApnsRelaySender, readLiveActivityRelayPush } from "../src/server/live-activity-relay";
 
 const token = "ab".repeat(32);
 const body = {
@@ -18,7 +18,7 @@ const body = {
 async function sender(respond: () => Response) {
   const { privateKey } = await generateKeyPair("ES256", { extractable: true });
   const fetch = vi.fn(async (_input: string, _init: RequestInit) => respond());
-  const apns = new ApnsLiveActivitySender(
+  const apns = new ApnsRelaySender(
     {
       privateKey: await exportPKCS8(privateKey),
       keyId: "KEY1234567",
@@ -33,7 +33,8 @@ async function sender(respond: () => Response) {
 describe("Live Activity relay", () => {
   it("sends the sealed props as a Live Activity update with no text of its own", async () => {
     const { apns, fetch } = await sender(() => new Response(null, { status: 200 }));
-    const push = readLiveActivityRelayPush({ ...body, alert: { title: "Pay now" } });
+    // A host from before alerts sends no `alert`.
+    const push = readLiveActivityRelayPush(body);
     if (!push) throw new Error("The update was not read.");
 
     expect(await runApiEffect(apns.send(push))).toBe("sent");
@@ -51,6 +52,22 @@ describe("Live Activity relay", () => {
         "content-state": { name: "AgentActivity", props: JSON.stringify({ sealed: body.sealed }) },
         "stale-date": body.staleAt,
       },
+    });
+  });
+
+  it("alerts with the app name and the chosen sound only, never with text of the host", async () => {
+    const { apns, fetch } = await sender(() => new Response(null, { status: 200 }));
+    expect(readLiveActivityRelayPush({ ...body, alert: { title: "Pay now" } })).toBeNull();
+    expect(readLiveActivityRelayPush({ ...body, alert: { sound: "chime.aiff" } })).toBeNull();
+    const push = readLiveActivityRelayPush({ ...body, alert: { sound: "bubble", title: "Pay now" } });
+    if (!push) throw new Error("The update was not read.");
+
+    expect(await runApiEffect(apns.send(push))).toBe("sent");
+    const [, init] = fetch.mock.calls[0] ?? [];
+    expect(JSON.parse(String(init?.body)).aps.alert).toEqual({
+      title: "OpenBot",
+      body: "OpenBot",
+      sound: "openbot-bubble.wav",
     });
   });
 

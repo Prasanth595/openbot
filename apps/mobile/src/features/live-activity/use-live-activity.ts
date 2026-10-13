@@ -27,6 +27,7 @@ import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { useLiveActivitiesPreference } from "@/features/settings/model/live-activities";
 import type { LiveWorkspaceStore } from "@/features/workspace/model/live-workspace-store";
 import type { MobileAgent, MobileServer } from "@/features/workspace/model/workspace-types";
+import { pushEnvironment } from "@/shared/lib/push-environment";
 import { currentLocale, currentText } from "@/shared/lib/text";
 import { agentLiveActivity } from "./agent-live-activity";
 import type { AgentLiveActivityNative } from "./agent-live-activity.types";
@@ -604,11 +605,6 @@ function performAction(
         decision: action.decision,
       });
   }
-}
-
-/** Development builds get their push tokens from the APNs sandbox. */
-function pushEnvironment(): LiveActivityPushRegistration["environment"] {
-  return __DEV__ || process.env.EXPO_PUBLIC_APP_ENV === "development" ? "development" : "production";
 }
 
 /** The picture name of an agent photo. It changes with the photo version. */

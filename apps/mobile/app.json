@@ -72,7 +72,18 @@
           "granularPermissions": ["photo"]
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sounds/openbot-task.wav",
+            "./assets/sounds/openbot-warm.wav",
+            "./assets/sounds/openbot-mech.wav",
+            "./assets/sounds/openbot-bubble.wav",
+            "./assets/sounds/openbot-press.wav"
+          ]
+        }
+      ],
       "expo-secure-store",
       [
         "expo-build-properties",
@@ -102,6 +113,14 @@
           "groupIdentifier": "group.run.openbot.mobile",
           "enablePushNotifications": true,
           "frequentUpdates": true
+        }
+      ],
+      [
+        "./plugins/with-notification-service",
+        {
+          "targetName": "OpenBotNotificationService",
+          "bundleIdentifier": "run.openbot.mobile.NotificationService",
+          "groupIdentifier": "group.run.openbot.mobile"
         }
       ]
     ],

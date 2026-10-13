@@ -71,6 +71,7 @@ export const messages = {
     "Эта схема регулярных задач слишком велика для отправки на это устройство. Сократите инструкции регулярных задач на компьютере, где работает сервер.",
   "error.team.agentImportUnsupported": "Это подключение не поддерживает импорт агентов.",
   "error.team.liveActivityUnsupported": "Этот хост не может обновлять Live Activity на телефоне.",
+  "error.team.pushNotificationsUnsupported": "Этот хост не может отправлять уведомления на телефон.",
   "error.team.agentUpdateTargetRequired": "Нужно указать агента для обновления.",
   "error.team.queueEditUnsupported": "Этот клиент не поддерживает редактирование очереди.",
   "error.team.skillsUnsupported": "Это подключение не поддерживает навыки.",

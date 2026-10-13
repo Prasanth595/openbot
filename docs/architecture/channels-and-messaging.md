@@ -26,6 +26,54 @@ library, so the phone composes its layout with the two widget keys and the App G
 state carry an HMAC signature, which the app checks with the key of the host that the action goes
 to, so one host cannot sign an action for another.
 
+## iPhone notifications
+
+A host sends an iOS notification when an agent finishes a turn, stops with an error, or waits for
+input, an approval, or a step in the browser (`browser-takeover-requested`, also for a password or a
+code). For all but the browser step, it decides as the desktop does: `notificationForAgentEvent` in
+`@openbot/team-client` applies the level of the server (`all` or `needs-me`), the switch of the agent,
+and the quiet routine runs. The title is the agent name. When the phone shows previews, the text is the
+preview of a desktop notification: the start of the answer of that turn, the question, or the action
+to approve, with secrets redacted. Otherwise it is the fixed desktop text, such as "Finished working.".
+
+The phone registers with every connected server that supports `push-notifications-v1`
+(`POST /v1/push-notifications/registration`): the APNs token of the app, the secret of that host (the
+same one as for the Live Activity), the language, the level, a mute end, the preview switch, the sound
+(`none` when Play sound is off) and `away`. One sound is for notifications and the Live Activity. With
+notifications off, Live Activities on and Play sound on, it registers with no token: the host then
+sends no notification, and uses the registration only to make the Live Activity play the sound. It
+tells each host again after each connection and when a choice changes, and removes the registration
+when nothing is left for that host or the user signs out. A level of
+"Nothing" and a mute with no end remove it too. `PushNotificationService` in `src/main` keeps the
+registrations in `openbot-push-notifications-v1.json` in the user data folder, readable only by the
+user, so a phone that does not connect after the host restarts still gets notifications. It sends
+only while the phone is away or its connection is closed. An event that waits for the member (input,
+an approval, a browser step) always goes. An answer or a failure does not go while the member uses a
+desktop app: the window of the host's own desktop app has focus, or that computer was in use in the
+last 30 seconds (`powerMonitor.getSystemIdleState`) with the window open and desktop notifications
+on, for the owner; or the member sent, answered, or typed from another session in the last 30
+seconds (`TeamApiServer.lastMemberUseElsewhere`, kept in memory). The time is short because a task
+can end at any time after the member leaves the computer. While the phone shows a Live Activity of
+this host that iOS still updates (8 hours from the token), the host sends no notification
+(`LiveActivityPushService.showsEvent`). With a sound (Settings > Notifications > Sound), the next
+update of the activity alerts at once, so iOS lights up the screen, shows the activity, and plays
+that sound; with Play sound off, the activity updates silently. iOS does not tell the host when
+the user removes the activity, so until the app runs again such an event shows nowhere.
+
+`push-notification-seal.ts` seals the notification with keys of their own, made from the host secret.
+The host sends it to `POST /v2/remote/hosts/:hostId/notification` with its machine credential and the
+account session of the phone. The Worker checks the credential and a per-host rate limit, and sends
+nothing for a session that has ended, a revoked membership, or a signed-out device, because the host
+does not learn about these. It makes the APNs alert itself, with "OpenBot" as the only text,
+`mutable-content`, the sound, and the sealed bytes. It stores and logs nothing. A `410` answer, from
+the Worker or Apple, removes the registration.
+
+The Notification Service Extension of the app (`apps/mobile/plugins/with-notification-service.js`,
+`NotificationService.swift`) opens the seal with the keys that the app writes into the App Group
+file `push-notifications.json`, and shows the agent name and the text. It refuses content that names
+another server than the one whose keys open it. A notification that it cannot open keeps the app
+name only. A tap opens the chat of the agent.
+
 ## Shared channel chats
 
 > **Deprecated.** The application archives every channel at start (`ChannelService.retire`), the host

@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import {
+  Bell,
   CalendarClock,
   ChartColumn,
   EyeOff,
@@ -138,6 +139,7 @@ const SETTING_ICON = {
   animations: Sparkles,
   language: Languages,
   haptics: Vibrate,
+  notifications: Bell,
   liveActivities: Radio,
   privacy: ShieldCheck,
   hiddenChats: EyeOff,
@@ -165,8 +167,10 @@ function openSetting(id: MobileSearchSettingId, serverId: string) {
       return router.push("/settings/language");
     case "haptics":
       return router.push("/settings/haptics");
+    // One page has the notification and the Live Activity settings.
+    case "notifications":
     case "liveActivities":
-      return router.push("/settings/live-activities");
+      return router.push("/settings/notifications");
     case "privacy":
       return router.push("/settings/privacy");
     case "hiddenChats":
