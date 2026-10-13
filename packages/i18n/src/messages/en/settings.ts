@@ -404,6 +404,8 @@ export const messages = defineMessages("settings", {
   "settings.voice.apiKey.remove": "Remove key",
   "settings.voice.apiKey.saveFailed": "Could not save the API key. Try again.",
   "settings.voice.apiKey.removeFailed": "Could not remove the API key. Try again.",
+  // No value may end with the word "import": the CommonJS shim of electron-vite reads `import"` in the
+  // main bundle as an import statement and inserts its code inside the string.
   "settings.transfer.title": "Move OpenBot to another computer",
   "settings.transfer.lede": "Your agents, their skills, routines, memories, and files go into one file.",
   "settings.transfer.flow.label": "How a transfer works",
@@ -453,8 +455,8 @@ export const messages = defineMessages("settings", {
   "settings.transfer.import.contains": "This file contains",
   "settings.transfer.import.source": "OpenBot {version} · exported {date}",
   "settings.transfer.import.sourceNoDate": "OpenBot {version}",
-  "settings.transfer.import.warnings": "Before you import",
-  "settings.transfer.import.agentsLabel": "Agents to import",
+  "settings.transfer.import.warnings": "Before the import starts",
+  "settings.transfer.import.agentsLabel": "Agents in the file",
   "settings.transfer.import.nameExists": "Name already used",
   "settings.transfer.import.settings": "Import app settings",
   "settings.transfer.import.settingsDescription":
