@@ -53,12 +53,13 @@ For Amazon ECS, see [AWS ECS](aws-ecs.md).
 
 The container publishes no port. OpenBot only connects out: to the account server, to the providers,
 and to Signal and TURN for remote use. The Team API listens on `127.0.0.1` in the container.
+See [Web client delivery](web-client.md) for the browser client and its limits.
 
 ## Tags
 
 | Tag | Image |
 | --- | --- |
-| `latest` | The newest release. |
+| `latest` | A floating tag for the newest published Docker release. It changes when a new image is published. |
 | `<version>`, for example `0.30.0` | One release. Use it to choose when to upgrade. |
 | `v<version>` | Alias for `<version>` in releases published after 0.31.0. Earlier releases use the tag without `v`. |
 | `sha-<commit>` | The release of that commit. |
@@ -101,13 +102,84 @@ In the container, `openbot status`, `login`, `mobile-connect`, `logout`, `name` 
 | --- | --- |
 | Read the log | `docker logs openbot` |
 | Stop, start, restart | `docker stop openbot`, `docker start openbot`, `docker restart openbot` |
-| Upgrade | `docker compose pull && docker compose up -d`, or pull the image and make the container again with the same volume |
+| Upgrade | Follow [Upgrades](#upgrades) before replacing the container. |
 | Remove | `docker exec openbot openbot logout`, then `docker stop openbot && docker rm openbot`. The data stays in the volume. `docker volume rm openbot-data` deletes it. |
 
 ## Upgrades
 
 OpenBot does not update itself in a container. A new image replaces it. Do not go back to an older
 tag: an older OpenBot cannot open a database that a newer one migrated, so it does not start.
+Migrations are forward-only. OpenBot does not make a database backup before migration or restore
+one after a failed upgrade.
+
+### Choose a release
+
+Record the installed version with `docker compose exec openbot openbot version` (or
+`docker exec openbot openbot version`). Keep the deployed configuration and the exact release tag
+for that version. Do not use the current value of `latest` as the installed-release baseline.
+
+For a machine-readable candidate, read the published latest GitHub Release with `curl` and `jq`:
+
+```bash
+set -euo pipefail
+target_tag=$(curl -fsSL -H 'Accept: application/vnd.github+json' \
+  https://api.github.com/repos/nightly-labs/openbot/releases/latest \
+  | jq -er 'select(.draft == false and .prerelease == false)
+    | .tag_name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))')
+printf '%s\n' "$target_tag"
+```
+
+This is a candidate, not proof that its Docker image is ready. The workflow publishes the GitHub
+Release first, then pushes and checks the Docker image. Read the candidate's release notes. Compare
+versions as numbers and proceed only if the candidate is newer than the installed version.
+Use the image tag without `v`, for example `v0.31.0` becomes `ghcr.io/nightly-labs/openbot:0.31.0`.
+Check that the exact target image is available for your architecture, and pull it before stopping
+the installed container. Stop the upgrade if the image is unavailable; do not substitute `latest`.
+For access errors, see [Docker package access](RELEASING.md#docker-package-access).
+
+### Check configuration
+
+Download `docker/compose.yaml` and `docker/seccomp.json` from each exact release tag into a separate
+review directory. Use URLs of this form, with the installed or target tag in place of `<tag>`:
+`https://raw.githubusercontent.com/nightly-labs/openbot/<tag>/docker/compose.yaml` and
+`https://raw.githubusercontent.com/nightly-labs/openbot/<tag>/docker/seccomp.json`.
+Do not download them over your deployed files, and do not use `main` for this comparison.
+
+Compare the installed-release files with the target-release files to find upstream changes. Then
+compare your deployed files with the installed-release files to find your custom settings. Review
+and apply the required target changes while keeping your volume mapping, environment and other
+custom settings. Set the deployed image to the exact target version. Keep the sandbox and the
+other [security options](#security). Do not publish a port to make the upgrade work.
+If the installed-release files are missing or any configuration or security setting changes,
+stop unattended updates for operator review.
+
+### Back up and replace
+
+1. Disable other update jobs for this container. Pull the pinned target image with
+   `docker compose pull openbot`, then stop OpenBot with `docker compose stop openbot`. Confirm
+   that it has stopped and that no other container or process writes to the same data.
+2. Make a complete backup of the stopped volume or bind mount, outside the live data. Include all
+   of `/data`, hidden files, ownership and permissions. This includes the database, workspaces,
+   browser data, provider sign-ins, `/data/.local/share/keyrings` and
+   `/data/.config/openbot-container/keyring-password`. A copy of `openbot.db` alone is not enough.
+   Check that the backup is complete and readable. Protect it as secret data. Do not proceed if
+   the backup is missing or incomplete.
+3. Run `docker compose up -d openbot` with the reviewed configuration and the same persistent
+   volume. Keep the same Compose project name and volume mapping; a different project can create
+   an empty volume. Never run two OpenBot containers on this data at the same time. Do not use
+   `docker compose down -v` or delete the volume.
+4. Check the container logs, `openbot status`, `openbot version` and access from your app. If the
+   upgrade fails, stop the new container and inspect the error. Do not start an older image on
+   data that the new release has opened. There is no automatic rollback or backup restore.
+
+For `docker run`, use the same checks and stopped backup. Pull the pinned image, stop and remove
+only the old container, then create its replacement with the same volume and reviewed options.
+Do not remove the volume or sign out as an upgrade step.
+
+An unattended updater must enforce these checks. It must stop on a failed release lookup, an
+unavailable target image, an unknown installed baseline, configuration or security changes, a
+missing complete stopped backup, or a failed upgrade. A job that only follows `latest` and
+recreates the container does not meet these requirements.
 
 ## Environment
 
