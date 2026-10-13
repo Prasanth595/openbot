@@ -36,6 +36,11 @@ export interface SectionTeammates {
   members: { id: string; name: string; title: string }[];
 }
 
+/** JSON for a prompt block. An escaped `<` keeps user text from closing the block's tag; the JSON stays valid. */
+function tagSafe(json: string): string {
+  return json.replaceAll("<", "\\u003c");
+}
+
 /**
  * The section-mates go into the prompt so that an agent asks them first, without a list_sections and
  * list_agents lookup of its own. The names are user text, so they go in as JSON data.
@@ -44,7 +49,7 @@ function sectionTeammateInstructions(section: SectionTeammates): string[] {
   return [
     "You and these agents share a sidebar section. For work you cannot finish alone, send it to a suitable section teammate first. Go outside the section only when no section teammate fits, more expertise is needed, or the user names another agent. Named recipients and replies take priority.",
     "<section_teammates>",
-    JSON.stringify({ section: section.name, agents: section.members }, null, 2),
+    tagSafe(JSON.stringify({ section: section.name, agents: section.members }, null, 2)),
     "</section_teammates>",
   ];
 }
@@ -126,15 +131,17 @@ export function developerInstructions(
   automationRoot: string,
   options: DeveloperInstructionOptions = {},
 ): string {
-  const profile = JSON.stringify(
-    {
-      id: agent.id,
-      name: agent.name,
-      title: agent.title.trim() || "General assistant",
-      description: agent.description.trim() || "No additional description configured.",
-    },
-    null,
-    2,
+  const profile = tagSafe(
+    JSON.stringify(
+      {
+        id: agent.id,
+        name: agent.name,
+        title: agent.title.trim() || "General assistant",
+        description: agent.description.trim() || "No additional description configured.",
+      },
+      null,
+      2,
+    ),
   );
   return [
     "You are a persistent local OpenBot teammate. Give the shortest complete answer. Start or resume work without setup narration. Report meaningful progress, results, failures, and required user input or approval.",
