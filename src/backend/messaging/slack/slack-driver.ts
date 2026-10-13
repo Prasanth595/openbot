@@ -262,7 +262,9 @@ class SlackAdapter implements MessagingAdapter {
 
   /**
    * A thread from its start. Slack gives replies oldest first, so the newest ones are on the last
-   * page; a longer thread keeps the first pages only.
+   * page; a longer thread keeps the pages it read. Only a failed first page fails the read: until the
+   * Slack Marketplace approves OpenBot, Slack allows one thread read a minute, so a second page is
+   * often refused.
    */
   readonly #threadReplies = Effect.fnUntraced(function* (
     this: SlackAdapter,
@@ -272,11 +274,13 @@ class SlackAdapter implements MessagingAdapter {
     const messages: DynamicRecord[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < RECENT_THREAD_PAGES; page += 1) {
-      const response = yield* this.#api.call(
+      const read = this.#api.call(
         "conversations.replies",
         { channel: platformChannelId, ts: threadKey, limit: RECENT_THREAD_LIMIT, cursor },
         { rateLimitRetries: 0 },
       );
+      const response = page === 0 ? yield* read : yield* read.pipe(Effect.catch(() => Effect.succeed(null)));
+      if (!response) break;
       messages.push(...responseMessages(response));
       const metadata = isDynamicRecord(response.response_metadata) ? response.response_metadata : {};
       cursor = isString(metadata.next_cursor) && metadata.next_cursor ? metadata.next_cursor : undefined;
