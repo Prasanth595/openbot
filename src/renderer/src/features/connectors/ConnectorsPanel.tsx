@@ -1,5 +1,5 @@
 import type { GitHubConnectorStatus, MessagingPlatform, OnePasswordConnectorStatus } from "@openbot/contracts/ipc";
-import { Button, ChevronLeft, Lock } from "@openbot/ui";
+import { Lock } from "@openbot/ui";
 import type { AgentProfile } from "@openbot/ui/data";
 import {
   BitwardenConnectorPanel,
@@ -28,7 +28,7 @@ import {
   telegramOrchestrator,
 } from "@openbot/ui/features/settings/TelegramIntegrationPanel";
 import { useText } from "@openbot/ui/text";
-import { createSignal, Match, onSettled, Show, Switch } from "solid-js";
+import { createSignal, Match, onCleanup, onSettled, Show, Switch } from "solid-js";
 import type { DiscordConnectorController } from "./discord-connector";
 import { type GitHubConnectorController, githubPanelProps } from "./github-connector";
 import { type OnePasswordConnectorController, onePasswordPanelProps } from "./onepassword-connector";
@@ -36,6 +36,21 @@ import type { SlackConnectorController } from "./slack-connector";
 import type { TelegramConnectorController } from "./telegram-connector";
 
 type View = "hub" | "github" | "onepassword" | "bitwarden" | MessagingPlatform;
+
+const PAGE_TITLE = {
+  github: "connector.github.title",
+  onepassword: "connector.onePassword.title",
+  bitwarden: "connector.bitwarden.title",
+  telegram: "connector.telegram.title",
+  slack: messagingPlatformText("slack").title,
+  discord: messagingPlatformText("discord").title,
+} as const satisfies Record<Exclude<View, "hub">, string>;
+
+/** The integration page on screen, so the dialog header reads `Connectors › GitHub`. */
+export interface ConnectorsPanelDetail {
+  title: string;
+  back: () => void;
+}
 
 const GITHUB_STATUS = {
   disconnected: { status: "idle", label: "connector.github.statusNotSetUp" },
@@ -64,9 +79,17 @@ export function ConnectorsPanel(props: {
   telegram?: TelegramConnectorController | undefined;
   agents: AgentProfile[];
   hostName?: string | undefined;
+  /** Reports the open integration page, so the header shows a breadcrumb instead of a back row. */
+  onDetailChange?: (detail: ConnectorsPanelDetail | null) => void;
 }) {
   const { t } = useText();
   const [view, setView] = createSignal<View>("hub");
+  const open = (next: View) => {
+    setView(next);
+    props.onDetailChange?.(next === "hub" ? null : { title: t(PAGE_TITLE[next]), back: () => open("hub") });
+  };
+  // The dialog outlives this panel, so a header must not keep naming a page that is gone.
+  onCleanup(() => props.onDetailChange?.(null));
   // The Slack, Discord and Telegram states change on their own and main sends no event, so they are
   // read while the section shows.
   onSettled(() => props.slack?.watch());
@@ -98,7 +121,7 @@ export function ConnectorsPanel(props: {
             : host
               ? t("connector.github.descriptionHost", { host })
               : t("connector.github.description"),
-      onOpen: () => setView("github"),
+      onOpen: () => open("github"),
     };
   };
   const onePasswordRow = (onePassword: OnePasswordConnectorController): IntegrationsHubRow => {
@@ -114,7 +137,7 @@ export function ConnectorsPanel(props: {
         status.state === "connected" && status.loginCount !== null
           ? t("connector.onePassword.loginCount", { count: status.loginCount })
           : t("connector.onePassword.description"),
-      onOpen: () => setView("onepassword"),
+      onOpen: () => open("onepassword"),
     };
   };
   const messagingRow = (
@@ -142,7 +165,7 @@ export function ConnectorsPanel(props: {
               ? t(text.summaryConnected, { workspace })
               : t(text.summaryNoAgent, { workspace }),
       agents: orchestrator ? [orchestrator] : [],
-      onOpen: () => setView(platform),
+      onOpen: () => open(platform),
     };
   };
   const telegramRow = (telegram: TelegramConnectorController): IntegrationsHubRow => {
@@ -165,7 +188,7 @@ export function ConnectorsPanel(props: {
               ? t("connector.telegram.summaryConnected", { count })
               : t("connector.telegram.summaryNoAgent", { count }),
       agents: orchestrator ? [orchestrator] : [],
-      onOpen: () => setView("telegram"),
+      onOpen: () => open("telegram"),
     };
   };
   const rows = () => {
@@ -185,45 +208,33 @@ export function ConnectorsPanel(props: {
           ? t("connector.bitwarden.connected")
           : t("connector.bitwarden.disconnected"),
         summary: t("connector.bitwarden.description"),
-        onOpen: () => setView("bitwarden"),
+        onOpen: () => open("bitwarden"),
       });
     return list;
   };
-
-  const Back = () => (
-    <Button type="button" size="sm" variant="ghost" class="integrations-back" onClick={() => setView("hub")}>
-      <ChevronLeft aria-hidden="true" />
-      {t("connector.hub.back")}
-    </Button>
-  );
 
   return (
     <Switch fallback={<IntegrationsHub rows={rows()} hostName={props.hostName} />}>
       <Match when={view() === "github" && props.github}>
         {(github) => (
           <div class="integrations-hub">
-            <Back />
             <GitHubConnectorPanel {...githubPanelProps(github())} />
           </div>
         )}
       </Match>
       <Match when={view() === "bitwarden" && props.bitwarden}>
         {(panel) => (
-          <>
-            <Back />
-            <BitwardenConnectorPanel
-              status={panel().status}
-              busy={panel().busy}
-              onConnect={(key) => panel().onConnect(key)}
-              onDisconnect={() => panel().onDisconnect()}
-            />
-          </>
+          <BitwardenConnectorPanel
+            status={panel().status}
+            busy={panel().busy}
+            onConnect={(key) => panel().onConnect(key)}
+            onDisconnect={() => panel().onDisconnect()}
+          />
         )}
       </Match>
       <Match when={view() === "onepassword" && props.onePassword}>
         {(onePassword) => (
           <div class="integrations-hub">
-            <Back />
             <OnePasswordConnectorPanel {...onePasswordPanelProps(onePassword())} />
           </div>
         )}
@@ -231,7 +242,6 @@ export function ConnectorsPanel(props: {
       <Match when={openMessaging()}>
         {(open) => (
           <div class="integrations-hub">
-            <Back />
             <Show when={open().controller.overview()}>
               {(overview) => (
                 <SlackIntegrationPanel
@@ -255,7 +265,6 @@ export function ConnectorsPanel(props: {
       <Match when={view() === "telegram" && props.telegram}>
         {(telegram) => (
           <div class="integrations-hub">
-            <Back />
             <Show when={telegram().overview()}>
               {(overview) => (
                 <TelegramIntegrationPanel
