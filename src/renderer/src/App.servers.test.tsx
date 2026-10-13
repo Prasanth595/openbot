@@ -24,6 +24,21 @@ import { SIDEBAR_PINS_STORAGE_KEY } from "./features/sidebar/sidebar-pins-storag
 import { useUsage } from "./features/usage/usage-context";
 import { TestResizeObserver } from "./setupTests";
 
+const CORE_TEAM_ID = "11111111-1111-4111-8111-111111111111";
+const CORE_TEAM_LAYOUT = {
+  revision: 3,
+  sections: [{ id: CORE_TEAM_ID, name: "Core team" }],
+  order: ["people", CORE_TEAM_ID, "unassigned"],
+  agentAssignments: { chief: CORE_TEAM_ID },
+  agentOrder: ["chief", "sales-outbound"],
+};
+
+function expectChiefInCoreTeam(sectionToggle: HTMLElement): void {
+  const section = sectionToggle.closest<HTMLElement>("[data-section-id]");
+  if (!section) throw new Error("Shared sidebar section is missing.");
+  expect(within(section).getByRole("button", { name: /Chief, Chief of staff/ })).toBeInTheDocument();
+}
+
 describe("OpenBot connected desktop shell", () => {
   beforeEach(() => {
     installOpenbotStub();
@@ -458,6 +473,65 @@ describe("OpenBot connected desktop shell", () => {
     // The server was already active, so the workspace reloads on
     // the completed handshake. Nothing asks main to select it a second time.
     expect(window.openbot.servers.select).not.toHaveBeenCalled();
+  });
+
+  it("groups agents into sections when a host answers its handshake after it connects", async () => {
+    const local = testServer("local", false);
+    const checking: ServerSummary = {
+      ...testServer("remote-1", true),
+      compatibility: {
+        localAppVersion: "0.4.0",
+        hostAppVersion: null,
+        localProtocol: { minimum: 1, maximum: 1 },
+        hostProtocol: null,
+        negotiatedProtocol: null,
+        capabilities: [],
+      },
+      connectionSequence: 1,
+    };
+    const negotiated: ServerSummary = {
+      ...checking,
+      compatibility: {
+        localAppVersion: "0.4.0",
+        hostAppVersion: "0.4.0",
+        localProtocol: { minimum: 1, maximum: 1 },
+        hostProtocol: { minimum: 1, maximum: 1 },
+        negotiatedProtocol: 1,
+        capabilities: ["sidebar-layout"],
+      },
+    };
+    vi.mocked(window.openbot.servers.list).mockResolvedValueOnce([local, checking]);
+    vi.mocked(window.openbot.agent.getSidebarLayout).mockResolvedValue(CORE_TEAM_LAYOUT);
+
+    render(() => <App />);
+    await screen.findByRole("heading", { name: "Chief" });
+    expect(window.openbot.agent.getSidebarLayout).not.toHaveBeenCalled();
+
+    // A starting host holds the agent list, so the reload that the handshake requests fails.
+    vi.mocked(window.openbot.agent.listAgents).mockRejectedValue(new Error("Agents are still loading"));
+    emitServers?.([local, negotiated]);
+    expectChiefInCoreTeam(await screen.findByRole("button", { name: "Core team" }));
+  });
+
+  it.each(["agents", "sections"] as const)("groups agents into sections when the %s answer first", async (first) => {
+    const agents = Promise.withResolvers<AgentSummary[]>();
+    const layout = Promise.withResolvers<typeof CORE_TEAM_LAYOUT>();
+    vi.mocked(window.openbot.agent.listAgents).mockReturnValue(agents.promise);
+    vi.mocked(window.openbot.agent.getSidebarLayout).mockReturnValue(layout.promise);
+
+    render(() => <App />);
+    await waitFor(() => expect(window.openbot.agent.getSidebarLayout).toHaveBeenCalled());
+    if (first === "agents") {
+      agents.resolve(AGENTS);
+      await screen.findByRole("heading", { name: "Chief" });
+      layout.resolve(CORE_TEAM_LAYOUT);
+    } else {
+      layout.resolve(CORE_TEAM_LAYOUT);
+      await layout.promise;
+      agents.resolve(AGENTS);
+      await screen.findByRole("heading", { name: "Chief" });
+    }
+    expectChiefInCoreTeam(await screen.findByRole("button", { name: "Core team" }));
   });
 
   it("keeps a remote approval when Review in OpenBot switches to its host", async () => {

@@ -133,6 +133,9 @@ const ServerScope = createSimpleContext({
         draft.failure = null;
         draft.loading = true;
       });
+      // The panels do not wait for the agents: a starting host answers its layout at once but holds the
+      // agent list until its agents load, and agents shown before their sections show ungrouped.
+      void loadPanels();
       const [status, models, agents, reads] = await Promise.all([
         serversPort().agent.getStatus(serverId),
         serversPort().agent.listModels(serverId),
@@ -152,7 +155,6 @@ const ServerScope = createSimpleContext({
         draft.loading = false;
         draft.sequence = sequence;
       });
-      void loadPanels();
       void serversPort()
         .servers.getPresence()
         .then((value) => {
@@ -180,7 +182,7 @@ const ServerScope = createSimpleContext({
       const reads = [
         loadSidebarLayout(server)
           .then((value) => {
-            if (isCurrent()) setSidebarLayout(value);
+            if (value && isCurrent()) setSidebarLayout(value);
           })
           .catch(failed),
       ];
@@ -267,6 +269,16 @@ const ServerScope = createSimpleContext({
       ({ ready }) => {
         if (!ready) loadGeneration += 1;
         recovery.setActive(ready);
+      },
+    );
+
+    // A remote host is online before it answers the handshake, so a load in that window cannot know
+    // which panels it serves. They load again once the handshake completes, whether or not the
+    // reload that the handshake also requests gets past the agent list.
+    createEffect(
+      () => transportReady() && Boolean(selectedServer()?.compatibility?.hostAppVersion),
+      (negotiated, previous) => {
+        if (negotiated && previous === false) untrack(() => void loadPanels());
       },
     );
 

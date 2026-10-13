@@ -199,9 +199,13 @@ export function ConnectedScreen() {
   const iconColor = String(foreground);
   const mutedColor = String(muted);
   const hasSelectedServer = servers.some((server) => server.id === activeServer.id);
+  // Agents can arrive before the host's sections. Until the first section read settles, they would
+  // show as one ungrouped list, so the loader stays.
   const showLoader =
     (serverDirectoryState === "loading" && servers.length === 0) ||
-    (hasSelectedServer && activeServer.initialConnectionPending);
+    (hasSelectedServer &&
+      (activeServer.initialConnectionPending ||
+        (activeAgents.length > 0 && sidebarByServer[activeServer.id] === undefined)));
   const listReady = !showLoader && !isLoaderPresent;
   // Connecting to a server continues while the user reads a chat, so the label only
   // belongs to this screen while it is the route on top.
