@@ -49,6 +49,8 @@ export interface InstanceTransferViewProps {
   summary: InstanceTransferSummary | null;
   exportPhase: InstanceExportPhase;
   exportFileName: string | null;
+  /** What the saved file left out, such as files deleted while it was written. */
+  exportWarnings: string[];
   exportError: string | null;
   onExport: (options: InstanceExportOptions) => void;
   onShowExport: () => void;
@@ -153,7 +155,12 @@ function ExportScreen(props: InstanceTransferViewProps) {
     <Show
       when={props.exportPhase !== "saved"}
       fallback={
-        <ExportSaved fileName={props.exportFileName} onShow={props.onShowExport} onAgain={props.onExportAgain} />
+        <ExportSaved
+          fileName={props.exportFileName}
+          warnings={props.exportWarnings}
+          onShow={props.onShowExport}
+          onAgain={props.onExportAgain}
+        />
       }
     >
       <h3 class="agent-import-heading">{t("settings.transfer.export.title")}</h3>
@@ -236,7 +243,7 @@ function ExportScreen(props: InstanceTransferViewProps) {
   );
 }
 
-function ExportSaved(props: { fileName: string | null; onShow: () => void; onAgain: () => void }) {
+function ExportSaved(props: { fileName: string | null; warnings: string[]; onShow: () => void; onAgain: () => void }) {
   const { t } = useText();
   return (
     <>
@@ -246,6 +253,9 @@ function ExportSaved(props: { fileName: string | null; onShow: () => void; onAga
       </p>
       <Show when={props.fileName}>
         <p class="storage-message-description">{props.fileName}</p>
+      </Show>
+      <Show when={props.warnings.length > 0}>
+        <Notes title={t("settings.transfer.result.warnings")} notes={props.warnings} />
       </Show>
       <ol class="agent-import-steps">
         <li class="agent-import-step">

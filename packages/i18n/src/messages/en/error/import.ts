@@ -52,6 +52,10 @@ export const messages = defineMessages("error.import", {
   "error.import.transferModelMissing":
     '{name}: the model "{model}" is not available here, so the agent uses the default model.',
   "error.import.transferSettingSkipped": "{name} is not imported. {reason}",
+  "error.import.transferDefaultsSkipped": "The default model is not imported. {reason}",
+  "error.import.transferPreferencesSkipped": "The app preferences are not imported. {reason}",
+  "error.import.transferRoutineFlowSkipped": "A routine flow is not imported. {reason}",
+  "error.import.transferFilesGone": "{number} files were deleted while the export ran, so they are not in the file.",
   "error.import.transferProviderKey": "{name}: enter its API key again in Settings.",
   "error.import.transferAgentEnv": "{name}: enter the values of {names} again in Settings.",
   "error.import.transferMcpValues":

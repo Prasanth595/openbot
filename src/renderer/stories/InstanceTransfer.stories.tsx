@@ -28,6 +28,7 @@ const viewArgs = (overrides: Partial<ViewArgs> = {}): ViewArgs => ({
   summary: INSTANCE_TRANSFER_SUMMARY,
   exportPhase: "options",
   exportFileName: null,
+  exportWarnings: [],
   exportError: null,
   onExport: fn(),
   onShowExport: fn(),

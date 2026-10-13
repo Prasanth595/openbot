@@ -11,6 +11,7 @@ export function SettingsTransferTab(props: { store: SettingsTransferStore }) {
       summary={store().state.summary}
       exportPhase={store().state.exportPhase}
       exportFileName={store().state.exportFileName}
+      exportWarnings={store().state.exportWarnings}
       exportError={store().state.exportError}
       onExport={(options) => store().exportFile(options)}
       onShowExport={() => store().showExport()}

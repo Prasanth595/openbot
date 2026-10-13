@@ -13,7 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
-import { AGENT_PROVIDERS, type AgentProviderId } from "@openbot/contracts/agent-providers";
+import { AGENT_PROVIDERS, type AgentProviderId, agentProviderName } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_IMPORT_LIMITS,
@@ -52,6 +52,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Result } from "effect";
 import { Zip, ZipPassThrough, zipSync } from "fflate";
+import { isMissingFileError } from "../backend/file-errors";
 import { isPathInside } from "../backend/path-containment";
 import {
   type ArchiveLimits,
@@ -328,9 +329,13 @@ export class InstanceTransferService {
     };
     const manifestBytes = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
     entries.unshift({ name: INSTANCE_TRANSFER_MANIFEST, read: () => Promise.resolve(manifestBytes) });
-    yield* writeZipEffect(path, entries);
+    const gone = yield* writeZipEffect(path, entries);
     this.#lastExport = path;
-    return { saved: true, fileName: basename(path), warnings: [] };
+    return {
+      saved: true,
+      fileName: basename(path),
+      warnings: gone > 0 ? [sourceText("error.import.transferFilesGone", { number: gone })] : [],
+    };
   }).bind(this);
 
   readonly #readSettings = Effect.fn("InstanceTransfer.readSettings")(function* (
@@ -520,12 +525,10 @@ export class InstanceTransferService {
   ) {
     const port = this.options.settings;
     const cleared = new Set(settings.cleared ?? []);
-    const attempt = function* (name: string, effect: Effect.Effect<unknown, unknown>) {
+    /** `skipped` writes the warning for a step that fails, from its reason. */
+    const attempt = function* (skipped: (reason: string) => string, effect: Effect.Effect<unknown, unknown>) {
       const result = yield* Effect.result(effect);
-      if (Result.isFailure(result))
-        warnings.push(
-          sourceText("error.import.transferSettingSkipped", { name, reason: message(causeOf(result.failure)) }),
-        );
+      if (Result.isFailure(result)) warnings.push(skipped(message(causeOf(result.failure))));
       return Result.isSuccess(result);
     };
 
@@ -533,7 +536,7 @@ export class InstanceTransferService {
     for (const provider of settings.customProviders) {
       if (providers.has(provider.id)) continue;
       const saved = yield* attempt(
-        provider.name,
+        named(provider.name),
         port.saveCustomProvider({
           id: provider.id,
           name: provider.name,
@@ -553,7 +556,7 @@ export class InstanceTransferService {
     for (const agent of settings.customAgents) {
       if (customAgents.has(agent.id)) continue;
       const saved = yield* attempt(
-        agent.name,
+        named(agent.name),
         port.saveCustomAgent({
           id: agent.id,
           name: agent.name,
@@ -574,17 +577,23 @@ export class InstanceTransferService {
     const wanted = new Set(settings.providersOff);
     for (const provider of AGENT_PROVIDERS) {
       if (off.has(provider) === wanted.has(provider)) continue;
-      yield* attempt(provider, port.setProviderOn(provider, !wanted.has(provider)));
+      yield* attempt(named(agentProviderName(provider)), port.setProviderOn(provider, !wanted.has(provider)));
     }
     if (settings.defaults)
-      yield* attempt("default model", port.saveDefaults(settings.defaults.provider, settings.defaults.model));
-    yield* attempt("preferences", port.savePreferences(settings.preferences));
+      yield* attempt(
+        (reason) => sourceText("error.import.transferDefaultsSkipped", { reason }),
+        port.saveDefaults(settings.defaults.provider, settings.defaults.model),
+      );
+    yield* attempt(
+      (reason) => sourceText("error.import.transferPreferencesSkipped", { reason }),
+      port.savePreferences(settings.preferences),
+    );
 
     const servers = new Set(port.mcpServers().map((server) => server.name.toLowerCase()));
     for (const server of settings.mcpServers) {
       if (servers.has(server.name.toLowerCase())) continue;
       // A file can name any command, so an imported server stays off until the user checks it.
-      const saved = yield* attempt(server.name, port.saveMcpServer({ ...server, id: "", enabled: false }));
+      const saved = yield* attempt(named(server.name), port.saveMcpServer({ ...server, id: "", enabled: false }));
       if (saved) warnings.push(sourceText("error.import.transferMcpValues", { name: server.name }));
     }
   });
@@ -637,10 +646,7 @@ export class InstanceTransferService {
       );
       if (Result.isFailure(connected))
         warnings.push(
-          sourceText("error.import.transferSettingSkipped", {
-            name: "routine flow",
-            reason: message(causeOf(connected.failure)),
-          }),
+          sourceText("error.import.transferRoutineFlowSkipped", { reason: message(causeOf(connected.failure)) }),
         );
     }
   });
@@ -946,6 +952,11 @@ function createRedaction() {
   };
 }
 
+/** The warning for an item of the settings that is not imported. */
+function named(name: string): (reason: string) => string {
+  return (reason) => sourceText("error.import.transferSettingSkipped", { name, reason });
+}
+
 function isSharedData(name: string): boolean {
   return name === SHARED_DATA || name.startsWith(`${SHARED_DATA}/`);
 }
@@ -954,9 +965,10 @@ function isSharedData(name: string): boolean {
 const writeZipEffect = Effect.fn("InstanceTransfer.writeZip")(function* (
   path: string,
   entries: ReadonlyArray<{ name: string; read: () => Promise<Uint8Array> }>,
-): Effect.fn.Return<void, ArchiveOperationError> {
+): Effect.fn.Return<number, ArchiveOperationError> {
   const part = `${path}.part`;
-  yield* archiveCall(async () => {
+  return yield* archiveCall(async () => {
+    let gone = 0;
     const handle = await open(part, "w");
     try {
       let pending = Promise.resolve();
@@ -966,10 +978,19 @@ const writeZipEffect = Effect.fn("InstanceTransfer.writeZip")(function* (
         else pending = pending.then(() => handle.write(chunk).then(() => undefined));
       });
       for (const entry of entries) {
+        let data: Uint8Array;
+        try {
+          data = await entry.read();
+        } catch (cause) {
+          // A running agent can delete a file after the walk; the export goes on without it.
+          if (!isMissingFileError(cause)) throw cause;
+          gone += 1;
+          continue;
+        }
         // Stored, not compressed: compression would run on the main thread.
         const file = new ZipPassThrough(entry.name);
         zip.add(file);
-        file.push(await entry.read(), true);
+        file.push(data, true);
         await pending;
         if (error) throw error;
       }
@@ -980,6 +1001,7 @@ const writeZipEffect = Effect.fn("InstanceTransfer.writeZip")(function* (
       await handle.close();
     }
     await rename(part, path);
+    return gone;
   }).pipe(Effect.tapError(() => archiveCall(() => rm(part, { force: true })).pipe(Effect.ignore)));
 });
 

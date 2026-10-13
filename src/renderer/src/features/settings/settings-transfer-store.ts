@@ -16,6 +16,7 @@ interface SettingsTransferState {
   summary: InstanceTransferSummary | null;
   exportPhase: InstanceExportPhase;
   exportFileName: string | null;
+  exportWarnings: string[];
   exportError: string | null;
   importPhase: InstanceImportPhase;
   preview: InstanceTransferPreview | null;
@@ -28,6 +29,7 @@ const INITIAL: SettingsTransferState = {
   summary: null,
   exportPhase: "options",
   exportFileName: null,
+  exportWarnings: [],
   exportError: null,
   importPhase: "idle",
   preview: null,
@@ -81,6 +83,7 @@ export function createSettingsTransferStore(active: () => boolean) {
         setState((draft) => {
           draft.exportPhase = result.saved ? "saved" : "options";
           draft.exportFileName = result.fileName;
+          draft.exportWarnings = result.warnings;
         }),
       )
       .catch((error: unknown) =>
@@ -99,6 +102,7 @@ export function createSettingsTransferStore(active: () => boolean) {
     setState((draft) => {
       draft.exportPhase = "options";
       draft.exportFileName = null;
+      draft.exportWarnings = [];
     });
   }
 
