@@ -25,8 +25,8 @@ interface HeroOffer {
 
 function heroOffer(platform: HeroPlatform): HeroOffer {
   if (platform === "ios" || platform === "android") return { ...MOBILE_APPS[platform], external: true };
-  const details = DOWNLOAD_PLATFORMS[platform];
-  return { ...details, href: details.available ? details.href : undefined, external: false };
+  const { href, ...details } = DOWNLOAD_PLATFORMS[platform];
+  return details.available && href ? { ...details, href, external: false } : { ...details, external: false };
 }
 
 interface HeroMenuItemProps {
