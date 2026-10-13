@@ -1,5 +1,37 @@
 [
   {
+    "version": "0.38.2",
+    "date": "2026-10-13",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Italian interface. Choose Italiano in Settings > General > Language.",
+          "A server sends iPhone notifications to its members when an agent finishes, stops with an error, or needs input.",
+          "Agents can post to a connected Slack, Discord or Telegram place on their own initiative, from any chat or routine.",
+          "You can cancel a Gemini sign-in that waits for the browser."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Agents show a draft before they send a message for you, and send it only after you approve it.",
+          "When you say stop, an agent also stops each teammate that it gave work to."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Gemini sign-in, quota and error messages are clearer, and a Gemini chat with a lost session starts a new one.",
+          "Open OpenBot on an invitation page now opens OpenBot on Windows.",
+          "Agents show in their sidebar sections when a server starts or reconnects.",
+          "Opening or writing to a chat no longer shows \"Read state failed\" for a queued message."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.38.1",
     "date": "2026-10-13",
     "notices": [
