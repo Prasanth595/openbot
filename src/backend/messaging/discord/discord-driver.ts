@@ -380,7 +380,12 @@ class DiscordAdapter implements MessagingAdapter {
     const name = Deferred.makeUnsafe<string>();
     this.#names.set(userId, name);
     const result = yield* this.#call({ op: "member", guildId: this.#guildId, userId }, decodeDiscordName).pipe(
-      Effect.catch(() => Effect.succeed(userId)),
+      Effect.catch(() =>
+        Effect.sync(() => {
+          this.#names.delete(userId);
+          return userId;
+        }),
+      ),
     );
     yield* Deferred.succeed(name, result);
     return result;
@@ -396,7 +401,12 @@ class DiscordAdapter implements MessagingAdapter {
       decodeDiscordName,
     ).pipe(
       Effect.map((channel) => `#${channel}`),
-      Effect.catch(() => Effect.succeed(platformChannelId)),
+      Effect.catch(() =>
+        Effect.sync(() => {
+          this.#places.delete(platformChannelId);
+          return platformChannelId;
+        }),
+      ),
     );
     yield* Deferred.succeed(name, result);
     return result;
