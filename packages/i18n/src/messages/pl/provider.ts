@@ -62,6 +62,7 @@ export const messages = {
   "provider.action.signIn": "Zaloguj się",
   "provider.action.apiKey": "Klucz API",
   "provider.action.signInWithCode": "Zaloguj się kodem",
+  "provider.action.pasteAddress": "Wklej adres",
   "provider.aria.download": "Pobierz {name}",
   "provider.aria.cancel": "Anuluj {name}",
   "provider.aria.connect": "Połącz {name}",
@@ -108,6 +109,10 @@ export const messages = {
   "provider.codeLogin.relayStarting": "Uruchamianie logowania do {name} na {host}…",
   "provider.codeLogin.pageOpening": "Otwieranie strony logowania {name} na {host}…",
   "provider.codeLogin.linkStep": "Zaloguj się do {name}. OpenBot będzie kontynuować samodzielnie.",
+  "provider.useApp.title": "Połącz {name} w aplikacji OpenBot",
+  "provider.useApp.description":
+    "Logowanie do {name} wraca na komputer, który je rozpoczął, a karta przeglądarki nie może go odebrać. Połącz {name} w aplikacji OpenBot. Aplikacja sama dokończy logowanie.",
+  "provider.useApp.download": "Pobierz aplikację",
 
   "provider.picker.noEndpoints": "Brak endpointów",
   "provider.picker.customCounts": "{endpoints} · {agents}",

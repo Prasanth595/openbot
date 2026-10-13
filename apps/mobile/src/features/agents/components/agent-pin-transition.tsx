@@ -1,4 +1,4 @@
-import type { AvatarHue, ChannelSummary } from "@openbot/contracts/ipc";
+import type { AvatarHue } from "@openbot/contracts/ipc";
 import {
   createContext,
   type PropsWithChildren,
@@ -13,7 +13,7 @@ import { View } from "react-native";
 import { Easing, ReduceMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { AgentPinTransitionOverlay } from "@/features/agents/components/agent-pin-transition-overlay";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
 import { haptics } from "@/shared/lib/haptics";
 
@@ -28,9 +28,7 @@ interface AvatarRect {
 
 export interface AgentPinTransitionState {
   chatId: string;
-  avatar:
-    | { kind: "agent"; hue: AvatarHue | null; seed: string }
-    | { kind: "channel"; channel: ChannelSummary; agents: ReadonlyMap<string, MobileAgent>; disconnected: boolean };
+  avatar: { hue: AvatarHue | null; seed: string };
   from: AvatarRect;
   source: AgentAvatarLocation;
   target: AgentAvatarLocation;
@@ -41,7 +39,6 @@ interface AgentPinTransitionContextValue {
   registerAvatar: (agentId: string, location: AgentAvatarLocation, node: View | null) => void;
   notifyAvatarLayout: (agentId: string, location: AgentAvatarLocation) => void;
   toggleAgentPinAnimated: (agentId: string, options?: { haptic: boolean }) => void;
-  toggleChannelPinAnimated: (channel: ChannelSummary, serverId: string, options?: { haptic: boolean }) => void;
   transition: AgentPinTransitionState | null;
 }
 
@@ -50,7 +47,7 @@ const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
 const TRANSITION_DURATION = 320;
 
 export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
-  const { agents, servers, pinnedAgentIds, pinnedChannelIds, toggleAgentPin, toggleChannelPin } = useMobileWorkspace();
+  const { agents, pinnedAgentIds, toggleAgentPin } = useMobileWorkspace();
   const containerRef = useRef<View>(null);
   const avatarRefs = useRef(new Map<string, Partial<Record<AgentAvatarLocation, View>>>()).current;
   const avatarRects = useRef(new Map<string, Partial<Record<AgentAvatarLocation, AvatarRect>>>()).current;
@@ -150,7 +147,7 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
       commit: () => string,
       options?: { haptic: boolean },
     ) => {
-      if (transitionRef.current || !canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], chatId)) return;
+      if (transitionRef.current || !canToggleAgentPin(pinnedAgentIds, chatId)) return;
       const source: AgentAvatarLocation = isPinned ? "pinned" : "row";
       const target: AgentAvatarLocation = isPinned ? "row" : "pinned";
       const sourceNode = avatarRefs.get(chatId)?.[source];
@@ -193,7 +190,7 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
         });
       });
     },
-    [avatarRefs, finishTransition, pinnedAgentIds, pinnedChannelIds, progress],
+    [avatarRefs, finishTransition, pinnedAgentIds, progress],
   );
 
   const toggleAgentPinAnimated = useCallback(
@@ -202,31 +199,13 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
       if (!agent) return;
       togglePinAnimated(
         agentId,
-        { kind: "agent", hue: agent.avatarHue, seed: agent.avatarSeed },
+        { hue: agent.avatarHue, seed: agent.avatarSeed },
         pinnedAgentIds.includes(agentId),
         () => toggleAgentPin(agentId),
         options,
       );
     },
     [agents, pinnedAgentIds, toggleAgentPin, togglePinAnimated],
-  );
-
-  const toggleChannelPinAnimated = useCallback(
-    (channel: ChannelSummary, serverId: string, options?: { haptic: boolean }) => {
-      togglePinAnimated(
-        channel.id,
-        {
-          kind: "channel",
-          channel,
-          agents: new Map(agents.filter((agent) => agent.serverId === serverId).map((agent) => [agent.id, agent])),
-          disconnected: !servers.some((server) => server.id === serverId && server.state === "online"),
-        },
-        pinnedChannelIds.includes(channel.id),
-        () => toggleChannelPin(channel.id, serverId),
-        options,
-      );
-    },
-    [agents, servers, pinnedChannelIds, toggleChannelPin, togglePinAnimated],
   );
 
   useEffect(
@@ -241,10 +220,9 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
       registerAvatar,
       notifyAvatarLayout,
       toggleAgentPinAnimated,
-      toggleChannelPinAnimated,
       transition,
     }),
-    [notifyAvatarLayout, registerAvatar, toggleAgentPinAnimated, toggleChannelPinAnimated, transition],
+    [notifyAvatarLayout, registerAvatar, toggleAgentPinAnimated, transition],
   );
 
   return (
@@ -259,7 +237,7 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
 
 export function useAgentPinTransition(): AgentPinTransitionContextValue {
   const context = useContext(AgentPinTransitionContext);
-  const { toggleAgentPin, toggleChannelPin } = useMobileWorkspace();
+  const { toggleAgentPin } = useMobileWorkspace();
 
   return useMemo(
     () =>
@@ -269,11 +247,8 @@ export function useAgentPinTransition(): AgentPinTransitionContextValue {
         toggleAgentPinAnimated: (agentId: string) => {
           toggleAgentPin(agentId);
         },
-        toggleChannelPinAnimated: (channel: ChannelSummary, serverId: string) => {
-          toggleChannelPin(channel.id, serverId);
-        },
         transition: null,
       },
-    [context, toggleAgentPin, toggleChannelPin],
+    [context, toggleAgentPin],
   );
 }

@@ -602,7 +602,12 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     this.#emitChanged();
     yield* this.startEventConnections();
     if (this.#connections.hostedSleepFor(serverId) === "sleeping") yield* this.#wakeHostedServer(serverId);
-    else if (this.#events.isHostOffline(serverId)) yield* this.#checkHostedServer(serverId, true);
+    else {
+      if (this.#events.isHostOffline(serverId)) yield* this.#checkHostedServer(serverId, true);
+      // A host that dropped recently waits on its reconnect backoff, up to minutes. Without this the
+      // selected server showed "Connecting" until that timer fired.
+      yield* this.#events.retryNow(serverId);
+    }
     return this.list();
   });
 

@@ -3,8 +3,6 @@ import type { messages as source } from "../../en/mobile/app";
 
 export const messages = {
   "mobile.app.route.scanQrCode": "Scansiona il codice QR",
-  "mobile.app.route.actionsNeeded": "Azioni necessarie",
-  "mobile.app.route.newChannel": "Nuovo canale",
   "mobile.app.route.createAgent": "Crea un agente",
   "mobile.app.route.addSharedAgent": "Aggiungi un agente condiviso",
   "mobile.app.route.newSection": "Nuova sezione",
@@ -14,7 +12,6 @@ export const messages = {
   "mobile.app.route.about": "Informazioni",
   "mobile.app.route.support": "Assistenza",
   "mobile.app.route.hiddenChats": "Chat nascoste",
-  "mobile.app.route.deletedChannels": "Canali eliminati",
   "mobile.app.route.cropPhoto": "Sposta e ridimensiona",
   "mobile.app.route.queuedMessages": "Messaggi in coda",
   "mobile.app.route.messageOptions": "Opzioni del messaggio",

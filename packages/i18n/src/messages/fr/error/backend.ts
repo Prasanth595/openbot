@@ -167,6 +167,18 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Ces agents sont déjà reliés dans cette routine.",
   "error.backend.routineFlowCycle": "Cette liaison créerait une boucle.",
   "error.backend.routineFlowLinkLimit": "Une routine peut avoir au plus {limit} liaisons.",
+  "error.backend.agentWaitLimit":
+    "Cet agent a déjà {count} attentes ouvertes. Fermez une attente avec openbot.close_wait avant d’en ouvrir une autre.",
+  "error.backend.agentWaitGone": "Cette attente n’est pas ouverte. L’agent l’a fermée, ou quelqu’un l’a annulée.",
+  "error.backend.agentWaitNoRequest": "Une attente a besoin d’un message pour continuer. Ce tour n’a pas de message.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Ouvrez une attente uniquement dans votre propre discussion. Une tâche de canal ou de messagerie ne peut pas attendre.",
+  "error.backend.agentWaitNoteRequired": "Indiquez une courte note qui précise l’objet de l’attente.",
+  "error.backend.agentWaitRoutineGone": "Cet agent n’a pas de routine avec cet identifiant.",
+  "error.backend.agentWaitNoRoutine":
+    "Seule une exécution de l’une de vos routines réveille une attente, et vous n’avez aucune routine. Créez-en une avec openbot.create_routine, puis ouvrez l’attente.",
+  "error.backend.agentWaitRemoteUnsupported":
+    "Les attentes ouvertes ne sont disponibles que pour les agents de cet ordinateur.",
   "error.backend.routineFlowHandoffFailed": "La routine n’a pas pu transmettre le travail à cet agent.",
   "error.backend.mcpServerLimit": "OpenBot garde jusqu’à {limit} serveurs MCP.",
   "error.backend.mcpServerNameTaken": "Un serveur MCP nommé {name} existe déjà.",

@@ -6,7 +6,6 @@ export const messages = {
   "mobile.search.filter.label": "Filtra i risultati",
   "mobile.search.filter.all": "Tutti",
   "mobile.search.filter.agents": "Agenti",
-  "mobile.search.filter.channels": "Canali",
   "mobile.search.filter.messages": "Messaggi",
   "mobile.search.filter.files": "File",
   "mobile.search.filter.routines": "Routine",

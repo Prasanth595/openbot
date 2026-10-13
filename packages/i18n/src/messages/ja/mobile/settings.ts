@@ -138,7 +138,6 @@ export const messages = {
   "mobile.settings.privacy.retry": "プライバシー設定をもう一度保存",
   "mobile.settings.conversations.title": "会話",
   "mobile.settings.conversations.hiddenChats": "非表示のチャット",
-  "mobile.settings.conversations.deletedChannels": "削除したチャンネル",
   "mobile.settings.profile.nameUnsafe": "名前から改行と制御文字を削除してください。",
   "mobile.settings.profile.nameLength": "表示名は 3〜20 文字にしてください。",
   "mobile.settings.profile.saveFailed": "変更を保存できませんでした。もう一度お試しください。",

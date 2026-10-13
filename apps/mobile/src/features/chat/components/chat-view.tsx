@@ -3,7 +3,7 @@ import { type CauseCode, classifyFailure, type FailureProperties } from "@openbo
 import { useQueryClient } from "@tanstack/react-query";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { router, useIsFocused } from "expo-router";
-import { Button, Typography } from "heroui-native";
+import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { ArrowDown } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +18,6 @@ import { MobileConversationAnalytics } from "@/features/analytics/conversation";
 import { reportMobileNotification } from "@/features/analytics/failure-reports";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
-import { channelRecipient } from "@/features/channels/model/channel-draft";
 import { ChatComposer, VOICE_BUTTON_SIZE } from "@/features/chat/components/chat-composer";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
 import { ChatHeader } from "@/features/chat/components/chat-header";
@@ -68,14 +67,10 @@ export interface ChatViewProps {
   historyLoadFailed: boolean;
   /** Whether the person can write here. A message waits on this phone while the server is offline. */
   canSend: boolean;
-  readOnly?: boolean;
   activity?: MobileAgentActivity;
-  activities?: MobileAgentActivity[];
   activeTurnId: string | null;
-  /** Absent for a surface that cannot stop a turn, such as a read-only channel. */
-  stopTurn?: (turnId: string) => Promise<void>;
+  stopTurn: (turnId: string) => Promise<void>;
   questionForm?: QuestionPromptController;
-  onSelectQuestion?: (messageId: string) => void;
   /** The approvals of this chat's agents, from the caller that knows which thread is this chat's. */
   approvals?: readonly PendingApproval[];
   readBoundary: string | null;
@@ -85,8 +80,6 @@ export interface ChatViewProps {
   olderLoading: boolean;
   olderError: boolean;
   loadOlder: () => void;
-  needsAction?: boolean;
-  notice?: string;
   /** A message from search that the chat opens at, once its page is loaded. */
   focusMessageId?: string | null;
   /** True while the chat opens at a message from search, also before its page loads. */
@@ -132,13 +125,10 @@ export function ChatView({
   ready,
   historyLoadFailed,
   canSend,
-  readOnly = false,
   activity,
-  activities,
   activeTurnId,
   stopTurn,
   questionForm,
-  onSelectQuestion,
   approvals,
   readBoundary,
   markRead,
@@ -147,8 +137,6 @@ export function ChatView({
   olderLoading,
   olderError,
   loadOlder,
-  needsAction = false,
-  notice,
   focusMessageId = null,
   holdOpening = false,
   onFocusPlaced,
@@ -160,13 +148,8 @@ export function ChatView({
     useMobileWorkspace();
   const browserRequests = useBrowserRequests(target.serverId);
   const chatBrowserRequests = useMemo(
-    () =>
-      browserRequests.filter((request) =>
-        target.kind === "agent"
-          ? request.agentId === target.id
-          : target.members.some((member) => member.id === request.agentId),
-      ),
-    [browserRequests, target],
+    () => browserRequests.filter((request) => request.agentId === target.id),
+    [browserRequests, target.id],
   );
   const browserAllowed = useBrowserFeature();
   const isFocused = useIsFocused();
@@ -195,7 +178,7 @@ export function ChatView({
     cause: CauseCode;
     context: Partial<Pick<FailureProperties, "provider" | "model">>;
   } | null>(null);
-  const failureAgent = target.kind === "agent" ? serverAgents.find((agent) => agent.id === target.id) : undefined;
+  const failureAgent = serverAgents.find((agent) => agent.id === target.id);
   const failureContext = useMemo(
     () => (failureAgent ? { provider: failureAgent.provider, model: failureAgent.model } : {}),
     [failureAgent],
@@ -206,14 +189,13 @@ export function ChatView({
     reportedError.current = sendError;
     reportMobileNotification({ code: sendError.cause }, "turn", "banner", sendError.context);
   }, [isFocused, sendError, target.id]);
-  const [refreshingHistory, setRefreshingHistory] = useState(false);
   const [sendRetryVersion, setSendRetryVersion] = useState(0);
   const queryClient = useQueryClient();
   const composerAttachments = useChatAttachments([], undefined, () => attachmentSupport(target.serverId));
   const attachments = composerAttachments;
   const [messageAliases, setMessageAliases] = useState<ReadonlyMap<string, string>>(new Map());
   const [showStarter, setShowStarter] = useState(true);
-  const { servers, channelStore } = useMobileWorkspace();
+  const { servers } = useMobileWorkspace();
   // The messages of this chat that the host has not drawn yet. They wait for the connection, in order.
   const { store: outbox, snapshot: outboxSnapshot } = useOutbox();
   const outboxKey = outboxChatKey(target);
@@ -265,9 +247,7 @@ export function ChatView({
       outboxMessages.flatMap((message): PendingChatMessage[] =>
         (message.state === "sending" && sendsToQueue) ||
         (message.state === "sent" && queueSends.current.has(message.clientMessageId)) ||
-        (message.messageId !== null && queuedMessageIds.has(message.messageId)) ||
-        // The host stored it, and the notice above the composer asks for the history that shows it.
-        message.historyPending
+        (message.messageId !== null && queuedMessageIds.has(message.messageId))
           ? []
           : [
               {
@@ -340,17 +320,17 @@ export function ChatView({
   // Only a chat in front takes it: a chat under that screen is not the one the user returns to.
   const composerRequest = useComposerRequest((state) => state.request);
   useEffect(() => {
-    if (!isFocused || !composerRequest || target.kind !== "agent") return;
+    if (!isFocused || !composerRequest) return;
     const text = takeComposerRequest(target.serverId, target.id);
     if (!text) return;
     setDraft((current) => (current ? `${current}\n${text}` : text));
-  }, [isFocused, composerRequest, target.kind, target.serverId, target.id]);
+  }, [isFocused, composerRequest, target.serverId, target.id]);
   const composerFocus = useComposerRequest((state) => state.focus);
   const [handoffFocusVersion, setHandoffFocusVersion] = useState(0);
   useEffect(() => {
-    if (!isFocused || !composerFocus || target.kind !== "agent") return;
+    if (!isFocused || !composerFocus) return;
     if (takeComposerFocus(target.serverId, target.id)) setHandoffFocusVersion((version) => version + 1);
-  }, [isFocused, composerFocus, target.kind, target.serverId, target.id]);
+  }, [isFocused, composerFocus, target.serverId, target.id]);
   const lastUserId =
     messages.findLast((message) => message.kind === "message" && message.author === "user")?.id ?? null;
   // The host accepted a message to an idle agent, and nothing shows its turn yet. Turn events can
@@ -374,7 +354,6 @@ export function ChatView({
   // Each receipt starts the wait once. A message that the host queues behind a turn has its own row.
   const awaitedReceipts = useRef(new Set<string>());
   useEffect(() => {
-    if (target.kind !== "agent") return;
     for (const message of outboxMessages)
       if (
         message.messageId !== null &&
@@ -384,7 +363,7 @@ export function ChatView({
         awaitedReceipts.current.add(message.clientMessageId);
         setAwaitingTurn(true);
       }
-  }, [outboxMessages, target.kind]);
+  }, [outboxMessages]);
   const motion = useChatMotion(
     insets.top + 84,
     keyboardOffset,
@@ -408,30 +387,23 @@ export function ChatView({
   // Speech goes to the voice mode's own transcript, and only Send makes it a
   // message. Leaving the chat or losing the server stops listening and keeps it.
   const voice = useVoiceMode({
-    enabled: isFocused && serverOnline && canSend && !readOnly,
+    enabled: isFocused && serverOnline && canSend,
     focused: isFocused,
     sendable: serverOnline && canSend,
     onSend: sendMessage,
   });
   // Not gated on `appActive`. Notification Center and other system overlays make iOS report the app
   // inactive, and a request must stay with its typed value. It goes when the app leaves.
-  const showBrowserRequests = serverOnline && foregroundVisit && isFocused && !readOnly;
+  const showBrowserRequests = serverOnline && foregroundVisit && isFocused;
   const voiceOpen = voice.stage !== "closed";
   // A password or a code is typed where the composer is, so the screen has one field. The voice
   // mode and the attachment card keep the composer until they close. Other secret requests wait.
   const secretRequest =
     showBrowserRequests && !voiceOpen && !attachments.menuOpen ? chatBrowserRequests.find(asksForSecret) : undefined;
   const dark = useColorScheme() === "dark";
-  // The glow and the filled voice controls take the agent's own colour. A
-  // channel mixes the colours of its first members.
-  const voiceColors = useMemo(
-    () =>
-      target.kind === "agent"
-        ? [getBloubAvatarColor(target.avatarSeed, target.avatarHue)]
-        : target.members.slice(0, 4).map((member) => getBloubAvatarColor(member.avatarSeed, member.avatarHue)),
-    [target],
-  );
-  const palette = useMemo(() => voicePalette(voiceColors, dark), [voiceColors, dark]);
+  // The glow and the filled voice controls take the agent's own colour.
+  const voiceColor = getBloubAvatarColor(target.avatarSeed, target.avatarHue);
+  const palette = useMemo(() => voicePalette(voiceColor, dark), [voiceColor, dark]);
   const accent = useMemo(() => voiceAccent(palette), [palette]);
   useEffect(() => {
     conversationAnalytics.update(
@@ -509,36 +481,13 @@ export function ChatView({
     [menuOpenValue, voiceOpenValue, leaveVoiceMode],
   );
 
-  // A channel stored these messages, but its transcript did not load after them.
-  const historyPending = outboxMessages.filter((message) => message.historyPending);
-  async function retryAcceptedHistory() {
-    if (!historyPending.length || refreshingHistory || target.kind !== "channel") return;
-    setRefreshingHistory(true);
-    try {
-      await channelStore.refreshHistory(target.serverId, target.id);
-      outbox.settle(historyPending.map((message) => message.clientMessageId));
-      setSendError(null);
-      void haptics.notification("success");
-    } catch (error) {
-      void haptics.notification("error");
-      setSendError({
-        cause: classifyFailure(error),
-        context: failureContext,
-        agentId: target.id,
-        message: errorMessage(error, t("mobile.chat.history.refreshFailed")),
-      });
-    } finally {
-      setRefreshingHistory(false);
-    }
-  }
-
   // Hold the turn the stop was asked for, not a flag: the host clears the turn
   // when the stop lands, and the next turn must not inherit a pending state.
   const [stoppingTurnId, setStoppingTurnId] = useState<string | null>(null);
   const stopping = stoppingTurnId !== null && stoppingTurnId === activeTurnId;
 
   const requestStop = useMemo(() => {
-    if (!stopTurn || !activeTurnId) return undefined;
+    if (!activeTurnId) return undefined;
     const turnId = activeTurnId;
     return () => {
       setStoppingTurnId(turnId);
@@ -598,17 +547,7 @@ export function ChatView({
     setReplyTarget(null);
     // The outbox keeps the message on this phone and sends it while the server is online.
     outbox.add(
-      target.kind === "agent"
-        ? { kind: "agent", serverId: target.serverId, agentId: target.id }
-        : {
-            kind: "channel",
-            serverId: target.serverId,
-            channelId: target.id,
-            recipientAgentId: channelRecipient(
-              body,
-              target.members.map((member) => ({ agentId: member.id })),
-            ),
-          },
+      { kind: "agent", serverId: target.serverId, agentId: target.id },
       { text: body, replyToMessageId: submittedReply?.id ?? null, files },
     );
     attachments.clear();
@@ -672,12 +611,10 @@ export function ChatView({
     return statuses;
   }, [outboxMessages, serverOnline, outbox]);
 
-  const replyToMessage = !readOnly
-    ? (message: ChatBubbleMessage) => {
-        setReplyTarget(message);
-        setReplyFocusVersion((version) => version + 1);
-      }
-    : undefined;
+  const replyToMessage = (message: ChatBubbleMessage) => {
+    setReplyTarget(message);
+    setReplyFocusVersion((version) => version + 1);
+  };
 
   return (
     <GestureDetector gesture={edgeBackGesture}>
@@ -706,8 +643,6 @@ export function ChatView({
           >
             <ChatHeader
               target={target}
-              readOnly={readOnly}
-              needsAction={needsAction}
               fallbackBackground={fieldBackground}
               foreground={foreground}
               liquidGlassAvailable={liquidGlassAvailable}
@@ -728,7 +663,6 @@ export function ChatView({
               canSend={serverOnline && canSend}
               online={serverOnline}
               activity={activity}
-              activities={activities}
               historyState={
                 ready
                   ? "ready"
@@ -743,8 +677,7 @@ export function ChatView({
               appActive={appActive}
               activeTurnId={activeTurnId}
               questionForm={questionForm}
-              onSelectQuestion={onSelectQuestion}
-              approvals={readOnly ? undefined : approvals}
+              approvals={approvals}
               browserRequests={chatBrowserRequests}
               serverName={server?.name ?? ""}
               onRespondApproval={(approval, decision) =>
@@ -764,7 +697,7 @@ export function ChatView({
                 Keyboard.dismiss();
                 selectMessageActions({
                   message,
-                  onReply: replyToMessage ? () => replyToMessage(message) : null,
+                  onReply: () => replyToMessage(message),
                 });
                 router.push("/message-actions");
               }}
@@ -866,27 +799,6 @@ export function ChatView({
                   {t("mobile.chat.outbox.saveFailed")}
                 </Typography.Paragraph>
               ) : null}
-              {historyPending.length ? (
-                <View className="bg-background px-4 py-2">
-                  <Typography.Paragraph className="text-muted">
-                    {t("mobile.chat.history.sentRefresh")}
-                  </Typography.Paragraph>
-                  <Button
-                    variant="tertiary"
-                    isDisabled={!serverOnline || refreshingHistory}
-                    onPress={() => void retryAcceptedHistory()}
-                  >
-                    <Button.Label>
-                      {refreshingHistory ? t("mobile.chat.history.refreshing") : t("mobile.chat.history.refresh")}
-                    </Button.Label>
-                  </Button>
-                </View>
-              ) : null}
-              {notice ? (
-                <Typography.Paragraph align="center" className="bg-background px-4 py-2 text-muted">
-                  {notice}
-                </Typography.Paragraph>
-              ) : null}
               {queue ? (
                 <ChatQueueButton
                   queue={queue}
@@ -908,7 +820,7 @@ export function ChatView({
                   action={action}
                   actionForeground={actionForeground}
                 />
-              ) : !readOnly ? (
+              ) : (
                 <ChatComposer
                   sendRetryVersion={sendRetryVersion}
                   replyTarget={replyTarget}
@@ -941,7 +853,7 @@ export function ChatView({
                   voice={voice}
                   voiceAccent={accent}
                 />
-              ) : null}
+              )}
             </Animated.View>
           </KeyboardGestureArea>
         </View>

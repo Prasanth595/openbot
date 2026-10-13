@@ -193,13 +193,5 @@ export const messages = {
   "error.remote.hostOtherAccount": "Dieser Host gehört zu einem anderen Konto.",
   "error.remote.remoteNotConfigured": "Remote-Verbindungen sind für diesen OpenBot-Dienst nicht eingerichtet.",
   "error.remote.hostRefused": "Der Host hat die Anfrage abgelehnt ({status}).",
-  "error.remote.formUnavailable": "Dieses Formular ist nicht mehr verfügbar.",
   "error.remote.hostedServerRemoval": "Verwende die Abrechnung, um einen gehosteten Server zu löschen.",
-  "error.remote.channelsUnsupported": "Aktualisiere diesen Desktop-Server, um Kanäle zu verwenden.",
-  "error.remote.channelDeleteUnsupported": "Aktualisiere diesen Desktop-Server, um Kanäle zu löschen.",
-  "error.remote.attachmentUploadCancelled": "Anhangsupload abgebrochen.",
-  "error.remote.historyRefreshFailed":
-    "Die Nachricht wurde gesendet, aber der Chatverlauf konnte nicht aktualisiert werden.",
-  "error.remote.taskHistoryRefreshFailed":
-    "Die Aufgabe wurde geändert, aber der Chatverlauf konnte nicht aktualisiert werden.",
 } as const satisfies PartialTranslation<typeof source>;

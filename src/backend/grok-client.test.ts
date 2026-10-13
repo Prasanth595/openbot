@@ -165,8 +165,9 @@ describe.sequential("GrokAgentClient", () => {
         expect.objectContaining({
           params: expect.objectContaining({
             threadId: thread.id,
-            message:
-              "OpenCode returned no response. Check the selected model's sign-in and billing in OpenCode, then retry or choose another model.",
+            message: sourceText(
+              mode === "thought" ? "error.provider.opencodeReasoningWithoutAnswer" : "error.provider.opencodeNoAnswer",
+            ),
           }),
         }),
       ]);

@@ -20,6 +20,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
+import { classifyUserError } from "@openbot/user-errors";
 import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect";
 import { startAcpAuthentication } from "./../acp-sign-in";
 import { type AgentClient, AgentProcessExitError, type AgentProvider } from "./../agent-client";
@@ -2317,18 +2318,26 @@ export class ProviderRuntime implements ProviderPort {
                 });
                 return message;
               }
+              // An expired sign-in fails the account check in the CLI's own words, such as Codex's
+              // "workspace routing discovery unauthorized (401)". Ask for a new sign-in instead.
+              const failed =
+                stage === "account" && classifyUserError(error) === "auth"
+                  ? new ProviderSignInError({
+                      message: sourceText("error.provider.signInExpired", { provider: providerLabel(provider) }),
+                    })
+                  : error;
               // The CLI's own words reach the status message and the joined start failure below, so
               // the MCP values go first. `providerFailureStatus` applies only the generic redaction.
-              const message = this.#redactMcp(error instanceof Error ? error.message : String(error));
-              const failure = providerFailureStatus(provider, error, cli?.version);
+              const message = this.#redactMcp(failed instanceof Error ? failed.message : String(failed));
+              const failure = providerFailureStatus(provider, failed, cli?.version);
               this.#setStatus({
                 providers: updateProviderStatus(this.#status.providers, provider, {
                   ...failure,
                   message: failure.message === null ? null : this.#redactMcp(failure.message),
                 }),
               });
-              if (!(error instanceof CodexCliError || error instanceof ProviderSignInError))
-                this.#emitProviderError(provider, "start_failed", error);
+              if (!(failed instanceof CodexCliError || failed instanceof ProviderSignInError))
+                this.#emitProviderError(provider, "start_failed", failed);
               return message;
             }),
           ),

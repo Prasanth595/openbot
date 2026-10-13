@@ -51,7 +51,7 @@ export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; 
   const activity = openTurnActivity(useAgentActivity(agent.id), conversation);
   const serverApprovals = useApprovalRequests(agent.serverId);
   const threadId = conversation?.threadId ?? null;
-  // As on the desktop, only this chat's thread. A channel task of the same agent asks in the channel.
+  // As on the desktop, only this chat's thread.
   const approvals = useMemo(
     () =>
       serverApprovals.filter(

@@ -1212,6 +1212,14 @@ a {
   color: var(--openbot-text-dim);
 }
 
+/* Between the desktop systems and the phone apps. */
+.landing-availability-divider {
+  width: 1px;
+  height: 12px;
+  margin-inline: 2px;
+  background: var(--openbot-border-strong);
+}
+
 .landing-title {
   display: flex;
   align-items: center;
@@ -1414,6 +1422,23 @@ a {
 .landing-download-menu-item:focus-visible {
   outline: 2px solid var(--openbot-logo-production);
   outline-offset: -2px;
+}
+
+.landing-download-menu-separator {
+  height: 1px;
+  margin: 4px 5px;
+  border: 0;
+  background: var(--openbot-border-strong);
+}
+
+.landing-download-menu-label {
+  padding: 6px 11px 4px;
+  color: var(--openbot-text-muted);
+  text-align: left;
+  font-family: var(--openbot-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .landing-preview {
@@ -3741,6 +3766,11 @@ a {
     font-size: 8px;
   }
 
+  /* The five systems do not fit on a phone with the words in front of them. */
+  .landing-availability-copy {
+    display: none;
+  }
+
   .landing-availability-platform {
     gap: 3px;
   }
@@ -3817,6 +3847,16 @@ a {
 
   .landing-glow {
     min-height: 300px;
+  }
+}
+
+@media (max-width: 400px) {
+  .landing-availability {
+    gap: 4px;
+  }
+
+  .landing-availability-divider {
+    margin-inline: 1px;
   }
 }
 

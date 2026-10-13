@@ -357,6 +357,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               onDownloadProvider={props.onDownloadProvider}
               onCancelProviderDownload={props.onCancelProviderDownload}
               onConnectProvider={props.onConnectProvider}
+              canConnectProvider={props.canConnectProvider}
               onAddCustomProvider={props.onManageProviders}
               modelOptions={props.modelOptions}
               working={agentActivity() === "Working"}

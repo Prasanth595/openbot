@@ -136,7 +136,6 @@ export const messages = {
   "mobile.settings.privacy.retry": "Gizlilik ayarını kaydetmeyi tekrar dene",
   "mobile.settings.conversations.title": "Konuşmalar",
   "mobile.settings.conversations.hiddenChats": "Gizli sohbetler",
-  "mobile.settings.conversations.deletedChannels": "Silinen kanallar",
   "mobile.settings.profile.nameUnsafe": "Adınızdaki satır sonlarını ve kontrol karakterlerini kaldırın.",
   "mobile.settings.profile.nameLength": "Görünen adınız için 3–20 karakter kullanın.",
   "mobile.settings.profile.saveFailed": "Değişiklikler kaydedilemedi. Tekrar deneyin.",
