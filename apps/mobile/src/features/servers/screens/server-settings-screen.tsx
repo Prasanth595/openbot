@@ -96,7 +96,7 @@ export function ServerSettingsScreen() {
         </SettingsRow>
         <SettingsRow disclosure={false} disabled={busy} onPress={() => void perform(() => refreshServer(serverId))}>
           <Typography.Paragraph type="body-sm">
-            {busy ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
+            {busy && !restarting ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
           </Typography.Paragraph>
         </SettingsRow>
         {server.role !== "owner" ? (

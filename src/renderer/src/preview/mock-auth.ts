@@ -120,8 +120,7 @@ export function createMockAuth(options: MockAuthOptions, { emit }: MockRuntime) 
     },
     listAccountSessions: async () => clone(accountSessions),
     revokeAccountSession: async (sessionId) => {
-      // The account service refuses to revoke a hosted server.
-      accountSessions = accountSessions.filter((session) => session.hostedServer || session.sessionId !== sessionId);
+      accountSessions = accountSessions.filter((session) => session.sessionId !== sessionId);
     },
     logout: async () => {
       authState = { status: "signed_out" };
