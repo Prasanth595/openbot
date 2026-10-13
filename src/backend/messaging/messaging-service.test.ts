@@ -52,7 +52,7 @@ class FakeSlack {
   readonly replies = new Map<string, DynamicRecord[]>();
   /** The newest messages of channel C1, newest first, as `conversations.history` gives them. */
   channelHistory: DynamicRecord[] = [];
-  /** The channels that `conversations.list` gives. */
+  /** The workspace's channels. `users.conversations` gives the ones that OpenBot is a member of. */
   channels: DynamicRecord[] = [];
   appId = "A1";
   rejectBotToken = false;
@@ -191,8 +191,8 @@ class FakeSlack {
         return reply({ messages: this.replies.get(params.ts ?? "") ?? [] });
       case "conversations.history":
         return reply({ messages: params.channel === "C1" ? this.channelHistory : [] });
-      case "conversations.list":
-        return reply({ channels: this.channels });
+      case "users.conversations":
+        return reply({ channels: this.channels.filter((channel) => channel.is_member === true) });
       case "chat.postMessage":
         this.#ts += 1;
         return reply({ ts: `${this.#ts}.000` });

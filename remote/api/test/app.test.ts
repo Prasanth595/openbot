@@ -462,6 +462,21 @@ describe("Discord route", () => {
     expect((await call(first.token, { ...message, guildId: "100", channelId: "110" })).status).toBe(401);
   });
 
+  it("lists only the channels and threads that the bot can view and post in", async () => {
+    const { connect, call } = await discordRoute();
+    const host = await connect("first", ["100"]);
+    const listed = await call(host.token, { op: "listChannels", guildId: "100" });
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toEqual({
+      channels: [
+        { id: "110", name: "general", kind: "channel" },
+        { id: "120", name: "staff", kind: "channel" },
+        { id: "111", name: "release", kind: "thread" },
+        { id: "112", name: "private-joined", kind: "thread" },
+      ],
+    });
+  });
+
   it("stops deliveries and calls for a revoked guild", async () => {
     const { connect, call, revoke, signal } = await discordRoute();
     const host = await connect("host", ["100"]);
@@ -528,11 +543,62 @@ async function discordRoute() {
     ["110", "100"],
     ["210", "200"],
   ]);
+  // Guild 100: @everyone may view and send. The bot has role 7. Channel 120 hides itself from
+  // @everyone and shows itself to role 7; 130 hides itself from @everyone; 140 denies the bot itself.
+  const view = String(1n << 10n);
+  const viewAndSend = String((1n << 10n) | (1n << 11n) | (1n << 38n));
+  const guildListings = new Map<string, object>([
+    [
+      "/guilds/100/roles",
+      [
+        { id: "100", permissions: viewAndSend },
+        { id: "7", permissions: "0" },
+      ],
+    ],
+    ["/guilds/100/members/12345678901234567", { roles: ["7"] }],
+    [
+      "/guilds/100/channels",
+      [
+        { id: "110", type: 0, name: "general" },
+        {
+          id: "120",
+          type: 0,
+          name: "staff",
+          permission_overwrites: [
+            { id: "100", type: 0, allow: "0", deny: view },
+            { id: "7", type: 0, allow: view, deny: "0" },
+          ],
+        },
+        { id: "130", type: 0, name: "secret", permission_overwrites: [{ id: "100", type: 0, allow: "0", deny: view }] },
+        {
+          id: "140",
+          type: 5,
+          name: "news",
+          permission_overwrites: [{ id: "12345678901234567", type: 1, allow: "0", deny: view }],
+        },
+        { id: "150", type: 2, name: "voice" },
+      ],
+    ],
+    [
+      "/guilds/100/threads/active",
+      {
+        threads: [
+          { id: "111", type: 11, parent_id: "110", name: "release" },
+          { id: "112", type: 12, parent_id: "110", name: "private-joined" },
+          { id: "113", type: 12, parent_id: "110", name: "private-other" },
+          { id: "131", type: 11, parent_id: "130", name: "secret-thread" },
+        ],
+        members: [{ id: "112", user_id: "12345678901234567" }],
+      },
+    ],
+  ]);
   const api = makeDiscordApi(
     {
       request: (input) =>
         Effect.gen(function* () {
           discordCalls.push(input);
+          const listed = guildListings.get(input.route);
+          if (input.method === "GET" && listed) return listed;
           const channelId = /^\/channels\/([0-9]+)$/u.exec(input.route)?.[1];
           if (input.method === "GET" && channelId) {
             const guildId = channelGuilds.get(channelId);

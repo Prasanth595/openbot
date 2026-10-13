@@ -109,6 +109,8 @@ const AGENT_QUEUE_LIMIT = 20;
 const AUTHOR_QUEUE_LIMIT = 2;
 const CONTEXT_TIMEOUT_MS = 5_000;
 const HISTORY_TIMEOUT_MS = 15_000;
+/** What a messaging tool answers when its connection does not run. */
+export const MESSAGING_NOT_RUNNING = "This connection does not run now.";
 const PLATFORM_NAMES: Record<MessagingPlatform, string> = { slack: "Slack", discord: "Discord", telegram: "Telegram" };
 
 /**
@@ -209,7 +211,7 @@ export class MessagingThreads {
     if (!record)
       return openBotToolFailure("No enabled connection has that id. Call openbot.messaging_list_places for the ids.");
     const outbound = this.#outbound;
-    if (!outbound) return openBotToolFailure("This connection does not run now.");
+    if (!outbound) return openBotToolFailure(MESSAGING_NOT_RUNNING);
     // No deadline on a post: one that ended late could be sent again by the agent.
     const answer =
       call.tool === "messaging_list_places"
@@ -277,7 +279,7 @@ export class MessagingThreads {
           : null;
         if (!history)
           return openBotToolFailure("The platform did not answer, or it limits reads now. Try again in a minute.");
-        if (!history.value) return openBotToolFailure("This connection does not run now.");
+        if (!history.value) return openBotToolFailure(MESSAGING_NOT_RUNNING);
         return openBotToolResult({
           place: history.value.place,
           scope: call.scope,

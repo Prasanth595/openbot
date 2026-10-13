@@ -374,7 +374,8 @@ class SlackAdapter implements MessagingAdapter {
     const places: MessagingPlace[] = [];
     let cursor: string | undefined;
     do {
-      const page = yield* this.#api.call("conversations.list", {
+      // `users.conversations` gives only the bot's own channels, so a large workspace needs few pages.
+      const page = yield* this.#api.call("users.conversations", {
         types: "public_channel,private_channel",
         exclude_archived: true,
         limit: CHANNEL_PAGE_LIMIT,
@@ -382,7 +383,7 @@ class SlackAdapter implements MessagingAdapter {
       });
       const channels = Array.isArray(page.channels) ? page.channels.filter(isDynamicRecord) : [];
       for (const channel of channels)
-        if (isString(channel.id) && isString(channel.name) && channel.is_member === true)
+        if (isString(channel.id) && isString(channel.name))
           places.push({ id: channel.id, name: `#${channel.name}`, kind: channel.is_private ? "private" : "channel" });
       const next = isDynamicRecord(page.response_metadata) ? page.response_metadata.next_cursor : undefined;
       cursor = isString(next) && next && places.length < PLACES_LIMIT ? next : undefined;

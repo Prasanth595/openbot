@@ -412,11 +412,6 @@ class DiscordAdapter implements MessagingAdapter {
           kind: channel.kind,
         })),
       ),
-      Effect.mapError((failure) =>
-        failure.cause instanceof DiscordApiError && failure.cause.code === "invalid_request"
-          ? new MessagingAdapterError({ cause: new DiscordApiError("listChannels", "signal_outdated") })
-          : failure,
-      ),
     );
   }
 

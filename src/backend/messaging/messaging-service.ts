@@ -34,7 +34,13 @@ import { type DiscordAppPort, DiscordConnect, type DiscordConnectFailed } from "
 import { discordOrchestratorMemories, discordOrchestratorProfile } from "./discord/discord-orchestrator";
 import { mentionNames, withMentionNames } from "./messaging-mentions";
 import type { MessagingConnectionRecord, MessagingLink } from "./messaging-store";
-import type { MessagingActivity, MessagingHistory, MessagingHistoryScope, MessagingThreads } from "./messaging-threads";
+import {
+  MESSAGING_NOT_RUNNING,
+  type MessagingActivity,
+  type MessagingHistory,
+  type MessagingHistoryScope,
+  type MessagingThreads,
+} from "./messaging-threads";
 import {
   type ConnectionIdentity,
   DiscordApiError,
@@ -1156,7 +1162,7 @@ export class MessagingService {
     connectionId: string,
   ) {
     const live = this.#live.get(connectionId);
-    if (!live?.identity) return { error: NOT_RUNNING };
+    if (!live?.identity) return { error: MESSAGING_NOT_RUNNING };
     return yield* live.adapter.places().pipe(
       Effect.map((places) => ({ places })),
       Effect.catch((failure) => Effect.succeed({ error: refusal(failure) })),
@@ -1171,11 +1177,18 @@ export class MessagingService {
     markdown: string,
   ) {
     const live = this.#live.get(connectionId);
-    if (!live?.identity) return { error: NOT_RUNNING };
+    if (!live?.identity) return { error: MESSAGING_NOT_RUNNING };
+    // Signal accepts every chat linked to this host, but the chat's own adapter keeps its reply chains.
+    if (live.record.platform === "telegram" && target.platformChannelId !== live.identity.workspaceId)
+      return { error: "A Telegram connection posts only in its own chat. Use the connection of that chat." };
     // The place is outside this computer, so a secret in the text must not reach it.
     return yield* live.adapter.postAnswer(target, redactText(markdown), null).pipe(
       Effect.as({ posted: true as const }),
-      Effect.catch((failure) => Effect.succeed({ error: refusal(failure) })),
+      Effect.catch((failure) =>
+        Effect.succeed({
+          error: `${refusal(failure)} A long text goes in more than one post, so a part of it can be posted already. Do not post it again only because of this error.`,
+        }),
+      ),
     );
   });
 
@@ -1507,8 +1520,6 @@ export class MessagingService {
 function linkTarget(link: MessagingLink): MessageTarget {
   return { platformChannelId: link.platformChannelId, replyThreadId: link.threadKey };
 }
-
-const NOT_RUNNING = "This connection does not run now.";
 
 /** The platform's error code, such as Slack's `not_in_channel`, and never its text or a token. */
 function refusal(failure: MessagingAdapterError): string {
