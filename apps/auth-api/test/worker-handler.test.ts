@@ -105,6 +105,7 @@ describe("worker handler", () => {
       teamTickets: 4,
       remoteSessions: 5,
       remoteInvites: 6,
+      mobileConnectLinks: 7,
     };
     let receivedDatabase: D1Database | null = null;
     let receivedTime: number | null = null;
