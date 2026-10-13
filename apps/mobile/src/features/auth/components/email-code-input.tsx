@@ -17,7 +17,7 @@ import { SIGN_IN_CONTROL_HEIGHT, type SignInColors, useSignInColors } from "@/fe
 import { SIGN_IN_EASE_OUT, type SignInMotion } from "@/features/auth/components/sign-in-motion";
 import { useShake } from "@/features/auth/components/use-shake";
 
-export type EmailCodeStatus = "idle" | "verifying" | "invalid" | "verified";
+type EmailCodeStatus = "idle" | "verifying" | "invalid" | "verified";
 
 export interface EmailCodeInputHandle {
   focus: () => void;

@@ -114,7 +114,7 @@ async function redeemMobileConnectSession(value: string): Promise<MobileSession>
 }
 
 /** The account service for email sign-in. A development build can name a local one. */
-export function mobileAccountApiUrl(): string {
+function mobileAccountApiUrl(): string {
   const override = process.env.EXPO_PUBLIC_OPENBOT_API_URL;
   return (override && __DEV__ && normalizeAccountApiUrl(override)) || OPENBOT_CONTROL_PLANE_ORIGIN;
 }
