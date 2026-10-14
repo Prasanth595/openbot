@@ -27,10 +27,19 @@ import { SlackApiError, SlackWebApi } from "./slack-web-api";
 
 const { io: adapterIo } = causeHelpers(MessagingAdapterError);
 
+/** Slack error codes that a later lookup can recover from. */
+const TEMPORARY_SLACK_ERRORS = new Set([
+  "ratelimited",
+  "internal_error",
+  "fatal_error",
+  "service_unavailable",
+  "request_timeout",
+]);
+
 function isTemporaryLookupFailure(failure: MessagingAdapterError): boolean {
   const error = failure.cause;
   if (error instanceof MessagingConnectionError) return false;
-  return !(error instanceof SlackApiError) || error.code.startsWith("http_") || error.code === "ratelimited";
+  return !(error instanceof SlackApiError) || error.code.startsWith("http_") || TEMPORARY_SLACK_ERRORS.has(error.code);
 }
 
 /** Slack's own limit for one uploaded file is 1 GB; the host holds its uploads to this. */
