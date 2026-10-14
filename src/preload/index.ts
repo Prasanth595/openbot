@@ -15,6 +15,7 @@ import {
   decodeChannelRoutineRuns,
   decodeChannelRoutines,
   decodeChannelSummaries,
+  decodeHostTimezoneSettings,
   decodeHostUpdateStatus,
   decodeInstanceExportResult,
   decodeInstanceTransferPreview,
@@ -668,6 +669,9 @@ const openbotApi: OpenBotDesktopApi = {
     cancel: decodeOnePasswordConnectorStatus,
     disconnect: decodeOnePasswordConnectorStatus,
     changed: decodeOnePasswordConnectorStatus,
+    hostStatus: decodeOnePasswordConnectorStatus,
+    hostConnectWithToken: decodeOnePasswordConnectorStatus,
+    hostDisconnect: decodeOnePasswordConnectorStatus,
   }),
   routineFeed: bridgeGroup(IPC_ENDPOINTS.routineFeed, {
     get: decodeRoutineFeed,
@@ -781,6 +785,8 @@ const openbotApi: OpenBotDesktopApi = {
     startUpdate: decodeHostUpdateStatus,
     cancelUpdate: decodeHostUpdateStatus,
     setUpdateSettings: decodeHostUpdateStatus,
+    getTimezone: decodeHostTimezoneSettings,
+    setTimezone: decodeHostTimezoneSettings,
   }),
   agentImport: bridgeGroup(IPC_ENDPOINTS.agentImport, {
     choose: decodeAgentImportPreview,

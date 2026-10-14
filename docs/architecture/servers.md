@@ -180,6 +180,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `providers-v4` | Code or link sign-in and managed runtimes, Cursor and Cline included | `providerAdmin` |
 | `host-admin-v1` | Server name and logo | `hostAdmin` |
 | `host-update-v1` | Check for, download and restart into an app update; cancel a restart that waits | `hostAdmin` |
+| `host-timezone-v1` | Read and set the server timezone | `hostAdmin` |
 | `events-v1` | Manage webhook routines, their secrets, and activity | `events` |
 | `routine-recovery-v1` | Read and set a routine's missed-run policy; read its runs with the missed occurrences | `events` |
 
@@ -216,6 +217,12 @@ through `hostSetupProviderProps`, and Continue stays blocked until a provider is
 then opens with that provider. The choice stays in memory for the server; it is not written to the
 setup file of this computer. A member, the local server, and a host without `providers-v1` open the
 form directly.
+
+`host-timezone-v1` reads and sets the server timezone (`openbot-server-timezone-v1.json`; `null` is
+automatic, the system zone of the host). When an agent creates a routine, the zone comes from the tool
+call first, then from the sender's last message in that turn, then from this setting. The sender's
+zone stays in memory only, so after a restart a queued message uses the server timezone. Agent import
+and instance transfer use it in place of the system zone. A change does not move existing routines.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until

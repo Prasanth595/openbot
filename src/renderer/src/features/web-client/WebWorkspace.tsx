@@ -35,9 +35,11 @@ import {
   deleteStoredFile,
   getAgentAdminSettings,
   getHostReleaseStatus,
+  getHostTimezone,
   getHostUpdateStatus,
   getStorageUsage,
   listHostedSites,
+  setHostTimezone,
   setHostUpdateSettings,
   startHostUpdate,
   updateAgentAdminSettings,
@@ -105,6 +107,7 @@ import { ServerOnboarding } from "../onboarding/ServerOnboarding";
 import { RoutineFlowsCanvas } from "../routine-flows/RoutineFlowsCanvas";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
+import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
 import { remoteAdminServer, remoteUpdateServer, serverRoleCanAdminister } from "../servers/server-capabilities";
 import { createServerConnectionToast } from "../servers/server-connection-toast";
@@ -135,6 +138,7 @@ import { webHostMessaging } from "./web-messaging-connector";
 import { createWebServerNotifications } from "./web-notification-preferences";
 import { createWebNotificationRouting } from "./web-notification-routing";
 import { requestWebNotificationPermission } from "./web-notifications";
+import { webOnePasswordConnectorPort } from "./web-onepassword-connector";
 import { createWebProviderSettings, openWebDestination } from "./web-provider-admin";
 import { webRoutineFlowsHost } from "./web-routine-flows";
 import { createWebServerSettings } from "./web-server-settings";
@@ -627,6 +631,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   // The host's connectors, for an owner or admin. The web client has no computer of its own.
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
+  const onePasswordPort = webOnePasswordConnectorPort(() => hostRequest());
   const webMessaging = webHostMessaging(hostRequest);
   onCleanup(webMessaging.dispose);
   const connectors = createConnectorRegistry(server, {
@@ -634,6 +639,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     server: createConnectorSet(
       {
         github: () => githubPort,
+        onePassword: () => onePasswordPort,
         messaging: hostMessagingApi(
           () => connectorTarget()?.id,
           () => webMessaging.api,
@@ -794,6 +800,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       runTeamEffect(
         setHostUpdateSettings(hostRequest(serverId), settings).pipe(Effect.mapError((error) => error.cause)),
       ),
+  };
+  const hostTimezoneCalls: HostTimezoneCalls = {
+    getTimezone: async (serverId) =>
+      runTeamEffect(getHostTimezone(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    setTimezone: async (timezone, serverId) =>
+      runTeamEffect(setHostTimezone(hostRequest(serverId), timezone).pipe(Effect.mapError((error) => error.cause))),
   };
   const [serverSettingsSection, setServerSettingsSection] = createSignal<ServerSettingsSection | null>(null);
   async function openServerSettings(
@@ -1592,6 +1604,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     }
                     providers={providerSettings()}
                     hostUpdate={{ calls: hostUpdateCalls }}
+                    hostTimezone={{ calls: hostTimezoneCalls }}
                     // Any member imports into a host with `agent-import-v1`.
                     agentImport={
                       workspace.state.capabilities.includes(AGENT_IMPORT_CAPABILITY)

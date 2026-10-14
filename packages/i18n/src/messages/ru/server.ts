@@ -282,6 +282,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Выключите, чтобы включить уведомления сейчас.",
   "server.settings.notifyAbout": "Уведомлять о",
   "server.settings.notifyAboutDescription": "Какие события агентов показывают уведомление на рабочем столе.",
+  "server.settings.agents": "Агенты",
+  "server.settings.timezone": "Часовой пояс",
+  "server.settings.timezoneDescription":
+    "Новые рутины используют этот часовой пояс, если в сообщении нет часового пояса отправителя.",
+  "server.settings.timezoneAutomatic": "Автоматически ({zone})",
+  "server.settings.timezoneLoadFailed": "Не удалось загрузить часовой пояс сервера.",
   "server.settings.remoteOnline": "Хост в сети. Публикацией управляет его владелец.",
   "server.settings.remoteOffline": "Хост не в сети. Публикацией управляет его владелец.",
   "server.settings.saveIdentityFirst": "Сохраните данные сервера перед публикацией.",

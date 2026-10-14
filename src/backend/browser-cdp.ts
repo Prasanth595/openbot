@@ -1756,18 +1756,40 @@ export class BrowserCdpEngine {
     this: BrowserCdpEngine,
     timeoutMs = ACTION_TIMEOUT_MS,
   ): Effect.fn.Return<void, BrowserOperationError> {
+    const deadline = Date.now() + timeoutMs;
     yield* this.#leaseEffect((send) =>
       Effect.gen({ self: this }, function* () {
-        if (this.#contents.isLoading()) yield* waitForLoading(this.#contents, timeoutMs);
-        yield* waitForDomQuietAcrossTargets(send, this.#snapshotTargets(), Math.min(timeoutMs, 1_500)).pipe(
-          Effect.catch((failure) =>
-            browserSync(() => {
-              const error = failure.cause;
-              if (error instanceof Error && error.message === "DOM did not become quiet.") return;
-              throw error;
-            }),
-          ),
-        );
+        // A form submission or a scripted redirect starts its navigation after the input that caused
+        // it returns, so the quiet wait can run in the document that is going away. Chromium rejects
+        // that evaluation when the page navigates. The navigation is the result of the action, not a
+        // failure of it: wait for the next document instead of reporting an error, because the
+        // caller then stops the load and leaves the tab on an empty document. The old document can
+        // also become quiet while the server prepares the next one. A page that never becomes quiet
+        // and changes its URL in place (`replaceState`) loads no new document, so it keeps the short
+        // quiet limit.
+        while (true) {
+          const navigationGeneration = this.#navigationGeneration;
+          if (this.#contents.isLoading()) yield* waitForLoading(this.#contents, Math.max(1, deadline - Date.now()));
+          const quiet = yield* waitForDomQuietAcrossTargets(
+            send,
+            this.#snapshotTargets(),
+            Math.min(deadline - Date.now(), 1_500),
+          ).pipe(
+            Effect.as(true),
+            Effect.catch((failure) =>
+              browserSync(() => {
+                const error = failure.cause;
+                if (error instanceof Error && error.message === "DOM did not become quiet.") return true;
+                if (navigationGeneration !== this.#navigationGeneration || this.#contents.isLoading()) return false;
+                throw error;
+              }),
+            ),
+          );
+          const navigating = yield* browserSync(
+            () => navigationGeneration !== this.#navigationGeneration && this.#contents.isLoading(),
+          );
+          if (Date.now() >= deadline || (quiet && !navigating)) return;
+        }
       }),
     );
   });

@@ -7,9 +7,10 @@ import {
 import { AGENT_SESSION_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-member-update-v1";
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
+import { HOST_TIMEZONE_ROUTES } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import type { PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
 // Admin requests to one host: agent settings and skills, shared tables, agent share links, the server name and logo,
-// the app update, MCP servers, storage, hosted sites and providers.
+// the server timezone, the app update, MCP servers, storage, hosted sites and providers.
 //
 // The desktop sends the same routes from the main process. The web client and the mobile app send
 // them through their own transport, so the path, body and decoding of each request are here once.
@@ -43,9 +44,11 @@ import {
   decodeHostGitHubConnectorRepositories,
   decodeHostGitHubConnectorStatus,
   decodeHostMessagingOverview,
+  decodeHostOnePasswordConnectorStatus,
   decodeHostProviderAccounts,
   decodeHostProviderAccountUsage,
   decodeHostReleaseStatus,
+  decodeHostTimezoneSettings,
   decodeHostUpdateStatus,
   decodeInstalledSkills,
   decodeMcpServerConfigs,
@@ -71,6 +74,7 @@ import {
   type HostProviderAccounts,
   type HostReleaseStatus,
   type HostSetMessagingEnabledInput,
+  type HostTimezoneSettings,
   type HostUpdateSettingsChange,
   type HostUpdateStatus,
   type InstallAgentTemplateInput,
@@ -87,6 +91,8 @@ import {
   type McpSignInStatus,
   type McpTestResult,
   type MessagingOverview,
+  type OnePasswordConnectorStatus,
+  type OnePasswordHostConnectInput,
   type ProviderCodeLoginStart,
   type ProviderHostSignInStatus,
   type ProviderRuntimeSnapshot,
@@ -144,6 +150,7 @@ import { HOSTED_SITES_ROUTES } from "@openbot/contracts/team-protocol/hosted-sit
 import { MCP_SIGN_IN_APP_ROUTES } from "@openbot/contracts/team-protocol/mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { MCP_ROUTES } from "@openbot/contracts/team-protocol/mcp-v1";
+import { ONEPASSWORD_CONNECTOR_ROUTES } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_ROUTES } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
@@ -451,6 +458,18 @@ export function setHostUpdateSettings(
   settings: HostUpdateSettingsChange,
 ): Effect.Effect<HostUpdateStatus, TeamAdminRequestError> {
   return adminCall(() => request("POST", HOST_UPDATE_ROUTES.settings, decodeHostUpdateStatus, settings));
+}
+
+export function getHostTimezone(request: TeamApiRequest): Effect.Effect<HostTimezoneSettings, TeamAdminRequestError> {
+  return adminCall(() => request("POST", HOST_TIMEZONE_ROUTES.settings, decodeHostTimezoneSettings, {}));
+}
+
+/** `null` returns the server to the system zone of its computer. */
+export function setHostTimezone(
+  request: TeamApiRequest,
+  timezone: string | null,
+): Effect.Effect<HostTimezoneSettings, TeamAdminRequestError> {
+  return adminCall(() => request("POST", HOST_TIMEZONE_ROUTES.update, decodeHostTimezoneSettings, { timezone }));
 }
 
 /** The one MCP read route, and the only one the host answers to a GET. */
@@ -924,6 +943,20 @@ export function githubConnectorRepositories(
 ): Effect.Effect<GitHubConnectorRepositories, TeamAdminRequestError> {
   return adminCall(() =>
     request("POST", CONNECTORS_ROUTES.githubRepositories, decodeHostGitHubConnectorRepositories, {}),
+  );
+}
+
+/**
+ * The host's 1Password connection (`onepassword-connector-v1`): read it, connect with a service
+ * account token, or disconnect. No answer carries the token.
+ */
+export function onePasswordConnectorRequest(
+  request: TeamApiRequest,
+  route: keyof typeof ONEPASSWORD_CONNECTOR_ROUTES,
+  body: OnePasswordHostConnectInput | Record<string, never> = {},
+): Effect.Effect<OnePasswordConnectorStatus, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", ONEPASSWORD_CONNECTOR_ROUTES[route], decodeHostOnePasswordConnectorStatus, { ...body }),
   );
 }
 

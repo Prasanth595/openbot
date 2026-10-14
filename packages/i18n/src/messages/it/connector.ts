@@ -334,6 +334,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "Connesso",
   "connector.onePassword.statusConnecting": "Connessione",
   "connector.onePassword.statusNotSetUp": "Non configurato",
+  "connector.onePassword.descriptionHost":
+    "Condividi una cassaforte 1Password dedicata con OpenBot su {host} tramite un account di servizio, così gli agenti su {host} possono accedere ai siti nel suo browser.",
+  "connector.onePassword.howItWorksHost":
+    "{host} si connette con un token di account di servizio. Su 1Password.com, crea un account di servizio che può leggere solo la cassaforte che condividi con OpenBot, poi incolla qui il suo token. {host} verifica il token e lo conserva; questo computer no. Gli agenti non vedono mai una password.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} dimentica il token. La cassaforte e l’account di servizio restano in 1Password; rimuovili lì se non ti servono più.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Compila gli accessi del browser da Bitwarden.",
   "connector.bitwarden.setup":

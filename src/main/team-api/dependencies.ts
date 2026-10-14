@@ -13,6 +13,7 @@ import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import type { RemoteWorkflowError } from "../remote-service-effects";
 import type { RequestedUpdate } from "../requested-update";
+import type { ServerTimezonePreferenceStore } from "../server-timezone-preference-store";
 import type { SkillMarketplaceService } from "../skill-marketplace-service";
 // What `TeamApiServer` needs from the rest of the main process, and nothing else.
 //
@@ -48,6 +49,7 @@ import type { InstanceTransferService } from "../instance-transfer-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
+import type { OnePasswordConnectorService } from "../onepassword-connector-service";
 import type { ProviderAccountsHost } from "../provider-accounts-host";
 import type { ProviderHostSignIns } from "../provider-host-sign-ins";
 import type { PushNotificationService } from "../push-notifications";
@@ -252,6 +254,8 @@ export interface TeamApiAdmin {
   identity?: TeamApiHostIdentity;
   /** `host-update-v1`: the app update of this computer. Advertised also when the host user turned it off. */
   update?: Pick<RequestedUpdate, "snapshot" | "check" | "start" | "requestWhenIdle" | "cancel" | "changeSettings">;
+  /** `host-timezone-v1`: the server timezone. */
+  timezone?: Pick<ServerTimezonePreferenceStore, "get" | "set">;
 }
 
 interface TeamApiHostIdentity {
@@ -321,6 +325,12 @@ export type TeamApiRemoteScreen = Pick<
 > &
   Partial<Pick<RemoteScreenGateway, "checkSetup" | "test">>;
 
+/** `onepassword-connector-v1`: the 1Password connection of this host, by a service account token. */
+export type TeamApiOnePasswordConnector = Pick<
+  OnePasswordConnectorService,
+  "status" | "refreshLogins" | "connectWithToken" | "disconnect"
+>;
+
 export interface TeamApiOptions {
   /** `events-v1`: admin-only event source and routine management. */
   events?: HostEventsApi;
@@ -329,6 +339,7 @@ export interface TeamApiOptions {
   mcpSignIns?: TeamApiMcpSignIns;
   signInRelay?: TeamApiSignInRelay;
   connectors?: TeamApiConnectors;
+  onePasswordConnector?: TeamApiOnePasswordConnector;
   providerHostSignIns?: TeamApiProviderHostSignIns;
   providerAccounts?: TeamApiProviderAccounts;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */

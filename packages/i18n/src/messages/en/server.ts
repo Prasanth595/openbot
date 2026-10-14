@@ -279,6 +279,12 @@ export const messages = defineMessages("server", {
   "server.settings.mutedUntilDescription": "{until}. Turn off to unmute now.",
   "server.settings.notifyAbout": "Notify me about",
   "server.settings.notifyAboutDescription": "Which agent events show a desktop notification.",
+  "server.settings.agents": "Agents",
+  "server.settings.timezone": "Timezone",
+  "server.settings.timezoneDescription":
+    "New routines use this timezone when the message does not give the sender's timezone.",
+  "server.settings.timezoneAutomatic": "Automatic ({zone})",
+  "server.settings.timezoneLoadFailed": "Could not load the server timezone.",
   "server.settings.remoteOnline": "The host is online. Publication is controlled by its owner.",
   "server.settings.remoteOffline": "The host is offline. Publication is controlled by its owner.",
   "server.settings.saveIdentityFirst": "Save the server identity before publishing.",

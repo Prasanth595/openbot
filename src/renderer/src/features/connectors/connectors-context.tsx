@@ -1,4 +1,5 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
+import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { createMemo } from "solid-js";
 import { createSimpleContext } from "../../simple-context";
 import { resolveCreationModel } from "../agents/agent-creation-model";
@@ -19,6 +20,7 @@ import {
 import { githubConnectorPort, hostGitHubConnectorPort } from "./github-connector-port";
 import { hostMessagingApi } from "./host-messaging-port";
 import { localMessagingApi, type MessagingConnectorOptions } from "./messaging-connector";
+import { hostOnePasswordConnectorPort } from "./onepassword-connector-port";
 
 const context = createSimpleContext({
   name: "ConnectorsProvider",
@@ -63,14 +65,17 @@ const context = createSimpleContext({
      */
     const registry = (server: () => ServerSummary | undefined): ConnectorRegistry => {
       const target = createMemo(() => remoteAdminServer(server(), "connectors-v1"));
+      // A separate capability: a host that serves `connectors-v1` can be older than the 1Password routes.
+      const onePasswordTarget = createMemo(() => remoteAdminServer(server(), ONEPASSWORD_CONNECTOR_CAPABILITY));
       const options: MessagingConnectorOptions = {
         agents: agentList,
-        hostName: () => target()?.name,
+        hostName: () => (target() ?? onePasswordTarget())?.name,
         serverId: () => target()?.id,
       };
       const github = hostGitHubConnectorPort(() => target()?.id);
+      const onePassword = hostOnePasswordConnectorPort(() => onePasswordTarget()?.id);
       const host = createConnectorSet(
-        { github: () => github, messaging: hostMessagingApi(() => target()?.id) },
+        { github: () => github, onePassword: () => onePassword, messaging: hostMessagingApi(() => target()?.id) },
         options,
       );
       return createConnectorRegistry(server, { computer, server: host });

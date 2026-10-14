@@ -35,6 +35,7 @@ export function serverSupportsCapability(
       capability === "mcp-sign-in-app-v1" ||
       capability === "sign-in-relay-v1" ||
       capability === "connectors-v1" ||
+      capability === "onepassword-connector-v1" ||
       capability === "provider-host-sign-in-v1" ||
       capability === "storage-v1" ||
       capability === "hosted-sites-v1" ||
@@ -55,6 +56,7 @@ export function serverSupportsCapability(
       capability === "host-update-v1" ||
       capability === "host-member-update-v1" ||
       capability === "host-release-v1" ||
+      capability === "host-timezone-v1" ||
       capability === "events-v1" ||
       capability === "context-reset-v1" ||
       capability === "routine-flows-v1" ||

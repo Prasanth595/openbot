@@ -223,6 +223,7 @@ import type {
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
 import type { HostAnalytics, HostAnalyticsInput } from "./ipc-host-analytics";
 import type { HostReleaseStatus } from "./ipc-host-release";
+import type { HostTimezoneSettings } from "./ipc-host-timezone";
 import type {
   DeleteHostedSiteInput,
   HostedSiteList,
@@ -287,7 +288,11 @@ import type {
   TelegramOverview,
 } from "./ipc-messaging";
 import type { NotificationOpenedEvent, NotificationPreference } from "./ipc-notifications";
-import type { OnePasswordConnectInput, OnePasswordConnectorStatus } from "./ipc-onepassword-connector";
+import type {
+  OnePasswordConnectInput,
+  OnePasswordConnectorStatus,
+  OnePasswordHostConnectInput,
+} from "./ipc-onepassword-connector";
 import type {
   DetectedModelServer,
   DiscoverModelsInput,
@@ -822,7 +827,7 @@ export const IPC_ENDPOINTS = {
       "messaging:host-add-orchestrator",
     ),
   },
-  // The server name, logo and app update of one server's host. `host.updateIdentity` and `update`
+  // The server name, logo, timezone and app update of one server's host. `host.updateIdentity` and `update`
   // reach this computer only; these take the server, so a remote admin reaches the host. The
   // identity result is the server as the list shows it after the change.
   hostAdmin: {
@@ -836,6 +841,9 @@ export const IPC_ENDPOINTS = {
     setUpdateSettings: scopedRequest<HostUpdateSettingsChange, HostUpdateStatus, "required">()(
       "host-admin:set-update-settings",
     ),
+    // The server timezone. `null` is automatic: the host system zone.
+    getTimezone: scopedQuery<HostTimezoneSettings, "required">()("host-admin:get-timezone"),
+    setTimezone: scopedRequest<string | null, HostTimezoneSettings, "required">()("host-admin:set-timezone"),
   },
   // The built-in GitHub connection of this computer. The token stays in main; every answer is the
   // status only. The `host*` endpoints reach the connection of a joined server (`connectors-v1`): the
@@ -865,8 +873,9 @@ export const IPC_ENDPOINTS = {
     disconnect: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:disconnect"),
     changed: event<BitwardenConnectorStatus>()("bitwarden-connector:changed"),
   },
-  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
-  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
+  // The 1Password connection of this computer. The token goes from the renderer to main once, in
+  // `connectWithToken`; every answer is the status only. The `host*` endpoints do the same for a
+  // joined server (`onepassword-connector-v1`), with a token only: the host has no 1Password app.
   onePasswordConnector: {
     status: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:status"),
     // Looks again for the CLI and the 1Password app's CLI integration, for a page that opens or regains focus.
@@ -880,6 +889,11 @@ export const IPC_ENDPOINTS = {
     cancel: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:cancel"),
     disconnect: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:disconnect"),
     changed: event<OnePasswordConnectorStatus>()("onepassword-connector:changed"),
+    hostStatus: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-status"),
+    hostConnectWithToken: scopedRequest<OnePasswordHostConnectInput, OnePasswordConnectorStatus, "required">()(
+      "onepassword-connector:host-connect-with-token",
+    ),
+    hostDisconnect: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-disconnect"),
   },
   hostedSites: {
     // The sites of one server. A joined server answers through `hosted-sites-v1`.

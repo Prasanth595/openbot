@@ -65,13 +65,16 @@ export function connectorSummary(detail: ConnectorDetail, t: TextValue["t"]): Co
     case "onepassword": {
       const status = detail.props.status;
       const header = ONEPASSWORD_STATUS[status.state];
+      const host = detail.props.hostName;
       return {
         status: header.status,
         statusLabel: t(header.label),
         summary:
           status.state === "connected" && status.loginCount !== null
             ? t("connector.onePassword.loginCount", { count: status.loginCount })
-            : t("connector.onePassword.description"),
+            : host
+              ? t("connector.onePassword.descriptionHost", { host })
+              : t("connector.onePassword.description"),
       };
     }
     case "bitwarden": {

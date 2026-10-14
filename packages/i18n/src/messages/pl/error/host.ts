@@ -18,6 +18,7 @@ export const messages = {
   "error.host.mobileConnectHostChanged": "Host Mobile Connect się zmienił. Spróbuj ponownie.",
   "error.host.noServer": "Ten komputer nie ma serwera do zmiany.",
   "error.host.identityLocalOnly": "Nazwę i logo serwera można zmienić tylko na komputerze, na którym działa.",
+  "error.host.timezoneInvalid": "Ta strefa czasowa jest nieznana.",
   "error.host.maintenanceInterrupted":
     "Przerwano konserwację hosta. Sprawdź aplikację i zresetuj stan hosta, zanim spróbujesz ponownie.",
   "error.host.updateFailed":

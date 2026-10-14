@@ -342,6 +342,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "接続済み",
   "connector.onePassword.statusConnecting": "接続中",
   "connector.onePassword.statusNotSetUp": "未設定",
+  "connector.onePassword.descriptionHost":
+    "サービスアカウントを通じて専用の 1Password 保管庫を {host} 上の OpenBot と共有すると、{host} のエージェントがそのブラウザでサイトにサインインできます。",
+  "connector.onePassword.howItWorksHost":
+    "{host} はサービスアカウントのトークンで接続します。1Password.com で、OpenBot と共有する保管庫だけを読み取れるサービスアカウントを作成し、そのトークンをここに貼り付けてください。{host} がトークンを確認して保存します。このコンピュータには保存されません。エージェントがパスワードを見ることはありません。",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} はトークンを削除します。保管庫とサービスアカウントは 1Password に残ります。不要になった場合は 1Password で削除してください。",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Bitwarden のログイン情報をブラウザに入力します。",
   "connector.bitwarden.setup":
