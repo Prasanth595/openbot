@@ -22,6 +22,8 @@ interface AppLoadingOverlayContextValue {
   isLoaderLeaving: boolean;
   /** A screen asked for the loader. True also while `holdLoader` keeps it out of sight. */
   isLoaderRequested: boolean;
+  /** A view from the screen below is on its way into the loader (see `handOff`). */
+  isLoaderFlying: boolean;
   /**
    * Flies a view from the screen below into the centred loader. Resolves when the copy is on
    * screen, so the screen can hide its own view before it is replaced.
@@ -117,10 +119,11 @@ export function AppLoadingOverlayProvider({ children }: PropsWithChildren) {
       isLoaderPresent: present,
       isLoaderLeaving: leaving,
       isLoaderRequested: label !== null,
+      isLoaderFlying: flight !== null,
       handOff,
       holdLoader,
     }),
-    [handOff, holdLoader, label, leaving, present, setLoadingLabel],
+    [flight, handOff, holdLoader, label, leaving, present, setLoadingLabel],
   );
 
   useEffect(() => {

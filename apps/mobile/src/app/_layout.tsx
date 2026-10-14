@@ -62,12 +62,15 @@ function RootNavigator() {
   const { t } = useText();
   const { loading, session } = useMobileSession();
   const pathname = usePathname();
-  const { setLoadingLabel, isLoaderPresent, isLoaderRequested, handOff, holdLoader } = useAppLoadingOverlay();
+  const { setLoadingLabel, isLoaderPresent, isLoaderRequested, isLoaderFlying, handOff, holdLoader } =
+    useAppLoadingOverlay();
   const appearanceReady = useAppearance((state) => state.ready);
   // Motion choices are read before the first screen, so no screen starts an animation that Settings turned off.
   const motionReady = useMotionPreferences((state) => state.ready);
   const preferencesReady = appearanceReady && motionReady;
-  const busy = loading || !preferencesReady || (!session && isLoaderPresent);
+  // A loader without a session keeps the splash up, but the email sign-in's logo flight into the
+  // loader does not: the session comes right after it, and the splash must not cover it again.
+  const busy = loading || !preferencesReady || (!session && isLoaderPresent && !isLoaderFlying);
   const { covered, reportArtwork, reportContentReady } = useSplashGate(busy, nativeSplash, preferencesReady);
 
   const container = useRef<View>(null);
