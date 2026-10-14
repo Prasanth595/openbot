@@ -7,7 +7,7 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
-## [1.3.1] - In review
+## [1.3.1] - 2026-10-14
 
 ### Added
 
