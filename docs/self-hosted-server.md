@@ -136,8 +136,8 @@ Xvfb with `OPENBOT_SERVER=1`. Main (`src/main/server-mode.ts`) then opens the co
 Updates work as on a hosted server (see [Updates](hosted-servers.md#updates)): the timer stages a
 new release, and it starts at the next boot, or when an owner, an admin or a permitted member
 installs it in Server Settings > Updates. `sudo openbot update` stages, stops the service, applies
-and starts the service again. When `apply` fails or a signal stops it, the command completes an
-interrupted copy, starts the service, and exits with the status of the failure.
+and starts the service again. When a step fails or a signal stops it, the command completes an
+interrupted copy, starts the service, and exits with an error.
 
 ## Control socket
 

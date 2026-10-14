@@ -234,8 +234,10 @@ logs_command() {
 
 # OpenBot starts again when `apply` fails or a signal stops the update, as in `request`. A copy that
 # did not complete is done again first, because a partial release cannot start. The status stays.
+# A second signal must not stop the recovery, and the `apply` child ignores it too.
 restart_after_failed_update() {
   local status=$?
+  trap '' INT TERM HUP
   [ ! -e "$INSTALL/.applying" ] || "$INSTALL/hosted/openbot-hosted-update" apply || true
   if systemctl start "$UNIT"; then
     echo "The update failed. OpenBot $(version_of "$INSTALL/app") runs. Try again with: sudo openbot update" >&2
