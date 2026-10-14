@@ -13,6 +13,7 @@ import {
   assertHostAnalyticsScope,
   BROWSER_SECRET_RESPONSE_PATH,
   CHANNEL_DELETE_CAPABILITY,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   decodeAgentProfileDraft,
   decodeChannel,
   decodeChannelPage,
@@ -34,6 +35,10 @@ import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { CONTEXT_RESET_CAPABILITY, CONTEXT_RESET_ROUTES } from "@openbot/contracts/team-protocol/context-reset-v1";
+import {
+  PROVIDER_ACCOUNTS_CAPABILITY,
+  PROVIDER_ACCOUNTS_ROUTES,
+} from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { duplicateAgentIntoLayout } from "../../backend/agent/duplication-gate";
@@ -56,7 +61,7 @@ import {
   decodeQueueSnapshot,
   decodeSidebarLayoutSnapshot,
 } from "../remote-agent-decoding";
-import { decodeVoid } from "../remote-host-decoding";
+import { acceptEmpty, decodeVoid } from "../remote-host-decoding";
 import type { RemoteServerManager } from "../remote-server-manager";
 import type { SkillMarketplaceService } from "../skill-marketplace-service";
 import {
@@ -327,7 +332,7 @@ export function agentIpcHandlers({
       }),
       updateAgent: scopedHandler(parseUpdateAgent, {
         local: (input) => runCauseEffect(service.updateAgent(input)),
-        remote: (input, serverId) => {
+        remote: async (input, serverId) => {
           // The Team API does not carry access, and a team member must not be able to widen it.
           if (input.access !== undefined) {
             throw new Error(sourceText("error.agent.accessLocalOnly"));
@@ -341,12 +346,30 @@ export function agentIpcHandlers({
           if (input.busyMessageMode !== undefined) {
             throw new Error(sourceText("error.agent.busyMessageModeLocalOnly"));
           }
-          return runCauseEffect(
+          // The released agent route does not carry the account, so it changes on its own route after
+          // the rest: a provider change on the host returns the agent to the new provider's own sign-in.
+          const { providerAccountId, ...update } = input;
+          if (
+            providerAccountId !== undefined &&
+            !remoteServers.supportsCapability(serverId, PROVIDER_ACCOUNTS_CAPABILITY)
+          )
+            throw new Error(sourceText("error.team.providersUnsupported"));
+          const agent = await runCauseEffect(
             remoteServers.request(serverId, TEAM_API_ROUTES.agent.one(input.agentId), decodeAgentSummary, {
               method: "PATCH",
-              body: input,
+              body: update,
             }),
           );
+          if (providerAccountId === undefined) return agent;
+          await runCauseEffect(
+            remoteServers.request(serverId, PROVIDER_ACCOUNTS_ROUTES.agent, acceptEmpty, {
+              method: "POST",
+              body: { agentId: input.agentId, accountId: providerAccountId },
+            }),
+          );
+          return providerAccountId === null || providerAccountId === DEFAULT_PROVIDER_ACCOUNT_ID
+            ? agent
+            : { ...agent, providerAccountId };
         },
       }),
       setAvatar: scopedHandler(parseSetAgentAvatar, {

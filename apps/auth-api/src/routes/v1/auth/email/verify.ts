@@ -26,6 +26,7 @@ export const Route = createFileRoute("/v1/auth/email/verify")({
                 challengeId: body.challengeId,
                 code: body.code,
                 sourceIp: requestSourceIp(request),
+                surface: "desktop",
               }),
             );
           }),

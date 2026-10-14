@@ -12,6 +12,7 @@ import {
   type AgentStatus,
   decodeCustomProviderResult,
   decodeCustomProviderSummaries,
+  decodeHostProviderAccountUsage,
   decodeProviderApiKeyStatus,
   decodeProviderCodeLoginStart,
   decodeProviderHostSignInStatus,
@@ -25,6 +26,10 @@ import {
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
+import {
+  PROVIDER_ACCOUNTS_CAPABILITY,
+  PROVIDER_ACCOUNTS_ROUTES,
+} from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import {
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_ERROR_LIMIT,
@@ -52,14 +57,20 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
-import { decodeAgentStatusFromHost } from "../remote-agent-decoding";
+import { decodeAgentStatusFromHost, decodeHostProviderAccountsFromHost } from "../remote-agent-decoding";
 import { acceptEmpty, type ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
 import { type SignInRelayClient, signInRelayRemote } from "../sign-in-relay-client";
 import { parseProviderId } from "./app-inputs";
 import { parseDeleteCustomProvider, parseSaveCustomProvider } from "./custom-provider-inputs";
 import type { IpcGroupHandlers } from "./define-ipc-group";
-import { parseManagedProviderId, parseProviderApiKeyInput } from "./provider-handlers";
+import {
+  parseConnectProviderAccountInput,
+  parseManagedProviderId,
+  parseProviderApiKeyInput,
+  parseRemoveProviderAccountInput,
+  parseRenameProviderAccountInput,
+} from "./provider-handlers";
 import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
 import { isObject, requireString } from "./validation";
 
@@ -155,6 +166,33 @@ export function providerAdminIpcHandlers({
       },
     });
 
+  /** The accounts of a joined server's host's providers, which only a host with `provider-accounts-v1` holds. */
+  function requireAccounts(serverId: string): void {
+    if (!remoteServers.supportsCapability(serverId, PROVIDER_ACCOUNTS_CAPABILITY))
+      throw new Error(sourceText("error.team.providersUnsupported"));
+  }
+  const accountsQuery = <T>(path: string, decoder: ResponseDecoder<T>) =>
+    scopedQueryHandler({
+      local: () => Promise.reject(new Error(sourceText("error.team.providersUnsupported"))),
+      remote: (serverId) => {
+        requireAccounts(serverId);
+        return runCauseEffect(remoteServers.request(serverId, path, decoder, { method: "POST", body: {} }));
+      },
+    });
+  const accountsRequest = <I, T>(
+    parse: (value: unknown) => I,
+    path: string,
+    decoder: ResponseDecoder<T>,
+    body: (input: I) => unknown = (input) => input,
+  ) =>
+    scopedHandler(parse, {
+      local: () => Promise.reject(new Error(sourceText("error.team.providersUnsupported"))),
+      remote: (input: I, serverId: string) => {
+        requireAccounts(serverId);
+        return runCauseEffect(remoteServers.request(serverId, path, decoder, { method: "POST", body: body(input) }));
+      },
+    });
+
   /**
    * A sign-in that a joined server's host starts and that opens in this computer's browser, for the
    * providers that only a host with `sign-in-relay-v1` relays. It runs here until it ends, and the
@@ -215,6 +253,27 @@ export function providerAdminIpcHandlers({
       cancelHostSignIn: hostSignIn((provider, serverId) =>
         remoteChange(serverId, PROVIDER_HOST_SIGN_IN_ROUTES.cancel, { provider }),
       ),
+      accounts: accountsQuery(PROVIDER_ACCOUNTS_ROUTES.list, decodeHostProviderAccountsFromHost),
+      accountUsage: accountsQuery(PROVIDER_ACCOUNTS_ROUTES.usage, decodeHostProviderAccountUsage),
+      startAccountSignIn: accountsRequest(
+        parseConnectProviderAccountInput,
+        PROVIDER_ACCOUNTS_ROUTES.signInStart,
+        acceptEmpty,
+      ),
+      accountSignInStatus: accountsRequest(
+        parseProviderId,
+        PROVIDER_ACCOUNTS_ROUTES.signInStatus,
+        decodeProviderHostSignInStatus,
+        (provider) => ({ provider }),
+      ),
+      cancelAccountSignIn: accountsRequest(
+        parseProviderId,
+        PROVIDER_ACCOUNTS_ROUTES.signInCancel,
+        acceptEmpty,
+        (provider) => ({ provider }),
+      ),
+      renameAccount: accountsRequest(parseRenameProviderAccountInput, PROVIDER_ACCOUNTS_ROUTES.rename, acceptEmpty),
+      removeAccount: accountsRequest(parseRemoveProviderAccountInput, PROVIDER_ACCOUNTS_ROUTES.remove, acceptEmpty),
       startRelaySignIn: relaySignIn(parseProviderId, async (provider, serverId) => {
         requireRelay(serverId, provider);
         const key = relayKey(serverId, provider);

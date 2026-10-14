@@ -19,7 +19,7 @@ Every event has these low-cardinality properties:
 - `surface`: `desktop`, `desktop_host`, `landing`, `web`, `mobile`, or `account_api`;
 - `environment`: currently `production` only;
 - `event_schema_version`: the integer schema generation of that surface: currently `7` on `desktop`,
-  `8` on `desktop_host` and `landing`, `9` on `account_api`, `2` on `mobile`, and `1` on `web`;
+  `8` on `desktop_host` and `landing`, `10` on `account_api`, `2` on `mobile`, and `1` on `web`;
 - `app_version` and `platform` on desktop surfaces;
 - `acquisition_source` on landing surfaces: `direct`, `search`, `social`, `github`, or `other`;
 - `source_platform` on landing surfaces: an allowlisted platform name, or `unknown`.
@@ -28,6 +28,9 @@ Each surface counts its own generations, so a report filters by `surface` and th
 generation. Host generation 8 adds `system_resources`. Desktop and host generation 7 adds safe error causes and durable failure delivery. Generation 6 added the usage events below (`system_tool_used`,
 `system_site_visited`, `system_routine_run`, `system_inventory`), `agent_source` and `agent_listing`
 on host turn and input events, and `plugin` entities and `listing_slug` on `marketplace_action`.
+Account service generation 10 adds `account_created`, `account_attributed`, the `first_touch_*`
+properties on `payment_succeeded` and `revenue`, `reactivated` on `plan_started`, and `end_reason`
+on `plan_ended`.
 
 Landing reports must filter to `event_schema_version = 8`. Generation 8 adds the article path to website
 `screen_view` and the content and download-selection events below, so generation 7 cannot answer a
@@ -42,8 +45,8 @@ be mixed into current conversion or reliability metrics.
 - A local host emits one lifecycle event under its owner's account.
 - Clients observing a remote host do not re-emit host lifecycle.
 - Landing, invitation, and pre-authentication events are anonymous.
-- The account service (`account_api`) sends billing and hosted server events from the Worker, with
-  the account ID as `profileId`. It never sends an email, a Stripe ID, a server ID, a name or an
+- The account service (`account_api`) sends account, billing and hosted server events from the
+  Worker, with the account ID as `profileId`. It never sends an email, a Stripe ID, a server ID, a name or an
   amount in another currency. It uses an OpenPanel server client (`OPENPANEL_CLIENT_ID` and
   `OPENPANEL_CLIENT_SECRET`) of the same project, and only production has these secrets. The desktop
   analytics preference does not apply to these events: the account service records a payment or a
@@ -112,8 +115,10 @@ lifecycle. A malformed preference fails closed; a missing preference uses the do
 | `content_article_opened` | Which news article or guide does a reader choose, and from where? | A link to a published article was clicked; `placement` separates an index card from the related row |
 | `content_article_read` | Is an article read or abandoned? | The body reached `start`, `half`, or `end` in the viewport, at most once each per view. It measures position, not attention, and never elapsed time |
 | `join_page_action` | Does the invitation web flow reach the app? | Anonymous view, download, or app-open action |
-| `billing_action` | Do accounts start, pay for, change and keep paid plans? | `action`: `checkout_started`, `checkout_returned`, `checkout_expired`, `plan_started`, `payment_succeeded`, `payment_failed`, `plan_changed`, `cancel_scheduled`, `cancel_withdrawn`, `plan_ended`, or `portal_opened`, as the account service stores it. Optional `plan`, `interval`, `currency`, `amount` (minor units of `currency`, from Stripe), `recovery`, and `flow` (Portal) |
-| `revenue` | How much did accounts pay for servers? | Verified paid invoices only. `__revenue` and `amount_usd` in USD cents; `original_amount`, `original_currency`, `fx_rate`, `fx_date`, `plan`, `interval`, `payment_kind`, and optional `recovery`. Zero-amount invoices do not emit revenue. |
+| `account_created` | How many new accounts start, and from which source? | The account service made a new account at a verified email sign-in. `sign_in_surface` is `desktop`, `mobile` or `web`. A web sign-in can add the `first_touch_*` properties |
+| `account_attributed` | Which first website visit brought an account? | The account service saved the first touch of an account for the first time. `recorded_via` is `sign_in` or `checkout`, with the `first_touch_*` properties. Sent at most once for each account |
+| `billing_action` | Do accounts start, pay for, change and keep paid plans? | `action`: `checkout_started`, `checkout_returned`, `checkout_expired`, `plan_started`, `payment_succeeded`, `payment_failed`, `plan_changed`, `cancel_scheduled`, `cancel_withdrawn`, `plan_ended`, or `portal_opened`, as the account service stores it. Optional `plan`, `interval`, `currency`, `amount` (minor units of `currency`, from Stripe), `recovery`, and `flow` (Portal). `plan_started` can add `reactivated` (true when every earlier plan of the account had ended); `plan_ended` adds `end_reason` (`unpaid` after a failed payment, else `canceled`). `payment_succeeded` adds the `first_touch_*` properties when the account has a first touch at that time |
+| `revenue` | How much did accounts pay for servers? | Verified paid invoices only. `__revenue` and `amount_usd` in USD cents; `original_amount`, `original_currency`, `fx_rate`, `fx_date`, `plan`, `interval`, `payment_kind`, and optional `recovery` and `first_touch_*` properties. Zero-amount invoices do not emit revenue. |
 | `billing_snapshot` | What is recurring revenue at the sample time? | Daily aggregate without a profile. `snapshot_date`, `as_of`, `reported_at`, `currency`, `mrr`, `arr`, `overdue_mrr`, `paying_accounts`, `paid_servers`, `cancellations_scheduled`, `checkout_mature_accounts`, `checkout_converted_accounts`, `checkout_pending_accounts`. Money is USD cents. Never sum snapshots across days. |
 | `hosted_server_action` | Do paid hosted servers start, stay in use and come back? | `action`: `provisioned`, `setup_failed`, `idle_stopped`, `woken`, `resized`, `plan_stopped`, `renewed`, or `deleted`, when the account service changes the server. Optional `plan`, `size`, `reason` (`message`, `restart` or `schedule`) and `error` (an allowlisted hosted server error code) |
 
@@ -134,6 +139,14 @@ rather than passed through. Paths are followed by the allowlisted campaign tags 
 `utm_term`. `landingCampaignPath` lowercases each tag and accepts at most 64 characters from
 `[a-z0-9._-]`; a value outside that shape is dropped, not shortened, and no other query parameter or
 hash is ever included. Session replay and automatic interaction capture remain disabled.
+
+To check the desktop send paths, start the dev app with
+`OPENBOT_ANALYTICS_CAPTURE_URL=http://localhost:47321 bun run dev`, then run
+`bun run test:analytics-redaction -- --allow-mutations`. The app sends its analytics and failure
+reports to that local capture server instead of OpenPanel. The script seeds a secret marker into an
+agent, an MCP server, a routine and browser addresses, and checks that no captured request holds it.
+It writes `.openbot-build/analytics-redaction-e2e/report.json`. A packaged build ignores the setting,
+and only a loopback `http:` origin is accepted.
 
 ## Required dashboards
 
@@ -169,6 +182,69 @@ dropped. Attribution is recorded once per session: a visitor who arrives without
 navigates to a campaign link later stays on the original session's attribution, and sessions that
 were recorded before this behavior shipped are not re-attributed.
 
+## First-touch attribution
+
+A campaign session ends before most visitors make an account or pay. To link a payment to its first
+visit, the website saves the first visit of each browser and the account service keeps it on the
+account.
+
+1. A production website page saves `openbot.first-touch.v1` in the browser's `localStorage` once:
+   the `acquisition_source`, the `source_platform`, the first screen path, the UTC day, and the
+   allowlisted campaign tags of that visit. A later visit does not replace it. After 90 days it is not
+   read, and the next visit replaces it.
+2. A sign-in in the web client (`/app`) sends it with the email code. A desktop checkout returns to
+   `/billing/return?checkout=<Checkout Session ID>`, and that page sends it with the session ID. The
+   account service accepts the session ID only for a checkout that it saved in the last 24 hours.
+3. The account service checks every value again, saves the first value it gets for an account in the
+   D1 table `account_attribution`, and sends `account_attributed`. It never replaces a saved value.
+4. Later `payment_succeeded` and `revenue` events copy the saved value as `first_touch_*`
+   properties.
+
+The `first_touch_*` properties are `first_touch_source`, `first_touch_platform`,
+`first_touch_landing_page`, `first_touch_date`, and the optional `first_touch_utm_source`,
+`first_touch_utm_medium`, `first_touch_utm_campaign`, `first_touch_utm_content`, and
+`first_touch_utm_term`. They use the same allowlists as the website properties.
+
+Limits:
+
+- A desktop or mobile sign-in has no browser storage, so it has no first touch until a desktop
+  checkout return page sends one. The phone app does not send one.
+- A browser that blocks storage, or a visitor who signs up in a different browser, gives no first
+  touch.
+- The first payment can be processed before the checkout return page sends the first touch. Then that
+  `payment_succeeded` and `revenue` have no `first_touch_*` properties. Use `account_attributed`,
+  which has the same `profileId`, to join them.
+- An account made before generation 10 gets a first touch only at a later web sign-in or desktop
+  checkout, and that visit can be later than its real first visit.
+
+## Business metric mapping
+
+The reporting team asked for these metrics. The events keep their released names; this table gives
+the OpenPanel event and filter for each one. `user_id` is always the OpenPanel `profileId`, which is
+the OpenBot account ID. Filter each row by its `surface` and that surface's current
+`event_schema_version`.
+
+| Metric | OpenPanel event and filter | Notes |
+|---|---|---|
+| `page_view` | `screen_view`, `surface = landing` | OpenPanel adds the session, the referrer and the entry page. The path carries the allowlisted `utm_*` tags |
+| UTM, referrer, landing page | Session properties of `screen_view`; `acquisition_source` and `source_platform` on landing events | Session-scoped. For an account, use `first_touch_*` |
+| `account_created` / `sign_up` | `account_created`, `surface = account_api` | `sign_in_surface` names the app |
+| Sign in | `account_sign_in_completed`, `result = succeeded` | Desktop only |
+| `onboarding_completed` | `onboarding_completed`, `surface = desktop` | `preferred_provider` |
+| First value action | First `system_turn_completed` with `origin = user` and `status = completed` for a `profileId` | The product metric |
+| Engagement work | `system_turn_completed`, `origin = user` | `status` gives success or failure |
+| `agent_action` | `agent_action` | `result` is `succeeded` or `failed`; `failure_code` on failure |
+| Trial started | None | OpenBot has no trial period |
+| Checkout started | `billing_action`, `action = checkout_started` | |
+| `subscription_started` | `billing_action`, `action = plan_started` | `reactivated = true` is a return after churn |
+| `subscription_canceled` | `billing_action`, `action = cancel_scheduled` | The plan stays open to the end of the period. `cancel_withdrawn` reverses it |
+| `subscription_expired` | `billing_action`, `action = plan_ended` | `end_reason` is `canceled` or `unpaid` |
+| `subscription_reactivated` | `billing_action`, `action = plan_started`, `reactivated = true` | |
+| `payment_succeeded` | `billing_action`, `action = payment_succeeded` | Minor units of `currency` |
+| Revenue | `revenue` | `__revenue` in USD cents, with `plan`, `interval`, `payment_kind` and `original_currency` |
+| Payment failed | `billing_action`, `action = payment_failed` | |
+| Attribution to payment | `account_attributed` joined on `profileId` to `revenue`, or `first_touch_*` on `revenue` | See "First-touch attribution" |
+
 ## Quality checks
 
 - Anonymous SDK requests must not contain `profileId` after any account was identified.
@@ -185,6 +261,8 @@ were recorded before this behavior shipped are not re-attributed.
 - Provider conversion uses `connect_completed`, never resolution of the initial connect IPC.
 - An update status with phase `error` or `unsupported` is a failed action.
 - Dashboard counts and profile assignment are smoke-tested after each analytics schema deployment.
+- A new web sign-in after a campaign visit produces one `account_created` and one
+  `account_attributed` with the same `first_touch_utm_campaign`. A second sign-in produces neither.
 
 ## Reliable error reports
 
@@ -236,7 +314,5 @@ user presentations, and host events count local failures. The same failure can h
 Compare failed turns against existing `system_turn_completed` outcomes for a turn failure rate.
 Track notification counts separately by severity and presentation. No external alerts are added.
 
-Run `bun run test:desktop -- packages/telemetry/src/reports.test.ts --maxWorkers=1` to verify a
-refused HTTP send followed by restart and delivery. The test writes the received safe payloads
-and result to `.openbot-build/telemetry/transport.json`. Live project access, dashboard creation,
-and production delivery must be verified after deployment; local tests do not establish them.
+Live project access, dashboard creation, and production delivery must be verified after
+deployment.

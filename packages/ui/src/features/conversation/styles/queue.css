@@ -190,11 +190,6 @@
   stroke-width: var(--openbot-icon-stroke);
 }
 
-.agent-queue-icon-button .conversation-more-icon {
-  fill: currentColor;
-  stroke: none;
-}
-
 .agent-queue-message {
   min-width: 0;
   overflow: hidden;

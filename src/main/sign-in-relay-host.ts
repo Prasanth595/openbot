@@ -22,13 +22,13 @@ import { HttpError } from "./team-api/http-error";
 export type SignInRelayProvider = (typeof SIGN_IN_RELAY_PROVIDERS)[number];
 
 /** How long a flow can complete. The sign-in on this host has its own, equal deadline. */
-export const SIGN_IN_RELAY_TTL_MS = 10 * 60_000;
+const SIGN_IN_RELAY_TTL_MS = 10 * 60_000;
 /** Flows kept at one time. A new flow above this ends the oldest. */
 const FLOW_LIMIT = 16;
 /** How long the listener of a sign-in on this host can take to answer its callback. */
 const REPLAY_TIMEOUT = Duration.seconds(10);
 /** How long after its message an agent's sign-in link can start a flow. A CLI's own page ends sooner. */
-export const PRINTED_LINK_AGE_MS = 60 * 60_000;
+const PRINTED_LINK_AGE_MS = 60 * 60_000;
 /** What `status` and `complete` answer, as `sign-in-relay-v1` sends it. */
 export type SignInRelayView = SignInRelayStatus;
 

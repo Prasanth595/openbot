@@ -60,3 +60,15 @@
   font-size: var(--openbot-text-sm);
   line-height: var(--openbot-leading-sm);
 }
+
+.server-status-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--openbot-space-2);
+  margin: var(--openbot-space-3) 0 0;
+  color: var(--openbot-text-muted);
+  font-size: var(--openbot-text-sm);
+  font-variant-numeric: tabular-nums;
+}

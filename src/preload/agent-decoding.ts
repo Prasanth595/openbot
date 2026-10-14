@@ -15,6 +15,7 @@ import {
   type DuplicateAgentResult,
   decodeOptionalAgentAnalytics,
   decodeOptionalHostAnalytics,
+  type HostProviderAccounts,
   isAccountUsage,
   isAgentHostSettings,
   isAgentMemory,
@@ -23,12 +24,15 @@ import {
   isAgentProvider,
   isAgentStatus,
   isAgentSummary,
+  isProviderAccountId,
+  isProviderAccountStatus,
   isRoutine,
   isRoutineCalendar,
   isRoutineFeed,
   isRoutineRun,
   isSharedTable,
   isSidebarLayoutSnapshot,
+  MAX_PROVIDER_ACCOUNTS,
   type ProviderApiKeyState,
   type ProviderCodeLoginStart,
   type SharedTable,
@@ -97,6 +101,29 @@ export function decodeAgentStatusFromMain(value: unknown): AgentStatus {
 export function decodeAccountUsageFromMain(value: unknown): AccountUsage {
   if (!isAccountUsage(value)) throw new Error("Invalid agent usage response.");
   return value;
+}
+
+/** Main has already left out the providers that this build does not know, so each one must be known. */
+export function decodeHostProviderAccountsFromMain(value: unknown): HostProviderAccounts {
+  const invalid = () => new Error("Invalid provider accounts response.");
+  if (!isDynamicRecord(value) || !Array.isArray(value.providers) || !Array.isArray(value.agents)) throw invalid();
+  const providers = value.providers.map((row: unknown) => {
+    if (
+      !isDynamicRecord(row) ||
+      !isAgentProvider(row.provider) ||
+      !Array.isArray(row.accounts) ||
+      row.accounts.length > MAX_PROVIDER_ACCOUNTS ||
+      !row.accounts.every(isProviderAccountStatus)
+    )
+      throw invalid();
+    return { provider: row.provider, accounts: row.accounts };
+  });
+  const agents = value.agents.map((row: unknown) => {
+    if (!isDynamicRecord(row) || !isString(row.agentId) || !row.agentId || !isProviderAccountId(row.accountId))
+      throw invalid();
+    return { agentId: row.agentId, accountId: row.accountId };
+  });
+  return { providers, agents };
 }
 
 // Fails closed on a member for the same reason as `decodeAgentModelOptions` in the main process, and

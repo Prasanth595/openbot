@@ -178,6 +178,14 @@ export const messages = defineMessages("marketplace", {
   "marketplace.plugin.sentry.prompt.newErrors": "What new errors appeared since yesterday's deploy?",
   "marketplace.plugin.sentry.prompt.topCrash": "Explain the top crash in the mobile project and its likely cause.",
   "marketplace.plugin.sentry.prompt.releaseHealth": "How healthy is the current release compared to the last one?",
+  "marketplace.plugin.vercel.tagline": "Deployments, build logs and projects",
+  "marketplace.plugin.vercel.description":
+    "Vercel lets agents list projects and recent deployments, read build and runtime logs, and find why a build failed. Each user signs in to their own Vercel account through the browser and chooses the teams that agents can use. In those teams, agents get the same rights as the user's account. They can also change environment variables, domains, DNS records and deployments, and buy domains.",
+  "marketplace.plugin.vercel.app":
+    "Projects, deployments, build logs, and runtime logs, over Vercel's MCP server with browser sign-in.",
+  "marketplace.plugin.vercel.prompt.failedBuild": "Why did the last production deployment fail?",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "List the deployments from today and their status.",
+  "marketplace.plugin.vercel.prompt.runtimeErrors": "Which routes had runtime errors in the last hour?",
   "marketplace.plugin.context7.tagline": "Current library documentation",
   "marketplace.plugin.context7.description":
     "Context7 fetches current documentation and API references for libraries and frameworks, so answers use the version the project actually runs. It needs no account and no key.",

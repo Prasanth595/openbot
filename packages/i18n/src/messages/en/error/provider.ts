@@ -262,6 +262,16 @@ export const messages = defineMessages("error.provider", {
   "error.provider.useSettingsReadOnly":
     "The saved provider settings cannot be read. Update OpenBot before you change them.",
   "error.provider.useChangeFailed": "OpenBot could not change the provider setting.",
+  "error.provider.accountsUnsupported": "{provider} can hold one account only.",
+  "error.provider.accountNeedsConnection": "Connect {provider} before you add another account.",
+  "error.provider.accountLimit": "{provider} can hold at most {limit} accounts.",
+  "error.provider.accountNotFound": "This {provider} account is not on this computer. Refresh and try again.",
+  "error.provider.accountAlreadyAdded": "This {provider} account is already connected.",
+  "error.provider.accountDefault": "The first {provider} account cannot be removed.",
+  "error.provider.accountInUse": "An agent on this account is working. Try again when the agent stops.",
+  "error.provider.accountsReadOnly":
+    "The saved provider accounts cannot be read. Update OpenBot before you change them.",
+  "error.provider.accountSignedOut": "This {provider} account is signed out. Sign in again.",
   "error.provider.sessionSettingUnavailable": "This setting is not available in the current provider session.",
   "error.provider.sessionSettingInvalid": "This value is not available for the setting.",
   "error.provider.sessionSettingsBusy": "Wait for the current turn to finish before changing a session setting.",

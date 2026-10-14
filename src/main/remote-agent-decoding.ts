@@ -2,7 +2,9 @@ import {
   type AgentSessionSettings,
   decodeAgentAnalytics,
   decodeHostAnalytics,
+  decodeHostProviderAccounts,
   decodeInstalledSkills,
+  type HostProviderAccounts,
   isAgentHostSettings,
   isAgentSessionSettings,
 } from "@openbot/contracts/ipc";
@@ -113,6 +115,11 @@ export function decodeAgentStatusFromHost(value: unknown): AgentStatus {
     throw new Error("Invalid remote agent status.");
   }
   return value;
+}
+
+/** The `provider-accounts-v1` list, as the web client also reads it: an unknown provider is left out. */
+export function decodeHostProviderAccountsFromHost(value: unknown): HostProviderAccounts {
+  return decodeHostProviderAccounts(value);
 }
 
 export function decodeAccountUsageFromHost(value: unknown): AccountUsage {

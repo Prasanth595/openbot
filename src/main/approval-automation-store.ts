@@ -56,7 +56,7 @@ export const readApprovalAutomation = Effect.fn("ApprovalAutomation.read")(funct
   return { turbo: false, defaultAutoApprove: false, autoApproveOverrides: {} };
 });
 
-export const writeApprovalAutomation = Effect.fn("ApprovalAutomation.write")(function* (
+const writeApprovalAutomation = Effect.fn("ApprovalAutomation.write")(function* (
   path: string,
   preference: ApprovalAutomationPreference,
 ) {

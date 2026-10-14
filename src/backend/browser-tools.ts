@@ -80,7 +80,7 @@ const legacyActionSchema = z.discriminatedUnion("type", [
 
 const targetAction = { tabId, target: browserTargetSchema, timeoutMs: timeout };
 
-export const BROWSER_TOOL_DEFINITIONS = [
+const BROWSER_TOOL_DEFINITIONS = [
   browserTool({
     name: "open",
     description: "Open an HTTP(S) URL in a new persistent private-browser tab.",

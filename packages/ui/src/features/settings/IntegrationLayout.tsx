@@ -96,11 +96,13 @@ export function LogoTile(props: { children: JSX.Element; size?: "md" | "lg" }) {
   );
 }
 
-export type IntegrationStatus = "connected" | "attention" | "idle" | "unavailable";
+/** `connecting` is a sign-in that waits for the user, in a browser or another app. */
+export type IntegrationStatus = "connected" | "attention" | "connecting" | "idle" | "unavailable";
 
 const STATUS_VARIANT = {
   connected: "success-light",
   attention: "warning-light",
+  connecting: "secondary",
   idle: "secondary",
   unavailable: "outline",
 } as const satisfies Record<IntegrationStatus, string>;

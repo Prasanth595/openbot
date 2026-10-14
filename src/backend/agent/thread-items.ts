@@ -1,5 +1,5 @@
 import { RequestError } from "@agentclientprotocol/sdk";
-import { agentProviderName, COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
+import { agentProviderName, COMPUTER_USE_MCP_SERVER_NAME, DEFAULT_PROVIDER_ACCOUNT_ID } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { type AgentProvider, RequestTimeoutError } from "../agent-client";
@@ -219,6 +219,9 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
   if (getString(item, "server") === COMPUTER_USE_MCP_SERVER_NAME || descriptor.includes(COMPUTER_USE_MCP_SERVER_NAME)) {
     return sourceText(completed ? "status.computerUse.progressDeciding" : "status.computerUse.progressActing");
   }
+  if (descriptor.includes("capture_screen")) {
+    return sourceText(completed ? "status.agent.screenCaptureReviewing" : "status.agent.screenCaptureProgress");
+  }
   if (/(search|browser|fetch|navigate|open_url|web)/u.test(descriptor)) {
     return completed ? "Reviewing the sources and information I found…" : "Searching for current information…";
   }
@@ -235,6 +238,12 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
     return completed ? "Reviewing the other agent’s response…" : "Coordinating with another agent…";
   }
   return completed ? "Reviewing the latest tool result…" : "Working through the next tool-assisted step…";
+}
+
+/** The provider account after the first that an agent runs on, or null for the provider's own sign-in. */
+export function agentProviderAccount(agent: { providerAccountId?: string | undefined }): string | null {
+  const accountId = agent.providerAccountId;
+  return accountId && accountId !== DEFAULT_PROVIDER_ACCOUNT_ID ? accountId : null;
 }
 
 export function providerForAgent(agent: { provider: AgentProvider }): AgentProvider {
