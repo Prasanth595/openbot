@@ -67,7 +67,7 @@ export const STORY_CONNECTOR_DETAILS: readonly ConnectorDetail[] = [
 ];
 
 /** A controller over fixed props. Its actions only record the call. */
-export function storyConnector(detail: ConnectorDetail): ConnectorController {
+function storyConnector(detail: ConnectorDetail): ConnectorController {
   return {
     id: detail.id,
     ready: () => true,

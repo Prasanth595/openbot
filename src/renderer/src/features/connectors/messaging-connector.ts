@@ -15,14 +15,10 @@ import { createSignal } from "solid-js";
 import { type ConnectorController, createConnectorActions } from "./connector-controller";
 
 /** A Slack or Discord connect installs the app in a new workspace; a Telegram one opens a chat. */
-export type MessagingConnectTarget =
-  | { platform: WorkspacePlatform }
-  | { platform: "telegram"; place: TelegramChatPlace };
+type MessagingConnectTarget = { platform: WorkspacePlatform } | { platform: "telegram"; place: TelegramChatPlace };
 
 /** A Slack workspace or a Discord server has its own orchestrator; every Telegram chat shares one. */
-export type MessagingOrchestratorTarget =
-  | { platform: WorkspacePlatform; workspaceId: string }
-  | { platform: "telegram" };
+type MessagingOrchestratorTarget = { platform: WorkspacePlatform; workspaceId: string } | { platform: "telegram" };
 
 /** The Slack, Discord and Telegram connections of one place: this computer or a joined server. */
 export interface MessagingApi {
