@@ -9,7 +9,7 @@ import { PROVIDERS_COLLECTION } from "../../lib/providers";
 
 // In `loader` for the reason given in routes/news/$slug.tsx: an unknown slug is a
 // real not-found response, not a 200 with an error card.
-export function loadProvider(slug: string): CollectionArticle {
+function loadProvider(slug: string): CollectionArticle {
   const article = findArticle(PROVIDERS_COLLECTION, slug);
   if (!article || !PROVIDER_PAGES[slug]) throw notFound();
   return article;

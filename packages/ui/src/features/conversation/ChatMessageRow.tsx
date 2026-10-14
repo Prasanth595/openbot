@@ -46,6 +46,7 @@ export interface ChatMessageRowProps {
    * `false` keeps an empty gutter where the face stands; leave it out when the row has no face.
    */
   showAuthor?: boolean | undefined;
+  /** Whether the time stands beside the author name. Without a name, the time is in the action row. */
   showTime?: boolean;
   animate?: boolean;
   agents: AgentProfile[];
@@ -74,8 +75,8 @@ export interface ChatMessageRowProps {
 }
 
 /**
- * One message of a chat: the alignment, the face, the name, the bubble, its reactions, the hover
- * toolbar and the footer.
+ * One message of a chat: the alignment, the face, the name, the bubble, its reactions, the action
+ * row under the bubble and the footer.
  *
  * It is shared because the agent chat and the channel chat draw the same message. They differed on
  * every part around the bubble - the channel had no entrance animation, no streaming state on the
@@ -159,11 +160,6 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
             </Show>
           </MessageHeader>
         </Show>
-        <Show when={props.showTime && (!props.showAuthor || own())}>
-          <MessageHeader class="message-time">
-            <time datetime={props.message.createdAt}>{props.message.time}</time>
-          </MessageHeader>
-        </Show>
         <div class="message-shell">
           <Bubble
             class={member() ? "message-bubble-member" : undefined}
@@ -236,7 +232,15 @@ export function ChatMessageRow(props: ChatMessageRowProps): JSX.Element {
               </BubbleReactions>
             </Show>
           </Bubble>
+        </div>
+        {/* The actions and the time stand under the bubble. A named author shows the time beside the name. */}
+        <div class="message-action-row">
           {props.actions}
+          <Show when={!props.showAuthor || own()}>
+            <time class="message-time" datetime={props.message.createdAt}>
+              {props.message.time}
+            </time>
+          </Show>
         </div>
         <Show when={props.footer}>
           <MessageFooter>{props.footer}</MessageFooter>

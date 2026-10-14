@@ -179,6 +179,14 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.topCrash": "Explica el fallo más frecuente del proyecto móvil y su causa probable.",
   "marketplace.plugin.sentry.prompt.releaseHealth":
     "¿Qué tan estable es la versión actual en comparación con la anterior?",
+  "marketplace.plugin.vercel.tagline": "Despliegues, registros de compilación y proyectos",
+  "marketplace.plugin.vercel.description":
+    "Vercel permite a los agentes listar proyectos y despliegues recientes, leer registros de compilación y de ejecución, y averiguar por qué falló una compilación. Cada usuario inicia sesión en su propia cuenta de Vercel desde el navegador y elige los equipos que pueden usar los agentes. En esos equipos, los agentes tienen los mismos permisos que la cuenta del usuario. También pueden cambiar variables de entorno, dominios, registros DNS y despliegues, y comprar dominios.",
+  "marketplace.plugin.vercel.app":
+    "Proyectos, despliegues, registros de compilación y de ejecución, mediante el servidor MCP de Vercel con inicio de sesión en el navegador.",
+  "marketplace.plugin.vercel.prompt.failedBuild": "¿Por qué falló el último despliegue de producción?",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "Lista los despliegues de hoy y su estado.",
+  "marketplace.plugin.vercel.prompt.runtimeErrors": "¿Qué rutas tuvieron errores de ejecución en la última hora?",
   "marketplace.plugin.context7.tagline": "Documentación actual de bibliotecas",
   "marketplace.plugin.context7.description":
     "Context7 obtiene la documentación y las referencias de API actuales de bibliotecas y frameworks, para que las respuestas usen la versión que el proyecto realmente ejecuta. No necesita cuenta ni clave.",

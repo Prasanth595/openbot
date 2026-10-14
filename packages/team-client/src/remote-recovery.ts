@@ -457,7 +457,7 @@ export function remoteWorkspaceReadTimeout(method: string, path: string): number
     route === TEAM_API_ROUTES.sidebarLayout.state ||
     route === TEAM_API_ROUTES.browser.tabs ||
     route === TEAM_API_ROUTES.agents.conversationReads ||
-    /^\/v1\/agents\/[^/]+\/conversation(?:-page)?$/.test(route ?? "")
+    /^\/v1\/agents\/[^/]+\/(?:conversation(?:-page)?|queue)$/.test(route ?? "")
     ? 15_000
     : undefined;
 }

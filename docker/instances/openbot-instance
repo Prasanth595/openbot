@@ -1,0 +1,325 @@
+#!/bin/bash
+# Runs several OpenBot containers on one host. Each instance has its own CPU, memory and disk limit,
+# its own data and its own account. See docs/docker.md#several-instances-on-one-host.
+#
+# An instance is the env file <name>.env next to this script and the folder /srv/openbot/<name>.
+# /srv/openbot/<name>/data is an ext4 image on a loop device, so the disk limit is the size of that
+# file system. Before the mount, the folder belongs to root, so a container that starts before the
+# mount cannot write to /data and stops. It never starts with an empty home folder.
+#
+# All instances use the Docker network `openbot`, on which they cannot reach each other.
+# openbot-firewall.service lets them reach only the internet. `setup` installs both once per host.
+#
+# The owner can update an instance from the app. OpenBot writes an empty request file to
+# /srv/openbot/<name>/update-requests, which the container can write, and
+# openbot-instance-update@<name>.path runs `update-request <name>` as root. That pulls the image, and
+# for an install makes the container again. Root reports in /srv/openbot/<name>/update-status, which
+# the container can only read. The container never gets the Docker socket.
+set -euo pipefail
+
+HERE=$(dirname "$(readlink -f "$0")")
+COMPOSE=$HERE/compose.yaml
+DATA=/srv/openbot
+NETWORK=openbot
+SUBNET=172.30.0.0/16
+FIREWALL=openbot-firewall.service
+LOG_SOCKET=/var/lib/openbot-docker/dev/log
+UNIT_DIRECTORY=/etc/systemd/system
+UPDATE_UNIT=openbot-instance-update
+LOCKS=/run
+
+fail() {
+  echo "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Usage: openbot-instance <command>
+
+  setup                       Install the firewall and the network of the instances. Run it
+                              once per host, and again after a change to /etc/openbot-docker/deny.
+  create <name> --cpus <n> --mem <n>g --disk <n>G
+                              Make an instance and start it. Then sign it in with
+                              `openbot-instance run <name> login`.
+  list                        Show the instances, their state and disk use.
+  up | down | restart <name>  Start, stop or restart an instance. The data stays.
+  logs <name> [-f]            Show the log of an instance.
+  upgrade <name> | --all      Pull the image and make the container again.
+  update-request <name>       Run by openbot-instance-update@<name>.service when the app asks
+                              for an update.
+  run <name> <command>        Run `openbot <command>` in the instance, for example
+                              status, login, mobile-connect or name.
+
+Change the CPU or memory limit in <name>.env, then run `openbot-instance up <name>`.
+EOF
+}
+
+check_name() {
+  [[ $1 =~ ^[a-z0-9][a-z0-9-]{0,23}$ ]] ||
+    fail "An instance name has 1 to 24 characters: a-z, 0-9 and -. It starts with a letter or a digit."
+}
+
+env_file() {
+  echo "$HERE/$1.env"
+}
+
+compose() {
+  local name=$1
+  shift
+  check_name "$name"
+  [ -f "$(env_file "$name")" ] || fail "There is no instance $name."
+  docker compose --project-name "openbot-$name" --file "$COMPOSE" --env-file "$(env_file "$name")" "$@"
+}
+
+setup() {
+  [ "$(id -u)" -eq 0 ] || fail "Run setup as root."
+  install -d -m 0755 /etc/openbot-docker
+  [ -e /etc/openbot-docker/deny ] ||
+    printf '# More addresses that the instances must not reach, one per line, for example servers\n# that trust the address of this host.\n' \
+      >/etc/openbot-docker/deny
+  sed "s#/opt/openbot-docker/instances/#$HERE/#" "$HERE/$FIREWALL" >"$UNIT_DIRECTORY/$FIREWALL"
+  systemctl daemon-reload
+  systemctl enable --quiet "$FIREWALL"
+  # Docker requires the unit, so a restart of the unit would restart Docker. Apply the rules directly.
+  "$HERE/openbot-firewall"
+  systemctl start "$FIREWALL"
+  docker network inspect "$NETWORK" >/dev/null 2>&1 ||
+    docker network create --driver bridge --subnet "$SUBNET" \
+      --opt com.docker.network.bridge.name=br-openbot \
+      --opt com.docker.network.bridge.enable_icc=false "$NETWORK" >/dev/null
+  install -m 0644 "$HERE/openbot-sysctl.conf" /etc/sysctl.d/90-openbot-docker.conf
+  sysctl --quiet --load /etc/sysctl.d/90-openbot-docker.conf
+  # Container logs: rsyslog writes them to /var/log/openbot, and openbot-logrotate.timer limits them.
+  install -d -m 0755 /var/lib/openbot-docker "$(dirname "$LOG_SOCKET")"
+  install -d -o syslog -g adm -m 0750 /var/log/openbot
+  install -m 0644 "$HERE/openbot-logrotate" /etc/openbot-docker/logrotate.conf
+  rm -f /etc/logrotate.d/openbot-docker /etc/systemd/system/docker.service.d/openbot-rsyslog.conf
+  install -m 0644 "$HERE/openbot-logrotate.service" "$HERE/openbot-logrotate.timer" /etc/systemd/system/
+  install -d -m 0755 /etc/systemd/system/docker.service.d
+  install -m 0644 "$HERE/docker-openbot.conf" /etc/systemd/system/docker.service.d/openbot.conf
+  # The update requests of the app. `start` enables the path unit of each instance.
+  install -m 0644 "$HERE/$UPDATE_UNIT@.path" "$UNIT_DIRECTORY/"
+  sed "s#/opt/openbot-docker/instances/#$HERE/#" "$HERE/$UPDATE_UNIT@.service" >"$UNIT_DIRECTORY/$UPDATE_UNIT@.service"
+  systemctl daemon-reload
+  systemctl enable --now --quiet openbot-logrotate.timer
+  if ! cmp --silent "$HERE/openbot-rsyslog.conf" /etc/rsyslog.d/30-openbot-docker.conf || [ ! -S "$LOG_SOCKET" ]; then
+    install -m 0644 "$HERE/openbot-rsyslog.conf" /etc/rsyslog.d/30-openbot-docker.conf
+    rsyslogd -N1 >/dev/null || fail "rsyslog refuses /etc/rsyslog.d/30-openbot-docker.conf."
+    systemctl restart rsyslog
+  fi
+  docker info --format '{{.SecurityOptions}}' | grep -q name=userns ||
+    echo "Docker runs without userns-remap: UID 1000 in a container is UID 1000 on the host." >&2
+}
+
+# Starts nothing without the firewall, the network and the log socket.
+ready() {
+  [ -S "$LOG_SOCKET" ] || fail "The log socket $LOG_SOCKET is missing. Run: openbot-instance setup"
+  systemctl is-active --quiet "$FIREWALL" || fail "The firewall of the instances is off. Run: openbot-instance setup"
+  docker network inspect "$NETWORK" >/dev/null 2>&1 || fail "The network $NETWORK is missing. Run: openbot-instance setup"
+  [ -e "$UNIT_DIRECTORY/$UPDATE_UNIT@.service" ] || fail "The update units are missing. Run: openbot-instance setup"
+}
+
+start() {
+  ready
+  update_folders "$1" || fail "The update folders of $1 could not be made."
+  compose "$1" up --detach
+}
+
+# The folders that compose.yaml mounts for updates from the app. Docker would make a missing one as
+# root, and the container could not write requests to it. The container can write the request
+# folder, so it is a small tmpfs, not a folder on the disk of the host outside the disk limit.
+# /etc/fstab mounts it before Docker starts.
+update_folders() {
+  check_name "$1"
+  local folder=$DATA/$1 owner requests
+  requests=$DATA/$1/update-requests
+  owner=$(data_owner) || return
+  install -d -m 0700 "$requests" && install -d -m 0755 "$folder/update-status" || return
+  if ! grep -qF " $requests tmpfs " /etc/fstab; then
+    printf 'tmpfs %s tmpfs size=64k,nr_inodes=16,mode=0700,uid=%s,gid=%s,nodev,nosuid,noexec,nofail,x-systemd.before=docker.service 0 0\n' \
+      "$requests" "${owner%:*}" "${owner#*:}" >>/etc/fstab
+    systemctl daemon-reload
+  fi
+  mountpoint -q "$requests" || mount "$requests" || return
+  systemctl enable --now --quiet "$UPDATE_UNIT@$1.path" || return
+  # OpenBot offers updates only when this file is there. An instance with a fixed OPENBOT_TAG keeps
+  # the version that the administrator chose.
+  if grep -q '^OPENBOT_TAG=' "$(env_file "$1")"; then
+    rm -f "$folder/update-status/enabled"
+  else
+    touch "$folder/update-status/enabled"
+  fi
+}
+
+set_state() {
+  printf '%s\n' "$2" >"$1.new"
+  mv -f "$1.new" "$1"
+}
+
+# The version label of an image or a container. Empty when it is missing or not a release version.
+release_version() {
+  local version
+  version=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$1" 2>/dev/null || true)
+  if [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "$version"; fi
+}
+
+# Pulls the image of instance $1. Writes its version to staged.ready only when it is newer than the
+# container: an older OpenBot cannot open a database that a newer one migrated.
+stage() {
+  local name=$1 status=$DATA/$1/update-status running pulled image
+  rm -f "$status/staged.ready"
+  running=$(release_version "openbot-$name")
+  [ -n "$running" ] || fail "The container openbot-$name has no release version."
+  compose "$name" pull --quiet || fail "The image of $name did not download."
+  image=$(compose "$name" config --images | head -n 1)
+  pulled=$(release_version "$image")
+  [ -n "$pulled" ] || fail "The image $image has no release version."
+  if [ "$pulled" != "$running" ] && [ "$(printf '%s\n%s\n' "$running" "$pulled" | sort -V | tail -n 1)" = "$pulled" ]; then
+    set_state "$status/staged.ready" "$pulled"
+  fi
+}
+
+# The container owns the request folder, so root only tests a request and removes it. It never reads
+# or follows one. An install makes the container again only from a newer image.
+update_request() {
+  check_name "$1"
+  local name=$1 requests=$DATA/$1/update-requests status=$DATA/$1/update-status install=0 result=0 keeper
+  exec 9>"$LOCKS/$UPDATE_UNIT-$name.lock"
+  flock 9
+  if [ -e "$requests/update-install" ] || [ -L "$requests/update-install" ]; then install=1; fi
+  # OpenBot waits while the request is there, then reads the state. So the state comes first.
+  if [ "$install" -eq 1 ]; then set_state "$status/state" installing; else set_state "$status/state" waiting; fi
+  rm -rf -- "$requests/update-stage" "$requests/update-install"
+  # OpenBot sees that the request runs while the time of the state changes. `set -e` does not apply
+  # in the subshells below, so each step checks its own result.
+  # -c: a touch that runs during the end of the request does not make the state again.
+  (while sleep 5; do touch -c "$status/state"; done) >/dev/null 2>&1 &
+  keeper=$!
+  (stage "$name") || result=$?
+  if [ "$install" -eq 1 ] && [ -e "$status/staged.ready" ]; then
+    rm -f "$status/staged.ready"
+    (start "$name") || result=$?
+  fi
+  kill "$keeper" 2>/dev/null || true
+  rm -f "$status/state"
+  return "$result"
+}
+
+# The host UID:GID of the image user, 1000:1000. With userns-remap, Docker adds the start of the
+# ranges of dockremap in /etc/subuid and /etc/subgid.
+data_owner() {
+  if ! docker info --format '{{.SecurityOptions}}' | grep -q name=userns; then
+    echo 1000:1000
+    return
+  fi
+  local uid gid
+  uid=$(awk -F: '$1 == "dockremap" { print $2; exit }' /etc/subuid)
+  gid=$(awk -F: '$1 == "dockremap" { print $2; exit }' /etc/subgid)
+  if [ -z "$uid" ] || [ -z "$gid" ]; then
+    fail "Docker uses userns-remap, but dockremap has no range in /etc/subuid or /etc/subgid."
+  fi
+  echo "$((uid + 1000)):$((gid + 1000))"
+}
+
+create() {
+  [ "$#" -ge 1 ] || fail "Give the name of the instance."
+  local name=$1 cpus='' mem='' disk=''
+  shift
+  check_name "$name"
+  while [ "$#" -gt 0 ]; do
+    case $1 in
+      --cpus) cpus=${2:-} ;;
+      --mem) mem=${2:-} ;;
+      --disk) disk=${2:-} ;;
+      *) fail "Unknown option $1." ;;
+    esac
+    shift 2 || fail "Give a value for $1."
+  done
+  [[ $cpus =~ ^[0-9]+(\.[0-9]+)?$ ]] || fail "Give the CPU limit, for example --cpus 8."
+  [[ $mem =~ ^[0-9]+[mg]$ ]] || fail "Give the memory limit, for example --mem 32g."
+  [[ $disk =~ ^[0-9]+[MGT]$ ]] || fail "Give the disk limit, for example --disk 200G."
+  local env folder=$DATA/$name
+  env=$(env_file "$name")
+  [ ! -e "$env" ] || fail "The instance $name exists."
+  [ ! -e "$folder" ] || fail "$folder exists. Move it away or choose another name."
+  [ "$(id -u)" -eq 0 ] || fail "Run create as root."
+  ready
+
+  install -d -m 0755 "$DATA"
+  install -d -m 0700 "$folder"
+  # Until the instance exists, a failed step removes what create made, so create can run again.
+  trap 'umount "$folder/data" 2>/dev/null || true; rm -rf "$folder"' ERR
+  install -d -m 0755 "$folder/data"
+  # Reserve all of the space now. A sparse image could grow past the free space of the host, and the
+  # database in it would then get write errors.
+  fallocate --length "$disk" "$folder/data.img"
+  # No blocks kept for root: the user of the image uses all of the limit. A discard would free the
+  # reserved space again, so mkfs does none and fstrim.timer skips the mount (X-fstrim.notrim).
+  mkfs.ext4 -q -m 0 -E nodiscard "$folder/data.img"
+  mount -o loop "$folder/data.img" "$folder/data"
+  # The image user. This changes the mounted file system, not the folder under it.
+  chown "$(data_owner)" "$folder/data"
+  chmod 0700 "$folder/data"
+  printf '%s %s ext4 loop,nofail,x-systemd.before=docker.service,X-fstrim.notrim 0 2\n' "$folder/data.img" "$folder/data" >>/etc/fstab
+  trap - ERR
+  systemctl daemon-reload
+  printf '# OPENBOT_DISK is the size of data.img, for information. See docs/docker.md to change it.\nOPENBOT_NAME=%s\nOPENBOT_CPUS=%s\nOPENBOT_MEM=%s\nOPENBOT_DISK=%s\n' \
+    "$name" "$cpus" "$mem" "$disk" >"$env"
+  start "$name"
+  echo "Sign in the instance: openbot-instance run $name login"
+}
+
+list() {
+  local env name state
+  printf '%-24s %-10s %-6s %-6s %s\n' NAME STATE CPUS MEMORY DISK
+  for env in "$HERE"/*.env; do
+    [ -e "$env" ] || continue
+    name=$(basename "$env" .env)
+    state=$(docker inspect --format '{{.State.Status}}' "openbot-$name" 2>/dev/null || echo missing)
+    # shellcheck source=/dev/null
+    (
+      source "$env"
+      printf '%-24s %-10s %-6s %-6s %s\n' "$name" "$state" "$OPENBOT_CPUS" "$OPENBOT_MEM" \
+        "$(df --human-readable --output=used,size "$DATA/$name/data" 2>/dev/null | tail -n 1 | xargs)"
+    )
+  done
+}
+
+[ "${BASH_SOURCE[0]}" = "$0" ] || return 0
+
+command=${1:-}
+shift || true
+case $command in
+  setup) setup ;;
+  create) create "$@" ;;
+  list) list ;;
+  up) start "${1:-}" ;;
+  down) compose "${1:-}" down ;;
+  restart) compose "${1:-}" restart ;;
+  logs) compose "${1:-}" logs "${@:2}" ;;
+  upgrade)
+    if [ "${1:-}" = --all ]; then
+      for env in "$HERE"/*.env; do
+        [ -e "$env" ] || continue
+        compose "$(basename "$env" .env)" pull
+        start "$(basename "$env" .env)"
+      done
+    else
+      compose "${1:-}" pull
+      start "${1:-}"
+    fi
+    ;;
+  update-request) update_request "${1:-}" ;;
+  run)
+    check_name "${1:-}"
+    # login asks for the code in a terminal. Scripts and ssh without -t have none.
+    terminal=()
+    [ ! -t 0 ] || terminal=(--tty)
+    docker exec --interactive "${terminal[@]}" "openbot-$1" openbot "${@:2}"
+    ;;
+  *)
+    usage
+    [ -z "$command" ] || exit 1
+    ;;
+esac

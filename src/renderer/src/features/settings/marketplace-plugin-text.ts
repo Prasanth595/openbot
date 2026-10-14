@@ -101,6 +101,18 @@ const PLUGIN_TEXT = {
       "prompt-release-health": "marketplace.plugin.sentry.prompt.releaseHealth",
     },
   },
+  vercel: {
+    tagline: "marketplace.plugin.vercel.tagline",
+    description: "marketplace.plugin.vercel.description",
+    apps: {
+      "app-vercel-mcp": "marketplace.plugin.vercel.app",
+    },
+    prompts: {
+      "prompt-failed-build": "marketplace.plugin.vercel.prompt.failedBuild",
+      "prompt-recent-deployments": "marketplace.plugin.vercel.prompt.recentDeployments",
+      "prompt-runtime-errors": "marketplace.plugin.vercel.prompt.runtimeErrors",
+    },
+  },
   context7: {
     tagline: "marketplace.plugin.context7.tagline",
     description: "marketplace.plugin.context7.description",

@@ -3,10 +3,10 @@
 The UI stack sits on prerelease channels your training data does not cover: `solid-js@2.0.0-rc.0`
 with `@solidjs/signals` and `@solidjs/web` at the same RC, `@kobalte/core@2.0.0-alpha.0` (patched
 here), plus patched `lucide-solid` and `solid-sonner`. `@solidjs/signals` is patched to dispose the
-children of a memo run that a list-row removal interrupts. `src/renderer/src/solid-disposal.test.ts`
-guards the patch, so keep the test when you upgrade Solid. `@solidjs/web` has the rc.9 event
-delegation fix backported: a delegated event stops when its target leaves the DOM. Drop the patch
-when you upgrade to rc.9 or later. Do not trust your memory of these APIs —
+children of a memo run that a list-row removal interrupts. Check that the patch still applies when
+you upgrade Solid. `@solidjs/web` has the rc.9 event delegation fix backported: a delegated event
+stops when its target leaves the DOM. Drop the patch when you upgrade to rc.9 or later. Do not
+trust your memory of these APIs —
 check `package.json` for what is actually installed, and load the reference that matches the work:
 
 - `node_modules/solid-js/CHEATSHEET.md` — the source of truth for core Solid APIs. Read it before
@@ -117,9 +117,9 @@ Use `lucide-solid` icons, and reuse a suitable one before adding an inline SVG o
 component — document the exception next to any custom icon. The `:root` properties in
 `packages/brand/src/tokens.css` are the palette, shared with the web and mobile apps: use the
 closest semantic `--openbot-*` token, including opacity variants, instead of a colour literal, and
-add a token only for a new semantic role — there, not in a renderer stylesheet, which
-`scripts/design-tokens.test.ts` rejects. Keep compatibility aliases that are in use, and isolate fixed integration, generated-asset,
-SVG and platform colours at their boundaries.
+add a token only for a new semantic role — there, not in a renderer stylesheet. Keep compatibility
+aliases that are in use, and isolate fixed integration, generated-asset, SVG and platform colours at
+their boundaries.
 
 ## Waiting in a renderer test
 
@@ -130,9 +130,6 @@ component. Needing either for logic means the logic is not separable from the DO
 | --- | --- |
 | `await screen.findByRole(role, { name })` | The normal case. It retries until the element exists, so it *is* the wait — a `getBy*` after a manual wait is the same query with a worse failure message. |
 | `await screen.findByText(...)` | Copy that is a product contract and has no accessible role of its own. |
-| `emitAgentEvent(...)` and the other `emit*` bridges — `app-test-harness.ts` | Driving a main-process event into the renderer. Await a `findBy*` after it; do not wait on the clock. |
-| `subscriberCounts()` — same file | Asserting a screen actually unsubscribed. This is how a leaked bridge subscription is caught. |
-| `installOpenbotStub()` | The whole `window.openbot` surface. Extend the stub rather than reaching around it. Every group starts at its `IPC_GROUP_PATHS` place with nothing stubbed. A group that tests reach uses `stubGroup`: give only the members a test reaches; other requests reject as not stubbed. |
 | `vi.waitFor(() => expect(spy)...)` | A call that produces no visible change — an analytics event, an IPC invoke. |
 | `vi.useFakeTimers()` + `vi.advanceTimersByTime(n)` | A debounce or a poll interval. Advancing the clock is input, not waiting. |
 

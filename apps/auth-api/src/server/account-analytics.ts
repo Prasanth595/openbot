@@ -7,6 +7,7 @@ import {
   type BillingPlanId,
   isBillingAmount,
 } from "@openbot/contracts/billing";
+import { FIRST_TOUCH_CAMPAIGN_FIELDS, type FirstTouch, parseFirstTouch } from "@openbot/contracts/first-touch";
 import {
   HOSTED_SERVER_ERRORS,
   HOSTED_SERVER_SIZE_NAMES,
@@ -18,8 +19,11 @@ import { Effect, Schema } from "effect";
 
 /** The same OpenPanel project as the desktop app and the website. ANALYTICS.md is the contract. */
 const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
-/** The current generation. The `account_api` events are new and change no older event. */
-export const ACCOUNT_ANALYTICS_SCHEMA_VERSION = 9;
+/**
+ * The current generation. Generation 10 adds the account events, first-touch properties, and
+ * `reactivated` and `end_reason` on plan events; it changes no generation 9 property.
+ */
+export const ACCOUNT_ANALYTICS_SCHEMA_VERSION = 10;
 const SEND_TIMEOUT_MS = 5_000;
 const ACCOUNT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/u;
 
@@ -51,6 +55,17 @@ type HostedServerAction = (typeof HOSTED_SERVER_ACTIONS)[number];
 
 const PORTAL_FLOWS = ["manage", "update", "cancel"] as const;
 const WAKE_REASONS = ["message", "restart", "schedule"] as const;
+/** Why a plan ended: the account cancelled it, or Stripe ended it after unpaid invoices. */
+const PLAN_END_REASONS = ["canceled", "unpaid"] as const;
+export type PlanEndReason = (typeof PLAN_END_REASONS)[number];
+/** The client that verified the sign-in code that created the account. */
+const ACCOUNT_SURFACES = ["desktop", "mobile", "web"] as const;
+export type AccountSurface = (typeof ACCOUNT_SURFACES)[number];
+/** Where the account service learned the first touch of an account. */
+const ATTRIBUTION_SOURCES = ["sign_in", "checkout"] as const;
+export type AttributionSource = (typeof ATTRIBUTION_SOURCES)[number];
+
+type AnalyticsProperties = Record<string, string | number | boolean>;
 
 export type AccountAnalyticsEvent =
   | {
@@ -62,7 +77,13 @@ export type AccountAnalyticsEvent =
       /** Minor units of `currency`, from Stripe. */
       amount?: number | null;
       flow?: (typeof PORTAL_FLOWS)[number];
+      /** On `plan_started`: the account had a plan before that ended. */
+      reactivated?: boolean;
+      /** On `plan_ended`. */
+      endReason?: PlanEndReason;
     }
+  | { name: "account_created"; surface: AccountSurface; firstTouch: FirstTouch | null }
+  | { name: "account_attributed"; via: AttributionSource; firstTouch: FirstTouch }
   | {
       name: "hosted_server_action";
       action: HostedServerAction;
@@ -72,7 +93,7 @@ export type AccountAnalyticsEvent =
       error?: HostedServerError | null;
     };
 
-/** Account events that only the Worker sees: payments and the lifecycle of hosted servers. */
+/** Account events that only the Worker sees: new accounts, payments and hosted servers. */
 export interface AccountAnalytics {
   /** Never throws and never waits: a failed send loses the event, not the request. */
   track(accountId: string, event: AccountAnalyticsEvent): void;
@@ -101,7 +122,7 @@ export function createAccountAnalytics(options: AccountAnalyticsOptions): Accoun
   const send = Effect.fn("AccountAnalytics.send")(function* (
     accountId: string,
     event: AccountAnalyticsEvent,
-    properties: Record<string, string | number>,
+    properties: AnalyticsProperties,
   ) {
     const response = yield* Effect.tryPromise({
       try: (signal) =>
@@ -136,8 +157,8 @@ export function createAccountAnalytics(options: AccountAnalyticsOptions): Accoun
  * The properties of one event, checked at runtime against the allowlists. A value that is not on a
  * list is dropped, and an unknown action drops the event.
  */
-export function accountEventProperties(event: AccountAnalyticsEvent): Record<string, string | number> | null {
-  const properties: Record<string, string | number> = {
+function accountEventProperties(event: AccountAnalyticsEvent): AnalyticsProperties | null {
+  const properties: AnalyticsProperties = {
     surface: "account_api",
     environment: "production",
     event_schema_version: ACCOUNT_ANALYTICS_SCHEMA_VERSION,
@@ -152,7 +173,20 @@ export function accountEventProperties(event: AccountAnalyticsEvent): Record<str
       if (isBillingAmount(event.amount)) properties.amount = event.amount;
     }
     if (isOneOf(PORTAL_FLOWS, event.flow)) properties.flow = event.flow;
+    if (event.action === "plan_started" && typeof event.reactivated === "boolean")
+      properties.reactivated = event.reactivated;
+    if (event.action === "plan_ended" && isOneOf(PLAN_END_REASONS, event.endReason))
+      properties.end_reason = event.endReason;
     return properties;
+  }
+  if (event.name === "account_created") {
+    if (!isOneOf(ACCOUNT_SURFACES, event.surface)) return null;
+    return { ...properties, sign_in_surface: event.surface, ...firstTouchProperties(event.firstTouch) };
+  }
+  if (event.name === "account_attributed") {
+    const touch = firstTouchProperties(event.firstTouch);
+    if (!isOneOf(ATTRIBUTION_SOURCES, event.via) || !touch.first_touch_source) return null;
+    return { ...properties, recorded_via: event.via, ...touch };
   }
   if (event.name !== "hosted_server_action" || !isOneOf(HOSTED_SERVER_ACTIONS, event.action)) return null;
   properties.action = event.action;
@@ -160,5 +194,39 @@ export function accountEventProperties(event: AccountAnalyticsEvent): Record<str
   if (isOneOf(HOSTED_SERVER_SIZE_NAMES, event.size)) properties.size = event.size;
   if (isOneOf(WAKE_REASONS, event.reason)) properties.reason = event.reason;
   if (isOneOf(HOSTED_SERVER_ERRORS, event.error)) properties.error = event.error;
+  return properties;
+}
+
+const FIRST_TOUCH_CAMPAIGN_PROPERTIES = {
+  utmSource: "first_touch_utm_source",
+  utmMedium: "first_touch_utm_medium",
+  utmCampaign: "first_touch_utm_campaign",
+  utmContent: "first_touch_utm_content",
+  utmTerm: "first_touch_utm_term",
+} as const satisfies Record<(typeof FIRST_TOUCH_CAMPAIGN_FIELDS)[number], string>;
+
+/** Every property name that `firstTouchProperties` can return. */
+export const FIRST_TOUCH_PROPERTIES = [
+  "first_touch_source",
+  "first_touch_platform",
+  "first_touch_landing_page",
+  "first_touch_date",
+  ...Object.values(FIRST_TOUCH_CAMPAIGN_PROPERTIES),
+];
+
+/** The event properties of a first touch, checked again; empty without a valid one. */
+export function firstTouchProperties(value: FirstTouch | null): Record<string, string> {
+  const touch = parseFirstTouch(value);
+  if (!touch) return {};
+  const properties: Record<string, string> = {
+    first_touch_source: touch.acquisitionSource,
+    first_touch_platform: touch.sourcePlatform,
+    first_touch_landing_page: touch.landingPage,
+    first_touch_date: touch.firstVisitOn,
+  };
+  for (const field of FIRST_TOUCH_CAMPAIGN_FIELDS) {
+    const campaign = touch[field];
+    if (campaign) properties[FIRST_TOUCH_CAMPAIGN_PROPERTIES[field]] = campaign;
+  }
   return properties;
 }

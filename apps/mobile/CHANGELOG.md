@@ -7,7 +7,7 @@ the [root changelog](../../CHANGELOG.md).
 
 ## [Unreleased]
 
-## [1.3.1] - In review
+## [1.3.1] - 2026-10-14 (Android)
 
 ### Added
 
@@ -48,7 +48,7 @@ the [root changelog](../../CHANGELOG.md).
   showed it as "Desktop".
 - On Android, the app no longer closes when an agent avatar fades because its computer goes offline or comes back online.
 
-## [1.3.0] - 2026-10-13
+## [1.3.0] - 2026-10-13 (Android)
 
 ### Added
 

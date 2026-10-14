@@ -62,7 +62,7 @@ decoder spends its allocations on.
 | every request endpoint has exactly one handler | `GroupHandlers` (`TS2741` / `TS2353`) |
 | every group has a registrar | `registerIpcGroups` at `src/main/index.ts` (`TS2741`) |
 | no handler binds a channel outside the manifest | both entry points here read `IPC_ENDPOINTS` and take a group *name*; `ipc-channel-coverage.test.ts` keeps the wrappers unreachable elsewhere |
-| a payload is decoded before the handler sees it | no constructor pairs one with a raw `unknown` |
+| a payload is decoded before the handler sees it | no constructor pairs one with a raw `unknown`; `bun run test:ipc-input -- --allow-mutations` sends malformed payloads from a running dev app |
 | no channel is in two groups | `ipc-channel-coverage.test.ts` |
 | the preload invokes exactly the request endpoints | `ipc-channel-coverage.test.ts` |
 | the sender check runs first | `trusted-ipc.test.ts`, `define-ipc-group.test.ts` |

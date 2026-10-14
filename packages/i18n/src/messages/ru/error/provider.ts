@@ -271,6 +271,16 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "Не удаётся прочитать сохранённые настройки провайдеров. Обновите OpenBot, прежде чем их менять.",
   "error.provider.useChangeFailed": "OpenBot не удалось изменить настройку провайдера.",
+  "error.provider.accountsUnsupported": "{provider} поддерживает только один аккаунт.",
+  "error.provider.accountNeedsConnection": "Подключите {provider}, прежде чем добавлять ещё один аккаунт.",
+  "error.provider.accountLimit": "Максимум аккаунтов {provider}: {limit}.",
+  "error.provider.accountNotFound": "Этого аккаунта {provider} нет на этом компьютере. Обновите и попробуйте ещё раз.",
+  "error.provider.accountAlreadyAdded": "Этот аккаунт {provider} уже подключён.",
+  "error.provider.accountDefault": "Первый аккаунт {provider} нельзя удалить.",
+  "error.provider.accountInUse": "Агент с этим аккаунтом сейчас работает. Попробуйте ещё раз, когда агент остановится.",
+  "error.provider.accountsReadOnly":
+    "Не удаётся прочитать сохранённые аккаунты провайдеров. Обновите OpenBot, прежде чем их менять.",
+  "error.provider.accountSignedOut": "Выполнен выход из аккаунта {provider}. Войдите снова.",
   "error.provider.sessionSettingUnavailable": "Этот параметр недоступен в текущей сессии провайдера.",
   "error.provider.sessionSettingInvalid": "Это значение недоступно для параметра.",
   "error.provider.sessionSettingsBusy": "Дождитесь окончания текущего хода, прежде чем менять параметр сессии.",

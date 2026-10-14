@@ -76,7 +76,7 @@ export function stripBotMention(content: string, botUserId: string | null): stri
  * The delivery for one guild message, or null when the host must not receive it: a bot or webhook
  * wrote it, or it does not mention the bot.
  */
-export function normalizeGuildMessage(message: DiscordMessageData, botUserId: string): DiscordInboundMessage | null {
+function normalizeGuildMessage(message: DiscordMessageData, botUserId: string): DiscordInboundMessage | null {
   if (!message.guild_id || message.author.bot === true || message.webhook_id) return null;
   if (!message.mentions.some((user) => user.id === botUserId)) return null;
   const reference = message.message_reference;

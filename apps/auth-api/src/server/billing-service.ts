@@ -21,7 +21,12 @@ import type { HostedServerCatalog, HostedServerCatalogPlan } from "@openbot/cont
 import { isDynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Context, Effect, Layer, Schema } from "effect";
-import { type AccountAnalytics, type BillingAction, NO_ACCOUNT_ANALYTICS } from "./account-analytics";
+import {
+  type AccountAnalytics,
+  type BillingAction,
+  NO_ACCOUNT_ANALYTICS,
+  type PlanEndReason,
+} from "./account-analytics";
 import type { BillingSales } from "./billing-sales";
 import type { HostedFailure } from "./hosted-server-service";
 import type { RemoteFailure } from "./remote-control-plane";
@@ -294,7 +299,10 @@ export class BillingService {
           currency: request.currency,
           userId: request.user.id,
           serverId: request.serverId,
-          successUrl: returnUrl,
+          // Stripe puts the session ID in the URL. The desktop return page sends it with the first
+          // website visit of the browser, so that the saved checkout names the account.
+          successUrl:
+            returnToken && request.target !== "web" ? `${returnUrl}?checkout={CHECKOUT_SESSION_ID}` : returnUrl,
           cancelUrl: returnToken
             ? `${request.origin}/billing/checkout-return?token=${encodeURIComponent(returnToken)}`
             : `${returnUrl}${returnUrl.includes("?") ? "&" : "?"}cancelled=1`,
@@ -801,7 +809,29 @@ export class BillingService {
     );
     const synced: SyncedSubscription = { userId: ownerId, plan: key.plan, interval: key.interval, currency };
     if (stored.meta.changes !== 1) return synced;
-    this.#trackChange(previous, { ...synced, amount, status: subscription.status, cancelAtPeriodEnd });
+    const current = { ...synced, amount, status: subscription.status, cancelAtPeriodEnd };
+    const action = planChange(previous, current);
+    // A plan that starts after every earlier plan of the account ended. A failed read leaves it out:
+    // the subscription is already saved, so the event must not fail the sync.
+    const reactivated =
+      action === "plan_started"
+        ? yield* billingCall(() =>
+            dependencies.database
+              .prepare("SELECT status FROM billing_subscriptions WHERE user_id = ? AND stripe_subscription_id <> ?")
+              .bind(ownerId, subscription.id)
+              .all<{ status: string }>(),
+          ).pipe(
+            Effect.map(
+              ({ results }) =>
+                results.some((row) => row.status === "canceled") &&
+                !results.some(
+                  (row) => isOneOf(BILLING_SUBSCRIPTION_STATUSES, row.status) && isOpenBillingStatus(row.status),
+                ),
+            ),
+            Effect.catch(() => Effect.succeed(undefined)),
+          )
+        : undefined;
+    if (action) this.#trackChange(action, previous, current, reactivated);
     const onSubscriptionSynced = dependencies.onSubscriptionSynced;
     const status = subscription.status;
     if (serverId && onSubscriptionSynced) {
@@ -820,15 +850,11 @@ export class BillingService {
 
   /** Reports the change of a plan that one sync made. A sync that changes nothing reports nothing. */
   #trackChange(
+    action: BillingAction,
     previous: StoredSubscription | null,
-    current: SyncedSubscription & {
-      amount: number | null;
-      status: BillingSubscriptionStatus;
-      cancelAtPeriodEnd: boolean;
-    },
+    current: SyncedSubscription & { amount: number | null },
+    reactivated: boolean | undefined,
   ): void {
-    const action = planChange(previous, current);
-    if (!action) return;
     this.#analytics.track(current.userId, {
       name: "billing_action",
       action,
@@ -836,6 +862,8 @@ export class BillingService {
       interval: current.interval,
       currency: current.currency,
       amount: current.amount,
+      ...(reactivated === undefined ? {} : { reactivated }),
+      ...(action === "plan_ended" ? { endReason: planEndReason(previous) } : {}),
     });
   }
 
@@ -946,6 +974,11 @@ function planChange(
   const wasCancelling = previous.cancel_at_period_end === 1;
   if (wasCancelling === current.cancelAtPeriodEnd) return null;
   return current.cancelAtPeriodEnd ? "cancel_scheduled" : "cancel_withdrawn";
+}
+
+/** A plan that ends after its payment failed ends as unpaid; every other end is a cancellation. */
+function planEndReason(previous: StoredSubscription | null): PlanEndReason {
+  return previous?.status === "past_due" || previous?.status === "unpaid" ? "unpaid" : "canceled";
 }
 
 function serverPlan(row: ServerPlanRow): BillingServerPlan | null {

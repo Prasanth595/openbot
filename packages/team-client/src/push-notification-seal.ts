@@ -26,6 +26,19 @@ export interface PushNotificationContent {
   kind: PushNotificationKind;
   title: string;
   body: string;
+  /**
+   * Only for `approval`: the request that the buttons of the notification answer. An extension of
+   * an earlier app ignores it. `approvable` is true when the text shows all that Approve allows
+   * (`approvalShownWhole`); otherwise the notification offers Deny only.
+   */
+  approval?: PushNotificationApproval;
+}
+
+export interface PushNotificationApproval {
+  requestId: string | number;
+  /** A provider can use a request ID again after the host restarts. The turn tells them apart. */
+  turnId: string;
+  approvable: boolean;
 }
 
 export function pushNotificationKeys(secret: Uint8Array): PushNotificationKeys {
