@@ -939,8 +939,12 @@ const walk = Effect.fn("InstanceTransfer.walk")(function* (
   while (pending.length > 0) {
     const directory = pending.pop() ?? root;
     const listed = yield* Effect.result(archiveCall(() => readdir(directory, { withFileTypes: true })));
-    // A missing folder has no files: a new agent may not have a workspace yet.
-    if (Result.isFailure(listed)) continue;
+    // A missing folder has no files: a new agent may not have a workspace yet. A folder that cannot
+    // be read stops the export, as a file that cannot be read does, so no file is left out silently.
+    if (Result.isFailure(listed)) {
+      if (isMissingFileError(listed.failure.cause)) continue;
+      return yield* listed.failure;
+    }
     for (const entry of listed.success) {
       const path = join(directory, entry.name);
       const name = relative(root, path).split(sep).join("/");
@@ -950,6 +954,7 @@ const walk = Effect.fn("InstanceTransfer.walk")(function* (
         // A running agent can delete a file between `readdir` and `lstat`; that file is not exported.
         const info = yield* Effect.result(archiveCall(() => lstat(path)));
         if (Result.isSuccess(info)) files.push({ name, path, size: info.success.size });
+        else if (!isMissingFileError(info.failure.cause)) return yield* info.failure;
       }
     }
   }
