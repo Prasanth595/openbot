@@ -1,4 +1,5 @@
 import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Effect } from "effect";
 import {
   ScreenCaptureFailed,
@@ -19,6 +20,8 @@ import {
  * On macOS the Screen Recording grant is read before each capture. Without it macOS gives only the
  * wallpaper, and a capture of the wallpaper must not reach the model as if it were the screen.
  */
+
+const logger = createOpenBotLogger("screen-capture");
 
 /** The same bound as a browser screenshot: a larger image costs the model more than it shows it. */
 const MAX_CAPTURE_PIXELS = 4_194_304;
@@ -64,6 +67,26 @@ export interface ScreenCapturerOptions {
 
 function failure(reason: string) {
   return new ScreenCaptureFailed({ reason });
+}
+
+/** The cause stays in the log. The agent gets only the safe reason. */
+function captureFailed(operation: string) {
+  return (cause: unknown) => {
+    logger.warn("A screen capture failed.", { operation, cause: toLogValue(cause) });
+    return failure(sourceText("error.agent.screenCaptureFailed"));
+  };
+}
+
+/**
+ * The thumbnail box for a window. `desktopCapturer` draws every open window at this size, so the box
+ * has the area of one bounded capture, not of the largest display.
+ */
+function windowThumbnailSize(displays: CaptureDisplay[]) {
+  const sizes = displays.map(nativeSize);
+  const width = Math.max(1, ...sizes.map((size) => size.width));
+  const height = Math.max(1, ...sizes.map((size) => size.height));
+  const scale = Math.min(1, Math.sqrt(MAX_CAPTURE_PIXELS / (width * height)));
+  return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) };
 }
 
 function nativeSize(display: CaptureDisplay) {
@@ -114,6 +137,7 @@ function bounded(image: CaptureImage): CaptureImage {
 
 export class ScreenCapturer implements ScreenCaptureHost {
   readonly #options: ScreenCapturerOptions;
+  #askedForPermission = false;
 
   constructor(options: ScreenCapturerOptions) {
     this.#options = options;
@@ -144,13 +168,10 @@ export class ScreenCapturer implements ScreenCaptureHost {
     yield* this.#requirePermission();
     const displays = this.#options.displays();
     if (request.target === "window") {
-      // A window can be on any display, so the thumbnail may be as large as the largest one.
-      const sizes = displays.map(nativeSize);
-      const thumbnailSize = {
-        width: Math.max(1, ...sizes.map(({ width }) => width)),
-        height: Math.max(1, ...sizes.map(({ height }) => height)),
-      };
-      const source = (yield* this.#sources(["window"], thumbnailSize)).find(({ id }) => id === request.windowId);
+      // A window can be on any display, so the box takes the largest display, bounded.
+      const source = (yield* this.#sources(["window"], windowThumbnailSize(displays))).find(
+        ({ id }) => id === request.windowId,
+      );
       if (!source) return yield* failure(sourceText("error.agent.screenCaptureWindowMissing"));
       return yield* this.#encode(this.#nonEmpty(source.thumbnail), source.name);
     }
@@ -182,7 +203,7 @@ export class ScreenCapturer implements ScreenCaptureHost {
     return yield* this.#encode(
       Effect.try({
         try: () => image.crop(pixels),
-        catch: () => failure(sourceText("error.agent.screenCaptureFailed")),
+        catch: captureFailed("crop"),
       }),
       name,
     );
@@ -190,8 +211,9 @@ export class ScreenCapturer implements ScreenCaptureHost {
 
   /**
    * macOS asks the user for Screen Recording the first time an app captures, and gives only the
-   * wallpaper until the user grants it. So a grant that is not determined yet is asked for here, by
-   * one capture whose result is thrown away, and the agent is told to try again after the grant.
+   * wallpaper until the user grants it. Chromium reads the grant as granted or denied only, so a
+   * grant that was never asked for also reads as denied. The first refusal in this process makes one
+   * capture whose result is thrown away, which shows the macOS prompt when the user was never asked.
    */
   readonly #requirePermission = Effect.fn("ScreenCapturer.requirePermission")(function* (this: ScreenCapturer) {
     if (this.#options.platform !== "darwin") return;
@@ -200,17 +222,17 @@ export class ScreenCapturer implements ScreenCaptureHost {
       catch: () => failure(sourceText("error.agent.screenCapturePermissionMissing")),
     });
     if (status === "granted") return;
-    if (status === "denied" || status === "restricted") {
-      return yield* failure(sourceText("error.agent.screenCapturePermissionDenied"));
+    if (!this.#askedForPermission) {
+      this.#askedForPermission = true;
+      yield* this.#sources(["screen"], { width: 1, height: 1 }).pipe(Effect.ignore);
     }
-    yield* this.#sources(["screen"], { width: 1, height: 1 }).pipe(Effect.ignore);
     return yield* failure(sourceText("error.agent.screenCapturePermissionMissing"));
   });
 
   #sources(types: Array<"screen" | "window">, thumbnailSize: { width: number; height: number }) {
     return Effect.tryPromise({
       try: () => this.#options.getSources({ types, thumbnailSize }),
-      catch: () => failure(sourceText("error.agent.screenCaptureFailed")),
+      catch: captureFailed("sources"),
     });
   }
 
@@ -239,7 +261,7 @@ export class ScreenCapturer implements ScreenCaptureHost {
             const size = result.getSize();
             return { png: result.toPNG(), width: size.width, height: size.height, sourceName };
           },
-          catch: () => failure(sourceText("error.agent.screenCaptureFailed")),
+          catch: captureFailed("encode"),
         }),
       ),
     );

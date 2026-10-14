@@ -109,8 +109,6 @@ export const messages = defineMessages("error.agent", {
     "The region is not inside one display. Use desktop points inside the bounds of one display from list_capture_sources.",
   "error.agent.screenCapturePermissionMissing":
     "OpenBot does not have the Screen Recording permission. Ask the user to open System Settings > Privacy & Security > Screen & System Audio Recording, turn on OpenBot, then quit and open OpenBot again.",
-  "error.agent.screenCapturePermissionDenied":
-    "The user turned off Screen Recording for OpenBot. Ask the user to turn it on in System Settings > Privacy & Security > Screen & System Audio Recording, then quit and open OpenBot again.",
   "error.agent.screenCaptureEmptyWindows":
     "Windows gave an empty image. Ask the user to unlock the computer and close protected content. A policy of the organization can also stop screen capture.",
   "error.agent.screenCaptureFailed": "The screen capture failed. Try again.",

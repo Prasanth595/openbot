@@ -11,4 +11,5 @@ export const messages = defineMessages("status.agent", {
   "status.agent.screenCaptureRegion":
     "Capture the screen area at {x}, {y}, {width} × {height} points and send the image to the agent's model.",
   "status.agent.screenCaptureProgress": "Asking to capture the screen…",
+  "status.agent.screenCaptureReviewing": "Reviewing the screen capture…",
 });

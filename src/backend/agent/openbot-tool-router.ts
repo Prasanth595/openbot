@@ -936,15 +936,18 @@ export class OpenBotToolRouter {
       const { x, y, width, height } = capture.region;
       return sourceText("status.agent.screenCaptureRegion", { x, y, width, height });
     }
-    const sources = yield* host.listSources().pipe(Effect.catchTag("ScreenCaptureFailed", () => Effect.succeed(null)));
+    // A failure here, such as a missing permission, is the same failure that the capture would give.
+    const listed = yield* Effect.result(host.listSources());
+    if (Result.isFailure(listed)) return captureFailure(listed.failure);
+    const sources = listed.success;
     if (capture.target === "window") {
-      const window = sources?.windows.find(({ id }) => id === capture.windowId);
+      const window = sources.windows.find(({ id }) => id === capture.windowId);
       if (!window) return openBotToolFailure(sourceText("error.agent.screenCaptureWindowMissing"));
       return sourceText("status.agent.screenCaptureWindow", { name: window.name });
     }
     const display = capture.displayId
-      ? sources?.displays.find(({ id }) => id === capture.displayId)
-      : sources?.displays.find(({ primary }) => primary);
+      ? sources.displays.find(({ id }) => id === capture.displayId)
+      : sources.displays.find(({ primary }) => primary);
     if (capture.displayId && !display) return openBotToolFailure(sourceText("error.agent.screenCaptureDisplayMissing"));
     return display?.name
       ? sourceText("status.agent.screenCaptureDisplay", { name: display.name })

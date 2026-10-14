@@ -5,7 +5,7 @@ import type { ScreenCaptureRectangle, ScreenCaptureRequest } from "../backend/ag
 import { type CaptureDisplay, type CaptureImage, type CaptureSource, ScreenCapturer } from "./screen-capture";
 
 // Failure modes: a capture without the macOS grant sends the wallpaper as the screen; the first
-// capture never raises the macOS prompt; a secondary display or a 2x display gives a region of the
+// refusal never raises the macOS prompt; a secondary display or a 2x display gives a region of the
 // wrong display or the wrong pixels; an empty Windows image reaches the model as a capture.
 
 /** An image that remembers what it is a cut of, so a test reads which pixels a capture took. */
@@ -68,18 +68,18 @@ const capture = (host: ScreenCapturer, request: ScreenCaptureRequest) => Effect.
 const failure = (host: ScreenCapturer, request: ScreenCaptureRequest) =>
   Effect.runPromise(Effect.flip(host.capture(request)));
 
-it("refuses a capture on macOS when the user denied Screen Recording", async () => {
+// Chromium reads a grant that was never asked for as "denied", the same as a grant the user refused.
+it("refuses a capture on macOS without Screen Recording, and asks macOS only once", async () => {
   const { host, requests } = capturer({ access: "denied" });
-  const error = await failure(host, { target: "screen" });
-  expect(error.reason).toBe(sourceText("error.agent.screenCapturePermissionDenied"));
-  expect(requests).toEqual([]);
-});
-
-it("asks macOS for Screen Recording once and does not return the capture it asked with", async () => {
-  const { host, requests } = capturer({ access: "not-determined" });
-  const error = await failure(host, { target: "screen" });
-  expect(error.reason).toBe(sourceText("error.agent.screenCapturePermissionMissing"));
-  expect(requests).toEqual([{ types: ["screen"], thumbnailSize: { width: 1, height: 1 } }]);
+  const permissionPrompt = { types: ["screen"], thumbnailSize: { width: 1, height: 1 } };
+  expect((await failure(host, { target: "screen" })).reason).toBe(
+    sourceText("error.agent.screenCapturePermissionMissing"),
+  );
+  expect(requests).toEqual([permissionPrompt]);
+  expect((await failure(host, { target: "window", windowId: "window:7:0" })).reason).toBe(
+    sourceText("error.agent.screenCapturePermissionMissing"),
+  );
+  expect(requests).toEqual([permissionPrompt]);
 });
 
 it("captures the primary display at its own pixels", async () => {
