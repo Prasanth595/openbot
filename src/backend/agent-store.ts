@@ -23,12 +23,12 @@ import {
   AGENT_PROVIDERS,
   type AgentAccess,
   type AgentBackupModels,
-  type AgentModelChoice,
   type AgentModelId,
   type AgentProviderId,
   type AgentReasoningEffort,
   type AgentSessionSettingOverrides,
   type AgentSummary,
+  type AgentUsageLimitReturn,
   type AvatarImageInput,
   type BusyMessageMode,
   type CreateAgentInput,
@@ -41,9 +41,9 @@ import {
   isAgentAccess,
   isAgentBackupModels,
   isAgentModel,
-  isAgentModelChoice,
   isAgentSessionSettingOverrides,
   isAgentSessionSettingResets,
+  isAgentUsageLimitReturn,
   isAvatarHue,
   isAvatarSeed,
   isBusyMessageMode,
@@ -86,7 +86,7 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   // Absent means the agent asks before it leaves a model at its usage limit.
   backupModels?: AgentBackupModels;
   // Present only while the agent works on a backup model for a usage limit.
-  usageLimitReturn?: AgentModelChoice;
+  usageLimitReturn?: AgentUsageLimitReturn;
 };
 type StoredAgentBase = Omit<PersistedStoredAgent, "avatarSeed" | "avatarHue"> & DynamicRecord;
 
@@ -625,7 +625,7 @@ export class AgentStore {
     this: AgentStore,
     input: UpdateAgentInput & {
       /** The model to go back to after a usage limit. `null` removes it. */
-      usageLimitReturn?: AgentModelChoice | null;
+      usageLimitReturn?: AgentUsageLimitReturn | null;
     },
     initiatingAgentId?: string,
   ): Effect.fn.Return<AgentSummary, StoredStateFailure> {
@@ -710,7 +710,7 @@ export class AgentStore {
       )
         delete next.usageLimitReturn;
       else if (input.usageLimitReturn !== undefined) {
-        if (!isAgentModelChoice(input.usageLimitReturn)) throw new Error("Invalid usage limit model.");
+        if (!isAgentUsageLimitReturn(input.usageLimitReturn)) throw new Error("Invalid usage limit model.");
         next.usageLimitReturn = { ...input.usageLimitReturn };
       }
       next.updatedAt = new Date().toISOString();
@@ -1707,7 +1707,7 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.busyMessageMode === undefined || isBusyMessageMode(record.busyMessageMode)) &&
     (record.providerAccountId === undefined || isProviderAccountId(record.providerAccountId)) &&
     (record.backupModels === undefined || isAgentBackupModels(record.backupModels)) &&
-    (record.usageLimitReturn === undefined || isAgentModelChoice(record.usageLimitReturn)) &&
+    (record.usageLimitReturn === undefined || isAgentUsageLimitReturn(record.usageLimitReturn)) &&
     isAvatarSeed(record.avatarSeed) &&
     (record.avatarHue === null || isAvatarHue(record.avatarHue)) &&
     isMarketplaceSource(record.marketplaceSource)
@@ -1779,7 +1779,7 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
       ? value.backupModels
       : reset("backupModels", undefined);
   const usageLimitReturn =
-    value.usageLimitReturn === undefined || isAgentModelChoice(value.usageLimitReturn)
+    value.usageLimitReturn === undefined || isAgentUsageLimitReturn(value.usageLimitReturn)
       ? value.usageLimitReturn
       : reset("usageLimitReturn", undefined);
   let marketplaceSource: StoredAgent["marketplaceSource"];

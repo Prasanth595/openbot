@@ -123,6 +123,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     reorderQueue,
     stopActiveTurn,
     usageLimits,
+    usageLimitedModels,
     queues,
   } = useTurns();
   const {
@@ -278,11 +279,9 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     () => activeServer()?.kind === "local" && providerRuntimeDownloadsAvailable(),
   );
 
-  /** Whether a usage limit holds this model and account now: an agent on it is held. */
-  const usageLimited = (choice: AgentModelChoice) => {
-    const limits = usageLimits();
-    return agentList().some((agent) => agent.id in limits && sameAgentModelChoice(agent, choice));
-  };
+  /** Whether a usage limit holds this model and account now. */
+  const usageLimited = (choice: AgentModelChoice) =>
+    usageLimitedModels().some((limited) => sameAgentModelChoice(limited, choice));
 
   /**
    * A usage limit holds the active agent's queued message on this computer. The chat asks where to

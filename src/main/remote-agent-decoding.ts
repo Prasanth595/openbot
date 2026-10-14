@@ -58,7 +58,9 @@ export function decodeDraftAttachment(value: unknown): DraftAttachment {
 }
 
 export function decodeAgentSummary(value: unknown): AgentSummary {
-  const record = decodeRecord(value, "agent");
+  // Backup models stay on their host, and this decoder drops them. A later host can save a provider
+  // or more models than this version accepts, so they are not checked.
+  const { backupModels: _backupModels, usageLimitReturn: _usageLimitReturn, ...record } = decodeRecord(value, "agent");
   // Servers older than 63b55606 omit `avatarUrl` entirely. The shared guard requires the field, so
   // normalize the absent case to null before validating rather than loosening the guard for everyone.
   const candidate = record.avatarUrl === undefined ? { ...record, avatarUrl: null } : record;

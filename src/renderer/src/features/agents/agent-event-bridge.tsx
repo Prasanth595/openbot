@@ -67,6 +67,7 @@ export function AgentEventBridge() {
     setTurnProgress,
     setFailedTurns,
     setUsageLimits,
+    setUsageLimitedModels,
     setContextStates,
     setQueues,
     setPendingPrompts,
@@ -328,6 +329,7 @@ export function AgentEventBridge() {
     setFailedTurns(Object.fromEntries(snapshot.failedTurns.map((turn) => [turn.agentId, turn.turnId])));
     setContextStates(Object.fromEntries((snapshot.contextStates ?? []).map((state) => [state.agentId, state])));
     setUsageLimits(Object.fromEntries((snapshot.usageLimits ?? []).map((limit) => [limit.agentId, limit.resetsAt])));
+    setUsageLimitedModels(snapshot.usageLimitedModels ?? []);
     setQueues((current) => reconcileQueuesWithRuntimeWork(current, snapshot.work, runtimeTurns));
     setPendingPrompts((current) => reconcileAttentionPrompts(current, snapshot, submittedPromptRequests()));
     setPendingApprovals((current) => reconcileAttentionApprovals(current, snapshot));

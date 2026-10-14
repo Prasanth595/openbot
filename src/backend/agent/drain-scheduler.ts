@@ -53,6 +53,11 @@ export interface DrainHooks {
   redactMcp(text: string): string;
   /** Gives a channel task back to its channel after a spent plan refused it; false when it cannot go back. */
   requeueChannelDelivery(deliveryId: string): Effect.Effect<boolean>;
+  /**
+   * A usage limit stopped a drain of this agent. Each path that starts a queue comes here, so an
+   * agent set to switch without asking moves to a backup model for a message sent during the hold.
+   */
+  usageLimitHeld(agentId: string): void;
 }
 
 export interface DrainSchedulerOptions {
@@ -218,6 +223,7 @@ export class DrainScheduler {
       (this.#heldByMachine(agentId) && "machine");
     if (hold) {
       this.#reportHold(agentId, hold);
+      if (hold === "usage-limit") this.#hooks.usageLimitHeld(agentId);
       return;
     }
     this.#scheduledDrains.add(agentId);

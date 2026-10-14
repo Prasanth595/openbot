@@ -86,6 +86,15 @@ export function isAgentModelChoice(value: unknown): value is AgentModelChoice {
   );
 }
 
+/** The model an agent left for a usage limit, with the reasoning effort it had there. */
+export interface AgentUsageLimitReturn extends AgentModelChoice {
+  reasoningEffort: AgentReasoningEffort;
+}
+
+export function isAgentUsageLimitReturn(value: unknown): value is AgentUsageLimitReturn {
+  return isDynamicRecord(value) && isAgentModelChoice(value) && isReasoningEffort(value.reasoningEffort);
+}
+
 export function isAgentBackupModels(value: unknown): value is AgentBackupModels {
   return (
     isDynamicRecord(value) &&
@@ -165,7 +174,7 @@ export interface AgentSummary {
    * The agent's own model while a usage limit has moved it to a backup. Local-only. The agent goes
    * back to it when the limit ends.
    */
-  usageLimitReturn?: AgentModelChoice;
+  usageLimitReturn?: AgentUsageLimitReturn;
   threadId: string | null;
   workspacePath: string;
   preview: string;
@@ -201,7 +210,7 @@ export function isAgentSummary(value: unknown): value is AgentSummary {
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
     (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)) &&
     (value.backupModels === undefined || isAgentBackupModels(value.backupModels)) &&
-    (value.usageLimitReturn === undefined || isAgentModelChoice(value.usageLimitReturn)) &&
+    (value.usageLimitReturn === undefined || isAgentUsageLimitReturn(value.usageLimitReturn)) &&
     (value.threadId === null || isIdentifier(value.threadId)) &&
     isBoundedString(value.workspacePath, INPUT_LIMITS.path) &&
     isBoundedString(value.preview, INPUT_LIMITS.messageText) &&

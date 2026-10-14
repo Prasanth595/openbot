@@ -143,7 +143,7 @@ export interface RuntimeSnapshotSources {
   mailbox: Pick<MailboxStore, "listRuntimeWork">;
   turn: Pick<TurnLifecycle, "failedTurns">;
   attention: Pick<AttentionRegistry, "runtimeAttention">;
-  usageLimits: Pick<UsageLimitGate, "limitedAgents">;
+  usageLimits: Pick<UsageLimitGate, "limitedAgents" | "limitedModels">;
 }
 
 /** The runtime view of every agent: active turns, queued work, latest messages and attention. */
@@ -212,6 +212,7 @@ export function buildRuntimeSnapshot({
     ...attention.runtimeAttention(),
     failedTurns: [...turn.failedTurns()].map(([agentId, turnId]) => ({ agentId, turnId })),
     usageLimits: usageLimits.limitedAgents(),
+    usageLimitedModels: usageLimits.limitedModels(),
     ...(contextStates ? { contextStates } : {}),
   });
 }

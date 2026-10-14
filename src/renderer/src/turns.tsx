@@ -2,6 +2,7 @@ import type {
   AgentApproval,
   AgentContextState,
   AgentEvent,
+  AgentModelChoice,
   AgentWaitsSnapshot,
   QueueSnapshot,
   RoutineFields,
@@ -82,6 +83,8 @@ const Turns = createSimpleContext({
     // The agents whose queue waits for a provider plan to reset, in epoch seconds. Only a runtime snapshot of the local host carries it.
     const [contextStates, setContextStates] = createSignal<Record<string, AgentContextState>>({});
     const [usageLimits, setUsageLimits] = createSignal<Record<string, number | null>>({});
+    // Each provider account and model that a usage limit holds, also with no agent on it.
+    const [usageLimitedModels, setUsageLimitedModels] = createSignal<AgentModelChoice[]>([]);
     const [queues, setQueues] = createSignal<Record<string, QueueSnapshot>>(seed?.queues ?? {});
     // Only the active agent's open waits load; a `waits-changed` event updates any agent.
     const [waits, setWaits] = createSignal<Record<string, AgentWaitsSnapshot>>({});
@@ -433,6 +436,8 @@ const Turns = createSimpleContext({
       setContextStates,
       usageLimits,
       setUsageLimits,
+      usageLimitedModels,
+      setUsageLimitedModels,
       queues,
       setQueues,
       setWaits,

@@ -95,6 +95,7 @@ import {
   type BusyMessageMode,
   CONTEXT_RESET_ITEM_TYPE,
   DEFAULT_BUSY_MESSAGE_MODE,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   isContextResetMarker,
   MODEL_SWITCH_ITEM_TYPES,
   type ModelSwitchReason,
@@ -991,6 +992,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         isStopping: () => this.#stopping,
         servesModel: (model) => this.#endpoints.serves(model),
         requeueChannelDelivery: (deliveryId) => this.#requeueChannelDelivery(deliveryId),
+        // The move ends the hold of this agent, so it schedules the drain again.
+        usageLimitHeld: (agentId) => {
+          if (!this.#usageLimitMove(agentId)) return;
+          Effect.runFork(this.#followUsageLimit(agentId).pipe(Effect.forkIn(this.#scope, { startImmediately: true })));
+        },
       },
     });
     this.#sessionSettings = new SessionSettings({
@@ -2094,7 +2100,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         : undefined;
     const moved = previousChoice && nextChoice && !sameAgentModelChoice(previousChoice, nextChoice);
     const leaving = Boolean(moved && input.leaveUsageLimit && wasHeld);
-    const returnTo = leaving && previous ? (previous.usageLimitReturn ?? previousChoice) : undefined;
+    const returnTo =
+      leaving && previous && previousChoice
+        ? (previous.usageLimitReturn ?? { ...previousChoice, reasoningEffort: previous.reasoningEffort })
+        : undefined;
     const usageLimitReturn =
       returning || (returnTo && nextChoice && sameAgentModelChoice(returnTo, nextChoice)) ? null : returnTo;
     const agent = yield* this.#store.updateAgent(
@@ -2177,8 +2186,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     if (this.#runsTurn(agentId) || this.#mailbox.hasStartedDelivery(agentId)) return null;
     const ready = (choice: AgentModelChoice) =>
       this.#modelChoiceReady(choice) && !this.#usageLimits.isLimited(usageLimitOf(choice));
-    // The agent keeps its reasoning effort where the other model has it.
-    const move = (choice: AgentModelChoice) => {
+    // The agent keeps its reasoning effort where the other model has it. It goes back with the effort it left.
+    const move = (choice: AgentModelChoice, reasoningEffort = agent.reasoningEffort) => {
       const model = this.#endpoints
         .available()
         .find((option) => option.provider === choice.provider && option.id === choice.model);
@@ -2188,13 +2197,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         model: choice.model,
         providerAccountId: choice.providerAccountId ?? null,
         reasoningEffort:
-          model && !model.supportedReasoningEfforts.includes(agent.reasoningEffort)
+          model && !model.supportedReasoningEfforts.includes(reasoningEffort)
             ? model.defaultReasoningEffort
-            : agent.reasoningEffort,
+            : reasoningEffort,
       };
     };
     if (agent.usageLimitReturn && ready(agent.usageLimitReturn))
-      return { input: move(agent.usageLimitReturn), returning: true };
+      return { input: move(agent.usageLimitReturn, agent.usageLimitReturn.reasoningEffort), returning: true };
     if (this.#usageLimits.mayDrain(agentId) || !agent.backupModels?.automatic || !this.#mailbox.nextQueued(agentId))
       return null;
     const current = agentModelChoice(agent);
@@ -2202,16 +2211,21 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return next ? { input: { ...move(next), leaveUsageLimit: true }, returning: false } : null;
   }
 
-  /** Whether the provider is on, the account exists, and the model list has the model. */
+  /**
+   * Whether the provider is on and signed in, the account is connected, and the model list has the
+   * model. The same check as `backupModelOption` in the settings page and the chat card.
+   */
   #modelChoiceReady(choice: AgentModelChoice): boolean {
-    const account = agentProviderAccount(choice);
-    try {
-      this.#providers.requireProviderOn(choice.provider);
-    } catch {
-      return false;
-    }
+    const accountId = choice.providerAccountId ?? DEFAULT_PROVIDER_ACCOUNT_ID;
+    const provider = this.getStatus().providers?.find((status) => status.id === choice.provider);
+    const accounts = provider?.accounts;
     return (
-      (!account || this.#providers.hasProviderAccount(choice.provider, account)) &&
+      provider !== undefined &&
+      provider.off !== true &&
+      provider.state === "available" &&
+      (accounts === undefined
+        ? accountId === DEFAULT_PROVIDER_ACCOUNT_ID
+        : accounts.some((account) => account.id === accountId && account.state === "connected")) &&
       this.#endpoints.available().some((model) => model.provider === choice.provider && model.id === choice.model)
     );
   }
