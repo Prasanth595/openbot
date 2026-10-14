@@ -10,6 +10,8 @@ import {
   channelRoutingConversationEvent,
   channelRoutingConversationEventItemType,
   decodeChannel,
+  decodeHostProviderAccounts,
+  decodeHostProviderAccountUsage,
   decodeMcpServerConfigs,
   hostedSiteConversationEvent,
   hostedSiteConversationEventItemType,
@@ -1000,5 +1002,41 @@ describe("agent auto-approval", () => {
   it("does not approve when an override is present but not true", () => {
     const unvalidated = JSON.parse('{"turbo":false,"defaultAutoApprove":true,"autoApproveOverrides":{"chief":null}}');
     expect(agentAutoApprovalEnabled(unvalidated, "chief")).toBe(false);
+  });
+});
+
+describe("joined server provider accounts", () => {
+  const extra = "a0123456789abcdef";
+  const account = { id: extra, label: null, email: "work@example.com", state: "connected", message: null };
+
+  it("leaves out a provider this client does not know, and refuses an account id the host does not make", () => {
+    expect(
+      decodeHostProviderAccounts({
+        providers: [
+          { provider: "codex", accounts: [account] },
+          { provider: "future-provider", accounts: [account] },
+        ],
+        agents: [{ agentId: "chief", accountId: extra }],
+      }),
+    ).toEqual({
+      providers: [{ provider: "codex", accounts: [account] }],
+      agents: [{ agentId: "chief", accountId: extra }],
+    });
+    expect(() =>
+      decodeHostProviderAccounts({ providers: [], agents: [{ agentId: "chief", accountId: "../codex" }] }),
+    ).toThrow();
+    expect(() =>
+      decodeHostProviderAccounts({
+        providers: [{ provider: "codex", accounts: [{ ...account, id: "../codex" }] }],
+        agents: [],
+      }),
+    ).toThrow();
+  });
+
+  it("refuses an account reading that does not name its account", () => {
+    const window = { usedPercent: 25, windowDurationMins: 300, resetsAt: 1_786_563_600 };
+    const limit = { id: "codex", accountId: extra, primary: window, secondary: null };
+    expect(decodeHostProviderAccountUsage({ limits: [limit] })).toEqual({ limits: [limit] });
+    expect(() => decodeHostProviderAccountUsage({ limits: [{ ...limit, accountId: undefined }] })).toThrow();
   });
 });

@@ -468,7 +468,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       mcpServers: {},
       strictMcpConfig: true,
       persistSession: false,
-      env: { ...claudeEnvironment(this.#cli), CLAUDE_AGENT_SDK_CLIENT_APP: "openbot/0.1.0" },
+      env: {
+        ...claudeEnvironment(this.#cli),
+        ...this.#agentEnvironment?.(),
+        CLAUDE_AGENT_SDK_CLIENT_APP: "openbot/0.1.0",
+      },
     };
   }
 
@@ -606,7 +610,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
               timeout: 5_000,
               maxBuffer: 64 * 1024,
               windowsVerbatimArguments: target.windowsVerbatimArguments,
-              env: claudeEnvironment(this.#cli),
+              // The agent environment carries the account's `CLAUDE_CONFIG_DIR`, so this reads that account.
+              env: { ...claudeEnvironment(this.#cli), ...this.#agentEnvironment?.() },
             }),
           ),
         ),

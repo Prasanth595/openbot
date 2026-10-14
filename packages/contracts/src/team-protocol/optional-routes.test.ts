@@ -26,6 +26,7 @@ import { HOSTED_SITES_ROUTES } from "./hosted-sites-v1";
 import { LIVE_ACTIVITY_PUSH_ROUTES } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_APP_CAPABILITY, MCP_SIGN_IN_APP_ROUTES } from "./mcp-sign-in-app-v1";
 import { optionalRouteCodec } from "./optional-routes";
+import { PROVIDER_ACCOUNTS_CAPABILITY, PROVIDER_ACCOUNTS_ROUTES } from "./provider-accounts-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "./providers-v1";
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "./providers-v3";
 import { PUSH_NOTIFICATIONS_CAPABILITY, PUSH_NOTIFICATIONS_ROUTES } from "./push-notifications-v1";
@@ -863,5 +864,33 @@ describe("conversation-file-search-v1", () => {
     expect(TEAM_CURRENT_CAPABILITIES).toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
     expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
     expect(legacyTeamCapabilities(TEAM_CURRENT_CAPABILITIES)).not.toContain(CONVERSATION_FILE_SEARCH_CAPABILITY);
+  });
+});
+
+describe("provider-accounts-v1", () => {
+  const extra = "a0123456789abcdef";
+
+  // An account id names a folder on the host, so only `default` and the ids the host makes pass.
+  it("refuses an account id that is not one the host makes", () => {
+    expect(codec(PROVIDER_ACCOUNTS_ROUTES.remove).request({ provider: "codex", accountId: extra })).toEqual({
+      provider: "codex",
+      accountId: extra,
+    });
+    for (const accountId of ["../codex", "A0123456789ABCDEF", "a0123", "", "default/.."]) {
+      expect(() => codec(PROVIDER_ACCOUNTS_ROUTES.remove).request({ provider: "codex", accountId })).toThrow();
+      expect(() => codec(PROVIDER_ACCOUNTS_ROUTES.agent).request({ agentId: "chief", accountId })).toThrow();
+      expect(() =>
+        codec(PROVIDER_ACCOUNTS_ROUTES.list).response(200, {
+          providers: [],
+          agents: [{ agentId: "chief", accountId }],
+        }),
+      ).toThrow();
+    }
+  });
+
+  it("is advertised only to a protocol 7 peer", () => {
+    expect(TEAM_CURRENT_CAPABILITIES).toContain(PROVIDER_ACCOUNTS_CAPABILITY);
+    expect(TEAM_BOOTSTRAP_CAPABILITIES).not.toContain(PROVIDER_ACCOUNTS_CAPABILITY);
+    expect(legacyTeamCapabilities(TEAM_CURRENT_CAPABILITIES)).not.toContain(PROVIDER_ACCOUNTS_CAPABILITY);
   });
 });

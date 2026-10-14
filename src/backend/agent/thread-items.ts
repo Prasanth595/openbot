@@ -1,5 +1,5 @@
 import { RequestError } from "@agentclientprotocol/sdk";
-import { agentProviderName, COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
+import { agentProviderName, COMPUTER_USE_MCP_SERVER_NAME, DEFAULT_PROVIDER_ACCOUNT_ID } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { type AgentProvider, RequestTimeoutError } from "../agent-client";
@@ -235,6 +235,12 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
     return completed ? "Reviewing the other agent’s response…" : "Coordinating with another agent…";
   }
   return completed ? "Reviewing the latest tool result…" : "Working through the next tool-assisted step…";
+}
+
+/** The provider account after the first that an agent runs on, or null for the provider's own sign-in. */
+export function agentProviderAccount(agent: { providerAccountId?: string }): string | null {
+  const accountId = agent.providerAccountId;
+  return accountId && accountId !== DEFAULT_PROVIDER_ACCOUNT_ID ? accountId : null;
 }
 
 export function providerForAgent(agent: { provider: AgentProvider }): AgentProvider {

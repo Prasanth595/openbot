@@ -220,7 +220,7 @@ describe("Team API agent-host-settings-v1", () => {
     const settings = createAgentHostSettings({
       agents: {
         listAgents: () => [agent],
-        updateAgent: ({ agentId: _agentId, busyMessageMode, ...changes }) =>
+        updateAgent: ({ agentId: _agentId, busyMessageMode, providerAccountId: _providerAccountId, ...changes }) =>
           Effect.sync(() => {
             agent = { ...agent, ...changes };
             if (busyMessageMode === null) delete agent.busyMessageMode;
@@ -1076,12 +1076,12 @@ describe("Team API protocol 7 negotiation", () => {
     };
     const old = await read("6");
     const current = await read("7");
-    expect(TEAM_CURRENT_CAPABILITIES).toHaveLength(76);
+    expect(TEAM_CURRENT_CAPABILITIES).toHaveLength(77);
     expect(legacyTeamCapabilities(TEAM_CURRENT_CAPABILITIES)).toHaveLength(63);
     // This fixture omits optional services. Their capabilities must not be advertised.
     expect(old.capabilities).toEqual(legacyTeamCapabilities(current.capabilities));
     expect(old.capabilities.length).toBeLessThanOrEqual(63);
-    expect(current.capabilities.length).toBeLessThanOrEqual(76);
+    expect(current.capabilities.length).toBeLessThanOrEqual(77);
     expect(old.capabilities).not.toContain("local-providers-v3");
     expect(old.capabilities).not.toContain("agent-session-settings-v1");
     expect(old.capabilities).not.toContain("agent-memories-v1");

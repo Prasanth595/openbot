@@ -6,9 +6,11 @@ import {
   analyticsRange,
   type CreateAgentInput,
   emptyAnalyticsTotals,
+  type HostProviderAccounts,
   type InstalledSkill,
   type Routine,
   type SetAgentMemoryInclusionInput,
+  type SetAgentProviderAccountInput,
   type SetEnabledSkillInput,
   type SidebarLayoutAction,
   type SidebarLayoutSnapshot,
@@ -214,6 +216,9 @@ const workspace = {
   canPublishAgent: vi.fn((_serverId: string) => false),
   canManageAgentAccess: vi.fn((_serverId: string) => false),
   canManageAgentHostSettings: vi.fn((_serverId: string) => false),
+  canManageProviderAccounts: vi.fn((_serverId: string) => false),
+  loadProviderAccounts: vi.fn<(serverId: string) => Promise<HostProviderAccounts | null>>(async () => null),
+  setAgentProviderAccount: vi.fn(async (_input: SetAgentProviderAccountInput, _serverId: string) => {}),
 };
 vi.mock("@/features/workspace/context/mobile-workspace-context", () => ({ useMobileWorkspace: () => workspace }));
 // The account server's feature flags need the native app version.

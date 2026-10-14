@@ -22,6 +22,7 @@ import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-pro
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -902,11 +903,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       }
       if (event.type === "agents-changed") {
         replaceServerAgents(serverId, event.agents);
-        // The admin and host settings of an agent are not in the agent summary. The host sends this event
-        // when one of them changes, so an open settings page reads them again.
+        // The admin and host settings and the provider account of an agent are not in the agent summary.
+        // The host sends this event when one of them changes, so an open settings page reads them again.
         void queryClient.invalidateQueries({
           queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId],
-          predicate: (query) => ["admin", "host", "session-settings"].includes(String(query.queryKey.at(-1))),
+          predicate: (query) =>
+            ["admin", "host", "session-settings", "provider-accounts"].includes(String(query.queryKey.at(-1))),
         });
       } else if (event.type === "conversation") {
         const knownIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
@@ -1340,6 +1342,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       canManageAgentAccess: (serverId) => administers(serverId, AGENT_ADMIN_CAPABILITY),
       canManageAgentHostSettings: (serverId) => administers(serverId, AGENT_HOST_SETTINGS_CAPABILITY),
       canPublishAgent: (serverId) => administers(serverId, AGENT_PUBLISH_CAPABILITY),
+      canManageProviderAccounts: (serverId) => administers(serverId, PROVIDER_ACCOUNTS_CAPABILITY),
       updateServerIdentity: async (serverId, input) => {
         const server = serversRef.current.find((candidate) => candidate.id === serverId);
         if (!server || server.role === "member")

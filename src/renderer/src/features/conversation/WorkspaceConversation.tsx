@@ -12,6 +12,7 @@ import { useTurns } from "../../turns";
 import { turnsPort } from "../../turns-port";
 import { useAuth } from "../account/account-context";
 import { useAgents } from "../agents/agents-context";
+import { withHostAccountUsage } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
 import { useBrowserTabs } from "../browser/browser-context";
 import { useConnectors } from "../connectors/connectors-context";
@@ -78,6 +79,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const { customAgents } = useCustomAgents();
   const {
     agentStatus,
+    hostAccountLimits,
     agentList,
     agentListConnecting,
     activeAgent,
@@ -280,7 +282,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
             : agentStatus()
         }
         agentsConnecting={agentListConnecting()}
-        accountUsage={auth.accountUsage()}
+        accountUsage={withHostAccountUsage(auth.accountUsage(), hostAccountLimits())}
         providerRuntimeStatuses={providerDownloads() ? providerRuntimeStatuses() : undefined}
         customProviders={customProviders()}
         // The custom agents are this computer's. A joined host's picker counts its own from its models.

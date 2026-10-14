@@ -84,6 +84,7 @@ import {
 import { type NewAgentDraft, newAgentInput } from "../agents/agent-create-input";
 import { type CreationPreference, resolveCreationModel } from "../agents/agent-creation-model";
 import { claimErrorToast, readableAgentError } from "../agents/agent-error-text";
+import { withHostAccountUsage, withHostProfileAccount } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
 import { ChannelConversation } from "../channels/ChannelConversation";
 import { readChannelSelection, writeChannelSelection } from "../channels/channel-selection";
@@ -542,14 +543,18 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const eventsEnabled = () =>
     workspace.state.capabilities.includes(EVENTS_CAPABILITY) &&
     (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
-  const providerSettings = createWebProviderSettings({
+  const providerAdmin = createWebProviderSettings({
     server: () => (workspace.runtime.admin ? server() : undefined),
     request: hostRequest,
     status,
     setStatus,
     readStatus: () => workspace.runtime.status(),
     browser: workspace.runtime.browser,
+    agents: () => workspace.profiles(),
   });
+  const providerSettings = providerAdmin.settings;
+  /** The usage of the providers' own sign-ins, with that of the host's other accounts. */
+  const accountUsage = () => withHostAccountUsage(usageReading.accountUsage(), providerAdmin.hostAccounts.limits());
   const connectFromComposer = (provider: AgentProviderId) =>
     providerSettings()?.connection?.connect(provider, "composer");
   /** Whether the composer's sign-in notice can connect the agent's provider from this tab. */
@@ -593,7 +598,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   );
   /** The Team API agent summary has no access, so the agent shows the host's answer. */
   const conversationAgent = createMemo(() => {
-    const agent = workspace.selected();
+    const selected = workspace.selected();
+    const host = providerAdmin.hostAccounts.host();
+    const agent = selected && host ? withHostProfileAccount(selected, host) : selected;
     const settings = remoteAgentAdmin.settings();
     const automation = remoteAgentAdmin.automation();
     return agent
@@ -1360,10 +1367,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 // A browser has no app platform, but it draws the same shelf as the desktop app.
                 appInfo={null}
                 shelf
-                agentStatus={status()}
-                accountUsage={usageReading.accountUsage()}
+                agentStatus={providerAdmin.status()}
+                accountUsage={accountUsage()}
                 usageProvider={workspace.selected()?.provider ?? null}
                 usageModel={workspace.selected()?.model ?? null}
+                usageAccountId={conversationAgent()?.providerAccountId ?? null}
                 usageTargetKey={usageReading.usageTargetKey()}
                 usageRefreshRevision={0}
                 usageReady={usageReading.usageReady()}
@@ -1378,7 +1386,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }}
                 compact={compact()}
                 withServerRail={layout.serverRailVisible()}
-                onRefreshUsage={usageReading.refreshUsage}
+                onRefreshUsage={() => {
+                  void providerAdmin.hostAccounts.refreshUsage().catch(() => undefined);
+                  return usageReading.refreshUsage();
+                }}
                 onUpdateAction={unavailable}
                 onLogout={signOut}
                 onOpenExternal={openWebDestination}
@@ -1730,9 +1741,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 setMarketplaceOpen(true);
               }}
               agentStatus={
-                workspace.state.status === "online" && workspace.conversation()?.page ? status() : CONNECTING_STATUS
+                workspace.state.status === "online" && workspace.conversation()?.page
+                  ? providerAdmin.status()
+                  : CONNECTING_STATUS
               }
-              accountUsage={usageReading.accountUsage()}
+              accountUsage={accountUsage()}
               // As in the desktop app on a joined host: an owner or admin downloads the host's
               // providers, and Connect runs the provider's route for this tab.
               providerRuntimeStatuses={providerSettings()?.providerRuntimeStatuses}

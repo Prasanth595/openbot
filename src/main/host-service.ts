@@ -82,6 +82,7 @@ interface HostServiceOptions {
   signInRelay?: ForwardedApiOptions["signInRelay"];
   connectors?: ForwardedApiOptions["connectors"];
   providerHostSignIns?: ForwardedApiOptions["providerHostSignIns"];
+  providerAccounts?: ForwardedApiOptions["providerAccounts"];
   mcpToolRuntimePreparation?: ForwardedApiOptions["mcpToolRuntimePreparation"];
   storage?: ForwardedApiOptions["storage"];
   hostedSites?: ForwardedApiOptions["hostedSites"];
@@ -351,6 +352,7 @@ export class HostService extends EventEmitter<HostEvents> {
       signInRelay: options.signInRelay,
       connectors: options.connectors,
       providerHostSignIns: options.providerHostSignIns,
+      providerAccounts: options.providerAccounts,
       mcpToolRuntimePreparation: options.mcpToolRuntimePreparation,
       storage: options.storage,
       hostedSites: options.hostedSites,

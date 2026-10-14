@@ -365,6 +365,40 @@ describe("AgentStore", () => {
     expect(await allowAutomation()).toBeUndefined();
   });
 
+  it("keeps the provider account across a restart, and reads an agent stored before accounts as before", async () => {
+    const root = await mkdtemp(join(tmpdir(), "openbot-store-"));
+    temporaryRoots.push(root);
+    const userData = join(root, "user-data");
+    const home = join(root, "home");
+    const store = new AgentStore(userData, home);
+    await runCauseEffect(store.initialize());
+    const agent = await runCauseEffect(store.createAgent(AGENT_PROFILE_INPUT));
+    await runCauseEffect(store.updateAgent({ agentId: agent.id, providerAccountId: "a0123456789abcdef" }));
+    const reopen = async () => {
+      const reopened = new AgentStore(userData, home);
+      await runCauseEffect(reopened.initialize());
+      return reopened.list().find((candidate) => candidate.id === agent.id);
+    };
+    const setStored = (sql: string, ...values: string[]) =>
+      store.database.connection
+        .prepare(`UPDATE projection_agents SET agent_json = ${sql} WHERE agent_id = ?`)
+        .run(...values, agent.id);
+
+    expect((await reopen())?.providerAccountId).toBe("a0123456789abcdef");
+    await runCauseEffect(store.updateAgent({ agentId: agent.id, providerAccountId: null }));
+    expect((await reopen())?.providerAccountId).toBeUndefined();
+    await runCauseEffect(store.updateAgent({ agentId: agent.id, providerAccountId: "a0123456789abcdef" }));
+    setStored("json_remove(agent_json, '$.providerAccountId')");
+    const released = await reopen();
+    expect(released?.threadId).toBe(agent.threadId);
+    expect(released?.providerAccountId).toBeUndefined();
+    // A value no build wrote names no folder; the agent stays, on the provider's own sign-in.
+    setStored("json_set(agent_json, '$.providerAccountId', ?)", "../codex");
+    const damaged = await reopen();
+    expect(damaged?.workspacePath).toBe(agent.workspacePath);
+    expect(damaged?.providerAccountId).toBeUndefined();
+  });
+
   it("migrates version 1 avatars to stable id seeds", async () => {
     const root = await mkdtemp(join(tmpdir(), "openbot-store-"));
     temporaryRoots.push(root);
