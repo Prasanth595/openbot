@@ -355,3 +355,15 @@ input.custom-acp-code {
   gap: var(--openbot-space-4);
   margin-top: var(--openbot-space-3);
 }
+
+/* The ACP registry search and agent-ID forms. The field takes its own line; the actions sit under it
+ * and wrap apart, with the same gap the settings section keeps between its children. */
+.acp-registry-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--openbot-space-2);
+}
+
+.acp-registry-form > .ui-field {
+  flex-basis: 100%;
+}
