@@ -685,14 +685,17 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     }
   }
 
+  /** The store wraps the saved value in a proxy, so a newer save is told apart by its number. */
+  let backupModelsSave = 0;
   async function saveBackupModels(next: AgentBackupModels | null): Promise<void> {
     const agentId = props.agent.id;
     const previous = draft.backupModels;
+    const save = ++backupModelsSave;
     setDraft((state) => {
       state.backupModels = next;
     });
     if (await saveAgentPatch({ backupModels: next }, agentId)) return;
-    if (!disposed && props.agent.id === agentId && draft.backupModels === next) {
+    if (!disposed && props.agent.id === agentId && backupModelsSave === save) {
       setDraft((state) => {
         state.backupModels = previous;
       });

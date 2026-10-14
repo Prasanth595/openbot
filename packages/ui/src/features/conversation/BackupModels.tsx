@@ -151,7 +151,13 @@ export function BackupModelsPage(props: BackupModelsPageProps) {
   const entries = () => order().map((choice) => backupModelOption(choice, props.source));
   const addable = () =>
     backupModelOptions(props.source, [props.own, ...order()]).filter((option) => option.state !== "unavailable");
-  const save = (next: AgentBackupModels) => props.onChange(next.automatic || next.order.length > 0 ? next : null);
+  // The value can come from a store, and IPC cannot clone a store proxy, so each choice is copied.
+  const save = (next: AgentBackupModels) =>
+    props.onChange(
+      next.automatic || next.order.length > 0
+        ? { automatic: next.automatic, order: next.order.map((choice) => ({ ...choice })) }
+        : null,
+    );
   return (
     <div class="backup-models-page">
       <Text as="p" variant="body-sm" tone="secondary" class="backup-models-intro">
@@ -405,5 +411,9 @@ export function rememberedBackupModels(
   backupModels: AgentBackupModels | undefined,
 ): AgentBackupModels {
   const rest = (backupModels?.order ?? []).filter((other) => !sameAgentModelChoice(other, choice));
-  return { automatic: true, order: [choice, ...rest].slice(0, AGENT_BACKUP_MODEL_LIMIT) };
+  // Copies, as in `BackupModelsPage`: the saved order can come from a store, and IPC cannot clone a proxy.
+  return {
+    automatic: true,
+    order: [choice, ...rest].slice(0, AGENT_BACKUP_MODEL_LIMIT).map((other) => ({ ...other })),
+  };
 }
