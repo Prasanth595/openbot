@@ -171,8 +171,14 @@ export function createRemoteFileReceiver<E, R>(send: (data: string) => Effect.Ef
       }
       return true;
     }
-    if (frame.type === "file-cancel" && downloads.has(frame.transferId)) {
+    if (frame.type === "file-cancel" && (downloads.has(frame.transferId) || waiters.has(frame.transferId))) {
       remove(frame.transferId);
+      const waiter = waiters.get(frame.transferId);
+      if (waiter) {
+        clearTimeout(waiter.timer);
+        waiters.delete(frame.transferId);
+        waiter.reject(new Error(sourceText("error.remote.attachmentRejected")));
+      }
       return true;
     }
     return false;
