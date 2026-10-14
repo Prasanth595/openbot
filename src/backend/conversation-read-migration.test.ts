@@ -195,17 +195,12 @@ function snapshot(messages: ConversationSnapshot["messages"]): ConversationSnaps
   };
 }
 
-function message(
-  id: string,
-  author: "assistant" | "user",
-  itemType?: string,
-): ConversationSnapshot["messages"][number] {
+function message(id: string, author: "assistant" | "user"): ConversationSnapshot["messages"][number] {
   return {
     id,
     author,
     text: id,
     createdAt: `2026-08-19T09:0${id.at(-1) ?? "0"}:00.000Z`,
     status: "completed",
-    itemType,
   };
 }
