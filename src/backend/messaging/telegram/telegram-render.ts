@@ -82,26 +82,46 @@ function blockHtml(line: string): string {
 }
 
 function inlineHtml(line: string): string {
+  // Protect escaped ASCII punctuation before parsing, but leave code contents intact.
+  let marker = "";
+  while (line.includes(marker)) marker += "";
+  const escapes: string[] = [];
+  const protectedLine = line.replace(/\\[!-/:-@[-`{-~]|`[^`]+`/gu, (match) => {
+    if (match.startsWith("`")) return match;
+    escapes.push(match.slice(1));
+    return `${marker}${escapes.length - 1}${marker}`;
+  });
+  const escapePattern = new RegExp(`${marker}(\\d+)${marker}`, "gu");
+  const restoreEscapes = (text: string, html: boolean) =>
+    text.replace(escapePattern, (_match, index: string) => {
+      const literal = escapes[Number(index)] ?? "";
+      return html ? escapeHtml(literal) : literal;
+    });
   // Code spans keep their text; everything else is converted between them.
-  return line
+  return protectedLine
     .split(/(`[^`]+`)/u)
     .map((part) => {
       if (part.length > 2 && part.startsWith("`") && part.endsWith("`"))
         return `<code>${escapeHtml(part.slice(1, -1))}</code>`;
       const links: string[] = [];
       const text = part.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gu, (_match, label: string, url: string) => {
-        links.push(`<a href="${escapeHtml(url).replaceAll('"', "&quot;")}">${escapeHtml(inertMentions(label))}</a>`);
+        links.push(
+          `<a href="${escapeHtml(restoreEscapes(url, false)).replaceAll('"', "&quot;")}">${escapeHtml(inertMentions(restoreEscapes(label, false)))}</a>`,
+        );
         return `${links.length - 1}`;
       });
-      return escapeHtml(inertMentions(text))
+      const formatted = escapeHtml(text)
         .replace(
           /\*\*(.+?)\*\*|__(.+?)__/gu,
           (_match, a: string | undefined, b: string | undefined) => `<b>${a ?? b}</b>`,
         )
         .replace(/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/gu, "<i>$1</i>")
         .replace(/(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?![\w_])/gu, "<i>$1</i>")
-        .replace(/~~(.+?)~~/gu, "<s>$1</s>")
-        .replace(/(\d+)/gu, (_match, index: string) => links[Number(index)] ?? "");
+        .replace(/~~(.+?)~~/gu, "<s>$1</s>");
+      return inertMentions(restoreEscapes(formatted, true)).replace(
+        /(\d+)/gu,
+        (_match, index: string) => links[Number(index)] ?? "",
+      );
     })
     .join("");
 }
