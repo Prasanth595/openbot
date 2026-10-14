@@ -117,9 +117,13 @@ export interface ListEventRoutineRunsInput {
   limit?: number;
 }
 
-/** One run in the history of an event routine. An agent run names the chat message it posted in `deliveryId`. */
+/**
+ * One run in the history of an event routine. An agent run names the chat message it posted in
+ * `deliveryId`, and a channel run names its channel message in `requestMessageId`.
+ */
 export interface EventRoutineRun extends RoutineRunFields {
   deliveryId?: string | null;
+  requestMessageId?: string | null;
 }
 
 /** The verified request that starts a webhook routine. Secrets and signature headers are never part of it. */
@@ -294,7 +298,8 @@ function isEventRoutineRun(value: unknown): value is EventRoutineRun {
   return (
     isRoutineRunFields(value) &&
     isDynamicRecord(value) &&
-    (value.deliveryId === undefined || value.deliveryId === null || isString(value.deliveryId))
+    (value.deliveryId === undefined || value.deliveryId === null || isString(value.deliveryId)) &&
+    (value.requestMessageId === undefined || value.requestMessageId === null || isString(value.requestMessageId))
   );
 }
 

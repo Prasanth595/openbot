@@ -6,8 +6,13 @@
 // list and save routes carry the `events-v1` routine with `missedPolicy` added; the host answers them
 // as the `events-v1` routes do, so a client with this capability uses them in place of those two.
 // A run record names its missed occurrences in `missed`, and a run started by a test, a script or a
-// webhook names its `source`. An agent run names the conversation message it posted in `deliveryId`.
+// webhook names its `source`. An agent run names the conversation message it posted in `deliveryId`,
+// and a channel run names the channel message it posted in `requestMessageId`.
 // Widening any of it needs a second capability string.
+//
+// A run instruction holds the routine instruction and the event of a webhook or a script, so it can be
+// longer than the routine instruction. A run error is at most `ROUTINE_RECOVERY_RUN_ERROR_LIMIT`
+// long; the host shortens a longer one.
 import {
   type AdminDecoder,
   adminRoute,
@@ -29,6 +34,8 @@ export const ROUTINE_RECOVERY_ROUTES = {
   saveRoutine: "/v1/admin/routine-recovery/routines/save",
   listRuns: "/v1/admin/routine-recovery/runs",
 } as const;
+
+export const ROUTINE_RECOVERY_RUN_ERROR_LIMIT = 100_000;
 
 const timestamp = string(64);
 const limitPolicy = oneOf("wait", "skip");
@@ -67,9 +74,9 @@ const run = fields(
     kind: oneOf("scheduled", "manual"),
     scheduledFor: timestamp,
     routineName: string(256),
-    instruction: string(100_000),
+    instruction: string(200_000),
     status: oneOf("queued", "running", "needs-attention", "succeeded", "failed", "interrupted", "cancelled"),
-    error: nullable(string(100_000)),
+    error: nullable(string(ROUTINE_RECOVERY_RUN_ERROR_LIMIT)),
     createdAt: timestamp,
     updatedAt: timestamp,
   },
@@ -77,6 +84,7 @@ const run = fields(
     source: oneOf("test", "script", "webhook"),
     missed: fields({ count: missedCount, until: nullable(timestamp) }),
     deliveryId: nullable(identifier),
+    requestMessageId: nullable(identifier),
   },
 );
 

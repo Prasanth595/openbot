@@ -1,5 +1,6 @@
 import type { RoutineRunFields } from "@openbot/contracts/ipc";
 import type { EventRoutineOwner, EventRoutineRun } from "@openbot/contracts/ipc-events";
+import { ROUTINE_RECOVERY_RUN_ERROR_LIMIT } from "@openbot/contracts/team-protocol/routine-recovery-v1";
 import { Effect, Schema } from "effect";
 import type { RoutineScheduler } from "./agent/routine-scheduler";
 import type { ChannelRoutineScheduler } from "./channel-routine-scheduler";
@@ -76,7 +77,9 @@ export class RoutineRecords {
         .listRuns({ agentId: owner.id, routineId, limit }, true)
         .map((run) => ({ ...eventRoutineRun(run), deliveryId: run.deliveryId }));
     }
-    return this.#options.channelRoutines.listRuns({ channelId: owner.id, routineId, limit }, true).map(eventRoutineRun);
+    return this.#options.channelRoutines
+      .listRuns({ channelId: owner.id, routineId, limit }, true)
+      .map((run) => ({ ...eventRoutineRun(run), requestMessageId: run.requestMessageId }));
   }
 
   /** Tells open editors to reload, for example after a background route sync stored a webhook URL. */
@@ -148,7 +151,7 @@ function eventRoutineRun({
     routineName,
     instruction,
     status,
-    error,
+    error: error?.slice(0, ROUTINE_RECOVERY_RUN_ERROR_LIMIT) ?? null,
     ...(missed === undefined ? {} : { missed }),
     createdAt,
     updatedAt,
