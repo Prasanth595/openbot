@@ -23,6 +23,9 @@ Usage: openbot <command>
                                  Sign in with a code that OpenBot sends to your email.
                                  The server then shows in the server list of that account.
                                  Its name is "OpenBot" when you give no name.
+  login --claim [--name <name>]  Sign in with a one-time claim that the operator made for
+                                 the owner's email. No code is needed. The claim comes from
+                                 standard input, or a hidden prompt in a terminal.
   mobile-connect                 Show a QR code that connects the OpenBot phone app to this
                                  account. It works for one sign-in and expires after two minutes.
   logout                         Sign out. The server stops until the next sign-in.
@@ -108,9 +111,12 @@ check_answer() {
   if [ -z "$message" ]; then
     case $(value error) in
       invalid_email) message="Enter a valid email address." ;;
+      invalid_request) message="Enter the sign-in code or the claim." ;;
       invalid_name) message="Enter a server name." ;;
       signed_in) message="This server is signed in. To use another account, run: openbot logout" ;;
       account_signed_out | account_code_sent) message="Sign in first with: openbot login" ;;
+      account_error | account_loading) message="OpenBot could not check the account yet. Run: openbot status" ;;
+      session_not_storable) message="This server cannot store the session securely. The claim was not used." ;;
       *) message="OpenBot refused the request ($(value error))." ;;
     esac
   fi
@@ -145,13 +151,17 @@ status_command() {
 }
 
 login_command() {
-  local email="" name="" challenge code attempt second
+  local email="" name="" claim="" with_claim="" challenge code attempt second
   while [ "$#" -gt 0 ]; do
     case $1 in
       --name)
         [ "$#" -ge 2 ] || fail "Add a name after --name."
         name=$2
         shift 2
+        ;;
+      --claim)
+        with_claim=1
+        shift
         ;;
       -*) fail "Unknown option: $1" ;;
       *)
@@ -166,19 +176,29 @@ login_command() {
     show_status
     return 0
   fi
-  [ -t 0 ] || fail "Run openbot login in a terminal."
-  if [ -z "$email" ]; then read -rp "Email: " email; fi
-  # With the name, OpenBot refuses a name that it cannot publish before it sends a code.
-  control POST /v1/login/start "email=$email" ${name:+"name=$name"}
-  check_answer || exit 1
-  challenge=$(value challenge)
-  echo "OpenBot sent a sign-in code to $email."
-  for attempt in 1 2 3; do
-    read -rp "Code: " code
-    control POST /v1/login/verify "challenge=$challenge" "code=$code" ${name:+"name=$name"}
-    if check_answer; then break; fi
-    [ "$attempt" -lt 3 ] || exit 1
-  done
+  if [ -n "$with_claim" ]; then
+    [ -z "$email" ] || fail "The claim names the account. Give no email with --claim."
+    # Never an argument: other users can read the arguments of a process. It works once.
+    if [ -t 0 ]; then read -rsp "Claim: " claim && echo; else read -r claim || true; fi
+    [ -n "$claim" ] || fail "Give the claim on standard input."
+    control POST /v1/login/claim "claim=$claim" ${name:+"name=$name"}
+    check_answer || exit 1
+    email=$(value email)
+  else
+    [ -t 0 ] || fail "Run openbot login in a terminal."
+    if [ -z "$email" ]; then read -rp "Email: " email; fi
+    # With the name, OpenBot refuses a name that it cannot publish before it sends a code.
+    control POST /v1/login/start "email=$email" ${name:+"name=$name"}
+    check_answer || exit 1
+    challenge=$(value challenge)
+    echo "OpenBot sent a sign-in code to $email."
+    for attempt in 1 2 3; do
+      read -rp "Code: " code
+      control POST /v1/login/verify "challenge=$challenge" "code=$code" ${name:+"name=$name"}
+      if check_answer; then break; fi
+      [ "$attempt" -lt 3 ] || exit 1
+    done
+  fi
   echo "Signed in as $(value email). Publishing the server..."
   for ((second = 0; second < 90; second += 2)); do
     control GET /v1/status

@@ -103,10 +103,18 @@ import { isBoolean, isNumber, isOneOf, isString } from "@openbot/contracts/runti
 
 export function decodeAppInfo(value: unknown): AppInfo {
   const info = decodeRecord(value, "app info");
-  const { platform, variant } = info;
+  const { platform, variant, analyticsCaptureUrl } = info;
   if (!isOneOf(["darwin", "win32", "linux"] as const, platform)) throw new Error("Invalid platform.");
   if (!isOneOf(["production", "dev", "preview"] as const, variant)) throw new Error("Invalid variant.");
-  return { name: requiredString(info, "name"), version: requiredString(info, "version"), platform, variant };
+  if (analyticsCaptureUrl !== undefined && !isString(analyticsCaptureUrl))
+    throw new Error("Invalid analytics capture URL.");
+  return {
+    name: requiredString(info, "name"),
+    version: requiredString(info, "version"),
+    platform,
+    variant,
+    ...(analyticsCaptureUrl === undefined ? {} : { analyticsCaptureUrl }),
+  };
 }
 
 export function decodeAppSetupState(value: unknown): AppSetupState {

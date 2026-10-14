@@ -14,6 +14,9 @@ export interface ProvidersPort {
   cancelProviderRestart: OpenBotDesktopApi["cancelProviderRestart"];
   startProviderCodeLogin: OpenBotDesktopApi["startProviderCodeLogin"];
   providerRuntimes: OpenBotDesktopApi["providerRuntimes"];
+  connectProviderAccount: OpenBotDesktopApi["connectProviderAccount"];
+  renameProviderAccount: OpenBotDesktopApi["renameProviderAccount"];
+  removeProviderAccount: OpenBotDesktopApi["removeProviderAccount"];
   /** The same, for the host of a joined server the account administers. */
   providerAdmin: OpenBotDesktopApi["providerAdmin"];
 }

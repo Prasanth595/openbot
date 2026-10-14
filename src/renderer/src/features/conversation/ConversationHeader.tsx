@@ -68,7 +68,9 @@ export function ConversationHeader() {
           agentActivity() === "Working"
             ? t("conversation.header.modelsBusy")
             : t("conversation.header.modelsUnavailable"),
-        onChange: (model, provider) => void selectAndConfirmModel(model, provider),
+        accountChoice: true,
+        providerAccountId: props.agent?.providerAccountId,
+        onChange: (model, provider, accountId) => void selectAndConfirmModel(model, provider, accountId),
         onReasoningEffortChange: (effort) => void selectAndConfirmReasoning(effort),
         autoApprove: props.agentAutoApproves,
         agentName: props.agent?.name,

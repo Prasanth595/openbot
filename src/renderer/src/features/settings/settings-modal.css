@@ -556,6 +556,11 @@
   padding: 0 0 var(--openbot-space-3) 54px;
 }
 
+.provider-picker-embedded .provider-picker-accounts {
+  margin-top: calc(-1 * var(--openbot-space-2));
+  padding: 0 0 var(--openbot-space-2) 54px;
+}
+
 .provider-picker-embedded .provider-picker-option + .provider-picker-option,
 .provider-picker-embedded .provider-picker-option-custom {
   border-top: 0;
@@ -615,6 +620,17 @@
 .settings-modal :where(.provider-picker-email, .provider-picker-check-error) {
   font-size: var(--openbot-text-md);
   line-height: var(--openbot-leading-md);
+}
+
+/* An account line is one size below its provider. */
+.settings-modal .provider-picker-account .provider-picker-name {
+  font-size: var(--openbot-text-md);
+  line-height: var(--openbot-leading-md);
+}
+
+.settings-modal .provider-picker-account .provider-picker-email {
+  font-size: var(--openbot-text-sm);
+  line-height: var(--openbot-leading-sm);
 }
 
 .settings-modal .provider-picker-status {

@@ -67,11 +67,15 @@ import type {
   AccountUsage,
   AgentProviderId,
   AgentStatus,
+  ConnectProviderAccountInput,
+  HostProviderAccounts,
   PasteProviderRelaySignInInput,
   ProviderApiKeyState,
   ProviderCodeLoginStart,
   ProviderHostSignInStatus,
   ProviderRelaySignInStatus,
+  RemoveProviderAccountInput,
+  RenameProviderAccountInput,
   SetProviderApiKeyInput,
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
@@ -224,6 +228,14 @@ import type {
   PublishHostedSiteInput,
   ReplaceHostedSiteInput,
 } from "./ipc-hosted-sites";
+import type {
+  ApplyInstanceTransferInput,
+  ExportInstanceInput,
+  InstanceExportResult,
+  InstanceTransferPreview,
+  InstanceTransferResult,
+  InstanceTransferSummary,
+} from "./ipc-instance-transfer";
 import type {
   AgentPublicationPreview,
   AgentSubmission,
@@ -568,6 +580,14 @@ export const IPC_ENDPOINTS = {
     startProviderCodeLogin: request<AgentProviderId, ProviderCodeLoginStart>()("app:start-provider-code-login"),
     /** Abandons a code sign-in: the provider is told, the code is dead, and the provider goes idle. */
     cancelProviderCodeLogin: request<AgentProviderId, AgentStatus>()("app:cancel-provider-code-login"),
+    /**
+     * Signs one more account of a provider in through the browser, or signs a signed-out one in
+     * again. It answers when the sign-in starts; the account's status tells how it ends. Removing a
+     * `connecting` account cancels its sign-in.
+     */
+    connectProviderAccount: request<ConnectProviderAccountInput, AgentStatus>()("app:connect-provider-account"),
+    renameProviderAccount: request<RenameProviderAccountInput, AgentStatus>()("app:rename-provider-account"),
+    removeProviderAccount: request<RemoveProviderAccountInput, AgentStatus>()("app:remove-provider-account"),
   },
   providerRuntimes: {
     getStatus: request<undefined, ProviderRuntimeSnapshot>()("provider-runtimes:get-status"),
@@ -705,6 +725,20 @@ export const IPC_ENDPOINTS = {
       "provider-admin:host-sign-in-status",
     ),
     cancelHostSignIn: scopedRequest<AgentProviderId, AgentStatus, "required">()("provider-admin:cancel-host-sign-in"),
+    // The accounts of a joined server's host's providers (`provider-accounts-v1`). The host's status,
+    // agent list and usage do not carry them, so the renderer adds them to its copy. An account signs
+    // in on the host's page, as `startHostSignIn` does; the account's state tells how it ended.
+    accounts: scopedQuery<HostProviderAccounts, "required">()("provider-admin:accounts"),
+    accountUsage: scopedQuery<AccountUsage, "required">()("provider-admin:account-usage"),
+    startAccountSignIn: scopedRequest<ConnectProviderAccountInput, void, "required">()(
+      "provider-admin:start-account-sign-in",
+    ),
+    accountSignInStatus: scopedRequest<AgentProviderId, ProviderHostSignInStatus, "required">()(
+      "provider-admin:account-sign-in-status",
+    ),
+    cancelAccountSignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:cancel-account-sign-in"),
+    renameAccount: scopedRequest<RenameProviderAccountInput, void, "required">()("provider-admin:rename-account"),
+    removeAccount: scopedRequest<RemoveProviderAccountInput, void, "required">()("provider-admin:remove-account"),
     // A sign-in that a joined server's host starts and that opens in this computer's browser
     // (`sign-in-relay-v1`). This computer takes the callback and sends its query to the host.
     // `openRelaySignIn` opens the page when the user asks, and `pasteRelaySignIn` takes the address
@@ -817,14 +851,16 @@ export const IPC_ENDPOINTS = {
     hostOpenVerification: scopedQuery<void, "required">()("github-connector:host-open-verification"),
     hostOpenInstall: scopedQuery<void, "required">()("github-connector:host-open-install"),
   },
-  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
-  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
+  // The Bitwarden connection of this computer. Local only, like `onePasswordConnector`. The session
+  // key goes from the renderer to main once, in `connect`; every answer is the status only.
   bitwardenConnector: {
     status: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:status"),
     connect: request<string, BitwardenConnectorStatus>()("bitwarden-connector:connect"),
     disconnect: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:disconnect"),
     changed: event<BitwardenConnectorStatus>()("bitwarden-connector:changed"),
   },
+  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
+  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
   onePasswordConnector: {
     status: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:status"),
     // Looks again for the CLI and the 1Password app's CLI integration, for a page that opens or regains focus.
@@ -1232,6 +1268,17 @@ export const IPC_ENDPOINTS = {
     readSkill: request<undefined, string>()("agent-import:read-skill"),
     saveSkill: request<undefined, ExportResult>()("agent-import:save-skill"),
   },
+  // Bound against the instance transfer service: a server's agents and server settings in one file for
+  // another server. A remote server is reached with `instance-transfer-v1`; main opens both file
+  // dialogs and moves the file. `showExport` reveals the file this computer saved last.
+  instanceTransfer: {
+    summary: scopedQuery<InstanceTransferSummary, "required">()("instance-transfer:summary"),
+    export: scopedRequest<ExportInstanceInput, InstanceExportResult, "required">()("instance-transfer:export"),
+    showExport: request<undefined, void>()("instance-transfer:show-export"),
+    choose: scopedQuery<InstanceTransferPreview | null, "required">()("instance-transfer:choose"),
+    apply: scopedRequest<ApplyInstanceTransferInput, InstanceTransferResult, "required">()("instance-transfer:apply"),
+    discard: scopedRequest<string, void, "required">()("instance-transfer:discard"),
+  },
   // The plugin deep link, its own group because its registrar holds the pending link rather than a
   // service. `takePendingListing` is what a window that finished loading after the link arrived
   // asks for; `openListing` is the same slug pushed to a window that was already there.
@@ -1341,6 +1388,7 @@ export const IPC_GROUP_PATHS = {
   mcpServers: "agent",
   storage: "storage",
   agentImport: "agentImport",
+  instanceTransfer: "instanceTransfer",
   plugins: "plugins",
   host: "host",
   events: "events",

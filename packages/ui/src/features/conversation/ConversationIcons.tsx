@@ -68,16 +68,6 @@ export function ReplyIcon() {
   );
 }
 
-export function MoreIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 20 20" class="ui-glyph-20 conversation-more-icon">
-      <circle cx="5" cy="10" r="1" />
-      <circle cx="10" cy="10" r="1" />
-      <circle cx="15" cy="10" r="1" />
-    </svg>
-  );
-}
-
 export function QueueIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" class="ui-glyph-20">

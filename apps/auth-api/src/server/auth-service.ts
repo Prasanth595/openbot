@@ -1,4 +1,6 @@
+import type { FirstTouch } from "@openbot/contracts/first-touch";
 import type { MobileConnectHostBinding } from "@openbot/contracts/mobile-connect";
+import { isString } from "@openbot/contracts/runtime-values";
 import {
   isUuidV4,
   normalizeEmailAddress,
@@ -8,6 +10,8 @@ import {
   validateProfileName,
 } from "@openbot/contracts/validation";
 import { Context, Effect, Layer, Result, Schema } from "effect";
+import { type AccountAnalytics, type AccountSurface, NO_ACCOUNT_ANALYTICS } from "./account-analytics";
+import type { AccountAttribution } from "./account-attribution";
 import { randomToken, sha256 } from "./crypto";
 import type { AuthStoreError } from "./d1-auth-repository";
 import type { RemoteFailure } from "./remote-control-plane";
@@ -27,6 +31,7 @@ import type {
 const CHALLENGE_TTL_MS = 10 * 60_000;
 const RESEND_COOLDOWN_MS = 60_000;
 const TEAM_TICKET_TTL_MS = 2 * 60_000;
+const SERVER_CLAIM_TTL_MS = 15 * 60_000;
 const MOBILE_CONNECT_SERVER_ID = "00000000-0000-4000-8000-000000000002";
 // The host ID rule of `isMobileConnectHostBinding`.
 const MOBILE_CONNECT_HOST_ID_PATTERN = /^[A-Za-z0-9-]{1,128}$/u;
@@ -44,6 +49,9 @@ interface AuthServiceOptions {
   now?: () => number;
   flushSessionRevocations?: () => Effect.Effect<void, RemoteFailure>;
   profileChanged?: (userId: string) => Effect.Effect<void, RemoteFailure>;
+  analytics?: AccountAnalytics;
+  /** Saves the first website visit that a sign-in on the web sends. */
+  attribution?: AccountAttribution;
 }
 
 export interface EmailSignInStart {
@@ -69,6 +77,8 @@ class AuthDependencies extends Context.Service<
     now: () => number;
     flushSessionRevocations: () => Effect.Effect<void, RemoteFailure>;
     profileChanged: (userId: string) => Effect.Effect<void, RemoteFailure>;
+    analytics: AccountAnalytics;
+    attribution: AccountAttribution | null;
   }
 >()("@openbot/auth-api/AuthDependencies") {}
 
@@ -85,6 +95,8 @@ export class AuthService {
       now: options.now ?? Date.now,
       flushSessionRevocations: options.flushSessionRevocations ?? (() => Effect.void),
       profileChanged: options.profileChanged ?? (() => Effect.void),
+      analytics: options.analytics ?? NO_ACCOUNT_ANALYTICS,
+      attribution: options.attribution ?? null,
     });
   }
 
@@ -251,6 +263,9 @@ export class AuthService {
         challengeId: string;
         code: string;
         sourceIp: string;
+        surface: Exclude<AccountSurface, "mobile">;
+        /** Only the web client sends one; it is already checked. */
+        firstTouch?: FirstTouch | null;
       },
     ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
       return yield* this.#verifyEmailChallenge(input);
@@ -271,7 +286,7 @@ export class AuthService {
     ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
       const dependencies = yield* AuthDependencies;
       const device = yield* authValidate(() => normalizeMobileDevice(input.device));
-      const session = yield* this.#verifyEmailChallenge({ ...input, device });
+      const session = yield* this.#verifyEmailChallenge({ ...input, device, surface: "mobile" });
       // The new session replaces the earlier session of this device.
       yield* dependencies.flushSessionRevocations();
       return session;
@@ -281,7 +296,14 @@ export class AuthService {
 
   readonly #verifyEmailChallenge = Effect.fn("AuthService.verifyEmailChallenge")(function* (
     this: AuthService,
-    input: { challengeId: string; code: string; sourceIp: string; device?: MobileAuthDeviceIdentity },
+    input: {
+      challengeId: string;
+      code: string;
+      sourceIp: string;
+      surface: AccountSurface;
+      firstTouch?: FirstTouch | null;
+      device?: MobileAuthDeviceIdentity;
+    },
   ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
     const dependencies = yield* AuthDependencies;
     const now = dependencies.now();
@@ -303,7 +325,19 @@ export class AuthService {
       },
       ...(input.device ? { device: input.device } : {}),
     });
-    return yield* authValidate(() => verificationResult(result));
+    const session = yield* authValidate(() => verificationResult(result));
+    const firstTouch = input.firstTouch ?? null;
+    const { attribution } = dependencies;
+    if (firstTouch && attribution) {
+      // The source of an account is for reports. Its failure must not fail the sign-in.
+      yield* attribution
+        .record(session.user.id, firstTouch, "sign_in")
+        .pipe(Effect.catch(() => Effect.sync(() => console.warn("Account attribution save failed."))));
+    }
+    if (result.status === "verified" && result.created) {
+      dependencies.analytics.track(session.user.id, { name: "account_created", surface: input.surface, firstTouch });
+    }
+    return session;
   });
 
   readonly authenticate = Effect.fn("AuthService.authenticate")(
@@ -414,6 +448,50 @@ export class AuthService {
     function* (this: AuthService, sourceIp: string): Effect.fn.Return<void, AuthWorkflowFailure, AuthDependencies> {
       const dependencies = yield* AuthDependencies;
       yield* this.#enforceRateLimit(`hosted-claim:ip:${normalizeSourceIp(sourceIp)}`, 30, dependencies.now());
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /** For an operator: the caller checks the admin token. Creates the user of the email when there is none. */
+  readonly createServerClaim = Effect.fn("AuthService.createServerClaim")(
+    function* (
+      this: AuthService,
+      emailInput: string,
+    ): Effect.fn.Return<{ claim: string; expiresAt: number }, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      const email = yield* authValidate(() => normalizeEmail(emailInput));
+      const now = dependencies.now();
+      const claim = randomToken();
+      const expiresAt = now + SERVER_CLAIM_TTL_MS;
+      yield* dependencies.repository.createServerClaim({
+        claimHash: yield* sha256(claim),
+        email,
+        createdAt: now,
+        expiresAt,
+      });
+      return { claim, expiresAt };
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /** A server exchanges a claim once for a desktop session of the claim's user. */
+  readonly redeemServerClaim = Effect.fn("AuthService.redeemServerClaim")(
+    function* (
+      this: AuthService,
+      claim: unknown,
+      sourceIp: string,
+    ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      const now = dependencies.now();
+      // A claim is 32 random bytes; this limit stops a caller that guesses claims.
+      yield* this.#enforceRateLimit(`server-claim:ip:${normalizeSourceIp(sourceIp)}`, 30, now);
+      if (!isString(claim) || claim.length < 16 || claim.length > 128) return yield* invalidServerClaim();
+      const session = yield* dependencies.repository.redeemServerClaim({
+        claimHash: yield* sha256(claim),
+        now,
+        session: { id: crypto.randomUUID(), token: randomToken(), expiresAt: PERSISTENT_SESSION_EXPIRES_AT },
+      });
+      return session ?? (yield* invalidServerClaim());
     },
     (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
   ).bind(this);
@@ -775,6 +853,10 @@ export class AuthOperationError extends Schema.TaggedError<AuthOperationError>()
   message: Schema.String,
 }) {}
 
+function invalidServerClaim(): AuthServiceError {
+  return new AuthServiceError(401, "server_claim_invalid", "The server claim is invalid or used.");
+}
+
 function authFailure(error: unknown): AuthServiceError | AuthOperationError {
   return error instanceof AuthServiceError ? error : new AuthOperationError({ message: "Account operation failed." });
 }
@@ -783,7 +865,7 @@ function authValidate<A>(operation: () => A): Effect.Effect<A, AuthServiceError 
   return Effect.try({ try: operation, catch: authFailure });
 }
 
-export function generateOneTimeCode(): string {
+function generateOneTimeCode(): string {
   const bytes = new Uint8Array(ONE_TIME_CODE_LENGTH);
   crypto.getRandomValues(bytes);
   const raw = [...bytes].map((byte) => ONE_TIME_CODE_ALPHABET[byte & 31]).join("");
@@ -798,7 +880,7 @@ const developmentOneTimeCode = Effect.fn("Auth.developmentCode")(function* (chal
   return `${raw.slice(0, 4)}-${raw.slice(4)}`;
 });
 
-export function normalizeOneTimeCode(value: string): string {
+function normalizeOneTimeCode(value: string): string {
   const normalized = normalizeSharedOneTimeCode(value);
   if (!normalized) {
     throw new AuthServiceError(400, "invalid_sign_in_code", "The sign-in code is invalid.");

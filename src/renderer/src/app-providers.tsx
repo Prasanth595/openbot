@@ -62,9 +62,7 @@ export interface AppProps {
  * nested inside and never one nested under it. Three rules keep it usable:
  *
  * - **It must never import `AppView.tsx`, and no gate may depend on the view
- *   tree.** The harnesses in `App.test.tsx` and `App.read-state.test.tsx` mount
- *   this with no view at all, which is why the largest test file asserts data
- *   instead of DOM. A gate waiting on something rendered would hang them both.
+ *   tree.** A gate waiting on something rendered would hang a mount with no view.
  * - **Nothing that runs inside it may import `App.tsx` as a value.** `App.tsx`
  *   imports this module, so a value edge back is a cycle, and `noImportCycles`
  *   is an error.

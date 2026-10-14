@@ -9,7 +9,6 @@ import { ChatNavigationGateContext } from "@/features/agents/components/chat-lin
 import { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer-host";
-import { MessageActionsProvider } from "@/features/chat/context/message-actions-context";
 import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
@@ -274,17 +273,6 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
-          name="message-actions"
-          options={{
-            contentStyle: { backgroundColor: sheetBackground },
-            headerShown: false,
-            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
-            presentation: "formSheet",
-            sheetAllowedDetents: [segments.at(-1) === "select-text" ? 0.85 : 0.4],
-            sheetGrabberVisible: true,
-          }}
-        />
-        <Stack.Screen
           name="queued-messages"
           options={{
             contentStyle: { backgroundColor: sheetBackground },
@@ -320,12 +308,10 @@ export default function AuthenticatedLayout() {
       <OutboxProvider>
         <AgentPinTransitionProvider>
           <AppDrawerShell>
-            <MessageActionsProvider>
-              <QueuedMessagesProvider>
-                <AuthenticatedStack />
-                <MermaidRendererHost />
-              </QueuedMessagesProvider>
-            </MessageActionsProvider>
+            <QueuedMessagesProvider>
+              <AuthenticatedStack />
+              <MermaidRendererHost />
+            </QueuedMessagesProvider>
           </AppDrawerShell>
         </AgentPinTransitionProvider>
       </OutboxProvider>

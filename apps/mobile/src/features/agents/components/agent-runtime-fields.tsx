@@ -2,6 +2,7 @@ import {
   type AgentProviderId,
   type AgentReasoningEffort,
   agentProviderName,
+  type ProviderAccountStatus,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
@@ -34,6 +35,35 @@ function pickerLabel(text: string): string {
   return characters.length > MAX_PICKER_LABEL ? `${characters.slice(0, MAX_PICKER_LABEL).join("").trimEnd()}…` : text;
 }
 
+/**
+ * The accounts of the host's providers, and the agents on an account after the first. Null for a
+ * member, for a host without `provider-accounts-v1`, and until the host answers.
+ */
+export function useProviderAccounts(agent: MobileAgent, enabled: boolean) {
+  const workspace = useMobileWorkspace();
+  const { session, sessionScope } = useMobileSession();
+  const canManage = workspace.canManageProviderAccounts(agent.serverId);
+  // Under "agent-info", so the host's agent events refresh it with the other agent records.
+  const queryKey = [
+    "agent-info",
+    session?.apiUrl,
+    session?.user.id,
+    sessionScope,
+    agent.serverId,
+    agent.id,
+    "provider-accounts",
+  ];
+  const accounts = useQuery({
+    queryKey,
+    queryFn: () => workspace.loadProviderAccounts(agent.serverId),
+    enabled: enabled && canManage,
+    retry: false,
+    // Another device can change the accounts at any time, so a reopened page reads the host again.
+    staleTime: 0,
+  });
+  return { queryKey, accounts: canManage ? (accounts.data ?? null) : null };
+}
+
 export function AgentRuntimeFields({
   agent,
   available,
@@ -41,7 +71,10 @@ export function AgentRuntimeFields({
   provider,
   model,
   reasoningEffort,
+  accounts,
+  accountId,
   onChange,
+  onAccountChange,
 }: {
   agent: MobileAgent;
   available: boolean;
@@ -49,9 +82,16 @@ export function AgentRuntimeFields({
   provider?: AgentProviderId;
   model?: string;
   reasoningEffort?: AgentReasoningEffort;
+  /** The accounts of the provider. The choice shows only when there are two or more. */
+  accounts: readonly ProviderAccountStatus[];
+  accountId: string;
   onChange: (value: Pick<UpdateAgentInput, "provider" | "model" | "reasoningEffort">) => void;
+  onAccountChange: (accountId: string) => void;
 }) {
   const { t } = useText();
+  // The name of an account, as on desktop: the user's name for it, its email, or its place in the list.
+  const accountName = (account: ProviderAccountStatus, index: number) =>
+    account.label || account.email || t("mobile.agent.runtime.accountNumbered", { number: index + 1 });
   const workspace = useMobileWorkspace();
   const { session, sessionScope } = useMobileSession();
   const { theme } = useUniwind();
@@ -98,6 +138,30 @@ export function AgentRuntimeFields({
         >
           <Typography.Paragraph>{t("mobile.agent.runtime.provider")}</Typography.Paragraph>
         </SettingsRow>
+        {accounts.length > 1 ? (
+          <SettingsRow
+            trailing={
+              <SettingsPicker<string>
+                value={accountId}
+                options={[
+                  ...(!accounts.some((account) => account.id === accountId)
+                    ? [{ value: accountId, label: t("mobile.agent.runtime.unavailable") }]
+                    : []),
+                  ...accounts.map((account, index) => ({
+                    value: account.id,
+                    label: pickerLabel(accountName(account, index)),
+                  })),
+                ]}
+                enabled={available && !saving}
+                dark={theme === "dark"}
+                label={t("mobile.agent.runtime.account")}
+                onChange={onAccountChange}
+              />
+            }
+          >
+            <Typography.Paragraph>{t("mobile.agent.runtime.account")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
         <SettingsRow
           trailing={
             <SettingsPicker<string>
