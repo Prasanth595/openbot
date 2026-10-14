@@ -382,8 +382,12 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
           if (Result.isSuccess(answer)) return;
           const timedOut =
             answer.failure.cause instanceof TeamWebRtcRequestError && answer.failure.cause.code === "remote_timeout";
-          // The bridge replaces the old peer when it connects again. The session stays.
-          if (timedOut && checked.connected && this.#active.get(hostId) === checked) this.#onDisconnected(hostId);
+          // Close the old peer now: a late answer on it would arrive before authentication and fail the
+          // protocol. The session stays.
+          if (timedOut && checked.connected && this.#active.get(hostId) === checked) {
+            this.#onDisconnected(hostId);
+            yield* TeamClientBridge.use((bridge) => bridge.disconnect(hostId)).pipe(Effect.ignore);
+          }
         }
         yield* this.#ensureConnected(hostId, true);
       }),

@@ -771,7 +771,7 @@ describe("TeamWebRtcClientTransport", () => {
         queueMicrotask(() => bridge.emit("connected", peerId, channelBinding));
       }),
     );
-    vi.spyOn(bridge, "disconnect").mockReturnValue(Effect.void);
+    const disconnect = vi.spyOn(bridge, "disconnect").mockReturnValue(Effect.void);
     const authentication = mockAuthenticatedSend(bridge);
     const authenticatedSend = authentication.send.getMockImplementation();
     let hostAnswers = true;
@@ -793,6 +793,8 @@ describe("TeamWebRtcClientTransport", () => {
       hostAnswers = true;
       await vi.advanceTimersByTimeAsync(15_000);
       await retry;
+      // A late answer on the old peer would arrive before authentication and fail the protocol.
+      expect(disconnect).toHaveBeenCalledWith("host-1");
       expect(connect).toHaveBeenCalledTimes(2);
       expect(transport.isConnected("host-1")).toBe(true);
     } finally {
