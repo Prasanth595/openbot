@@ -556,31 +556,42 @@ export function ChatView({
       void haptics.impact();
       setDraft("");
       questionForm.answer([mentionDraft(body).text]);
-      replaceEditedMessages();
+      for (const id of takeEditedMessages()) void outbox.cancel(id);
       return;
     }
 
     setDraft("");
     const submittedReply = replyTarget;
     setReplyTarget(null);
+    const replaces = takeEditedMessages();
     // While text of a message is selected, the composer text says how to change it, as Describe
     // edits on desktop. A message with files goes as a usual message.
     if (selection && body && files.length === 0) {
-      deliver(serializeSelectionInstruction(body, selectionQuote), hostMessageId(selection.message.id), files);
+      deliver(
+        serializeSelectionInstruction(body, selectionQuote),
+        hostMessageId(selection.message.id),
+        files,
+        replaces,
+      );
     } else {
-      deliver(body, submittedReply ? hostMessageId(submittedReply.id) : null, files);
+      deliver(body, submittedReply ? hostMessageId(submittedReply.id) : null, files, replaces);
     }
     attachments.clear();
-    replaceEditedMessages();
   }
 
-  /** The composer sent what Edit gave it: the messages it came from go. */
-  function replaceEditedMessages(): void {
-    for (const id of editedMessages.current) void outbox.cancel(id);
+  /** The composer sends what Edit gave it: the messages it came from are replaced. */
+  function takeEditedMessages(): string[] {
+    const ids = [...editedMessages.current];
     editedMessages.current.clear();
+    return ids;
   }
 
-  function deliver(text: string, replyToMessageId: string | null, files: typeof attachments.items): void {
+  function deliver(
+    text: string,
+    replyToMessageId: string | null,
+    files: typeof attachments.items,
+    replaces: readonly string[] = [],
+  ): void {
     setSendError(null);
     setSelection(null);
     // The reply comes at the latest message, which a window around a searched message does not show.
@@ -592,7 +603,11 @@ export function ChatView({
     void haptics.impact();
     setShowStarter(false);
     // The outbox keeps the message on this phone and sends it while the server is online.
-    outbox.add({ kind: "agent", serverId: target.serverId, agentId: target.id }, { text, replyToMessageId, files });
+    outbox.add(
+      { kind: "agent", serverId: target.serverId, agentId: target.id },
+      { text, replyToMessageId, files },
+      replaces,
+    );
   }
 
   /** Explain, Improve and the other selection actions send at once, as on desktop. */
@@ -604,9 +619,14 @@ export function ChatView({
   // The messages whose text and files are in the composer. The composer draft is not saved, so the
   // outbox keeps them until it sends, and they come back stopped when the chat closes.
   const editedMessages = useRef(new Set<string>());
+  const mounted = useRef(false);
   useEffect(() => {
+    mounted.current = true;
     const edited = editedMessages.current;
-    return () => outbox.stopEditing(edited);
+    return () => {
+      mounted.current = false;
+      outbox.stopEditing(edited);
+    };
   }, [outbox]);
   /**
    * Puts the text, reply and files of an outbox message in the composer. A ref, so that a streamed
@@ -628,6 +648,11 @@ export function ChatView({
       return;
     }
     if (!restored) return;
+    // The chat closed while Edit read the message: no composer has it.
+    if (!mounted.current) {
+      outbox.stopEditing([clientMessageId]);
+      return;
+    }
     editedMessages.current.add(clientMessageId);
     const { text: body, replyToMessageId, files } = restored;
     if (body) setDraft((current) => (current ? `${body}\n${current}` : body));

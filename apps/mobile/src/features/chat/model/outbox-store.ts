@@ -122,7 +122,7 @@ export class OutboxStore {
   private dirty = false;
   /** Set and cleared in the same task as the loop's last check, so no change waits for a loop that ended. */
   private looping = false;
-  private writing: Promise<void> = Promise.resolve();
+  private writing: Promise<boolean> = Promise.resolve(true);
   private readonly now: () => number;
 
   constructor(private readonly options: OutboxStoreOptions) {
@@ -213,10 +213,15 @@ export class OutboxStore {
     this.pump();
   }
 
-  /** Adds a message at the end of its chat, and saves it on the phone at once. */
+  /**
+   * Adds a message at the end of its chat, and saves it on the phone at once. `replaces` are the
+   * messages that Edit gave to its composer: they go when the phone has saved this one, and come
+   * back stopped when it cannot.
+   */
   add(
     target: OutboxTarget,
     input: { text: string; replyToMessageId: string | null; files: readonly ChatAttachment[] },
+    replaces: readonly string[] = [],
   ): OutboxMessage {
     const clientMessageId = this.options.randomId();
     // Composer file ids restart in each chat, and an outbox outlives the chat that wrote it.
@@ -249,32 +254,37 @@ export class OutboxStore {
     this.memoryFiles.set(clientMessageId, files);
     this.messages = [...this.messages, message];
     this.publish();
-    void this.save(message, files);
+    void this.save(message, files).then((saved) => {
+      if (!saved) this.stopEditing(replaces);
+      else for (const id of replaces) void this.cancel(id);
+    });
     this.pump();
     return message;
   }
 
-  private async save(message: OutboxMessage, files: ChatAttachment[]): Promise<void> {
+  /** Whether the phone has the message and its files now. */
+  private async save(message: OutboxMessage, files: ChatAttachment[]): Promise<boolean> {
     const { storage } = this.options;
-    if (!storage) return;
+    if (!storage) return true;
     try {
       if (files.length) {
         const stored = await storage.writeFiles(message.clientMessageId, files);
         if (!this.messages.some((item) => item.clientMessageId === message.clientMessageId)) {
           await storage.removeFiles(message.clientMessageId);
-          return;
+          return false;
         }
         this.update(message.clientMessageId, { files: stored });
       }
-      await this.persist();
+      return await this.persist();
     } catch {
       // A message cancelled during the write has no files to keep.
       if (!this.messages.some((item) => item.clientMessageId === message.clientMessageId)) {
         await storage.removeFiles(message.clientMessageId).catch(() => undefined);
-        return;
+        return false;
       }
       this.storageFailed = true;
       this.publish();
+      return false;
     }
   }
 
@@ -404,10 +414,14 @@ export class OutboxStore {
     );
   }
 
-  /** Writes the outbox after every change. Writes run one at a time; the last one has the latest list. */
-  private persist(): Promise<void> {
+  /**
+   * Writes the outbox after every change. Writes run one at a time; the last one has the latest list.
+   * Whether the phone has the latest list now.
+   */
+  private persist(): Promise<boolean> {
     this.dirty = true;
-    if (!this.loaded || !this.options.storage) return Promise.resolve();
+    if (!this.options.storage) return Promise.resolve(true);
+    if (!this.loaded) return Promise.resolve(false);
     if (!this.looping) {
       this.looping = true;
       this.writing = this.writeLoop();
@@ -415,7 +429,7 @@ export class OutboxStore {
     return this.writing;
   }
 
-  private async writeLoop(): Promise<void> {
+  private async writeLoop(): Promise<boolean> {
     const { storage } = this.options;
     try {
       while (this.dirty && storage && this.canSave) {
@@ -423,9 +437,11 @@ export class OutboxStore {
         // A file write that has not finished has no name yet. Its message is saved when it has one.
         await storage.save({ version: 1, messages: this.messages.filter((message) => !hasUnsavedFiles(message)) });
       }
+      return this.canSave;
     } catch {
       this.storageFailed = true;
       this.publish();
+      return false;
     } finally {
       this.looping = false;
     }
