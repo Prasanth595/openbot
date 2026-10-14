@@ -306,8 +306,8 @@ export class ConversationRuntime {
   }
 
   #evictCachedSnapshots(): void {
-    // Nothing else changes a cache while this runs, and a trim keeps its cache committed, so each
-    // full signature is computed at most once per call, not once per removal.
+    // Only a trim changes cache content while this runs, so each full signature is computed once
+    // per call, not once per removal.
     const committed = new Map<CachedSnapshot, boolean>();
     const isCommitted = (cached: CachedSnapshot): boolean => {
       let result = committed.get(cached);
@@ -316,6 +316,14 @@ export class ConversationRuntime {
         committed.set(cached, result);
       }
       return result;
+    };
+    const trim = (cached: CachedSnapshot): boolean => {
+      if (!this.#trimCompletedCache(cached)) return false;
+      // The trim edits the array in place, so a cache that holds the same array is checked again.
+      for (const other of committed.keys()) {
+        if (other !== cached && other.snapshot.messages === cached.snapshot.messages) committed.delete(other);
+      }
+      return true;
     };
     while (this.#cachedSnapshotBytes > CONVERSATION_CACHE_TOTAL_BYTES_LIMIT) {
       let oldest:
@@ -338,7 +346,7 @@ export class ConversationRuntime {
       if (oldest.kind === "agent") {
         const cached = this.#cachedSnapshots.get(oldest.id);
         if (cached?.snapshot.activeTurnId) {
-          if (!this.#trimCompletedCache(cached)) return;
+          if (!trim(cached)) return;
         } else {
           // Keep the same recovery path as idle eviction. A caller may still hold this snapshot
           // while the process budget evicts it; dropping the map entry without a marker would make
@@ -356,7 +364,7 @@ export class ConversationRuntime {
       } else {
         const cached = this.#cachedExecutionSnapshots.get(oldest.id);
         if (cached?.snapshot.activeTurnId) {
-          if (!this.#trimCompletedCache(cached)) return;
+          if (!trim(cached)) return;
         } else {
           // Keep the execution-thread identity for routing, but release its message objects. The
           // next ensureSnapshot call sees the empty projection and rebuilds the recent page from
@@ -385,15 +393,22 @@ export class ConversationRuntime {
       this.#cachedSnapshotBytes - CONVERSATION_CACHE_TOTAL_BYTES_LIMIT,
     );
     if (count === 0) return false;
-    const removed = new Set(completed.slice(0, count));
-    // In place: a caller can hold this array.
+    // In place, because a caller can hold this array.
     const messages = cached.snapshot.messages;
-    messages.splice(0, messages.length, ...messages.filter((message) => !removed.has(message)));
-    const previousBytes = cached.bytes;
-    for (const message of removed) {
-      cached.omittedMessageIds.add(message.id);
-      cached.messageSignatures.delete(message.id);
+    let toRemove = count;
+    let kept = 0;
+    for (const message of messages) {
+      if (toRemove > 0 && !isActiveMessage(message, activeTurnId)) {
+        toRemove -= 1;
+        cached.omittedMessageIds.add(message.id);
+        cached.messageSignatures.delete(message.id);
+        continue;
+      }
+      messages[kept] = message;
+      kept += 1;
     }
+    messages.length = kept;
+    const previousBytes = cached.bytes;
     cached.bytes = completedCacheBytes(cached.snapshot);
     cached.signature = conversationContentSignature(cached.snapshot);
     cached.activeTurnId = cached.snapshot.activeTurnId;
