@@ -63,7 +63,11 @@ const context = createSimpleContext({
      */
     const registry = (server: () => ServerSummary | undefined): ConnectorRegistry => {
       const target = createMemo(() => remoteAdminServer(server(), "connectors-v1"));
-      const options: MessagingConnectorOptions = { agents: agentList, hostName: () => target()?.name };
+      const options: MessagingConnectorOptions = {
+        agents: agentList,
+        hostName: () => target()?.name,
+        serverId: () => target()?.id,
+      };
       const github = hostGitHubConnectorPort(() => target()?.id);
       const host = createConnectorSet(
         { github: () => github, messaging: hostMessagingApi(() => target()?.id) },

@@ -11,7 +11,7 @@ import type {
   WorkspacePlatform,
 } from "@openbot/ui/features/settings/SlackIntegrationPanel";
 import type { TelegramChatPlace } from "@openbot/ui/features/settings/TelegramIntegrationPanel";
-import { createSignal } from "solid-js";
+import { createSignal, untrack } from "solid-js";
 import { type ConnectorController, createConnectorActions } from "./connector-controller";
 
 /** A Slack or Discord connect installs the app in a new workspace; a Telegram one opens a chat. */
@@ -89,6 +89,8 @@ export interface MessagingConnectorOptions {
   agents: () => AgentProfile[];
   /** The joined server's name, when the connections are that server's. */
   hostName?: () => string | undefined;
+  /** The joined server the connections belong to. One controller serves each joined server in turn. */
+  serverId?: () => string | undefined;
   /** The catalog for the orchestrator's model picker, or undefined to start on a new agent's default. */
   models?: () => SlackOrchestratorModels | undefined;
   /** Called with the sidebar section that main put a new orchestrator in. */
@@ -105,7 +107,12 @@ export function createMessagingConnector(
   api: MessagingApi,
   options: MessagingConnectorOptions,
 ): ConnectorController {
-  const [overview, setOverview] = createSignal<MessagingOverview | null>(null);
+  const [loaded, setLoaded] = createSignal<{ serverId: string | undefined; overview: MessagingOverview } | null>(null);
+  // Another server's connections are not shown, also when this server's read fails.
+  const overview = () => {
+    const current = loaded();
+    return current && current.serverId === options.serverId?.() ? current.overview : null;
+  };
   const actions = createConnectorActions(ACTION_FAILED[platform]);
   /** Each read replaces the one before it, so a slow answer never overwrites a newer one. */
   let reads = 0;
@@ -113,10 +120,11 @@ export function createMessagingConnector(
   // A failed read keeps the last overview. The next poll or action reads again.
   const reload = () => {
     const read = ++reads;
+    const serverId = untrack(() => options.serverId?.());
     void api
       .overview(platform)
       .then((next) => {
-        if (!actions.disposed() && read === reads) setOverview(next);
+        if (!actions.disposed() && read === reads) setLoaded({ serverId, overview: next });
       })
       .catch(() => undefined);
   };
