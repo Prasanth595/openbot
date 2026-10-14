@@ -13,7 +13,7 @@ export interface ProviderAccountsHostDependencies {
   service: Pick<
     AgentService,
     | "getStatus"
-    | "getUsage"
+    | "getProviderAccountUsage"
     | "listAgents"
     | "updateAgent"
     | "signInProviderAccountOnHost"
@@ -67,8 +67,7 @@ export class ProviderAccountsHost {
 
   /** The readings of the accounts after the first. The released usage routes give the provider's own. */
   readonly usage = Effect.fn("ProviderAccountsHost.usage")(function* (this: ProviderAccountsHost) {
-    const usage = yield* this.#dependencies.service.getUsage();
-    return { limits: usage.limits.filter((limit) => limit.accountId !== undefined) };
+    return yield* this.#dependencies.service.getProviderAccountUsage();
   }).bind(this);
 
   startSignIn(provider: AgentProviderId, accountId: string | null) {

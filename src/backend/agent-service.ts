@@ -1140,6 +1140,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       .pipe(Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "get usage", cause: failure.cause })));
   }).bind(this);
 
+  /** The readings of the provider accounts after the first. The provider's own sign-ins are not read. */
+  getProviderAccountUsage() {
+    return this.#providers.accountUsage();
+  }
+
   listAgents(): AgentSummary[] {
     return this.#duplication.visibleAgents(this.#store.list());
   }

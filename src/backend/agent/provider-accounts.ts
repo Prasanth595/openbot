@@ -511,7 +511,7 @@ function isSignInError(error: unknown): boolean {
   );
 }
 
-function defaultUsageModel(provider: AgentProviderId): string | undefined {
+export function defaultUsageModel(provider: AgentProviderId): string | undefined {
   return provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
 }
 

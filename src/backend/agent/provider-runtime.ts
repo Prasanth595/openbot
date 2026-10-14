@@ -59,7 +59,7 @@ import type { ConversationRuntime } from "./conversation-runtime";
 import { ModelCatalog } from "./model-catalog";
 import { startMuseDeviceLogin } from "./muse-login";
 import type { ProviderAccountStore, StoredProviderAccount } from "./provider-account-store";
-import { ProviderAccountFailed, ProviderAccounts } from "./provider-accounts";
+import { defaultUsageModel, ProviderAccountFailed, ProviderAccounts } from "./provider-accounts";
 import {
   createAcpRequestEchoReader,
   ignoredCodexSettings,
@@ -785,15 +785,7 @@ export class ProviderRuntime implements ProviderPort {
         .sort((left, right) => agentProviderDescriptor(left).pickerOrder - agentProviderDescriptor(right).pickerOrder);
       // By provider, then by provider and account: the provider's own sign-in comes first.
       const collected = new Map<string, AccountUsage["limits"][number]>();
-      const logFailure = (provider: AgentProvider) =>
-        Effect.catch((error: ProviderOperationFailed | ProviderAccountFailed) =>
-          Effect.sync(() => {
-            logger.warn("Could not read provider usage.", {
-              provider,
-              message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
-            });
-          }),
-        );
+      const logFailure = (provider: AgentProvider) => this.#logUsageFailure(provider);
       const readDefault = (provider: AgentProvider) =>
         Effect.gen({ self: this }, function* () {
           let usage: AccountUsage;
@@ -819,9 +811,7 @@ export class ProviderRuntime implements ProviderPort {
             if (!this.#clients.has(provider)) yield* this.ensureProvider(provider);
             const client = this.#clients.get(provider);
             if (!client) return;
-            const model =
-              provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
-            usage = yield* this.#refreshUsage(client, model, false).pipe(deadline);
+            usage = yield* this.#refreshUsage(client, defaultUsageModel(provider), false).pipe(deadline);
           }
           const limit = usage.limits[0];
           if (!limit || (!limit.primary && !limit.secondary)) {
@@ -838,10 +828,7 @@ export class ProviderRuntime implements ProviderPort {
         });
       const readAccounts = (provider: AgentProvider) =>
         Effect.gen({ self: this }, function* () {
-          if (!this.#providerAccounts || !ProviderAccounts.support(provider)) return;
-          if (!agentProviderDescriptor(provider).reportsUsage) return;
-          const model = provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
-          const accountLimits = yield* this.#providerAccounts.usage(provider, model).pipe(deadline);
+          const accountLimits = yield* this.#accountLimits(provider);
           if (accountLimits.length === 0) return;
           for (const accountLimit of accountLimits)
             collected.set(`${provider}:${accountLimit.accountId ?? ""}`, accountLimit);
@@ -868,6 +855,55 @@ export class ProviderRuntime implements ProviderPort {
     if (!client) return { limits: [] };
     return yield* this.#refreshUsage(client, scope.model, false);
   }).bind(this);
+
+  /**
+   * Only the readings of the accounts after the first, for `provider-accounts-v1`. No provider's own
+   * sign-in is read or started, and no `usage-changed` is sent.
+   */
+  readonly accountUsage = Effect.fn("ProviderRuntime.accountUsage")(function* (this: ProviderRuntime) {
+    const providers = (this.status().providers ?? [])
+      .filter((item) => !item.off && item.connectionState !== "connecting")
+      .map((item) => item.id)
+      .filter(isAgentProvider)
+      .sort((left, right) => agentProviderDescriptor(left).pickerOrder - agentProviderDescriptor(right).pickerOrder);
+    const limits = yield* Effect.forEach(
+      providers,
+      (provider) =>
+        this.#accountLimits(provider).pipe(
+          this.#logUsageFailure(provider),
+          Effect.map((read) => read ?? []),
+        ),
+      { concurrency: "unbounded" },
+    );
+    return { limits: limits.flat() };
+  }).bind(this);
+
+  /** The readings of a provider's accounts after the first. Empty for a provider that has none. */
+  #accountLimits(provider: AgentProvider) {
+    if (
+      !this.#providerAccounts ||
+      !ProviderAccounts.support(provider) ||
+      !agentProviderDescriptor(provider).reportsUsage
+    )
+      return Effect.succeed([]);
+    return this.#providerAccounts.usage(provider, defaultUsageModel(provider)).pipe(
+      Effect.timeoutOrElse({
+        duration: ACCOUNT_USAGE_READ_TIMEOUT_MS,
+        orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
+      }),
+    );
+  }
+
+  #logUsageFailure(provider: AgentProvider) {
+    return Effect.catch((error: ProviderOperationFailed | ProviderAccountFailed) =>
+      Effect.sync(() => {
+        logger.warn("Could not read provider usage.", {
+          provider,
+          message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
+        });
+      }),
+    );
+  }
 
   readonly start = Effect.fn("ProviderRuntime.start")(function* (this: ProviderRuntime) {
     if (this.#scope.state._tag === "Closed") this.#scope = Scope.makeUnsafe();
