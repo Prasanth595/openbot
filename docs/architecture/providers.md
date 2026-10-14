@@ -26,6 +26,63 @@ uses the existing session replacement or resume path; it does not reset the agen
 conversation. Claude builds its SDK MCP server from the same visible definitions. ACP, Pi, and Muse
 receive them through the local MCP bridge.
 
+## Per-agent MCP grants
+
+`agent-mcp-grant-store.ts` owns the `agent-mcp` aggregate in `openbot.db`. It stores server IDs and
+exact tool names. A missing grant, or a saved `null`, follows the host's enabled servers. An explicit
+list permits only its server IDs. Each server's `tools: null` permits all its tools; an empty tool
+list permits none. A removed server's grant never matches a new server with another ID.
+
+`agent-mcp-access.ts` owns admin reads and edits. Desktop IPC and the optional `agent-mcp-v1` Team
+routes use this service. The host checks the owner/admin role and hidden-agent scope. Released
+roster payloads and codecs do not carry grants. Older clients omit the capability and keep their
+other features.
+
+The optional wire fixtures are frozen in `fixtures/agent-mcp-v1` under the contracts package. They
+record exact tool names, all-tools `null`, empty tool lists, default-all `null` and deny-all `[]`.
+The released v1 through v7 fixture files and codecs were compared by hand and are unchanged. In
+particular, the v7 Pi/Muse roster fixture still contains the original fields with no grant field;
+the new read/set/tools routes use their own optional codec. Protocols through v6 omit the new
+capability. Required roster data and the meaning of existing capability payloads stay frozen.
+
+Grant JSON is capped at 128 KiB before the edit lane, provider retirement or persistence. Settings
+and tool metadata stay below 192 KiB, leaving room under the existing Team response limit. The tool
+inventory accepts a name substring filter, returns at most 1,000 tools and displays redacted
+description previews of at most 512 characters. An oversized inventory asks the admin to filter and
+load again. Tool selections are rejected rather than shortened, so a size limit cannot widen grants.
+
+Default grants preserve native MCP handoffs. An explicit scope uses `agent-mcp-relay.ts`, a
+loopback HTTP MCP listener with a bearer scoped to one agent and server. It checks current grants,
+agent existence and the host's enabled set on both discovery and calls. It retains an upstream
+client per agent and server, preserves stdio working directories and environments, and injects
+native HTTP sign-ins at the host. The provider receives the relay bearer rather than the upstream
+credential. Grant changes invalidate old relay bearers and close retained upstream clients. Shutdown
+aborts owned discovery and calls, closes upstream clients without acquiring their busy permit, and
+joins request cleanup before returning. The stdio SDK's existing close deadlines remain in force.
+
+The restricted relay advertises the upstream intersection of tools, resource reads and prompts.
+It forwards cancellation of owned requests. It does not advertise resource
+subscriptions or list-change notifications, and it does not accept server requests for sampling,
+roots or elicitation. A server that needs those native features must use Follow server settings.
+Tool grants control MCP tools; they do not change shell, file, browser or general network access.
+Existing provider approval settings continue to apply. Per-tool approval modes are not part of
+this capability.
+
+An edit holds the agent's drain lane and the existing endpoint edit lane. Active or starting work
+refuses the edit before persistence. Idle provider sessions must close successfully before grants
+are saved. A close failure leaves the old grant set unchanged. This cannot undo an upstream effect
+that already started. The next provider session gets the current scope on start or resume.
+
+`agent-mcp-creation.ts` captures the calling agent's scope before tool creation waits. The store's
+synchronous creation initializer saves it before the child becomes visible in the roster, and
+returns cleanup for a failed roster write. User-created agents keep the existing default. A
+duplicate copies grants before the duplication gate publishes it. Agent deletion removes its grant
+events and receipts in the existing deletion transaction.
+
+`scripts/agent-mcp-e2e.ts` drives real SQLite state, HTTP and stdio MCP services, admin HTTP routes,
+and the real ACP adapter against a fixture agent. Its report distinguishes this coverage from live
+provider model execution and visual review.
+
 `agent/developer-instructions.ts` puts stable rules first, profile and workspace settings next,
 and memories last. Detailed browser, administration, routine, hosting, data, and visual guidance
 loads through `tool_describe`. Essential secret handling and untrusted-content rules stay in the

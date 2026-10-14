@@ -239,10 +239,11 @@ export class CustomAcpAgentsClient extends EventEmitter<ClientEvents> implements
   readonly releaseThread = Effect.fn("CustomAcp.releaseThread")(function* (
     this: CustomAcpAgentsClient,
     externalThreadId: string,
+    options?: { strict?: boolean },
   ) {
     const held = this.#sessions.get(externalThreadId);
     const release = held?.child.releaseThread?.bind(held.child);
-    if (held && release) yield* release(held.sessionId).pipe(toProviderClientOperationError);
+    if (held && release) yield* release(held.sessionId, options).pipe(toProviderClientOperationError);
   });
 
   readonly readSessionSettings = Effect.fn("CustomAcp.readSessionSettings")(function* (

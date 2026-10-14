@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import {
   type AgentProviderId,
   COMPUTER_USE_MCP_SERVER_ID,
+  isMcpServerConfig,
   isReservedMcpServerName,
   type McpServerConfig,
 } from "@openbot/contracts/ipc";
@@ -151,6 +152,14 @@ export function agentMcpServers(configs: readonly McpServerConfig[], computerUse
  */
 export function computerUseParam(params: unknown): boolean {
   return !isDynamicRecord(params) || params.computerUse !== false;
+}
+
+/** A host-owned relay set overrides the global source, including an explicitly empty set. */
+export function mcpServersParam(params: unknown, fallback: McpServerSource): readonly McpServerConfig[] {
+  if (!isDynamicRecord(params) || !Object.hasOwn(params, "openbotMcpServers")) return fallback();
+  const servers = params.openbotMcpServers;
+  if (!Array.isArray(servers) || !servers.every(isMcpServerConfig)) throw new Error("Invalid host MCP servers.");
+  return servers;
 }
 
 export const usableMcpServers = Effect.fnUntraced(function* (

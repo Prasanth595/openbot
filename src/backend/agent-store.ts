@@ -70,6 +70,8 @@ import { isRecord } from "./protocol";
 import { StoredStateFailure, storedIO, storedSync } from "./stored-state-effects";
 
 type StoredAgent = AgentSummary & { access: AgentAccess; computerUse: boolean };
+/** Initializes owned metadata before roster visibility and returns its rollback, if needed. */
+export type AgentCreationInitializer = (agentId: string) => (() => void) | undefined;
 type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access" | "computerUse"> & {
   avatarUrl?: string | null;
   provider?: AgentProviderId;
@@ -292,14 +294,19 @@ export class AgentStore {
     return this.#state.agents.map((agent) => ({ ...agent }));
   }
 
-  createAgent(input: Omit<CreateAgentInput, "initialMessage">, profileOperationId?: string) {
-    return this.#creationQueue.withPermit(this.#createAgent(input, profileOperationId));
+  createAgent(
+    input: Omit<CreateAgentInput, "initialMessage">,
+    profileOperationId?: string,
+    initialize?: AgentCreationInitializer,
+  ) {
+    return this.#creationQueue.withPermit(this.#createAgent(input, profileOperationId, initialize));
   }
 
   #createAgent = Effect.fn("AgentStore.createAgent")(function* (
     this: AgentStore,
     input: Omit<CreateAgentInput, "initialMessage">,
     profileOperationId?: string,
+    initialize?: AgentCreationInitializer,
   ): Effect.fn.Return<AgentSummary, StoredStateFailure> {
     try {
       if (this.#state.agents.length >= INPUT_LIMITS.agents) {
@@ -314,13 +321,21 @@ export class AgentStore {
       record.avatarHue = input.avatarHue;
       if (profileOperationId) yield* this.#profileCreationRecovery.begin(record.id, profileOperationId);
       yield* storedIO(() => mkdir(record.workspacePath, { recursive: true, mode: 0o700 }));
-      this.#state.agents.unshift(record);
+      let rollback: (() => void) | undefined;
       try {
+        rollback = initialize?.(record.id);
+        this.#state.agents.unshift(record);
         this.#persist("agent.created");
       } catch (error) {
+        let failure = error;
         this.#state.agents = this.#state.agents.filter((candidate) => candidate.id !== record.id);
+        try {
+          rollback?.();
+        } catch (cleanup) {
+          failure = new AggregateError([error, cleanup], sourceText("error.agent.setupCleanupFailed"));
+        }
         yield* storedIO(() => rm(record.workspacePath, { recursive: true, force: true }));
-        throw error;
+        throw failure;
       }
       return { ...record };
     } catch (cause) {

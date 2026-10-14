@@ -1,0 +1,5 @@
+{
+  "agentId": "agent-assistant",
+  "grants": [],
+  "servers": [{ "id": "mail", "name": "Mail", "enabled": true }]
+}

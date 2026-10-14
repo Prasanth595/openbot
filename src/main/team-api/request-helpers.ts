@@ -33,6 +33,7 @@ import {
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { AgentMcpPayloadTooLarge } from "@openbot/contracts/team-protocol/agent-mcp-v1";
 import {
   isTeamCurrentCapability,
   supportsTeamSemanticTags,
@@ -233,7 +234,9 @@ export async function readJson(request: IncomingMessage): Promise<DynamicRecord>
       preserveSemanticTags: supportsTeamSemanticTags(capabilities),
       agentCreateModel: capabilities.has(TEAM_AGENT_CREATE_MODEL_CAPABILITY),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof AgentMcpPayloadTooLarge)
+      throw new HttpError(400, sourceText("error.backend.agentMcpSelectionTooLarge"));
     throw new HttpError(400, "A valid JSON object is required.");
   }
 }

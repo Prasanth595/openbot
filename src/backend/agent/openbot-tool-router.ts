@@ -13,7 +13,9 @@ import type {
   UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import {
+  type AgentMcpGrants,
   agentComputerUseEnabled,
+  agentMcpServerAllowed,
   isMessageReaction,
   marketplaceSuggestionItemType,
   skillConversationEventItemType,
@@ -103,12 +105,14 @@ export interface OpenBotToolRouterHooks {
   createAgent(
     input: CreateAgentInput,
     configure?: (agent: AgentSummary) => Effect.Effect<AgentSummary, ToolOperationFailed>,
+    sourceAgentId?: string,
   ): Effect.Effect<AgentSummary, ToolOperationFailed>;
   /** `initiatingAgentId` is the calling agent, recorded with a model change. */
   updateAgent(input: UpdateAgentInput, initiatingAgentId: string): Effect.Effect<AgentSummary, ToolOperationFailed>;
   setAvatar(agentId: string, image: AvatarImageInput | null): Effect.Effect<AgentSummary, ToolOperationFailed>;
   /** The MCP servers of this computer that are turned on, before the Computer Use setting of one agent. */
   enabledMcpServers(): McpServerConfig[];
+  agentMcpGrants?(agentId: string): AgentMcpGrants;
   emitError(code: string, error: unknown, agentId?: string): void;
   /** Masks the MCP secret values and handoff values that `redactText` does not know. */
   redactMcp(text: string): string;
@@ -478,10 +482,14 @@ export class OpenBotToolRouter {
         schedule: routine.trigger.schedule,
         nextRunAt: routine.trigger.nextRunAt,
       })),
-      mcpServers: agentMcpServers(this.#hooks.enabledMcpServers(), computerUse).map((server) => ({
-        name: server.name,
-        transport: server.transport,
-      })),
+      mcpServers: agentMcpServers(this.#hooks.enabledMcpServers(), computerUse)
+        .filter((server) => agentMcpServerAllowed(this.#hooks.agentMcpGrants?.(agent.id) ?? null, server.id))
+        .map((server) => ({
+          name: server.name,
+          transport: server.transport,
+          tools:
+            this.#hooks.agentMcpGrants?.(agent.id)?.find((grant) => grant.mcpServerId === server.id)?.tools ?? null,
+        })),
     };
   });
 
@@ -1112,6 +1120,7 @@ export class OpenBotToolRouter {
                 })
                 .pipe(toToolOperationFailed);
             }).pipe(Effect.catchDefect((cause) => Effect.fail(new ToolOperationFailed({ cause })))),
+          senderAgentId,
         );
       const sidebar = this.#sidebarLayout;
       const created =

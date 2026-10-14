@@ -82,6 +82,7 @@ export interface ConversationRuntime {
               subscribe?(agentId: string, listener: () => void): () => void;
             }
           | undefined;
+        agentMcp?: import("@openbot/ui/features/conversation/AgentMcpSettings").AgentMcpSettingsApi | undefined;
       }
     | undefined;
 }

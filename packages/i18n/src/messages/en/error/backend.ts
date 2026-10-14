@@ -268,4 +268,12 @@ export const messages = defineMessages("error.backend", {
     "The sign-in server of this MCP server changed, so OpenBot did not send it the sign-in app. If the change is correct, remove the sign-in app and add it again.",
   "error.backend.mcpSignInAppNoServer": "Save this MCP server as a URL server before you add a sign-in app.",
   "error.backend.mcpSignInAppUnavailable": "This computer cannot keep a sign-in app.",
+  "error.backend.agentMcpDenied": "This MCP server or tool is not allowed for this agent.",
+  "error.backend.agentMcpSelectionTooLarge": "Agent MCP selection is too large. Select fewer tools or use All tools.",
+  "error.backend.agentMcpToolsTooLarge": "The tool list is too large. Enter a tool name filter and load tools again.",
+  "error.backend.agentMcpRequestFailed": "The MCP server request failed. Check the server connection and try again.",
+  "error.backend.agentMcpBusy":
+    "Stop this agent and wait for its current work to finish before changing MCP permissions.",
+  "error.backend.agentMcpCloseFailed":
+    "The provider session could not close. Restart OpenBot before changing MCP permissions.",
 });

@@ -20,6 +20,7 @@ export interface DuplicationHooks {
   hasAttentionFor(agentId: string): boolean;
   /** Re-arms a queue this gate held, so a message that waited out a copy is not stranded. */
   scheduleDrain(agentId: string): void;
+  copyMcpGrants?(sourceAgentId: string, agentId: string): void;
 }
 
 export interface DuplicationGateOptions {
@@ -188,6 +189,7 @@ export class DuplicationGate {
       return operation;
     });
     const releaseDuplication = this.#pendingReleases.get(agentId);
+    yield* duplicationStep(() => this.#hooks.copyMcpGrants?.(operation.sourceAgentId, agentId));
     return yield* this.#store
       .commitAgentDuplication(agentId, operation.operationId, operation.sourceAgentId, layout)
       .pipe(toAgentDuplicationFailed)

@@ -1,3 +1,4 @@
+import { AGENT_MCP_CAPABILITY, AGENT_MCP_ROUTES } from "@openbot/contracts/team-protocol/agent-mcp-v1";
 import {
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_SESSION_SETTINGS_ROUTES,
@@ -27,8 +28,10 @@ import {
   parseChannelRead,
   parseGenerateAgentProfile,
   parseHostAnalyticsInput,
+  parseListAgentMcpTools,
   parseResetAgentSessionSetting,
   parseSaveAgentProfile,
+  parseSetAgentMcpGrants,
   parseSetAgentSessionSetting,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
@@ -50,6 +53,8 @@ import { type MessageLinkRelay, openHttpLink } from "../message-link-relay";
 import {
   decodeAccountUsageFromHost,
   decodeAgentAnalyticsFromHost,
+  decodeAgentMcpSettingsFromHost,
+  decodeAgentMcpToolsFromHost,
   decodeAgentModelOptions,
   decodeAgentSessionSettingsFromHost,
   decodeAgentStatusFromHost,
@@ -196,6 +201,45 @@ export function agentIpcHandlers({
             remoteServers.request(serverId, AGENT_SESSION_SETTINGS_ROUTES.read, decodeAgentSessionSettingsFromHost, {
               method: "POST",
               body: { agentId },
+            }),
+          );
+        },
+      }),
+      readAgentMcpSettings: scopedHandler(parseAgentId, {
+        local: (agentId) => service.readAgentMcpSettings(agentId),
+        remote: (agentId, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_MCP_CAPABILITY))
+            throw new Error(sourceText("error.mcp.agentUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_MCP_ROUTES.read, decodeAgentMcpSettingsFromHost, {
+              method: "POST",
+              body: { agentId },
+            }),
+          );
+        },
+      }),
+      setAgentMcpGrants: scopedHandler(parseSetAgentMcpGrants, {
+        local: (input) => runCauseEffect(service.setAgentMcpGrants(input)),
+        remote: (input, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_MCP_CAPABILITY))
+            throw new Error(sourceText("error.mcp.agentUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_MCP_ROUTES.set, decodeAgentMcpSettingsFromHost, {
+              method: "POST",
+              body: input,
+            }),
+          );
+        },
+      }),
+      listAgentMcpTools: scopedHandler(parseListAgentMcpTools, {
+        local: (input) => runCauseEffect(service.listAgentMcpTools(input)),
+        remote: (input, serverId) => {
+          if (!remoteServers.supportsCapability(serverId, AGENT_MCP_CAPABILITY))
+            throw new Error(sourceText("error.mcp.agentUnsupported"));
+          return runCauseEffect(
+            remoteServers.request(serverId, AGENT_MCP_ROUTES.tools, decodeAgentMcpToolsFromHost, {
+              method: "POST",
+              body: input,
             }),
           );
         },

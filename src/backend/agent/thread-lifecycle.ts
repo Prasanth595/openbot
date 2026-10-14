@@ -19,6 +19,7 @@ import type { AgentStore } from "../agent-store";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
 import type { MailboxStore } from "../mailbox-store";
+import type { McpOperationError } from "../mcp-effects";
 import {
   agentMcpServers,
   type CodexDisabledMcpServer,
@@ -36,6 +37,7 @@ import {
   toMcpShapeFailed,
   usableMcpServers,
 } from "../mcp-provider-shapes";
+import { McpServerError } from "../mcp-server-store";
 import { decodeRecordResponse, decodeThreadResponse, getString, type ResponseDecoder } from "../protocol";
 import { TimeoutError, withTimeout } from "../with-timeout";
 import type { AgentMemories } from "./agent-memories";
@@ -97,6 +99,10 @@ export interface ThreadLifecycleOptions {
    * configuration, while Claude and the ACP clients read the same source themselves at spawn.
    */
   mcpServers?: McpServerSource;
+  scopedMcpServers?: (
+    agentId: string,
+    servers: readonly McpServerConfig[],
+  ) => Effect.Effect<readonly McpServerConfig[], McpOperationError>;
   mcpToolRuntimes?: McpToolRuntimeSource;
   mcpAuthorization?: McpAuthorizationSource;
   /**
@@ -129,6 +135,7 @@ export class ThreadLifecycle {
   readonly #compaction: ContextCompaction;
   readonly #hooks: ThreadLifecycleHooks;
   readonly #mcpServers: McpServerSource;
+  readonly #scopedMcpServers: ThreadLifecycleOptions["scopedMcpServers"];
   readonly #mcpToolRuntimes: McpToolRuntimeSource | undefined;
   readonly #mcpAuthorization: McpAuthorizationSource | undefined;
   readonly #agentEnvironment: () => Readonly<Record<string, string>>;
@@ -154,6 +161,7 @@ export class ThreadLifecycle {
     this.#compaction = options.compaction;
     this.#hooks = options.hooks;
     this.#mcpServers = options.mcpServers ?? (() => []);
+    this.#scopedMcpServers = options.scopedMcpServers;
     this.#mcpToolRuntimes = options.mcpToolRuntimes;
     this.#mcpAuthorization = options.mcpAuthorization;
     this.#agentEnvironment = options.agentEnvironment ?? (() => ({}));
@@ -245,6 +253,52 @@ export class ThreadLifecycle {
         }),
       { concurrency: "unbounded", discard: true },
     );
+  }, Effect.uninterruptible).bind(this);
+
+  /** Permission edits must close idle native sessions successfully before the saved scope changes. */
+  readonly retireAgentMcpSessions = Effect.fn("ThreadLifecycle.retireAgentMcpSessions")(function* (
+    this: ThreadLifecycle,
+    agentId: string,
+  ) {
+    const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+    if (!agent)
+      return yield* threadStep(() => {
+        throw new McpServerError(sourceText("error.agent.selectedGone"));
+      });
+    if (this.providerContextBusy(agent))
+      return yield* threadStep(() => {
+        throw new McpServerError(sourceText("error.backend.agentMcpBusy"));
+      });
+    const threadIds = this.#store.database.activeProviderSessionThreads(agentId);
+    for (const threadId of threadIds) {
+      const sessions = this.#store.database
+        .listProviderSessions(threadId)
+        .filter((session) => session.state === "active");
+      for (const session of sessions) {
+        const client = this.#conversation.loadedClientFor(session.externalSessionId);
+        if (client) {
+          if (!client.releaseThread)
+            return yield* threadStep(() => {
+              throw new McpServerError(sourceText("error.backend.agentMcpCloseFailed"));
+            });
+          yield* client.releaseThread(session.externalSessionId, { strict: true }).pipe(
+            Effect.mapError(
+              () =>
+                new ThreadOperationFailed({
+                  cause: new McpServerError(sourceText("error.backend.agentMcpCloseFailed")),
+                }),
+            ),
+          );
+        }
+      }
+      this.#store.database.deactivateProviderSessions(threadId);
+      for (const session of sessions) {
+        this.#conversation.unbindThread(session.externalSessionId);
+        this.#conversation.unloadThread(session.externalSessionId);
+        this.#compaction.forgetThread(session.externalSessionId);
+        this.#pendingHandoffs.delete(session.externalSessionId);
+      }
+    }
   }, Effect.uninterruptible).bind(this);
 
   readonly deleteProviderSessionFiles = Effect.fn("ThreadLifecycle.deleteProviderSessionFiles")(function* (
@@ -394,7 +448,7 @@ export class ThreadLifecycle {
     // One reading of the MCP set for the request and for the manifest below. Read twice, a change
     // that lands while the provider answers would be recorded as what this session was given, and
     // `hasCurrentTools` would then accept a session that never got it.
-    const mcpServers = this.#agentMcpServers(agent);
+    const mcpServers = yield* this.#agentMcpServers(agent);
     // The runtimes join that single reading for the same reason: a download that finishes while
     // the provider answers must not be recorded as what resolved this session's servers.
     const toolRuntimes = this.#toolRuntimes();
@@ -411,6 +465,7 @@ export class ThreadLifecycle {
         "thread/start",
         {
           ...config,
+          ...(client.provider === "codex" ? {} : { openbotMcpServers: mcpServers }),
           model: agent.model,
           effort: agent.reasoningEffort,
           cwd: agent.workspacePath,
@@ -690,9 +745,15 @@ export class ThreadLifecycle {
   }
 
   /** The enabled servers this agent is given. Without Computer Use the fingerprint changes, so Codex replaces the session. */
-  #agentMcpServers(agent: AgentSummary): readonly McpServerConfig[] {
-    return agentMcpServers(this.#mcpServers(), agentComputerUseEnabled(agent));
-  }
+  readonly #agentMcpServers = Effect.fn("ThreadLifecycle.agentMcpServers")(function* (
+    this: ThreadLifecycle,
+    agent: AgentSummary,
+  ) {
+    const servers = agentMcpServers(this.#mcpServers(), agentComputerUseEnabled(agent));
+    return this.#scopedMcpServers
+      ? yield* this.#scopedMcpServers(agent.id, servers).pipe(toThreadOperationFailed)
+      : servers;
+  });
 
   /**
    * A `tool-sandbox` provider (Claude) applies its own Workspace only sandbox, so it is told directly.
@@ -721,7 +782,7 @@ export class ThreadLifecycle {
       if (missingSessionFile(stored.failure.cause)) return false;
       return yield* stored.failure;
     }
-    const configs = this.#agentMcpServers(agent);
+    const configs = yield* this.#agentMcpServers(agent);
     const toolRuntimes = this.#toolRuntimes();
     const disabled = yield* this.codexOwnServersEffect(client, configs, toolRuntimes);
     const fingerprint = yield* threadStep(() =>
@@ -774,10 +835,11 @@ export class ThreadLifecycle {
     client: AgentClient,
     externalThreadId: string,
   ): Effect.fn.Return<DynamicRecord, ThreadOperationFailed> {
-    const configs = this.#agentMcpServers(agent);
+    const configs = yield* this.#agentMcpServers(agent);
     const toolRuntimes = this.#toolRuntimes();
     return {
       threadId: externalThreadId,
+      ...(client.provider === "codex" ? {} : { openbotMcpServers: configs }),
       model: agent.model,
       effort: agent.reasoningEffort,
       cwd: agent.workspacePath,

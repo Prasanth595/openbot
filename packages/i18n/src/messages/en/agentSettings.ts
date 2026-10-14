@@ -137,6 +137,21 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.runtime.workspaceUnlimited":
     "Computer Use and the OpenBot browser are not limited; you can turn Computer Use off below.",
   "agentSettings.computerUse.title": "Computer Use",
+  "agentSettings.mcp.title": "MCP permissions",
+  "agentSettings.mcp.inherit": "Follow server settings",
+  "agentSettings.mcp.inheritDescription":
+    "Allow all MCP servers and tools enabled on this host, including ones added later",
+  "agentSettings.mcp.scopeDescription":
+    "Select servers and exact tools while this agent is idle. Computer Use and approval settings still apply. Commands and other network access keep their existing permissions.",
+  "agentSettings.mcp.restrictedNote":
+    "Restricted connections support tool calls, resource reads and prompts. Use Follow server settings for interactive server requests, workspace roots or resource subscriptions.",
+  "agentSettings.mcp.hostDisabled": "Disabled in server settings",
+  "agentSettings.mcp.allTools": "Allow all tools",
+  "agentSettings.mcp.loadTools": "Load tools",
+  "agentSettings.mcp.searchTools": "Filter tool names, then load tools",
+  "agentSettings.mcp.searchMore": "The first 100 matching tools are shown. Search to find other tools.",
+  "agentSettings.mcp.readFailed": "Could not load MCP permissions.",
+  "agentSettings.mcp.toolsFailed": "Could not load MCP tools. Check the server connection and try again.",
   "agentSettings.computerUse.description": "Let this agent control apps on this computer",
   "agentSettings.automation.title": "Local scripts",
   "agentSettings.automation.description":

@@ -1836,6 +1836,7 @@ export async function createApplicationServices({
       agents: agentAdminSettings,
       agentHost: agentHostSettings,
       sessionSettings: service,
+      agentMcp: service,
       acpRegistry,
       skills,
       sharedTables: service,

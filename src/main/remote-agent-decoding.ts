@@ -1,4 +1,6 @@
 import {
+  type AgentMcpSettings,
+  type AgentMcpTool,
   type AgentSessionSettings,
   decodeAgentAnalytics,
   decodeHostAnalytics,
@@ -6,6 +8,8 @@ import {
   decodeInstalledSkills,
   type HostProviderAccounts,
   isAgentHostSettings,
+  isAgentMcpSettings,
+  isAgentMcpTools,
   isAgentSessionSettings,
 } from "@openbot/contracts/ipc";
 // Agent-shaped wire payloads: summaries, status, models, skills, memories, routines, queue.
@@ -205,5 +209,13 @@ export function decodeHostAnalyticsFromHost(value: unknown) {
 
 export function decodeAgentSessionSettingsFromHost(value: unknown): AgentSessionSettings {
   if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
+  return value;
+}
+export function decodeAgentMcpSettingsFromHost(value: unknown): AgentMcpSettings {
+  if (!isAgentMcpSettings(value)) throw new Error("Invalid agent MCP settings response.");
+  return value;
+}
+export function decodeAgentMcpToolsFromHost(value: unknown): AgentMcpTool[] {
+  if (!isAgentMcpTools(value)) throw new Error("Invalid agent MCP tools response.");
   return value;
 }

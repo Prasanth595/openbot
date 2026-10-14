@@ -284,6 +284,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               remoteClient={Boolean(props.runtime)}
               localHost={props.server?.kind === "local"}
               sessionSettingsEditable={serverCanAdminister(props.server, "agent-session-settings-v1")}
+              mcpEditable={serverCanAdminister(props.server, "agent-mcp-v1")}
               adminCalls={props.runtime?.admin}
               skillsMarketplaceOpen={props.skillsMarketplaceOpen}
               onAddFromMarketplace={

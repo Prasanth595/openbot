@@ -1,9 +1,16 @@
 import {
+  type AgentMcpSettings,
+  type AgentMcpTool,
   type AgentSessionSettings,
+  isAgentMcpSettings,
+  isAgentMcpTools,
   isAgentSessionSettings,
+  type ListAgentMcpToolsInput,
   type ResetAgentSessionSettingInput,
+  type SetAgentMcpGrantsInput,
   type SetAgentSessionSettingInput,
 } from "@openbot/contracts/ipc";
+import { AGENT_MCP_ROUTES } from "@openbot/contracts/team-protocol/agent-mcp-v1";
 import { AGENT_SESSION_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-member-update-v1";
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
@@ -905,6 +912,37 @@ export function checkHostRelease(request: TeamApiRequest): Effect.Effect<HostRel
 function decodeSessionSettings(value: unknown): AgentSessionSettings {
   if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
   return value;
+}
+function decodeAgentMcpSettings(value: unknown): AgentMcpSettings {
+  if (!isAgentMcpSettings(value)) throw new Error("Invalid agent MCP settings response.");
+  return value;
+}
+function decodeAgentMcpTools(value: unknown): AgentMcpTool[] {
+  if (!isAgentMcpTools(value)) throw new Error("Invalid agent MCP tools response.");
+  return value;
+}
+export function readAgentMcpSettings(
+  request: TeamApiRequest,
+  agentId: string,
+): Effect.Effect<AgentMcpSettings, TeamAdminRequestError> {
+  return adminCall(() => request("POST", AGENT_MCP_ROUTES.read, decodeAgentMcpSettings, { agentId }));
+}
+export function setAgentMcpGrants(
+  request: TeamApiRequest,
+  input: SetAgentMcpGrantsInput,
+): Effect.Effect<AgentMcpSettings, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", AGENT_MCP_ROUTES.set, decodeAgentMcpSettings, {
+      agentId: input.agentId,
+      grants: input.grants === null ? null : input.grants.map(({ mcpServerId, tools }) => ({ mcpServerId, tools })),
+    }),
+  );
+}
+export function listAgentMcpTools(
+  request: TeamApiRequest,
+  input: ListAgentMcpToolsInput,
+): Effect.Effect<AgentMcpTool[], TeamAdminRequestError> {
+  return adminCall(() => request("POST", AGENT_MCP_ROUTES.tools, decodeAgentMcpTools, { ...input }));
 }
 export function readAgentSessionSettings(
   request: TeamApiRequest,

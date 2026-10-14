@@ -29,7 +29,10 @@ export interface AgentClient {
    * alive with it, so each further change adds another set of processes - including the servers the
    * user turned off. Optional, because a client that keeps no per-thread state has nothing to close.
    */
-  releaseThread?(externalThreadId: string): Effect.Effect<void, ProviderClientOperationError>;
+  releaseThread?(
+    externalThreadId: string,
+    options?: { strict?: boolean },
+  ): Effect.Effect<void, ProviderClientOperationError>;
   /**
    * Closes each thread that has no turn and can open again from its session, to free its processes
    * and MCP servers when the machine is low on memory. Optional, because a client that runs all its

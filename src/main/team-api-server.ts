@@ -25,6 +25,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { ACP_REGISTRY_CAPABILITY } from "@openbot/contracts/team-protocol/acp-registry-v1";
+import { AGENT_MCP_CAPABILITY } from "@openbot/contracts/team-protocol/agent-mcp-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import {
   AGENT_ADMIN_CAPABILITY,
@@ -138,6 +139,7 @@ import { routeAcpRegistry } from "./team-api/route-acp-registry";
 import { routeAgentAdmin, routeAgentHostSettings } from "./team-api/route-agent-admin";
 import { routeAgentImport } from "./team-api/route-agent-import";
 import { routeAgentInstall } from "./team-api/route-agent-install";
+import { routeAgentMcp } from "./team-api/route-agent-mcp";
 import { routeAgentMemoryPage } from "./team-api/route-agent-memories";
 import { routeAgentPublish } from "./team-api/route-agent-publish";
 import { routeAgentSessionSettings } from "./team-api/route-agent-session-settings";
@@ -767,6 +769,7 @@ export class TeamApiServer {
       if ((await routeAgentAdmin(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentHostSettings(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeAgentSessionSettings(context, this.#options.admin, hidden)) === "handled") return;
+      if ((await routeAgentMcp(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeSkillsAdmin(context, this.#options.admin, hidden)) === "handled") return;
       if ((await routeSharedTables(context, this.#options.admin)) === "handled") return;
       if ((await routeAgentInstall(context, this.#options.admin, hidden, newAgentHidden)) === "handled") return;
@@ -1569,6 +1572,7 @@ export class TeamApiServer {
         if (capability === AGENT_ADMIN_CAPABILITY) return this.#options.admin?.agents !== undefined;
         if (capability === ACP_REGISTRY_CAPABILITY) return this.#options.admin?.acpRegistry !== undefined;
         if (capability === AGENT_SESSION_SETTINGS_CAPABILITY) return this.#options.admin?.sessionSettings !== undefined;
+        if (capability === AGENT_MCP_CAPABILITY) return this.#options.admin?.agentMcp !== undefined;
         if (capability === AGENT_HOST_SETTINGS_CAPABILITY) return this.#options.admin?.agentHost !== undefined;
         if (capability === SKILLS_ADMIN_CAPABILITY) return this.#options.admin?.skills !== undefined;
         if (capability === SKILLS_EVENTS_CAPABILITY) return this.#options.skills !== undefined;

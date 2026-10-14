@@ -1,4 +1,11 @@
-import { type AgentSessionSettings, isAgentSessionSettings } from "@openbot/contracts/ipc";
+import {
+  type AgentMcpSettings,
+  type AgentMcpTool,
+  type AgentSessionSettings,
+  isAgentMcpSettings,
+  isAgentMcpTools,
+  isAgentSessionSettings,
+} from "@openbot/contracts/ipc";
 // What main answers for agents: provider status, models, the agents themselves, memories, routines,
 // shared tables and the sidebar layout.
 //
@@ -192,5 +199,13 @@ export function decodeOptionalMemorySelection(value: unknown): AgentMemorySelect
 }
 export function decodeAgentSessionSettingsFromMain(value: unknown): AgentSessionSettings {
   if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
+  return value;
+}
+export function decodeAgentMcpSettingsFromMain(value: unknown): AgentMcpSettings {
+  if (!isAgentMcpSettings(value)) throw new Error("Invalid agent MCP settings response.");
+  return value;
+}
+export function decodeAgentMcpToolsFromMain(value: unknown): AgentMcpTool[] {
+  if (!isAgentMcpTools(value)) throw new Error("Invalid agent MCP tools response.");
   return value;
 }
