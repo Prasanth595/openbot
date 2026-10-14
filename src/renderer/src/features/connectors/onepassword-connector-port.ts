@@ -15,14 +15,15 @@ export function onePasswordConnectorPort(): OnePasswordConnectorPort {
 /** The actions of a joined server's connection (`onepassword-connector-v1`): a token connects it. */
 export type HostOnePasswordActions = Pick<OnePasswordConnectorPort, "status" | "connectWithToken" | "disconnect">;
 
-/** How often a joined server's connection is read while the host still counts its logins. */
+/** How often a joined server's connection is read while the host connects or still counts its logins. */
 const HOST_POLL_MS = 2_000;
-/** The host reads its logins once after a start. A read that fails leaves no count, so the reads stop. */
+/** A read of the logins that fails leaves no count, so the reads stop. Opening the page reads again. */
 const HOST_POLL_LIMIT = 15;
 
 /**
  * A port to a joined server's connection. The host sends no event, so `onChanged` reads the status
- * while the login count is not known, and stops after `HOST_POLL_LIMIT` reads or when a read fails.
+ * while the host connects or the login count is not known, and stops after `HOST_POLL_LIMIT` reads
+ * or when a read fails. Each status read asks the host to read its logins again when they are old.
  * The host has no screen, so the CLI and the 1Password app are not used: their actions fail.
  */
 export function polledOnePasswordConnectorPort(actions: HostOnePasswordActions): OnePasswordConnectorPort {
@@ -35,8 +36,8 @@ export function polledOnePasswordConnectorPort(actions: HostOnePasswordActions):
   };
   const seen = (status: OnePasswordConnectorStatus) => {
     for (const listener of listeners) listener(status);
-    const counting = status.state === "connected" && status.loginCount === null;
-    if (!counting) {
+    const waiting = status.state === "connecting" || (status.state === "connected" && status.loginCount === null);
+    if (!waiting) {
       stop();
       reads = 0;
     } else if (timer === null && listeners.size > 0 && reads < HOST_POLL_LIMIT)
@@ -50,7 +51,10 @@ export function polledOnePasswordConnectorPort(actions: HostOnePasswordActions):
   const unsupported = () => Promise.reject(new Error(sourceText("error.team.connectorsUnsupported")));
   return {
     status: async () => seen(await actions.status()),
-    checkSetup: async () => seen(await actions.status()),
+    checkSetup: async () => {
+      reads = 0;
+      return seen(await actions.status());
+    },
     installCli: unsupported,
     openApp: unsupported,
     connect: unsupported,

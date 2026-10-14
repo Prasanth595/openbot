@@ -325,7 +325,7 @@ export type TeamApiRemoteScreen = Pick<
 /** `onepassword-connector-v1`: the 1Password connection of this host, by a service account token. */
 export type TeamApiOnePasswordConnector = Pick<
   OnePasswordConnectorService,
-  "status" | "connectWithToken" | "disconnect"
+  "status" | "refreshLogins" | "connectWithToken" | "disconnect"
 >;
 
 export interface TeamApiOptions {

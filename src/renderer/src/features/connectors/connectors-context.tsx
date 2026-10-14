@@ -65,16 +65,15 @@ const context = createSimpleContext({
      */
     const registry = (server: () => ServerSummary | undefined): ConnectorRegistry => {
       const target = createMemo(() => remoteAdminServer(server(), "connectors-v1"));
+      // A separate capability: a host that serves `connectors-v1` can be older than the 1Password routes.
+      const onePasswordTarget = createMemo(() => remoteAdminServer(server(), ONEPASSWORD_CONNECTOR_CAPABILITY));
       const options: MessagingConnectorOptions = {
         agents: agentList,
-        hostName: () => target()?.name,
+        hostName: () => (target() ?? onePasswordTarget())?.name,
         serverId: () => target()?.id,
       };
       const github = hostGitHubConnectorPort(() => target()?.id);
-      // A separate capability: a host that serves `connectors-v1` can be older than the 1Password routes.
-      const onePassword = hostOnePasswordConnectorPort(
-        () => remoteAdminServer(server(), ONEPASSWORD_CONNECTOR_CAPABILITY)?.id,
-      );
+      const onePassword = hostOnePasswordConnectorPort(() => onePasswordTarget()?.id);
       const host = createConnectorSet(
         { github: () => github, onePassword: () => onePassword, messaging: hostMessagingApi(() => target()?.id) },
         options,

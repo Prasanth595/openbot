@@ -65,6 +65,6 @@ export async function routeOnePasswordConnector(
     case ONEPASSWORD_CONNECTOR_ROUTES.disconnect:
       return json(200, wireStatus(await runCauseEffect(connector.disconnect())));
     default:
-      return json(200, wireStatus(connector.status()));
+      return json(200, wireStatus(await runCauseEffect(connector.refreshLogins())));
   }
 }

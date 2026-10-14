@@ -11,7 +11,7 @@ import { type OnePasswordConnectorPort, onePasswordConnectorPort } from "./onepa
  *
  * Cancel does not wait for another action: Connect waits for the CLI, and Cancel is the way out.
  * The page asks for the setup first, so a card has no one-click connect. A joined server connects
- * with a token only, so its page checks no setup.
+ * with a token only; its check reads the host's status, and the host reads its logins again.
  */
 export function createOnePasswordConnector(
   port: () => OnePasswordConnectorPort = onePasswordConnectorPort,
@@ -67,9 +67,8 @@ export function createOnePasswordConnector(
         get hostName() {
           return hostName?.();
         },
-        // The user turns on the CLI integration in the 1Password app, outside this window.
+        // The user turns on the CLI integration or adds logins in the 1Password app, outside this window.
         onWatchSetup: () => {
-          if (hostName) return () => undefined;
           checkSetup();
           window.addEventListener("focus", checkSetup);
           return () => window.removeEventListener("focus", checkSetup);
