@@ -88,8 +88,13 @@ function inlineHtml(line: string): string {
     .map((part) => {
       if (part.length > 2 && part.startsWith("`") && part.endsWith("`"))
         return `<code>${escapeHtml(part.slice(1, -1))}</code>`;
-      let marker = "\uE002";
-      while (part.includes(marker)) marker += "\uE002";
+      let longestRun = 0;
+      let run = 0;
+      for (const character of part) {
+        run = character === "\uE002" ? run + 1 : 0;
+        longestRun = Math.max(longestRun, run);
+      }
+      const marker = "\uE002".repeat(longestRun + 1);
       const links: string[] = [];
       const text = part.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gu, (_match, label: string, url: string) => {
         links.push(`<a href="${escapeHtml(url).replaceAll('"', "&quot;")}">${escapeHtml(inertMentions(label))}</a>`);

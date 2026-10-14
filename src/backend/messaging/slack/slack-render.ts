@@ -39,8 +39,13 @@ function inlineMrkdwn(line: string): string {
     .split(/(`[^`]*`)/)
     .map((part) => {
       if (part.startsWith("`") && part.endsWith("`") && part.length > 1) return part;
-      let marker = "\uE001";
-      while (part.includes(marker)) marker += "\uE001";
+      let longestRun = 0;
+      let run = 0;
+      for (const character of part) {
+        run = character === "\uE001" ? run + 1 : 0;
+        longestRun = Math.max(longestRun, run);
+      }
+      const marker = "\uE001".repeat(longestRun + 1);
       const bold: string[] = [];
       return part
         .replace(/\*\*(.+?)\*\*|__(.+?)__/g, (_match, a: string | undefined, b: string | undefined) => {
