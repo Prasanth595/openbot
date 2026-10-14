@@ -70,7 +70,10 @@ import { isRecord } from "./protocol";
 import { StoredStateFailure, storedIO, storedSync } from "./stored-state-effects";
 
 type StoredAgent = AgentSummary & { access: AgentAccess; computerUse: boolean };
-/** Initializes owned metadata before roster visibility and returns its rollback, if needed. */
+/**
+ * Initializes owned metadata before roster visibility and returns its rollback, if needed.
+ * If initialization throws before returning, the initializer must undo its own partial writes.
+ */
 export type AgentCreationInitializer = (agentId: string) => (() => void) | undefined;
 type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access" | "computerUse"> & {
   avatarUrl?: string | null;
@@ -320,21 +323,21 @@ export class AgentStore {
       record.avatarSeed = input.avatarSeed;
       record.avatarHue = input.avatarHue;
       if (profileOperationId) yield* this.#profileCreationRecovery.begin(record.id, profileOperationId);
-      yield* storedIO(() => mkdir(record.workspacePath, { recursive: true, mode: 0o700 }));
+      const createdWorkspace = yield* storedIO(() => mkdir(record.workspacePath, { recursive: true, mode: 0o700 }));
       let rollback: (() => void) | undefined;
       try {
         rollback = initialize?.(record.id);
         this.#state.agents.unshift(record);
         this.#persist("agent.created");
       } catch (error) {
-        let failure = error;
         this.#state.agents = this.#state.agents.filter((candidate) => candidate.id !== record.id);
+        let failure = error;
         try {
           rollback?.();
         } catch (cleanup) {
           failure = new AggregateError([error, cleanup], sourceText("error.agent.setupCleanupFailed"));
         }
-        yield* storedIO(() => rm(record.workspacePath, { recursive: true, force: true }));
+        if (createdWorkspace) yield* storedIO(() => rm(record.workspacePath, { recursive: true, force: true }));
         throw failure;
       }
       return { ...record };
