@@ -19,7 +19,7 @@ export const messages = {
   "agentSettings.advanced.title": "詳細設定",
   "agentSettings.backupModels.title": "バックアップモデル",
   "agentSettings.backupModels.valueAsk": "先に確認",
-  "agentSettings.backupModels.valueAutomatic": "自動で切り替え",
+  "agentSettings.backupModels.valueAutomatic": "自動",
   "agentSettings.backupModels.valueCount": { other: "{mode} · {count}" },
   "agentSettings.backupModels.intro":
     "{name} が書き始める前に {model} が使用量の上限に達した場合、{name} はどのモデルを使うかを確認します。",

@@ -19,7 +19,7 @@ export const messages = {
   "agentSettings.advanced.title": "Gelişmiş",
   "agentSettings.backupModels.title": "Yedek modeller",
   "agentSettings.backupModels.valueAsk": "Önce sor",
-  "agentSettings.backupModels.valueAutomatic": "Otomatik değiştir",
+  "agentSettings.backupModels.valueAutomatic": "Otomatik",
   "agentSettings.backupModels.valueCount": { one: "{mode} · {count}", other: "{mode} · {count}" },
   "agentSettings.backupModels.intro":
     "{model}, {name} yazmaya başlamadan önce kullanım sınırına ulaşırsa {name} hangi modelin kullanılacağını size sorar.",

@@ -19,7 +19,7 @@ export const messages = {
   "agentSettings.advanced.title": "Дополнительно",
   "agentSettings.backupModels.title": "Резервные модели",
   "agentSettings.backupModels.valueAsk": "Сначала спросить",
-  "agentSettings.backupModels.valueAutomatic": "Переключать автоматически",
+  "agentSettings.backupModels.valueAutomatic": "Автоматически",
   "agentSettings.backupModels.valueCount": {
     one: "{mode} · {count}",
     few: "{mode} · {count}",

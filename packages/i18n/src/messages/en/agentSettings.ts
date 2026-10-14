@@ -17,7 +17,7 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.advanced.title": "Advanced",
   "agentSettings.backupModels.title": "Backup models",
   "agentSettings.backupModels.valueAsk": "Ask first",
-  "agentSettings.backupModels.valueAutomatic": "Switch automatically",
+  "agentSettings.backupModels.valueAutomatic": "Automatic",
   "agentSettings.backupModels.valueCount": { one: "{mode} · {count}", other: "{mode} · {count}" },
   "agentSettings.backupModels.intro":
     "When {model} reaches its usage limit before {name} starts to write, {name} asks you which model to use.",

@@ -18,7 +18,7 @@ export const messages = {
   "agentSettings.advanced.title": "Avançado",
   "agentSettings.backupModels.title": "Modelos de reserva",
   "agentSettings.backupModels.valueAsk": "Perguntar antes",
-  "agentSettings.backupModels.valueAutomatic": "Trocar automaticamente",
+  "agentSettings.backupModels.valueAutomatic": "Automático",
   "agentSettings.backupModels.valueCount": { one: "{mode} · {count}", other: "{mode} · {count}" },
   "agentSettings.backupModels.intro":
     "Quando {model} atinge o limite de uso antes de {name} começar a escrever, {name} pergunta qual modelo você quer usar.",
