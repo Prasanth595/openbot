@@ -72,7 +72,7 @@ const agent: AgentSummary = {
 async function createInstanceTransfer() {
   const directory = await mkdtemp(join(tmpdir(), "openbot-transfer-route-"));
   const staged: Array<{ bytes: number[]; owner: string }> = [];
-  const applied: string[] = [];
+  const applied: Array<{ owner: string | undefined; timezone: string | undefined }> = [];
   const calls = { staged, applied };
   const service: NonNullable<TeamApiOptions["instanceTransfer"]> = {
     summary: () => Effect.succeed(summary),
@@ -88,9 +88,9 @@ async function createInstanceTransfer() {
         calls.staged.push({ bytes: [...bytes], owner });
         return preview;
       }),
-    apply: (_input, owner) =>
+    apply: (_input, owner, timezone) =>
       Effect.sync(() => {
-        if (owner) calls.applied.push(owner);
+        calls.applied.push({ owner, timezone });
         return { agents: [agent], skipped: [], signIn: ["claude"], warnings: [] };
       }),
     discard: () => Effect.void,
@@ -169,8 +169,8 @@ describe("Team API instance transfer", () => {
     });
     const [stagedBy] = transfer.calls.staged;
     expect(stagedBy?.bytes).toEqual([80, 75, 3, 4]);
-    // The token belongs to the caller, so only the caller can apply it.
-    expect(transfer.calls.applied).toEqual([stagedBy?.owner]);
+    // The token belongs to the caller, so only the caller can apply it, in the caller's zone.
+    expect(transfer.calls.applied).toEqual([{ owner: stagedBy?.owner, timezone: "Europe/Warsaw" }]);
 
     // A new capability is protocol 7 only: a protocol 6 peer reads at most 64.
     const compatibility = await (

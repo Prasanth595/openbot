@@ -557,19 +557,23 @@ export class InstanceTransferService {
     this: InstanceTransferService,
     input: ApplyInstanceTransferInput,
     owner = LOCAL_OWNER,
+    /** The caller's zone, for routines with no valid zone. A zone that is not valid reads as the host's. */
+    timezone?: string,
   ): Effect.fn.Return<InstanceTransferResult, ArchiveOperationError> {
     const staged = this.#staged.get(input.token);
     // Another member's token reads as a closed file, so the answer does not show that it exists.
     if (!staged || staged.owner !== owner)
       return yield* archiveFailure(new Error(sourceText("error.import.exportClosed")));
     this.#staged.delete(staged.token);
-    return yield* this.#applyStaged(staged, input).pipe(Effect.ensuring(this.#drop(staged)));
+    const fallbackTimezone = timezone !== undefined && validTimezone(timezone) ? timezone : this.#timezone();
+    return yield* this.#applyStaged(staged, input, fallbackTimezone).pipe(Effect.ensuring(this.#drop(staged)));
   }).bind(this);
 
   readonly #applyStaged = Effect.fn("InstanceTransfer.applyStaged")(function* (
     this: InstanceTransferService,
     staged: StagedTransfer,
     input: ApplyInstanceTransferInput,
+    fallbackTimezone: string,
   ): Effect.fn.Return<InstanceTransferResult, ArchiveOperationError> {
     const selected = staged.manifest.agents.filter((agent) => input.keys.includes(agent.key));
     if (selected.length !== input.keys.length)
@@ -595,7 +599,9 @@ export class InstanceTransferService {
     const agentIds = new Map<string, string>();
     const routineIds = new Map<string, string>();
     for (const agent of selected) {
-      const result = yield* Effect.result(this.#importAgent(bytes, staged, agent, routineIds, warnings));
+      const result = yield* Effect.result(
+        this.#importAgent(bytes, staged, agent, routineIds, warnings, fallbackTimezone),
+      );
       if (Result.isFailure(result)) {
         skipped.push({ key: agent.key, name: agent.name, reason: message(result.failure.cause) });
       } else {
@@ -756,6 +762,7 @@ export class InstanceTransferService {
     source: TransferAgent,
     routineIds: Map<string, string>,
     warnings: string[],
+    fallbackTimezone: string,
   ): Effect.fn.Return<AgentSummary, ArchiveOperationError> {
     const prefix = agentPrefix(source.key);
     const files = yield* archiveSync(() => extract(bytes, (name) => name.startsWith(prefix)));
@@ -837,7 +844,7 @@ export class InstanceTransferService {
                   name: routine.name,
                   instruction: routine.instruction,
                   active: routine.active,
-                  timezone: validTimezone(routine.timezone) ? routine.timezone : this.#timezone(),
+                  timezone: validTimezone(routine.timezone) ? routine.timezone : fallbackTimezone,
                   schedule: routine.schedule,
                   ...(routine.limitPolicy ? { limitPolicy: routine.limitPolicy } : {}),
                   ...(routine.missedPolicy ? { missedPolicy: routine.missedPolicy } : {}),
