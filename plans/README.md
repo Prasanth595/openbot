@@ -12,11 +12,6 @@ changes, and respect the `STOP` conditions.
 | 002 | TanStack Start, Solid 2, Cloudflare Workers and D1 | P1 | L | — | IN PROGRESS |
 | 003 | MCP is robust and future-proof | P1 | M | — | DONE |
 | 004 | Fade the mobile search results and notices in and out | MEDIUM | S | — | DONE |
-| 005 | Make the HeroUI button press answer in 120 ms | MEDIUM | M | Run last: after 006 and 008 (shared files) | TODO |
-| 006 | Draw the avatar saturate filter only while the avatar is not full color | MEDIUM | S | — | TODO |
-| 007 | Let the server drawer be caught while it moves | MEDIUM | M | — | TODO |
-| 008 | Play the QR success haptic with the success motion | MEDIUM | S | Before 009 and 005 (shared files) | TODO |
-| 009 | Close the QR scanner faster than it opens, and keep its clip morph | MEDIUM | S | After 008 (shared file) | TODO |
 
 Allowed states: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <reason>`,
 `REJECTED: <reason>`.
@@ -35,24 +30,6 @@ Allowed states: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <reason>`,
 
 - Plan 004 was written by the `improve-animations` skill on 2026-10-12 for the mobile search sheet. It
   is independent of the other plans.
-
-- Plans 005 to 009 were written by the `improve-animations` skill on 2026-10-14 at commit `86f9979ef`.
-  The working tree had uncommitted onboarding and sign-in hand-off work (`apps/mobile/src/features/onboarding/`,
-  `loader-flight.tsx`, `bloub-loader.tsx`, `app-loading-overlay.tsx`, `sign-in-screen.tsx`,
-  `connected-screen.tsx`, `_layout.tsx` and others). The plans do not edit those files. Each plan
-  lists them under Boundaries.
-- No plan needs the result of another plan. Some plans edit the same files, so run them one at a
-  time in this order: 006, 007, 008, 009, 005.
-  - 008 and 009 both edit `apps/mobile/src/features/auth/components/scan-qr-sheet.tsx`.
-  - 005 and 008 both edit `apps/mobile/src/features/auth/components/qr-scanner.tsx`.
-  - 005 and 006 both edit `apps/mobile/src/features/chat/components/chat-composer.tsx`.
-  - 005 goes last because it adds a line in 32 files and moves the line numbers that the other
-    plans cite.
-- Plan 009 keeps the layout props of the QR scanner clip. A transform cannot keep its corner radius
-  (see the plan). A canvas clip is a possible later plan, after the device profile that
-  `apps/mobile/CAMERA-PERFORMANCE.md` asks for.
-- Plan 005 leaves the HeroUI scale amount unchanged. Small icon buttons shrink to about 0.875 because
-  of the HeroUI width coefficient. That is a separate decision for the developer.
 
 ## Rejected alternatives
 
