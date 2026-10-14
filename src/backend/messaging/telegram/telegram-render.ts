@@ -110,7 +110,7 @@ function inlineHtml(line: string): string {
         );
         return `${links.length - 1}`;
       });
-      const formatted = escapeHtml(text)
+      const formatted = escapeHtml(inertMentions(text))
         .replace(
           /\*\*(.+?)\*\*|__(.+?)__/gu,
           (_match, a: string | undefined, b: string | undefined) => `<b>${a ?? b}</b>`,
@@ -118,9 +118,11 @@ function inlineHtml(line: string): string {
         .replace(/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/gu, "<i>$1</i>")
         .replace(/(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?![\w_])/gu, "<i>$1</i>")
         .replace(/~~(.+?)~~/gu, "<s>$1</s>");
-      return inertMentions(restoreEscapes(formatted, true)).replace(
-        /(\d+)/gu,
-        (_match, index: string) => links[Number(index)] ?? "",
+      return (
+        inertMentions(restoreEscapes(formatted, true))
+          // Escaped @ returns after emphasis becomes HTML; guard it before restoring links.
+          .replace(/@(?=(?:<(?:b|i|s)>)+[A-Za-z0-9_])/gu, "@⁠")
+          .replace(/(\d+)/gu, (_match, index: string) => links[Number(index)] ?? "")
       );
     })
     .join("");
