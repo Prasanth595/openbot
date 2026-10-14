@@ -9,7 +9,7 @@ import { z } from "zod";
 import { interruptAgentToolSchema } from "./agent/agent-interrupt-tool";
 import { DATA_TOOL_DEFINITIONS } from "./agent/data-tools";
 import { HISTORY_TOOL_DEFINITIONS } from "./agent/history-tools";
-import { MEMORY_RECALL_TOOL_DEFINITIONS } from "./agent/memory-tool-inputs";
+import { MEMORY_RECALL_TOOL_DEFINITIONS, memoryDirectoryAnnotationInput } from "./agent/memory-tool-inputs";
 import {
   createAgentToolSchema,
   listModelsToolSchema,
@@ -299,11 +299,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "remember",
     description:
-      "Stage one short, durable memory for this agent. Use memoryId to correct or consolidate an existing memory. New entries are searchable unless inclusion is essential. Essential requests that do not fit stay searchable. The change commits only if the current turn completes.",
+      "Stage one short, durable memory for this agent. Use memoryId to correct or consolidate an existing memory. New entries are searchable unless inclusion is essential. Essential requests that do not fit stay searchable. Optional directory supplies a short subject title and literal aliases for later discovery. The fact and its hints commit together only if the current turn completes. User labels and a different survivor annotation cannot be replaced.",
     shape: {
       text: z.string().min(1).max(INPUT_LIMITS.agentMemoryText),
       memoryId: z.string().optional(),
       inclusion: z.enum(["essential", "searchable"]).optional(),
+      directory: memoryDirectoryAnnotationInput.optional(),
     },
   },
   {

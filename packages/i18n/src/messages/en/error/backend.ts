@@ -268,4 +268,12 @@ export const messages = defineMessages("error.backend", {
     "The sign-in server of this MCP server changed, so OpenBot did not send it the sign-in app. If the change is correct, remove the sign-in app and add it again.",
   "error.backend.mcpSignInAppNoServer": "Save this MCP server as a URL server before you add a sign-in app.",
   "error.backend.mcpSignInAppUnavailable": "This computer cannot keep a sign-in app.",
+  "error.backend.memoryDirectoryCursor":
+    "The memory directory cursor is invalid for this agent or query. Start a fresh lookup.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Use a short title and up to four literal aliases within the recall label limit.",
+  "error.backend.memoryDirectoryUserControlled":
+    "These recall labels are controlled by the user. Save the text without changing the labels.",
+  "error.backend.memoryDirectoryConflict":
+    "The memory or its recall labels changed. Reload the current labels before saving.",
 });

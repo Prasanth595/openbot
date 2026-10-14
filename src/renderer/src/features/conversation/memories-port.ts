@@ -1,3 +1,7 @@
+import type {
+  AgentMemoryDirectoryMetadata,
+  SetAgentMemoryDirectoryInput,
+} from "@openbot/contracts/agent-memory-directory";
 // The seam that lets one memories modal serve an agent and a channel.
 //
 // Everything the modal renders is owner-agnostic; only the five calls, the event filter and three
@@ -24,6 +28,10 @@ export interface MemoriesPort {
     read: () => Promise<AgentMemorySelectionState | null>;
     set: (changes: SetAgentMemoryInclusionInput["changes"]) => Promise<AgentMemorySelectionState>;
   };
+  directory?: {
+    read: (memoryId: string) => Promise<AgentMemoryDirectoryMetadata | null>;
+    set: (input: Omit<SetAgentMemoryDirectoryInput, "agentId">) => Promise<AgentMemoryDirectoryMetadata>;
+  };
   create: (text: string) => Promise<void>;
   update: (memoryId: string, text: string) => Promise<void>;
   remove: (memoryId: string) => Promise<void>;
@@ -42,6 +50,10 @@ export function agentMemoriesPort(agentId: string, agentName: string, limit: num
     selection: {
       read: () => window.openbot.agent.getMemorySelection(agentId),
       set: (changes) => window.openbot.agent.setMemoryInclusion({ agentId, changes }),
+    },
+    directory: {
+      read: (memoryId) => window.openbot.agent.getMemoryDirectoryMetadata({ agentId, memoryId }),
+      set: (input) => window.openbot.agent.setMemoryDirectoryMetadata({ agentId, ...input }),
     },
     create: async (text) => {
       await window.openbot.agent.createMemory({ agentId, text });

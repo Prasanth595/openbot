@@ -1,5 +1,10 @@
 import { createHash, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import type {
+  AgentMemoryDirectoryMetadata,
+  GetAgentMemoryDirectoryInput,
+  SetAgentMemoryDirectoryInput,
+} from "@openbot/contracts/agent-memory-directory";
 import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
@@ -1310,6 +1315,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   listMemories(agentId: string): AgentMemory[] {
     return this.#memories.list(agentId);
+  }
+
+  getMemoryDirectoryMetadata(input: GetAgentMemoryDirectoryInput): AgentMemoryDirectoryMetadata | null {
+    return this.#memories.getDirectoryMetadata(input);
+  }
+
+  setMemoryDirectoryMetadata(input: SetAgentMemoryDirectoryInput): AgentMemoryDirectoryMetadata {
+    return this.#memories.setDirectoryMetadata(input);
   }
 
   getMemorySelection(agentId: string): AgentMemorySelectionState {

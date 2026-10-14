@@ -279,4 +279,11 @@ export const messages = {
     "Serwer logowania tego serwera MCP zmienił się, więc OpenBot nie wysłał mu aplikacji logowania. Jeśli ta zmiana jest poprawna, usuń aplikację logowania i dodaj ją ponownie.",
   "error.backend.mcpSignInAppNoServer": "Zapisz ten serwer MCP jako serwer URL, zanim dodasz aplikację logowania.",
   "error.backend.mcpSignInAppUnavailable": "Ten komputer nie może przechować aplikacji logowania.",
+  "error.backend.memoryDirectoryCursor":
+    "Kursor katalogu jest nieprawidłowy dla tego agenta lub zapytania. Rozpocznij nowe wyszukiwanie.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Użyj krótkiego tytułu i do czterech dosłownych aliasów w limicie etykiet.",
+  "error.backend.memoryDirectoryUserControlled": "Użytkownik kontroluje te etykiety. Zapisz tekst bez zmiany etykiet.",
+  "error.backend.memoryDirectoryConflict":
+    "Pamięć lub jej etykiety uległy zmianie. Wczytaj bieżące etykiety przed zapisem.",
 } as const satisfies PartialTranslation<typeof source>;

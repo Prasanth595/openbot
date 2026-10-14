@@ -41,4 +41,21 @@ export const messages = {
   "memory.inclusion.explanation":
     "Tutte le memorie restano salvate. Solo quelle essenziali entrano in ogni prompt. L'agente può cercare le altre.",
   "memory.inclusion.capacity": "Capacità della memoria essenziale: {used} su {total}",
+  "memory.directory.label": "Etichette di ricerca",
+  "memory.directory.explanation": "Queste etichette aiutano l’agente a cercare. Non vengono incluse in ogni richiesta.",
+  "memory.directory.title": "Titolo breve",
+  "memory.directory.aliases": "Alias",
+  "memory.directory.aliasHelp":
+    "Fino a quattro alias letterali, uno per riga. Nessuna traduzione o deduzione di significato.",
+  "memory.directory.fallback": "Il testo attuale serve da indizio. Salva etichette per questa versione.",
+  "memory.directory.userLabels": "Salvate da te. Le modifiche automatiche non possono sostituire queste etichette.",
+  "memory.directory.agentLabels": "Salvate dall’agente.",
+  "memory.directory.save": "Salva etichette",
+  "memory.directory.remove": "Rimuovi etichette personalizzate",
+  "memory.directory.reload": "Ricarica etichette",
+  "memory.directory.loading": "Caricamento etichette…",
+  "memory.directory.loadFailed": "Impossibile caricare le etichette.",
+  "memory.directory.saveFailed": "Impossibile salvare le etichette.",
+  "memory.directory.invalid":
+    "Fino a 96 caratteri per il titolo e quattro alias di 64 caratteri ciascuno. Massimo 512 byte in totale.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -6,6 +6,7 @@ import { createScrollFades } from "@openbot/ui/components/createScrollFades";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, For, onSettled, Show, untrack } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
+import { MemoryDirectoryEditor } from "./MemoryDirectoryEditor";
 import type { MemoriesPort } from "./memories-port";
 
 interface AgentMemoriesModalProps {
@@ -479,6 +480,17 @@ export function AgentMemoriesModal(props: AgentMemoriesModalProps) {
                                   setEditingId(null);
                                 }}
                               />
+                              <Show when={props.port.directory}>
+                                {(port) => (
+                                  <MemoryDirectoryEditor
+                                    memoryId={memory().id}
+                                    memoryUpdatedAt={memory().updatedAt}
+                                    memoryRevision={selectionById().get(memory().id)?.revision ?? 0}
+                                    port={port()}
+                                    disabled={savingId() !== null}
+                                  />
+                                )}
+                              </Show>
                               <div class="agent-memory-editor-actions">
                                 <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
                                   {t("common.cancel")}

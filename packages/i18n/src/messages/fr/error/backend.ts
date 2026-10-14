@@ -292,4 +292,12 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Enregistrez ce serveur MCP comme serveur URL avant d’ajouter une app de connexion.",
   "error.backend.mcpSignInAppUnavailable": "Cet ordinateur ne peut pas conserver d’app de connexion.",
+  "error.backend.memoryDirectoryCursor":
+    "Le curseur du répertoire est invalide pour cet agent ou cette requête. Lancez une nouvelle recherche.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Utilisez un titre court et jusqu’à quatre alias littéraux dans la limite des libellés.",
+  "error.backend.memoryDirectoryUserControlled":
+    "Ces libellés sont contrôlés par l’utilisateur. Enregistrez le texte sans modifier les libellés.",
+  "error.backend.memoryDirectoryConflict":
+    "La mémoire ou ses libellés ont changé. Rechargez les libellés actuels avant d’enregistrer.",
 } as const satisfies PartialTranslation<typeof source>;

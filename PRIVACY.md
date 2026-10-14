@@ -433,6 +433,14 @@ limit. Other saved memories reach the provider only when the agent retrieves the
 tool. Search runs locally and does not use an external search or embedding service. Memory content
 is not included in analytics; provider output uses the application's secret redaction.
 
+Optional recall titles and literal aliases stay in the same local database as their fact. An agent
+can request a bounded directory of searchable facts. The provider then receives titles, aliases,
+or a marked excerpt of current text, and can request the current fact by ID. These hints are not
+automatically added to every prompt. A private text digest binds a hint to its current fact; the
+digest is not sent in tool results, IPC, Team metadata or text exports. Forget, clear and hard agent
+deletion remove the private annotation events and their receipts. A whole-database backup retains
+the database snapshot. Existing text-only exports and instance transfers do not carry these hints.
+
 - `~/OpenBot/Agents` contains one workspace per agent. A profile written by a release before the
   bot-to-agent rename holds them under `~/OpenBot/Bots`; the application moves them on first launch.
 - `~/OpenBot/Shared` contains managed transfers shared between agents, and

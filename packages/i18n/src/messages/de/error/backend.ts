@@ -300,4 +300,12 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Speichere diesen MCP-Server als URL-Server, bevor du eine Anmelde-App hinzufügst.",
   "error.backend.mcpSignInAppUnavailable": "Dieser Computer kann keine Anmelde-App speichern.",
+  "error.backend.memoryDirectoryCursor":
+    "Der Speicherverzeichnis-Cursor ist für diesen Agenten oder diese Abfrage ungültig. Beginnen Sie eine neue Suche.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Verwenden Sie einen Kurztitel und bis zu vier wörtliche Aliasse innerhalb des Bezeichnungslimits.",
+  "error.backend.memoryDirectoryUserControlled":
+    "Diese Abrufbezeichnungen werden vom Benutzer kontrolliert. Speichern Sie den Text ohne Änderungen an den Bezeichnungen.",
+  "error.backend.memoryDirectoryConflict":
+    "Der Speicher oder seine Bezeichnungen haben sich geändert. Laden Sie die aktuellen Bezeichnungen vor dem Speichern neu.",
 } as const satisfies PartialTranslation<typeof source>;

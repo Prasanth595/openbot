@@ -40,4 +40,23 @@ export const messages = {
   "memory.inclusion.explanation":
     "Alle Erinnerungen bleiben gespeichert. Nur wesentliche Erinnerungen gelangen in jeden Prompt. Der Agent kann die anderen durchsuchen.",
   "memory.inclusion.capacity": "Kapazität für wesentliche Erinnerungen: {used} von {total}",
+  "memory.directory.label": "Abrufbezeichnungen",
+  "memory.directory.explanation":
+    "Diese Bezeichnungen helfen dem Agenten bei der Suche. Sie stehen nicht in jeder Eingabe.",
+  "memory.directory.title": "Kurztitel",
+  "memory.directory.aliases": "Aliasse",
+  "memory.directory.aliasHelp":
+    "Bis zu vier wörtliche Aliasse, einer pro Zeile. Keine Übersetzung oder Bedeutungsableitung.",
+  "memory.directory.fallback": "Der aktuelle Text dient als Hinweis. Speichern Sie Bezeichnungen für diese Version.",
+  "memory.directory.userLabels":
+    "Von Ihnen gespeichert. Automatische Änderungen können diese Bezeichnungen nicht ersetzen.",
+  "memory.directory.agentLabels": "Vom Agenten gespeichert.",
+  "memory.directory.save": "Bezeichnungen speichern",
+  "memory.directory.remove": "Eigene Bezeichnungen entfernen",
+  "memory.directory.reload": "Bezeichnungen neu laden",
+  "memory.directory.loading": "Bezeichnungen werden geladen…",
+  "memory.directory.loadFailed": "Bezeichnungen konnten nicht geladen werden.",
+  "memory.directory.saveFailed": "Bezeichnungen konnten nicht gespeichert werden.",
+  "memory.directory.invalid":
+    "Maximal 96 Zeichen für den Titel und vier Aliasse mit je 64 Zeichen. Insgesamt maximal 512 Byte.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -287,4 +287,12 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Guarda este servidor MCP como servidor de URL antes de añadir una app de inicio de sesión.",
   "error.backend.mcpSignInAppUnavailable": "Este ordenador no puede guardar una app de inicio de sesión.",
+  "error.backend.memoryDirectoryCursor":
+    "El cursor del directorio no es válido para este agente o consulta. Inicia una nueva búsqueda.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Usa un título corto y hasta cuatro alias literales dentro del límite de etiquetas.",
+  "error.backend.memoryDirectoryUserControlled":
+    "El usuario controla estas etiquetas. Guarda el texto sin cambiar las etiquetas.",
+  "error.backend.memoryDirectoryConflict":
+    "El recuerdo o sus etiquetas cambiaron. Recarga las etiquetas actuales antes de guardar.",
 } as const satisfies PartialTranslation<typeof source>;

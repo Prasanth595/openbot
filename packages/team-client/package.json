@@ -20,6 +20,7 @@
     "./workspace-preferences": "./src/workspace-preferences.ts",
     "./browser-view": "./src/browser-view.ts",
     "./team-api-requests": "./src/team-api-requests.ts",
+    "./memory-directory-requests": "./src/memory-directory-requests.ts",
     "./team-admin-requests": "./src/team-admin-requests.ts",
     "./marketplace-catalog": "./src/marketplace-catalog.ts",
     "./hosted-server-wake": "./src/hosted-server-wake.ts",

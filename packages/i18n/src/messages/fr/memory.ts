@@ -41,4 +41,21 @@ export const messages = {
   "memory.inclusion.explanation":
     "Tous les souvenirs restent enregistrés. Seuls les souvenirs essentiels entrent dans chaque prompt. L’agent peut rechercher les autres.",
   "memory.inclusion.capacity": "Capacité des souvenirs essentiels : {used} sur {total}",
+  "memory.directory.label": "Libellés de recherche",
+  "memory.directory.explanation": "Ces libellés aident l’agent à chercher. Ils ne sont pas inclus dans chaque requête.",
+  "memory.directory.title": "Titre court",
+  "memory.directory.aliases": "Alias",
+  "memory.directory.aliasHelp": "Jusqu’à quatre alias littéraux, un par ligne. Aucune traduction ni déduction de sens.",
+  "memory.directory.fallback": "Le texte actuel sert d’indice. Enregistrez des libellés pour cette version.",
+  "memory.directory.userLabels":
+    "Enregistrés par vous. Les modifications automatiques ne peuvent pas remplacer ces libellés.",
+  "memory.directory.agentLabels": "Enregistrés par l’agent.",
+  "memory.directory.save": "Enregistrer les libellés",
+  "memory.directory.remove": "Retirer les libellés personnalisés",
+  "memory.directory.reload": "Recharger les libellés",
+  "memory.directory.loading": "Chargement des libellés…",
+  "memory.directory.loadFailed": "Impossible de charger les libellés.",
+  "memory.directory.saveFailed": "Impossible d’enregistrer les libellés.",
+  "memory.directory.invalid":
+    "96 caractères maximum pour le titre et quatre alias de 64 caractères chacun. 512 octets maximum au total.",
 } as const satisfies PartialTranslation<typeof source>;

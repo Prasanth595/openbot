@@ -177,6 +177,10 @@ import {
 } from "./dynamic-island-decoding";
 import { decodeHostReleaseStatusFromMain } from "./host-release-decoding";
 import {
+  decodeMemoryDirectoryMetadataFromMain,
+  decodeOptionalMemoryDirectoryMetadataFromMain,
+} from "./memory-directory-decoding";
+import {
   decodeAddOrchestratorReply,
   decodeMessagingOverviewReply,
   decodeTelegramOverviewReply,
@@ -835,6 +839,8 @@ const openbotApi: OpenBotDesktopApi = {
   agent: {
     ...agentGroup,
     ...bridgeGroup(IPC_ENDPOINTS.agentMemories, {
+      getMemoryDirectoryMetadata: decodeOptionalMemoryDirectoryMetadataFromMain,
+      setMemoryDirectoryMetadata: decodeMemoryDirectoryMetadataFromMain,
       getMemorySelection: decodeOptionalMemorySelection,
       setMemoryInclusion: decodeMemorySelection,
       listMemories: decodeMemories,

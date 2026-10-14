@@ -1,4 +1,9 @@
 import type {
+  AgentMemoryDirectoryMetadata,
+  GetAgentMemoryDirectoryInput,
+  SetAgentMemoryDirectoryInput,
+} from "./agent-memory-directory";
+import type {
   AcpRegistryEntry,
   AcpRegistryInstallation,
   AcpRegistryInstallInput,
@@ -1068,6 +1073,12 @@ export const IPC_ENDPOINTS = {
     scopedEvent: event<ScopedAgentEvent>()("agent:event"),
   },
   agentMemories: {
+    getMemoryDirectoryMetadata: scopedRequest<GetAgentMemoryDirectoryInput, AgentMemoryDirectoryMetadata | null>()(
+      "agent:get-memory-directory-metadata",
+    ),
+    setMemoryDirectoryMetadata: scopedRequest<SetAgentMemoryDirectoryInput, AgentMemoryDirectoryMetadata>()(
+      "agent:set-memory-directory-metadata",
+    ),
     getMemorySelection: scopedRequest<string, AgentMemorySelectionState | null>()("agent:get-memory-selection"),
     setMemoryInclusion: scopedRequest<SetAgentMemoryInclusionInput, AgentMemorySelectionState>()(
       "agent:set-memory-inclusion",

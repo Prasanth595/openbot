@@ -1,0 +1,11 @@
+{
+  "path": "/v1/agent-memory-directory/set",
+  "body": {
+    "agentId": "fixture-agent",
+    "memoryId": "fixture-memory",
+    "expectedMemoryRevision": 2,
+    "title": "Personal wiki hosting",
+    "aliases": ["hosting decision"],
+    "expectedAnnotationRevision": 17
+  }
+}

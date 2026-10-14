@@ -286,4 +286,12 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Salve este servidor MCP como servidor de URL antes de adicionar um app de autenticação.",
   "error.backend.mcpSignInAppUnavailable": "Este computador não consegue guardar um app de autenticação.",
+  "error.backend.memoryDirectoryCursor":
+    "O cursor do diretório é inválido para este agente ou consulta. Inicie uma nova busca.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Use um título curto e até quatro aliases literais dentro do limite de rótulos.",
+  "error.backend.memoryDirectoryUserControlled":
+    "O usuário controla estes rótulos. Salve o texto sem alterar os rótulos.",
+  "error.backend.memoryDirectoryConflict":
+    "A memória ou seus rótulos mudaram. Recarregue os rótulos atuais antes de salvar.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -743,6 +743,15 @@
   padding: var(--openbot-space-1) var(--openbot-space-1) var(--openbot-space-2);
 }
 
+.agent-memory-directory-editor {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.agent-memory-directory-editor .agent-memory-editor-actions {
+  flex-wrap: wrap;
+}
+
 .agent-memory-row:has(.agent-memory-editor),
 .agent-memory-row:has(.agent-memory-editor):hover {
   background: transparent;

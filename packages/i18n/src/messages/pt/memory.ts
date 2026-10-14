@@ -40,4 +40,20 @@ export const messages = {
   "memory.inclusion.explanation":
     "Todas as memórias ficam salvas. Só as memórias essenciais entram em cada prompt. O agente pode pesquisar as demais.",
   "memory.inclusion.capacity": "Capacidade de memória essencial: {used} de {total}",
+  "memory.directory.label": "Rótulos de consulta",
+  "memory.directory.explanation": "Estes rótulos ajudam o agente na busca. Eles não entram em todos os prompts.",
+  "memory.directory.title": "Título curto",
+  "memory.directory.aliases": "Aliases",
+  "memory.directory.aliasHelp": "Até quatro aliases literais, um por linha. Sem tradução ou dedução de significado.",
+  "memory.directory.fallback": "O texto atual serve como pista. Salve rótulos para esta versão.",
+  "memory.directory.userLabels": "Salvos por você. Alterações automáticas não podem substituir estes rótulos.",
+  "memory.directory.agentLabels": "Salvos pelo agente.",
+  "memory.directory.save": "Salvar rótulos",
+  "memory.directory.remove": "Remover rótulos personalizados",
+  "memory.directory.reload": "Recarregar rótulos",
+  "memory.directory.loading": "Carregando rótulos…",
+  "memory.directory.loadFailed": "Não foi possível carregar os rótulos.",
+  "memory.directory.saveFailed": "Não foi possível salvar os rótulos.",
+  "memory.directory.invalid":
+    "Até 96 caracteres para o título e quatro aliases de 64 caracteres cada. No máximo 512 bytes no total.",
 } as const satisfies PartialTranslation<typeof source>;
