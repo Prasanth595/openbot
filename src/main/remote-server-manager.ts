@@ -361,8 +361,11 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     this.#webrtcTransport?.on("error", (serverId, code, message) => {
       // Each failure checks the start time, so a start that fails for another reason also ends.
       const hostedStarting = this.#awaitsHostedStart(serverId);
-      // Each failure also checks the restart time: the workspace shows "Updating" until it ends.
-      const hostRestarting = this.#awaitsHostRestart(serverId);
+      // A failure to connect also checks the restart time: the workspace shows "Updating" until it ends.
+      // An error on a live connection, such as `rate_limited`, does not start that time.
+      const hostRestarting =
+        (code === "host_unavailable" || !this.#webrtcTransport?.isConnected(serverId)) &&
+        this.#awaitsHostRestart(serverId);
       if (code === "host_unavailable" && !hostRestarting && !hostedStarting) {
         this.#events.markHostOffline(serverId);
         // A hosted server that another reason stopped starts again only for the selected server with the
