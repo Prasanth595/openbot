@@ -798,18 +798,29 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     setServerSettingsSection(section);
     serverSettings.open(trigger);
   }
-  // Each time the user enters a host that has a new version, the update dialog opens.
+  // Each time the user enters a host that has a new version, the update dialog opens. A reconnect does not offer again.
+  let entry: { id: string; offered: boolean } | null = null;
   createEffect(
     () => {
       const current = server();
-      // An id, not an object: the summary is rebuilt on each host change, and one read is enough.
-      return current?.state === "online" ? current.id : null;
+      return current ? { id: current.id, online: current.state === "online" } : null;
     },
-    (serverId) => {
-      const current = untrack(server);
+    (current) => {
+      if (current?.id !== entry?.id) {
+        entry = current ? { id: current.id, offered: false } : null;
+        void offerServerUpdate(null);
+      }
+      if (!current?.online || !entry || entry.offered) return;
+      entry.offered = true;
+      const active = untrack(server);
       void offerServerUpdate(
-        serverId && current && remoteUpdateServer(current)
-          ? { serverId, name: current.name, canManage: serverRoleCanAdminister(current), calls: hostUpdateCalls }
+        active && remoteUpdateServer(active)
+          ? {
+              serverId: active.id,
+              name: active.name,
+              canManage: serverRoleCanAdminister(active),
+              calls: hostUpdateCalls,
+            }
           : null,
       );
     },

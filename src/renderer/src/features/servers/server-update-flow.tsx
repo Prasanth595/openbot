@@ -193,23 +193,25 @@ function begin(target: ServerUpdateTarget, status: HostUpdateStatus): void {
     limit: undefined,
     disposeNotice: undefined,
   });
+  const flow: Flow = {
+    name: target.name,
+    canManage: target.canManage,
+    status,
+    version: status.availableVersion ?? status.currentVersion,
+    startedAt: null,
+    elapsedSeconds: 0,
+    restarting: false,
+    wentDown: false,
+    result: null,
+    failure: null,
+    busy: null,
+    error: null,
+  };
   setFlows((draft) => {
-    draft[id] = {
-      name: target.name,
-      canManage: target.canManage,
-      status,
-      version: status.availableVersion ?? status.currentVersion,
-      startedAt: null,
-      elapsedSeconds: 0,
-      restarting: false,
-      wentDown: false,
-      result: null,
-      failure: null,
-      busy: null,
-      error: null,
-    };
+    draft[id] = { ...flow };
   });
-  apply(id, status);
+  // The store shows the new flow in a later read only.
+  apply(id, status, flow);
   show(id);
 }
 
@@ -233,8 +235,7 @@ function running(flow: Flow): boolean {
   return stage === "downloading" || stage === "waiting" || stage === "restarting";
 }
 
-function apply(id: string, status: HostUpdateStatus): void {
-  const stored = flows[id];
+function apply(id: string, status: HostUpdateStatus, stored: Flow | undefined = flows[id]): void {
   if (!stored || stored.result) return;
   const runtime = runtimes.get(id);
   if (runtime) note({ serverId: id, name: stored.name, canManage: stored.canManage, calls: runtime.calls }, status);
@@ -512,14 +513,15 @@ async function act(id: string, busy: ServerUpdateBusy, call: (runtime: Runtime) 
   });
   try {
     const status = await call(runtime);
-    if (runtime.generation !== generation) return;
+    if (runtimes.get(id) !== runtime) return;
     setFlows((draft) => {
       const current = draft[id];
       if (current) current.busy = null;
     });
-    apply(id, status);
+    // A drop or a server switch after the call makes its answer old. The next read gives the status.
+    if (runtime.generation === generation) apply(id, status);
   } catch (error) {
-    if (runtime.generation !== generation) return;
+    if (runtimes.get(id) !== runtime) return;
     const { t, errorMessage } = currentText();
     setFlows((draft) => {
       const current = draft[id];
