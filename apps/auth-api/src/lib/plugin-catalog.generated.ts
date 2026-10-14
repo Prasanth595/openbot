@@ -67,6 +67,12 @@ export const PLUGIN_CATALOG_INDEX: PluginCatalogIndex = {
       detailSha256: "4fc370192c4c20834039fbdce4c5deb76f1553690136488aed99df5d9acdd191",
     },
     {
+      slug: "vercel",
+      version: "1.0.0",
+      featured: false,
+      detailSha256: "12f6c6839d44fcafcd11668c601b73b586a753780585e16b02378b91ee56624e",
+    },
+    {
       slug: "context7",
       version: "1.0.0",
       featured: false,
@@ -439,6 +445,41 @@ export const PLUGIN_CATALOG_DETAILS: Record<string, PluginCatalogDetail> = {
     websiteUrl: "https://sentry.io",
     privacyPolicyUrl: "https://sentry.io/privacy/",
     termsUrl: "https://sentry.io/terms/",
+    skills: [],
+  },
+  vercel: {
+    slug: "vercel",
+    name: "Vercel",
+    tagline: "Deployments, build logs and projects",
+    description:
+      "Vercel lets agents list projects and recent deployments, read build and runtime logs, and find why a build failed. Each user signs in to their own Vercel account through the browser and chooses the teams that agents can use. Vercel gives agents the same rights as your account in those teams: they can also change environment variables, domains, DNS records and deployments, and buy domains.",
+    category: "coding",
+    creatorName: "vercel.com",
+    iconUrl: "https://vercel.com/favicon.ico",
+    version: "1.0.0",
+    prompts: [
+      { id: "prompt-failed-build", text: "Why did the last production deployment fail?" },
+      { id: "prompt-recent-deployments", text: "List the deployments from today and their status." },
+      { id: "prompt-runtime-errors", text: "Which routes had runtime errors in the last hour?" },
+    ],
+    apps: [
+      {
+        id: "app-vercel-mcp",
+        name: "Vercel",
+        description:
+          "Projects, deployments, build logs, and runtime logs, over Vercel's MCP server with browser sign-in.",
+        iconUrl: "https://vercel.com/favicon.ico",
+        server: {
+          name: "vercel",
+          transport: "http",
+          url: "https://mcp.vercel.com",
+          auth: [{ id: "vercel-oauth", kind: "link", label: "Sign in" }],
+        },
+      },
+    ],
+    websiteUrl: "https://vercel.com",
+    privacyPolicyUrl: "https://vercel.com/legal/privacy-notice",
+    termsUrl: "https://vercel.com/legal/terms",
     skills: [],
   },
   context7: {

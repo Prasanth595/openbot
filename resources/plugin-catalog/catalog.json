@@ -51,6 +51,12 @@
       "detailSha256": "4fc370192c4c20834039fbdce4c5deb76f1553690136488aed99df5d9acdd191"
     },
     {
+      "slug": "vercel",
+      "version": "1.0.0",
+      "featured": false,
+      "detailSha256": "12f6c6839d44fcafcd11668c601b73b586a753780585e16b02378b91ee56624e"
+    },
+    {
       "slug": "context7",
       "version": "1.0.0",
       "featured": false,
