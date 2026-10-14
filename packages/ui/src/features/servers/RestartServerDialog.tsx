@@ -18,9 +18,9 @@ const STEPS = [
 const RESTART_LIMIT_SECONDS = 5 * 60;
 
 /**
- * Asks before the owner restarts a hosted server, then shows the restart until the server is online
- * again or does not start. A failed request stays in the dialog. The owner can hide the dialog while
- * the server restarts; a toast then reports the result.
+ * Asks before the owner or an admin restarts a hosted server, then shows the restart until the server
+ * is online again or does not start. A failed request stays in the dialog. The user can hide the dialog
+ * while the server restarts; a toast then reports the result.
  */
 export function RestartServerDialog(props: {
   /** The server to restart. Null closes the dialog. */

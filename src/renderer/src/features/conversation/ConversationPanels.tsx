@@ -10,7 +10,7 @@ import { createPublishAgent } from "../agent-templates/PublishAgent";
 import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
 import type { AgentFilesOptions } from "../files/AgentFilesSettings";
 import { canManageStorage, serverHasStorage } from "../files/storage-usage";
-import { serverCanAdminister, serverSupportsCapability } from "../servers/server-capabilities";
+import { remoteRoutineRecovery, serverCanAdminister, serverSupportsCapability } from "../servers/server-capabilities";
 import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "./chat-visual-url";
 import { useConversationController } from "./conversation-controller-context";
 import { useConversationViewScope } from "./conversation-scope";
@@ -378,7 +378,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               files={agentFiles(props.server, agent().id)}
               eventRoutines={
                 !props.runtime && serverCanAdminister(props.server, "events-v1")
-                  ? desktopEventRoutinesApi(props.server.id)
+                  ? desktopEventRoutinesApi(props.server.id, remoteRoutineRecovery(props.server))
                   : undefined
               }
             />

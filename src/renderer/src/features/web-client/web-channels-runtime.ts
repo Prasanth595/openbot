@@ -36,11 +36,12 @@ export function createWebChannelsPort(
   onHostEvent: (listener: (event: AgentEvent | TeamRealtimeEvent) => void) => () => void,
   hostId: () => string,
   eventsEnabled: () => boolean,
+  routineRecoveryEnabled: () => boolean,
 ): ChannelsPort {
   const files = createWebAttachmentFiles(remote, hostId);
   const channels = remote.channels;
   const admin = remote.admin;
-  const eventRoutines = admin ? webEventRoutinesApi(admin.request) : undefined;
+  const eventRoutines = admin ? webEventRoutinesApi(admin.request, routineRecoveryEnabled) : undefined;
   const attachmentMedia = createWebAttachmentMedia(remote, hostId);
   onCleanup(() => attachmentMedia.dispose());
   async function importAttachments(chosen: File[]): Promise<AttachmentSummary[]> {

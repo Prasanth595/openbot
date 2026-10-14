@@ -48,6 +48,7 @@ import { PUSH_NOTIFICATIONS_CAPABILITY } from "./push-notifications-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "./queue-edit-v1";
 import { QUIET_TURN_CAPABILITY } from "./quiet-turn-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "./routine-flows-v1";
+import { ROUTINE_RECOVERY_CAPABILITY } from "./routine-recovery-v1";
 import { SHARED_TABLES_CAPABILITY } from "./shared-tables-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "./skills-admin-v1";
@@ -112,6 +113,7 @@ export {
   PUSH_NOTIFICATIONS_CAPABILITY,
   QUIET_TURN_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
+  ROUTINE_RECOVERY_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
@@ -197,6 +199,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   PROVIDER_ACCOUNTS_CAPABILITY,
   ONEPASSWORD_CONNECTOR_CAPABILITY,
   HOST_TIMEZONE_CAPABILITY,
+  ROUTINE_RECOVERY_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -281,6 +284,7 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
     capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
     capability !== HOST_TIMEZONE_CAPABILITY &&
+    capability !== ROUTINE_RECOVERY_CAPABILITY &&
     capability !== INSTANCE_TRANSFER_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
@@ -307,6 +311,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
       capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
       capability !== HOST_TIMEZONE_CAPABILITY &&
+      capability !== ROUTINE_RECOVERY_CAPABILITY &&
       capability !== INSTANCE_TRANSFER_CAPABILITY,
   );
 }

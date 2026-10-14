@@ -120,6 +120,7 @@ import {
 import { decodeRecord, guardedListDecoder, nullableString, requiredBoolean } from "@openbot/contracts/ipc-decoding";
 import {
   decodeEventActivity,
+  decodeEventRoutineRuns,
   decodeEventRoutines,
   decodeEventStatus,
   decodeSaveEventRoutineResult,
@@ -127,8 +128,10 @@ import {
   type EventActivity,
   type EventRoutine,
   type EventRoutineRef,
+  type EventRoutineRun,
   type EventStatus,
   type ListEventActivityInput,
+  type ListEventRoutineRunsInput,
   type ListEventRoutinesInput,
   type SaveEventRoutineInput,
   type SaveEventRoutineResult,
@@ -154,6 +157,7 @@ import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/provide
 import type { PROVIDERS_RUNTIMES_V2_ROUTES } from "@openbot/contracts/team-protocol/providers-v2";
 import { PROVIDERS_SIGN_IN_V3_ROUTES } from "@openbot/contracts/team-protocol/providers-v3";
 import type { PROVIDERS_V4_ROUTES } from "@openbot/contracts/team-protocol/providers-v4";
+import { ROUTINE_RECOVERY_ROUTES } from "@openbot/contracts/team-protocol/routine-recovery-v1";
 import { SHARED_TABLES_ROUTES } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { type SIGN_IN_RELAY_PROVIDERS, SIGN_IN_RELAY_ROUTES } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { SKILLS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -329,19 +333,35 @@ export function getEventStatus(request: TeamApiRequest): Effect.Effect<EventStat
   return adminCall(() => request("POST", EVENTS_ROUTES.status, decodeEventStatus, {}));
 }
 
+/** With `recovery`, for a host with `routine-recovery-v1`, the routines carry `missedPolicy`. */
 export function listEventRoutines(
   request: TeamApiRequest,
   input: ListEventRoutinesInput,
+  recovery = false,
 ): Effect.Effect<EventRoutine[], TeamAdminRequestError> {
-  return adminCall(() => request("POST", EVENTS_ROUTES.listRoutines, decodeEventRoutines, eventBody(input)));
+  const path = recovery ? ROUTINE_RECOVERY_ROUTES.listRoutines : EVENTS_ROUTES.listRoutines;
+  return adminCall(() => request("POST", path, decodeEventRoutines, eventBody(input)));
 }
 
-/** The result has the new signing secret only when the routine became a webhook routine. */
+/**
+ * The result has the new signing secret only when the routine became a webhook routine. With
+ * `recovery`, for a host with `routine-recovery-v1`, the host saves `missedPolicy`.
+ */
 export function saveEventRoutine(
   request: TeamApiRequest,
   input: SaveEventRoutineInput,
+  recovery = false,
 ): Effect.Effect<SaveEventRoutineResult, TeamAdminRequestError> {
-  return adminCall(() => request("POST", EVENTS_ROUTES.saveRoutine, decodeSaveEventRoutineResult, eventBody(input)));
+  const path = recovery ? ROUTINE_RECOVERY_ROUTES.saveRoutine : EVENTS_ROUTES.saveRoutine;
+  return adminCall(() => request("POST", path, decodeSaveEventRoutineResult, eventBody(input)));
+}
+
+/** A routine's newest runs with its missed occurrences. Only a host with `routine-recovery-v1` answers it. */
+export function listEventRoutineRuns(
+  request: TeamApiRequest,
+  input: ListEventRoutineRunsInput,
+): Effect.Effect<EventRoutineRun[], TeamAdminRequestError> {
+  return adminCall(() => request("POST", ROUTINE_RECOVERY_ROUTES.listRuns, decodeEventRoutineRuns, eventBody(input)));
 }
 
 export function deleteEventRoutine(

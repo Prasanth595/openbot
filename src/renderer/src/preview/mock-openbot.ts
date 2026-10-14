@@ -584,7 +584,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   const { installedSkills, readInstalledSkills } = mockSkills;
   const mockBrowser = createMockBrowser(options, runtime, emitAgentEvent);
   const mockTeam = createMockTeam(options, runtime, emitAgentEvent, () => agents);
-  const mockEvents = createMockEvents();
+  const mockEvents = createMockEvents(({ owner, routineId, limit = 10 }) =>
+    owner.kind === "agent"
+      ? Promise.resolve(clone((routineRuns.get(routineId) ?? []).slice(0, limit)))
+      : mockChannels.listChannelRoutineRuns({ channelId: owner.id, routineId, limit }),
+  );
   const billingPlans = previewBillingServers();
 
   const api: OpenBotDesktopApi = {

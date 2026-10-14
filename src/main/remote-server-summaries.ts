@@ -56,6 +56,7 @@ export function remoteServerSummaries(
         role: server.role,
         active: activeServerId === server.id,
         ...(server.memberLimit === undefined ? {} : { memberLimit: server.memberLimit }),
+        ...(server.hosted === undefined ? {} : { hosted: server.hosted }),
         compatibility: status.compatibility,
         issue: status.issue,
         connectionSequence: status.connectionSequence,

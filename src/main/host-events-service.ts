@@ -5,6 +5,7 @@ import type {
   EventRoutineOwner,
   EventRoutineRef,
   ListEventActivityInput,
+  ListEventRoutineRunsInput,
   ListEventRoutinesInput,
   SaveEventRoutineInput,
 } from "@openbot/contracts/ipc-events";
@@ -29,6 +30,7 @@ import { verifyWebhookSignature } from "./webhook-security";
 
 const logger = createOpenBotLogger("host-events");
 const DEFAULT_ACTIVITY_LIMIT = 50;
+const DEFAULT_RUN_LIMIT = 10;
 
 export interface HostWebhookRelay {
   connected(): boolean;
@@ -174,6 +176,16 @@ export class HostEventsService implements HostEventsApi {
     yield* this.#requireRoutine({ owner: input.owner, id: input.routineId });
     const limit = input.limit ?? DEFAULT_ACTIVITY_LIMIT;
     return yield* eventStep(() => this.#options.routines.routes.listReceipts(input.owner.kind, input.routineId, limit));
+  }).bind(this);
+
+  readonly listRoutineRuns = Effect.fn("HostEvents.listRoutineRuns")(function* (
+    this: HostEventsService,
+    input: ListEventRoutineRunsInput,
+  ) {
+    yield* this.#requireRoutine({ owner: input.owner, id: input.routineId });
+    return yield* eventStep(() =>
+      this.#options.routines.listRuns(input.owner, input.routineId, input.limit ?? DEFAULT_RUN_LIMIT),
+    );
   }).bind(this);
 
   /** Verifies one relayed request and starts its routine. The status goes back to the sender. */

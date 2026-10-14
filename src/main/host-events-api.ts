@@ -2,8 +2,10 @@ import type {
   EventActivity,
   EventRoutine,
   EventRoutineRef,
+  EventRoutineRun,
   EventStatus,
   ListEventActivityInput,
+  ListEventRoutineRunsInput,
   ListEventRoutinesInput,
   SaveEventRoutineInput,
   SaveEventRoutineResult,
@@ -41,4 +43,5 @@ export interface HostEventsApi {
   testRoutine(input: EventRoutineRef): Effect.Effect<void, HostEventsFailure>;
   rotateSecret(input: EventRoutineRef): Effect.Effect<WebhookSecret, HostEventsFailure>;
   listActivity(input: ListEventActivityInput): Effect.Effect<EventActivity[], HostEventsFailure>;
+  listRoutineRuns(input: ListEventRoutineRunsInput): Effect.Effect<EventRoutineRun[], HostEventsFailure>;
 }

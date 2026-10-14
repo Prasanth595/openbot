@@ -118,6 +118,10 @@ answers 503 and writes no receipt, so the sender retries after the restart.
   routes are status, routine list, save, delete, and test, `rotateSecret`, and activity. Activity is
   the receipts of one routine. A failure with catalog text returns 400. Other failures return 500
   with `error.team.requestFailed`, and the dispatcher logs them.
+- Remote hosts with `routine-recovery-v1` (`ROUTINE_RECOVERY_ROUTES`) also answer a routine list and
+  save that carry `missedPolicy`, and a run list that includes the records of missed occurrences. A
+  client uses these routes in place of the `events-v1` list and save. For a host without the
+  capability, the editor hides the missed-run choice and the host keeps its saved value.
 - Released schedule-only routine views do not show webhook routines. Their delete and test routes
   answer "routine gone" for a webhook routine, because they have no administrator check. Only a
   schedule routine writes a conversation event.

@@ -211,8 +211,10 @@ import type {
   EventActivity,
   EventRoutine,
   EventRoutineRef,
+  EventRoutineRun,
   EventStatus,
   ListEventActivityInput,
+  ListEventRoutineRunsInput,
   ListEventRoutinesInput,
   SaveEventRoutineInput,
   SaveEventRoutineResult,
@@ -1360,6 +1362,9 @@ export const IPC_ENDPOINTS = {
     testRoutine: scopedRequest<EventRoutineRef, void, "required">()("events:test-routine"),
     rotateSecret: scopedRequest<EventRoutineRef, WebhookSecret, "required">()("events:rotate-secret"),
     listActivity: scopedRequest<ListEventActivityInput, EventActivity[], "required">()("events:list-activity"),
+    listRoutineRuns: scopedRequest<ListEventRoutineRunsInput, EventRoutineRun[], "required">()(
+      "events:list-routine-runs",
+    ),
   },
 
   remoteDesktop: {

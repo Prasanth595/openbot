@@ -103,6 +103,8 @@ export interface ChannelConversationProps {
   localHost?: boolean;
   /** The desktop server whose event API this window may manage, as for an agent: owner, admin or this computer. */
   eventsServerId?: string | undefined;
+  /** Whether the `eventsServerId` host has `routine-recovery-v1`. */
+  routineRecovery?: boolean | undefined;
 }
 
 export function ChannelConversation(props: ChannelConversationProps) {
@@ -153,7 +155,9 @@ export function ChannelConversation(props: ChannelConversationProps) {
     const legacy = legacyRoutinesPort();
     if (!id || !legacy) return null;
     const serverId = props.eventsServerId;
-    const eventApi = runtime().eventRoutines ?? (serverId ? desktopEventRoutinesApi(serverId) : undefined);
+    const eventApi =
+      runtime().eventRoutines ??
+      (serverId ? desktopEventRoutinesApi(serverId, props.routineRecovery === true) : undefined);
     return eventApi ? eventRoutinesPort({ kind: "channel", id }, eventApi, legacy) : legacy;
   });
   // The settings row reads both counts before either view opens, so it cannot take them from the

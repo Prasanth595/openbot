@@ -23,6 +23,7 @@ import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-r
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
 import { MCP_SIGN_IN_CAPABILITY } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
+import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { runTeamEffect } from "@openbot/team-client";
 import {
@@ -430,6 +431,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         notificationLevel: notice.level,
         remoteDesktopAvailable: false,
         ...(host.memberLimit === undefined ? {} : { memberLimit: host.memberLimit }),
+        ...(host.hosted === undefined ? {} : { hosted: host.hosted }),
         compatibility: {
           localAppVersion: "web",
           hostAppVersion: incompatibility?.hostAppVersion ?? null,
@@ -547,6 +549,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const eventsEnabled = () =>
     workspace.state.capabilities.includes(EVENTS_CAPABILITY) &&
     (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
+  // The same owner or admin reads and saves `missedPolicy` and the missed-run history on such a host.
+  const routineRecoveryEnabled = () =>
+    eventsEnabled() && workspace.state.capabilities.includes(ROUTINE_RECOVERY_CAPABILITY);
   const providerAdmin = createWebProviderSettings({
     server: () => (workspace.runtime.admin ? server() : undefined),
     request: hostRequest,
@@ -578,6 +583,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     () =>
       workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
       (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+    routineRecoveryEnabled,
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {
@@ -849,6 +855,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     workspace.onHostEvent,
     () => workspace.state.host?.hostId ?? "",
     eventsEnabled,
+    routineRecoveryEnabled,
   );
   const channelsSupported = () =>
     workspace.state.status === "online" &&
@@ -939,7 +946,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   createEffect(firstAgent, (first) => {
     if (first && !untrack(channelOpen)) setCreating(true);
   });
-  const webhookRoutines = webEventRoutinesApi((...args) => hostRequest()(...args));
+  const webhookRoutines = webEventRoutinesApi((...args) => hostRequest()(...args), routineRecoveryEnabled);
   const routineFlowsHost = webRoutineFlowsHost(workspace.runtime, workspace.onHostEvent, () =>
     eventsEnabled() ? webhookRoutines : undefined,
   );

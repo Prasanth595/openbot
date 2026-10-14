@@ -1,11 +1,16 @@
 import { isReleasedRoutineSchedule } from "@openbot/contracts/ipc";
 import { EVENTS_CAPABILITY, EVENTS_ROUTES } from "@openbot/contracts/team-protocol/events-v1";
+import {
+  ROUTINE_RECOVERY_CAPABILITY,
+  ROUTINE_RECOVERY_ROUTES,
+} from "@openbot/contracts/team-protocol/routine-recovery-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { type HostEventsApi, HostEventsFailure, hostEventsFailureMessage } from "../host-events-api";
 import {
   parseEventRoutineRef,
   parseListEventActivity,
+  parseListEventRoutineRuns,
   parseListEventRoutines,
   parseSaveEventRoutine,
 } from "../host-events-inputs";
@@ -14,6 +19,7 @@ import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
 import { readJson, requireAdmin, requireReleasedSchedule } from "./request-helpers";
 
 const EVENT_ROUTE_PATHS = new Set<string>(Object.values(EVENTS_ROUTES));
+const RECOVERY_ROUTE_PATHS = new Set<string>(Object.values(ROUTINE_RECOVERY_ROUTES));
 
 export interface EventsRouteDependencies {
   events?: HostEventsApi | undefined;
@@ -44,8 +50,9 @@ export async function routeEvents(
 ): Promise<RouteOutcome> {
   const { method, url, capabilities, member, request, json } = context;
   const path = url.pathname;
-  if (!EVENT_ROUTE_PATHS.has(path) || method !== "POST") return "unmatched";
-  if (!events || !capabilities.has(EVENTS_CAPABILITY)) {
+  const recovery = RECOVERY_ROUTE_PATHS.has(path);
+  if ((!recovery && !EVENT_ROUTE_PATHS.has(path)) || method !== "POST") return "unmatched";
+  if (!events || !capabilities.has(recovery ? ROUTINE_RECOVERY_CAPABILITY : EVENTS_CAPABILITY)) {
     throw new HttpError(400, sourceText("error.backend.eventsUnavailable"));
   }
   requireAdmin(member);
@@ -54,18 +61,21 @@ export async function routeEvents(
   switch (path) {
     case EVENTS_ROUTES.status:
       return json(200, await runEventsEffect(events.getStatus()));
+    // The recovery routes answer as the events routes do; only their wire codecs keep `missedPolicy`.
     case EVENTS_ROUTES.listRoutines:
-      // A `once` routine stays on this computer: the events codec rejects its schedule.
+    case ROUTINE_RECOVERY_ROUTES.listRoutines:
+      // A `once` routine stays on this computer: the events codecs reject its schedule.
       return json(
         200,
         (await runEventsEffect(events.listRoutines(input(parseListEventRoutines)))).filter(
           ({ trigger }) => trigger.kind !== "schedule" || isReleasedRoutineSchedule(trigger.schedule),
         ),
       );
-    case EVENTS_ROUTES.saveRoutine: {
+    case EVENTS_ROUTES.saveRoutine:
+    case ROUTINE_RECOVERY_ROUTES.saveRoutine: {
       const routine = input(parseSaveEventRoutine);
       if (routine.trigger.kind === "schedule") requireReleasedSchedule(routine.trigger.schedule);
-      // A `once` routine is not in this API's lists, so a save cannot change it either.
+      // A `once` routine is not in these lists, so a save cannot change it either.
       if (routine.id !== undefined) {
         const saved = await runEventsEffect(events.listRoutines({ owner: routine.owner }));
         const hidden = saved.some(
@@ -76,6 +86,8 @@ export async function routeEvents(
       }
       return json(200, await runEventsEffect(events.saveRoutine(routine)));
     }
+    case ROUTINE_RECOVERY_ROUTES.listRuns:
+      return json(200, await runEventsEffect(events.listRoutineRuns(input(parseListEventRoutineRuns))));
     case EVENTS_ROUTES.deleteRoutine:
       await runEventsEffect(events.deleteRoutine(input(parseEventRoutineRef)));
       return json(200, {});

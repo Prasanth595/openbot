@@ -42,7 +42,7 @@ import {
   openBotToolResult,
   routineToolAgentId,
   routineToolArguments,
-  routineToolMissedPolicy,
+  routineToolPolicies,
   routineToolSchedule,
   routineToolString,
 } from "./routine-tools";
@@ -546,6 +546,7 @@ export class RoutineScheduler implements RoutineDueSource {
         "schedule",
         "active",
         "timezone",
+        "limitPolicy",
         "missedPolicy",
       ]);
       const agentId = this.#toolAgentId(args, senderAgentId);
@@ -576,7 +577,7 @@ export class RoutineScheduler implements RoutineDueSource {
           active,
           timezone,
           schedule: routineToolSchedule(args.schedule),
-          ...(args.missedPolicy === undefined ? {} : { missedPolicy: routineToolMissedPolicy(args.missedPolicy) }),
+          ...routineToolPolicies(args),
         },
         { turnId: agentId === senderAgentId ? params.turnId : undefined },
       );
@@ -591,13 +592,16 @@ export class RoutineScheduler implements RoutineDueSource {
         "instruction",
         "schedule",
         "active",
+        "limitPolicy",
         "missedPolicy",
       ]);
+      const policies = routineToolPolicies(args);
       const input: UpdateRoutineInput = {
         agentId: this.#toolAgentId(args, senderAgentId),
         routineId: routineToolString(args.routineId, "routineId", INPUT_LIMITS.identifier, "routineId is required."),
+        ...policies,
       };
-      let hasUpdate = false;
+      let hasUpdate = Object.keys(policies).length > 0;
       if (args.name !== undefined) {
         input.name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
         hasUpdate = true;
@@ -618,10 +622,6 @@ export class RoutineScheduler implements RoutineDueSource {
       }
       if (args.schedule !== undefined) {
         input.schedule = routineToolSchedule(args.schedule);
-        hasUpdate = true;
-      }
-      if (args.missedPolicy !== undefined) {
-        input.missedPolicy = routineToolMissedPolicy(args.missedPolicy);
         hasUpdate = true;
       }
       if (!hasUpdate) throw new RoutineInputError("At least one routine update is required.");
