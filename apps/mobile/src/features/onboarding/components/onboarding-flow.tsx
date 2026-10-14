@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 
 import type { WelcomeHandOff } from "@/features/agents/components/empty-agents-scene";
+import { agentInitialMessage } from "@/features/agents/model/agent-initial-message";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { AgentStep } from "@/features/onboarding/components/agent-step";
@@ -40,7 +41,6 @@ import {
   CUSTOM_AGENT_IDEAS,
   CUSTOM_CHOICE,
   ONBOARDING_ROLES,
-  onboardingInitialMessage,
 } from "@/features/onboarding/model/onboarding-roles";
 import { hostedServerCalls } from "@/features/servers/api/hosted-servers";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
@@ -402,7 +402,7 @@ export function OnboardingFlow({
       const agentId = await createAgent({
         name: trimmedName,
         description: draft.description.trim(),
-        initialMessage: onboardingInitialMessage(draft.description, firstTask),
+        initialMessage: agentInitialMessage(draft.description, firstTask),
         avatarSeed: draft.seed,
         avatarHue: draft.hue,
       });

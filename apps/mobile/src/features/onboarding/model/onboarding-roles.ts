@@ -77,15 +77,3 @@ export const CUSTOM_AGENT_IDEAS: OnboardingRole["ideas"] = [
   "mobile.onboarding.idea.helper2",
   "mobile.onboarding.idea.helper3",
 ];
-
-/**
- * The first message of the new agent. It states the role as the add-agent sheet does, and adds the
- * first task when the user wrote one. With neither, the agent greets the user, as from the sheet.
- * Agent prompts stay in English; the user's words do not change.
- */
-export function onboardingInitialMessage(roleDescription: string, task: string): string {
-  const parts = [roleDescription.trim() ? `Your ongoing role is: ${roleDescription.trim()}` : "", task.trim()].filter(
-    Boolean,
-  );
-  return parts.length > 0 ? parts.join("\n\n") : "Greet me briefly.";
-}
