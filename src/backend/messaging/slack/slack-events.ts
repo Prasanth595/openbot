@@ -134,6 +134,10 @@ export function plainText(text: string, botUserId: string): string {
     .replace(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g, "@$1")
     .replace(/<#[A-Z0-9]+\|([^>]*)>/g, "#$1")
     .replace(/<!(here|channel|everyone)>/g, "@$1")
+    .replace(/<mailto:([^|>]+)\|([^>]+)>/g, (_match, address: string, label: string) =>
+      label === address ? address : `${label} (${address})`,
+    )
+    .replace(/<mailto:([^>]+)>/g, "$1")
     .replace(/<(https?:[^|>]+)\|([^>]+)>/g, "$2 ($1)")
     .replace(/<(https?:[^>]+)>/g, "$1")
     .replaceAll("&lt;", "<")
