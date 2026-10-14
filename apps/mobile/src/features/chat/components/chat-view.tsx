@@ -209,6 +209,13 @@ export function ChatView({
   const composerAttachments = useChatAttachments([], undefined, () => attachmentSupport(target.serverId));
   const attachments = composerAttachments;
   const [messageAliases, setMessageAliases] = useState<ReadonlyMap<string, string>>(new Map());
+  // A message sent from this phone keeps its local row ID after the host names it. The host knows
+  // only its own ID, so a reaction or a reply sends that one.
+  const hostMessageIds = useMemo(
+    () => new Map([...messageAliases].map(([hostId, rowId]) => [rowId, hostId])),
+    [messageAliases],
+  );
+  const hostMessageId = (id: string) => hostMessageIds.get(id) ?? id;
   const [showStarter, setShowStarter] = useState(true);
   const { servers } = useMobileWorkspace();
   // The messages of this chat that the host has not drawn yet. They wait for the connection, in order.
@@ -554,9 +561,9 @@ export function ChatView({
     // While text of a message is selected, the composer text says how to change it, as Describe
     // edits on desktop. A message with files goes as a usual message.
     if (selection && body && files.length === 0) {
-      deliver(serializeSelectionInstruction(body, selectionQuote), selection.message.id, files);
+      deliver(serializeSelectionInstruction(body, selectionQuote), hostMessageId(selection.message.id), files);
     } else {
-      deliver(body, submittedReply?.id ?? null, files);
+      deliver(body, submittedReply ? hostMessageId(submittedReply.id) : null, files);
     }
     attachments.clear();
   }
@@ -579,7 +586,7 @@ export function ChatView({
   /** Explain, Improve and the other selection actions send at once, as on desktop. */
   function sendSelectionAction(instruction: string): void {
     if (!canSend || !selection) return;
-    deliver(serializeSelectionInstruction(instruction, selectionQuote), selection.message.id, []);
+    deliver(serializeSelectionInstruction(instruction, selectionQuote), hostMessageId(selection.message.id), []);
   }
 
   /**
@@ -722,7 +729,9 @@ export function ChatView({
               olderError={olderError}
               onLoadOlder={loadOlder}
               onReply={replyToMessage}
-              onReact={(message, emoji) => setMessageReaction(target.id, target.serverId, message.id, emoji)}
+              onReact={(message, emoji) =>
+                setMessageReaction(target.id, target.serverId, hostMessageId(message.id), emoji)
+              }
               selectingMessageId={selection?.message.id ?? null}
               // Select text starts the selection, and a second tap on it ends the selection.
               onSelectText={(message) => {
