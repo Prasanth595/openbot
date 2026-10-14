@@ -150,6 +150,7 @@ import { QueueControls } from "./agent/queue-controls";
 import { quietRoutineRun } from "./agent/routine-quiet-runs";
 import { type RoutineMutationOptions, RoutineScheduler, toRoutineOperationFailed } from "./agent/routine-scheduler";
 import { buildRuntimeSnapshot } from "./agent/runtime-snapshot";
+import type { ScreenCaptureHost } from "./agent/screen-capture";
 import { SessionSettings } from "./agent/session-settings";
 import type { AgentSidebar } from "./agent/sidebar-tools";
 import type { LocalSkillTools } from "./agent/skill-tools";
@@ -227,6 +228,8 @@ export interface AgentServiceOptions {
   hostedSites?: AgentHostedSites | null;
   /** Draws pages for `html_preview`. Without it the tool tells the agent to show the page unchecked. */
   visualPreview?: ChatVisualPreviewHost | null;
+  /** Captures the desktop for `capture_screen`; null where this process has no desktop. */
+  screenCapture?: ScreenCaptureHost | null;
   sidebarLayout?: AgentSidebar | null;
   /**
    * What a spawned CLI is given beyond its own binary: the stored keys, and the user's own model
@@ -1058,6 +1061,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       routineFlowTools: this.#routineFlowTools,
       approvalAutomation: options.approvalAutomation,
       visualPreview: options.visualPreview,
+      screenCapture: options.screenCapture,
       hooks: {
         listAgents: () => this.listAgents(),
         listModels: () => this.listModels(),

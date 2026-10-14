@@ -219,6 +219,9 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
   if (getString(item, "server") === COMPUTER_USE_MCP_SERVER_NAME || descriptor.includes(COMPUTER_USE_MCP_SERVER_NAME)) {
     return sourceText(completed ? "status.computerUse.progressDeciding" : "status.computerUse.progressActing");
   }
+  if (descriptor.includes("capture_screen")) {
+    return sourceText(completed ? "status.agent.screenCaptureReviewing" : "status.agent.screenCaptureProgress");
+  }
   if (/(search|browser|fetch|navigate|open_url|web)/u.test(descriptor)) {
     return completed ? "Reviewing the sources and information I found…" : "Searching for current information…";
   }
