@@ -263,8 +263,10 @@ without user namespace remapping) can read the temporary folder until verificati
 Verification does not check each attachment file.
 
 `openbot-instance backups <name>` shows the backups and the last backup and verification, with the
-error when one failed. `--json` gives the same for a monitor. It exits with 1 when the last backup or
-verification failed or the newest backup is overdue. Root keeps the state in
+error when one failed. `--json` gives the same for a monitor, with `lastBackup` and `lastVerify` set to
+`ok`, `failed`, `running`, `stopped` or `none`. `stopped` means that the run ended without a result, for
+example when it was killed or the host restarted. It exits with 1 when the last backup or verification
+failed or stopped, or the newest backup is overdue. Root keeps the state in
 `/srv/openbot/<name>/backup-status`.
 
 A daily backup at 04:00, with a verification after it:

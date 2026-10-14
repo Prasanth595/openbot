@@ -293,7 +293,36 @@ async function main(): Promise<void> {
       result.status === 0 && kept.length === 2 && !kept.includes(first),
       kept.join(", "),
     );
-    const latest = kept.at(-1) ?? "";
+
+    // A backup that a kill stopped has no result. The status shows it as a failure.
+    must(
+      `printf '{\\n  "step": "backup",\\n  "result": "running",\\n  "startedAt": "2026-01-01T00:00:00Z"\\n}\\n' >/srv/openbot/main/backup-status/backup-attempt.json`,
+    );
+    result = instance("backups", "main");
+    check(
+      "status shows a backup that stopped without a result",
+      result.status === 1 && /Last backup: stopped without a result/.test(result.stdout),
+      summary(result),
+    );
+
+    // The clock went back: the new backup sorts before an existing one. Retention keeps the new one,
+    // and --verify checks the new one.
+    must(`cp -a /backups/main/${kept[1]} /backups/main/29991231T000000Z`);
+    result = instance("backup", "main", "--verify");
+    const made = /^Backup \/backups\/main\/(\S+):/m.exec(result.stdout)?.[1] ?? "";
+    const afterClock = completeBackups();
+    must("rm -rf /backups/main/29991231T000000Z");
+    check(
+      "retention keeps a new backup that sorts first",
+      result.status === 0 && made !== "" && afterClock.includes(made) && afterClock.length === 2,
+      afterClock.join(", "),
+    );
+    check(
+      "--verify checks the new backup",
+      result.stdout.includes(`Verifying /backups/main/${made}.`),
+      `verified ${made}`,
+    );
+    const latest = completeBackups().at(-1) ?? "";
 
     // Restore: the data changes after the backup, and the restore gives back the backup.
     must(`echo changed > ${data}/OpenBot/Agents/E2E/after-backup.md && rm ${data}/OpenBot/Agents/E2E/notes.md`);
