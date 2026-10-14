@@ -132,8 +132,7 @@ export function approvalShownWhole(
   if (grantRoot !== null || permissions !== null) return false;
   if (kind === "command" && command) {
     if (redact(command) !== command) return false;
-    const length = Array.from(command.replace(/\s+/gu, " ").trim()).length;
-    return length > 0 && length <= PREVIEW_LIMIT;
+    return previewText(command) === command;
   }
   // The reason is Markdown. The notification shows it as plain text, so it must lose nothing on the way.
   if (kind !== "file-change" || !reason || redact(reason) !== reason) return false;
