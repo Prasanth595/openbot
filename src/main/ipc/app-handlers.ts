@@ -86,6 +86,7 @@ export interface AppIpcDependencies {
   logoColor: LogoColorService;
   initializeAgent: () => Promise<void>;
   appVariant: AppVariant;
+  analyticsCaptureUrl: string | null;
   getMainWindow: () => BrowserWindow | null;
   setAnalyticsTrackingEnabled: (enabled: boolean) => void;
   trace: TraceFile;
@@ -108,6 +109,7 @@ export function appIpcHandlers({
   logoColor,
   initializeAgent,
   appVariant,
+  analyticsCaptureUrl,
   getMainWindow,
   setAnalyticsTrackingEnabled,
   trace,
@@ -124,7 +126,13 @@ export function appIpcHandlers({
         }
         // electron-vite starts a script, so Electron reports its own version in development.
         const version = app.isPackaged ? app.getVersion() : developmentVersion;
-        return { name: app.getName(), version, platform, variant: appVariant };
+        return {
+          name: app.getName(),
+          version,
+          platform,
+          variant: appVariant,
+          ...(analyticsCaptureUrl ? { analyticsCaptureUrl } : {}),
+        };
       }),
       getSetupState: handler(() => runCauseEffect(readSetupState(setupFile))),
       getAnalyticsPreference: handler(() => Effect.runPromise(readAnalyticsPreference(analyticsPreferenceFile))),

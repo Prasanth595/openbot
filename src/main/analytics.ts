@@ -105,6 +105,8 @@ function createOpenPanelClient(options: OpenPanelOptions): HostOpenPanelClient {
 export interface HostAnalyticsOptions {
   reports?: ReportQueue;
   enabled: boolean;
+  /** The OpenPanel API. Production when omitted; a dev capture server in `analytics-redaction-e2e`. */
+  apiUrl?: string;
   trackingEnabled?: boolean;
   appVersion: string;
   platform: "darwin" | "win32" | "linux";
@@ -254,7 +256,7 @@ export class HostAnalytics {
       return;
     }
     try {
-      const client = createClient({ apiUrl: OPENPANEL_API_URL, clientId: OPENPANEL_CLIENT_ID });
+      const client = createClient({ apiUrl: options.apiUrl ?? OPENPANEL_API_URL, clientId: OPENPANEL_CLIENT_ID });
       client.setGlobalProperties({
         surface: "desktop_host",
         environment: "production",

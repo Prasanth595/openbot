@@ -355,6 +355,8 @@ export interface ApplicationServiceContext {
   windows: MainWindowController;
   appIconPath: string;
   appVariant: AppVariant;
+  /** A local server that receives analytics in an unpackaged build. See `readAnalyticsCaptureUrl`. */
+  analyticsCaptureUrl: string | null;
   developmentRemoteRole: DevelopmentRemoteRole | null;
   developmentTestClientEnabled: boolean;
   /** Set only in a hosted server VM. */
@@ -672,6 +674,7 @@ export async function createApplicationServices({
   windows,
   appIconPath,
   appVariant,
+  analyticsCaptureUrl,
   developmentRemoteRole,
   developmentTestClientEnabled,
   hostedServer,
@@ -1886,19 +1889,23 @@ export async function createApplicationServices({
         : resolve(__dirname, "../../resources/plugin-catalog"),
     ),
   );
-  const failureReports =
-    app.isPackaged && appVariant === "production"
-      ? new ReportQueue(
-          fileReportStorage(join(app.getPath("userData"), "openbot-error-reports-v1.json")),
-          openPanelTransport({ clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2", origin: "openbot-app://app" }),
-          {
-            surface: "desktop_host",
-            app_version: app.getVersion(),
-            platform: analyticsPlatform,
-            event_schema_version: 8,
-          },
-        )
-      : undefined;
+  const analyticsEnabled = (app.isPackaged && appVariant === "production") || analyticsCaptureUrl !== null;
+  const failureReports = analyticsEnabled
+    ? new ReportQueue(
+        fileReportStorage(join(app.getPath("userData"), "openbot-error-reports-v1.json")),
+        openPanelTransport({
+          clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2",
+          origin: "openbot-app://app",
+          ...(analyticsCaptureUrl ? { endpoint: `${analyticsCaptureUrl}/track` } : {}),
+        }),
+        {
+          surface: "desktop_host",
+          app_version: app.getVersion(),
+          platform: analyticsPlatform,
+          event_schema_version: 8,
+        },
+      )
+    : undefined;
   const trace = new TraceFile({ directory: join(app.getPath("userData"), "logs") });
   teardown.push(TEARDOWN_ORDER.trace, "the trace file", () => Effect.runPromise(trace.close()));
   const resourceMonitor = new ResourceMonitor({
@@ -1914,7 +1921,8 @@ export async function createApplicationServices({
   service.on("event", (event) => resourceMonitor.observeAgentEvent(event));
   const analytics = new HostAnalytics({
     ...(failureReports ? { reports: failureReports } : {}),
-    enabled: app.isPackaged && appVariant === "production",
+    enabled: analyticsEnabled,
+    ...(analyticsCaptureUrl ? { apiUrl: analyticsCaptureUrl } : {}),
     trackingEnabled: analyticsPreference.enabled,
     appVersion: app.getVersion(),
     platform: analyticsPlatform,

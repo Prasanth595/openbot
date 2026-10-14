@@ -140,6 +140,14 @@ rather than passed through. Paths are followed by the allowlisted campaign tags 
 `[a-z0-9._-]`; a value outside that shape is dropped, not shortened, and no other query parameter or
 hash is ever included. Session replay and automatic interaction capture remain disabled.
 
+To check the desktop send paths, start the dev app with
+`OPENBOT_ANALYTICS_CAPTURE_URL=http://localhost:47321 bun run dev`, then run
+`bun run test:analytics-redaction -- --allow-mutations`. The app sends its analytics and failure
+reports to that local capture server instead of OpenPanel. The script seeds a secret marker into an
+agent, an MCP server, a routine and browser addresses, and checks that no captured request holds it.
+It writes `.openbot-build/analytics-redaction-e2e/report.json`. A packaged build ignores the setting,
+and only a loopback `http:` origin is accepted.
+
 ## Required dashboards
 
 1. Product Health: weekly meaningful accounts, successful-turn rate, P50/P90 duration, and failures

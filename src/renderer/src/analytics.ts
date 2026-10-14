@@ -389,7 +389,7 @@ const UPDATE_PHASES = new Set([
 ]);
 
 function shouldEnableDesktopAnalytics(appInfo: AppInfo, productionBuild: boolean): boolean {
-  return productionBuild && appInfo.variant === "production";
+  return appInfo.analyticsCaptureUrl !== undefined || (productionBuild && appInfo.variant === "production");
 }
 
 function sanitizeDesktopAnalyticsEvent(
@@ -503,7 +503,7 @@ class DesktopAnalytics {
     }
     try {
       const clientOptions = {
-        apiUrl: OPENPANEL_API_URL,
+        apiUrl: appInfo.analyticsCaptureUrl ?? OPENPANEL_API_URL,
         clientId: OPENPANEL_CLIENT_ID,
       };
       const client = this.#createClient(clientOptions);

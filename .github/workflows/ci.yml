@@ -41,6 +41,7 @@ jobs:
       docs: ${{ steps.lanes.outputs.docs }}
       desktop: ${{ steps.lanes.outputs.desktop }}
       api: ${{ steps.lanes.outputs.api }}
+      remote: ${{ steps.lanes.outputs.remote }}
       storybook: ${{ steps.lanes.outputs.storybook }}
       surfaces: ${{ steps.lanes.outputs.surfaces }}
     steps:
@@ -95,6 +96,7 @@ jobs:
           fi
           lane_unless desktop '^(apps/(auth-api|mobile|site-router)|docker|remote)/'
           lane api '^(apps/(auth-api|site-router)|src/renderer|resources)/|^(apps/mobile/)?CHANGELOG\.md$'
+          lane remote '^(remote|scripts)/'
           lane storybook '^(src|apps/auth-api|\.storybook|resources|marketplace|build)/'
           lane surfaces '^(apps/mobile|apps/site-router|remote|scripts)/'
           cat "$GITHUB_OUTPUT"
@@ -202,6 +204,34 @@ jobs:
 
       - name: Run desktop tests
         run: bun run test:desktop -- --shard=${{ matrix.shard }}/2
+
+  signal-e2e:
+    # Starts the real Signal service with throwaway secrets and checks its secret and
+    # authentication rules over HTTP and WebSocket. It needs no external service.
+    name: Signal E2E
+    needs: detect
+    if: needs.detect.outputs.remote == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: ignore-scripts
+
+      - name: Run the Signal E2E test
+        run: bun run test:signal
+
+      - name: Upload the Signal E2E report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signal-security-e2e
+          path: .openbot-build/signal-security-e2e/
+          if-no-files-found: ignore
 
   surfaces:
     # `desktop:typecheck` covers only the desktop projects, so without this job
@@ -325,7 +355,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, surfaces, api, storybook]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -351,7 +381,7 @@ jobs:
     # `apps/auth-api`, which `api` already covers: mobile, the site router, the
     # team client and the remote stack all consume the account API, so a red
     # Surfaces is the signal that this deploy is the thing about to break them.
-    needs: [check, browser, tests-desktop, api, storybook, surfaces]
+    needs: [check, browser, tests-desktop, signal-e2e, api, storybook, surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloudflare-production
