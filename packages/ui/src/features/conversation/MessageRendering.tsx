@@ -1,6 +1,7 @@
 import { chatPreviewKind } from "@openbot/contracts/chat-preview";
 import type { AttachmentSummary, InstalledSkill, MessageReaction } from "@openbot/contracts/ipc";
 import { canPreviewAttachment, MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "@openbot/contracts/ipc";
+import { parseSelectionInstruction } from "@openbot/contracts/selection-instruction";
 import { type BubbleVariant, Button, DropdownMenu } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch, untrack } from "solid-js";
@@ -10,7 +11,7 @@ import { AttachmentCards, type AttachmentMediaSource } from "./AttachmentCards";
 import { CodeBlock } from "./CodeBlock";
 import { CodePreview } from "./CodePreview";
 import { ComparisonTable } from "./ComparisonTable";
-import { CheckIcon, CopyIcon, MoreIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./ConversationIcons";
+import { CheckIcon, CopyIcon, PlusIcon, ReactionIcon, ReplyIcon } from "./ConversationIcons";
 import { createSmoothHeightResize } from "./createSmoothHeightResize";
 import { DataTable, type MessageContentBlock, messageContentBlocks, reuseUnchangedBlocks } from "./DataTable";
 import { messageFileReferences } from "./FileReference";
@@ -18,7 +19,6 @@ import { ImageGeneration } from "./ImageGeneration";
 import { ImageGallery, ImageLightbox, type ImageLightboxOpening, isLightboxImage } from "./ImageLightbox";
 import { MarkdownInlineText, MarkdownMessageText, markdownImageName } from "./MarkdownMessageText";
 import { RichMessageText } from "./RichMessageText";
-import { parseSelectionInstruction } from "./SelectionActions";
 import {
   nextStreamingReveal,
   type StreamingRevealChunk,
@@ -564,11 +564,9 @@ export function MessageActions(props: {
    */
   reactions?: boolean;
   pickerOpen: boolean;
-  moreOpen: boolean;
   expandedEmoji: boolean;
   copied: boolean;
   onTogglePicker: () => void;
-  onToggleMore: () => void;
   onExpandEmoji: () => void;
   onReact: (emoji: MessageReaction | null) => void;
   onReply?: () => void;
@@ -578,18 +576,27 @@ export function MessageActions(props: {
   const authorName = () => props.authorName ?? t("chat.message.agentFallback");
   return (
     <div
-      class={["message-actions", { "message-actions-open": props.pickerOpen || props.moreOpen }]}
+      class={["message-actions", { "message-actions-open": props.pickerOpen }]}
       role="toolbar"
       aria-label={
         props.message.author === "you" ? t("chat.actions.userLabel") : t("chat.actions.label", { name: authorName() })
       }
     >
+      <Button
+        variant="ghost"
+        type="button"
+        class="message-action-button"
+        aria-label={props.copied ? t("common.copied") : t("common.copy")}
+        onClick={props.onCopy}
+      >
+        {props.copied ? <CheckIcon /> : <CopyIcon />}
+      </Button>
       <Show when={props.reactions !== false}>
         <div class="message-action-popover-anchor">
           <DropdownMenu.Root
             open={props.pickerOpen}
             onOpenChange={props.onTogglePicker}
-            placement={untrack(() => props.message.author) === "you" ? "top-end" : "top-start"}
+            placement="bottom-start"
             gutter={6}
             modal={false}
           >
@@ -661,25 +668,6 @@ export function MessageActions(props: {
           <ReplyIcon />
         </Button>
       </Show>
-      <div class="message-action-popover-anchor">
-        <DropdownMenu.Root
-          open={props.moreOpen}
-          onOpenChange={props.onToggleMore}
-          placement="top-end"
-          gutter={6}
-          modal={false}
-        >
-          <DropdownMenu.Trigger class="message-action-button" aria-label={t("chat.actions.more")}>
-            <MoreIcon />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content class="message-more-menu" aria-hidden={props.moreOpen ? undefined : "true"}>
-            <DropdownMenu.Item onSelect={props.onCopy}>
-              {props.copied ? <CheckIcon /> : <CopyIcon />}
-              <span>{props.copied ? t("common.copied") : t("common.copy")}</span>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      </div>
     </div>
   );
 }

@@ -229,7 +229,6 @@ export const messages = defineMessages("chat", {
   "chat.actions.moreEmoji": "More emoji",
   "chat.actions.replyUser": "Reply to User message",
   "chat.actions.reply": "Reply to {name} message",
-  "chat.actions.more": "More message actions",
   "chat.selection.label": "Actions for selected text",
   "chat.selection.sendFailed": "Couldn’t send",
   "chat.selection.close": "Close selected text actions",
