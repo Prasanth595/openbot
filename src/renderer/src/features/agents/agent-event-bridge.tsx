@@ -68,6 +68,7 @@ export function AgentEventBridge() {
     setFailedTurns,
     setUsageLimits,
     setUsageLimitedModels,
+    setWaitedUsageLimits,
     setContextStates,
     setQueues,
     setPendingPrompts,
@@ -328,7 +329,14 @@ export function AgentEventBridge() {
     );
     setFailedTurns(Object.fromEntries(snapshot.failedTurns.map((turn) => [turn.agentId, turn.turnId])));
     setContextStates(Object.fromEntries((snapshot.contextStates ?? []).map((state) => [state.agentId, state])));
-    setUsageLimits(Object.fromEntries((snapshot.usageLimits ?? []).map((limit) => [limit.agentId, limit.resetsAt])));
+    const usageLimits = Object.fromEntries(
+      (snapshot.usageLimits ?? []).map((limit) => [limit.agentId, limit.resetsAt]),
+    );
+    setUsageLimits(usageLimits);
+    // A hold that ended takes its "Wait" with it, so the next hold asks again.
+    setWaitedUsageLimits((current) =>
+      Object.fromEntries(Object.entries(current).filter(([agentId]) => agentId in usageLimits)),
+    );
     setUsageLimitedModels(snapshot.usageLimitedModels ?? []);
     setQueues((current) => reconcileQueuesWithRuntimeWork(current, snapshot.work, runtimeTurns));
     setPendingPrompts((current) => reconcileAttentionPrompts(current, snapshot, submittedPromptRequests()));

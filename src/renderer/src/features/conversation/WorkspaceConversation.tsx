@@ -13,7 +13,7 @@ import {
   usageLimitAskOptions,
 } from "@openbot/ui/features/conversation/BackupModels";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import { createMemo, createSignal } from "solid-js";
+import { createMemo } from "solid-js";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { useNavigation } from "../../navigation";
 import { usePlatform } from "../../platform";
@@ -53,8 +53,6 @@ import { useConversation } from "./conversation-context";
  * composer state that survives one - which is why the id is read per prop
  * rather than captured once.
  */
-// Module scope: the conversation remounts on navigation, and a card the user closed stays closed for that hold.
-const [waitedUsageLimits, setWaitedUsageLimits] = createSignal<Record<string, number | null>>({});
 
 export function WorkspaceConversation(props: { account: () => CentralAuthUser }) {
   const scopeIsCurrent = createScopeGuard();
@@ -124,6 +122,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     stopActiveTurn,
     usageLimits,
     usageLimitedModels,
+    waitedUsageLimits,
+    setWaitedUsageLimits,
     queues,
   } = useTurns();
   const {

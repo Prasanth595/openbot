@@ -85,6 +85,8 @@ const Turns = createSimpleContext({
     const [usageLimits, setUsageLimits] = createSignal<Record<string, number | null>>({});
     // Each provider account and model that a usage limit holds, also with no agent on it.
     const [usageLimitedModels, setUsageLimitedModels] = createSignal<AgentModelChoice[]>([]);
+    // The holds whose ask card the user closed with "Wait", by agent, with the reset of that hold.
+    const [waitedUsageLimits, setWaitedUsageLimits] = createSignal<Record<string, number | null>>({});
     const [queues, setQueues] = createSignal<Record<string, QueueSnapshot>>(seed?.queues ?? {});
     // Only the active agent's open waits load; a `waits-changed` event updates any agent.
     const [waits, setWaits] = createSignal<Record<string, AgentWaitsSnapshot>>({});
@@ -438,6 +440,8 @@ const Turns = createSimpleContext({
       setUsageLimits,
       usageLimitedModels,
       setUsageLimitedModels,
+      waitedUsageLimits,
+      setWaitedUsageLimits,
       queues,
       setQueues,
       setWaits,
