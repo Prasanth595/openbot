@@ -1045,6 +1045,14 @@ of its own server. Signing out removes the keys from the phone, asks each connec
 the registration, and makes a new phone secret. A host that does not get the request sends nothing
 more, because the account service refuses the ended session.
 
+A notification of an approval also contains, in the sealed bytes, the ID of the request and of its
+turn, and whether the text shows the whole command or file change. The notification then shows Deny,
+and Allow when the text shows it all; a paired Apple Watch shows the same buttons. iOS asks to unlock the
+device first. The app sends the answer to the host over the encrypted host connection, as the
+approval card in the chat does, so the account service and Apple do not see it. To connect while the
+phone is locked, the app keeps its sign-in, the keys of the hosts and the server list choices in the
+iOS keychain with access after the first unlock since the phone started, on this device only.
+
 Settings > Notifications turns this off, and sets the preview and the sound. The events and the mute
 of each server are in the same place and in the server settings.
 
