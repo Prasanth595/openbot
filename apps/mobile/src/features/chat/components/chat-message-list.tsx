@@ -456,7 +456,10 @@ const MessageRow = memo(function MessageRow({
     if (wasSelecting.current && !selecting) setSelectionGeneration((generation) => generation + 1);
     wasSelecting.current = selecting;
   }, [selecting]);
-  const bubble = message.kind === "message" ? message : null;
+  const waiting = awaitingFirstWord(message, shared);
+  // A message that the host does not have yet, or that still streams, has no host ID to act on:
+  // it has no actions and no native selection.
+  const bubble = message.kind === "message" && !outbox && !message.streaming && !waiting ? message : null;
   const nativeSelect = shared.actions.nativeSelection;
   const nativeSelection = useMemo(
     () =>
@@ -503,7 +506,6 @@ const MessageRow = memo(function MessageRow({
         : undefined,
     [eligible, message.id, complete, replySession.progress, enabled, markRevealed, replyHaptics],
   );
-  const waiting = awaitingFirstWord(message, shared);
   // Native text views select in place, so only the fallback covers the text with a field.
   const overlaySelecting = selecting && !nativeTextSelection;
   // Another person in an agent chat: a person's bubble in their own colour, seeded by the member id
@@ -679,8 +681,7 @@ const MessageRow = memo(function MessageRow({
       )}
       {message.author === "user" && message.status === "failed" ? <TurnFailure reason={message.failureReason} /> : null}
       {outbox ? <ChatOutboxStatus status={outbox} /> : null}
-      {/* A message that the host does not have yet, or that still streams, has no actions. */}
-      {outbox || message.streaming || waiting ? null : (
+      {bubble ? (
         <ChatMessageActions
           align={message.author === "user" ? "end" : "start"}
           copyText={messageCopyText(message)}
@@ -692,7 +693,7 @@ const MessageRow = memo(function MessageRow({
           onSelectText={selectable ? () => actions.selectText(message) : undefined}
           selecting={selecting}
         />
-      )}
+      ) : null}
     </View>
   );
 });
