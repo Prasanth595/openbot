@@ -57,6 +57,7 @@ import { isPathInside } from "../backend/path-containment";
 import {
   type ArchiveLimits,
   avatarImage,
+  executableEntries,
   extract,
   isUnsafeEntry,
   listEntries,
@@ -173,6 +174,7 @@ interface FileEntry {
   name: string;
   path: string;
   size: number;
+  executable: boolean;
 }
 
 interface StagedTransfer {
@@ -235,7 +237,7 @@ export class InstanceTransferService {
       return yield* archiveFailure(new Error(sourceText("error.import.agentNotInExport")));
     const agents = selected.filter((agent): agent is AgentSummary => agent !== undefined);
 
-    const entries: Array<{ name: string; read: () => Promise<Uint8Array> }> = [];
+    const entries: ZipEntry[] = [];
     const warnings: string[] = [];
     const keys = new Map<string, string>();
     const manifestAgents: TransferAgent[] = [];
@@ -280,7 +282,11 @@ export class InstanceTransferService {
           files = `${prefix}workspace`;
           for (const file of workspace) {
             bytes += file.size;
-            entries.push({ name: `${files}/${file.name}`, read: () => readFile(file.path) });
+            entries.push({
+              name: `${files}/${file.name}`,
+              read: () => readFile(file.path),
+              executable: file.executable,
+            });
           }
         }
       }
@@ -329,7 +335,11 @@ export class InstanceTransferService {
       if (sharedFiles.length > 0) shared = SHARED_FOLDER;
       for (const file of sharedFiles) {
         bytes += file.size;
-        entries.push({ name: `${SHARED_FOLDER}/${file.name}`, read: () => readFile(file.path) });
+        entries.push({
+          name: `${SHARED_FOLDER}/${file.name}`,
+          read: () => readFile(file.path),
+          executable: file.executable,
+        });
       }
     }
     if (entries.length + 1 > limits.files || bytes > limits.archiveBytes)
@@ -738,6 +748,7 @@ export class InstanceTransferService {
     warnings: string[],
   ) {
     const files = yield* archiveSync(() => extract(bytes, (name) => name.startsWith(`${folder}/`)));
+    const executable = yield* archiveSync(() => executableEntries(bytes));
     const base = resolve(this.options.sharedRoot);
     let kept = 0;
     for (const [name, data] of Object.entries(files)) {
@@ -747,7 +758,7 @@ export class InstanceTransferService {
       const written = yield* Effect.result(
         Effect.gen(function* () {
           yield* archiveCall(() => mkdir(dirname(target), { recursive: true }));
-          yield* archiveCall(() => writeFile(target, data, { flag: "wx" }));
+          yield* archiveCall(() => writeFile(target, data, { flag: "wx", mode: executable.has(name) ? 0o777 : 0o666 }));
         }),
       );
       if (Result.isFailure(written)) kept += 1;
@@ -803,13 +814,17 @@ export class InstanceTransferService {
       (created) =>
         Effect.gen({ self: this }, function* () {
           let agent = created;
-          if (source.files)
+          if (source.files) {
+            const folder = source.files;
+            const executable = yield* archiveSync(() => executableEntries(bytes));
             yield* writeImportedFilesEffect(
               agent.workspacePath,
-              read(source.files).filter(([name]) => !isWorkspaceSkipped(name)),
+              read(folder).filter(([name]) => !isWorkspaceSkipped(name)),
               source.name,
               warnings,
+              (name) => executable.has(`${folder}/${name}`),
             );
+          }
           const library = this.options.skills.library();
           for (const skill of skills) {
             const current = (yield* library.list().pipe(Effect.mapError(failure))).find(
@@ -949,7 +964,8 @@ const walk = Effect.fn("InstanceTransfer.walk")(function* (
       else if (entry.isFile()) {
         // A running agent can delete a file between `readdir` and `lstat`; that file is not exported.
         const info = yield* Effect.result(archiveCall(() => lstat(path)));
-        if (Result.isSuccess(info)) files.push({ name, path, size: info.success.size });
+        if (Result.isSuccess(info))
+          files.push({ name, path, size: info.success.size, executable: (info.success.mode & 0o111) !== 0 });
       }
     }
   }
@@ -1052,10 +1068,16 @@ function isSharedData(name: string): boolean {
   return lower === SHARED_DATA || lower.startsWith(`${SHARED_DATA}/`);
 }
 
+interface ZipEntry {
+  name: string;
+  read: () => Promise<Uint8Array>;
+  executable?: boolean;
+}
+
 /** Writes the archive to `<path>.part` one file at a time, then renames it. */
 const writeZipEffect = Effect.fn("InstanceTransfer.writeZip")(function* (
   path: string,
-  entries: ReadonlyArray<{ name: string; read: () => Promise<Uint8Array> }>,
+  entries: ReadonlyArray<ZipEntry>,
 ): Effect.fn.Return<number, ArchiveOperationError> {
   const part = `${path}.part`;
   return yield* archiveCall(async () => {
@@ -1080,6 +1102,11 @@ const writeZipEffect = Effect.fn("InstanceTransfer.writeZip")(function* (
         }
         // Stored, not compressed: compression would run on the main thread.
         const file = new ZipPassThrough(entry.name);
+        if (entry.executable !== undefined) {
+          // A Unix mode, as Git keeps it: only if the file is executable. The import restores the bits.
+          file.os = 3;
+          file.attrs = (entry.executable ? 0o100755 : 0o100644) * 0x10000;
+        }
         zip.add(file);
         file.push(data, true);
         await pending;
