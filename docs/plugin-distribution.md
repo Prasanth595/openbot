@@ -424,17 +424,12 @@ Degraded conditions:
 ## 6. Tests that are mandatory
 
 This work changes the renderer-to-main boundary and the IPC contracts, so `AGENTS.md` makes tests
-mandatory.
+mandatory. Check the link forms, the page, the install and the uninstall end to end with
+`bun run dev:automation`; the ones below are vitest files.
 
 | File | What it proves |
 | --- | --- |
-| `packages/contracts/src/plugin-links.test.ts` | Both forms are built and read again. A wrong origin, `http:`, a second path segment, `..`, a query, a hash, a port, a user name, an upper-case slug and a long slug are refused. An invite URL is refused. |
-| `src/main/deep-link-router.test.ts` | The kind table. An invite still reads as an invite. An unknown `openbot://` URL gives nothing. |
-| `src/main/ipc/plugin-handlers.test.ts` | The sender check runs before the payload is read. A bad slug is refused. The pending link is given one time. |
-| `src/main/plugin-catalog-service.test.ts` | A 304 answer, a wrong hash, the offline fallback, the choice between the snapshot and the cache, and a part-completed install. |
 | `src/main/ipc-channel-coverage.test.ts` | Exists. It fails until the channels are in the contracts, the preload and the mock. |
-| `src/renderer/src/features/settings/MarketplaceModal.test.tsx` | A slug opens the app's page, no install call is made, an unknown slug shows the `missing` state, and `Copy link` writes the canonical URL. For the uninstall: the confirmation names the app and the skill and removes neither, a confirmed uninstall removes the host row before the agent's skill, a cancel removes nothing, and a failed app removal still takes the skill, is reported, and still offers the uninstall, and a server that only shares the app's name is neither read as installed nor removable. |
-| `apps/auth-api/test/` page and metadata tests | The page shows the listing and both buttons. The canonical URL and the sitemap are correct. An unknown slug gives a 404. |
 
 ## 7. Open questions
 

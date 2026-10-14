@@ -37,7 +37,7 @@ export const DESKTOP_USE_MS = 30 * 1000;
 /** Events that wait for the member. The phone gets them also while the member uses a desktop app. */
 const WAITS_FOR_MEMBER: ReadonlySet<PushNotificationKind> = new Set(["input", "approval", "browser"]);
 
-export type PushNotificationAgents = Pick<TeamApiAgents, "on" | "off" | "listAgents" | "readConversationPageFor">;
+type PushNotificationAgents = Pick<TeamApiAgents, "on" | "off" | "listAgents" | "readConversationPageFor">;
 
 interface PushNotificationOptions {
   agents: PushNotificationAgents;

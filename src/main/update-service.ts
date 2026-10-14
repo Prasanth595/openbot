@@ -34,8 +34,8 @@ export type UpdateCheckOutcome = {
 
 /**
  * The subset of electron-updater this service drives. Four behaviours of the installed version are
- * load bearing here, none of them public API, all verified against 6.8.9 and pinned by
- * electron-updater-assumptions.test.ts:
+ * load bearing here, none of them public API, all verified against 6.8.9. Verify them again when
+ * electron-updater changes:
  *
  * 1. `MacUpdater.updateDownloaded` only calls `nativeUpdater.checkForUpdates()` - the call that makes
  *    Squirrel stage the ZIP and eventually emit the native `update-downloaded` - while
@@ -873,7 +873,7 @@ function appendUpdateLog(directory: string, event: UpdateDiagnosticEvent): Effec
   }).pipe(Effect.catch(() => Effect.void));
 }
 
-export function pruneShipItLogs(directory: string): Effect.Effect<void, UpdateOperationFailure> {
+function pruneShipItLogs(directory: string): Effect.Effect<void, UpdateOperationFailure> {
   return Effect.gen(function* () {
     const entries = (yield* updateIO(() => readdir(directory, { withFileTypes: true })))
       .filter((entry) => entry.isFile() && /^ShipIt_(?:stdout|stderr)\.log\.\d+$/u.test(entry.name))

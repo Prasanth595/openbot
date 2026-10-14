@@ -184,7 +184,7 @@ const ACP_SESSION_IDLE_RELEASE_MS = 10 * 60_000;
  * user's MCP servers (`npx chrome-devtools-mcp` is about 300 MB), so one turn on each of five agents
  * otherwise holds five sets for ten minutes.
  */
-export const ACP_IDLE_SESSION_LIMIT = 2;
+const ACP_IDLE_SESSION_LIMIT = 2;
 
 interface AcpProviderAccount {
   email: string | null;

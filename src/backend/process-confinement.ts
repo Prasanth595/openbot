@@ -40,7 +40,7 @@ export interface SpawnTarget {
   windowsVerbatimArguments: boolean;
 }
 
-export class ProcessConfinementUnavailableError extends Error {
+class ProcessConfinementUnavailableError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ProcessConfinementUnavailableError";

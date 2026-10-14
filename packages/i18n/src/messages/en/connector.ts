@@ -83,6 +83,7 @@ export const messages = defineMessages("connector", {
   "connector.hub.onHost": "On {host}",
   "connector.hub.notSetUp": "Not set up",
   "connector.hub.available": "Available",
+  "connector.hub.localOnly": "Your computer only",
   // {name} is the name of an integration, such as Slack.
   "connector.hub.open": "Open {name}",
   "connector.hub.setUp": "Set up",
@@ -375,5 +376,5 @@ export const messages = defineMessages("connector", {
   "connector.bitwarden.disconnect": "Disconnect Bitwarden",
   "connector.bitwarden.connected": "Connected",
   "connector.bitwarden.disconnected": "Not connected",
-  "connector.bitwarden.failed": "Could not connect to Bitwarden.",
+  "connector.bitwarden.actionFailed": "OpenBot could not change the Bitwarden connection.",
 });

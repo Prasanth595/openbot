@@ -19,9 +19,7 @@
     "db:migrate:local": "wrangler d1 migrations apply openbot-auth --local",
     "db:migrate:remote": "wrangler d1 migrations apply openbot-auth --remote",
     "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
-    "test": "bun run --parallel test:server test:client",
-    "test:server": "vitest run --config vitest.config.ts",
-    "test:client": "vitest run --config vitest.client.config.ts"
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "catalog:",
@@ -46,7 +44,6 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
     "@cloudflare/workers-types": "catalog:",
-    "@solidjs/testing-library": "catalog:",
     "@solidjs/vite-plugin": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@types/node": "catalog:",

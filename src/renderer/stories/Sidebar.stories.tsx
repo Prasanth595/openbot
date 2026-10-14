@@ -278,6 +278,12 @@ export const Populated: Story = {
   decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
 };
 
+/** A joined server has a new OpenBot version. The header button opens its update. */
+export const ServerUpdate: Story = {
+  args: { serverName: "Research server", serverUpdate: { version: "0.24.0", running: false, onOpen: fn() } },
+  decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
+};
+
 export const MobileAppCard: Story = {
   args: { footer: <SidebarMobileAppCard onOpenInstall={fn()} onDismiss={fn()} /> },
   decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],

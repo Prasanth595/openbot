@@ -30,6 +30,8 @@ interface GeneralStoreProps {
   offProviders?: readonly AgentProviderId[] | undefined;
   /** The names of the agents that use each provider. */
   providerUsers?: Partial<Record<AgentProviderId, readonly string[]>> | undefined;
+  /** The names of the agents that use each account, by provider and account. */
+  providerAccountUsers?: Partial<Record<AgentProviderId, Readonly<Record<string, readonly string[]>>>> | undefined;
 }
 
 /**
@@ -71,6 +73,10 @@ export function createSettingsGeneralStore(props: GeneralStoreProps) {
         keyStatus: provider === "opencode" ? props.openCodeKeyStatus?.() : undefined,
         off: agent?.off ?? props.offProviders?.includes(provider),
         usedBy: props.providerUsers?.[provider],
+        accounts: agent?.accounts?.map((account) => ({
+          ...account,
+          usedBy: props.providerAccountUsers?.[provider]?.[account.id],
+        })),
         /*
          * A CLI the user installed themselves is the one the provider runs, whatever the managed
          * runtime holds, so the row reads it as ready on the version the provider reports. An

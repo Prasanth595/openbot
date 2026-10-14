@@ -279,6 +279,18 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "No se pueden leer los ajustes guardados del proveedor. Actualiza OpenBot antes de cambiarlos.",
   "error.provider.useChangeFailed": "OpenBot no pudo cambiar el ajuste del proveedor.",
+  "error.provider.accountsUnsupported": "{provider} solo admite una cuenta.",
+  "error.provider.accountNeedsConnection": "Conecta {provider} antes de añadir otra cuenta.",
+  "error.provider.accountLimit": "{provider} admite como máximo {limit} cuentas.",
+  "error.provider.accountNotFound":
+    "Esta cuenta de {provider} no está en este ordenador. Actualiza e inténtalo de nuevo.",
+  "error.provider.accountAlreadyAdded": "Esta cuenta de {provider} ya está conectada.",
+  "error.provider.accountDefault": "No se puede eliminar la primera cuenta de {provider}.",
+  "error.provider.accountInUse":
+    "Un agente que usa esta cuenta está trabajando. Inténtalo de nuevo cuando el agente se detenga.",
+  "error.provider.accountsReadOnly":
+    "No se pueden leer las cuentas guardadas del proveedor. Actualiza OpenBot antes de cambiarlas.",
+  "error.provider.accountSignedOut": "Se cerró la sesión de esta cuenta de {provider}. Inicia sesión de nuevo.",
   "error.provider.sessionSettingUnavailable": "Este ajuste no está disponible en la sesión actual del proveedor.",
   "error.provider.sessionSettingInvalid": "Este valor no está disponible para el ajuste.",
   "error.provider.sessionSettingsBusy": "Espera a que termine el turno actual antes de cambiar un ajuste de la sesión.",

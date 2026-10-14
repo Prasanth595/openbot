@@ -1,5 +1,5 @@
 .message-entry-user .ui-bubble {
-  max-width: min(420px, calc(100% - var(--message-actions-inline-size) - 5px));
+  max-width: min(420px, 100%);
 }
 
 .message-copy {
@@ -597,8 +597,8 @@
 }
 
 .message-entry-agent .ui-bubble:has(:is(.message-data-table-scroll, .message-code-block)) {
-  width: min(720px, calc(100% - var(--message-actions-inline-size) - 5px));
-  max-width: min(720px, calc(100% - var(--message-actions-inline-size) - 5px));
+  width: min(720px, 100%);
+  max-width: min(720px, 100%);
 }
 
 .message-entry-agent .ui-bubble:has(.message-data-table-scroll) > .ui-bubble-content {

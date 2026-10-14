@@ -52,7 +52,7 @@ import { stringPayload } from "./validation";
  * it is read from `mac-permission-urls.ts` rather than written twice. `hosted-server-contact` is a
  * `mailto:` address, which `openUrl` refuses; the web client opens the same constant.
  */
-export const EXTERNAL_DESTINATIONS: Record<ExternalDestination, string> = {
+const EXTERNAL_DESTINATIONS: Record<ExternalDestination, string> = {
   "agent-setup": "https://github.com/nightly-labs/openbot/blob/main/docs/TROUBLESHOOTING.md",
   "opencode-install": "https://opencode.ai/docs/",
   "opencode-auth": "https://opencode.ai/auth",
@@ -86,6 +86,7 @@ export interface AppIpcDependencies {
   logoColor: LogoColorService;
   initializeAgent: () => Promise<void>;
   appVariant: AppVariant;
+  analyticsCaptureUrl: string | null;
   getMainWindow: () => BrowserWindow | null;
   setAnalyticsTrackingEnabled: (enabled: boolean) => void;
   trace: TraceFile;
@@ -108,6 +109,7 @@ export function appIpcHandlers({
   logoColor,
   initializeAgent,
   appVariant,
+  analyticsCaptureUrl,
   getMainWindow,
   setAnalyticsTrackingEnabled,
   trace,
@@ -124,7 +126,13 @@ export function appIpcHandlers({
         }
         // electron-vite starts a script, so Electron reports its own version in development.
         const version = app.isPackaged ? app.getVersion() : developmentVersion;
-        return { name: app.getName(), version, platform, variant: appVariant };
+        return {
+          name: app.getName(),
+          version,
+          platform,
+          variant: appVariant,
+          ...(analyticsCaptureUrl ? { analyticsCaptureUrl } : {}),
+        };
       }),
       getSetupState: handler(() => runCauseEffect(readSetupState(setupFile))),
       getAnalyticsPreference: handler(() => Effect.runPromise(readAnalyticsPreference(analyticsPreferenceFile))),

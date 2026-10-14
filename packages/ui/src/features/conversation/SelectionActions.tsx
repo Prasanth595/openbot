@@ -1,4 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { SELECTION_ACTION_INSTRUCTIONS, serializeSelectionInstruction } from "@openbot/contracts/selection-instruction";
 import { Button, Input } from "@openbot/ui";
 import { clamp } from "@openbot/ui/utils";
 import { Portal } from "@solidjs/web";
@@ -13,23 +14,10 @@ const HIGHLIGHT_NAME = "openbot-message-selection";
 const VIEWPORT_MARGIN = 12;
 const TOOLBAR_GAP = 8;
 
-export const SELECTION_ACTION_INSTRUCTIONS = {
-  Explain: "Explain this selected text.",
-  Improve: "Improve this selected text.",
-  Shorten: "Shorten this selected text.",
-  Tone: "Change the tone of this selected text.",
-  Grammar: "Fix the grammar in this selected text.",
-} as const;
-
 export interface MessageTextSelection {
   messageId: string;
   text: string;
   range: Range;
-}
-
-export interface SelectionInstruction {
-  instruction: string;
-  quote: string;
 }
 
 export interface SelectionRect {
@@ -45,29 +33,6 @@ export interface SelectionActionsPosition {
   top: number;
   left: number;
   placement: "top" | "bottom";
-}
-
-export function serializeSelectionInstruction(instruction: string, quote: string): string {
-  const normalizedInstruction = instruction.trim();
-  const normalizedQuote = quote.replace(/\r\n?/gu, "\n").trim();
-  const quoted = normalizedQuote
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
-  return `${normalizedInstruction}\n\n${quoted}`;
-}
-
-export function parseSelectionInstruction(body: string): SelectionInstruction | null {
-  const separator = body.lastIndexOf("\n\n>");
-  if (separator <= 0) return null;
-  const instruction = body.slice(0, separator).trim();
-  const quoteLines = body.slice(separator + 2).split("\n");
-  if (!instruction || quoteLines.length === 0 || quoteLines.some((line) => !/^>(?: |$)/u.test(line))) return null;
-  const quote = quoteLines
-    .map((line) => line.replace(/^> ?/u, ""))
-    .join("\n")
-    .trim();
-  return quote ? { instruction, quote } : null;
 }
 
 export function messageTextSelection(selection: Selection | null): MessageTextSelection | null {

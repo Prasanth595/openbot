@@ -192,6 +192,8 @@ export interface AgentProfile {
   provider: AgentProviderId;
   model: AgentModelId;
   reasoningEffort: AgentReasoningEffort;
+  /** The provider account after the first. Absent for the provider's own sign-in. */
+  providerAccountId?: string;
   /** Absent for an agent on a remote host, which does not share it; the host then decides. */
   access?: AgentAccess;
   /** Absent means on. Absent for an agent on a remote host too, which does not share it. */

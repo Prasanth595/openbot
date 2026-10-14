@@ -68,6 +68,7 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
 } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import { type TeamProtocolSupportV1, teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -93,6 +94,7 @@ import {
   type RemoteTeamConnectionUpdate,
 } from "@openbot/team-client/remote-peer";
 import { remoteWorkspaceReadTimeout } from "@openbot/team-client/remote-recovery";
+import { setAgentProviderAccount } from "@openbot/team-client/team-admin-requests";
 import {
   cancelQueuedMessage,
   deleteAgent,
@@ -998,7 +1000,18 @@ export function createWebWorkspaceRuntime(
       return { agent: value.agent, layout: value.layout } satisfies DuplicateAgentResult;
     },
     async updateAgent(input) {
-      await request("PATCH", TEAM_API_ROUTES.agent.one(input.agentId), { ...input });
+      // The released agent route ignores the account, so it goes on `provider-accounts-v1` after the
+      // profile: a provider change there returns the agent to the new provider's own sign-in.
+      const { providerAccountId, ...profile } = input;
+      if (providerAccountId !== undefined && !capabilities.includes(PROVIDER_ACCOUNTS_CAPABILITY))
+        throw new Error(currentText().t("error.team.providersUnsupported"));
+      await request("PATCH", TEAM_API_ROUTES.agent.one(input.agentId), { ...profile });
+      if (providerAccountId === undefined) return;
+      await runTeamEffect(
+        setAgentProviderAccount(teamApi, { agentId: input.agentId, accountId: providerAccountId }).pipe(
+          Effect.mapError((error) => error.cause),
+        ),
+      );
     },
     async deleteAgent(agentId) {
       if (connectedHost?.role === "member") throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
@@ -1142,7 +1155,7 @@ function decodeWebConversationSnapshot(value: unknown): ConversationPage {
   return { ...value, references: {}, pageInfo: { hasOlder: false, olderCursor: null } };
 }
 
-export function decodeWebConversationPage(value: unknown): ConversationPage {
+function decodeWebConversationPage(value: unknown): ConversationPage {
   if (
     !isConversationWithReadState(value) ||
     !isDynamicRecord(value) ||

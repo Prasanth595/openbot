@@ -29,9 +29,8 @@ jobs:
     # main and a manual run always run every lane: `deploy-production` needs them, and a skipped
     # need would skip the deploy.
     #
-    # `code` runs for every change except Markdown that no build or test reads: the desktop tests
-    # run the mobile tests and read mobile, API and remote files, and lint and knip cover every
-    # workspace. `docs` runs for any Markdown change, so that `Check` still checks its links. `desktop` lists what it skips, not what it reads: the other apps, which the
+    # `code` runs for every change except Markdown that no build or test reads: lint and knip cover
+    # every workspace. `docs` runs for any Markdown change, so that `Check` still checks its links. `desktop` lists what it skips, not what it reads: the other apps, which the
     # Electron build does not read. `api` also reads the renderer: the Worker bundles its preview
     # and web client.
     name: Detect changed areas
@@ -42,7 +41,6 @@ jobs:
       docs: ${{ steps.lanes.outputs.docs }}
       desktop: ${{ steps.lanes.outputs.desktop }}
       api: ${{ steps.lanes.outputs.api }}
-      sites: ${{ steps.lanes.outputs.sites }}
       remote: ${{ steps.lanes.outputs.remote }}
       storybook: ${{ steps.lanes.outputs.storybook }}
       surfaces: ${{ steps.lanes.outputs.surfaces }}
@@ -98,7 +96,6 @@ jobs:
           fi
           lane_unless desktop '^(apps/(auth-api|mobile|site-router)|docker|remote)/'
           lane api '^(apps/(auth-api|site-router)|src/renderer|resources)/|^(apps/mobile/)?CHANGELOG\.md$'
-          lane sites '^apps/site-router/'
           lane remote '^(remote|scripts)/'
           lane storybook '^(src|apps/auth-api|\.storybook|resources|marketplace|build)/'
           lane surfaces '^(apps/mobile|apps/site-router|remote|scripts)/'
@@ -183,12 +180,8 @@ jobs:
 
   tests-desktop:
     # ubuntu-latest gives 4 vCPUs, so vitest runs 3 workers and the job is
-    # CPU-bound. The three test suites run in parallel jobs so the short
-    # site-router and remote suites no longer wait for the desktop suite.
-    #
-    # The desktop suite is the long pole of the three, so it is split again
-    # across shards that run as their own runners. The split is by recorded
-    # duration rather than vitest's own file-size one - see
+    # CPU-bound. The suite is split across shards that run as their own
+    # runners. The split is by recorded duration rather than vitest's own file-size one - see
     # tools/vitest/balanced-sequencer.ts for why, and run `bun run
     # test:durations` when the two shards below stop finishing together.
     name: Tests (desktop ${{ matrix.shard }}/2)
@@ -212,36 +205,10 @@ jobs:
       - name: Run desktop tests
         run: bun run test:desktop -- --shard=${{ matrix.shard }}/2
 
-      # Written by the transfer budget tests in the shard that runs each one. The trusted
-      # budget-report.yml workflow compares these reports with the reports of main.
-      - name: Upload transfer budget report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: transfer-budget-${{ matrix.shard }}
-          path: .openbot-build/transfer-budget/
-          if-no-files-found: ignore
-
-  tests-sites:
-    name: Tests (sites)
-    needs: detect
-    if: needs.detect.outputs.sites == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Set up Bun
-        uses: ./.github/actions/setup-bun
-        with:
-          install: ignore-scripts
-
-      - name: Run site router tests
-        run: bun run test:sites
-
-  tests-remote:
-    name: Tests (remote)
+  signal-e2e:
+    # Starts the real Signal service with throwaway secrets and checks its secret and
+    # authentication rules over HTTP and WebSocket. It needs no external service.
+    name: Signal E2E
     needs: detect
     if: needs.detect.outputs.remote == 'true'
     runs-on: ubuntu-latest
@@ -255,8 +222,16 @@ jobs:
         with:
           install: ignore-scripts
 
-      - name: Run remote API tests
-        run: bun run test:remote
+      - name: Run the Signal E2E test
+        run: bun run test:signal
+
+      - name: Upload the Signal E2E report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signal-security-e2e
+          path: .openbot-build/signal-security-e2e/
+          if-no-files-found: ignore
 
   surfaces:
     # `desktop:typecheck` covers only the desktop projects, so without this job
@@ -266,9 +241,8 @@ jobs:
     # them. Mobile's typecheck generates `expo-env.d.ts` and the uniwind
     # declarations first - both are gitignored, so a fresh checkout cannot
     # resolve `global.css`. `remote/api` is typechecked through the workspace's
-    # own script rather than through `remote:check`, so that the tests it also
-    # runs stay in the Tests job; its `include` reaches `../scripts/*.ts`, so the
-    # stack scripts come with it. `remote:check:compose` is the rest of
+    # own script; its `include` reaches `../scripts/*.ts`, so the stack scripts
+    # come with it. `remote:check:compose` is the rest of
     # `remote:check`: `docker compose config` interpolates client-side and never
     # opens a socket, so it validates both Compose files on a runner with no
     # daemon.
@@ -381,7 +355,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, tests-sites, tests-remote, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, surfaces, api, storybook]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -407,7 +381,7 @@ jobs:
     # `apps/auth-api`, which `api` already covers: mobile, the site router, the
     # team client and the remote stack all consume the account API, so a red
     # Surfaces is the signal that this deploy is the thing about to break them.
-    needs: [check, browser, tests-desktop, tests-sites, tests-remote, api, storybook, surfaces]
+    needs: [check, browser, tests-desktop, signal-e2e, api, storybook, surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: cloudflare-production
@@ -435,6 +409,7 @@ jobs:
           EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
           SKILLS_ADMIN_TOKEN: ${{ secrets.SKILLS_ADMIN_TOKEN }}
           SITE_OPERATIONS_ADMIN_TOKEN: ${{ secrets.SITE_OPERATIONS_ADMIN_TOKEN }}
+          SERVER_CLAIMS_ADMIN_TOKEN: ${{ secrets.SERVER_CLAIMS_ADMIN_TOKEN }}
           SITE_REPORT_HASH_SECRET: ${{ secrets.SITE_REPORT_HASH_SECRET }}
           REMOTE_TICKET_PRIVATE_JWK: ${{ secrets.REMOTE_TICKET_PRIVATE_JWK }}
           REMOTE_TICKET_PUBLIC_JWKS: ${{ secrets.REMOTE_TICKET_PUBLIC_JWKS }}
@@ -457,6 +432,7 @@ jobs:
             const smtp = process.env.EMAIL_SMTP_PASSWORD;
             const skillsAdmin = process.env.SKILLS_ADMIN_TOKEN;
             const siteOperationsAdmin = process.env.SITE_OPERATIONS_ADMIN_TOKEN;
+            const serverClaimsAdmin = process.env.SERVER_CLAIMS_ADMIN_TOKEN;
             const siteReportHash = process.env.SITE_REPORT_HASH_SECRET;
             const remotePrivateJwk = process.env.REMOTE_TICKET_PRIVATE_JWK;
             const remotePublicJwks = process.env.REMOTE_TICKET_PUBLIC_JWKS;
@@ -506,6 +482,7 @@ jobs:
               SKILLS_ADMIN_TOKEN: skillsAdmin,
               SITE_REPORT_HASH_SECRET: siteReportHash,
               ...(siteOperationsAdmin ? { SITE_OPERATIONS_ADMIN_TOKEN: siteOperationsAdmin } : {}),
+              ...(serverClaimsAdmin ? { SERVER_CLAIMS_ADMIN_TOKEN: serverClaimsAdmin } : {}),
               REMOTE_TICKET_PRIVATE_JWK: remotePrivateJwk,
               REMOTE_TICKET_PUBLIC_JWKS: remotePublicJwks,
               REMOTE_AUTH_WEBHOOK_SECRET: remoteWebhookSecret,

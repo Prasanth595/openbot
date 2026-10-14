@@ -53,7 +53,7 @@ class RoutineFlowFailed extends Schema.TaggedError<RoutineFlowFailed>()("Routine
 }) {}
 
 /** A delivery as the runtime reads it: whether it ended, and the turn that answered it. */
-export interface RoutineFlowDelivery {
+interface RoutineFlowDelivery {
   status: QueueDeliveryStatus;
   turnId: string | null;
   error: string | null;
