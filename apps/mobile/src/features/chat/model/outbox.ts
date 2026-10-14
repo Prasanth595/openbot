@@ -41,6 +41,8 @@ export interface OutboxMessage {
   error: string | null;
   /** The person stopped its upload. The chat puts it back in the composer. */
   returned: boolean;
+  /** The person chose Edit and did not send the change. It waits for Retry, Edit or Cancel. */
+  stopped: boolean;
 }
 
 /**
@@ -196,7 +198,9 @@ function decodeOutboxMessage(value: unknown): OutboxMessage | null {
     !isOutboxState(value.state) ||
     !isNullableString(value.messageId) ||
     !isNullableString(value.error) ||
-    !isBoolean(value.returned)
+    !isBoolean(value.returned) ||
+    // Outboxes saved before Edit kept the message have no `stopped`.
+    !(value.stopped === undefined || isBoolean(value.stopped))
   )
     return null;
   const target = decodeTarget(value.target);
@@ -215,5 +219,6 @@ function decodeOutboxMessage(value: unknown): OutboxMessage | null {
     messageId: value.messageId,
     error: value.error,
     returned: value.returned,
+    stopped: value.stopped === true,
   };
 }

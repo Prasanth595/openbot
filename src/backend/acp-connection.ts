@@ -15,7 +15,7 @@ import {
 import { registerProviderProcess } from "./provider-processes";
 import { type ProviderTempOptions, spawnWithProviderTemp } from "./provider-temp";
 import { createDiagnosticStream } from "./stderr-diagnostics";
-import { stopWindowsProcessTree } from "./windows-process-tree";
+import { endProcessTree } from "./windows-process-tree";
 
 const EXIT_REPORT_WAIT_MS = 2_000;
 interface ProcessEnd {
@@ -180,21 +180,8 @@ export class AcpConnection {
   }
 }
 
-/** Ends the agent process with SIGTERM, and with SIGKILL when it is still running after 2 seconds. */
+/** Ends the agent process. A `.cmd` agent runs under `cmd.exe`, so Windows stops the whole tree. */
 const endProcess = Effect.fn("AcpAgentClient.endProcess")(function* (child: ChildProcessWithoutNullStreams) {
   child.stdin.end();
-  // A `.cmd` agent runs under `cmd.exe`; a kill of the wrapper alone leaves the agent running.
-  if (process.platform === "win32")
-    return yield* stopWindowsProcessTree(child).pipe(Effect.mapError((failure) => providerFailure(failure.cause)));
-  yield* Effect.callback<void>((resume) => {
-    const forceKill = setTimeout(() => {
-      if (child.exitCode === null) child.kill("SIGKILL");
-    }, 2_000);
-    child.once("exit", () => {
-      clearTimeout(forceKill);
-      resume(Effect.void);
-    });
-    child.kill("SIGTERM");
-    return Effect.sync(() => clearTimeout(forceKill));
-  });
+  yield* endProcessTree(child).pipe(Effect.mapError((failure) => providerFailure(failure.cause)));
 });

@@ -119,6 +119,8 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
   readonly #released = new Map<string, unknown>();
   readonly #secrets = new Set<string>();
   readonly #opening = Semaphore.makeUnsafe(1);
+  /** Processes of opens in flight. They are not in `#threads` until the open retains them. */
+  readonly #starting = new Set<PiRpc>();
   #scope = Scope.makeUnsafe();
   #running = false;
   constructor(
@@ -158,6 +160,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
   readonly stop = Effect.fn("PiAgentClient.stop")(function* (this: PiAgentClient) {
     this.#running = false;
     this.#requests.rejectAll(sourceText("error.provider.piStopped"));
+    for (const rpc of this.#starting) yield* rpc.stop();
+    // Wait until each open in flight fails and cleans up, or retains a thread that the loop below closes.
+    yield* this.#opening.withPermit(Effect.void);
     for (const thread of this.#threads.values()) yield* this.#close(thread);
     this.#threads.clear();
     this.#released.clear();
@@ -367,6 +372,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         (call, signal) => this.#callTool(call, signal),
       )
       .pipe(toProviderClientOperationError);
+    this.#starting.add(rpc);
     return yield* Effect.gen({ self: this }, function* () {
       const handoff = claudeMcpServers(
         yield* usableMcpServers(
@@ -398,6 +404,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         : ["--extension", extension.path];
       const instructions = getString(params, "developerInstructions");
       if (instructions) args.push("--append-system-prompt", instructions);
+      if (!this.#running) return yield* providerFailure(new Error(sourceText("error.provider.piStopped")));
       yield* providerSync(() => this.#spawn(rpc, cwd, args, extension?.environment ?? {}));
       if (resume && requestedId) {
         const loaded = yield* rpc.request({ type: "switch_session", sessionPath: requestedId });
@@ -436,7 +443,8 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
       return thread;
     }).pipe(
       Effect.ensuring(
-        Effect.gen(function* () {
+        Effect.gen({ self: this }, function* () {
+          this.#starting.delete(rpc);
           if (retained) return;
           yield* rpc.stop().pipe(Effect.orDie);
           mcp.close();
