@@ -56,8 +56,8 @@
 
 @media (max-width: 620px) {
   .message-entry-agent .ui-bubble:has(.image-generation) {
-    width: calc(100% - var(--message-actions-inline-size) - 5px);
-    max-width: calc(100% - var(--message-actions-inline-size) - 5px);
+    width: 100%;
+    max-width: 100%;
   }
 
   .image-generation-stage,

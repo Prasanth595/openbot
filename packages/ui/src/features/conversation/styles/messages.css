@@ -6,6 +6,15 @@
   max-width: 100%;
 }
 
+/* One row under the bubble, shown on hover, so an action takes one click. */
+.message-action-row {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  gap: var(--openbot-space-1);
+  padding-inline: var(--openbot-space-1);
+}
+
 /* Keep the face beside the bubble, independent of the author name and footer height. */
 .message-entry-with-author {
   display: grid;
@@ -23,9 +32,14 @@
   grid-row: 2;
 }
 
-.message-entry-with-author .ui-message-footer {
+.message-entry-with-author .message-action-row {
   grid-column: 2;
   grid-row: 3;
+}
+
+.message-entry-with-author .ui-message-footer {
+  grid-column: 2;
+  grid-row: 4;
 }
 
 .message-author-avatar {
@@ -106,8 +120,6 @@
 }
 
 .message-shell {
-  --message-actions-inline-size: 76px;
-
   display: flex;
   width: 100%;
   min-width: 0;
@@ -129,16 +141,11 @@
   gap: 2px;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(1px);
   transition: opacity var(--openbot-duration-hover) ease;
 }
 
-.message-entry-user .message-actions {
-  order: -1;
-}
-
 .message-time {
-  padding-inline: var(--openbot-space-3);
+  padding-inline: var(--openbot-space-1);
   color: var(--openbot-text-muted);
   font-size: var(--openbot-text-sm);
   line-height: var(--openbot-leading-sm);
@@ -149,6 +156,10 @@
 
 .message-author-name > .message-time {
   padding-inline: 0;
+}
+
+.message-entry-user .message-action-row > .message-time {
+  order: -1;
 }
 
 .message-entry:hover .message-actions,
@@ -981,22 +992,22 @@ button.chat-action-target:active,
 }
 
 .message-entry-agent .ui-bubble {
-  max-width: min(720px, calc(100% - var(--message-actions-inline-size) - 5px));
+  max-width: min(720px, 100%);
 }
 
 .message-entry-agent .ui-bubble:has(.choice-card) {
-  width: min(500px, calc(100% - var(--message-actions-inline-size) - 5px));
-  max-width: min(500px, calc(100% - var(--message-actions-inline-size) - 5px));
+  width: min(500px, 100%);
+  max-width: min(500px, 100%);
 }
 
 .message-entry-agent .ui-bubble:has(.image-generation) {
-  width: min(420px, calc(100% - var(--message-actions-inline-size) - 5px));
-  max-width: min(420px, calc(100% - var(--message-actions-inline-size) - 5px));
+  width: min(420px, 100%);
+  max-width: min(420px, 100%);
 }
 
 .message-entry-agent .ui-bubble:has(.image-gallery) {
-  width: min(520px, calc(100% - var(--message-actions-inline-size) - 5px));
-  max-width: min(520px, calc(100% - var(--message-actions-inline-size) - 5px));
+  width: min(520px, 100%);
+  max-width: min(520px, 100%);
 }
 
 .message-entry-agent

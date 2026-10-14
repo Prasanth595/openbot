@@ -179,6 +179,15 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.topCrash": "Expliquez le principal plantage du projet mobile et sa cause probable.",
   "marketplace.plugin.sentry.prompt.releaseHealth":
     "Quelle est la santé de la version actuelle par rapport à la précédente ?",
+  "marketplace.plugin.vercel.tagline": "Déploiements, journaux de build et projets",
+  "marketplace.plugin.vercel.description":
+    "Vercel permet aux agents de lister les projets et les déploiements récents, de lire les journaux de build et d’exécution, et de trouver pourquoi un build a échoué. Chaque utilisateur se connecte à son propre compte Vercel dans le navigateur et choisit les équipes que les agents peuvent utiliser. Dans ces équipes, les agents ont les mêmes droits que le compte de l’utilisateur. Ils peuvent aussi modifier les variables d’environnement, les domaines, les enregistrements DNS et les déploiements, et acheter des domaines.",
+  "marketplace.plugin.vercel.app":
+    "Projets, déploiements, journaux de build et d’exécution, via le serveur MCP de Vercel avec connexion dans le navigateur.",
+  "marketplace.plugin.vercel.prompt.failedBuild": "Pourquoi le dernier déploiement de production a-t-il échoué ?",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "Liste les déploiements d’aujourd’hui et leur statut.",
+  "marketplace.plugin.vercel.prompt.runtimeErrors":
+    "Quelles routes ont eu des erreurs d’exécution au cours de la dernière heure ?",
   "marketplace.plugin.context7.tagline": "Documentation à jour des bibliothèques",
   "marketplace.plugin.context7.description":
     "Context7 récupère la documentation et les références d’API à jour des bibliothèques et des frameworks, pour que les réponses utilisent la version que le projet exécute réellement. Il ne demande ni compte ni clé.",

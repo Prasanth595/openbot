@@ -1,4 +1,5 @@
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "@openbot/contracts/ipc";
+import type { AppTextKey } from "@openbot/i18n";
 import {
   Alert,
   AlertActions,
@@ -68,12 +69,13 @@ function connectStep(status: GitHubConnectorStatus, busy: boolean): ConnectStep 
   return busy ? "waiting" : "failed";
 }
 
-const HEADER_STATUS = {
+/** The status of the connection, as its page header and every list of connectors show it. */
+export const GITHUB_STATUS = {
   disconnected: { status: "idle", label: "connector.github.statusNotSetUp" },
-  pending: { status: "idle", label: "connector.github.statusConnecting" },
+  pending: { status: "connecting", label: "connector.github.statusConnecting" },
   connected: { status: "connected", label: "connector.github.statusConnected" },
   expired: { status: "attention", label: "connector.github.statusExpired" },
-} as const satisfies Record<GitHubConnectorStatus["state"], { status: IntegrationStatus; label: string }>;
+} as const satisfies Record<GitHubConnectorStatus["state"], { status: IntegrationStatus; label: AppTextKey }>;
 
 /**
  * The GitHub page of one OpenBot computer. The token never reaches this component: the status holds
@@ -92,7 +94,7 @@ export function GitHubConnectorPanel(props: GitHubConnectorPanelProps) {
       if (state === "pending") setConnectOpen(true);
     },
   );
-  const header = () => HEADER_STATUS[props.status.state];
+  const header = () => GITHUB_STATUS[props.status.state];
   const login = () => props.status.login ?? "";
 
   const connect = () => {

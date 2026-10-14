@@ -179,6 +179,14 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.topCrash":
     "Erkläre den häufigsten Absturz im Mobile-Projekt und seine wahrscheinliche Ursache.",
   "marketplace.plugin.sentry.prompt.releaseHealth": "Wie stabil ist das aktuelle Release im Vergleich zum letzten?",
+  "marketplace.plugin.vercel.tagline": "Deployments, Build-Logs und Projekte",
+  "marketplace.plugin.vercel.description":
+    "Mit Vercel listen Agenten Projekte und aktuelle Deployments auf, lesen Build- und Laufzeit-Logs und finden heraus, warum ein Build fehlgeschlagen ist. Jeder Nutzer meldet sich im Browser bei seinem eigenen Vercel-Konto an und wählt die Teams, die Agenten nutzen dürfen. In diesen Teams haben Agenten dieselben Rechte wie das Konto des Nutzers. Sie können auch Umgebungsvariablen, Domains, DNS-Einträge und Deployments ändern und Domains kaufen.",
+  "marketplace.plugin.vercel.app":
+    "Projekte, Deployments, Build-Logs und Laufzeit-Logs über den MCP-Server von Vercel mit Anmeldung im Browser.",
+  "marketplace.plugin.vercel.prompt.failedBuild": "Warum ist das letzte Production-Deployment fehlgeschlagen?",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "Liste die heutigen Deployments und ihren Status auf.",
+  "marketplace.plugin.vercel.prompt.runtimeErrors": "Welche Routen hatten in der letzten Stunde Laufzeitfehler?",
   "marketplace.plugin.context7.tagline": "Aktuelle Bibliotheksdokumentation",
   "marketplace.plugin.context7.description":
     "Context7 ruft aktuelle Dokumentation und API-Referenzen für Bibliotheken und Frameworks ab, damit Antworten die Version verwenden, die das Projekt tatsächlich nutzt. Es braucht kein Konto und keinen Schlüssel.",

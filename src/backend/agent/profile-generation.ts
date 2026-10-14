@@ -270,7 +270,7 @@ const profileCompletion = Effect.fnUntraced(function* (client: AgentClient) {
   });
 });
 
-export function profilePrompt(input: GenerateAgentProfileInput, sections: SidebarSection[]): string {
+function profilePrompt(input: GenerateAgentProfileInput, sections: SidebarSection[]): string {
   return [
     "Return a JSON object with exactly: name (1-80 characters), title (up to 120 characters), description (1-2000 characters of standing instructions), avatarSeed (1-128 lowercase letters, digits, colons or hyphens), avatarHue (null or one of 0,30,55,100,150,185,215,245,280,320), sectionId (null or an existing section id).",
     "Choose a procedural face seed and color appropriate to the requested profile. Do not promise a custom picture.",

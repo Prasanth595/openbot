@@ -8,20 +8,30 @@ const AVAILABILITY_TTL_MS = 60_000;
 /**
  * Whether the signed-in account can have hosted servers. The plus button in the drawer then opens
  * the plans and the account's servers; otherwise it opens Join. A failed read keeps the last answer.
+ * `serverIds` holds the account's hosted servers, or null before the first read. Billing deletes a
+ * hosted server, so the drawer shows Remove only for a server that is not in this set.
  */
-export const useHostedServerAvailability = create<{ userId: string | null; available: boolean; checkedAt: number }>(
-  () => ({ userId: null, available: false, checkedAt: 0 }),
-);
+export const useHostedServerAvailability = create<{
+  userId: string | null;
+  available: boolean;
+  serverIds: ReadonlySet<string> | null;
+  checkedAt: number;
+}>(() => ({ userId: null, available: false, serverIds: null, checkedAt: 0 }));
 
 export async function refreshHostedServerAvailability(userId: string, calls: HostedServerCalls): Promise<void> {
   const current = useHostedServerAvailability.getState();
   if (current.userId === userId && Date.now() - current.checkedAt < AVAILABILITY_TTL_MS) return;
   // Another account starts with no plans, and a failed read does not show the last account's answer.
-  if (current.userId !== userId) useHostedServerAvailability.setState({ userId, available: false, checkedAt: 0 });
+  if (current.userId !== userId)
+    useHostedServerAvailability.setState({ userId, available: false, serverIds: null, checkedAt: 0 });
   try {
     const list = await calls.list();
     if (useHostedServerAvailability.getState().userId !== userId) return;
-    useHostedServerAvailability.setState({ available: list.available, checkedAt: Date.now() });
+    useHostedServerAvailability.setState({
+      available: list.available,
+      serverIds: new Set(list.servers.map((server) => server.serverId)),
+      checkedAt: Date.now(),
+    });
   } catch {
     // The next opening of the drawer tries again.
   }

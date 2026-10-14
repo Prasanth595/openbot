@@ -24,7 +24,7 @@ computer of the user who signs in. A sign-in uses one of these kinds:
 | Device code | Codex (`codex-device`), Grok, Cline, Muse, the GitHub connector | The user types a short code on the provider's page. Nothing comes back to OpenBot. | The host starts it and the client shows the code (`providers-v1` to `providers-v5`). Muse: the relay opens its device page with no callback. GitHub: `connectors-v1`. |
 | Pasted code | Claude on Linux (`cli` / `paste`), Cursor (`cli` / `link`) | The page shows a code, and the user pastes it into OpenBot. | The host starts it and the client takes the code (`providers-v3` to `providers-v5`). |
 | CLI-owned browser login | Claude (`auth login`), Codex, Gemini (`acp-authenticate`) | The provider's CLI opens the browser and takes its own callback. | The relay (`provider/start`): the host captures the page, and the client sends the callback query to the CLI's listener on the host. Grok, Cursor and Cline: a code kind. |
-| Deep link | Slack, Discord (`openbot://slack-workspace`, `openbot://discord-guild`), MCP fallback (`openbot://mcp-auth`) | A hosted page ends in an `openbot://` link, which reaches only the computer that opened it. | Slack and Discord: `connectors-v1`. The client sends the sealed grant on to the host that started the install. The browser client cannot receive the link. |
+| Deep link | Slack, Discord (`openbot://slack-workspace`, `openbot://discord-guild`), MCP fallback (`openbot://mcp-auth`) | A hosted page ends in an `openbot://` link, which reaches only the computer that opened it. | Slack and Discord: `connectors-v1`. The client sends the sealed grant on to the host that started the install. The browser client gets the grant from a return page of its own origin (`web-messaging-install.ts`). |
 | Terminal | Pi | OpenBot opens the CLI in a terminal on the host ([`provider-terminal-login.ts`](../../src/backend/provider-terminal-login.ts)). | Sign in on the host. |
 | Key or local session | API keys, 1Password, Bitwarden | The user types a key or gives a CLI session. | Keys go to the host over the encrypted channel. Vault approval stays on the host. |
 
@@ -154,8 +154,8 @@ capability answers that the sign-in must be done on the host.
 - [ ] One flow completes once, for one member, before its deadline.
 - [ ] The code is registered with `registerSecretValue` and never logged.
 - [ ] The route uses `requireAdmin`, and its codec is in an optional capability (not in bootstrap).
-- [ ] A test covers single use, the other member, expiry and a state mismatch. See
-      [`src/main/sign-in-relay-host.test.ts`](../../src/main/sign-in-relay-host.test.ts).
+- [ ] Single use, the other member, expiry and a state mismatch are checked. See
+      [Test a sign-in through a joined server](#test-a-sign-in-through-a-joined-server).
 
 ## Add a provider
 
@@ -188,7 +188,7 @@ other places.
 5. **Contracts and preload.** The `AgentAuthState` arm in `ipc-agent-status.ts`, then
    `ipc-provider-admin.ts`, `src/preload/provider-runtime.ts` and `src/preload/agent-decoding.ts`.
 6. **Renderer.** `SetupProviderPicker.tsx`, `ProviderSettingsSection.tsx`, `app-defaults.ts`, and
-   the preview `mock-provider-runtimes.ts` and `app-test-harness.ts`.
+   the preview `mock-provider-runtimes.ts`.
 7. **Logo.** The `ProviderLogoVariant` union and its SVG in
    [`packages/brand/src/ProviderLogo.tsx`](../../packages/brand/src/ProviderLogo.tsx), and the color
    in `packages/brand/src/tokens.css`.
@@ -199,8 +199,6 @@ other places.
 9. **Text and docs.** Error keys in `error/provider.ts` and onboarding text in all languages
    ([docs/i18n.md](../i18n.md)). A section in [Providers](providers.md), and a
    `changelog.d/<branch>.md` file.
-10. **Tests.** `provider-runtime.test.ts`, `provider-visibility.test.ts` and
-    `team-api-server.admin.test.ts`.
 
 **Worked example: Codex browser sign-in.** The driver row uses `signIn: { kind: "browser" }`.
 `CodexLoginFlow.startBrowser` in [`codex-login.ts`](../../src/backend/agent/codex-login.ts) asks the
@@ -281,7 +279,9 @@ page opens in this computer's browser through the relay.
 ## Add a connector
 
 A connector links OpenBot to an outside account for all agents. Each one has a main-process
-service, an IPC contract and a settings panel.
+service, an IPC contract, a renderer controller and a panel. Settings › Connectors, Marketplace ›
+Apps, the chat suggestion card and the browser client read one list, so a connector shows the same
+state on each of them.
 
 | Connector | Service | Sign-in | Contract |
 | --- | --- | --- | --- |
@@ -302,8 +302,29 @@ To add a connector:
 3. Prefer a device code: it works on any computer and through any joined server. A deep link
    (`openbot://...`) reaches only the computer that opened the page. Add its kind to
    [`deep-link-router.ts`](../../src/main/deep-link-router.ts), and keep a grant out of the renderer.
-4. Add the panel from `@openbot/ui`, the text keys in all languages, and a
-   `changelog.d/<branch>.md` file. Update `PRIVACY.md` when the connector sends new data out.
+4. Add the id to `CONNECTOR_IDS` and its entry to `CONNECTORS` in
+   [`connectors.ts`](../../packages/ui/src/features/connectors/connectors.ts). `server` is the capability that
+   lets a joined server run it, or `null` when only the user's own computer can, as for a vault app.
+   [`connector-access.ts`](../../src/renderer/src/features/connectors/connector-access.ts) reads it;
+   no surface has its own gate.
+5. Add its name, tagline, Marketplace category and mark to `CONNECTOR_LISTINGS` in
+   [`connector-catalog.tsx`](../../packages/ui/src/features/connectors/connector-catalog.tsx), its
+   panel to `ConnectorDetail` and `ConnectorDetailPanel`, and its row state to `connectorSummary`.
+6. Add a controller (`ConnectorController` in
+   [`connector-controller.ts`](../../src/renderer/src/features/connectors/connector-controller.ts)),
+   with `createConnectorActions` for its actions, and create it in `createConnectorSet` in
+   [`connector-registry.ts`](../../src/renderer/src/features/connectors/connector-registry.ts).
+   `connect` is the one-click Connect of a Marketplace card; leave it out when the panel must ask
+   for input first. `watch` follows a state that changes with no event from main. The type checker
+   names each place that still misses the new id.
+7. Add the text keys in all languages and a `changelog.d/<branch>.md` file. Update `PRIVACY.md`
+   when the connector sends new data out.
+
+[`connectors-context.tsx`](../../src/renderer/src/features/connectors/connectors-context.tsx) makes
+two registries on the desktop: one for the server on screen (Marketplace and chat cards) and one
+for the server whose settings are open. The browser client makes one in `WebWorkspace.tsx`. A
+registry gives each connector its access: `available` with its controller, `local-only`,
+`hidden`, `unsupported` (such as GitHub with no GitHub App), or `loading` before the first read.
 
 On a joined server, the optional capability `connectors-v1`
 ([`connectors-v1.ts`](../../packages/contracts/src/team-protocol/connectors-v1.ts), host route
@@ -356,30 +377,20 @@ Team API adapters are permanent (see [Team API compatibility](team-api.md)). Wor
 7. **Browser client.** Add the requests to
    [`team-admin-requests.ts`](../../packages/team-client/src/team-admin-requests.ts), and gate them
    on the host's capabilities in the web client.
-8. **Fixtures.** Add accepted and refused payloads to
-   [`optional-routes.test.ts`](../../packages/contracts/src/team-protocol/optional-routes.test.ts),
-   and assert that the capability is not in bootstrap.
+8. **Bootstrap.** Make sure that the capability is not in bootstrap.
 9. **Text.** Error messages use `sourceText(key)` with keys in all languages of `@openbot/i18n`.
 
 ## Test a sign-in through a joined server
 
-1. Unit: run the relay host test and the listener test, one at a time:
-   ```sh
-   bun run test:desktop -- src/main/sign-in-relay-host.test.ts
-   bun run test:desktop -- src/main/mcp-oauth-redirect-server.test.ts
-   bun run test:desktop -- packages/contracts/src/team-protocol/optional-routes.test.ts
-   bun run test:desktop -- src/main/sign-in-relay-client.test.ts
-   bun run test:desktop -- src/main/relayed-messaging-installs.test.ts
-   ```
-2. Two clients: `bun run dev:test-client` starts the services, the app and a second client with its
+1. Two clients: `bun run dev:test-client` starts the services, the app and a second client with its
    own profile (see [README.md: Commands](../../README.md#commands)). Join the app from the second
    client as an admin. Add a URL MCP server with OAuth on the host, and press Sign in on the client.
    The page must open in the client's browser, and the host must show the server as signed in.
-3. Paste fallback: hold port 28417 on the client with another program, and sign in again. The dialog
+2. Paste fallback: hold port 28417 on the client with another program, and sign in again. The dialog
    asks for the address. Paste the address from the browser. The host must sign in.
-4. Browser client: open `/app` and sign in to the same server. The dialog shows "Open sign-in page"
+3. Browser client: open `/app` and sign in to the same server. The dialog shows "Open sign-in page"
    and the paste field.
-5. Check the logs of both computers. They must not contain `code=`, the code or the `state`.
+4. Check the logs of both computers. They must not contain `code=`, the code or the `state`.
 
 Use `bun run dev:automation` for snapshots and screenshots. Do not drive another worktree's app.
 
@@ -390,7 +401,6 @@ Use `bun run dev:automation` for snapshots and screenshots. Do not drive another
 | A sign-in that returns to a public `https:` address of the provider | The provider finishes it by itself. The host only waits. Nothing comes back to a loopback port. |
 | A sign-in that opens an app on the host, such as Pi, which opens Terminal | The step happens on the host's screen. There is no page address to open somewhere else. |
 | A vault that approves in its desktop app, such as 1Password or Bitwarden | The approval is in the vault app on the host. A relay cannot approve for it. |
-| Slack and Discord in the browser client | A web page cannot receive the `openbot://` link that ends the install. Use the desktop app. |
 | The Slack development return address (`returnUrl`) | Development builds only. It returns to `http://127.0.0.1:<port>/...` on the host, and the relay does not carry it. Use the hosted install. |
 | An agent link for a member who is not an admin | The relay routes are admin only. The link opens as it is, and its callback cannot reach the host. |
 | An agent link in a command, tool output or commentary | The host relays only a link that the text of an agent message holds. |

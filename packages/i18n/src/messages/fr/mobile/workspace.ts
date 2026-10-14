@@ -27,6 +27,10 @@ export const messages = {
   "mobile.workspace.error.approvalInactive":
     "Cette demande n’est plus en attente. Un autre appareil y a répondu, ou la tâche s’est arrêtée.",
   "mobile.workspace.error.approvalOffline": "Connectez-vous au serveur pour répondre à cette demande.",
+  "mobile.workspace.notification.allow": "Autoriser",
+  "mobile.workspace.notification.deny": "Refuser",
+  "mobile.workspace.notification.answerFailed":
+    "Votre réponse n’a pas atteint le serveur. Ouvrez OpenBot pour répondre.",
   "mobile.workspace.alert.preferencesTitle": "Impossible d’enregistrer les préférences de discussion",
   "mobile.workspace.alert.preferencesBody": "Vos préférences précédentes ont été conservées. Réessayez.",
   "mobile.workspace.alert.updateRequiredTitle": "Mise à jour requise",

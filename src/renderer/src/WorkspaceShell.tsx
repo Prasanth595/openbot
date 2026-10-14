@@ -11,6 +11,7 @@ import { useAgents } from "./features/agents/agents-context";
 import { WorkspaceAgentSetup } from "./features/agents/WorkspaceAgentSetup";
 import { useChannels } from "./features/channels/channels-context";
 import { WorkspaceChannelConversation } from "./features/channels/WorkspaceChannelConversation";
+import { ConnectorsProvider } from "./features/connectors/connectors-context";
 import { useConversation } from "./features/conversation/conversation-context";
 import { useDirectMessages } from "./features/conversation/direct-messages-context";
 import { WorkspaceConversation } from "./features/conversation/WorkspaceConversation";
@@ -21,11 +22,12 @@ import { WorkspaceRoutineFlows } from "./features/routine-flows/WorkspaceRoutine
 import { SchedulePanel } from "./features/schedule/SchedulePanel";
 import { createServerConnectionToast } from "./features/servers/server-connection-toast";
 import { useServerScope } from "./features/servers/server-scope";
+import { followsServerUpdate, ServerUpdateDialogHost } from "./features/servers/server-update-flow";
 import { useServers } from "./features/servers/servers-context";
 import { WorkspaceServerRail } from "./features/servers/WorkspaceServerRail";
 import { useSettings } from "./features/settings/settings-context";
 import { WorkspaceSidebar } from "./features/sidebar/WorkspaceSidebar";
-import { createHostRestartToasts } from "./features/updates/host-restart-toast";
+import { createHostRestartToasts, type HostRestartView } from "./features/updates/host-restart-toast";
 import { useUsage } from "./features/usage/usage-context";
 import { useLayout } from "./layout";
 import { AgentUsagePanel } from "./lazy-views";
@@ -94,6 +96,8 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
   // the host send English source text, so show the issue in the reader's language. The scope failure
   // is already translated.
   const connectionFailure = () => {
+    // A host that restarts into an update drops the connection on purpose. That error is not news.
+    if (activeServer()?.hostRestart?.state === "restarting") return null;
     const issue = activeServer()?.issue;
     if (issue) return { message: sourceText(issue.message), reference: issue.reference ?? null };
     return scope.connection.failed ? scope.connection.failure : null;
@@ -115,12 +119,12 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
           id: server.id,
           name: server.name,
           ready: scope.loaded(),
-          quiet: Boolean(server.hostedSleep || server.hostRestart || blockedRemoteServer()),
+          quiet: Boolean(server.hostedSleep || server.hostRestart?.state === "restarting" || blockedRemoteServer()),
         }
       : null;
   });
 
-  createHostRestartToasts(() =>
+  const remoteHosts = (): HostRestartView[] =>
     servers().flatMap((server) =>
       server.kind === "remote"
         ? [
@@ -133,122 +137,136 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
             },
           ]
         : [],
-    ),
-  );
+    );
+  // The update dialog explains the restart of the update that it follows.
+  createHostRestartToasts(() => remoteHosts().filter((host) => !followsServerUpdate(host.id)));
 
   return (
-    <WorkspaceFrame
-      compact={layout.leftPanelCompact()}
-      initialLoading={!serversLoaded() || !scope.connection.hasContent}
-      connection={
-        <>
-          <Show
-            when={
-              (!serversLoaded() || !scope.connection.hasContent || (remote() && !scope.loaded())) &&
-              !blockedRemoteServer()
-            }
-          >
-            <ServerConnectionNotice
-              name={activeServer()?.name ?? ""}
-              initial={!scope.connection.hasContent}
-              issue={activeServer()?.hostedIssue ?? null}
-              detail={connectionFailure()?.message ?? null}
-              reference={connectionFailure()?.reference ?? null}
-              phase={
-                activeServer()?.hostedSleep ??
-                (serversLoadFailed()
-                  ? "blocked"
-                  : scope.connection.failed
-                    ? "waiting"
-                    : activeServer()?.state === "online"
-                      ? "loading"
-                      : scope.connection.hasContent
-                        ? "reconnecting"
-                        : "connecting")
-              }
-              remainingSeconds={
-                scope.connection.recovery.phase === "waiting" || scope.connection.recovery.phase === "cooldown"
-                  ? scope.connection.recovery.remainingSeconds
-                  : 0
-              }
-              busy={
-                activeServer()?.state === "connecting" ||
-                (activeServer()?.state === "online" && scope.connection.recovery.phase === "connecting")
-              }
-              onRetry={retry}
-              onManage={() => settings.openAppSettings(null, "hosted-servers")}
-            />
-          </Show>
-          <Show when={scope.loaded() && agentChatOpen() && !serverOnboardingOpen()}>
-            <ConversationLoadNotice
-              name={activeAgent()?.name ?? ""}
-              loading={!activeConversation()?.loaded && activeConversation()?.loading === true}
-              error={activeConversation()?.loadError ?? null}
-              onRetry={retryConversation}
-            />
-          </Show>
-          <Show when={scope.loaded() && scope.connection.panelsFailed}>
-            <ServerPanelLoadNotice busy={scope.connection.panelsLoading} onRetry={() => void scope.retryPanels()} />
-          </Show>
-        </>
-      }
-      hidden={remoteDesktopWorkspaceVisible()}
-      blockedServer={blockedRemoteServer()}
-      onRetryServer={retryServerConnection}
-      usageOpen={!!usage.state.serverId}
-      left={
-        <>
-          <WorkspaceServerRail />
-          <WorkspaceSidebar peopleEnabled={activePeopleEnabled()} />
-          <WorkspaceAccountDock account={props.account} />
-        </>
-      }
-      usage={
-        <Show when={usage.state.serverId}>
-          {(serverId) => (
+    // The overlays and the chat cards show the same connectors.
+    <ConnectorsProvider>
+      <WorkspaceFrame
+        compact={layout.leftPanelCompact()}
+        initialLoading={!serversLoaded() || !scope.connection.hasContent}
+        connection={
+          <>
             <Show
-              when={usage.state.view === "schedule"}
-              fallback={
-                <Loading>
-                  <AgentUsagePanel
-                    serverId={serverId()}
-                    hostName={servers().find((server) => server.id === serverId())?.name ?? "Host"}
-                    agentId={usage.state.agentId}
-                    onBack={usage.closeUsage}
-                  />
-                </Loading>
+              when={
+                (!serversLoaded() || !scope.connection.hasContent || (remote() && !scope.loaded())) &&
+                !blockedRemoteServer()
               }
             >
-              <SchedulePanel
-                serverId={serverId()}
-                hostName={servers().find((server) => server.id === serverId())?.name ?? "Host"}
-                onBack={usage.closeUsage}
+              <ServerConnectionNotice
+                name={activeServer()?.name ?? ""}
+                initial={!scope.connection.hasContent}
+                issue={activeServer()?.hostedIssue ?? null}
+                detail={connectionFailure()?.message ?? null}
+                reference={connectionFailure()?.reference ?? null}
+                updateVersion={activeServer()?.hostRestart?.version ?? null}
+                phase={
+                  activeServer()?.hostedSleep ??
+                  (activeServer()?.hostRestart?.state === "restarting"
+                    ? "updating"
+                    : serversLoadFailed()
+                      ? "blocked"
+                      : scope.connection.failed
+                        ? "waiting"
+                        : activeServer()?.state === "online"
+                          ? "loading"
+                          : scope.connection.hasContent
+                            ? "reconnecting"
+                            : "connecting")
+                }
+                remainingSeconds={
+                  scope.connection.recovery.phase === "waiting" || scope.connection.recovery.phase === "cooldown"
+                    ? scope.connection.recovery.remainingSeconds
+                    : 0
+                }
+                busy={
+                  activeServer()?.state === "connecting" ||
+                  (activeServer()?.state === "online" && scope.connection.recovery.phase === "connecting")
+                }
+                onRetry={retry}
+                onManage={() => settings.openAppSettings(null, "hosted-servers")}
               />
             </Show>
-          )}
+            <Show when={scope.loaded() && agentChatOpen() && !serverOnboardingOpen()}>
+              <ConversationLoadNotice
+                name={activeAgent()?.name ?? ""}
+                loading={!activeConversation()?.loaded && activeConversation()?.loading === true}
+                error={activeConversation()?.loadError ?? null}
+                onRetry={retryConversation}
+              />
+            </Show>
+            <Show when={scope.loaded() && scope.connection.panelsFailed}>
+              <ServerPanelLoadNotice busy={scope.connection.panelsLoading} onRetry={() => void scope.retryPanels()} />
+            </Show>
+          </>
+        }
+        hidden={remoteDesktopWorkspaceVisible()}
+        blockedServer={blockedRemoteServer()}
+        onRetryServer={retryServerConnection}
+        usageOpen={!!usage.state.serverId}
+        left={
+          <>
+            <WorkspaceServerRail />
+            <WorkspaceSidebar peopleEnabled={activePeopleEnabled()} />
+            <WorkspaceAccountDock account={props.account} />
+          </>
+        }
+        usage={
+          <Show when={usage.state.serverId}>
+            {(serverId) => (
+              <Show
+                when={usage.state.view === "schedule"}
+                fallback={
+                  <Loading>
+                    <AgentUsagePanel
+                      serverId={serverId()}
+                      hostName={servers().find((server) => server.id === serverId())?.name ?? "Host"}
+                      agentId={usage.state.agentId}
+                      onBack={usage.closeUsage}
+                    />
+                  </Loading>
+                }
+              >
+                <SchedulePanel
+                  serverId={serverId()}
+                  hostName={servers().find((server) => server.id === serverId())?.name ?? "Host"}
+                  onBack={usage.closeUsage}
+                />
+              </Show>
+            )}
+          </Show>
+        }
+        after={
+          <>
+            <WorkspaceOverlays account={props.account} />
+            <ServerUpdateDialogHost hosts={remoteHosts()} />
+          </>
+        }
+      >
+        <Show when={serverOnboardingOpen()}>
+          <WorkspaceServerOnboarding />
         </Show>
-      }
-      after={<WorkspaceOverlays account={props.account} />}
-    >
-      <Show when={serverOnboardingOpen()}>
-        <WorkspaceServerOnboarding />
-      </Show>
-      <Show when={agentSetupOpen() && !serverOnboardingOpen()}>
-        <WorkspaceAgentSetup />
-      </Show>
-      {/* Keyed by id: each presence snapshot is a new member object, and remounting would clear the draft. */}
-      <Show when={activePeopleEnabled() && !agentSetupOpen() && !channelOpen() && activeDirectMember()?.id} keyed>
-        <Show when={activeDirectMember()}>{(member) => <WorkspaceDirectConversation member={member()} />}</Show>
-      </Show>
-      <Show when={agentChatOpen()}>
-        <WorkspaceConversation account={props.account} />
-      </Show>
-      <Show when={!agentSetupOpen() && !channelOpen() && !activeDirectMember() && layout.sidebarView() === "routines"}>
-        <WorkspaceRoutineFlows />
-      </Show>
-      <Show when={!agentSetupOpen() && channelOpen()}>
-        <WorkspaceChannelConversation />
-      </Show>
-    </WorkspaceFrame>
+        <Show when={agentSetupOpen() && !serverOnboardingOpen()}>
+          <WorkspaceAgentSetup />
+        </Show>
+        {/* Keyed by id: each presence snapshot is a new member object, and remounting would clear the draft. */}
+        <Show when={activePeopleEnabled() && !agentSetupOpen() && !channelOpen() && activeDirectMember()?.id} keyed>
+          <Show when={activeDirectMember()}>{(member) => <WorkspaceDirectConversation member={member()} />}</Show>
+        </Show>
+        <Show when={agentChatOpen()}>
+          <WorkspaceConversation account={props.account} />
+        </Show>
+        <Show
+          when={!agentSetupOpen() && !channelOpen() && !activeDirectMember() && layout.sidebarView() === "routines"}
+        >
+          <WorkspaceRoutineFlows />
+        </Show>
+        <Show when={!agentSetupOpen() && channelOpen()}>
+          <WorkspaceChannelConversation />
+        </Show>
+      </WorkspaceFrame>
+    </ConnectorsProvider>
   );
 }
