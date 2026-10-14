@@ -1352,9 +1352,20 @@ export class MessagingService {
         Effect.gen({ self: this }, function* () {
           const failures = (this.#finalFailures.get(key) ?? 0) + 1;
           this.#finalFailures.set(key, failures);
+          // An answer goes out in parts, and some of them can be on the platform already, so it is
+          // not sent again. The conversation gets the fixed notice; the host keeps the answer.
+          let current = post;
+          if (final.answer) {
+            current = {
+              ...post,
+              final: { answer: false, text: sourceText("status.messaging.failed"), reaction: null },
+            };
+            this.#posts.set(key, current);
+            yield* this.#status.save();
+          }
           if (failures < FINAL_POST_ATTEMPTS) return this.#settleLater(live.record.connectionId);
           // The platform keeps refusing it, as when the conversation was deleted: give up.
-          yield* this.#forgetPost(key, post);
+          yield* this.#forgetPost(key, current);
         }),
       ),
     );
