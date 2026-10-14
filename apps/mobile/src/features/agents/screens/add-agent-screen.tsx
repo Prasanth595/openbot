@@ -8,6 +8,7 @@ import { X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";
+import { agentInitialMessage } from "@/features/agents/model/agent-initial-message";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
@@ -59,7 +60,7 @@ export function AddAgentScreen() {
       await createAgent({
         name: name.trim(),
         description: description.trim(),
-        initialMessage: description.trim() ? `Your ongoing role is: ${description.trim()}` : "Greet me briefly.",
+        initialMessage: agentInitialMessage(description),
         avatarSeed,
         avatarHue,
       });

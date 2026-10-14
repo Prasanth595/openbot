@@ -64,8 +64,17 @@ export function formatTimer(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-/** The email sign-in steps of the sign-in screen. `connect` receives the new session. */
-export function useEmailSignIn({ connect, reduced }: { connect: (session: MobileSession) => void; reduced: boolean }) {
+/**
+ * The email sign-in steps of the sign-in screen. `connect` receives the new session, and may play
+ * the departure from the sign-in screen before it resolves.
+ */
+export function useEmailSignIn({
+  connect,
+  reduced,
+}: {
+  connect: (session: MobileSession) => void | Promise<void>;
+  reduced: boolean;
+}) {
   const { t, errorMessage } = useText();
   const [step, setStep] = useState<SignInStep>("options");
 
@@ -159,8 +168,12 @@ export function useEmailSignIn({ connect, reduced }: { connect: (session: Mobile
       const session = await verifyMobileEmailCode(challenge.challengeId, value);
       setVerified(true);
       void haptics.notification("success");
-      if (!reduced) await new Promise((resolve) => setTimeout(resolve, VERIFIED_PAUSE_MS));
-      connect(session);
+      // The keyboard closes while the verified state shows, so the screen is still when it leaves.
+      await Promise.all([
+        reduced ? undefined : new Promise((resolve) => setTimeout(resolve, VERIFIED_PAUSE_MS)),
+        closeKeyboard(),
+      ]);
+      await connect(session);
     } catch (error) {
       const issue = issueFrom(error, t("mobile.auth.email.error.verifyFailed"));
       setCodeIssue(issue);

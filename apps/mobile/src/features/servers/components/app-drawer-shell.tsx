@@ -24,6 +24,8 @@ interface AppDrawerContextValue {
   openDrawer: () => void;
   closeDrawer: () => void;
   openingGesture: PanGesture;
+  /** Turns off the pan that opens the drawer, for a screen whose own horizontal pans need it. */
+  setOpeningBlocked: (blocked: boolean) => void;
 }
 
 const AppDrawerContext = createContext<AppDrawerContextValue | null>(null);
@@ -96,9 +98,10 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   // Rows attach their swipe to this gesture, so it must stay the same object. A new gesture on each
   // navigation or drawer change would rebuild the swipe of every row.
   const openingEnabled = useSharedValue(false);
+  const [openingBlocked, setOpeningBlocked] = useState(false);
   useEffect(() => {
-    openingEnabled.set(!drawerOpen && pathname === "/connected");
-  }, [drawerOpen, openingEnabled, pathname]);
+    openingEnabled.set(!drawerOpen && !openingBlocked && pathname === "/connected");
+  }, [drawerOpen, openingBlocked, openingEnabled, pathname]);
   const openingGesture = useMemo(
     () =>
       Gesture.Pan()
@@ -184,7 +187,7 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   );
 
   const contextValue = useMemo(
-    () => ({ closeDrawer, openDrawer, openingGesture }),
+    () => ({ closeDrawer, openDrawer, openingGesture, setOpeningBlocked }),
     [closeDrawer, openDrawer, openingGesture],
   );
 
