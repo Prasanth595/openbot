@@ -6,6 +6,27 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-10-14
+
+### Added
+
+- Add Vercel to the Apps catalog. Agents can list projects and deployments, read build and runtime
+  logs, and find why a build failed after you sign in to your Vercel account.
+- Agents can capture the screen of the computer that runs them: one display, one window, or an area of a display. You approve each capture first, or Turbo approves it when it has a standing approval for the agent, and the image shows in the conversation. Computer Use in the agent settings turns screen capture on or off for each agent. On macOS, OpenBot asks for the Screen Recording permission and tells you how to turn it on.
+- Codex, Claude and Grok can have more than one account. In Settings › Providers, select Add account under a provider to sign in to one more account. Each account keeps its own sign-in and its own usage limits, and you can rename or remove an account there.
+- Each agent can use a different account of its provider. Select the account in the model picker. The agent keeps its account after a restart.
+- The Usage menu shows the limits of each account.
+- An owner or admin of a server can add, rename and remove the provider accounts of the server, and select the account of each agent, in the desktop app and in the web client. The sign-in page of a new account opens in the server's browser.
+- An instance of `docker/instances` now updates from the app, like a hosted server: Server settings › Updates and the update dialog pull the new image on the host and make the container again, with the same data. The container never gets the Docker socket: it writes an empty request file, and `openbot-instance-update@<name>.path` on the host runs the update as root. It installs only a newer version. See "Updates from the app" in `docs/docker.md`.
+- **For an instance made before, run `openbot-instance setup`, then `openbot-instance upgrade <name>` once.**
+
+### Changed
+
+- The actions of a message are now in one row under the message, with the time: Copy, React and Reply. Before, they were at the side of the message, and Copy was in a `…` menu that had only Copy.
+- Agents that answer in Slack, Discord and Telegram answer simple questions themselves. They ask a
+  teammate only when the request needs the tools, accounts, files or memory of that teammate, or
+  long work.
+
 ## [0.39.0] - 2026-10-14
 
 ### Added

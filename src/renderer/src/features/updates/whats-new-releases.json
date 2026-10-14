@@ -1,5 +1,28 @@
 [
   {
+    "version": "0.39.1",
+    "date": "2026-10-14",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Codex, Claude and Grok can have more than one account. Add one in Settings > Providers, and select the account of each agent in the model picker.",
+          "The Usage menu shows the limits of each account.",
+          "Agents can capture the screen: one display, one window, or an area. You approve each capture first, unless Turbo approves it for the agent.",
+          "Vercel is in Marketplace > Apps."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Copy, React and Reply are now in one row under each message.",
+          "Agents in Slack, Discord and Telegram answer simple questions themselves."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.39.0",
     "date": "2026-10-14",
     "notices": [],
