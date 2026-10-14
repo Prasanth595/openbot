@@ -312,9 +312,23 @@ const ServerSettings = createSimpleContext({
       const analytics = desktopAnalytics.scope();
       let operationSucceeded = false;
       try {
-        await serverAdminPort(server).updateMember(input);
-        analytics.track("team_action", { action: "member_updated", result: "succeeded", server_kind: server.kind });
+        const saved = await serverAdminPort(server).updateMember(input);
         operationSucceeded = true;
+        if (serverSettingsTargetId() === server.id) {
+          setServerSettingsMembers((members) =>
+            members.map((member) =>
+              member.id === saved.id
+                ? {
+                    ...member,
+                    ...saved,
+                    online: saved.disabled ? false : member.online,
+                    typingAgentId: saved.disabled ? null : member.typingAgentId,
+                  }
+                : member,
+            ),
+          );
+        }
+        analytics.track("team_action", { action: "member_updated", result: "succeeded", server_kind: server.kind });
         await refreshServerSettings(server.id);
       } catch (error) {
         if (!operationSucceeded) {
@@ -324,8 +338,12 @@ const ServerSettings = createSimpleContext({
             server_kind: server.kind,
             failure_code: "member_update_failed",
           });
+          throw error;
         }
-        throw error;
+        if (serverSettingsTargetId() === server.id) {
+          const text = currentText();
+          setServerSettingsError(text.errorMessage(error, text.t("server.settings.loadFailed")));
+        }
       }
     }
 

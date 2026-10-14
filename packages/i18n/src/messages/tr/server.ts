@@ -347,8 +347,17 @@ export const messages = {
   "server.members.search": "Üyeleri ara",
   "server.members.noMatch": "Bu aramayla eşleşen üye yok.",
   "server.members.inactiveTitle": "Etkin olmayan üyeler",
-  "server.members.inactiveDescription": "Etkin olmayan bir üyeyi tekrar davet etmeden önce kaldırın.",
+  "server.members.inactiveDescription": "Sahip, etkin olmayan bir üyenin erişimini geri açabilir.",
   "server.members.actionsFor": "{name} için eylemler",
+  "server.members.disableAccess": "Erişimi kapat",
+  "server.members.restoreAccess": "Erişimi geri aç",
+  "server.members.disableTitle": "{name} için erişim kapatılsın mı?",
+  "server.members.restoreTitle": "{name} için erişim geri açılsın mı?",
+  "server.members.disableDescription":
+    "Bu işlem sunucuya erişimi sonlandırır. Üye kaydı, dosyalar ve sohbetler korunur.",
+  "server.members.disableCloudDescription":
+    "Bu işlem erişimi sonlandırır ve sunucuyu bu üyenin cihaz listelerinden kaldırır. Üye kaydı, dosyalar ve sohbetler korunur.",
+  "server.members.restoreDescription": "Bu üye yeniden bağlanabilir. Önceki oturumları kapalı kalır.",
   "server.members.makeMember": "Üye yap",
   "server.members.makeAdmin": "Yönetici yap",
   "server.members.makeAdminTitle": "{name} yönetici yapılsın mı?",

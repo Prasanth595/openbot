@@ -339,8 +339,18 @@ export const messages = {
   "server.members.search": "Buscar miembros",
   "server.members.noMatch": "Ningún miembro coincide con esta búsqueda.",
   "server.members.inactiveTitle": "Miembros inactivos",
-  "server.members.inactiveDescription": "Elimina a un miembro inactivo antes de volver a invitarlo.",
+  "server.members.inactiveDescription": "El propietario puede restaurar el acceso de un miembro inactivo.",
   "server.members.actionsFor": "Acciones para {name}",
+  "server.members.disableAccess": "Desactivar acceso",
+  "server.members.restoreAccess": "Restaurar acceso",
+  "server.members.disableTitle": "¿Desactivar el acceso de {name}?",
+  "server.members.restoreTitle": "¿Restaurar el acceso de {name}?",
+  "server.members.disableDescription":
+    "Esto termina el acceso al servidor. Se conservan el registro del miembro, los archivos y los chats.",
+  "server.members.disableCloudDescription":
+    "Esto termina el acceso y elimina el servidor de las listas de dispositivos del miembro. Se conservan su registro, los archivos y los chats.",
+  "server.members.restoreDescription":
+    "Este miembro puede conectarse de nuevo. Sus sesiones anteriores siguen cerradas.",
   "server.members.makeMember": "Convertir en miembro",
   "server.members.makeAdmin": "Convertir en administrador",
   "server.members.makeAdminTitle": "¿Convertir a {name} en administrador?",

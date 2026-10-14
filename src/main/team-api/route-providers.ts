@@ -34,7 +34,7 @@ import { AgentLifecycleFailed } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import { parseProviderId } from "../ipc/app-inputs";
 import { parseDeleteCustomProvider, parseSaveCustomProvider } from "../ipc/custom-provider-inputs";
-import { parseProviderApiKeyInput } from "../ipc/provider-handlers";
+import { parseProviderApiKeyInput } from "../ipc/provider-inputs";
 import type { TeamApiAdmin } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";

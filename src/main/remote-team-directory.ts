@@ -120,11 +120,13 @@ export class RemoteTeamDirectory {
           const role = input.role ?? current.role;
           yield* transport.updateMember(serverId, input.memberId, role, input.disabled === false);
         }
-        const updatedMembers = yield* this.listMembers(serverId);
-        const updated = updatedMembers.find((member) => member.id === input.memberId);
-        if (!updated)
-          return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.memberNotFound")) });
-        return updated;
+        // The account service accepted the change but returns no member row. Preserve the known
+        // profile and apply only its accepted fields. Settings refreshes the roster separately.
+        return {
+          ...current,
+          role: input.disabled ? current.role : (input.role ?? current.role),
+          disabled: input.disabled ?? current.disabled,
+        };
       }
       return yield* RemoteRequest.use((service) =>
         service.request(serverId, TEAM_API_ROUTES.team.member(input.memberId), decodeTeamMember, {

@@ -216,7 +216,15 @@ export const messages = {
   "mobile.server.route.cropLogo": "Кадрирование логотипа",
   "mobile.server.members.makeMember": "Сделать участником",
   "mobile.server.members.makeAdmin": "Сделать администратором",
-  "mobile.server.members.remove": "Удалить участника",
+  "mobile.server.members.disableAccess": "Отключить доступ",
+  "mobile.server.members.restoreAccess": "Восстановить доступ",
+  "mobile.server.members.disableTitle": "Отключить доступ для {name}?",
+  "mobile.server.members.restoreTitle": "Восстановить доступ для {name}?",
+  "mobile.server.members.disableDescription":
+    "Это прекращает доступ и удаляет сервер из списков устройств этого участника. Его запись, файлы и чаты сохраняются.",
+  "mobile.server.members.restoreDescription":
+    "Этот участник может подключиться снова. Его прежние сеансы остаются завершёнными.",
+  "mobile.server.members.inactiveTitle": "Неактивные участники",
   "mobile.server.members.manage": "Управление доступом к этому серверу.",
   "mobile.server.members.invitePeople": "Пригласить людей",
   "mobile.server.members.inviteLink": "Ссылка-приглашение",

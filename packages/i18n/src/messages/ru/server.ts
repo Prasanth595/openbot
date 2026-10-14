@@ -351,8 +351,17 @@ export const messages = {
   "server.members.search": "Поиск участников",
   "server.members.noMatch": "Нет участников, подходящих под этот запрос.",
   "server.members.inactiveTitle": "Неактивные участники",
-  "server.members.inactiveDescription": "Удалите неактивного участника, прежде чем приглашать его снова.",
+  "server.members.inactiveDescription": "Владелец может восстановить доступ неактивному участнику.",
   "server.members.actionsFor": "Действия с участником {name}",
+  "server.members.disableAccess": "Отключить доступ",
+  "server.members.restoreAccess": "Восстановить доступ",
+  "server.members.disableTitle": "Отключить доступ для {name}?",
+  "server.members.restoreTitle": "Восстановить доступ для {name}?",
+  "server.members.disableDescription": "Это прекращает доступ к серверу. Запись участника, файлы и чаты сохраняются.",
+  "server.members.disableCloudDescription":
+    "Это прекращает доступ и удаляет сервер из списков устройств этого участника. Его запись, файлы и чаты сохраняются.",
+  "server.members.restoreDescription":
+    "Этот участник может подключиться снова. Его прежние сеансы остаются завершёнными.",
   "server.members.makeMember": "Сделать участником",
   "server.members.makeAdmin": "Сделать администратором",
   "server.members.makeAdminTitle": "Сделать {name} администратором?",
