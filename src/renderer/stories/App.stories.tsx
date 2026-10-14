@@ -158,6 +158,32 @@ export const DifferentRemoteVersions: Story = {
   ),
 };
 
+/** A joined server has a new OpenBot version. Entering it opens the update dialog each time. */
+export const RemoteHostUpdate: Story = {
+  render: () => (
+    <OpenBotPlayground
+      options={{
+        servers: [
+          storyLocalServer,
+          {
+            ...storyRemoteServer,
+            active: false,
+            compatibility: {
+              localAppVersion: "0.24.0",
+              hostAppVersion: "0.23.0",
+              localProtocol: { minimum: 1, maximum: 1 },
+              hostProtocol: { minimum: 1, maximum: 1 },
+              negotiatedProtocol: 1,
+              capabilities: ["host-admin-v1", "host-update-v1", "host-release-v1", "sidebar-layout"],
+            },
+            connectionSequence: 1,
+          },
+        ],
+      }}
+    />
+  ),
+};
+
 export const Onboarding: Story = {
   render: () => (
     <OpenBotPlayground options={{ setupState: { completed: false, preferredProvider: null, preferredModel: null } }} />

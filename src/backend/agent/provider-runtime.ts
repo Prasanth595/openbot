@@ -58,6 +58,8 @@ import { CodexLoginFlow, toCodexLoginFailed } from "./codex-login";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { ModelCatalog } from "./model-catalog";
 import { startMuseDeviceLogin } from "./muse-login";
+import type { ProviderAccountStore, StoredProviderAccount } from "./provider-account-store";
+import { defaultUsageModel, ProviderAccountFailed, ProviderAccounts } from "./provider-accounts";
 import {
   createAcpRequestEchoReader,
   ignoredCodexSettings,
@@ -98,12 +100,12 @@ const ACCOUNT_USAGE_READ_TIMEOUT_MS = 30_000;
  */
 const INSTALLED_CLI_START_TIMEOUT_MS = 180_000;
 /** How long a provider CLI stays running with nothing to do before its process is stopped. */
-export const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
+const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
 /**
  * The same for a provider no agent is set to. Every signed-in provider starts at launch to read its
  * models, and an unused OpenCode process alone held about 300 MB for the full idle time.
  */
-export const PROVIDER_UNASSIGNED_RELEASE_MS = 60_000;
+const PROVIDER_UNASSIGNED_RELEASE_MS = 60_000;
 const PROVIDER_IDLE_CHECK_MS = 60_000;
 /** How often a restart the user asked for checks whether the provider's turns have ended. */
 const PROVIDER_RESTART_POLL_MS = 1_000;
@@ -152,7 +154,17 @@ export type AgentClientFactory = (
   provider: AgentProvider,
   cli: AgentCliInfo,
   confinement?: ProcessConfinement,
+  accountEnvironment?: Readonly<Record<string, string>>,
 ) => AgentClient;
+
+/**
+ * Why an agent needs a process of its own: a Workspace only agent on a provider that confines a
+ * whole process, an agent on a provider account after the first, or both.
+ */
+interface OwnProcess {
+  readonly confinement?: ProcessConfinement;
+  readonly account?: StoredProviderAccount;
+}
 
 /**
  * The own process of one Workspace only agent on a provider that confines a whole process. `key`
@@ -162,6 +174,8 @@ export type AgentClientFactory = (
 interface ConfinedClient {
   readonly client: AgentClient;
   readonly key: string;
+  /** The provider account it signed in to, or null for the provider's own sign-in. */
+  readonly accountId: string | null;
   lastUsed: number;
 }
 
@@ -374,6 +388,8 @@ export class ProviderRuntime implements ProviderPort {
   readonly #modelCatalog: ModelCatalog;
   readonly #off: Set<AgentProvider>;
   readonly #saveProviderUse: (provider: AgentProvider, on: boolean) => Effect.Effect<void, ProviderOperationFailed>;
+  /** Null without a store, as in tests: each provider then holds its own sign-in only. */
+  readonly #providerAccounts: ProviderAccounts | null;
 
   constructor(options: {
     offProviders?: readonly AgentProvider[];
@@ -390,6 +406,7 @@ export class ProviderRuntime implements ProviderPort {
     credentials: ProviderClientContext;
     mcpHandoff?: McpHandoffLog;
     redactMcp: (text: string) => string;
+    accounts?: ProviderAccountStore;
   }) {
     this.#off = new Set(options.offProviders);
     this.#saveProviderUse = options.saveProviderUse ?? (() => Effect.void);
@@ -433,6 +450,41 @@ export class ProviderRuntime implements ProviderPort {
       clearConnectionState: (provider) => this.#clearProviderConnectionState(provider),
       setFailure: (provider, error, version) => this.#setProviderConnectionFailure(provider, error, version),
     });
+    this.#providerAccounts = options.accounts
+      ? new ProviderAccounts(options.accounts, {
+          scope: () => this.#scope,
+          cli: (provider) =>
+            this.#clients.has(provider) || this.#released.has(provider) ? this.#cli.get(provider) : undefined,
+          defaultEmail: (provider) => this.#accounts.get(provider)?.email ?? null,
+          authenticate: (provider, cli, accountEnvironment) =>
+            this.#authenticateClient(provider, cli, { accountEnvironment }).pipe(
+              Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })),
+            ),
+          stopClient: (client) =>
+            Effect.gen({ self: this }, function* () {
+              yield* client.stop().pipe(Effect.ignore);
+              yield* this.#hooks.onClientStopped(client).pipe(Effect.ignore);
+            }),
+          agentClient: (provider, accountId) =>
+            [...this.#confined.values()].find(
+              (confined) => confined.client.provider === provider && confined.accountId === accountId,
+            )?.client ?? null,
+          stopAgentClients: (provider, accountId) =>
+            Effect.forEach(
+              [...this.#confined].filter(
+                ([, confined]) => confined.client.provider === provider && confined.accountId === accountId,
+              ),
+              ([agentId, confined]) => this.#stopConfined(agentId, confined).pipe(Effect.ignore),
+              { concurrency: "unbounded", discard: true },
+            ),
+          readUsage: (client, model) =>
+            this.#refreshUsage(client, model, false).pipe(
+              Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })),
+            ),
+          changed: () => this.#setStatus({}),
+          redact: (text) => this.#redactMcp(redactText(text)),
+        })
+      : null;
     this.#modelCatalog = new ModelCatalog({
       client: (provider) => (this.#off.has(provider) ? undefined : this.#clients.get(provider)),
       isSignedOut: (provider) =>
@@ -469,7 +521,12 @@ export class ProviderRuntime implements ProviderPort {
           ...(source ? { cliSource: source } : {}),
           ...(lastError ? { lastError: lastError.message, lastErrorAt: lastError.at } : {}),
         };
-        return this.#restartsWhenIdle.has(row.id) ? { ...withSource, restartPending: true } : withSource;
+        const accounts =
+          row.state === "available" && row.id !== "acp"
+            ? this.#providerAccounts?.rows(row.id, row.email ?? null)
+            : undefined;
+        const withAccounts = accounts ? { ...withSource, accounts } : withSource;
+        return this.#restartsWhenIdle.has(row.id) ? { ...withAccounts, restartPending: true } : withAccounts;
       }),
     };
   }
@@ -708,82 +765,145 @@ export class ProviderRuntime implements ProviderPort {
 
   readonly usage = Effect.fn("ProviderRuntime.usage")(function* (
     this: ProviderRuntime,
-    scope?: { provider: AgentProvider; model: string },
+    scope?: { provider: AgentProvider; model: string; accountId?: string },
   ) {
     const deadline = Effect.timeoutOrElse({
       duration: ACCOUNT_USAGE_READ_TIMEOUT_MS,
       orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
     });
     if (!scope) {
-      const available = (this.status().providers ?? []).filter(
-        (item) => isAgentProvider(item.id) && item.state === "available" && item.connectionState !== "connecting",
+      const statuses = (this.status().providers ?? []).filter(
+        (item) => isAgentProvider(item.id) && !item.off && item.connectionState !== "connecting",
       );
-      const providers = available
+      // The default sign-in and the extra accounts are read apart: a provider whose own sign-in has
+      // no reading can still have extra accounts that report one.
+      const available = new Set(statuses.filter((item) => item.state === "available").map((item) => item.id));
+      const providers = statuses
         .map((item) => item.id)
         .filter(isAgentProvider)
+        .filter((provider) => available.has(provider) || ProviderAccounts.support(provider))
         .sort((left, right) => agentProviderDescriptor(left).pickerOrder - agentProviderDescriptor(right).pickerOrder);
-      const collected = new Map<AgentProvider, AccountUsage["limits"][number]>();
+      // By provider, then by provider and account: the provider's own sign-in comes first.
+      const collected = new Map<string, AccountUsage["limits"][number]>();
+      const logFailure = (provider: AgentProvider) => this.#logUsageFailure(provider);
+      const readDefault = (provider: AgentProvider) =>
+        Effect.gen({ self: this }, function* () {
+          let usage: AccountUsage;
+          if (provider === "opencode") {
+            // The Go quota is one HTTPS request with the saved key, so do not start OpenCode for it.
+            usage = normalizeAccountUsage(
+              yield* readOpenCodeGoUsage(this.#credentials.apiKey("opencode")).pipe(
+                toProviderOperationFailed,
+                deadline,
+              ),
+            );
+          } else {
+            // Starting a provider that has no usage reading only to get nothing back cost a cold
+            // start on every dock poll.
+            if (!agentProviderDescriptor(provider).reportsUsage) return;
+            const kept = this.#released.has(provider) ? this.#lastUsage.get(provider) : undefined;
+            if (kept && !usageWindowHasReset(kept)) {
+              collected.set(provider, kept);
+              this.#emit({ type: "usage-changed", usage: { limits: [...collected.values()] } });
+              return;
+            }
+            if (this.#released.has(provider) && this.#usageUnreported.has(provider)) return;
+            if (!this.#clients.has(provider)) yield* this.ensureProvider(provider);
+            const client = this.#clients.get(provider);
+            if (!client) return;
+            usage = yield* this.#refreshUsage(client, defaultUsageModel(provider), false).pipe(deadline);
+          }
+          const limit = usage.limits[0];
+          if (!limit || (!limit.primary && !limit.secondary)) {
+            this.#usageUnreported.add(provider);
+            return;
+          }
+          this.#usageUnreported.delete(provider);
+          collected.set(provider, { ...limit, id: provider });
+          this.#lastUsage.set(provider, { ...limit, id: provider });
+          this.#emit({
+            type: "usage-changed",
+            usage: { limits: [...collected.values()] },
+          });
+        });
+      const readAccounts = (provider: AgentProvider) =>
+        Effect.gen({ self: this }, function* () {
+          const accountLimits = yield* this.#accountLimits(provider);
+          if (accountLimits.length === 0) return;
+          for (const accountLimit of accountLimits)
+            collected.set(`${provider}:${accountLimit.accountId ?? ""}`, accountLimit);
+          this.#emit({ type: "usage-changed", usage: { limits: [...collected.values()] } });
+        });
       yield* Effect.forEach(
         providers,
         (provider) =>
-          Effect.gen({ self: this }, function* () {
-            let usage: AccountUsage;
-            if (provider === "opencode") {
-              // The Go quota is one HTTPS request with the saved key, so do not start OpenCode for it.
-              usage = normalizeAccountUsage(
-                yield* readOpenCodeGoUsage(this.#credentials.apiKey("opencode")).pipe(
-                  toProviderOperationFailed,
-                  deadline,
-                ),
-              );
-            } else {
-              // Starting a provider that has no usage reading only to get nothing back cost a cold
-              // start on every dock poll.
-              if (!agentProviderDescriptor(provider).reportsUsage) return;
-              const kept = this.#released.has(provider) ? this.#lastUsage.get(provider) : undefined;
-              if (kept && !usageWindowHasReset(kept)) {
-                collected.set(provider, kept);
-                this.#emit({ type: "usage-changed", usage: { limits: [...collected.values()] } });
-                return;
-              }
-              if (this.#released.has(provider) && this.#usageUnreported.has(provider)) return;
-              if (!this.#clients.has(provider)) yield* this.ensureProvider(provider);
-              const client = this.#clients.get(provider);
-              if (!client) return;
-              const model =
-                provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
-              usage = yield* this.#refreshUsage(client, model, false).pipe(deadline);
-            }
-            const limit = usage.limits[0];
-            if (!limit || (!limit.primary && !limit.secondary)) {
-              this.#usageUnreported.add(provider);
-              return;
-            }
-            this.#usageUnreported.delete(provider);
-            collected.set(provider, { ...limit, id: provider });
-            this.#lastUsage.set(provider, { ...limit, id: provider });
-            this.#emit({
-              type: "usage-changed",
-              usage: { limits: [...collected.values()] },
-            });
-          }).pipe(
-            Effect.catch((error) =>
-              Effect.sync(() => {
-                logger.warn("Could not read provider usage.", {
-                  provider,
-                  message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
-                });
-              }),
-            ),
-          ),
+          Effect.gen(function* () {
+            if (available.has(provider)) yield* readDefault(provider).pipe(logFailure(provider));
+            yield* readAccounts(provider).pipe(logFailure(provider));
+          }),
         { concurrency: "unbounded", discard: true },
       );
       return { limits: structuredClone([...collected.values()]) };
     }
+    if (!accountUsageCoversModel(scope.provider, scope.model)) return { limits: [] };
+    const account = this.#providerAccounts?.account(scope.provider, scope.accountId);
+    if (account && this.#providerAccounts)
+      return yield* this.#providerAccounts
+        .usageFor(scope.provider, account.id, scope.model)
+        .pipe(toProviderOperationFailed);
     const client = this.#clients.get(scope.provider);
-    if (!client || !accountUsageCoversModel(scope.provider, scope.model)) return { limits: [] };
+    if (!client) return { limits: [] };
     return yield* this.#refreshUsage(client, scope.model, false);
   }).bind(this);
+
+  /**
+   * Only the readings of the accounts after the first, for `provider-accounts-v1`. No provider's own
+   * sign-in is read or started, and no `usage-changed` is sent.
+   */
+  readonly accountUsage = Effect.fn("ProviderRuntime.accountUsage")(function* (this: ProviderRuntime) {
+    const providers = (this.status().providers ?? [])
+      .filter((item) => !item.off && item.connectionState !== "connecting")
+      .map((item) => item.id)
+      .filter(isAgentProvider)
+      .sort((left, right) => agentProviderDescriptor(left).pickerOrder - agentProviderDescriptor(right).pickerOrder);
+    const limits = yield* Effect.forEach(
+      providers,
+      (provider) =>
+        this.#accountLimits(provider).pipe(
+          this.#logUsageFailure(provider),
+          Effect.map((read) => read ?? []),
+        ),
+      { concurrency: "unbounded" },
+    );
+    return { limits: limits.flat() };
+  }).bind(this);
+
+  /** The readings of a provider's accounts after the first. Empty for a provider that has none. */
+  #accountLimits(provider: AgentProvider) {
+    if (
+      !this.#providerAccounts ||
+      !ProviderAccounts.support(provider) ||
+      !agentProviderDescriptor(provider).reportsUsage
+    )
+      return Effect.succeed([]);
+    return this.#providerAccounts.usage(provider, defaultUsageModel(provider)).pipe(
+      Effect.timeoutOrElse({
+        duration: ACCOUNT_USAGE_READ_TIMEOUT_MS,
+        orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
+      }),
+    );
+  }
+
+  #logUsageFailure(provider: AgentProvider) {
+    return Effect.catch((error: ProviderOperationFailed | ProviderAccountFailed) =>
+      Effect.sync(() => {
+        logger.warn("Could not read provider usage.", {
+          provider,
+          message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
+        });
+      }),
+    );
+  }
 
   readonly start = Effect.fn("ProviderRuntime.start")(function* (this: ProviderRuntime) {
     if (this.#scope.state._tag === "Closed") this.#scope = Scope.makeUnsafe();
@@ -974,6 +1094,77 @@ export class ProviderRuntime implements ProviderPort {
         return this.status();
     }
   });
+
+  /**
+   * Signs a provider account after the first in through the browser: a new one when `accountId` is
+   * null. Answers when the sign-in starts; the account row in the status reports how it ends.
+   */
+  readonly connectProviderAccount = Effect.fn("ProviderRuntime.connectProviderAccount")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    accountId: string | null,
+    openExternal: (url: string) => Promise<void>,
+  ) {
+    yield* providerStep(() => this.requireProviderOn(provider));
+    const accounts = yield* this.#requireAccounts(provider);
+    yield* accounts.connect(provider, accountId, openExternal, false).pipe(toProviderOperationFailed);
+    return this.status();
+  }).bind(this);
+
+  /**
+   * Signs a provider account after the first in through the page that its CLI prints, which
+   * `openPage` shows, and waits until the sign-in ends. For a host whose browser the user reaches only
+   * through a live view (`provider-accounts-v1`). An interrupt cancels the sign-in.
+   */
+  readonly signInProviderAccountOnHost = Effect.fn("ProviderRuntime.signInProviderAccountOnHost")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    accountId: string | null,
+    openPage: (url: string) => Promise<void>,
+  ) {
+    yield* providerStep(() => this.requireProviderOn(provider));
+    const accounts = yield* this.#requireAccounts(provider);
+    const signIn = yield* accounts.connect(provider, accountId, openPage, true).pipe(toProviderOperationFailed);
+    const error = yield* signIn.ended.pipe(Effect.onInterrupt(() => accounts.cancel(provider, signIn.accountId)));
+    if (error) return yield* new ProviderOperationFailed({ cause: new Error(error) });
+  }).bind(this);
+
+  readonly renameProviderAccount = Effect.fn("ProviderRuntime.renameProviderAccount")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    accountId: string,
+    label: string | null,
+  ) {
+    const accounts = yield* this.#requireAccounts(provider);
+    yield* accounts.rename(provider, accountId, label).pipe(toProviderOperationFailed);
+    return this.status();
+  }).bind(this);
+
+  /** The service moves the account's agents to the provider's own sign-in before it calls this. */
+  readonly removeProviderAccount = Effect.fn("ProviderRuntime.removeProviderAccount")(function* (
+    this: ProviderRuntime,
+    provider: AgentProvider,
+    accountId: string,
+  ) {
+    const accounts = yield* this.#requireAccounts(provider);
+    yield* accounts.remove(provider, accountId).pipe(toProviderOperationFailed);
+    return this.status();
+  }, Effect.uninterruptible).bind(this);
+
+  /** True when `accountId` names an account after the first that this computer holds. */
+  hasProviderAccount(provider: AgentProvider, accountId: string): boolean {
+    return this.#providerAccounts?.account(provider, accountId) != null;
+  }
+
+  #requireAccounts(provider: AgentProvider): Effect.Effect<ProviderAccounts, ProviderOperationFailed> {
+    const accounts = this.#providerAccounts;
+    if (accounts && provider !== "acp" && ProviderAccounts.support(provider)) return Effect.succeed(accounts);
+    return Effect.fail(
+      new ProviderOperationFailed({
+        cause: new Error(sourceText("error.provider.accountsUnsupported", { provider: providerLabel(provider) })),
+      }),
+    );
+  }
 
   /**
    * Signs `provider` in through the page that its CLI prints, which `openPage` shows, and waits until
@@ -1385,7 +1576,7 @@ export class ProviderRuntime implements ProviderPort {
       confined.lastUsed = Date.now();
       return confined.client;
     }
-    return this.#confinementFor(agent) ? null : this.clientFor(providerForAgent(agent));
+    return this.#ownProcessFor(agent) ? null : this.clientFor(providerForAgent(agent));
   }
 
   /** True while this agent has a process of its own, or one starts. An exit of the shared process leaves it. */
@@ -1401,7 +1592,7 @@ export class ProviderRuntime implements ProviderPort {
     const provider = providerForAgent(agent);
     if (provider === "acp" && this.#removingCustomRuntime)
       throw new Error(sourceText("error.provider.registryRemoveBusy"));
-    if (!this.#confined.has(agent.id) && !this.#confinementFor(agent)) return this.requireReadyClient(provider);
+    if (!this.#confined.has(agent.id) && !this.#ownProcessFor(agent)) return this.requireReadyClient(provider);
     const client = this.clientForAgent(agent);
     if (!client) throw new Error(sourceText("error.provider.noAgentProcess", { provider: providerLabel(provider) }));
     return client;
@@ -1424,18 +1615,18 @@ export class ProviderRuntime implements ProviderPort {
     }
     if (provider === "acp" && this.#removingCustomRuntime)
       return yield* new ProviderOperationFailed({ cause: new Error(sourceText("error.provider.registryRemoveBusy")) });
-    const confinement = this.#confinementFor(agent);
+    const own = this.#ownProcessFor(agent);
     const current = this.#confined.get(agent.id);
-    const key = confinement ? this.#confinedKey(provider, confinement) : null;
+    const key = own ? this.#confinedKey(provider, own) : null;
     if (current && current.key === key) {
       current.lastUsed = Date.now();
       return current.client;
     }
     if (current) yield* this.#stopConfined(agent.id, current);
-    if (!confinement || !key) return yield* providerStep(() => this.requireReadyClient(provider));
+    if (!own || !key) return yield* providerStep(() => this.requireReadyClient(provider));
     const completion = Deferred.makeUnsafe<AgentClient, ProviderOperationFailed>();
     this.#confinedStarts.set(agent.id, completion);
-    const exit = yield* Effect.exit(this.#startConfined(agent.id, provider, confinement, key));
+    const exit = yield* Effect.exit(this.#startConfined(agent.id, provider, own, key));
     yield* Deferred.done(completion, exit);
     if (this.#confinedStarts.get(agent.id) === completion) this.#confinedStarts.delete(agent.id);
     return yield* exit;
@@ -1445,25 +1636,34 @@ export class ProviderRuntime implements ProviderPort {
     this.#activations.set(provider, (this.#activations.get(provider) ?? 0) + 1);
   }
 
-  /** What a Workspace only agent's own process may write, or null when the agent needs no such process. */
-  #confinementFor(agent: AgentSummary): ProcessConfinement | null {
+  /**
+   * What an agent's own process starts with, or null when the agent runs on the shared process. An
+   * account that was removed sends the agent back to the shared process.
+   */
+  #ownProcessFor(agent: AgentSummary): OwnProcess | null {
     const provider = providerForAgent(agent);
-    if (!workspaceAccessEnforced(agent)) return null;
-    if (agentProviderDescriptor(provider).workspaceEnforcement !== "confined-process") return null;
-    return { writableRoots: workspaceWritableRoots(agent, this.#hooks.sharedRoot()) };
+    const confined =
+      workspaceAccessEnforced(agent) && agentProviderDescriptor(provider).workspaceEnforcement === "confined-process";
+    const account = this.#providerAccounts?.account(provider, agent.providerAccountId) ?? null;
+    if (!confined && !account) return null;
+    return {
+      ...(confined ? { confinement: { writableRoots: workspaceWritableRoots(agent, this.#hooks.sharedRoot()) } } : {}),
+      ...(account ? { account } : {}),
+    };
   }
 
   /**
    * The shared process is part of the key: it is replaced when the CLI, a stored key or the custom
    * endpoints change, and the agent's own process must then start again with the same values.
    */
-  #confinedKey(provider: AgentProvider, confinement: ProcessConfinement): string {
+  #confinedKey(provider: AgentProvider, own: OwnProcess): string {
     const cli = this.#cli.get(provider);
     return JSON.stringify([
       cli?.executable ?? null,
       cli?.version ?? null,
       this.#activations.get(provider) ?? 0,
-      confinement.writableRoots,
+      own.confinement?.writableRoots ?? null,
+      own.account?.id ?? null,
     ]);
   }
 
@@ -1471,7 +1671,7 @@ export class ProviderRuntime implements ProviderPort {
     this: ProviderRuntime,
     agentId: string,
     provider: AgentProvider,
-    confinement: ProcessConfinement,
+    own: OwnProcess,
     key: string,
   ) {
     const cli = this.#cli.get(provider);
@@ -1480,15 +1680,24 @@ export class ProviderRuntime implements ProviderPort {
         cause: new Error(sourceText("error.provider.cliNotReady", { provider: providerLabel(provider) })),
       });
     const disposals = this.#disposals;
-    const { client } = yield* this.#authenticateClient(provider, cli, { confinement });
+    const accountEnvironment = own.account ? this.#providerAccounts?.environment(own.account) : undefined;
+    const { client } = yield* this.#authenticateClient(provider, cli, {
+      ...(own.confinement ? { confinement: own.confinement } : {}),
+      ...(accountEnvironment ? { accountEnvironment } : {}),
+    });
     if (disposals !== this.#disposals || this.#hooks.isStopping()) {
       yield* client.stop().pipe(Effect.catch(() => Effect.void));
       return yield* new ProviderOperationFailed({
         cause: new Error(sourceText("error.provider.stoppedBeforeAgentProcess", { provider: providerLabel(provider) })),
       });
     }
-    this.#confined.set(agentId, { client, key, lastUsed: Date.now() });
-    logger.info("Started a Workspace only provider process.", { provider, agentId });
+    this.#confined.set(agentId, { client, key, accountId: own.account?.id ?? null, lastUsed: Date.now() });
+    logger.info("Started an agent's own provider process.", {
+      provider,
+      agentId,
+      confined: own.confinement !== undefined,
+      account: own.account !== undefined,
+    });
     return client;
   }, Effect.uninterruptible);
 
@@ -1856,15 +2065,29 @@ export class ProviderRuntime implements ProviderPort {
       this: ProviderRuntime,
       provider: AgentProvider,
       cli: AgentCliInfo,
-      { confinement, startTimeoutMs }: { confinement?: ProcessConfinement; startTimeoutMs?: number } = {},
+      {
+        confinement,
+        startTimeoutMs,
+        accountEnvironment,
+      }: {
+        confinement?: ProcessConfinement;
+        startTimeoutMs?: number;
+        /** The home folder of a provider account after the first. */
+        accountEnvironment?: Readonly<Record<string, string>>;
+      } = {},
     ) {
       const driver = requireProviderDriver(provider);
       let transferred = false;
       return yield* Effect.acquireUseRelease(
         providerStep(() =>
           this.#clientFactory
-            ? this.#clientFactory(provider, cli, confinement)
-            : driver.createClient(cli, this.#requestTimeoutMs, this.#credentials, confinement),
+            ? this.#clientFactory(provider, cli, confinement, accountEnvironment)
+            : driver.createClient(
+                cli,
+                this.#requestTimeoutMs,
+                accountEnvironment ? { ...this.#credentials, accountEnvironment } : this.#credentials,
+                confinement,
+              ),
         ),
         (client) =>
           Effect.gen({ self: this }, function* () {
@@ -1971,6 +2194,7 @@ export class ProviderRuntime implements ProviderPort {
           yield* this.#hooks.onClientStopped(previousClient);
         }
         if (provider === "codex") yield* this.#refreshUsage(client).pipe(Effect.ignore, Effect.forkIn(this.#scope));
+        if (this.#providerAccounts && provider !== "acp") yield* this.#providerAccounts.checkAll(provider);
         if (notifyReady) yield* this.#hooks.onProvidersReady().pipe(toProviderOperationFailed);
       }),
     );

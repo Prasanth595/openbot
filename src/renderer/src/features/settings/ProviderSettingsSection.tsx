@@ -11,6 +11,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { Text } from "@openbot/ui";
 import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
+import type { ProviderAccountActions } from "@openbot/ui/components/provider-accounts";
 import {
   AcpRegistrySettings,
   type AcpRegistrySettingsApi,
@@ -76,6 +77,8 @@ interface ProviderSettingsSectionProps {
   /** Without it the rows are listed but not removable, which is what a story without the callback shows. */
   onDeleteCustomProvider?: ((id: string) => Promise<CustomProviderRestart>) | undefined;
   onSignInProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  /** Adds, names and removes the accounts of each provider that can hold more than one. */
+  accountActions?: ProviderAccountActions | undefined;
   /** The sign-ins that a row's Connect and ⋯ menu run. Absent in the stories, where no provider answers it. */
   connection?: ProviderConnectionApi | undefined;
   /** Local model servers and ACP agents that the host found. Without it the section shows no such list. */
@@ -209,6 +212,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         onSelectCustomProvider={props.onAddCustomProvider ? () => void selectProvider("opencode", true) : undefined}
         onManageCustomProviders={props.onAddCustomProvider ? host.openList : undefined}
         onSignInProvider={props.onSignInProvider}
+        accountActions={props.accountActions}
         menuMount={props.selectMount}
         detected={
           <Show when={props.providerDetection}>
@@ -390,6 +394,10 @@ export interface HostProviderSettings {
   offProviders?: readonly AgentProviderId[] | undefined;
   /** The names of the agents that use each provider. A provider with one stays on. */
   providerUsers?: Partial<Record<AgentProviderId, readonly string[]>> | undefined;
+  /** The names of the agents that use each account, by provider and account. */
+  providerAccountUsers?: Partial<Record<AgentProviderId, Readonly<Record<string, readonly string[]>>>> | undefined;
+  /** Adds, names and removes provider accounts on the computer that runs the providers. */
+  accountActions?: ProviderAccountActions | undefined;
   onSetProviderOn?: ((provider: AgentProviderId, on: boolean) => void | Promise<void>) | undefined;
   customProviders?: readonly CustomProviderSummary[] | undefined;
   onAddCustomProvider?: ((value: SaveCustomProviderInput) => Promise<CustomProviderRestart>) | undefined;
@@ -446,6 +454,9 @@ export function HostProviderSettingsPanel(
     get providerUsers() {
       return props.providerUsers;
     },
+    get providerAccountUsers() {
+      return props.providerAccountUsers;
+    },
   });
   return (
     <>
@@ -465,6 +476,7 @@ export function HostProviderSettingsPanel(
         onAddCustomProvider={props.onAddCustomProvider}
         customProviders={props.customProviders}
         onDeleteCustomProvider={props.onDeleteCustomProvider}
+        accountActions={props.accountActions}
         // With detection off there is no list, not an empty one.
         providerDetection={props.detectionSettings?.enabled === false ? undefined : props.providerDetection}
         detectedProviderApi={props.detectedProviderApi}

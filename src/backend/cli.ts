@@ -136,7 +136,7 @@ export const resolveCodexCli: (input?: {
   Effect.catchDefect((cause) => Effect.fail(providerFailure(cause))),
 );
 
-export function bundledCodexExecutable(
+function bundledCodexExecutable(
   platform = process.platform,
   architecture = process.arch,
   resourcesPath: string | null | undefined = process.resourcesPath,
@@ -191,7 +191,7 @@ export const resolveClaudeCli: (input?: {
   Effect.catchDefect((cause) => Effect.fail(providerFailure(cause))),
 );
 
-export function bundledClaudeExecutable(
+function bundledClaudeExecutable(
   platform = process.platform,
   architecture = process.arch,
   resourcesPath: string | null | undefined = process.resourcesPath,
@@ -464,7 +464,7 @@ export const resolveClineCli: (input?: {
   Effect.catchDefect((cause) => Effect.fail(providerFailure(cause))),
 );
 
-export function bundledOpencodeExecutable(
+function bundledOpencodeExecutable(
   platform = process.platform,
   architecture = process.arch,
   resourcesPath: string | null | undefined = process.resourcesPath,
@@ -472,7 +472,7 @@ export function bundledOpencodeExecutable(
   return bundledProviderExecutable("opencode", platform, architecture, resourcesPath);
 }
 
-export function bundledGrokExecutable(
+function bundledGrokExecutable(
   platform = process.platform,
   architecture = process.arch,
   resourcesPath: string | null | undefined = process.resourcesPath,
@@ -681,7 +681,7 @@ const collectCandidates = Effect.fn("Cli.collectCandidates")(function* (
   return [...new Set(candidates)];
 });
 
-export function windowsFallbackPaths(
+function windowsFallbackPaths(
   provider: AgentProviderId,
   userHome = homedir(),
   environment: NodeJS.ProcessEnv = process.env,
@@ -727,7 +727,7 @@ export function windowsFallbackPaths(
  * `-i` flag goes with it, because `sh` is not required to accept an interactive non-tty invocation
  * and dash exits rather than running the command.
  */
-export function loginShellCommand(
+function loginShellCommand(
   platform: NodeJS.Platform = process.platform,
   environment: NodeJS.ProcessEnv = process.env,
 ): { command: string; args: string[] } {
@@ -742,7 +742,7 @@ export function loginShellCommand(
  * print before the command runs, such as a greeting or `fastfetch`, so the path is the last line
  * that is an absolute path. An alias, a function or a builtin prints no path and gives `null`.
  */
-export function commandPathFromShellOutput(stdout: string): string | null {
+function commandPathFromShellOutput(stdout: string): string | null {
   const lines = stdout.split(/\r?\n/u).map((line) => line.trim());
   return lines.findLast((line) => line.startsWith("/")) ?? null;
 }
@@ -821,7 +821,7 @@ export function runInLoginShell(
   });
 }
 
-export function posixFallbackPaths(provider: AgentProviderId, userHome = homedir()): string[] {
+function posixFallbackPaths(provider: AgentProviderId, userHome = homedir()): string[] {
   const command = cliCommandName(provider);
   const paths = [posix.join(userHome, ".local", "bin", command)];
   if (command === "claude") paths.push(posix.join(userHome, ".claude", "local", "claude"));

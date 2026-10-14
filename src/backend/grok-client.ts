@@ -30,7 +30,12 @@ export class GrokAgentClient extends AcpAgentClient {
   ) {
     super(cli, requestTimeoutMs, {
       provider: "grok",
-      ...(confinement ? { confine: (target) => confineSpawnTarget(target, confinement, grokStatePaths()) } : {}),
+      ...(confinement
+        ? {
+            confine: (target) =>
+              confineSpawnTarget(target, confinement, grokStatePaths({ ...process.env, ...agentEnvironment?.() })),
+          }
+        : {}),
       profileGeneration,
       // A profile-generation client asks one question and must not act, so it is given none.
       mcpServers: profileGeneration ? () => [] : mcpServers,

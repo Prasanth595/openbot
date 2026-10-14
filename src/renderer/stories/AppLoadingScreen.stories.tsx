@@ -51,6 +51,9 @@ export const Scrub: StoryObj<{ at: number }> = {
 export const StartingServer: Story = {
   render: () => <ServerConnectionNotice name="My server" phase="waking" initial onRetry={() => {}} />,
 };
+export const UpdatingServer: Story = {
+  render: () => <ServerConnectionNotice name="My server" phase="updating" initial={false} onRetry={() => {}} />,
+};
 export const StartFailed: Story = {
   render: () => (
     <ServerConnectionNotice name="My server" phase="blocked" issue="start_timeout" initial onRetry={() => {}} />

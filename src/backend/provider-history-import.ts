@@ -16,7 +16,7 @@ import type {
 } from "./provider-history";
 
 /** The synchronous database boundary needed by the bounded provider-history importer. */
-export interface ProviderHistoryImportDatabase {
+interface ProviderHistoryImportDatabase {
   readonly connection: DatabaseSync;
   ensureProviderHistoryImport(input: {
     sessionId: string;

@@ -34,6 +34,8 @@ interface ProviderCodeLoginTarget {
   hostSignIn?: ProviderHostSignInTarget;
   /** A joined server whose sign-in page opens in this computer's browser. */
   relay?: ProviderRelayTarget;
+  /** A joined server that signs in one account of a provider on a page in its own browser. */
+  accountSignIn?: ProviderAccountSignInTarget;
 }
 
 /**
@@ -59,6 +61,14 @@ interface ProviderHostSignInTarget {
   start: (provider: AgentProviderId) => Promise<void>;
   status: (provider: AgentProviderId) => Promise<ProviderHostSignInStatus>;
   cancel: (provider: AgentProviderId) => Promise<AgentStatus>;
+}
+
+/**
+ * How a joined server signs in one account of a provider (`provider-accounts-v1`): a new one when
+ * `accountId` is null, or a signed-out one again. The page opens as for `ProviderHostSignInTarget`.
+ */
+interface ProviderAccountSignInTarget extends Omit<ProviderHostSignInTarget, "start"> {
+  start: (provider: AgentProviderId, accountId: string | null) => Promise<void>;
 }
 
 /** How often the host is asked whether its sign-in page opened or the sign-in ended. */
@@ -103,7 +113,12 @@ export interface ProviderConnectionOptions {
  * to, and the code that provider issued. The code is a one-time handle and is meant to be read
  * out; nothing it is later traded for reaches the renderer.
  */
-export function createProviderConnection(options: ProviderConnectionOptions): ProviderConnectionApi {
+export interface ProviderConnectionController extends ProviderConnectionApi {
+  /** Signs one account of a joined server's provider in on the host's page. Null signs a new one in. */
+  connectAccount: (provider: AgentProviderId, accountId: string | null) => void;
+}
+
+export function createProviderConnection(options: ProviderConnectionOptions): ProviderConnectionController {
   /** The provider whose code dialog is open, and the phase that dialog shows. */
   const [codeLoginProvider, setCodeLoginProvider] = createSignal<AgentProviderId | null>(null);
   const [codeLoginState, setCodeLoginState] = createSignal<ProviderCodeLoginState>({ phase: "starting" });
@@ -118,6 +133,8 @@ export function createProviderConnection(options: ProviderConnectionOptions): Pr
   let codeLoginTarget: ProviderCodeLoginTarget | undefined;
   /** How the open sign-in runs. Its cancel and its retry go the same way. */
   let codeLoginMethod: ProviderCodeLoginMethod = "code";
+  /** The account that the open sign-in signs in: null for a new one, undefined for the provider's own. */
+  let codeLoginAccount: string | null | undefined;
 
   /** Runs one of the provider's routes. */
   function run(
@@ -136,15 +153,17 @@ export function createProviderConnection(options: ProviderConnectionOptions): Pr
     provider: AgentProviderId,
     method: ProviderCodeLoginMethod,
     opener: ProviderCodeLoginOpener | null,
+    accountId?: string | null,
   ): Promise<void> {
     const generation = ++codeLoginGeneration;
     clearCodeLoginExpiry();
     codeLoginStarted = false;
     // The code is issued by the computer the providers run on; the admin types it in the browser of
-    // this one.
-    const target = options.target();
+    // this one. An account's page opens as the provider's own does, so its cancel goes the same way.
+    const target = accountTarget(options.target(), accountId);
     codeLoginTarget = target;
     codeLoginMethod = method;
+    codeLoginAccount = accountId;
     setCodeLoginOpener(opener);
     setCodeLoginProvider(provider);
     setCodeLoginState({ phase: "starting" });
@@ -253,8 +272,7 @@ export function createProviderConnection(options: ProviderConnectionOptions): Pr
         if (status.result.error) {
           endProviderCodeLogin(provider, { kind: "failed", message: status.result.error });
         } else {
-          const row = options.agentStatus().providers?.find((candidate) => candidate.id === provider);
-          endProviderCodeLogin(provider, { kind: "connected", accountLabel: row?.email ?? null });
+          endProviderCodeLogin(provider, { kind: "connected", accountLabel: signedInLabel(provider) });
         }
         return;
       }
@@ -268,6 +286,14 @@ export function createProviderConnection(options: ProviderConnectionOptions): Pr
         });
       await new Promise((resolve) => window.setTimeout(resolve, HOST_SIGN_IN_POLL_MS));
     }
+  }
+
+  /** The email of the account that the open sign-in signed in, when the status already has it. */
+  function signedInLabel(provider: AgentProviderId): string | null {
+    const row = options.agentStatus().providers?.find((candidate) => candidate.id === provider);
+    if (codeLoginAccount === undefined) return row?.email ?? null;
+    if (codeLoginAccount === null) return null;
+    return row?.accounts?.find((account) => account.id === codeLoginAccount)?.email ?? null;
   }
 
   /** Shows the page once the host has it, and ends the dialog with the relayed sign-in's result. */
@@ -397,19 +423,22 @@ export function createProviderConnection(options: ProviderConnectionOptions): Pr
     flush(() => setCodeLoginProvider(null));
     const opener = codeLoginOpener();
     const method = codeLoginMethod;
+    const accountId = codeLoginAccount;
     const name = agentProviderDescriptor(provider).displayName;
     const { t, sourceText } = currentText();
     if (outcome.kind === "connected") {
-      actionToast.success(t("app.provider.connected", { name }), {
-        description: outcome.accountLabel
-          ? t("app.provider.signedInAs", { account: outcome.accountLabel })
-          : t("app.provider.signedInElsewhere"),
-      });
+      // An account signs in through the host's page on this device, so it did not finish elsewhere.
+      const description = outcome.accountLabel
+        ? t("app.provider.signedInAs", { account: outcome.accountLabel })
+        : accountId === undefined
+          ? t("app.provider.signedInElsewhere")
+          : undefined;
+      actionToast.success(t("app.provider.connected", { name }), description ? { description } : {});
       return;
     }
     const retry = {
       label: t("app.provider.newCode"),
-      onClick: () => void startProviderCodeLogin(provider, method, opener),
+      onClick: () => void startProviderCodeLogin(provider, method, opener, accountId),
     };
     if (outcome.kind === "expired") {
       actionToast.warning(t("app.provider.codeExpired", { name }), {
@@ -498,6 +527,7 @@ export function createProviderConnection(options: ProviderConnectionOptions): Pr
     state: codeLoginState,
     opener: codeLoginOpener,
     connect: (provider, opener) => run(provider, route(provider).connect, opener ?? null),
+    connectAccount: (provider, accountId) => void startProviderCodeLogin(provider, "host-page", null, accountId),
     alternative: (provider, opener) => run(provider, route(provider).alternative, opener ?? null),
     useApp,
     closeUseApp: () => setUseApp(null),
@@ -537,4 +567,15 @@ function samePage(shown: McpSignInRelayPage | null, page: McpSignInRelayPage): b
     shown.listening === page.listening &&
     shown.pasteable === page.pasteable
   );
+}
+
+/** The target whose host page signs the account in, or the target itself for the provider's own sign-in. */
+function accountTarget(target: ProviderCodeLoginTarget, accountId: string | null | undefined): ProviderCodeLoginTarget {
+  const account = target.accountSignIn;
+  if (accountId === undefined) return target;
+  if (!account) {
+    const { hostSignIn: _ownSignIn, ...rest } = target;
+    return rest;
+  }
+  return { ...target, hostSignIn: { ...account, start: (provider) => account.start(provider, accountId) } };
 }

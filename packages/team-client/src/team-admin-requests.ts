@@ -18,6 +18,7 @@ import type { PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/provi
 import type { ManagedProviderId } from "@openbot/contracts/agent-providers";
 import { parseHostedSiteList } from "@openbot/contracts/hosted-sites";
 import {
+  type AccountUsage,
   type AddedAgent,
   type AddMessagingOrchestratorResult,
   type AgentAdminSettings,
@@ -28,6 +29,7 @@ import {
   assertStorageUsageScope,
   type CancelMcpSignInInput,
   type ClearStorageInput,
+  type ConnectProviderAccountInput,
   type CustomProviderResult,
   type CustomProviderSummary,
   type DeleteCustomProviderInput,
@@ -41,6 +43,8 @@ import {
   decodeHostGitHubConnectorRepositories,
   decodeHostGitHubConnectorStatus,
   decodeHostMessagingOverview,
+  decodeHostProviderAccounts,
+  decodeHostProviderAccountUsage,
   decodeHostReleaseStatus,
   decodeHostUpdateStatus,
   decodeInstalledSkills,
@@ -64,6 +68,7 @@ import {
   type HostMessagingConnectInput,
   type HostMessagingPlatformInput,
   type HostMessagingWorkspaceInput,
+  type HostProviderAccounts,
   type HostReleaseStatus,
   type HostSetMessagingEnabledInput,
   type HostUpdateSettingsChange,
@@ -87,9 +92,12 @@ import {
   type ProviderRuntimeSnapshot,
   type PublishAgentTemplateInput,
   type RemoveMcpServerInput,
+  type RemoveProviderAccountInput,
+  type RenameProviderAccountInput,
   type SaveCustomProviderInput,
   type SaveMcpServerInput,
   type SaveMcpSignInAppInput,
+  type SetAgentProviderAccountInput,
   type SetEnabledSkillInput,
   type SetMcpServerEnabledInput,
   type SetProviderApiKeyInput,
@@ -133,6 +141,7 @@ import { HOSTED_SITES_ROUTES } from "@openbot/contracts/team-protocol/hosted-sit
 import { MCP_SIGN_IN_APP_ROUTES } from "@openbot/contracts/team-protocol/mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { MCP_ROUTES } from "@openbot/contracts/team-protocol/mcp-v1";
+import { PROVIDER_ACCOUNTS_ROUTES } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import type { PROVIDERS_RUNTIMES_V2_ROUTES } from "@openbot/contracts/team-protocol/providers-v2";
@@ -681,6 +690,67 @@ export function cancelProviderHostSignIn(
   provider: AgentProviderId,
 ): Effect.Effect<AgentStatus, TeamAdminRequestError> {
   return providerChange(request, PROVIDER_HOST_SIGN_IN_ROUTES.cancel, { provider });
+}
+
+/**
+ * `provider-accounts-v1`: the accounts of the host's providers, and the agents on an account after
+ * the first. The host's status, agent list and usage do not carry them.
+ */
+export function listProviderAccounts(
+  request: TeamApiRequest,
+): Effect.Effect<HostProviderAccounts, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.list, decodeHostProviderAccounts, {}));
+}
+
+/** The readings of the accounts after the first. */
+export function providerAccountUsage(request: TeamApiRequest): Effect.Effect<AccountUsage, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.usage, decodeHostProviderAccountUsage, {}));
+}
+
+/** Opens the account's sign-in page in the host's browser, as `startProviderHostSignIn` does. */
+export function startProviderAccountSignIn(
+  request: TeamApiRequest,
+  input: ConnectProviderAccountInput,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.signInStart, ignoreResponse, { ...input }));
+}
+
+export function providerAccountSignInStatus(
+  request: TeamApiRequest,
+  provider: AgentProviderId,
+): Effect.Effect<ProviderHostSignInStatus, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", PROVIDER_ACCOUNTS_ROUTES.signInStatus, decodeProviderHostSignInStatus, { provider }),
+  );
+}
+
+export function cancelProviderAccountSignIn(
+  request: TeamApiRequest,
+  provider: AgentProviderId,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.signInCancel, ignoreResponse, { provider }));
+}
+
+export function renameProviderAccount(
+  request: TeamApiRequest,
+  input: RenameProviderAccountInput,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.rename, ignoreResponse, { ...input }));
+}
+
+export function removeProviderAccount(
+  request: TeamApiRequest,
+  input: RemoveProviderAccountInput,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.remove, ignoreResponse, { ...input }));
+}
+
+/** Moves the agent to an account of its provider; null is the provider's own sign-in. */
+export function setAgentProviderAccount(
+  request: TeamApiRequest,
+  input: SetAgentProviderAccountInput,
+): Effect.Effect<void, TeamAdminRequestError> {
+  return adminCall(() => request("POST", PROVIDER_ACCOUNTS_ROUTES.agent, ignoreResponse, { ...input }));
 }
 
 /** Ends a relayed provider sign-in on the host, and answers the host's status after it. */

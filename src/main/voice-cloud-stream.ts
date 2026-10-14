@@ -33,7 +33,7 @@ export interface VoiceStreamSocket {
   close(): void;
 }
 
-export interface VoiceStreamSocketEvents {
+interface VoiceStreamSocketEvents {
   onMessage: (text: string) => void;
   /** The provider refused the HTTP upgrade, with this status code. */
   onRejected: (statusCode: number) => void;

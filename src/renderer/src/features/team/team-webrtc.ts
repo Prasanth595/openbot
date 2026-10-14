@@ -551,6 +551,13 @@ async function handleSignal(state: PeerState, message: SignalServerMessage): Pro
       sdp: requiredDescriptionSdp(answer),
     });
   } else if (message.type === "answer") {
+    const previousFingerprint = sdpFingerprint(state.peerConnection?.remoteDescription?.sdp);
+    // A new fingerprint is a new connection on the host: the host restarted, or it dropped this
+    // connection after Signal lost the socket. The host never authenticates this peer again.
+    if (previousFingerprint && sdpFingerprint(message.sdp) !== previousFingerprint) {
+      dropConnection(state);
+      return;
+    }
     await state.peerConnection?.setRemoteDescription({ type: "answer", sdp: message.sdp });
   } else if (message.type === "ice-candidate") {
     await state.peerConnection?.addIceCandidate({
@@ -651,13 +658,16 @@ function bindDataChannel(
       post({ type: "peer-disconnected", peerId: state.id });
     }
   };
-  channel.onerror = () =>
+  // A replaced channel can fail after the new connection is up. Its error must not mark that connection failed.
+  channel.onerror = () => {
+    if (state.closed || state.channels[kind] !== channel) return;
     post({
       type: "peer-error",
       peerId: state.id,
       code: "data_channel_error",
       message: sourceText("error.remote.dataChannelFailed", { kind }),
     });
+  };
   // Either end can lose a channel while the path still reads `connected`. Release that peer so
   // the client can connect again. A host child closes only its own peer, not the shared Signal socket.
   channel.onclose = () => {
@@ -667,9 +677,16 @@ function bindDataChannel(
 }
 
 function descriptionFingerprint(description: RTCSessionDescription | null): string {
-  const fingerprint = description?.sdp.match(/^a=fingerprint:sha-256\s+([^\r\n]+)$/imu)?.[1]?.trim();
+  const fingerprint = sdpFingerprint(description?.sdp);
   if (!fingerprint) throw new Error("The WebRTC DTLS fingerprint is unavailable.");
-  return fingerprint.toUpperCase();
+  return fingerprint;
+}
+
+function sdpFingerprint(sdp: string | undefined): string | undefined {
+  return sdp
+    ?.match(/^a=fingerprint:sha-256\s+([^\r\n]+)$/imu)?.[1]
+    ?.trim()
+    .toUpperCase();
 }
 
 async function sendChannelPayload(
