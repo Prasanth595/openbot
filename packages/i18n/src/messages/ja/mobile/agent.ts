@@ -263,6 +263,10 @@ export const messages = {
   "mobile.agent.advanced.title": "詳細設定",
   "mobile.agent.runtime.unavailable": "利用できません",
   "mobile.agent.runtime.provider": "プロバイダー",
+  "mobile.agent.runtime.account": "アカウント",
+  "mobile.agent.runtime.accountNumbered": "アカウント {number}",
+  "mobile.agent.runtime.accountUnsupported":
+    "このホストでは、リモートデバイスからエージェントのアカウントを変更できません。",
   "mobile.agent.runtime.model": "モデル",
   "mobile.agent.runtime.reasoning": "推論",
   "mobile.agent.runtime.effort.low": "低",

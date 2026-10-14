@@ -2351,7 +2351,7 @@ function hostedClaim(secret: string, serverId: string) {
   return hmacSha256(secret, `openbot-hosted-claim:v1:${serverId}`);
 }
 
-export function sandboxName(plan: BillingPlanId, email: string, serverId: string): string {
+function sandboxName(plan: BillingPlanId, email: string, serverId: string): string {
   const slug = (value: string) =>
     value
       .toLowerCase()

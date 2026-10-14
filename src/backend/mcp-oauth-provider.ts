@@ -637,6 +637,7 @@ class McpOAuthClientProvider implements OAuthClientProvider {
     return {
       client_name: "OpenBot",
       client_uri: "https://openbot.run",
+      logo_uri: "https://openbot.run/icon-512x512.png",
       redirect_uris: [this.#options.redirectUrl],
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
@@ -986,7 +987,7 @@ export function isLoopback(hostname: string): boolean {
  * the operating system routes. An `https` address belongs to a web site, and a plain-text address
  * anywhere but loopback would put the grant on the wire.
  */
-export function describeUnusableRedirectUrl(redirectUrl: string): string | null {
+function describeUnusableRedirectUrl(redirectUrl: string): string | null {
   let parsed: URL;
   try {
     parsed = new URL(redirectUrl);

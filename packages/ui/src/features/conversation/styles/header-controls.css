@@ -123,6 +123,14 @@
   content: "·";
 }
 
+/* An email can be long: the account gives way before the model name does. */
+.provider-model-trigger-account {
+  min-width: 0;
+  max-width: 160px;
+  flex-shrink: 1;
+  overflow: hidden;
+}
+
 /* SwapLabel: the old text sits on top of the new text while both animate. */
 .ui-swap {
   position: relative;
@@ -388,6 +396,27 @@
 
 .provider-model-rail-button:is([data-state="sign-in-required"], [data-state="outdated"])::after {
   background: var(--openbot-warning);
+}
+
+/* The place of an account in its provider's list, when the provider has more than one. */
+.provider-model-rail-account {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--openbot-bg-control);
+  box-shadow: 0 0 0 2px var(--provider-model-rail-bg);
+  color: var(--openbot-text-primary);
+  font-size: var(--openbot-text-sm);
+  font-weight: var(--openbot-weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .provider-model-panel {

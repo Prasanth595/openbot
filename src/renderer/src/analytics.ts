@@ -14,7 +14,7 @@ import { OpenPanelBase, type OpenPanelOptions } from "@openpanel/web";
 import { configureDesktopReports, configureErrorReports } from "./error-reports";
 import { MARKETPLACE_PLUGINS } from "./features/settings/marketplace-plugin-catalog";
 
-export const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
+const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
 const MAX_PENDING_EVENTS = 100;
 const ANALYTICS_SCHEMA_VERSION = 7;
@@ -31,7 +31,7 @@ interface AgentAnalyticsProperties {
   server_kind: ServerKind;
 }
 
-export interface DesktopAnalyticsEvents {
+interface DesktopAnalyticsEvents {
   desktop_app_opened: { setup_completed: boolean; signed_in: boolean };
   app_updated: { from_version: string; to_version: string };
   account_sign_in_started: { result: "code_sent" | "failed"; failure_code?: string };
@@ -178,8 +178,8 @@ export interface DesktopAnalyticsEvents {
   };
 }
 
-export type AnalyticsEventName = keyof DesktopAnalyticsEvents;
-export type OpenPanelClient = Pick<OpenPanelBase, "setGlobalProperties" | "track" | "identify" | "clear">;
+type AnalyticsEventName = keyof DesktopAnalyticsEvents;
+type OpenPanelClient = Pick<OpenPanelBase, "setGlobalProperties" | "track" | "identify" | "clear">;
 
 type ClientFactory = (options: OpenPanelOptions) => OpenPanelClient;
 type AnalyticsIdentity = Pick<CentralAuthUser, "id" | "email">;
@@ -388,11 +388,11 @@ const UPDATE_PHASES = new Set([
   "unsupported",
 ]);
 
-export function shouldEnableDesktopAnalytics(appInfo: AppInfo, productionBuild: boolean): boolean {
-  return productionBuild && appInfo.variant === "production";
+function shouldEnableDesktopAnalytics(appInfo: AppInfo, productionBuild: boolean): boolean {
+  return appInfo.analyticsCaptureUrl !== undefined || (productionBuild && appInfo.variant === "production");
 }
 
-export function sanitizeDesktopAnalyticsEvent(
+function sanitizeDesktopAnalyticsEvent(
   name: AnalyticsEventName,
   properties: DesktopAnalyticsEvents[AnalyticsEventName],
 ): SanitizedAnalyticsProperties {
@@ -473,7 +473,7 @@ function safeNumber(value: unknown, minimum: number, maximum: number): number | 
   return isNumber(value) && Number.isFinite(value) && value >= minimum && value <= maximum ? value : undefined;
 }
 
-export class DesktopAnalytics {
+class DesktopAnalytics {
   readonly #createClient: ClientFactory;
   readonly #productionBuild: boolean;
   #client: OpenPanelClient | null = null;
@@ -503,7 +503,7 @@ export class DesktopAnalytics {
     }
     try {
       const clientOptions = {
-        apiUrl: OPENPANEL_API_URL,
+        apiUrl: appInfo.analyticsCaptureUrl ?? OPENPANEL_API_URL,
         clientId: OPENPANEL_CLIENT_ID,
       };
       const client = this.#createClient(clientOptions);

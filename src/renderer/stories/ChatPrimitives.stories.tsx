@@ -152,7 +152,6 @@ function PrototypeMessage(props: {
   onReply?: () => void;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
-  const [moreOpen, setMoreOpen] = createSignal(false);
   const [expandedEmoji, setExpandedEmoji] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
   const [reaction, setReaction] = createSignal<MessageReaction | null | undefined>(props.reaction);
@@ -199,15 +198,15 @@ function PrototypeMessage(props: {
               )}
             </Show>
           </Bubble>
-          <Show when={props.actions}>
+        </div>
+        <Show when={props.actions}>
+          <div class="message-action-row">
             <MessageActions
               message={message()}
               pickerOpen={pickerOpen()}
-              moreOpen={moreOpen()}
               expandedEmoji={expandedEmoji()}
               copied={copied()}
               onTogglePicker={() => setPickerOpen((current) => !current)}
-              onToggleMore={() => setMoreOpen((current) => !current)}
               onExpandEmoji={() => setExpandedEmoji((current) => !current)}
               onReact={(value) => {
                 setReaction(value ?? undefined);
@@ -216,8 +215,8 @@ function PrototypeMessage(props: {
               onReply={props.onReply ?? fn()}
               onCopy={() => setCopied(true)}
             />
-          </Show>
-        </div>
+          </div>
+        </Show>
         <MessageFooter>{props.message.streaming ? "Writing…" : props.message.time}</MessageFooter>
       </MessageContent>
     </Message>

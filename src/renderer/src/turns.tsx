@@ -143,7 +143,11 @@ const Turns = createSimpleContext({
           setQueues((current) => ({ ...current, [agentId]: queue }));
         })
         .catch((error) => {
-          if (scopeIsCurrent()) appendUiError(agentId, error, currentText().t("app.errorStatus.queueLoad"), serverId);
+          // A newer load replaces this one, and an agent that is not open loads again when it opens.
+          // Without this, each failed load of a stalled server added one more error.
+          if (!scopeIsCurrent() || queueSnapshotRequests.get(agentId) !== queueRequest || agentId !== activeAgentId())
+            return;
+          appendUiError(agentId, error, currentText().t("app.errorStatus.queueLoad"), serverId);
         });
     }
 
@@ -164,7 +168,8 @@ const Turns = createSimpleContext({
           setWaits((current) => ({ ...current, [agentId]: snapshot }));
         })
         .catch((error) => {
-          if (scopeIsCurrent()) appendUiError(agentId, error, currentText().t("app.errorStatus.waitsLoad"), serverId);
+          if (!scopeIsCurrent() || waitSnapshotRequests.get(agentId) !== request) return;
+          appendUiError(agentId, error, currentText().t("app.errorStatus.waitsLoad"), serverId);
         });
     }
 

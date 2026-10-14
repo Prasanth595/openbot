@@ -107,8 +107,6 @@ export function createConversationViewScope(props: ConversationProps) {
     setSidebarFilePreview,
     openReactionMessageId,
     setOpenReactionMessageId,
-    openMoreMessageId,
-    setOpenMoreMessageId,
     expandedEmojiMessageId,
     setExpandedEmojiMessageId,
     copiedMessageId,
@@ -550,7 +548,6 @@ export function createConversationViewScope(props: ConversationProps) {
     editingDeliveryId,
     editingPendingSave,
     setOpenReactionMessageId,
-    setOpenMoreMessageId,
     setExpandedEmojiMessageId,
     copiedMessageId,
     setCopiedMessageId,
@@ -677,7 +674,6 @@ export function createConversationViewScope(props: ConversationProps) {
         return;
       }
       setOpenReactionMessageId(null);
-      setOpenMoreMessageId(null);
       setExpandedEmojiMessageId(null);
       hideBrowserPanel();
     };
@@ -702,7 +698,6 @@ export function createConversationViewScope(props: ConversationProps) {
     const closeMessageMenus = (event: MouseEvent) => {
       if (event.target instanceof Element && event.target.closest(".message-actions")) return;
       setOpenReactionMessageId(null);
-      setOpenMoreMessageId(null);
       setExpandedEmojiMessageId(null);
     };
     const keyboardTarget = conversationPanel?.ownerDocument ?? document;
@@ -1240,7 +1235,6 @@ export function createConversationViewScope(props: ConversationProps) {
     openMessageLinkRelay,
     pasteMessageLinkRelay,
     cancelMessageLinkRelay,
-    openMoreMessageId,
     openReactionMessageId,
     openRoutineSettings,
     openRoutineRunMessage,
@@ -1288,7 +1282,6 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerFocusRequest,
     setDropActive,
     setExpandedEmojiMessageId,
-    setOpenMoreMessageId,
     setOpenReactionMessageId,
     setRequiredInteractionElement,
     handleRoutineSettingsRequest,

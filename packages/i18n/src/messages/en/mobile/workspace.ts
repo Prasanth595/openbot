@@ -24,6 +24,9 @@ export const messages = defineMessages("mobile.workspace", {
   "mobile.workspace.error.approvalInactive":
     "This request is not waiting now. Another device answered it, or the task stopped.",
   "mobile.workspace.error.approvalOffline": "Connect to the server to answer this request.",
+  "mobile.workspace.notification.allow": "Allow",
+  "mobile.workspace.notification.deny": "Deny",
+  "mobile.workspace.notification.answerFailed": "Your answer did not reach the server. Open OpenBot to answer.",
   "mobile.workspace.alert.preferencesTitle": "Could not save chat preferences",
   "mobile.workspace.alert.preferencesBody": "Your previous preferences have been kept. Please try again.",
   "mobile.workspace.alert.updateRequiredTitle": "Update required",

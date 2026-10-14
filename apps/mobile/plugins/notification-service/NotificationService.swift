@@ -35,12 +35,18 @@ final class NotificationService: UNNotificationServiceExtension {
       // iOS groups the notifications of one chat.
       content.threadIdentifier = "\(notification.serverId)/\(notification.agentId)"
       // `expo-notifications` gives the app this dictionary as the notification data.
-      let data: [String: Any] = [
+      var data: [String: Any] = [
         "serverId": notification.serverId,
         "agentId": notification.agentId,
         "threadId": notification.threadId as Any? ?? NSNull(),
         "kind": notification.kind,
       ]
+      // The app registers these categories (`notification-actions.ts`). iOS and a paired Apple Watch
+      // show their buttons, and the app answers the request in the background.
+      if let approval = notification.approval {
+        content.categoryIdentifier = approval.approvable ? "openbot.approval" : "openbot.approval.deny"
+        data["approval"] = ["requestId": approval.requestId, "turnId": approval.turnId]
+      }
       userInfo["body"] = data
       content.userInfo = userInfo
     }
@@ -63,6 +69,32 @@ struct OpenedNotification {
   let body: String
   /// Set when the phone has more than one server, so the notification says which one it is.
   let serverName: String?
+  let approval: NotificationApproval?
+}
+
+/// The approval request that the buttons answer. `requestId` is a string or a number, as the host sent it.
+struct NotificationApproval {
+  let requestId: Any
+  let turnId: String
+  /// False when the text does not show all that Approve allows. The notification then offers Deny only.
+  let approvable: Bool
+
+  init?(_ value: Any?) {
+    guard
+      let json = value as? [String: Any],
+      let turnId = json["turnId"] as? String,
+      let approvable = json["approvable"] as? Bool
+    else { return nil }
+    if let text = json["requestId"] as? String {
+      requestId = text
+    } else if let number = json["requestId"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() {
+      requestId = number
+    } else {
+      return nil
+    }
+    self.turnId = turnId
+    self.approvable = approvable
+  }
 }
 
 enum SealedNotification {
@@ -110,7 +142,8 @@ enum SealedNotification {
         kind: kind,
         title: title,
         body: text,
-        serverName: servers.count > 1 ? server.name : nil
+        serverName: servers.count > 1 ? server.name : nil,
+        approval: kind == "approval" ? NotificationApproval(json["approval"]) : nil
       )
     }
     return nil

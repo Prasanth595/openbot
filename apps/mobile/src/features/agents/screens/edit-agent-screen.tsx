@@ -1,6 +1,13 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { AgentAccess, AvatarHue, UpdateAgentInput } from "@openbot/contracts/ipc";
+import {
+  type AgentAccess,
+  type AvatarHue,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
+  type HostProviderAccounts,
+  type UpdateAgentInput,
+} from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
@@ -15,7 +22,7 @@ import { AgentBusyMessageField, AgentHostPermissionFields } from "@/features/age
 import { AgentInformation } from "@/features/agents/components/agent-information";
 import { type AgentPhotoDraft, AgentPhotoPicker } from "@/features/agents/components/agent-photo-picker";
 import { AgentPublish } from "@/features/agents/components/agent-publish";
-import { AgentRuntimeFields } from "@/features/agents/components/agent-runtime-fields";
+import { AgentRuntimeFields, useProviderAccounts } from "@/features/agents/components/agent-runtime-fields";
 import { AgentSessionSettingsSection } from "@/features/agents/components/agent-session-settings";
 import { AgentSharedTables } from "@/features/agents/components/agent-shared-tables";
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
@@ -102,7 +109,9 @@ function AgentForm({
     canStartNewChat,
     canManageAgentAccess,
     canManageAgentHostSettings,
+    setAgentProviderAccount,
   } = useMobileWorkspace();
+  const queryClient = useQueryClient();
   // The Permissions row shows the access, as on desktop. Its page reads the same host answer.
   const { settings: adminSettings } = useAgentAdminSettings(agent, host, available && page === "info");
   const showPermissions = canManageAgentAccess(agent.serverId) || canManageAgentHostSettings(agent.serverId);
@@ -117,6 +126,18 @@ function AgentForm({
   const [saving, setSaving] = useState(false);
   const pending = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  // The account is not in the agent summary. Only an owner or admin of a host with
+  // `provider-accounts-v1` reads it.
+  const { queryKey: accountsKey, accounts: hostAccounts } = useProviderAccounts(agent, available && page === "runtime");
+  const [account, setAccount] = useState<string | undefined>();
+  const provider = edits.provider ?? agent.provider;
+  const providerAccounts = hostAccounts?.providers.find((entry) => entry.provider === provider)?.accounts ?? [];
+  // A provider change returns the agent to the new provider's own sign-in.
+  const savedAccount =
+    provider === agent.provider
+      ? (hostAccounts?.agents.find((entry) => entry.agentId === agent.id)?.accountId ?? DEFAULT_PROVIDER_ACCOUNT_ID)
+      : DEFAULT_PROVIDER_ACCOUNT_ID;
+  const accountChanged = account !== undefined && account !== savedAccount;
   const name = edits.name ?? agent.name;
   const title = edits.title ?? agent.title;
   const description = edits.description ?? agent.description;
@@ -132,7 +153,8 @@ function AgentForm({
     avatarHue !== agent.avatarHue ||
     (edits.provider !== undefined && edits.provider !== agent.provider) ||
     (edits.model !== undefined && edits.model !== agent.model) ||
-    (edits.reasoningEffort !== undefined && edits.reasoningEffort !== agent.reasoningEffort);
+    (edits.reasoningEffort !== undefined && edits.reasoningEffort !== agent.reasoningEffort) ||
+    accountChanged;
   const valid =
     page !== "info" ||
     (Boolean(name.trim()) &&
@@ -207,6 +229,22 @@ function AgentForm({
           agent.serverId,
         );
       setEdits({});
+      if (accountChanged || (edits.provider !== undefined && edits.provider !== agent.provider)) {
+        const accountId = account === undefined || account === DEFAULT_PROVIDER_ACCOUNT_ID ? null : account;
+        if (accountChanged) await setAgentProviderAccount({ agentId: agent.id, accountId }, agent.serverId);
+        setAccount(undefined);
+        queryClient.setQueryData<HostProviderAccounts | null>(accountsKey, (current) =>
+          current
+            ? {
+                ...current,
+                agents: [
+                  ...current.agents.filter((entry) => entry.agentId !== agent.id),
+                  ...(accountId ? [{ agentId: agent.id, accountId }] : []),
+                ],
+              }
+            : current,
+        );
+      }
       if (photoChanged) {
         await setAgentAvatar(agent.id, photo ?? null, agent.serverId);
         setPhoto(undefined);
@@ -309,10 +347,20 @@ function AgentForm({
           agent={agent}
           available={available}
           saving={saving}
-          provider={edits.provider ?? agent.provider}
+          provider={provider}
           model={edits.model ?? agent.model}
           reasoningEffort={edits.reasoningEffort ?? agent.reasoningEffort}
-          onChange={change}
+          accounts={providerAccounts}
+          accountId={account ?? savedAccount}
+          onChange={(value) => {
+            change(value);
+            // An account belongs to one provider.
+            if (value.provider !== undefined) setAccount(undefined);
+          }}
+          onAccountChange={(value) => {
+            setAccount(value);
+            setError(null);
+          }}
         />
       ) : null}
       {page === "permissions" ? (

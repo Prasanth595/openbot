@@ -159,13 +159,6 @@ export function DiagramNodeCard(props: DiagramNodeCardProps) {
             <strong class="diagram-node-name">{props.name}</strong>
           </span>
         </Button>
-        <Show when={props.step}>
-          {(step) => (
-            <span class="diagram-node-step" title={t("diagram.node.step", { step: step() })}>
-              {step()}
-            </span>
-          )}
-        </Show>
         <Show when={props.selected && props.removable}>
           <Button
             type="button"

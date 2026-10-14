@@ -77,6 +77,7 @@ export const messages = {
   "connector.hub.onHost": "{host} 上",
   "connector.hub.notSetUp": "未設定",
   "connector.hub.available": "利用可能",
+  "connector.hub.localOnly": "自分のコンピューターのみ",
   "connector.hub.open": "{name} を開く",
   "connector.hub.setUp": "設定",
   "connector.hub.usedBy": "{names} が使用中",
@@ -354,5 +355,5 @@ export const messages = {
   "connector.bitwarden.disconnect": "Bitwarden を切断",
   "connector.bitwarden.connected": "接続済み",
   "connector.bitwarden.disconnected": "未接続",
-  "connector.bitwarden.failed": "Bitwarden に接続できませんでした。",
+  "connector.bitwarden.actionFailed": "OpenBot は Bitwarden の接続を変更できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;
