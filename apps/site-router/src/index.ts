@@ -114,9 +114,9 @@ export const routeRequest = Effect.fn("SiteRouter.routeRequest")(
 
     const path = requestPath(url.pathname);
     if (path === null) return errorResponse(404, "Page not found");
-    // A directory page needs its trailing slash, or the browser resolves its relative links one level up.
-    // The relative Location keeps local hosted sites on their own origin; one leading slash keeps it on this host.
-    if (path && !path.endsWith("/") && !route.files[path] && route.files[`${path}/index.html`]) {
+    const file = resolveFile(route, path);
+    if (file === "directory") {
+      // The relative Location keeps local hosted sites on their own origin; one leading slash keeps it on this host.
       return new Response(null, {
         status: 308,
         headers: secureHeaders({
@@ -125,7 +125,6 @@ export const routeRequest = Effect.fn("SiteRouter.routeRequest")(
         }),
       });
     }
-    const file = resolveFile(route, path);
     if (!file) return errorResponse(404, "Page not found");
     if (file.mimeType !== "text/html" && runtime) {
       const cached = yield* readCachedAsset(request, file, runtime.assetCache);
@@ -246,12 +245,15 @@ function requestPath(pathname: string): string | null {
   }
 }
 
-function resolveFile(route: HostedSiteRouteManifest, path: string): HostedSiteRouteFile | null {
-  const candidates = path ? [path, path.endsWith("/") ? `${path}index.html` : `${path}/index.html`] : ["index.html"];
-  for (const candidate of candidates) {
-    const file = route.files[candidate];
-    if (file) return file;
-  }
+/**
+ * Returns "directory" for a directory address with no final slash. The caller redirects it, because
+ * the browser resolves the relative links of a directory page one level up without the slash.
+ */
+function resolveFile(route: HostedSiteRouteManifest, path: string): HostedSiteRouteFile | "directory" | null {
+  if (!path) return route.files["index.html"] ?? null;
+  const file = route.files[path] ?? (path.endsWith("/") ? route.files[`${path}index.html`] : undefined);
+  if (file) return file;
+  if (!path.endsWith("/") && route.files[`${path}/index.html`]) return "directory";
   return route.spaFallback ? (route.files["index.html"] ?? null) : null;
 }
 
