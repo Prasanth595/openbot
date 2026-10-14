@@ -54,7 +54,7 @@ export interface BackupModelSource {
   modelOptions: readonly AgentModelOption[];
   providers: AgentStatus["providers"];
   /** Whether a usage limit holds this model and account now. */
-  limited?: (choice: AgentModelChoice) => boolean;
+  limited?: ((choice: AgentModelChoice) => boolean) | undefined;
 }
 
 export function backupModelOption(choice: AgentModelChoice, source: BackupModelSource): BackupModelOption {
