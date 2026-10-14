@@ -1,10 +1,11 @@
 import type { HostReleaseStatus, HostUpdateStatus } from "@openbot/contracts/ipc";
-import { cleanup, fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { Deferred, Effect } from "effect";
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMockHostUpdate } from "../../preview/mock-host-update";
 import { ServerUpdatePanel } from "./ServerUpdatePanel";
+import { ServerUpdateDialogHost } from "./server-update-flow";
 
 const unsupported: HostUpdateStatus = {
   currentVersion: "0.25.2",
@@ -36,10 +37,17 @@ describe("remote release checks", () => {
     });
     const start = vi.spyOn(calls, "startUpdate");
     render(() => (
-      <ServerUpdatePanel serverId="host" hostName="Host" actionsAvailable canManage={false} calls={calls} />
+      <>
+        <ServerUpdatePanel serverId="host" hostName="Host" actionsAvailable canManage={false} calls={calls} />
+        <ServerUpdateDialogHost hosts={[{ id: "host", name: "Host", online: true, restart: null, version: null }]} />
+      </>
     ));
     await fireEvent.click(await screen.findByRole("button", { name: "Update when idle" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).queryByRole("switch")).not.toBeInTheDocument();
+    await fireEvent.click(within(dialog).getByRole("button", { name: "Restart when idle" }));
     await waitFor(() => expect(start).toHaveBeenCalledWith("when-idle", "host"));
+    await fireEvent.click(await within(dialog).findByRole("button", { name: "Hide" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Host restarts when its agents are idle");
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel update" })).not.toBeInTheDocument();

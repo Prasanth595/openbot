@@ -25,6 +25,7 @@ export { default as ChevronsUpDown } from "lucide-solid/icons/chevrons-up-down";
 export { default as CircleArrowDown } from "lucide-solid/icons/circle-arrow-down";
 export { default as CircleCheck } from "lucide-solid/icons/circle-check";
 export { default as CircleDot } from "lucide-solid/icons/circle-dot";
+export { default as CircleFadingArrowUp } from "lucide-solid/icons/circle-fading-arrow-up";
 export { default as CirclePause } from "lucide-solid/icons/circle-pause";
 export { default as CircleQuestionMark } from "lucide-solid/icons/circle-question-mark";
 export { default as Clock3 } from "lucide-solid/icons/clock-3";

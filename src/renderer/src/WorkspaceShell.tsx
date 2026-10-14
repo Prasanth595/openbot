@@ -22,11 +22,12 @@ import { WorkspaceRoutineFlows } from "./features/routine-flows/WorkspaceRoutine
 import { SchedulePanel } from "./features/schedule/SchedulePanel";
 import { createServerConnectionToast } from "./features/servers/server-connection-toast";
 import { useServerScope } from "./features/servers/server-scope";
+import { followsServerUpdate, ServerUpdateDialogHost } from "./features/servers/server-update-flow";
 import { useServers } from "./features/servers/servers-context";
 import { WorkspaceServerRail } from "./features/servers/WorkspaceServerRail";
 import { useSettings } from "./features/settings/settings-context";
 import { WorkspaceSidebar } from "./features/sidebar/WorkspaceSidebar";
-import { createHostRestartToasts } from "./features/updates/host-restart-toast";
+import { createHostRestartToasts, type HostRestartView } from "./features/updates/host-restart-toast";
 import { useUsage } from "./features/usage/usage-context";
 import { useLayout } from "./layout";
 import { AgentUsagePanel } from "./lazy-views";
@@ -123,7 +124,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
       : null;
   });
 
-  createHostRestartToasts(() =>
+  const remoteHosts = (): HostRestartView[] =>
     servers().flatMap((server) =>
       server.kind === "remote"
         ? [
@@ -136,8 +137,9 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
             },
           ]
         : [],
-    ),
-  );
+    );
+  // The update dialog explains the restart of the update that it follows.
+  createHostRestartToasts(() => remoteHosts().filter((host) => !followsServerUpdate(host.id)));
 
   return (
     // The overlays and the chat cards show the same connectors.
@@ -236,7 +238,12 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
             )}
           </Show>
         }
-        after={<WorkspaceOverlays account={props.account} />}
+        after={
+          <>
+            <WorkspaceOverlays account={props.account} />
+            <ServerUpdateDialogHost hosts={remoteHosts()} />
+          </>
+        }
       >
         <Show when={serverOnboardingOpen()}>
           <WorkspaceServerOnboarding />

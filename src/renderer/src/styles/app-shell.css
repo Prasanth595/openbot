@@ -1393,6 +1393,17 @@ textarea {
   stroke-width: var(--openbot-icon-stroke);
 }
 
+.sidebar-update-button,
+.sidebar-update-button:hover {
+  color: var(--openbot-accent-text);
+}
+
+.sidebar-update-button > svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: var(--openbot-icon-stroke);
+}
+
 .sidebar-search-wrap {
   position: relative;
   padding: 8px 12px 6px;

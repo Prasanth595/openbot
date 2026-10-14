@@ -165,6 +165,8 @@
     "./features/servers/ServerStatusDialog": "./src/features/servers/ServerStatusDialog.tsx",
     "./features/servers/ServerActionItems": "./src/features/servers/ServerActionItems.tsx",
     "./features/servers/ServerMenu": "./src/features/servers/ServerMenu.tsx",
+    "./features/servers/ServerUpdateDialog": "./src/features/servers/ServerUpdateDialog.tsx",
+    "./features/servers/server-update-dialog.css": "./src/features/servers/server-update-dialog.css",
     "./features/servers/ServerConnectionNotice": "./src/features/servers/ServerConnectionNotice.tsx",
     "./features/servers/ServerRail": "./src/features/servers/ServerRail.tsx",
     "./features/settings/AccountProfilePanel": "./src/features/settings/AccountProfilePanel.tsx",

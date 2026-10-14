@@ -208,8 +208,11 @@ reads the status again every second while a check, a download or a restart runs.
 set the host's automatic download and automatic install when idle through the settings route; an
 automatic install is a schedule with no requester.
 
-When a member with update access connects, `host-update-toast.tsx` reads the status once: it offers a new version and
-shows a live percentage while the host downloads. All members get the `host-restart` event
+`server-update-flow.tsx` reads the update status once on each connection of a member with update access.
+The sidebar header then shows an update button next to the server name. Each time the user enters a server
+that has a new version, the update dialog opens again; it stays closed on a reconnect to the same server. The dialog confirm calls `start`, which downloads and restarts in one call. The
+dialog reads the status while the update runs and follows the connection until the host is back with
+the new version. A hidden dialog keeps a notice with the live status, also after a server switch; entering the server then does not open the dialog again. A host that still waits to restart after a connection drop did not restart. All members get the `host-restart` event
 (`waiting`, `restarting`, `none`) from the host's event stream, and the host sends the current state
 again when a client declares the capability. Like `channelEvent`, the event skips the frozen v1-v3
 event encoders at each hop (host peer, client transport, `remote-peer.ts`, SSE stream). A client that
