@@ -1,6 +1,6 @@
-import { isConnectorId } from "@openbot/contracts/connectors";
 import { connectorSummary } from "@openbot/ui/features/connectors/ConnectorDetailPanel";
 import { CONNECTOR_LISTINGS } from "@openbot/ui/features/connectors/connector-catalog";
+import { isConnectorId } from "@openbot/ui/features/connectors/connectors";
 import {
   MarketplaceSuggestionCard,
   type MarketplaceSuggestionState,

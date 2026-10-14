@@ -1,5 +1,5 @@
-import { CONNECTORS_CAPABILITY } from "./team-protocol/connectors-v1";
-import type { TeamCurrentCapability } from "./team-protocol/current";
+import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
+import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 
 /**
  * Every connector, in the order that Settings › Connectors and Marketplace › Apps show them. A

@@ -1,5 +1,5 @@
-import { CONNECTORS, type ConnectorId } from "@openbot/contracts/connectors";
 import type { ServerSummary } from "@openbot/contracts/ipc";
+import { CONNECTORS, type ConnectorId } from "@openbot/ui/features/connectors/connectors";
 import { remoteAdminServer } from "../servers/server-capabilities";
 
 /**

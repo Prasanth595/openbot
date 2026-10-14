@@ -1,5 +1,5 @@
-import { CONNECTOR_IDS } from "@openbot/contracts/connectors";
 import type { ServerSummary } from "@openbot/contracts/ipc";
+import { CONNECTOR_IDS } from "@openbot/ui/features/connectors/connectors";
 import { describe, expect, it } from "vitest";
 import { connectorAccess } from "./connector-access";
 

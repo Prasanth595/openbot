@@ -1,6 +1,6 @@
-import type { ConnectorId } from "@openbot/contracts/connectors";
 import { ConnectorDetailPanel, connectorSummary } from "@openbot/ui/features/connectors/ConnectorDetailPanel";
 import { CONNECTOR_LISTINGS } from "@openbot/ui/features/connectors/connector-catalog";
+import type { ConnectorId } from "@openbot/ui/features/connectors/connectors";
 import { IntegrationsHub, type IntegrationsHubRow } from "@openbot/ui/features/settings/IntegrationsHub";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createSignal, Show } from "solid-js";

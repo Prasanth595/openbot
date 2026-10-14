@@ -305,7 +305,7 @@ To add a connector:
    (`openbot://...`) reaches only the computer that opened the page. Add its kind to
    [`deep-link-router.ts`](../../src/main/deep-link-router.ts), and keep a grant out of the renderer.
 4. Add the id to `CONNECTOR_IDS` and its entry to `CONNECTORS` in
-   [`connectors.ts`](../../packages/contracts/src/connectors.ts). `server` is the capability that
+   [`connectors.ts`](../../packages/ui/src/features/connectors/connectors.ts). `server` is the capability that
    lets a joined server run it, or `null` when only the user's own computer can, as for a vault app.
    [`connector-access.ts`](../../src/renderer/src/features/connectors/connector-access.ts) reads it;
    no surface has its own gate.

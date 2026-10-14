@@ -1,5 +1,5 @@
-import { CONNECTOR_IDS, type ConnectorId } from "@openbot/contracts/connectors";
 import type { ServerSummary } from "@openbot/contracts/ipc";
+import { CONNECTOR_IDS, type ConnectorId } from "@openbot/ui/features/connectors/connectors";
 import { createEffect, createMemo, untrack } from "solid-js";
 import { createBitwardenConnector } from "./bitwarden-connector";
 import { type BitwardenConnectorPort, bitwardenConnectorPort } from "./bitwarden-connector-port";

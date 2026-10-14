@@ -1,4 +1,3 @@
-import { isConnectorId } from "@openbot/contracts/connectors";
 import type {
   AddedAgent,
   AgentSummary,
@@ -14,6 +13,7 @@ import { mcpConfigErrors } from "@openbot/contracts/ipc";
 import { createPluginShareUrl } from "@openbot/contracts/plugin-links";
 import { connectorSummary } from "@openbot/ui/features/connectors/ConnectorDetailPanel";
 import { CONNECTOR_LISTINGS } from "@openbot/ui/features/connectors/connector-catalog";
+import { isConnectorId } from "@openbot/ui/features/connectors/connectors";
 import { safeBrowserUrl } from "@openbot/ui/features/conversation/RichMessageText";
 import type {
   AgentListingState,

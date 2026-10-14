@@ -156,11 +156,12 @@ export function AppAction(props: {
     const app = props.app;
     /* A connector's page owns its dialogs: the GitHub device code, a password manager's setup. A
        connector with a one-click connect starts it there. One that needs attention opens its page, which
-       says what to fix. */
+       says what to fix. A connector shows "idle" before its first read, so it connects only after it. */
     if (app.kind === "connector") {
       const view = props.scope.nav.state.stack.at(-1);
       if (view?.kind !== "app" || view.id !== app.id) props.scope.nav.go({ kind: "app", id: app.id });
-      if (app.status === "idle") model().connector(app.connector)?.connect?.();
+      const connector = model().connector(app.connector);
+      if (app.status === "idle" && connector?.ready()) connector.connect?.();
       return;
     }
     if (app.kind !== "plugin") return;

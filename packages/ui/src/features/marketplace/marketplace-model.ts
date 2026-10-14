@@ -1,4 +1,3 @@
-import type { ConnectorId } from "@openbot/contracts/connectors";
 import type {
   AgentSummary,
   InstalledSkill,
@@ -10,6 +9,7 @@ import type {
   SkillCategory,
 } from "@openbot/contracts/ipc";
 import type { ConnectorDetail } from "../connectors/ConnectorDetailPanel";
+import type { ConnectorId } from "../connectors/connectors";
 import type { MarketplacePluginDetail, MarketplacePluginPrompt } from "../settings/marketplace-plugins";
 import type { CatalogList, MarketplaceHomeCache } from "./marketplace-listing";
 
