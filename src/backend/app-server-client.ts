@@ -129,19 +129,7 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     for (const pending of this.#pending.values()) pending.reject(new Error("Codex App Server stopped."));
     this.#pending.clear();
     child.stdin.end();
-    if (child.exitCode !== null) return;
-    yield* Effect.callback<void>((resume) => {
-      const forceKill = setTimeout(() => {
-        if (child.exitCode === null) child.kill("SIGKILL");
-      }, 2_000);
-      const exited = () => resume(Effect.void);
-      child.once("exit", exited);
-      child.kill("SIGTERM");
-      return Effect.sync(() => {
-        clearTimeout(forceKill);
-        child.off("exit", exited);
-      });
-    });
+    yield* endProcess(child);
   }, Effect.uninterruptible);
 
   /**
@@ -384,10 +372,29 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     }
     this.#pending.clear();
 
-    if (child.exitCode === null) child.kill("SIGTERM");
+    // `stop` cannot reach this process after `#process` is cleared, so the end is bounded here.
+    Effect.runFork(endProcess(child));
     if (!this.#stopping) this.emit("exit", error);
   }
 }
+
+/** Ends the app server with SIGTERM, and with SIGKILL when it is still running after 2 seconds. */
+const endProcess = Effect.fn("CodexAppServer.endProcess")(function* (child: ChildProcessWithoutNullStreams) {
+  // A signal exit leaves `exitCode` null, and a failed spawn has no `pid` and may never emit `exit`.
+  if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
+  yield* Effect.callback<void>((resume) => {
+    const forceKill = setTimeout(() => {
+      if (child.exitCode === null) child.kill("SIGKILL");
+    }, 2_000);
+    const exited = () => resume(Effect.void);
+    child.once("exit", exited);
+    child.kill("SIGTERM");
+    return Effect.sync(() => {
+      clearTimeout(forceKill);
+      child.off("exit", exited);
+    });
+  });
+});
 
 interface HistoryTurn {
   id: string;
