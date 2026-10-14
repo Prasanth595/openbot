@@ -271,6 +271,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   /** The host list was read and holds no computer to connect to. */
   const noHost = () => !workspace.state.host && (workspace.state.hostsLoaded || Boolean(workspace.state.hostsError));
   const hostOffline = () => !noHost() && !workspace.state.workspaceLoaded;
+  // A host that restarts into an update drops the connection on purpose. That error is not news.
+  const hostUpdating = () => workspace.state.hostRestart?.state === "restarting";
   createServerConnectionToast(() => {
     const host = workspace.state.host;
     return host
@@ -281,7 +283,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           quiet: Boolean(
             !workspace.state.workspaceLoaded ||
               workspace.state.hostedSleep ||
-              workspace.state.hostRestart ||
+              workspace.state.hostRestart?.state === "restarting" ||
               workspace.state.incompatibility,
           ),
         }
@@ -1118,25 +1120,28 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   name={workspace.state.host?.name ?? t("webClient.notice.findingHosts")}
                   initial={!workspace.state.workspaceLoaded}
                   issue={workspace.state.hostedIssue}
+                  updateVersion={workspace.state.hostRestart?.version ?? null}
                   detail={
-                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue && !hostUpdating()
                       ? (workspace.state.connectionError?.message ?? null)
                       : null
                   }
                   reference={
-                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue && !hostUpdating()
                       ? (workspace.state.connectionError?.reference ?? null)
                       : null
                   }
                   phase={
                     workspace.state.hostedSleep ??
-                    (workspace.state.recovery?.phase === "suspended"
-                      ? "blocked"
-                      : workspace.state.status === "connecting"
-                        ? "loading"
-                        : workspace.state.workspaceLoaded
-                          ? "reconnecting"
-                          : "connecting")
+                    (hostUpdating()
+                      ? "updating"
+                      : workspace.state.recovery?.phase === "suspended"
+                        ? "blocked"
+                        : workspace.state.status === "connecting"
+                          ? "loading"
+                          : workspace.state.workspaceLoaded
+                            ? "reconnecting"
+                            : "connecting")
                   }
                   remainingSeconds={
                     workspace.state.recovery?.phase === "waiting" || workspace.state.recovery?.phase === "cooldown"
