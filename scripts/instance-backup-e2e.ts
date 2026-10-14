@@ -297,6 +297,10 @@ async function main(): Promise<void> {
 
     // Restore: the data changes after the backup, and the restore gives back the backup.
     must(`echo changed > ${data}/OpenBot/Agents/E2E/after-backup.md && rm ${data}/OpenBot/Agents/E2E/notes.md`);
+    // An agent can leave links with the names of the restore folders. Root must not follow them.
+    must(
+      `mkdir -p /trap && ln -s /trap ${data}/.openbot-replaced && ln -s /trap ${data}/.openbot-restore && ln -s /trap ${data}/.openbot-replaced.x && chown -h 1000:1000 ${data}/.openbot-*`,
+    );
     result = instance("restore", "main", latest);
     check(
       "restore without --replace refuses data",
@@ -316,12 +320,24 @@ async function main(): Promise<void> {
     );
 
     result = instance("restore", "main", latest, "--replace");
+    check(
+      "restore refuses a folder from a restore that did not end",
+      result.status !== 0 && /did not end/.test(result.stderr) && running(),
+      summary(result),
+    );
+    must(`rm ${data}/.openbot-replaced.x`);
+    result = instance("restore", "main", latest, "--replace");
     check("restore with --replace", result.status === 0, summary(result));
     check("instance stays stopped after a restore", !running(), `running=${running()}`);
     const restored = must(
-      `cd ${data} && test -f OpenBot/Agents/E2E/notes.md && test ! -e OpenBot/Agents/E2E/after-backup.md && test ! -e .openbot-restore && test ! -e .openbot-replaced && sha256sum .config/OpenBot/openbot.db | cut -d ' ' -f 1`,
+      `cd ${data} && test -f OpenBot/Agents/E2E/notes.md && test ! -e OpenBot/Agents/E2E/after-backup.md && test -z "$(find . -maxdepth 1 -name '.openbot-*')" && sha256sum .config/OpenBot/openbot.db | cut -d ' ' -f 1`,
     );
     check("restored data is the backup", restored === dataHash, `openbot.db ${restored.slice(0, 12)}`);
+    check(
+      "restore does not follow links that an agent made",
+      must("ls -A /trap | wc -l") === "0",
+      "the link target stays empty",
+    );
     check(
       "restored files belong to the user of the data",
       must(`find ${data} -mindepth 1 ! -user 1000 ! -path '${data}/lost+found*' | wc -l`) === "0",

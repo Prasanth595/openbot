@@ -648,6 +648,8 @@ verify_steps() {
     warnings+=("openbot.db has rows whose references are missing.")
   version=$(sqlite "${REQUIRED_FILES[0]}" "SELECT max(version) FROM schema_migrations;") ||
     fail "openbot.db has no schema version."
+  # Agents can change the database, so only a number goes into the JSON.
+  [[ $version =~ ^[0-9]+$ ]] || fail "openbot.db has no schema version."
   agents=$(row_count "${REQUIRED_FILES[0]}" projection_agents)
   threads=$(row_count "${REQUIRED_FILES[0]}" projection_threads)
   messages=$(row_count "${REQUIRED_FILES[0]}" projection_thread_messages)
@@ -710,8 +712,9 @@ restore() {
   if [ -n "$(find "$data" -mindepth 1 -maxdepth 1 ! -name lost+found -print -quit)" ] && [ "$replace" -eq 0 ]; then
     fail "$data has data. Back it up, then add --replace to delete it and restore $backup."
   fi
-  [ ! -e "$data/.openbot-replaced" ] ||
-    fail "$data/.openbot-replaced is from a restore that did not end. Move its contents back or delete it."
+  if [ -n "$(find "$data" -mindepth 1 -maxdepth 1 -name '.openbot-replaced.*' -print -quit)" ]; then
+    fail "$data has a .openbot-replaced folder from a restore that did not end. Move its contents back or delete it."
+  fi
   lock_instance "$name"
   set +e
   (
@@ -725,40 +728,43 @@ restore() {
 
 restore_steps() {
   local name=$1 backup=$2 archive=$3 data=$DATA/$1/data container=openbot-$1 needed available entry
+  local stage replaced start=:
   OWNER=$(data_owner)
   needed=$(json_value "$backup/manifest.json" dataBytes)
   [[ $needed =~ ^[0-9]+$ ]] || fail "The manifest of $backup has no size."
   if container_running "$container"; then
     echo "Stopping $container."
     docker stop "$container" >/dev/null
+    start="docker start '$container' >/dev/null"
     # shellcheck disable=SC2064 # The value is fixed now.
-    trap "rm -rf -- '$data/.openbot-restore'; docker start '$container' >/dev/null" EXIT
-  else
-    # shellcheck disable=SC2064 # The value is fixed now.
-    trap "rm -rf -- '$data/.openbot-restore'" EXIT
+    trap "$start" EXIT
   fi
   ! container_running "$container" || fail "$container did not stop."
-  rm -rf -- "$data/.openbot-restore"
   available=$(df --block-size=1 --output=avail "$data" | tail -n 1 | tr -d ' ')
   [ "$available" -gt "$needed" ] ||
     fail "The restore needs $(human_bytes "$needed") free in $data, which has $(human_bytes "$available")."
-  install -d -o "${OWNER%:*}" -g "${OWNER#*:}" -m 0700 "$data/.openbot-restore"
-  echo "Unpacking $backup."
-  (cd "$data/.openbot-restore" && decompress "$archive" "$backup/$archive" |
-    as_owner tar --extract --file=- --preserve-permissions) || fail "The archive of $backup does not unpack."
-  check_required_files "$data/.openbot-restore"
-  # From here the old data moves aside. When a move fails, both folders stay for the operator.
+  # mktemp makes a new folder with a new name. It does not follow a link that an agent made in /data
+  # before the container stopped.
+  stage=$(mktemp -d "$data/.openbot-restore.XXXXXX")
   # shellcheck disable=SC2064 # The value is fixed now.
-  trap "echo 'The restore stopped while it moved files. The old data is in $data/.openbot-replaced, the backup in $data/.openbot-restore.' >&2" EXIT
-  install -d -m 0700 "$data/.openbot-replaced"
+  trap "rm -rf -- '$stage'; $start" EXIT
+  chown "$OWNER" "$stage"
+  echo "Unpacking $backup."
+  (cd "$stage" && decompress "$archive" "$backup/$archive" |
+    as_owner tar --extract --file=- --preserve-permissions) || fail "The archive of $backup does not unpack."
+  check_required_files "$stage"
+  # From here the old data moves aside. When a move fails, both folders stay for the operator.
+  replaced=$(mktemp -d "$data/.openbot-replaced.XXXXXX")
+  # shellcheck disable=SC2064 # The value is fixed now.
+  trap "echo 'The restore stopped while it moved files. The old data is in $replaced, the backup in $stage.' >&2" EXIT
   cd "$data"
-  find . -mindepth 1 -maxdepth 1 ! -name lost+found ! -name .openbot-restore ! -name .openbot-replaced -print0 |
-    while IFS= read -r -d '' entry; do mv -- "$entry" .openbot-replaced/; done
-  find .openbot-restore -mindepth 1 -maxdepth 1 -print0 |
+  find . -mindepth 1 -maxdepth 1 ! -name lost+found ! -name "${stage##*/}" ! -name "${replaced##*/}" -print0 |
+    while IFS= read -r -d '' entry; do mv -- "$entry" "$replaced/"; done
+  find "$stage" -mindepth 1 -maxdepth 1 -print0 |
     while IFS= read -r -d '' entry; do mv -- "$entry" .; done
-  rmdir .openbot-restore
+  rmdir "$stage"
   trap - EXIT
-  rm -rf -- .openbot-replaced
+  rm -rf -- "$replaced"
   echo "Restored $backup to $name. It stays stopped."
   echo "Make sure that the instance whose backup this is does not run anywhere else. Then: openbot-instance up $name"
 }
