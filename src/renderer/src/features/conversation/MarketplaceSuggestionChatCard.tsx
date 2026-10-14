@@ -1,12 +1,13 @@
-import { GITHUB_MARKETPLACE_APP_ID, type GitHubConnectorStatus } from "@openbot/contracts/ipc";
+import { connectorSummary } from "@openbot/ui/features/connectors/ConnectorDetailPanel";
+import { CONNECTOR_LISTINGS } from "@openbot/ui/features/connectors/connector-catalog";
+import { isConnectorId } from "@openbot/ui/features/connectors/connectors";
 import {
   MarketplaceSuggestionCard,
   type MarketplaceSuggestionState,
 } from "@openbot/ui/features/conversation/MarketplaceSuggestionCard";
-import { GitHubMark } from "@openbot/ui/features/settings/IntegrationLayout";
 import { useText } from "@openbot/ui/text";
-import { createMemo, createSignal, onSettled, untrack } from "solid-js";
-import { githubConnectorPort } from "../connectors/github-connector-port";
+import { createMemo } from "solid-js";
+import type { ConnectorRegistry } from "../connectors/connector-registry";
 import { MARKETPLACE_PLUGINS } from "../settings/marketplace-plugin-catalog";
 import { localizedPlugin } from "../settings/marketplace-plugin-text";
 import { dismissMarketplaceSuggestion, marketplaceSuggestionDismissed } from "./marketplace-suggestion-dismissals";
@@ -14,14 +15,14 @@ import { dismissMarketplaceSuggestion, marketplaceSuggestionDismissed } from "./
 export interface MarketplaceSuggestionChatCardProps {
   messageId: string;
   appId: string;
-  /** GitHub connects only on the computer that runs OpenBot. */
-  localServer: boolean;
+  /** The connectors of the server on screen. Without it, a connector card has no action. */
+  connectors?: ConnectorRegistry | undefined;
   onOpenMarketplaceApp?: ((request: { appId: string; connect: boolean }) => void) | undefined;
 }
 
-/** True when this client can draw a card for the app: a catalog plugin, or GitHub. */
+/** True when this client can draw a card for the app: a catalog plugin, or a connector. */
 export function marketplaceSuggestionKnown(appId: string): boolean {
-  return appId === GITHUB_MARKETPLACE_APP_ID || MARKETPLACE_PLUGINS.some((plugin) => plugin.slug === appId);
+  return isConnectorId(appId) || MARKETPLACE_PLUGINS.some((plugin) => plugin.slug === appId);
 }
 
 /**
@@ -31,32 +32,48 @@ export function marketplaceSuggestionKnown(appId: string): boolean {
 export function MarketplaceSuggestionChatCard(props: MarketplaceSuggestionChatCardProps) {
   const { t } = useText();
   const plugin = createMemo(() => MARKETPLACE_PLUGINS.find((candidate) => candidate.slug === props.appId));
-  const localizedTagline = () => {
-    const listing = plugin();
-    return listing ? localizedPlugin(listing, t).tagline : undefined;
+  const connector = () => {
+    const id = props.appId;
+    return isConnectorId(id) ? (props.connectors?.get(id) ?? { id, access: "hidden" as const }) : undefined;
   };
-  const github = () => props.appId === GITHUB_MARKETPLACE_APP_ID;
-  // Only the desktop app of the computer that runs OpenBot has this connection, and `window.openbot`.
-  const githubStatus = createGitHubStatus(untrack(() => github() && props.localServer));
+  const listing = () => {
+    const entry = connector();
+    return entry ? CONNECTOR_LISTINGS[entry.id] : undefined;
+  };
+  const description = () => {
+    const known = listing();
+    if (known) return t(known.tagline);
+    const found = plugin();
+    return found ? localizedPlugin(found, t).tagline : "";
+  };
   const state = (): MarketplaceSuggestionState => {
-    if (!github()) return "available";
-    const status = githubStatus();
-    if (!props.localServer || status?.available === false) return "unavailable";
-    if (status?.state === "connected") return "connected";
-    if (status?.state === "pending") return "busy";
-    return status?.state === "expired" ? "attention" : "available";
+    const entry = connector();
+    if (!entry) return "available";
+    if (entry.access === "loading") return "busy";
+    if (entry.access !== "available") return "unavailable";
+    if (entry.controller.busy()) return "busy";
+    const { status } = connectorSummary(entry.controller.detail, t);
+    if (status === "connected") return "connected";
+    if (status === "connecting") return "busy";
+    return status === "attention" ? "attention" : "available";
+  };
+  const name = () => {
+    const known = listing();
+    return known ? t(known.title) : (plugin()?.name ?? props.appId);
   };
   const open = (connect: boolean) => props.onOpenMarketplaceApp?.({ appId: props.appId, connect });
   return (
     <MarketplaceSuggestionCard
       kind="app"
-      name={github() ? t("connector.github.title") : (plugin()?.name ?? props.appId)}
-      description={github() ? t("marketplace.app.githubTagline") : (localizedTagline() ?? "")}
+      name={name()}
+      description={description()}
       iconUrl={plugin()?.iconUrl ?? null}
-      mark={github() ? <GitHubMark /> : undefined}
+      mark={listing()?.Mark()}
       state={state()}
       unavailableText={
-        props.localServer ? t("chat.suggestion.githubUnavailable") : t("chat.suggestion.githubLocalOnly")
+        connector()?.access === "local-only"
+          ? t("chat.suggestion.localOnly", { name: name() })
+          : t("chat.suggestion.unavailable", { name: name() })
       }
       dismissed={marketplaceSuggestionDismissed(props.messageId)}
       onConnect={props.onOpenMarketplaceApp ? () => open(true) : undefined}
@@ -65,31 +82,4 @@ export function MarketplaceSuggestionChatCard(props: MarketplaceSuggestionChatCa
       onRestore={() => dismissMarketplaceSuggestion(props.messageId, false)}
     />
   );
-}
-
-/**
- * This computer's GitHub connection, read once and then followed, for a GitHub card. Null until the
- * first read. A failed read keeps the last status, as the Marketplace does.
- */
-function createGitHubStatus(enabled: boolean) {
-  const [status, setStatus] = createSignal<GitHubConnectorStatus | null>(null);
-  onSettled(() => {
-    if (!enabled) return;
-    let live = true;
-    const port = githubConnectorPort();
-    const unsubscribe = port.onChanged((next) => {
-      if (live) setStatus(next);
-    });
-    void port
-      .status()
-      .then((next) => {
-        if (live) setStatus(next);
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-      unsubscribe();
-    };
-  });
-  return status;
 }

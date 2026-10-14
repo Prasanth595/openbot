@@ -47,7 +47,7 @@ export interface OutboxMessage {
  * How long Retry of a message stays safe. The host answers a repeated `clientMessageId` for a day
  * after it stored the message; half of that leaves room for a clock that differs from the host's.
  */
-export const OUTBOX_RETRY_WINDOW_MS = 12 * 60 * 60 * 1000;
+const OUTBOX_RETRY_WINDOW_MS = 12 * 60 * 60 * 1000;
 
 /** The prefix of a pending row's id. The host never stored this id, so the row has no actions. */
 const OUTBOX_ROW_PREFIX = "outbox:";

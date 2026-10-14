@@ -28,6 +28,7 @@ import {
   isAvatarSeed,
   isBusyMessageMode,
   isMessageReaction,
+  isProviderAccountId,
   isReasoningEffort,
   isRoutineSchedule,
   type ListChannelRoutineRunsInput,
@@ -72,7 +73,7 @@ import type { PayloadDecoder } from "../trusted-ipc";
 import { parseAvatarImage } from "./avatar-inputs";
 import { isObject, requireString } from "./validation";
 
-export function parseAgentRequest(value: unknown): AgentIpcRequest {
+function parseAgentRequest(value: unknown): AgentIpcRequest {
   if (!isObject(value)) throw new Error("Invalid agent request.");
   return {
     serverId: requireString(value.serverId, "serverId"),
@@ -584,6 +585,11 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
   if (value.allowAutomation !== undefined) {
     if (!isBoolean(value.allowAutomation)) throw new Error("Invalid automation value.");
     result.allowAutomation = value.allowAutomation;
+  }
+  if (value.providerAccountId !== undefined) {
+    if (value.providerAccountId !== null && !isProviderAccountId(value.providerAccountId))
+      throw new Error("Invalid provider account.");
+    result.providerAccountId = value.providerAccountId;
   }
   if (value.busyMessageMode !== undefined) {
     if (value.busyMessageMode !== null && !isBusyMessageMode(value.busyMessageMode)) {

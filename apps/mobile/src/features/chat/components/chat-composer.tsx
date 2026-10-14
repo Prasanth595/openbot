@@ -18,7 +18,10 @@ import Animated, {
   cubicBezier,
   Easing,
   Extrapolation,
+  FadeIn,
+  FadeOut,
   interpolate,
+  LayoutAnimationConfig,
   ReduceMotion,
   type SharedValue,
   useAnimatedStyle,
@@ -29,7 +32,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
-import type { ChatBubbleMessage } from "@/features/chat/context/message-actions-context";
+import type { ChatBubbleMessage } from "@/features/chat/model/chat-messages";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
@@ -98,6 +101,15 @@ const AnimatedGlassView = Animated.createAnimatedComponent(GlassView);
 const SHAPE_EASING = cubicBezier(0.23, 1, 0.32, 1);
 // The same curve for worklet-driven values, which take Reanimated's own Easing.
 const SHAPE_EASING_FN = Easing.bezier(0.23, 1, 0.32, 1);
+// A new placeholder, such as Describe edits while text is selected, resizes the resting bar on
+// screen, so it takes the ease-in-out curve. The old words fade out and the new ones in on the
+// same time, so a longer placeholder does not cross the edge of a bar that is still narrow.
+const PLACEHOLDER_DURATION = 200;
+const PLACEHOLDER_EASING_FN = Easing.bezier(0.77, 0, 0.175, 1);
+const PLACEHOLDER_IN = FadeIn.duration(PLACEHOLDER_DURATION).easing(SHAPE_EASING_FN).reduceMotion(ReduceMotion.System);
+const PLACEHOLDER_OUT = FadeOut.duration(PLACEHOLDER_DURATION)
+  .easing(SHAPE_EASING_FN)
+  .reduceMotion(ReduceMotion.System);
 
 interface ChatComposerProps {
   sendLabel?: string;
@@ -282,6 +294,7 @@ export function ChatComposer({
   // full field as the keyboard rises, so an interactive dismissal closes it
   // frame by frame instead of snapping when the keyboard finally commits.
   const [placeholderWidth, setPlaceholderWidth] = useState(0);
+  const placeholderText = placeholder ?? t("mobile.chat.composer.ask", { name: agentName });
   const cardWidth = windowWidth - BAR_INSET * 2;
   const restHeight = Math.max(TOOLBAR_HEIGHT, lineHeight + FIELD_VERTICAL_PADDING) - REST_HEIGHT_LOSS;
   // The toolbar keeps its height and the control rides down into the smaller
@@ -296,6 +309,25 @@ export function ChatComposer({
   // Sized from the placeholder, so the bar carries no empty space. Full width
   // until the measurement lands: a bar that starts narrow would jump open.
   const restWidth = placeholderWidth > 0 ? Math.min(cardWidth, placeholderWidth + restTextInset * 2) : cardWidth;
+  // The worklets read the resting width from here, so a new placeholder tweens the bar instead of
+  // snapping it. The first measurement is taken at once, as before: the bar must not shrink in
+  // from full width when the chat opens.
+  const restWidthValue = useSharedValue(restWidth);
+  const restWidthMeasured = useRef(false);
+  useLayoutEffect(() => {
+    if (!restWidthMeasured.current) {
+      restWidthValue.set(restWidth);
+      restWidthMeasured.current = placeholderWidth > 0;
+      return;
+    }
+    restWidthValue.set(
+      withTiming(restWidth, {
+        duration: reducedMotion ? 0 : PLACEHOLDER_DURATION,
+        easing: PLACEHOLDER_EASING_FN,
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
+  }, [restWidth, placeholderWidth, restWidthValue, reducedMotion]);
   // Content outlives the keyboard: a draft or an attachment has to stay
   // readable after a dismissal, so it holds the composer open on its own.
   // What the composer was when the card opened. The card is anchored to that
@@ -332,7 +364,7 @@ export function ChatComposer({
   const expansion = useDerivedValue(() => (resizes ? Math.max(Math.min(1, keyboardProgress.get()), held.get()) : 1));
   const cardStyle = useAnimatedStyle(() => {
     const voiced = morph.get();
-    const width = interpolate(expansion.get(), [0, 1], [restWidth, cardWidth]);
+    const width = interpolate(expansion.get(), [0, 1], [restWidthValue.get(), cardWidth]);
     return {
       width: width + (VOICE_BUTTON_SIZE - width) * voiced,
       borderRadius: CARD_RADIUS + (VOICE_BUTTON_SIZE / 2 - CARD_RADIUS) * voiced,
@@ -400,7 +432,7 @@ export function ChatComposer({
   const plusStyle = useAnimatedStyle(() => {
     const progress = expansion.get();
     const voiced = morph.get();
-    const openWidth = interpolate(progress, [0, 1], [restWidth, cardWidth]);
+    const openWidth = interpolate(progress, [0, 1], [restWidthValue.get(), cardWidth]);
     const width = openWidth + (VOICE_BUTTON_SIZE - openWidth) * voiced;
     return {
       opacity: interpolate(voiced, [0, 0.3], [1, 0], Extrapolation.CLAMP),
@@ -673,7 +705,7 @@ export function ChatComposer({
             )
           }
         >
-          {placeholder ?? t("mobile.chat.composer.ask", { name: agentName })}
+          {placeholderText}
         </NativeText>
         {voiceOpen ? (
           // Drawn before the card, so the two buttons come out from under it.
@@ -993,13 +1025,19 @@ export function ChatComposer({
                       placeholderStyle,
                     ]}
                   >
-                    <NativeText
-                      numberOfLines={1}
-                      className="font-sans"
-                      style={{ color: String(muted), fontSize: 16, lineHeight: 22 }}
-                    >
-                      {placeholder ?? t("mobile.chat.composer.ask", { name: agentName })}
-                    </NativeText>
+                    {/* Keyed by its words, so a new placeholder crossfades. The words that show
+                        when the draft empties or the chat opens appear at once, as before. */}
+                    <LayoutAnimationConfig skipEntering skipExiting>
+                      <Animated.View key={placeholderText} entering={PLACEHOLDER_IN} exiting={PLACEHOLDER_OUT}>
+                        <NativeText
+                          numberOfLines={1}
+                          className="font-sans"
+                          style={{ color: String(muted), fontSize: 16, lineHeight: 22 }}
+                        >
+                          {placeholderText}
+                        </NativeText>
+                      </Animated.View>
+                    </LayoutAnimationConfig>
                   </Animated.View>
                 )}
               </Animated.View>

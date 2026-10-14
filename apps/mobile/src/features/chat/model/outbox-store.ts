@@ -40,7 +40,7 @@ export interface OutboxDelivery {
 
 export type OutboxDeliveryResult = { messageId: string };
 
-export type OutboxDeliverer = (message: OutboxMessage, delivery: OutboxDelivery) => Promise<OutboxDeliveryResult>;
+type OutboxDeliverer = (message: OutboxMessage, delivery: OutboxDelivery) => Promise<OutboxDeliveryResult>;
 
 export interface OutboxUpload {
   completed: number;

@@ -30,14 +30,14 @@ export interface CustomProviderConfig {
 export type CustomProviderSource = () => readonly CustomProviderConfig[];
 
 /** The options block OpenCode hands to its bundled OpenAI-compatible adapter. */
-export interface OpenCodeProviderOptions {
+interface OpenCodeProviderOptions {
   readonly baseURL: string;
   readonly apiKey?: string;
   readonly headers?: Readonly<Record<string, string>>;
 }
 
 /** One entry under OpenCode's own `provider` key, keyed there by the endpoint's id. */
-export interface OpenCodeProviderEntry {
+interface OpenCodeProviderEntry {
   readonly npm: string;
   readonly name: string;
   readonly options: OpenCodeProviderOptions;
@@ -48,7 +48,7 @@ export interface OpenCodeProviderEntry {
 type OpenCodePermissionLayer = Readonly<Record<string, "allow" | "ask" | "deny">>;
 
 /** The config layer OpenBot owns on `OPENCODE_CONFIG_CONTENT`. The user's own file is untouched. */
-export interface OpenCodeConfig {
+interface OpenCodeConfig {
   readonly permission?: OpenCodePermissionLayer;
   readonly provider?: Readonly<Record<string, OpenCodeProviderEntry>>;
 }
@@ -63,13 +63,13 @@ export type OpenCodeConfigBase = Omit<OpenCodeConfig, "provider">;
  */
 export const OPENCODE_PROFILE_CONFIG: OpenCodeConfigBase = { permission: { "*": "deny" } };
 
-export const OPENCODE_CONFIG_ENV = "OPENCODE_CONFIG_CONTENT";
+const OPENCODE_CONFIG_ENV = "OPENCODE_CONFIG_CONTENT";
 
 /** What a plain OpenCode user needs, now that the free models run without an account at all. */
 const OPENCODE_GO_ADVICE = "OpenCode listed no model. Add an OpenCode Go key to continue.";
 
 /** The provider adapter OpenCode bundles for an OpenAI-compatible endpoint. */
-export const OPENCODE_COMPATIBLE_NPM = "@ai-sdk/openai-compatible";
+const OPENCODE_COMPATIBLE_NPM = "@ai-sdk/openai-compatible";
 
 function providerEntry(provider: CustomProviderConfig): OpenCodeProviderEntry {
   return {
@@ -94,7 +94,7 @@ function providerEntry(provider: CustomProviderConfig): OpenCodeProviderEntry {
  * OpenCode would advertise the provider and no model, which reads to the user as a broken endpoint
  * rather than an empty one.
  */
-export function customProviderEntries(
+function customProviderEntries(
   providers: readonly CustomProviderConfig[],
 ): Readonly<Record<string, OpenCodeProviderEntry>> | null {
   const usable = providers.filter((provider) => provider.models.length > 0);
@@ -107,7 +107,7 @@ export function customProviderEntries(
  * so no provider id can reach a sibling setting: an endpoint named `permission` is a provider named
  * `permission`, not a permission rule.
  */
-export function mergeOpenCodeConfig(
+function mergeOpenCodeConfig(
   base: OpenCodeConfigBase,
   providers: readonly CustomProviderConfig[],
 ): OpenCodeConfig | null {

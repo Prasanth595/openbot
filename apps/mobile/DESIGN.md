@@ -157,9 +157,8 @@ Use `src/shared/components/sheet-scroll-view.tsx` as the root scroll container. 
   action reachable above the keyboard. Keep `mode="insets"` so keyboard clearance does not add a
   layout spacer. Use `disableScrollOnKeyboardHide` to keep the user's position. The keyboard-controller 1.21.9 patch shrinks insets during dismissal and
   clamps only the current offset beyond the remaining content, instead of replaying a saved offset
-  after a new drag. `scripts/mobile-keyboard-scroll.test.ts` covers that event sequence against the
-  installed library. Leave `automaticallyAdjustKeyboardInsets` disabled and do not add another
-  keyboard-avoiding wrapper. Verify tapping outside a field followed immediately by scrolling,
+  after a new drag. Check that event sequence again when the library changes. Leave
+  `automaticallyAdjustKeyboardInsets` disabled and do not add another keyboard-avoiding wrapper. Verify tapping outside a field followed immediately by scrolling,
   interactive keyboard dismissal, reaching the final action, and both short and long content.
 
 ### Palette, groups and text

@@ -52,7 +52,7 @@ const MOONLIGHT_STREAMER_SLOTS = 4;
 // First candidate for Sunshine's base port. Sunshine derives its whole port family from this one
 // `port` value, so every OpenBot instance must claim a disjoint family: two macOS users share one
 // network namespace, and a second Sunshine bound to the same ports fails to start.
-export const SUNSHINE_DEFAULT_BASE_PORT = 47_989;
+const SUNSHINE_DEFAULT_BASE_PORT = 47_989;
 // Offsets Sunshine applies to the base port (GameStream HTTPS, HTTP, Web UI HTTPS, video, control,
 // audio, RTSP setup). The family spans base - 5 through base + 21; allocations stay clear of each
 // other by that whole span, not just the two API ports.
@@ -78,7 +78,7 @@ const SUNSHINE_DIAGNOSTIC_OVERLAP = SUNSHINE_SCREEN_CAPTURE_DENIED.length;
 // One watcher per stream, because a chunk boundary falls wherever the pipe happened to fill and the
 // marker is longer than some of Sunshine's lines. Carrying the accumulated end forward -- rather
 // than the last chunk -- is what survives a marker spread over three reads.
-export function createScreenCaptureDenialWatcher(): (message: string) => boolean {
+function createScreenCaptureDenialWatcher(): (message: string) => boolean {
   let printed = "";
   return (message) => {
     printed = `${printed}${message}`;
@@ -88,11 +88,11 @@ export function createScreenCaptureDenialWatcher(): (message: string) => boolean
   };
 }
 
-export function sunshineHttpPortForBase(basePort: number): number {
+function sunshineHttpPortForBase(basePort: number): number {
   return basePort;
 }
 
-export function sunshineHttpsPortForBase(basePort: number): number {
+function sunshineHttpsPortForBase(basePort: number): number {
   return basePort + 1;
 }
 
@@ -103,7 +103,7 @@ function sunshinePortFamilyForBase(basePort: number): { min: number; max: number
   };
 }
 
-export function sunshinePortFamiliesOverlap(first: number, second: number): boolean {
+function sunshinePortFamiliesOverlap(first: number, second: number): boolean {
   const a = sunshinePortFamilyForBase(first);
   const b = sunshinePortFamilyForBase(second);
   return a.min <= b.max && b.min <= a.max;
@@ -124,7 +124,7 @@ const claimedSunshineBasePorts = new Set<number>();
 const webRtcReservations = new Map<number, ReturnType<typeof createTcpServer>>();
 
 /** Reserve a Sunshine base port whose whole port family is free on loopback. */
-export const allocateSunshineBasePort = Effect.fn("RemoteDesktop.allocateSunshineBasePort")(function* () {
+const allocateSunshineBasePort = Effect.fn("RemoteDesktop.allocateSunshineBasePort")(function* () {
   let candidate = SUNSHINE_DEFAULT_BASE_PORT;
   for (
     let attempt = 0;
@@ -156,12 +156,12 @@ export const allocateSunshineBasePort = Effect.fn("RemoteDesktop.allocateSunshin
   return yield* desktopFailure(new Error(sourceText("error.backend.sunshinePortsUnavailable")));
 });
 
-export function releaseSunshineBasePort(basePort: number): void {
+function releaseSunshineBasePort(basePort: number): void {
   claimedSunshineBasePorts.delete(basePort);
 }
 
 /** Reserve a block of consecutive UDP ports for one Moonlight WebRTC streamer. */
-export const allocateWebRtcPortRange = Effect.fn("RemoteDesktop.allocateWebRtcPortRange")(function* () {
+const allocateWebRtcPortRange = Effect.fn("RemoteDesktop.allocateWebRtcPortRange")(function* () {
   const size = MOONLIGHT_WEBRTC_RANGE_SIZE;
   for (let min = MOONLIGHT_WEBRTC_RANGE_START; min + size - 1 <= 65_535; min += size) {
     const range = { min, max: min + size - 1 };
@@ -185,7 +185,7 @@ export const allocateWebRtcPortRange = Effect.fn("RemoteDesktop.allocateWebRtcPo
   return yield* desktopFailure(new Error(sourceText("error.backend.moonlightPortsUnavailable")));
 });
 
-export function releaseWebRtcPortRange(range: MoonlightWebRtcPortRange): void {
+function releaseWebRtcPortRange(range: MoonlightWebRtcPortRange): void {
   webRtcReservations.get(range.min)?.close();
   webRtcReservations.delete(range.min);
 }
@@ -1438,7 +1438,7 @@ function moonlightSlotUser(slot: number): string {
 }
 
 /** Pinned Sunshine http::save_user_creds / util::Hex encoding. */
-export function sunshinePasswordHash(password: string, salt: string): string {
+function sunshinePasswordHash(password: string, salt: string): string {
   return createHash("sha256")
     .update(password + salt)
     .digest()

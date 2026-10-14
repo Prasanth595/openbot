@@ -1,6 +1,6 @@
-/** The server name, the marketplace or expand toggle, and new agent - plus the window drag region. */
+/** The server name, its update, the marketplace or expand toggle, and new agent - plus the window drag region. */
 
-import { Bot, Button, DropdownMenu, FolderPlus, Hash, Puzzle } from "@openbot/ui";
+import { Bot, Button, CircleFadingArrowUp, DropdownMenu, FolderPlus, Hash, Puzzle } from "@openbot/ui";
 import { Show } from "solid-js";
 import { useText } from "../../text";
 import { ServerMenu } from "../servers/ServerMenu";
@@ -41,6 +41,27 @@ export function SidebarTopbar() {
         )}
       </Show>
       <div class="sidebar-topbar-actions">
+        <Show when={!props.compact && props.serverUpdate}>
+          {(update) => {
+            const label = () =>
+              update().running
+                ? t("server.update.dialog.progressTitle", { name: props.serverName })
+                : t("server.update.dialog.offerTitle", { name: props.serverName, version: update().version });
+            return (
+              <Button
+                variant="ghost"
+                type="button"
+                class="sidebar-icon-button sidebar-update-button no-drag"
+                data-running={update().running ? "true" : undefined}
+                aria-label={label()}
+                title={label()}
+                onClick={() => update().onOpen()}
+              >
+                <CircleFadingArrowUp aria-hidden="true" />
+              </Button>
+            );
+          }}
+        </Show>
         {/* The menu view needs the room for the server name, so its menu holds the marketplace. */}
         <Show when={props.compact || (props.marketplaceSupported !== false && props.serverMenu?.view !== "menu")}>
           <Button

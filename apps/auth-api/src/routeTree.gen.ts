@@ -73,10 +73,12 @@ import { Route as V1TeamAuthTicketRouteImport } from './routes/v1/team-auth/tick
 import { Route as V1TeamHostsIceServersRouteImport } from './routes/v1/team-hosts/ice-servers'
 import { Route as V1TeamInvitationsEmailRouteImport } from './routes/v1/team-invitations/email'
 import { Route as V1TeamTunnelsProvisionRouteImport } from './routes/v1/team-tunnels/provision'
+import { Route as V2AdminServerClaimsRouteImport } from './routes/v2/admin/server-claims'
 import { Route as V2DiscordAuthorizeRouteImport } from './routes/v2/discord/authorize'
 import { Route as V2DiscordCallbackRouteImport } from './routes/v2/discord/callback'
 import { Route as V2HostingPlansRouteImport } from './routes/v2/hosting/plans'
 import { Route as V2RemoteRouteWakeRouteImport } from './routes/v2/remote/route-wake'
+import { Route as V2ServerClaimsRedeemRouteImport } from './routes/v2/server-claims/redeem'
 import { Route as V2SlackAuthorizeRouteImport } from './routes/v2/slack/authorize'
 import { Route as V2SlackCallbackRouteImport } from './routes/v2/slack/callback'
 import { Route as V1AgentTemplatesTemplateIdAvatarRouteImport } from './routes/v1/agent-templates/$templateId/avatar'
@@ -474,6 +476,11 @@ const V1TeamTunnelsProvisionRoute = V1TeamTunnelsProvisionRouteImport.update({
   path: '/v1/team-tunnels/provision',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V2AdminServerClaimsRoute = V2AdminServerClaimsRouteImport.update({
+  id: '/v2/admin/server-claims',
+  path: '/v2/admin/server-claims',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V2DiscordAuthorizeRoute = V2DiscordAuthorizeRouteImport.update({
   id: '/v2/discord/authorize',
   path: '/v2/discord/authorize',
@@ -492,6 +499,11 @@ const V2HostingPlansRoute = V2HostingPlansRouteImport.update({
 const V2RemoteRouteWakeRoute = V2RemoteRouteWakeRouteImport.update({
   id: '/v2/remote/route-wake',
   path: '/v2/remote/route-wake',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V2ServerClaimsRedeemRoute = V2ServerClaimsRedeemRouteImport.update({
+  id: '/v2/server-claims/redeem',
+  path: '/v2/server-claims/redeem',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V2SlackAuthorizeRoute = V2SlackAuthorizeRouteImport.update({
@@ -966,10 +978,12 @@ export interface FileRoutesByFullPath {
   '/v1/team-hosts/ice-servers': typeof V1TeamHostsIceServersRoute
   '/v1/team-invitations/email': typeof V1TeamInvitationsEmailRoute
   '/v1/team-tunnels/provision': typeof V1TeamTunnelsProvisionRoute
+  '/v2/admin/server-claims': typeof V2AdminServerClaimsRoute
   '/v2/discord/authorize': typeof V2DiscordAuthorizeRoute
   '/v2/discord/callback': typeof V2DiscordCallbackRoute
   '/v2/hosting/plans': typeof V2HostingPlansRoute
   '/v2/remote/route-wake': typeof V2RemoteRouteWakeRoute
+  '/v2/server-claims/redeem': typeof V2ServerClaimsRedeemRoute
   '/v2/slack/authorize': typeof V2SlackAuthorizeRoute
   '/v2/slack/callback': typeof V2SlackCallbackRoute
   '/v1/agent-templates/': typeof V1AgentTemplatesIndexRoute
@@ -1108,10 +1122,12 @@ export interface FileRoutesByTo {
   '/v1/team-hosts/ice-servers': typeof V1TeamHostsIceServersRoute
   '/v1/team-invitations/email': typeof V1TeamInvitationsEmailRoute
   '/v1/team-tunnels/provision': typeof V1TeamTunnelsProvisionRoute
+  '/v2/admin/server-claims': typeof V2AdminServerClaimsRoute
   '/v2/discord/authorize': typeof V2DiscordAuthorizeRoute
   '/v2/discord/callback': typeof V2DiscordCallbackRoute
   '/v2/hosting/plans': typeof V2HostingPlansRoute
   '/v2/remote/route-wake': typeof V2RemoteRouteWakeRoute
+  '/v2/server-claims/redeem': typeof V2ServerClaimsRedeemRoute
   '/v2/slack/authorize': typeof V2SlackAuthorizeRoute
   '/v2/slack/callback': typeof V2SlackCallbackRoute
   '/v1/agent-templates': typeof V1AgentTemplatesIndexRoute
@@ -1251,10 +1267,12 @@ export interface FileRoutesById {
   '/v1/team-hosts/ice-servers': typeof V1TeamHostsIceServersRoute
   '/v1/team-invitations/email': typeof V1TeamInvitationsEmailRoute
   '/v1/team-tunnels/provision': typeof V1TeamTunnelsProvisionRoute
+  '/v2/admin/server-claims': typeof V2AdminServerClaimsRoute
   '/v2/discord/authorize': typeof V2DiscordAuthorizeRoute
   '/v2/discord/callback': typeof V2DiscordCallbackRoute
   '/v2/hosting/plans': typeof V2HostingPlansRoute
   '/v2/remote/route-wake': typeof V2RemoteRouteWakeRoute
+  '/v2/server-claims/redeem': typeof V2ServerClaimsRedeemRoute
   '/v2/slack/authorize': typeof V2SlackAuthorizeRoute
   '/v2/slack/callback': typeof V2SlackCallbackRoute
   '/v1/agent-templates/': typeof V1AgentTemplatesIndexRoute
@@ -1395,10 +1413,12 @@ export interface FileRouteTypes {
     | '/v1/team-hosts/ice-servers'
     | '/v1/team-invitations/email'
     | '/v1/team-tunnels/provision'
+    | '/v2/admin/server-claims'
     | '/v2/discord/authorize'
     | '/v2/discord/callback'
     | '/v2/hosting/plans'
     | '/v2/remote/route-wake'
+    | '/v2/server-claims/redeem'
     | '/v2/slack/authorize'
     | '/v2/slack/callback'
     | '/v1/agent-templates/'
@@ -1537,10 +1557,12 @@ export interface FileRouteTypes {
     | '/v1/team-hosts/ice-servers'
     | '/v1/team-invitations/email'
     | '/v1/team-tunnels/provision'
+    | '/v2/admin/server-claims'
     | '/v2/discord/authorize'
     | '/v2/discord/callback'
     | '/v2/hosting/plans'
     | '/v2/remote/route-wake'
+    | '/v2/server-claims/redeem'
     | '/v2/slack/authorize'
     | '/v2/slack/callback'
     | '/v1/agent-templates'
@@ -1679,10 +1701,12 @@ export interface FileRouteTypes {
     | '/v1/team-hosts/ice-servers'
     | '/v1/team-invitations/email'
     | '/v1/team-tunnels/provision'
+    | '/v2/admin/server-claims'
     | '/v2/discord/authorize'
     | '/v2/discord/callback'
     | '/v2/hosting/plans'
     | '/v2/remote/route-wake'
+    | '/v2/server-claims/redeem'
     | '/v2/slack/authorize'
     | '/v2/slack/callback'
     | '/v1/agent-templates/'
@@ -1820,10 +1844,12 @@ export interface RootRouteChildren {
   V1TeamHostsIceServersRoute: typeof V1TeamHostsIceServersRoute
   V1TeamInvitationsEmailRoute: typeof V1TeamInvitationsEmailRoute
   V1TeamTunnelsProvisionRoute: typeof V1TeamTunnelsProvisionRoute
+  V2AdminServerClaimsRoute: typeof V2AdminServerClaimsRoute
   V2DiscordAuthorizeRoute: typeof V2DiscordAuthorizeRoute
   V2DiscordCallbackRoute: typeof V2DiscordCallbackRoute
   V2HostingPlansRoute: typeof V2HostingPlansRoute
   V2RemoteRouteWakeRoute: typeof V2RemoteRouteWakeRoute
+  V2ServerClaimsRedeemRoute: typeof V2ServerClaimsRedeemRoute
   V2SlackAuthorizeRoute: typeof V2SlackAuthorizeRoute
   V2SlackCallbackRoute: typeof V2SlackCallbackRoute
   V1AgentTemplatesIndexRoute: typeof V1AgentTemplatesIndexRoute
@@ -2337,6 +2363,13 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof V1TeamTunnelsProvisionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v2/admin/server-claims': {
+      id: '/v2/admin/server-claims'
+      path: '/v2/admin/server-claims'
+      fullPath: '/v2/admin/server-claims'
+      preLoaderRoute: typeof V2AdminServerClaimsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v2/discord/authorize': {
       id: '/v2/discord/authorize'
       path: '/v2/discord/authorize'
@@ -2363,6 +2396,13 @@ declare module '@tanstack/solid-router' {
       path: '/v2/remote/route-wake'
       fullPath: '/v2/remote/route-wake'
       preLoaderRoute: typeof V2RemoteRouteWakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v2/server-claims/redeem': {
+      id: '/v2/server-claims/redeem'
+      path: '/v2/server-claims/redeem'
+      fullPath: '/v2/server-claims/redeem'
+      preLoaderRoute: typeof V2ServerClaimsRedeemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v2/slack/authorize': {
@@ -3059,10 +3099,12 @@ const rootRouteChildren: RootRouteChildren = {
   V1TeamHostsIceServersRoute: V1TeamHostsIceServersRoute,
   V1TeamInvitationsEmailRoute: V1TeamInvitationsEmailRoute,
   V1TeamTunnelsProvisionRoute: V1TeamTunnelsProvisionRoute,
+  V2AdminServerClaimsRoute: V2AdminServerClaimsRoute,
   V2DiscordAuthorizeRoute: V2DiscordAuthorizeRoute,
   V2DiscordCallbackRoute: V2DiscordCallbackRoute,
   V2HostingPlansRoute: V2HostingPlansRoute,
   V2RemoteRouteWakeRoute: V2RemoteRouteWakeRoute,
+  V2ServerClaimsRedeemRoute: V2ServerClaimsRedeemRoute,
   V2SlackAuthorizeRoute: V2SlackAuthorizeRoute,
   V2SlackCallbackRoute: V2SlackCallbackRoute,
   V1AgentTemplatesIndexRoute: V1AgentTemplatesIndexRoute,

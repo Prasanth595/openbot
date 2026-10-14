@@ -196,6 +196,14 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.newErrors": "Dünkü dağıtımdan bu yana hangi yeni hatalar çıktı?",
   "marketplace.plugin.sentry.prompt.topCrash": "Mobil projedeki en sık çökmeyi ve olası nedenini açıkla.",
   "marketplace.plugin.sentry.prompt.releaseHealth": "Güncel sürüm bir öncekine göre ne kadar sağlıklı?",
+  "marketplace.plugin.vercel.tagline": "Dağıtımlar, derleme günlükleri ve projeler",
+  "marketplace.plugin.vercel.description":
+    "Vercel, ajanların projeleri ve son dağıtımları listelemesine, derleme ve çalışma zamanı günlüklerini okumasına ve bir derlemenin neden başarısız olduğunu bulmasına olanak tanır. Her kullanıcı tarayıcı üzerinden kendi Vercel hesabında oturum açar ve ajanların kullanabileceği ekipleri seçer. Bu ekiplerde ajanlar, kullanıcının hesabıyla aynı yetkilere sahiptir. Ortam değişkenlerini, alan adlarını, DNS kayıtlarını ve dağıtımları da değiştirebilir, alan adı da satın alabilirler.",
+  "marketplace.plugin.vercel.app":
+    "Projeler, dağıtımlar, derleme ve çalışma zamanı günlükleri, tarayıcıda oturum açmayla Vercel'in MCP sunucusu üzerinden.",
+  "marketplace.plugin.vercel.prompt.failedBuild": "Son üretim dağıtımı neden başarısız oldu?",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "Bugünkü dağıtımları ve durumlarını listele.",
+  "marketplace.plugin.vercel.prompt.runtimeErrors": "Son bir saatte hangi rotalarda çalışma zamanı hatası oluştu?",
   "marketplace.plugin.context7.tagline": "Güncel kitaplık belgeleri",
   "marketplace.plugin.context7.description":
     "Context7, kitaplıklar ve çerçeveler için güncel belgeleri ve API başvurularını getirir; böylece yanıtlar projenin gerçekten çalıştırdığı sürümü kullanır. Hesap veya anahtar gerektirmez.",

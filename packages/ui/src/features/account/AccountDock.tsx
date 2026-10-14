@@ -44,6 +44,8 @@ interface AccountDockProps {
   usageProvider?: AgentProviderId | null;
   /** The active agent's model. A provider quota that does not limit this model is not shown. */
   usageModel?: string | null;
+  /** The active agent's provider account. Null or absent is the provider's own sign-in. */
+  usageAccountId?: string | null;
   usageTargetKey: string | null;
   usageRefreshRevision: number;
   usageReady: boolean;
@@ -139,7 +141,9 @@ export function AccountDock(props: AccountDockProps) {
     () => props.account.name?.trim() || props.account.email.split("@")[0] || props.account.email,
   );
   const usageRows = createMemo(() => accountUsageProviderRows(props.accountUsage, props.agentStatus.providers, text));
-  const usageSummary = createMemo(() => accountUsageSummary(usageRows(), props.usageProvider, props.usageModel));
+  const usageSummary = createMemo(() =>
+    accountUsageSummary(usageRows(), props.usageProvider, props.usageModel, props.usageAccountId),
+  );
   const usageRemaining = createMemo(() => usageSummary()?.remainingPercent ?? null);
   const usageTone = createMemo(() => usageSummary()?.tone ?? "neutral");
   const usageButtonLabel = createMemo(() => {
