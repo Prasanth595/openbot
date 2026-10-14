@@ -275,6 +275,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Disattiva per riattivare ora.",
   "server.settings.notifyAbout": "Avvisami per",
   "server.settings.notifyAboutDescription": "Quali eventi degli agenti mostrano una notifica sul desktop.",
+  "server.settings.agents": "Agenti",
+  "server.settings.timezone": "Fuso orario",
+  "server.settings.timezoneDescription":
+    "Le nuove routine usano questo fuso orario quando il messaggio non indica quello del mittente.",
+  "server.settings.timezoneAutomatic": "Automatico ({zone})",
+  "server.settings.timezoneLoadFailed": "Impossibile caricare il fuso orario del server.",
   "server.settings.remoteOnline": "L'host è online. La pubblicazione è controllata dal suo proprietario.",
   "server.settings.remoteOffline": "L'host è offline. La pubblicazione è controllata dal suo proprietario.",
   "server.settings.saveIdentityFirst": "Salva l'identità del server prima di pubblicarlo.",

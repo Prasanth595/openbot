@@ -275,6 +275,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Desactiva para volver a recibir notificaciones ahora.",
   "server.settings.notifyAbout": "Notificarme sobre",
   "server.settings.notifyAboutDescription": "Qué eventos de los agentes muestran una notificación de escritorio.",
+  "server.settings.agents": "Agentes",
+  "server.settings.timezone": "Zona horaria",
+  "server.settings.timezoneDescription":
+    "Las rutinas nuevas usan esta zona horaria cuando el mensaje no indica la zona horaria del remitente.",
+  "server.settings.timezoneAutomatic": "Automática ({zone})",
+  "server.settings.timezoneLoadFailed": "No se pudo cargar la zona horaria del servidor.",
   "server.settings.remoteOnline": "El host está en línea. Su propietario controla la publicación.",
   "server.settings.remoteOffline": "El host está sin conexión. Su propietario controla la publicación.",
   "server.settings.saveIdentityFirst": "Guarda la identidad del servidor antes de publicarlo.",

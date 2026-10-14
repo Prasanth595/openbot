@@ -34,6 +34,7 @@ import { useText } from "@openbot/ui/text";
 import { truncateMiddle } from "@openbot/ui/utils";
 import type { JSX } from "@solidjs/web";
 import { type Accessor, createStore, Show, snapshot } from "solid-js";
+import { ServerTimezoneSetting } from "./ServerTimezoneSetting";
 import { serverCanAdminister } from "./server-capabilities";
 import type { ServerSettingsSectionHost } from "./server-settings-section";
 
@@ -107,6 +108,7 @@ export function createServerGeneralSection(
 
   /** The host changes its own name and logo; an admin elsewhere asks it to while it is online. */
   const canEditIdentity = () => serverCanAdminister(props.server, "host-admin-v1") && actionsAvailable();
+  const canSetTimezone = () => serverCanAdminister(props.server, "host-timezone-v1") && actionsAvailable();
   const address = () => (local() ? props.hostStatus?.apiUrl : props.server.apiUrl);
   const trimmedName = () => panels.identity.name.trim();
   const nameError = () => {
@@ -441,6 +443,21 @@ export function createServerGeneralSection(
             </Item>
           </ItemGroup>
         </SettingsSection>
+        <Show when={canSetTimezone() && props.hostTimezone}>
+          {(options) => (
+            <SettingsSection title={t("server.settings.agents")}>
+              <ItemGroup class="settings-modal-card">
+                <ServerTimezoneSetting
+                  {...options()}
+                  serverId={props.server.id}
+                  disabled={Boolean(busy())}
+                  menuMount={host.menuMount()}
+                  run={run}
+                />
+              </ItemGroup>
+            </SettingsSection>
+          )}
+        </Show>
         <Show when={panels.offerRemoteDesktopSetup}>
           <ItemGroup class="settings-modal-card">
             <Item>

@@ -20,6 +20,7 @@ export const messages = {
   "error.host.noServer": "Este equipo no tiene ningún servidor que se pueda cambiar.",
   "error.host.identityLocalOnly":
     "El nombre y el logotipo del servidor solo se pueden cambiar en el equipo que lo ejecuta.",
+  "error.host.timezoneInvalid": "Esta zona horaria no es conocida.",
   "error.host.maintenanceInterrupted":
     "Se interrumpió el mantenimiento del host. Verifica la aplicación y restablece el estado del host antes de intentarlo de nuevo.",
   "error.host.updateFailed":

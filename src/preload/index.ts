@@ -15,6 +15,7 @@ import {
   decodeChannelRoutineRuns,
   decodeChannelRoutines,
   decodeChannelSummaries,
+  decodeHostTimezoneSettings,
   decodeHostUpdateStatus,
   decodeInstanceExportResult,
   decodeInstanceTransferPreview,
@@ -780,6 +781,8 @@ const openbotApi: OpenBotDesktopApi = {
     startUpdate: decodeHostUpdateStatus,
     cancelUpdate: decodeHostUpdateStatus,
     setUpdateSettings: decodeHostUpdateStatus,
+    getTimezone: decodeHostTimezoneSettings,
+    setTimezone: decodeHostTimezoneSettings,
   }),
   agentImport: bridgeGroup(IPC_ENDPOINTS.agentImport, {
     choose: decodeAgentImportPreview,

@@ -278,6 +278,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Désactivez pour réactiver le son maintenant.",
   "server.settings.notifyAbout": "Me notifier pour",
   "server.settings.notifyAboutDescription": "Les événements d’agent qui affichent une notification de bureau.",
+  "server.settings.agents": "Agents",
+  "server.settings.timezone": "Fuseau horaire",
+  "server.settings.timezoneDescription":
+    "Les nouvelles routines utilisent ce fuseau horaire quand le message n’indique pas celui de l’expéditeur.",
+  "server.settings.timezoneAutomatic": "Automatique ({zone})",
+  "server.settings.timezoneLoadFailed": "Impossible de charger le fuseau horaire du serveur.",
   "server.settings.remoteOnline": "L’hôte est en ligne. Son propriétaire contrôle la publication.",
   "server.settings.remoteOffline": "L’hôte est hors ligne. Son propriétaire contrôle la publication.",
   "server.settings.saveIdentityFirst": "Enregistrez l’identité du serveur avant de publier.",

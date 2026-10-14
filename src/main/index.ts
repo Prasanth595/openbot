@@ -454,6 +454,7 @@ function registerIpcHandlers({
   notificationPreference,
   busyMessageMode,
   agentMemoryLimit,
+  serverTimezone,
   remoteSessionReuse,
   remoteSessionCache,
   agentInitialization,
@@ -587,7 +588,7 @@ function registerIpcHandlers({
       agentTemplates,
       remoteServers,
     }),
-    ...hostAdminIpcHandlers({ host, remoteServers }),
+    ...hostAdminIpcHandlers({ host, remoteServers, serverTimezone }),
     ...providerAdminIpcHandlers({
       service,
       credentials: providerCredentials,

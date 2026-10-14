@@ -81,6 +81,7 @@ export const messages = {
   "error.team.skillsUnsupported": "Le skill non sono supportate da questa connessione.",
   "error.team.hostIdentityUnsupported": "La modifica dell'identità del server non è supportata da questa connessione.",
   "error.team.hostUpdateUnsupported": "Gli aggiornamenti dell'host non sono supportati da questa connessione.",
+  "error.team.hostTimezoneUnsupported": "Questa connessione non supporta il fuso orario del server.",
   "error.team.attachmentNameRequired": "Serve un nome di allegato sicuro.",
   "error.team.attachmentNotFound": "Allegato non trovato.",
   "error.team.sharedFileTooLarge": "Il file condiviso supera il limite di 100 MB.",

@@ -55,6 +55,7 @@ export function serverSupportsCapability(
       capability === "host-update-v1" ||
       capability === "host-member-update-v1" ||
       capability === "host-release-v1" ||
+      capability === "host-timezone-v1" ||
       capability === "events-v1" ||
       capability === "context-reset-v1" ||
       capability === "routine-flows-v1" ||

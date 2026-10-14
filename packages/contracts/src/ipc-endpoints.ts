@@ -221,6 +221,7 @@ import type {
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
 import type { HostAnalytics, HostAnalyticsInput } from "./ipc-host-analytics";
 import type { HostReleaseStatus } from "./ipc-host-release";
+import type { HostTimezoneSettings } from "./ipc-host-timezone";
 import type {
   DeleteHostedSiteInput,
   HostedSiteList,
@@ -820,7 +821,7 @@ export const IPC_ENDPOINTS = {
       "messaging:host-add-orchestrator",
     ),
   },
-  // The server name, logo and app update of one server's host. `host.updateIdentity` and `update`
+  // The server name, logo, timezone and app update of one server's host. `host.updateIdentity` and `update`
   // reach this computer only; these take the server, so a remote admin reaches the host. The
   // identity result is the server as the list shows it after the change.
   hostAdmin: {
@@ -834,6 +835,9 @@ export const IPC_ENDPOINTS = {
     setUpdateSettings: scopedRequest<HostUpdateSettingsChange, HostUpdateStatus, "required">()(
       "host-admin:set-update-settings",
     ),
+    // The server timezone. `null` is automatic: the host system zone.
+    getTimezone: scopedQuery<HostTimezoneSettings, "required">()("host-admin:get-timezone"),
+    setTimezone: scopedRequest<string | null, HostTimezoneSettings, "required">()("host-admin:set-timezone"),
   },
   // The built-in GitHub connection of this computer. The token stays in main; every answer is the
   // status only. The `host*` endpoints reach the connection of a joined server (`connectors-v1`): the

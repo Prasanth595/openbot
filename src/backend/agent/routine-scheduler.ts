@@ -102,6 +102,11 @@ export interface RoutineSchedulerOptions {
   timer: RoutineTimer;
   /** The open waits that a run of the agent wakes. */
   waits: AgentWaits;
+  /**
+   * The server timezone: a routine the agent creates uses it when neither the tool call nor the
+   * sender's message gives a zone. Omitted, the host system zone.
+   */
+  timezone?: () => string;
 }
 
 /** The agent preview before a routine run, and the routine task the run showed in its place. */
@@ -137,10 +142,11 @@ export class RoutineScheduler implements RoutineDueSource {
    */
   readonly #deletionAgents = new Set<string>();
   readonly #timer: RoutineTimer;
+  readonly #timezone: () => string;
   /**
    * The timezone a member's client sent with a message, by delivery. A routine the agent creates in
    * the turn that runs the message runs on that clock, not on the host's, and a later message from
-   * someone else cannot change it. Memory only: after a restart, the host zone applies. Past the cap,
+   * someone else cannot change it. Memory only: after a restart, the server timezone applies. Past the cap,
    * the oldest entry goes.
    */
   readonly #deliveryTimezones = new Map<string, string>();
@@ -159,6 +165,7 @@ export class RoutineScheduler implements RoutineDueSource {
     this.#timer = options.timer;
     this.#routines = new AgentRoutineStore(options.store.database);
     this.#waits = options.waits;
+    this.#timezone = options.timezone ?? localTimezone;
   }
 
   noteDeliveryTimezone(deliveryId: string, timezone: string): void {
@@ -544,7 +551,7 @@ export class RoutineScheduler implements RoutineDueSource {
       if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
       const timezone =
         args.timezone === undefined
-          ? (this.#turnSenderTimezone(senderAgentId, params.turnId) ?? localTimezone())
+          ? (this.#turnSenderTimezone(senderAgentId, params.turnId) ?? this.#timezone())
           : routineToolString(args.timezone, "timezone", 128, "A routine timezone is required.");
       const name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
       const key = name.trim().toLowerCase();

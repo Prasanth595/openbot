@@ -28,6 +28,7 @@ import { TEAM_HISTORY_EXTENT_CAPABILITY } from "./history-extent-v1";
 import { HOST_ADMIN_CAPABILITY } from "./host-admin-v1";
 import { HOST_MEMBER_UPDATE_CAPABILITY } from "./host-member-update-v1";
 import { HOST_RELEASE_CAPABILITY } from "./host-release-v1";
+import { HOST_TIMEZONE_CAPABILITY } from "./host-timezone-v1";
 import { HOST_UPDATE_CAPABILITY } from "./host-update-v1";
 import { HOSTED_SITES_CAPABILITY } from "./hosted-sites-v1";
 import { INSTANCE_TRANSFER_CAPABILITY } from "./instance-transfer-v1";
@@ -91,6 +92,7 @@ export {
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
+  HOST_TIMEZONE_CAPABILITY,
   HOST_UPDATE_CAPABILITY,
   HOSTED_SITES_CAPABILITY,
   INSTANCE_TRANSFER_CAPABILITY,
@@ -191,6 +193,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   TEAM_HISTORY_EXTENT_CAPABILITY,
   PUSH_NOTIFICATIONS_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
+  HOST_TIMEZONE_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];

@@ -19,6 +19,7 @@ export const messages = {
   "error.host.mobileConnectHostChanged": "Mobile Connect ana makinesi değişti. Tekrar deneyin.",
   "error.host.noServer": "Bu bilgisayarda değiştirilecek bir sunucu yok.",
   "error.host.identityLocalOnly": "Sunucu adı ve logosu yalnızca onu çalıştıran bilgisayarda değiştirilebilir.",
+  "error.host.timezoneInvalid": "Bu saat dilimi bilinmiyor.",
   "error.host.maintenanceInterrupted":
     "Ana makine bakımı kesintiye uğradı. Tekrar denemeden önce uygulamayı doğrulayın ve ana makine durumunu sıfırlayın.",
   "error.host.updateFailed":

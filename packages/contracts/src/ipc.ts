@@ -39,6 +39,7 @@ export * from "./ipc-events";
 export * from "./ipc-github-connector";
 export * from "./ipc-host-analytics";
 export * from "./ipc-host-release";
+export * from "./ipc-host-timezone";
 export * from "./ipc-host-update";
 export * from "./ipc-hosted-sites";
 export * from "./ipc-instance-transfer";

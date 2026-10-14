@@ -56,6 +56,7 @@ import { type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
 import { type ServerRoutineFeedOptions, ServerRoutineFeedPanel } from "./ServerRoutineFeedPanel";
+import type { ServerTimezoneOptions } from "./ServerTimezoneSetting";
 import { type ServerTransferOptions, ServerTransferPanel } from "./ServerTransferPanel";
 import { type ServerUpdateOptions, ServerUpdatePanel } from "./ServerUpdatePanel";
 import { serverRoleCanAdminister } from "./server-capabilities";
@@ -163,6 +164,11 @@ export interface ServerSettingsModalProps {
    * `host-update-v1` that this member administers.
    */
   hostUpdate?: ServerUpdateOptions | undefined;
+  /**
+   * General shows the server timezone only when a caller supplies this, and only for the local
+   * server or a remote host with `host-timezone-v1` that this member administers.
+   */
+  hostTimezone?: ServerTimezoneOptions | undefined;
   /**
    * The Routines section appears only when a caller supplies this: the feed listens on this
    * computer, so a remote server passes nothing.
