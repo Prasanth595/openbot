@@ -50,7 +50,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { INSTANCE_TRANSFER_REMOTE_BYTES } from "@openbot/contracts/team-protocol/instance-transfer-v1";
 import { sourceText } from "@openbot/i18n/source";
-import { Effect, Result } from "effect";
+import { Deferred, Effect, Exit, Result } from "effect";
 import { Zip, ZipPassThrough, zipSync } from "fflate";
 import { isMissingFileError } from "../backend/file-errors";
 import { isPathInside } from "../backend/path-containment";
@@ -193,6 +193,7 @@ export class InstanceTransferService {
   readonly #staged = new Map<string, StagedTransfer>();
   readonly #timezone: () => string;
   readonly #now: () => Date;
+  #uploadDirectoryReady: Deferred.Deferred<void, ArchiveOperationError> | null = null;
 
   constructor(private readonly options: InstanceTransferOptions) {
     this.#timezone = options.timezone ?? (() => Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -382,7 +383,7 @@ export class InstanceTransferService {
   ): Effect.fn.Return<string, ArchiveOperationError> {
     const directory = this.options.uploadDirectory;
     if (!directory) return yield* archiveFailure(new Error("Instance transfer uploads are not available."));
-    yield* archiveCall(() => mkdir(directory, { recursive: true, mode: 0o700 }));
+    yield* this.#prepareUploadDirectory(directory);
     const path = join(directory, `${randomUUID()}.zip`);
     yield* this.exportTo(path, input, REMOTE_ARCHIVE).pipe(
       Effect.tapError(() => archiveCall(() => rm(path, { force: true })).pipe(Effect.ignore)),
@@ -466,13 +467,32 @@ export class InstanceTransferService {
     const directory = this.options.uploadDirectory;
     if (!directory) return yield* archiveFailure(new Error("Instance transfer uploads are not available."));
     const bytes = yield* archiveCall(() => read());
-    yield* archiveCall(() => mkdir(directory, { recursive: true, mode: 0o700 }));
+    yield* this.#prepareUploadDirectory(directory);
     const path = join(directory, `${randomUUID()}.zip`);
     yield* archiveCall(() => writeFile(path, bytes, { flag: "wx", mode: 0o600 }));
     return yield* this.#stageFile(path, owner, true, REMOTE_ARCHIVE).pipe(
       Effect.tapError(() => archiveCall(() => rm(path, { force: true })).pipe(Effect.ignore)),
     );
   }).bind(this);
+
+  /** Clear files from the previous process before either writer creates a file. */
+  readonly #prepareUploadDirectory = Effect.fn("InstanceTransfer.prepareUploadDirectory")(function* (
+    this: InstanceTransferService,
+    directory: string,
+  ) {
+    if (this.#uploadDirectoryReady) return yield* Deferred.await(this.#uploadDirectoryReady);
+    const ready = Deferred.makeUnsafe<void, ArchiveOperationError>();
+    this.#uploadDirectoryReady = ready;
+    const exit = yield* Effect.exit(
+      Effect.gen(function* () {
+        yield* archiveCall(() => rm(directory, { recursive: true, force: true }));
+        yield* archiveCall(() => mkdir(directory, { recursive: true, mode: 0o700 }));
+      }),
+    );
+    yield* Deferred.done(ready, exit);
+    if (Exit.isFailure(exit)) this.#uploadDirectoryReady = null;
+    return yield* exit;
+  }, Effect.uninterruptible);
 
   readonly #stageFile = Effect.fn("InstanceTransfer.stageFile")(function* (
     this: InstanceTransferService,
