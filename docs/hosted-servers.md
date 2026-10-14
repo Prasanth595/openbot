@@ -386,7 +386,9 @@ the units it knows. So `openbot.service` runs `openbot-hosted-update trigger` as
 starts; it installs and starts the request units when they are missing. OpenBot offers the controls
 only when `/etc/systemd/system/openbot-update-request.path` is there at its start. Otherwise, and on
 hosts older than this release, the panel checks the release (`host-release-v1`) and shows the
-host-managed update path. A container has no request units.
+host-managed update path. A container has no request units. A container of `docker/instances` uses
+the same `HostedUpdateAdapter` with folders that the host mounts in `/var/lib/openbot-update`; see
+[Updates from the app](docker.md#updates-from-the-app).
 
 The Linux build contains `scripts/hosting/` (without the TypeScript files) in `resources/hosting`.
 On a server, root runs `openbot-hosted-update`:

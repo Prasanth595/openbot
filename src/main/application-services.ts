@@ -17,7 +17,12 @@ import { type AgentAdminSettingsService, createAgentAdminSettings } from "./agen
 import { spawnAgentDatabaseHost } from "./agent-database-host-process";
 import { type AgentHostSettingsService, createAgentHostSettings } from "./agent-host-settings";
 import { HostReleaseService, readInstallationMode } from "./host-release-service";
-import { HOSTED_UPDATE_TRIGGER, HostedUpdateAdapter } from "./hosted-update-adapter";
+import {
+  CONTAINER_UPDATE_PATHS,
+  CONTAINER_UPDATE_TRIGGER,
+  HOSTED_UPDATE_TRIGGER,
+  HostedUpdateAdapter,
+} from "./hosted-update-adapter";
 import { LocalSkillLibrary } from "./local-skill-library";
 import { localSkillTools } from "./local-skill-tools";
 import { MAC_PERMISSION_URLS } from "./mac-permission-urls";
@@ -2093,12 +2098,19 @@ export async function createApplicationServices({
   // Skip the file check in dev: unpacked runs never enable updates, so avoid touching resourcesPath.
   const updateMetadataAvailable = app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
   // A hosted or self-installed server runs a release that root owns. Root installs updates for it
-  // when openbot-hosted-update has installed its request units. A container has none.
-  const hostedInstaller =
+  // when openbot-hosted-update has installed its request units. A container of openbot-instance asks
+  // the host instead, which pulls the image. Other containers have neither.
+  const containerInstaller =
     app.isPackaged &&
     process.platform === "linux" &&
-    (process.env.OPENBOT_HOSTED_SERVER === "1" || installationMode === "self") &&
-    existsSync(HOSTED_UPDATE_TRIGGER);
+    installationMode === "container" &&
+    existsSync(CONTAINER_UPDATE_TRIGGER);
+  const hostedInstaller =
+    containerInstaller ||
+    (app.isPackaged &&
+      process.platform === "linux" &&
+      (process.env.OPENBOT_HOSTED_SERVER === "1" || installationMode === "self") &&
+      existsSync(HOSTED_UPDATE_TRIGGER));
   const updatesEnabled =
     app.isPackaged &&
     (hostedInstaller || (supportsInstalledUpdates(process.platform) && updateMetadataAvailable)) &&
@@ -2109,7 +2121,11 @@ export async function createApplicationServices({
   let updateAdapter: UpdateAdapter = createDisabledUpdateAdapter();
   let updaterEnabled = updatesEnabled;
   if (updatesEnabled && hostedInstaller) {
-    updateAdapter = new HostedUpdateAdapter({ currentVersion, arch: process.arch });
+    updateAdapter = new HostedUpdateAdapter({
+      currentVersion,
+      arch: process.arch,
+      ...(containerInstaller ? { paths: CONTAINER_UPDATE_PATHS } : {}),
+    });
   } else if (updatesEnabled) {
     try {
       const updaterModule = await import("electron-updater");

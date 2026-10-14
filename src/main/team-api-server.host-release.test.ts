@@ -23,6 +23,7 @@ async function setup(
     version?: string;
     mode?: string;
     managed?: boolean;
+    phase?: "idle" | "unsupported";
     environment?: NodeJS.ProcessEnv;
     platform?: NodeJS.Platform;
     arch?: string;
@@ -36,7 +37,7 @@ async function setup(
     arch: options.arch ?? "x64",
     environment: options.environment ?? { OPENBOT_HOSTED_SERVER: "1" },
     installationMode: options.mode ?? null,
-    updateStatus: () => ({ phase: "unsupported", managedByHost: options.managed ?? false }),
+    updateStatus: () => ({ phase: options.phase ?? "unsupported", managedByHost: options.managed ?? false }),
     fetch: options.fetch ?? vi.fn(async () => manifest("0.26.0")),
   });
   const fixture = await createTeamApiFixture("host-release", { configure: true });
@@ -121,6 +122,7 @@ describe("host-release-v1", () => {
     { name: "host manager", managed: true, method: "host-manager" },
     { name: "system service", mode: "self", environment: { OPENBOT_SERVER: "1" }, method: "system" },
     { name: "container", mode: "container", method: "container" },
+    { name: "container with a host updater", mode: "container", phase: "idle" as const, method: "self-update" },
     { name: "manual installation", environment: {}, method: "manual" },
   ])("identifies the update path for $name", async ({ name, method, ...options }) => {
     const { check } = await setup(options);

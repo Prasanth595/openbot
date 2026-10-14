@@ -123,6 +123,8 @@ folder of the repository to the host, for example to `/opt/openbot-docker`, and 
 | `instances/<name>.env` | The name and the limits of the instance. Change `OPENBOT_CPUS` or `OPENBOT_MEM`, then run `openbot-instance up <name>`. `OPENBOT_DISK` is for information only: a change to it does nothing. |
 | `/srv/openbot/<name>/data.img` | An ext4 image. Its size is the disk limit. `create` reserves all of it on the disk of the host, so the images can never need more space than the host has. |
 | `/srv/openbot/<name>/data` | The mount of the image, which is `/data` in the container. `/etc/fstab` mounts it before Docker starts. `X-fstrim.notrim` stops `fstrim.timer` from freeing the reserved space. |
+| `/srv/openbot/<name>/update-requests` | The update requests of the app. The container writes empty files here. |
+| `/srv/openbot/<name>/update-status` | The state of an update, which root writes. The container can only read it. |
 
 The container is `openbot-<name>`. Its root file system is read-only: the container layer is on the
 disk of the host, where Docker on ext4 cannot limit its size. Outside `/data`, the container writes
@@ -183,18 +185,37 @@ Agents have full access in their container, so the host limits what a container 
 | Show the instances | `openbot-instance list` |
 | Stop, start, restart | `openbot-instance down <name>`, `up <name>`, `restart <name>` |
 | Read the log | `openbot-instance logs <name> -f` (recent lines), or `/var/log/openbot/openbot-<name>.log*` (30 days) |
-| Upgrade | `openbot-instance upgrade <name>` or `upgrade --all` |
+| Upgrade | In the app (see [Updates from the app](#updates-from-the-app)), or `openbot-instance upgrade <name>` or `upgrade --all` |
 | `openbot` commands | `openbot-instance run <name> status`, `login`, `mobile-connect`, `name <name>` |
 | Make the disk larger | `down <name>`, `umount /srv/openbot/<name>/data`, `fallocate --length <new size> data.img`, `e2fsck -f data.img`, `resize2fs data.img`, `mount /srv/openbot/<name>/data`, `up <name>` |
 
 There is no command to remove an instance. To remove one and delete its data: `run <name> logout`,
-`down <name>`, `umount /srv/openbot/<name>/data`, delete its line in `/etc/fstab`, then delete
-`/srv/openbot/<name>` and `instances/<name>.env`.
+`down <name>`, `systemctl disable --now openbot-instance-update@<name>.path`,
+`umount /srv/openbot/<name>/data`, delete its line in `/etc/fstab`, then delete `/srv/openbot/<name>`
+and `instances/<name>.env`.
+
+### Updates from the app
+
+The owner or an admin updates an instance in Server settings › Updates, or in the update dialog, as on a
+hosted server. The container never gets the Docker socket. OpenBot writes an empty request file to
+`/srv/openbot/<name>/update-requests`. `openbot-instance-update@<name>.path` sees it and runs
+`openbot-instance update-request <name>` as root. Root only tests and removes the request; it never
+reads or follows it. It pulls the image of the instance and writes its version to `update-status` only
+when it is newer than the container. For an install, it makes the container again from that image,
+with the same data. It writes the state of the request to `update-status`, which the container mounts
+read-only.
+
+`setup` installs the units. `create`, `up` and `upgrade` make the folders and enable the path unit of
+the instance. An instance made before this release gets them with `setup`, then
+`openbot-instance upgrade <name>` once. A container started with `docker/compose.yaml` or
+`docker run` has no request folders, so it offers no update in the app.
 
 ## Upgrades
 
-OpenBot does not update itself in a container. A new image replaces it. Do not go back to an older
-tag: an older OpenBot cannot open a database that a newer one migrated, so it does not start.
+OpenBot does not update itself in a container. A new image replaces it. An instance of
+`docker/instances` can ask the host for that from the app, see
+[Updates from the app](#updates-from-the-app). Do not go back to an older tag: an older OpenBot cannot
+open a database that a newer one migrated, so it does not start.
 
 ## Environment
 

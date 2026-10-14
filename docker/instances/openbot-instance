@@ -9,6 +9,12 @@
 #
 # All instances use the Docker network `openbot`, on which they cannot reach each other.
 # openbot-firewall.service lets them reach only the internet. `setup` installs both once per host.
+#
+# The owner can update an instance from the app. OpenBot writes an empty request file to
+# /srv/openbot/<name>/update-requests, which the container can write, and
+# openbot-instance-update@<name>.path runs `update-request <name>` as root. That pulls the image, and
+# for an install makes the container again. Root reports in /srv/openbot/<name>/update-status, which
+# the container can only read. The container never gets the Docker socket.
 set -euo pipefail
 
 HERE=$(dirname "$(readlink -f "$0")")
@@ -18,6 +24,9 @@ NETWORK=openbot
 SUBNET=172.30.0.0/16
 FIREWALL=openbot-firewall.service
 LOG_SOCKET=/var/lib/openbot-docker/dev/log
+UNIT_DIRECTORY=/etc/systemd/system
+UPDATE_UNIT=openbot-instance-update
+LOCKS=/run
 
 fail() {
   echo "$*" >&2
@@ -37,6 +46,8 @@ Usage: openbot-instance <command>
   up | down | restart <name>  Start, stop or restart an instance. The data stays.
   logs <name> [-f]            Show the log of an instance.
   upgrade <name> | --all      Pull the image and make the container again.
+  update-request <name>       Run by openbot-instance-update@<name>.service when the app asks
+                              for an update.
   run <name> <command>        Run `openbot <command>` in the instance, for example
                               status, login, mobile-connect or name.
 
@@ -67,7 +78,7 @@ setup() {
   [ -e /etc/openbot-docker/deny ] ||
     printf '# More addresses that the instances must not reach, one per line, for example servers\n# that trust the address of this host.\n' \
       >/etc/openbot-docker/deny
-  sed "s#/opt/openbot-docker/instances/#$HERE/#" "$HERE/$FIREWALL" >"/etc/systemd/system/$FIREWALL"
+  sed "s#/opt/openbot-docker/instances/#$HERE/#" "$HERE/$FIREWALL" >"$UNIT_DIRECTORY/$FIREWALL"
   systemctl daemon-reload
   systemctl enable --quiet "$FIREWALL"
   # Docker requires the unit, so a restart of the unit would restart Docker. Apply the rules directly.
@@ -87,6 +98,9 @@ setup() {
   install -m 0644 "$HERE/openbot-logrotate.service" "$HERE/openbot-logrotate.timer" /etc/systemd/system/
   install -d -m 0755 /etc/systemd/system/docker.service.d
   install -m 0644 "$HERE/docker-openbot.conf" /etc/systemd/system/docker.service.d/openbot.conf
+  # The update requests of the app. `start` enables the path unit of each instance.
+  install -m 0644 "$HERE/$UPDATE_UNIT@.path" "$UNIT_DIRECTORY/"
+  sed "s#/opt/openbot-docker/instances/#$HERE/#" "$HERE/$UPDATE_UNIT@.service" >"$UNIT_DIRECTORY/$UPDATE_UNIT@.service"
   systemctl daemon-reload
   systemctl enable --now --quiet openbot-logrotate.timer
   if ! cmp --silent "$HERE/openbot-rsyslog.conf" /etc/rsyslog.d/30-openbot-docker.conf || [ ! -S "$LOG_SOCKET" ]; then
@@ -103,11 +117,79 @@ ready() {
   [ -S "$LOG_SOCKET" ] || fail "The log socket $LOG_SOCKET is missing. Run: openbot-instance setup"
   systemctl is-active --quiet "$FIREWALL" || fail "The firewall of the instances is off. Run: openbot-instance setup"
   docker network inspect "$NETWORK" >/dev/null 2>&1 || fail "The network $NETWORK is missing. Run: openbot-instance setup"
+  [ -e "$UNIT_DIRECTORY/$UPDATE_UNIT@.service" ] || fail "The update units are missing. Run: openbot-instance setup"
 }
 
 start() {
   ready
+  update_folders "$1" || fail "The update folders of $1 could not be made."
   compose "$1" up --detach
+}
+
+# The folders that compose.yaml mounts for updates from the app. Docker would make a missing one as
+# root, and the container could not write requests to it.
+update_folders() {
+  check_name "$1"
+  local folder=$DATA/$1 owner
+  owner=$(data_owner) || return
+  install -d -o "${owner%:*}" -g "${owner#*:}" -m 0700 "$folder/update-requests" &&
+    install -d -m 0755 "$folder/update-status" &&
+    systemctl enable --now --quiet "$UPDATE_UNIT@$1.path" &&
+    # OpenBot offers updates only when this file is there.
+    touch "$folder/update-status/enabled"
+}
+
+set_state() {
+  printf '%s\n' "$2" >"$1.new"
+  mv -f "$1.new" "$1"
+}
+
+# The version label of an image or a container. Empty when it is missing or not a release version.
+release_version() {
+  local version
+  version=$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$1" 2>/dev/null || true)
+  if [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "$version"; fi
+}
+
+# Pulls the image of instance $1. Writes its version to staged.ready only when it is newer than the
+# container: an older OpenBot cannot open a database that a newer one migrated.
+stage() {
+  local name=$1 status=$DATA/$1/update-status running pulled image
+  rm -f "$status/staged.ready"
+  running=$(release_version "openbot-$name")
+  [ -n "$running" ] || fail "The container openbot-$name has no release version."
+  compose "$name" pull --quiet || fail "The image of $name did not download."
+  image=$(compose "$name" config --images | head -n 1)
+  pulled=$(release_version "$image")
+  [ -n "$pulled" ] || fail "The image $image has no release version."
+  if [ "$pulled" != "$running" ] && [ "$(printf '%s\n%s\n' "$running" "$pulled" | sort -V | tail -n 1)" = "$pulled" ]; then
+    set_state "$status/staged.ready" "$pulled"
+  fi
+}
+
+# The container owns the request folder, so root only tests a request and removes it. It never reads
+# or follows one. An install makes the container again only from a newer image.
+update_request() {
+  check_name "$1"
+  local name=$1 requests=$DATA/$1/update-requests status=$DATA/$1/update-status install=0 result=0 keeper
+  exec 9>"$LOCKS/$UPDATE_UNIT-$name.lock"
+  flock 9
+  if [ -e "$requests/update-install" ] || [ -L "$requests/update-install" ]; then install=1; fi
+  # OpenBot waits while the request is there, then reads the state. So the state comes first.
+  if [ "$install" -eq 1 ]; then set_state "$status/state" installing; else set_state "$status/state" waiting; fi
+  rm -rf -- "$requests/update-stage" "$requests/update-install"
+  # OpenBot sees that the request runs while the time of the state changes. `set -e` does not apply
+  # in the subshells below, so each step checks its own result.
+  (while sleep 5; do touch "$status/state"; done) >/dev/null 2>&1 &
+  keeper=$!
+  (stage "$name") || result=$?
+  if [ "$install" -eq 1 ] && [ -e "$status/staged.ready" ]; then
+    rm -f "$status/staged.ready"
+    (start "$name") || result=$?
+  fi
+  kill "$keeper" 2>/dev/null || true
+  rm -f "$status/state"
+  return "$result"
 }
 
 # The host UID:GID of the image user, 1000:1000. With userns-remap, Docker adds the start of the
@@ -190,6 +272,8 @@ list() {
   done
 }
 
+[ "${BASH_SOURCE[0]}" = "$0" ] || return 0
+
 command=${1:-}
 shift || true
 case $command in
@@ -212,6 +296,7 @@ case $command in
       start "${1:-}"
     fi
     ;;
+  update-request) update_request "${1:-}" ;;
   run)
     check_name "${1:-}"
     # login asks for the code in a terminal. Scripts and ssh without -t have none.
