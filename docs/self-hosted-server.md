@@ -25,26 +25,32 @@ Then connect a provider from the app, as on a hosted server (see
 ### Sign in with a server claim
 
 An operator who sets up a server for somebody else can sign it in with no code. The operator makes a
-one-time claim for the owner's email, and the server redeems it:
+one-time claim for the owner's email, and the server redeems it. The owner does nothing: when they
+sign in to OpenBot with that email, the server is in their server list.
 
 ```sh
 printf '{"email":"%s"}' owner@example.com |
-  curl --fail-with-body -sS -X POST https://api.openbot.run/v2/admin/server-claims \
-    -H @<(printf 'Authorization: Bearer %s\n' "$(cat server-claims.token)") \
-    -H 'content-type: application/json' --data-binary @-
-sudo openbot login --claim <claim> --name <name>
+  curl --fail -sS -X POST https://api.openbot.run/v2/admin/server-claims \
+    -H @server-claims.header -H 'content-type: application/json' --data-binary @- |
+  sed -n 's/.*"claim":"\([A-Za-z0-9_-]*\)".*/\1/p' |
+  sudo openbot login --claim --name <name>
 ```
+
+`server-claims.header` holds one line, `Authorization: Bearer <token>`, so the token is in no process
+argument. `openbot login --claim` reads the claim from standard input, or asks for it without an echo
+in a terminal, for the same reason.
 
 - `POST /v2/admin/server-claims` needs the `SERVER_CLAIMS_ADMIN_TOKEN` of the account service. It
   makes the account of the email when there is none, and answers `{"claim", "expiresAt"}`.
 - The claim works once, for 15 minutes. The account service keeps only its hash.
 - The server sends it to `POST /v2/server-claims/redeem` and gets a session of the owner. The owner
-  is then the only owner of the server. The operator never signs in to the owner's account.
+  is then the only owner of the server. The operator does not need the owner's email or password.
 - A claim that was used, or that expired, gives `server_claim_invalid`. If the server did not get the
   answer, make a new claim.
 
-Anyone with the admin token can sign a server in to any email. Keep the token on the operator's
-computer only.
+Anyone with the admin token can get a session for any email, also of an existing account. Keep the
+token on the operator's computer only. The owner sees each claimed server session in their account
+sessions, and can revoke it there.
 
 Install options go after `sudo bash -s --`:
 
@@ -64,7 +70,7 @@ open a database that a newer one migrated. It also refuses a computer that is a 
 | --- | --- |
 | `openbot status` | Show the version, the account, the server state and a staged update. |
 | `openbot login [<email>] [--name <name>]` | Sign in with an email code. |
-| `openbot login --claim <claim> [--name <name>]` | Sign in with an operator's one-time claim (see [Sign in with a server claim](#sign-in-with-a-server-claim)). |
+| `openbot login --claim [--name <name>]` | Sign in with an operator's one-time claim (see [Sign in with a server claim](#sign-in-with-a-server-claim)). |
 | `openbot mobile-connect` | Show a Mobile Connect QR code for the phone app (see [Phone app](#phone-app)). |
 | `openbot logout` | Sign out. The server is not available until the next sign-in. |
 | `openbot name <name>` | Change the server name. |

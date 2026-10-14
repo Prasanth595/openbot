@@ -1492,30 +1492,25 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
 
   /**
    * Signs a self-hosted server in with a one-time claim that an operator made for the owner's email.
-   * A failure leaves the stored session as it was and shows the issue in the state.
+   * The answer is null when it signed in. A failure leaves the state as it was and gives the issue.
+   * The caller checks that the session can be stored first: the claim works only once.
    */
   readonly redeemServerClaim = Effect.fn("CentralAuth.redeemServerClaim")(
     function* (
       this: CentralAuthManager,
       claim: string,
-    ): Effect.fn.Return<CentralAuthState, never, CentralAuthTransport> {
+    ): Effect.fn.Return<CentralAuthIssue | null, never, CentralAuthTransport> {
       return yield* Effect.gen({ self: this }, function* () {
         const session = yield* this.#requestEffect(
           "/v2/server-claims/redeem",
           { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ claim }) },
           decodeSessionResponse,
         );
-        // The claim is spent, so a session that is not stored needs a new claim.
         yield* this.#applyClaimedSession(session);
-        return this.#state;
+        return null;
       }).pipe(
         Effect.catch(({ cause: error }) =>
-          Effect.sync(() =>
-            this.#setState({
-              status: "error",
-              issue: centralAuthIssue(error, "server_claim_failed", sourceText("error.auth.serviceError")),
-            }),
-          ),
+          Effect.succeed(centralAuthIssue(error, "server_claim_failed", sourceText("error.auth.serviceError"))),
         ),
       );
     },
@@ -1524,7 +1519,8 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
 
   /**
    * Stores the session that a claim gave and signs in. A session that is not stored ends at the next
-   * start, so a failed write fails, and the session is not kept in memory.
+   * start, so a failed write fails, and the session is not kept in memory. A failed write also removes
+   * the stored session file.
    */
   readonly #applyClaimedSession = Effect.fn("CentralAuth.applyClaimedSession")(function* (
     this: CentralAuthManager,

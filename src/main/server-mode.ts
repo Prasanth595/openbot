@@ -62,7 +62,13 @@ export interface ServerModeOptions {
   version: string;
   centralAuth: Pick<
     CentralAuthManager,
-    "getState" | "requestEmailCode" | "verifyEmailCode" | "redeemServerClaim" | "logout" | "createMobileConnect"
+    | "getState"
+    | "requestEmailCode"
+    | "verifyEmailCode"
+    | "canPersistSession"
+    | "redeemServerClaim"
+    | "logout"
+    | "createMobileConnect"
   >;
   host: Pick<HostService, "getStatus" | "configure" | "start" | "updateIdentity" | "getMobileConnectHost">;
   onError: (message: string, error: unknown) => void;
@@ -285,14 +291,24 @@ export class ServerMode {
       serverName = parseHostedServerName(name);
       if (!serverName) return nameFailure(name);
     }
-    if (this.#options.centralAuth.getState().status === "signed_in") return failure(409, "signed_in");
+    const { centralAuth } = this.#options;
+    const status = centralAuth.getState().status;
+    if (status === "signed_in") return failure(409, "signed_in");
+    // Another state can hold a stored session, which a failed claim would remove.
+    if (status !== "signed_out" && status !== "code_sent") return failure(409, `account_${status}`);
+    // The claim works once. A session that is not stored would end at the next start.
+    if (!centralAuth.canPersistSession()) return failure(409, "session_not_storable");
+    const previousName = this.#pendingName;
     if (serverName) this.#pendingName = serverName;
-    const state = yield* this.#options.centralAuth
+    const issue = yield* centralAuth
       .redeemServerClaim(claim.trim())
       .pipe(Effect.mapError(({ cause }) => new RemoteWorkflowError({ cause })));
+    if (issue) {
+      this.#pendingName = previousName;
+      return failure(issue.code === "server_claim_invalid" ? 400 : 502, issue.code, issue.message);
+    }
     // The entry point publishes the host when the account change is applied. `status` shows it.
-    if (state.status === "signed_in") return this.#status();
-    return issueFailure(state);
+    return this.#status();
   });
 
   /**

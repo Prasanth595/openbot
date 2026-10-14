@@ -1034,14 +1034,15 @@ export class D1AuthRepository implements AuthRepository {
         ]),
       );
       if (spent?.meta.changes !== 1) return null;
+      // Through the new session: the retention job can already have removed the spent claim.
       const row = yield* storeCall(() =>
         database
           .prepare(
             `SELECT users.id, users.email, users.name, users.avatar_url
-         FROM server_claims JOIN users ON users.id = server_claims.user_id
-         WHERE server_claims.claim_hash = ?`,
+         FROM auth_sessions JOIN users ON users.id = auth_sessions.user_id
+         WHERE auth_sessions.id = ?`,
           )
-          .bind(input.claimHash)
+          .bind(input.session.id)
           .first<UserRow>(),
       );
       return row ? { sessionToken: input.session.token, user: mapUser(row) } : null;

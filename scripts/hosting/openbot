@@ -23,9 +23,9 @@ Usage: openbot <command>
                                  Sign in with a code that OpenBot sends to your email.
                                  The server then shows in the server list of that account.
                                  Its name is "OpenBot" when you give no name.
-  login --claim <claim> [--name <name>]
-                                 Sign in with a one-time claim that the operator made for
-                                 the owner's email. No code is needed.
+  login --claim [--name <name>]  Sign in with a one-time claim that the operator made for
+                                 the owner's email. No code is needed. The claim comes from
+                                 standard input, or a hidden prompt in a terminal.
   mobile-connect                 Show a QR code that connects the OpenBot phone app to this
                                  account. It works for one sign-in and expires after two minutes.
   logout                         Sign out. The server stops until the next sign-in.
@@ -111,10 +111,12 @@ check_answer() {
   if [ -z "$message" ]; then
     case $(value error) in
       invalid_email) message="Enter a valid email address." ;;
-      invalid_request) message="Enter the sign-in code or claim." ;;
+      invalid_request) message="Enter the sign-in code or the claim." ;;
       invalid_name) message="Enter a server name." ;;
       signed_in) message="This server is signed in. To use another account, run: openbot logout" ;;
       account_signed_out | account_code_sent) message="Sign in first with: openbot login" ;;
+      account_error | account_loading) message="OpenBot could not check the account yet. Run: openbot status" ;;
+      session_not_storable) message="This server cannot store the session securely. The claim was not used." ;;
       *) message="OpenBot refused the request ($(value error))." ;;
     esac
   fi
@@ -149,7 +151,7 @@ status_command() {
 }
 
 login_command() {
-  local email="" name="" claim="" challenge code attempt second
+  local email="" name="" claim="" with_claim="" challenge code attempt second
   while [ "$#" -gt 0 ]; do
     case $1 in
       --name)
@@ -158,9 +160,8 @@ login_command() {
         shift 2
         ;;
       --claim)
-        [ "$#" -ge 2 ] || fail "Add a claim after --claim."
-        claim=$2
-        shift 2
+        with_claim=1
+        shift
         ;;
       -*) fail "Unknown option: $1" ;;
       *)
@@ -175,8 +176,11 @@ login_command() {
     show_status
     return 0
   fi
-  if [ -n "$claim" ]; then
-    # The claim goes in the request body, like the code. It works once.
+  if [ -n "$with_claim" ]; then
+    [ -z "$email" ] || fail "The claim names the account. Give no email with --claim."
+    # Never an argument: other users can read the arguments of a process. It works once.
+    if [ -t 0 ]; then read -rsp "Claim: " claim && echo; else read -r claim || true; fi
+    [ -n "$claim" ] || fail "Give the claim on standard input."
     control POST /v1/login/claim "claim=$claim" ${name:+"name=$name"}
     check_answer || exit 1
     email=$(value email)

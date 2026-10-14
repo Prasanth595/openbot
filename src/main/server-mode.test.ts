@@ -64,16 +64,12 @@ function fixture() {
         return held;
       }),
     ),
+    canPersistSession: vi.fn(() => true),
     redeemServerClaim: vi.fn((claim: string) =>
       Effect.sync(() => {
-        state =
-          claim === CLAIM
-            ? { status: "signed_in", user: { id: "u1", email: "owner@example.com", name: null, avatarUrl: null } }
-            : {
-                status: "error",
-                issue: { code: "server_claim_invalid", message: "The server claim is invalid or used." },
-              };
-        return { ...state, sessionToken: SESSION_TOKEN };
+        if (claim !== CLAIM) return { code: "server_claim_invalid", message: "The server claim is invalid or used." };
+        state = { status: "signed_in", user: { id: "u1", email: "owner@example.com", name: null, avatarUrl: null } };
+        return null;
       }),
     ),
     logout: vi.fn(() =>
@@ -216,10 +212,22 @@ describe("ServerMode control socket", () => {
     server = mode;
     await runCauseEffect(server.listen());
 
-    expect(await send("POST", "/v1/login/claim", "claim=used&name=Lab%20Server")).toEqual({
-      status: 502,
+    // Without secret storage the session would end at the next start, so the claim is not spent.
+    centralAuth.canPersistSession.mockReturnValueOnce(false);
+    expect(await send("POST", "/v1/login/claim", `claim=${CLAIM}`)).toEqual({
+      status: 409,
+      text: "error=session_not_storable\n",
+    });
+    expect(centralAuth.redeemServerClaim).not.toHaveBeenCalled();
+
+    // A used claim keeps the account signed out and does not keep the name.
+    expect(await send("POST", "/v1/login/claim", "claim=used&name=Other%20Server")).toEqual({
+      status: 400,
       text: "error=server_claim_invalid\nmessage=The server claim is invalid or used.\n",
     });
+    const signedOut = await send("GET", "/v1/status");
+    expect(signedOut.text).toContain("account=signed_out\n");
+    expect(signedOut.text).not.toContain("server_name=");
 
     const claimed = await send("POST", "/v1/login/claim", `claim=${CLAIM}&name=Lab%20Server`);
     expect(claimed.status).toBe(200);
