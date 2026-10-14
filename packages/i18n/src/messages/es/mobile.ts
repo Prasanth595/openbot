@@ -7,6 +7,7 @@ import { messages as mobileBrowser } from "./mobile/browser";
 import { messages as mobileChat } from "./mobile/chat";
 import { messages as mobileLink } from "./mobile/link";
 import { messages as mobileLiveActivity } from "./mobile/liveActivity";
+import { messages as mobileOnboarding } from "./mobile/onboarding";
 import { messages as mobileSearch } from "./mobile/search";
 import { messages as mobileServer } from "./mobile/server";
 import { messages as mobileSettings } from "./mobile/settings";
@@ -28,6 +29,7 @@ export const esMobile = {
   ...mobileSettings,
   ...mobileLink,
   ...mobileLiveActivity,
+  ...mobileOnboarding,
   ...mobileWorkspace,
   ...mobileShared,
 } as const satisfies PartialTranslation<AppMobileMessages>;
