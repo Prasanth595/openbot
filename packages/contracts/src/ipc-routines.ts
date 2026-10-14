@@ -30,8 +30,8 @@ export type RoutineSchedule =
   | { kind: "custom"; expression: string }
   /**
    * One run at a date and time in the routine timezone. After that run the host pauses the
-   * routine, and it cannot resume until the date moves to the future. Only a peer that has the
-   * `routines.once` capability sends or receives it.
+   * routine, and it cannot resume until the date moves to the future. It stays on this computer's
+   * host: the released Team API routes do not list it, and they refuse it on a save.
    */
   | { kind: "once"; date: string; time: string };
 
@@ -77,7 +77,6 @@ function isRoutineTime(value: unknown): value is string {
   return isString(value) && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
-/** A calendar date as "YYYY-MM-DD" that exists, such as 2028-02-29 but not 2027-02-29. */
 export type ReleasedRoutineSchedule = Exclude<RoutineSchedule, { kind: "once" }>;
 
 /**
@@ -89,6 +88,7 @@ export function isReleasedRoutineSchedule(value: unknown): value is ReleasedRout
   return isRoutineSchedule(value) && value.kind !== "once";
 }
 
+/** A calendar date as "YYYY-MM-DD" that exists, such as 2028-02-29 but not 2027-02-29. */
 export function isRoutineDate(value: unknown): value is string {
   if (!isString(value)) return false;
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);

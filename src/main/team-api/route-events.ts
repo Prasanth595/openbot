@@ -65,6 +65,15 @@ export async function routeEvents(
     case EVENTS_ROUTES.saveRoutine: {
       const routine = input(parseSaveEventRoutine);
       if (routine.trigger.kind === "schedule") requireReleasedSchedule(routine.trigger.schedule);
+      // A `once` routine is not in this API's lists, so a save cannot change it either.
+      if (routine.id !== undefined) {
+        const saved = await runEventsEffect(events.listRoutines({ owner: routine.owner }));
+        const hidden = saved.some(
+          ({ id, trigger }) =>
+            id === routine.id && trigger.kind === "schedule" && !isReleasedRoutineSchedule(trigger.schedule),
+        );
+        if (hidden) throw new HttpError(404, sourceText("error.backend.routineGone"));
+      }
       return json(200, await runEventsEffect(events.saveRoutine(routine)));
     }
     case EVENTS_ROUTES.deleteRoutine:

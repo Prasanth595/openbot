@@ -58,6 +58,7 @@ import {
   ROUTINE_SAVED_DRAFT_KINDS,
   routineDraftProblem,
   routineOnceCompleted,
+  routineOncePassed,
   routineScheduleFromDraft,
   routineScheduleToDraft,
 } from "@openbot/ui/features/conversation/routine-schedule-saved";
@@ -444,8 +445,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
   function reopened(value: RoutineDraft): RoutineDraft {
     const base = draftBase;
     if (value.active || value.schedule.kind !== "once" || !base || !routineCompleted(base)) return value;
-    const later = !routineOnceCompleted({ active: false, timezone: base.timezone, schedule: value.schedule });
-    return later ? { ...value, active: true } : value;
+    return routineOncePassed(value.schedule, base.timezone) ? value : { ...value, active: true };
   }
 
   function changeDraft(change: (current: RoutineDraft) => RoutineDraft): void {
@@ -984,6 +984,7 @@ function routineCompleted(routine: RoutineEditorRecord): boolean {
     active: routine.active,
     timezone: routine.timezone,
     schedule: routineScheduleOf(routine),
+    updatedAt: routine.updatedAt,
   });
 }
 

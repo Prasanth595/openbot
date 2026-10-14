@@ -34,14 +34,22 @@ export function routineDraftProblem(draft: RoutineScheduleDraft, t: AppTranslate
   return problem ? t(PROBLEM_TEXT[problem]) : null;
 }
 
+/** The time of a one-time schedule has passed. Other kinds have no last time. */
+export function routineOncePassed(schedule: RoutineSchedule, timezone: string, now = new Date()): boolean {
+  return schedule.kind === "once" && routineOnceInstant(schedule, timezone).getTime() <= now.getTime();
+}
+
 /**
- * A one-time routine whose time has passed: the host paused it after its run, or after it recorded
- * the run as missed. It cannot resume until its date moves to the future.
+ * A one-time routine that the host finished: the host paused it at or after its time, after the run
+ * or after it recorded the run as missed. A routine that the person paused before its time stays
+ * "paused" after that time. An edit after that time marks it done too: the record keeps no other sign.
  */
-export function routineOnceCompleted(
-  routine: { active: boolean; timezone: string; schedule: RoutineSchedule },
-  now = new Date(),
-): boolean {
+export function routineOnceCompleted(routine: {
+  active: boolean;
+  timezone: string;
+  schedule: RoutineSchedule;
+  updatedAt: string;
+}): boolean {
   if (routine.active || routine.schedule.kind !== "once") return false;
-  return routineOnceInstant(routine.schedule, routine.timezone).getTime() <= now.getTime();
+  return Date.parse(routine.updatedAt) >= routineOnceInstant(routine.schedule, routine.timezone).getTime();
 }

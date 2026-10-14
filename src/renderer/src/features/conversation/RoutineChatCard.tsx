@@ -9,6 +9,7 @@ import {
   ROUTINE_SAVED_DRAFT_KINDS,
   routineDraftProblem,
   routineOnceCompleted,
+  routineOncePassed,
   routineScheduleFromDraft,
   routineScheduleToDraft,
 } from "@openbot/ui/features/conversation/routine-schedule-saved";
@@ -86,7 +87,7 @@ export function RoutineChatCard(props: RoutineChatCardProps) {
     const current = routine();
     // A done one-time routine that gets a later time is active again, so it runs at that time.
     const done = routineOnceCompleted({ ...current, schedule: current.trigger.schedule });
-    const later = !routineOnceCompleted({ active: false, timezone: current.timezone, schedule });
+    const later = !routineOncePassed(schedule, current.timezone);
     try {
       const { routine: saved } = await agentRoutinesPort(props.agentId).save({
         routineId: current.id,
