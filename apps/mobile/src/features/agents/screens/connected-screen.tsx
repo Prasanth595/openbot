@@ -1,4 +1,5 @@
 import { type MenuAction, MenuView } from "@expo/ui/community/menu";
+import type { SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { type Href, router, Stack } from "expo-router";
 import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
@@ -10,6 +11,7 @@ import Animated, {
   cancelAnimation,
   Easing,
   FadeIn,
+  LinearTransition,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
@@ -43,6 +45,7 @@ import { currentText, useText } from "@/shared/lib/text";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
+const LIST_REFLOW = LinearTransition.duration(240).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 
 function TransitioningChatRow({
   chatId,
@@ -68,19 +71,24 @@ function TransitioningChatRow({
     if (!collapsed) setContentMounted(true);
     if (measuredHeight === null) return;
     let active = true;
-    const releaseContent = () => {
-      if (active) setContentMounted(false);
+    const target = collapsed ? 0 : measuredHeight;
+    // Fast Refresh runs this effect again, and then the shared value's own cleanup cancels the new
+    // animation. Go to the target height, so the row does not stay at the height of that moment.
+    const settle = (finished: boolean) => {
+      if (!active) return;
+      if (!finished) height.set(target);
+      if (collapsed) setContentMounted(false);
     };
     height.set(
       withTiming(
-        collapsed ? 0 : measuredHeight,
+        target,
         {
           duration: 240,
           easing: EASE_OUT,
           reduceMotion: ReduceMotion.System,
         },
         (finished) => {
-          if (finished && collapsed) scheduleOnRN(releaseContent);
+          scheduleOnRN(settle, finished === true);
         },
       ),
     );
@@ -262,6 +270,8 @@ export function ConnectedScreen() {
   };
   const listReveal = useAgentListReveal(listReady, activeServer.id);
   // Collapse keeps stable list cells and changes their heights on the UI thread.
+  // Enable cell reflow again when a host layout update moves agents or sections.
+  const [collapseLayout, setCollapseLayout] = useState<SidebarLayoutSnapshot | null>(null);
   const collapsedChatIds = useMemo(() => {
     const ids = new Set<string>();
     let sectionCollapsed = false;
@@ -312,9 +322,7 @@ export function ConnectedScreen() {
         <Animated.FlatList
           key={activeServer.id}
           onLayout={listReveal.onLayout}
-          // No `itemLayoutAnimation`: Reanimated 4.5 can drop the last frame of a cell's layout
-          // transition, and the cell then keeps its old frame. Rows and section headers went blank
-          // when agents moved, for example out of "Needs you" after a chat closed.
+          itemLayoutAnimation={listReveal.finished && sidebar?.layout !== collapseLayout ? LIST_REFLOW : undefined}
           skipEnteringExitingAnimations
           removeClippedSubviews={false}
           className="flex-1 bg-background"
@@ -341,6 +349,7 @@ export function ConnectedScreen() {
                   visibleSectionIds={visibleSectionIds}
                   collapsed={collapsedSectionIds?.has(item.id) ?? false}
                   onToggle={() => {
+                    setCollapseLayout(sidebar?.layout ?? null);
                     setCollapsedByServer((current) => {
                       const next = new Set(current[activeServer.id]);
                       if (next.has(item.id)) next.delete(item.id);

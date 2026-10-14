@@ -47,9 +47,12 @@ export function useAgentListReveal(ready: boolean, scope: string): AgentListReve
       if (active) setFinishedScope(scope);
     };
     const duration = reducedMotion ? REDUCED_DURATION : ROW_DURATION + MAX_DELAY;
+    // Finish also when the animation stops early. Fast Refresh runs this effect again, and then the
+    // shared value's own cleanup cancels the new animation, so the list stayed invisible. A cancel
+    // from the cleanup below sets `active` to false first.
     elapsed.set(
-      withTiming(duration, { duration, easing: Easing.linear, reduceMotion: ReduceMotion.Never }, (done) => {
-        if (done) scheduleOnRN(finish);
+      withTiming(duration, { duration, easing: Easing.linear, reduceMotion: ReduceMotion.Never }, () => {
+        scheduleOnRN(finish);
       }),
     );
     return () => {
