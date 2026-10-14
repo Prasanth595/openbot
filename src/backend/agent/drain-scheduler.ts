@@ -54,10 +54,11 @@ export interface DrainHooks {
   /** Gives a channel task back to its channel after a spent plan refused it; false when it cannot go back. */
   requeueChannelDelivery(deliveryId: string): Effect.Effect<boolean>;
   /**
-   * A usage limit stopped a drain of this agent. Each path that starts a queue comes here, so an
-   * agent set to switch without asking moves to a backup model for a message sent during the hold.
+   * Starts the move of this agent to another model for a usage limit, if one is due: back to its own
+   * model, or to a backup model during a hold. True when a move started; the move schedules the drain
+   * again when it ends. Each path that starts a queue comes here, so no message runs on the wrong model.
    */
-  usageLimitHeld(agentId: string): void;
+  followUsageLimit(agentId: string): boolean;
 }
 
 export interface DrainSchedulerOptions {
@@ -193,8 +194,9 @@ export class DrainScheduler {
     });
   }
 
-  scheduleDrain(agentId: string): void {
-    this.#scheduleDrain(agentId);
+  /** `followUsageLimit` is false after a move that failed, so that the drain does not try it again. */
+  scheduleDrain(agentId: string, followUsageLimit = true): void {
+    this.#scheduleDrain(agentId, followUsageLimit);
     this.retrySlotWaiters();
   }
 
@@ -214,18 +216,16 @@ export class DrainScheduler {
     }
   }
 
-  #scheduleDrain(agentId: string): void {
+  #scheduleDrain(agentId: string, followUsageLimit = true): void {
     if (this.#hooks.isStopping() || this.#scheduledDrains.has(agentId)) return;
     const hold =
       (!this.#providers.isReady() && "providers-not-ready") ||
       (this.#drainingAgents.has(agentId) && "drain-running") ||
       this.#heldBy(agentId) ||
       (this.#heldByMachine(agentId) && "machine");
-    if (hold) {
-      this.#reportHold(agentId, hold);
-      if (hold === "usage-limit") this.#hooks.usageLimitHeld(agentId);
-      return;
-    }
+    if (hold) this.#reportHold(agentId, hold);
+    if (followUsageLimit && (!hold || hold === "usage-limit") && this.#hooks.followUsageLimit(agentId)) return;
+    if (hold) return;
     this.#scheduledDrains.add(agentId);
     const completion = Deferred.makeUnsafe<void, DeliveryStartFailed>();
     // Publish the scheduled work before its microtask, so deletion must wait for the attempt.
