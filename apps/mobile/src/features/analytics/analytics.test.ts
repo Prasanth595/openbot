@@ -369,6 +369,7 @@ it("instruments message commands without sending their contents or changing the 
     canRetryMessage: () => false,
     attachmentSupport: () => ({ eml: true, media: true }),
     changeQueue: async () => {},
+    setMessageReaction: async () => {},
     interruptTurn: async () => {},
     editQueue: async (agentId) => ({ agentId, deliveries: [] }),
     servers: [],

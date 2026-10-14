@@ -1,4 +1,6 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { markdownPlainText } from "@openbot/contracts/markdown-preview-text";
+import { serializeSelectionInstruction } from "@openbot/contracts/selection-instruction";
 import { type CauseCode, classifyFailure, type FailureProperties } from "@openbot/telemetry";
 import { useQueryClient } from "@tanstack/react-query";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
@@ -25,10 +27,14 @@ import { ChatMessageList } from "@/features/chat/components/chat-message-list";
 import { useChatAttachments } from "@/features/chat/components/use-chat-attachments";
 import { useChatMotion } from "@/features/chat/components/use-chat-motion";
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
-import { type ChatBubbleMessage, useMessageActions } from "@/features/chat/context/message-actions-context";
 import { useOutbox } from "@/features/chat/context/outbox-context";
 import { usePublishedQueuedChat } from "@/features/chat/context/queued-messages-context";
-import { type ChatMessage, type PendingChatMessage, presentChatMessages } from "@/features/chat/model/chat-messages";
+import {
+  type ChatBubbleMessage,
+  type ChatMessage,
+  type PendingChatMessage,
+  presentChatMessages,
+} from "@/features/chat/model/chat-messages";
 import { ConnectionStatus } from "@/features/workspace/components/connection-status";
 import { useBrowserRequests } from "@/features/workspace/components/use-live-workspace";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
@@ -51,7 +57,8 @@ import { rememberImageDimensions } from "./attachment-preview";
 import { asksForSecret, BrowserSecretComposer, BrowserTakeoverCard } from "./browser-secret-card";
 import { ChatAttachmentPanel } from "./chat-attachment-panel";
 import type { OutboxRowStatus } from "./chat-outbox-status";
-import { ChatQueueButton } from "./chat-queue-button";
+import { ChatQueuePanel } from "./chat-queue-panel";
+import { ChatSelectionBar } from "./chat-selection-bar";
 import type { ChatQueueController } from "./use-chat-queue";
 import { useVoiceMode } from "./use-voice-mode";
 import { VoiceOverlay } from "./voice-overlay";
@@ -144,8 +151,14 @@ export function ChatView({
   showLatestMessages,
 }: ChatViewProps) {
   const { t, errorMessage } = useText();
-  const { respondToApproval, respondToBrowserSecret, respondToBrowserTakeover, attachmentSupport, browserViewSupport } =
-    useMobileWorkspace();
+  const {
+    respondToApproval,
+    respondToBrowserSecret,
+    respondToBrowserTakeover,
+    attachmentSupport,
+    browserViewSupport,
+    setMessageReaction,
+  } = useMobileWorkspace();
   const browserRequests = useBrowserRequests(target.serverId);
   const chatBrowserRequests = useMemo(
     () => browserRequests.filter((request) => request.agentId === target.id),
@@ -168,8 +181,10 @@ export function ChatView({
     "accent-foreground",
     "background",
   ]);
-  const { select: selectMessageActions } = useMessageActions();
   const [replyTarget, setReplyTarget] = useState<ChatBubbleMessage | null>(null);
+  // The message whose text the reader selects in its bubble, and the selected part of it.
+  const [selection, setSelection] = useState<{ message: ChatBubbleMessage; selected: string } | null>(null);
+  const selectionQuote = selection ? selection.selected.trim() || markdownPlainText(selection.message.body) : "";
   const [replyFocusVersion, setReplyFocusVersion] = useState(0);
   const [draft, setDraft] = useState("");
   const [sendError, setSendError] = useState<{
@@ -533,7 +548,22 @@ export function ChatView({
       return;
     }
 
+    setDraft("");
+    const submittedReply = replyTarget;
+    setReplyTarget(null);
+    // While text of a message is selected, the composer text says how to change it, as Describe
+    // edits on desktop. A message with files goes as a usual message.
+    if (selection && body && files.length === 0) {
+      deliver(serializeSelectionInstruction(body, selectionQuote), selection.message.id, files);
+    } else {
+      deliver(body, submittedReply?.id ?? null, files);
+    }
+    attachments.clear();
+  }
+
+  function deliver(text: string, replyToMessageId: string | null, files: typeof attachments.items): void {
     setSendError(null);
+    setSelection(null);
     // The reply comes at the latest message, which a window around a searched message does not show.
     if (detached) showLatest();
     // The send animation starts from the loaded history. Without it, as offline, the row shows at once:
@@ -542,15 +572,14 @@ export function ChatView({
     Keyboard.dismiss();
     void haptics.impact();
     setShowStarter(false);
-    setDraft("");
-    const submittedReply = replyTarget;
-    setReplyTarget(null);
     // The outbox keeps the message on this phone and sends it while the server is online.
-    outbox.add(
-      { kind: "agent", serverId: target.serverId, agentId: target.id },
-      { text: body, replyToMessageId: submittedReply?.id ?? null, files },
-    );
-    attachments.clear();
+    outbox.add({ kind: "agent", serverId: target.serverId, agentId: target.id }, { text, replyToMessageId, files });
+  }
+
+  /** Explain, Improve and the other selection actions send at once, as on desktop. */
+  function sendSelectionAction(instruction: string): void {
+    if (!canSend || !selection) return;
+    deliver(serializeSelectionInstruction(instruction, selectionQuote), selection.message.id, []);
   }
 
   /**
@@ -693,14 +722,19 @@ export function ChatView({
               olderError={olderError}
               onLoadOlder={loadOlder}
               onReply={replyToMessage}
-              onOpenActions={(message) => {
+              onReact={(message, emoji) => setMessageReaction(target.id, target.serverId, message.id, emoji)}
+              selectingMessageId={selection?.message.id ?? null}
+              // Select text starts the selection, and a second tap on it ends the selection.
+              onSelectText={(message) => {
                 Keyboard.dismiss();
-                selectMessageActions({
-                  message,
-                  onReply: () => replyToMessage(message),
-                });
-                router.push("/message-actions");
+                setSelection((current) => (current?.message.id === message.id ? null : { message, selected: "" }));
               }}
+              onSelectionChange={(selected) =>
+                setSelection((current) =>
+                  current && current.selected !== selected ? { ...current, selected } : current,
+                )
+              }
+              onDismissSelection={() => setSelection(null)}
               muted={muted}
               raised={raised}
               showStarter={
@@ -800,13 +834,21 @@ export function ChatView({
                 </Typography.Paragraph>
               ) : null}
               {queue ? (
-                <ChatQueueButton
+                <ChatQueuePanel
                   queue={queue}
                   pending={queuePending}
                   liquidGlassAvailable={liquidGlassAvailable}
                   fallbackBackground={fieldBackground}
                 />
               ) : null}
+              {/* Mounted while it leaves, so its capsules can animate out. */}
+              <ChatSelectionBar
+                visible={Boolean(selection) && !voiceOpen}
+                canSend={canSend}
+                liquidGlassAvailable={liquidGlassAvailable}
+                fallbackBackground={fieldBackground}
+                onAction={sendSelectionAction}
+              />
               {secretRequest ? (
                 <BrowserSecretComposer
                   key={`${target.serverId}:${secretRequest.requestId}`}
@@ -833,7 +875,13 @@ export function ChatView({
                   action={action}
                   actionForeground={actionForeground}
                   agentName={target.name}
-                  placeholder={answersQuestion ? t("mobile.chat.question.answerPlaceholder") : undefined}
+                  placeholder={
+                    answersQuestion
+                      ? t("mobile.chat.question.answerPlaceholder")
+                      : selection
+                        ? t("mobile.chat.selection.describe")
+                        : undefined
+                  }
                   bottomInset={insets.bottom}
                   disabled={!canSend}
                   attachments={attachments}

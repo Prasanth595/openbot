@@ -287,7 +287,6 @@ export const messages = {
   "chat.actions.moreEmoji": "Ещё эмодзи",
   "chat.actions.replyUser": "Ответить на сообщение пользователя",
   "chat.actions.reply": "Ответить на сообщение: {name}",
-  "chat.actions.more": "Другие действия с сообщением",
   "chat.selection.label": "Действия с выделенным текстом",
   "chat.selection.sendFailed": "Не удалось отправить",
   "chat.selection.close": "Закрыть действия с выделенным текстом",

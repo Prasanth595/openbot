@@ -122,6 +122,7 @@ describe("mobile question forms", () => {
           body: "",
           streaming: false,
           status: "completed",
+          createdAt: "2026-09-09T10:00:00Z",
           attachments: [attachment],
         },
       ],

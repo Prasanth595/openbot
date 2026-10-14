@@ -486,8 +486,7 @@ describe("OpenBot connected desktop shell", () => {
     });
     expect(trackAnalytics).toHaveBeenCalledWith("reaction_action", { action: "add", result: "succeeded" });
 
-    await fireEvent.pointerDown(screen.getByRole("button", { name: "More message actions" }), { button: 0 });
-    await fireEvent.pointerUp(screen.getByRole("menuitem", { name: "Copy" }), { button: 0 });
+    await fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(
         "Ask @Sales Outbound to use Release Notes (skill) and review @[Ops](agent:ops).",

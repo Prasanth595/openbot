@@ -1,4 +1,7 @@
+import { expandAttachmentReferences } from "@openbot/contracts/attachment-references";
+import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
 import type { BrowserTakeoverRequest } from "@openbot/contracts/ipc";
+import { markdownPlainText } from "@openbot/contracts/markdown-preview-text";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useIsFocused } from "expo-router";
 import { Button, Typography } from "heroui-native";
@@ -33,6 +36,7 @@ import {
   AccessibilityInfo,
   type CellRendererProps,
   FlatList,
+  type GestureResponderEvent,
   Pressable,
   StyleSheet,
   View,
@@ -60,6 +64,7 @@ import type { ChatMotion } from "@/features/chat/components/use-chat-motion";
 import { useMessageArrivals } from "@/features/chat/components/use-message-arrivals";
 import type { QuestionPromptController } from "@/features/chat/components/use-question-prompt";
 import {
+  type ChatBubbleMessage,
   type ChatMessage,
   chatRowIndex,
   type ExchangeGroup,
@@ -76,7 +81,6 @@ import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
-import type { ChatBubbleMessage } from "../context/message-actions-context";
 import { CHAT_HISTORY_BATCH, type ChatHistoryBoundary, chatHistoryStart } from "../model/chat-layout";
 import { mentionDraft } from "../model/chat-mentions";
 import type { ChatTarget } from "../model/chat-target";
@@ -84,9 +88,17 @@ import { isStreamingReply } from "../model/reply-reveal";
 import { uploadProgressAt } from "../model/upload-progress";
 import { ChatAttachmentView } from "./chat-attachment";
 import { ChatImageGeneration, imageGenerationStatus } from "./chat-image-generation";
+import { ChatMessageActions } from "./chat-message-actions";
 import { ChatMessageGesture } from "./chat-message-gesture";
 import { ChatOutboxStatus, OutboxMessageMenu, type OutboxRowStatus } from "./chat-outbox-status";
+import { ChatSelectableText } from "./chat-selectable-text";
 import { useReplyHaptics } from "./use-reply-haptics";
+
+/** The most movement and time of a touch that ends the selection: more is a scroll or a hold. */
+const TAP_SLOP = 10;
+const TAP_DURATION_MS = 400;
+/** The selection handles stand this far out of the row of the selected message. */
+const HANDLE_MARGIN = 24;
 
 /** A row of the list. Thinking steps show in the activity row instead. */
 type VisibleMessage = Exclude<ChatMessage, { kind: "thinking" }> | ExchangeGroup;
@@ -253,7 +265,15 @@ interface ChatMessageListProps {
   onSelectStarter: (value: string) => void;
   onRetryHistory: () => void;
   onReply?: (message: ChatBubbleMessage) => void;
-  onOpenActions: (message: ChatBubbleMessage) => void;
+  /** Sets the reader's reaction on a message. `null` removes it. */
+  onReact?: (message: ChatBubbleMessage, emoji: string | null) => Promise<void>;
+  /** The message whose text the reader selects in its bubble. */
+  selectingMessageId?: string | null;
+  onSelectText?: (message: ChatBubbleMessage) => void;
+  /** The selected part of the message text, or an empty string. */
+  onSelectionChange?: (selected: string) => void;
+  /** A tap outside the selected text ends the selection. */
+  onDismissSelection?: () => void;
   /** The message whose files are uploading, how many finished, and how to stop the rest. */
   upload?: {
     messageId: string;
@@ -289,7 +309,6 @@ interface MessageRowShared {
   userBubbleStyle: ComponentProps<typeof Animated.View>["style"] | undefined;
   firstMessageStyle: ComponentProps<typeof Animated.View>["style"];
   onUserLayout: ChatMotion["onUserLayout"];
-  screenReaderEnabled: boolean;
   arrivals: ReadonlySet<string>;
   /** Arriving replies animate: the screen is focused, online, active, and shows the response. */
   animationActive: boolean;
@@ -303,9 +322,15 @@ interface MessageRowShared {
   markRevealed: (id: string) => void;
   replyHaptics: ReturnType<typeof useReplyHaptics>;
   canReply: boolean;
+  canReact: boolean;
+  canSelectText: boolean;
   actions: {
     reply: (message: ChatBubbleMessage) => void;
-    openActions: (message: ChatBubbleMessage) => void;
+    react: (message: ChatBubbleMessage, emoji: string | null) => Promise<void>;
+    selectText: (message: ChatBubbleMessage) => void;
+    selectionChange: (selected: string) => void;
+    /** The row of the selected message. A tap outside it ends the selection. */
+    selectionArea: (view: View | null) => void;
   };
 }
 
@@ -399,6 +424,7 @@ const MessageRow = memo(function MessageRow({
   questionForm,
   upload,
   outbox,
+  selecting = false,
   shared,
 }: {
   message: VisibleMessage;
@@ -412,9 +438,12 @@ const MessageRow = memo(function MessageRow({
   upload?: ChatUpload;
   /** Set only on a message that waits on the phone or failed. */
   outbox?: OutboxRowStatus;
+  /** The reader selects the text of this message in its bubble. */
+  selecting?: boolean;
   shared: MessageRowShared;
 }) {
   const { t } = useText();
+  const [selectionHeight, setSelectionHeight] = useState(0);
   const {
     agents,
     agentsById,
@@ -427,7 +456,6 @@ const MessageRow = memo(function MessageRow({
     userBubbleStyle,
     firstMessageStyle,
     onUserLayout,
-    screenReaderEnabled,
     arrivals,
     replySession,
     markRevealed,
@@ -541,19 +569,39 @@ const MessageRow = memo(function MessageRow({
                 : undefined,
             ]}
           >
-            <ChatMarkdown
-              agents={agents}
-              body={message.body}
-              selectable={message.author === "user"}
-              color={message.author === "user" && userBubbleStyle && !memberColor ? userForeground : foreground}
-              playback={playback}
-              animationEnabled={shared.animationActive && arrivals.has(message.id)}
-            />
+            {/* The message text stays mounted while the reader selects, so it does not change size or
+                play its reveal again. The selectable text covers it at the same place. */}
+            <View style={selecting ? { minHeight: selectionHeight } : undefined}>
+              <View
+                style={selecting ? { opacity: 0 } : undefined}
+                accessibilityElementsHidden={selecting}
+                importantForAccessibility={selecting ? "no-hide-descendants" : "auto"}
+              >
+                <ChatMarkdown
+                  agents={agents}
+                  body={message.body}
+                  selectable={message.author === "user"}
+                  color={message.author === "user" && userBubbleStyle && !memberColor ? userForeground : foreground}
+                  playback={playback}
+                  animationEnabled={shared.animationActive && arrivals.has(message.id)}
+                />
+              </View>
+              {selecting ? (
+                <ChatSelectableText
+                  text={markdownPlainText(message.body)}
+                  color={foreground}
+                  onHeight={setSelectionHeight}
+                  onSelectionChange={actions.selectionChange}
+                />
+              ) : null}
+            </View>
           </ChatBubble>
         ) : null}
       </Animated.View>
     );
   if (message.kind !== "message") return rendered;
+  // Selection actions are for the text of an agent reply, as on desktop.
+  const selectable = shared.canSelectText && message.author === "agent" && Boolean(message.body.trim());
   const replyPreview =
     source?.kind === "message"
       ? mentionDraft(source.body).text || t("mobile.chat.reply.attachment")
@@ -561,6 +609,9 @@ const MessageRow = memo(function MessageRow({
   return (
     <View
       key={message.id}
+      // The selected text and its action row: a tap here does not end the selection, so the Select
+      // text button can end it on its own.
+      ref={selecting ? actions.selectionArea : undefined}
       className={
         message.author === "agent"
           ? "max-w-full self-start gap-1"
@@ -585,9 +636,9 @@ const MessageRow = memo(function MessageRow({
       ) : null}
       {message.author === "agent" ? (
         <ChatMessageGesture
-          screenReaderEnabled={screenReaderEnabled}
+          selecting={selecting}
           onReply={shared.canReply ? () => actions.reply(message) : undefined}
-          onOpenActions={() => actions.openActions(message)}
+          onSelectText={selectable ? () => actions.selectText(message) : undefined}
         >
           {rendered}
         </ChatMessageGesture>
@@ -598,9 +649,31 @@ const MessageRow = memo(function MessageRow({
       )}
       {message.author === "user" && message.status === "failed" ? <TurnFailure reason={message.failureReason} /> : null}
       {outbox ? <ChatOutboxStatus status={outbox} /> : null}
+      {/* A message that the host does not have yet, or that still streams, has no actions. */}
+      {outbox || message.streaming || waiting ? null : (
+        <ChatMessageActions
+          align={message.author === "user" ? "end" : "start"}
+          copyText={messageCopyText(message)}
+          createdAt={message.createdAt}
+          reactions={message.reactions}
+          agentsById={agentsById}
+          onReact={shared.canReact ? (emoji) => actions.react(message, emoji) : undefined}
+          onReply={shared.canReply ? () => actions.reply(message) : undefined}
+          onSelectText={selectable ? () => actions.selectText(message) : undefined}
+          selecting={selecting}
+        />
+      )}
     </View>
   );
 });
+
+/** The text that Copy puts on the clipboard: tags and file references show their names. */
+function messageCopyText(message: ChatBubbleMessage): string {
+  const attachmentNames = new Map((message.attachments ?? []).map((attachment) => [attachment.id, attachment.name]));
+  return expandAttachmentReferences(expandChatTagReferences(message.body), (reference) =>
+    attachmentNames.get(reference.attachmentId),
+  ).trim();
+}
 
 /** Under a user message whose turn failed. A reason that is missing or not safe to show uses the fallback. */
 function TurnFailure({ reason }: { reason: string | undefined }) {
@@ -663,7 +736,11 @@ export function ChatMessageList({
   onSelectStarter,
   onRetryHistory,
   onReply,
-  onOpenActions,
+  onReact,
+  selectingMessageId = null,
+  onSelectText,
+  onSelectionChange,
+  onDismissSelection,
   focusMessageId = null,
   onFocusPlaced,
 }: ChatMessageListProps) {
@@ -801,15 +878,47 @@ export function ChatMessageList({
     focusHandlers.current.openAt(y);
     focusHandlers.current.onFocusPlaced?.();
   }, []);
-  const actionHandlers = useRef({ onReply, onOpenActions });
-  actionHandlers.current = { onReply, onOpenActions };
+  const selectionArea = useRef<View | null>(null);
+  const actionHandlers = useRef({ onReply, onReact, onSelectText, onSelectionChange });
+  actionHandlers.current = { onReply, onReact, onSelectText, onSelectionChange };
   const actions = useMemo<MessageRowShared["actions"]>(
     () => ({
       reply: (message) => actionHandlers.current.onReply?.(message),
-      openActions: (message) => actionHandlers.current.onOpenActions(message),
+      react: async (message, emoji) => actionHandlers.current.onReact?.(message, emoji),
+      selectText: (message) => actionHandlers.current.onSelectText?.(message),
+      selectionChange: (selected) => actionHandlers.current.onSelectionChange?.(selected),
+      selectionArea: (view) => {
+        selectionArea.current = view;
+      },
     }),
     [],
   );
+  // A tap, not a scroll, outside the selected text ends the selection. Touch events only listen, so
+  // the tap still reaches the button or the text under it.
+  const touchStart = useRef<{ x: number; y: number; time: number } | null>(null);
+  const dismissSelection = useRef(onDismissSelection);
+  dismissSelection.current = onDismissSelection;
+  const onTouchStart = ({ nativeEvent }: GestureResponderEvent) => {
+    touchStart.current = { x: nativeEvent.pageX, y: nativeEvent.pageY, time: nativeEvent.timestamp };
+  };
+  const onTouchEnd = ({ nativeEvent }: GestureResponderEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    const area = selectionArea.current;
+    if (!start || !area || !dismissSelection.current) return;
+    const moved = Math.hypot(nativeEvent.pageX - start.x, nativeEvent.pageY - start.y);
+    if (moved > TAP_SLOP || nativeEvent.timestamp - start.time > TAP_DURATION_MS) return;
+    const { pageX, pageY } = nativeEvent;
+    area.measureInWindow((x, y, width, height) => {
+      // The selection handles stand out of the row, so a touch near it is still on the selection.
+      const inside =
+        pageX >= x - HANDLE_MARGIN &&
+        pageX <= x + width + HANDLE_MARGIN &&
+        pageY >= y - HANDLE_MARGIN &&
+        pageY <= y + height + HANDLE_MARGIN;
+      if (!inside) dismissSelection.current?.();
+    });
+  };
   const animationActive = animateMessages && motion.responseVisible;
   const shared = useMemo<MessageRowShared>(
     () => ({
@@ -824,7 +933,6 @@ export function ChatMessageList({
       userBubbleStyle: agentColorMessages ? userBubbleStyle : undefined,
       firstMessageStyle: motion.firstMessageStyle,
       onUserLayout: motion.onUserLayout,
-      screenReaderEnabled,
       arrivals,
       animationActive,
       playbackActive: animationActive && textReveal && !screenReaderEnabled,
@@ -834,6 +942,8 @@ export function ChatMessageList({
       markRevealed,
       replyHaptics,
       canReply: Boolean(onReply),
+      canReact: Boolean(onReact),
+      canSelectText: Boolean(onSelectText),
       actions,
     }),
     [
@@ -858,6 +968,8 @@ export function ChatMessageList({
       markRevealed,
       replyHaptics,
       onReply,
+      onReact,
+      onSelectText,
       actions,
     ],
   );
@@ -899,6 +1011,7 @@ export function ChatMessageList({
             questionForm={item.id === questionForm?.messageId ? questionForm : undefined}
             upload={upload?.messageId === item.id ? upload : undefined}
             outbox={outboxStatuses?.get(item.id)}
+            selecting={item.id === selectingMessageId}
             shared={shared}
           />
         </Animated.View>
@@ -914,6 +1027,7 @@ export function ChatMessageList({
       questionForm,
       upload,
       outboxStatuses,
+      selectingMessageId,
       shared,
     ],
   );
@@ -977,6 +1091,8 @@ export function ChatMessageList({
 
   return (
     <Animated.View
+      onTouchStart={selectingMessageId ? onTouchStart : undefined}
+      onTouchEnd={selectingMessageId ? onTouchEnd : undefined}
       style={[{ flex: 1 }, historyState === "ready" ? motion.historyStyle : undefined]}
       accessibilityElementsHidden={accessibilityHidden || (historyState === "ready" && !motion.historyVisible)}
       importantForAccessibility={

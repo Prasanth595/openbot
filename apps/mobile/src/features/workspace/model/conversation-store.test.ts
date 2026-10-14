@@ -139,6 +139,7 @@ describe("mobile conversation windows", () => {
         body: "Referenced outside the window",
         streaming: false,
         status: "completed",
+        createdAt: "2026-09-10T10:00:00Z",
       },
     });
   });
@@ -190,6 +191,7 @@ describe("mobile conversation windows", () => {
         body: "reply one two",
         streaming: true,
         status: "streaming",
+        createdAt: "2026-09-10T10:00:00Z",
       },
     });
   });

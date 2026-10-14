@@ -3946,8 +3946,6 @@ textarea {
 .reaction-picker-row button:hover,
 .reaction-picker-row button:focus-visible,
 .reaction-picker-row button[aria-checked="true"],
-.message-more-menu button:hover,
-.message-more-menu button:focus-visible,
 .composer-button:hover,
 .composer-attachment > button:hover,
 .account-menu-row:hover,
