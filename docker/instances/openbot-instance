@@ -450,6 +450,30 @@ attempt_state() {
   echo "$state"
 }
 
+# Runs step $2 (backup or verify) as the command in the other arguments, with a details file as its
+# last argument, and writes the result to the status folder $1. Exits when the step fails.
+run_step() {
+  local status=$1 step=$2 started errors details result
+  shift 2
+  started=$(utc_now)
+  record_start "$status" "$step" "$started"
+  errors=$(mktemp)
+  details=$(mktemp)
+  # The errors go to the terminal and to the status. Standard output stays on file descriptor 3.
+  set +e
+  {
+    (
+      set -e
+      "$@" "$details"
+    ) 2>&1 >&3 | tee "$errors" >&2
+    result=${PIPESTATUS[0]}
+  } 3>&1
+  set -e
+  record "$status" "$step" "$started" "$result" "$errors" "$(cat "$details")"
+  rm -f "$errors" "$details"
+  [ "$result" -eq 0 ] || exit "$result"
+}
+
 lock_instance() {
   exec 9>"$LOCKS/$UPDATE_UNIT-$1.lock"
   flock 9
@@ -457,7 +481,7 @@ lock_instance() {
 
 backup() {
   [ "$#" -ge 1 ] || fail "Give the name of the instance."
-  local name=$1 verify_after=0 status started errors details made final result
+  local name=$1 verify_after=0 status made final
   shift
   check_name "$name"
   while [ "$#" -gt 0 ]; do
@@ -473,25 +497,11 @@ backup() {
   install -d -m 0700 "$status"
   # Updates use the same lock, so a backup never stops a container that an update makes again.
   lock_instance "$name"
-  started=$(utc_now)
-  record_start "$status" backup "$started"
-  errors=$(mktemp)
-  details=$(mktemp)
   made=$(mktemp)
-  # The errors go to the terminal and to the status. Standard output stays on file descriptor 3.
-  set +e
-  {
-    (
-      set -e
-      backup_steps "$name" "$details" "$made"
-    ) 2>&1 >&3 | tee "$errors" >&2
-    result=${PIPESTATUS[0]}
-  } 3>&1
-  set -e
-  record "$status" backup "$started" "$result" "$errors" "$(cat "$details")"
+  # shellcheck disable=SC2064 # The value is fixed now.
+  trap "rm -f -- '$made'" EXIT
+  run_step "$status" backup backup_steps "$name" "$made"
   final=$(cat "$made")
-  rm -f "$errors" "$details" "$made"
-  [ "$result" -eq 0 ] || exit "$result"
   # Old backups go only after the new one is complete, and verified when --verify is given. When the
   # verification fails, they all stay.
   [ "$verify_after" -eq 0 ] || verify_locked "$name" "$final"
@@ -506,7 +516,7 @@ backup_cleanup() {
 
 # Runs in a subshell, so its globals end with it. Each failure ends it, and the trap cleans up.
 backup_steps() {
-  local name=$1 details_file=$2 made_file=$3 data=$DATA/$1/data root used available stamp final archive
+  local name=$1 made_file=$2 details_file=$3 data=$DATA/$1/data root used available stamp final archive
   local version image image_id was_running=false exit_code=null stopped_at downtime=0 archive_bytes
   local archive_sha locations compressor=(gzip -1)
   CONTAINER=openbot-$1
@@ -612,24 +622,7 @@ verify() {
 }
 
 verify_locked() {
-  local name=$1 status=$DATA/$1/backup-status started errors details result
-  started=$(utc_now)
-  record_start "$status" verify "$started"
-  errors=$(mktemp)
-  details=$(mktemp)
-  # The errors go to the terminal and to the status. Standard output stays on file descriptor 3.
-  set +e
-  {
-    (
-      set -e
-      verify_steps "$name" "$2" "$details"
-    ) 2>&1 >&3 | tee "$errors" >&2
-    result=${PIPESTATUS[0]}
-  } 3>&1
-  set -e
-  record "$status" verify "$started" "$result" "$errors" "$(cat "$details")"
-  rm -f "$errors" "$details"
-  [ "$result" -eq 0 ] || exit "$result"
+  run_step "$DATA/$1/backup-status" verify verify_steps "$1" "$2"
 }
 
 # The number of rows of $2 in database $1, or null when the table is not there. Runs as the user of
