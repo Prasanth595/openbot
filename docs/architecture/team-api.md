@@ -63,6 +63,15 @@ Desktop invitation QR codes contain the same one-use link as Copy link. The sign
 scanner validates that link and opens the invitation review before acceptance. These codes join
 one server; Mobile Connect codes sign in to the desktop account. Mobile keeps the paired host as the
 default server above the drawer divider until the user changes it, and opens on the first server.
+
+Mobile Settings can disable Local agents on this device. Local means the computer whose Mobile
+Connect code paired the phone, not a runtime on the phone. The preference hides that host and its
+agents and blocks new requests to it, including stale notification answers. Other servers remain
+available. It preserves the directory, saved agents, chats and server preferences. Already-sent
+host work continues. Re-enable restores access after the device preference is saved. Before that
+preference loads, or when it cannot be read, Local remains hidden and blocked; Settings offers a
+retry. This is a device request rule and does not change host permissions or released Team codecs.
+
 Both clients read account-wide membership from D1's indexed `remote_memberships` / `remote_hosts`
 join. An offline paired desktop does not remove other memberships, and mobile connects directly
 to each host independently. A cold launch refreshes the account directory. Both clients check again

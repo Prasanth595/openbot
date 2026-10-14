@@ -290,6 +290,17 @@ jobs:
       - name: Validate the remote Compose files
         run: bun run remote:check:compose
 
+      - name: Verify the mobile local-agent preference
+        run: bun scripts/mobile-local-agents-e2e.ts
+
+      - name: Upload the mobile local-agent preference report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mobile-local-agents-e2e
+          path: .openbot-build/mobile-local-agents-e2e/
+          if-no-files-found: ignore
+
   api:
     # `check:api` ends with `api:build:check`, the preview build of the Worker. For a pull request
     # from this repository, this job uploads that build. It has no secrets and no write token. The
