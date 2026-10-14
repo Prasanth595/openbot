@@ -98,11 +98,11 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
         title={title()}
         phase={props.phase}
         initial={props.initial}
-        issue={props.issue}
-        updateVersion={props.updateVersion}
-        remainingSeconds={props.remainingSeconds}
-        detail={props.detail}
-        reference={props.reference}
+        issue={props.issue ?? null}
+        updateVersion={props.updateVersion ?? null}
+        remainingSeconds={props.remainingSeconds ?? 0}
+        detail={props.detail ?? null}
+        reference={props.reference ?? null}
         since={since}
       />
     </>
