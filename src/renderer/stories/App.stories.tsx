@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@openbot/contracts/ipc";
+import { type AgentEvent, DEFAULT_PROVIDER_ACCOUNT_ID, type ProviderAccountStatus } from "@openbot/contracts/ipc";
 import type { ServerView } from "@openbot/ui/features/servers/ServerMenu";
 import { onCleanup } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -6,7 +6,7 @@ import { App } from "../src/App";
 import { LEFT_PANEL_COLLAPSED_STORAGE_KEY, SERVER_VIEW_STORAGE_KEY } from "../src/layout-constants";
 import { createMockOpenBot, type MockOpenBotOptions } from "../src/preview/mock-openbot";
 import { OpenBotPlayground } from "../src/preview/OpenBotPlayground";
-import { STORY_AGENT_STATUS, STORY_AGENT_SUMMARIES, STORY_APP_INFO, STORY_SERVERS } from "./fixtures";
+import { STORY_AGENT_STATUS, STORY_AGENT_SUMMARIES, STORY_APP_INFO, STORY_SERVERS, STORY_USAGE } from "./fixtures";
 
 const [storyLocalServer, storyRemoteServer] = STORY_SERVERS;
 if (!storyLocalServer || !storyRemoteServer) throw new Error("Story server fixtures need a local and a remote server.");
@@ -231,6 +231,33 @@ export const ProviderSignInRequired: Story = {
               : provider,
           ),
         },
+      }}
+    />
+  ),
+};
+
+const signedOutSecondaryAccounts = [
+  { id: DEFAULT_PROVIDER_ACCOUNT_ID, label: null, email: "person@example.com", state: "connected", message: null },
+  { id: "a0000000000000001", label: null, email: null, state: "signed-out", message: null },
+] satisfies ProviderAccountStatus[];
+
+/** Select the signed-out secondary account while the default account still reports usage. */
+export const SelectedSignedOutSecondaryAccount: Story = {
+  render: () => (
+    <SidebarStatePlayground
+      compact={false}
+      options={{
+        agents: STORY_AGENT_SUMMARIES.slice(0, 1).map((agent) => ({
+          ...agent,
+          providerAccountId: "a0000000000000001",
+        })),
+        agentStatus: {
+          ...STORY_AGENT_STATUS,
+          providers: STORY_AGENT_STATUS.providers?.map((provider) =>
+            provider.id === "codex" ? { ...provider, accounts: signedOutSecondaryAccounts } : provider,
+          ),
+        },
+        usage: STORY_USAGE,
       }}
     />
   ),

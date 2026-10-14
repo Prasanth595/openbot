@@ -145,8 +145,8 @@ export function accountUsageSummary(
 ): AccountUsageProviderRow | null {
   if (provider) {
     if (!accountUsageCoversModel(provider, model)) return null;
-    const rowsOfProvider = rows.filter((row) => row.provider === provider);
-    return rowsOfProvider.find((row) => row.accountId === (accountId ?? null)) ?? rowsOfProvider[0] ?? null;
+    const selectedAccountId = accountId === DEFAULT_PROVIDER_ACCOUNT_ID ? null : (accountId ?? null);
+    return rows.find((row) => row.provider === provider && row.accountId === selectedAccountId) ?? null;
   }
   let lowest: AccountUsageProviderRow | null = null;
   for (const row of rows) {
