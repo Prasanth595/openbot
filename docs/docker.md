@@ -55,6 +55,11 @@ For Amazon ECS, see [AWS ECS](aws-ecs.md).
 
 The container publishes no port. OpenBot only connects out: to the account server, to the providers,
 and to Signal and TURN for remote use. The Team API listens on `127.0.0.1` in the container.
+The container does not serve a web interface. After `openbot login`, use
+[`openbot.run/app`](https://openbot.run/app) with the same account to select the server. A web
+client at your own origin is not included in this image. The
+[self-hosted account service](self-hosting.md#what-changes) is a separate deployment with its own
+client limits.
 
 ## Tags
 
@@ -217,6 +222,41 @@ OpenBot does not update itself in a container. A new image replaces it. An insta
 `docker/instances` can ask the host for that from the app, see
 [Updates from the app](#updates-from-the-app). Do not go back to an older tag: an older OpenBot cannot
 open a database that a newer one migrated, so it does not start.
+
+### Update automation
+
+`latest` follows the newest published release. The release workflow does not publish a floating
+minor tag such as `0.39`, or a separate `stable` tag. For a controlled upgrade, keep an exact
+version in your Compose file or `OPENBOT_TAG` in the instance env file.
+
+The [GitHub latest-release API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)
+is the machine-readable source for the newest full release. For example, this read-only command
+prints its tag:
+
+```sh
+gh api repos/nightly-labs/openbot/releases/latest --jq '.tag_name'
+```
+
+Automation can poll that metadata and download an image. Installation needs these checks:
+
+1. Read the release notes and check that the candidate is newer than the running version. Stop on
+   an API error or an unexpected tag. Do not substitute `latest` for a failed version lookup.
+2. Compare your deployment files with the files at the candidate release tag. Check
+   `docker/compose.yaml` and `docker/seccomp.json`. For managed instances, check the
+   `docker/instances/` files too. These files can change between releases; there is no promise that
+   an old copy remains sufficient. Stop for operator review when they change. Keep local settings.
+3. Pull the exact image tag and check its release version and architecture before replacing the
+   container. The release workflow publishes the GitHub release before the image tags, so a new
+   release can appear while its image is not available yet. A failed pull leaves installation pending.
+4. Stop the container, confirm that it stopped, and back up the complete `/data` recovery unit,
+   including the keyring and password file. See [Data](#data). Keep the previous complete backup.
+5. Replace the container with the chosen image and the same volume and runtime options. Check
+   `openbot status` and the container log before the upgrade is reported as complete.
+
+An unattended image watcher does not perform these checks or make a consistent backup. Keep the
+installation step under operator control unless your own job implements them. A failed upgrade
+must not start an older image against the upgraded data. Recovery uses the complete backup with
+a compatible release, not an image-tag rollback of the live volume.
 
 ## Memory
 
