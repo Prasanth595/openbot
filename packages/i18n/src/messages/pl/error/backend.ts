@@ -133,6 +133,7 @@ export const messages = {
   "error.backend.routineCronTooOften": "Własne harmonogramy nie mogą uruchamiać się częściej niż co {minutes} min.",
   "error.backend.routineAnchorInvalid": "Punkt odniesienia odstępu rutyny jest nieprawidłowy.",
   "error.backend.routineNoOccurrence": "Harmonogram nie ma żadnego wystąpienia w ciągu najbliższych pięciu lat.",
+  "error.backend.routineOncePassed": "Czas tej jednorazowej rutyny już minął. Wybierz późniejszą datę lub godzinę.",
   "error.backend.routineTimezoneInvalid": "Strefa czasowa rutyny jest nieprawidłowa.",
   "error.backend.routineCronFields": "Własne harmonogramy muszą mieć pięć pól cron.",
   "error.backend.routineCronValueInvalid": "Wartość cron {field} jest nieprawidłowa.",

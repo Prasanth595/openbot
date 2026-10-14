@@ -48,6 +48,11 @@ export interface RoutinesPort {
    * Only this computer's host does, for the same reason as `limitPolicy`.
    */
   missedPolicy: boolean;
+  /**
+   * Whether the host saves a one-time schedule. Only this computer's host does: the released Team
+   * API cannot carry the `once` kind, so a remote host hides such routines.
+   */
+  onceSchedule: boolean;
   list: () => Promise<RoutineEditorRecord[]>;
   listRuns: (routineId: string, limit: number) => Promise<RoutineRunFields[]>;
   save: (input: RoutineSaveInput) => Promise<RoutineSaveResult>;
@@ -66,6 +71,7 @@ export function agentRoutinesPort(agentId: string, automation = false, localHost
     ownerNoun: "agent",
     limitPolicy: localHost,
     missedPolicy: localHost,
+    onceSchedule: localHost,
     list: () => window.openbot.agent.listRoutines(agentId),
     listRuns: (routineId, limit) => window.openbot.agent.listRoutineRuns({ agentId, routineId, limit }),
     save: ({ routineId, name, instruction, active, timezone, schedule, limitPolicy, missedPolicy }) => {
@@ -114,6 +120,7 @@ export function channelRoutinesPort(
     ownerNoun: "channel",
     limitPolicy: localHost,
     missedPolicy: localHost,
+    onceSchedule: localHost,
     list: () => api.listChannelRoutines(channelId),
     listRuns: (routineId, limit) => api.listChannelRoutineRuns({ channelId, routineId, limit }),
     save: ({ routineId, name, instruction, active, timezone, schedule, limitPolicy, missedPolicy }) => {
@@ -147,7 +154,7 @@ export function channelRoutinesPort(
 export function eventRoutinesPort(
   owner: EventRoutineOwner,
   api: EventRoutinesApi,
-  legacy: Pick<RoutinesPort, "listRuns" | "subscribe" | "runCommand" | "missedPolicy">,
+  legacy: Pick<RoutinesPort, "listRuns" | "subscribe" | "runCommand" | "missedPolicy" | "onceSchedule">,
 ): RoutinesPort {
   const runCommand = legacy.runCommand;
   return {
@@ -155,6 +162,7 @@ export function eventRoutinesPort(
     ownerNoun: owner.kind,
     limitPolicy: true,
     missedPolicy: legacy.missedPolicy,
+    onceSchedule: legacy.onceSchedule,
     list: () => api.listRoutines({ owner }),
     listRuns: legacy.listRuns,
     events: { owner, api },

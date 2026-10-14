@@ -1,6 +1,12 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import { isRoutineSchedule, ROUTINE_MINIMUM_INTERVAL_MINUTES, type RoutineSchedule } from "@openbot/contracts/ipc";
-import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
+import {
+  isRoutineSchedule,
+  ROUTINE_MINIMUM_INTERVAL_MINUTES,
+  ROUTINE_MISSED_POLICIES,
+  type RoutineMissedPolicy,
+  type RoutineSchedule,
+} from "@openbot/contracts/ipc";
+import { type DynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { RoutineInputError } from "@openbot/team-client/routine-schedule";
 import { isRecord } from "../protocol";
 
@@ -49,6 +55,11 @@ export function routineToolSchedule(value: unknown): RoutineSchedule {
     );
   }
   return structuredClone(value);
+}
+
+export function routineToolMissedPolicy(value: unknown): RoutineMissedPolicy {
+  if (!isOneOf(ROUTINE_MISSED_POLICIES, value)) throw new RoutineInputError("missedPolicy must be skip or run-once.");
+  return value;
 }
 
 function intervalMinutes(amount: number, unit: "minutes" | "hours" | "days"): number {

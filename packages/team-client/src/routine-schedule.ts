@@ -98,6 +98,11 @@ export function nextRoutineOccurrence(schedule: RoutineSchedule, timezone: strin
 
 /** For a schedule that `validateStoredRoutineSchedule` accepted: a custom one costs 200 searches to validate. */
 export function nextValidRoutineOccurrence(schedule: RoutineSchedule, timezone: string, after: Date): Date {
+  if (schedule.kind === "once") {
+    const due = routineOnceInstant(schedule, timezone);
+    if (after.getTime() < due.getTime()) return due;
+    throw new RoutineInputError(sourceText("error.backend.routineOncePassed"));
+  }
   if (schedule.kind === "interval") {
     const duration = intervalMilliseconds(schedule.amount, schedule.unit);
     const anchor = Date.parse(schedule.anchorAt);
@@ -109,13 +114,42 @@ export function nextValidRoutineOccurrence(schedule: RoutineSchedule, timezone: 
   return nextCronOccurrence(scheduleCronSpec(schedule), timezone, after);
 }
 
+/**
+ * The instant of a one-time schedule. A local time that repeats runs at its first instant. A local
+ * time in a gap runs at the first minute after the gap, so a date that a clock change skips still runs.
+ */
+export function routineOnceInstant(schedule: Extract<RoutineSchedule, { kind: "once" }>, timezone: string): Date {
+  const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = schedule.date.split("-").map(Number);
+  const [hour, minute] = parseTime(schedule.time);
+  const start = Date.UTC(year, month - 1, day, hour, minute);
+  for (let step = 0; step <= MAX_GAP_MINUTES; step += 1) {
+    const local = new Date(start + step * 60_000);
+    const [candidate] = zonedDateTimeCandidates(
+      {
+        year: local.getUTCFullYear(),
+        month: local.getUTCMonth() + 1,
+        day: local.getUTCDate(),
+        weekday: local.getUTCDay(),
+        hour: local.getUTCHours(),
+        minute: local.getUTCMinutes(),
+      },
+      timezone,
+    );
+    if (candidate) return candidate;
+  }
+  throw new RoutineInputError(sourceText("error.backend.routineNoOccurrence"));
+}
+
+/** The longest clock change of a time zone is shorter than this. */
+const MAX_GAP_MINUTES = 3 * 60;
+
 export function normalizeRoutineSchedule(schedule: RoutineSchedule, now = new Date()): RoutineSchedule {
   if (schedule.kind !== "interval") return structuredClone(schedule);
   const anchor = Number.isNaN(Date.parse(schedule.anchorAt)) ? now.toISOString() : schedule.anchorAt;
   return { ...schedule, anchorAt: anchor };
 }
 
-function scheduleCronSpec(schedule: Exclude<RoutineSchedule, { kind: "interval" }>): CronSpec {
+function scheduleCronSpec(schedule: Exclude<RoutineSchedule, { kind: "interval" | "once" }>): CronSpec {
   switch (schedule.kind) {
     case "hourly":
       return cronSpec(

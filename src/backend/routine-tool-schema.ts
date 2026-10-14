@@ -1,4 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { ROUTINE_MISSED_POLICIES } from "@openbot/contracts/ipc";
 import { z } from "zod";
 
 const ROUTINE_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -44,5 +45,24 @@ export const routineScheduleZodSchema = z
       })
       .strict(),
     z.object({ kind: z.literal("custom"), expression: z.string().min(1).max(INPUT_LIMITS.routineCron) }).strict(),
+    z
+      .object({
+        kind: z.literal("once"),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Local date in YYYY-MM-DD format."),
+        time: routineTimeSchema,
+      })
+      .strict()
+      .describe(
+        "One run at this local date and time, such as a reminder. The routine then pauses and does not repeat.",
+      ),
   ])
   .describe("Routine schedule. Weekdays use 0 for Sunday through 6 for Saturday; clock values use HH:mm local time.");
+
+export const routineMissedPolicyZodSchema = z
+  .enum(ROUTINE_MISSED_POLICIES)
+  .describe(
+    "What happens to a run that came due while OpenBot was not running: skip records and drops it, run-once runs it when OpenBot starts. A one-time schedule uses run-once when this is omitted; other schedules use skip.",
+  );

@@ -5,6 +5,7 @@ import {
 } from "@openbot/ui/features/conversation/RoutineScheduleCard";
 import type { RoutineScheduleDraft } from "@openbot/ui/features/conversation/routine-schedule-draft";
 import {
+  ROUTINE_LOCAL_DRAFT_KINDS,
   ROUTINE_SAVED_DRAFT_KINDS,
   routineDraftProblem,
   routineScheduleFromDraft,
@@ -114,7 +115,8 @@ export function RoutineChatCard(props: RoutineChatCardProps) {
       action={props.action}
       routineName={routine().name}
       schedule={draft()}
-      kinds={ROUTINE_SAVED_DRAFT_KINDS}
+      // Only this computer's host keeps a one-time routine, so only its card offers the one-time kind.
+      kinds={routine().trigger.schedule.kind === "once" ? ROUTINE_LOCAL_DRAFT_KINDS : ROUTINE_SAVED_DRAFT_KINDS}
       state={state()}
       errorText={errorText()}
       nextRunLabel={nextRunLabel(routine(), text)}

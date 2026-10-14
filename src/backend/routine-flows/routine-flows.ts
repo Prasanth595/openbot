@@ -34,7 +34,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
-import { nextValidRoutineOccurrence } from "@openbot/team-client/routine-schedule";
+import { nextValidRoutineOccurrence, routineOnceInstant } from "@openbot/team-client/routine-schedule";
 import { Context, Effect, Exit, Layer, ManagedRuntime, Schema, Scope, Semaphore } from "effect";
 import { routineFlowDepths } from "./routine-flow-graph";
 import { RoutineFlowError, type RoutineFlowRun, type RoutineFlowStore } from "./routine-flow-store";
@@ -439,6 +439,11 @@ function upcoming(routine: RoutineFlowRoutineInfo, from: Date): string[] {
   if (routine.trigger.kind !== "schedule") return [];
   const schedule = routine.trigger.schedule;
   const end = from.getTime() + UPCOMING_WINDOW_MS;
+  if (schedule.kind === "once") {
+    // A one-time routine has at most one time, and none after it ran.
+    const at = routineOnceInstant(schedule, routine.timezone).getTime();
+    return at > from.getTime() && at < end ? [new Date(at).toISOString()] : [];
+  }
   const times: string[] = [];
   try {
     for (

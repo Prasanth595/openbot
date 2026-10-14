@@ -71,7 +71,6 @@ export const messages = defineMessages("routine", {
   "routine.hours.endTime": "End time",
   "routine.hours.repeat": "Repeat",
 
-  "routine.problem.once": "A one-time routine cannot be saved yet.",
   "routine.problem.endBeforeStart": "End time must be after start time.",
   "routine.problem.invalidDate": "Choose a date that exists.",
   "routine.problem.cronRequired": "Enter a cron expression.",
@@ -189,6 +188,7 @@ export const messages = defineMessages("routine", {
   "routine.settings.loading": "Loading routines…",
   "routine.settings.empty": "No routines yet.",
   "routine.settings.paused": "Paused",
+  "routine.settings.completed": "Done · {schedule}",
   "routine.settings.active": "Active",
   "routine.settings.activeToggle": "Routine active",
   "routine.settings.deleteNow": "Delete now",

@@ -140,6 +140,8 @@ export const messages = {
     "Benutzerdefinierte Zeitpläne dürfen höchstens alle {minutes} Minuten ausgeführt werden.",
   "error.backend.routineAnchorInvalid": "Der Startpunkt des Routinenintervalls ist ungültig.",
   "error.backend.routineNoOccurrence": "Der Zeitplan enthält in den nächsten fünf Jahren keine Ausführung.",
+  "error.backend.routineOncePassed":
+    "Der Zeitpunkt dieser einmaligen Routine liegt in der Vergangenheit. Wähle ein späteres Datum oder eine spätere Uhrzeit.",
   "error.backend.routineTimezoneInvalid": "Die Zeitzone der Routine ist ungültig.",
   "error.backend.routineCronFields": "Benutzerdefinierte Zeitpläne müssen fünf cron-Felder verwenden.",
   "error.backend.routineCronValueInvalid": "Der cron-Wert {field} ist ungültig.",

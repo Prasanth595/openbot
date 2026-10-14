@@ -1,4 +1,4 @@
-import type { RoutineFlowCanvas, RoutineFlowStep } from "@openbot/contracts/ipc";
+import { isReleasedRoutineSchedule, type RoutineFlowCanvas, type RoutineFlowStep } from "@openbot/contracts/ipc";
 import {
   ROUTINE_FLOW_STEP_TEXT_LIMIT,
   ROUTINE_FLOWS_CAPABILITY,
@@ -62,15 +62,17 @@ function clipStep(step: RoutineFlowStep): RoutineFlowStep {
 }
 
 /**
- * The canvas a member may read: no routine that touches a hidden agent, and no webhook URL unless
- * the member administers the server. Step texts are clipped, and emptied from the routines with the
- * oldest runs first while the canvas would not fit one WebRTC frame; then the older runs' texts.
+ * The canvas a member may read: no `once` routine, which the canvas codec rejects, no routine that
+ * touches a hidden agent, and no webhook URL unless the member administers the server. Step texts
+ * are clipped, and emptied from the routines with the oldest runs first while the canvas would not
+ * fit one WebRTC frame; then the older runs' texts.
  */
 function memberCanvas(canvas: RoutineFlowCanvas, hidden: ReadonlySet<string>, admin: boolean): RoutineFlowCanvas {
   const visibleRoutineIds = new Set(
     canvas.routines
       .filter(
         ({ routine }) =>
+          (routine.trigger.kind !== "schedule" || isReleasedRoutineSchedule(routine.trigger.schedule)) &&
           !hidden.has(routine.agentId) &&
           canvas.links.every(
             (link) => link.routineId !== routine.id || (!hidden.has(link.fromAgentId) && !hidden.has(link.toAgentId)),

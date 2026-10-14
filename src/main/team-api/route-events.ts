@@ -1,3 +1,4 @@
+import { isReleasedRoutineSchedule } from "@openbot/contracts/ipc";
 import { EVENTS_CAPABILITY, EVENTS_ROUTES } from "@openbot/contracts/team-protocol/events-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
@@ -54,7 +55,13 @@ export async function routeEvents(
     case EVENTS_ROUTES.status:
       return json(200, await runEventsEffect(events.getStatus()));
     case EVENTS_ROUTES.listRoutines:
-      return json(200, await runEventsEffect(events.listRoutines(input(parseListEventRoutines))));
+      // A `once` routine stays on this computer: the events codec rejects its schedule.
+      return json(
+        200,
+        (await runEventsEffect(events.listRoutines(input(parseListEventRoutines)))).filter(
+          ({ trigger }) => trigger.kind !== "schedule" || isReleasedRoutineSchedule(trigger.schedule),
+        ),
+      );
     case EVENTS_ROUTES.saveRoutine:
       return json(200, await runEventsEffect(events.saveRoutine(input(parseSaveEventRoutine))));
     case EVENTS_ROUTES.deleteRoutine:

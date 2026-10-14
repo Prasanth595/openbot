@@ -71,7 +71,6 @@ export const messages = {
   "routine.hours.endTime": "Heure de fin",
   "routine.hours.repeat": "Répéter",
 
-  "routine.problem.once": "Une routine ponctuelle ne peut pas encore être enregistrée.",
   "routine.problem.endBeforeStart": "L’heure de fin doit être après l’heure de début.",
   "routine.problem.invalidDate": "Choisissez une date qui existe.",
   "routine.problem.cronRequired": "Saisissez une expression cron.",
@@ -194,6 +193,7 @@ export const messages = {
   "routine.settings.loading": "Chargement des routines…",
   "routine.settings.empty": "Aucune routine pour le moment.",
   "routine.settings.paused": "En pause",
+  "routine.settings.completed": "Terminée · {schedule}",
   "routine.settings.active": "Active",
   "routine.settings.activeToggle": "Routine active",
   "routine.settings.deleteNow": "Supprimer maintenant",

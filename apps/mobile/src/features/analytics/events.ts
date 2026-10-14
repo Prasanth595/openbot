@@ -41,7 +41,7 @@ export const MOBILE_EVENTS = {
   routine_action: {
     ...outcome,
     action: ["create", "update", "delete", "test"],
-    trigger_type: ["hourly", "daily", "weekdays", "weekly", "monthly", "interval", "advanced", "custom"],
+    trigger_type: ["hourly", "daily", "weekdays", "weekly", "monthly", "interval", "advanced", "custom", "once"],
   },
   memory_action: { ...outcome, action: ["create", "update", "delete"] },
   search_action: { ...outcome, scope: ["global"], result_count: count },

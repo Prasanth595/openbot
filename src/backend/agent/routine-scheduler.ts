@@ -42,6 +42,7 @@ import {
   openBotToolResult,
   routineToolAgentId,
   routineToolArguments,
+  routineToolMissedPolicy,
   routineToolSchedule,
   routineToolString,
 } from "./routine-tools";
@@ -545,6 +546,7 @@ export class RoutineScheduler implements RoutineDueSource {
         "schedule",
         "active",
         "timezone",
+        "missedPolicy",
       ]);
       const agentId = this.#toolAgentId(args, senderAgentId);
       const active = args.active === undefined ? true : args.active;
@@ -574,6 +576,7 @@ export class RoutineScheduler implements RoutineDueSource {
           active,
           timezone,
           schedule: routineToolSchedule(args.schedule),
+          ...(args.missedPolicy === undefined ? {} : { missedPolicy: routineToolMissedPolicy(args.missedPolicy) }),
         },
         { turnId: agentId === senderAgentId ? params.turnId : undefined },
       );
@@ -588,6 +591,7 @@ export class RoutineScheduler implements RoutineDueSource {
         "instruction",
         "schedule",
         "active",
+        "missedPolicy",
       ]);
       const input: UpdateRoutineInput = {
         agentId: this.#toolAgentId(args, senderAgentId),
@@ -614,6 +618,10 @@ export class RoutineScheduler implements RoutineDueSource {
       }
       if (args.schedule !== undefined) {
         input.schedule = routineToolSchedule(args.schedule);
+        hasUpdate = true;
+      }
+      if (args.missedPolicy !== undefined) {
+        input.missedPolicy = routineToolMissedPolicy(args.missedPolicy);
         hasUpdate = true;
       }
       if (!hasUpdate) throw new RoutineInputError("At least one routine update is required.");
@@ -725,6 +733,14 @@ export class RoutineScheduler implements RoutineDueSource {
         if (!active()) break;
         if (this.#hooks.excludedAgents().has(due.routine.agentId)) continue;
         const run = yield* routineStep(() => {
+          // A one-time trigger has no later run to make up for a dropped one, so it always queues.
+          // A crash before it completes leaves the run, and `skipMissed` completes it on start.
+          if (due.schedule.kind === "once") {
+            const queued = this.#routines.createRun(due.routine, due.triggerId, "scheduled", due.nextRunAt);
+            this.#routines.completeTrigger(due.routine.id, due.triggerId, now);
+            changedAgents.add(due.routine.agentId);
+            return queued;
+          }
           const { scheduledFor, nextRunAt } = collapseMissedOccurrences(
             due.schedule,
             due.routine.timezone,

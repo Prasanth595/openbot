@@ -2,6 +2,7 @@ import {
   CHANNEL_CHATS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   type ChannelCommand,
+  isReleasedRoutineSchedule,
   parseChannelCommand,
   parseChannelRead,
 } from "@openbot/contracts/ipc";
@@ -137,11 +138,23 @@ async function routeChannelSettings(
       agents.clearChannelMemories(channelId(body));
       return empty(204);
     case CHANNEL_ROUTES.routines:
-      return json(200, agents.listChannelRoutines(channelId(body)));
+      // A `once` routine stays on this computer: the channel codec rejects its schedule.
+      return json(
+        200,
+        agents
+          .listChannelRoutines(channelId(body))
+          .filter((routine) => isReleasedRoutineSchedule(routine.trigger.schedule)),
+      );
     case CHANNEL_ROUTES.routineCreate:
       return json(201, agents.createChannelRoutine(parseCreateChannelRoutine(body)));
-    case CHANNEL_ROUTES.routineUpdate:
-      return json(200, agents.updateChannelRoutine(parseUpdateChannelRoutine(body)));
+    case CHANNEL_ROUTES.routineUpdate: {
+      const input = parseUpdateChannelRoutine(body);
+      const hidden = agents
+        .listChannelRoutines(input.channelId)
+        .some((routine) => routine.id === input.routineId && !isReleasedRoutineSchedule(routine.trigger.schedule));
+      if (hidden) throw new HttpError(404, sourceText("error.backend.routineGone"));
+      return json(200, agents.updateChannelRoutine(input));
+    }
     case CHANNEL_ROUTES.routineDelete:
       agents.deleteChannelRoutine(parseDeleteChannelRoutine(body));
       return empty(204);

@@ -92,7 +92,6 @@ export const messages = {
   "routine.hours.endTime": "Koniec",
   "routine.hours.repeat": "Powtarzaj",
 
-  "routine.problem.once": "Jednorazowej rutyny nie można jeszcze zapisać.",
   "routine.problem.endBeforeStart": "Godzina końca musi być późniejsza niż godzina początku.",
   "routine.problem.invalidDate": "Wybierz istniejącą datę.",
   "routine.problem.cronRequired": "Wpisz wyrażenie cron.",
@@ -227,6 +226,7 @@ export const messages = {
   "routine.settings.loading": "Wczytywanie rutyn…",
   "routine.settings.empty": "Brak rutyn.",
   "routine.settings.paused": "Wstrzymana",
+  "routine.settings.completed": "Zakończona · {schedule}",
   "routine.settings.active": "Aktywna",
   "routine.settings.activeToggle": "Rutyna aktywna",
   "routine.settings.deleteNow": "Usuń teraz",

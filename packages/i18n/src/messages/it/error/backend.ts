@@ -135,6 +135,8 @@ export const messages = {
     "Le pianificazioni personalizzate non possono essere eseguite più spesso di ogni {minutes} minuti.",
   "error.backend.routineAnchorInvalid": "Il punto di riferimento dell'intervallo della routine non è valido.",
   "error.backend.routineNoOccurrence": "La pianificazione non ha nessuna occorrenza nei prossimi cinque anni.",
+  "error.backend.routineOncePassed":
+    "L’ora di questa routine singola è già passata. Scegli una data o un’ora successiva.",
   "error.backend.routineTimezoneInvalid": "Il fuso orario della routine non è valido.",
   "error.backend.routineCronFields": "Le pianificazioni personalizzate devono usare cinque campi cron.",
   "error.backend.routineCronValueInvalid": "Il valore cron {field} non è valido.",

@@ -27,7 +27,13 @@ export type RoutineSchedule =
       days: RoutineDaySelection;
       time: RoutineTimeSelection;
     }
-  | { kind: "custom"; expression: string };
+  | { kind: "custom"; expression: string }
+  /**
+   * One run at a date and time in the routine timezone. After that run the host pauses the
+   * routine, and it cannot resume until the date moves to the future. Only a peer that has the
+   * `routines.once` capability sends or receives it.
+   */
+  | { kind: "once"; date: string; time: string };
 
 export function isRoutineSchedule(value: unknown): value is RoutineSchedule {
   if (!isDynamicRecord(value) || !isString(value.kind)) return false;
@@ -60,6 +66,8 @@ export function isRoutineSchedule(value: unknown): value is RoutineSchedule {
       return (
         isString(value.expression) && value.expression.length > 0 && value.expression.length <= INPUT_LIMITS.routineCron
       );
+    case "once":
+      return isRoutineDate(value.date) && isRoutineTime(value.time);
     default:
       return false;
   }
@@ -67,6 +75,27 @@ export function isRoutineSchedule(value: unknown): value is RoutineSchedule {
 
 function isRoutineTime(value: unknown): value is string {
   return isString(value) && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+/** A calendar date as "YYYY-MM-DD" that exists, such as 2028-02-29 but not 2027-02-29. */
+export type ReleasedRoutineSchedule = Exclude<RoutineSchedule, { kind: "once" }>;
+
+/**
+ * A schedule that the released Team API, channel, event, canvas and template formats can carry.
+ * Their frozen decoders reject the whole list for an unknown kind, so a `once` schedule stays on
+ * this computer's host.
+ */
+export function isReleasedRoutineSchedule(value: unknown): value is ReleasedRoutineSchedule {
+  return isRoutineSchedule(value) && value.kind !== "once";
+}
+
+export function isRoutineDate(value: unknown): value is string {
+  if (!isString(value)) return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 function isRoutineDaySelection(value: unknown): value is RoutineDaySelection {

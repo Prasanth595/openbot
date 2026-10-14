@@ -134,6 +134,8 @@ export const messages = {
   "error.backend.routineCronTooOften": "カスタムスケジュールの実行間隔は {minutes} 分以上にしてください。",
   "error.backend.routineAnchorInvalid": "ルーティンの間隔の起点が無効です。",
   "error.backend.routineNoOccurrence": "このスケジュールは今後 5 年以内に実行されません。",
+  "error.backend.routineOncePassed":
+    "この 1 回限りのルーティンの日時は過ぎています。後の日付または時刻を選んでください。",
   "error.backend.routineTimezoneInvalid": "ルーティンのタイムゾーンが無効です。",
   "error.backend.routineCronFields": "カスタムスケジュールには 5 つの cron フィールドを使用してください。",
   "error.backend.routineCronValueInvalid": "cron の {field} の値が無効です。",

@@ -138,6 +138,7 @@ export const messages = {
     "Os agendamentos personalizados devem ter um intervalo de pelo menos {minutes} minutos entre execuções.",
   "error.backend.routineAnchorInvalid": "O ponto de referência do intervalo da rotina é inválido.",
   "error.backend.routineNoOccurrence": "O agendamento não tem nenhuma ocorrência nos próximos cinco anos.",
+  "error.backend.routineOncePassed": "O horário desta rotina única já passou. Escolha uma data ou hora posterior.",
   "error.backend.routineTimezoneInvalid": "O fuso horário da rotina é inválido.",
   "error.backend.routineCronFields": "Os agendamentos personalizados devem usar cinco campos cron.",
   "error.backend.routineCronValueInvalid": "O valor do campo cron {field} é inválido.",

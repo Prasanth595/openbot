@@ -129,6 +129,7 @@ export const messages = defineMessages("error.backend", {
   "error.backend.routineCronTooOften": "Custom schedules must run no more often than every {minutes} minutes.",
   "error.backend.routineAnchorInvalid": "The routine interval anchor is invalid.",
   "error.backend.routineNoOccurrence": "The schedule has no occurrence within the next five years.",
+  "error.backend.routineOncePassed": "The time of this one-time routine is in the past. Choose a later date or time.",
   "error.backend.routineTimezoneInvalid": "The routine timezone is invalid.",
   "error.backend.routineCronFields": "Custom schedules must use five cron fields.",
   "error.backend.routineCronValueInvalid": "The cron {field} value is invalid.",

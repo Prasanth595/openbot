@@ -5,7 +5,7 @@ import {
   type AgentSubmission,
   isAvatarHue,
   isAvatarSeed,
-  isRoutineSchedule,
+  isReleasedRoutineSchedule,
   isSkillCategory,
   type MarketplaceAgentDetail,
   type MarketplaceAgentQuery,
@@ -624,7 +624,7 @@ function isRoutine(value: unknown): value is MarketplaceAgentRoutine {
     value.instruction.trim().length > 0 &&
     value.instruction.length <= INPUT_LIMITS.routineInstruction &&
     isBoolean(value.active) &&
-    isRoutineSchedule(value.schedule)
+    isReleasedRoutineSchedule(value.schedule)
   );
 }
 

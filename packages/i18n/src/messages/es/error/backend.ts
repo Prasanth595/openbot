@@ -135,6 +135,7 @@ export const messages = {
     "Las programaciones personalizadas no deben ejecutarse con más frecuencia que cada {minutes} minutos.",
   "error.backend.routineAnchorInvalid": "El punto de inicio del intervalo de la rutina no es válido.",
   "error.backend.routineNoOccurrence": "La programación no tiene ninguna ejecución en los próximos cinco años.",
+  "error.backend.routineOncePassed": "La hora de esta rutina única ya pasó. Elige una fecha u hora posterior.",
   "error.backend.routineTimezoneInvalid": "La zona horaria de la rutina no es válida.",
   "error.backend.routineCronFields": "Las programaciones personalizadas deben usar cinco campos cron.",
   "error.backend.routineCronValueInvalid": "El valor cron {field} no es válido.",
