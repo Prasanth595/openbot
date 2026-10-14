@@ -1177,16 +1177,20 @@ export class MessagingService {
     markdown: string,
   ) {
     const live = this.#live.get(connectionId);
-    if (!live?.identity) return { error: MESSAGING_NOT_RUNNING };
+    if (!live?.identity) return { error: MESSAGING_NOT_RUNNING, failure: "not-running" as const };
     // Signal accepts every chat linked to this host, but the chat's own adapter keeps its reply chains.
     if (live.record.platform === "telegram" && target.platformChannelId !== live.identity.workspaceId)
-      return { error: "A Telegram connection posts only in its own chat. Use the connection of that chat." };
+      return {
+        error: "A Telegram connection posts only in its own chat. Use the connection of that chat.",
+        failure: "refused" as const,
+      };
     // The place is outside this computer, so a secret in the text must not reach it.
     return yield* live.adapter.postAnswer(target, redactText(markdown), null).pipe(
       Effect.as({ posted: true as const }),
       Effect.catch((failure) =>
         Effect.succeed({
           error: `${refusal(failure)} A long text goes in more than one post, so a part of it can be posted already. Do not post it again only because of this error.`,
+          failure: "unknown" as const,
         }),
       ),
     );

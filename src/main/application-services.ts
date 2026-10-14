@@ -12,6 +12,8 @@ import { SlackConnectFailed, toSlackConnectFailed } from "../backend/messaging/s
 import { routineFlowRoutines } from "../backend/routine-flows/routine-flow-routines";
 import { RoutineFlowStore } from "../backend/routine-flows/routine-flow-store";
 import { createRoutineFlows, type RoutineFlowsHandle } from "../backend/routine-flows/routine-flows";
+import { RoutineResultStore } from "../backend/routine-results/routine-result-store";
+import { createRoutineResults, type RoutineResultsHandle } from "../backend/routine-results/routine-results";
 import { type AcpRegistry, createAcpRegistry } from "./acp-registry";
 import { type AgentAdminSettingsService, createAgentAdminSettings } from "./agent-admin-settings";
 import { spawnAgentDatabaseHost } from "./agent-database-host-process";
@@ -335,6 +337,8 @@ const TEARDOWN_ORDER = {
   remoteServers: 60,
   voice: 70,
   remoteDesktop: 80,
+  // Before messaging, so no routine answer starts a post while the connections stop.
+  routineResults: 84,
   // Before the host and the service: no new external message arrives while they stop.
   messaging: 85,
   hostEvents: 85.5,
@@ -400,6 +404,7 @@ export interface ApplicationServiceContext {
 export interface ApplicationServices {
   service: AgentService;
   routineFlows: RoutineFlowsHandle;
+  routineResults: RoutineResultsHandle;
   providerRuntimes: ProviderRuntimeManager;
   providerCredentials: ProviderCredentialStore;
   /** The Slack and Telegram connections of the agents on this host. */
@@ -1409,6 +1414,36 @@ export async function createApplicationServices({
   );
   service.on("event", (event) => Effect.runFork(routineFlowRuntime.notice(event)));
   teardown.push(TEARDOWN_ORDER.routineFlows, "the routine flows", () => Effect.runPromise(routineFlowRuntime.close()));
+  // An agent routine's answer sent on to a messaging place; see `routine-results.ts`.
+  const routineResultRuntime = await Effect.runPromise(
+    createRoutineResults({
+      store: new RoutineResultStore(store.database),
+      delivery: (deliveryId) => {
+        const found = mailbox.getDelivery(deliveryId)?.delivery;
+        return found ? { turnId: found.turnId } : null;
+      },
+      turnAnswer: (agentId, turnId) => {
+        const threadId = store.list().find((agent) => agent.id === agentId)?.threadId;
+        if (!threadId) return null;
+        return (
+          latestTurnAnswer(store.database.readTurnAssistantMessages(agentId, threadId, turnId), turnId)?.text ?? null
+        );
+      },
+      connection: (connectionId) => {
+        const record = service.messaging.store.connection(connectionId);
+        return record?.enabled ? { platform: record.platform, name: record.workspaceName } : null;
+      },
+      options: () => service.messaging.destinationOptions(),
+      post: (connectionId, placeId, markdown) => service.messaging.deliver(connectionId, placeId, markdown),
+      changed: (agentIds) => {
+        for (const agentId of agentIds) service.notifyRoutineResultsChanged(agentId);
+      },
+    }),
+  );
+  service.on("event", (event) => Effect.runFork(routineResultRuntime.notice(event)));
+  teardown.push(TEARDOWN_ORDER.routineResults, "the routine results", () =>
+    Effect.runPromise(routineResultRuntime.close()),
+  );
   // Listens only after the user turns the feed on in Server Settings > Routines.
   const routineFeed = new RoutineFeedServer({
     path: join(app.getPath("userData"), ROUTINE_FEED_FILE),
@@ -2233,6 +2268,8 @@ export async function createApplicationServices({
       yield* automation.sync();
       // Picks up the flows a restart stopped between one agent's answer and the next agent's message.
       yield* routineFlowRuntime.sweep();
+      // Marks the posts a restart cut off, and sends the answers that ended while OpenBot was closed.
+      yield* routineResultRuntime.recover();
     }),
   );
   const describeRestartReadiness = (): RestartReadiness =>
@@ -2394,6 +2431,7 @@ export async function createApplicationServices({
   return {
     service,
     routineFlows: routineFlowRuntime,
+    routineResults: routineResultRuntime,
     providerRuntimes,
     providerCredentials,
     messaging,

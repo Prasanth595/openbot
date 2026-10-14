@@ -1,4 +1,9 @@
-import type { AgentEvent, ConversationMessage, MessagingPlatform } from "@openbot/contracts/ipc";
+import type {
+  AgentEvent,
+  ConversationMessage,
+  MessagingPlatform,
+  RoutineResultConnectionOption,
+} from "@openbot/contracts/ipc";
 import { CONVERSATION_PLAN_ITEM_TYPE, MESSAGING_LIMITS } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Result, Schema, type Scope } from "effect";
@@ -80,6 +85,13 @@ export interface MessagingHistory {
 }
 
 /**
+ * Why a post did not reach its place: the connection is removed or off (`gone`), it does not run now
+ * (`not-running`), it cannot post in that place (`refused`), or the post failed on its way and a part
+ * of a long text can be in the place already (`unknown`).
+ */
+export type MessagingPostFailure = "gone" | "not-running" | "refused" | "unknown";
+
+/**
  * What the platform side gives the outbound tools. Each answer is the result, or an error text
  * that is safe to show the agent.
  */
@@ -89,7 +101,7 @@ export interface MessagingOutbound {
     connectionId: string,
     target: MessageTarget,
     markdown: string,
-  ): Effect.Effect<{ posted: true } | { error: string }>;
+  ): Effect.Effect<{ posted: true } | { error: string; failure: Exclude<MessagingPostFailure, "gone"> }>;
 }
 
 export interface MessagingThreadsHooks {
@@ -225,6 +237,53 @@ export class MessagingThreads {
             call.text,
           );
     return "error" in answer ? openBotToolFailure(answer.error) : openBotToolResult(answer);
+  });
+
+  /**
+   * A post that OpenBot sends on its own, such as a routine's answer, to the top level of one place.
+   * Only an enabled connection of this host can take it.
+   */
+  readonly deliver = Effect.fn("MessagingThreads.deliver")(function* (
+    this: MessagingThreads,
+    connectionId: string,
+    placeId: string,
+    markdown: string,
+  ): Effect.fn.Return<{ posted: true } | { failure: MessagingPostFailure }> {
+    if (!this.store.connection(connectionId)?.enabled) return { failure: "gone" };
+    const outbound = this.#outbound;
+    if (!outbound) return { failure: "not-running" };
+    const answer = yield* outbound.post(connectionId, { platformChannelId: placeId, replyThreadId: null }, markdown);
+    return "error" in answer ? { failure: answer.failure } : answer;
+  });
+
+  /** Each enabled connection with the places it can post in, for the routine editor. */
+  readonly destinationOptions = Effect.fn("MessagingThreads.destinationOptions")(function* (
+    this: MessagingThreads,
+  ): Effect.fn.Return<RoutineResultConnectionOption[]> {
+    const outbound = this.#outbound;
+    return yield* Effect.forEach(
+      this.store.connections().filter((record) => record.enabled),
+      (record) =>
+        (outbound
+          ? outbound.places(record.connectionId).pipe(
+              Effect.timeout(HISTORY_TIMEOUT_MS),
+              Effect.catch(() => Effect.succeed({ error: MESSAGING_NOT_RUNNING })),
+            )
+          : Effect.succeed({ error: MESSAGING_NOT_RUNNING })
+        ).pipe(
+          Effect.map((answer) => ({
+            connectionId: record.connectionId,
+            platform: record.platform,
+            connectionName: record.workspaceName.slice(0, MESSAGING_LIMITS.name),
+            places:
+              "places" in answer
+                ? answer.places.map((place) => ({ id: place.id, name: place.name.slice(0, MESSAGING_LIMITS.name) }))
+                : [],
+            placesFailed: "error" in answer,
+          })),
+        ),
+      { concurrency: "unbounded" },
+    );
   });
 
   /**

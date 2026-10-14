@@ -10,6 +10,7 @@ import { PROVIDER_HISTORY_SCHEMA_SQL } from "./database/provider-history-schema"
 import { MCP_SERVERS_SCHEMA_SQL } from "./mcp-schema";
 import { MESSAGING_MEMORY_SCHEMA_SQL, MESSAGING_SCHEMA_SQL } from "./messaging/messaging-schema";
 import { ROUTINE_FLOW_SCHEMA_SQL } from "./routine-flows/routine-flow-schema";
+import { ROUTINE_RESULT_SCHEMA_SQL } from "./routine-results/routine-result-schema";
 
 const BASELINE_SCHEMA_VERSION = 8;
 
@@ -503,7 +504,8 @@ const LATEST_SCHEMA_SQL =
   ROUTINE_FLOW_SCHEMA_SQL +
   AGENT_MEMORY_SELECTION_SCHEMA_SQL +
   AGENT_WAIT_SCHEMA_SQL +
-  MESSAGING_MEMORY_SCHEMA_SQL;
+  MESSAGING_MEMORY_SCHEMA_SQL +
+  ROUTINE_RESULT_SCHEMA_SQL;
 
 /** The end of a routine table with the migration 27 and 33 columns after its last one. */
 function withRoutinePolicies(tableEnd: string): string {
@@ -697,6 +699,12 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
     version: 36,
     // Only creates a table, so no foreign-key pause and no vacuum. No connection has memories yet.
     up: (db) => db.exec(MESSAGING_MEMORY_SCHEMA_SQL),
+  },
+  {
+    version: 37,
+    // Only creates tables, so no foreign-key pause and no vacuum. No routine has a destination yet, so every
+    // routine keeps its answers in OpenBot, which is what it did before.
+    up: (db) => db.exec(ROUTINE_RESULT_SCHEMA_SQL),
   },
 ];
 

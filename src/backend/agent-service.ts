@@ -1689,6 +1689,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     this.#emit({ type: "skills-changed", agentId });
   }
 
+  /** A routine result destination or delivery of one agent changed, so every routine editor reads it again. */
+  notifyRoutineResultsChanged(agentId: string): void {
+    this.#emit({ type: "routines-changed", agentId });
+  }
+
   /** The routine canvas of one agent changed, so every view showing it reads it again. */
   notifyRoutineFlowsChanged(agentId: string): void {
     this.#emit({ type: "routine-flows-changed", agentId });
