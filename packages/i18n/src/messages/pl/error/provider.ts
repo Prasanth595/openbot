@@ -272,6 +272,16 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "Nie można odczytać zapisanych ustawień dostawców. Zaktualizuj OpenBot, zanim je zmienisz.",
   "error.provider.useChangeFailed": "Nie udało się zmienić ustawienia dostawcy.",
+  "error.provider.accountsUnsupported": "{provider} obsługuje tylko jedno konto.",
+  "error.provider.accountNeedsConnection": "Połącz {provider}, zanim dodasz kolejne konto.",
+  "error.provider.accountLimit": "Maksymalna liczba kont dla {provider} to {limit}.",
+  "error.provider.accountNotFound": "Tego konta {provider} nie ma na tym komputerze. Odśwież i spróbuj ponownie.",
+  "error.provider.accountAlreadyAdded": "To konto {provider} jest już połączone.",
+  "error.provider.accountDefault": "Nie można usunąć pierwszego konta {provider}.",
+  "error.provider.accountInUse": "Agent korzystający z tego konta pracuje. Spróbuj ponownie, gdy agent się zatrzyma.",
+  "error.provider.accountsReadOnly":
+    "Nie można odczytać zapisanych kont dostawców. Zaktualizuj OpenBot, zanim je zmienisz.",
+  "error.provider.accountSignedOut": "To konto {provider} jest wylogowane. Zaloguj się ponownie.",
   "error.provider.sessionSettingUnavailable": "To ustawienie nie jest dostępne w bieżącej sesji dostawcy.",
   "error.provider.sessionSettingInvalid": "Ta wartość nie jest dostępna dla tego ustawienia.",
   "error.provider.sessionSettingsBusy": "Zaczekaj na zakończenie bieżącej tury, zanim zmienisz ustawienie sesji.",

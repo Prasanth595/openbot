@@ -80,7 +80,10 @@ export interface AgentRuntimeSettings {
   reasoningEffort: AgentReasoningEffort;
 }
 
-export type AgentRuntimeSettingsPatch = AgentRuntimeSettings | Pick<AgentRuntimeSettings, "reasoningEffort">;
+/** A model choice can also move the agent to another account of its provider. */
+export type AgentRuntimeSettingsPatch =
+  | (AgentRuntimeSettings & Pick<UpdateAgentInput, "providerAccountId">)
+  | Pick<AgentRuntimeSettings, "reasoningEffort">;
 
 export interface AgentSettingsPanelProps {
   agent: AgentProfile;
@@ -581,7 +584,11 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     await saveAgentPatch({ avatarSeed: seed });
   }
 
-  async function selectModel(nextModel: AgentModelId, nextProvider: AgentProviderId): Promise<void> {
+  async function selectModel(
+    nextModel: AgentModelId,
+    nextProvider: AgentProviderId,
+    accountId: string | null | undefined,
+  ): Promise<void> {
     const option = props.modelOptions.find(
       (candidate) => candidate.provider === nextProvider && candidate.id === nextModel,
     );
@@ -606,7 +613,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
       state.runtime.model = settings.model;
       state.runtime.reasoningEffort = settings.reasoningEffort;
     });
-    if (await saveRuntimeSettings(settings, settings, agentId)) return;
+    const updates = accountId === undefined ? settings : { ...settings, providerAccountId: accountId };
+    if (await saveRuntimeSettings(settings, updates, agentId)) return;
     // Roll back only what this call wrote: another agent, or a later pick, owns the panel now.
     if (props.agent.id !== agentId || !sameRuntimeSettings(draft.runtime, settings)) return;
     setDraft((state) => {
@@ -986,7 +994,9 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   disabledReason={
                     props.working ? t("agentSettings.runtime.modelBusy") : t("agentSettings.runtime.modelUnavailable")
                   }
-                  onChange={(nextModel, provider) => void selectModel(nextModel, provider)}
+                  accountChoice
+                  providerAccountId={props.agent.providerAccountId}
+                  onChange={(nextModel, provider, accountId) => void selectModel(nextModel, provider, accountId)}
                 />
                 <Select<AgentReasoningEffort>
                   class="agent-settings-runtime-select"

@@ -168,13 +168,13 @@ interface ThreadRuntime {
  * its MCP servers, and the SDK resumes the same session from disk, so an idle thread costs only a
  * slower first message when the user comes back.
  */
-export const CLAUDE_THREAD_IDLE_RELEASE_MS = 10 * 60_000;
+const CLAUDE_THREAD_IDLE_RELEASE_MS = 10 * 60_000;
 
 /**
  * How many idle threads keep their `claude` process before the timeout. A user who runs one turn on
  * each of five agents otherwise holds five processes of about 140 MB each for ten minutes.
  */
-export const CLAUDE_IDLE_THREAD_LIMIT = 2;
+const CLAUDE_IDLE_THREAD_LIMIT = 2;
 
 interface ClaudeStreamMessage {
   type: string;
@@ -468,7 +468,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       mcpServers: {},
       strictMcpConfig: true,
       persistSession: false,
-      env: { ...claudeEnvironment(this.#cli), CLAUDE_AGENT_SDK_CLIENT_APP: "openbot/0.1.0" },
+      env: {
+        ...claudeEnvironment(this.#cli),
+        ...this.#agentEnvironment?.(),
+        CLAUDE_AGENT_SDK_CLIENT_APP: "openbot/0.1.0",
+      },
     };
   }
 
@@ -606,7 +610,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
               timeout: 5_000,
               maxBuffer: 64 * 1024,
               windowsVerbatimArguments: target.windowsVerbatimArguments,
-              env: claudeEnvironment(this.#cli),
+              // The agent environment carries the account's `CLAUDE_CONFIG_DIR`, so this reads that account.
+              env: { ...claudeEnvironment(this.#cli), ...this.#agentEnvironment?.() },
             }),
           ),
         ),

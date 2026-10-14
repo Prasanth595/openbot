@@ -3,7 +3,14 @@ import { Effect } from "effect";
 // runtimes the providers need.
 
 import { isManagedRuntimeProvider, type ManagedProviderId } from "@openbot/contracts/agent-providers";
-import type { AgentProviderId, SetProviderApiKeyInput } from "@openbot/contracts/ipc";
+import {
+  type AgentProviderId,
+  type ConnectProviderAccountInput,
+  PROVIDER_ACCOUNT_LABEL_MAX_LENGTH,
+  type RemoveProviderAccountInput,
+  type RenameProviderAccountInput,
+  type SetProviderApiKeyInput,
+} from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { shell } from "electron";
@@ -13,6 +20,7 @@ import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import { parseProviderId } from "./app-inputs";
 import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
+import { requireString } from "./validation";
 
 /** Long enough for any key a provider issues, short enough that nothing large reaches the cipher. */
 const MAX_API_KEY_LENGTH = 512;
@@ -90,6 +98,22 @@ export function providerIpcHandlers({
           ),
         ),
       ),
+      // The account's sign-in opens the same way as `connectProvider`, with an https page only.
+      connectProviderAccount: payloadHandler(parseConnectProviderAccountInput, ({ provider, accountId }) =>
+        runCauseEffect(
+          service.connectProviderAccount(provider, accountId, async (value) => {
+            const url = new URL(value);
+            if (url.protocol !== "https:") throw new Error(sourceText("error.provider.httpsSignInLinkOnly"));
+            await shell.openExternal(url.toString());
+          }),
+        ),
+      ),
+      renameProviderAccount: payloadHandler(parseRenameProviderAccountInput, ({ provider, accountId, label }) =>
+        runCauseEffect(service.renameProviderAccount(provider, accountId, label)),
+      ),
+      removeProviderAccount: payloadHandler(parseRemoveProviderAccountInput, ({ provider, accountId }) =>
+        runCauseEffect(service.removeProviderAccount(provider, accountId)),
+      ),
       // A status, never the key: see `setProviderApiKey` in the desktop API contract.
       getProviderApiKeyState: payloadHandler(parseProviderId, async (provider) => ({
         provider,
@@ -125,9 +149,30 @@ export function parseManagedProviderId(value: unknown): ManagedProviderId {
   return provider;
 }
 
-export function parseProviderUseInput(value: unknown): { provider: AgentProviderId; on: boolean } {
+function parseProviderUseInput(value: unknown): { provider: AgentProviderId; on: boolean } {
   if (!isDynamicRecord(value) || typeof value.on !== "boolean") throw new Error("Invalid provider switch.");
   const provider = parseProviderId(value.provider);
   if (provider === "acp") throw new Error("Custom agents do not have a built-in provider switch.");
   return { provider, on: value.on };
+}
+
+export function parseConnectProviderAccountInput(value: unknown): ConnectProviderAccountInput {
+  if (!isDynamicRecord(value)) throw new Error("Invalid provider account.");
+  return {
+    provider: parseProviderId(value.provider),
+    accountId: value.accountId === null ? null : requireString(value.accountId, "accountId"),
+  };
+}
+
+export function parseRemoveProviderAccountInput(value: unknown): RemoveProviderAccountInput {
+  if (!isDynamicRecord(value)) throw new Error("Invalid provider account.");
+  return { provider: parseProviderId(value.provider), accountId: requireString(value.accountId, "accountId") };
+}
+
+export function parseRenameProviderAccountInput(value: unknown): RenameProviderAccountInput {
+  if (!isDynamicRecord(value) || (value.label !== null && !isString(value.label)))
+    throw new Error("Invalid provider account.");
+  const label = value.label?.trim() || null;
+  if (label && label.length > PROVIDER_ACCOUNT_LABEL_MAX_LENGTH) throw new Error("Invalid provider account.");
+  return { ...parseRemoveProviderAccountInput(value), label };
 }

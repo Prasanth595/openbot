@@ -111,7 +111,10 @@ export function matchesApp(app: MarketplaceApp, query: string): boolean {
   return !text || app.name.toLowerCase().includes(text) || app.tagline.toLowerCase().includes(text);
 }
 
-/** The apps the user has (attention first), then the others. An empty group is left out. */
+/**
+ * The apps the user has (attention first), then the others, with a sign-in that still waits. An
+ * empty group is left out.
+ */
 export function appGroups(
   apps: readonly MarketplaceApp[],
 ): { id: string; key: "marketplace.app.yourApps" | "marketplace.app.moreApps"; apps: MarketplaceApp[] }[] {
@@ -121,7 +124,11 @@ export function appGroups(
       key: "marketplace.app.yourApps",
       apps: [...apps.filter((app) => app.status === "attention"), ...apps.filter((app) => app.status === "connected")],
     },
-    { id: "marketplace-apps-more", key: "marketplace.app.moreApps", apps: apps.filter((app) => app.status === "idle") },
+    {
+      id: "marketplace-apps-more",
+      key: "marketplace.app.moreApps",
+      apps: apps.filter((app) => app.status === "idle" || app.status === "connecting"),
+    },
   ];
   return groups.filter((group) => group.apps.length > 0);
 }

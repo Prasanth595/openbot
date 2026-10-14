@@ -33,7 +33,7 @@ export function readSendShortcutMode(storage?: PreferenceStorage): SendShortcutM
   }
 }
 
-export function writeSendShortcutMode(mode: SendShortcutMode, storage?: PreferenceStorage): void {
+function writeSendShortcutMode(mode: SendShortcutMode, storage?: PreferenceStorage): void {
   try {
     (storage ?? window.localStorage).setItem(SEND_SHORTCUT_STORAGE_KEY, mode);
     unsavedPreference = undefined;
@@ -44,10 +44,7 @@ export function writeSendShortcutMode(mode: SendShortcutMode, storage?: Preferen
 }
 
 /** The device with the keyboard: macOS takes ⌘Enter, Windows and Linux take Ctrl+Enter. */
-export function devicePlatform(
-  userAgentDataPlatform?: string,
-  fallbackPlatform?: string,
-): "darwin" | "win32" | "linux" {
+function devicePlatform(userAgentDataPlatform?: string, fallbackPlatform?: string): "darwin" | "win32" | "linux" {
   const platform = (userAgentDataPlatform ?? fallbackPlatform ?? "").toLowerCase();
   if (platform.includes("mac")) return "darwin";
   if (platform.includes("win")) return "win32";

@@ -23,6 +23,7 @@ import {
   validateMobileSession,
 } from "@/features/auth/api/mobile-auth";
 import { queryClient } from "@/shared/lib/query-client";
+import { untilForeground } from "@/shared/lib/until-foreground";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
 
 import { resolveSessionValidation } from "./session-validation";
@@ -78,11 +79,15 @@ export function MobileSessionProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let active = true;
     const scope = sessionScope.current;
-    void loadAnalyticsPreference();
-    void readMobileSession()
-      .then((stored) => {
+    void untilForeground().then(loadAnalyticsPreference);
+    const read = () =>
+      readMobileSession().then((stored) => {
         if (active && scope === sessionScope.current) setCurrentSession(stored);
-      })
+      });
+    // A start in the background can find the keychain closed. The app reads again when the user
+    // opens it, so it does not show sign-in for a session that it still has.
+    void read()
+      .catch(() => untilForeground().then(read))
       .catch(() => {
         if (active && scope === sessionScope.current) setCurrentSession(null);
       });

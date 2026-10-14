@@ -8,7 +8,11 @@ import {
 import type { PushNotificationRegistration } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { type AppTranslate, resolveLocale, translateFor } from "@openbot/i18n";
 import { redactText, toLogValue } from "@openbot/logging";
-import { type AgentNotificationContent, notificationForAgentEvent } from "@openbot/team-client/agent-notifications";
+import {
+  type AgentNotificationContent,
+  approvalShownWhole,
+  notificationForAgentEvent,
+} from "@openbot/team-client/agent-notifications";
 import {
   decodeLiveActivityBytes,
   LIVE_ACTIVITY_NONCE_BYTES,
@@ -37,7 +41,7 @@ export const DESKTOP_USE_MS = 30 * 1000;
 /** Events that wait for the member. The phone gets them also while the member uses a desktop app. */
 const WAITS_FOR_MEMBER: ReadonlySet<PushNotificationKind> = new Set(["input", "approval", "browser"]);
 
-export type PushNotificationAgents = Pick<TeamApiAgents, "on" | "off" | "listAgents" | "readConversationPageFor">;
+type PushNotificationAgents = Pick<TeamApiAgents, "on" | "off" | "listAgents" | "readConversationPageFor">;
 
 interface PushNotificationOptions {
   agents: PushNotificationAgents;
@@ -229,6 +233,16 @@ export class PushNotificationService {
         kind: subject.kind,
         title: notice.title,
         body: notice.body,
+        // The phone answers this request from the buttons of the notification.
+        ...(event.type === "approval"
+          ? {
+              approval: {
+                requestId: event.approval.requestId,
+                turnId: event.approval.turnId,
+                approvable: value.preview && approvalShownWhole(event.approval, redactText),
+              },
+            }
+          : {}),
       };
       yield* this.#send(registration, token, content, fixed.body);
     }
@@ -261,7 +275,13 @@ export class PushNotificationService {
     let sealed = sealPushNotification(content, keys, this.#options.randomBytes(LIVE_ACTIVITY_NONCE_BYTES));
     // A long agent name and a preview of wide characters can pass the Apple limit.
     if (sealed.length > NOTIFICATION_SEALED_LIMIT) {
-      const short = { ...content, title: content.title.slice(0, 64), body: shortBody };
+      // The short text no longer shows the command, so it offers Deny only.
+      const short: PushNotificationContent = {
+        ...content,
+        title: content.title.slice(0, 64),
+        body: shortBody,
+        ...(content.approval ? { approval: { ...content.approval, approvable: false } } : {}),
+      };
       sealed = sealPushNotification(short, keys, this.#options.randomBytes(LIVE_ACTIVITY_NONCE_BYTES));
     }
     const push: NotificationRelayPush = {

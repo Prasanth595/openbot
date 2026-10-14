@@ -47,6 +47,14 @@ export function WorkspaceRoutineFlows() {
     if (!server) return "local";
     return server.kind === "local" || serverSupportsCapability(server, ROUTINE_FLOWS_CAPABILITY) ? server.id : null;
   });
+  /**
+   * A joined server that has not answered the compatibility check yet. Each start, reconnect and wake
+   * clears what it reported, so it is not an older host until it answers.
+   */
+  const checking = () => {
+    const server = activeServer();
+    return server?.kind === "remote" && !server.compatibility?.hostAppVersion;
+  };
   const webhooks = () => serverCanAdminister(activeServer(), EVENTS_CAPABILITY);
 
   return (
@@ -55,7 +63,9 @@ export function WorkspaceRoutineFlows() {
       keyed
       fallback={
         <main class="diagram-view diagram-flows-notice">
-          <p>{t("diagram.flows.unsupported")}</p>
+          <Show when={!checking()}>
+            <p>{t("diagram.flows.unsupported")}</p>
+          </Show>
         </main>
       }
     >

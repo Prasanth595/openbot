@@ -18,6 +18,7 @@ import {
   AlertDescription,
   AlertIcon,
   AlertTitle,
+  ArrowLeftRight,
   Blocks,
   Button,
   CalendarClock,
@@ -35,8 +36,6 @@ import {
   Text,
   UsersRound,
 } from "@openbot/ui";
-import type { AgentProfile } from "@openbot/ui/data";
-import type { BitwardenConnectorPanelProps } from "@openbot/ui/features/settings/BitwardenConnectorPanel";
 import { SaveBarDock, SettingsDialogShell } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsHostedSitesTab } from "@openbot/ui/features/settings/SettingsHostedSitesTab";
 import {
@@ -47,11 +46,7 @@ import { useText } from "@openbot/ui/text";
 import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { ConnectorsPanel, type ConnectorsPanelDetail } from "../connectors/ConnectorsPanel";
-import type { DiscordConnectorController } from "../connectors/discord-connector";
-import type { GitHubConnectorController } from "../connectors/github-connector";
-import type { OnePasswordConnectorController } from "../connectors/onepassword-connector";
-import type { SlackConnectorController } from "../connectors/slack-connector";
-import type { TelegramConnectorController } from "../connectors/telegram-connector";
+import type { ConnectorRegistry } from "../connectors/connector-registry";
 import { type ServerStorageOptions, ServerStoragePanel } from "../files/ServerStoragePanel";
 import { type HostProviderSettings, HostProviderSettingsPanel } from "../settings/ProviderSettingsSection";
 import type { McpServerConfig, McpTestResult } from "./mcp-servers";
@@ -61,6 +56,7 @@ import { type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
 import { type ServerRoutineFeedOptions, ServerRoutineFeedPanel } from "./ServerRoutineFeedPanel";
+import { type ServerTransferOptions, ServerTransferPanel } from "./ServerTransferPanel";
 import { type ServerUpdateOptions, ServerUpdatePanel } from "./ServerUpdatePanel";
 import { serverRoleCanAdminister } from "./server-capabilities";
 import type { ServerSettingsSectionHost } from "./server-settings-section";
@@ -153,19 +149,15 @@ export interface ServerSettingsModalProps {
    */
   agentImport?: ServerImportOptions | undefined;
   /**
-   * The Connectors section appears only when a caller supplies one of these: the GitHub connection
-   * and the Slack, Discord and Telegram apps belong to this computer, so a remote server passes none,
-   * and a build without a GitHub App passes no GitHub.
+   * The Transfer section appears only when a caller supplies this: the local server, or a remote
+   * host with `instance-transfer-v1` where the user is an owner or admin.
    */
-  githubConnector?: GitHubConnectorController | undefined;
-  /** This computer's 1Password connection. A remote server passes none. */
-  onePasswordConnector?: OnePasswordConnectorController | undefined;
-  bitwardenConnector?: BitwardenConnectorPanelProps | undefined;
-  slackConnector?: SlackConnectorController | undefined;
-  discordConnector?: DiscordConnectorController | undefined;
-  telegramConnector?: TelegramConnectorController | undefined;
-  /** This computer's agents, for the Slack, Discord and Telegram pages. */
-  connectorAgents?: AgentProfile[] | undefined;
+  instanceTransfer?: ServerTransferOptions | undefined;
+  /**
+   * The connectors of this server. The Connectors section appears only when the server can run one
+   * of them for this account.
+   */
+  connectors?: ConnectorRegistry | undefined;
   /**
    * The Updates section appears only when a caller supplies this: a remote host with
    * `host-update-v1` that this member administers.
@@ -198,6 +190,7 @@ export type ServerSettingsSection =
   | "providers"
   | "updates"
   | "import"
+  | "transfer"
   | "routines"
   | "connectors";
 type Section = ServerSettingsSection;
@@ -212,6 +205,7 @@ const sections = {
   providers: { title: "server.settings.providersTitle", description: "server.settings.providersDescription" },
   updates: { title: "server.settings.updatesTitle", description: "server.settings.updatesDescription" },
   import: { title: "server.settings.importTitle", description: "server.settings.importDescription" },
+  transfer: { title: "server.settings.transferTitle", description: "server.settings.transferDescription" },
   routines: { title: "server.settings.routinesTitle", description: "server.settings.routinesDescription" },
   connectors: { title: "server.settings.connectorsTitle", description: "server.settings.connectorsDescription" },
 } as const satisfies Record<Section, { title: AppTextKey; description: AppTextKey }>;
@@ -388,6 +382,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         value === "providers" ||
         value === "updates" ||
         value === "import" ||
+        value === "transfer" ||
         value === "routines" ||
         value === "connectors"
       )
@@ -586,22 +581,19 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                 <span>{t(sections.import.title)}</span>
               </Tabs.Trigger>
             </Show>
+            <Show when={props.instanceTransfer}>
+              <Tabs.Trigger class="settings-modal-nav-item" value="transfer">
+                <ArrowLeftRight aria-hidden="true" />
+                <span>{t(sections.transfer.title)}</span>
+              </Tabs.Trigger>
+            </Show>
             <Show when={props.routineFeed}>
               <Tabs.Trigger class="settings-modal-nav-item" value="routines">
                 <CalendarClock aria-hidden="true" />
                 <span>{t(sections.routines.title)}</span>
               </Tabs.Trigger>
             </Show>
-            <Show
-              when={
-                props.githubConnector ||
-                props.onePasswordConnector ||
-                props.bitwardenConnector ||
-                props.slackConnector ||
-                props.discordConnector ||
-                props.telegramConnector
-              }
-            >
+            <Show when={(props.connectors?.available().length ?? 0) > 0}>
               <Tabs.Trigger class="settings-modal-nav-item" value="connectors">
                 <Plug aria-hidden="true" />
                 <span>{t(sections.connectors.title)}</span>
@@ -718,6 +710,16 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
             </Tabs.Content>
           )}
         </Show>
+        <Show when={props.instanceTransfer}>
+          {(instanceTransfer) => (
+            <Tabs.Content value="transfer" class="settings-modal-tab-panel server-settings-panel" data-tab="transfer">
+              {/* Keyed: an open file belongs to one server, so another server starts a new panel. */}
+              <Show when={props.server.id} keyed>
+                {(serverId) => <ServerTransferPanel serverId={serverId} {...instanceTransfer()} />}
+              </Show>
+            </Tabs.Content>
+          )}
+        </Show>
         <Show when={props.routineFeed}>
           {(routineFeed) => (
             <Tabs.Content value="routines" class="settings-modal-tab-panel server-settings-panel" data-tab="routines">
@@ -731,29 +733,20 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
             </Tabs.Content>
           )}
         </Show>
-        <Show
-          when={
-            props.githubConnector ||
-            props.onePasswordConnector ||
-            props.bitwardenConnector ||
-            props.slackConnector ||
-            props.discordConnector ||
-            props.telegramConnector
-          }
-        >
-          <Tabs.Content value="connectors" class="settings-modal-tab-panel server-settings-panel" data-tab="connectors">
-            <ConnectorsPanel
-              github={props.githubConnector}
-              onePassword={props.onePasswordConnector}
-              bitwarden={props.bitwardenConnector}
-              slack={props.slackConnector}
-              discord={props.discordConnector}
-              telegram={props.telegramConnector}
-              agents={props.connectorAgents ?? []}
-              hostName={local() ? undefined : props.server.name}
-              onDetailChange={setConnectorDetail}
-            />
-          </Tabs.Content>
+        <Show when={props.connectors?.available().length ? props.connectors : undefined}>
+          {(connectors) => (
+            <Tabs.Content
+              value="connectors"
+              class="settings-modal-tab-panel server-settings-panel"
+              data-tab="connectors"
+            >
+              <ConnectorsPanel
+                connectors={connectors()}
+                hostName={local() ? undefined : props.server.name}
+                onDetailChange={setConnectorDetail}
+              />
+            </Tabs.Content>
+          )}
         </Show>
       </SettingsDialogShell>
 

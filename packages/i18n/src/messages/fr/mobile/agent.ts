@@ -270,6 +270,10 @@ export const messages = {
   "mobile.agent.advanced.title": "Avancé",
   "mobile.agent.runtime.unavailable": "Indisponible",
   "mobile.agent.runtime.provider": "Fournisseur",
+  "mobile.agent.runtime.account": "Compte",
+  "mobile.agent.runtime.accountNumbered": "Compte {number}",
+  "mobile.agent.runtime.accountUnsupported":
+    "Cet hôte ne permet pas de modifier le compte de l'agent depuis un appareil distant.",
   "mobile.agent.runtime.model": "Modèle",
   "mobile.agent.runtime.reasoning": "Raisonnement",
   "mobile.agent.runtime.effort.low": "Faible",

@@ -759,12 +759,13 @@ export class MailboxStore {
     selectedStoredMessages.reverse();
     const messages: ConversationMessage[] = [];
     const positions = this.#queuedPositions();
+    const turnIds = this.#sourceTurnIds();
     for (const message of selectedStoredMessages) {
       const deliveries = deliveriesByMessage.get(message.id) ?? [];
       if (message.sender.kind === "agent" && message.sender.agentId === agentId) {
         messages.push({
           id: `outbox-${message.id}`,
-          turnId: this.#sourceTurnId(message.id),
+          turnId: turnIds.get(message.id),
           author: "system",
           source: "system",
           text: message.text,
@@ -923,11 +924,18 @@ export class MailboxStore {
     }
   }, Effect.uninterruptible).bind(this);
 
-  #sourceTurnId(messageId: string): string | undefined {
-    const key = Object.entries(this.#state.idempotency).find(([, value]) => value === messageId)?.[0];
-    if (!key) return undefined;
-    const parts = key.split(":");
-    return parts.length >= 3 ? parts.at(-2) : undefined;
+  /**
+   * The turn that sent each message, by message id, read once for a whole lookup: agent keys are
+   * kept for good, so a scan of every key for each message grows with the square of the history.
+   */
+  #sourceTurnIds(): Map<string, string | undefined> {
+    const turnIds = new Map<string, string | undefined>();
+    for (const [key, messageId] of Object.entries(this.#state.idempotency)) {
+      if (turnIds.has(messageId)) continue;
+      const parts = key.split(":");
+      turnIds.set(messageId, parts.length >= 3 ? parts.at(-2) : undefined);
+    }
+    return turnIds;
   }
 
   senderAgentIdsForRecipient(agentId: string): string[] {
@@ -1234,9 +1242,10 @@ export class MailboxStore {
   }
 
   hasAgentMessageFromTurnTo(agentId: string, turnId: string, recipientAgentId: string): boolean {
+    const turnIds = this.#sourceTurnIds();
     return this.#state.messages.some((message) => {
       if (message.sender.kind !== "agent" || message.sender.agentId !== agentId) return false;
-      if (this.#sourceTurnId(message.id) !== turnId) return false;
+      if (turnIds.get(message.id) !== turnId) return false;
       return this.#state.deliveries.some(
         (delivery) => delivery.messageId === message.id && delivery.recipientAgentId === recipientAgentId,
       );

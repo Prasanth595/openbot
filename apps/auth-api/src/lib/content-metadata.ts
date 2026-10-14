@@ -167,7 +167,7 @@ export function articleHead(
 // schema.org wants an absolute URL for every entity it can resolve, and a
 // `mainEntityOfPage` that matches the canonical. Google drops the date from a
 // result when those disagree with each other.
-export function articleStructuredData(collection: ContentCollection, article: CollectionArticle, siteUrl: string) {
+function articleStructuredData(collection: ContentCollection, article: CollectionArticle, siteUrl: string) {
   const url = articleUrl(collection, article.slug, siteUrl);
   return {
     "@context": "https://schema.org",
@@ -324,7 +324,7 @@ export function pluginHead(plugin: SitePlugin, siteUrl: string) {
  * offer says free because installing a plugin costs nothing; what the developer's own service
  * charges is between the reader and the developer, so nothing here claims otherwise.
  */
-export function pluginStructuredData(plugin: SitePlugin, siteUrl: string) {
+function pluginStructuredData(plugin: SitePlugin, siteUrl: string) {
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",

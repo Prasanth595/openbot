@@ -369,7 +369,6 @@ export function createServerConversationState() {
   const [browserAddressEditing, setBrowserAddressEditing] = createSignal(false);
   const [sidebarFilePreview, setSidebarFilePreview] = createSignal<SidebarFilePreview | null>(null);
   const [openReactionMessageId, setOpenReactionMessageId] = createSignal<string | null>(null);
-  const [openMoreMessageId, setOpenMoreMessageId] = createSignal<string | null>(null);
   const [expandedEmojiMessageId, setExpandedEmojiMessageId] = createSignal<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = createSignal<string | null>(null);
   const [chatSearchOpen, setChatSearchOpen] = createSignal(false);
@@ -408,8 +407,6 @@ export function createServerConversationState() {
     setSidebarFilePreview,
     openReactionMessageId,
     setOpenReactionMessageId,
-    openMoreMessageId,
-    setOpenMoreMessageId,
     expandedEmojiMessageId,
     setExpandedEmojiMessageId,
     copiedMessageId,

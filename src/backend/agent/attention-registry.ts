@@ -79,7 +79,13 @@ interface PendingApproval {
   params: unknown;
   approval: AgentApproval;
   hostedSiteMutation?: HostedSiteMutationContext;
+  /** A built-in tool waits for this answer and does the work itself. "cancel" means nobody answered. */
+  decide?: (decision: ToolApprovalDecision) => void;
 }
+
+type ToolApprovalDecision = "accept" | "decline" | "cancel";
+
+const TOOL_APPROVAL_METHOD = "openbot/tool-approval";
 
 interface PendingBrowserTakeover {
   client: AgentClient;
@@ -330,7 +336,9 @@ export class AttentionRegistry {
     this.#routines.markRunningForTurn(getString(pending.params, "turnId"));
 
     const mutation = pending.hostedSiteMutation;
-    if (mutation) {
+    if (pending.decide) {
+      pending.decide(input.decision);
+    } else if (mutation) {
       this.#approvals.delete(input.requestId);
       yield* this.#hostedSites
         .resolveApproval(
@@ -479,6 +487,34 @@ export class AttentionRegistry {
     this.#routines.markNeedsAttention(turnId);
     this.#emit({ type: "approval", approval });
   }
+
+  /**
+   * Asks the user to approve a built-in tool call, and gives the answer to the tool. The tool does
+   * nothing before "accept". Turbo with a standing approval for the agent answers for the user, as
+   * for a hosted-site change. A turn that ends or a request that the provider abandons gives "cancel".
+   */
+  readonly awaitToolApproval = Effect.fn("AttentionRegistry.awaitToolApproval")(function* (
+    this: AttentionRegistry,
+    client: AgentClient,
+    request: AppServerRequest,
+    approval: AgentApproval,
+  ) {
+    if (request.signal?.aborted) return "cancel" as const;
+    if (shouldAutoApprove(this.#approvalAutomation, approval) && this.#approvalAutomation.turboEnabled())
+      return "accept" as const;
+    const decision = Deferred.makeUnsafe<ToolApprovalDecision>();
+    this.#approvals.set(request.id, {
+      client,
+      id: request.id,
+      method: TOOL_APPROVAL_METHOD,
+      params: request.params,
+      approval,
+      decide: (value) => Deferred.doneUnsafe(decision, Effect.succeed(value)),
+    });
+    this.#routines.markNeedsAttention(approval.turnId);
+    this.#emit({ type: "approval", approval });
+    return yield* Deferred.await(decision);
+  }).bind(this);
 
   readonly surfaceHostedSiteApproval = Effect.fn("AttentionRegistry.surfaceHostedSiteApproval")(function* (
     this: AttentionRegistry,
@@ -816,6 +852,7 @@ export class AttentionRegistry {
       const pendingTurnId = getString(pending.params, "turnId");
       if (pendingThreadId === threadId && (!pendingTurnId || pendingTurnId === turnId)) {
         this.#approvals.delete(requestId);
+        pending.decide?.("cancel");
         this.#emitInputResolved("approval", requestId, pending.approval.agentId);
       }
     }
@@ -851,6 +888,7 @@ export class AttentionRegistry {
     if (approval?.client === client) {
       this.#routines.markRunningForTurn(approval.approval.turnId);
       this.#approvals.delete(requestId);
+      approval.decide?.("cancel");
       this.#emitInputResolved("approval", requestId, approval.approval.agentId);
       changed = true;
     }
@@ -904,6 +942,7 @@ export class AttentionRegistry {
     for (const [requestId, pending] of this.#approvals) {
       if (client && pending.client !== client) continue;
       this.#approvals.delete(requestId);
+      pending.decide?.("cancel");
       this.#emitInputResolved("approval", requestId, pending.approval.agentId);
     }
   }

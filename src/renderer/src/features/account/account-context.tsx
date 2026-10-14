@@ -1,4 +1,4 @@
-import type { AccountUsage, AvatarImageInput, CentralAuthState } from "@openbot/contracts/ipc";
+import type { AccountUsage, AccountUsageLimit, AvatarImageInput, CentralAuthState } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
 import { createMemo, createSignal, createStore, flush, onCleanup, onSettled } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
@@ -213,10 +213,10 @@ const Auth = createSimpleContext({
         });
         return;
       }
-      for (const limit of usage.limits) accountUsageEventIds.add(limit.id);
+      for (const limit of usage.limits) accountUsageEventIds.add(usageLimitKey(limit));
       setAccountUsageState((state) => {
-        const byId = new Map((state.data?.limits ?? []).map((limit) => [limit.id, limit]));
-        for (const limit of usage.limits) byId.set(limit.id, limit);
+        const byId = new Map((state.data?.limits ?? []).map((limit) => [usageLimitKey(limit), limit]));
+        for (const limit of usage.limits) byId.set(usageLimitKey(limit), limit);
         state.data = { limits: [...byId.values()] };
       });
     }
@@ -230,9 +230,10 @@ const Auth = createSimpleContext({
         // The refresh reads every provider, so a row it omits has stopped reporting, such as a revoked
         // OpenCode Go key. It keeps only the rows an event updated after it started.
         setAccountUsageState((state) => {
-          const byId = new Map(usage.limits.map((limit) => [limit.id, limit]));
+          const byId = new Map(usage.limits.map((limit) => [usageLimitKey(limit), limit]));
           for (const limit of state.data?.limits ?? []) {
-            if (accountUsageEventIds.has(limit.id)) byId.set(limit.id, limit);
+            const key = usageLimitKey(limit);
+            if (accountUsageEventIds.has(key)) byId.set(key, limit);
           }
           state.data = { limits: [...byId.values()] };
         });
@@ -290,3 +291,8 @@ const Auth = createSimpleContext({
 
 export const AuthProvider = Auth.provider;
 export const useAuth = Auth.use;
+
+/** One row for each account of a provider: the provider's own sign-in has no account. */
+function usageLimitKey(limit: AccountUsageLimit): string {
+  return `${limit.id}\n${limit.accountId ?? ""}`;
+}
