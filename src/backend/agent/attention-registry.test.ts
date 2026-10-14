@@ -1230,6 +1230,90 @@ describe.sequential("AttentionRegistry: prompts, approvals and browser takeovers
     await waitFor(() => events.some((event) => event.type === "approval"));
     expect(client.responses).toHaveLength(0);
   });
+
+  it("captures the screen only after the user approves, and shows the image in the conversation", async () => {
+    const captures: unknown[] = [];
+    const { store, mailbox } = stores(root);
+    let client: FakeAgentClient | undefined;
+    service = createTestService({
+      store,
+      mailbox,
+      preferredProvider: "codex",
+      clientFactory: (provider) => {
+        client = new FakeAgentClient(provider);
+        return client;
+      },
+      screenCapture: {
+        listSources: () =>
+          Effect.succeed({
+            displays: [
+              { id: "1", name: "Built-in", bounds: { x: 0, y: 0, width: 4, height: 2 }, scaleFactor: 2, primary: true },
+            ],
+            windows: [],
+          }),
+        capture: (request) =>
+          Effect.sync(() => {
+            captures.push(request);
+            return { png: new Uint8Array([137, 80, 78, 71]), width: 8, height: 4, sourceName: "Built-in" };
+          }),
+      },
+    });
+    const events: AgentEvent[] = [];
+    service.on("event", (event) => events.push(event));
+    await runCauseEffect(service.initialize());
+    await runCauseEffect(service.sendMessage({ agentId: "chief", text: "Look at my screen" }));
+    await waitFor(() => events.some((event) => event.type === "turn-started"));
+    const threadId = store.activeProviderSession("chief")?.externalSessionId;
+    const turnId = events.find((event) => event.type === "turn-started")?.turnId;
+    if (!client || !threadId || !turnId) throw new Error("Turn did not start.");
+    const fake = client;
+    const requestCapture = (id: string) =>
+      fake.emit("request", {
+        method: "item/tool/call",
+        id,
+        params: {
+          threadId,
+          turnId,
+          callId: id,
+          namespace: "openbot",
+          tool: "capture_screen",
+          arguments: { target: "screen" },
+        },
+      });
+
+    requestCapture("capture-declined");
+    await waitFor(() => events.some((event) => event.type === "approval"));
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "approval",
+        approval: expect.objectContaining({ requestId: "capture-declined", kind: "permissions", permissions: null }),
+      }),
+    );
+    expect(captures).toEqual([]);
+    expect(fake.responses).toEqual([]);
+    await runCauseEffect(service.respondToApproval({ requestId: "capture-declined", decision: "decline" }));
+    await waitFor(() => fake.responses.length === 1);
+    expect(fake.responses[0]?.result).toMatchObject({ success: false });
+    expect(captures).toEqual([]);
+
+    requestCapture("capture-accepted");
+    await waitFor(() => events.filter((event) => event.type === "approval").length === 2);
+    expect(captures).toEqual([]);
+    await runCauseEffect(service.respondToApproval({ requestId: "capture-accepted", decision: "accept" }));
+    await waitFor(() => fake.responses.length === 2);
+    expect(captures).toEqual([{ target: "screen" }]);
+    expect(fake.responses[1]?.result).toMatchObject({
+      success: true,
+      contentItems: expect.arrayContaining([{ type: "inputImage", imageUrl: "data:image/png;base64,iVBORw==" }]),
+    });
+    const conversation = await runCauseEffect(service.readConversation("chief"));
+    expect(conversation.messages).toContainEqual(
+      expect.objectContaining({
+        itemType: "agent_attachment",
+        attachments: [expect.objectContaining({ mimeType: "image/png" })],
+      }),
+    );
+  });
 });
 
 it.each([

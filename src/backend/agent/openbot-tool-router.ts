@@ -74,6 +74,13 @@ import {
 import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
 import type { RoutineScheduler } from "./routine-scheduler";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "./routine-tools";
+import {
+  captureScreenToolSchema,
+  type ScreenCaptureFailed,
+  type ScreenCaptureHost,
+  type ScreenCaptureImage,
+  type ScreenCaptureRequest,
+} from "./screen-capture";
 import { type AgentSidebar, handleSidebarTool } from "./sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS, type LocalSkillTools, runLocalSkillTool } from "./skill-tools";
 import { isDynamicToolCall } from "./thread-items";
@@ -83,6 +90,11 @@ import { ToolOperationFailed, toolStep, toToolOperationFailed } from "./tool-ope
 import type { AgentBrowserHost } from "./turn-lifecycle";
 
 const logger = createOpenBotLogger("openbot-tool-router");
+
+/** The reason says what to grant or to correct, and holds no screen content. */
+function captureFailure(failure: ScreenCaptureFailed) {
+  return openBotToolFailure(failure.reason);
+}
 
 export interface OpenBotToolRouterHooks {
   listAgents(): AgentSummary[];
@@ -134,6 +146,8 @@ export interface OpenBotToolRouterOptions {
   approvalAutomation?: ApprovalAutomationPolicy;
   /** Draws pages for `html_preview`; null where no window can draw one. */
   visualPreview?: ChatVisualPreviewHost | null;
+  /** Captures the desktop for `capture_screen`; null where this process has no desktop. */
+  screenCapture?: ScreenCaptureHost | null;
   hooks: OpenBotToolRouterHooks;
 }
 
@@ -167,6 +181,7 @@ export class OpenBotToolRouter {
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #approvalAutomation: ApprovalAutomationPolicy;
   readonly #visualPreview: ChatVisualPreviewHost | null;
+  readonly #screenCapture: ScreenCaptureHost | null;
   readonly #hooks: OpenBotToolRouterHooks;
   readonly #interruptTool: AgentInterruptTool;
 
@@ -197,6 +212,7 @@ export class OpenBotToolRouter {
     this.#routineFlowTools = options.routineFlowTools;
     this.#approvalAutomation = options.approvalAutomation ?? NO_APPROVAL_AUTOMATION;
     this.#visualPreview = options.visualPreview ?? null;
+    this.#screenCapture = options.screenCapture ?? null;
     this.#hooks = options.hooks;
     this.#interruptTool = new AgentInterruptTool({
       store: options.store,
@@ -350,6 +366,11 @@ export class OpenBotToolRouter {
                 toolRequest.params,
                 toolRequest.params.tool,
               );
+              return;
+            }
+            if (toolRequest.params.tool === "capture_screen" || toolRequest.params.tool === "list_capture_sources") {
+              const result = yield* this.#screenCaptureTool(client, toolRequest, toolRequest.params);
+              if (!toolRequest.signal?.aborted && client.running) client.respond(toolRequest.id, result);
               return;
             }
             const tool = toolRequest.params.tool;
@@ -857,6 +878,146 @@ export class OpenBotToolRouter {
         Effect.catchTag("ChatVisualPreviewFailed", (failure) => Effect.succeed(openBotToolFailure(failure.reason))),
       );
   });
+
+  /**
+   * `list_capture_sources` and `capture_screen`. The agent's Computer Use setting allows both. Each
+   * capture waits for the user's approval, and the user sees the image in the conversation.
+   */
+  readonly #screenCaptureTool = Effect.fn("OpenBotToolRouter.screenCaptureTool")(function* (
+    this: OpenBotToolRouter,
+    client: AgentClient,
+    request: AppServerRequest,
+    params: DynamicToolCallParams,
+  ) {
+    const agentId = this.#conversation.agentForThread(params.threadId);
+    const agent = agentId ? this.#hooks.listAgents().find((candidate) => candidate.id === agentId) : undefined;
+    if (!agent) return openBotToolFailure(sourceText("error.agent.toolRequestInvalid"));
+    if (!agentComputerUseEnabled(agent)) return openBotToolFailure(sourceText("error.agent.screenCaptureOff"));
+    const host = this.#screenCapture;
+    if (!host) return openBotToolFailure(sourceText("error.agent.screenCaptureUnavailable"));
+    if (params.tool === "list_capture_sources") {
+      const sources = yield* Effect.result(host.listSources());
+      return Result.isFailure(sources) ? captureFailure(sources.failure) : openBotToolResult(sources.success);
+    }
+    const parsed = captureScreenToolSchema.safeParse(params.arguments, { reportInput: true });
+    if (!parsed.success) return openBotToolFailure(profileToolErrorMessage(parsed.error));
+    const capture = parsed.data;
+    const threadId = this.#conversation.publicThreadId(agent.id, params.threadId);
+    const messageId = responseAttachmentMessageId(params.threadId, params.turnId, params.callId);
+    if (this.#conversation.ensureSnapshot(agent.id, threadId).messages.some(({ id }) => id === messageId)) {
+      return openBotToolResult({ status: "shown", messageId });
+    }
+    const reason = yield* this.#captureApprovalReason(host, capture);
+    if (typeof reason !== "string") return reason;
+    const decision = yield* this.#attention.awaitToolApproval(client, request, {
+      requestId: request.id,
+      agentId: agent.id,
+      threadId,
+      turnId: params.turnId,
+      kind: "permissions",
+      command: null,
+      cwd: null,
+      reason,
+      grantRoot: null,
+      permissions: null,
+    });
+    if (decision !== "accept") return openBotToolFailure(sourceText("error.agent.screenCaptureDeclined"));
+    const image = yield* Effect.result(host.capture(capture));
+    if (Result.isFailure(image)) return captureFailure(image.failure);
+    return yield* this.#showCapture(agent.id, threadId, params, messageId, image.success);
+  });
+
+  /** What the approval card says. A window that is gone is a result the agent can correct. */
+  readonly #captureApprovalReason = Effect.fn("OpenBotToolRouter.captureApprovalReason")(function* (
+    host: ScreenCaptureHost,
+    capture: ScreenCaptureRequest,
+  ) {
+    if (capture.target === "region") {
+      const { x, y, width, height } = capture.region;
+      return sourceText("status.agent.screenCaptureRegion", { x, y, width, height });
+    }
+    const sources = yield* host.listSources().pipe(Effect.catchTag("ScreenCaptureFailed", () => Effect.succeed(null)));
+    if (capture.target === "window") {
+      const window = sources?.windows.find(({ id }) => id === capture.windowId);
+      if (!window) return openBotToolFailure(sourceText("error.agent.screenCaptureWindowMissing"));
+      return sourceText("status.agent.screenCaptureWindow", { name: window.name });
+    }
+    const display = capture.displayId
+      ? sources?.displays.find(({ id }) => id === capture.displayId)
+      : sources?.displays.find(({ primary }) => primary);
+    if (capture.displayId && !display) return openBotToolFailure(sourceText("error.agent.screenCaptureDisplayMissing"));
+    return display?.name
+      ? sourceText("status.agent.screenCaptureDisplay", { name: display.name })
+      : sourceText("status.agent.screenCaptureScreen");
+  });
+
+  /**
+   * Stores the capture as an attachment of a message in the conversation and gives the agent the
+   * image. The image and its message are saved together, as for `html_render`.
+   */
+  readonly #showCapture = Effect.fn("OpenBotToolRouter.showCapture")(function* (
+    this: OpenBotToolRouter,
+    agentId: string,
+    threadId: string,
+    params: DynamicToolCallParams,
+    messageId: string,
+    image: ScreenCaptureImage,
+  ) {
+    const attachment = yield* this.#mailbox
+      .stageGeneratedBytes({
+        bytes: image.png,
+        name: `Screen capture ${new Date().toISOString().replace(/[:.]/gu, "-")}.png`,
+        mimeType: "image/png",
+        ownerAgentId: agentId,
+        ownerThreadId: threadId,
+      })
+      .pipe(toToolOperationFailed);
+    const snapshot = this.#conversation.ensureSnapshot(agentId, threadId);
+    snapshot.messages.push({
+      id: messageId,
+      turnId: params.turnId,
+      author: "assistant",
+      source: "assistant",
+      text: "",
+      createdAt: new Date().toISOString(),
+      status: "completed",
+      itemType: "agent_attachment",
+      attachments: [attachment],
+    });
+    sortConversationMessages(snapshot.messages);
+    try {
+      const persisted = this.#mailbox.persistGeneratedAttachmentsWithConversation(
+        snapshot,
+        "response.attachments-added",
+        { turnId: params.turnId, messageId, attachmentCount: 1 },
+        [attachment.id],
+      );
+      snapshot.revision = persisted.revision;
+    } catch (error) {
+      const messageIndex = snapshot.messages.findIndex((candidate) => candidate.id === messageId);
+      if (messageIndex >= 0) snapshot.messages.splice(messageIndex, 1);
+      yield* this.#mailbox.discardStagedGeneratedAttachments([attachment.id]).pipe(toToolOperationFailed);
+      throw error;
+    }
+    this.#conversation.publishConversation(snapshot);
+    const result: DynamicToolResult = {
+      success: true,
+      contentItems: [
+        {
+          type: "inputText",
+          text: JSON.stringify({
+            status: "shown",
+            messageId,
+            source: image.sourceName,
+            width: image.width,
+            height: image.height,
+          }),
+        },
+        { type: "inputImage", imageUrl: `data:image/png;base64,${Buffer.from(image.png).toString("base64")}` },
+      ],
+    };
+    return result;
+  }, Effect.uninterruptible);
 
   readonly #createAgent = Effect.fn("OpenBotToolRouter.createAgent")(
     function* (

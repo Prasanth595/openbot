@@ -66,7 +66,18 @@ import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { REMOTE_ACCOUNT_CHECK_INTERVAL_MS } from "@openbot/team-client";
-import { app, type BrowserWindow, clipboard, nativeImage, powerMonitor, safeStorage, screen, shell } from "electron";
+import {
+  app,
+  type BrowserWindow,
+  clipboard,
+  desktopCapturer,
+  nativeImage,
+  powerMonitor,
+  safeStorage,
+  screen,
+  shell,
+  systemPreferences,
+} from "electron";
 import { pasteCodeLoginSupported } from "../backend/agent/cli-code-login";
 import { toMcpGatewayFailed } from "../backend/agent/mcp-gateway";
 import { AgentLifecycleFailed, AgentService } from "../backend/agent-service";
@@ -197,6 +208,7 @@ import { ResourceMonitor } from "./resource-monitor";
 import { StatementTimings } from "./resource-summary";
 import { RoutineFeedServer } from "./routine-feed-server";
 import { clearRoutineHold, ROUTINE_HOLD_FILE, takeRoutineHold, writeRoutineHold } from "./routine-hold-file";
+import { ScreenCapturer } from "./screen-capture";
 import { ServerMode, type ServerModeEnvironment } from "./server-mode";
 import {
   configureApplicationProtocol,
@@ -1257,6 +1269,13 @@ export async function createApplicationServices({
     mailbox,
     browser,
     visualPreview: new ChatVisualPreviewer(),
+    screenCapture: new ScreenCapturer({
+      platform: process.platform,
+      screenAccess: () => systemPreferences.getMediaAccessStatus("screen"),
+      displays: () => screen.getAllDisplays(),
+      primaryDisplayId: () => screen.getPrimaryDisplay().id,
+      getSources: (options) => desktopCapturer.getSources(options),
+    }),
     hostMemory,
     retireChannels: true,
     requestTimeoutMs: 30_000,
