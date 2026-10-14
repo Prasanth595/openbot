@@ -277,7 +277,9 @@ systemctl edit openbot-instance-backup@main.timer   # another time: OnCalendar= 
 ```
 
 The timer runs outside the container, so it also backs up an instance that does not work. `setup`
-installs the units. A backup and an update of the same instance never run at the same time.
+installs the units. Backups, verifications, restores, updates, `up`, `down`, `restart` and `upgrade` of
+one instance take the same lock. One waits until the other ends, so none starts or stops the container
+while another runs.
 
 To restore, the instance must exist. For a new host, `create` it with the same name first.
 

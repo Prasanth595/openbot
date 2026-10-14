@@ -474,7 +474,11 @@ run_step() {
   [ "$result" -eq 0 ] || exit "$result"
 }
 
+# Holds the lock of instance $1 until the command ends or locks another instance. Updates, backups,
+# restores, up, down, restart and upgrade take it, so that none starts or stops the container while
+# another runs.
 lock_instance() {
+  check_name "$1"
   exec 9>"$LOCKS/$UPDATE_UNIT-$1.lock"
   flock 9
 }
@@ -863,20 +867,23 @@ case $command in
   setup) setup ;;
   create) create "$@" ;;
   list) list ;;
-  up) start "${1:-}" ;;
-  down) compose "${1:-}" down ;;
-  restart) compose "${1:-}" restart ;;
+  up) lock_instance "${1:-}"; start "$1" ;;
+  down) lock_instance "${1:-}"; compose "$1" down ;;
+  restart) lock_instance "${1:-}"; compose "$1" restart ;;
   logs) compose "${1:-}" logs "${@:2}" ;;
   upgrade)
     if [ "${1:-}" = --all ]; then
       for env in "$HERE"/*.env; do
         [ -e "$env" ] || continue
-        compose "$(basename "$env" .env)" pull
-        start "$(basename "$env" .env)"
+        name=$(basename "$env" .env)
+        lock_instance "$name"
+        compose "$name" pull
+        start "$name"
       done
     else
-      compose "${1:-}" pull
-      start "${1:-}"
+      lock_instance "${1:-}"
+      compose "$1" pull
+      start "$1"
     fi
     ;;
   update-request) update_request "${1:-}" ;;

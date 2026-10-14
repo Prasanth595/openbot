@@ -344,6 +344,13 @@ async function main(): Promise<void> {
     );
     const latest = completeBackups().at(-1) ?? "";
 
+    // While a backup holds the lock of the instance, `down` waits and does not stop the container.
+    const lock = "/run/openbot-instance-update-main.lock";
+    const waited = must(
+      `flock ${lock} sleep 30 & holder=$!; until ! flock --nonblock ${lock} true; do sleep 0.1; done; set +e; timeout 3 ${script} down main >/dev/null 2>&1; code=$?; set -e; kill $holder; wait $holder 2>/dev/null || true; echo $code`,
+    );
+    check("down waits for the lock of the instance", waited === "124" && running(), `timeout exit ${waited}`);
+
     // Restore: the data changes after the backup, and the restore gives back the backup.
     must(`echo changed > ${data}/OpenBot/Agents/E2E/after-backup.md && rm ${data}/OpenBot/Agents/E2E/notes.md`);
     // An agent can leave links with the names of the restore folders. Root must not follow them.
