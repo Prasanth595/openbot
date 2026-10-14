@@ -216,11 +216,20 @@ export class AgentTables {
           message: `There are already ${INPUT_LIMITS.sharedTables} tables. Add columns or rows to a table that exists, or remove one you created.`,
         };
       }
-      const result = yield* this.#write(sql, parameters, yield* this.#tablesNotOwnedBy(agentId));
-      if (!result.ok) return result;
-      yield* this.#forgetRemovedTables();
-      yield* this.#claimNewTables(agentId, existing.value);
-      return result;
+      const protectedTables = yield* this.#tablesNotOwnedBy(agentId);
+      // Not interruptible: a statement that reached the host runs, so its owner record must follow.
+      return yield* Effect.uninterruptible(
+        Effect.gen({ self: this }, function* (): Effect.fn.Return<
+          AgentDatabaseCheck<AgentDatabaseWriteResult>,
+          AgentTablesError
+        > {
+          const result = yield* this.#write(sql, parameters, protectedTables);
+          if (!result.ok) return result;
+          yield* this.#forgetRemovedTables();
+          yield* this.#claimNewTables(agentId, existing.value);
+          return result;
+        }),
+      );
     });
   }
 
