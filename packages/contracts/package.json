@@ -14,6 +14,7 @@
     "./attachment-references": "./src/attachment-references.ts",
     "./avatar-images": "./src/avatar-images.ts",
     "./billing": "./src/billing.ts",
+    "./connectors": "./src/connectors.ts",
     "./discord-app": "./src/discord-app.ts",
     "./discord-guild-grant": "./src/discord-guild-grant.ts",
     "./event-filter-value": "./src/event-filter-value.ts",

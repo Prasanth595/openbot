@@ -305,7 +305,7 @@ describe("OpenBot connected desktop shell", () => {
     const accountDialog = screen.getByRole("dialog", { name: "Account actions" });
     expect(within(accountDialog).getByRole("heading", { name: "Usage" })).toBeInTheDocument();
     expect(
-      within(accountDialog).getByRole("listitem", { name: /ChatGPT, 5-hour 72% left.*Weekly 59% left/ }),
+      await within(accountDialog).findByRole("listitem", { name: /ChatGPT, 5-hour 72% left.*Weekly 59% left/ }),
     ).toBeInTheDocument();
   });
 

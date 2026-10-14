@@ -91,7 +91,7 @@ export async function routeConnectors(
     default: {
       // The orchestrator starts on a new agent's default provider and model, as the host picks it.
       const added =
-        platform === "telegram" || body.workspaceId === null
+        platform === "telegram"
           ? messaging.addTelegramOrchestrator({})
           : messaging.addOrchestrator(platform, { workspaceId: workspaceId() });
       return json(200, await runCauseEffect(added));

@@ -40,9 +40,10 @@ export function MarketplaceModal(props: MarketplaceModalProps) {
     const model = controller.model;
     const app = model.apps().find((candidate) => candidate.id === slug);
     if (!app || app.status === "connected") return;
-    // GitHub signs in with a device code, and its page, which is open now, shows that dialog.
-    if (app.kind === "github") model.github?.().onConnect();
-    else if (app.kind === "plugin" && model.canConnectApps()) void model.connectApp(app);
+    // A connector's page, which is open now, shows its dialogs, such as GitHub's device code.
+    if (app.kind === "connector") {
+      if (app.status === "idle") model.connector(app.connector)?.connect?.();
+    } else if (app.kind === "plugin" && model.canConnectApps()) void model.connectApp(app);
   };
 
   createEffect(

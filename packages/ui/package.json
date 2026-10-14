@@ -80,6 +80,8 @@
     "./features/channels/ChannelAvatar": "./src/features/channels/ChannelAvatar.tsx",
     "./features/channels/ChannelMemberRow": "./src/features/channels/ChannelMemberRow.tsx",
     "./features/channels/ChannelStoppedTasks": "./src/features/channels/ChannelStoppedTasks.tsx",
+    "./features/connectors/ConnectorDetailPanel": "./src/features/connectors/ConnectorDetailPanel.tsx",
+    "./features/connectors/connector-catalog": "./src/features/connectors/connector-catalog.tsx",
     "./features/conversation/AgentActivity": "./src/features/conversation/AgentActivity.tsx",
     "./features/conversation/BrowserSecretCard": "./src/features/conversation/BrowserSecretCard.tsx",
     "./features/conversation/BrowserTakeoverPreview": "./src/features/conversation/BrowserTakeoverPreview.tsx",

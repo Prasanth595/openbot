@@ -756,12 +756,8 @@ function acceptDeepLink(link: DeepLink): void {
     receiveMcpAuthorizationCode(link.state, link.code);
     return;
   }
-  if (link.kind === "slack-workspace") {
-    receiveSlackSignIn(link);
-    return;
-  }
-  if (link.kind === "discord-guild") {
-    receiveDiscordSignIn(link);
+  if (link.kind === "slack-workspace" || link.kind === "discord-guild") {
+    receiveMessagingInstall(link);
     return;
   }
   pendingDeepLink = link;
@@ -797,40 +793,26 @@ function takeRendererDeepLink(link: DeepLink | null): RendererDeepLink | null {
 }
 
 /**
- * Hands a Slack install the sealed token it is waiting for. An install that this computer opened for
- * a joined server sends the token on to that server. As with an MCP grant, a link this run did not
- * start does nothing and raises no window.
+ * Hands a Slack or Discord install the sealed grant it is waiting for. An install that this computer
+ * opened for a joined server sends the grant on to that server. As with an MCP grant, a link this run
+ * did not start does nothing and raises no window.
  */
-function receiveSlackSignIn(link: Extract<DeepLink, { kind: "slack-workspace" }>): void {
+function receiveMessagingInstall(link: Extract<DeepLink, { kind: "slack-workspace" | "discord-guild" }>): void {
   const current = services;
   if (!current) return;
-  void Effect.runPromise(current.messaging.completeSlackWorkspace(link.nonce, link.grant))
-    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("slack", link.nonce, link.grant))
+  const platform = link.kind === "slack-workspace" ? "slack" : "discord";
+  const completed =
+    platform === "slack"
+      ? current.messaging.completeSlackWorkspace(link.nonce, link.grant)
+      : current.messaging.completeDiscordGuild(link.nonce, link.grant);
+  void Effect.runPromise(completed)
+    .then((accepted) => accepted || current.relayedMessagingInstalls.forward(platform, link.nonce, link.grant))
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);
     })
     .catch(() => {
-      // The Slack settings show the connection's state. The error can quote Slack.
-    });
-}
-
-/**
- * Hands a Discord install the sealed guild link it is waiting for, or sends it on to the joined server
- * that started it. As with a Slack install, a link this run did not start does nothing and raises no
- * window.
- */
-function receiveDiscordSignIn(link: Extract<DeepLink, { kind: "discord-guild" }>): void {
-  const current = services;
-  if (!current) return;
-  void Effect.runPromise(current.messaging.completeDiscordGuild(link.nonce, link.grant))
-    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("discord", link.nonce, link.grant))
-    .then((accepted) => {
-      const window = windowHolder.current;
-      if (accepted && window && !window.isDestroyed()) showMainWindow(window);
-    })
-    .catch(() => {
-      // The Discord settings show the connection's state.
+      // The connector settings show the connection's state. The error can quote Slack or Discord.
     });
 }
 

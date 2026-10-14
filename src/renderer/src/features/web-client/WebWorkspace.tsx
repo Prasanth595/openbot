@@ -90,11 +90,8 @@ import { readChannelSelection, writeChannelSelection } from "../channels/channel
 import { ChannelsControllerProvider } from "../channels/channels-context";
 import { createChannelsController } from "../channels/channels-controller";
 import { globalSearchChannels } from "../channels/global-search-channels";
-import { createDiscordConnector } from "../connectors/discord-connector";
-import { createGitHubConnector } from "../connectors/github-connector";
+import { createConnectorRegistry, createConnectorSet } from "../connectors/connector-registry";
 import { hostMessagingApi } from "../connectors/host-messaging-port";
-import { createSlackConnector } from "../connectors/slack-connector";
-import { createTelegramConnector } from "../connectors/telegram-connector";
 import { Conversation, createConversationController } from "../conversation/Conversation";
 import { clearStoredQueueEdit } from "../conversation/composer-draft";
 import { ConversationControllerProvider } from "../conversation/conversation-controller-context";
@@ -108,7 +105,7 @@ import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOver
 import { watchHostUpdate } from "../servers/host-update-toast";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
-import { remoteUpdateServer, serverRoleCanAdminister } from "../servers/server-capabilities";
+import { remoteAdminServer, remoteUpdateServer, serverRoleCanAdminister } from "../servers/server-capabilities";
 import { createServerConnectionToast } from "../servers/server-connection-toast";
 import { isReaderAuthor } from "../team/reader-identity";
 import { WebAgentSettings } from "./WebAgentSettings";
@@ -608,38 +605,35 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     relaySupported: () => workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY),
   });
   const marketplaceCalls = createWebMarketplaceCalls(props.accountFetch, hostRequest);
-  // The host's connectors, for an owner or admin. GitHub shows when the host has a GitHub App.
-  const connectorsEnabled = createMemo(
-    () =>
-      workspace.state.capabilities.includes(CONNECTORS_CAPABILITY) &&
-      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
-  );
+  // The host's connectors, for an owner or admin. The web client has no computer of its own.
+  const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
-  const githubController = createGitHubConnector(
-    () => githubPort,
-    () => server()?.name ?? null,
-  );
-  createEffect(
-    () => connectorsEnabled() && server()?.id,
-    (id) => {
-      if (id) githubController.reload();
-    },
-  );
-  const githubConnector = () =>
-    connectorsEnabled() && githubController.status().available ? githubController : undefined;
   const webMessaging = webHostMessaging(hostRequest);
   onCleanup(webMessaging.dispose);
-  const hostMessaging = {
-    messaging: hostMessagingApi(
-      () => (connectorsEnabled() ? server()?.id : undefined),
-      () => webMessaging.api,
+  const connectors = createConnectorRegistry(server, {
+    computer: {},
+    server: createConnectorSet(
+      {
+        github: () => githubPort,
+        messaging: hostMessagingApi(
+          () => connectorTarget()?.id,
+          () => webMessaging.api,
+        ),
+      },
+      { agents: workspace.profiles, hostName: () => server()?.name },
     ),
-  };
-  const slackController = createSlackConnector(() => hostMessaging);
-  const discordController = createDiscordConnector(() => hostMessaging);
-  const telegramController = createTelegramConnector(() => hostMessaging);
+  });
+  /** The app that a suggestion card opens in Marketplace. A plugin link from the address comes in props. */
+  const [suggestedApp, setSuggestedApp] = createSignal<{ appId: string; connect: boolean } | null>(null);
   const agentTemplateCalls = createWebAgentTemplateCalls(props.accountFetch, hostRequest);
   const [marketplaceOpen, setMarketplaceOpen] = createSignal(false);
+  // A sign-in can change in another tab, so each window reads the connectors again when it opens.
+  createEffect(
+    () => marketplaceOpen() || serverSettings.state.open,
+    (open) => {
+      if (open) connectors.reload();
+    },
+  );
   // A link opens its overlay once it has arrived, which can be after sign-in.
   createEffect(
     () => props.inviteUrl,
@@ -1414,7 +1408,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 open={marketplaceOpen()}
                 onOpenChange={setMarketplaceOpen}
                 calls={marketplaceCalls}
-                githubConnector={githubConnector()}
+                connectors={connectors}
                 server={server()}
                 agents={workspace.state.agents}
                 activeAgentId={workspace.state.selectedId ?? ""}
@@ -1433,8 +1427,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   setMarketplaceOpen(false);
                   await openAddedAgent(agent);
                 }}
-                pluginSlug={props.pluginSlug}
-                onPluginSlugConsumed={() => props.onPluginSlugConsumed?.()}
+                pluginSlug={suggestedApp()?.appId ?? props.pluginSlug}
+                pluginConnect={suggestedApp()?.connect ?? false}
+                onPluginSlugConsumed={() => {
+                  if (suggestedApp()) setSuggestedApp(null);
+                  else props.onPluginSlugConsumed?.();
+                }}
               />
               <Show when={accountSettingsOpen()}>
                 <Loading>
@@ -1466,11 +1464,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     remoteDesktopSupported={false}
                     server={target()}
                     hostStatus={null}
-                    githubConnector={githubConnector()}
-                    slackConnector={connectorsEnabled() ? slackController : undefined}
-                    discordConnector={connectorsEnabled() ? discordController : undefined}
-                    telegramConnector={connectorsEnabled() ? telegramController : undefined}
-                    connectorAgents={workspace.profiles()}
+                    connectors={connectors}
                     members={serverSettings.state.members}
                     invites={serverSettings.state.invites}
                     loading={serverSettings.state.loading}
@@ -1704,6 +1698,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
             <Conversation
               runtime={runtime}
               onOpenMarketplace={() => setMarketplaceOpen(true)}
+              connectors={connectors}
+              onOpenMarketplaceApp={(request) => {
+                setSuggestedApp(request);
+                setMarketplaceOpen(true);
+              }}
               agentStatus={
                 workspace.state.status === "online" && workspace.conversation()?.page ? status() : CONNECTING_STATUS
               }
