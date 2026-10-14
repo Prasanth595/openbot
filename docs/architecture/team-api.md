@@ -226,6 +226,15 @@ Each protocol has a frozen codec and adapter in `packages/contracts/src/team-pro
 
 Capabilities describe additive behavior. The client sends its capability list when it sets the event scope. The host sends optional events only when the client declared the related capability. A missing capability disables only that feature. An unknown optional event is ignored. A malformed known event closes the connection as `protocol_error` because the client cannot safely apply it.
 
+`slack-access-v1` adds the owner/admin-only POST route
+`/v1/admin/connectors/slack/access-overview`. It returns a workspace ID, actual granted scope
+names, the successful observation time and a `current` flag for each linked Slack workspace.
+Unknown observations have `current: false` and null scopes and time. The host reads actual
+`x-oauth-scopes` from a successful Slack `auth.test`, keeps the observation only in live memory,
+and clears its public view when the connection is paused or the token is invalid. The response
+contains no token. It keeps `connectors-v1` and Team protocols v1 through v7 unchanged. An older
+host can still serve the existing connector page, which shows unknown scope metadata.
+
 The optional `agent-memories-v1` capability adds three POST routes. `/v1/agent-memories/page`
 returns up to 256 memories. `/v1/agent-memories/selection` returns up to 256 selection records,
 the agent ID, and essential-memory byte usage. Both use ascending memory IDs and an `after`

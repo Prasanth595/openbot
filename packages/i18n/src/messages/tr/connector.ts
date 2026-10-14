@@ -122,6 +122,10 @@ export const messages = {
   "connector.slack.disconnectWorkspace": "Bağlantıyı Kes",
   "connector.slack.missingScopes":
     "OpenBot Slack'te şu izinlere sahip değil: {scopes}. Çalışma alanı bağlantısını kesin, ardından tekrar bağlayın.",
+  "connector.slack.grantedScopes": "Verilen izinler",
+  "connector.slack.scopesUnknown": "Bu bağlantının Slack izinleri henüz doğrulanmadı.",
+  "connector.slack.scopesNone": "Slack verilmiş bir izin bildirmedi.",
+  "connector.slack.scopesVerifiedAt": "Slack tarafından {time} tarihinde doğrulandı.",
   "connector.slack.retryAt": "Slack OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.slack.reconnect": "Yeniden Bağlan",
   "connector.slack.resume": "Sürdür",

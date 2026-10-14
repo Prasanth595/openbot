@@ -94,6 +94,8 @@ export interface ConnectionIdentity {
   botUserId: string;
   appId: string;
   missingScopes: string[];
+  /** Only Slack sets this from an actual successful auth.test scope header. Never persisted. */
+  slackAccess?: { grantedScopes: string[]; verifiedAt: string } | null;
 }
 
 export interface ContextEntry {

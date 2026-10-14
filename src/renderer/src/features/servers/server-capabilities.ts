@@ -35,6 +35,7 @@ export function serverSupportsCapability(
       capability === "mcp-sign-in-app-v1" ||
       capability === "sign-in-relay-v1" ||
       capability === "connectors-v1" ||
+      capability === "slack-access-v1" ||
       capability === "onepassword-connector-v1" ||
       capability === "provider-host-sign-in-v1" ||
       capability === "storage-v1" ||

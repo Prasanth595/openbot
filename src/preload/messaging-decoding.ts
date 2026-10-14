@@ -5,8 +5,10 @@ import {
   type AddMessagingOrchestratorResult,
   isAddMessagingOrchestratorResult,
   isMessagingOverview,
+  isSlackAccessOverview,
   isTelegramOverview,
   type MessagingOverview,
+  type SlackAccessOverview,
   type TelegramOverview,
 } from "@openbot/contracts/ipc";
 
@@ -19,6 +21,18 @@ export function decodeAddOrchestratorReply(value: unknown): AddMessagingOrchestr
 export function decodeMessagingOverviewReply(value: unknown): MessagingOverview {
   if (!isMessagingOverview(value)) throw new Error("Invalid messaging overview response.");
   return value;
+}
+
+export function decodeSlackAccessOverviewReply(value: unknown): SlackAccessOverview {
+  if (!isSlackAccessOverview(value)) throw new Error("Invalid Slack access response.");
+  return {
+    connections: value.connections.map(({ workspaceId, grantedScopes, verifiedAt, current }) => ({
+      workspaceId,
+      grantedScopes,
+      verifiedAt,
+      current,
+    })),
+  };
 }
 
 export function decodeTelegramOverviewReply(value: unknown): TelegramOverview {

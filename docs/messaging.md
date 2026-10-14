@@ -30,8 +30,22 @@ server answers until you disconnect it. **Disconnect** revokes the token, remove
 computer and unlinks the workspace; the conversations stay in OpenBot, and a later **Connect Slack**
 gives them back their agents.
 
-Only the computer that runs the agents can connect Slack, because Slack returns to that computer's
-browser. A joined server shows no Slack page.
+An owner or admin can manage a joined server's Slack connection from the desktop or web client.
+The install page opens on the client, and the host keeps the token.
+
+### Granted Slack permissions
+
+**Server settings → Connectors → Slack** shows the permissions that Slack reported for the
+connected workspace. **Verified by Slack** gives the time of the successful token check.
+The list can contain permissions that OpenBot did not request. Requested permissions are not
+evidence that the token has them.
+
+A paused connection has no current observation. Resume or reconnect checks the token again.
+An invalid token, a missing or invalid scope header, or an older host without this feature shows
+that the permissions have not been verified. Disconnect removes the scope observation.
+The observation stays in host memory and is not saved to the database.
+
+This display describes the Slack token. It does not add per-agent or per-member access controls.
 
 ## What happens in Slack
 

@@ -633,7 +633,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
   const onePasswordPort = webOnePasswordConnectorPort(() => hostRequest());
-  const webMessaging = webHostMessaging(hostRequest);
+  const webMessaging = webHostMessaging(
+    hostRequest,
+    (serverId) => serverId === server()?.id && workspace.state.capabilities.includes("slack-access-v1"),
+  );
   onCleanup(webMessaging.dispose);
   const connectors = createConnectorRegistry(server, {
     computer: {},

@@ -81,7 +81,7 @@ class SlackAdapter implements MessagingAdapter {
   readonly identify = Effect.fnUntraced(function* (
     this: SlackAdapter,
   ): Effect.fn.Return<ConnectionIdentity, MessagingAdapterError> {
-    const { payload, scopes } = yield* this.#api.authTest();
+    const { payload, scopes, grantedScopes, verifiedAt } = yield* this.#api.authTest();
     const workspaceId = payload.team_id;
     const botUserId = payload.user_id;
     const botId = payload.bot_id;
@@ -96,6 +96,7 @@ class SlackAdapter implements MessagingAdapter {
       botUserId,
       appId,
       missingScopes: SLACK_BOT_SCOPES.filter((scope) => !scopes.includes(scope)),
+      slackAccess: grantedScopes === null || verifiedAt === null ? null : { grantedScopes, verifiedAt },
     };
   });
 

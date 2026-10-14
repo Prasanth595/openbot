@@ -365,6 +365,7 @@ import type {
   SubmitSkillInput,
   UninstallSkillInput,
 } from "./ipc-skills";
+import type { SlackAccessOverview } from "./ipc-slack-access";
 import type {
   ClearStorageInput,
   DeleteStoredFileInput,
@@ -797,6 +798,10 @@ export const IPC_ENDPOINTS = {
   // computer's browser, and a Slack or Discord page returns to this computer's `openbot://` link. A
   // token only travels towards the host; no result carries one.
   messaging: {
+    getSlackAccessOverview: request<undefined, SlackAccessOverview>()("messaging:get-slack-access-overview"),
+    hostSlackAccessOverview: scopedQuery<SlackAccessOverview | null, "required">()(
+      "messaging:host-slack-access-overview",
+    ),
     getSlackOverview: request<undefined, SlackOverview>()("messaging:get-slack-overview"),
     connectSlackWorkspace: request<undefined, void>()("messaging:connect-slack-workspace"),
     disconnectSlackWorkspace: request<SlackWorkspaceInput, void>()("messaging:disconnect-slack-workspace"),

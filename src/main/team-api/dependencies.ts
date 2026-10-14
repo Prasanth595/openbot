@@ -159,6 +159,7 @@ export interface TeamApiConnectors {
   messaging: Pick<
     MessagingService,
     | "slackOverview"
+    | "slackAccessOverview"
     | "discordOverview"
     | "telegramOverview"
     | "connectSlackWorkspace"

@@ -17,6 +17,7 @@ import type {
   MessagingOverview,
   MessagingPlatform,
   RespondToApprovalInput,
+  SlackAccessOverview,
 } from "@openbot/contracts/ipc";
 import { MESSAGING_CONNECTION_STATES } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
@@ -322,6 +323,28 @@ export class MessagingService {
   /** The Slack workspaces of this computer, for Server settings > Connectors. A disconnected one is left out. */
   slackOverview(): MessagingOverview {
     return this.#overview("slack");
+  }
+
+  /** Current scope observations, separate from the frozen connectors-v1 overview. */
+  slackAccessOverview(): SlackAccessOverview {
+    return {
+      connections: this.slackOverview().connections.map((connection) => {
+        const record = this.#threads.store.connectionForWorkspace("slack", connection.workspaceId);
+        const live = record ? this.#live.get(record.connectionId) : undefined;
+        const observation = live?.identity?.slackAccess;
+        const current =
+          observation !== null &&
+          observation !== undefined &&
+          connection.enabled &&
+          connection.credentials === "saved" &&
+          (connection.state === "connected" ||
+            connection.state === "rate_limited" ||
+            connection.state === "missing_scope");
+        return current
+          ? { workspaceId: connection.workspaceId, ...observation, current: true }
+          : { workspaceId: connection.workspaceId, grantedScopes: null, verifiedAt: null, current: false };
+      }),
+    };
   }
 
   /** The Discord guilds of this computer, for Server settings > Connectors. A disconnected one is left out. */

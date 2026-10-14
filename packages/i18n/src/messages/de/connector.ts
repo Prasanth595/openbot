@@ -108,6 +108,10 @@ export const messages = {
   "connector.slack.disconnectWorkspace": "Trennen",
   "connector.slack.missingScopes":
     "OpenBot hat diese Berechtigungen in Slack nicht: {scopes}. Trenne den Arbeitsbereich und verbinde ihn erneut.",
+  "connector.slack.grantedScopes": "Erteilte Berechtigungen",
+  "connector.slack.scopesUnknown": "Die Slack-Berechtigungen wurden für diese Verbindung noch nicht geprüft.",
+  "connector.slack.scopesNone": "Slack hat keine erteilten Berechtigungen gemeldet.",
+  "connector.slack.scopesVerifiedAt": "Von Slack bestätigt am {time}.",
   "connector.slack.retryAt": "Slack hat OpenBot gebeten zu warten. OpenBot versucht es um {time} erneut.",
   "connector.slack.reconnect": "Erneut verbinden",
   "connector.slack.resume": "Fortsetzen",

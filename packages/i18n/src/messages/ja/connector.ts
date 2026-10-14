@@ -103,6 +103,10 @@ export const messages = {
   "connector.slack.disconnectWorkspace": "切断",
   "connector.slack.missingScopes":
     "OpenBot には Slack で次の権限がありません：{scopes}。ワークスペースを切断してから、もう一度接続してください。",
+  "connector.slack.grantedScopes": "付与された権限",
+  "connector.slack.scopesUnknown": "この接続の Slack 権限はまだ確認されていません。",
+  "connector.slack.scopesNone": "Slack から付与された権限は報告されていません。",
+  "connector.slack.scopesVerifiedAt": "Slack による確認日時: {time}。",
   "connector.slack.retryAt": "Slack から待機するよう求められました。{time} に再試行します。",
   "connector.slack.reconnect": "再接続",
   "connector.slack.resume": "再開",

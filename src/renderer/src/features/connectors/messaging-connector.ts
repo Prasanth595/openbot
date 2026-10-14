@@ -3,6 +3,7 @@ import type {
   MessagingDesktopApi,
   MessagingOverview,
   MessagingPlatform,
+  SlackAccessOverview,
 } from "@openbot/contracts/ipc";
 import type { AgentProfile } from "@openbot/ui/data";
 import type {
@@ -23,6 +24,7 @@ type MessagingOrchestratorTarget = { platform: WorkspacePlatform; workspaceId: s
 /** The Slack, Discord and Telegram connections of one place: this computer or a joined server. */
 export interface MessagingApi {
   overview: (platform: MessagingPlatform) => Promise<MessagingOverview>;
+  slackAccessOverview: () => Promise<SlackAccessOverview | null>;
   connect: (target: MessagingConnectTarget) => Promise<void>;
   disconnect: (platform: MessagingPlatform, workspaceId: string) => Promise<void>;
   reconnect: (platform: MessagingPlatform, workspaceId: string) => Promise<void>;
@@ -36,6 +38,7 @@ export interface MessagingApi {
 /** The connections of this computer, through main. Read on each call: tests and stories replace `window.openbot`. */
 export function localMessagingApi(messaging: () => MessagingDesktopApi = () => window.openbot.messaging): MessagingApi {
   return {
+    slackAccessOverview: () => messaging().getSlackAccessOverview(),
     overview: (platform) =>
       platform === "slack"
         ? messaging().getSlackOverview()
@@ -107,7 +110,11 @@ export function createMessagingConnector(
   api: MessagingApi,
   options: MessagingConnectorOptions,
 ): ConnectorController {
-  const [loaded, setLoaded] = createSignal<{ serverId: string | undefined; overview: MessagingOverview } | null>(null);
+  const [loaded, setLoaded] = createSignal<{
+    serverId: string | undefined;
+    overview: MessagingOverview;
+    slackAccess: SlackAccessOverview | null;
+  } | null>(null);
   // Another server's connections are not shown, also when this server's read fails.
   const overview = () => {
     const current = loaded();
@@ -121,12 +128,17 @@ export function createMessagingConnector(
   const reload = () => {
     const read = ++reads;
     const serverId = untrack(() => options.serverId?.());
-    void api
-      .overview(platform)
-      .then((next) => {
-        if (!actions.disposed() && read === reads) setLoaded({ serverId, overview: next });
+    void Promise.all([
+      api.overview(platform),
+      platform === "slack" ? api.slackAccessOverview().catch(() => null) : Promise.resolve(null),
+    ])
+      .then(([next, slackAccess]) => {
+        if (!actions.disposed() && read === reads) setLoaded({ serverId, overview: next, slackAccess });
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!actions.disposed() && read === reads)
+          setLoaded((current) => (current ? { ...current, slackAccess: null } : null));
+      });
   };
   const run = (action: () => Promise<unknown>) => actions.run(action, { settled: reload });
   const addOrchestrator = (target: MessagingOrchestratorTarget, choice: SlackOrchestratorChoice | null) =>
@@ -192,6 +204,10 @@ export function createMessagingConnector(
       id: platform,
       props: {
         platform,
+        get slackAccess() {
+          const current = loaded();
+          return current && current.serverId === options.serverId?.() ? current.slackAccess : null;
+        },
         get agents() {
           return options.agents();
         },

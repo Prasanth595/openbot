@@ -68,6 +68,68 @@ export const NotSetUp: Story = { args: args([]) };
 /** The workspace is connected, and the Slack Orchestrator answers. */
 export const Connected: Story = { args: args([workspace()]) };
 
+/** The host displays actual scope metadata, including a grant outside its requested scope list. */
+export const VerifiedPermissions: Story = {
+  args: {
+    ...args([workspace()]),
+    slackAccess: {
+      connections: [
+        {
+          workspaceId: "T0STORY",
+          current: true,
+          grantedScopes: ["app_mentions:read", "channels:history", "chat:write", "channels:manage"],
+          verifiedAt: "2026-10-15T00:00:00.000Z",
+        },
+      ],
+    },
+  },
+};
+
+/** A paused connection must not display a current grant even when the last response had one. */
+export const PausedPermissions: Story = {
+  args: {
+    ...args([workspace({ enabled: false, state: "paused" })]),
+    slackAccess: {
+      connections: [
+        {
+          workspaceId: "T0STORY",
+          current: true,
+          grantedScopes: ["chat:write"],
+          verifiedAt: "2026-10-15T00:00:00.000Z",
+        },
+      ],
+    },
+  },
+};
+
+export const NoGrantedPermissions: Story = {
+  args: {
+    ...args([workspace()]),
+    slackAccess: {
+      connections: [
+        { workspaceId: "T0STORY", current: true, grantedScopes: [], verifiedAt: "2026-10-15T00:00:00.000Z" },
+      ],
+    },
+  },
+};
+
+/** Valid maximum-length names remain within the 2048-byte header bound. */
+export const MaximumGrantedPermissions: Story = {
+  args: {
+    ...args([workspace()]),
+    slackAccess: {
+      connections: [
+        {
+          workspaceId: "T0STORY",
+          current: true,
+          grantedScopes: Array.from({ length: 31 }, (_, index) => `scope${index}:`.padEnd(64, "r")),
+          verifiedAt: "2026-10-15T00:00:00.000Z",
+        },
+      ],
+    },
+  },
+};
+
 /** The workspace is connected, and no agent answers yet. */
 export const NoOrchestrator: Story = { args: args([workspace({ orchestratorAgentId: null })]) };
 

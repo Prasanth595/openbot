@@ -65,6 +65,7 @@
     "./team-protocol/provider-accounts-v1": "./src/team-protocol/provider-accounts-v1.ts",
     "./team-protocol/provider-host-sign-in-v1": "./src/team-protocol/provider-host-sign-in-v1.ts",
     "./team-protocol/sign-in-relay-v1": "./src/team-protocol/sign-in-relay-v1.ts",
+    "./team-protocol/slack-access-v1": "./src/team-protocol/slack-access-v1.ts",
     "./team-protocol/connectors-v1": "./src/team-protocol/connectors-v1.ts",
     "./team-protocol/onepassword-connector-v1": "./src/team-protocol/onepassword-connector-v1.ts",
     "./team-protocol/current": "./src/team-protocol/current.ts",

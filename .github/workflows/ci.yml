@@ -129,6 +129,18 @@ jobs:
         if: env.CODE == 'true'
         run: bun run knip:check
 
+      - name: Check Slack scope observations
+        if: env.CODE == 'true'
+        run: bun scripts/slack-access-overview-e2e.ts
+
+      - name: Save slack-access-overview-e2e report
+        if: always() && env.CODE == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: slack-access-overview-e2e
+          path: .openbot-build/slack-access-overview-e2e/report.json
+          if-no-files-found: warn
+
       - name: Check image asset directories
         if: env.CODE == 'true'
         run: bun run check:assets
