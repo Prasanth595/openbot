@@ -114,7 +114,7 @@ it("captures a named display and one window", async () => {
   expect(decoded((await capture(host, { target: "screen", displayId: "2" })).png)).toBe("display 2 whole 1920x1080");
   const window = await capture(host, { target: "window", windowId: "window:7:0" });
   expect(window.sourceName).toBe("Notes");
-  expect(decoded(window.png)).toBe("window 7 whole 2560x1600");
+  expect(decoded(window.png)).toBe("window 7 whole 1920x1920");
   const missing = await failure(host, { target: "window", windowId: "window:8:0" });
   expect(missing.reason).toBe(sourceText("error.agent.screenCaptureWindowMissing"));
 });

@@ -895,6 +895,12 @@ export class OpenBotToolRouter {
     if (!agentComputerUseEnabled(agent)) return openBotToolFailure(sourceText("error.agent.screenCaptureOff"));
     const host = this.#screenCapture;
     if (!host) return openBotToolFailure(sourceText("error.agent.screenCaptureUnavailable"));
+    const threadId = this.#conversation.publicThreadId(agent.id, params.threadId);
+    // A Slack, Discord or Telegram link sends each agent attachment of the turn to the platform, and a
+    // channel shares its conversation. The screen of this computer must stay on this computer.
+    if (this.#messaging.store.linkForThread(threadId) || this.#channels.store.channelForThread(threadId)) {
+      return openBotToolFailure(sourceText("error.agent.screenCaptureShared"));
+    }
     if (params.tool === "list_capture_sources") {
       const sources = yield* Effect.result(host.listSources());
       return Result.isFailure(sources) ? captureFailure(sources.failure) : openBotToolResult(sources.success);
@@ -902,7 +908,6 @@ export class OpenBotToolRouter {
     const parsed = captureScreenToolSchema.safeParse(params.arguments, { reportInput: true });
     if (!parsed.success) return openBotToolFailure(profileToolErrorMessage(parsed.error));
     const capture = parsed.data;
-    const threadId = this.#conversation.publicThreadId(agent.id, params.threadId);
     const messageId = responseAttachmentMessageId(params.threadId, params.turnId, params.callId);
     if (this.#conversation.ensureSnapshot(agent.id, threadId).messages.some(({ id }) => id === messageId)) {
       return openBotToolResult({ status: "shown", messageId });

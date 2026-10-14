@@ -1313,6 +1313,29 @@ describe.sequential("AttentionRegistry: prompts, approvals and browser takeovers
         attachments: [expect.objectContaining({ mimeType: "image/png" })],
       }),
     );
+
+    // A Slack, Discord or Telegram link sends each agent attachment of the turn to the platform.
+    const link = vi.spyOn(service.messaging.store, "linkForThread").mockReturnValue({
+      linkId: "messaging-link-1",
+      connectionId: "slack-1",
+      agentId: "chief",
+      platformChannelId: "C1",
+      threadKey: "T1",
+      isDirect: false,
+      threadId,
+      title: "Slack",
+      historyCursor: null,
+      updatedAt: new Date(0).toISOString(),
+    });
+    try {
+      requestCapture("capture-shared");
+      await waitFor(() => fake.responses.length === 3);
+    } finally {
+      link.mockRestore();
+    }
+    expect(fake.responses[2]?.result).toMatchObject({ success: false });
+    expect(events.filter((event) => event.type === "approval")).toHaveLength(2);
+    expect(captures).toHaveLength(1);
   });
 });
 

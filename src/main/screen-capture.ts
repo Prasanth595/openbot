@@ -26,6 +26,11 @@ const logger = createOpenBotLogger("screen-capture");
 /** The same bound as a browser screenshot: a larger image costs the model more than it shows it. */
 const MAX_CAPTURE_PIXELS = 4_194_304;
 const MAX_LISTED_WINDOWS = 100;
+/**
+ * The thumbnail box for a window capture. `desktopCapturer` draws every open window at this size to
+ * return one, so the box stays small. A window keeps its aspect ratio inside the box.
+ */
+const WINDOW_THUMBNAIL_SIZE = { width: 1920, height: 1920 };
 
 /** The part of a `NativeImage` that a capture uses, so a test can pass a double. */
 export interface CaptureImage {
@@ -75,18 +80,6 @@ function captureFailed(operation: string) {
     logger.warn("A screen capture failed.", { operation, cause: toLogValue(cause) });
     return failure(sourceText("error.agent.screenCaptureFailed"));
   };
-}
-
-/**
- * The thumbnail box for a window. `desktopCapturer` draws every open window at this size, so the box
- * has the area of one bounded capture, not of the largest display.
- */
-function windowThumbnailSize(displays: CaptureDisplay[]) {
-  const sizes = displays.map(nativeSize);
-  const width = Math.max(1, ...sizes.map((size) => size.width));
-  const height = Math.max(1, ...sizes.map((size) => size.height));
-  const scale = Math.min(1, Math.sqrt(MAX_CAPTURE_PIXELS / (width * height)));
-  return { width: Math.max(1, Math.floor(width * scale)), height: Math.max(1, Math.floor(height * scale)) };
 }
 
 function nativeSize(display: CaptureDisplay) {
@@ -168,8 +161,7 @@ export class ScreenCapturer implements ScreenCaptureHost {
     yield* this.#requirePermission();
     const displays = this.#options.displays();
     if (request.target === "window") {
-      // A window can be on any display, so the box takes the largest display, bounded.
-      const source = (yield* this.#sources(["window"], windowThumbnailSize(displays))).find(
+      const source = (yield* this.#sources(["window"], WINDOW_THUMBNAIL_SIZE)).find(
         ({ id }) => id === request.windowId,
       );
       if (!source) return yield* failure(sourceText("error.agent.screenCaptureWindowMissing"));
