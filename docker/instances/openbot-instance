@@ -758,6 +758,10 @@ restore() {
     fail "$data has a .openbot-replaced folder from a restore that did not end. Move its contents back or delete it."
   fi
   lock_instance "$name"
+  install -d -m 0700 "$DATA/$name/backup-status"
+  # A checksum-consistent archive can contain a damaged database. Verify it while the same lock
+  # protects the target, before restore_steps stops the container or replaces any data.
+  verify_locked "$name" "$backup"
   set +e
   (
     set -e

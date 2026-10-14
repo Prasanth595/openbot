@@ -11,10 +11,12 @@
 // `.openbot-build/instance-backup-e2e/report.json`.
 
 import { spawnSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { redactText } from "@openbot/logging";
 import { migrateOpenBotDatabase } from "../src/backend/openbot-database-schema";
 
 const reportRoot = resolve(".openbot-build/instance-backup-e2e");
@@ -23,6 +25,71 @@ const script = "/opt/openbot-docker/instances/openbot-instance";
 const data = "/srv/openbot/main/data";
 const agentId = "agent-e2e-1";
 const results: Array<{ name: string; ok: boolean; detail: string }> = [];
+const expectedCases = 42;
+const nonce = randomUUID();
+const startedAt = new Date().toISOString();
+const safeLog: string[] = [];
+const secrets: string[] = [];
+const privatePaths = [process.cwd(), homedir(), reportRoot];
+const sourceManifest: Array<{ path: string; sha256: string }> = [];
+const sourceFiles = [
+  "scripts/instance-backup-e2e.ts",
+  "docker/instances/openbot-instance",
+  "docker/instances/compose.yaml",
+  "docs/docker.md",
+  "changelog.d/restore-verified-source.md",
+  "src/backend/openbot-database-schema.ts",
+  "src/backend/agent-memory-selection.ts",
+  "src/backend/agent-waits/agent-wait-schema.ts",
+  "src/backend/channel-schema.ts",
+  "src/backend/database/provider-history-schema.ts",
+  "src/backend/mcp-schema.ts",
+  "src/backend/messaging/messaging-schema.ts",
+  "src/backend/routine-flows/routine-flow-schema.ts",
+  "src/backend/routine-results/routine-result-schema.ts",
+  "src/backend/database/database-rows.ts",
+  "src/backend/database/legacy-conversation-message.ts",
+  "packages/contracts/src/agent-memory-context.ts",
+  "packages/contracts/src/runtime-values.ts",
+  "packages/contracts/src/validation.ts",
+  "packages/contracts/src/input-limits.ts",
+  "packages/logging/src/index.ts",
+  "package.json",
+  "bun.lock",
+];
+
+function safeText(value: string): string {
+  let text = redactText(value);
+  for (const secret of secrets) text = text.replaceAll(secret, "[redacted]");
+  for (const path of privatePaths) text = text.replaceAll(path, "[fixture path]");
+  return text;
+}
+
+function safeFailure(error: unknown): string {
+  return safeText(error instanceof Error ? error.message : "The fixture operation failed.");
+}
+
+function artifactText(value: string, limit: number): string {
+  if (Buffer.byteLength(value, "utf8") > limit) throw new Error("The fixture artifact exceeds its size limit.");
+  for (const hidden of [...secrets, ...privatePaths])
+    if (value.includes(hidden) || value.includes(JSON.stringify(hidden).slice(1, -1)))
+      throw new Error("The fixture artifact contains a private value.");
+  return value;
+}
+
+async function bounded<T>(operation: Promise<T>, name: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`${name} did not finish in 10 seconds.`)), 10_000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface Run {
   status: number;
@@ -30,10 +97,19 @@ interface Run {
   stderr: string;
 }
 
-function run(command: string, args: string[], input?: string): Run {
-  const result = spawnSync(command, args, { encoding: "utf8", input, maxBuffer: 64 * 1024 * 1024 });
+function run(command: string, args: string[], input?: string, timeout = 600_000): Run {
+  const result = spawnSync(command, args, { encoding: "utf8", input, timeout, maxBuffer: 4 * 1024 * 1024 });
   if (result.error) throw result.error;
   return { status: result.status ?? -1, stdout: result.stdout, stderr: result.stderr };
+}
+
+function cleanupOwnedContainer(): void {
+  const removed = run("docker", ["rm", "--force", "--volumes", dind], undefined, 30_000);
+  const remaining = run("docker", ["ps", "--all", "--format", "{{.Names}}"], undefined, 30_000);
+  // A successful inventory proves exact-name absence without relying on version-specific error text.
+  const missing = remaining.status === 0 && !remaining.stdout.split(/\r?\n/u).includes(dind);
+  if (!missing)
+    throw new Error(`The owned Docker container cleanup failed: ${summary(removed)}; ${summary(remaining)}`);
 }
 
 /** A shell command as root in the Docker-in-Docker container. */
@@ -52,8 +128,12 @@ function instance(...args: string[]): Run {
 }
 
 function check(name: string, ok: boolean, detail: string): void {
-  results.push({ name, ok, detail });
-  process.stdout.write(`${ok ? "pass" : "FAIL"} ${name}: ${detail}\n`);
+  const safeDetail = safeText(detail);
+  if (Buffer.byteLength(safeDetail, "utf8") > 8192) throw new Error("A fixture check detail exceeds its size limit.");
+  results.push({ name, ok, detail: safeDetail });
+  const line = `${ok ? "pass" : "FAIL"} ${name}: ${safeDetail}`;
+  safeLog.push(line);
+  process.stdout.write(`${line}\n`);
 }
 
 function running(): boolean {
@@ -79,39 +159,45 @@ async function writeFixture(root: string): Promise<void> {
   await mkdir(join(root, ".config/openbot-container"), { recursive: true });
   await mkdir(join(root, "OpenBot/Agents/E2E"), { recursive: true });
 
-  const db = new DatabaseSync(join(config, "openbot.db"));
-  migrateOpenBotDatabase(db);
   const now = new Date().toISOString();
-  db.prepare(
-    "INSERT INTO projection_agents (agent_id, thread_id, model, updated_at, sort_order, agent_json, last_event_sequence) VALUES (?, ?, 'test', ?, 0, ?, 1)",
-  ).run(agentId, "thread-e2e-1", now, JSON.stringify({ id: agentId, name: "E2E" }));
-  db.prepare(
-    "INSERT INTO projection_threads (thread_id, agent_id, title, created_at, updated_at, last_event_sequence) VALUES ('thread-e2e-1', ?, 'E2E', ?, ?, 1)",
-  ).run(agentId, now, now);
-  db.prepare(
-    "INSERT INTO projection_thread_messages (thread_id, message_id, author, status, created_at, ordinal, message_json, last_event_sequence) VALUES ('thread-e2e-1', 'message-1', 'user', 'complete', ?, 0, '{}', 1)",
-  ).run(now);
-  db.prepare(
-    "INSERT INTO projection_agent_memories (memory_id, agent_id, text, normalized_text, origin, created_at, updated_at, last_event_sequence) VALUES ('memory-1', ?, 'The user likes tea.', 'the user likes tea.', 'manual', ?, ?, 1)",
-  ).run(agentId, now, now);
-  db.close();
+  const db = new DatabaseSync(join(config, "openbot.db"));
+  try {
+    migrateOpenBotDatabase(db);
+    db.prepare(
+      "INSERT INTO projection_agents (agent_id, thread_id, model, updated_at, sort_order, agent_json, last_event_sequence) VALUES (?, ?, 'test', ?, 0, ?, 1)",
+    ).run(agentId, "thread-e2e-1", now, JSON.stringify({ id: agentId, name: "E2E" }));
+    db.prepare(
+      "INSERT INTO projection_threads (thread_id, agent_id, title, created_at, updated_at, last_event_sequence) VALUES ('thread-e2e-1', ?, 'E2E', ?, ?, 1)",
+    ).run(agentId, now, now);
+    db.prepare(
+      "INSERT INTO projection_thread_messages (thread_id, message_id, author, status, created_at, ordinal, message_json, last_event_sequence) VALUES ('thread-e2e-1', 'message-1', 'user', 'complete', ?, 0, '{}', 1)",
+    ).run(now);
+    db.prepare(
+      "INSERT INTO projection_agent_memories (memory_id, agent_id, text, normalized_text, origin, created_at, updated_at, last_event_sequence) VALUES ('memory-1', ?, 'The user likes tea.', 'the user likes tea.', 'manual', ?, ?, 1)",
+    ).run(agentId, now, now);
+  } finally {
+    db.close();
+  }
 
   const tables = new DatabaseSync(join(shared, "agent-data.db"));
-  tables.exec(
-    "CREATE TABLE openbot_metadata (table_name TEXT PRIMARY KEY, owner_agent_id TEXT NOT NULL, created_at TEXT NOT NULL)",
-  );
-  tables.exec("CREATE TABLE contacts (name TEXT, email TEXT)");
-  tables.exec("INSERT INTO contacts VALUES ('Ada', 'ada@example.com')");
-  tables.exec("CREATE TABLE tasks (title TEXT)");
-  tables.prepare("INSERT INTO openbot_metadata VALUES ('contacts', ?, ?)").run(agentId, now);
-  // An owner that is not an agent: verification reports it as a warning.
-  tables.prepare("INSERT INTO openbot_metadata VALUES ('tasks', 'agent-removed', ?)").run(now);
-  tables.close();
+  try {
+    tables.exec(
+      "CREATE TABLE openbot_metadata (table_name TEXT PRIMARY KEY, owner_agent_id TEXT NOT NULL, created_at TEXT NOT NULL)",
+    );
+    tables.exec("CREATE TABLE contacts (name TEXT, email TEXT)");
+    tables.exec("INSERT INTO contacts VALUES ('Ada', 'ada@example.com')");
+    tables.exec("CREATE TABLE tasks (title TEXT)");
+    tables.prepare("INSERT INTO openbot_metadata VALUES ('contacts', ?, ?)").run(agentId, now);
+    // An owner that is not an agent: verification reports it as a warning.
+    tables.prepare("INSERT INTO openbot_metadata VALUES ('tasks', 'agent-removed', ?)").run(now);
+  } finally {
+    tables.close();
+  }
 
   await writeFile(join(root, ".local/share/keyrings/login.keyring"), randomBytes(512));
-  await writeFile(join(root, ".config/openbot-container/keyring-password"), randomBytes(32).toString("hex"), {
-    mode: 0o600,
-  });
+  const password = randomBytes(32).toString("hex");
+  secrets.push(password);
+  await writeFile(join(root, ".config/openbot-container/keyring-password"), password, { mode: 0o600 });
   await writeFile(join(root, "OpenBot/Agents/E2E/notes.md"), "Saved before the backup.\n");
   await writeFile(join(root, "OpenBot/Agents/E2E/attachment.bin"), randomBytes(256 * 1024));
 }
@@ -127,9 +213,34 @@ ENTRYPOINT ["/app"]
 
 async function main(): Promise<void> {
   await mkdir(reportRoot, { recursive: true });
-  const fixture = await mkdtemp(join(reportRoot, "fixture-"));
+  let fixture: string | undefined;
+  let dockerAttempted = false;
+  let sourceHead: string | null = null;
+  let nodeVersion: string | null = null;
+  let dockerVersion: string | null = null;
+  let dockerPlatform: string | null = null;
+  let failure: string | null = null;
+  const cleanupErrors: string[] = [];
+  const artifactErrors: string[] = [];
   try {
+    for (const path of sourceFiles)
+      sourceManifest.push({
+        path,
+        sha256: createHash("sha256")
+          .update(await readFile(resolve(path)))
+          .digest("hex"),
+      });
+    const head = run("git", ["rev-parse", "HEAD"], undefined, 5000);
+    if (head.status !== 0 || !/^[0-9a-f]{40}\s*$/.test(head.stdout))
+      throw new Error("The source head is not available.");
+    sourceHead = head.stdout.trim();
+    const node = run("node", ["--version"], undefined, 5000);
+    if (node.status !== 0 || !/^v[0-9.]+\s*$/.test(node.stdout)) throw new Error("The Node version is not available.");
+    nodeVersion = node.stdout.trim();
+    fixture = await mkdtemp(join(reportRoot, "fixture-"));
+    privatePaths.push(fixture);
     await writeFixture(fixture);
+    dockerAttempted = true;
     const started = run("docker", ["run", "--detach", "--privileged", "--name", dind, "docker:28-dind"]);
     if (started.status !== 0) throw new Error(`Docker-in-Docker did not start: ${started.stderr}`);
     // The daemon in the container is ready when `docker info` answers.
@@ -142,6 +253,12 @@ async function main(): Promise<void> {
       "for i in $(seq 120); do docker info >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1",
     ]);
     if (ready.status !== 0) throw new Error("The Docker daemon in the container did not start.");
+    const version = run("docker", ["version", "--format", "{{.Client.Version}} / {{.Server.Version}}"]);
+    if (version.status !== 0) throw new Error("The Docker versions are not available.");
+    dockerVersion = safeText(version.stdout.trim());
+    const platform = run("docker", ["exec", dind, "docker", "info", "--format", "{{.OSType}}/{{.Architecture}}"]);
+    if (platform.status !== 0) throw new Error("The Docker-in-Docker platform is not available.");
+    dockerPlatform = safeText(platform.stdout.trim());
     const packages = run("docker", [
       "exec",
       dind,
@@ -159,8 +276,10 @@ async function main(): Promise<void> {
       "gzip",
     ]);
     if (packages.status !== 0) throw new Error(`The packages did not install: ${packages.stderr}`);
-    run("docker", ["cp", resolve("docker"), `${dind}:/opt/openbot-docker`]);
-    run("docker", ["cp", `${fixture}/.`, `${dind}:/fixture`]);
+    const scriptsCopied = run("docker", ["cp", resolve("docker"), `${dind}:/opt/openbot-docker`]);
+    if (scriptsCopied.status !== 0) throw new Error(`The instance scripts did not copy: ${scriptsCopied.stderr}`);
+    const fixtureCopied = run("docker", ["cp", `${fixture}/.`, `${dind}:/fixture`]);
+    if (fixtureCopied.status !== 0) throw new Error(`The instance fixture did not copy: ${fixtureCopied.stderr}`);
     must(`mkdir -p /stand-in && cat >/stand-in/Dockerfile <<'EOF'\n${standIn}EOF`);
     must("docker build --quiet --tag ghcr.io/nightly-labs/openbot:latest /stand-in >/dev/null");
 
@@ -229,6 +348,86 @@ async function main(): Promise<void> {
         status["verify-success"]?.result === "ok",
       summary(result),
     );
+
+    // A real backup without --verify can have consistent checksums and invalid SQLite bytes.
+    // Keep both database paths covered by the existing verifier. Reference warnings stay warnings.
+    const invalidSources = [
+      {
+        name: "main database",
+        path: ".config/OpenBot/openbot.db",
+        error: /OpenBot cannot open openbot\.db|openbot\.db is damaged/,
+      },
+      {
+        name: "shared database",
+        path: "OpenBot/Shared/Data/agent-data.db",
+        error: /shared tables cannot open|shared tables are damaged/,
+      },
+    ];
+    for (const source of invalidSources) {
+      const beforeInvalid = completeBackups();
+      const successHash = must("sha256sum /srv/openbot/main/backup-status/verify-success.json | cut -d ' ' -f 1");
+      must(
+        `cp -a ${data}/${source.path} /root/e2e-healthy-database && printf 'not a SQLite database\n' > ${data}/${source.path}`,
+      );
+      const invalidResult = instance("backup", "main");
+      must(`mv /root/e2e-healthy-database ${data}/${source.path}`);
+      const invalidBackup = completeBackups().find((name) => !beforeInvalid.includes(name)) ?? "";
+      if (!invalidBackup) throw new Error(`The invalid ${source.name} backup was not created.`);
+      check(
+        `an unverified backup saves invalid ${source.name} bytes with valid checksums`,
+        invalidResult.status === 0 &&
+          completeBackups().length === beforeInvalid.length + 1 &&
+          shell(
+            `cd /backups/main/${invalidBackup} && sha256sum --check --quiet --strict SHA256SUMS && test ! -e verified.json`,
+          ).status === 0,
+        summary(invalidResult),
+      );
+      const targetHashes = must(
+        `cd ${data} && sha256sum .config/OpenBot/openbot.db OpenBot/Shared/Data/agent-data.db OpenBot/Agents/E2E/notes.md OpenBot/Agents/E2E/attachment.bin .local/share/keyrings/login.keyring .config/openbot-container/keyring-password .e2e-starts .e2e-clean-stop`,
+      );
+      const targetRunningBefore = running();
+      const refused = instance("restore", "main", invalidBackup, "--replace");
+      check(
+        `restore refuses an invalid ${source.name} before it stops the target`,
+        refused.status > 0 && source.error.test(refused.stderr) && !/Stopping openbot-main/.test(refused.stdout),
+        summary(refused),
+      );
+      const targetRunningAfter = running();
+      const afterHashes = must(
+        `cd ${data} && sha256sum .config/OpenBot/openbot.db OpenBot/Shared/Data/agent-data.db OpenBot/Agents/E2E/notes.md OpenBot/Agents/E2E/attachment.bin .local/share/keyrings/login.keyring .config/openbot-container/keyring-password .e2e-starts .e2e-clean-stop`,
+      );
+      check(
+        `a refused ${source.name} restore keeps target bytes and running state`,
+        targetRunningBefore && targetRunningAfter && targetHashes === afterHashes,
+        JSON.stringify({
+          before: createHash("sha256").update(targetHashes).digest("hex"),
+          after: createHash("sha256").update(afterHashes).digest("hex"),
+          targetRunningBefore,
+          targetRunningAfter,
+        }),
+      );
+      check(
+        `a refused ${source.name} restore removes verification work without staging or replacement`,
+        must(`find ${data} -maxdepth 1 \\( -name '.openbot-restore*' -o -name '.openbot-replaced*' \\) | wc -l`) ===
+          "0" &&
+          must("find /var/tmp -maxdepth 1 -name 'openbot-verify.*' | wc -l") === "0" &&
+          completeBackups().length === beforeInvalid.length + 1,
+        "no restore, replacement or verification folder stays; the source backup stays",
+      );
+      const failedStatus = instance("backups", "main", "--json");
+      const failedVerify = JSON.parse(failedStatus.stdout);
+      check(
+        `a refused ${source.name} restore records failure and keeps the last verification success`,
+        failedStatus.status === 1 &&
+          failedVerify.lastVerify === "failed" &&
+          failedVerify["verify-attempt"]?.result === "failed" &&
+          source.error.test(failedVerify["verify-attempt"]?.error ?? "") &&
+          failedVerify["verify-success"]?.result === "ok" &&
+          successHash === must("sha256sum /srv/openbot/main/backup-status/verify-success.json | cut -d ' ' -f 1"),
+        `lastVerify=${failedVerify.lastVerify}; prior success hash matches`,
+      );
+      must(`rm -rf /backups/main/${invalidBackup}`);
+    }
 
     // Missing key material: the backup fails, the instance runs again, the earlier backup stays.
     must(`mv ${data}/.config/openbot-container/keyring-password /root/keyring-password`);
@@ -417,18 +616,81 @@ async function main(): Promise<void> {
     );
     must("docker start openbot-main >/dev/null");
     check("instance starts on the restored data", running(), `running=${running()}`);
+  } catch (error) {
+    failure = safeFailure(error);
   } finally {
-    run("docker", ["rm", "--force", "--volumes", dind]);
-    await rm(fixture, { recursive: true, force: true });
+    if (dockerAttempted) {
+      try {
+        cleanupOwnedContainer();
+      } catch (error) {
+        cleanupErrors.push(safeFailure(error));
+      }
+    }
+    if (fixture) {
+      try {
+        await bounded(rm(fixture, { recursive: true, force: true }), "Fixture directory cleanup");
+      } catch (error) {
+        cleanupErrors.push(safeFailure(error));
+      }
+    }
     const failed = results.filter((result) => !result.ok);
-    await writeFile(
-      join(reportRoot, "report.json"),
-      `${JSON.stringify({ finishedAt: new Date().toISOString(), passed: results.length - failed.length, failed: failed.length, results }, null, 2)}\n`,
-    );
+    const cleanupComplete = cleanupErrors.length === 0;
+    const sourceDigest = createHash("sha256").update(JSON.stringify(sourceManifest)).digest("hex");
+    const report = {
+      schemaVersion: 2,
+      nonce,
+      sourceHead,
+      ownedContainer: dind,
+      sourceManifest,
+      sourceDigest,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      runtime: {
+        javascript: process.versions.bun ? "Bun" : "Node",
+        version: process.versions.bun ?? process.version,
+        nodeVersion,
+        platform: process.platform,
+        architecture: process.arch,
+        dockerVersion,
+        dockerPlatform,
+        dockerInDockerImage: "docker:28-dind",
+        standInImage: "alpine:3.22",
+      },
+      expectedCases,
+      completedCases: results.length,
+      passed: results.length - failed.length,
+      failed: failed.length,
+      ok: failure === null && failed.length === 0 && results.length === expectedCases && cleanupComplete,
+      results,
+      failure,
+      cleanupComplete,
+      cleanupErrors,
+      artifactErrors,
+      limitations: [
+        "Only a synthetic stand-in image and owned Docker-in-Docker/ext4 data were used.",
+        "No actual OpenBot app, provider, account session or external backup store was exercised.",
+        "SQLite reference warnings remain warnings; provider session validity and attachment references are not verified.",
+        "The source manifest names the fixture, restore, schema and lockfile inputs; it is not a full module closure.",
+      ],
+    };
+    try {
+      const log = artifactText(`${safeLog.join("\n")}\n${failure ? `FAIL fixture: ${failure}\n` : ""}`, 256 * 1024);
+      await bounded(writeFile(join(reportRoot, "log.txt"), log), "Fixture log write");
+    } catch (error) {
+      report.ok = false;
+      artifactErrors.push(safeFailure(error));
+    }
+    try {
+      const encoded = artifactText(`${JSON.stringify(report, null, 2)}\n`, 1024 * 1024);
+      await bounded(writeFile(join(reportRoot, "report.json"), encoded), "Fixture report write");
+    } catch (error) {
+      report.ok = false;
+      artifactErrors.push(safeFailure(error));
+    }
     process.stdout.write(
-      `${results.length - failed.length}/${results.length} passed. Report: ${join(reportRoot, "report.json")}\n`,
+      `${JSON.stringify({ ok: report.ok, nonce, sourceDigest, completedCases: results.length, expectedCases, passed: report.passed, failed: failed.length, failure, cleanupComplete, cleanupErrors, artifactErrors, report: ".openbot-build/instance-backup-e2e/report.json" })}\n`,
     );
-    if (failed.length > 0 || results.length === 0) process.exitCode = 1;
+    if (!report.ok) process.exitCode = 1;
   }
 }
 
