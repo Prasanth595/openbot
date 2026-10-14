@@ -5,7 +5,7 @@ import { usePlatform } from "../../platform";
 import { useTurns } from "../../turns";
 import { useAuth } from "../account/account-context";
 import { useBrowserTabs } from "../browser/browser-context";
-import { serverCanAdminister } from "../servers/server-capabilities";
+import { remoteRoutineRecovery, serverCanAdminister } from "../servers/server-capabilities";
 import { useServerScope } from "../servers/server-scope";
 import { useServers } from "../servers/servers-context";
 import { isReaderAuthor } from "../team/reader-identity";
@@ -46,6 +46,7 @@ export function WorkspaceChannelConversation() {
       onSelectAgent={selectAgent}
       localHost={activeServer()?.kind === "local"}
       eventsServerId={serverCanAdminister(activeServer(), "events-v1") ? activeServer()?.id : undefined}
+      routineRecovery={remoteRoutineRecovery(activeServer())}
     />
   );
 }

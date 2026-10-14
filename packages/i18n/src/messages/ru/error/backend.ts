@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelNotFound": "Канал не найден.",
   "error.backend.channelMemberUnavailable": "Участник канала недоступен.",
   "error.backend.channelArchived": "Восстановите этот канал, прежде чем отправлять сообщения или менять задачи.",
+  "error.backend.channelsRetired":
+    "Каналы больше не поддерживаются. Поместите агентов в один раздел боковой панели, чтобы они работали вместе.",
   "error.backend.channelReferenceUnavailable": "Сообщение канала, на которое сделана ссылка, недоступно.",
   "error.backend.channelTaskNotFound": "Задача канала не найдена.",
   "error.backend.channelTaskComplete": "Эта задача уже выполнена.",
@@ -77,6 +79,10 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Операция с памятью не удалась. Повторите попытку.",
   "error.backend.memoryGone": "Этой записи памяти больше нет.",
   "error.backend.routineGone": "Этой регулярной задачи больше нет.",
+  "error.backend.turnNotStarted": "Провайдер не начал этот ход.",
+  "error.backend.routineResultConnectionOff":
+    "Это подключение к мессенджеру выключено или удалено. Выберите другое место.",
+  "error.backend.routineResultNoDelivery": "У этого запуска нет ответа для повторной отправки.",
   "error.backend.channelMemoryLimit": "В канале может быть не более {limit} записей памяти.",
   "error.backend.channelRoutineLimit": "В канале может быть не более {limit} регулярных задач.",
   "error.backend.agentRoutineLimit": "У агента может быть не более {limit} регулярных задач.",
@@ -130,6 +136,7 @@ export const messages = {
   "error.backend.routineCronTooOften": "Свои расписания должны срабатывать не чаще чем раз в {minutes} мин.",
   "error.backend.routineAnchorInvalid": "Точка отсчёта интервала регулярной задачи некорректна.",
   "error.backend.routineNoOccurrence": "У расписания нет срабатываний в ближайшие пять лет.",
+  "error.backend.routineOncePassed": "Время этой однократной задачи уже прошло. Выберите более позднюю дату или время.",
   "error.backend.routineTimezoneInvalid": "Часовой пояс регулярной задачи некорректен.",
   "error.backend.routineCronFields": "Свои расписания должны использовать пять полей cron.",
   "error.backend.routineCronValueInvalid": "Значение {field} в cron некорректно.",
@@ -156,9 +163,18 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Эти агенты уже связаны в этой задаче.",
   "error.backend.routineFlowCycle": "Эта связь создаст цикл.",
   "error.backend.routineFlowLinkLimit": "У регулярной задачи может быть не больше {limit} связей.",
+  "error.backend.agentWaitLimit":
+    "У этого агента уже открыто максимальное число ожиданий: {count}. Закройте ожидание с помощью openbot.close_wait, прежде чем открывать новое.",
+  "error.backend.agentWaitGone": "Это ожидание не открыто. Агент закрыл его, или кто-то его отменил.",
+  "error.backend.agentWaitNoRequest": "Для продолжения ожиданию нужно сообщение. В этом ходе нет сообщения.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Открывайте ожидание только в своём чате. Задача канала или мессенджера не может ждать.",
+  "error.backend.agentWaitNoteRequired": "Кратко укажите, для чего это ожидание.",
+  "error.backend.agentWaitRoutineGone": "У этого агента нет регулярной задачи с таким id.",
+  "error.backend.agentWaitNoRoutine":
+    "Ожидание пробуждает только запуск одной из ваших регулярных задач, а у вас их нет. Создайте регулярную задачу с помощью openbot.create_routine, затем откройте ожидание.",
+  "error.backend.agentWaitRemoteUnsupported": "Открытые ожидания доступны только для агентов на этом компьютере.",
   "error.backend.routineFlowHandoffFailed": "Задаче не удалось передать работу этому агенту.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "Цепочки регулярных задач доступны только для агентов на этом компьютере.",
   "error.backend.mcpServerLimit": "OpenBot хранит не более {limit} серверов MCP.",
   "error.backend.mcpServerNameTaken": "Сервер MCP с именем {name} уже существует.",
   "error.backend.mcpServerNoAnswer": "Сервер не ответил за {seconds} с.",
@@ -251,4 +267,11 @@ export const messages = {
   "error.backend.mcpServerHttpCredentials": "Сервер ответил {status}. Проверьте API-ключ или другие учётные данные.",
   "error.backend.mcpServerHttpUrl":
     "Сервер ответил {status}. Проверьте URL. Ссылка может быть неверной, устаревшей или удалённой.",
+  "error.backend.mcpSignInAppUrl": "Для приложения входа нужен правильный URL сервера.",
+  "error.backend.mcpSignInAppClientId": "Введите ID клиента приложения входа.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Сервер входа этого MCP-сервера изменился, поэтому OpenBot не отправил ему приложение входа. Если это изменение верно, удалите приложение входа и добавьте его снова.",
+  "error.backend.mcpSignInAppNoServer":
+    "Сохраните этот MCP-сервер как URL-сервер, прежде чем добавлять приложение входа.",
+  "error.backend.mcpSignInAppUnavailable": "Этот компьютер не может хранить приложение входа.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -19,6 +19,7 @@ import {
   STORY_PRESENCE,
   STORY_SERVERS,
 } from "../src/preview/fixtures";
+import { storyConnectorRegistry } from "./connector-fixtures";
 import { createSignInHost } from "./mcp-sign-in-host";
 import { createMockOpenBot } from "./mock-openbot";
 
@@ -401,3 +402,17 @@ export const ContainerReleaseAvailable: Story = {
     />
   ),
 };
+
+/**
+ * This computer's connectors: GitHub is connected; Slack, Discord and Telegram are not set up. Open
+ * one to see the header read `Connectors › GitHub`; the parent crumb goes back to the list.
+ */
+export const Connectors: Story = {
+  args: { initialSection: "connectors" },
+  render: (args) => <ConnectorsStory settings={args} />,
+};
+
+function ConnectorsStory(props: { settings: ServerSettingsModalProps }) {
+  const connectors = storyConnectorRegistry(localServer);
+  return <RemoteSetupStory settings={{ ...props.settings, connectors }} />;
+}

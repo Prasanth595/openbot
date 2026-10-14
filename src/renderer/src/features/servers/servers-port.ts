@@ -2,7 +2,7 @@ import type { OpenBotDesktopApi, ServerSummary } from "@openbot/contracts/ipc";
 
 /**
  * What the servers domain reaches in main: the server list and selection, the account changes, the local host, the
- * settings dialog of one server, the name and logo of a joined server's host, and the remote desktop
+ * settings dialog of one server, the name, logo and update of a joined server's host, and the remote desktop
  * setup of a server.
  */
 export interface ServersPort {
@@ -19,15 +19,24 @@ export interface ServersPort {
     | "testMcpServer"
     | "signInMcpServer"
     | "mcpSignInPage"
+    | "mcpSignInRelay"
+    | "openMcpSignInRelay"
+    | "completeMcpSignInRelay"
     | "cancelMcpSignIn"
     | "signOutMcpServer"
     | "listMcpSignIns"
+    | "mcpSignInApp"
+    | "saveMcpSignInApp"
+    | "removeMcpSignInApp"
   >;
   events: OpenBotDesktopApi["events"];
   auth: Pick<OpenBotDesktopApi["auth"], "onEvent">;
   browser: Pick<OpenBotDesktopApi["browser"], "setVisible">;
-  hostAdmin: Pick<OpenBotDesktopApi["hostAdmin"], "getUpdateStatus" | "updateIdentity">;
-  hostedServers: Pick<OpenBotDesktopApi["hostedServers"], "list" | "wake">;
+  hostAdmin: Pick<
+    OpenBotDesktopApi["hostAdmin"],
+    "cancelUpdate" | "getUpdateStatus" | "startUpdate" | "updateIdentity"
+  >;
+  hostedServers: Pick<OpenBotDesktopApi["hostedServers"], "list" | "restart" | "wake">;
   host: Pick<
     OpenBotDesktopApi["host"],
     "configure" | "getStatus" | "onEvent" | "recheckScreenRecording" | "start" | "stop" | "updateIdentity"

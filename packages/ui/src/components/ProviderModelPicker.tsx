@@ -8,12 +8,14 @@ import type {
   AgentStatus,
   CustomAgentSummary,
   CustomProviderSummary,
+  ProviderAccountStatus,
   ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
 import {
   agentProviderCliName,
   agentProviderName,
   customAgentIdOfModel,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   defaultProviderModel,
   isCustomProviderModelId,
   PICKER_PROVIDERS,
@@ -43,6 +45,7 @@ import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, For, onCleanup, onSettled, Show, untrack } from "solid-js";
 import { currentText, type TextValue, useText } from "../text";
 import { createScrollFades } from "./createScrollFades";
+import { providerAccountName } from "./provider-accounts";
 import {
   customProviderIds,
   groupPickerModels,
@@ -74,6 +77,8 @@ interface ProviderModelPickerProps {
   onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
   onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
   onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
+  /** A signed-out provider shows Connect only when this place has a way in. Without it, every one does. */
+  canConnectProvider?: (provider: AgentProviderId) => boolean;
   /** Endpoints the user named; served by OpenCode, separated out only by the picker. */
   customProviders?: readonly CustomProviderSummary[] | undefined;
   /** The user's own ACP agents; provider `acp`, drawn on the Custom tab with one group each. */
@@ -90,7 +95,15 @@ interface ProviderModelPickerProps {
   /** Turbo mode already covers every agent, so the switch reads on and cannot be turned off here. */
   autoApproveLocked?: boolean;
   onAutoApproveChange?: (autoApprove: boolean) => void;
-  onChange: (model: AgentModelId, provider: AgentProviderId) => void;
+  /**
+   * Gives each account of a provider with more than one its own rail entry, and passes the account
+   * of a choice to `onChange`. Only where the agent's account can change.
+   */
+  accountChoice?: boolean;
+  /** The agent's account. Absent or unknown means the provider's own sign-in. */
+  providerAccountId?: string | null | undefined;
+  /** `accountId` is passed only with `accountChoice`, for a provider with more than one account: null for its own sign-in. */
+  onChange: (model: AgentModelId, provider: AgentProviderId, accountId?: string | null) => void;
 }
 
 /** Extra "custom" rail tab; widening the contract id would cost a migration. */
@@ -99,6 +112,12 @@ type RailId = AgentProviderId | "custom";
 const CUSTOM_RAIL = "custom" as const;
 
 const PROVIDERS: readonly RailId[] = [...PICKER_PROVIDERS, CUSTOM_RAIL];
+
+/**
+ * A rail entry: a provider tab, or an account of it after the first. An account entry's key is the
+ * provider and the account id; a rail id has no colon.
+ */
+type RailKey = RailId | `${AgentProviderId}:${string}`;
 
 /** Long enough that sweeping the rail does not flash a name per mark. */
 const RAIL_TOOLTIP_OPEN_DELAY = 150;
@@ -149,7 +168,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   const [search, setSearch] = createSignal("");
   const [grantConfirmation, setGrantConfirmation] = createSignal<{ name?: string; confirm: () => void } | null>(null);
   let trigger: HTMLButtonElement | undefined;
-  const providerButtons = new Map<RailId, HTMLButtonElement>();
+  const providerButtons = new Map<RailKey, HTMLButtonElement>();
   let root: HTMLDivElement | undefined;
   let popover: HTMLElement | undefined;
 
@@ -158,6 +177,29 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
       (provider) => !props.agentStatus?.providers?.some((status) => status.id === provider && status.off),
     ),
   );
+  /** The accounts that get rail entries: only a provider's with more than one, and only on request. */
+  const railAccounts = (rail: RailId): readonly ProviderAccountStatus[] => {
+    if (!props.accountChoice || rail === CUSTOM_RAIL) return [];
+    const accounts = props.agentStatus?.providers?.find((status) => status.id === rail)?.accounts ?? [];
+    return accounts.length > 1 ? accounts : [];
+  };
+  const visibleKeys = createMemo<RailKey[]>(() =>
+    visibleProviders().flatMap((rail): RailKey[] => {
+      const accounts = railAccounts(rail);
+      if (!accounts.length || rail === CUSTOM_RAIL) return [rail];
+      return accounts.map((account) =>
+        account.id === DEFAULT_PROVIDER_ACCOUNT_ID ? rail : (`${rail}:${account.id}` as const),
+      );
+    }),
+  );
+  /** The account for `onChange`: only a provider with account entries sends one. */
+  const chosenAccount = (provider: AgentProviderId, accountId: string | null): string | null | undefined =>
+    railAccounts(provider).length ? accountId : undefined;
+  /** The agent's account when the rail lists it; otherwise the provider's own sign-in. */
+  const currentAccount = (): string | null => {
+    const id = props.providerAccountId;
+    return id && railAccounts(props.provider).some((account) => account.id === id) ? id : null;
+  };
   const customIds = createMemo(() => customProviderIds(props.customProviders ?? []));
   const selectedModel = createMemo(() =>
     props.modelOptions.find((option) => option.provider === props.provider && option.id === props.value),
@@ -167,7 +209,12 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     props.provider === "acp" || (props.provider === "opencode" && isCustomProviderModelId(props.value, customIds()))
       ? CUSTOM_RAIL
       : props.provider;
-  const [railProvider, setRailProvider] = createSignal<RailId>(untrack(activeProvider));
+  const activeKey = (): RailKey => {
+    const account = currentAccount();
+    const rail = activeProvider();
+    return account && rail !== CUSTOM_RAIL ? `${rail}:${account}` : rail;
+  };
+  const [railProvider, setRailProvider] = createSignal<RailKey>(untrack(activeKey));
   /** The provider whose mark the trigger shows, so only a changed one springs in. */
   let shownProvider = untrack(activeProvider);
 
@@ -219,6 +266,34 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     if (!props.customProviders?.length) return agents;
     return endpoints.state === "available" || agents.state !== "available" ? endpoints : agents;
   };
+  /** The account of a rail entry and its place in the list, when its provider lists accounts. */
+  const entryAccount = (key: RailKey) => {
+    const rail = railOf(key);
+    const accounts = railAccounts(rail);
+    const id = key === rail ? DEFAULT_PROVIDER_ACCOUNT_ID : key.slice(rail.length + 1);
+    const index = accounts.findIndex((account) => account.id === id);
+    const account = accounts[index];
+    return account ? { account, number: index + 1, name: providerAccountName(t, accounts, id) } : null;
+  };
+  /** An account after the first that is not signed in cannot run its models, whatever the provider says. */
+  const entryStatus = (key: RailKey): AgentProviderStatus => {
+    const status = railStatus(railOf(key));
+    const entry = entryAccount(key);
+    if (!entry || entry.account.id === DEFAULT_PROVIDER_ACCOUNT_ID || entry.account.state === "connected") {
+      return status;
+    }
+    const { connectionState: _connection, ...rest } = status;
+    return {
+      ...rest,
+      state:
+        entry.account.state === "checking" || entry.account.state === "connecting" ? "checking" : "sign-in-required",
+      message: entry.account.message,
+    };
+  };
+  const entryName = (key: RailKey): string => {
+    const entry = entryAccount(key);
+    return entry ? `${railName(railOf(key), t)} · ${entry.name}` : railName(railOf(key), t);
+  };
   const modelAvailable = (model: PickerModel): boolean =>
     providerAvailability(props.agentStatus, props.modelOptions, model.provider, t).state === "available";
   const railSummary = (rail: RailId, status: AgentProviderStatus): string =>
@@ -230,10 +305,9 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   };
 
   createEffect(
-    () => ({ provider: activeProvider(), open: open(), visible: visibleProviders(), rail: railProvider() }),
-    ({ provider, open, visible, rail }) => {
-      if (!open || !visible.includes(rail))
-        setRailProvider(visible.includes(provider) ? provider : (visible[0] ?? CUSTOM_RAIL));
+    () => ({ key: activeKey(), open: open(), visible: visibleKeys(), rail: railProvider() }),
+    ({ key, open, visible, rail }) => {
+      if (!open || !visible.includes(rail)) setRailProvider(visible.includes(key) ? key : (visible[0] ?? CUSTOM_RAIL));
     },
   );
 
@@ -263,20 +337,20 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   function setPickerOpen(next: boolean): void {
     if (props.disabled) return;
     if (next) {
-      const provider = activeProvider();
-      setRailProvider(visibleProviders().includes(provider) ? provider : (visibleProviders()[0] ?? CUSTOM_RAIL));
+      const key = activeKey();
+      setRailProvider(visibleKeys().includes(key) ? key : (visibleKeys()[0] ?? CUSTOM_RAIL));
       setSearch("");
     }
     setOpen(next);
   }
 
-  function selectModel(option: PickerModel): void {
+  function selectModel(option: PickerModel, accountId: string | null): void {
     if (props.disabled || props.modelChangesDisabled || !modelAvailable(option)) return;
     if (!showsReasoningEffort() && !option.variants.length) setOpen(false);
-    props.onChange(option.id, option.provider);
+    props.onChange(option.id, option.provider, chosenAccount(option.provider, accountId));
   }
 
-  function selectRailProvider(provider: RailId): void {
+  function selectRailProvider(provider: RailKey): void {
     setRailProvider(provider);
     setSearch("");
   }
@@ -302,7 +376,12 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     if (!model?.supportedReasoningEfforts.includes(effort) || model.reasoningEffortConfigurable === false) return;
     return reasoningLabel(effort, t);
   };
-  const triggerSummary = () => [triggerModelName(), triggerEffort()].filter(Boolean).join(" · ");
+  /** The account name, only while the agent's provider lists more than one. */
+  const triggerAccount = () => {
+    const accounts = railAccounts(props.provider);
+    return accounts.length ? providerAccountName(t, accounts, currentAccount() ?? DEFAULT_PROVIDER_ACCOUNT_ID) : null;
+  };
+  const triggerSummary = () => [triggerModelName(), triggerEffort(), triggerAccount()].filter(Boolean).join(" · ");
 
   return (
     <div
@@ -352,6 +431,13 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                 </span>
               )}
             </Show>
+            <Show when={triggerAccount()}>
+              {(account) => (
+                <span class="provider-model-trigger-effort provider-model-trigger-account">
+                  <SwapLabel text={account()} motion={TRIGGER_SWAP} />
+                </span>
+              )}
+            </Show>
           </span>
           <ChevronDownIcon />
         </Popover.Trigger>
@@ -369,7 +455,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
           <Tabs.Root
             value={railProvider()}
             onChange={(value) => {
-              const provider = visibleProviders().find((candidate) => candidate === value);
+              const provider = visibleKeys().find((candidate) => candidate === value);
               if (provider) selectRailProvider(provider);
             }}
             orientation="vertical"
@@ -377,9 +463,12 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
             class="provider-model-layout"
           >
             <Tabs.List class="provider-model-rail" aria-label={t("provider.picker.providers")}>
-              <For each={visibleProviders()}>
-                {(provider) => {
-                  const status = () => railStatus(provider);
+              <For each={visibleKeys()}>
+                {(key) => {
+                  const provider = railOf(key);
+                  const account = () => entryAccount(key);
+                  const status = () => entryStatus(key);
+                  const name = () => entryName(key);
                   return (
                     // The rail shows a mark alone, so hovering one names it. Focus needs no tooltip:
                     // tabs activate on focus, and the panel heading beside them names the tab.
@@ -394,20 +483,20 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                     >
                       <Tooltip.Trigger as="div" class="provider-model-rail-tooltip-trigger">
                         <Tabs.Trigger
-                          ref={(element) => providerButtons.set(provider, element)}
-                          value={provider}
+                          ref={(element) => providerButtons.set(key, element)}
+                          value={key}
                           class={[
                             "provider-model-rail-button",
                             {
-                              "provider-model-rail-button-selected": railProvider() === provider,
+                              "provider-model-rail-button-selected": railProvider() === key,
                               "provider-model-rail-button-unavailable": status().state !== "available",
                             },
                           ]}
                           data-state={status().state}
-                          aria-label={`${railName(provider, t)}: ${railSummary(provider, status())}`}
+                          aria-label={`${name()}: ${railSummary(provider, status())}`}
                           onClick={(event) => {
                             const target = event.currentTarget;
-                            selectRailProvider(provider);
+                            selectRailProvider(key);
                             queueMicrotask(() => target.focus({ preventScroll: true }));
                           }}
                           onKeyDown={(event) => {
@@ -418,18 +507,25 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                                   ? -1
                                   : 0;
                             if (!delta) return;
-                            const providers = visibleProviders();
-                            const current = providers.indexOf(provider);
+                            const providers = visibleKeys();
+                            const current = providers.indexOf(key);
                             const next = providers[(current + delta + providers.length) % providers.length];
                             if (next) providerButtons.get(next)?.focus();
                           }}
                         >
                           <ProviderMark provider={provider} large />
+                          <Show when={account()}>
+                            {(entry) => (
+                              <span class="provider-model-rail-account" aria-hidden="true">
+                                {entry().number}
+                              </span>
+                            )}
+                          </Show>
                         </Tabs.Trigger>
                       </Tooltip.Trigger>
                       <Tooltip.Portal>
                         <Tooltip.Content class="provider-model-rail-tooltip">
-                          <strong>{railName(provider, t)}</strong>
+                          <strong>{name()}</strong>
                           <small>{railSummary(provider, status())}</small>
                         </Tooltip.Content>
                       </Tooltip.Portal>
@@ -439,18 +535,27 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
               </For>
             </Tabs.List>
 
-            <For each={visibleProviders()}>
-              {(provider) => {
-                const status = () => railStatus(provider);
+            <For each={visibleKeys()}>
+              {(key) => {
+                const provider = railOf(key);
+                const account = () => entryAccount(key);
+                const accountId = () => {
+                  const id = account()?.account.id;
+                  return id && id !== DEFAULT_PROVIDER_ACCOUNT_ID ? id : null;
+                };
+                const status = () => entryStatus(key);
                 const models = createMemo(() => pickerModels(railModelOptions(provider)));
                 const groups = createMemo(() => groupPickerModels(models(), search()));
                 // An endpoint and a custom agent can both list `goose/default`: match the provider too.
+                // Another account of the same provider lists the same models, but not this agent's.
                 const selected = createMemo(() =>
-                  models().find(
-                    (model) =>
-                      model.provider === props.provider &&
-                      (model.id === props.value || model.variants.some((variant) => variant.id === props.value)),
-                  ),
+                  accountId() !== currentAccount()
+                    ? undefined
+                    : models().find(
+                        (model) =>
+                          model.provider === props.provider &&
+                          (model.id === props.value || model.variants.some((variant) => variant.id === props.value)),
+                      ),
                 );
                 const selectedKey = () => {
                   const model = selected();
@@ -460,7 +565,9 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                 const ownsSelection = () =>
                   provider === CUSTOM_RAIL
                     ? selected()?.provider === props.provider
-                    : provider === props.provider && (props.provider !== "opencode" || Boolean(selected()));
+                    : provider === props.provider &&
+                      accountId() === currentAccount() &&
+                      (props.provider !== "opencode" || Boolean(selected()));
                 const effortOptions = createMemo(() => {
                   if (!ownsSelection()) return [];
                   if (selected()?.variants.length) return selected()?.variants ?? [];
@@ -479,11 +586,15 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                   () => fades.remeasure(),
                 );
                 const available = () => status().state === "available";
+                // An account that is not signed in holds back the models its provider serves.
+                const modelEnabled = (model: PickerModel) =>
+                  modelAvailable(model) && (accountId() === null || available()) && props.modelChangesDisabled !== true;
                 const effortLocked = () => !available() || props.modelChangesDisabled === true;
                 function chooseEffort(id: string): void {
                   if (props.disabled || effortLocked() || id === effortValue()) return;
                   const model = selected();
-                  if (model?.variants.length) props.onChange(id, model.provider);
+                  if (model?.variants.length)
+                    props.onChange(id, model.provider, chosenAccount(model.provider, accountId()));
                   else {
                     const effort = selectedModel()?.supportedReasoningEfforts.find((effort) => effort === id);
                     if (effort) props.onReasoningEffortChange?.(effort);
@@ -504,15 +615,21 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                   // Downloading outranks connection states; Cancel stops this panel's download.
                   if (runtime()?.phase === "downloading") return "Cancel" as const;
                   if (available() || status().connectionState === "connecting") return undefined;
+                  // An account after the first signs in again in Settings, beside its name.
+                  if (accountId()) return undefined;
                   if (runtime()?.phase === "ready") return "Connect" as const;
                   if (runtime()?.phase === "download-error") return "Retry" as const;
                   if (runtime()?.phase === "not-downloaded") return "Download" as const;
                   // No runtime snapshot here; signed-out/failed providers offer Connect if handled.
                   if (status().state === "sign-in-required" || status().state === "error") {
-                    return props.onConnectProvider ? ("Connect" as const) : undefined;
+                    return props.onConnectProvider && (props.canConnectProvider?.(status().id) ?? true)
+                      ? ("Connect" as const)
+                      : undefined;
                   }
                   return undefined;
                 };
+                /** A Connect that failed before the sign-in started. The status reports the rest. */
+                const [connectError, setConnectError] = createSignal<string | null>(null);
                 const runtimeMessage = () => {
                   const runtimeStatus = runtime();
                   if (runtimeStatus?.phase === "downloading") {
@@ -521,6 +638,10 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                     });
                   }
                   if (runtimeStatus?.phase === "finishing") return t("provider.status.settingUp");
+                  // A sign-in in progress has no message. It is not a failure.
+                  if (status().connectionState === "connecting") return t("provider.connecting.browserHint");
+                  const failed = connectError();
+                  if (failed) return failed;
                   const message = runtimeStatus?.message ?? status().message;
                   return message
                     ? text.sourceText(message)
@@ -528,14 +649,18 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                 };
                 return (
                   <Tabs.Content
-                    value={provider}
+                    value={key}
                     class="provider-model-panel"
-                    aria-label={t("provider.picker.models", { name: railName(provider, t) })}
+                    aria-label={t("provider.picker.models", { name: entryName(key) })}
                   >
                     <div class="provider-model-heading">
                       <div class="provider-model-heading-text">
-                        <strong>{railName(provider, t)}</strong>
-                        <span>{railHeadingSummary(provider, status())}</span>
+                        <strong>{entryName(key)}</strong>
+                        <span>
+                          {account() && status().state === "available"
+                            ? (account()?.account.email ?? railHeadingSummary(provider, status()))
+                            : railHeadingSummary(provider, status())}
+                        </span>
                       </div>
                       <Show when={provider === CUSTOM_RAIL && props.onAddCustomProvider}>
                         <Button
@@ -570,8 +695,17 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                               onClick={() => {
                                 const target = status().id;
                                 if (action() === "Cancel") void props.onCancelProviderDownload?.(target);
-                                else if (action() === "Connect") void props.onConnectProvider?.(target);
-                                else void props.onDownloadProvider?.(target);
+                                else if (action() === "Connect") {
+                                  setConnectError(null);
+                                  void Promise.resolve(props.onConnectProvider?.(target)).catch((error: unknown) =>
+                                    setConnectError(
+                                      text.errorMessage(
+                                        error,
+                                        t("app.provider.connectFailedRetry", { name: railName(provider, t) }),
+                                      ),
+                                    ),
+                                  );
+                                } else void props.onDownloadProvider?.(target);
                               }}
                             >
                               {t(RUNTIME_ACTION_LABEL[action()])}
@@ -619,7 +753,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                           )}
                           optionValue={pickerModelKey}
                           optionTextValue={(model) => displayModelName(model.name, model.id)}
-                          optionDisabled={(model) => !modelAvailable(model) || props.modelChangesDisabled === true}
+                          optionDisabled={(model) => !modelEnabled(model)}
                           value={[selectedKey()]}
                           selectionMode="single"
                           disallowEmptySelection
@@ -640,9 +774,9 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                                       })
                                     : displayModelName(model.name, model.id)
                                 }
-                                disabled={!modelAvailable(model) || props.modelChangesDisabled}
+                                disabled={!modelEnabled(model)}
                                 onClick={() => {
-                                  if (!isSelected()) selectModel(model);
+                                  if (!isSelected()) selectModel(model, accountId());
                                 }}
                               >
                                 <span class="provider-model-option-name">
@@ -754,6 +888,12 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
 /** The list key: a model id alone can repeat across the endpoints and agents of the Custom tab. */
 function pickerModelKey(model: PickerModel): string {
   return `${model.provider}:${model.id}`;
+}
+
+/** The provider tab of a rail entry. */
+function railOf(key: RailKey): RailId {
+  const rail = key.split(":", 1)[0];
+  return PROVIDERS.find((candidate) => candidate === rail) ?? CUSTOM_RAIL;
 }
 
 function wireProvider(rail: RailId): AgentProviderId {

@@ -7,9 +7,13 @@ import type {
   MarketplaceSkillDetail,
   MarketplaceSkillSummary,
   McpServerConfig,
+  McpSignInRelayPage,
 } from "@openbot/contracts/ipc";
 import { mcpConfigErrors } from "@openbot/contracts/ipc";
 import { createPluginShareUrl } from "@openbot/contracts/plugin-links";
+import { connectorSummary } from "@openbot/ui/features/connectors/ConnectorDetailPanel";
+import { CONNECTOR_LISTINGS } from "@openbot/ui/features/connectors/connector-catalog";
+import { isConnectorId } from "@openbot/ui/features/connectors/connectors";
 import { safeBrowserUrl } from "@openbot/ui/features/conversation/RichMessageText";
 import type {
   AgentListingState,
@@ -19,7 +23,6 @@ import type {
   SkillRead,
 } from "@openbot/ui/features/marketplace/marketplace-model";
 import { serverAddress } from "@openbot/ui/features/marketplace/marketplace-view";
-import type { BitwardenConnectorPanelProps } from "@openbot/ui/features/settings/BitwardenConnectorPanel";
 import type { McpConnectSubject } from "@openbot/ui/features/settings/McpConnectShell";
 import {
   isPluginAppConfig,
@@ -34,9 +37,8 @@ import { errorReference } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onCleanup, untrack } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
 import { writeClipboardText } from "../../clipboard";
-import { type GitHubConnectorController, githubPanelProps } from "../connectors/github-connector";
-import { type OnePasswordConnectorController, onePasswordPanelProps } from "../connectors/onepassword-connector";
-import { desktopMarketplaceCalls, type MarketplaceCalls } from "./marketplace-calls";
+import type { ConnectorRegistry } from "../connectors/connector-registry";
+import { desktopMarketplaceCalls, type MarketplaceCalls, type MarketplaceSignInRelay } from "./marketplace-calls";
 import { createPluginAppConfig } from "./marketplace-plugin-catalog";
 import { localizedPlugin } from "./marketplace-plugin-text";
 import { agentHomeCache, marketplaceErrorMessage, skillHomeCache } from "./marketplace-shared";
@@ -61,6 +63,8 @@ export interface MarketplaceControllerProps {
   pluginServerId?: string | undefined;
   /** The joined server that keeps an app's credential. Absent when this computer keeps it. */
   pluginHostName?: string | undefined;
+  /** The joined server in `pluginServerId` relays its sign-ins to this computer (`sign-in-relay-v1`). */
+  pluginSignInRelay?: boolean | undefined;
   /** The joined server whose agents `agents` lists, when this account manages it. Absent: this computer. */
   hostServerId?: string | undefined;
   /** The joined server that a marketplace agent is added to. Absent: this computer. */
@@ -68,11 +72,8 @@ export interface MarketplaceControllerProps {
   /** The joined server in `hostServerId` when its host also updates an agent. */
   agentUpdateServerId?: string | undefined;
   onRunPluginPrompt?: ((agentId: string, prompt: MarketplacePluginPrompt) => void) | undefined;
-  /** This computer's GitHub connection, when it can have one. */
-  githubConnector?: GitHubConnectorController | undefined;
-  /** This computer's 1Password connection. Absent on a joined server. */
-  onePasswordConnector?: OnePasswordConnectorController | undefined;
-  bitwardenConnector?: BitwardenConnectorPanelProps | undefined;
+  /** The connectors of the server. Each one that this account can connect is an app. */
+  connectors?: ConnectorRegistry | undefined;
   /** What the Marketplace calls. Absent: this computer's bridge. */
   calls?: MarketplaceCalls | undefined;
 }
@@ -82,6 +83,15 @@ export interface PendingConnect {
   subject: McpConnectSubject;
   flow: McpConnectFlow;
   settle: (config: McpServerConfig | null) => void;
+}
+
+/** How often the page of a relayed sign-in is read while it waits. */
+const SIGN_IN_RELAY_POLL_MS = 1_000;
+
+/** The relayed sign-in of one app while it waits. */
+export interface MarketplaceSignInRelayState {
+  url: string;
+  page: McpSignInRelayPage;
 }
 
 /** An agent that the Marketplace added or updated while it was open. "Open chat" opens it. */
@@ -355,59 +365,32 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     return parts.some(Boolean) ? "attention" : "idle";
   }
 
-  const githubPanel = createMemo(() => {
-    const connector = props.githubConnector;
-    return connector ? githubPanelProps(connector) : undefined;
-  });
-  const onePasswordPanel = createMemo(() => {
-    const connector = props.onePasswordConnector;
-    return connector ? onePasswordPanelProps(connector) : undefined;
-  });
-
   /** The catalog listings in the reader's language. Made once per language, not on each status change. */
   const localPlugins = createMemo(() => (props.plugins ?? []).map((plugin) => localizedPlugin(plugin, t)));
 
+  /** The controller of a connector app that this account can connect. */
+  const connector = (id: string) => {
+    if (!isConnectorId(id)) return undefined;
+    const entry = props.connectors?.get(id);
+    return entry?.access === "available" ? entry.controller : undefined;
+  };
+
   const apps = createMemo((): MarketplaceApp[] => {
     const plugins = localPlugins();
-    const github = props.githubConnector;
-    const githubState = github?.status().state;
     return [
-      ...(github
-        ? [
-            {
-              kind: "github",
-              id: "github",
-              name: t("connector.github.title"),
-              tagline: t("marketplace.app.githubTagline"),
-              category: "coding",
-              status: githubState === "connected" ? "connected" : githubState === "expired" ? "attention" : "idle",
-            } satisfies MarketplaceApp,
-          ]
-        : []),
-      ...(props.onePasswordConnector
-        ? [
-            {
-              kind: "onepassword",
-              id: "onepassword",
-              name: t("connector.onePassword.title"),
-              tagline: t("marketplace.app.onePasswordTagline"),
-              category: "productivity",
-              status: props.onePasswordConnector.status().state === "connected" ? "connected" : "idle",
-            } satisfies MarketplaceApp,
-          ]
-        : []),
-      ...(props.bitwardenConnector
-        ? [
-            {
-              kind: "bitwarden",
-              id: "bitwarden",
-              name: t("connector.bitwarden.title"),
-              tagline: t("connector.bitwarden.description"),
-              category: "productivity",
-              status: props.bitwardenConnector.status.connected ? "connected" : "idle",
-            } satisfies MarketplaceApp,
-          ]
-        : []),
+      ...(props.connectors?.available() ?? []).map((controller): MarketplaceApp => {
+        const listing = CONNECTOR_LISTINGS[controller.id];
+        const { status } = connectorSummary(controller.detail, t);
+        return {
+          kind: "connector",
+          id: controller.id,
+          connector: controller.id,
+          name: t(listing.title),
+          tagline: t(listing.tagline),
+          category: listing.category,
+          status: status === "unavailable" ? "idle" : status,
+        };
+      }),
       ...plugins.map(
         (plugin): MarketplaceApp => ({
           kind: "plugin",
@@ -497,11 +480,70 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     return calls().mcp.testMcpServer({ config }, serverId);
   }
 
-  /** A browser sign-in for a "link" listing: opens the browser when the server asks for one. */
+  /** The relay of a joined server, when both sides can relay a sign-in. */
+  const signInRelay = () => (props.pluginSignInRelay ? calls().signInRelay : undefined);
+  const [relayed, setRelayed] = createSignal<MarketplaceSignInRelayState | null>(null);
+
+  /**
+   * A browser sign-in for a "link" listing: opens the browser when the server asks for one. A joined
+   * server that relays opens the page in this computer's browser; the paste field shows while it waits.
+   */
   async function signInPluginApp(config: McpServerConfig) {
     const serverId = props.pluginServerId;
     if (!serverId) throw new Error(t("marketplace.error.connectNoServer"));
-    return calls().mcp.signInMcpServer({ config }, serverId);
+    const relay = signInRelay();
+    let waiting = true;
+    const signIn = calls().mcp.signInMcpServer({ config }, serverId);
+    if (relay) void followSignInRelay(relay, config.url, serverId, () => waiting);
+    return signIn.finally(() => {
+      waiting = false;
+    });
+  }
+
+  async function followSignInRelay(
+    relay: MarketplaceSignInRelay,
+    url: string,
+    serverId: string,
+    waiting: () => boolean,
+  ): Promise<void> {
+    try {
+      while (waiting()) {
+        const page = await relay.page(url, serverId).catch(() => null);
+        if (!waiting()) return;
+        const current = relayed();
+        if (current?.page.authorizeHost !== page?.authorizeHost || current?.page.listening !== page?.listening)
+          setRelayed(page ? { url, page } : null);
+        await new Promise((resolve) => setTimeout(resolve, SIGN_IN_RELAY_POLL_MS));
+      }
+    } finally {
+      setRelayed(null);
+    }
+  }
+
+  /** Opens the relayed sign-in page in this computer's browser, after the user checked its host name. */
+  async function openSignInRelay(): Promise<void> {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (!relay || !current || !serverId) throw new Error(t("error.mcp.relayEnded"));
+    await relay.open(current.url, serverId);
+  }
+
+  /** The address the browser shows at the end of a relayed sign-in. Main sends only its query to the host. */
+  async function pasteSignInRelay(address: string): Promise<void> {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (!relay || !current || !serverId) throw new Error(t("error.mcp.relayEnded"));
+    await relay.paste(current.url, address, serverId);
+  }
+
+  /** Ends the relayed sign-in on the host; the waiting connect step then reports it as stopped. */
+  function cancelSignInRelay(): void {
+    const relay = signInRelay();
+    const current = relayed();
+    const serverId = props.pluginServerId;
+    if (relay && current && serverId) void relay.cancel(current.url, serverId).catch(() => undefined);
   }
 
   /** Takes back only what this attempt installed. A skill the agent already had is the user's. */
@@ -531,8 +573,12 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     }
     /* A browser sign-in saves its grant on the computer that finishes it, and a local server
        answers only on the computer that runs it, so an app that asks for either is installed on
-       the host itself. */
-    const hostOnly = plugin.apps.find((app) => ["link", "local"].includes(app.server.auth?.[0]?.kind ?? ""));
+       the host itself. A host that relays its sign-ins finishes a browser sign-in in this
+       computer's browser and keeps the grant itself. */
+    const hostOnly = plugin.apps.find((app) => {
+      const kind = app.server.auth?.[0]?.kind ?? "";
+      return kind === "local" || (kind === "link" && !signInRelay());
+    });
     if (props.hostServerId && hostOnly) {
       const key =
         hostOnly.server.auth?.[0]?.kind === "local"
@@ -739,18 +785,9 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
 
     apps,
     canConnectApps: () => Boolean(props.pluginServerId),
-    appBusy: (id) => Boolean(busy[`app:${id}`]),
-    connectApp: async (app) => {
-      if (app.kind === "plugin") return installPlugin(app.plugin);
-      if (app.kind === "github") props.githubConnector?.connect();
-      return false;
-    },
-    disconnectApp: (app) => {
-      if (app.kind === "plugin") setUninstalling(app.plugin);
-      if (app.kind === "github") props.githubConnector?.disconnect();
-      if (app.kind === "bitwarden") props.bitwardenConnector?.onDisconnect();
-      if (app.kind === "onepassword") props.onePasswordConnector?.disconnect();
-    },
+    appBusy: (id) => Boolean(busy[`app:${id}`]) || connector(id)?.busy() === true,
+    connectApp: (app) => installPlugin(app.plugin),
+    disconnectApp: (app) => setUninstalling(app.plugin),
     removeServer,
     get runPrompt() {
       const run = props.onRunPluginPrompt;
@@ -759,18 +796,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     },
     copyLink,
     openUrl: openPluginUrl,
-    get github() {
-      const panel = githubPanel();
-      return panel ? () => panel : undefined;
-    },
-    get bitwarden() {
-      const panel = props.bitwardenConnector;
-      return panel ? () => panel : undefined;
-    },
-    get onePassword() {
-      const panel = onePasswordPanel();
-      return panel ? () => panel : undefined;
-    },
+    connector,
 
     error,
     errorReference: errorCode,
@@ -789,6 +815,10 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     cancelUninstall: () => setUninstalling(null),
     testPluginApp,
     signInPluginApp,
+    signInRelayed: relayed,
+    openSignInRelay,
+    pasteSignInRelay,
+    cancelSignInRelay,
     openPluginUrl,
   };
 }

@@ -2,6 +2,7 @@ import {
   CHANNEL_CHATS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   type ChannelCommand,
+  isReleasedRoutineSchedule,
   parseChannelCommand,
   parseChannelRead,
 } from "@openbot/contracts/ipc";
@@ -23,7 +24,7 @@ import {
 import type { TeamApiAgents } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
-import { readJson, stringField } from "./request-helpers";
+import { readJson, requireReleasedSchedule, stringField } from "./request-helpers";
 
 /**
  * The settings half of a channel is served from `AgentService`, the same object the IPC handlers
@@ -137,11 +138,27 @@ async function routeChannelSettings(
       agents.clearChannelMemories(channelId(body));
       return empty(204);
     case CHANNEL_ROUTES.routines:
-      return json(200, agents.listChannelRoutines(channelId(body)));
-    case CHANNEL_ROUTES.routineCreate:
-      return json(201, agents.createChannelRoutine(parseCreateChannelRoutine(body)));
-    case CHANNEL_ROUTES.routineUpdate:
-      return json(200, agents.updateChannelRoutine(parseUpdateChannelRoutine(body)));
+      // A `once` routine stays on this computer: the channel codec rejects its schedule.
+      return json(
+        200,
+        agents
+          .listChannelRoutines(channelId(body))
+          .filter((routine) => isReleasedRoutineSchedule(routine.trigger.schedule)),
+      );
+    case CHANNEL_ROUTES.routineCreate: {
+      const input = parseCreateChannelRoutine(body);
+      requireReleasedSchedule(input.schedule);
+      return json(201, agents.createChannelRoutine(input));
+    }
+    case CHANNEL_ROUTES.routineUpdate: {
+      const input = parseUpdateChannelRoutine(body);
+      requireReleasedSchedule(input.schedule);
+      const hidden = agents
+        .listChannelRoutines(input.channelId)
+        .some((routine) => routine.id === input.routineId && !isReleasedRoutineSchedule(routine.trigger.schedule));
+      if (hidden) throw new HttpError(404, sourceText("error.backend.routineGone"));
+      return json(200, agents.updateChannelRoutine(input));
+    }
     case CHANNEL_ROUTES.routineDelete:
       agents.deleteChannelRoutine(parseDeleteChannelRoutine(body));
       return empty(204);

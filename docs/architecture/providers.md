@@ -1,5 +1,8 @@
 # Providers
 
+To add a provider, or to see how a provider signs in on a joined server, read
+[Integrations and sign-in](integrations.md#add-a-provider).
+
 ## Built-in tool discovery
 
 `agent/tool-catalog.ts` exposes seven direct tools and three discovery tools to every adapter.
@@ -450,9 +453,8 @@ v5 peer still gets the filtered view.
 
 The v4, v5 and v6 base schemas are one codec, `provider-aware-codec.ts`. Each `v<N>-base.ts` passes
 `createProviderAwareCodec` a frozen profile: the providers, the signed-in auth kinds and the agent
-model charset. Nothing else differs between these versions. `provider-aware-codec.test.ts` holds
-what each released profile accepts. Do not edit a released profile; a new provider needs a new
-protocol version.
+model charset. Nothing else differs between these versions. Do not edit a released profile; a new
+provider needs a new protocol version.
 
 ### Custom agents
 

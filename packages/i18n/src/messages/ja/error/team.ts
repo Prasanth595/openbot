@@ -63,13 +63,20 @@ export const messages = {
   "error.team.agentUpdateUnsupported": "この接続ではエージェントを更新できません。",
   "error.team.contextResetUnsupported": "この接続では新しいチャットを始められません。",
   "error.team.workspaceDirectoryUnsupported": "この接続ではフォルダを表示できません。",
+  "error.team.conversationFileSearchUnsupported": "この接続ではファイルを検索できません。",
+  "error.team.routineFlowsUnsupported":
+    "このサーバーはルーティンフローに対応していません。サーバーを実行しているコンピュータの OpenBot を更新してください。",
+  "error.team.routineCanvasTooLarge":
+    "このルーティンキャンバスは大きすぎるため、このデバイスに送信できません。サーバーを実行しているコンピュータでルーティンの指示を短くしてください。",
   "error.team.agentImportUnsupported": "この接続ではエージェントをインポートできません。",
   "error.team.liveActivityUnsupported": "このホストはスマートフォンのライブアクティビティを更新できません。",
+  "error.team.pushNotificationsUnsupported": "このホストはスマートフォンに通知を送信できません。",
   "error.team.agentUpdateTargetRequired": "更新するエージェントを指定してください。",
   "error.team.queueEditUnsupported": "このクライアントはキューの編集に対応していません。",
   "error.team.skillsUnsupported": "この接続ではスキルを利用できません。",
   "error.team.hostIdentityUnsupported": "この接続ではサーバーの ID を変更できません。",
   "error.team.hostUpdateUnsupported": "この接続ではホストのアップデートに対応していません。",
+  "error.team.hostTimezoneUnsupported": "この接続はサーバーのタイムゾーンに対応していません。",
   "error.team.attachmentNameRequired": "安全な添付ファイル名が必要です。",
   "error.team.attachmentNotFound": "添付ファイルが見つかりません。",
   "error.team.sharedFileTooLarge": "共有ファイルが 100 MB の上限を超えています。",
@@ -99,4 +106,13 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "この接続ではエージェントの設定を利用できません。",
   "error.team.adminRequired": "管理者のアクセス権が必要です。",
   "error.team.requestTooLarge": "リクエストの本文が大きすぎます。",
+  "error.team.signInRelayUnsupported":
+    "このサーバーはサインインを中継できません。ホストの OpenBot を更新してください。",
+  "error.team.connectorsUnsupported":
+    "このサーバーの接続はここから管理できません。ホストの OpenBot を更新してください。",
+  "error.team.connectorPageRefused": "サーバーが OpenBot で開かないページを送信しました。",
+  "error.team.signInRelayUnknown": "このサインインは終了したか、存在しません。",
+  "error.team.signInRelayUsed": "このサインインはすでに送信されています。",
+  "error.team.signInRelayMismatch": "このアドレスはこのサインインのものではありません。",
+  "error.team.signInRelayLinkUnknown": "このサーバーのエージェントはこのサインインリンクを表示していません。",
 } as const satisfies PartialTranslation<typeof source>;

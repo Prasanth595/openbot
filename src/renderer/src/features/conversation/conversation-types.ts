@@ -2,9 +2,11 @@ import type {
   AccountUsage,
   AgentContextState,
   AgentEvent,
+  AgentModelChoice,
   AgentModelOption,
   AgentProviderId,
   AgentStatus,
+  AgentWait,
   AttachmentSummary,
   AvatarImageInput,
   BrowserControlState,
@@ -24,9 +26,11 @@ import type {
 } from "@openbot/contracts/ipc";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
+import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
 import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { AccountProfilePanelProps } from "@openbot/ui/features/settings/AccountProfilePanel";
 import type { JSX } from "@solidjs/web";
+import type { ConnectorRegistry } from "../connectors/connector-registry";
 import type { ConversationRuntime } from "./conversation-runtime";
 
 /**
@@ -66,6 +70,8 @@ export interface ConversationProps {
    * pressed Connect or Install on the card: the page then starts the connect step.
    */
   onOpenMarketplaceApp?: (request: { appId: string; connect: boolean }) => void;
+  /** The connectors of the server on screen, which a suggestion card for a connector reads. */
+  connectors?: ConnectorRegistry | undefined;
   platform?: import("@openbot/contracts/ipc").AppInfo["platform"];
 
   agentStatus: AgentStatus;
@@ -80,9 +86,8 @@ export interface ConversationProps {
   providerRuntimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>>;
   /**
    * The endpoints the user named, so both model pickers can tell a custom model from an OpenCode
-   * one. It travels as a prop rather than through `useCustomProviders()`, because
-   * `AgentSettingsPanel.test.tsx` mounts that component bare and a context `use()` throws without
-   * its provider - the same path `providerRuntimeStatuses` above already takes.
+   * one. It travels as a prop rather than through `useCustomProviders()`, the same
+   * path `providerRuntimeStatuses` above already takes.
    */
   customProviders?: readonly CustomProviderSummary[];
   /** The user's own ACP agents on this computer, for the model picker's Custom tab. */
@@ -90,6 +95,7 @@ export interface ConversationProps {
   onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
   onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
   onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
+  canConnectProvider?: (provider: AgentProviderId) => boolean;
   /**
    * Take the user to the provider's sign-in. Separate from `onConnectProvider`, which is the
    * managed-download path and is withheld when downloads are unavailable: a signed-out provider
@@ -137,6 +143,8 @@ export interface ConversationProps {
   profileRequest?: { agentId: string; nonce: number } | null;
   messageFocusRequest: { agentId: string; messageId: string; nonce: number } | null;
   queue: QueueSnapshot | undefined;
+  /** The agent's open waits. Absent where the host does not keep them. */
+  waits?: readonly AgentWait[];
   browserTabs: BrowserTab[];
   activeBrowserTabId: string | null;
   browserVisibilitySuspended: boolean;
@@ -163,6 +171,10 @@ export interface ConversationProps {
   remoteDesktopVisible: boolean;
   prompt: Extract<AgentEvent, { type: "prompt" }> | undefined;
   approval: Extract<AgentEvent, { type: "approval" }>["approval"] | undefined;
+  /** A usage limit holds the agent's queued message on this computer. The chat asks where to send it. */
+  usageLimitAsk?: UsageLimitAskCardProps | undefined;
+  /** Whether a usage limit holds this model and account now. Absent for a joined server. */
+  usageLimited?: (choice: AgentModelChoice) => boolean;
   browserTakeover: Extract<AgentEvent, { type: "browser-takeover-requested" }>["request"] | undefined;
   onSelectAgent: (agentId: string) => void;
   onUpdateAgent: (agentId: string, updates: Omit<UpdateAgentInput, "agentId">) => Promise<void>;
@@ -210,6 +222,7 @@ export interface ConversationProps {
   onClearAgentContext?: () => Promise<void>;
   onRespondToBrowserTakeover: (decision: "complete" | "cancel") => Promise<boolean>;
   onCancelQueuedMessage: (deliveryId: string) => void;
+  onCancelWait?: (waitId: string) => void;
   onSteerQueuedMessage: (deliveryId: string) => void;
   onUpdateQueuedMessage: (
     deliveryId: string,

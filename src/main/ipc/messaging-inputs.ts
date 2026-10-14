@@ -4,11 +4,17 @@ import type {
   AddMessagingOrchestratorInput,
   AddTelegramOrchestratorInput,
   ConnectTelegramChatInput,
+  HostAddMessagingOrchestratorInput,
+  HostMessagingConnectInput,
+  HostMessagingPlatformInput,
+  HostMessagingWorkspaceInput,
+  HostSetMessagingEnabledInput,
+  MessagingPlatform,
   MessagingWorkspaceInput,
   SetMessagingEnabledInput,
 } from "@openbot/contracts/ipc";
-import { isAgentModel, isAgentProvider, isReasoningEffort } from "@openbot/contracts/ipc";
-import { isBoolean } from "@openbot/contracts/runtime-values";
+import { isAgentModel, isAgentProvider, isReasoningEffort, MESSAGING_PLATFORMS } from "@openbot/contracts/ipc";
+import { isBoolean, isOneOf } from "@openbot/contracts/runtime-values";
 import { isObject, requireString } from "./validation";
 
 export function parseMessagingWorkspaceInput(value: unknown): MessagingWorkspaceInput {
@@ -48,4 +54,39 @@ export function parseAddTelegramOrchestratorInput(value: unknown): AddTelegramOr
     result.reasoningEffort = value.reasoningEffort;
   }
   return result;
+}
+
+function parsePlatform(value: unknown): MessagingPlatform {
+  if (!isOneOf(MESSAGING_PLATFORMS, value)) throw new Error("A messaging request is invalid.");
+  return value;
+}
+
+export function parseHostMessagingPlatformInput(value: unknown): HostMessagingPlatformInput {
+  if (!isObject(value)) throw new Error("A messaging request is invalid.");
+  return { platform: parsePlatform(value.platform) };
+}
+
+export function parseHostMessagingConnectInput(value: unknown): HostMessagingConnectInput {
+  if (!isObject(value)) throw new Error("A messaging request is invalid.");
+  if (value.place !== null && value.place !== "group" && value.place !== "direct")
+    throw new Error("A messaging request is invalid.");
+  return { platform: parsePlatform(value.platform), place: value.place };
+}
+
+export function parseHostMessagingWorkspaceInput(value: unknown): HostMessagingWorkspaceInput {
+  if (!isObject(value)) throw new Error("A messaging request is invalid.");
+  return { platform: parsePlatform(value.platform), ...parseMessagingWorkspaceInput(value) };
+}
+
+export function parseHostSetMessagingEnabledInput(value: unknown): HostSetMessagingEnabledInput {
+  if (!isObject(value)) throw new Error("A messaging request is invalid.");
+  return { platform: parsePlatform(value.platform), ...parseSetMessagingEnabledInput(value) };
+}
+
+export function parseHostAddMessagingOrchestratorInput(value: unknown): HostAddMessagingOrchestratorInput {
+  if (!isObject(value)) throw new Error("A messaging request is invalid.");
+  return {
+    platform: parsePlatform(value.platform),
+    workspaceId: value.workspaceId === null ? null : requireString(value.workspaceId, "Workspace id"),
+  };
 }

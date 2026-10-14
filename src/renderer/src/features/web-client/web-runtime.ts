@@ -30,6 +30,8 @@ import type {
   RespondToBrowserSecretInput,
   RespondToBrowserTakeoverInput,
   RespondToPromptInput,
+  Routine,
+  RoutineRun,
   SetMessageReactionInput,
   SidebarLayoutAction,
   SidebarLayoutSnapshot,
@@ -37,8 +39,10 @@ import type {
   TeamInviteSummary,
   TeamMemberSummary,
   TeamRealtimeEvent,
+  TestRoutineInput,
   UpdateAgentInput,
   UpdateQueuedMessageInput,
+  UpdateRoutineInput,
   WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import {
@@ -55,7 +59,7 @@ import {
   isSidebarLayoutSnapshot,
   isTeamPresenceSnapshot,
 } from "@openbot/contracts/ipc";
-import { guardedListDecoder, requiredString } from "@openbot/contracts/ipc-decoding";
+import { guardedListDecoder, optionalHistoryExtent, requiredString } from "@openbot/contracts/ipc-decoding";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
@@ -64,6 +68,8 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
 } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import { type TeamProtocolSupportV1, teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
@@ -88,6 +94,7 @@ import {
   type RemoteTeamConnectionUpdate,
 } from "@openbot/team-client/remote-peer";
 import { remoteWorkspaceReadTimeout } from "@openbot/team-client/remote-recovery";
+import { setAgentProviderAccount } from "@openbot/team-client/team-admin-requests";
 import {
   cancelQueuedMessage,
   deleteAgent,
@@ -99,7 +106,11 @@ import {
   steerQueuedMessage,
   type TeamApiRequest,
   type TeamChannelsApi,
+  type TeamRoutineFlowsApi,
   teamChannelsApi,
+  teamRoutineFlowsApi,
+  testAgentRoutine,
+  updateAgentRoutine,
   updateQueuedMessage,
   uploadAttachmentDraft,
 } from "@openbot/team-client/team-api-requests";
@@ -168,6 +179,8 @@ export interface WebWorkspaceRuntime {
   disconnect(): Promise<void>;
   listAgents(): Promise<AgentSummary[]>;
   conversation(agentId: string, before?: string): Promise<ConversationPage>;
+  /** The page of an agent's conversation around one message, or the newest page from an older host. */
+  conversationAround?: (agentId: string, messageId: string) => Promise<ConversationPage>;
   /** Marks this member's messages from the agent read through `throughMessageId`, or all when it is null. */
   markRead(agentId: string, throughMessageId: string | null): Promise<ConversationReadState>;
   /** This member's read state for each agent, keyed by agent id. Invalid entries are left out. */
@@ -201,6 +214,12 @@ export interface WebWorkspaceRuntime {
   workspaceFile(agentId: string, path: string): Promise<WebFile>;
   /** A folder in one agent's workspace on the host. */
   workspaceDirectory(agentId: string, path: string): Promise<WorkspaceDirectory>;
+  /** The routine canvas routes. Each call refuses while the host does not serve `routine-flows-v1`. */
+  routineFlows?: TeamRoutineFlowsApi;
+  /** Changes an agent routine, such as its instruction. */
+  updateRoutine?: (input: UpdateRoutineInput) => Promise<Routine>;
+  /** Runs an agent routine now. */
+  testRoutine?: (input: TestRoutineInput) => Promise<RoutineRun>;
   react(input: SetMessageReactionInput): Promise<void>;
   setAvatar(agentId: string, image: AvatarImageInput | null): Promise<void>;
   models(): Promise<AgentModelOption[]>;
@@ -534,6 +553,18 @@ export function createWebWorkspaceRuntime(
     },
   };
   const channels = teamChannelsApi(teamApi);
+  /** The routine flow routes, sent only to a host that negotiated them. */
+  async function routineFlowsRequest<T>(
+    method: string,
+    path: string,
+    decode: (value: unknown) => T,
+    body?: TeamProtocolV2Json,
+  ): Promise<T> {
+    if (!capabilities.includes(ROUTINE_FLOWS_CAPABILITY))
+      throw new Error(currentText().t("error.team.routineFlowsUnsupported"));
+    return teamApi(method, path, decode, body);
+  }
+  const routineFlows = teamRoutineFlowsApi(routineFlowsRequest);
   const browserView = createRemoteBrowserView(
     (data) => peer.sendHostStreamData(data),
     request,
@@ -800,6 +831,12 @@ export function createWebWorkspaceRuntime(
       const query = new URLSearchParams({ limit: "50", ...(before ? { before } : {}) });
       return decodeWebConversationPage(await request("GET", `${TEAM_API_ROUTES.agent.conversationPage(id)}?${query}`));
     },
+    async conversationAround(id, messageId) {
+      if (!capabilities.includes("conversation-pagination"))
+        return decodeWebConversationSnapshot(await request("GET", TEAM_API_ROUTES.agent.conversation(id)));
+      const query = new URLSearchParams({ limit: "50", around: messageId });
+      return decodeWebConversationPage(await request("GET", `${TEAM_API_ROUTES.agent.conversationPage(id)}?${query}`));
+    },
     async markRead(id, throughMessageId) {
       const value = await request("POST", TEAM_API_ROUTES.agent.conversationRead(id), { throughMessageId });
       if (!isConversationReadState(value)) throw new Error("The host returned an invalid read state.");
@@ -928,6 +965,11 @@ export function createWebWorkspaceRuntime(
         throw new Error(currentText().t("error.team.workspaceDirectoryUnsupported"));
       return decodeWorkspaceDirectory(await request("POST", WORKSPACE_DIRECTORY_ROUTES.list, { agentId, path }));
     },
+    routineFlows,
+    updateRoutine: (input) =>
+      runTeamEffect(updateAgentRoutine(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
+    testRoutine: (input) =>
+      runTeamEffect(testAgentRoutine(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
     async models() {
       return guardedListDecoder(isAgentModelOption, "models")(await request("GET", TEAM_API_ROUTES.agents.models));
     },
@@ -958,7 +1000,19 @@ export function createWebWorkspaceRuntime(
       return { agent: value.agent, layout: value.layout } satisfies DuplicateAgentResult;
     },
     async updateAgent(input) {
-      await request("PATCH", TEAM_API_ROUTES.agent.one(input.agentId), { ...input });
+      // The released agent route ignores the account, so it goes on `provider-accounts-v1` after the
+      // profile: a provider change there returns the agent to the new provider's own sign-in.
+      // Backup models stay on the host computer: the Team API does not carry them.
+      const { providerAccountId, backupModels: _backupModels, leaveUsageLimit: _leaveUsageLimit, ...profile } = input;
+      if (providerAccountId !== undefined && !capabilities.includes(PROVIDER_ACCOUNTS_CAPABILITY))
+        throw new Error(currentText().t("error.team.providersUnsupported"));
+      await request("PATCH", TEAM_API_ROUTES.agent.one(input.agentId), { ...profile });
+      if (providerAccountId === undefined) return;
+      await runTeamEffect(
+        setAgentProviderAccount(teamApi, { agentId: input.agentId, accountId: providerAccountId }).pipe(
+          Effect.mapError((error) => error.cause),
+        ),
+      );
     },
     async deleteAgent(agentId) {
       if (connectedHost?.role === "member") throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
@@ -1102,7 +1156,7 @@ function decodeWebConversationSnapshot(value: unknown): ConversationPage {
   return { ...value, references: {}, pageInfo: { hasOlder: false, olderCursor: null } };
 }
 
-export function decodeWebConversationPage(value: unknown): ConversationPage {
+function decodeWebConversationPage(value: unknown): ConversationPage {
   if (
     !isConversationWithReadState(value) ||
     !isDynamicRecord(value) ||
@@ -1121,6 +1175,11 @@ export function decodeWebConversationPage(value: unknown): ConversationPage {
   return {
     ...value,
     references,
-    pageInfo: { hasOlder: value.pageInfo.hasOlder, olderCursor: value.pageInfo.olderCursor },
+    pageInfo: {
+      hasOlder: value.pageInfo.hasOlder,
+      olderCursor: value.pageInfo.olderCursor,
+      // history-extent-v1: the host sends the unloaded length only when it was negotiated.
+      ...optionalHistoryExtent(value.pageInfo),
+    },
   };
 }

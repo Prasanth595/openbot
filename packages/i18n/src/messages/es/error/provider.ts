@@ -106,6 +106,8 @@ export const messages = {
   "error.provider.localOnly": "Los proveedores solo se pueden cambiar en el equipo que ejecuta los agentes.",
   "error.provider.keyRequired": "Se requiere una clave de proveedor.",
   "error.provider.keyTooLong": "La clave del proveedor es demasiado larga.",
+  "error.provider.keyInvalidCharacters":
+    "La clave del proveedor contiene un espacio o un carácter que una clave no puede contener.",
   "error.provider.noModel": "El proveedor seleccionado no tiene ningún modelo disponible.",
   "error.provider.noModelNamed": "{provider} no tiene ningún modelo disponible.",
   "error.provider.acpNoModels":
@@ -148,6 +150,10 @@ export const messages = {
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. OpenBot lo intentará de nuevo.",
   "error.provider.cliTimedOutRefresh":
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. Actualiza los proveedores para intentarlo de nuevo.",
+  "error.provider.startStopped":
+    "{provider} no se inició varias veces seguidas, así que OpenBot dejó de intentarlo. Actualiza los proveedores para intentarlo de nuevo.",
+  "error.provider.tempDiskSpace":
+    "{provider} necesita al menos 1 GB de espacio libre en disco para iniciarse. Libera espacio y luego actualiza los proveedores.",
   "error.provider.noCodeSignIn": "No se puede iniciar sesión en {provider} con un código.",
   "error.provider.codeLoginNoLink": "El proveedor no mostró un enlace de inicio de sesión. Inténtalo de nuevo.",
   "error.provider.hostSignInEnded": "No se completó el inicio de sesión en {provider}. Inténtalo de nuevo.",
@@ -164,6 +170,7 @@ export const messages = {
     "La CLI de {provider} está procesando un turno. Espera a que termine y luego actualiza.",
   "error.provider.cliSelectFailed": "OpenBot no pudo seleccionar la CLI gestionada instalada.",
   "error.provider.noAuthenticatedAccount": "{provider} no devolvió una cuenta autenticada.",
+  "error.provider.signInExpired": "Tu sesión de {provider} caducó. Vuelve a iniciar sesión para continuar.",
   "error.provider.cliActivateFailed": "OpenBot no pudo activar la CLI gestionada.",
   "error.provider.cliBusyReconnect":
     "La CLI de {provider} está procesando un turno. Espera a que termine y vuelve a conectar.",
@@ -181,6 +188,10 @@ export const messages = {
     "El proveedor del modelo tuvo un fallo interno. Tu conexión no es la causa. Inténtalo más tarde o elige otro modelo.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode no pudo conectarse al proveedor del modelo. Comprueba la conexión de red del equipo que ejecuta OpenBot e inténtalo de nuevo.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "El modelo de OpenCode terminó el turno sin respuesta. Inténtalo de nuevo o elige otro modelo.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "El modelo de OpenCode terminó el turno después de razonar, sin respuesta. Inténtalo de nuevo o elige otro modelo.",
   "error.provider.chatgptPageFailed": "OpenBot no pudo abrir la página de conexión de ChatGPT.",
   "error.provider.noneReady": "Ningún proveedor de agentes está listo.",
   "error.provider.claudeTurnActive": "Espera a que termine el turno activo de Claude antes de actualizar su contexto.",
@@ -230,6 +241,12 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini no pudo abrir la página de inicio de sesión. Instala un navegador y xdg-utils, y conéctate desde una sesión de escritorio en este host. Un servidor sin escritorio no puede completar este inicio de sesión.",
   "error.provider.acpSignInFailed": "El inicio de sesión no se completó.",
+  "error.provider.acpSignInFailedReason": "El inicio de sesión no se completó: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Este proveedor no ofrece este inicio de sesión en este ordenador. Actualiza el proveedor y vuelve a intentarlo.",
+  "error.provider.httpsSignInLinkOnly": "Solo se pueden abrir en el navegador enlaces de inicio de sesión HTTPS.",
+  "error.provider.geminiKeyRefused":
+    "Gemini rechazó la clave de API guardada. Reemplaza o elimina la clave en Ajustes y vuelve a conectar.",
   "error.provider.messageTooLarge": "OpenBot detuvo {provider} porque envió un mensaje de más de {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "Un ID de agente debe contener letras minúsculas, dígitos o `-`, y no puede ser el ID de un proveedor integrado.",
@@ -266,6 +283,18 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "No se pueden leer los ajustes guardados del proveedor. Actualiza OpenBot antes de cambiarlos.",
   "error.provider.useChangeFailed": "OpenBot no pudo cambiar el ajuste del proveedor.",
+  "error.provider.accountsUnsupported": "{provider} solo admite una cuenta.",
+  "error.provider.accountNeedsConnection": "Conecta {provider} antes de añadir otra cuenta.",
+  "error.provider.accountLimit": "{provider} admite como máximo {limit} cuentas.",
+  "error.provider.accountNotFound":
+    "Esta cuenta de {provider} no está en este ordenador. Actualiza e inténtalo de nuevo.",
+  "error.provider.accountAlreadyAdded": "Esta cuenta de {provider} ya está conectada.",
+  "error.provider.accountDefault": "No se puede eliminar la primera cuenta de {provider}.",
+  "error.provider.accountInUse":
+    "Un agente que usa esta cuenta está trabajando. Inténtalo de nuevo cuando el agente se detenga.",
+  "error.provider.accountsReadOnly":
+    "No se pueden leer las cuentas guardadas del proveedor. Actualiza OpenBot antes de cambiarlas.",
+  "error.provider.accountSignedOut": "Se cerró la sesión de esta cuenta de {provider}. Inicia sesión de nuevo.",
   "error.provider.sessionSettingUnavailable": "Este ajuste no está disponible en la sesión actual del proveedor.",
   "error.provider.sessionSettingInvalid": "Este valor no está disponible para el ajuste.",
   "error.provider.sessionSettingsBusy": "Espera a que termine el turno actual antes de cambiar un ajuste de la sesión.",

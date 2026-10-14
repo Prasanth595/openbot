@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 
 /**
- * The routines with an event trigger of one agent or channel. The query runs only when the host
+ * The routines with an event trigger of one agent. The query runs only when the host
  * lets the reader manage events, so a member who cannot does not see a load error.
  */
 export function useEventRoutines(

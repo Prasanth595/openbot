@@ -35,20 +35,26 @@ are notices only and direct the person to OpenBot. Messages and routine runs sha
 
 ## Quiet routine runs
 
-A scheduled run of an agent routine can end without a message, in two ways. The agent calls the
-`routine_no_update` tool, which the scheduled-run prompt names, or the user asks in the routine task
+A scheduled, script or webhook run of an agent routine can end without news, in two ways. No person
+waits for the answer of such a run (`quietRoutineRun`). The run history stores what started a manual
+run in `run_source` (`test`, `script` or `webhook`); a manual run from before migration 35 has none
+and is read as a Test run. The agent calls the
+`routine_no_update` tool, which the run prompt names, or the user asks in the routine task
 for an answer of only `[[no-update]]`. Models often write a short sentence instead of an exact
-token, so the tool is the main path. There is no setting or column. The tool and the marker do not
+token, so the tool is the main path. There is no setting. The tool and the marker do not
 depend on the language of the answer (`src/backend/agent/routine-quiet-runs.ts`). The tool call is
 held in memory until the turn completes; the history import finds it again by the tool name, as
-it finds the marker by its text. When a turn that ran only scheduled routine runs completes and every
+it finds the marker by its text. When a turn that ran only quiet routine runs completes and every
 answer is the marker, or the agent called the tool and the turn gave no file, image or question, the
-turn drops its answers, thinking and plan from the conversation, puts back the agent preview from
+turn drops its markers, thinking and plan from the conversation. Each other text answer stays with the
+item type `routine_quiet_answer`. A quiet answer does not count as unread, does not change the agent
+preview, and no Team API client gets it; the desktop chat shows it under its run, which starts closed.
+The turn puts back the agent preview from
 before the run (the run start shows the task there; memory only, so after a restart the task stays),
 and its `turn-completed`
 event has `quiet: true`, which stops the desktop notification and the completion sound. The run
-marker and the run history stay. A marker inside a longer answer is a report and is shown. Test runs,
-and script or webhook runs, which are also manual runs, are never quiet.
+marker and the run history stay. A marker inside a longer answer is a report and is shown. A Test run
+is never quiet.
 
 `quiet` reaches remote clients too. The released Team API event projects a fixed key list, so the
 current v6 adapter puts `quiet` beside the frozen `turn-completed` projection
@@ -86,8 +92,16 @@ iCloud, cannot read it.
 
 A routine flow hands the answer of an agent routine on to other agents. The Routines view of the
 sidebar shows one canvas for each agent: every routine whose run reaches it, the agents its links
-reach, and the last run of each routine. Only this computer's host keeps flows; the remote IPC
-branch refuses them, and no Team API protocol changes.
+reach, and the last run of each routine. The host keeps the flows. A joined desktop and the web
+client read and change them through the optional `routine-flows-v1` capability (see
+[Routine flows](servers.md#routine-flows)); a host without it shows a notice instead of the canvas.
+The agent event `routine-flows-changed` names the agent whose canvas changed, on this computer and
+on a joined host.
+
+- `src/renderer/src/features/routine-flows/RoutineFlowsCanvas.tsx` is the canvas. It reads no
+  application context: it takes a `RoutineFlowsHost` (`routine-flows-port.ts`), the open agent and
+  the agent list. `WorkspaceRoutineFlows.tsx` gives it the active server through main, and
+  `web-client/web-routine-flows.ts` gives it the connected host over the Team API.
 
 - `src/backend/routine-flows/` owns the three tables of migration 31: links, node positions and steps.
   The rows are written directly, not through `dispatch`, because a step holds the text that one agent
@@ -106,7 +120,9 @@ branch refuses them, and no Team API protocol changes.
   does not change.
 - A canvas shows routines of every trigger kind (`routine-flow-routines.ts`). A webhook routine
   carries its endpoint, event type and filters; the details panel saves them, rotates the secret and
-  runs a test through the `events` IPC group, as the routine settings do.
+  runs a test through the events API, as the routine settings do. On a joined host only an owner or
+  admin has that API (`events-v1`); a member sees no webhook config and cannot change or run a
+  webhook routine from the canvas.
 - Agents read and change flows with the `openbot` tools `list_routine_flows`, `connect_routine_agents`
   and `disconnect_routine_agents` (`routine-flow-tools.ts`). `RoutineFlows` is built after the agent
   service, so the tool router reads it through a getter. The canvas chat panel sends the user's request
@@ -321,6 +337,60 @@ the members and lead mapped to the new agent ids; a channel needs one imported m
 memory step fails is deleted. Step 1 offers two ways to add the export agent: its Grok Bot link, or the skill set up by hand.
 `agent-import:read-skill` and `agent-import:save-skill` give that skill from the app's resources
 (`extraResources` in `electron-builder.yml`); main opens the save dialog, so the renderer names no path. No schema change is needed.
+
+## Instance transfer
+
+Server settings > Transfer moves a server's agents and server settings to another OpenBot server with
+one `.zip` file. It is a separate format from the Grok Bot agent import. The first screen offers "Export
+from this server" and "Import into this server". The section shows for this computer's server, and for a
+joined server with `instance-transfer-v1` when the user is an owner or admin (see
+[Instance transfer with a joined server](servers.md#instance-transfer-with-a-joined-server)). The web
+client and mobile do not show it. App preferences, the default model and the providers that are off
+belong to the app, not to a server, so they are not in the file.
+
+The file has `openbot-transfer.json` at its root, `agents/<key>/` folders (`avatar.<ext>`,
+`skills/<slug>/` and `workspace/`), and `shared/` for `~/OpenBot/Shared`. The manifest is
+`{ format: "openbot-instance-transfer", version: 1, source, agents, settings, shared, signedIn }`.
+`src/main/instance-transfer-manifest.ts` writes and reads it with Effect `Schema`; it is a contract
+between app versions, so add only optional fields and raise `version` for a change of meaning. A file
+with a higher `version` is refused. An invalid agent is left out with a warning and the others are
+offered; invalid settings are left out the same way.
+
+Each agent carries its profile (name, title, instructions, avatar seed and image), provider, model
+and reasoning effort, notifications and busy-message mode, its routines (schedule, limit and missed
+policies; one-time routines are in the optional `oneTimeRoutines` field, so an older app skips them and
+keeps the agent), its memories (with the essential or searchable choice the user made) and the skill folders
+in `.agents/skills` and `.claude/skills` that OpenBot does not manage. Workspace files are optional
+and leave out `.openbot/`, the skill folders, links, and every path `isUnsafeArchivePath` refuses
+(`.git`, `node_modules`, `.env*`, private keys, nested archives). Server settings are optional: MCP servers,
+custom model providers, custom ACP agents (as a warning, see below), sidebar sections and routine flows
+between exported agents.
+
+No secret is in the file: MCP variable and header values are empty, custom providers have no key or
+headers, custom agents keep only the names of their variables, and `signedIn` lists provider ids,
+never tokens. Arguments and URLs can hold a token too, so the export empties the value of a flag or
+`name=value` argument whose name says it is a secret, and removes the user, password, query and
+fragment of a URL, also of a URL in an argument such as a connection string. An MCP address keeps only
+its origin, because some services keep the access key in the path; `cleared` names each item it changed, and the import asks for those values again. Chat history, messaging connections, connectors, team and account sessions, browser
+data, approval automation and the per-agent access, Computer Use and automation settings are not
+exported, so an imported agent gets the defaults of a new agent on the new computer. Shared tables
+(`Shared/Data/agent-data.db`) are left out because their owners are agent ids.
+
+`InstanceTransferService` (`src/main/instance-transfer-service.ts`) writes the archive one file at a
+time, stored and not compressed, to `<name>.zip.part`, and renames it when it is complete. Import uses
+the same checks as the agent import (`src/main/agent-archive.ts`): the file stays under a single-use
+token with its SHA-256, under 2 GB and 50,000 files. `apply` first adds the custom providers that are missing. It never saves a custom ACP agent:
+a saved custom agent starts its command to list its models, so a warning names the agent and its command,
+and the user adds it again after checking it. The models of an added provider are not listed yet: a save does not wait for
+model discovery, and the provider has no key until the user enters it. So an agent on such a model starts
+on the default model, and a warning asks the user to choose it again when the provider is ready. Then it creates each selected agent through
+`AgentService` and the local skill library. Files go to the workspace root, and a name that is already
+there is saved beside it. Like the export, the import never writes `.openbot/` or the skill folders. An agent whose step fails is deleted with the skill revisions it published,
+and the others continue. A model that this computer does not offer, or whose provider is off, leaves
+the agent on the default model with a warning. Last, it adds MCP servers whose name is new, turned off, because a file can name any command, creates
+missing sidebar sections by name and assigns the new agents, connects routine flows with the new
+routine ids, and copies Shared files that are not already there. The result lists the providers that
+were signed in on the other computer and are not signed in here, each with a sign-in button.
 
 ## Agent templates
 

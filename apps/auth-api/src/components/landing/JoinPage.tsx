@@ -12,13 +12,14 @@ export function JoinPage() {
   const [downloadUrl, setDownloadUrl] = createSignal<string>(OPENBOT_DOWNLOAD_LINKS.macos);
   const [mobile, setMobile] = createSignal(false);
   const [invalid, setInvalid] = createSignal(false);
+  const [openAttempted, setOpenAttempted] = createSignal(false);
 
   onSettled(() => {
     setMobile(
       /android|iphone|ipad|ipod/iu.test(navigator.userAgent) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
     );
-    const platform = detectDownloadPlatform(globalThis.navigator) === "windows" ? "windows" : "macos";
+    const platform = detectDownloadPlatform(globalThis.navigator) ?? "macos";
     let validInvite = true;
     try {
       const pageUrl = new URL(window.location.href);
@@ -29,7 +30,7 @@ export function JoinPage() {
       validInvite = false;
       setInvalid(true);
     }
-    if (platform === "windows") setDownloadUrl(OPENBOT_DOWNLOAD_LINKS.windows);
+    setDownloadUrl(OPENBOT_DOWNLOAD_LINKS[platform]);
     const cleanup = landingAnalytics.startJoin(document, window.location.hostname, { validInvite, platform });
     return cleanup;
   });
@@ -72,7 +73,7 @@ export function JoinPage() {
               }
             >
               {(href) => (
-                <Button href={href()} variant="primary" size="lg" icon="open">
+                <Button href={href()} variant="primary" size="lg" icon="open" onClick={() => setOpenAttempted(true)}>
                   Open OpenBot
                 </Button>
               )}
@@ -92,6 +93,15 @@ export function JoinPage() {
           </div>
         </Show>
 
+        <Show when={!mobile()}>
+          {/* The live region exists before the click, so screen readers announce the text when it appears. */}
+          <p class={openAttempted() ? "join-card-note" : "join-card-status-empty"} role="status">
+            <Show when={openAttempted()}>
+              If OpenBot did not open, install it with Download OpenBot, or start OpenBot once so that it can open
+              invitation links. You can also use Open in browser.
+            </Show>
+          </p>
+        </Show>
         <Show when={mobile()}>
           <p class="join-card-note">
             If OpenBot is installed, tap Open OpenBot. You can also paste this link into Add server in the app.

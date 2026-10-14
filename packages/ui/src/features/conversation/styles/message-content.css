@@ -1,5 +1,5 @@
 .message-entry-user .ui-bubble {
-  max-width: min(420px, calc(100% - var(--message-actions-inline-size) - 5px));
+  max-width: min(420px, 100%);
 }
 
 .message-copy {
@@ -597,8 +597,8 @@
 }
 
 .message-entry-agent .ui-bubble:has(:is(.message-data-table-scroll, .message-code-block)) {
-  width: min(720px, calc(100% - var(--message-actions-inline-size) - 5px));
-  max-width: min(720px, calc(100% - var(--message-actions-inline-size) - 5px));
+  width: min(720px, 100%);
+  max-width: min(720px, 100%);
 }
 
 .message-entry-agent .ui-bubble:has(.message-data-table-scroll) > .ui-bubble-content {
@@ -1152,18 +1152,6 @@
   outline-offset: 3px;
 }
 
-[data-slot="bubble"][data-author="user"] .message-link {
-  text-decoration-color: var(--openbot-shadow-popover-ambient);
-}
-
-[data-slot="bubble"][data-author="user"] .message-link:hover {
-  color: var(--openbot-bg-canvas);
-}
-
-[data-slot="bubble"][data-author="user"] .message-link:focus-visible {
-  outline-color: var(--openbot-bg-overlay);
-}
-
 [data-slot="bubble"][data-author="user"] .message-citation-mark {
   background: var(--openbot-surface-light);
   color: var(--openbot-text-muted-on-light);
@@ -1276,21 +1264,15 @@
 }
 
 /* Keep message references in inline flow. Flex/grid children make Chromium add line breaks to
-   copied selections, even when the child is an icon that cannot be selected. */
+   copied selections, even when the child is an icon that cannot be selected. The chip shows the
+   ellipsis itself: a percentage cap on the name resolves against the chip's shrink-to-fit width,
+   so it cut short names. */
 .reference-chip.message-reference-chip,
 .message-file-reference {
-  --message-reference-icon-size: var(--openbot-space-4);
-
   display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   user-select: text;
-}
-
-.message-file-reference:has(> [data-badge-length="3"]) {
-  --message-reference-icon-size: var(--openbot-icon-lg);
-}
-
-.message-file-reference:has(> [data-badge-length="4"]) {
-  --message-reference-icon-size: var(--openbot-space-6);
 }
 
 /* A table measures its columns before it knows their widths, so the percentage cap above does not
@@ -1426,6 +1408,7 @@
   letter-spacing: -0.4px;
 }
 
+/* The page icon is on a 20-unit grid, so its stroke is scaled to match lucide's 24, as `.ui-glyph-20` does. */
 .attachment-reference-visual > svg {
   width: 12px;
   height: 12px;
@@ -1433,7 +1416,7 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: var(--openbot-icon-stroke);
+  stroke-width: calc(var(--openbot-icon-stroke) * 20 / 24);
 }
 
 [data-slot="bubble"][data-author="user"] .message-file-reference {
@@ -1568,31 +1551,60 @@
   color: var(--openbot-text-muted);
 }
 
+/* Inline icons align to the top of the chip's line, not to `middle`, which sets them by the text's
+   x-height and puts them below the centre of the name. */
 .reference-chip.message-reference-chip .reference-chip-icon,
 .message-file-reference .attachment-reference-visual {
   display: inline-block;
   margin-right: var(--openbot-space-1);
   text-align: center;
-  vertical-align: middle;
+  vertical-align: top;
   user-select: none;
+}
+
+/* A file chip's line is 20px high and its icon 16px. */
+.message-file-reference .attachment-reference-visual {
+  margin-top: var(--openbot-space-0-5);
+  font-size: var(--openbot-glyph-sm);
+  line-height: var(--openbot-space-4);
+}
+
+.message-file-reference .attachment-reference-visual[data-badge-length="4"] {
+  font-size: var(--openbot-glyph-xs);
 }
 
 .reference-chip.message-reference-chip .agent-avatar {
   display: inline-block;
+  height: var(--openbot-space-4);
+  vertical-align: top;
 }
 
-.message-file-reference .attachment-reference-visual > svg,
+/* The page icon is 12px in the 16px badge. */
+.message-file-reference .attachment-reference-visual > svg {
+  display: inline;
+  margin-top: var(--openbot-space-0-5);
+  vertical-align: top;
+}
+
 .reference-chip.message-reference-chip .reference-chip-icon > svg,
 .reference-chip.message-reference-chip .agent-avatar > svg {
   display: inline;
-  vertical-align: middle;
+  vertical-align: top;
+}
+
+/* A line icon is 12px in the 16px box, as the page icon of a file chip is. */
+.reference-chip.message-reference-chip .reference-chip-icon > svg.lucide {
+  margin-top: var(--openbot-space-0-5);
+}
+
+/* The face is 128% of the avatar. The grid avatar centres it; inline, half the excess goes left and up. */
+.reference-chip.message-reference-chip .agent-avatar > svg {
+  margin: -14% 0 0 -14%;
 }
 
 .reference-chip.message-reference-chip .reference-chip-name,
 .message-file-reference .inline-file-reference-name {
-  display: inline-block;
-  max-width: calc(100% - var(--message-reference-icon-size) - var(--openbot-space-1));
-  vertical-align: middle;
+  display: inline;
 }
 
 .reference-chip.message-reference-chip > .sr-only {

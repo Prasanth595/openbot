@@ -1,6 +1,7 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
+import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
 import { createSettingsPanelWidth, saveSettingsPanelWidth } from "../../components/settings-panel-width";
@@ -9,8 +10,8 @@ import { createPublishAgent } from "../agent-templates/PublishAgent";
 import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
 import type { AgentFilesOptions } from "../files/AgentFilesSettings";
 import { canManageStorage, serverHasStorage } from "../files/storage-usage";
-import { serverCanAdminister, serverSupportsCapability } from "../servers/server-capabilities";
-import { htmlAttachmentPageUrl } from "./chat-visual-url";
+import { remoteRoutineRecovery, serverCanAdminister, serverSupportsCapability } from "../servers/server-capabilities";
+import { htmlAttachmentPageHtml, htmlAttachmentPageUrl } from "./chat-visual-url";
 import { useConversationController } from "./conversation-controller-context";
 import { useConversationViewScope } from "./conversation-scope";
 import { desktopEventRoutinesApi } from "./routine-webhooks-api";
@@ -79,6 +80,10 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     settingsProvider,
     settingsReasoning,
     updateRuntimeSettings,
+    messageLinkRelay,
+    openMessageLinkRelay,
+    pasteMessageLinkRelay,
+    cancelMessageLinkRelay,
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
@@ -177,6 +182,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                 onBack={sidebarFileBack() === null ? undefined : openSidebarFileBack}
                 sourceUrl={attached()?.previewUrl ?? null}
                 pageUrl={htmlAttachmentPageUrl(attached())}
+                pageHtml={props.runtime?.visualPage ? htmlAttachmentPageHtml(attached(), file().preview) : undefined}
                 onOpenExternally={openSidebarFileExternally}
                 onDownload={downloadSidebarFile}
                 /* A browser cannot show a file in the file manager. */
@@ -306,6 +312,8 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                 (serverCanAdminister(props.server, "agent-host-settings-v1") && agent().allowAutomation !== undefined)
               }
               busyMessageModeEditable={props.server?.kind === "local"}
+              backupModelsEditable={props.server?.kind === "local"}
+              usageLimited={props.usageLimited}
               defaultBusyMessageMode={props.defaultBusyMessageMode}
               memoryLimit={props.server?.kind === "local" ? props.agentMemoryLimit : undefined}
               agents={props.agents}
@@ -351,6 +359,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               onDownloadProvider={props.onDownloadProvider}
               onCancelProviderDownload={props.onCancelProviderDownload}
               onConnectProvider={props.onConnectProvider}
+              canConnectProvider={props.canConnectProvider}
               onAddCustomProvider={props.onManageProviders}
               modelOptions={props.modelOptions}
               working={agentActivity() === "Working"}
@@ -369,7 +378,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               files={agentFiles(props.server, agent().id)}
               eventRoutines={
                 !props.runtime && serverCanAdminister(props.server, "events-v1")
-                  ? desktopEventRoutinesApi(props.server.id)
+                  ? desktopEventRoutinesApi(props.server.id, remoteRoutineRecovery(props.server))
                   : undefined
               }
             />
@@ -404,6 +413,20 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
         }}
       </Show>
       {publishAgent.dialog()}
+      {/* A sign-in link of the host's agent, when this computer cannot take its callback: the user pastes
+          the address that the browser shows. */}
+      <Show when={messageLinkRelay()} keyed>
+        {(relay) => (
+          <McpSignInRelayDialog
+            name={relay.page.authorizeHost}
+            hostName={props.server?.name ?? ""}
+            page={relay.page}
+            onOpen={openMessageLinkRelay}
+            onPaste={pasteMessageLinkRelay}
+            onCancel={cancelMessageLinkRelay}
+          />
+        )}
+      </Show>
     </>
   );
 }

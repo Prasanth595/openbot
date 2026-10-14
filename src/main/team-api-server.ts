@@ -17,6 +17,7 @@ import {
   type DuplicateAgentResult,
   isAgentEvent,
   isTeamRealtimeEvent,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   type SidebarLayoutSnapshot,
   type TeamMemberSummary,
   type TeamPresenceSnapshot,
@@ -33,31 +34,42 @@ import {
   AGENT_PUBLISH_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
+  CONNECTORS_CAPABILITY,
   EVENTS_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
+  HOST_TIMEZONE_CAPABILITY,
   HOST_UPDATE_CAPABILITY,
   HOSTED_SITES_CAPABILITY,
+  INSTANCE_TRANSFER_CAPABILITY,
   isTeamCurrentCapability,
   LIVE_ACTIVITY_PUSH_CAPABILITY,
   legacyTeamCapabilities,
   MCP_SERVERS_CAPABILITY,
+  MCP_SIGN_IN_APP_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
+  ONEPASSWORD_CONNECTOR_CAPABILITY,
+  PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
   PROVIDERS_ADMIN_CAPABILITY,
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
   PROVIDERS_SIGN_IN_V3_CAPABILITY,
   PROVIDERS_V4_CAPABILITY,
   PROVIDERS_V5_CAPABILITY,
+  PUSH_NOTIFICATIONS_CAPABILITY,
   QUIET_TURN_CAPABILITY,
+  ROUTINE_FLOWS_CAPABILITY,
+  ROUTINE_RECOVERY_CAPABILITY,
   SHARED_TABLES_CAPABILITY,
+  SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
   SKILLS_EVENTS_CAPABILITY,
   STORAGE_CAPABILITY,
   supportsTeamSemanticTags,
   TEAM_AGENT_ACTIVITY_CAPABILITY,
   TEAM_CURRENT_CAPABILITIES,
+  TEAM_HISTORY_EXTENT_CAPABILITY,
   type TeamCurrentCapability,
 } from "@openbot/contracts/team-protocol/current";
 import {
@@ -132,20 +144,30 @@ import { routeAgentSessionSettings } from "./team-api/route-agent-session-settin
 import { routeAgents } from "./team-api/route-agents";
 import { routeBrowser } from "./team-api/route-browser";
 import { routeChannels } from "./team-api/route-channels";
+import { routeConnectors } from "./team-api/route-connectors";
 import { routeContextReset } from "./team-api/route-context-reset";
+import { routeConversationFiles } from "./team-api/route-conversation-files";
 import { routeDirect } from "./team-api/route-direct";
 import { routeEvents } from "./team-api/route-events";
 import { routeFiles } from "./team-api/route-files";
 import { routeHostAdmin } from "./team-api/route-host-admin";
+import { routeHostTimezone } from "./team-api/route-host-timezone";
 import { routeHostUpdate } from "./team-api/route-host-update";
 import { routeHostedSites } from "./team-api/route-hosted-sites";
+import { routeInstanceTransfer } from "./team-api/route-instance-transfer";
 import { routeLiveActivityPush } from "./team-api/route-live-activity-push";
 import { routeMcpServers } from "./team-api/route-mcp";
 import { routeMcpSignIn } from "./team-api/route-mcp-sign-in";
+import { routeMcpSignInApp } from "./team-api/route-mcp-sign-in-app";
+import { routeOnePasswordConnector } from "./team-api/route-onepassword-connector";
+import { routeProviderAccounts } from "./team-api/route-provider-accounts";
 import { routeProviderHostSignIn } from "./team-api/route-provider-host-sign-in";
 import { routeProviders } from "./team-api/route-providers";
+import { routePushNotifications } from "./team-api/route-push-notifications";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
+import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
+import { routeSignInRelay } from "./team-api/route-sign-in-relay";
 import { routeSkillsAdmin } from "./team-api/route-skills-admin";
 import { routeStorage } from "./team-api/route-storage";
 import { routeTeam } from "./team-api/route-team";
@@ -154,6 +176,9 @@ import { TeamStoreError } from "./team-store";
 
 const EVENT_PAYLOAD_LIMIT = 256 * 1_024;
 const TYPING_TIMEOUT_MS = 5_000;
+/** Past this many sessions, the user actions older than the age below are dropped. */
+const SESSION_USE_LIMIT = 200;
+const SESSION_USE_MAX_AGE_MS = 60 * 60 * 1000;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1_000;
 const RATE_LIMIT_SWEEP_MS = 60_000;
 const RATE_LIMIT_ATTEMPTS = 5;
@@ -169,6 +194,8 @@ const logger = createOpenBotLogger("team-api-server");
 interface EventClientState {
   token: string;
   memberId: string;
+  /** The session of the connection, which records its member's actions. */
+  sessionId: string | null;
   capabilities: Set<string>;
   includeConversationEvents: boolean;
   typingAgentId: string | null;
@@ -236,6 +263,8 @@ export class TeamApiServer {
   #port: number | null = null;
   #heartbeat: ReturnType<typeof setInterval> | null = null;
   #lastClientUseAt: number | null = null;
+  /** The last user action of each session, so a phone can stay quiet while its member uses another app. */
+  readonly #sessionUse = new Map<string, { memberId: string; at: number }>();
   #agentListener: ((event: AgentEvent) => void) | null = null;
   #sidebarLayoutListener: ((layout: SidebarLayoutSnapshot) => void) | null = null;
   #localTypingAgentId: string | null = null;
@@ -420,6 +449,27 @@ export class TeamApiServer {
    */
   lastClientUseAt(): number | null {
     return this.#lastClientUseAt;
+  }
+
+  /** The last user action of a member from a session other than `sessionId`, as `lastClientUseAt` counts them. */
+  lastMemberUseElsewhere(memberId: string, sessionId: string): number | null {
+    let last: number | null = null;
+    for (const [other, use] of this.#sessionUse) {
+      if (other !== sessionId && use.memberId === memberId && (last === null || use.at > last)) last = use.at;
+    }
+    return last;
+  }
+
+  #recordClientUse(sessionId: string | null, memberId: string): void {
+    const now = Date.now();
+    this.#lastClientUseAt = now;
+    if (!sessionId) return;
+    this.#sessionUse.set(sessionId, { memberId, at: now });
+    // A session that has ended stays until it is old, so the map keeps one entry for each recent session.
+    if (this.#sessionUse.size > SESSION_USE_LIMIT) {
+      for (const [other, use] of this.#sessionUse)
+        if (now - use.at > SESSION_USE_MAX_AGE_MS) this.#sessionUse.delete(other);
+    }
   }
 
   setLocalTyping(agentId: string | null, typing: boolean): void {
@@ -659,13 +709,13 @@ export class TeamApiServer {
       if (!authenticated || !token) {
         return this.#json(response, 401, { error: sourceText("error.team.authenticationRequired") });
       }
-      if (isClientUse(method, url.pathname)) this.#lastClientUseAt = Date.now();
+      if (isClientUse(method, url.pathname)) this.#recordClientUse(authenticated.sessionId, authenticated.member.id);
       const context = this.#requestContext(request, response, url, token, authenticated);
       // Before `hidden`: the response projection must see the agents that the roster sends.
       if (method === "GET" && url.pathname === TEAM_API_ROUTES.agents.all && this.#options.agentsReady) {
         await runCauseEffect(this.#options.agentsReady());
       }
-      const hidden = this.#hiddenAgentIds(context.protocol, context.capabilities);
+      const hidden = this.hiddenAgentIds(context.protocol, context.capabilities);
       // Every protocol gets the projection, also with no hidden agent: a provider status row, a
       // model or an auth state of a local-only provider can be in the response.
       const responseRoute = this.#responseRoutes.get(response);
@@ -704,7 +754,14 @@ export class TeamApiServer {
       )
         return;
       if ((await routeMcpSignIn(context, this.#options.mcpServers && this.#options.mcpSignIns)) === "handled") return;
+      if ((await routeMcpSignInApp(context, this.#options.mcpServers && this.#options.mcpSignIns)) === "handled")
+        return;
+      if ((await routeSignInRelay(context, this.#options.mcpServers && this.#options.signInRelay)) === "handled")
+        return;
+      if ((await routeConnectors(context, this.#options.connectors)) === "handled") return;
+      if ((await routeOnePasswordConnector(context, this.#options.onePasswordConnector)) === "handled") return;
       if ((await routeProviderHostSignIn(context, this.#options.providerHostSignIns)) === "handled") return;
+      if ((await routeProviderAccounts(context, this.#options.providerAccounts)) === "handled") return;
       if ((await routeStorage(context, this.#options.storage)) === "handled") return;
       if ((await routeHostedSites(context, this.#options.hostedSites)) === "handled") return;
       if ((await routeAgentAdmin(context, this.#options.admin, hidden)) === "handled") return;
@@ -718,17 +775,23 @@ export class TeamApiServer {
       if ((await routeProviders(context, this.#options.admin)) === "handled") return;
       if ((await routeHostAdmin(context, this.#options.admin)) === "handled") return;
       if ((await routeHostUpdate(context, this.#options.admin)) === "handled") return;
+      if ((await routeHostTimezone(context, this.#options.admin)) === "handled") return;
       if ((await routeContextReset(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeAgentMemoryPage(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeWorkspaceDirectory(context, this.#options.agents, hidden)) === "handled") return;
+      if ((await routeConversationFiles(context, this.#options.agents)) === "handled") return;
+      if ((await routeRoutineFlows(context, this.#options.routineFlows, this.#options.agents, hidden)) === "handled")
+        return;
       if ((await this.#routeEvents(context)) === "handled") return;
       if ((await routeAgentImport(context, this.#options.agentImport, newAgentHidden)) === "handled") return;
+      if ((await routeInstanceTransfer(context, this.#options.instanceTransfer, newAgentHidden)) === "handled") return;
       if (
         (await routeLiveActivityPush(context, this.#options.liveActivityPush, () =>
-          this.#hiddenAgentIds(context.protocol, context.capabilities),
+          this.hiddenAgentIds(context.protocol, context.capabilities),
         )) === "handled"
       )
         return;
+      if ((await routePushNotifications(context, this.#options.pushNotifications)) === "handled") return;
       if ((await this.#routeAgents(context)) === "handled") return;
 
       // The only 404 in the Team API.
@@ -1020,7 +1083,8 @@ export class TeamApiServer {
         event.type === "conversation" &&
         (!connection.capabilities.has("routine-event-markers") ||
           !connection.capabilities.has("routine-run-event-markers") ||
-          !connection.capabilities.has("hosted-site-event-markers"))
+          !connection.capabilities.has("hosted-site-event-markers") ||
+          event.snapshot.messages.some((message) => message.itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE))
       ) {
         const key = `${eventProtocol(connection.capabilities)}:${connection.capabilities.has("opencode")}:${connection.capabilities.has("routine-event-markers")}:${connection.capabilities.has("routine-run-event-markers")}:${connection.capabilities.has("hosted-site-event-markers")}:${encodingOptions.preserveSemanticTags}`;
         let filtered = filteredConversationPayloads.get(key);
@@ -1065,8 +1129,17 @@ export class TeamApiServer {
     }
   }
 
-  /** A member does not see an administrator's private MCP sign-in tab, the same as on the browser routes. */
+  /**
+   * A member does not see an administrator's private MCP sign-in tab, the same as on the browser
+   * routes. A usage reading keeps the provider's own sign-in only, as `GET /v1/agents/usage` does: a
+   * released client reads one limit per provider.
+   */
   #eventFor(connection: EventClientState, event: AgentEvent): AgentEvent {
+    if (event.type === "usage-changed" && event.usage.limits.some((limit) => limit.accountId !== undefined))
+      return {
+        ...event,
+        usage: { ...event.usage, limits: event.usage.limits.filter((limit) => limit.accountId === undefined) },
+      };
     if (event.type !== "browser-changed") return event;
     const { browser, store } = this.#options;
     if (!event.tabs.some((tab) => browser.isPrivate(tab.id))) return event;
@@ -1083,9 +1156,11 @@ export class TeamApiServer {
     supportsSnapshotTransport: boolean,
     acceptsCapabilityDeclaration: boolean,
   ): void {
+    const sessionId = this.#options.store.authenticateSession(token)?.sessionId ?? null;
     const connection: EventClientState = {
       token,
       memberId,
+      sessionId,
       capabilities: new Set(
         acceptsCapabilityDeclaration
           ? []
@@ -1172,10 +1247,12 @@ export class TeamApiServer {
         client.close(1003, "Invalid team event payload");
       }
     });
-    // iOS can suspend a phone before it says that it goes away. Its closed connection says so.
-    const sessionId = this.#options.store.authenticateSession(token)?.sessionId;
     client.once("close", () => {
-      if (sessionId) this.#options.liveActivityPush?.disconnected(sessionId);
+      // iOS can suspend a phone before it says that it goes away. Its closed connection says so.
+      if (sessionId) {
+        this.#options.liveActivityPush?.disconnected(sessionId);
+        this.#options.pushNotifications?.disconnected(sessionId);
+      }
       if (connection.typingTimer) clearTimeout(connection.typingTimer);
       if (connection.directTypingTimer) clearTimeout(connection.directTypingTimer);
       const directTypingRecipientId = connection.directTypingRecipientId;
@@ -1234,7 +1311,7 @@ export class TeamApiServer {
   }
 
   #setClientTyping(connection: EventClientState, agentId: string | null): void {
-    this.#lastClientUseAt = Date.now();
+    this.#recordClientUse(connection.sessionId, connection.memberId);
     const changed = connection.typingAgentId !== agentId;
     connection.typingAgentId = agentId;
     if (connection.typingTimer) clearTimeout(connection.typingTimer);
@@ -1251,7 +1328,7 @@ export class TeamApiServer {
   }
 
   #setClientDirectTyping(connection: EventClientState, recipientMemberId: string | null): void {
-    this.#lastClientUseAt = Date.now();
+    this.#recordClientUse(connection.sessionId, connection.memberId);
     const previousRecipientId = connection.directTypingRecipientId;
     const changed = previousRecipientId !== recipientMemberId;
     const recipientAlreadyActive = recipientMemberId
@@ -1394,7 +1471,10 @@ export class TeamApiServer {
   #json(response: ServerResponse, status: number, value: object | null): RouteOutcome {
     const route = this.#responseRoutes.get(response);
     if (!route) throw new Error("Team API response route is unavailable.");
-    const options = { preserveSemanticTags: supportsTeamSemanticTags(route.capabilities) };
+    const options = {
+      preserveSemanticTags: supportsTeamSemanticTags(route.capabilities),
+      historyExtent: route.capabilities.has(TEAM_HISTORY_EXTENT_CAPABILITY),
+    };
     // The body is encoded before the head is written. A response the negotiated protocol cannot
     // represent - a route its frozen adapter does not classify - makes the encoder throw, and with
     // the headers already sent that throw could neither answer the caller nor end the request: it
@@ -1412,7 +1492,7 @@ export class TeamApiServer {
         : value;
     const sideRoute = teamSideRouteCodec(route.path);
     const body = sideRoute
-      ? JSON.stringify(sideRoute.response(route.path, status, visibleValue))
+      ? JSON.stringify(sideRoute.response(route.path, status, visibleValue, options))
       : teamHttpCodec(route.protocol).encodeResponse(route.method, route.path, status, visibleValue, options);
     response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
     response.end(`${body}\n`);
@@ -1449,7 +1529,7 @@ export class TeamApiServer {
   }
 
   /** The agents this client cannot see: a provider its protocol does not know, or one it cannot describe. */
-  #hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>): Set<string> {
+  hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>): Set<string> {
     const agents = this.#options.agents.listAgents();
     const hidden = hiddenProviderAgentIds(agents, protocol);
     for (const id of this.#unrepresentableAgentIds(
@@ -1476,7 +1556,14 @@ export class TeamApiServer {
         if (capability === MCP_SERVERS_CAPABILITY) return this.#options.mcpServers !== undefined;
         if (capability === MCP_SIGN_IN_CAPABILITY)
           return this.#options.mcpServers !== undefined && this.#options.mcpSignIns !== undefined;
+        if (capability === MCP_SIGN_IN_APP_CAPABILITY)
+          return this.#options.mcpServers !== undefined && this.#options.mcpSignIns !== undefined;
+        if (capability === SIGN_IN_RELAY_CAPABILITY)
+          return this.#options.mcpServers !== undefined && this.#options.signInRelay !== undefined;
+        if (capability === CONNECTORS_CAPABILITY) return this.#options.connectors !== undefined;
+        if (capability === ONEPASSWORD_CONNECTOR_CAPABILITY) return this.#options.onePasswordConnector !== undefined;
         if (capability === PROVIDER_HOST_SIGN_IN_CAPABILITY) return this.#options.providerHostSignIns !== undefined;
+        if (capability === PROVIDER_ACCOUNTS_CAPABILITY) return this.#options.providerAccounts !== undefined;
         if (capability === STORAGE_CAPABILITY) return this.#options.storage !== undefined;
         if (capability === HOSTED_SITES_CAPABILITY) return this.#options.hostedSites !== undefined;
         if (capability === AGENT_ADMIN_CAPABILITY) return this.#options.admin?.agents !== undefined;
@@ -1502,11 +1589,16 @@ export class TeamApiServer {
         if (capability === PROVIDERS_SIGN_IN_V3_CAPABILITY) return this.#options.admin?.providers?.pasteSignIn === true;
         if (capability === HOST_ADMIN_CAPABILITY) return this.#options.admin?.identity !== undefined;
         if (capability === HOST_RELEASE_CAPABILITY) return this.#options.admin?.release !== undefined;
+        if (capability === HOST_TIMEZONE_CAPABILITY) return this.#options.admin?.timezone !== undefined;
         if (capability === HOST_UPDATE_CAPABILITY || capability === HOST_MEMBER_UPDATE_CAPABILITY)
           return this.#options.admin?.update !== undefined;
         if (capability === EVENTS_CAPABILITY) return this.#options.events !== undefined;
+        if (capability === ROUTINE_RECOVERY_CAPABILITY) return this.#options.events !== undefined;
         if (capability === AGENT_IMPORT_CAPABILITY) return this.#options.agentImport !== undefined;
+        if (capability === INSTANCE_TRANSFER_CAPABILITY) return this.#options.instanceTransfer !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
+        if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
+        if (capability === PUSH_NOTIFICATIONS_CAPABILITY) return this.#options.pushNotifications !== undefined;
         return true;
       }),
     };
@@ -1639,6 +1731,7 @@ function eventCapability(event: AgentEvent): TeamCurrentCapability | null {
     return "channel-chats-v1";
   if (event.type === "agent-session-settings-changed") return AGENT_SESSION_SETTINGS_CAPABILITY;
   if (event.type === "skills-changed") return SKILLS_EVENTS_CAPABILITY;
+  if (event.type === "routine-flows-changed") return ROUTINE_FLOWS_CAPABILITY;
   if (event.type === "turn-progress") return TEAM_AGENT_ACTIVITY_CAPABILITY;
   if (event.type === "runtime-snapshot") return "agent-runtime-snapshots";
   if (event.type === "sidebar-layout-changed") return "sidebar-layout";

@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelNotFound": "Nie znaleziono kanału.",
   "error.backend.channelMemberUnavailable": "Członek kanału jest niedostępny.",
   "error.backend.channelArchived": "Przywróć ten kanał, zanim wyślesz wiadomości lub zmienisz zadania.",
+  "error.backend.channelsRetired":
+    "Kanały nie są już obsługiwane. Umieść agentów w jednej sekcji paska bocznego, aby pracowali razem.",
   "error.backend.channelReferenceUnavailable": "Wskazana wiadomość kanału jest niedostępna.",
   "error.backend.channelTaskNotFound": "Nie znaleziono zadania kanału.",
   "error.backend.channelTaskComplete": "To zadanie jest już ukończone.",
@@ -78,6 +80,10 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Operacja na pamięci nie powiodła się. Spróbuj ponownie.",
   "error.backend.memoryGone": "To wspomnienie już nie istnieje.",
   "error.backend.routineGone": "Ta rutyna już nie istnieje.",
+  "error.backend.turnNotStarted": "Dostawca nie rozpoczął tej tury.",
+  "error.backend.routineResultConnectionOff":
+    "To połączenie z komunikatorem jest wyłączone lub usunięte. Wybierz inne miejsce.",
+  "error.backend.routineResultNoDelivery": "To uruchomienie nie ma odpowiedzi do ponownego wysłania.",
   "error.backend.channelMemoryLimit": "Kanał może mieć maksymalnie {limit} wspomnień.",
   "error.backend.channelRoutineLimit": "Kanał może mieć maksymalnie {limit} rutyn.",
   "error.backend.agentRoutineLimit": "Agent może mieć maksymalnie {limit} rutyn.",
@@ -131,6 +137,7 @@ export const messages = {
   "error.backend.routineCronTooOften": "Własne harmonogramy nie mogą uruchamiać się częściej niż co {minutes} min.",
   "error.backend.routineAnchorInvalid": "Punkt odniesienia odstępu rutyny jest nieprawidłowy.",
   "error.backend.routineNoOccurrence": "Harmonogram nie ma żadnego wystąpienia w ciągu najbliższych pięciu lat.",
+  "error.backend.routineOncePassed": "Czas tej jednorazowej rutyny już minął. Wybierz późniejszą datę lub godzinę.",
   "error.backend.routineTimezoneInvalid": "Strefa czasowa rutyny jest nieprawidłowa.",
   "error.backend.routineCronFields": "Własne harmonogramy muszą mieć pięć pól cron.",
   "error.backend.routineCronValueInvalid": "Wartość cron {field} jest nieprawidłowa.",
@@ -158,8 +165,18 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Ci agenci są już połączeni w tej rutynie.",
   "error.backend.routineFlowCycle": "To połączenie utworzyłoby pętlę.",
   "error.backend.routineFlowLinkLimit": "Rutyna może mieć maksymalnie {limit} połączeń.",
+  "error.backend.agentWaitLimit":
+    "Ten agent ma już maksymalną liczbę otwartych oczekiwań: {count}. Zamknij oczekiwanie za pomocą openbot.close_wait, zanim otworzysz kolejne.",
+  "error.backend.agentWaitGone": "To oczekiwanie nie jest otwarte. Agent je zamknął albo ktoś je anulował.",
+  "error.backend.agentWaitNoRequest": "Oczekiwanie potrzebuje wiadomości, aby kontynuować. Ta tura nie ma wiadomości.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Otwieraj oczekiwanie tylko we własnym czacie. Zadanie kanału lub komunikatora nie może czekać.",
+  "error.backend.agentWaitNoteRequired": "Podaj krótką notatkę, na co jest to oczekiwanie.",
+  "error.backend.agentWaitRoutineGone": "Ten agent nie ma rutyny o tym identyfikatorze.",
+  "error.backend.agentWaitNoRoutine":
+    "Oczekiwanie budzi tylko uruchomienie jednej z twoich rutyn, a nie masz żadnej rutyny. Utwórz ją za pomocą openbot.create_routine, a potem otwórz oczekiwanie.",
+  "error.backend.agentWaitRemoteUnsupported": "Otwarte oczekiwania są dostępne tylko dla agentów na tym komputerze.",
   "error.backend.routineFlowHandoffFailed": "Rutyna nie mogła przekazać pracy temu agentowi.",
-  "error.backend.routineFlowRemoteUnsupported": "Przepływy rutyn są dostępne tylko dla agentów na tym komputerze.",
   "error.backend.mcpServerLimit": "OpenBot przechowuje maksymalnie {limit} serwerów MCP.",
   "error.backend.mcpServerNameTaken": "Serwer MCP o nazwie {name} już istnieje.",
   "error.backend.mcpServerNoAnswer": "Serwer nie odpowiedział w ciągu {seconds} s.",
@@ -256,4 +273,10 @@ export const messages = {
     "Serwer odpowiedział {status}. Sprawdź klucz API lub inne dane uwierzytelniające.",
   "error.backend.mcpServerHttpUrl":
     "Serwer odpowiedział {status}. Sprawdź URL. Link może być błędny, wygasły lub usunięty.",
+  "error.backend.mcpSignInAppUrl": "Aplikacja logowania wymaga prawidłowego adresu URL serwera.",
+  "error.backend.mcpSignInAppClientId": "Wpisz identyfikator klienta aplikacji logowania.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Serwer logowania tego serwera MCP zmienił się, więc OpenBot nie wysłał mu aplikacji logowania. Jeśli ta zmiana jest poprawna, usuń aplikację logowania i dodaj ją ponownie.",
+  "error.backend.mcpSignInAppNoServer": "Zapisz ten serwer MCP jako serwer URL, zanim dodasz aplikację logowania.",
+  "error.backend.mcpSignInAppUnavailable": "Ten komputer nie może przechować aplikacji logowania.",
 } as const satisfies PartialTranslation<typeof source>;

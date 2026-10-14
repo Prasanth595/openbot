@@ -32,6 +32,7 @@ import { requestNotificationPermission, showRetainedNotification } from "./deskt
 import { guardDevelopmentOutput } from "./development-output";
 import {
   developmentUserDataName,
+  readAnalyticsCaptureUrl,
   readDevelopmentInstanceId,
   readDevelopmentProfile,
   readDevelopmentRemoteDebuggingPort,
@@ -63,6 +64,7 @@ import { githubConnectorIpcHandlers } from "./ipc/github-connector-handlers";
 import { hostAdminIpcHandlers } from "./ipc/host-admin-handlers";
 import { hostedServerIpcHandlers } from "./ipc/hosted-server-handlers";
 import { hostedSiteIpcHandlers } from "./ipc/hosted-site-handlers";
+import { instanceTransferIpcHandlers } from "./ipc/instance-transfer-handlers";
 import { marketplaceAgentIpcHandlers } from "./ipc/marketplace-agent-handlers";
 import { mcpServerIpcHandlers } from "./ipc/mcp-server-handlers";
 import { memoryIpcHandlers } from "./ipc/memory-handlers";
@@ -76,6 +78,7 @@ import { providerIpcHandlers } from "./ipc/provider-handlers";
 import { routineFeedIpcHandlers } from "./ipc/routine-feed-handlers";
 import { routineFlowIpcHandlers } from "./ipc/routine-flow-handlers";
 import { routineIpcHandlers } from "./ipc/routine-handlers";
+import { routineResultIpcHandlers } from "./ipc/routine-result-handlers";
 import { sharedTableIpcHandlers } from "./ipc/shared-table-handlers";
 import { skillIpcHandlers } from "./ipc/skill-handlers";
 import { storageIpcHandlers } from "./ipc/storage-handlers";
@@ -91,6 +94,7 @@ import {
   showMainWindow,
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
+import { MessageLinkRelay, openHttpLink } from "./message-link-relay";
 import { watchRemoteHostDirectory } from "./remote-server-host-directory";
 import { createRendererForwarders } from "./renderer-forwarders";
 import { sendToRenderer } from "./renderer-ipc";
@@ -144,6 +148,7 @@ const inviteLinkOptions = {
 const developmentRemoteDebuggingPort = !app.isPackaged
   ? readDevelopmentRemoteDebuggingPort(process.env.OPENBOT_DEV_REMOTE_DEBUGGING_PORT)
   : null;
+const analyticsCaptureUrl = !app.isPackaged ? readAnalyticsCaptureUrl(process.env.OPENBOT_ANALYTICS_CAPTURE_URL) : null;
 // Electron exposes FedCM without an account chooser, so every request fails with a NetworkError.
 // Sites such as Google Sign-In use FedCM when it exists and fall back to their popup when it does not.
 app.commandLine.appendSwitch("disable-features", "FedCm");
@@ -284,9 +289,9 @@ const {
   forwardUpdateStatus,
   forwardUpdatePreference,
   forwardVoiceModelStatus,
+  forwardVoiceStreamTranscript,
   forwardProviderRuntimeStatus,
   forwardGitHubConnectorStatus,
-  forwardRoutineFlowsChanged,
   forwardOnePasswordConnectorStatus,
   forwardBitwardenConnectorStatus,
   forwardHostStatus,
@@ -307,6 +312,7 @@ const {
   getTranslate: () => services?.language.translate ?? translateFor("en"),
   getFormat: () => createFormat(services?.language.locale ?? "en"),
   desktopNotificationsEnabled: () => services?.notificationPreference.get().desktopNotifications ?? true,
+  notificationPreviewEnabled: () => services?.notificationPreference.get().messagePreview ?? true,
 });
 
 // Resolved once, safely: every `app.setPath("userData", ...)` above has already run.
@@ -426,6 +432,8 @@ function attachWindowsSessionEndHandlers(window: BrowserWindow): void {
 
 function registerIpcHandlers({
   service,
+  signInRelayClient,
+  relayedMessagingInstalls,
   providerRuntimes,
   providerCredentials,
   messaging,
@@ -447,6 +455,7 @@ function registerIpcHandlers({
   notificationPreference,
   busyMessageMode,
   agentMemoryLimit,
+  serverTimezone,
   remoteSessionReuse,
   remoteSessionCache,
   agentInitialization,
@@ -472,6 +481,7 @@ function registerIpcHandlers({
   marketplaceAgents,
   agentTemplates,
   agentImport,
+  instanceTransfer,
   voice,
   dynamicIsland,
   cuaDriver,
@@ -481,6 +491,7 @@ function registerIpcHandlers({
   trace,
   resourceMonitor,
   routineFlows,
+  routineResults,
 }: ApplicationServices): void {
   // Every renderer-to-main endpoint is bound by one of these, one file per domain under ./ipc.
   // Nothing is bound inline here: this is the trust boundary, and a reviewer should be able to read
@@ -506,6 +517,7 @@ function registerIpcHandlers({
       logoColor,
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
       appVariant,
+      analyticsCaptureUrl,
       getMainWindow,
       setAnalyticsTrackingEnabled: (enabled) => analytics.setTrackingEnabled(enabled),
       trace,
@@ -522,8 +534,8 @@ function registerIpcHandlers({
     ...accountIpcHandlers({ centralAuth, host }),
     ...skillIpcHandlers({ skills, getMainWindow, translate: language.translate }),
     ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
-    ...githubConnectorIpcHandlers({ githubConnector }),
-    ...onePasswordConnectorIpcHandlers({ onePasswordConnector }),
+    ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
+    ...onePasswordConnectorIpcHandlers({ onePasswordConnector, remoteServers }),
     ...bitwardenConnectorIpcHandlers({ bitwardenConnector }),
     ...billingIpcHandlers({ billing }),
     ...routineFeedIpcHandlers({ routineFeed }),
@@ -547,6 +559,7 @@ function registerIpcHandlers({
         ? join(process.resourcesPath, "agent-import", "grok-bot", "SKILL.md")
         : resolve(__dirname, "../../resources/agent-import/grok-bot/SKILL.md"),
     }),
+    ...instanceTransferIpcHandlers({ instanceTransfer, remoteServers, getMainWindow, translate: language.translate }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,
@@ -566,7 +579,8 @@ function registerIpcHandlers({
     ...memoryIpcHandlers({ service, remoteServers }),
     ...sharedTableIpcHandlers({ service, remoteServers }),
     ...routineIpcHandlers({ service, remoteServers }),
-    ...routineFlowIpcHandlers({ routineFlows }),
+    ...routineFlowIpcHandlers({ routineFlows, remoteServers }),
+    ...routineResultIpcHandlers({ routineResults }),
     ...channelMemoryIpcHandlers({ service, remoteServers }),
     ...channelRoutineIpcHandlers({ service, remoteServers }),
     ...agentAdminIpcHandlers({
@@ -577,15 +591,21 @@ function registerIpcHandlers({
       agentTemplates,
       remoteServers,
     }),
-    ...hostAdminIpcHandlers({ host, remoteServers }),
+    ...hostAdminIpcHandlers({ host, remoteServers, serverTimezone }),
     ...providerAdminIpcHandlers({
       service,
       credentials: providerCredentials,
       runtimes: providerRuntimes,
       customProviders: customProviderChanges,
       remoteServers,
+      relay: signInRelayClient,
     }),
-    ...messagingIpcHandlers({ messaging }),
+    ...messagingIpcHandlers({
+      messaging,
+      remoteServers,
+      relayedInstalls: relayedMessagingInstalls,
+      openExternal: (url) => shell.openExternal(url),
+    }),
     ...mcpServerIpcHandlers({
       service,
       remoteServers,
@@ -594,6 +614,7 @@ function registerIpcHandlers({
       },
       ensureToolRuntimesReady: () => providerRuntimes.ensureToolRuntimesReady(),
       toolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
+      relay: signInRelayClient,
     }),
     ...attachmentIpcHandlers({ service, mailbox, remoteServers, getMainWindow, translate: language.translate }),
     ...storageIpcHandlers({
@@ -605,7 +626,19 @@ function registerIpcHandlers({
       agents: () => service.listAgents(),
       openPath: (path) => shell.openPath(path),
     }),
-    ...agentIpcHandlers({ service, sidebarLayout, host, remoteServers, skills }),
+    ...agentIpcHandlers({
+      service,
+      sidebarLayout,
+      host,
+      remoteServers,
+      skills,
+      messageLinks: new MessageLinkRelay({
+        remoteServers,
+        relay: signInRelayClient,
+        openUrl: (url) => openHttpLink(url, (address) => shell.openExternal(address)),
+      }),
+      openExternal: (address) => shell.openExternal(address),
+    }),
     ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView }),
   });
 }
@@ -733,12 +766,8 @@ function acceptDeepLink(link: DeepLink): void {
     receiveMcpAuthorizationCode(link.state, link.code);
     return;
   }
-  if (link.kind === "slack-workspace") {
-    receiveSlackSignIn(link);
-    return;
-  }
-  if (link.kind === "discord-guild") {
-    receiveDiscordSignIn(link);
+  if (link.kind === "slack-workspace" || link.kind === "discord-guild") {
+    receiveMessagingInstall(link);
     return;
   }
   pendingDeepLink = link;
@@ -774,48 +803,44 @@ function takeRendererDeepLink(link: DeepLink | null): RendererDeepLink | null {
 }
 
 /**
- * Hands a Slack install the sealed token it is waiting for. As with an MCP grant, a link this run did
- * not start does nothing and raises no window.
+ * Hands a Slack or Discord install the sealed grant it is waiting for. An install that this computer
+ * opened for a joined server sends the grant on to that server. As with an MCP grant, a link this run
+ * did not start does nothing and raises no window.
  */
-function receiveSlackSignIn(link: Extract<DeepLink, { kind: "slack-workspace" }>): void {
-  const messaging = services?.messaging;
-  if (!messaging) return;
-  void Effect.runPromise(messaging.completeSlackWorkspace(link.nonce, link.grant))
+function receiveMessagingInstall(link: Extract<DeepLink, { kind: "slack-workspace" | "discord-guild" }>): void {
+  const current = services;
+  if (!current) return;
+  const platform = link.kind === "slack-workspace" ? "slack" : "discord";
+  const completed =
+    platform === "slack"
+      ? current.messaging.completeSlackWorkspace(link.nonce, link.grant)
+      : current.messaging.completeDiscordGuild(link.nonce, link.grant);
+  void Effect.runPromise(completed)
+    .then((accepted) => accepted || current.relayedMessagingInstalls.forward(platform, link.nonce, link.grant))
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);
     })
     .catch(() => {
-      // The Slack settings show the connection's state. The error can quote Slack.
-    });
-}
-
-/**
- * Hands a Discord install the sealed guild link it is waiting for. As with a Slack install, a link
- * this run did not start does nothing and raises no window.
- */
-function receiveDiscordSignIn(link: Extract<DeepLink, { kind: "discord-guild" }>): void {
-  const messaging = services?.messaging;
-  if (!messaging) return;
-  void Effect.runPromise(messaging.completeDiscordGuild(link.nonce, link.grant))
-    .then((accepted) => {
-      const window = windowHolder.current;
-      if (accepted && window && !window.isDestroyed()) showMainWindow(window);
-    })
-    .catch(() => {
-      // The Discord settings show the connection's state.
+      // The connector settings show the connection's state. The error can quote Slack or Discord.
     });
 }
 
 /**
  * Hands one MCP sign-in the grant it is waiting for, and shows the window that asked for it.
  *
- * The grant travels no further. A `state` this run did not start finds no sign-in and does nothing,
- * which is what makes a forged or replayed link inert - so an unknown one raises no window either.
+ * The grant travels no further, except to the joined server whose relayed sign-in waits for that
+ * `state`. A `state` that nothing started finds no sign-in and does nothing, which is what makes a
+ * forged or replayed link inert - so an unknown one raises no window either.
  */
 function receiveMcpAuthorizationCode(state: string, code: string): void {
   const elsewhere = services?.mcpOAuth.openedElsewhere(state) ?? false;
-  if (!services?.mcpOAuth.receiveAuthorizationCode(state, code) || elsewhere) return;
+  if (!services?.mcpOAuth.receiveAuthorizationCode(state, code)) {
+    // A joined server's sign-in that waits on this computer; it ends on the host, so no window shows.
+    services?.signInRelayClient.deliver(state, new URLSearchParams({ code, state }).toString());
+    return;
+  }
+  if (elsewhere) return;
   const window = windowHolder.current;
   if (window && !window.isDestroyed()) showMainWindow(window);
 }
@@ -880,12 +905,19 @@ if (!hasSingleInstanceLock) {
         () => app.dock?.show() ?? Promise.resolve(),
       );
       // Linux registers the scheme through xdg-settings, which can only name a desktop entry that
-      // exists, so an AppImage writes its own first. Windows gets the scheme from the NSIS installer
-      // instead.
+      // exists, so an AppImage writes its own first. On Windows the NSIS installer writes the scheme
+      // (`build/installer.nsh`), and each start writes it again for installs from before that script.
+      // A Windows development build does not register: the handler would be bare `electron.exe`.
+      // A macOS development build does not register either: macOS ignores the path and arguments and
+      // names the `com.github.Electron` bundle, so the link took `openbot://` from an installed
+      // OpenBot and opened some worktree's bare Electron.app. `bun run dev:slack` has a loopback return.
       await Effect.runPromise(
         installLinuxDesktopEntry({ platform: process.platform, environment: process.env, iconPath: appIconPath }),
       );
-      if (process.platform === "darwin" || process.platform === "linux") {
+      if (
+        process.platform === "linux" ||
+        ((process.platform === "darwin" || process.platform === "win32") && app.isPackaged)
+      ) {
         if (!app.setAsDefaultProtocolClient("openbot")) {
           logger.warn("Unable to register the openbot:// scheme. Invitation links will not open OpenBot.");
         }
@@ -901,6 +933,7 @@ if (!hasSingleInstanceLock) {
         windows,
         appIconPath,
         appVariant,
+        analyticsCaptureUrl,
         developmentRemoteRole,
         developmentTestClientEnabled,
         hostedServer,
@@ -912,6 +945,7 @@ if (!hasSingleInstanceLock) {
         forwardBrowserDisplayState,
         forwardProviderRuntimeStatus,
         forwardVoiceModelStatus,
+        forwardVoiceStreamTranscript,
         prepareForUpdateInstall,
       });
       services = built;
@@ -1013,7 +1047,6 @@ if (!hasSingleInstanceLock) {
       host.on("directTyping", (event) => forwardDirectTyping("local", event));
       remoteDesktop.on("changed", forwardRemoteDesktopSessions);
       built.githubConnector.onChanged(forwardGitHubConnectorStatus);
-      built.routineFlows.onChanged(forwardRoutineFlowsChanged);
       built.onePasswordConnector.onChanged(forwardOnePasswordConnectorStatus);
       built.bitwardenConnector.onChanged(forwardBitwardenConnectorStatus);
       remoteServers.on("changed", forwardServers);

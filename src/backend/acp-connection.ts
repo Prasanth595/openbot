@@ -13,8 +13,9 @@ import {
   providerSync,
 } from "./provider-client-effects";
 import { registerProviderProcess } from "./provider-processes";
+import { type ProviderTempOptions, spawnWithProviderTemp } from "./provider-temp";
 import { createDiagnosticStream } from "./stderr-diagnostics";
-import { stopWindowsProcessTree } from "./windows-process-tree";
+import { endProcessTree } from "./windows-process-tree";
 
 const EXIT_REPORT_WAIT_MS = 2_000;
 interface ProcessEnd {
@@ -29,9 +30,13 @@ export interface AcpConnectionOptions {
   env: Record<string, string>;
   extraEnv?: (() => Record<string, string>) | undefined;
   confine?: ((target: SpawnTarget) => SpawnTarget) | undefined;
+  /** A temporary folder of its own for each process, in this root (`provider-temp.ts`). */
+  privateTemp?: Omit<ProviderTempOptions, "provider"> | undefined;
   label(): string;
   redact(text: string): string;
   diagnostic(message: string, origin: DiagnosticOrigin): void;
+  /** A stderr line that must not become the exit detail, such as a sign-in prompt with OAuth state. */
+  privateDiagnostic?: RegExp | undefined;
   exit(error: Error): void;
   client(): Client;
 }
@@ -62,12 +67,15 @@ export class AcpConnection {
     this.#stopping = false;
     const direct = cliSpawnTarget(this.options.cli.executable, this.options.argv);
     const target = this.options.confine ? this.options.confine(direct) : direct;
-    const child = spawn(target.command, target.args, {
-      stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, ...this.options.env, ...this.options.extraEnv?.() },
-      windowsVerbatimArguments: target.windowsVerbatimArguments,
-      windowsHide: true,
-    });
+    const privateTemp = this.options.privateTemp;
+    const child = spawnWithProviderTemp(privateTemp && { ...privateTemp, provider: this.options.label() }, (tempEnv) =>
+      spawn(target.command, target.args, {
+        stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env, ...this.options.env, ...this.options.extraEnv?.(), ...tempEnv },
+        windowsVerbatimArguments: target.windowsVerbatimArguments,
+        windowsHide: true,
+      }),
+    );
     this.#process = child;
     registerProviderProcess(child, this.options.provider);
     // The SDK holds a line until its newline with no limit. At the limit the connection closes with
@@ -93,7 +101,7 @@ export class AcpConnection {
     const diagnostics = createDiagnosticStream({
       redact: (text) => this.options.redact(text),
       emit: (message) => {
-        lastDiagnostic = message;
+        if (!this.options.privateDiagnostic?.test(message)) lastDiagnostic = message;
         this.options.diagnostic(message, { duringStop: this.#stoppedProcesses.has(child) });
       },
     });
@@ -172,21 +180,8 @@ export class AcpConnection {
   }
 }
 
-/** Ends the agent process with SIGTERM, and with SIGKILL when it is still running after 2 seconds. */
+/** Ends the agent process. A `.cmd` agent runs under `cmd.exe`, so Windows stops the whole tree. */
 const endProcess = Effect.fn("AcpAgentClient.endProcess")(function* (child: ChildProcessWithoutNullStreams) {
   child.stdin.end();
-  // A `.cmd` agent runs under `cmd.exe`; a kill of the wrapper alone leaves the agent running.
-  if (process.platform === "win32")
-    return yield* stopWindowsProcessTree(child).pipe(Effect.mapError((failure) => providerFailure(failure.cause)));
-  yield* Effect.callback<void>((resume) => {
-    const forceKill = setTimeout(() => {
-      if (child.exitCode === null) child.kill("SIGKILL");
-    }, 2_000);
-    child.once("exit", () => {
-      clearTimeout(forceKill);
-      resume(Effect.void);
-    });
-    child.kill("SIGTERM");
-    return Effect.sync(() => clearTimeout(forceKill));
-  });
+  yield* endProcessTree(child).pipe(Effect.mapError((failure) => providerFailure(failure.cause)));
 });

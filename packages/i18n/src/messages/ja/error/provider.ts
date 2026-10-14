@@ -104,6 +104,7 @@ export const messages = {
   "error.provider.localOnly": "プロバイダーは、エージェントを実行しているコンピューターでのみ変更できます。",
   "error.provider.keyRequired": "プロバイダーキーが必要です。",
   "error.provider.keyTooLong": "プロバイダーキーが長すぎます。",
+  "error.provider.keyInvalidCharacters": "プロバイダーキーに、キーに使えない空白または文字が含まれています。",
   "error.provider.noModel": "選択したプロバイダーに使用できるモデルがありません。",
   "error.provider.noModelNamed": "{provider} に使用できるモデルがありません。",
   "error.provider.acpNoModels": "ACP CLI が ACP モデルを通知しませんでした。OpenBot は代替モデルを推測しません。",
@@ -149,6 +150,10 @@ export const messages = {
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。OpenBot が再試行します。",
   "error.provider.cliTimedOutRefresh":
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。プロバイダーを更新して再試行してください。",
+  "error.provider.startStopped":
+    "{provider} の起動に続けて何度も失敗したため、OpenBot は再試行を停止しました。プロバイダーを更新して再試行してください。",
+  "error.provider.tempDiskSpace":
+    "{provider} の起動には 1 GB 以上の空きディスク容量が必要です。空き容量を確保してから、プロバイダーを更新してください。",
   "error.provider.noCodeSignIn": "{provider} にはコードでサインインできません。",
   "error.provider.codeLoginNoLink": "プロバイダーがサインインのリンクを表示しませんでした。もう一度お試しください。",
   "error.provider.hostSignInEnded": "{provider} のサインインが完了しませんでした。もう一度お試しください。",
@@ -163,6 +168,8 @@ export const messages = {
   "error.provider.cliBusyUpdate": "{provider} CLI はターンを処理中です。終わるまで待ってから更新してください。",
   "error.provider.cliSelectFailed": "OpenBot はインストール済みの管理対象 CLI を選択できませんでした。",
   "error.provider.noAuthenticatedAccount": "{provider} は認証済みのアカウントを返しませんでした。",
+  "error.provider.signInExpired":
+    "{provider} のサインインの有効期限が切れました。続けるには、もう一度サインインしてください。",
   "error.provider.cliActivateFailed": "OpenBot は管理対象 CLI を有効にできませんでした。",
   "error.provider.cliBusyReconnect": "{provider} CLI はターンを処理中です。終わるまで待ってから再接続してください。",
   "error.provider.opencodeCredentialsRejected":
@@ -179,6 +186,10 @@ export const messages = {
     "モデルプロバイダー側で障害が発生しました。お使いの接続は原因ではありません。後でもう一度試すか、別のモデルを選んでください。\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode がモデルプロバイダーに接続できませんでした。OpenBot を実行しているコンピューターのネットワーク接続を確認してから、もう一度お試しください。\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "OpenCode のモデルが、回答がないままターンを終了しました。もう一度お試しいただくか、別のモデルを選択してください。",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "OpenCode のモデルが、推論のあと回答がないままターンを終了しました。もう一度お試しいただくか、別のモデルを選択してください。",
   "error.provider.chatgptPageFailed": "OpenBot は ChatGPT の接続ページを開けませんでした。",
   "error.provider.noneReady": "準備ができているエージェントのプロバイダーがありません。",
   "error.provider.claudeTurnActive": "コンテキストを更新する前に、実行中の Claude のターンが終わるまでお待ちください。",
@@ -229,6 +240,12 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini はサインインページを開けませんでした。ブラウザーと xdg-utils をインストールしてから、このホストのデスクトップセッションで接続してください。デスクトップのないサーバーではこのサインインを完了できません。",
   "error.provider.acpSignInFailed": "サインインが完了しませんでした。",
+  "error.provider.acpSignInFailedReason": "サインインが完了しませんでした: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "このプロバイダはこのコンピュータでこのサインイン方法を提供していません。プロバイダを更新してから、もう一度お試しください。",
+  "error.provider.httpsSignInLinkOnly": "ブラウザで開けるのは HTTPS のサインインリンクだけです。",
+  "error.provider.geminiKeyRefused":
+    "Gemini は保存された API キーを拒否しました。設定でキーを置き換えるか削除してから、もう一度接続してください。",
   "error.provider.messageTooLarge":
     "{limit} MB を超えるメッセージを送信したため、OpenBot は {provider} を停止しました。",
   "error.provider.customAgentIdInvalid":
@@ -267,6 +284,19 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "保存されたプロバイダーの設定を読み取れません。変更する前に OpenBot を更新してください。",
   "error.provider.useChangeFailed": "OpenBot はプロバイダーの設定を変更できませんでした。",
+  "error.provider.accountsUnsupported": "{provider} で使えるアカウントは 1 つだけです。",
+  "error.provider.accountNeedsConnection": "別のアカウントを追加する前に {provider} に接続してください。",
+  "error.provider.accountLimit": "{provider} で使えるアカウントは最大 {limit} 個です。",
+  "error.provider.accountNotFound":
+    "この {provider} アカウントはこのコンピュータにありません。更新してからもう一度お試しください。",
+  "error.provider.accountAlreadyAdded": "この {provider} アカウントはすでに接続されています。",
+  "error.provider.accountDefault": "最初の {provider} アカウントは削除できません。",
+  "error.provider.accountInUse":
+    "このアカウントを使うエージェントが作業中です。エージェントが停止してからもう一度お試しください。",
+  "error.provider.accountsReadOnly":
+    "保存されたプロバイダーのアカウントを読み取れません。変更する前に OpenBot を更新してください。",
+  "error.provider.accountSignedOut":
+    "この {provider} アカウントはサインアウトしています。もう一度サインインしてください。",
   "error.provider.sessionSettingUnavailable": "この設定は現在のプロバイダーセッションでは利用できません。",
   "error.provider.sessionSettingInvalid": "この値はこの設定では利用できません。",
   "error.provider.sessionSettingsBusy": "セッションの設定を変更する前に、現在のターンが終わるまでお待ちください。",

@@ -382,7 +382,11 @@ A change to the desktop app or the web client and the iPhone app gets one file i
 into `apps/mobile/CHANGELOG.md` and set the version in `apps/mobile/app.json`,
 `apps/mobile/package.json` and the copy of it in `bun.lock`. The pre-commit hook checks the new section when a commit changes the
 `app.json` version. The new section is `## [x.y.z] - In review`, and `/changelog` does not show it
-until the store makes the build available. Then `bun run mobile:release:published` writes the date.
+until a store makes the build available. Each store reviews the build on its own. When one store has
+it, `bun run mobile:release:published ios` (or `android`) writes the date of that store, such as
+`## [x.y.z] - 2026-10-14 (Android)`. Run it again for the other store:
+`## [x.y.z] - 2026-10-14 (Android), 2026-10-16 (iOS)`. A date with no store is the date of both
+stores. `/changelog` shows each store, and a store that does not have the version as "In review".
 
 `scripts/check-release-notes.ts` stops a release when the section is missing, empty or appears two
 times, or when it has an unknown group, a group with no items, an item with no text or outside a
@@ -588,7 +592,9 @@ Before creating the first tag or any later release:
 11. confirm the canary update does not crash in `CFURLConnectionSynchronous`, preserves data, starts
     the new version, and can run three provider downloads with restricted memory;
 12. on Windows 10 and 11 x64, confirm that normal exit, restart, and sign-out do not start NSIS, while
-    `Restart and install` does start it;
+    `Restart and install` does start it. With OpenBot closed and with it open, confirm that Open
+    OpenBot on a `/join` page opens OpenBot and shows the invitation once, and that uninstall
+    removes `HKCU\Software\Classes\openbot`;
 13. on Ubuntu 24.04 x64 with the AppArmor profile from `build/linux/openbot.apparmor` installed,
     confirm the AppImage starts with the sandbox on, that `xdg-open 'openbot://join?...'` focuses the
     running application, that a provider downloads in-app, that the server rail is drawn, and that the

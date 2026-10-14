@@ -294,6 +294,19 @@ export class RemoteEventStream {
     }
   }).bind(this);
 
+  /**
+   * The user opened this host, so a reconnect that waits on its backoff runs now. The backoff keeps
+   * growing, and a suspended host stays suspended.
+   */
+  readonly retryNow = Effect.fn("RemoteEventStream.retryNow")(function* (this: RemoteEventStream, serverId: string) {
+    const reconnectTimer = this.#reconnectTimers.get(serverId);
+    if (!reconnectTimer || this.#authenticationPaused.has(serverId)) return;
+    clearTimeout(reconnectTimer);
+    this.#reconnectTimers.delete(serverId);
+    this.#offlineHosts.delete(serverId);
+    yield* this.ensure(serverId);
+  }).bind(this);
+
   /** Retries each offline host once, unless Signal reported it offline within the last minute. */
   readonly retryOfflineHosts = Effect.fn("RemoteEventStream.retryOfflineHosts")(function* (this: RemoteEventStream) {
     const now = Date.now();

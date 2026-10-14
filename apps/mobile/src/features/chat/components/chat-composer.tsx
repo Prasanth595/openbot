@@ -18,7 +18,10 @@ import Animated, {
   cubicBezier,
   Easing,
   Extrapolation,
+  FadeIn,
+  FadeOut,
   interpolate,
+  LayoutAnimationConfig,
   ReduceMotion,
   type SharedValue,
   useAnimatedStyle,
@@ -29,7 +32,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
-import type { ChatBubbleMessage } from "@/features/chat/context/message-actions-context";
+import type { ChatBubbleMessage } from "@/features/chat/model/chat-messages";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
@@ -98,6 +101,15 @@ const AnimatedGlassView = Animated.createAnimatedComponent(GlassView);
 const SHAPE_EASING = cubicBezier(0.23, 1, 0.32, 1);
 // The same curve for worklet-driven values, which take Reanimated's own Easing.
 const SHAPE_EASING_FN = Easing.bezier(0.23, 1, 0.32, 1);
+// A new placeholder, such as Describe edits while text is selected, resizes the resting bar on
+// screen, so it takes the ease-in-out curve. The old words fade out and the new ones in on the
+// same time, so a longer placeholder does not cross the edge of a bar that is still narrow.
+const PLACEHOLDER_DURATION = 200;
+const PLACEHOLDER_EASING_FN = Easing.bezier(0.77, 0, 0.175, 1);
+const PLACEHOLDER_IN = FadeIn.duration(PLACEHOLDER_DURATION).easing(SHAPE_EASING_FN).reduceMotion(ReduceMotion.System);
+const PLACEHOLDER_OUT = FadeOut.duration(PLACEHOLDER_DURATION)
+  .easing(SHAPE_EASING_FN)
+  .reduceMotion(ReduceMotion.System);
 
 interface ChatComposerProps {
   sendLabel?: string;
@@ -127,7 +139,6 @@ interface ChatComposerProps {
   menuProgress: SharedValue<number>;
   stopping?: boolean;
   attachments: ChatAttachments;
-  sending: boolean;
   sendRetryVersion: number;
   replyTarget: ChatBubbleMessage | null;
   replyFocusVersion: number;
@@ -187,7 +198,6 @@ export function ChatComposer({
   menuProgress,
   stopping = false,
   attachments,
-  sending,
   sendRetryVersion,
   replyTarget,
   replyFocusVersion,
@@ -212,12 +222,9 @@ export function ChatComposer({
         )
         .slice(0, 8)
     : [];
+  // What the bar has to stay open for. A send takes the text and the files out of
+  // the composer at once, so a draft is always a new one.
   const hasDraft = Boolean(draft.trim()) || attachments.items.length > 0;
-  // What the bar has to stay open for. Attachments drop out of it the moment a
-  // send starts: they are waiting for their upload then, and the bar already
-  // stops showing them. Text does not drop out, because a draft typed during a
-  // send is a real one waiting to be queued.
-  const composing = Boolean(draft.trim()) || (attachments.items.length > 0 && !sending);
   const inputRef = useRef<TextInput>(null);
   const isFocused = useIsFocused();
   const latestTextRef = useRef(draft);
@@ -276,7 +283,7 @@ export function ChatComposer({
     TOOLBAR_HEIGHT,
     Math.min(MAX_INPUT_LINES, wrap.lines) * lineHeight + FIELD_VERTICAL_PADDING,
   );
-  const attachmentsOpen = !sending && attachments.items.length > 0;
+  const attachmentsOpen = attachments.items.length > 0;
   const reducedMotion = useReducedMotion();
   const shapeDuration = reducedMotion ? 0 : SHAPE_DURATION;
   // Settings can keep the composer open, and reduced motion always does.
@@ -287,6 +294,7 @@ export function ChatComposer({
   // full field as the keyboard rises, so an interactive dismissal closes it
   // frame by frame instead of snapping when the keyboard finally commits.
   const [placeholderWidth, setPlaceholderWidth] = useState(0);
+  const placeholderText = placeholder ?? t("mobile.chat.composer.ask", { name: agentName });
   const cardWidth = windowWidth - BAR_INSET * 2;
   const restHeight = Math.max(TOOLBAR_HEIGHT, lineHeight + FIELD_VERTICAL_PADDING) - REST_HEIGHT_LOSS;
   // The toolbar keeps its height and the control rides down into the smaller
@@ -301,6 +309,25 @@ export function ChatComposer({
   // Sized from the placeholder, so the bar carries no empty space. Full width
   // until the measurement lands: a bar that starts narrow would jump open.
   const restWidth = placeholderWidth > 0 ? Math.min(cardWidth, placeholderWidth + restTextInset * 2) : cardWidth;
+  // The worklets read the resting width from here, so a new placeholder tweens the bar instead of
+  // snapping it. The first measurement is taken at once, as before: the bar must not shrink in
+  // from full width when the chat opens.
+  const restWidthValue = useSharedValue(restWidth);
+  const restWidthMeasured = useRef(false);
+  useLayoutEffect(() => {
+    if (!restWidthMeasured.current) {
+      restWidthValue.set(restWidth);
+      restWidthMeasured.current = placeholderWidth > 0;
+      return;
+    }
+    restWidthValue.set(
+      withTiming(restWidth, {
+        duration: reducedMotion ? 0 : PLACEHOLDER_DURATION,
+        easing: PLACEHOLDER_EASING_FN,
+        reduceMotion: ReduceMotion.System,
+      }),
+    );
+  }, [restWidth, placeholderWidth, restWidthValue, reducedMotion]);
   // Content outlives the keyboard: a draft or an attachment has to stay
   // readable after a dismissal, so it holds the composer open on its own.
   // What the composer was when the card opened. The card is anchored to that
@@ -319,7 +346,7 @@ export function ChatComposer({
     // it, which is why it is safe to run on every open.
     if (menuOpen && openedWith?.focused) inputRef.current?.focus();
   }, [menuOpen, openedWith]);
-  const anchored = composing || Boolean(openedWith?.expanded);
+  const anchored = hasDraft || Boolean(openedWith?.expanded);
   const held = useSharedValue(anchored ? 1 : 0);
   useEffect(() => {
     held.set(
@@ -337,7 +364,7 @@ export function ChatComposer({
   const expansion = useDerivedValue(() => (resizes ? Math.max(Math.min(1, keyboardProgress.get()), held.get()) : 1));
   const cardStyle = useAnimatedStyle(() => {
     const voiced = morph.get();
-    const width = interpolate(expansion.get(), [0, 1], [restWidth, cardWidth]);
+    const width = interpolate(expansion.get(), [0, 1], [restWidthValue.get(), cardWidth]);
     return {
       width: width + (VOICE_BUTTON_SIZE - width) * voiced,
       borderRadius: CARD_RADIUS + (VOICE_BUTTON_SIZE / 2 - CARD_RADIUS) * voiced,
@@ -405,7 +432,7 @@ export function ChatComposer({
   const plusStyle = useAnimatedStyle(() => {
     const progress = expansion.get();
     const voiced = morph.get();
-    const openWidth = interpolate(progress, [0, 1], [restWidth, cardWidth]);
+    const openWidth = interpolate(progress, [0, 1], [restWidthValue.get(), cardWidth]);
     const width = openWidth + (VOICE_BUTTON_SIZE - openWidth) * voiced;
     return {
       opacity: interpolate(voiced, [0, 0.3], [1, 0], Extrapolation.CLAMP),
@@ -522,11 +549,8 @@ export function ChatComposer({
     );
   }, [suggestionsVisible, suggestions.length, query?.query]);
 
-  // The draft clears the moment a send starts, so the control must not read
-  // its appearance from the draft alone: it would flip to an empty state
-  // under the user's own press.
-  const busy = sending || attachments.preparing;
-  const attachmentsBlocked = disabled || sending || attachments.preparing;
+  const busy = attachments.preparing;
+  const attachmentsBlocked = disabled || attachments.preparing;
   const leadingBlocked = attachmentsBlocked;
   // The card covers this glyph and draws the same corner, so the two trade
   // places on one progress: the glyph is gone by the time the card is drawn,
@@ -558,7 +582,7 @@ export function ChatComposer({
   });
 
   function requestSend(): void {
-    if (disabled || sending || attachments.preparing) return;
+    if (disabled || attachments.preparing) return;
     const action = sendGate.request();
     if (action === "blur") inputRef.current?.blur();
     else if (action === "send") onSend(latestTextRef.current);
@@ -681,7 +705,7 @@ export function ChatComposer({
             )
           }
         >
-          {placeholder ?? t("mobile.chat.composer.ask", { name: agentName })}
+          {placeholderText}
         </NativeText>
         {voiceOpen ? (
           // Drawn before the card, so the two buttons come out from under it.
@@ -743,11 +767,7 @@ export function ChatComposer({
                   >
                     {/* The tint lets the glass and the glow through, so the glyph
                         takes the text colour, like Cancel and Continue. */}
-                    {sending ? (
-                      <Spinner size="sm" color={String(foreground)} />
-                    ) : (
-                      <ArrowUp color={String(voice.canSend ? foreground : muted)} size={24} strokeWidth={2.2} />
-                    )}
+                    <ArrowUp color={String(voice.canSend ? foreground : muted)} size={24} strokeWidth={2.2} />
                   </Pressable>
                 </GlassView>
               ) : (
@@ -765,11 +785,7 @@ export function ChatComposer({
                   }}
                   onPress={voice.send}
                 >
-                  {sending ? (
-                    <Spinner size="sm" color={voiceAccent.glyph} />
-                  ) : (
-                    <ArrowUp color={voiceAccent.glyph} size={24} strokeWidth={2.2} />
-                  )}
+                  <ArrowUp color={voiceAccent.glyph} size={24} strokeWidth={2.2} />
                 </Pressable>
               )}
             </Animated.View>
@@ -865,7 +881,7 @@ export function ChatComposer({
                       item={item}
                       index={index}
                       count={attachments.items.length}
-                      disabled={sending || attachments.preparing}
+                      disabled={attachments.preparing}
                       foreground={foreground}
                       raised={raised}
                       onPreview={() => {
@@ -932,7 +948,7 @@ export function ChatComposer({
                     onBlur={() => setFocused(false)}
                     onChangeText={(text) => {
                       sendGate.edit();
-                      const pasted = !sending ? largePastedText(latestTextRef.current, text) : null;
+                      const pasted = largePastedText(latestTextRef.current, text);
                       if (pasted) {
                         // Keep the pasted text until its attachment is durable. A failed write must not lose it.
                         latestTextRef.current = text;
@@ -962,14 +978,14 @@ export function ChatComposer({
                       onChangeDraft(next);
                     }}
                     onSubmitEditing={({ nativeEvent }) => {
-                      if (!disabled && !sending && sendGate.submit())
+                      if (!disabled && sendGate.submit())
                         onSend(editMentionDraft(latestTextRef.current, nativeEvent.text));
                     }}
                     onEndEditing={({ nativeEvent: { text } }) => {
                       // Native editing can end before the send button's release event,
                       // while TextInput.isFocused() is still waiting for onBlur.
                       latestTextRef.current = editMentionDraft(latestTextRef.current, text);
-                      if (sendGate.commit() && !disabled && !sending) onSend(latestTextRef.current);
+                      if (sendGate.commit() && !disabled) onSend(latestTextRef.current);
                     }}
                   >
                     {/* TextInput requires native text children for editable attributed text. */}
@@ -1009,13 +1025,19 @@ export function ChatComposer({
                       placeholderStyle,
                     ]}
                   >
-                    <NativeText
-                      numberOfLines={1}
-                      className="font-sans"
-                      style={{ color: String(muted), fontSize: 16, lineHeight: 22 }}
-                    >
-                      {placeholder ?? t("mobile.chat.composer.ask", { name: agentName })}
-                    </NativeText>
+                    {/* Keyed by its words, so a new placeholder crossfades. The words that show
+                        when the draft empties or the chat opens appear at once, as before. */}
+                    <LayoutAnimationConfig skipEntering skipExiting>
+                      <Animated.View key={placeholderText} entering={PLACEHOLDER_IN} exiting={PLACEHOLDER_OUT}>
+                        <NativeText
+                          numberOfLines={1}
+                          className="font-sans"
+                          style={{ color: String(muted), fontSize: 16, lineHeight: 22 }}
+                        >
+                          {placeholderText}
+                        </NativeText>
+                      </Animated.View>
+                    </LayoutAnimationConfig>
                   </Animated.View>
                 )}
               </Animated.View>
@@ -1149,13 +1171,13 @@ export function ChatComposer({
                   : [{ label: t("common.open"), onPress: () => void shareLocalAttachment(previewItem) }]),
                 {
                   label: t("mobile.chat.attachment.replace"),
-                  disabled: sending || attachments.preparing,
+                  disabled: attachments.preparing,
                   onPress: () => void attachments.replace(previewItem.id),
                 },
                 {
                   label: t("common.remove"),
                   variant: "danger-soft" as const,
-                  disabled: sending || attachments.preparing,
+                  disabled: attachments.preparing,
                   onPress: () => attachments.remove(previewItem.id),
                 },
               ]

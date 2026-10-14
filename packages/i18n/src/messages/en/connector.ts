@@ -64,6 +64,15 @@ export const messages = defineMessages("connector", {
   "connector.github.disconnectEffectTools": "Every agent loses the GitHub tools, gh and git.",
   "connector.github.disconnectEffectRevoke": "Then GitHub opens, where you can revoke OpenBot.",
   "connector.github.disconnectEffectKept": "Chats, files and agent memory stay on this computer.",
+  // The same text for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.github.descriptionHost":
+    "Every agent on {host} can use your GitHub repositories, issues and pull requests, and gh and git.",
+  "connector.github.connectedSummaryHost": {
+    one: "{count} repository · every agent on {host}",
+    other: "{count} repositories · every agent on {host}",
+  },
+  "connector.github.disconnectConfirmDescriptionHost": "Disconnect removes the sign-in of @{login} from {host}.",
+  "connector.github.disconnectEffectKeptHost": "Chats, files and agent memory stay on {host}.",
   "connector.github.keepConnected": "Keep connected",
   "connector.github.close": "Close",
   // The last section of an integration page, with the action that removes it.
@@ -71,12 +80,13 @@ export const messages = defineMessages("connector", {
 
   // Server settings > Connectors: the list of integrations. Each row opens its page.
   "connector.hub.onThisComputer": "On this computer",
+  "connector.hub.onHost": "On {host}",
   "connector.hub.notSetUp": "Not set up",
   "connector.hub.available": "Available",
+  "connector.hub.localOnly": "Your computer only",
   // {name} is the name of an integration, such as Slack.
   "connector.hub.open": "Open {name}",
   "connector.hub.setUp": "Set up",
-  "connector.hub.back": "All connectors",
   // {names} lists the agents, such as "Chief, Research".
   "connector.hub.usedBy": "Used by {names}",
 
@@ -143,6 +153,8 @@ export const messages = defineMessages("connector", {
   "connector.slack.disconnectTitle": "Disconnect {workspace}?",
   "connector.slack.disconnectDescription":
     "OpenBot stops answering in {workspace} and removes its Slack token from this computer.",
+  "connector.slack.disconnectDescriptionHost":
+    "OpenBot stops answering in {workspace} and removes its Slack token from {host}.",
   "connector.slack.disconnectEffect": "People in {workspace} can no longer reach your agents through @OpenBot.",
   "connector.slack.removeEffectKept": "The conversations and the Slack Orchestrator stay in OpenBot.",
   "connector.slack.keep": "Keep connected",
@@ -210,6 +222,8 @@ export const messages = defineMessages("connector", {
   "connector.discord.disconnectTitle": "Disconnect {workspace}?",
   "connector.discord.disconnectDescription":
     "OpenBot stops answering in {workspace} and removes the Discord connection from this computer.",
+  "connector.discord.disconnectDescriptionHost":
+    "OpenBot stops answering in {workspace} and removes the Discord connection from {host}.",
   "connector.discord.disconnectEffect": "People in {workspace} can no longer reach your agents through @OpenBot.",
   "connector.discord.removeEffectKept": "The conversations and the Discord Orchestrator stay in OpenBot.",
   "connector.discord.keep": "Keep connected",
@@ -247,6 +261,8 @@ export const messages = defineMessages("connector", {
     "The OpenBot bot is no longer in this chat. Disconnect the chat, then add the bot again.",
   "connector.telegram.helpRelayUnavailable":
     "OpenBot cannot receive Telegram messages on this computer. Sign in, give this computer a name in Server settings, and keep OpenBot open.",
+  "connector.telegram.helpRelayUnavailableHost":
+    "OpenBot on {host} cannot receive Telegram messages. On {host}, sign in, give the server a name in Server settings, and keep OpenBot open.",
   "connector.telegram.helpError": "OpenBot cannot reach this chat. Reconnect, or disconnect the chat.",
   "connector.telegram.retryAt": "Telegram asked OpenBot to wait. It tries again at {time}.",
   "connector.telegram.pause": "Pause",
@@ -347,6 +363,13 @@ export const messages = defineMessages("connector", {
   "connector.onePassword.statusConnected": "Connected",
   "connector.onePassword.statusConnecting": "Connecting",
   "connector.onePassword.statusNotSetUp": "Not set up",
+  // The same page for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.onePassword.descriptionHost":
+    "Share a dedicated 1Password vault with OpenBot on {host} through a service account, so agents on {host} can sign in to sites in its browser.",
+  "connector.onePassword.howItWorksHost":
+    "{host} connects with a service account token. On 1Password.com, create a service account that can read only the vault you share with OpenBot, then paste its token here. {host} checks the token and keeps it; this computer does not. Agents never see a password.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} forgets the token. The vault and the service account stay in 1Password; remove them there if you no longer need them.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Fill browser logins from Bitwarden.",
   "connector.bitwarden.setup":
@@ -360,5 +383,5 @@ export const messages = defineMessages("connector", {
   "connector.bitwarden.disconnect": "Disconnect Bitwarden",
   "connector.bitwarden.connected": "Connected",
   "connector.bitwarden.disconnected": "Not connected",
-  "connector.bitwarden.failed": "Could not connect to Bitwarden.",
+  "connector.bitwarden.actionFailed": "OpenBot could not change the Bitwarden connection.",
 });

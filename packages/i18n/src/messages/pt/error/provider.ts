@@ -106,6 +106,8 @@ export const messages = {
   "error.provider.localOnly": "Os provedores só podem ser alterados no computador que executa os agentes.",
   "error.provider.keyRequired": "É necessário informar uma chave de provedor.",
   "error.provider.keyTooLong": "A chave do provedor é muito longa.",
+  "error.provider.keyInvalidCharacters":
+    "A chave do provedor contém um espaço ou um caractere que uma chave não pode conter.",
   "error.provider.noModel": "O provedor selecionado não tem nenhum modelo disponível.",
   "error.provider.noModelNamed": "{provider} não tem nenhum modelo disponível.",
   "error.provider.acpNoModels":
@@ -149,6 +151,10 @@ export const messages = {
     "{provider} não respondeu a tempo. O computador pode estar ocupado. O OpenBot tentará de novo.",
   "error.provider.cliTimedOutRefresh":
     "{provider} não respondeu a tempo. O computador pode estar ocupado. Atualize os provedores para tentar de novo.",
+  "error.provider.startStopped":
+    "{provider} não iniciou várias vezes seguidas, então o OpenBot parou de tentar. Atualize os provedores para tentar de novo.",
+  "error.provider.tempDiskSpace":
+    "{provider} precisa de pelo menos 1 GB de espaço livre em disco para iniciar. Libere espaço e depois atualize os provedores.",
   "error.provider.noCodeSignIn": "Não é possível entrar em {provider} com um código.",
   "error.provider.codeLoginNoLink": "O provedor não mostrou um link para entrar. Tente novamente.",
   "error.provider.hostSignInEnded": "A entrada em {provider} não foi concluída. Tente novamente.",
@@ -163,6 +169,7 @@ export const messages = {
   "error.provider.cliBusyUpdate": "A CLI de {provider} está executando um turno. Aguarde o término e atualize.",
   "error.provider.cliSelectFailed": "O OpenBot não conseguiu selecionar a CLI instalada e gerenciada.",
   "error.provider.noAuthenticatedAccount": "{provider} não retornou uma conta autenticada.",
+  "error.provider.signInExpired": "Seu login no {provider} expirou. Entre novamente para continuar.",
   "error.provider.cliActivateFailed": "O OpenBot não conseguiu ativar a CLI gerenciada.",
   "error.provider.cliBusyReconnect": "A CLI de {provider} está executando um turno. Aguarde o término e reconecte.",
   "error.provider.opencodeCredentialsRejected":
@@ -179,6 +186,10 @@ export const messages = {
     "Ocorreu uma falha no provedor do modelo. Sua conexão não é a causa. Tente novamente mais tarde ou escolha outro modelo.\n{detail}",
   "error.provider.opencodeNetwork":
     "O OpenCode não conseguiu se conectar ao provedor do modelo. Verifique a conexão de rede do computador que executa o OpenBot e tente novamente.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "O modelo do OpenCode encerrou o turno sem resposta. Tente novamente ou escolha outro modelo.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "O modelo do OpenCode encerrou o turno depois do raciocínio, sem resposta. Tente novamente ou escolha outro modelo.",
   "error.provider.chatgptPageFailed": "O OpenBot não conseguiu abrir a página de conexão do ChatGPT.",
   "error.provider.noneReady": "Nenhum provedor de agentes está pronto.",
   "error.provider.claudeTurnActive": "Aguarde o turno ativo do Claude terminar antes de atualizar seu contexto.",
@@ -227,6 +238,12 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "O Gemini não conseguiu abrir a página de login. Instale um navegador e o xdg-utils, depois conecte a partir de uma sessão de desktop neste host. Um servidor sem desktop não consegue concluir este login.",
   "error.provider.acpSignInFailed": "O processo de entrada não foi concluído.",
+  "error.provider.acpSignInFailedReason": "O processo de entrada não foi concluído: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Este provedor não oferece esta forma de entrada neste computador. Atualize o provedor e tente novamente.",
+  "error.provider.httpsSignInLinkOnly": "Só links de entrada HTTPS podem abrir no navegador.",
+  "error.provider.geminiKeyRefused":
+    "O Gemini recusou a chave de API salva. Substitua ou remova a chave nos Ajustes e conecte novamente.",
   "error.provider.messageTooLarge": "O OpenBot interrompeu {provider} porque enviou uma mensagem maior que {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "Um ID de agente deve conter letras minúsculas, dígitos ou `-`, e não pode ser o ID de um provedor integrado.",
@@ -262,6 +279,17 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "As configurações salvas do provedor não podem ser lidas. Atualize o OpenBot antes de alterá-las.",
   "error.provider.useChangeFailed": "O OpenBot não conseguiu mudar a configuração do provedor.",
+  "error.provider.accountsUnsupported": "{provider} aceita apenas uma conta.",
+  "error.provider.accountNeedsConnection": "Conecte {provider} antes de adicionar outra conta.",
+  "error.provider.accountLimit": "{provider} aceita no máximo {limit} contas.",
+  "error.provider.accountNotFound": "Esta conta de {provider} não está neste computador. Atualize e tente novamente.",
+  "error.provider.accountAlreadyAdded": "Esta conta de {provider} já está conectada.",
+  "error.provider.accountDefault": "A primeira conta de {provider} não pode ser removida.",
+  "error.provider.accountInUse":
+    "Um agente que usa esta conta está trabalhando. Tente novamente quando o agente parar.",
+  "error.provider.accountsReadOnly":
+    "As contas salvas do provedor não podem ser lidas. Atualize o OpenBot antes de alterá-las.",
+  "error.provider.accountSignedOut": "A sessão desta conta de {provider} foi encerrada. Entre novamente.",
   "error.provider.sessionSettingUnavailable": "Esta configuração não está disponível na sessão atual do provedor.",
   "error.provider.sessionSettingInvalid": "Este valor não está disponível para a configuração.",
   "error.provider.sessionSettingsBusy": "Aguarde o turno atual terminar antes de mudar uma configuração de sessão.",

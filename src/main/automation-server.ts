@@ -22,7 +22,7 @@ import { approvalDecision, promptAnswers } from "./team-api/request-helpers";
 const logger = createOpenBotLogger("automation");
 
 /** A script that loops can wake an agent at most this often, so it cannot spend the user's quota. */
-export const AUTOMATION_RUNS_PER_HOUR = 30;
+const AUTOMATION_RUNS_PER_HOUR = 30;
 const HOUR_MS = 60 * 60 * 1000;
 // A payload is at most 4,000 characters; four UTF-8 bytes each plus JSON escapes stay below this.
 const BODY_LIMIT_BYTES = 32 * 1024;
@@ -45,6 +45,8 @@ export interface AutomationServerOptions {
     agentId: string;
     routineId: string;
     payload: string;
+    /** The open wait the event continues. Absent: the run wakes every wait it matches. */
+    waitId?: string;
   }) => Effect.Effect<Pick<RoutineRun, "id" | "deliveryId">, AgentLifecycleFailed>;
   now?: () => number;
   sendMessage: AgentService["sendMessage"];
@@ -263,6 +265,9 @@ export class AutomationServer {
     const value = await readJson(request);
     const payload = value.payload ?? "";
     if (!isString(payload)) return send(response, 400, { error: "payload must be a string." });
+    const waitId = value.waitId;
+    if (waitId !== undefined && (!isString(waitId) || !waitId || waitId.length > INPUT_LIMITS.identifier))
+      return send(response, 400, { error: "waitId must be a wait id." });
     if (payload.length > INPUT_LIMITS.automationPayload) {
       const error = sourceText("error.agent.automationPayloadTooLong", { limit: INPUT_LIMITS.automationPayload });
       return send(response, 413, { error });
@@ -274,7 +279,9 @@ export class AutomationServer {
     const now = this.#takeSlot(agentId, true);
     let run: Pick<RoutineRun, "id" | "deliveryId">;
     try {
-      run = await runCauseEffect(this.#options.runRoutine({ agentId, routineId, payload }));
+      run = await runCauseEffect(
+        this.#options.runRoutine({ agentId, routineId, payload, ...(waitId === undefined ? {} : { waitId }) }),
+      );
     } catch (error) {
       this.#releaseSlot(agentId, now);
       // Only a known refusal goes back to the script; another error is logged and gets a 500.

@@ -26,6 +26,9 @@ export const INPUT_LIMITS = {
   // Half the default agent cap. A channel packet is rebuilt every turn and the memories block is paid in
   // full each time, against `ChannelHistory.prepare`'s hard character budget.
   channelMemories: 32,
+  // The facts of one messaging connection. Like a channel packet, every external message pays for the
+  // whole block, so the cap matches the channel one.
+  messagingMemories: 32,
   agentMemoryText: 500,
   agentRoutines: 64,
   routineName: 80,
@@ -33,6 +36,10 @@ export const INPUT_LIMITS = {
   routineRunsPage: 100,
   // Handoffs inside one routine. A flow wider than this is no longer readable on one canvas.
   routineFlowLinks: 50,
+  // Open waits of one agent. A wait is a request the agent has not finished, and more than this many
+  // at once is a loop that opens waits, not work.
+  agentWaits: 20,
+  agentWaitNote: 500,
   // The text a local script adds to a routine run through the automation server.
   automationPayload: 4_000,
   // Six weeks: the longest range the routine calendar reads, with room for a month view.
@@ -77,6 +84,13 @@ export const INPUT_LIMITS = {
   mcpUrl: 2_048,
   mcpToolCount: 10_000,
   mcpErrorText: 2_000,
+  // A sign-in app (`mcp-sign-in-app-v1`). Generous for every provider checked; the wire codec keeps
+  // its own copies of these numbers.
+  mcpClientId: 1_024,
+  mcpClientSecret: 4_096,
+  mcpScope: 2_048,
+  // A relayed sign-in (`sign-in-relay-v1`): the page address and the callback the browser came back to.
+  signInRelayAddress: 8_192,
   teamMembers: 100,
   activeInvites: 100,
   // Permanent links accept unlimited joins until revoked, so a leaked link is open

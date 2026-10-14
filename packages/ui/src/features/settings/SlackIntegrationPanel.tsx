@@ -81,6 +81,8 @@ export interface SlackIntegrationPanelProps {
   onReconnect: (workspaceId: string) => void;
   onSetEnabled: (workspaceId: string, enabled: boolean) => void;
   onAddOrchestrator: (workspaceId: string, choice: SlackOrchestratorChoice | null) => void;
+  /** The joined server's name, when the connections are that server's and not this computer's. */
+  hostName?: string | undefined;
 }
 
 /** What a workspace row can do. */
@@ -164,6 +166,7 @@ const SLACK_TEXT = {
   done: "connector.slack.done",
   disconnectTitle: "connector.slack.disconnectTitle",
   disconnectDescription: "connector.slack.disconnectDescription",
+  disconnectDescriptionHost: "connector.slack.disconnectDescriptionHost",
   disconnectEffect: "connector.slack.disconnectEffect",
   removeEffectKept: "connector.slack.removeEffectKept",
   keep: "connector.slack.keep",
@@ -217,6 +220,7 @@ const DISCORD_TEXT = {
   done: "connector.discord.done",
   disconnectTitle: "connector.discord.disconnectTitle",
   disconnectDescription: "connector.discord.disconnectDescription",
+  disconnectDescriptionHost: "connector.discord.disconnectDescriptionHost",
   disconnectEffect: "connector.discord.disconnectEffect",
   removeEffectKept: "connector.discord.removeEffectKept",
   keep: "connector.discord.keep",
@@ -391,6 +395,7 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
       />
       <DisconnectDialog
         platform={props.platform}
+        hostName={props.hostName}
         connection={disconnecting()}
         onConfirm={(workspaceId) => {
           setDisconnecting(null);
@@ -660,6 +665,7 @@ export function SlackConnectDialog(props: {
 
 function DisconnectDialog(props: {
   platform?: WorkspacePlatform | undefined;
+  hostName?: string | undefined;
   connection: MessagingConnection | null;
   onConfirm: (workspaceId: string) => void;
   onClose: () => void;
@@ -675,7 +681,11 @@ function DisconnectDialog(props: {
       logo={<MessagingMark platform={props.platform} />}
       link="broken"
       title={t(text().disconnectTitle, { workspace: workspace() })}
-      description={t(text().disconnectDescription, { workspace: workspace() })}
+      description={
+        props.hostName
+          ? t(text().disconnectDescriptionHost, { workspace: workspace(), host: props.hostName })
+          : t(text().disconnectDescription, { workspace: workspace() })
+      }
       footer={
         <>
           <Button type="button" variant="ghost" onClick={props.onClose}>

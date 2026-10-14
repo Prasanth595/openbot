@@ -31,7 +31,6 @@ import { useAgentWaitReason } from "@/features/workspace/components/use-agent-ac
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
-import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -90,27 +89,15 @@ function AgentRowTextReveal({ active, children }: PropsWithChildren<{ active: bo
 
 interface AgentListRowProps {
   agent: MobileAgent;
-  enableActions?: boolean;
-  /**
-   * Opens the chat instead of the row's own link, for a row outside the home list. Such a row
-   * has no zoom source and does not stand in for the home row's avatar.
-   */
-  onOpen?: () => void;
   leftInset?: number;
   rightInset?: number;
 }
 
-export function AgentListRow({
-  agent,
-  enableActions = true,
-  onOpen,
-  leftInset = 20,
-  rightInset = 20,
-}: AgentListRowProps) {
+export function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentListRowProps) {
   const { t } = useText();
   const [background] = useThemeColor(["background"]);
   const { width: windowWidth } = useWindowDimensions();
-  const { pinnedAgentIds, pinnedChannelIds } = useMobileWorkspace();
+  const { pinnedAgentIds } = useMobileWorkspace();
   const { toggleAgentPinAnimated, transition } = useAgentPinTransition();
   const editMenu = useRef<MenuComponentRef>(null);
   const agentContextMenu = useAgentContextMenu(agent);
@@ -130,12 +117,7 @@ export function AgentListRow({
     />
   );
   const waitBadge = waitReason ? <AgentWaitBadge reason={waitReason} /> : null;
-  const avatar = onOpen ? (
-    <View>
-      {bloub}
-      {waitBadge}
-    </View>
-  ) : (
+  const avatar = (
     <ChatZoomSource>
       <AgentPinAvatar agentId={agent.id} location="row" size={54}>
         {bloub}
@@ -149,34 +131,26 @@ export function AgentListRow({
 
   const row = (
     <ChatLinkPressable
-      chatId={onOpen ? undefined : agent.id}
+      chatId={agent.id}
       accessibilityLabel={
         waitReason
           ? t("mobile.agent.list.withState", { label: openLabel, state: t(AGENT_WAIT_STATE[waitReason]) })
           : openLabel
       }
       accessibilityRole="button"
-      accessibilityActions={
-        enableActions ? [{ name: "pin", label: t("mobile.agent.pin.pinNamed", { name: agent.name }) }] : undefined
-      }
-      onAccessibilityAction={
-        enableActions
-          ? (event) => {
-              if (event.nativeEvent.actionName === "pin") toggleAgentPinAnimated(agent.id);
-            }
-          : undefined
-      }
+      accessibilityActions={[{ name: "pin", label: t("mobile.agent.pin.pinNamed", { name: agent.name }) }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === "pin") toggleAgentPinAnimated(agent.id);
+      }}
       className="w-full"
-      onPressIn={enableActions ? agentChatPreview.onPressIn : undefined}
-      onLongPress={enableActions && Platform.OS === "android" ? () => editMenu.current?.show() : undefined}
-      onPress={onOpen}
+      onPressIn={agentChatPreview.onPressIn}
+      onLongPress={Platform.OS === "android" ? () => editMenu.current?.show() : undefined}
     >
       {({ pressed }) => (
         <View
           className="min-h-20 w-full flex-row items-center gap-3 py-1"
           style={{
-            // In the Android search sheet the row shows the sheet color, not the home list color.
-            backgroundColor: onOpen && isAndroid ? "transparent" : background,
+            backgroundColor: background,
             opacity: pressed ? 0.58 : 1,
             paddingLeft: leftInset,
             paddingRight: rightInset,
@@ -210,32 +184,24 @@ export function AgentListRow({
               </Typography.Paragraph>
             </View>
           </AgentRowTextReveal>
-          {enableActions ? agentChatPreview.measurer : null}
+          {agentChatPreview.measurer}
         </View>
       )}
     </ChatLinkPressable>
   );
-  if (onOpen) return row;
-
   const href = { pathname: "/chat/[agentId]" as const, params: { agentId: agent.id } };
-  const agentLink = enableActions ? (
+  const agentLink = (
     <Link href={href} asChild>
       <Link.Trigger>{row}</Link.Trigger>
       {agentChatPreview.preview}
       {agentContextMenu}
     </Link>
-  ) : (
-    <Link href={href} asChild>
-      <Link.Trigger>{row}</Link.Trigger>
-    </Link>
   );
-
-  if (!enableActions) return agentLink;
 
   return (
     <AgentPinSwipeRow
       agentName={agent.name}
-      pinBlocked={!canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id)}
+      pinBlocked={!canToggleAgentPin(pinnedAgentIds, agent.id)}
       onPin={(withHaptic) => toggleAgentPinAnimated(agent.id, { haptic: withHaptic })}
     >
       {Platform.OS === "android" ? (

@@ -70,6 +70,7 @@ export class AgentRoster {
           `SELECT thread_id, agent_id FROM projection_threads
            WHERE thread_id NOT IN (SELECT thread_id FROM projection_agents WHERE thread_id IS NOT NULL)
              AND thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)
+             AND thread_id NOT IN (SELECT thread_id FROM projection_messaging_threads)
            ORDER BY thread_id`,
         )
         .all(),
@@ -238,6 +239,7 @@ export class AgentRoster {
           `agent:${agentId}`,
         );
         db.prepare("DELETE FROM routine_flow_steps WHERE agent_id = ?").run(agentId);
+        db.prepare("DELETE FROM agent_waits WHERE agent_id = ?").run(agentId);
         db.prepare("DELETE FROM projection_reactions WHERE agent_id = ?").run(agentId);
         db.prepare("DELETE FROM projection_deliveries WHERE recipient_agent_id = ?").run(agentId);
         db.prepare("DELETE FROM projection_queue_state WHERE agent_id = ?").run(agentId);

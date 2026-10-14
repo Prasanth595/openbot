@@ -5,6 +5,9 @@ import type {
   RoutineFields,
   RoutineLimitPolicy,
   RoutineMissedPolicy,
+  RoutineResultConnectionOption,
+  RoutineResultDelivery,
+  RoutineResultDestination,
   RoutineRunFields,
   RoutineSchedule,
 } from "@openbot/contracts/ipc";
@@ -34,20 +37,37 @@ interface RoutineSaveResult {
   secret: string | null;
 }
 
+/** The place an agent routine sends its answers to, and what became of each one. */
+interface RoutineResultsPort {
+  options: () => Promise<RoutineResultConnectionOption[]>;
+  destination: (routineId: string) => Promise<RoutineResultDestination | null>;
+  setDestination: (
+    routineId: string,
+    destination: { connectionId: string; placeId: string; placeName: string } | null,
+  ) => Promise<RoutineResultDestination | null>;
+  deliveries: (routineId: string) => Promise<RoutineResultDelivery[]>;
+  resend: (runId: string) => Promise<void>;
+}
+
 export interface RoutinesPort {
   ownerId: string;
   /** The word the editor reads in its placeholder: "Describe what this agent should do." */
   ownerNoun: "agent" | "channel";
   /**
-   * Whether the host keeps what a routine does at a spent plan. Only this computer's host does: the
-   * released Team API drops the field, so a remote host would ignore the choice.
+   * Whether the host keeps what a routine does at a spent plan: this computer's host, and a remote
+   * host through `events-v1`. The released schedule routes drop the field.
    */
   limitPolicy: boolean;
   /**
-   * Whether the host keeps what a routine does with a run that came due while OpenBot was closed.
-   * Only this computer's host does, for the same reason as `limitPolicy`.
+   * Whether the host keeps what a routine does with a run that came due while OpenBot was closed:
+   * this computer's host, and a remote host with `routine-recovery-v1`. `events-v1` drops the field.
    */
   missedPolicy: boolean;
+  /**
+   * Whether the host saves a one-time schedule. Only this computer's host does: the released Team
+   * API cannot carry the `once` kind, so a remote host hides such routines.
+   */
+  onceSchedule: boolean;
   list: () => Promise<RoutineEditorRecord[]>;
   listRuns: (routineId: string, limit: number) => Promise<RoutineRunFields[]>;
   save: (input: RoutineSaveInput) => Promise<RoutineSaveResult>;
@@ -58,6 +78,19 @@ export interface RoutinesPort {
   subscribe: (reload: () => void) => () => void;
   /** Webhook triggers and activity, for a host with event support. */
   events?: { owner: EventRoutineOwner; api: RoutineWebhooksApi };
+  /** Only for an agent on this computer: the released Team API has no routine destinations. */
+  results?: RoutineResultsPort;
+}
+
+function agentRoutineResults(agentId: string): RoutineResultsPort {
+  const api = window.openbot.routineResults;
+  return {
+    options: () => api.options(),
+    destination: (routineId) => api.destination({ agentId, routineId }),
+    setDestination: (routineId, destination) => api.setDestination({ agentId, routineId, destination }),
+    deliveries: (routineId) => api.deliveries({ agentId, routineId }),
+    resend: (runId) => api.resend({ agentId, runId }),
+  };
 }
 
 export function agentRoutinesPort(agentId: string, automation = false, localHost = false): RoutinesPort {
@@ -66,6 +99,7 @@ export function agentRoutinesPort(agentId: string, automation = false, localHost
     ownerNoun: "agent",
     limitPolicy: localHost,
     missedPolicy: localHost,
+    onceSchedule: localHost,
     list: () => window.openbot.agent.listRoutines(agentId),
     listRuns: (routineId, limit) => window.openbot.agent.listRoutineRuns({ agentId, routineId, limit }),
     save: ({ routineId, name, instruction, active, timezone, schedule, limitPolicy, missedPolicy }) => {
@@ -85,6 +119,7 @@ export function agentRoutinesPort(agentId: string, automation = false, localHost
     ...(automation
       ? { runCommand: (routineId: string) => window.openbot.agent.automationRunCommand({ agentId, routineId }) }
       : {}),
+    ...(localHost ? { results: agentRoutineResults(agentId) } : {}),
     subscribe: (reload) =>
       window.openbot.agent.onEvent((event) => {
         if (event.type === "routines-changed" && event.agentId === agentId) reload();
@@ -114,6 +149,7 @@ export function channelRoutinesPort(
     ownerNoun: "channel",
     limitPolicy: localHost,
     missedPolicy: localHost,
+    onceSchedule: localHost,
     list: () => api.listChannelRoutines(channelId),
     listRuns: (routineId, limit) => api.listChannelRoutineRuns({ channelId, routineId, limit }),
     save: ({ routineId, name, instruction, active, timezone, schedule, limitPolicy, missedPolicy }) => {
@@ -140,23 +176,35 @@ export function channelRoutinesPort(
 /**
  * Creates a routine port backed by the event API.
  *
- * The event API carries routine records, while the released schedule APIs still own run history,
- * change notifications and the local run command. Callers pass the legacy port so that switching to
- * this adapter keeps those views.
+ * The event API carries routine records, while the released schedule APIs still own change
+ * notifications, the local run command, and the run history of a host without `routine-recovery-v1`.
+ * Callers pass the legacy port so that switching to this adapter keeps those views.
  */
 export function eventRoutinesPort(
   owner: EventRoutineOwner,
   api: EventRoutinesApi,
-  legacy: Pick<RoutinesPort, "listRuns" | "subscribe" | "runCommand" | "missedPolicy">,
+  legacy: Pick<RoutinesPort, "listRuns" | "subscribe" | "runCommand" | "missedPolicy" | "onceSchedule" | "results">,
 ): RoutinesPort {
-  const runCommand = legacy.runCommand;
+  const { runCommand, results } = legacy;
+  const recoveryRuns = api.listRuns;
+  const missedPolicyKept = legacy.missedPolicy || recoveryRuns !== undefined;
   return {
     ownerId: owner.id,
     ownerNoun: owner.kind,
     limitPolicy: true,
-    missedPolicy: legacy.missedPolicy,
+    missedPolicy: missedPolicyKept,
+    onceSchedule: legacy.onceSchedule,
     list: () => api.listRoutines({ owner }),
-    listRuns: legacy.listRuns,
+    // The released run routes leave out the records of missed occurrences.
+    // An agent run names its agent so that the history opens the message the run posted.
+    listRuns: recoveryRuns
+      ? async (routineId, limit) => {
+          const runs = await recoveryRuns({ owner, routineId, limit });
+          return owner.kind === "agent"
+            ? runs.map(({ deliveryId, ...run }) => ({ ...run, agentId: owner.id, deliveryId: deliveryId ?? null }))
+            : runs;
+        }
+      : legacy.listRuns,
     events: { owner, api },
     save: ({ routineId, name, instruction, active, timezone, schedule, trigger, limitPolicy, missedPolicy }) =>
       api.saveRoutine({
@@ -168,11 +216,12 @@ export function eventRoutinesPort(
         timezone,
         trigger: trigger ?? { kind: "schedule", schedule },
         ...(limitPolicy ? { limitPolicy } : {}),
-        ...(legacy.missedPolicy && missedPolicy ? { missedPolicy } : {}),
+        ...(missedPolicyKept && missedPolicy ? { missedPolicy } : {}),
       }),
     remove: (routineId) => api.deleteRoutine({ id: routineId, owner }),
     test: (routineId) => api.testRoutine({ id: routineId, owner }),
     ...(runCommand ? { runCommand } : {}),
+    ...(results ? { results } : {}),
     subscribe: legacy.subscribe,
   };
 }

@@ -1,13 +1,11 @@
 import type { AddedAgent, McpServerConfig, ServerSummary } from "@openbot/contracts/ipc";
 import { MCP_SERVERS_CAPABILITY } from "@openbot/contracts/ipc";
-import type { BitwardenConnectorPanelProps } from "@openbot/ui/features/settings/BitwardenConnectorPanel";
 import type { ComponentProps } from "@solidjs/web";
 import { createMemo, Loading, omit, Show } from "solid-js";
 import type { AgentTemplateInstallCalls } from "./features/agent-templates/agent-templates-port";
 import { ChannelCreateDialog } from "./features/channels/ChannelCreateDialog";
 import { useChannels } from "./features/channels/channels-context";
-import type { GitHubConnectorController } from "./features/connectors/github-connector";
-import type { OnePasswordConnectorController } from "./features/connectors/onepassword-connector";
+import type { ConnectorRegistry } from "./features/connectors/connector-registry";
 import { useConversationController } from "./features/conversation/conversation-controller-context";
 import type { ServerStorageOptions } from "./features/files/ServerStoragePanel";
 import { canManageStorage, serverHasStorage } from "./features/files/storage-usage";
@@ -18,6 +16,7 @@ import {
   remoteUpdateServer,
   serverCanAdminister,
   serverRoleCanAdminister,
+  serverSupportsCapability,
 } from "./features/servers/server-capabilities";
 import type { MarketplaceCalls } from "./features/settings/marketplace-calls";
 import type { MarketplaceAgentRow } from "./features/settings/marketplace-controller";
@@ -74,11 +73,8 @@ export function MarketplaceOverlay(props: {
   /** The person pressed Connect for `pluginSlug` on a chat card. */
   pluginConnect?: boolean | undefined;
   onPluginSlugConsumed: () => void;
-  /** This computer's GitHub connection. Absent in the web client and on a joined server. */
-  githubConnector?: GitHubConnectorController | undefined;
-  /** This computer's 1Password connection. Absent in the web client and on a joined server. */
-  onePasswordConnector?: OnePasswordConnectorController | undefined;
-  bitwardenConnector?: BitwardenConnectorPanelProps | undefined;
+  /** The connectors of `server`. Each one that this account can connect is an app. */
+  connectors?: ConnectorRegistry | undefined;
   /** What the dialog calls. Absent: this computer's bridge. */
   calls?: MarketplaceCalls | undefined;
 }) {
@@ -108,9 +104,7 @@ export function MarketplaceOverlay(props: {
         <MarketplaceModal
           open={true}
           calls={props.calls}
-          githubConnector={props.githubConnector}
-          onePasswordConnector={props.onePasswordConnector}
-          bitwardenConnector={props.bitwardenConnector}
+          connectors={props.connectors}
           agents={manage() ? props.agents : []}
           activeAgentId={manage() ? props.activeAgentId : ""}
           hostServerId={remoteAdminServer(props.server, "skills-admin-v1")?.id}
@@ -139,6 +133,9 @@ export function MarketplaceOverlay(props: {
             manage() && serverCanAdminister(props.server, MCP_SERVERS_CAPABILITY) ? props.server?.id : undefined
           }
           pluginHostName={manage() ? remoteAdminServer(props.server, MCP_SERVERS_CAPABILITY)?.name : undefined}
+          pluginSignInRelay={
+            props.server?.kind === "remote" && serverSupportsCapability(props.server, "sign-in-relay-v1")
+          }
           onRunPluginPrompt={
             composerFree()
               ? (agentId, prompt) =>

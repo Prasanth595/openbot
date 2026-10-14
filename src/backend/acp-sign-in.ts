@@ -2,16 +2,32 @@ import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { type DynamicRecord, isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
-import { registerSecretValue } from "@openbot/logging";
+import { redactText, registerSecretValue } from "@openbot/logging";
 import { Effect, Fiber } from "effect";
 import { cliSpawnTarget } from "./cli";
-import { type ProviderClientOperationError, providerFailure } from "./provider-client-effects";
+import { type ProviderClientOperationError, ProviderSignInError, providerFailure } from "./provider-client-effects";
+import { type ProviderTempOptions, spawnWithProviderTemp } from "./provider-temp";
 import { stopProcessTree } from "./windows-process-tree";
 
 /** The messages this client sends: two requests, and a refusal for each request the server makes. */
 type AcpMessage =
   | { id: number; method: "initialize" | "authenticate"; params: DynamicRecord }
   | { id: unknown; error: { code: number; message: string } };
+
+/** The most characters of the server's own reason that a failed sign-in shows. */
+const SERVER_REASON_LIMIT = 200;
+
+/** The server's reason for a refused call, redacted and short, or `null` when it gave none. */
+function serverReason(error: unknown): string | null {
+  if (!isDynamicRecord(error)) return null;
+  const details = isDynamicRecord(error.data) ? error.data.details : undefined;
+  const text = typeof details === "string" ? details : error.message;
+  if (typeof text !== "string") return null;
+  const reason = redactText(text.trim().replace(/\s+/gu, " "));
+  if (!reason) return null;
+  const characters = Array.from(reason);
+  return characters.length > SERVER_REASON_LIMIT ? `${characters.slice(0, SERVER_REASON_LIMIT - 1).join("")}…` : reason;
+}
 
 /**
  * A sign-in that is an ACP `authenticate` call, for a server that has no login command.
@@ -31,21 +47,30 @@ export const startAcpAuthentication = Effect.fnUntraced(function* (options: {
   timeoutMs: number;
   /** Linux Gemini delegates its browser launch to the desktop so failure is visible. */
   openGoogleSignIn?: (url: string) => Promise<void>;
+  /** A temporary folder of its own for the process (`provider-temp.ts`). */
+  privateTemp?: ProviderTempOptions | undefined;
 }) {
   // Cursor's Windows launcher is a `.cmd` file, which starts only through `cmd.exe`.
   const target = cliSpawnTarget(options.executable, options.argv);
   const child = yield* Effect.acquireRelease(
     Effect.try({
       try: () =>
-        spawn(target.command, target.args, {
-          cwd: process.cwd(),
-          env: { ...process.env, ...options.env, ...(options.openGoogleSignIn ? { BROWSER: "true" } : {}) },
-          windowsVerbatimArguments: target.windowsVerbatimArguments,
-          // Only Gemini on Linux delegates the browser launch. Other servers still open it themselves.
-          stdio: ["pipe", "pipe", "pipe"],
-          shell: false,
-          windowsHide: process.platform === "win32",
-        }),
+        spawnWithProviderTemp(options.privateTemp, (tempEnv) =>
+          spawn(target.command, target.args, {
+            cwd: process.cwd(),
+            env: {
+              ...process.env,
+              ...options.env,
+              ...(options.openGoogleSignIn ? { BROWSER: "true" } : {}),
+              ...tempEnv,
+            },
+            windowsVerbatimArguments: target.windowsVerbatimArguments,
+            // Only Gemini on Linux delegates the browser launch. Other servers still open it themselves.
+            stdio: ["pipe", "pipe", "pipe"],
+            shell: false,
+            windowsHide: process.platform === "win32",
+          }),
+        ),
       catch: providerFailure,
     }),
     (child) => stopProcessTree(child).pipe(Effect.orDie),
@@ -63,7 +88,8 @@ export const startAcpAuthentication = Effect.fnUntraced(function* (options: {
       const openGoogleSignIn = options.openGoogleSignIn;
       let output = "";
       let opened = false;
-      const browserFailed = () => fail(new Error(sourceText("error.provider.geminiBrowserUnavailable")));
+      const signInFailed = (message: string) => fail(new ProviderSignInError({ message }));
+      const browserFailed = () => signInFailed(sourceText("error.provider.geminiBrowserUnavailable"));
       const readSignInLink = (chunk: Buffer) => {
         if (settled || opened || !openGoogleSignIn) return;
         output += chunk.toString("utf8");
@@ -89,14 +115,11 @@ export const startAcpAuthentication = Effect.fnUntraced(function* (options: {
           .catch(browserFailed);
       };
       child.stderr?.on("data", readSignInLink);
-      const timer = setTimeout(
-        () => fail(new Error(sourceText("error.provider.acpSignInTimedOut"))),
-        options.timeoutMs,
-      );
+      const timer = setTimeout(() => signInFailed(sourceText("error.provider.acpSignInTimedOut")), options.timeoutMs);
       timer.unref?.();
       const send = (message: AcpMessage) => child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", ...message })}\n`);
       child.once("error", fail);
-      const exited = () => fail(new Error(sourceText("error.provider.acpSignInStopped")));
+      const exited = () => signInFailed(sourceText("error.provider.acpSignInStopped"));
       child.once("exit", exited);
       child.stdin.on("error", () => undefined);
       const lines = createInterface({ input: child.stdout });
@@ -114,8 +137,20 @@ export const startAcpAuthentication = Effect.fnUntraced(function* (options: {
           return;
         }
         if (message.error !== undefined && (message.id === 1 || message.id === 2)) {
-          fail(new Error(sourceText("error.provider.acpSignInFailed")));
+          const reason = serverReason(message.error);
+          signInFailed(
+            reason
+              ? sourceText("error.provider.acpSignInFailedReason", { reason })
+              : sourceText("error.provider.acpSignInFailed"),
+          );
         } else if (message.id === 1) {
+          // A server without the method would refuse it with a reason that the user cannot act on.
+          const methods = isDynamicRecord(message.result) ? message.result.authMethods : undefined;
+          if (
+            Array.isArray(methods) &&
+            !methods.some((method) => isDynamicRecord(method) && method.id === options.methodId)
+          )
+            return signInFailed(sourceText("error.provider.acpSignInMethodMissing"));
           send({ id: 2, method: "authenticate", params: { methodId: options.methodId } });
         } else if (message.id === 2) {
           settle(null);

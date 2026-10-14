@@ -2,7 +2,9 @@ import {
   type AgentSessionSettings,
   decodeAgentAnalytics,
   decodeHostAnalytics,
+  decodeHostProviderAccounts,
   decodeInstalledSkills,
+  type HostProviderAccounts,
   isAgentHostSettings,
   isAgentSessionSettings,
 } from "@openbot/contracts/ipc";
@@ -32,6 +34,8 @@ import {
   isQueuedMessageReceipt,
   isQueueSnapshot,
   isRoutine,
+  isRoutineFlowCanvas,
+  isRoutineFlowLink,
   isRoutineRun,
   isSidebarLayoutSnapshot,
 } from "@openbot/contracts/ipc";
@@ -54,7 +58,9 @@ export function decodeDraftAttachment(value: unknown): DraftAttachment {
 }
 
 export function decodeAgentSummary(value: unknown): AgentSummary {
-  const record = decodeRecord(value, "agent");
+  // Backup models stay on their host, and this decoder drops them. A later host can save a provider
+  // or more models than this version accepts, so they are not checked.
+  const { backupModels: _backupModels, usageLimitReturn: _usageLimitReturn, ...record } = decodeRecord(value, "agent");
   // Servers older than 63b55606 omit `avatarUrl` entirely. The shared guard requires the field, so
   // normalize the absent case to null before validating rather than loosening the guard for everyone.
   const candidate = record.avatarUrl === undefined ? { ...record, avatarUrl: null } : record;
@@ -113,6 +119,11 @@ export function decodeAgentStatusFromHost(value: unknown): AgentStatus {
   return value;
 }
 
+/** The `provider-accounts-v1` list, as the web client also reads it: an unknown provider is left out. */
+export function decodeHostProviderAccountsFromHost(value: unknown): HostProviderAccounts {
+  return decodeHostProviderAccounts(value);
+}
+
 export function decodeAccountUsageFromHost(value: unknown): AccountUsage {
   if (!isAccountUsage(value)) {
     throw new Error("Invalid remote account usage.");
@@ -154,6 +165,8 @@ export const decodeRoutine = guardedDecoder(isRoutine, "remote routine");
 export const decodeRoutines = guardedListDecoder(isRoutine, "remote routine list");
 export const decodeRoutineRun = guardedDecoder(isRoutineRun, "remote routine run");
 export const decodeRoutineRuns = guardedListDecoder(isRoutineRun, "remote routine history");
+export const decodeRemoteRoutineFlowCanvas = guardedDecoder(isRoutineFlowCanvas, "remote routine flow canvas");
+export const decodeRemoteRoutineFlowLink = guardedDecoder(isRoutineFlowLink, "remote routine flow link");
 
 export function decodeSidebarLayoutSnapshot(value: unknown): SidebarLayoutSnapshot {
   if (!isSidebarLayoutSnapshot(value)) throw new Error("Invalid sidebar layout response.");

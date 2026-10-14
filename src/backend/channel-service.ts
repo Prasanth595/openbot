@@ -63,6 +63,8 @@ export interface ChannelHooks {
   queueHoldChanged?(): void;
   /** A memory is not part of the channel revision, so a tool write needs its own notification. */
   memoriesChanged?(channelId: string): void;
+  /** Channels are retired: no command can add work to one, and no channel starts work. `retire` archives them. */
+  retired?: boolean;
   error(error: unknown): void;
 }
 
@@ -94,7 +96,12 @@ const routingDocument = Schema.toJsonSchemaDocument(RoutingDecision);
 const routingDescription = JSON.stringify({ ...routingDocument.schema, $defs: routingDocument.definitions });
 const decodeRoutingDecision = Schema.decodeUnknownResult(RoutingDecision, { onExcessProperty: "error" });
 
-/** Owns channel commands and assignment scheduling. It never starts provider turns itself. */
+/**
+ * Owns channel commands and assignment scheduling. It never starts provider turns itself.
+ *
+ * Deprecated: the application retires channels at start (`retire`), and the next release removes
+ * this service, its store and the channel data.
+ */
 export class ChannelService {
   readonly store: ChannelStore;
   readonly memories: ChannelMemoryStore;
@@ -106,7 +113,17 @@ export class ChannelService {
   readonly #interrupts = new Set<Fiber.Fiber<void>>();
   readonly #events = new Set<Fiber.Fiber<void>>();
   #stopped = false;
+  /** Nothing can create, edit or restore a channel. */
+  #retired: boolean;
   readonly #wakeAgain = new Set<string>();
+  /**
+   * The place of each queued task that resources held back, oldest first. Kept in memory: after a
+   * restart the tasks take new places in the order the next pass meets them.
+   */
+  readonly #queuePlaces = new Map<string, number>();
+  #nextQueuePlace = 0;
+  /** The channels that each older waiting task held back, so they wake when it can no longer start. */
+  readonly #heldBehind = new Map<string, Set<string>>();
   /**
    * Channels whose pump left a queued task because its owner or normal work was busy. Only a turn
    * that completes wakes every channel, so a delivery that ends without one - a start that fails, a
@@ -127,6 +144,7 @@ export class ChannelService {
     this.store = new ChannelStore(database);
     this.memories = new ChannelMemoryStore(database);
     this.#history = new ChannelHistory(this.store, hooks.generate, this.memories);
+    this.#retired = hooks.retired ?? false;
   }
 
   /**
@@ -150,6 +168,10 @@ export class ChannelService {
       beforeApply: (command: ChannelCommand) => ChannelCommand | null = (queued) => queued,
     ) => {
       const operation = Effect.suspend(() => {
+        // Retired channels only stop, archive and record reads. `retire` archives each channel, and
+        // until it runs no command may add work to one.
+        if (this.#retired && command.type !== "archive" && command.type !== "stop" && command.type !== "read")
+          return Effect.fail(channelFailure(new Error(sourceText("error.backend.channelsRetired"))));
         const next = beforeApply(command);
         return next ? this.apply(next, actor) : channelSync(() => this.store.get(command.channelId));
       });
@@ -523,6 +545,103 @@ export class ChannelService {
     };
   }
 
+  /** Every task by id and every active assignment, across all channels. */
+  #scheduling(): { tasks: ReadonlyMap<string, ChannelTask>; assignments: ChannelAssignment[] } {
+    const ids = this.store.ids();
+    return {
+      tasks: new Map(ids.flatMap((id) => this.store.tasks(id)).map((task) => [task.id, task])),
+      assignments: ids.flatMap((id) => this.store.assignments(id)).filter(activeAssignment),
+    };
+  }
+
+  /**
+   * Whether the task waits for other work before its resources matter: a stopped run, a running
+   * turn of its owner or of the task, a full channel, or a dependency that is not complete.
+   */
+  #waitsForWork(
+    task: ChannelTask,
+    tasks: ReadonlyMap<string, ChannelTask>,
+    assignments: readonly ChannelAssignment[],
+  ): boolean {
+    const root = tasks.get(task.rootTaskId);
+    if (root && (root.state === "paused" || root.state === "failed" || root.state === "cancelled")) return true;
+    // A task keeps one owner at a time. A transfer replaces the owner and the resources of the
+    // task record while the previous owner still runs its turn, so the identity of the owner
+    // alone does not show that the task is free: the assignment of the previous owner does.
+    return (
+      assignments.some((assignment) => assignment.agentId === task.ownerAgentId || assignment.taskId === task.id) ||
+      assignments.filter((assignment) => assignment.channelId === task.channelId).length >= CHANNEL_PARALLEL_LIMIT ||
+      task.dependencies.some((id) => tasks.get(id)?.state !== "completed")
+    );
+  }
+
+  /** Gives a task that resources hold back its place in the queue, once. */
+  #holdPlace(taskId: string): void {
+    if (!this.#queuePlaces.has(taskId)) this.#queuePlaces.set(taskId, this.#nextQueuePlace++);
+  }
+
+  /**
+   * Whether the pump of its channel would start this waiting task once its resources are free. A
+   * task that its own pump skips must not hold back another task, or both wait for ever.
+   */
+  #waiterReady(
+    waiter: ChannelTask,
+    tasks: ReadonlyMap<string, ChannelTask>,
+    assignments: readonly ChannelAssignment[],
+  ): boolean {
+    const ownerAgentId = waiter.ownerAgentId;
+    if (waiter.state !== "queued" || !ownerAgentId || this.#deletedChannels.has(waiter.channelId)) return false;
+    if (this.#waitsForWork(waiter, tasks, assignments)) return false;
+    if (this.hooks.busy(ownerAgentId) || this.hooks.usageLimited?.(ownerAgentId)) return false;
+    const channel = this.store.get(waiter.channelId);
+    return (
+      !channel.archived &&
+      channel.members.some((member) => member.agentId === ownerAgentId) &&
+      this.hooks.agents().some((agent) => agent.id === ownerAgentId)
+    );
+  }
+
+  /**
+   * The oldest waiting task that is ready and whose resources conflict with these. A place is
+   * dropped once its task is no longer queued.
+   */
+  #olderWaiter(
+    task: ChannelTask,
+    tasks: ReadonlyMap<string, ChannelTask>,
+    assignments: readonly ChannelAssignment[],
+  ): ChannelTask | undefined {
+    const place = this.#queuePlaces.get(task.id);
+    for (const [id, otherPlace] of this.#queuePlaces) {
+      const waiter = tasks.get(id);
+      if (waiter?.state !== "queued") {
+        this.#queuePlaces.delete(id);
+        continue;
+      }
+      if (id === task.id || (place !== undefined && otherPlace > place)) continue;
+      if (resourcesConflict(task.resources, waiter.resources) && this.#waiterReady(waiter, tasks, assignments))
+        return waiter;
+    }
+    return undefined;
+  }
+
+  /**
+   * A waiting task that held channels back can stop being ready with no assignment that ends: it
+   * starts, it is stopped, or its owner leaves. Nothing else would pump those channels again, so
+   * every pump that ends wakes them.
+   */
+  #wakeHeldBehind(): Effect.Effect<void, ChannelOperationError> {
+    return Effect.gen({ self: this }, function* () {
+      if (!this.#heldBehind.size) return;
+      const { tasks, assignments } = yield* channelSync(() => this.#scheduling());
+      for (const [waiterId, channelIds] of [...this.#heldBehind]) {
+        const waiter = tasks.get(waiterId);
+        if (waiter && (yield* channelSync(() => this.#waiterReady(waiter, tasks, assignments)))) continue;
+        this.#heldBehind.delete(waiterId);
+        for (const channelId of channelIds) yield* this.wake(channelId);
+      }
+    });
+  }
+
   /**
    * One active assignment reserves the host, so `mayDrain` holds the normal requests of every
    * agent whose next delivery is not channel work. Ending that assignment lifts the reservation,
@@ -540,7 +659,8 @@ export class ChannelService {
   readonly wake = Effect.fn("ChannelService.wake")(
     (channelId?: string): Effect.Effect<void, ChannelOperationError> =>
       Effect.gen({ self: this }, function* () {
-        if (this.#stopped) return;
+        // Retired channels start no work: `recover` wakes before `retire` archives them.
+        if (this.#stopped || this.#retired) return;
         const archived = yield* channelSync(() => this.store.archivedIds());
         for (const id of yield* channelSync(() => this.store.ids())) {
           if (this.#deletedChannels.has(id)) continue;
@@ -554,6 +674,9 @@ export class ChannelService {
             Effect.ensuring(
               Effect.gen({ self: this }, function* () {
                 this.#pumps.delete(id);
+                yield* this.#wakeHeldBehind().pipe(
+                  Effect.catch((failure) => Effect.sync(() => this.hooks.error(failure.cause))),
+                );
                 if (this.#wakeAgain.delete(id))
                   yield* this.wake(id).pipe(
                     Effect.catch((failure) => Effect.sync(() => this.hooks.error(failure.cause))),
@@ -876,26 +999,26 @@ export class ChannelService {
         this.publish(channelId);
         continue;
       }
-      const allAssignments = (yield* channelSync(() => this.store.ids()))
-        .flatMap((id) => this.store.assignments(id))
-        .filter(activeAssignment);
-      // A task keeps one owner at a time. A transfer replaces the owner and the resources of the
-      // task record while the previous owner still runs its turn, so the identity of the owner
-      // alone does not show that the task is free: the assignment of the previous owner does.
-      if (
-        allAssignments.some(
-          (assignment) => assignment.agentId === task.ownerAgentId || assignment.taskId === task.id,
-        ) ||
-        allAssignments.filter((assignment) => assignment.channelId === channelId).length >= CHANNEL_PARALLEL_LIMIT
-      )
-        continue;
-      const allTasks = (yield* channelSync(() => this.store.ids())).flatMap((id) => this.store.tasks(id));
-      if (task.dependencies.some((id) => !allTasks.some((item) => item.id === id && item.state === "completed")))
-        continue;
+      const { tasks: allTasks, assignments: allAssignments } = yield* channelSync(() => this.#scheduling());
+      if (this.#waitsForWork(task, allTasks, allAssignments)) continue;
       // Read the reservation from the assignment, not from its task: a transfer can lower the
       // resources of a task that still runs, and the record of the task would then report a
       // reservation that the running turn has not released.
-      if (allAssignments.some((assignment) => resourcesConflict(task.resources, assignment.resources))) continue;
+      if (allAssignments.some((assignment) => resourcesConflict(task.resources, assignment.resources))) {
+        this.#holdPlace(task.id);
+        continue;
+      }
+      // Channels are pumped one after the other, so without an order the first channel to see a free
+      // host takes it, and a task that has waited longer in another channel never gets it. An older
+      // waiting task whose resources conflict holds this one back until that task starts.
+      const olderWaiter = yield* channelSync(() => this.#olderWaiter(task, allTasks, allAssignments));
+      if (olderWaiter) {
+        this.#holdPlace(task.id);
+        const held = this.#heldBehind.get(olderWaiter.id) ?? new Set<string>();
+        this.#heldBehind.set(olderWaiter.id, held.add(channelId));
+        continue;
+      }
+      this.#queuePlaces.delete(task.id);
       const assignment: ChannelAssignment = {
         id: randomUUID(),
         channelId,
@@ -2202,6 +2325,24 @@ export class ChannelService {
     this.hooks.queueHoldChanged?.();
   }
 
+  /**
+   * Archives every channel and refuses each command that adds work to one. Archiving stops the work
+   * of each channel and keeps its records, so no channel assignment holds the host. Run it after
+   * `recover`, which settles the assignments of the previous run.
+   */
+  readonly retire = Effect.fn("ChannelService.retire")(function* (
+    this: ChannelService,
+  ): Effect.fn.Return<void, ChannelOperationError> {
+    this.#retired = true;
+    const archived = yield* channelSync(() => this.store.archivedIds());
+    for (const channelId of yield* channelSync(() => this.store.ids()))
+      if (!archived.has(channelId))
+        // One failure must not keep the other channels active. The next start archives what is left.
+        yield* this.command({ type: "archive", operationId: `retire:${channelId}`, channelId }, RETIRE_ACTOR).pipe(
+          Effect.catch((failure) => Effect.sync(() => this.hooks.error(failure.cause))),
+        );
+  });
+
   readonly stop = Effect.fn("ChannelService.stop")(function* (
     this: ChannelService,
   ): Effect.fn.Return<void, ChannelOperationError> {
@@ -2215,6 +2356,8 @@ export class ChannelService {
     yield* Scope.close(this.#scope, Exit.void);
   }, Effect.uninterruptible).bind(this);
 }
+
+const RETIRE_ACTOR = { id: "openbot", name: "OpenBot" };
 
 function terminal(task: ChannelTask): boolean {
   return task.state === "completed" || task.state === "cancelled";
@@ -2236,7 +2379,7 @@ function descendants(tasks: ChannelTask[], id: string): ChannelTask[] {
   }
   return tasks.filter((task) => selected.has(task.id) && !terminal(task));
 }
-export function resourcesConflict(left: string[], right: string[]): boolean {
+function resourcesConflict(left: string[], right: string[]): boolean {
   return (
     !left.length ||
     !right.length ||

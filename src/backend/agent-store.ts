@@ -22,26 +22,32 @@ import type { AgentProfileDraft } from "@openbot/contracts/ipc";
 import {
   AGENT_PROVIDERS,
   type AgentAccess,
+  type AgentBackupModels,
   type AgentModelId,
   type AgentProviderId,
   type AgentReasoningEffort,
   type AgentSessionSettingOverrides,
   type AgentSummary,
+  type AgentUsageLimitReturn,
   type AvatarImageInput,
   type BusyMessageMode,
   type CreateAgentInput,
   DEFAULT_AGENT_ACCESS,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   type DuplicateAgentResult,
   decodeAgentProfileDraft,
   decodeSaveAgentProfileResult,
   defaultProviderModel,
   isAgentAccess,
+  isAgentBackupModels,
   isAgentModel,
   isAgentSessionSettingOverrides,
   isAgentSessionSettingResets,
+  isAgentUsageLimitReturn,
   isAvatarHue,
   isAvatarSeed,
   isBusyMessageMode,
+  isProviderAccountId,
   isReasoningEffort,
   isSidebarLayoutSnapshot,
   providerForLegacyModel,
@@ -75,6 +81,12 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   allowAutomation?: boolean;
   // Absent means the app default, as for every agent stored before the setting existed.
   busyMessageMode?: BusyMessageMode;
+  // Absent means the provider's own sign-in, as for every agent stored before accounts existed.
+  providerAccountId?: string;
+  // Absent means the agent asks before it leaves a model at its usage limit.
+  backupModels?: AgentBackupModels;
+  // Present only while the agent works on a backup model for a usage limit.
+  usageLimitReturn?: AgentUsageLimitReturn;
 };
 type StoredAgentBase = Omit<PersistedStoredAgent, "avatarSeed" | "avatarHue"> & DynamicRecord;
 
@@ -354,6 +366,7 @@ export class AgentStore {
       record.access = source.access;
       record.computerUse = source.computerUse;
       if (source.busyMessageMode) record.busyMessageMode = source.busyMessageMode;
+      if (source.backupModels) record.backupModels = structuredClone(source.backupModels);
       record.avatarSeed = source.avatarSeed;
       record.avatarHue = source.avatarHue;
 
@@ -610,7 +623,10 @@ export class AgentStore {
 
   updateAgent = Effect.fn("AgentStore.updateAgent")(function* (
     this: AgentStore,
-    input: UpdateAgentInput,
+    input: UpdateAgentInput & {
+      /** The model to go back to after a usage limit. `null` removes it. */
+      usageLimitReturn?: AgentUsageLimitReturn | null;
+    },
     initiatingAgentId?: string,
   ): Effect.fn.Return<AgentSummary, StoredStateFailure> {
     try {
@@ -655,10 +671,26 @@ export class AgentStore {
         if (!isBoolean(input.allowAutomation)) throw new Error("Invalid automation value.");
         next.allowAutomation = input.allowAutomation;
       }
+      // A provider change without an account returns the agent to the new provider's own sign-in.
+      if (
+        input.providerAccountId === null ||
+        input.providerAccountId === DEFAULT_PROVIDER_ACCOUNT_ID ||
+        (input.provider !== undefined && input.provider !== agent.provider && input.providerAccountId === undefined)
+      )
+        delete next.providerAccountId;
+      else if (input.providerAccountId !== undefined) {
+        if (!isProviderAccountId(input.providerAccountId)) throw new Error("Invalid provider account.");
+        next.providerAccountId = input.providerAccountId;
+      }
       if (input.busyMessageMode === null) delete next.busyMessageMode;
       else if (input.busyMessageMode !== undefined) {
         if (!isBusyMessageMode(input.busyMessageMode)) throw new Error("Invalid busy message mode.");
         next.busyMessageMode = input.busyMessageMode;
+      }
+      if (input.backupModels === null) delete next.backupModels;
+      else if (input.backupModels !== undefined) {
+        if (!isAgentBackupModels(input.backupModels)) throw new Error("Invalid backup models.");
+        next.backupModels = structuredClone(input.backupModels);
       }
       if (input.avatarSeed !== undefined) {
         if (!isAvatarSeed(input.avatarSeed)) throw new Error("Invalid avatar seed.");
@@ -667,6 +699,19 @@ export class AgentStore {
       if (input.avatarHue !== undefined) {
         if (input.avatarHue !== null && !isAvatarHue(input.avatarHue)) throw new Error("Invalid avatar hue.");
         next.avatarHue = input.avatarHue;
+      }
+      // A model the user picks ends the way back from a usage limit.
+      if (
+        input.usageLimitReturn === null ||
+        (input.usageLimitReturn === undefined &&
+          (next.provider !== agent.provider ||
+            next.model !== agent.model ||
+            next.providerAccountId !== agent.providerAccountId))
+      )
+        delete next.usageLimitReturn;
+      else if (input.usageLimitReturn !== undefined) {
+        if (!isAgentUsageLimitReturn(input.usageLimitReturn)) throw new Error("Invalid usage limit model.");
+        next.usageLimitReturn = { ...input.usageLimitReturn };
       }
       next.updatedAt = new Date().toISOString();
       const previous = { ...agent };
@@ -684,13 +729,20 @@ export class AgentStore {
             }
           : undefined;
       Object.assign(agent, next);
-      // A copy cannot remove a field, and `null` above returned the agent to the app default.
+      // A copy cannot remove a field, and `null` above returned the agent to the app default or to
+      // the provider's own sign-in.
       if (next.busyMessageMode === undefined) delete agent.busyMessageMode;
+      if (next.providerAccountId === undefined) delete agent.providerAccountId;
+      if (next.backupModels === undefined) delete agent.backupModels;
+      if (next.usageLimitReturn === undefined) delete agent.usageLimitReturn;
       try {
         this.#persist(modelChange ? "agent.model-changed" : "agent.updated", modelChange);
       } catch (error) {
         Object.assign(agent, previous);
         if (previous.busyMessageMode === undefined) delete agent.busyMessageMode;
+        if (previous.providerAccountId === undefined) delete agent.providerAccountId;
+        if (previous.backupModels === undefined) delete agent.backupModels;
+        if (previous.usageLimitReturn === undefined) delete agent.usageLimitReturn;
         throw error;
       }
       return { ...agent };
@@ -1171,6 +1223,10 @@ export class AgentStore {
    * hide the first -- the same trade `#reconcileWorkspaceDirectory` makes for an ambiguous pair. That
    * also settles two threads naming one agent: the first in the ordering wins and the rest are reported.
    *
+   * The thread of a channel context or an external conversation is never adopted: it is not the agent's
+   * own chat. An agent that an earlier build gave one keeps it, because its chat history is there now;
+   * `ConversationRuntime` keeps one snapshot for such a thread.
+   *
    * The repair is one `#persist`, because `replaceAgents` runs `ensureThreadProjection` for every agent
    * that holds a thread, which is what rewrites the row's `agent_id` to the spelling the roster uses.
    * Nothing here may stop the app, so a thread this cannot place is counted and left alone.
@@ -1288,6 +1344,11 @@ export class AgentStore {
     const agent = this.#requireAgent(id);
     agent.threadId = threadId;
     agent.updatedAt = updatedAt;
+  }
+
+  /** Whether this thread is an agent's own chat. It copies no agent, so a hot path can ask it. */
+  ownsThread(threadId: string): boolean {
+    return this.#state.agents.some((agent) => agent.threadId === threadId);
   }
 
   activeProviderSession(id: string): ProviderSession | null {
@@ -1653,6 +1714,9 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.computerUse === undefined || isBoolean(record.computerUse)) &&
     (record.allowAutomation === undefined || isBoolean(record.allowAutomation)) &&
     (record.busyMessageMode === undefined || isBusyMessageMode(record.busyMessageMode)) &&
+    (record.providerAccountId === undefined || isProviderAccountId(record.providerAccountId)) &&
+    (record.backupModels === undefined || isAgentBackupModels(record.backupModels)) &&
+    (record.usageLimitReturn === undefined || isAgentUsageLimitReturn(record.usageLimitReturn)) &&
     isAvatarSeed(record.avatarSeed) &&
     (record.avatarHue === null || isAvatarHue(record.avatarHue)) &&
     isMarketplaceSource(record.marketplaceSource)
@@ -1715,6 +1779,18 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)
       ? value.busyMessageMode
       : reset("busyMessageMode", undefined);
+  const providerAccountId =
+    value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)
+      ? value.providerAccountId
+      : reset("providerAccountId", undefined);
+  const backupModels =
+    value.backupModels === undefined || isAgentBackupModels(value.backupModels)
+      ? value.backupModels
+      : reset("backupModels", undefined);
+  const usageLimitReturn =
+    value.usageLimitReturn === undefined || isAgentUsageLimitReturn(value.usageLimitReturn)
+      ? value.usageLimitReturn
+      : reset("usageLimitReturn", undefined);
   let marketplaceSource: StoredAgent["marketplaceSource"];
   if (value.marketplaceSource !== undefined) {
     if (isMarketplaceSource(value.marketplaceSource)) {
@@ -1756,6 +1832,9 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     ...(computerUse === undefined ? {} : { computerUse }),
     ...(allowAutomation === undefined ? {} : { allowAutomation }),
     ...(busyMessageMode === undefined ? {} : { busyMessageMode }),
+    ...(providerAccountId === undefined ? {} : { providerAccountId }),
+    ...(backupModels === undefined ? {} : { backupModels }),
+    ...(usageLimitReturn === undefined ? {} : { usageLimitReturn }),
     ...(sessionSettingOverrides === undefined ? {} : { sessionSettingOverrides }),
     ...(sessionSettingResets === undefined ? {} : { sessionSettingResets }),
     ...(marketplaceSource === undefined ? {} : { marketplaceSource }),

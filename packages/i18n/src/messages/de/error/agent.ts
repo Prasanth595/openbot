@@ -3,7 +3,7 @@ import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
   "error.agent.historyUnavailable":
-    "Der Verlauf ist für diese Anfrage nicht verfügbar. Lies den aktuellen Verlauf erneut oder verwende channel_history für Arbeit in Kanälen.",
+    "Der Verlauf ist für diese Anfrage nicht verfügbar. Lies den aktuellen Verlauf erneut.",
   "error.agent.toolRequestInvalid":
     "Ungültige Argumente für die Werkzeugsuche. Verwende das deklarierte Schema und einen originalen qualifizierten Werkzeugnamen.",
   "error.agent.approvalWhileDeleting": "Während der Agent gelöscht wird, kann keine Freigabe erteilt werden.",
@@ -103,6 +103,8 @@ export const messages = {
     "Lokale Skripte können nur auf dem Computer erlaubt werden, auf dem der Agent läuft.",
   "error.agent.busyMessageModeLocalOnly":
     "Das Verhalten von Nachrichten während der Arbeit des Agenten kann nur auf dem Computer eingestellt werden, auf dem der Agent läuft.",
+  "error.agent.backupModelsLocalOnly":
+    "Ersatzmodelle können nur auf dem Computer eingestellt werden, auf dem der Agent läuft.",
   "error.agent.localScriptsOff": "Dieser Agent erlaubt keine lokalen Skripte.",
   "error.agent.localScriptsRateLimited":
     "Lokale Skripte haben diesem Agenten in der letzten Stunde {limit} Nachrichten- oder Routinenanfragen gesendet. Versuche es später erneut.",
@@ -114,6 +116,8 @@ export const messages = {
     "Nur Arbeitsbereich ist für diesen Anbieter nur unter macOS verfügbar. Wähle Vollzugriff in den Agenteneinstellungen.",
   "error.agent.lowMemory":
     "Dieser Server hat wenig freien Arbeitsspeicher. Deine Nachricht wartet in der Warteschlange und startet, wenn Speicher frei ist. Ein größerer Tarif gibt dem Server mehr Arbeitsspeicher.",
+  "error.agent.lowMemoryServer":
+    "Dieser Server hat wenig freien Arbeitsspeicher. Deine Nachricht wartet in der Warteschlange und startet, wenn Speicher frei ist.",
   "error.agent.workspaceOnlyToolMissing":
     "Nur Arbeitsbereich benötigt {tool}, das OpenBot nicht gefunden hat. Installiere es oder wähle Vollzugriff in den Agenteneinstellungen.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelNotFound": "Canal introuvable.",
   "error.backend.channelMemberUnavailable": "Un membre du canal est indisponible.",
   "error.backend.channelArchived": "Restaurez ce canal avant d’envoyer des messages ou de modifier des tâches.",
+  "error.backend.channelsRetired":
+    "Les canaux ne sont plus pris en charge. Placez les agents dans une section de la barre latérale pour qu’ils travaillent ensemble.",
   "error.backend.channelReferenceUnavailable": "Le message de canal référencé est indisponible.",
   "error.backend.channelTaskNotFound": "Tâche de canal introuvable.",
   "error.backend.channelTaskComplete": "Cette tâche est déjà terminée.",
@@ -79,6 +81,10 @@ export const messages = {
   "error.backend.memoryOperationFailed": "L’opération sur le souvenir a échoué. Réessayez.",
   "error.backend.memoryGone": "Ce souvenir n’existe plus.",
   "error.backend.routineGone": "Cette routine n’existe plus.",
+  "error.backend.turnNotStarted": "Le fournisseur n’a pas démarré ce tour.",
+  "error.backend.routineResultConnectionOff":
+    "Cette connexion de messagerie est désactivée ou supprimée. Choisissez un autre emplacement.",
+  "error.backend.routineResultNoDelivery": "Cette exécution n’a aucune réponse à renvoyer.",
   "error.backend.channelMemoryLimit": "Un canal peut avoir jusqu’à {limit} souvenirs.",
   "error.backend.channelRoutineLimit": "Un canal peut avoir au maximum {limit} routines.",
   "error.backend.agentRoutineLimit": "Un agent peut avoir au maximum {limit} routines.",
@@ -137,6 +143,8 @@ export const messages = {
     "Les planifications personnalisées ne doivent pas s’exécuter plus souvent que toutes les {minutes} minutes.",
   "error.backend.routineAnchorInvalid": "Le point de départ de l’intervalle de la routine n’est pas valide.",
   "error.backend.routineNoOccurrence": "La planification n’a aucune occurrence dans les cinq prochaines années.",
+  "error.backend.routineOncePassed":
+    "L’heure de cette routine unique est passée. Choisissez une date ou une heure ultérieure.",
   "error.backend.routineTimezoneInvalid": "Le fuseau horaire de la routine n’est pas valide.",
   "error.backend.routineCronFields": "Les planifications personnalisées doivent utiliser cinq champs cron.",
   "error.backend.routineCronValueInvalid": "La valeur cron {field} n’est pas valide.",
@@ -165,9 +173,19 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Ces agents sont déjà reliés dans cette routine.",
   "error.backend.routineFlowCycle": "Cette liaison créerait une boucle.",
   "error.backend.routineFlowLinkLimit": "Une routine peut avoir au plus {limit} liaisons.",
+  "error.backend.agentWaitLimit":
+    "Cet agent a déjà {count} attentes ouvertes. Fermez une attente avec openbot.close_wait avant d’en ouvrir une autre.",
+  "error.backend.agentWaitGone": "Cette attente n’est pas ouverte. L’agent l’a fermée, ou quelqu’un l’a annulée.",
+  "error.backend.agentWaitNoRequest": "Une attente a besoin d’un message pour continuer. Ce tour n’a pas de message.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Ouvrez une attente uniquement dans votre propre discussion. Une tâche de canal ou de messagerie ne peut pas attendre.",
+  "error.backend.agentWaitNoteRequired": "Indiquez une courte note qui précise l’objet de l’attente.",
+  "error.backend.agentWaitRoutineGone": "Cet agent n’a pas de routine avec cet identifiant.",
+  "error.backend.agentWaitNoRoutine":
+    "Seule une exécution de l’une de vos routines réveille une attente, et vous n’avez aucune routine. Créez-en une avec openbot.create_routine, puis ouvrez l’attente.",
+  "error.backend.agentWaitRemoteUnsupported":
+    "Les attentes ouvertes ne sont disponibles que pour les agents de cet ordinateur.",
   "error.backend.routineFlowHandoffFailed": "La routine n’a pas pu transmettre le travail à cet agent.",
-  "error.backend.routineFlowRemoteUnsupported":
-    "Les enchaînements de routines sont disponibles uniquement pour les agents de cet ordinateur.",
   "error.backend.mcpServerLimit": "OpenBot garde jusqu’à {limit} serveurs MCP.",
   "error.backend.mcpServerNameTaken": "Un serveur MCP nommé {name} existe déjà.",
   "error.backend.mcpServerNoAnswer": "Le serveur n’a pas répondu en {seconds} secondes.",
@@ -267,4 +285,11 @@ export const messages = {
     "Le serveur a répondu {status}. Vérifiez la clé d’API ou les autres identifiants.",
   "error.backend.mcpServerHttpUrl":
     "Le serveur a répondu {status}. Vérifiez l’URL. Le lien est peut-être erroné, expiré ou supprimé.",
+  "error.backend.mcpSignInAppUrl": "L’app de connexion nécessite une URL de serveur valide.",
+  "error.backend.mcpSignInAppClientId": "Saisissez l’ID client de l’app de connexion.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Le serveur de connexion de ce serveur MCP a changé : OpenBot ne lui a pas envoyé l’app de connexion. Si ce changement est correct, supprimez l’app de connexion et ajoutez-la à nouveau.",
+  "error.backend.mcpSignInAppNoServer":
+    "Enregistrez ce serveur MCP comme serveur URL avant d’ajouter une app de connexion.",
+  "error.backend.mcpSignInAppUnavailable": "Cet ordinateur ne peut pas conserver d’app de connexion.",
 } as const satisfies PartialTranslation<typeof source>;

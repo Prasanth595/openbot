@@ -14,7 +14,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 
 function useAgentMenuActions(agent: MobileAgent) {
-  const { deleteAgent, duplicateAgent, hideAgent, markAgentRead, markAgentUnread, pinnedAgentIds, pinnedChannelIds } =
+  const { deleteAgent, duplicateAgent, hideAgent, markAgentRead, markAgentUnread, pinnedAgentIds } =
     useMobileWorkspace();
   const { toggleAgentPinAnimated } = useAgentPinTransition();
   const sectionMenu = useChatSectionMenu(agent.serverId, agent.id);
@@ -76,7 +76,7 @@ function useAgentMenuActions(agent: MobileAgent) {
   };
   const handleInfo = () =>
     router.push({ pathname: "/agent-info/[agentId]", params: { agentId: agent.id, serverId: agent.serverId } });
-  const canPin = canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id);
+  const canPin = canToggleAgentPin(pinnedAgentIds, agent.id);
   const handleDuplicate = () => {
     void runAgentAction("duplicate");
   };

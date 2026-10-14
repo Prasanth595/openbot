@@ -108,8 +108,7 @@ export const messages = {
   "error.remote.operationFailed": "Uzak işlem başarısız oldu.",
   "error.remote.connectionReplaced": "Bağlantı değiştirildi.",
   "error.remote.desktopDidNotConnect": "Masaüstü bağlanmadı.",
-  "error.remote.desktopRestarted":
-    "Masaüstü yeniden başlatıldı. Yeni bir kimliği doğrulanmış oturumla yeniden bağlanılıyor.",
+  "error.remote.connectionDropped": "Sunucuda artık bu bağlantı yok. Yeniden bağlanılıyor.",
   "error.remote.dataBeforeAuth": "Ana makine kimlik doğrulamasından önce veri gönderdi.",
   "error.remote.eventStreamGap": "Ana makine etkinlik akışında bir boşluk var.",
   "error.remote.malformedEvent": "Ana makine bozuk biçimli bir etkinlik döndürdü.",
@@ -188,12 +187,5 @@ export const messages = {
   "error.remote.hostOtherAccount": "Bu ana makine başka bir hesaba ait.",
   "error.remote.remoteNotConfigured": "Bu OpenBot hizmetinde uzak bağlantılar ayarlanmamış.",
   "error.remote.hostRefused": "Ana makine isteği reddetti ({status}).",
-  // Channel actions on mobile.
-  "error.remote.formUnavailable": "Bu form artık kullanılamıyor.",
   "error.remote.hostedServerRemoval": "Barındırılan bir sunucuyu silmek için Faturalandırma'yı kullanın.",
-  "error.remote.channelsUnsupported": "Kanalları kullanmak için bu masaüstü sunucusunu güncelleyin.",
-  "error.remote.channelDeleteUnsupported": "Kanalları silmek için bu masaüstü sunucusunu güncelleyin.",
-  "error.remote.attachmentUploadCancelled": "Ek yükleme iptal edildi.",
-  "error.remote.historyRefreshFailed": "Mesaj gönderildi, ancak sohbet geçmişi yenilenemedi.",
-  "error.remote.taskHistoryRefreshFailed": "Görev değiştirildi, ancak sohbet geçmişi yenilenemedi.",
 } as const satisfies PartialTranslation<typeof source>;

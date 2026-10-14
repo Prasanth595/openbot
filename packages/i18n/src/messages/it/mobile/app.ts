@@ -1,0 +1,26 @@
+import type { PartialTranslation } from "../../../message";
+import type { messages as source } from "../../en/mobile/app";
+
+export const messages = {
+  "mobile.app.route.scanQrCode": "Scansiona il codice QR",
+  "mobile.app.route.createAgent": "Crea un agente",
+  "mobile.app.route.addSharedAgent": "Aggiungi un agente condiviso",
+  "mobile.app.route.newSection": "Nuova sezione",
+  "mobile.app.route.settings": "Impostazioni",
+  "mobile.app.route.profile": "Profilo",
+  "mobile.app.route.accountSessions": "Sessioni dell'account",
+  "mobile.app.route.about": "Informazioni",
+  "mobile.app.route.support": "Assistenza",
+  "mobile.app.route.hiddenChats": "Chat nascoste",
+  "mobile.app.route.cropPhoto": "Sposta e ridimensiona",
+  "mobile.app.route.queuedMessages": "Messaggi in coda",
+  "mobile.app.route.messageOptions": "Opzioni del messaggio",
+  "mobile.app.route.editMessage": "Modifica messaggio",
+  "mobile.app.route.serverOptions": "Opzioni del server",
+  "mobile.app.route.members": "Membri",
+  "mobile.app.route.hostedServerPlans": "Server cloud",
+  "mobile.app.route.hostedServerSetup": "Configurazione",
+  "mobile.app.route.routines": "Routine",
+  "mobile.app.route.routine": "Routine",
+  "mobile.app.route.usage": "Utilizzo",
+} as const satisfies PartialTranslation<typeof source>;

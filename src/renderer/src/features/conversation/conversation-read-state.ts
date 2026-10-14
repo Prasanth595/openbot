@@ -10,7 +10,9 @@ import {
   CONTEXT_RESET_ITEM_TYPE,
   HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX,
   MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX,
+  MODEL_SWITCH_ITEM_TYPE_PREFIX,
   ROUTINE_EVENT_ITEM_TYPE_PREFIX,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX,
   SKILL_EVENT_ITEM_TYPE_PREFIX,
 } from "@openbot/contracts/ipc";
@@ -27,7 +29,7 @@ export type AgentAutoReadEntry =
   | { messageId: string; status: "succeeded"; state: ConversationReadState };
 
 /**
- * Routine, routine-run, hosted-site and Marketplace suggestion markers are
+ * Routine, routine-run, hosted-site, model switch and Marketplace suggestion markers are
  * bookkeeping the agent writes about itself, so they never make a conversation
  * unread.
  */
@@ -38,6 +40,7 @@ export function isRoutineEventItem(message: { itemType?: string }): boolean {
     message.itemType?.startsWith(HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX) === true ||
     message.itemType?.startsWith(SKILL_EVENT_ITEM_TYPE_PREFIX) === true ||
     message.itemType?.startsWith(MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX) === true ||
+    message.itemType?.startsWith(MODEL_SWITCH_ITEM_TYPE_PREFIX) === true ||
     message.itemType === CONTEXT_RESET_ITEM_TYPE
   );
 }
@@ -60,6 +63,7 @@ function isIncoming(message: { itemType?: string }, fromUser: boolean): boolean 
     !message.itemType?.startsWith(CHAT_VISUAL_ITEM_TYPE_PREFIX) &&
     message.itemType !== AGENT_EXCHANGE_ITEM_TYPE &&
     message.itemType !== "plan" &&
+    message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE &&
     !isRoutineEventItem(message)
   );
 }

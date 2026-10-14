@@ -377,6 +377,29 @@
   stroke-width: 3px;
 }
 
+/* One arrow where a connection enters a card. Before a run it stays readable on the quiet line. */
+.diagram-edge .diagram-edge-arrow {
+  fill: var(--openbot-text-muted);
+}
+
+.diagram-edge:is([data-state="delivered"], [data-state="running"]) .diagram-edge-arrow {
+  fill: var(--diagram-routine-color, var(--openbot-accent));
+}
+
+.diagram-edge:hover .diagram-edge-arrow,
+.diagram-edge[data-selected] .diagram-edge-arrow {
+  fill: var(--openbot-text-primary);
+}
+
+.diagram-edge[data-state="dimmed"] .diagram-edge-arrow {
+  opacity: 0.3;
+}
+
+.diagram-edge[data-routine-color][data-state="idle"] .diagram-edge-arrow {
+  fill: var(--diagram-routine-color);
+  opacity: 0.6;
+}
+
 .diagram-edge-draft {
   stroke: var(--openbot-accent);
   stroke-width: 2px;
@@ -519,21 +542,6 @@
   font-weight: var(--openbot-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.diagram-node-step {
-  display: grid;
-  min-width: 20px;
-  height: 20px;
-  flex: none;
-  place-items: center;
-  border-radius: var(--openbot-radius-pill);
-  background: var(--openbot-bg-control);
-  padding: 0 var(--openbot-space-1);
-  color: var(--openbot-text-secondary);
-  font-size: var(--openbot-text-sm);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--openbot-weight-semibold);
 }
 
 .diagram-node-body {

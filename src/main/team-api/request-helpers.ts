@@ -22,10 +22,12 @@ import {
   isAvatarHue,
   isAvatarSeed,
   isReasoningEffort,
+  isReleasedRoutineSchedule,
   MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX,
   type RespondToApprovalInput,
   type RespondToBrowserTakeoverInput,
   ROUTINE_EVENT_ITEM_TYPE_PREFIX,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX,
   type TeamMemberSummary,
   type UpdateAgentInput,
@@ -106,15 +108,22 @@ export function markerExclusionsForCapabilities(capabilities: ReadonlySet<string
   excludeRoutineEvents: boolean;
   excludeRoutineRunEvents: boolean;
   excludeHostedSiteEvents: boolean;
+  excludeRoutineQuietAnswers: boolean;
 } {
   return {
     excludeRoutineEvents: !capabilities.has("routine-event-markers"),
     excludeRoutineRunEvents: !capabilities.has("routine-run-event-markers"),
     excludeHostedSiteEvents: !capabilities.has("hosted-site-event-markers"),
+    excludeRoutineQuietAnswers: true,
   };
 }
 
+/**
+ * Whether a client can show a message of this kind. No client can collapse a quiet routine answer
+ * into its run, so a quiet answer goes to none: it would show as a new answer to every client.
+ */
 function markerSupported(itemType: string | undefined, capabilities: ReadonlySet<string>): boolean {
+  if (itemType === ROUTINE_QUIET_ANSWER_ITEM_TYPE) return false;
   if (itemType?.startsWith(ROUTINE_EVENT_ITEM_TYPE_PREFIX)) return capabilities.has("routine-event-markers");
   // Paged history drops suggestions with routine events, so live events drop them the same way.
   if (itemType?.startsWith(MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX)) return capabilities.has("routine-event-markers");
@@ -151,6 +160,13 @@ export function firstHeaderValue(value: string | string[] | undefined): string |
 /** The member who made this request, as the sender the host stamps on the message they write. */
 export function memberSender(member: TeamMemberSummary): ConversationMessageSender | undefined {
   return conversationMessageSender(member.id, member.name?.trim() || member.email || member.username);
+}
+
+/** The released routine codecs reject a `once` schedule, so a Team API request cannot save one. */
+export function requireReleasedSchedule(schedule: unknown): void {
+  if (schedule !== undefined && !isReleasedRoutineSchedule(schedule)) {
+    throw new HttpError(400, sourceText("error.backend.routineScheduleInvalid"));
+  }
 }
 
 export function requireAdmin(member: TeamMemberSummary): void {

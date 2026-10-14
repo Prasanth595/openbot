@@ -1,4 +1,4 @@
-import type { UpdateAgentInput } from "@openbot/contracts/ipc";
+import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
 import { errorReference } from "@openbot/user-errors";
 import {
@@ -107,8 +107,6 @@ export function createConversationViewScope(props: ConversationProps) {
     setSidebarFilePreview,
     openReactionMessageId,
     setOpenReactionMessageId,
-    openMoreMessageId,
-    setOpenMoreMessageId,
     expandedEmojiMessageId,
     setExpandedEmojiMessageId,
     copiedMessageId,
@@ -374,6 +372,7 @@ export function createConversationViewScope(props: ConversationProps) {
     clearNewMessages,
     messageVirtualizer,
     timelineMessages,
+    toggleRoutineRun,
     timelineIndexById,
     unreadBoundaryMessageId,
     updateScrollFade,
@@ -549,7 +548,6 @@ export function createConversationViewScope(props: ConversationProps) {
     editingDeliveryId,
     editingPendingSave,
     setOpenReactionMessageId,
-    setOpenMoreMessageId,
     setExpandedEmojiMessageId,
     copiedMessageId,
     setCopiedMessageId,
@@ -582,6 +580,12 @@ export function createConversationViewScope(props: ConversationProps) {
   let currentUnreadCount = 0;
   let conversationPanel: HTMLElement | undefined;
   const [browserSurface, setBrowserSurface] = createSignal<HTMLDivElement>();
+  /** A link sign-in that the host relays, while it waits for the address that the browser shows. */
+  const [messageLinkRelay, setMessageLinkRelay] = createSignal<{
+    url: string;
+    target: ConversationTarget;
+    page: McpSignInRelayPage;
+  } | null>(null);
   let browserResizeObserver: ResizeObserver | undefined;
   let browserWindowResizeHandler: (() => void) | undefined;
   let browserVisibilityFrame: number | undefined;
@@ -670,7 +674,6 @@ export function createConversationViewScope(props: ConversationProps) {
         return;
       }
       setOpenReactionMessageId(null);
-      setOpenMoreMessageId(null);
       setExpandedEmojiMessageId(null);
       hideBrowserPanel();
     };
@@ -695,7 +698,6 @@ export function createConversationViewScope(props: ConversationProps) {
     const closeMessageMenus = (event: MouseEvent) => {
       if (event.target instanceof Element && event.target.closest(".message-actions")) return;
       setOpenReactionMessageId(null);
-      setOpenMoreMessageId(null);
       setExpandedEmojiMessageId(null);
     };
     const keyboardTarget = conversationPanel?.ownerDocument ?? document;
@@ -1051,11 +1053,39 @@ export function createConversationViewScope(props: ConversationProps) {
 
   async function openExternalMessageUrl(url: string) {
     const target = currentTarget();
+    const runtime = conversationRuntime(props);
     try {
-      await conversationRuntime(props).openUrl(url);
+      if (target && runtime.agent.openMessageLink) {
+        const page = await runtime.agent.openMessageLink({ agentId: target.agentId, url }, target.serverId);
+        if (page) setMessageLinkRelay({ url, target, page });
+      } else await runtime.openUrl(url);
     } catch (error) {
       setScopedComposerError(currentText().t("composer.error.openLink"), target, error);
     }
+  }
+
+  /** Opens the relayed sign-in page of a link again, after the user checked its host name. */
+  async function openMessageLinkRelay(): Promise<void> {
+    const relay = messageLinkRelay();
+    if (!relay) throw new Error(currentText().t("error.mcp.relayEnded"));
+    await conversationRuntime(props).openUrl(relay.url);
+  }
+
+  /** The address that the browser shows at the end of a relayed link sign-in. Main sends only its query. */
+  async function pasteMessageLinkRelay(address: string): Promise<void> {
+    const relay = messageLinkRelay();
+    const paste = conversationRuntime(props).agent.pasteMessageLink;
+    if (!relay || !paste) throw new Error(currentText().t("error.mcp.relayEnded"));
+    await paste({ url: relay.url, address }, relay.target.serverId);
+    if (messageLinkRelay() === relay) setMessageLinkRelay(null);
+  }
+
+  /** Ends the relayed sign-in of a link on the host. */
+  function cancelMessageLinkRelay(): void {
+    const relay = messageLinkRelay();
+    setMessageLinkRelay(null);
+    const cancel = conversationRuntime(props).agent.cancelMessageLink;
+    if (relay && cancel) void cancel({ url: relay.url }, relay.target.serverId).catch(() => undefined);
   }
 
   /**
@@ -1192,6 +1222,7 @@ export function createConversationViewScope(props: ConversationProps) {
     markingRead,
     messageVirtualizer,
     timelineMessages,
+    toggleRoutineRun,
     timelineIndexById,
     unreadBoundaryMessageId,
     moveChatSearch,
@@ -1200,7 +1231,10 @@ export function createConversationViewScope(props: ConversationProps) {
     openAttachmentPickerFromKey,
     openBrowserAddress,
     openExternalMessageUrl,
-    openMoreMessageId,
+    messageLinkRelay,
+    openMessageLinkRelay,
+    pasteMessageLinkRelay,
+    cancelMessageLinkRelay,
     openReactionMessageId,
     openRoutineSettings,
     openRoutineRunMessage,
@@ -1248,7 +1282,6 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerFocusRequest,
     setDropActive,
     setExpandedEmojiMessageId,
-    setOpenMoreMessageId,
     setOpenReactionMessageId,
     setRequiredInteractionElement,
     handleRoutineSettingsRequest,

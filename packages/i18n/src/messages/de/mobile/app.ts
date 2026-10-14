@@ -3,8 +3,6 @@ import type { messages as source } from "../../en/mobile/app";
 
 export const messages = {
   "mobile.app.route.scanQrCode": "QR-Code scannen",
-  "mobile.app.route.actionsNeeded": "Erforderliche Aktionen",
-  "mobile.app.route.newChannel": "Neuer Kanal",
   "mobile.app.route.createAgent": "Agenten erstellen",
   "mobile.app.route.addSharedAgent": "Geteilten Agenten hinzufügen",
   "mobile.app.route.newSection": "Neuer Abschnitt",
@@ -14,7 +12,6 @@ export const messages = {
   "mobile.app.route.about": "Über",
   "mobile.app.route.support": "Support",
   "mobile.app.route.hiddenChats": "Ausgeblendete Chats",
-  "mobile.app.route.deletedChannels": "Gelöschte Kanäle",
   "mobile.app.route.cropPhoto": "Bewegen und skalieren",
   "mobile.app.route.queuedMessages": "Nachrichten in der Warteschlange",
   "mobile.app.route.messageOptions": "Nachrichtenoptionen",
@@ -26,10 +23,4 @@ export const messages = {
   "mobile.app.route.routines": "Routinen",
   "mobile.app.route.routine": "Routine",
   "mobile.app.route.usage": "Nutzung",
-  "mobile.app.route.message": "Nachricht",
-  "mobile.app.messageActions.reply": "Antworten",
-  "mobile.app.messageActions.selectText": "Text auswählen",
-  "mobile.app.messageActions.copied": "Nachricht kopiert",
-  "mobile.app.messageActions.copy": "Nachricht kopieren",
-  "mobile.app.messageActions.text": "Nachrichtentext",
 } as const satisfies PartialTranslation<typeof source>;

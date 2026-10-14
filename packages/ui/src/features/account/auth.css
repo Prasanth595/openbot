@@ -752,6 +752,13 @@
   white-space: nowrap;
 }
 
+/* The reason a row is not ready is the sentence the user acts on, so it wraps rather than ends in an
+   ellipsis. */
+.provider-picker-status-message {
+  overflow: visible;
+  white-space: normal;
+}
+
 /* The agents that keep a provider on, on a line of its own below the row and in line with the name.
    The row grows to show the whole sentence, because the user must read which agents to change. */
 .provider-picker-check-error.provider-picker-used-by {
@@ -764,6 +771,56 @@
 
 .provider-picker-option-selected .provider-picker-email {
   color: var(--openbot-text-readable);
+}
+
+/* The same icon size as the other small buttons of the row. */
+.provider-picker-add-account svg {
+  width: var(--openbot-icon-sm);
+  height: var(--openbot-icon-sm);
+  stroke-width: var(--openbot-icon-stroke);
+}
+
+/* The accounts of a provider, on lines of their own below its row and in line with its name. */
+.provider-picker-accounts {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+  margin-top: -6px;
+  padding: 0 0 8px 66px;
+}
+
+.provider-picker-account-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.provider-picker-account {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.provider-picker-account + .provider-picker-account {
+  border-top: 1px solid var(--openbot-border);
+}
+
+.provider-picker-account-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: grid;
+  gap: 2px;
+}
+
+.provider-picker-account .provider-picker-check-error {
+  white-space: normal;
+}
+
+.provider-picker-account-rename {
+  max-width: 220px;
 }
 
 /* The version and the status badge, in the one cell the row's last column reserves. They are read

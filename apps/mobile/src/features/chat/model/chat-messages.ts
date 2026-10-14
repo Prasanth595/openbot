@@ -3,11 +3,10 @@ import { sortConversationMessages } from "@openbot/contracts/conversation-order"
 import type {
   AgentExchangeSummary,
   AttachmentSummary,
-  ChannelMessage,
-  ChannelRoutingConversationEvent,
   ConversationMessage,
   ConversationMessageSender,
   ConversationQuestionPrompt,
+  ConversationReaction,
   ImageGenerationInfo,
   QueueDelivery,
   RoutineConversationEventAction,
@@ -15,7 +14,6 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   CONVERSATION_PLAN_ITEM_TYPE,
-  channelRoutingConversationEvent,
   isContextResetMarker,
   parseConversationPlanText,
   routineConversationEvent,
@@ -28,17 +26,6 @@ export type RoutineMarkerEvent = RoutineConversationEventAction | RoutineRunStat
 export type ChatPlanStepState = "pending" | "active" | "done";
 
 export type ChatMessage =
-  | {
-      id: string;
-      kind: "channel-routing";
-      event:
-        | ChannelRoutingConversationEvent
-        | {
-            action: ChannelRoutingConversationEvent["action"];
-            agentId: null;
-            agentName: string;
-          };
-    }
   | {
       id: string;
       kind: "exchange";
@@ -55,10 +42,8 @@ export type ChatMessage =
       id: string;
       kind: "message";
       author: "agent" | "user";
-      speaker?: ChannelMessage["author"];
       /** Another person who wrote this message in an agent chat. The reader's own messages have none. */
       sender?: ConversationMessageSender;
-      superseded?: boolean;
       body: string;
       streaming: boolean;
       status?: ConversationMessage["status"];
@@ -68,6 +53,10 @@ export type ChatMessage =
       imageGeneration?: ImageGenerationInfo;
       /** Why the turn of a failed user message stopped, as the host reported it. */
       failureReason?: string;
+      /** When the host stored the message. A message that waits on the phone has none. */
+      createdAt?: string;
+      /** The reactions on the message: the reader's own and the agents'. */
+      reactions?: readonly ConversationReaction[];
     }
   /** The task list of an agent plan. The header is `heading` when set, else a catalog title. */
   | {
@@ -81,7 +70,16 @@ export type ChatMessage =
     }
   | { id: string; kind: "thinking"; turnId: string | undefined; steps: { id: string; text: string }[] };
 
+/** A message that shows as a bubble: text, files or a generated image. */
+export type ChatBubbleMessage = Extract<ChatMessage, { kind: "message" }>;
+
 export type ExchangeMarker = Extract<ChatMessage, { kind: "exchange" }>;
+
+/** An older host sends only the reader's own reaction, in `reaction`. */
+function messageReactions(message: ConversationMessage): readonly ConversationReaction[] | undefined {
+  if (message.reactions?.length) return message.reactions;
+  return message.reaction ? [{ emoji: message.reaction, actor: { kind: "user" } }] : undefined;
+}
 
 /** Consecutive messages to and from other agents, drawn as one row as on desktop. */
 export interface ExchangeGroup {
@@ -93,7 +91,8 @@ export interface ExchangeGroup {
 
 export interface PendingChatMessage {
   message: Extract<ChatMessage, { kind: "message" }>;
-  baseline: Set<string>;
+  /** The host rows drawn when the send started. Set only while the send waits for its receipt. */
+  baseline: ReadonlySet<string> | null;
   serverId: string | null;
 }
 
@@ -111,18 +110,22 @@ export function indexChatMessages(
   return index;
 }
 
+/** The host rows, then the messages the host has not drawn yet, in their send order. */
 export function presentChatMessages(
   messages: ChatMessage[],
-  pending: PendingChatMessage | null,
+  pending: readonly PendingChatMessage[],
   aliases: ReadonlyMap<string, string>,
 ): ChatMessage[] {
   // Events can precede the receipt. Wait for its ID rather than matching by text,
   // which could incorrectly merge another member's identical message.
-  const visible =
-    pending && !pending.serverId ? messages.filter((message) => pending.baseline.has(message.id)) : messages;
+  const baseline = pending.find((item) => !item.serverId && item.baseline)?.baseline;
+  const visible = baseline ? messages.filter((message) => baseline.has(message.id)) : messages;
+  const received = new Map<string, PendingChatMessage["message"]>();
+  for (const item of pending) if (item.serverId) received.set(item.serverId, item.message);
   const result = visible.map((message) => {
     // Keep the local image mounted until the caller caches the final attachment IDs.
-    if (pending?.serverId === message.id) return pending.message;
+    const local = received.get(message.id);
+    if (local) return local;
     const alias = aliases.get(message.id);
     if (alias === undefined) return message;
     let aliased = aliasedMessages.get(message);
@@ -132,7 +135,8 @@ export function presentChatMessages(
     }
     return aliased;
   });
-  if (pending && !messages.some((message) => message.id === pending.serverId)) result.push(pending.message);
+  const drawn = new Set(visible.map((message) => message.id));
+  for (const item of pending) if (!item.serverId || !drawn.has(item.serverId)) result.push(item.message);
   return result;
 }
 
@@ -372,6 +376,8 @@ export function projectChatMessages(
           attachments: message.attachments,
           imageGeneration: message.imageGeneration,
           replyToMessageId: message.replyToMessageId,
+          createdAt: message.createdAt,
+          reactions: messageReactions(message),
         };
         projectedBubbles.set(message, { readerKey, bubble });
       }
@@ -406,6 +412,17 @@ export function groupExchangeMarkers<T extends ChatMessage>(messages: readonly T
   }
   closeRun();
   return rows;
+}
+
+/**
+ * The row that shows a host message, for a chat that opens at a search result. A marker row has the
+ * message ID after its prefix, and a group row holds several markers. -1 when no row shows it.
+ */
+export function chatRowIndex(rows: readonly (ChatMessage | ExchangeGroup)[], messageId: string): number {
+  const ids = new Set([messageId, `exchange:${messageId}`, `routine:${messageId}`, `context-reset:${messageId}`]);
+  return rows.findIndex((row) =>
+    row.kind === "exchange-group" ? row.exchanges.some((marker) => ids.has(marker.id)) : ids.has(row.id),
+  );
 }
 
 function groupableExchange<T extends ChatMessage>(message: T): message is T & ExchangeMarker {
@@ -460,106 +477,4 @@ export function latestReadableMessage(messages: ConversationMessage[]) {
         !message.itemType?.startsWith(CHAT_VISUAL_ITEM_TYPE_PREFIX) &&
         (message.text.trim().length > 0 || Boolean(message.attachments?.length) || Boolean(message.imageGeneration))),
   );
-}
-
-const projectedChannelMessages = new WeakMap<
-  ChannelMessage,
-  { self: boolean; latest: boolean; message: ChatMessage | null }
->();
-
-function projectChannelMessage(
-  entry: ChannelMessage,
-  self: boolean,
-  latestRuns: ReadonlySet<string>,
-): ChatMessage | null {
-  const routine = routineMarker(entry.message);
-  if (routine) {
-    if (routine.runId && !latestRuns.has(entry.message.id)) return null;
-    return {
-      id: entry.id,
-      kind: "routine",
-      event: routine.event,
-      label: routine.label,
-      routineName: routine.routineName,
-    };
-  }
-  if (entry.message.questionPrompt) {
-    return {
-      id: entry.id,
-      kind: "question",
-      turnId: entry.message.turnId,
-      prompt:
-        entry.superseded && !entry.message.questionPrompt.resolution
-          ? { ...entry.message.questionPrompt, resolution: { status: "expired" } }
-          : entry.message.questionPrompt,
-    };
-  }
-  const routing = channelRoutingConversationEvent(entry.message);
-  if (routing) return { id: entry.id, kind: "channel-routing", event: routing };
-  // Older hosts stored only the receipt text. Never reinterpret a typed event as legacy text.
-  if (
-    !entry.message.itemType &&
-    entry.author.kind === "agent" &&
-    entry.message.author === "system" &&
-    entry.message.status === "completed" &&
-    entry.taskId
-  ) {
-    const assigned = /^Assigned to (.+)\.$/.exec(entry.message.text);
-    const continued = /^Continuing existing work with (.+)\.$/.exec(entry.message.text);
-    const name = assigned?.[1] ?? continued?.[1];
-    if (name)
-      return {
-        id: entry.id,
-        kind: "channel-routing",
-        event: { action: assigned ? "assigned" : "continued", agentId: null, agentName: name },
-      };
-  }
-  if (entry.author.kind === "agent" && entry.message.itemType === "commentary" && !entry.superseded) {
-    return {
-      id: entry.id,
-      kind: "thinking",
-      turnId: entry.message.turnId,
-      steps: [{ id: entry.id, text: entry.message.text }],
-    };
-  }
-  return {
-    id: entry.id,
-    kind: "message",
-    author: self ? "user" : "agent",
-    speaker: entry.author,
-    superseded: entry.superseded,
-    body: entry.message.text,
-    streaming: entry.message.status === "streaming",
-    status: entry.message.status,
-    replyToMessageId: entry.message.replyToMessageId,
-    attachments: entry.message.attachments,
-    imageGeneration: entry.message.imageGeneration,
-  };
-}
-
-/** Keep channel authors explicit: another human member is not the current user. */
-export function projectChannelMessages(messages: ChannelMessage[], memberId: string | null): ChatMessage[] {
-  const latestRuns = latestRoutineRunMessages(messages.map((entry) => entry.message));
-  return messages
-    .filter(
-      (entry) =>
-        entry.message.questionPrompt ||
-        entry.message.imageGeneration ||
-        entry.message.text.trim() ||
-        entry.message.attachments?.length,
-    )
-    .flatMap((entry) => {
-      const self = entry.author.kind === "member" && entry.author.id === memberId;
-      const cached = projectedChannelMessages.get(entry);
-      const latest = latestRuns.has(entry.message.id);
-      if (cached && cached.self === self && cached.latest === latest) return cached.message ?? [];
-      const message = projectChannelMessage(entry, self, latestRuns);
-      projectedChannelMessages.set(entry, { self, latest, message });
-      return message ?? [];
-    });
-}
-
-/** The host accepted a send, but its transcript still needs a successful read. */
-export interface ChatHistoryReceipt {
-  refreshHistory: () => Promise<void>;
 }

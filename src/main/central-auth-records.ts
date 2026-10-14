@@ -23,6 +23,10 @@ export interface RemoteHostSummary {
   role: "owner" | "admin" | "member";
   /** The active members that the host's plan allows. An account server from before plans sends none. */
   memberLimit?: number;
+  /**
+   * A hosted server with a plan: its owner and its admins can restart it. An older account server sends none.
+   */
+  hosted?: boolean;
 }
 
 export interface RemoteInviteRecord {
@@ -91,6 +95,12 @@ export function decodeTicketResponse(value: unknown): { ticket: string; expiresA
   return { ticket: requiredString(record, "ticket"), expiresAt: record.expiresAt };
 }
 
+export function decodeMobileConnectLinkResponse(value: unknown): { link: string; createdAt: number } {
+  const record = decodeRecord(value, "Mobile Connect link");
+  if (!isNumber(record.createdAt)) throw new Error("Invalid Mobile Connect link date.");
+  return { link: requiredString(record, "link"), createdAt: record.createdAt };
+}
+
 export function decodeMobileConnectedDevices(value: unknown): { devices: MobileConnectedDevice[] } {
   const record = decodeRecord(value, "mobile devices");
   if (!Array.isArray(record.devices)) throw new Error("Invalid mobile device list.");
@@ -112,6 +122,8 @@ function decodeMobileConnectedDevice(value: unknown): MobileConnectedDevice {
     platform,
     connectedAt: record.connectedAt,
     lastActiveAt: record.lastActiveAt,
+    // An account service from before permanent links sends none: its phones all used a one-time code.
+    via: record.via === "link" ? "link" : "code",
   };
 }
 
@@ -152,6 +164,8 @@ export function decodeRemoteHosts(value: unknown): RemoteHostSummary[] {
       membershipId: requiredString(host, "membershipId"),
       role: host.role,
       ...(validLimit ? { memberLimit } : {}),
+      // A bad value drops only the flag, as for the limit.
+      ...(isBoolean(host.hosted) ? { hosted: host.hosted } : {}),
     };
   });
 }

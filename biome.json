@@ -37,7 +37,8 @@
       "!!Shared",
       "!!.worktrees",
       "!!.agents",
-      "!src/renderer/src/vendor"
+      "!src/renderer/src/vendor",
+      "!marketplace/production-catalog/bundles"
     ]
   },
   "formatter": {
@@ -272,7 +273,10 @@
     },
     {
       "includes": ["src/renderer/**", "packages/ui/**", "packages/brand/**", "apps/auth-api/**", ".storybook/**"],
-      "plugins": ["./tools/biome/anti-slop/rules/no-collections-in-stores.grit"]
+      "plugins": [
+        "./tools/biome/anti-slop/rules/no-collections-in-stores.grit",
+        "./tools/biome/anti-slop/rules/no-cleanup-in-effect-callbacks.grit"
+      ]
     },
     {
       "includes": ["**/*.stories.ts", "**/*.stories.tsx"],
@@ -290,9 +294,7 @@
         "!**/*.test.tsx",
         "!**/*.stories.tsx",
         "!src/renderer/src/preview/**",
-        "!src/renderer/src/app-test-harness.ts",
-        "!src/renderer/src/setupTests.ts",
-        "!apps/mobile/src/test-setup.ts"
+        "!src/renderer/src/setupTests.ts"
       ],
       "plugins": ["./tools/ui-foundation/no-hardcoded-ui-text.grit"]
     },

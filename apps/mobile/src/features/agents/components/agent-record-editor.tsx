@@ -3,7 +3,6 @@ import { eventFilterDraftsValid, eventFiltersFromDrafts } from "@openbot/contrac
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   type AgentMemorySelectionState,
-  type CreateRoutineInput,
   type EventRoutine,
   type EventRoutineTriggerInput,
   isRoutineSchedule,
@@ -11,7 +10,6 @@ import {
   type RoutineFields,
   type RoutineSchedule,
   type SaveEventRoutineInput,
-  type UpdateRoutineInput,
   type RoutineWebhookTrigger as WebhookTriggerFields,
 } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
@@ -22,7 +20,7 @@ import {
   routineScheduleToDraft,
   switchDraftKind,
 } from "@openbot/team-client/routine-schedule-draft";
-import { type QueryKey, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
@@ -66,10 +64,7 @@ function useRecordDraftGuard(dirty: boolean, pending: boolean) {
   });
 }
 
-function useRecordAction(
-  invalidate: QueryKey = ["agent-info"],
-  failure: MobileTextKey = "mobile.agent.record.saveFailed",
-) {
+function useRecordAction(failure: MobileTextKey = "mobile.agent.record.saveFailed") {
   const { t, errorMessage } = useText();
   const client = useQueryClient();
   const lock = useRef(false);
@@ -84,7 +79,7 @@ function useRecordAction(
       await action();
       void haptics.notification("success");
       done?.();
-      void client.invalidateQueries({ queryKey: invalidate });
+      void client.invalidateQueries({ queryKey: ["agent-info"] });
     } catch (cause) {
       void haptics.notification("error");
       setError(errorMessage(cause, t(failure)));
@@ -102,22 +97,16 @@ export function MemoryEditor({
   available,
   selection,
   selectionAvailable = true,
-  port,
 }: {
   agent: Pick<MobileAgent, "id" | "serverId">;
   memory?: MemoryEntry;
   available: boolean;
   selection?: AgentMemorySelectionState | null;
   selectionAvailable?: boolean;
-  port?: {
-    save(text: string, id?: string): Promise<void>;
-    delete(id: string): Promise<void>;
-    queryKey: QueryKey;
-  };
 }) {
   const { t, format } = useText();
   const workspace = useMobileWorkspace();
-  const action = useRecordAction(port?.queryKey);
+  const action = useRecordAction();
   const inclusion = useRecordAction();
   const selected = selection?.selections.find((entry) => entry.memoryId === memory?.id);
   const accent = String(useCSSVariable("--openbot-accent"));
@@ -148,10 +137,7 @@ export function MemoryEditor({
         pending={action.pending}
         onSave={() =>
           void action.run(
-            () =>
-              port
-                ? port.save(text.trim(), memory?.id)
-                : workspace.saveAgentMemory(agent.id, text.trim(), agent.serverId, memory?.id),
+            () => workspace.saveAgentMemory(agent.id, text.trim(), agent.serverId, memory?.id),
             () => {
               setSavedText(text.trim());
               if (memory) setEditedText(undefined);
@@ -160,7 +146,7 @@ export function MemoryEditor({
           )
         }
       />
-      {!port && selection ? (
+      {selection ? (
         <SettingsNote>
           {t("mobile.agent.info.memory.inclusion.explanation")}{" "}
           {t("mobile.agent.info.memory.inclusion.capacity", {
@@ -169,7 +155,7 @@ export function MemoryEditor({
           })}
         </SettingsNote>
       ) : null}
-      {!port && selected ? (
+      {selected ? (
         <SettingsSection
           title={t("mobile.agent.info.memory.inclusion.label")}
           footer={t(
@@ -251,10 +237,7 @@ export function MemoryEditor({
                   style: "destructive",
                   onPress: () =>
                     void action.run(
-                      () =>
-                        port
-                          ? port.delete(memory.id)
-                          : workspace.deleteAgentMemory(agent.id, memory.id, agent.serverId),
+                      () => workspace.deleteAgentMemory(agent.id, memory.id, agent.serverId),
                       () => setFinished(true),
                     ),
                 },
@@ -284,25 +267,17 @@ export function RoutineEditor({
   agent,
   routine,
   available,
-  port,
 }: {
   agent: Pick<MobileAgent, "id" | "serverId">;
   routine?: RoutineRecord;
   available: boolean;
-  port?: {
-    create(input: Omit<CreateRoutineInput, "agentId">): Promise<void>;
-    update(input: Omit<UpdateRoutineInput, "agentId">): Promise<void>;
-    delete(id: string): Promise<void>;
-    test(id: string): Promise<void>;
-    queryKey: QueryKey;
-  };
 }) {
   const { t } = useText();
   const workspace = useMobileWorkspace();
-  const action = useRecordAction(port?.queryKey);
-  const toggle = useRecordAction(port?.queryKey);
-  const testRun = useRecordAction(port?.queryKey, "mobile.agent.record.testFailed");
-  const rotate = useRecordAction(port?.queryKey, "mobile.agent.webhook.rotateFailed");
+  const action = useRecordAction();
+  const toggle = useRecordAction();
+  const testRun = useRecordAction("mobile.agent.record.testFailed");
+  const rotate = useRecordAction("mobile.agent.webhook.rotateFailed");
   const [testStarted, setTestStarted] = useState(false);
   const [activeOverride, setActiveOverride] = useState<boolean | null>(null);
   // The host returns a signing secret one time: from the save that makes a webhook trigger, or from a rotation.
@@ -310,7 +285,7 @@ export function RoutineEditor({
   // A new webhook routine stays open after its save, so the user can copy its URL and secret.
   const [created, setCreated] = useState<WebhookRoutine | null>(null);
   const keepOpen = useRef(false);
-  const eventOwner = { kind: port ? "channel" : "agent", id: agent.id } as const;
+  const eventOwner = { kind: "agent", id: agent.id } as const;
   const webhookRoutine = isWebhookRoutine(routine) ? routine : undefined;
   useEffect(() => {
     if (routine?.active === activeOverride) setActiveOverride(null);
@@ -334,7 +309,6 @@ export function RoutineEditor({
             },
             agent.serverId,
           );
-        else if (port) await port.update({ routineId: routine.id, active });
         else await workspace.updateAgentRoutine({ agentId: agent.id, routineId: routine.id, active }, agent.serverId);
       } catch (cause) {
         setActiveOverride(null);
@@ -448,17 +422,6 @@ export function RoutineEditor({
       }
       return;
     }
-    if (port) {
-      if (routine)
-        await port.update({
-          routineId: routine.id,
-          ...(nameChanged ? { name: name.trim() } : {}),
-          ...(instructionChanged ? { instruction: instruction.trim() } : {}),
-          ...(scheduleChanged ? { schedule } : {}),
-        });
-      else await port.create({ name: name.trim(), instruction: instruction.trim(), schedule, timezone, active: true });
-      return;
-    }
     if (routine)
       await workspace.updateAgentRoutine(
         {
@@ -501,11 +464,7 @@ export function RoutineEditor({
       <SheetFormField
         appearance="soft"
         label={t("mobile.agent.record.routineInstructions")}
-        placeholder={t(
-          port
-            ? "mobile.agent.record.channelInstructionsPlaceholder"
-            : "mobile.agent.record.agentInstructionsPlaceholder",
-        )}
+        placeholder={t("mobile.agent.record.agentInstructionsPlaceholder")}
         multiline
         value={instruction}
         editable={!disabled}
@@ -612,9 +571,7 @@ export function RoutineEditor({
                 () =>
                   webhookRoutine
                     ? workspace.testEventRoutine({ id: webhookRoutine.id, owner: eventOwner }, agent.serverId)
-                    : port
-                      ? port.test(routine.id)
-                      : workspace.testAgentRoutine(agent.id, routine.id, agent.serverId),
+                    : workspace.testAgentRoutine(agent.id, routine.id, agent.serverId),
                 () => setTestStarted(true),
               );
             }}
@@ -637,9 +594,7 @@ export function RoutineEditor({
                       () =>
                         webhookRoutine
                           ? workspace.deleteEventRoutine({ id: webhookRoutine.id, owner: eventOwner }, agent.serverId)
-                          : port
-                            ? port.delete(routine.id)
-                            : workspace.deleteAgentRoutine(agent.id, routine.id, agent.serverId),
+                          : workspace.deleteAgentRoutine(agent.id, routine.id, agent.serverId),
                       () => setFinished(true),
                     ),
                 },

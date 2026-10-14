@@ -34,8 +34,8 @@ export type UpdateCheckOutcome = {
 
 /**
  * The subset of electron-updater this service drives. Four behaviours of the installed version are
- * load bearing here, none of them public API, all verified against 6.8.9 and pinned by
- * electron-updater-assumptions.test.ts:
+ * load bearing here, none of them public API, all verified against 6.8.9. Verify them again when
+ * electron-updater changes:
  *
  * 1. `MacUpdater.updateDownloaded` only calls `nativeUpdater.checkForUpdates()` - the call that makes
  *    Squirrel stage the ZIP and eventually emit the native `update-downloaded` - while
@@ -491,7 +491,7 @@ export class UpdateService extends EventEmitter<UpdateServiceEvents> {
       const generation = ++this.#downloadGeneration;
       this.#activeDownload = generation;
       this.#operation = "download";
-      this.#setStatus({ phase: "downloading", progress: 0, message: null, errorCode: null });
+      this.#setStatus({ phase: "downloading", progress: null, message: null, errorCode: null });
       yield* Effect.gen({ self: this }, function* () {
         const token = yield* this.#ensureCancellationToken();
         if (this.#downloadGeneration !== generation) return;
@@ -873,7 +873,7 @@ function appendUpdateLog(directory: string, event: UpdateDiagnosticEvent): Effec
   }).pipe(Effect.catch(() => Effect.void));
 }
 
-export function pruneShipItLogs(directory: string): Effect.Effect<void, UpdateOperationFailure> {
+function pruneShipItLogs(directory: string): Effect.Effect<void, UpdateOperationFailure> {
   return Effect.gen(function* () {
     const entries = (yield* updateIO(() => readdir(directory, { withFileTypes: true })))
       .filter((entry) => entry.isFile() && /^ShipIt_(?:stdout|stderr)\.log\.\d+$/u.test(entry.name))
@@ -901,8 +901,9 @@ function isNewerRelease(candidate: string, current: string): boolean {
   return false;
 }
 
-function clampProgress(value: number): number {
-  return Math.max(0, Math.min(100, Number.isFinite(value) ? Math.round(value) : 0));
+/** A percent that is not a number means that the download runs but its progress is not known. */
+function clampProgress(value: number): number | null {
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null;
 }
 
 export class UpdateOperationFailure extends Schema.TaggedError<UpdateOperationFailure>()("UpdateOperationFailure", {

@@ -107,8 +107,7 @@ export const messages = {
   "error.remote.operationFailed": "Удалённая операция не удалась.",
   "error.remote.connectionReplaced": "Подключение заменено.",
   "error.remote.desktopDidNotConnect": "Компьютер не подключился.",
-  "error.remote.desktopRestarted":
-    "Компьютер перезапустился. Выполняется повторное подключение с новой аутентифицированной сессией.",
+  "error.remote.connectionDropped": "У сервера больше нет этого подключения. Повторное подключение.",
   "error.remote.dataBeforeAuth": "Хост прислал данные до аутентификации.",
   "error.remote.eventStreamGap": "В потоке событий хоста есть пропуск.",
   "error.remote.malformedEvent": "Хост вернул искажённое событие.",
@@ -188,11 +187,5 @@ export const messages = {
   "error.remote.hostOtherAccount": "Этот хост принадлежит другому аккаунту.",
   "error.remote.remoteNotConfigured": "Удалённые подключения не настроены в этой службе OpenBot.",
   "error.remote.hostRefused": "Хост отклонил запрос ({status}).",
-  "error.remote.formUnavailable": "Эта форма больше недоступна.",
   "error.remote.hostedServerRemoval": "Чтобы удалить размещённый сервер, используйте раздел «Оплата».",
-  "error.remote.channelsUnsupported": "Обновите этот сервер на компьютере, чтобы использовать каналы.",
-  "error.remote.channelDeleteUnsupported": "Обновите этот сервер на компьютере, чтобы удалять каналы.",
-  "error.remote.attachmentUploadCancelled": "Отправка вложения отменена.",
-  "error.remote.historyRefreshFailed": "Сообщение отправлено, но историю чата обновить не удалось.",
-  "error.remote.taskHistoryRefreshFailed": "Задача изменена, но историю чата обновить не удалось.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -6,6 +6,328 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-10-14
+
+### Added
+
+- Add Vercel to the Apps catalog. Agents can list projects and deployments, read build and runtime
+  logs, and find why a build failed after you sign in to your Vercel account.
+- Agents can capture the screen of the computer that runs them: one display, one window, or an area of a display. You approve each capture first, or Turbo approves it when it has a standing approval for the agent, and the image shows in the conversation. Computer Use in the agent settings turns screen capture on or off for each agent. On macOS, OpenBot asks for the Screen Recording permission and tells you how to turn it on.
+- Codex, Claude and Grok can have more than one account. In Settings › Providers, select Add account under a provider to sign in to one more account. Each account keeps its own sign-in and its own usage limits, and you can rename or remove an account there.
+- Each agent can use a different account of its provider. Select the account in the model picker. The agent keeps its account after a restart.
+- The Usage menu shows the limits of each account.
+- An owner or admin of a server can add, rename and remove the provider accounts of the server, and select the account of each agent, in the desktop app and in the web client. The sign-in page of a new account opens in the server's browser.
+- An instance of `docker/instances` now updates from the app, like a hosted server: Server settings › Updates and the update dialog pull the new image on the host and make the container again, with the same data. The container never gets the Docker socket: it writes an empty request file, and `openbot-instance-update@<name>.path` on the host runs the update as root. It installs only a newer version. See "Updates from the app" in `docs/docker.md`.
+- **For an instance made before, run `openbot-instance setup`, then `openbot-instance upgrade <name>` once.**
+
+### Changed
+
+- The actions of a message are now in one row under the message, with the time: Copy, React and Reply. Before, they were at the side of the message, and Copy was in a `…` menu that had only Copy.
+- Agents that answer in Slack, Discord and Telegram answer simple questions themselves. They ask a
+  teammate only when the request needs the tools, accounts, files or memory of that teammate, or
+  long work.
+
+## [0.39.0] - 2026-10-14
+
+### Added
+
+- The server connection notice has a Details button. It shows why the server is away (an update, a start, or a lost connection), each step until the workspace is back, and how long it has taken.
+- Slack, Discord and Telegram now show in Marketplace › Apps, next to GitHub, 1Password and Bitwarden.
+- Run several OpenBot Docker containers on one host, each with its own CPU, memory and disk limit, with `docker/instances/openbot-instance`. The containers cannot reach each other, the host or private networks, only the internet. See "Several instances on one host" in `docs/docker.md`.
+- Server settings > Transfer moves the agents of a server to another server, also between computers. Export one file from the old server and import it into the new one. The file holds the instructions, avatar, model, skills, routines and memories of each agent and, if you want, its workspace files, plus the MCP servers, custom model providers and sidebar sections of the server. It also works with a joined server when you are its owner or an admin, for files up to 100 MB. API keys, sign-ins and chat history are not in the file. After the import, OpenBot shows which providers to sign in to again.
+- An operator can sign a self-hosted server or Docker container in for somebody else with no email code: `openbot login --claim`, which reads the claim from standard input. The account service makes the one-time claim for the owner's email with the new `SERVER_CLAIMS_ADMIN_TOKEN`. The claim works once, for 15 minutes. See "Sign in with a server claim" in `docs/self-hosted-server.md`.
+
+### Changed
+
+- The "MCP" link in the Server settings header no longer shows a background on hover. Only the text gets brighter.
+- The openbot.run home page now shows the iPhone and Android apps next to macOS, Windows and Linux. The "Available on" line and the footer list them, and the download menu has a "Phone apps" group with links to TestFlight and Google Play.
+- On an iPhone or an Android phone, the main download button of the home page now opens the phone app's store page. Before, it offered the Mac or Linux installer, which a phone cannot open.
+- When you restart a hosted server, the dialog stays open and shows the restart: the server stops, starts, and is back online. You can hide the dialog; a notification then tells you when the server is back or did not start. If the server does not start, "Try again" restarts it from the dialog.
+- Connect on a provider row now uses the easiest sign-in for the place you are in. On this computer, it opens your browser. On a server, from the app, it opens the sign-in page in your browser and sends the result to the server. In a browser tab, it shows a code. The other way to sign in is in the row's ⋯ menu.
+- In a browser tab, a provider that only the OpenBot app can sign in now tells you to connect it in the app, with a link to get the app.
+- In a browser tab, Gemini's ⋯ menu now has "Paste the address", so you can connect it without the app.
+- The Mobile tab of the changelog page shows the stores that have each version of the mobile app:
+  iOS, Android, or both. A store that does not have the version yet shows "In review". When the two
+  stores released the version on different days, each store shows its own date.
+- On the routine canvas, each connection now ends in an arrow where it goes into the next card, so you can see the order in which a run goes from one agent to the next. The step number in the corner of each agent card is removed; the routine details panel still shows it.
+- On a joined server, 1Password and Bitwarden now show in Server settings › Connectors as "Your computer only". Before, they did not show.
+- When a joined server has a new OpenBot version, a dialog now shows the update steps: download, restart, and back online. One click starts the update. An admin can let the restart wait until agents are idle, restart at once, or cancel the restart. You can hide the dialog while the server updates; a notice keeps the status and opens the dialog again.
+- In Server settings > Updates, "Update when idle" and "Restart now" open the same dialog.
+- The update dialog opens each time you enter a server that has a new version. An update button next to the server name in the sidebar opens it again.
+- The openbot.run website now keeps the first visit of your browser (source, first page, day and campaign tags) in the browser. When you sign in on the web, or open the page after a desktop checkout, OpenBot saves it on your account for product analytics. It contains no referrer, IP address or identifier. [PRIVACY.md](https://github.com/nightly-labs/openbot/blob/main/PRIVACY.md) describes it.
+
+### Fixed
+
+- In an MCP form, the `›` in the Server settings header had more space on its left than on its right. Now the space is the same on both sides.
+- When your ChatGPT sign-in expired, creating an agent showed "workspace routing discovery unauthorized (401)". Now OpenBot tells you to sign in again, and the model picker shows the sign-in action.
+- When an OpenCode model ends a turn with no answer, the chat now says so, and says when the model stopped after its reasoning. Before, it told you to check sign-in and billing, also for free models where neither is the cause.
+- When you select a server on another computer, OpenBot now connects to it at once. Before, if the connection to that computer stopped recently, the server could show "Connecting" for up to 5 minutes.
+- Keep a phone or another computer connected when it is slow to read updates, such as a phone in
+  the background while an agent works. Before, it could disconnect with "The host event stream has
+  a gap.", because this computer sent updates out of order or skipped one that it could not send.
+- The open waits of an agent, and their errors, now show in German, Spanish, French, Italian, Japanese, Polish, Brazilian Portuguese, Russian and Turkish. Before, they showed in English.
+- Some routine flow messages in French, Japanese, Polish, Brazilian Portuguese and Turkish, and some provider sign-in text in Italian, now show in the selected language. Before, they showed in English.
+- On a server, "Log in with code" in the ⋯ menu opened the sign-in page again. Now it shows a code.
+- On a server, the model picker's Connect and Claude's Sign in button did nothing. Now they start the sign-in.
+- On a server that you manage, the message box now shows the sign-in notice for a signed-out provider.
+- The app now connects again after a server on another computer restarts. Before, it could show "The remote request timed out" until you restarted the app. Retry now also replaces a connection that does not answer.
+- While a server on another computer is offline, a conversation shows one "Queue load failed" error, not a new one for each agent change. The same error again replaces the earlier one.
+- While a server on another computer restarts to install an update, the desktop app now shows "Updating" and the server name, not a connection error. The app now waits up to 30 minutes, not 10, before it treats that server as offline.
+- A server that goes offline while its update waits no longer shows "restarting to install an update". The app shows that text only when the server starts the update restart.
+- The chat card that suggests a connector now works for every connector, on a joined server and in the browser client. Before, it worked only for GitHub, and on a joined server it said that GitHub works only on this computer.
+- A GitHub sign-in that waits for the code now shows "Connecting". Before, it showed as not connected.
+- In Marketplace › Apps, Connect on the GitHub card now shows on a joined server that can run connectors. Before, it showed only when the server could manage MCP servers.
+- The Bitwarden card in Marketplace › Apps now shows the same lock mark as Server settings › Connectors.
+- On a joined server, the Routines view no longer says that the server does not support routine flows while OpenBot connects, reconnects or waits for the server to wake. The view stays empty until the server answers, as it does while routines load.
+
+## [0.38.2] - 2026-10-13
+
+### Added
+
+- Italian interface. Choose Italiano in Settings > General > Language, or keep System default on a
+  computer that uses Italian. The web client uses it too.
+- A server sends iPhone notifications to its members when an agent finishes, stops with an error, or
+  needs input, an approval or a step in the browser. It sends no answer or error to a member who
+  uses a desktop app at that time. While the phone shows the Live Activity, the Live Activity shows
+  the event in place of a notification, and lights up the screen and plays the sound when the phone
+  chose that. It uses the choices of each phone, and seals the agent name and the text
+  so that Apple and the OpenBot account service cannot read them. The server keeps the phones that
+  get notifications, so they continue after a restart.
+- You can cancel a Gemini (or other browser) sign-in that waits for the browser. Before, the only way out was Restart, which opened another sign-in page.
+- While a provider connects, its row tells you to finish the sign-in in your browser.
+- Agents can now post to a connected Slack, Discord or Telegram place on their own initiative, from
+  any chat or routine run. Ask an agent to "post the summary to #bot-inflow", or put it in a routine
+  prompt. `openbot.messaging_list_places` lists the connections and their channels, and
+  `openbot.messaging_post` posts the text, redacted. Before, an agent could only answer the
+  conversation that addressed it.
+
+### Changed
+
+- When a queued message waits and no turn runs, the server log now names what holds the queue, so a
+  queue that does not start can be diagnosed.
+- The sign-in code email leaves about one second sooner. Before, OpenBot waited for 10 replies from the mail server, one after another, before it showed the code field. Now it waits for 5.
+- Agents show a draft before they send a message for you, and they send it only after you approve it. A routine whose instruction asks for a send still sends. Before a payment, an agent reads back the item, price and total and asks you to confirm.
+- Agents give the answer first and do not invent facts or sources. An agent says done only after it checks the result.
+- When you say stop, an agent also stops each teammate that it gave work to, and tells you which teammates stopped.
+- Agents look for a teammate earlier, when a task or part of it fits another agent's title and description. Before, they looked mostly after a failure. This helps when you have many agents.
+- A message from one agent to another now contains all that the other agent needs, without your other private details. When the answer comes back, the agent checks it and tells you which facts have a source.
+- For a repeated or timed request, such as "every morning", an agent creates a routine or offers one.
+- Server settings > Connectors shows the open connector in the header, for example "Connectors › GitHub". Select "Connectors" to go back to the list. The "All connectors" button is removed.
+
+### Fixed
+
+- Open OpenBot from an invitation link on Windows. Before, Open OpenBot on the invitation page did
+  nothing, because Windows had no handler for `openbot://` links.
+- Show help on the invitation page after Open OpenBot is pressed, in case OpenBot does not open.
+- Agents now show in their sections when a server starts or reconnects. Before, the sidebar sometimes showed them ungrouped until you refreshed the app.
+- Opening or writing to a chat no longer shows "Read state failed" when the read mark names a message
+  that is not saved yet or was removed, such as a queued message on a hosted server. Before, every
+  open and every send showed the error again.
+- The Google sign-in for Gemini no longer stops when you return to OpenBot before you finish it in the browser on the first-run screen.
+- A failed Gemini sign-in now shows the reason, such as a timeout or Google's own message. Before, every failure showed "OpenBot could not connect Gemini. Try again."
+- When Google refuses a saved Gemini API key, OpenBot says so. Before, it asked you to sign in with Google, which could not help while the key was saved.
+- OpenBot no longer opens a Google sign-in page by itself when it checks Gemini with an expired sign-in. It shows "Sign in with Google to use Gemini." at once, without a long wait.
+- A Gemini chat whose session was lost now starts a new session. Before, every next message in that chat failed.
+- When the Gemini plan's quota is reached, the turn fails with a clear message. Before, the quota notice was saved as Gemini's answer.
+- Gemini no longer asks for approval of a tool after you press Stop.
+- Gemini no longer shows a "Provider error" notification for each line of its internal log, such as after a Stop or a failed request. The failed turn says what happened.
+- When Gemini fails a request, for example because the API key is not valid, the turn fails with a clear message. Before, the error was saved as Gemini's answer.
+- The Gemini row in Settings always has an API key button, so a saved key can be replaced or removed while Gemini shows Connected.
+- After you cancel a sign-in, the provider row shows again why it is not connected.
+- Provider rows in Settings show why a provider is not ready, or why its download failed, as text. Before, the reason was only in a tooltip.
+- A Connect that fails in Settings, the model picker or the chat composer now shows why.
+- The Gemini row and other downloaded providers show "Update available" in Settings, as the update notification does.
+- On the first-run screen, the main button downloads the selected provider when it is not downloaded, and says Download.
+- The Server settings header no longer moves by 1 pixel when you open or close an MCP form.
+
+## [0.38.1] - 2026-10-13
+
+### Added
+
+- A mention, a direct message, a thread reply or a button press in Slack, Discord or Telegram starts
+  a hosted server that sleeps. Signal keeps that message, encrypted for the server, for up to
+  10 minutes, and the server answers it when it starts.
+- Dictation can use ElevenLabs Scribe v2 Realtime with your own API key. Select it in **Settings → Voice** and save the key. The text shows while you speak, and a finished sentence stays fixed. The audio goes to ElevenLabs only when you select this model.
+- The Routines canvas is now in the web app and on joined servers. Switch the sidebar to Routines to see an agent's routines, connect agents, edit their tasks, run a routine and ask the agent to edit the canvas. A member who can see an agent can change its canvas; only an owner or admin sees and changes webhook settings. The server must run this version of OpenBot.
+- Visual replies and HTML files show as pages in the web app, as on desktop. The page runs in a sandboxed frame and cannot read the web app.
+- Image attachments show as thumbnails in the web app, and audio and video attachments of 10 MB or less play in the chat after you select Play.
+- The iPhone app can search the files in the chats of this computer.
+- An agent can stop a request and wait for an event outside its turn, such as a build or a nightly run. The chat shows each open wait above the composer. The next routine run of the agent, or a local script that names the wait, continues the request with the original message and the agent's note. Use the ⋯ menu of a wait to show its request or cancel it.
+- Generate a permanent Mobile Connect link in Settings > Mobile Connect. You can show it again, copy
+  it, replace it or revoke it. The link signs in a phone each time you use it, until you revoke it
+  or sign out on this computer. Revoking the link also disconnects the phones that signed in with
+  it.
+- Copy or cancel a one-time Mobile Connect code. A cancelled code cannot sign in a phone.
+- See in Connected devices whether each phone signed in with a one-time code or a permanent link.
+- Agents that answer in Slack, Discord or Telegram can save short facts about the workspace, such as who owns a project. Every new conversation in that Slack workspace, Discord server or Telegram chat sees them, in every channel. The agent's own chat does not. A fact from a direct message is not saved.
+- An agent that answers in Slack, Discord or Telegram can read more of the channel or thread when a message refers to something earlier.
+- The owner of a hosted server can restart it from the server menu, on desktop and on the web.
+  Restart server is above Leave server and Delete server. The server stops and starts again, and
+  the app connects again when the server is back.
+- Add the pstack skill to the Marketplace. Install it on the agents you choose, and it adds the 52
+  skills of the pstack plugin by Lauren Tan, each as its own skill. Type `$pstack-poteto-mode`,
+  `$pstack-why` or another `$pstack-<name>` to use one. Removing pstack removes them all.
+
+### Changed
+
+- Desktop notifications now show the start of the agent's reply when it finishes, the question when
+  it needs your input, and the command when it needs your approval. Before, they showed only
+  "Finished working.", "Needs your input." or "Needs your approval.". Secrets in the text are
+  hidden. To show only the fixed text, turn off "Show message preview" in Settings → Notifications.
+- An account can now have 50 hosted servers. Before, the limit was 3.
+- A hosted server with a Slack, Discord or Telegram connection now sleeps after 15 minutes with no use,
+  as other hosted servers do. Before, a live connection kept it on all the time.
+- Long chats in the web app and on joined servers show the "Earlier" part of the day rail for messages that are not loaded yet, as on this computer. The server must run this version of OpenBot.
+- Agents in one sidebar section now know their section teammates and send work to them first. To make agents work together, put them in one section.
+- When you open an agent whose history is not loaded yet, the loading crew covers the chat until the
+  history is ready. Before, a banner showed a Retry button that you could not use. A failed load
+  still shows the notice with Retry.
+- The chat now keeps the answer of a quiet routine run. Each routine run row opens and closes the
+  messages of its run. A quiet run that has finished starts closed, a run that reported something
+  starts open, and a run that is in progress stays open until it finishes. A quiet answer does not
+  count as unread and does not change the chat preview.
+- In Slack and Discord, a mention of a person shows that person's name to the agent, not an ID.
+
+### Deprecated
+
+- **Put agents that work together in one sidebar section.** Channels are no longer supported. OpenBot archives every channel when it starts and hides channels on the desktop, the web and the iPhone app. Agents in one section know each other and send work to each other first. Your channel history stays on your computer for now. The next release removes channels and their data.
+
+### Fixed
+
+- Keep a link in your own message readable when you put the pointer on it. Before, the link text
+  almost disappeared into the bubble. A link that shows its full address no longer opens a tooltip
+  with the same address.
+- A remote connection that Signal refuses for a reason other than a rate limit, such as an invalid ticket, reconnects at once. Before, OpenBot waited 60 seconds as if Signal had limited its rate.
+- An image you paste or drop in an agent chat sends again after you had a channel open. Before, the closed channel deleted the attachment as it arrived, and sending failed with "Attachment draft no longer exists".
+- Claude background subagents keep running after the agent's turn ends. Before, OpenBot stopped the idle Claude process after 10 minutes and ended every subagent with "Stream closed", so long research had to start again.
+- The live view of a remote server's browser now stops when you hide the browser, change the tab, or close a sign-in page. Before, the server kept sending the old view.
+- A browser password request now shows the preview of its own page. Before, a slow preview of an earlier request could replace it.
+- When a server connection was lost while OpenBot checked it, for example when you came back to the app, the status showed a short countdown before it connected again. Now it connects again at once.
+- A Claude agent's answer after a background subagent or command ends now shows in the chat. Before, Claude wrote that answer, but OpenBot did not show it, because no message of yours had started the turn.
+- The chat over the Routines canvas shows the agent's answer once, not twice.
+- Start the channel task that has waited longest for the host first. Before, a busy channel could
+  start its newer tasks again and again while an older task of another channel stayed queued.
+- Wait between connection attempts to a team server that is offline. Before, the app tried again
+  about once each second, and Signal could then block the app for a minute.
+- The web client connects to a hosted server that starts within about 5 seconds after the server is ready. Before, it could wait up to 2 minutes between attempts.
+- While a hosted server starts, the web client shows why the last connection attempt failed, with its error code.
+- An owner or admin of a server sees its Slack, Discord and Telegram connectors in the web client's Server settings, as in the desktop app. Before, the web client showed only GitHub. A Slack or Discord install that the web client starts returns to the web client tab.
+- OpenBot uses Electron 44.7.0. This update has V8 engine fixes that can stop rare crashes of the
+  app while it is idle on macOS.
+- A routine run that a local script or a webhook starts can now end quietly, as a scheduled run does.
+  Before, OpenBot sent it as a Test run, so the agent always wrote a report. The run history now
+  shows "Script" or "Webhook" for these runs, not "Manual".
+- A client now connects again when it asks to start a hosted server that is stopping. Before, it
+  stopped the reconnects and showed the server as offline until the next status check.
+- Account sessions now show a hosted server with its name, as a hosted server. Before, the list
+  showed it as "Desktop", so an owner could disconnect the server by mistake. Disconnect still signs
+  the server out; a restart signs it in again.
+
+## [0.38.0] - 2026-10-12
+
+### Added
+
+- URL MCP servers have a "Sign-in app" section. Enter the client ID, an optional client secret and optional scopes of an OAuth app that you registered with the server's provider. OpenBot uses this app when the server cannot register OpenBot by itself. The section shows the exact callback URL with a copy button. On a joined server, the host keeps the app and signs in with its own browser.
+- On a joined server that supports it, you can now connect Codex, Claude, Gemini and Muse from your own computer. The sign-in page opens in your browser, and OpenBot sends the callback to the provider's CLI on the host.
+- On a joined server that supports it, Server settings > Connectors now shows the host's GitHub, Slack, Discord and Telegram connections. You can connect, disconnect and reconnect them from your computer. The pages open in your browser, and the host keeps every token.
+- When an agent on a joined server shows a sign-in link, for example for an MCP server of its CLI, the link opens in your browser and the sign-in finishes on the host.
+- The Marketplace can now install an app that signs in with a browser on a joined server that supports this relay. The browser client can also connect providers and install these apps on a joined server.
+- On a joined server that supports it, the sign-in page of a URL MCP server now opens in the browser of your own computer, not in a tab on the host. Your passwords, passkeys and existing sessions work. OpenBot takes the callback on your computer and sends it to the host, and the host keeps the grant.
+- When your computer cannot take the callback of a relayed sign-in, OpenBot asks you to paste the address that the browser shows at the end of the sign-in. The browser client always uses this step.
+
+### Changed
+
+- A hosted server installs a new release by itself when it is idle and no member used it for 5 minutes. Automatic updates are always on for a hosted server.
+- Show the words you dictate at the end of your draft, where they will go. Before, they showed as a
+  separate grey paragraph under the draft and moved into it when the recording finished.
+- Make the voice recording bar shorter, so the message box has more space for text.
+- MCP sign-in now tries the same local callback port each time (28417), so the callback URL of a sign-in app stays the same. When the port is busy, OpenBot uses a random port.
+
+### Fixed
+
+- Show a moving bar and no percent while a server prepares an update or stages it. Before, the update
+  notice showed "Downloading · 0%" for minutes while a cloud server waited for its disk after a resume.
+- A hosted server that had a new release ready took more than 3 minutes to wake. It now wakes in about 20 seconds, as it does without a release.
+- When an agent opened more websites in the built-in browser, or when you came back to the OpenBot window, the browser went back to the first website. It now keeps the website that you chose.
+- A paste into the live view of a remote host's browser now goes to the page. Before, the paste
+  went to the last text selection in the window, such as the chat input, or it was lost.
+- A connection to a remote server that stayed open for 45 minutes asked the signalling service for new relay credentials many times a second, until the service closed the socket for a minute. The service could then also close the server owner's own host connection. OpenBot now asks once every 45 minutes, and restarts the network path only when it goes through a relay.
+- When you refuse a relayed sign-in on a joined server, the command-line tool on the server now gets
+  the refusal and stops at once. Before, it waited until its own time limit.
+- The paste step of a relayed sign-in no longer says "this browser" in the desktop app.
+
+### Security
+
+- OpenBot keeps the client secret of a sign-in app in the encrypted sign-in store, shows only "Secret saved" after you save it, and removes it when you remove the server. Only an owner or admin can change a sign-in app on a joined server. A sign-in app is bound to the first sign-in server that accepts it, and OpenBot never sends it to a different one.
+- The host relays an agent's sign-in link only when the link is an https page with a `state` that returns to a loopback address, and only when a message of that agent holds that exact link. A Slack or Discord grant goes only to the server whose install your computer opened, and only once. No connector route carries a token, and OpenBot does not log sign-in codes or grants.
+- Only an owner or admin can start a relayed sign-in. Each relay completes once, only for the member who started it, and ends after 10 minutes. Your computer sends only the query of the callback. The host checks its `state` and never lets a client choose a host port or address. The page opens only when you click "Open sign-in page" in the dialog that shows its host name, and your computer refuses a page that has no `state`, so a host cannot use your browser for a grant you did not ask for. OpenBot does not log the sign-in code.
+
+## [0.37.0] - 2026-10-11
+
+### Added
+
+- A scheduled routine has the setting "If OpenBot was closed at the scheduled time". "Skip this run"
+  is the default. "Run once when OpenBot opens" starts one run for the most recent missed time.
+- The run history shows the runs that OpenBot skipped while it was closed, as one row for each
+  group, and marks a run that started more than one minute late.
+- Connect the phone app to a self-hosted or Docker server. Run `openbot mobile-connect` on the server
+  (`docker exec -it <container> openbot mobile-connect` in Docker) and scan the QR code with the
+  phone app. Before, only the desktop app could show a Mobile Connect code.
+- On this computer, you can log in to Grok, Cursor, Cline and Muse with a code, as you can for
+  ChatGPT. On Linux, you can also log in to Claude with a code that you paste.
+- When a browser sign-in that you start does not finish after 25 seconds, or fails, the provider
+  row and the composer show a "Log in with code" button.
+- On this computer, you can connect Gemini with a Gemini API key. Select Sign in on the Gemini row
+  to save the key.
+- Settings > Voice shows the dictation models. You can download, cancel, and select a model there.
+- You can download Whisper large-v3 turbo (1 GB) as a second dictation model. It knows about 100
+  languages. With Whisper, you can set the dictation language, for example Hungarian, or keep
+  Automatic. Whisper writes the text when you stop, not while you speak. Parakeet stays the
+  default and finds the spoken language itself.
+
+### Changed
+
+- German, Spanish, French, Japanese, Brazilian Portuguese, Russian and Turkish now translate all
+  interface text. Before, some screens, errors and status messages showed English text.
+
+### Fixed
+
+- Claude agents keep their prompt cache when their saved memories change. Before, each memory
+  change, such as a new memory that the agent saved, made the next turn write the whole
+  conversation to the cache again. The agent now gets the change with its next message.
+- Show "1 unread message" and "1 unread direct message" in the desktop sidebar. Before, these
+  labels used the plural for one message.
+- Translate open notifications again when you change the language. Before, a provider update
+  notification and the close button of each notification kept the previous language.
+- In the desktop app, an image that you paste or a file that you drop into a channel chat now
+  appears as an attachment. Before, the channel chat ignored it, and only the attachment button
+  worked.
+- An agent whose plan ran out of usage can now change to a model of another provider. Before, the
+  change failed with "Could not change model" while the agent held a queued message, and the agent
+  stayed on the spent plan until it reset. The queued message now runs on the new model.
+- Agents in a channel no longer read the thinking of other agents. Before, when one Claude agent
+  in a channel had thinking text in its turn, Claude stopped every later assignment in that
+  channel with a `reasoning_extraction` safeguard error until the channel summary covered the text.
+  The channel still shows the thinking.
+- The chat input keeps focus while agents work in the background. Before, a browser popup that an
+  agent opened, or a browser tab that an agent or a page closed, took focus from the chat input when
+  the browser panel was open.
+- Keys that you type during a short provider restart or server reconnect are no longer lost.
+- A click into the chat input that closes a popover keeps the focus in the chat input. Before, the
+  focus went back to the button that opened the popover.
+- Connect for Gemini now works on a Linux server that you joined, such as a Docker server. Before,
+  the button did nothing. The server opens the Google page in its own browser, and you sign in
+  through the live view of that page in the app or the web client. Only an owner or admin can do
+  this.
+- A finished agent reply no longer stays cut off after about 220 characters until the window is
+  reloaded. This happened most often in a desktop app connected to another computer or server. A
+  streaming reply also no longer loses its middle part while other agents work, and the Dynamic
+  Island no longer cuts a reply that it already shows.
+- After a joined server restarts, the first action on that server no longer fails with "Provider
+  settings are not supported by this connection." Before, a second try was necessary.
+- Let users close the usage-limit notice above the message box. Keep the current notice dismissed
+  when they return to the chat, and show a notice again for a new quota window.
+
 ## [0.36.0] - 2026-10-10
 
 ### Added

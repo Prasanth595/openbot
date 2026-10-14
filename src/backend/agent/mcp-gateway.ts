@@ -1,13 +1,17 @@
 import type {
   McpServerConfig,
+  McpSignInAppInput,
+  McpSignInAppState,
   McpSignInState,
   RemoveMcpServerInput,
   SaveMcpServerInput,
+  SaveMcpSignInAppInput,
   SetMcpServerEnabledInput,
   SignOutMcpServerInput,
   TestMcpServerInput,
 } from "@openbot/contracts/ipc";
 import { GITHUB_CONNECTOR_MCP_SERVER_ID, mcpConfigErrors, normalizeMcpConfig } from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import type { Logger } from "@openbot/logging";
 import { Effect, Schema } from "effect";
 import type { AgentProvider } from "../agent-client";
@@ -22,7 +26,7 @@ import {
   NO_MCP_TOOL_RUNTIMES,
 } from "../mcp-provider-shapes";
 import { mcpSecretValues, redactMcpValues } from "../mcp-redaction";
-import type { McpServerStore } from "../mcp-server-store";
+import { McpServerError, type McpServerStore } from "../mcp-server-store";
 import type { ProviderClientContext } from "../provider-drivers";
 import { providerLabel } from "./thread-items";
 
@@ -298,14 +302,74 @@ export class McpGateway {
    * too; the answer says so, row by row.
    */
   readonly signOut = Effect.fn("McpGateway.signOut")(function* (this: McpGateway, input: SignOutMcpServerInput) {
-    const config = this.#servers.list().find((row) => row.id === input.mcpServerId && row.transport === "http");
+    const config = this.#httpRow(input.mcpServerId);
     if (config && this.#oauth) {
       this.#oauth.cancelSignIn(config.url);
-      yield* this.#oauth.forget(config.url).pipe(toMcpGatewayFailed);
+      yield* this.#oauth.signOut(config.url).pipe(toMcpGatewayFailed);
       yield* this.#hooks.refreshAllAgentRuntimes();
     }
     return this.signIns();
   }, Effect.uninterruptible);
+
+  /**
+   * The sign-in app of one saved http row, and the exact callback address to register with it.
+   * Only a saved row has one: the app is kept under the row's address, and a draft's address can
+   * still change, which would leave the secret under an address no row names.
+   */
+  signInApp(input: McpSignInAppInput): McpSignInAppState {
+    const config = this.#httpRow(input.mcpServerId);
+    return {
+      redirectUrl: this.#oauth?.redirectUrl ?? null,
+      app: config && this.#oauth ? this.#oauth.signInApp(config.url) : null,
+    };
+  }
+
+  /**
+   * Saves the app the next sign-in to this row uses. Rows with the same address share it, as they
+   * share the account. A new client drops the tokens the old one earned, so every agent's session
+   * is refreshed to stop handing them out.
+   */
+  readonly saveSignInApp = Effect.fn("McpGateway.saveSignInApp")(function* (
+    this: McpGateway,
+    input: SaveMcpSignInAppInput,
+  ) {
+    const { config, oauth } = yield* this.#signInAppTarget(input.mcpServerId);
+    if (!input.clientId.trim())
+      return yield* new McpGatewayFailed({
+        cause: new McpServerError(sourceText("error.backend.mcpSignInAppClientId")),
+      });
+    const dropped = yield* oauth
+      .saveSignInApp(config.url, { clientId: input.clientId, clientSecret: input.clientSecret, scope: input.scope })
+      .pipe(toMcpGatewayFailed);
+    if (dropped) yield* this.#hooks.refreshAllAgentRuntimes();
+    return this.signInApp(input);
+  }, Effect.uninterruptible);
+
+  /** Drops the sign-in app and the tokens it earned. The next sign-in registers OpenBot again. */
+  readonly removeSignInApp = Effect.fn("McpGateway.removeSignInApp")(function* (
+    this: McpGateway,
+    input: McpSignInAppInput,
+  ) {
+    const { config, oauth } = yield* this.#signInAppTarget(input.mcpServerId);
+    if (yield* oauth.removeSignInApp(config.url).pipe(toMcpGatewayFailed)) yield* this.#hooks.refreshAllAgentRuntimes();
+    return this.signInApp(input);
+  }, Effect.uninterruptible);
+
+  /** `McpServerError`, so a joined server's host answers 400 with the reason rather than a bare 500. */
+  #signInAppTarget(
+    mcpServerId: string,
+  ): Effect.Effect<{ config: McpServerConfig; oauth: McpOAuthAuthority }, McpGatewayFailed> {
+    const config = this.#httpRow(mcpServerId);
+    if (!config)
+      return new McpGatewayFailed({ cause: new McpServerError(sourceText("error.backend.mcpSignInAppNoServer")) });
+    if (!this.#oauth)
+      return new McpGatewayFailed({ cause: new McpServerError(sourceText("error.backend.mcpSignInAppUnavailable")) });
+    return Effect.succeed({ config, oauth: this.#oauth });
+  }
+
+  #httpRow(mcpServerId: string): McpServerConfig | undefined {
+    return this.#servers.list().find((row) => row.id === mcpServerId && row.transport === "http");
+  }
 
   /** Whether each http row has a sign-in on this computer. Yes or no only, never a token. */
   signIns(): McpSignInState[] {

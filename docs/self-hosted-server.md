@@ -22,6 +22,36 @@ server shows in the server list of that account. Its name is "OpenBot"; give ano
 Then connect a provider from the app, as on a hosted server (see
 [Providers](hosted-servers.md#providers)).
 
+### Sign in with a server claim
+
+An operator who sets up a server for somebody else can sign it in with no code. The operator makes a
+one-time claim for the owner's email, and the server redeems it. The owner does nothing: when they
+sign in to OpenBot with that email, the server is in their server list.
+
+```sh
+printf '{"email":"%s"}' owner@example.com |
+  curl --fail -sS -X POST https://api.openbot.run/v2/admin/server-claims \
+    -H @server-claims.header -H 'content-type: application/json' --data-binary @- |
+  sed -n 's/.*"claim":"\([A-Za-z0-9_-]*\)".*/\1/p' |
+  sudo openbot login --claim --name <name>
+```
+
+`server-claims.header` holds one line, `Authorization: Bearer <token>`, so the token is in no process
+argument. `openbot login --claim` reads the claim from standard input, or asks for it without an echo
+in a terminal, for the same reason.
+
+- `POST /v2/admin/server-claims` needs the `SERVER_CLAIMS_ADMIN_TOKEN` of the account service. It
+  makes the account of the email when there is none, and answers `{"claim", "expiresAt"}`.
+- The claim works once, for 15 minutes. The account service keeps only its hash.
+- The server sends it to `POST /v2/server-claims/redeem` and gets a session of the owner. The owner
+  is then the only owner of the server. The operator does not need the owner's email or password.
+- A claim that was used, or that expired, gives `server_claim_invalid`. If the server did not get the
+  answer, make a new claim.
+
+Anyone with the admin token can get a session for any email, also of an existing account. Keep the
+token on the operator's computer only. The owner sees each claimed server session in their account
+sessions, and can revoke it there.
+
 Install options go after `sudo bash -s --`:
 
 | Option | Default | Use |
@@ -38,8 +68,9 @@ open a database that a newer one migrated. It also refuses a computer that is a 
 
 | Command | Use |
 | --- | --- |
-| `openbot status` | Show the version, the account, the server state and a staged update. |
+| `openbot status` | Show the version, the account, the server state, the memory and a staged update. |
 | `openbot login [<email>] [--name <name>]` | Sign in with an email code. |
+| `openbot login --claim [--name <name>]` | Sign in with an operator's one-time claim (see [Sign in with a server claim](#sign-in-with-a-server-claim)). |
 | `openbot mobile-connect` | Show a Mobile Connect QR code for the phone app (see [Phone app](#phone-app)). |
 | `openbot logout` | Sign out. The server is not available until the next sign-in. |
 | `openbot name <name>` | Change the server name. |
@@ -51,6 +82,28 @@ open a database that a newer one migrated. It also refuses a computer that is a 
 
 Run the account commands with `sudo` or as the service user. Other users cannot open the control
 socket.
+
+## Memory
+
+A self-hosted server uses the memory guards of a hosted server (see
+[Memory](hosted-servers.md#memory)). When free memory is low, new turns wait in the queue and start
+again when memory is available. A message from a person starts first. The browser opens no new tab
+and unloads idle pages sooner. A fixed number of turns run at the same time: 4 up to 5 GiB of memory,
+8 up to 10 GiB, and 16 above.
+
+The memory ceiling is the smaller of the machine memory and the limit of `openbot.service`
+(`MemoryMax=90%`). To give OpenBot less memory, lower the limit with
+`sudo systemctl edit openbot.service`, for example `MemoryMax=2G`, and restart the service. The
+turn limit and the low-memory levels then use the new ceiling. `openbot status` shows the ceiling,
+the free memory, the level (`ok`, `low` or `critical`) and the turn limit:
+
+```text
+Memory: 1228 MiB free of 3481 MiB (ok)
+Turns at the same time: at most 4
+```
+
+The guard reads cgroup v2. On a system with cgroup v1, it uses the machine memory and the log has
+one warning.
 
 ## Phone app
 
@@ -105,13 +158,15 @@ Xvfb with `OPENBOT_SERVER=1`. Main (`src/main/server-mode.ts`) then opens the co
 Updates work as on a hosted server (see [Updates](hosted-servers.md#updates)): the timer stages a
 new release, and it starts at the next boot, or when an owner, an admin or a permitted member
 installs it in Server Settings > Updates. `sudo openbot update` stages, stops the service, applies
-and starts the service again.
+and starts the service again. When a step fails or a signal stops it, the command completes an
+interrupted copy, starts the service, and exits with an error.
 
 ## Control socket
 
 The `openbot` command talks to main over HTTP on a Unix socket, with form bodies and `key=value`
 text answers, so it needs only `curl`. The routes are `GET /v1/status`, `POST /v1/login/start`,
-`POST /v1/login/verify`, `POST /v1/name` and `POST /v1/logout`.
+`POST /v1/login/verify`, `POST /v1/login/claim`, `POST /v1/name`, `POST /v1/mobile-connect` and
+`POST /v1/logout`.
 
 Threat model:
 
@@ -120,8 +175,8 @@ Threat model:
   never removes a file at the socket path that is not a socket.
 - Only the service user and root can connect. Agents run as the service user and already have full
   access to its files, its keyring and the OpenBot database, so the socket gives them nothing new.
-- The socket answers a closed list of requests. It never sends the session token or the sign-in
-  code back, and a value cannot add a line to an answer. A body is at most 4 KiB.
+- The socket answers a closed list of requests. It never sends the session token, the sign-in
+  code or the claim back, and a value cannot add a line to an answer. A body is at most 4 KiB.
 - Server mode starts only in a packaged Linux build with `OPENBOT_SERVER=1`, and never on a hosted
   server, which signs in with its claim.
 

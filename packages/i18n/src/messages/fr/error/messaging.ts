@@ -14,4 +14,6 @@ export const messages = {
   "error.messaging.telegramUnsupported": "Cet ordinateur ne peut pas se connecter à Telegram.",
   "error.messaging.telegramRelayUnavailable":
     "OpenBot ne peut pas joindre Telegram sur cet ordinateur. Connectez-vous, donnez un nom à cet ordinateur et réessayez.",
+  "error.messaging.memoryLimit":
+    "Un espace de travail connecté peut avoir jusqu’à {limit} souvenirs. Supprimez-en un d’abord.",
 } as const satisfies PartialTranslation<typeof source>;

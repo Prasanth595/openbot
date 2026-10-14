@@ -16,6 +16,7 @@ import type {
   AgentTemplatePublication,
   AvatarHue,
   AvatarImageInput,
+  ConversationFileSearchPage,
   ConversationSearchPage,
   ConversationSnapshot,
   CreateAgentInput,
@@ -23,6 +24,7 @@ import type {
   DraftAttachment,
   HostAnalytics,
   HostAnalyticsInput,
+  HostProviderAccounts,
   InstallAgentTemplateInput,
   InstalledSkill,
   QueueSnapshot,
@@ -33,7 +35,9 @@ import type {
   Routine,
   RoutineCalendar,
   RoutineCalendarInput,
+  RoutineCalendarOwner,
   SetAgentMemoryInclusionInput,
+  SetAgentProviderAccountInput,
   SetAgentSessionSettingInput,
   SetEnabledSkillInput,
   SharedTable,
@@ -61,7 +65,6 @@ import type { RemoteConnectionFailure, RemoteRecoveryStatus, RemoteTeamDirectory
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
-import type { MobileChannelStore } from "@/features/channels/model/channel-store";
 import type { MobileConversationStore } from "./conversation-store";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
 
@@ -88,6 +91,8 @@ export interface MobileServer {
   role: "owner" | "admin" | "member";
   /** The active members that the host's plan allows. Absent when the account server gave none. */
   memberLimit?: number;
+  /** A hosted server, which its owner and its admins can restart. Absent when the account server did not say. */
+  hosted?: boolean;
 }
 
 export interface MobileAgent {
@@ -159,6 +164,8 @@ export interface MobileWorkspaceContextValue {
   mutateSidebarLayout: (serverId: string, action: SidebarLayoutAction) => Promise<void>;
   loadQueue: (agentId: string, serverId: string) => Promise<QueueSnapshot>;
   canEditQueue: (serverId: string) => boolean;
+  /** True when the host advertises `message-client-id-v1`: a repeat of a message is stored once. */
+  canRetryMessage: (serverId: string) => boolean;
   /** The files this host accepts beyond the base list, as the desktop picker reads them. */
   attachmentSupport: (serverId: string) => AttachmentSupport;
   changeQueue: (
@@ -168,12 +175,17 @@ export interface MobileWorkspaceContextValue {
     input: { deliveryId?: string; expectedTurnId?: string; deliveryIds?: string[] },
   ) => Promise<void>;
   editQueue: (agentId: string, serverId: string, input: QueueEditRequest) => Promise<QueueSnapshot>;
+  /** Sets the reader's reaction on a message of an agent chat. `null` removes it. */
+  setMessageReaction: (agentId: string, serverId: string, messageId: string, emoji: string | null) => Promise<void>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
-  channelStore: MobileChannelStore;
-  /** Local host first, then remote servers in the order saved on this device. */
+  /** The default server first, then the other servers in the order saved on this device. */
   servers: MobileServer[];
-  /** Saves the order of remote server IDs on this device. Returns false and keeps the old order on failure. */
+  /** Saves the order of the other servers on this device. Returns false and keeps the old order on failure. */
   reorderServers: (serverIds: string[]) => boolean;
+  /** The one server above the divider. With no saved choice, the paired host. */
+  defaultServerId: string | null;
+  /** Makes a server the default in place of the current one, or removes it with `null`. Returns false on failure. */
+  setDefaultServer: (serverId: string | null) => boolean;
   teamDirectory: RemoteTeamDirectoryClient;
   serverDirectoryState: MobileServerDirectoryState;
   serverDirectoryError: string | null;
@@ -182,11 +194,6 @@ export interface MobileWorkspaceContextValue {
   activeAgents: MobileAgent[];
   hiddenAgents: MobileAgent[];
   pinnedAgentIds: string[];
-  pinnedChannelIds: string[];
-  hiddenChannelIds: string[];
-  hideChannel: (channelId: string, serverId: string) => boolean;
-  unhideChannel: (channelId: string, serverId: string) => boolean;
-  toggleChannelPin: (channelId: string, serverId: string) => ToggleAgentPinResult;
   conversationStore: MobileConversationStore;
   /** Activity, unread agents, and browser requests. Read them with a selector hook, not from the context. */
   liveState: LiveWorkspaceStore;
@@ -196,15 +203,20 @@ export interface MobileWorkspaceContextValue {
   removeServer: (serverId: string) => Promise<void>;
   refreshServers: () => Promise<void>;
   refreshServer: (serverId: string) => Promise<void>;
+  /** The account server says that a hosted server starts, for example after a restart. The app connects again soon. */
+  hostedServerStarting: (serverId: string) => void;
   /** An owner or admin of an online host that serves `host-admin-v1`. The host checks the role again. */
   canEditServerIdentity: (serverId: string) => boolean;
+  /** An online host that sends notifications to this phone (`push-notifications-v1`). */
+  canSendNotifications: (serverId: string) => boolean;
   /** An absent field stays unchanged; a `null` logo removes it. */
   updateServerIdentity: (
     serverId: string,
     input: { serverName?: string; logo?: AvatarImageInput | null },
   ) => Promise<void>;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
-  createAgent: (input: CreateAgentInput) => Promise<void>;
+  /** Creates an agent on the active server and returns its id. */
+  createAgent: (input: CreateAgentInput) => Promise<string>;
   updateAgent: (input: UpdateAgentInput, serverId?: string) => Promise<void>;
   setAgentAvatar: (agentId: string, image: RemoteFileUpload | null, serverId: string) => Promise<void>;
   loadAgentAvatar: (agentId: string, avatarUrl: string, serverId: string) => Promise<string>;
@@ -233,8 +245,16 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<AgentMemorySelectionState>;
   loadAgentMemories: (agentId: string, serverId: string) => Promise<AgentMemory[]>;
   loadAgentRoutines: (agentId: string, serverId: string) => Promise<Routine[]>;
-  /** Every routine of the server, of agents and channels, with its runs in the range. */
-  loadRoutineCalendar: (input: RoutineCalendarInput, serverId: string) => Promise<RoutineCalendar>;
+  /** Every routine of the server's agents, with its runs in the range. */
+  /**
+   * `owners` are the agents whose routines to read, when the caller already knows them.
+   * Without it, the phone reads the agent list of the host first.
+   */
+  loadRoutineCalendar: (
+    input: RoutineCalendarInput,
+    serverId: string,
+    owners?: readonly RoutineCalendarOwner[],
+  ) => Promise<RoutineCalendar>;
   loadAgentAnalytics: (input: AgentAnalyticsInput, serverId: string) => Promise<AgentAnalytics | null>;
   /** Null when the host does not advertise `host-analytics`. Without an agent ID, the report covers every agent. */
   loadHostAnalytics: (input: HostAnalyticsInput, serverId: string) => Promise<HostAnalytics | null>;
@@ -266,6 +286,15 @@ export interface MobileWorkspaceContextValue {
   loadAgentHostSettings: (agentId: string, serverId: string) => Promise<AgentHostSettings | null>;
   /** Owners and admins only; the host refuses a member. Resolves with the settings the host saved. */
   updateAgentHostSettings: (input: UpdateAgentHostSettingsInput, serverId: string) => Promise<AgentHostSettings>;
+  /** An owner or admin of an online host that serves `provider-accounts-v1`. The host checks the role again. */
+  canManageProviderAccounts: (serverId: string) => boolean;
+  /**
+   * The accounts of the host's providers, and the agents on an account after the first. Null when
+   * the host does not advertise `provider-accounts-v1`. Owners and admins only; the host refuses a member.
+   */
+  loadProviderAccounts: (serverId: string) => Promise<HostProviderAccounts | null>;
+  /** Owners and admins only. The host refuses an agent that works, and an account of another provider. */
+  setAgentProviderAccount: (input: SetAgentProviderAccountInput, serverId: string) => Promise<void>;
   /** True when the host advertises `context-reset-v1`. Any member can start a new chat. */
   canStartNewChat: (serverId: string) => boolean;
   /** The agent forgets the messages before it. The host refuses while the agent works. */
@@ -295,7 +324,18 @@ export interface MobileWorkspaceContextValue {
   deleteStoredFile: (fileId: string, serverId: string) => Promise<void>;
   /** Searches message text in the server's agent chats, one page from `cursor` or from the newest match. */
   searchMessages: (query: string, serverId: string, cursor?: string) => Promise<ConversationSearchPage>;
+  /** True when the host advertises `conversation-file-search-v1`. */
+  canSearchFiles: (serverId: string) => boolean;
+  /** Searches file names in the server's agent chats. An empty query lists the newest files. */
+  searchFiles: (query: string, serverId: string, cursor?: string) => Promise<ConversationFileSearchPage>;
   loadConversation: (agentId: string, serverId?: string) => Promise<ConversationSnapshot>;
+  /**
+   * Loads the page around a message, for a chat that opens at a search result. False when the host
+   * does not have the message.
+   */
+  loadConversationAround: (agentId: string, messageId: string, serverId?: string) => Promise<boolean>;
+  /** Loads the latest page in place of a window around a searched message. */
+  loadLatestMessages: (agentId: string, serverId?: string) => Promise<void>;
   loadOlderMessages: (agentId: string, serverId?: string) => Promise<void>;
   respondToPrompt: (agentId: string, input: RespondToPromptInput) => Promise<void>;
   sendMessage: (
@@ -304,6 +344,8 @@ export interface MobileWorkspaceContextValue {
     attachmentDraftIds?: string[],
     replyToMessageId?: string | null,
     serverId?: string,
+    /** Names the message for the host, which stores a repeat of it once. Send it only when `canRetryMessage`. */
+    clientMessageId?: string,
   ) => Promise<string>;
   uploadAttachment: (
     agentId: string,

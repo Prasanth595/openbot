@@ -8,18 +8,20 @@ import { databaseRow, databaseRows, requiredStringColumn } from "./database/data
 import type { OpenBotDatabase } from "./openbot-database";
 
 /**
- * One owner column and one table name are the whole difference between an agent's memories and a
- * channel's, so the SQL below is written once. Nothing here knows what an owner is: the subclasses
- * in `agent-memory-store.ts` and `channel-memory-store.ts` name it and re-attach the owner id to
- * every row they return.
+ * One owner column and one table name are the whole difference between an agent's memories, a
+ * channel's and a messaging connection's, so the SQL below is written once. Nothing here knows what
+ * an owner is: the subclasses in `agent-memory-store.ts`, `channel-memory-store.ts` and
+ * `messaging/messaging-memory-store.ts` name it and re-attach the owner id to every row they return.
  *
  * The aggregate type is deliberately per-owner. `database/agent-roster.ts` purges the events of a
  * deleted agent by `aggregate_type`, and a channel must not be swept up by that query.
  */
 export interface MemoryTables {
   table: string;
-  ownerColumn: "agent_id" | "channel_id";
-  aggregateType: "agent-memory" | "channel-memory";
+  ownerColumn: "agent_id" | "channel_id" | "connection_id";
+  /** The owner's key in event payloads. */
+  ownerKey: "agentId" | "channelId" | "connectionId";
+  aggregateType: "agent-memory" | "channel-memory" | "messaging-memory";
   /** Read at each save, because the agent cap is an app setting the user can change. */
   limit: () => number;
   limitMessage: (limit: number) => string;
@@ -146,7 +148,7 @@ export class MemoryStore {
           aggregateType,
           aggregateId: memoryId,
           eventType: `${aggregateType}.deleted`,
-          payload: { [ownerColumn === "agent_id" ? "agentId" : "channelId"]: ownerId, memoryId },
+          payload: { [this.tables.ownerKey]: ownerId, memoryId },
         },
       ],
       (db, sequences) => {
@@ -161,8 +163,7 @@ export class MemoryStore {
   clear(ownerId: string): number {
     const memories = this.list(ownerId);
     if (memories.length === 0) return 0;
-    const { aggregateType, table, ownerColumn } = this.tables;
-    const ownerKey = ownerColumn === "agent_id" ? "agentId" : "channelId";
+    const { aggregateType, table, ownerColumn, ownerKey } = this.tables;
     return this.database.dispatch(
       `${aggregateType}:clear:${randomUUID()}`,
       memories.map((memory) => ({
@@ -220,7 +221,7 @@ export class MemoryStore {
           aggregateType,
           aggregateId: memory.id,
           eventType,
-          payload: { memory: { ...memory, [ownerColumn === "agent_id" ? "agentId" : "channelId"]: ownerId } },
+          payload: { memory: { ...memory, [this.tables.ownerKey]: ownerId } },
         },
       ],
       (db, sequences) => {

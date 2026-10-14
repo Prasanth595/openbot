@@ -5,6 +5,8 @@ export const messages = defineMessages("notification", {
   // notifications, raised by the web client while its tab is open.
   "notification.needsInput": "Needs your input.",
   "notification.needsApproval": "Needs your approval.",
+  "notification.needsBrowserStep": "Needs you to finish a step in the browser.",
+  "notification.needsApprovalFor": "Needs your approval: {action}",
   "notification.finished": "Finished working.",
   "notification.failed": "Stopped with an error.",
   "notification.usageLimit.title": "{provider} account reached its limit",

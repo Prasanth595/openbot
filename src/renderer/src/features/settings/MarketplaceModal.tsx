@@ -1,8 +1,10 @@
 import { Marketplace } from "@openbot/ui/features/marketplace/Marketplace";
+import type { MarketplaceApp } from "@openbot/ui/features/marketplace/marketplace-model";
 import { createMarketplaceNavigation } from "@openbot/ui/features/marketplace/marketplace-view";
 import { McpKeyDialog } from "@openbot/ui/features/settings/McpKeyDialog";
 import { McpLocalDialog } from "@openbot/ui/features/settings/McpLocalDialog";
 import { McpSignInDialog } from "@openbot/ui/features/settings/McpSignInDialog";
+import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { PluginUninstallDialog } from "@openbot/ui/features/settings/PluginUninstallDialog";
 import { createEffect, createSignal, Match, Show, Switch, untrack } from "solid-js";
 import { createMarketplaceController, type MarketplaceControllerProps } from "./marketplace-controller";
@@ -39,9 +41,10 @@ export function MarketplaceModal(props: MarketplaceModalProps) {
     const model = controller.model;
     const app = model.apps().find((candidate) => candidate.id === slug);
     if (!app || app.status === "connected") return;
-    // GitHub signs in with a device code, and its page, which is open now, shows that dialog.
-    if (app.kind === "github") model.github?.().onConnect();
-    else if (app.kind === "plugin" && model.canConnectApps()) void model.connectApp(app);
+    // A connector's page, which is open now, shows its dialogs, such as GitHub's device code.
+    if (app.kind === "connector") {
+      if (app.status === "idle") model.connector(app.connector)?.connect?.();
+    } else if (app.kind === "plugin" && model.canConnectApps()) void model.connectApp(app);
   };
 
   createEffect(
@@ -82,12 +85,28 @@ export function MarketplaceModal(props: MarketplaceModalProps) {
     () => {
       const slug = connectWhenReady();
       if (!slug) return null;
-      return controller.appStatesRead() && controller.model.apps().some((app) => app.id === slug) ? slug : null;
+      // A connector shows "idle" before its first read, so a connected one could connect again.
+      const read = (app: MarketplaceApp) =>
+        app.kind !== "connector" || controller.model.connector(app.connector)?.ready() === true;
+      return controller.appStatesRead() && controller.model.apps().some((app) => app.id === slug && read(app))
+        ? slug
+        : null;
     },
     (slug) => {
       if (!slug) return;
       setConnectWhenReady(null);
       untrack(() => startConnect(slug));
+    },
+  );
+  // Slack, Discord and Telegram change with no event from main, so each available connector is
+  // followed while the window is open, as in Settings › Connectors.
+  createEffect(
+    () => (props.open ? props.connectors?.available() : undefined),
+    (controllers) => {
+      const stops = (controllers ?? []).map((connector) => connector.watch());
+      return () => {
+        for (const stop of stops) stop();
+      };
     },
   );
   /* A Connect press ends with the window, so a later open does not connect. */
@@ -124,7 +143,23 @@ export function MarketplaceModal(props: MarketplaceModalProps) {
                 onTest={controller.signInPluginApp}
                 onConnected={(config) => pending.settle(config)}
                 onCancel={() => pending.settle(null)}
+                hostName={props.pluginSignInRelay ? props.pluginHostName : undefined}
+                onCancelSignIn={controller.cancelSignInRelay}
               />
+              {/* The page opens in this computer's browser; the paste field is the way back when the
+                  browser cannot reach this computer's listener. */}
+              <Show when={controller.signInRelayed()} keyed>
+                {(relay) => (
+                  <McpSignInRelayDialog
+                    name={pending.subject.name}
+                    hostName={props.pluginHostName ?? ""}
+                    page={relay.page}
+                    onOpen={controller.openSignInRelay}
+                    onPaste={controller.pasteSignInRelay}
+                    onCancel={controller.cancelSignInRelay}
+                  />
+                )}
+              </Show>
             </Match>
             <Match when={pending.flow.kind === "key" ? pending.flow : null} keyed>
               {(flow) => (

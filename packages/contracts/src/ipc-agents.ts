@@ -13,7 +13,12 @@ import {
   isAgentSessionSettingOverrides,
   isAgentSessionSettingResets,
 } from "./ipc-agent-session-settings";
-import { type AgentProviderId, isAgentProvider } from "./ipc-agent-status";
+import {
+  type AgentProviderId,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
+  isAgentProvider,
+  isProviderAccountId,
+} from "./ipc-agent-status";
 import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
@@ -48,6 +53,65 @@ export function agentAutomationAllowed(agent: Pick<AgentSummary, "allowAutomatio
  */
 export function workspaceAccessEnforced(agent: Pick<AgentSummary, "access">): boolean {
   return agent.access === "workspace";
+}
+
+/** A provider, a model and an account that an agent can run on. */
+export interface AgentModelChoice {
+  provider: AgentProviderId;
+  model: AgentModelId;
+  /** Absent means the provider's own sign-in, `DEFAULT_PROVIDER_ACCOUNT_ID`. */
+  providerAccountId?: string;
+}
+
+/** The most backup models an agent keeps. */
+export const AGENT_BACKUP_MODEL_LIMIT = 8;
+
+/**
+ * What an agent does when a usage limit holds a message that has not started. Absent means the
+ * agent asks in the chat, with no saved order.
+ */
+export interface AgentBackupModels {
+  /** True: the agent switches at once to the first available model in `order`. False: it asks first. */
+  automatic: boolean;
+  /** The models to try, first to last. */
+  order: AgentModelChoice[];
+}
+
+export function isAgentModelChoice(value: unknown): value is AgentModelChoice {
+  return (
+    isDynamicRecord(value) &&
+    isAgentProvider(value.provider) &&
+    isAgentModel(value.model) &&
+    (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId))
+  );
+}
+
+/** The model an agent left for a usage limit, with the reasoning effort it had there. */
+export interface AgentUsageLimitReturn extends AgentModelChoice {
+  reasoningEffort: AgentReasoningEffort;
+}
+
+export function isAgentUsageLimitReturn(value: unknown): value is AgentUsageLimitReturn {
+  return isDynamicRecord(value) && isAgentModelChoice(value) && isReasoningEffort(value.reasoningEffort);
+}
+
+export function isAgentBackupModels(value: unknown): value is AgentBackupModels {
+  return (
+    isDynamicRecord(value) &&
+    isBoolean(value.automatic) &&
+    Array.isArray(value.order) &&
+    value.order.length <= AGENT_BACKUP_MODEL_LIMIT &&
+    value.order.every(isAgentModelChoice)
+  );
+}
+
+/** Whether two choices name the same provider, model and account. */
+export function sameAgentModelChoice(left: AgentModelChoice, right: AgentModelChoice): boolean {
+  return (
+    left.provider === right.provider &&
+    left.model === right.model &&
+    (left.providerAccountId ?? DEFAULT_PROVIDER_ACCOUNT_ID) === (right.providerAccountId ?? DEFAULT_PROVIDER_ACCOUNT_ID)
+  );
 }
 
 function isMarketplaceSource(value: unknown): value is NonNullable<AgentSummary["marketplaceSource"]> {
@@ -99,6 +163,18 @@ export interface AgentSummary {
    * app default.
    */
   busyMessageMode?: BusyMessageMode;
+  /**
+   * The provider account the agent's turns run on. Local-only, like `access`. Absent means the
+   * provider's own sign-in, `DEFAULT_PROVIDER_ACCOUNT_ID`.
+   */
+  providerAccountId?: string;
+  /** Local-only, like `access`. Absent means the agent asks before it leaves a usage limit. */
+  backupModels?: AgentBackupModels;
+  /**
+   * The agent's own model while a usage limit has moved it to a backup. Local-only. The agent goes
+   * back to it when the limit ends.
+   */
+  usageLimitReturn?: AgentUsageLimitReturn;
   threadId: string | null;
   workspacePath: string;
   preview: string;
@@ -132,6 +208,9 @@ export function isAgentSummary(value: unknown): value is AgentSummary {
     (value.computerUse === undefined || isBoolean(value.computerUse)) &&
     (value.allowAutomation === undefined || isBoolean(value.allowAutomation)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
+    (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)) &&
+    (value.backupModels === undefined || isAgentBackupModels(value.backupModels)) &&
+    (value.usageLimitReturn === undefined || isAgentUsageLimitReturn(value.usageLimitReturn)) &&
     (value.threadId === null || isIdentifier(value.threadId)) &&
     isBoundedString(value.workspacePath, INPUT_LIMITS.path) &&
     isBoundedString(value.preview, INPUT_LIMITS.messageText) &&
@@ -174,6 +253,15 @@ export interface UpdateAgentInput {
   allowAutomation?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;
+  /** `null` returns the agent to the provider's own sign-in. */
+  providerAccountId?: string | null;
+  /** `null` returns the agent to the default: ask, with no saved order. */
+  backupModels?: AgentBackupModels | null;
+  /**
+   * The provider, model or account change moves held work away from a usage limit. The agent goes
+   * back to its current model when that limit ends. Ignored when no limit holds the agent.
+   */
+  leaveUsageLimit?: boolean;
   avatarSeed?: string;
   avatarHue?: AvatarHue | null;
 }

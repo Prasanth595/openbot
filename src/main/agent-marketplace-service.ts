@@ -18,6 +18,7 @@ import {
   decodeMarketplaceAgentPage,
   isAvatarHue,
   isAvatarSeed,
+  isReleasedRoutineSchedule,
   isSkillCategory,
   marketplaceQueryParams,
 } from "@openbot/contracts/ipc";
@@ -140,12 +141,10 @@ export class AgentMarketplaceService {
       if (!agent)
         return yield* new AgentMarketplaceFailure({ cause: new Error(sourceText("error.skill.chooseLocalAgent")) });
       const skills = yield* this.skills.listPublishable(agentId).pipe(toAgentMarketplaceFailure);
-      const routines = this.agents.listRoutines(agentId).map(({ name, instruction, active, trigger }) => ({
-        name,
-        instruction,
-        active,
-        schedule: trigger.schedule,
-      }));
+      const routines = this.agents.listRoutines(agentId).flatMap(({ name, instruction, active, trigger }) =>
+        // A `once` routine names one date, so it is not part of a template.
+        isReleasedRoutineSchedule(trigger.schedule) ? [{ name, instruction, active, schedule: trigger.schedule }] : [],
+      );
       return {
         agentId: agentId,
         name: agent.name,

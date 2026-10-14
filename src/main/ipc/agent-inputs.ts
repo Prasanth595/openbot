@@ -3,6 +3,8 @@ import {
   type AcknowledgeFailedTurnInput,
   type AgentIpcRequest,
   type AgentMemorySelectionChange,
+  type CancelAgentWaitInput,
+  type CancelMessageLinkInput,
   type CancelQueuedMessageInput,
   type ChooseAttachmentsInput,
   type CreateAgentInput,
@@ -20,20 +22,24 @@ import {
   type ImportAttachmentsInput,
   type InterruptTurnInput,
   isAgentAccess,
+  isAgentBackupModels,
   isAgentModel,
   isAgentProvider,
   isAvatarHue,
   isAvatarSeed,
   isBusyMessageMode,
   isMessageReaction,
+  isProviderAccountId,
   isReasoningEffort,
   isRoutineSchedule,
   type ListChannelRoutineRunsInput,
   type ListRoutineRunsInput,
   type MarkConversationReadInput,
   type OpenAttachmentInput,
+  type OpenMessageLinkInput,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
+  type PasteMessageLinkInput,
   type ReadConversationPageInput,
   type ReorderQueueInput,
   type RespondToApprovalInput,
@@ -68,7 +74,7 @@ import type { PayloadDecoder } from "../trusted-ipc";
 import { parseAvatarImage } from "./avatar-inputs";
 import { isObject, requireString } from "./validation";
 
-export function parseAgentRequest(value: unknown): AgentIpcRequest {
+function parseAgentRequest(value: unknown): AgentIpcRequest {
   if (!isObject(value)) throw new Error("Invalid agent request.");
   return {
     serverId: requireString(value.serverId, "serverId"),
@@ -406,6 +412,27 @@ export function parseReadConversationPage(value: unknown): ReadConversationPageI
   };
 }
 
+export function parseOpenMessageLink(value: unknown): OpenMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return {
+    agentId: requireString(value.agentId, "agentId", INPUT_LIMITS.identifier),
+    url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl),
+  };
+}
+
+export function parsePasteMessageLink(value: unknown): PasteMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return {
+    url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl),
+    address: requireString(value.address, "Address", INPUT_LIMITS.signInRelayAddress),
+  };
+}
+
+export function parseCancelMessageLink(value: unknown): CancelMessageLinkInput {
+  if (!isObject(value)) throw new Error("Invalid message link request.");
+  return { url: requireString(value.url, "URL", INPUT_LIMITS.browserUrl) };
+}
+
 export function parseSearchConversationMessages(value: unknown): SearchConversationMessagesInput {
   if (!isObject(value)) throw new Error("Invalid conversation search request.");
   const query = requireString(value.query, "query", INPUT_LIMITS.messageText);
@@ -560,11 +587,32 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
     if (!isBoolean(value.allowAutomation)) throw new Error("Invalid automation value.");
     result.allowAutomation = value.allowAutomation;
   }
+  if (value.providerAccountId !== undefined) {
+    if (value.providerAccountId !== null && !isProviderAccountId(value.providerAccountId))
+      throw new Error("Invalid provider account.");
+    result.providerAccountId = value.providerAccountId;
+  }
   if (value.busyMessageMode !== undefined) {
     if (value.busyMessageMode !== null && !isBusyMessageMode(value.busyMessageMode)) {
       throw new Error("Invalid busy message mode.");
     }
     result.busyMessageMode = value.busyMessageMode;
+  }
+  if (value.backupModels !== undefined) {
+    if (value.backupModels !== null && !isAgentBackupModels(value.backupModels))
+      throw new Error("Invalid backup models.");
+    result.backupModels = value.backupModels && {
+      automatic: value.backupModels.automatic,
+      order: value.backupModels.order.map(({ provider, model, providerAccountId }) => ({
+        provider,
+        model,
+        ...(providerAccountId === undefined ? {} : { providerAccountId }),
+      })),
+    };
+  }
+  if (value.leaveUsageLimit !== undefined) {
+    if (!isBoolean(value.leaveUsageLimit)) throw new Error("Invalid usage limit switch.");
+    result.leaveUsageLimit = value.leaveUsageLimit;
   }
   if (value.avatarSeed !== undefined) {
     if (!isAvatarSeed(value.avatarSeed)) throw new Error("Invalid avatar seed.");
@@ -678,6 +726,14 @@ export function parseCancelQueuedMessage(value: unknown): CancelQueuedMessageInp
   return {
     agentId: requireString(value.agentId, "agentId"),
     deliveryId: requireString(value.deliveryId, "deliveryId"),
+  };
+}
+
+export function parseCancelAgentWait(value: unknown): CancelAgentWaitInput {
+  if (!isObject(value)) throw new Error("Invalid wait cancellation request.");
+  return {
+    agentId: requireString(value.agentId, "agentId"),
+    waitId: requireString(value.waitId, "waitId"),
   };
 }
 

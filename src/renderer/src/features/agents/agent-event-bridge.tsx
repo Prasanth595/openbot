@@ -37,10 +37,7 @@ import { agentsPort } from "./agents-port";
  * depends on this, so the import edge only ever points down and the cycle rule
  * is satisfied by construction.
  *
- * It renders `null` and must stay renderable with no view above it - the
- * harnesses in `App.test.tsx` and `App.read-state.test.tsx` mount the providers
- * with no `AppView` at all, and that is how they drive the app: emit an event,
- * assert the state it produced.
+ * It renders `null` and must stay renderable with no view above it.
  *
  * Conversation invalidations also cover read cursors changed on another device.
  */
@@ -70,6 +67,8 @@ export function AgentEventBridge() {
     setTurnProgress,
     setFailedTurns,
     setUsageLimits,
+    setUsageLimitedModels,
+    setWaitedUsageLimits,
     setContextStates,
     setQueues,
     setPendingPrompts,
@@ -79,6 +78,8 @@ export function AgentEventBridge() {
     setPendingApprovals,
     completedTurnByAgent,
     queueSnapshotRequests,
+    setWaits,
+    waitSnapshotRequests,
     refreshRoutineIds,
   } = useTurns();
   const { setBrowserControlState, applyBrowserChange } = useBrowserTabs();
@@ -161,6 +162,10 @@ export function AgentEventBridge() {
           ...current,
           [event.snapshot.agentId]: event.snapshot,
         }));
+        return;
+      case "waits-changed":
+        waitSnapshotRequests.set(event.snapshot.agentId, (waitSnapshotRequests.get(event.snapshot.agentId) ?? 0) + 1);
+        setWaits((current) => ({ ...current, [event.snapshot.agentId]: event.snapshot }));
         return;
       case "routines-changed":
         refreshRoutineIds(event.agentId, activeServerId());
@@ -272,7 +277,7 @@ export function AgentEventBridge() {
         const authFailure = classifyUserError(event.message) === "auth";
         // A failed refresh is not reported: the error the user already has is the report, and a
         // second toast for the probe that went looking for its cause only buries the first.
-        if (authFailure) void refreshAgentProviders().catch(() => undefined);
+        if (authFailure) void refreshAgentProviders({ automatic: true }).catch(() => undefined);
         const agentId = event.agentId;
         if (agentId) {
           // The banner above the composer, in the same column as the usage-limit and sign-in
@@ -324,7 +329,15 @@ export function AgentEventBridge() {
     );
     setFailedTurns(Object.fromEntries(snapshot.failedTurns.map((turn) => [turn.agentId, turn.turnId])));
     setContextStates(Object.fromEntries((snapshot.contextStates ?? []).map((state) => [state.agentId, state])));
-    setUsageLimits(Object.fromEntries((snapshot.usageLimits ?? []).map((limit) => [limit.agentId, limit.resetsAt])));
+    const usageLimits = Object.fromEntries(
+      (snapshot.usageLimits ?? []).map((limit) => [limit.agentId, limit.resetsAt]),
+    );
+    setUsageLimits(usageLimits);
+    // A hold that ended takes its "Wait" with it, so the next hold asks again.
+    setWaitedUsageLimits((current) =>
+      Object.fromEntries(Object.entries(current).filter(([agentId]) => agentId in usageLimits)),
+    );
+    setUsageLimitedModels(snapshot.usageLimitedModels ?? []);
     setQueues((current) => reconcileQueuesWithRuntimeWork(current, snapshot.work, runtimeTurns));
     setPendingPrompts((current) => reconcileAttentionPrompts(current, snapshot, submittedPromptRequests()));
     setPendingApprovals((current) => reconcileAttentionApprovals(current, snapshot));

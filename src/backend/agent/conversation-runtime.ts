@@ -115,7 +115,7 @@ export function withDatabaseTransaction<T>(
  * How long an agent's snapshot stays in memory after its last use. The sweep runs at the same
  * interval, so an idle snapshot leaves memory between one and two periods after its last use.
  */
-export const CONVERSATION_SNAPSHOT_IDLE_MS = 10 * 60_000;
+const CONVERSATION_SNAPSHOT_IDLE_MS = 10 * 60_000;
 
 interface EvictedSnapshot {
   threadId: string;
@@ -306,19 +306,38 @@ export class ConversationRuntime {
   }
 
   #evictCachedSnapshots(): void {
+    // Only a trim changes cache content while this runs, so each full signature is computed once
+    // per call, not once per removal.
+    const committed = new Map<CachedSnapshot, boolean>();
+    const isCommitted = (cached: CachedSnapshot): boolean => {
+      let result = committed.get(cached);
+      if (result === undefined) {
+        result = this.#cacheIsCommitted(cached);
+        committed.set(cached, result);
+      }
+      return result;
+    };
+    const trim = (cached: CachedSnapshot): boolean => {
+      if (!this.#trimCompletedCache(cached)) return false;
+      // The trim edits the array in place, so a cache that holds the same array is checked again.
+      for (const other of committed.keys()) {
+        if (other !== cached && other.snapshot.messages === cached.snapshot.messages) committed.delete(other);
+      }
+      return true;
+    };
     while (this.#cachedSnapshotBytes > CONVERSATION_CACHE_TOTAL_BYTES_LIMIT) {
       let oldest:
         | { kind: "agent"; id: string; usedAt: number }
         | { kind: "execution"; id: string; usedAt: number }
         | undefined;
       for (const [id, cached] of this.#cachedSnapshots) {
-        if (!this.#cacheIsCommitted(cached)) continue;
+        if (!isCommitted(cached)) continue;
         if (cached.snapshot.messages.every((message) => isActiveMessage(message, cached.snapshot.activeTurnId)))
           continue;
         if (!oldest || cached.usedAt < oldest.usedAt) oldest = { kind: "agent", id, usedAt: cached.usedAt };
       }
       for (const [id, cached] of this.#cachedExecutionSnapshots) {
-        if (!this.#cacheIsCommitted(cached)) continue;
+        if (!isCommitted(cached)) continue;
         if (cached.snapshot.messages.every((message) => isActiveMessage(message, cached.snapshot.activeTurnId)))
           continue;
         if (!oldest || cached.usedAt < oldest.usedAt) oldest = { kind: "execution", id, usedAt: cached.usedAt };
@@ -327,7 +346,7 @@ export class ConversationRuntime {
       if (oldest.kind === "agent") {
         const cached = this.#cachedSnapshots.get(oldest.id);
         if (cached?.snapshot.activeTurnId) {
-          if (!this.#trimCompletedCache(cached)) return;
+          if (!trim(cached)) return;
         } else {
           // Keep the same recovery path as idle eviction. A caller may still hold this snapshot
           // while the process budget evicts it; dropping the map entry without a marker would make
@@ -345,7 +364,7 @@ export class ConversationRuntime {
       } else {
         const cached = this.#cachedExecutionSnapshots.get(oldest.id);
         if (cached?.snapshot.activeTurnId) {
-          if (!this.#trimCompletedCache(cached)) return;
+          if (!trim(cached)) return;
         } else {
           // Keep the execution-thread identity for routing, but release its message objects. The
           // next ensureSnapshot call sees the empty projection and rebuilds the recent page from
@@ -362,15 +381,34 @@ export class ConversationRuntime {
     return cached.signature === conversationContentSignature(cached.snapshot);
   }
 
+  /**
+   * Removes the oldest completed messages, all in one pass, until the process budget holds or none
+   * remain. The trimmed chat stays the oldest, so removing them one by one would pick it each time.
+   */
   #trimCompletedCache(cached: CachedSnapshot): boolean {
     const activeTurnId = cached.snapshot.activeTurnId;
-    const index = cached.snapshot.messages.findIndex((message) => !isActiveMessage(message, activeTurnId));
-    if (index < 0) return false;
-    const [removed] = cached.snapshot.messages.splice(index, 1);
-    if (!removed) return false;
+    const completed = cached.snapshot.messages.filter((message) => !isActiveMessage(message, activeTurnId));
+    const { count } = oldestMessagesToRemove(
+      completed,
+      this.#cachedSnapshotBytes - CONVERSATION_CACHE_TOTAL_BYTES_LIMIT,
+    );
+    if (count === 0) return false;
+    // In place, because a caller can hold this array.
+    const messages = cached.snapshot.messages;
+    let toRemove = count;
+    let kept = 0;
+    for (const message of messages) {
+      if (toRemove > 0 && !isActiveMessage(message, activeTurnId)) {
+        toRemove -= 1;
+        cached.omittedMessageIds.add(message.id);
+        cached.messageSignatures.delete(message.id);
+        continue;
+      }
+      messages[kept] = message;
+      kept += 1;
+    }
+    messages.length = kept;
     const previousBytes = cached.bytes;
-    cached.omittedMessageIds.add(removed.id);
-    cached.messageSignatures.delete(removed.id);
     cached.bytes = completedCacheBytes(cached.snapshot);
     cached.signature = conversationContentSignature(cached.snapshot);
     cached.activeTurnId = cached.snapshot.activeTurnId;
@@ -434,6 +472,11 @@ export class ConversationRuntime {
 
   registerExecutionThread(agentId: string, threadId: string): void {
     if (this.#forgottenExecutionThreads.has(threadId)) return;
+    // An agent's own chat keeps its one snapshot, also when an earlier build made it the thread of a
+    // Slack or Discord conversation too. With a second one, a write during a turn copied the turn
+    // into the agent's snapshot, and the end of the turn cleared only the other: the agent's queue
+    // then held every message until a restart.
+    if (this.#store.ownsThread(threadId)) return;
     if (!this.#executionSnapshots.has(threadId)) {
       const page = this.#store.database.readConversationPage(agentId, threadId, { type: "latest" }, 100);
       this.#setExecutionSnapshot(threadId, {
@@ -750,9 +793,10 @@ function boundedConversationSnapshot(snapshot: ConversationSnapshot): CachedSnap
   const completedMessages = allCompletedMessages.slice(-CONVERSATION_CACHE_MESSAGE_LIMIT);
   const completedSnapshot = { ...snapshot, messages: completedMessages };
   let completedBytes = conversationSnapshotBytes(completedSnapshot);
-  while (completedMessages.length > 0 && completedBytes > CONVERSATION_CACHE_BYTES_LIMIT) {
-    completedMessages.shift();
-    completedBytes = conversationSnapshotBytes({ ...snapshot, messages: completedMessages });
+  if (completedBytes > CONVERSATION_CACHE_BYTES_LIMIT) {
+    const removed = oldestMessagesToRemove(completedMessages, completedBytes - CONVERSATION_CACHE_BYTES_LIMIT);
+    completedMessages.splice(0, removed.count);
+    completedBytes -= removed.bytes;
   }
   const retainedAllMessages =
     completedMessages.length === allCompletedMessages.length &&
@@ -818,6 +862,26 @@ function copySnapshotContents(target: ConversationSnapshot, source: Conversation
 
 function conversationSnapshotBytes(snapshot: ConversationSnapshot): number {
   return Buffer.byteLength(JSON.stringify(snapshot), "utf8");
+}
+
+/**
+ * The fewest oldest messages whose removal makes the serialized array at least `excessBytes`
+ * shorter, and that byte count. An array serializes as its elements joined by commas, so removing
+ * an element removes its own bytes and one comma while another element remains. Only the removed
+ * messages are serialized.
+ */
+function oldestMessagesToRemove(
+  messages: readonly ConversationMessage[],
+  excessBytes: number,
+): { count: number; bytes: number } {
+  let count = 0;
+  let bytes = 0;
+  for (const message of messages) {
+    if (bytes >= excessBytes) break;
+    bytes += Buffer.byteLength(JSON.stringify(message), "utf8") + (count < messages.length - 1 ? 1 : 0);
+    count += 1;
+  }
+  return { count, bytes };
 }
 
 function messageSignature(message: ConversationMessage): string {

@@ -34,7 +34,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
-import { nextValidRoutineOccurrence } from "@openbot/team-client/routine-schedule";
+import { nextValidRoutineOccurrence, routineOnceInstant } from "@openbot/team-client/routine-schedule";
 import { Context, Effect, Exit, Layer, ManagedRuntime, Schema, Scope, Semaphore } from "effect";
 import { routineFlowDepths } from "./routine-flow-graph";
 import { RoutineFlowError, type RoutineFlowRun, type RoutineFlowStore } from "./routine-flow-store";
@@ -53,7 +53,7 @@ class RoutineFlowFailed extends Schema.TaggedError<RoutineFlowFailed>()("Routine
 }) {}
 
 /** A delivery as the runtime reads it: whether it ended, and the turn that answered it. */
-export interface RoutineFlowDelivery {
+interface RoutineFlowDelivery {
   status: QueueDeliveryStatus;
   turnId: string | null;
   error: string | null;
@@ -89,6 +89,12 @@ export interface RoutineFlowsShape {
   connect(input: ConnectRoutineFlowInput): Effect.Effect<RoutineFlowLink, RoutineFlowFailed>;
   disconnect(input: DisconnectRoutineFlowInput): Effect.Effect<void, RoutineFlowFailed>;
   updateLink(input: UpdateRoutineFlowLinkInput): Effect.Effect<RoutineFlowLink, RoutineFlowFailed>;
+  /**
+   * Every agent a routine touches, or the routine of a link touches: its own agent and both agents of
+   * each of its links. Null when the routine or link does not exist. A joined member may change a
+   * flow only when all of them are visible to the member.
+   */
+  agentsOf(ref: { routineId: string } | { linkId: string }): Effect.Effect<string[] | null, RoutineFlowFailed>;
   /** Moves every flow that can move now. */
   sweep(): Effect.Effect<void>;
   /** Asks for a sweep when an agent event may have ended a step. Returns at once. */
@@ -164,6 +170,8 @@ class RoutineFlows extends Context.Service<RoutineFlows, RoutineFlowsShape>()("o
 
         const savePosition = Effect.fn("RoutineFlows.savePosition")(function* (input: SaveRoutineFlowPositionInput) {
           yield* attempt(() => store.savePosition(input.agentId, input.nodeKey, input.x, input.y));
+          // Another client with this canvas open shows a placed or moved agent without a reload.
+          dependencies.changed([input.agentId]);
         });
 
         const removePosition = Effect.fn("RoutineFlows.removePosition")(function* (
@@ -197,6 +205,15 @@ class RoutineFlows extends Context.Service<RoutineFlows, RoutineFlowsShape>()("o
             return { gone, affected };
           });
           dependencies.changed(removed.affected);
+        });
+
+        const agentsOf = Effect.fn("RoutineFlows.agentsOf")(function* (
+          ref: { routineId: string } | { linkId: string },
+        ) {
+          return yield* attempt(() => {
+            const routineId = "routineId" in ref ? ref.routineId : store.link(ref.linkId)?.routineId;
+            return routineId && store.routineOwner(routineId) ? agentsOfRoutine(routineId) : null;
+          });
         });
 
         /** The routine's own agent's part of a run that ended: its answer, or why there is none. */
@@ -383,6 +400,7 @@ class RoutineFlows extends Context.Service<RoutineFlows, RoutineFlowsShape>()("o
           connect,
           disconnect,
           updateLink,
+          agentsOf,
           sweep,
           notice,
         });
@@ -421,6 +439,11 @@ function upcoming(routine: RoutineFlowRoutineInfo, from: Date): string[] {
   if (routine.trigger.kind !== "schedule") return [];
   const schedule = routine.trigger.schedule;
   const end = from.getTime() + UPCOMING_WINDOW_MS;
+  if (schedule.kind === "once") {
+    // A one-time routine has at most one time, and none after it ran.
+    const at = routineOnceInstant(schedule, routine.timezone).getTime();
+    return at > from.getTime() && at < end ? [new Date(at).toISOString()] : [];
+  }
   const times: string[] = [];
   try {
     for (

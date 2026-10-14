@@ -4,6 +4,7 @@ import { parseHostedServerLifecycleInput } from "@openbot/contracts/hosted-serve
 import { type DynamicRecord, isBoolean, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Cause, Effect } from "effect";
+import { type AccountAttribution, requestFirstTouch } from "./account-attribution";
 import { type AuthService, AuthServiceError } from "./auth-service";
 import { AvatarUploadError, readAvatarUpload, removeAccountAvatar, storeAccountAvatar } from "./avatar-storage";
 import { BILLING_UNAVAILABLE_STATE, BillingError, type BillingService } from "./billing-service";
@@ -55,9 +56,10 @@ export interface BrowserApiServices {
   hostLogo: (hostId: string, version: string) => ReturnType<typeof readHostLogo>;
   hosting: () => Pick<
     HostedServerService,
-    "list" | "plans" | "create" | "checkout" | "delete" | "wake" | "status" | "lifecycle"
+    "list" | "plans" | "create" | "checkout" | "delete" | "wake" | "restart" | "status" | "lifecycle"
   >;
   inviteEmailDelivery: () => TeamInviteEmailDelivery | null;
+  attribution: () => Pick<AccountAttribution, "recordCheckout">;
   /** The billing service, or null when this deployment has no Stripe key. */
   billing: () => Pick<BillingService, "getState" | "createPortal"> | null;
   avatarBucket: () => R2Bucket;
@@ -104,7 +106,7 @@ function refuseWith(refusal: abstract new (...args: never) => { status: number; 
     );
 }
 
-export function browserSessionToken(request: Request): string | null {
+function browserSessionToken(request: Request): string | null {
   const values = (request.headers.get("Cookie") ?? "")
     .split(";")
     .map((part) => part.trim())
@@ -173,6 +175,8 @@ const handleBrowserOperation = Effect.fn("BrowserApi.handleOperation")(function*
       challengeId: yield* requiredString(body, "challengeId"),
       code: yield* requiredString(body, "code"),
       sourceIp: services.sourceIp(request),
+      surface: "web",
+      firstTouch: requestFirstTouch(body.firstTouch),
     });
     const previous = browserSessionToken(request);
     if (previous) {
@@ -182,6 +186,18 @@ const handleBrowserOperation = Effect.fn("BrowserApi.handleOperation")(function*
     const response = json({ user: result.user });
     response.headers.set("Set-Cookie", `${COOKIE}=${result.sessionToken}; ${COOKIE_ATTRIBUTES}; Max-Age=34560000`);
     return response;
+  }
+  if (path === "checkout-attribution" && request.method === "POST") {
+    // The page after a desktop checkout. The session ID that Stripe put in its URL is the only proof.
+    const body = yield* readJsonObject(request);
+    const firstTouch = requestFirstTouch(body.firstTouch);
+    if (isString(body.sessionId) && firstTouch) {
+      yield* services
+        .attribution()
+        .recordCheckout(body.sessionId, firstTouch)
+        .pipe(Effect.catch(() => Effect.sync(() => console.warn("Account attribution save failed."))));
+    }
+    return json({ accepted: true });
   }
   const token = browserSessionToken(request);
   const user = token ? yield* services.auth.authenticate(token) : null;
@@ -347,7 +363,7 @@ const handleHosting = Effect.fn("BrowserApi.handleHosting")(function* (
     );
   }
   const [, encodedServerId, action] =
-    /^v2\/hosting\/servers\/([^/]+)(?:\/(wake|checkout|status|lifecycle))?$/u.exec(path) ?? [];
+    /^v2\/hosting\/servers\/([^/]+)(?:\/(wake|restart|checkout|status|lifecycle))?$/u.exec(path) ?? [];
   if (encodedServerId === undefined) return null;
   const serverId = decodeURIComponent(encodedServerId);
   if (action === "lifecycle" && request.method === "POST") {
@@ -358,6 +374,7 @@ const handleHosting = Effect.fn("BrowserApi.handleHosting")(function* (
     return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   }
   if (action === "wake" && request.method === "POST") return json(yield* services.hosting().wake(user, serverId));
+  if (action === "restart" && request.method === "POST") return json(yield* services.hosting().restart(user, serverId));
   if (action === "status" && request.method === "GET") return json(yield* services.hosting().status(user, serverId));
   if (action === "checkout" && request.method === "POST") {
     return json(yield* services.hosting().checkout(user, serverId, returnTo));

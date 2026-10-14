@@ -3,11 +3,11 @@
 // back the same on the other. Labels stay with each client.
 
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { RoutineSchedule } from "@openbot/contracts/ipc";
+import { isRoutineDate, type RoutineSchedule } from "@openbot/contracts/ipc";
 
 /*
  * The schedule the trigger row edits. It is a UI shape, not `RoutineSchedule`: it covers
- * kinds the saved schedule cannot hold yet (once, yearly, an hours window, several days for
+ * kinds the saved schedule cannot hold yet (yearly, an hours window, several days for
  * a daily run), so the design can be judged before the contract changes.
  */
 
@@ -46,7 +46,10 @@ export const ROUTINE_DRAFT_KIND_VALUES: readonly RoutineDraftKind[] = [
   "custom",
 ];
 
-/** The kinds a routine can save today. A one-time run needs a new saved kind first. */
+/**
+ * The kinds every host saves. Only this computer's host saves `once`: the released Team API
+ * cannot carry it, so a remote host never shows it.
+ */
 export const ROUTINE_SAVED_DRAFT_KIND_VALUES = ROUTINE_DRAFT_KIND_VALUES.filter((kind) => kind !== "once");
 
 export const ROUTINE_EVERY_DAY = [0, 1, 2, 3, 4, 5, 6];
@@ -93,8 +96,12 @@ export function switchDraftKind(
   const time = routineDraftTime(draft) ?? DEFAULT_TIME;
   const days = draftDays(draft);
   switch (kind) {
-    case "once":
-      return { kind, date: routineDateKey(today), time };
+    case "once": {
+      // A time that has passed today is for tomorrow, so the new draft can be saved.
+      const passed = time <= clock(today.getHours(), today.getMinutes());
+      const day = passed ? new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1) : today;
+      return { kind, date: routineDateKey(day), time };
+    }
     case "hourly":
       return { kind, everyHours: 1, days: days ?? ROUTINE_EVERY_DAY, window: DEFAULT_WINDOW };
     case "daily":
@@ -207,12 +214,12 @@ export function routineYearlyDaysInMonth(month: number): number {
 }
 
 /** Why the draft cannot be saved, or `null`. A save of such a draft would change when it runs. */
-export type RoutineDraftProblem = "once" | "endBeforeStart" | "invalidDate" | "cronRequired" | "cronTooLong";
+export type RoutineDraftProblem = "endBeforeStart" | "invalidDate" | "cronRequired" | "cronTooLong";
 
 export function routineDraftProblemCode(draft: RoutineScheduleDraft): RoutineDraftProblem | null {
   switch (draft.kind) {
     case "once":
-      return "once";
+      return isRoutineDate(draft.date) ? null : "invalidDate";
     case "hourly":
       return routineRunsPerDay(draft.window, draft.everyHours) === 0 ? "endBeforeStart" : null;
     case "yearly":
@@ -229,7 +236,7 @@ export function routineDraftProblemCode(draft: RoutineScheduleDraft): RoutineDra
 
 /*
  * A routine saves a `RoutineSchedule`. The saved kinds are a released Team API contract, so each
- * draft saves as the simplest saved kind that runs at the same times: a yearly run is an advanced
+ * draft except `once` saves as the simplest saved kind that runs at the same times: a yearly run is an advanced
  * schedule, and an hourly run between two times is a cron expression. Reading a schedule back
  * gives the same draft.
  */
@@ -237,7 +244,7 @@ export function routineDraftProblemCode(draft: RoutineScheduleDraft): RoutineDra
 export function routineScheduleFromDraft(draft: RoutineScheduleDraft): RoutineSchedule {
   switch (draft.kind) {
     case "once":
-      throw new Error("A one-time routine cannot be saved yet.");
+      return { kind: "once", date: draft.date, time: draft.time };
     case "hourly":
       return hourlySchedule(draft);
     case "daily": {
@@ -285,6 +292,8 @@ function hourlySchedule(draft: Extract<RoutineScheduleDraft, { kind: "hourly" }>
 
 export function routineScheduleToDraft(schedule: RoutineSchedule): RoutineScheduleDraft {
   switch (schedule.kind) {
+    case "once":
+      return { kind: "once", date: schedule.date, time: schedule.time };
     case "hourly": {
       const draft: RoutineScheduleDraft = { kind: "hourly", everyHours: 1, days: ROUTINE_EVERY_DAY, window: null };
       return schedule.minute === 0 ? draft : { ...draft, minute: schedule.minute };

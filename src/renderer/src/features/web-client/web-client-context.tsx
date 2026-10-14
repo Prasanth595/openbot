@@ -22,6 +22,7 @@ import type {
   TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
+import { WAKE_RECONNECT_DELAY_MS } from "@openbot/team-client/hosted-server-wake";
 import type { RemoteTeamHost } from "@openbot/team-client/remote-directory";
 import {
   createRemoteConnectionRecovery,
@@ -34,9 +35,10 @@ import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { toAgentProfile } from "../../app-message-projection";
 import { mergeConversationPage } from "../conversation/conversation-merge";
+import { followsServerUpdate } from "../servers/server-update-flow";
 import { createSidebarPreferences } from "../sidebar/sidebar-preferences";
 import { defaultSidebarLayout } from "../sidebar/sidebar-sections";
-import { createHostRestartToasts } from "../updates/host-restart-toast";
+import { createHostRestartToasts, type HostRestartView } from "../updates/host-restart-toast";
 import type { WebHostNotice } from "./web-host-connections";
 import { createWebHostLifecycle } from "./web-host-lifecycle";
 import type { WebHostState } from "./web-host-lock";
@@ -226,6 +228,8 @@ export function createWebWorkspace(
             draft.recovery = status;
           });
       },
+      // A hosted server that starts comes online soon, so the next attempt does not wait for the backoff.
+      () => (state.hostedSleep === "waking" ? WAKE_RECONNECT_DELAY_MS : null),
     );
   }
   /**
@@ -1247,7 +1251,8 @@ export function createWebWorkspace(
     });
     await Promise.all(writes);
   }
-  createHostRestartToasts(() =>
+  /** The connected host and its connection, as the restart notices and the update dialog read them. */
+  const hostViews = (): HostRestartView[] =>
     state.host
       ? [
           {
@@ -1258,8 +1263,9 @@ export function createWebWorkspace(
             version: state.hostRestart?.version ?? null,
           },
         ]
-      : [],
-  );
+      : [];
+  // The update dialog explains the restart of the update that it follows.
+  createHostRestartToasts(() => hostViews().filter((host) => !followsServerUpdate(host.id)));
   onSettled(() => {
     void refreshHosts().catch(report);
     const focus = () => {
@@ -1303,6 +1309,7 @@ export function createWebWorkspace(
   });
   return {
     state,
+    hostViews,
     profiles,
     retryPanels: loadPanels,
     selected,

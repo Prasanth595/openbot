@@ -1,4 +1,4 @@
-import type { CentralAuthUser } from "@openbot/contracts/ipc";
+import type { AccountSession, CentralAuthUser } from "@openbot/contracts/ipc";
 import {
   Badge,
   Button,
@@ -40,6 +40,12 @@ const SESSION_TITLE_SEPARATOR = " · ";
 export function SettingsProfileTab(props: SettingsProfileTabProps) {
   const { t, format } = useText();
   const sessionTime = (timestamp: number) => format.date(timestamp, SESSION_TIME_FORMAT);
+  const sessionKind = (session: AccountSession) => {
+    if (session.hostedServer) return t("settings.profile.sessions.kind.hostedServer");
+    return session.kind === "desktop"
+      ? t("settings.profile.sessions.kind.desktop")
+      : t("settings.profile.sessions.kind.mobile");
+  };
   return (
     <>
       <SettingsSection title={t("settings.profile.identity.title")}>
@@ -174,14 +180,14 @@ export function SettingsProfileTab(props: SettingsProfileTabProps) {
                     </ItemTitle>
                     <ItemDescription>
                       {t("settings.profile.sessions.details", {
-                        kind:
-                          session.kind === "desktop"
-                            ? t("settings.profile.sessions.kind.desktop")
-                            : t("settings.profile.sessions.kind.mobile"),
+                        kind: sessionKind(session),
                         signedIn: sessionTime(session.connectedAt),
                         lastActive: sessionTime(session.lastActiveAt),
                       })}
                     </ItemDescription>
+                    <Show when={session.hostedServer && !session.current}>
+                      <ItemDescription>{t("settings.profile.sessions.hostedServerNote")}</ItemDescription>
+                    </Show>
                   </ItemContent>
                   <ItemActions>
                     <Show when={!session.current} fallback={<Badge>{t("settings.profile.sessions.thisDevice")}</Badge>}>

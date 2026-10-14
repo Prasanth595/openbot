@@ -1,5 +1,189 @@
 [
   {
+    "version": "0.39.1",
+    "date": "2026-10-14",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Codex, Claude and Grok can have more than one account. Add one in Settings > Providers, and select the account of each agent in the model picker.",
+          "The Usage menu shows the limits of each account.",
+          "Agents can capture the screen: one display, one window, or an area. You approve each capture first, unless Turbo approves it for the agent.",
+          "Vercel is in Marketplace > Apps."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Copy, React and Reply are now in one row under each message.",
+          "Agents in Slack, Discord and Telegram answer simple questions themselves."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.39.0",
+    "date": "2026-10-14",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Server settings > Transfer moves agents, their skills, routines and memories, and server settings to another server, also between computers.",
+          "Slack, Discord and Telegram now show in Marketplace › Apps.",
+          "The server connection notice has a Details button that shows why the server is away and each step until it is back."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "When a joined server has a new version, a dialog shows the update steps, and one click starts the update.",
+          "When you restart a hosted server, the dialog shows each step until the server is back online.",
+          "Connect on a provider row uses the easiest sign-in for the place you are in.",
+          "On the routine canvas, each connection ends in an arrow where it goes into the next card."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "The app connects again after a server on another computer restarts.",
+          "Selecting a server on another computer connects at once.",
+          "A phone or another computer stays connected when it is slow to read updates.",
+          "An expired ChatGPT sign-in now asks you to sign in again.",
+          "When an OpenCode model ends a turn with no answer, the chat says so.",
+          "More interface text shows in your selected language."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.38.2",
+    "date": "2026-10-13",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Italian interface. Choose Italiano in Settings > General > Language.",
+          "A server sends iPhone notifications to its members when an agent finishes, stops with an error, or needs input.",
+          "Agents can post to a connected Slack, Discord or Telegram place on their own initiative, from any chat or routine.",
+          "You can cancel a Gemini sign-in that waits for the browser."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Agents show a draft before they send a message for you, and send it only after you approve it.",
+          "When you say stop, an agent also stops each teammate that it gave work to."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Gemini sign-in, quota and error messages are clearer, and a Gemini chat with a lost session starts a new one.",
+          "Open OpenBot on an invitation page now opens OpenBot on Windows.",
+          "Agents show in their sidebar sections when a server starts or reconnects.",
+          "Opening or writing to a chat no longer shows \"Read state failed\" for a queued message."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.38.1",
+    "date": "2026-10-13",
+    "notices": [
+      "Put agents that work together in one sidebar section. Channels are no longer supported, and OpenBot archives and hides them. Your channel history stays on your computer for now. The next release removes channels and their data."
+    ],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "A message in Slack, Discord or Telegram starts a hosted server that sleeps. The server answers it when it starts.",
+          "The Routines canvas is in the web app and on joined servers.",
+          "Dictation can use ElevenLabs Scribe v2 Realtime with your own API key. Select it in Settings > Voice.",
+          "A permanent Mobile Connect link signs in a phone each time you use it, until you revoke it.",
+          "Agents in Slack, Discord or Telegram can save short facts about the workspace and read earlier messages of the channel or thread.",
+          "The owner of a hosted server can restart it from the server menu."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Desktop notifications show the start of the agent's reply, its question or the command to approve. Turn off \"Show message preview\" in Settings > Notifications to show only the fixed text.",
+          "An account can have 50 hosted servers."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Claude background subagents keep running after the agent's turn ends, and the agent's answer after them shows in the chat.",
+          "OpenBot uses Electron 44.7.0, which can stop rare crashes while the app is idle on macOS.",
+          "Account sessions show a hosted server with its name, not as \"Desktop\"."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.38.0",
+    "date": "2026-10-12",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "On a joined server, sign-in pages for providers, MCP servers and Marketplace apps open in the browser of your own computer. The host keeps every grant.",
+          "On a joined server, Server settings > Connectors shows the host's GitHub, Slack, Discord and Telegram connections. You can connect and disconnect them from your computer.",
+          "A URL MCP server can use a sign-in app: the OAuth app that you registered with its provider."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["Dictated words show at the end of your draft, where they will go."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "The built-in browser keeps the website that you chose when an agent opens more websites.",
+          "A paste into the live view of a remote browser goes to the page.",
+          "A remote connection that stays open for a long time no longer floods the signalling service.",
+          "A server update shows a moving bar, not \"Downloading · 0%\", while the server prepares it."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.37.0",
+    "date": "2026-10-11",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Settings > Voice shows the dictation models. You can download Whisper large-v3 turbo and set a fixed dictation language, for example Hungarian.",
+          "A scheduled routine can skip a time that OpenBot missed while it was closed, or run once when OpenBot opens.",
+          "When a browser sign-in does not finish, you can log in with a code. Grok, Cursor, Cline and Muse also accept a code.",
+          "Run openbot mobile-connect on a self-hosted or Docker server to connect the phone app to it."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "German, Spanish, French, Japanese, Brazilian Portuguese, Russian and Turkish now translate all interface text."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Finished agent replies are no longer cut off after about 220 characters.",
+          "An agent that ran out of usage can change to a model of another provider.",
+          "The chat input keeps focus while agents work in the background.",
+          "You can close the usage-limit notice above the message box."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.36.0",
     "date": "2026-10-10",
     "notices": [],

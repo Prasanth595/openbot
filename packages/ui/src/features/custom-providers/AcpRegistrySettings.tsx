@@ -158,6 +158,7 @@ export function AcpRegistrySettings(props: { api: AcpRegistrySettingsApi }) {
   return (
     <SettingsSection title={t("customProvider.registry.title")} description={t("customProvider.registry.description")}>
       <form
+        class="acp-registry-form"
         onSubmit={(event) => {
           event.preventDefault();
           void search();
@@ -184,6 +185,7 @@ export function AcpRegistrySettings(props: { api: AcpRegistrySettingsApi }) {
       <Show when={state.selected}>
         {(entry) => (
           <form
+            class="acp-registry-form"
             onSubmit={(event) => {
               event.preventDefault();
               void install(entry(), state.customAgentId);
@@ -220,7 +222,7 @@ export function AcpRegistrySettings(props: { api: AcpRegistrySettingsApi }) {
       <ItemGroup>
         <For each={state.entries}>
           {(entry) => (
-            <Item>
+            <Item class="acp-registry-entry">
               <ItemContent>
                 <ItemTitle>{entry.name}</ItemTitle>
                 <ItemDescription>{entry.description}</ItemDescription>

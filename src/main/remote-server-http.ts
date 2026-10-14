@@ -24,7 +24,7 @@ import { Effect, Result, Schema } from "effect";
 import type { ResponseDecoder } from "./remote-host-decoding";
 import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors";
 
-export const REMOTE_REQUEST_TIMEOUT_MS = 15_000;
+const REMOTE_REQUEST_TIMEOUT_MS = 15_000;
 
 export interface RemoteJsonRequestOptions {
   method?: string;
@@ -94,7 +94,7 @@ export const requestJson = Effect.fn("RemoteHttp.requestJson")(function* <T>(
     value = yield* Effect.try({
       try: () =>
         sideRoute
-          ? sideRoute.response(path, response.status, input)
+          ? sideRoute.response(path, response.status, input, { historyExtent: true })
           : codec.decodeResponse(method, path, response.status, input),
       catch: (cause) =>
         new RemoteProtocolError("protocol_error", sourceText("error.remote.unsafeData"), null, { cause }),

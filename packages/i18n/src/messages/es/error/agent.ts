@@ -3,7 +3,7 @@ import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
   "error.agent.historyUnavailable":
-    "El historial no está disponible para esta solicitud. Vuelve a leer el historial reciente o usa channel_history para el trabajo en canales.",
+    "El historial no está disponible para esta solicitud. Vuelve a leer el historial reciente.",
   "error.agent.toolRequestInvalid":
     "Los argumentos de descubrimiento de herramientas no son válidos. Usa el esquema declarado y un nombre de herramienta cualificado original.",
   "error.agent.approvalWhileDeleting": "No se puede conceder la aprobación mientras se elimina el agente.",
@@ -90,6 +90,8 @@ export const messages = {
   "error.agent.automationLocalOnly": "Los scripts locales solo se pueden permitir en el equipo que ejecuta el agente.",
   "error.agent.busyMessageModeLocalOnly":
     "El comportamiento de los mensajes mientras trabaja el agente solo se puede configurar en el equipo que lo ejecuta.",
+  "error.agent.backupModelsLocalOnly":
+    "Los modelos de respaldo solo se pueden configurar en el equipo que ejecuta el agente.",
   "error.agent.localScriptsOff": "Este agente no permite scripts locales.",
   "error.agent.localScriptsRateLimited":
     "Los scripts locales enviaron {limit} solicitudes de mensajes o rutinas a este agente en la última hora. Inténtalo más tarde.",
@@ -101,6 +103,8 @@ export const messages = {
     "Solo espacio de trabajo está disponible para este proveedor únicamente en macOS. Elige Acceso completo en los ajustes del agente.",
   "error.agent.lowMemory":
     "Este servidor tiene poca memoria disponible. Tu mensaje espera en la cola y se iniciará cuando se libere memoria. Un plan superior proporciona más memoria al servidor.",
+  "error.agent.lowMemoryServer":
+    "Este servidor tiene poca memoria disponible. Tu mensaje espera en la cola y se iniciará cuando se libere memoria.",
   "error.agent.workspaceOnlyToolMissing":
     "Solo espacio de trabajo requiere {tool}, que OpenBot no encontró. Instálalo o elige Acceso completo en los ajustes del agente.",
 } as const satisfies PartialTranslation<typeof source>;

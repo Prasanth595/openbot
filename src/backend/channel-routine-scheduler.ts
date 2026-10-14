@@ -60,7 +60,7 @@ function stoppedBlocker(tasks: ChannelTask[], task: ChannelTask, seen = new Set<
  * `hasAssignment` separates "nobody has picked this up yet" from "a member is on it": an assignment
  * is a durable row, so the difference survives a restart too.
  */
-export function channelRunStatusForTasks(
+function channelRunStatusForTasks(
   tasks: ChannelTask[],
   hasAssignment: boolean,
 ): { status: ChannelRoutineRunStatus; error: string | null } {
@@ -228,11 +228,7 @@ export class ChannelRoutineScheduler implements RoutineDueSource {
     const run =
       routine.limitPolicy === "skip" && this.#hooks.usageLimited(routine.channelId)
         ? yield* channelRoutineStep(() =>
-            this.#routines.updateRunStatus(
-              this.#routines.createRun(routine, null, "manual", now).id,
-              "cancelled",
-              null,
-            ),
+            this.#routines.updateRunStatus(this.#routines.createRun(routine, null, "test", now).id, "cancelled", null),
           )
         : yield* this.#fireEffect(routine, null, now);
     this.#changed(routine.channelId);
@@ -271,6 +267,12 @@ export class ChannelRoutineScheduler implements RoutineDueSource {
         if (!active()) break;
         if (this.#excluded().has(due.routine.channelId)) continue;
         const scheduledFor = yield* channelRoutineStep(() => {
+          // A one-time trigger completes in the place of an advance, with the same at-most-once order.
+          if (due.schedule.kind === "once") {
+            this.#routines.completeTrigger(due.routine.id, due.triggerId, now);
+            changed.add(due.routine.channelId);
+            return due.nextRunAt;
+          }
           const occurrence = collapseMissedOccurrences(
             due.schedule,
             due.routine.timezone,
@@ -379,7 +381,7 @@ export class ChannelRoutineScheduler implements RoutineDueSource {
     scheduledFor: string,
   ) {
     const run = yield* channelRoutineStep(() => {
-      const created = this.#routines.createRun(routine, triggerId, triggerId ? "scheduled" : "manual", scheduledFor);
+      const created = this.#routines.createRun(routine, triggerId, triggerId ? "scheduled" : "test", scheduledFor);
       return created.requestMessageId ? created : this.#routines.attachRequest(created.id, randomUUID());
     });
     return yield* this.#issueEffect(run);

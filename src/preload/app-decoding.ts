@@ -66,6 +66,7 @@ import {
   isVoiceLanguage,
   isVoiceModelId,
   type MobileConnectedDevice,
+  type MobileConnectLink,
   type MobileConnectTicket,
   type NotificationOpenedEvent,
   type NotificationPreference,
@@ -82,6 +83,8 @@ import {
   type UpdateStatus,
   type VoiceModelStatus,
   type VoiceSettings,
+  type VoiceStream,
+  type VoiceStreamTranscript,
   type VoiceTranscriptionResult,
 } from "@openbot/contracts/ipc";
 import {
@@ -100,10 +103,18 @@ import { isBoolean, isNumber, isOneOf, isString } from "@openbot/contracts/runti
 
 export function decodeAppInfo(value: unknown): AppInfo {
   const info = decodeRecord(value, "app info");
-  const { platform, variant } = info;
+  const { platform, variant, analyticsCaptureUrl } = info;
   if (!isOneOf(["darwin", "win32", "linux"] as const, platform)) throw new Error("Invalid platform.");
   if (!isOneOf(["production", "dev", "preview"] as const, variant)) throw new Error("Invalid variant.");
-  return { name: requiredString(info, "name"), version: requiredString(info, "version"), platform, variant };
+  if (analyticsCaptureUrl !== undefined && !isString(analyticsCaptureUrl))
+    throw new Error("Invalid analytics capture URL.");
+  return {
+    name: requiredString(info, "name"),
+    version: requiredString(info, "version"),
+    platform,
+    variant,
+    ...(analyticsCaptureUrl === undefined ? {} : { analyticsCaptureUrl }),
+  };
 }
 
 export function decodeAppSetupState(value: unknown): AppSetupState {
@@ -204,6 +215,11 @@ export function decodeMobileConnectTicket(value: unknown): MobileConnectTicket {
   return { qrData: requiredString(ticket, "qrData"), expiresAt: requiredNumber(ticket, "expiresAt") };
 }
 
+export function decodeMobileConnectLink(value: unknown): MobileConnectLink {
+  const link = decodeRecord(value, "Mobile Connect link");
+  return { url: requiredString(link, "url"), createdAt: requiredNumber(link, "createdAt") };
+}
+
 export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDevice[] {
   return decodeList(value, "connected device list", (device) => {
     const { platform } = device;
@@ -214,14 +230,16 @@ export function decodeMobileConnectedDevices(value: unknown): MobileConnectedDev
       platform,
       connectedAt: requiredNumber(device, "connectedAt"),
       lastActiveAt: requiredNumber(device, "lastActiveAt"),
+      via: device.via === "link" ? "link" : "code",
     };
   });
 }
 
 export function decodeAccountSessions(value: unknown): AccountSession[] {
   return decodeList(value, "account session list", (session) => {
-    const { kind } = session;
+    const { kind, hostedServer } = session;
     if (!isOneOf(["desktop", "mobile"] as const, kind)) throw new Error("Invalid kind.");
+    if (hostedServer !== undefined && !isBoolean(hostedServer)) throw new Error("Invalid hostedServer.");
     return {
       sessionId: requiredString(session, "sessionId"),
       name: requiredString(session, "name"),
@@ -229,6 +247,7 @@ export function decodeAccountSessions(value: unknown): AccountSession[] {
       current: requiredBoolean(session, "current"),
       connectedAt: requiredNumber(session, "connectedAt"),
       lastActiveAt: requiredNumber(session, "lastActiveAt"),
+      ...(hostedServer === undefined ? {} : { hostedServer }),
     };
   });
 }
@@ -280,8 +299,10 @@ export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessio
 }
 
 export function decodeNotificationPreference(value: unknown): NotificationPreference {
+  const preference = decodeRecord(value, "notification preference");
   return {
-    desktopNotifications: requiredBoolean(decodeRecord(value, "notification preference"), "desktopNotifications"),
+    desktopNotifications: requiredBoolean(preference, "desktopNotifications"),
+    messagePreview: requiredBoolean(preference, "messagePreview"),
   };
 }
 
@@ -317,6 +338,15 @@ export function decodeVoiceSettings(value: unknown): VoiceSettings {
 
 export function decodeVoiceTranscriptionResult(value: unknown): VoiceTranscriptionResult {
   return { text: requiredString(decodeRecord(value, "voice transcription"), "text") };
+}
+
+export function decodeVoiceStream(value: unknown): VoiceStream {
+  return { streamId: requiredString(decodeRecord(value, "voice stream"), "streamId") };
+}
+
+export function decodeVoiceStreamTranscript(value: unknown): VoiceStreamTranscript {
+  const transcript = decodeRecord(value, "voice stream transcript");
+  return { streamId: requiredString(transcript, "streamId"), text: requiredString(transcript, "text") };
 }
 
 export function decodeExportResult(value: unknown): ExportResult {

@@ -123,7 +123,8 @@ const triggerInput = variant({
   schedule: scheduleTrigger,
   webhook: fields({ kind: oneOf("webhook"), eventType: nullable(eventType), filters }),
 });
-const trigger = variant({
+/** A routine trigger as a read answers it. `routine-flows-v1` reads it too. */
+export const routineTrigger = variant({
   schedule: scheduleTrigger,
   webhook: fields({ kind: oneOf("webhook"), url: nullable(string(2_048)), eventType: nullable(eventType), filters }),
 });
@@ -150,7 +151,7 @@ const routine = fields(
     instruction: string(100_000),
     active: boolean,
     timezone: string(128),
-    trigger,
+    trigger: routineTrigger,
     createdAt: timestamp,
     updatedAt: timestamp,
   },
@@ -186,3 +187,6 @@ export const EVENTS_CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
     adminRoute(fields({ owner, routineId: identifier }, { limit: count }), list(activity, 10_000)),
   ],
 ]);
+
+/** `routine-recovery-v1` reads routines with the same owner and trigger decoders. */
+export { owner as routineOwner, triggerInput as routineTriggerInput };

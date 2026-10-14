@@ -79,7 +79,16 @@ interface PendingApproval {
   params: unknown;
   approval: AgentApproval;
   hostedSiteMutation?: HostedSiteMutationContext;
+  /** A built-in tool waits for this answer and does the work itself. "cancel" means nobody answered. */
+  decide?: (decision: ToolApprovalDecision) => void;
 }
+
+type ToolApprovalDecision = "accept" | "decline" | "cancel";
+
+const TOOL_APPROVAL_METHOD = "openbot/tool-approval";
+/** The agent reads this, not the user: it says how to ask in a Slack, Discord or Telegram turn. */
+const MESSAGING_QUESTION_REFUSED =
+  "This conversation is in Slack, Discord or Telegram, where nobody can answer a question card. Ask the question in your answer: the person replies in the conversation.";
 
 interface PendingBrowserTakeover {
   client: AgentClient;
@@ -142,6 +151,12 @@ export interface AttentionRegistryOptions {
    * the limit the user chose, so Auto approve and Turbo do not answer it.
    */
   workspaceSandboxed?(agentId: string): boolean;
+  /**
+   * Whether this thread answers a Slack, Discord or Telegram conversation. Nobody there can answer a
+   * question card, and the turn would wait for one with no limit while every other conversation of
+   * the agent waits behind it.
+   */
+  messagingThread?(threadId: string): boolean;
   emit(event: AgentEvent): void;
   emitError(code: string, error: unknown, agentId?: string): void;
   emitRuntimeSnapshot(): void;
@@ -180,6 +195,7 @@ export class AttentionRegistry {
   readonly #routines: RoutineAttention;
   readonly #approvalAutomation: ApprovalAutomationPolicy;
   readonly #workspaceSandboxed: (agentId: string) => boolean;
+  readonly #messagingThread: (threadId: string) => boolean;
   readonly #emit: (event: AgentEvent) => void;
   readonly #emitError: (code: string, error: unknown, agentId?: string) => void;
   readonly #emitRuntimeSnapshot: () => void;
@@ -195,6 +211,7 @@ export class AttentionRegistry {
     this.#routines = options.routines;
     this.#approvalAutomation = options.approvalAutomation ?? NO_APPROVAL_AUTOMATION;
     this.#workspaceSandboxed = options.workspaceSandboxed ?? (() => false);
+    this.#messagingThread = options.messagingThread ?? (() => false);
     this.#emit = options.emit;
     this.#emitError = options.emitError;
     this.#emitRuntimeSnapshot = options.emitRuntimeSnapshot;
@@ -330,7 +347,9 @@ export class AttentionRegistry {
     this.#routines.markRunningForTurn(getString(pending.params, "turnId"));
 
     const mutation = pending.hostedSiteMutation;
-    if (mutation) {
+    if (pending.decide) {
+      pending.decide(input.decision);
+    } else if (mutation) {
       this.#approvals.delete(input.requestId);
       yield* this.#hostedSites
         .resolveApproval(
@@ -479,6 +498,34 @@ export class AttentionRegistry {
     this.#routines.markNeedsAttention(turnId);
     this.#emit({ type: "approval", approval });
   }
+
+  /**
+   * Asks the user to approve a built-in tool call, and gives the answer to the tool. The tool does
+   * nothing before "accept". Turbo with a standing approval for the agent answers for the user, as
+   * for a hosted-site change. A turn that ends or a request that the provider abandons gives "cancel".
+   */
+  readonly awaitToolApproval = Effect.fn("AttentionRegistry.awaitToolApproval")(function* (
+    this: AttentionRegistry,
+    client: AgentClient,
+    request: AppServerRequest,
+    approval: AgentApproval,
+  ) {
+    if (request.signal?.aborted) return "cancel" as const;
+    if (shouldAutoApprove(this.#approvalAutomation, approval) && this.#approvalAutomation.turboEnabled())
+      return "accept" as const;
+    const decision = Deferred.makeUnsafe<ToolApprovalDecision>();
+    this.#approvals.set(request.id, {
+      client,
+      id: request.id,
+      method: TOOL_APPROVAL_METHOD,
+      params: request.params,
+      approval,
+      decide: (value) => Deferred.doneUnsafe(decision, Effect.succeed(value)),
+    });
+    this.#routines.markNeedsAttention(approval.turnId);
+    this.#emit({ type: "approval", approval });
+    return yield* Deferred.await(decision);
+  }).bind(this);
 
   readonly surfaceHostedSiteApproval = Effect.fn("AttentionRegistry.surfaceHostedSiteApproval")(function* (
     this: AttentionRegistry,
@@ -699,6 +746,13 @@ export class AttentionRegistry {
       });
       return;
     }
+    if (this.#messagingThread(publicThreadId)) {
+      client.respond(request.id, {
+        success: false,
+        contentItems: [{ type: "inputText", text: MESSAGING_QUESTION_REFUSED }],
+      });
+      return;
+    }
 
     const messageId = this.#persistQuestionPrompt(agentId, publicThreadId, turnId, request.id, questions);
     this.#prompts.set(request.id, {
@@ -738,6 +792,11 @@ export class AttentionRegistry {
       return;
     }
     const publicThreadId = this.#conversation.publicThreadId(agentId, threadId);
+    // No answers is what the provider gets for a question that nobody answered.
+    if (this.#messagingThread(publicThreadId)) {
+      client.respond(request.id, { answers: {} });
+      return;
+    }
     const messageId = this.#persistQuestionPrompt(agentId, publicThreadId, turnId, request.id, questions);
     this.#prompts.set(request.id, {
       client,
@@ -774,6 +833,10 @@ export class AttentionRegistry {
         "A local plugin requested an unsupported security hand-off, so OpenBot declined it.",
         agentId,
       );
+      return;
+    }
+    if (this.#messagingThread(publicThreadId)) {
+      client.respond(request.id, { action: "cancel", content: null, _meta: null });
       return;
     }
 
@@ -816,6 +879,7 @@ export class AttentionRegistry {
       const pendingTurnId = getString(pending.params, "turnId");
       if (pendingThreadId === threadId && (!pendingTurnId || pendingTurnId === turnId)) {
         this.#approvals.delete(requestId);
+        pending.decide?.("cancel");
         this.#emitInputResolved("approval", requestId, pending.approval.agentId);
       }
     }
@@ -851,6 +915,7 @@ export class AttentionRegistry {
     if (approval?.client === client) {
       this.#routines.markRunningForTurn(approval.approval.turnId);
       this.#approvals.delete(requestId);
+      approval.decide?.("cancel");
       this.#emitInputResolved("approval", requestId, approval.approval.agentId);
       changed = true;
     }
@@ -904,6 +969,7 @@ export class AttentionRegistry {
     for (const [requestId, pending] of this.#approvals) {
       if (client && pending.client !== client) continue;
       this.#approvals.delete(requestId);
+      pending.decide?.("cancel");
       this.#emitInputResolved("approval", requestId, pending.approval.agentId);
     }
   }

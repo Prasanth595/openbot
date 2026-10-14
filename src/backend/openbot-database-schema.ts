@@ -4,11 +4,13 @@ import { type DynamicRecord, isDynamicRecord, isNumber, isString } from "@openbo
 import { isGeneratedAgentId } from "@openbot/contracts/validation";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { AGENT_MEMORY_SELECTION_SCHEMA_SQL, migrateAgentMemorySelection } from "./agent-memory-selection";
+import { AGENT_WAIT_SCHEMA_SQL } from "./agent-waits/agent-wait-schema";
 import { CHANNEL_SCHEMA_SQL, CHANNEL_SETTINGS_SCHEMA_SQL } from "./channel-schema";
 import { PROVIDER_HISTORY_SCHEMA_SQL } from "./database/provider-history-schema";
 import { MCP_SERVERS_SCHEMA_SQL } from "./mcp-schema";
-import { MESSAGING_SCHEMA_SQL } from "./messaging/messaging-schema";
+import { MESSAGING_MEMORY_SCHEMA_SQL, MESSAGING_SCHEMA_SQL } from "./messaging/messaging-schema";
 import { ROUTINE_FLOW_SCHEMA_SQL } from "./routine-flows/routine-flow-schema";
+import { ROUTINE_RESULT_SCHEMA_SQL } from "./routine-results/routine-result-schema";
 
 const BASELINE_SCHEMA_VERSION = 8;
 
@@ -394,6 +396,11 @@ const V33_ROUTINE_RUN_MISSED_COLUMNS_SQL = [
   "missed_until TEXT",
 ] as const;
 
+// Migration 35 records what started a manual run: a test, a local script or a webhook. Frozen with the
+// migration. A run from before it has no source, and a scheduled run never has one. ADD COLUMN puts it after
+// the migration 33 columns, before the UNIQUE constraint.
+const V35_ROUTINE_RUN_SOURCE_COLUMN_SQL = `run_source TEXT CHECK(run_source IS NULL OR run_source IN ('test', 'script', 'webhook'))`;
+
 const BASELINE_AGENT_ROUTINES_END_SQL = `    last_event_sequence INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS agent_routines_agent`;
@@ -476,7 +483,7 @@ const LATEST_SCHEMA_SQL =
       withRoutinePolicies(BASELINE_AGENT_ROUTINES_END_SQL),
     ),
     BASELINE_ROUTINE_RUNS_END_SQL,
-    withRunMissedColumns(BASELINE_ROUTINE_RUNS_END_SQL),
+    withRunAddedColumns(BASELINE_ROUTINE_RUNS_END_SQL),
   ) +
   ANALYTICS_SCHEMA_SQL +
   ANALYTICS_DATE_INDEX_SQL +
@@ -488,14 +495,17 @@ const LATEST_SCHEMA_SQL =
       withRoutinePolicies(V19_CHANNEL_ROUTINES_END_SQL),
     ),
     V19_CHANNEL_ROUTINE_RUNS_END_SQL,
-    withRunMissedColumns(V19_CHANNEL_ROUTINE_RUNS_END_SQL),
+    withRunAddedColumns(V19_CHANNEL_ROUTINE_RUNS_END_SQL),
   ) +
   MCP_SERVERS_SCHEMA_SQL +
   MESSAGING_SCHEMA_SQL +
   PROVIDER_HISTORY_SCHEMA_SQL +
   WEBHOOK_SCHEMA_SQL +
   ROUTINE_FLOW_SCHEMA_SQL +
-  AGENT_MEMORY_SELECTION_SCHEMA_SQL;
+  AGENT_MEMORY_SELECTION_SCHEMA_SQL +
+  AGENT_WAIT_SCHEMA_SQL +
+  MESSAGING_MEMORY_SCHEMA_SQL +
+  ROUTINE_RESULT_SCHEMA_SQL;
 
 /** The end of a routine table with the migration 27 and 33 columns after its last one. */
 function withRoutinePolicies(tableEnd: string): string {
@@ -505,11 +515,11 @@ function withRoutinePolicies(tableEnd: string): string {
   );
 }
 
-/** The end of a routine run table with the migration 33 columns before its UNIQUE constraint. */
-function withRunMissedColumns(tableEnd: string): string {
+/** The end of a routine run table with the migration 33 and 35 columns before its UNIQUE constraint. */
+function withRunAddedColumns(tableEnd: string): string {
   return tableEnd.replace(
     "last_event_sequence INTEGER NOT NULL,\n",
-    `last_event_sequence INTEGER NOT NULL,\n${V33_ROUTINE_RUN_MISSED_COLUMNS_SQL.map((column) => `    ${column},\n`).join("")}`,
+    `last_event_sequence INTEGER NOT NULL,\n${[...V33_ROUTINE_RUN_MISSED_COLUMNS_SQL, V35_ROUTINE_RUN_SOURCE_COLUMN_SQL].map((column) => `    ${column},\n`).join("")}`,
   );
 }
 
@@ -673,6 +683,28 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
     // no vacuum. Every existing routine keeps skipping the occurrences it missed, which is what it did
     // before, and every existing run records no missed occurrence.
     up: addRoutineMissedRuns,
+  },
+  {
+    version: 34,
+    // Only creates a table, so no foreign-key pause and no vacuum. No agent has an open wait yet.
+    up: (db) => db.exec(AGENT_WAIT_SCHEMA_SQL),
+  },
+  {
+    version: 35,
+    // Adds a column with no default to two tables: no rebuild, so no foreign-key pause and no vacuum. Every
+    // existing run records no source, which the app reads as a test run, as it did before.
+    up: addRoutineRunSource,
+  },
+  {
+    version: 36,
+    // Only creates a table, so no foreign-key pause and no vacuum. No connection has memories yet.
+    up: (db) => db.exec(MESSAGING_MEMORY_SCHEMA_SQL),
+  },
+  {
+    version: 37,
+    // Only creates tables, so no foreign-key pause and no vacuum. No routine has a destination yet, so every
+    // routine keeps its answers in OpenBot, which is what it did before.
+    up: (db) => db.exec(ROUTINE_RESULT_SCHEMA_SQL),
   },
 ];
 
@@ -977,6 +1009,16 @@ function addRoutineMissedRuns(db: DatabaseSync): void {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all();
     if (columns.some((existing) => isDynamicRecord(existing) && existing.name === name)) continue;
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column}`);
+  }
+}
+
+// Migration 35 adds the run source to the run tables.
+function addRoutineRunSource(db: DatabaseSync): void {
+  for (const table of ["projection_routine_runs", "projection_channel_routine_runs"]) {
+    // A development profile that ran this version before it shipped has the column already.
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (columns.some((column) => isDynamicRecord(column) && column.name === "run_source")) continue;
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${V35_ROUTINE_RUN_SOURCE_COLUMN_SQL}`);
   }
 }
 

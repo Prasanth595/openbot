@@ -106,11 +106,9 @@ export function ChannelTranscript(props: {
                       authorName={row.author.name}
                       reactions={false}
                       pickerOpen={false}
-                      moreOpen={false}
                       expandedEmoji={false}
                       copied={false}
                       onTogglePicker={fn()}
-                      onToggleMore={fn()}
                       onExpandEmoji={fn()}
                       onReact={fn()}
                       onReply={fn()}

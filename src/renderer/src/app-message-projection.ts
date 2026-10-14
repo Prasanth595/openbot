@@ -4,6 +4,7 @@ import {
   hostedSiteConversationEvent,
   isContextResetMarker,
   marketplaceSuggestionEvent,
+  modelSwitchReason,
   parseConversationPlanText,
   routineConversationEvent,
   routineRunConversationEvent,
@@ -33,10 +34,13 @@ export function toAgentProfile(stored: AgentSummary): AgentProfile {
     provider: stored.provider,
     model: stored.model,
     reasoningEffort: stored.reasoningEffort,
+    providerAccountId: stored.providerAccountId,
     access: stored.access,
     computerUse: stored.computerUse,
     allowAutomation: stored.allowAutomation,
     busyMessageMode: stored.busyMessageMode,
+    backupModels: stored.backupModels,
+    usageLimitReturn: stored.usageLimitReturn,
     threadId: stored.threadId,
     workspacePath: stored.workspacePath,
     avatarSeed: stored.avatarSeed,
@@ -179,6 +183,9 @@ export function agentProfilesEqual(left: AgentProfile, right: AgentProfile): boo
     left.provider === right.provider &&
     left.model === right.model &&
     left.reasoningEffort === right.reasoningEffort &&
+    left.providerAccountId === right.providerAccountId &&
+    JSON.stringify(left.backupModels) === JSON.stringify(right.backupModels) &&
+    JSON.stringify(left.usageLimitReturn) === JSON.stringify(right.usageLimitReturn) &&
     left.access === right.access &&
     left.computerUse === right.computerUse &&
     left.threadId === right.threadId &&
@@ -268,6 +275,9 @@ function chatActionMarker(
     };
   }
   if (isContextResetMarker(message)) return { kind: "context-reset", timestamp: message.createdAt };
+  const switchReason = modelSwitchReason(message);
+  if (switchReason)
+    return { kind: "model-switch", reason: switchReason, text: message.text, timestamp: message.createdAt };
   const skillEvent = skillConversationEvent(message);
   if (skillEvent) return { ...skillEvent, kind: "skill-lifecycle", timestamp: message.createdAt };
   const suggestion = marketplaceSuggestionEvent(message);

@@ -10,6 +10,7 @@ import {
   type AgentRuntimeSnapshot,
   type AgentSummary,
   CONVERSATION_PLAN_ITEM_TYPE,
+  ROUTINE_QUIET_ANSWER_ITEM_TYPE,
 } from "@openbot/contracts/ipc";
 import type { MailboxStore } from "../mailbox-store";
 import type { OpenBotDatabase } from "../openbot-database";
@@ -142,7 +143,7 @@ export interface RuntimeSnapshotSources {
   mailbox: Pick<MailboxStore, "listRuntimeWork">;
   turn: Pick<TurnLifecycle, "failedTurns">;
   attention: Pick<AttentionRegistry, "runtimeAttention">;
-  usageLimits: Pick<UsageLimitGate, "limitedAgents">;
+  usageLimits: Pick<UsageLimitGate, "limitedAgents" | "limitedModels">;
 }
 
 /** The runtime view of every agent: active turns, queued work, latest messages and attention. */
@@ -179,7 +180,8 @@ export function buildRuntimeSnapshot({
         message.itemType !== "question_prompt" &&
         message.itemType !== "agent_attachment" &&
         !message.itemType?.startsWith(CHAT_VISUAL_ITEM_TYPE_PREFIX) &&
-        message.itemType !== CONVERSATION_PLAN_ITEM_TYPE,
+        message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+        message.itemType !== ROUTINE_QUIET_ANSWER_ITEM_TYPE,
     );
     const persisted =
       !live || !liveLatest
@@ -210,6 +212,7 @@ export function buildRuntimeSnapshot({
     ...attention.runtimeAttention(),
     failedTurns: [...turn.failedTurns()].map(([agentId, turnId]) => ({ agentId, turnId })),
     usageLimits: usageLimits.limitedAgents(),
+    usageLimitedModels: usageLimits.limitedModels(),
     ...(contextStates ? { contextStates } : {}),
   });
 }

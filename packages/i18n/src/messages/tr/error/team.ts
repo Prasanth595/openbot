@@ -63,13 +63,20 @@ export const messages = {
   "error.team.agentUpdateUnsupported": "Ajan güncelleme bu bağlantı tarafından desteklenmiyor.",
   "error.team.contextResetUnsupported": "Yeni bir sohbet başlatma bu bağlantı tarafından desteklenmiyor.",
   "error.team.workspaceDirectoryUnsupported": "Klasörleri gösterme bu bağlantı tarafından desteklenmiyor.",
+  "error.team.conversationFileSearchUnsupported": "Dosya arama bu bağlantı tarafından desteklenmiyor.",
+  "error.team.routineFlowsUnsupported":
+    "Bu sunucu rutin akışlarını desteklemiyor. Sunucuyu çalıştıran bilgisayardaki OpenBot'u güncelleyin.",
+  "error.team.routineCanvasTooLarge":
+    "Bu rutin tuvali bu cihaza gönderilemeyecek kadar büyük. Sunucuyu çalıştıran bilgisayarda rutin talimatlarını kısaltın.",
   "error.team.agentImportUnsupported": "Ajan içe aktarma bu bağlantı tarafından desteklenmiyor.",
   "error.team.liveActivityUnsupported": "Bu ana makine bir telefonun Canlı Etkinliğini güncelleyemez.",
+  "error.team.pushNotificationsUnsupported": "Bu ana makine bir telefona bildirim gönderemez.",
   "error.team.agentUpdateTargetRequired": "Güncellenecek bir ajan gereklidir.",
   "error.team.queueEditUnsupported": "Bu istemci kuyruk düzenlemeyi desteklemiyor.",
   "error.team.skillsUnsupported": "Beceriler bu bağlantı tarafından desteklenmiyor.",
   "error.team.hostIdentityUnsupported": "Sunucu kimliği değişiklikleri bu bağlantı tarafından desteklenmiyor.",
   "error.team.hostUpdateUnsupported": "Ana makine güncellemeleri bu bağlantı tarafından desteklenmiyor.",
+  "error.team.hostTimezoneUnsupported": "Bu bağlantı sunucunun saat dilimini desteklemiyor.",
   "error.team.attachmentNameRequired": "Güvenli bir ek adı gereklidir.",
   "error.team.attachmentNotFound": "Ek bulunamadı.",
   "error.team.sharedFileTooLarge": "Paylaşılan dosya 100 MB sınırını aşıyor.",
@@ -99,4 +106,12 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Ajan ayarları bu bağlantı tarafından desteklenmiyor.",
   "error.team.adminRequired": "Yönetici erişimi gereklidir.",
   "error.team.requestTooLarge": "İstek gövdesi çok büyük.",
+  "error.team.signInRelayUnsupported": "Bu sunucu oturum açmaları aktaramaz. Ana bilgisayardaki OpenBot'u güncelleyin.",
+  "error.team.connectorsUnsupported":
+    "Bu sunucunun bağlantıları buradan yönetilemez. Ana bilgisayardaki OpenBot'u güncelleyin.",
+  "error.team.connectorPageRefused": "Sunucu, OpenBot'un açmadığı bir sayfa gönderdi.",
+  "error.team.signInRelayUnknown": "Bu oturum açma sona erdi veya mevcut değil.",
+  "error.team.signInRelayUsed": "Bu oturum açma zaten gönderildi.",
+  "error.team.signInRelayMismatch": "Bu adres bu oturum açmaya ait değil.",
+  "error.team.signInRelayLinkUnknown": "Bu sunucudaki hiçbir ajan bu oturum açma bağlantısını göstermedi.",
 } as const satisfies PartialTranslation<typeof source>;

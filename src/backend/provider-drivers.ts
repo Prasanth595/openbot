@@ -66,6 +66,23 @@ interface ProviderCliCommand {
 const CLI_LOGIN_TIMEOUT_MS = 10 * 60_000;
 
 /**
+ * How a provider keeps more than one account on this computer. Its CLI keeps the credentials,
+ * sessions and settings of one account in a home folder that one variable names, so each account
+ * after the first gets a folder of its own. The first account stays in the CLI's default folder.
+ */
+export interface ProviderAccountSupport {
+  /** The variable that names the CLI's home folder. */
+  readonly homeVariable: string;
+  /** Signs a new, empty home folder in through the browser. */
+  readonly signIn: ProviderCliCommand;
+  /** Signs the account out before its folder is removed, for a CLI that keeps a credential outside it. */
+  readonly signOut?: ProviderCliCommand;
+}
+
+const CLAUDE_COMMAND_ENV = (cli: AgentCliInfo): Record<string, string> =>
+  cli.source === "managed" ? { DISABLE_AUTOUPDATER: "1" } : {};
+
+/**
  * The environment one OpenCode process gets, read at spawn time.
  *
  * `OPENCODE_API_KEY` is the whole of the optional account: with it the CLI lists the paid Go
@@ -144,10 +161,35 @@ function antigravityKeyOptions(context: ProviderClientContext, agentEnvironment:
       key() && initialization.authMethods?.some((method) => method.id === GEMINI_API_KEY_METHOD)
         ? providerCall(() => connection.authenticate({ methodId: GEMINI_API_KEY_METHOD })).pipe(Effect.asVoid)
         : Effect.void,
+    savedKeyRefusedMessage: () => (key() ? sourceText("error.provider.geminiKeyRefused") : null),
   };
 }
 
+/**
+ * Antigravity 1.3.0 starts Google's browser sign-in by itself when `session/new` finds no valid
+ * token, and waits there for five minutes. A client that serves turns must never open that page:
+ * `BROWSER=true` stops the launch, and the prompt line tells the account check to stop waiting.
+ */
+const ANTIGRAVITY_SERVING_OPTIONS = {
+  env: { BROWSER: "true" },
+  interactiveSignInPrompt: /Open the following link to authenticate the ACP server: /u,
+};
+
 const GEMINI_API_KEY_METHOD = "gemini-api-key";
+
+/**
+ * The Windows Antigravity server unpacks about 310 MB into the temporary folder at each start, and a
+ * process that is stopped or times out leaves that copy behind. Each process gets a folder that
+ * OpenBot removes (`provider-temp.ts`).
+ */
+export function antigravityTemp(context: Pick<ProviderClientContext, "providerTempDirectory" | "availableDiskBytes">) {
+  return context.providerTempDirectory
+    ? {
+        root: join(context.providerTempDirectory, "antigravity"),
+        availableDiskBytes: context.availableDiskBytes,
+      }
+    : undefined;
+}
 
 /**
  * Google's registry starts the Linux build with an empty `--uid=`, and the other builds with no
@@ -230,17 +272,40 @@ export interface ProviderClientContext {
    */
   readonly providerStateDirectory?: string;
   /**
+   * A folder OpenBot owns for the temporary files of provider processes, emptied at each launch.
+   * Optional for the same reason as `reportMcpDrops`: without it a process uses the system folder.
+   * The app gives it on Windows only.
+   */
+  readonly providerTempDirectory?: string;
+  /** The free bytes on the volume of a path. Optional: without it the volume is read. */
+  readonly availableDiskBytes?: (path: string) => number;
+  /**
    * Variables an agent's tools run with, beyond the user's own environment: today the paths that
    * point `gh` and `git` at the built-in GitHub connection. Paths only, never a secret, because a
    * provider process can outlive the token. Read at each spawn; empty while nothing is connected.
    */
   readonly agentEnvironment?: (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>;
   /**
+   * The home folder variable of a provider account after the first, for a driver with `accounts`.
+   * Every process the client starts gets it, the account check included, so the client signs in
+   * and keeps its sessions in that folder only.
+   */
+  readonly accountEnvironment?: Readonly<Record<string, string>>;
+  /**
    * The saved custom agents with their environment values, read when an agent's process starts.
    * Only the `acp` driver reads it. Optional for the same reason as `reportMcpDrops`: without it no
    * custom agent is saved.
    */
   readonly customAgents?: CustomAgentSource;
+}
+
+/** The agent environment with the account's home folder after it, so the account folder wins. */
+function withAccountEnvironment(
+  context: ProviderClientContext,
+): ((inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>) | undefined {
+  const { agentEnvironment, accountEnvironment } = context;
+  if (!accountEnvironment) return agentEnvironment;
+  return (inherited) => ({ ...agentEnvironment?.(inherited), ...accountEnvironment });
 }
 
 /** Nothing stored and no endpoint, for tests and for call sites that predate the credential store. */
@@ -260,6 +325,8 @@ export interface BuiltInProviderDriver {
   signIn: ProviderSignIn;
   /** Absent for a provider that has no sign-in on another device. */
   codeSignIn?: ProviderCodeSignIn;
+  /** Absent for a provider that holds one account only. */
+  accounts?: ProviderAccountSupport;
   resolveCli(options?: {
     bundledExecutable?: string | null;
   }): Effect.Effect<AgentCliInfo, ProviderClientOperationError>;
@@ -361,8 +428,14 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     id: "codex",
     signIn: { kind: "browser" },
     codeSignIn: { kind: "codex-device" },
+    accounts: {
+      homeVariable: "CODEX_HOME",
+      signIn: { argv: ["login"], env: () => ({}), timeoutMs: CLI_LOGIN_TIMEOUT_MS },
+      signOut: { argv: ["logout"], env: () => ({}), timeoutMs: 30_000 },
+    },
     resolveCli: resolveCodexCli,
-    createClient: (cli, requestTimeoutMs) => new CodexAppServerClient(cli.executable, requestTimeoutMs),
+    createClient: (cli, requestTimeoutMs, context) =>
+      new CodexAppServerClient(cli.executable, requestTimeoutMs, context.accountEnvironment),
     authState: (account) => ({ kind: "chatgpt", email: account?.email ?? null }),
     validateAccount: (account) => {
       if (account.type !== "chatgpt") {
@@ -374,21 +447,20 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     id: "claude",
     signIn: {
       kind: "cli-command",
-      command: {
-        argv: ["auth", "login", "--claudeai"],
-        env: (cli): Record<string, string> => (cli.source === "managed" ? { DISABLE_AUTOUPDATER: "1" } : {}),
-        timeoutMs: CLI_LOGIN_TIMEOUT_MS,
-      },
+      command: { argv: ["auth", "login", "--claudeai"], env: CLAUDE_COMMAND_ENV, timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     },
     // With no browser the CLI prints the link and a "Paste code here" prompt, on a terminal only.
     codeSignIn: {
       kind: "cli",
       flow: "paste",
-      command: {
-        argv: ["auth", "login", "--claudeai"],
-        env: (cli): Record<string, string> => (cli.source === "managed" ? { DISABLE_AUTOUPDATER: "1" } : {}),
-        timeoutMs: CLI_LOGIN_TIMEOUT_MS,
-      },
+      command: { argv: ["auth", "login", "--claudeai"], env: CLAUDE_COMMAND_ENV, timeoutMs: CLI_LOGIN_TIMEOUT_MS },
+    },
+    // On macOS the CLI keeps the credential in a keychain item named after the folder, so the
+    // sign-out removes that item before OpenBot removes the folder.
+    accounts: {
+      homeVariable: "CLAUDE_CONFIG_DIR",
+      signIn: { argv: ["auth", "login", "--claudeai"], env: CLAUDE_COMMAND_ENV, timeoutMs: CLI_LOGIN_TIMEOUT_MS },
+      signOut: { argv: ["auth", "logout"], env: CLAUDE_COMMAND_ENV, timeoutMs: 30_000 },
     },
     resolveCli: resolveClaudeCli,
     createClient: (cli, requestTimeoutMs, context) =>
@@ -402,7 +474,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         context.mcpToolRuntimes,
         context.mcpAuthorization,
         context.providerStateDirectory,
-        context.agentEnvironment,
+        withAccountEnvironment(context),
       ),
     authState: (account) => ({ kind: "claude", email: account?.email ?? null }),
     validateAccount: () => undefined,
@@ -426,6 +498,14 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         timeoutMs: CLI_LOGIN_TIMEOUT_MS,
       },
     },
+    accounts: {
+      homeVariable: "GROK_HOME",
+      signIn: {
+        argv: ["--no-auto-update", "login"],
+        env: () => ({ GROK_OAUTH2_REFERRER: "openbot" }),
+        timeoutMs: CLI_LOGIN_TIMEOUT_MS,
+      },
+    },
     resolveCli: resolveGrokCli,
     createClient: (cli, requestTimeoutMs, context, confinement) =>
       new GrokAgentClient(
@@ -437,7 +517,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         context.mcpToolRuntimes,
         context.mcpAuthorization,
         confinement,
-        context.agentEnvironment,
+        withAccountEnvironment(context),
         context.history?.("grok"),
       ),
     createProfileClient: (cli, requestTimeoutMs) => new GrokAgentClient(cli, requestTimeoutMs, true),
@@ -508,7 +588,9 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       new AcpAgentClient(cli, timeout, {
         provider: "antigravity",
         argv: ANTIGRAVITY_ARGV,
-        env: {},
+        ...ANTIGRAVITY_SERVING_OPTIONS,
+        discoveryCwd: () => discoveryFolder("antigravity"),
+        privateTemp: antigravityTemp(context),
         ...(confinement
           ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityStatePaths()) }
           : {}),
@@ -528,7 +610,9 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         provider: "antigravity",
         argv: ANTIGRAVITY_ARGV,
         profileGeneration: true,
-        env: {},
+        ...ANTIGRAVITY_SERVING_OPTIONS,
+        discoveryCwd: () => discoveryFolder("antigravity"),
+        privateTemp: antigravityTemp(context),
         ...antigravityKeyOptions(context, false),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
         servesModel: context.servesModel,
@@ -677,7 +761,7 @@ function customAgentChild(
     provider: "acp",
     label: config.name,
     allowNoModels: true,
-    discoveryCwd: () => folder ?? customAgentDiscoveryFolder(config.id),
+    discoveryCwd: () => folder ?? discoveryFolder(config.id),
     redactValues: () => values,
     argv: config.args,
     env,
@@ -716,9 +800,10 @@ let customAgentDiscoveryRoot: string | undefined;
 /**
  * An empty folder for the session that lists an agent's models, apart from every workspace. The
  * root is new for each run and private (`mkdtemp`): a fixed path in a shared temp folder could be made
- * first by another user, with an agent config file in it that the agent would then load.
+ * first by another user, with an agent config file in it that the agent would then load. Gemini uses
+ * the folder `antigravity`, an id that no custom agent can have.
  */
-function customAgentDiscoveryFolder(agentId: string): string {
+function discoveryFolder(agentId: string): string {
   customAgentDiscoveryRoot ??= mkdtempSync(join(tmpdir(), "openbot-custom-agents-"));
   const folder = join(customAgentDiscoveryRoot, agentId);
   mkdirSync(folder, { recursive: true, mode: 0o700 });

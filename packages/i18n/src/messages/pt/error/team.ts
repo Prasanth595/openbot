@@ -65,14 +65,21 @@ export const messages = {
   "error.team.agentUpdateUnsupported": "Esta conexão não oferece suporte à atualização de agentes.",
   "error.team.contextResetUnsupported": "Esta conexão não oferece suporte ao início de um novo chat.",
   "error.team.workspaceDirectoryUnsupported": "Esta conexão não oferece suporte à exibição de pastas.",
+  "error.team.conversationFileSearchUnsupported": "Esta conexão não oferece suporte à pesquisa de arquivos.",
+  "error.team.routineFlowsUnsupported":
+    "Este servidor não oferece suporte a fluxos de rotinas. Atualize o OpenBot no computador que o executa.",
+  "error.team.routineCanvasTooLarge":
+    "Este quadro de rotinas é grande demais para ser enviado a este dispositivo. Encurte as instruções das rotinas no computador que executa o servidor.",
   "error.team.agentImportUnsupported": "Esta conexão não oferece suporte à importação de agentes.",
   "error.team.liveActivityUnsupported":
     "Este computador anfitrião não pode atualizar a Atividade ao Vivo de um celular.",
+  "error.team.pushNotificationsUnsupported": "Este host não pode enviar notificações para um telefone.",
   "error.team.agentUpdateTargetRequired": "É necessário informar um agente para atualizar.",
   "error.team.queueEditUnsupported": "Este cliente não oferece suporte à edição da fila.",
   "error.team.skillsUnsupported": "Esta conexão não oferece suporte a habilidades.",
   "error.team.hostIdentityUnsupported": "Esta conexão não oferece suporte a alterações na identidade do servidor.",
   "error.team.hostUpdateUnsupported": "Esta conexão não oferece suporte a atualizações do computador anfitrião.",
+  "error.team.hostTimezoneUnsupported": "Esta conexão não oferece suporte ao fuso horário do servidor.",
   "error.team.attachmentNameRequired": "É necessário informar um nome seguro para o anexo.",
   "error.team.attachmentNotFound": "Anexo não encontrado.",
   "error.team.sharedFileTooLarge": "O arquivo compartilhado excede o limite de 100 MB.",
@@ -102,4 +109,12 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Esta conexão não oferece suporte às configurações de agentes.",
   "error.team.adminRequired": "É necessário acesso de administrador.",
   "error.team.requestTooLarge": "O corpo da solicitação é muito grande.",
+  "error.team.signInRelayUnsupported": "Este servidor não pode retransmitir autenticações. Atualize o OpenBot no host.",
+  "error.team.connectorsUnsupported":
+    "As conexões deste servidor não podem ser gerenciadas daqui. Atualize o OpenBot no host.",
+  "error.team.connectorPageRefused": "O servidor enviou uma página que o OpenBot não abre.",
+  "error.team.signInRelayUnknown": "Esta autenticação terminou ou não existe.",
+  "error.team.signInRelayUsed": "Esta autenticação já foi enviada.",
+  "error.team.signInRelayMismatch": "Este endereço não é desta autenticação.",
+  "error.team.signInRelayLinkUnknown": "Nenhum agente deste servidor mostrou este link de entrada.",
 } as const satisfies PartialTranslation<typeof source>;

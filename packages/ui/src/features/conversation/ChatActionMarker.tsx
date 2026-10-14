@@ -43,6 +43,8 @@ interface ChatActionMarkerProps {
   onSelectAgent: (agentId: string) => void;
   onOpenRoutine?: ((routine: { routineId: string; name: string }) => void) | undefined;
   onOpenHostedSite?: ((url: string) => void) | undefined;
+  /** Opens or closes the messages of a run, or the runs of a group, whose marker sets `expanded`. */
+  onToggleRoutineRun?: ((marker: RoutineRunToggleMarkerModel) => void) | undefined;
 }
 
 const STATUS_LABELS = {
@@ -63,6 +65,7 @@ type SingleChatActionMarkerModel = Exclude<
 >;
 type AgentMessageGroupMarkerModel = Extract<ChatActionMarkerModel, { kind: "agent-message-group" }>;
 type RoutineRunGroupMarkerModel = Extract<ChatActionMarkerModel, { kind: "routine-run-group" }>;
+export type RoutineRunToggleMarkerModel = Extract<ChatActionMarkerModel, { kind: "routine-run" | "routine-run-group" }>;
 
 function agentMessageGroup(marker: ChatActionMarkerModel): AgentMessageGroupMarkerModel | undefined {
   return marker.kind === "agent-message-group" ? marker : undefined;
@@ -104,6 +107,7 @@ export function ChatActionMarker(props: ChatActionMarkerProps) {
                   onSelectAgent={props.onSelectAgent}
                   onOpenRoutine={props.onOpenRoutine}
                   onOpenHostedSite={props.onOpenHostedSite}
+                  onToggleRoutineRun={props.onToggleRoutineRun}
                 />
               )}
             </Show>
@@ -117,6 +121,7 @@ export function ChatActionMarker(props: ChatActionMarkerProps) {
               routineAvailable={props.routineAvailable}
               onSelectAgent={props.onSelectAgent}
               onOpenRoutine={props.onOpenRoutine}
+              onToggle={props.onToggleRoutineRun ? () => props.onToggleRoutineRun?.(group()) : undefined}
             />
           )}
         </Show>
@@ -137,13 +142,15 @@ export function ChatActionMarker(props: ChatActionMarkerProps) {
 /** The open state of a group row, which its summary uses to draw the toggle. */
 interface MarkerGroupToggle {
   expanded: () => boolean;
-  listId: string;
+  /** Absent when the timeline draws the entries as rows of their own. */
+  listId: string | undefined;
   toggle: () => void;
 }
 
 /**
  * The shared body of a group row: the summary, the list of each entry's own marker that opens under
- * it, and the live text that announces an entry that joins the group.
+ * it, and the live text that announces an entry that joins the group. With `onToggle`, the host owns
+ * the open state and draws the entries as rows under the group, so the group draws no list.
  */
 function MarkerGroup(props: {
   class: string;
@@ -155,25 +162,41 @@ function MarkerGroup(props: {
   routineAvailable?: boolean | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenRoutine?: ((routine: { routineId: string; name: string }) => void) | undefined;
+  expanded?: boolean | undefined;
+  onToggle?: (() => void) | undefined;
   summary: (control: MarkerGroupToggle) => JSX.Element;
 }) {
-  const { t } = useText();
-  const [expanded, setExpanded] = createSignal(false);
+  const { t, sourceText } = useText();
+  const [listExpanded, setListExpanded] = createSignal(false);
+  const expanded = () => (props.onToggle ? props.expanded === true : listExpanded());
   // Same exit rule as the routine history: the list stays mounted until its closing animation ends.
   const [mounted, setMounted] = createSignal(false);
   const toggle = (): void => {
-    const opening = !expanded();
-    setExpanded(opening);
+    if (props.onToggle) {
+      props.onToggle();
+      return;
+    }
+    const opening = !listExpanded();
+    setListExpanded(opening);
     if (opening || prefersReducedMotion()) setMounted(opening);
   };
-  const listId = createUniqueId();
+  const createdListId = createUniqueId();
+  const listId = () => (props.onToggle ? undefined : createdListId);
   // An entry that joins the group has no row of its own to announce it. The newest one that joined
   // gets a new node in the live text, so a reader announces it even when its text is the same.
   const joinedEntries = () => props.entries.slice(Math.max(props.drawnCount, props.entries.length - 1));
   return (
     <Marker class={props.class} role="group" aria-label={props.label}>
       <div class="chat-action-marker-summary">
-        <MarkerContent class="chat-action-marker-content">{props.summary({ expanded, listId, toggle })}</MarkerContent>
+        <MarkerContent class="chat-action-marker-content">
+          {props.summary({
+            expanded,
+            get listId() {
+              return listId();
+            },
+            toggle,
+          })}
+        </MarkerContent>
         <Show when={mounted()}>
           <div
             class="chat-action-history-panel"
@@ -184,7 +207,7 @@ function MarkerGroup(props: {
             }}
           >
             <div class="chat-action-history-clip">
-              <ol id={listId} class="chat-action-history chat-action-group-list" aria-label={props.listLabel}>
+              <ol id={createdListId} class="chat-action-history chat-action-group-list" aria-label={props.listLabel}>
                 <For each={props.entries} keyed={(entry) => entry.id}>
                   {(entry) => (
                     <li class="chat-action-history-entry">
@@ -205,7 +228,7 @@ function MarkerGroup(props: {
       </div>
       <span class="sr-only" role="status" aria-live="polite">
         <For each={joinedEntries()} keyed={(entry) => entry.id}>
-          {(entry) => <span>{markerAccessibleLabel(entry().marker, props.agents, t)}</span>}
+          {(entry) => <span>{markerAccessibleLabel(entry().marker, props.agents, t, sourceText)}</span>}
         </For>
       </span>
     </Marker>
@@ -292,6 +315,7 @@ function RoutineRunGroupMarker(props: {
   routineAvailable?: boolean | undefined;
   onSelectAgent: (agentId: string) => void;
   onOpenRoutine?: ((routine: { routineId: string; name: string }) => void) | undefined;
+  onToggle?: (() => void) | undefined;
 }) {
   const { t, format } = useText();
   const count = () => props.group.runs.length;
@@ -316,6 +340,8 @@ function RoutineRunGroupMarker(props: {
       routineAvailable={props.routineAvailable}
       onSelectAgent={props.onSelectAgent}
       onOpenRoutine={props.onOpenRoutine}
+      expanded={props.group.expanded}
+      onToggle={props.group.expanded === undefined ? undefined : props.onToggle}
       summary={(control) => (
         <>
           <RoutineTarget
@@ -359,8 +385,8 @@ function RoutineRunGroupMarker(props: {
 function SingleChatActionMarker(
   props: Omit<ChatActionMarkerProps, "marker"> & { marker: SingleChatActionMarkerModel },
 ) {
-  const { t, format } = useText();
-  const label = () => markerLabel(props.marker, t);
+  const { t, format, sourceText } = useText();
+  const label = () => markerLabel(props.marker, t, sourceText);
   const [historyExpanded, setHistoryExpanded] = createSignal(false);
   /* The list leaves with an animation of its own, so it stays mounted until that
      animation ends. Without motion there is nothing to wait for. */
@@ -373,12 +399,22 @@ function SingleChatActionMarker(
   const routineHistory = () => (props.marker.kind === "routine-run" ? props.marker.previousTransitions : undefined);
   const historyId = () =>
     props.marker.kind === "routine-run" ? `routine-run-history-${props.marker.runId}` : undefined;
+  // A run with messages in the chat opens and closes them with its toggle. An open run also shows its
+  // earlier states, with no animation, because its messages also show with none.
+  const messagesRun = () =>
+    props.marker.kind === "routine-run" && props.marker.expanded !== undefined && props.onToggleRoutineRun
+      ? props.marker
+      : undefined;
+  const historyShown = () => {
+    const run = messagesRun();
+    return (run ? run.expanded === true : historyMounted()) && (routineHistory()?.length ?? 0) > 0;
+  };
   return (
     <Marker
       class={`chat-action-marker chat-action-marker-${props.marker.kind}`}
       role={props.announce ? "status" : "group"}
       aria-live={props.announce ? "polite" : "off"}
-      aria-label={markerAccessibleLabel(props.marker, props.agents, t)}
+      aria-label={markerAccessibleLabel(props.marker, props.agents, t, sourceText)}
     >
       <div class="chat-action-marker-summary">
         <MarkerContent class="chat-action-marker-content">
@@ -434,7 +470,25 @@ function SingleChatActionMarker(
           <time class="chat-action-marker-time" datetime={props.marker.timestamp}>
             {formatMarkerTime(props.marker.timestamp, t, format)}
           </time>
-          <Show when={(routineHistory()?.length ?? 0) > 0}>
+          <Show when={messagesRun()}>
+            {(run) => (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                class="chat-action-history-toggle"
+                type="button"
+                aria-expanded={run().expanded ? "true" : "false"}
+                aria-label={t(run().expanded ? "chat.marker.hideRunMessages" : "chat.marker.showRunMessages", {
+                  name: run().routineName,
+                })}
+                data-cuelume-tap={run().expanded ? "close" : "open"}
+                onClick={() => props.onToggleRoutineRun?.(run())}
+              >
+                <ChevronDown aria-hidden="true" />
+              </Button>
+            )}
+          </Show>
+          <Show when={!messagesRun() && (routineHistory()?.length ?? 0) > 0}>
             <Button
               variant="ghost"
               size="icon-xs"
@@ -458,12 +512,12 @@ function SingleChatActionMarker(
             </Button>
           </Show>
         </MarkerContent>
-        <Show when={historyMounted() && routineHistory()}>
+        <Show when={historyShown() && routineHistory()}>
           {(transitions) => (
             <RoutineRunHistory
               id={historyId()}
               transitions={transitions()}
-              open={historyExpanded()}
+              open={messagesRun() !== undefined || historyExpanded()}
               onClosed={() => setHistoryMounted(historyExpanded())}
             />
           )}
@@ -737,8 +791,13 @@ const SKILL_ACTION_LABELS = {
   installed: "chat.marker.skill.installed",
 } as const satisfies Record<Extract<ChatActionMarkerModel, { kind: "skill-lifecycle" }>["action"], AppTextKey>;
 
-function markerLabel(marker: SingleChatActionMarkerModel, t: AppTranslate): string {
+function markerLabel(
+  marker: SingleChatActionMarkerModel,
+  t: AppTranslate,
+  sourceText: (text: string) => string,
+): string {
   if (marker.kind === "unavailable") return marker.label;
+  if (marker.kind === "model-switch") return sourceText(marker.text);
   if (marker.kind === "context-reset") return t("chat.marker.contextReset");
   if (marker.kind === "marketplace-suggestion") return t("chat.marker.marketplaceSuggestion");
   if (marker.kind === "skill-lifecycle") return t(SKILL_ACTION_LABELS[marker.action]);
@@ -800,9 +859,19 @@ function agentTargetsStyle(agents: Array<AgentProfile | undefined>): string | un
   return mixedColor ? `--chat-action-agent-color: ${mixedColor}` : undefined;
 }
 
-function markerAccessibleLabel(marker: SingleChatActionMarkerModel, agents: AgentProfile[], t: AppTranslate): string {
-  const label = markerLabel(marker, t);
-  if (marker.kind === "unavailable" || marker.kind === "context-reset" || marker.kind === "marketplace-suggestion")
+function markerAccessibleLabel(
+  marker: SingleChatActionMarkerModel,
+  agents: AgentProfile[],
+  t: AppTranslate,
+  sourceText: (text: string) => string,
+): string {
+  const label = markerLabel(marker, t, sourceText);
+  if (
+    marker.kind === "unavailable" ||
+    marker.kind === "context-reset" ||
+    marker.kind === "marketplace-suggestion" ||
+    marker.kind === "model-switch"
+  )
     return label;
   if (marker.kind === "skill-lifecycle") return t("chat.marker.accessible.named", { label, name: marker.skillName });
   const unavailable = t("chat.marker.unavailableAgent");

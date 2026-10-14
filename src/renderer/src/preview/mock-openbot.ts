@@ -1,5 +1,5 @@
 import { AGENT_MEMORY_CONTEXT_BUDGET_BYTES, essentialMemoryBytes } from "@openbot/contracts/agent-memory-context";
-import type { AcpRegistryEntry, AgentSessionSettings } from "@openbot/contracts/ipc";
+import type { AcpRegistryEntry, AgentSessionSettings, McpSignInApp, McpSignInAppState } from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
   type AgentEvent,
@@ -39,6 +39,7 @@ import {
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
   DEFAULT_BUSY_MESSAGE_MODE,
   DEFAULT_DYNAMIC_ISLAND_PREFERENCE,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   DEFAULT_PROVIDER_DETECTION_SETTINGS,
   DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE,
   type DirectConversationSnapshot,
@@ -50,12 +51,14 @@ import {
   type FilePreview,
   type HostedSiteSummary,
   type HostStatus,
+  isReleasedRoutineSchedule,
   type MacPermissionId,
   normalizeMcpConfig,
   type OpenAttachmentInput,
   type OpenBotDesktopApi,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
+  type ProviderAccountStatus,
   type ProviderDetectionSettings,
   type QueueDelivery,
   type QueuedMessageReceipt,
@@ -65,6 +68,8 @@ import {
   type ReorderQueueInput,
   type RespondToPromptInput,
   type Routine,
+  type RoutineFlowLink,
+  type RoutineFlowStep,
   type RoutineRun,
   type RoutineSchedule,
   type SendMessageInput,
@@ -86,6 +91,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { AGENT_IMPORT_PREVIEW, AGENT_IMPORT_SKILL } from "../../stories/agent-import-fixtures";
 import { filePreviewForPath } from "../../stories/file-previews";
+import { INSTANCE_TRANSFER_PREVIEW } from "../../stories/instance-transfer-fixtures";
 import { toggleChannelMember } from "../features/channels/channels-draft";
 import {
   STORY_AGENT_TEMPLATE_DETAIL,
@@ -116,6 +122,7 @@ import { createMockBrowser, type MockBrowserOptions } from "./mock-browser";
 import { createMockChannels } from "./mock-channels";
 import { createMockEvents } from "./mock-events";
 import { createMockGitHubConnector } from "./mock-github-connector";
+import { createMockHostTimezone } from "./mock-host-timezone";
 import { createMockHostUpdate, type MockHostUpdateOptions } from "./mock-host-update";
 import { createMockHostedServers } from "./mock-hosted-servers";
 import { createMockMessaging } from "./mock-messaging";
@@ -124,6 +131,7 @@ import { createMockProviderRuntimes, type MockProviderRuntimeOptions } from "./m
 import { mockRoutineCalendar } from "./mock-routine-calendar";
 import { createMockRoutineFeed } from "./mock-routine-feed";
 import { mockRoutineFlows } from "./mock-routine-flows";
+import { type MockRoutineResultsOptions, mockRoutineResults } from "./mock-routine-results";
 import { applySidebarLayoutAction } from "./mock-sidebar-layout";
 import { createMockSkills, type MockSkillsOptions } from "./mock-skills";
 import { createMockStorage } from "./mock-storage";
@@ -138,7 +146,8 @@ export interface MockOpenBotOptions
     MockBrowserOptions,
     MockTeamOptions,
     MockSkillsOptions,
-    MockHostUpdateOptions {
+    MockHostUpdateOptions,
+    MockRoutineResultsOptions {
   appInfo?: AppInfo;
   analyticsPreference?: AnalyticsPreference;
   languagePreference?: AppLanguagePreference;
@@ -154,6 +163,10 @@ export interface MockOpenBotOptions
   memories?: Record<string, AgentMemory[]>;
   tables?: SharedTable[];
   routines?: Record<string, Routine[]>;
+  /** Runs keyed by routine id, newest first. */
+  routineRuns?: Record<string, RoutineRun[]>;
+  routineFlowLinks?: RoutineFlowLink[];
+  routineFlowSteps?: RoutineFlowStep[];
   customProviders?: CustomProviderSummary[];
 }
 
@@ -262,6 +275,25 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let dynamicIslandPreference: DynamicIslandPreference = { ...DEFAULT_DYNAMIC_ISLAND_PREFERENCE };
   let dynamicIslandPresentation: DynamicIslandPresentation = { serverId: "local", mode: "idle" };
   let agentStatus = clone(options.agentStatus ?? STORY_AGENT_STATUS);
+  const changeProviderAccounts = (
+    provider: AgentProviderId,
+    change: (accounts: ProviderAccountStatus[]) => ProviderAccountStatus[],
+  ): AgentStatus => {
+    const providers = agentStatus.providers;
+    if (!providers) return agentStatus;
+    agentStatus = {
+      ...agentStatus,
+      providers: providers.map((row) => {
+        if (row.id !== provider) return row;
+        const accounts = row.accounts ?? [
+          { id: DEFAULT_PROVIDER_ACCOUNT_ID, label: null, email: null, state: "connected", message: null },
+        ];
+        return { ...row, accounts: change(accounts) };
+      }),
+    };
+    emitAgentEvent({ type: "status", status: clone(agentStatus) });
+    return agentStatus;
+  };
   let agents = clone(options.agents ?? STORY_AGENT_SUMMARIES);
   const sessionSettings = new Map<string, AgentSessionSettings>();
   function previewSessionSettings(agentId: string): AgentSessionSettings {
@@ -299,6 +331,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     mcpServers
       .filter((server) => server.transport === "http")
       .map((server) => ({ mcpServerId: server.id, signedIn: mcpSignedIn.has(server.id) }));
+  let mcpSignInApps: Record<string, McpSignInApp> = {};
+  const mcpSignInAppState = (mcpServerId: string): McpSignInAppState => ({
+    redirectUrl: "http://127.0.0.1:28417/mcp-auth",
+    app: mcpSignInApps[mcpServerId] ?? null,
+  });
   let sidebarLayout: SidebarLayoutSnapshot = {
     revision: 0,
     sections: [],
@@ -422,7 +459,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
 
   let tables: SharedTable[] = clone(options.tables ?? STORY_SHARED_TABLES);
   const routines = new Map<string, Routine[]>(Object.entries(clone(options.routines ?? {})));
-  const routineRuns = new Map<string, RoutineRun[]>();
+  const routineRuns = new Map<string, RoutineRun[]>(Object.entries(clone(options.routineRuns ?? {})));
 
   function emitAgentEvent(event: AgentEvent): void {
     emit(agentListeners, event);
@@ -547,7 +584,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   const { installedSkills, readInstalledSkills } = mockSkills;
   const mockBrowser = createMockBrowser(options, runtime, emitAgentEvent);
   const mockTeam = createMockTeam(options, runtime, emitAgentEvent, () => agents);
-  const mockEvents = createMockEvents();
+  const mockEvents = createMockEvents(({ owner, routineId, limit = 10 }) =>
+    owner.kind === "agent"
+      ? Promise.resolve(clone((routineRuns.get(routineId) ?? []).slice(0, limit)))
+      : mockChannels.listChannelRoutineRuns({ channelId: owner.id, routineId, limit }),
+  );
   const billingPlans = previewBillingServers();
 
   const api: OpenBotDesktopApi = {
@@ -697,6 +738,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
               expiresAt: Date.now() + 10 * 60_000,
             },
     cancelProviderCodeLogin: async () => clone(agentStatus),
+    cancelProviderSignIn: async () => clone(agentStatus),
     setProviderApiKey: async ({ provider, key }) => {
       if (!key.trim()) throw new Error("A provider key is required.");
       providerApiKeys.add(provider);
@@ -706,6 +748,43 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       providerApiKeys.delete(provider);
       return clone(agentStatus);
     },
+    // A new account signs in at once: the preview has no browser page to wait for.
+    connectProviderAccount: async ({ provider, accountId }) => {
+      const changed = changeProviderAccounts(provider, (accounts) =>
+        accountId
+          ? accounts.map((account) =>
+              account.id === accountId ? { ...account, state: "connected", message: null } : account,
+            )
+          : [
+              ...accounts,
+              {
+                id: `a${(accounts.length + 1).toString(16).padStart(16, "0")}`,
+                label: null,
+                email: `account${accounts.length + 1}@example.com`,
+                state: "connected",
+                message: null,
+              },
+            ],
+      );
+      return clone(changed);
+    },
+    renameProviderAccount: async ({ provider, accountId, label }) =>
+      clone(
+        changeProviderAccounts(provider, (accounts) =>
+          accounts.map((account) => (account.id === accountId ? { ...account, label } : account)),
+        ),
+      ),
+    removeProviderAccount: async ({ provider, accountId }) => {
+      agents = agents.map((agent) => {
+        if (agent.provider !== provider || agent.providerAccountId !== accountId) return agent;
+        const { providerAccountId: _removed, ...moved } = agent;
+        return moved;
+      });
+      emitAgentEvent({ type: "agents-changed", agents });
+      return clone(
+        changeProviderAccounts(provider, (accounts) => accounts.filter((account) => account.id !== accountId)),
+      );
+    },
     getProviderApiKeyState: async (provider) => ({
       provider,
       status: providerApiKeys.has(provider) ? "saved" : "missing",
@@ -713,7 +792,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     providerRuntimes: mockProviderRuntimes.providerRuntimes,
     openUrl: async () => undefined,
     voice: mockVoice.voice,
-    routineFlows: mockRoutineFlows({ routines, routineRuns }),
+    routineFlows: mockRoutineFlows(
+      { routines, routineRuns, links: options.routineFlowLinks, steps: options.routineFlowSteps },
+      (agentId) => emitAgentEvent({ type: "routine-flows-changed", agentId }),
+    ),
+    routineResults: mockRoutineResults(routines, options, (agentId) =>
+      emitAgentEvent({ type: "routines-changed", agentId }),
+    ),
     auth: mockAuth.auth,
     skills: mockSkills.skills,
     hostedSites: {
@@ -908,6 +993,28 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       startHostSignIn: async () => undefined,
       hostSignInStatus: async () => ({ tabId: null, result: null }),
       cancelHostSignIn: async () => clone(agentStatus),
+      // The preview host's accounts are the ones of this computer.
+      accounts: async () => ({
+        providers: (agentStatus.providers ?? []).flatMap((row) =>
+          row.accounts ? [{ provider: row.id, accounts: clone(row.accounts) }] : [],
+        ),
+        agents: [],
+      }),
+      accountUsage: async () => ({ limits: [] }),
+      startAccountSignIn: async () => undefined,
+      accountSignInStatus: async () => ({ tabId: null, result: null }),
+      cancelAccountSignIn: async () => undefined,
+      renameAccount: async (input) => {
+        await api.renameProviderAccount(input);
+      },
+      removeAccount: async (input) => {
+        await api.removeProviderAccount(input);
+      },
+      startRelaySignIn: async () => undefined,
+      relaySignInStatus: async () => ({ page: null, result: null }),
+      openRelaySignIn: async () => undefined,
+      pasteRelaySignIn: async () => undefined,
+      cancelRelaySignIn: async () => clone(agentStatus),
       getApiKeyState: (provider) => api.getProviderApiKeyState(provider),
       setApiKey: (input) => api.setProviderApiKey(input),
       clearApiKey: (provider) => api.clearProviderApiKey(provider),
@@ -1000,12 +1107,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             name: skill.name,
             version: skill.installedVersion,
           })),
-          routines: (routines.get(agent.id) ?? []).map((routine) => ({
-            name: routine.name,
-            instruction: routine.instruction,
-            active: routine.active,
-            schedule: routine.trigger.schedule,
-          })),
+          // As on the host: a `once` routine names one date, so it is not part of a template.
+          routines: (routines.get(agent.id) ?? []).flatMap(({ name, instruction, active, trigger }) =>
+            isReleasedRoutineSchedule(trigger.schedule)
+              ? [{ name, instruction, active, schedule: trigger.schedule }]
+              : [],
+          ),
         });
       },
       submit: async (input) => {
@@ -1259,6 +1366,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         }),
       // The preview is this computer, which shows no host page.
       mcpSignInPage: async () => null,
+      mcpSignInRelay: async () => null,
+      openMcpSignInRelay: async () => undefined,
+      completeMcpSignInRelay: async () => undefined,
       cancelMcpSignIn: async () => {
         cancelPendingMcpSignIn?.();
       },
@@ -1267,6 +1377,21 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return mcpSignInStates();
       },
       listMcpSignIns: async () => mcpSignInStates(),
+      // The preview keeps no secret: it remembers only that one was given.
+      mcpSignInApp: async ({ mcpServerId }) => mcpSignInAppState(mcpServerId),
+      saveMcpSignInApp: async ({ mcpServerId, clientId, clientSecret, scope }) => {
+        const secretSaved =
+          clientSecret === null ? (mcpSignInApps[mcpServerId]?.secretSaved ?? false) : clientSecret !== "";
+        mcpSignInApps = { ...mcpSignInApps, [mcpServerId]: { clientId, secretSaved, scope } };
+        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        return mcpSignInAppState(mcpServerId);
+      },
+      removeMcpSignInApp: async ({ mcpServerId }) => {
+        const { [mcpServerId]: _removed, ...rest } = mcpSignInApps;
+        mcpSignInApps = rest;
+        mcpSignedIn = new Set([...mcpSignedIn].filter((id) => id !== mcpServerId));
+        return mcpSignInAppState(mcpServerId);
+      },
       getSidebarLayout: async () => clone(sidebarLayout),
       mutateSidebarLayout: async (action) => {
         sidebarLayout = applySidebarLayoutAction(sidebarLayout, action);
@@ -1385,8 +1510,19 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       updateAgent: async (input: UpdateAgentInput) => {
         const current = agents.find((agent) => agent.id === input.agentId);
         if (!current) throw new Error("Agent not found");
-        const { agentId: _agentId, busyMessageMode, ...updates } = input;
+        const {
+          agentId: _agentId,
+          busyMessageMode,
+          providerAccountId,
+          backupModels,
+          leaveUsageLimit: _leaveUsageLimit,
+          ...updates
+        } = input;
         const updated: AgentSummary = { ...current, ...updates };
+        if (backupModels === null) delete updated.backupModels;
+        else if (backupModels) updated.backupModels = backupModels;
+        if (providerAccountId === null || (updates.provider && !providerAccountId)) delete updated.providerAccountId;
+        else if (providerAccountId) updated.providerAccountId = providerAccountId;
         // `null` returns the agent to the app default, which an agent records by having no value.
         if (busyMessageMode === null) delete updated.busyMessageMode;
         else if (busyMessageMode) updated.busyMessageMode = busyMessageMode;
@@ -1600,6 +1736,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           readState: { unreadCount: 0, firstUnreadMessageId: null, throughMessageId: null },
         };
       },
+      openMessageLink: async () => null,
+      pasteMessageLink: async () => undefined,
+      cancelMessageLink: async () => undefined,
       searchConversationMessages: async (input) => {
         const query = input.query.trim().replace(/\s+/g, " ").toLocaleLowerCase();
         const results = agents.flatMap((agent) =>
@@ -1761,6 +1900,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         });
       },
       listQueue: async (agentId) => clone(queues.get(agentId) ?? emptyQueue(agentId)),
+      listWaits: async (agentId) => ({ agentId, waits: [] }),
+      cancelWait: async () => undefined,
       acknowledgeFailedTurn: async () => undefined,
       cancelQueuedMessage: async (input) => {
         const queue = queues.get(input.agentId) ?? emptyQueue(input.agentId);
@@ -1870,7 +2011,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return () => agentListeners.delete(listener);
       },
       onScopedEvent: (listener) => {
-        const scopedListener = (event: AgentEvent) => listener({ serverId: "local", event });
+        const scopedListener = (event: AgentEvent) => listener({ serverId: mockTeam.activeServerId(), event });
         agentListeners.add(scopedListener);
         return () => agentListeners.delete(scopedListener);
       },
@@ -1884,7 +2025,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone(updateStatus);
       },
       download: async () => {
-        updateStatus = { ...updateStatus, phase: "downloading", progress: 0 };
+        updateStatus = { ...updateStatus, phase: "downloading", progress: null };
         emit(updateListeners, updateStatus);
         const downloadSteps = [
           { delay: 350, expectedPhase: "downloading", phase: "downloading", progress: 28 },
@@ -1935,7 +2076,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       onPreference: () => () => undefined,
     },
     notifications: {
-      getPreference: async () => ({ desktopNotifications: true }),
+      getPreference: async () => ({ desktopNotifications: true, messagePreview: true }),
       setPreference: async (input) => ({ ...input }),
       test: async () => undefined,
       openSettings: async () => undefined,
@@ -1965,6 +2106,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return server;
       },
       ...createMockHostUpdate(options),
+      ...createMockHostTimezone(),
     },
     storage: createMockStorage(),
     agentImport: {
@@ -2013,6 +2155,42 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       discard: async () => undefined,
       readSkill: async () => AGENT_IMPORT_SKILL,
       saveSkill: async () => ({ saved: true }),
+    },
+    instanceTransfer: {
+      summary: async () =>
+        clone({
+          agents: agents.map((agent, index) => ({
+            id: agent.id,
+            name: agent.name,
+            title: agent.title,
+            avatarSeed: agent.avatarSeed,
+            avatarHue: agent.avatarHue,
+            avatarUrl: agent.avatarUrl,
+            skillCount: index % 4,
+            routineCount: routines.get(agent.id)?.length ?? 0,
+            memoryCount: memories.get(agent.id)?.length ?? 0,
+            fileCount: index * 37,
+            fileBytes: index * 3_400_000,
+          })),
+        }),
+      export: async () => ({
+        saved: true,
+        fileName: `openbot-transfer-${new Date().toISOString().slice(0, 10)}.zip`,
+        warnings: [],
+      }),
+      showExport: async () => undefined,
+      choose: async () => clone(INSTANCE_TRANSFER_PREVIEW),
+      apply: async ({ token, keys }) => {
+        if (token !== INSTANCE_TRANSFER_PREVIEW.token)
+          throw new Error("The export is no longer open. Choose it again.");
+        const imported = INSTANCE_TRANSFER_PREVIEW.agents
+          .filter((agent) => keys.includes(agent.key))
+          .map((agent) => createAgentSummary({ name: agent.name, title: agent.title, description: agent.description }));
+        agents = [...agents, ...imported];
+        emitAgentEvent({ type: "agents-changed", agents });
+        return clone({ agents: imported, skipped: [], signIn: ["claude"], warnings: [] });
+      },
+      discard: async () => undefined,
     },
     remoteDesktop: mockTeam.remoteDesktop,
   };

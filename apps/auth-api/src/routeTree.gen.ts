@@ -56,6 +56,7 @@ import { Route as V1GithubInstallationTokensRouteImport } from './routes/v1/gith
 import { Route as V1MeAvatarRouteImport } from './routes/v1/me/avatar'
 import { Route as V1MeProfileRouteImport } from './routes/v1/me/profile'
 import { Route as V1MobileAuthDevicesRouteImport } from './routes/v1/mobile-auth/devices'
+import { Route as V1MobileAuthLinkRouteImport } from './routes/v1/mobile-auth/link'
 import { Route as V1MobileAuthRedeemRouteImport } from './routes/v1/mobile-auth/redeem'
 import { Route as V1MobileAuthSessionRouteImport } from './routes/v1/mobile-auth/session'
 import { Route as V1MobileAuthTicketRouteImport } from './routes/v1/mobile-auth/ticket'
@@ -72,9 +73,12 @@ import { Route as V1TeamAuthTicketRouteImport } from './routes/v1/team-auth/tick
 import { Route as V1TeamHostsIceServersRouteImport } from './routes/v1/team-hosts/ice-servers'
 import { Route as V1TeamInvitationsEmailRouteImport } from './routes/v1/team-invitations/email'
 import { Route as V1TeamTunnelsProvisionRouteImport } from './routes/v1/team-tunnels/provision'
+import { Route as V2AdminServerClaimsRouteImport } from './routes/v2/admin/server-claims'
 import { Route as V2DiscordAuthorizeRouteImport } from './routes/v2/discord/authorize'
 import { Route as V2DiscordCallbackRouteImport } from './routes/v2/discord/callback'
 import { Route as V2HostingPlansRouteImport } from './routes/v2/hosting/plans'
+import { Route as V2RemoteRouteWakeRouteImport } from './routes/v2/remote/route-wake'
+import { Route as V2ServerClaimsRedeemRouteImport } from './routes/v2/server-claims/redeem'
 import { Route as V2SlackAuthorizeRouteImport } from './routes/v2/slack/authorize'
 import { Route as V2SlackCallbackRouteImport } from './routes/v2/slack/callback'
 import { Route as V1AgentTemplatesTemplateIdAvatarRouteImport } from './routes/v1/agent-templates/$templateId/avatar'
@@ -87,6 +91,7 @@ import { Route as V1MarketplaceAgentsMineRouteImport } from './routes/v1/marketp
 import { Route as V1MeBillingIndexRouteImport } from './routes/v1/me/billing/index'
 import { Route as V1MeBillingPortalRouteImport } from './routes/v1/me/billing/portal'
 import { Route as V1MobileAuthDevicesSessionIdRouteImport } from './routes/v1/mobile-auth/devices/$sessionId'
+import { Route as V1MobileAuthEmailVerifyRouteImport } from './routes/v1/mobile-auth/email/verify'
 import { Route as V1SkillsSkillIdContentRouteImport } from './routes/v1/skills/$skillId/content'
 import { Route as V1SkillsSkillIdIconRouteImport } from './routes/v1/skills/$skillId/icon'
 import { Route as V1SkillsSkillIdInstallRouteImport } from './routes/v1/skills/$skillId/install'
@@ -121,6 +126,7 @@ import { Route as V2HostingServersServerIdIndexRouteImport } from './routes/v2/h
 import { Route as V2HostingServersServerIdActivityRouteImport } from './routes/v2/hosting/servers/$serverId/activity'
 import { Route as V2HostingServersServerIdCheckoutRouteImport } from './routes/v2/hosting/servers/$serverId/checkout'
 import { Route as V2HostingServersServerIdLifecycleRouteImport } from './routes/v2/hosting/servers/$serverId/lifecycle'
+import { Route as V2HostingServersServerIdRestartRouteImport } from './routes/v2/hosting/servers/$serverId/restart'
 import { Route as V2HostingServersServerIdStatusRouteImport } from './routes/v2/hosting/servers/$serverId/status'
 import { Route as V2HostingServersServerIdWakeRouteImport } from './routes/v2/hosting/servers/$serverId/wake'
 import { Route as V2RemoteHostsHostIdIndexRouteImport } from './routes/v2/remote/hosts/$hostId/index'
@@ -129,6 +135,7 @@ import { Route as V2RemoteHostsHostIdDiscordRouteRouteImport } from './routes/v2
 import { Route as V2RemoteHostsHostIdInvitesRouteImport } from './routes/v2/remote/hosts/$hostId/invites'
 import { Route as V2RemoteHostsHostIdLiveActivityRouteImport } from './routes/v2/remote/hosts/$hostId/live-activity'
 import { Route as V2RemoteHostsHostIdLogoRouteImport } from './routes/v2/remote/hosts/$hostId/logo'
+import { Route as V2RemoteHostsHostIdNotificationRouteImport } from './routes/v2/remote/hosts/$hostId/notification'
 import { Route as V2RemoteHostsHostIdSlackDisconnectRouteImport } from './routes/v2/remote/hosts/$hostId/slack-disconnect'
 import { Route as V2RemoteHostsHostIdSlackRouteRouteImport } from './routes/v2/remote/hosts/$hostId/slack-route'
 import { Route as V2RemoteHostsHostIdTelegramDisconnectRouteImport } from './routes/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -384,6 +391,11 @@ const V1MobileAuthDevicesRoute = V1MobileAuthDevicesRouteImport.update({
   path: '/v1/mobile-auth/devices',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V1MobileAuthLinkRoute = V1MobileAuthLinkRouteImport.update({
+  id: '/v1/mobile-auth/link',
+  path: '/v1/mobile-auth/link',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1MobileAuthRedeemRoute = V1MobileAuthRedeemRouteImport.update({
   id: '/v1/mobile-auth/redeem',
   path: '/v1/mobile-auth/redeem',
@@ -464,6 +476,11 @@ const V1TeamTunnelsProvisionRoute = V1TeamTunnelsProvisionRouteImport.update({
   path: '/v1/team-tunnels/provision',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V2AdminServerClaimsRoute = V2AdminServerClaimsRouteImport.update({
+  id: '/v2/admin/server-claims',
+  path: '/v2/admin/server-claims',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V2DiscordAuthorizeRoute = V2DiscordAuthorizeRouteImport.update({
   id: '/v2/discord/authorize',
   path: '/v2/discord/authorize',
@@ -477,6 +494,16 @@ const V2DiscordCallbackRoute = V2DiscordCallbackRouteImport.update({
 const V2HostingPlansRoute = V2HostingPlansRouteImport.update({
   id: '/v2/hosting/plans',
   path: '/v2/hosting/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V2RemoteRouteWakeRoute = V2RemoteRouteWakeRouteImport.update({
+  id: '/v2/remote/route-wake',
+  path: '/v2/remote/route-wake',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V2ServerClaimsRedeemRoute = V2ServerClaimsRedeemRouteImport.update({
+  id: '/v2/server-claims/redeem',
+  path: '/v2/server-claims/redeem',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V2SlackAuthorizeRoute = V2SlackAuthorizeRouteImport.update({
@@ -544,6 +571,11 @@ const V1MobileAuthDevicesSessionIdRoute =
     path: '/$sessionId',
     getParentRoute: () => V1MobileAuthDevicesRoute,
   } as any)
+const V1MobileAuthEmailVerifyRoute = V1MobileAuthEmailVerifyRouteImport.update({
+  id: '/v1/mobile-auth/email/verify',
+  path: '/v1/mobile-auth/email/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const V1SkillsSkillIdContentRoute = V1SkillsSkillIdContentRouteImport.update({
   id: '/content',
   path: '/content',
@@ -734,6 +766,12 @@ const V2HostingServersServerIdLifecycleRoute =
     path: '/v2/hosting/servers/$serverId/lifecycle',
     getParentRoute: () => rootRouteImport,
   } as any)
+const V2HostingServersServerIdRestartRoute =
+  V2HostingServersServerIdRestartRouteImport.update({
+    id: '/v2/hosting/servers/$serverId/restart',
+    path: '/v2/hosting/servers/$serverId/restart',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const V2HostingServersServerIdStatusRoute =
   V2HostingServersServerIdStatusRouteImport.update({
     id: '/v2/hosting/servers/$serverId/status',
@@ -781,6 +819,12 @@ const V2RemoteHostsHostIdLogoRoute = V2RemoteHostsHostIdLogoRouteImport.update({
   path: '/v2/remote/hosts/$hostId/logo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const V2RemoteHostsHostIdNotificationRoute =
+  V2RemoteHostsHostIdNotificationRouteImport.update({
+    id: '/v2/remote/hosts/$hostId/notification',
+    path: '/v2/remote/hosts/$hostId/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const V2RemoteHostsHostIdSlackDisconnectRoute =
   V2RemoteHostsHostIdSlackDisconnectRouteImport.update({
     id: '/v2/remote/hosts/$hostId/slack-disconnect',
@@ -919,6 +963,7 @@ export interface FileRoutesByFullPath {
   '/v1/me/avatar': typeof V1MeAvatarRoute
   '/v1/me/profile': typeof V1MeProfileRoute
   '/v1/mobile-auth/devices': typeof V1MobileAuthDevicesRouteWithChildren
+  '/v1/mobile-auth/link': typeof V1MobileAuthLinkRoute
   '/v1/mobile-auth/redeem': typeof V1MobileAuthRedeemRoute
   '/v1/mobile-auth/session': typeof V1MobileAuthSessionRoute
   '/v1/mobile-auth/ticket': typeof V1MobileAuthTicketRoute
@@ -933,9 +978,12 @@ export interface FileRoutesByFullPath {
   '/v1/team-hosts/ice-servers': typeof V1TeamHostsIceServersRoute
   '/v1/team-invitations/email': typeof V1TeamInvitationsEmailRoute
   '/v1/team-tunnels/provision': typeof V1TeamTunnelsProvisionRoute
+  '/v2/admin/server-claims': typeof V2AdminServerClaimsRoute
   '/v2/discord/authorize': typeof V2DiscordAuthorizeRoute
   '/v2/discord/callback': typeof V2DiscordCallbackRoute
   '/v2/hosting/plans': typeof V2HostingPlansRoute
+  '/v2/remote/route-wake': typeof V2RemoteRouteWakeRoute
+  '/v2/server-claims/redeem': typeof V2ServerClaimsRedeemRoute
   '/v2/slack/authorize': typeof V2SlackAuthorizeRoute
   '/v2/slack/callback': typeof V2SlackCallbackRoute
   '/v1/agent-templates/': typeof V1AgentTemplatesIndexRoute
@@ -949,6 +997,7 @@ export interface FileRoutesByFullPath {
   '/v1/marketplace/agents/mine': typeof V1MarketplaceAgentsMineRoute
   '/v1/me/billing/portal': typeof V1MeBillingPortalRoute
   '/v1/mobile-auth/devices/$sessionId': typeof V1MobileAuthDevicesSessionIdRoute
+  '/v1/mobile-auth/email/verify': typeof V1MobileAuthEmailVerifyRoute
   '/v1/skills/$skillId/content': typeof V1SkillsSkillIdContentRoute
   '/v1/skills/$skillId/icon': typeof V1SkillsSkillIdIconRoute
   '/v1/skills/$skillId/install': typeof V1SkillsSkillIdInstallRoute
@@ -984,6 +1033,7 @@ export interface FileRoutesByFullPath {
   '/v2/hosting/servers/$serverId/activity': typeof V2HostingServersServerIdActivityRoute
   '/v2/hosting/servers/$serverId/checkout': typeof V2HostingServersServerIdCheckoutRoute
   '/v2/hosting/servers/$serverId/lifecycle': typeof V2HostingServersServerIdLifecycleRoute
+  '/v2/hosting/servers/$serverId/restart': typeof V2HostingServersServerIdRestartRoute
   '/v2/hosting/servers/$serverId/status': typeof V2HostingServersServerIdStatusRoute
   '/v2/hosting/servers/$serverId/wake': typeof V2HostingServersServerIdWakeRoute
   '/v2/remote/hosts/$hostId/discord-disconnect': typeof V2RemoteHostsHostIdDiscordDisconnectRoute
@@ -991,6 +1041,7 @@ export interface FileRoutesByFullPath {
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
   '/v2/remote/hosts/$hostId/live-activity': typeof V2RemoteHostsHostIdLiveActivityRoute
   '/v2/remote/hosts/$hostId/logo': typeof V2RemoteHostsHostIdLogoRoute
+  '/v2/remote/hosts/$hostId/notification': typeof V2RemoteHostsHostIdNotificationRoute
   '/v2/remote/hosts/$hostId/slack-disconnect': typeof V2RemoteHostsHostIdSlackDisconnectRoute
   '/v2/remote/hosts/$hostId/slack-route': typeof V2RemoteHostsHostIdSlackRouteRoute
   '/v2/remote/hosts/$hostId/telegram-disconnect': typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -1056,6 +1107,7 @@ export interface FileRoutesByTo {
   '/v1/me/avatar': typeof V1MeAvatarRoute
   '/v1/me/profile': typeof V1MeProfileRoute
   '/v1/mobile-auth/devices': typeof V1MobileAuthDevicesRouteWithChildren
+  '/v1/mobile-auth/link': typeof V1MobileAuthLinkRoute
   '/v1/mobile-auth/redeem': typeof V1MobileAuthRedeemRoute
   '/v1/mobile-auth/session': typeof V1MobileAuthSessionRoute
   '/v1/mobile-auth/ticket': typeof V1MobileAuthTicketRoute
@@ -1070,9 +1122,12 @@ export interface FileRoutesByTo {
   '/v1/team-hosts/ice-servers': typeof V1TeamHostsIceServersRoute
   '/v1/team-invitations/email': typeof V1TeamInvitationsEmailRoute
   '/v1/team-tunnels/provision': typeof V1TeamTunnelsProvisionRoute
+  '/v2/admin/server-claims': typeof V2AdminServerClaimsRoute
   '/v2/discord/authorize': typeof V2DiscordAuthorizeRoute
   '/v2/discord/callback': typeof V2DiscordCallbackRoute
   '/v2/hosting/plans': typeof V2HostingPlansRoute
+  '/v2/remote/route-wake': typeof V2RemoteRouteWakeRoute
+  '/v2/server-claims/redeem': typeof V2ServerClaimsRedeemRoute
   '/v2/slack/authorize': typeof V2SlackAuthorizeRoute
   '/v2/slack/callback': typeof V2SlackCallbackRoute
   '/v1/agent-templates': typeof V1AgentTemplatesIndexRoute
@@ -1086,6 +1141,7 @@ export interface FileRoutesByTo {
   '/v1/marketplace/agents/mine': typeof V1MarketplaceAgentsMineRoute
   '/v1/me/billing/portal': typeof V1MeBillingPortalRoute
   '/v1/mobile-auth/devices/$sessionId': typeof V1MobileAuthDevicesSessionIdRoute
+  '/v1/mobile-auth/email/verify': typeof V1MobileAuthEmailVerifyRoute
   '/v1/skills/$skillId/content': typeof V1SkillsSkillIdContentRoute
   '/v1/skills/$skillId/icon': typeof V1SkillsSkillIdIconRoute
   '/v1/skills/$skillId/install': typeof V1SkillsSkillIdInstallRoute
@@ -1121,6 +1177,7 @@ export interface FileRoutesByTo {
   '/v2/hosting/servers/$serverId/activity': typeof V2HostingServersServerIdActivityRoute
   '/v2/hosting/servers/$serverId/checkout': typeof V2HostingServersServerIdCheckoutRoute
   '/v2/hosting/servers/$serverId/lifecycle': typeof V2HostingServersServerIdLifecycleRoute
+  '/v2/hosting/servers/$serverId/restart': typeof V2HostingServersServerIdRestartRoute
   '/v2/hosting/servers/$serverId/status': typeof V2HostingServersServerIdStatusRoute
   '/v2/hosting/servers/$serverId/wake': typeof V2HostingServersServerIdWakeRoute
   '/v2/remote/hosts/$hostId/discord-disconnect': typeof V2RemoteHostsHostIdDiscordDisconnectRoute
@@ -1128,6 +1185,7 @@ export interface FileRoutesByTo {
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
   '/v2/remote/hosts/$hostId/live-activity': typeof V2RemoteHostsHostIdLiveActivityRoute
   '/v2/remote/hosts/$hostId/logo': typeof V2RemoteHostsHostIdLogoRoute
+  '/v2/remote/hosts/$hostId/notification': typeof V2RemoteHostsHostIdNotificationRoute
   '/v2/remote/hosts/$hostId/slack-disconnect': typeof V2RemoteHostsHostIdSlackDisconnectRoute
   '/v2/remote/hosts/$hostId/slack-route': typeof V2RemoteHostsHostIdSlackRouteRoute
   '/v2/remote/hosts/$hostId/telegram-disconnect': typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -1194,6 +1252,7 @@ export interface FileRoutesById {
   '/v1/me/avatar': typeof V1MeAvatarRoute
   '/v1/me/profile': typeof V1MeProfileRoute
   '/v1/mobile-auth/devices': typeof V1MobileAuthDevicesRouteWithChildren
+  '/v1/mobile-auth/link': typeof V1MobileAuthLinkRoute
   '/v1/mobile-auth/redeem': typeof V1MobileAuthRedeemRoute
   '/v1/mobile-auth/session': typeof V1MobileAuthSessionRoute
   '/v1/mobile-auth/ticket': typeof V1MobileAuthTicketRoute
@@ -1208,9 +1267,12 @@ export interface FileRoutesById {
   '/v1/team-hosts/ice-servers': typeof V1TeamHostsIceServersRoute
   '/v1/team-invitations/email': typeof V1TeamInvitationsEmailRoute
   '/v1/team-tunnels/provision': typeof V1TeamTunnelsProvisionRoute
+  '/v2/admin/server-claims': typeof V2AdminServerClaimsRoute
   '/v2/discord/authorize': typeof V2DiscordAuthorizeRoute
   '/v2/discord/callback': typeof V2DiscordCallbackRoute
   '/v2/hosting/plans': typeof V2HostingPlansRoute
+  '/v2/remote/route-wake': typeof V2RemoteRouteWakeRoute
+  '/v2/server-claims/redeem': typeof V2ServerClaimsRedeemRoute
   '/v2/slack/authorize': typeof V2SlackAuthorizeRoute
   '/v2/slack/callback': typeof V2SlackCallbackRoute
   '/v1/agent-templates/': typeof V1AgentTemplatesIndexRoute
@@ -1224,6 +1286,7 @@ export interface FileRoutesById {
   '/v1/marketplace/agents/mine': typeof V1MarketplaceAgentsMineRoute
   '/v1/me/billing/portal': typeof V1MeBillingPortalRoute
   '/v1/mobile-auth/devices/$sessionId': typeof V1MobileAuthDevicesSessionIdRoute
+  '/v1/mobile-auth/email/verify': typeof V1MobileAuthEmailVerifyRoute
   '/v1/skills/$skillId/content': typeof V1SkillsSkillIdContentRoute
   '/v1/skills/$skillId/icon': typeof V1SkillsSkillIdIconRoute
   '/v1/skills/$skillId/install': typeof V1SkillsSkillIdInstallRoute
@@ -1259,6 +1322,7 @@ export interface FileRoutesById {
   '/v2/hosting/servers/$serverId/activity': typeof V2HostingServersServerIdActivityRoute
   '/v2/hosting/servers/$serverId/checkout': typeof V2HostingServersServerIdCheckoutRoute
   '/v2/hosting/servers/$serverId/lifecycle': typeof V2HostingServersServerIdLifecycleRoute
+  '/v2/hosting/servers/$serverId/restart': typeof V2HostingServersServerIdRestartRoute
   '/v2/hosting/servers/$serverId/status': typeof V2HostingServersServerIdStatusRoute
   '/v2/hosting/servers/$serverId/wake': typeof V2HostingServersServerIdWakeRoute
   '/v2/remote/hosts/$hostId/discord-disconnect': typeof V2RemoteHostsHostIdDiscordDisconnectRoute
@@ -1266,6 +1330,7 @@ export interface FileRoutesById {
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
   '/v2/remote/hosts/$hostId/live-activity': typeof V2RemoteHostsHostIdLiveActivityRoute
   '/v2/remote/hosts/$hostId/logo': typeof V2RemoteHostsHostIdLogoRoute
+  '/v2/remote/hosts/$hostId/notification': typeof V2RemoteHostsHostIdNotificationRoute
   '/v2/remote/hosts/$hostId/slack-disconnect': typeof V2RemoteHostsHostIdSlackDisconnectRoute
   '/v2/remote/hosts/$hostId/slack-route': typeof V2RemoteHostsHostIdSlackRouteRoute
   '/v2/remote/hosts/$hostId/telegram-disconnect': typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -1333,6 +1398,7 @@ export interface FileRouteTypes {
     | '/v1/me/avatar'
     | '/v1/me/profile'
     | '/v1/mobile-auth/devices'
+    | '/v1/mobile-auth/link'
     | '/v1/mobile-auth/redeem'
     | '/v1/mobile-auth/session'
     | '/v1/mobile-auth/ticket'
@@ -1347,9 +1413,12 @@ export interface FileRouteTypes {
     | '/v1/team-hosts/ice-servers'
     | '/v1/team-invitations/email'
     | '/v1/team-tunnels/provision'
+    | '/v2/admin/server-claims'
     | '/v2/discord/authorize'
     | '/v2/discord/callback'
     | '/v2/hosting/plans'
+    | '/v2/remote/route-wake'
+    | '/v2/server-claims/redeem'
     | '/v2/slack/authorize'
     | '/v2/slack/callback'
     | '/v1/agent-templates/'
@@ -1363,6 +1432,7 @@ export interface FileRouteTypes {
     | '/v1/marketplace/agents/mine'
     | '/v1/me/billing/portal'
     | '/v1/mobile-auth/devices/$sessionId'
+    | '/v1/mobile-auth/email/verify'
     | '/v1/skills/$skillId/content'
     | '/v1/skills/$skillId/icon'
     | '/v1/skills/$skillId/install'
@@ -1398,6 +1468,7 @@ export interface FileRouteTypes {
     | '/v2/hosting/servers/$serverId/activity'
     | '/v2/hosting/servers/$serverId/checkout'
     | '/v2/hosting/servers/$serverId/lifecycle'
+    | '/v2/hosting/servers/$serverId/restart'
     | '/v2/hosting/servers/$serverId/status'
     | '/v2/hosting/servers/$serverId/wake'
     | '/v2/remote/hosts/$hostId/discord-disconnect'
@@ -1405,6 +1476,7 @@ export interface FileRouteTypes {
     | '/v2/remote/hosts/$hostId/invites'
     | '/v2/remote/hosts/$hostId/live-activity'
     | '/v2/remote/hosts/$hostId/logo'
+    | '/v2/remote/hosts/$hostId/notification'
     | '/v2/remote/hosts/$hostId/slack-disconnect'
     | '/v2/remote/hosts/$hostId/slack-route'
     | '/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -1470,6 +1542,7 @@ export interface FileRouteTypes {
     | '/v1/me/avatar'
     | '/v1/me/profile'
     | '/v1/mobile-auth/devices'
+    | '/v1/mobile-auth/link'
     | '/v1/mobile-auth/redeem'
     | '/v1/mobile-auth/session'
     | '/v1/mobile-auth/ticket'
@@ -1484,9 +1557,12 @@ export interface FileRouteTypes {
     | '/v1/team-hosts/ice-servers'
     | '/v1/team-invitations/email'
     | '/v1/team-tunnels/provision'
+    | '/v2/admin/server-claims'
     | '/v2/discord/authorize'
     | '/v2/discord/callback'
     | '/v2/hosting/plans'
+    | '/v2/remote/route-wake'
+    | '/v2/server-claims/redeem'
     | '/v2/slack/authorize'
     | '/v2/slack/callback'
     | '/v1/agent-templates'
@@ -1500,6 +1576,7 @@ export interface FileRouteTypes {
     | '/v1/marketplace/agents/mine'
     | '/v1/me/billing/portal'
     | '/v1/mobile-auth/devices/$sessionId'
+    | '/v1/mobile-auth/email/verify'
     | '/v1/skills/$skillId/content'
     | '/v1/skills/$skillId/icon'
     | '/v1/skills/$skillId/install'
@@ -1535,6 +1612,7 @@ export interface FileRouteTypes {
     | '/v2/hosting/servers/$serverId/activity'
     | '/v2/hosting/servers/$serverId/checkout'
     | '/v2/hosting/servers/$serverId/lifecycle'
+    | '/v2/hosting/servers/$serverId/restart'
     | '/v2/hosting/servers/$serverId/status'
     | '/v2/hosting/servers/$serverId/wake'
     | '/v2/remote/hosts/$hostId/discord-disconnect'
@@ -1542,6 +1620,7 @@ export interface FileRouteTypes {
     | '/v2/remote/hosts/$hostId/invites'
     | '/v2/remote/hosts/$hostId/live-activity'
     | '/v2/remote/hosts/$hostId/logo'
+    | '/v2/remote/hosts/$hostId/notification'
     | '/v2/remote/hosts/$hostId/slack-disconnect'
     | '/v2/remote/hosts/$hostId/slack-route'
     | '/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -1607,6 +1686,7 @@ export interface FileRouteTypes {
     | '/v1/me/avatar'
     | '/v1/me/profile'
     | '/v1/mobile-auth/devices'
+    | '/v1/mobile-auth/link'
     | '/v1/mobile-auth/redeem'
     | '/v1/mobile-auth/session'
     | '/v1/mobile-auth/ticket'
@@ -1621,9 +1701,12 @@ export interface FileRouteTypes {
     | '/v1/team-hosts/ice-servers'
     | '/v1/team-invitations/email'
     | '/v1/team-tunnels/provision'
+    | '/v2/admin/server-claims'
     | '/v2/discord/authorize'
     | '/v2/discord/callback'
     | '/v2/hosting/plans'
+    | '/v2/remote/route-wake'
+    | '/v2/server-claims/redeem'
     | '/v2/slack/authorize'
     | '/v2/slack/callback'
     | '/v1/agent-templates/'
@@ -1637,6 +1720,7 @@ export interface FileRouteTypes {
     | '/v1/marketplace/agents/mine'
     | '/v1/me/billing/portal'
     | '/v1/mobile-auth/devices/$sessionId'
+    | '/v1/mobile-auth/email/verify'
     | '/v1/skills/$skillId/content'
     | '/v1/skills/$skillId/icon'
     | '/v1/skills/$skillId/install'
@@ -1672,6 +1756,7 @@ export interface FileRouteTypes {
     | '/v2/hosting/servers/$serverId/activity'
     | '/v2/hosting/servers/$serverId/checkout'
     | '/v2/hosting/servers/$serverId/lifecycle'
+    | '/v2/hosting/servers/$serverId/restart'
     | '/v2/hosting/servers/$serverId/status'
     | '/v2/hosting/servers/$serverId/wake'
     | '/v2/remote/hosts/$hostId/discord-disconnect'
@@ -1679,6 +1764,7 @@ export interface FileRouteTypes {
     | '/v2/remote/hosts/$hostId/invites'
     | '/v2/remote/hosts/$hostId/live-activity'
     | '/v2/remote/hosts/$hostId/logo'
+    | '/v2/remote/hosts/$hostId/notification'
     | '/v2/remote/hosts/$hostId/slack-disconnect'
     | '/v2/remote/hosts/$hostId/slack-route'
     | '/v2/remote/hosts/$hostId/telegram-disconnect'
@@ -1743,6 +1829,7 @@ export interface RootRouteChildren {
   V1AvatarsUserIdRoute: typeof V1AvatarsUserIdRoute
   V1GithubInstallationTokensRoute: typeof V1GithubInstallationTokensRoute
   V1MobileAuthDevicesRoute: typeof V1MobileAuthDevicesRouteWithChildren
+  V1MobileAuthLinkRoute: typeof V1MobileAuthLinkRoute
   V1MobileAuthRedeemRoute: typeof V1MobileAuthRedeemRoute
   V1MobileAuthSessionRoute: typeof V1MobileAuthSessionRoute
   V1MobileAuthTicketRoute: typeof V1MobileAuthTicketRoute
@@ -1757,9 +1844,12 @@ export interface RootRouteChildren {
   V1TeamHostsIceServersRoute: typeof V1TeamHostsIceServersRoute
   V1TeamInvitationsEmailRoute: typeof V1TeamInvitationsEmailRoute
   V1TeamTunnelsProvisionRoute: typeof V1TeamTunnelsProvisionRoute
+  V2AdminServerClaimsRoute: typeof V2AdminServerClaimsRoute
   V2DiscordAuthorizeRoute: typeof V2DiscordAuthorizeRoute
   V2DiscordCallbackRoute: typeof V2DiscordCallbackRoute
   V2HostingPlansRoute: typeof V2HostingPlansRoute
+  V2RemoteRouteWakeRoute: typeof V2RemoteRouteWakeRoute
+  V2ServerClaimsRedeemRoute: typeof V2ServerClaimsRedeemRoute
   V2SlackAuthorizeRoute: typeof V2SlackAuthorizeRoute
   V2SlackCallbackRoute: typeof V2SlackCallbackRoute
   V1AgentTemplatesIndexRoute: typeof V1AgentTemplatesIndexRoute
@@ -1769,6 +1859,7 @@ export interface RootRouteChildren {
   V1AuthEmailVerifyRoute: typeof V1AuthEmailVerifyRoute
   V1MarketplaceAgentsAgentIdRoute: typeof V1MarketplaceAgentsAgentIdRouteWithChildren
   V1MarketplaceAgentsMineRoute: typeof V1MarketplaceAgentsMineRoute
+  V1MobileAuthEmailVerifyRoute: typeof V1MobileAuthEmailVerifyRoute
   V1SkillsAdminSubmissionsRoute: typeof V1SkillsAdminSubmissionsRouteWithChildren
   V2HostingBoatWebhookRoute: typeof V2HostingBoatWebhookRoute
   V2HostingClaimsRedeemRoute: typeof V2HostingClaimsRedeemRoute
@@ -1796,6 +1887,7 @@ export interface RootRouteChildren {
   V2HostingServersServerIdActivityRoute: typeof V2HostingServersServerIdActivityRoute
   V2HostingServersServerIdCheckoutRoute: typeof V2HostingServersServerIdCheckoutRoute
   V2HostingServersServerIdLifecycleRoute: typeof V2HostingServersServerIdLifecycleRoute
+  V2HostingServersServerIdRestartRoute: typeof V2HostingServersServerIdRestartRoute
   V2HostingServersServerIdStatusRoute: typeof V2HostingServersServerIdStatusRoute
   V2HostingServersServerIdWakeRoute: typeof V2HostingServersServerIdWakeRoute
   V2RemoteHostsHostIdDiscordDisconnectRoute: typeof V2RemoteHostsHostIdDiscordDisconnectRoute
@@ -1803,6 +1895,7 @@ export interface RootRouteChildren {
   V2RemoteHostsHostIdInvitesRoute: typeof V2RemoteHostsHostIdInvitesRoute
   V2RemoteHostsHostIdLiveActivityRoute: typeof V2RemoteHostsHostIdLiveActivityRoute
   V2RemoteHostsHostIdLogoRoute: typeof V2RemoteHostsHostIdLogoRoute
+  V2RemoteHostsHostIdNotificationRoute: typeof V2RemoteHostsHostIdNotificationRoute
   V2RemoteHostsHostIdSlackDisconnectRoute: typeof V2RemoteHostsHostIdSlackDisconnectRoute
   V2RemoteHostsHostIdSlackRouteRoute: typeof V2RemoteHostsHostIdSlackRouteRoute
   V2RemoteHostsHostIdTelegramDisconnectRoute: typeof V2RemoteHostsHostIdTelegramDisconnectRoute
@@ -2151,6 +2244,13 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof V1MobileAuthDevicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v1/mobile-auth/link': {
+      id: '/v1/mobile-auth/link'
+      path: '/v1/mobile-auth/link'
+      fullPath: '/v1/mobile-auth/link'
+      preLoaderRoute: typeof V1MobileAuthLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v1/mobile-auth/redeem': {
       id: '/v1/mobile-auth/redeem'
       path: '/v1/mobile-auth/redeem'
@@ -2263,6 +2363,13 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof V1TeamTunnelsProvisionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v2/admin/server-claims': {
+      id: '/v2/admin/server-claims'
+      path: '/v2/admin/server-claims'
+      fullPath: '/v2/admin/server-claims'
+      preLoaderRoute: typeof V2AdminServerClaimsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v2/discord/authorize': {
       id: '/v2/discord/authorize'
       path: '/v2/discord/authorize'
@@ -2282,6 +2389,20 @@ declare module '@tanstack/solid-router' {
       path: '/v2/hosting/plans'
       fullPath: '/v2/hosting/plans'
       preLoaderRoute: typeof V2HostingPlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v2/remote/route-wake': {
+      id: '/v2/remote/route-wake'
+      path: '/v2/remote/route-wake'
+      fullPath: '/v2/remote/route-wake'
+      preLoaderRoute: typeof V2RemoteRouteWakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v2/server-claims/redeem': {
+      id: '/v2/server-claims/redeem'
+      path: '/v2/server-claims/redeem'
+      fullPath: '/v2/server-claims/redeem'
+      preLoaderRoute: typeof V2ServerClaimsRedeemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v2/slack/authorize': {
@@ -2367,6 +2488,13 @@ declare module '@tanstack/solid-router' {
       fullPath: '/v1/mobile-auth/devices/$sessionId'
       preLoaderRoute: typeof V1MobileAuthDevicesSessionIdRouteImport
       parentRoute: typeof V1MobileAuthDevicesRoute
+    }
+    '/v1/mobile-auth/email/verify': {
+      id: '/v1/mobile-auth/email/verify'
+      path: '/v1/mobile-auth/email/verify'
+      fullPath: '/v1/mobile-auth/email/verify'
+      preLoaderRoute: typeof V1MobileAuthEmailVerifyRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/v1/skills/$skillId/content': {
       id: '/v1/skills/$skillId/content'
@@ -2606,6 +2734,13 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof V2HostingServersServerIdLifecycleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v2/hosting/servers/$serverId/restart': {
+      id: '/v2/hosting/servers/$serverId/restart'
+      path: '/v2/hosting/servers/$serverId/restart'
+      fullPath: '/v2/hosting/servers/$serverId/restart'
+      preLoaderRoute: typeof V2HostingServersServerIdRestartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v2/hosting/servers/$serverId/status': {
       id: '/v2/hosting/servers/$serverId/status'
       path: '/v2/hosting/servers/$serverId/status'
@@ -2660,6 +2795,13 @@ declare module '@tanstack/solid-router' {
       path: '/v2/remote/hosts/$hostId/logo'
       fullPath: '/v2/remote/hosts/$hostId/logo'
       preLoaderRoute: typeof V2RemoteHostsHostIdLogoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v2/remote/hosts/$hostId/notification': {
+      id: '/v2/remote/hosts/$hostId/notification'
+      path: '/v2/remote/hosts/$hostId/notification'
+      fullPath: '/v2/remote/hosts/$hostId/notification'
+      preLoaderRoute: typeof V2RemoteHostsHostIdNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v2/remote/hosts/$hostId/slack-disconnect': {
@@ -2942,6 +3084,7 @@ const rootRouteChildren: RootRouteChildren = {
   V1AvatarsUserIdRoute: V1AvatarsUserIdRoute,
   V1GithubInstallationTokensRoute: V1GithubInstallationTokensRoute,
   V1MobileAuthDevicesRoute: V1MobileAuthDevicesRouteWithChildren,
+  V1MobileAuthLinkRoute: V1MobileAuthLinkRoute,
   V1MobileAuthRedeemRoute: V1MobileAuthRedeemRoute,
   V1MobileAuthSessionRoute: V1MobileAuthSessionRoute,
   V1MobileAuthTicketRoute: V1MobileAuthTicketRoute,
@@ -2956,9 +3099,12 @@ const rootRouteChildren: RootRouteChildren = {
   V1TeamHostsIceServersRoute: V1TeamHostsIceServersRoute,
   V1TeamInvitationsEmailRoute: V1TeamInvitationsEmailRoute,
   V1TeamTunnelsProvisionRoute: V1TeamTunnelsProvisionRoute,
+  V2AdminServerClaimsRoute: V2AdminServerClaimsRoute,
   V2DiscordAuthorizeRoute: V2DiscordAuthorizeRoute,
   V2DiscordCallbackRoute: V2DiscordCallbackRoute,
   V2HostingPlansRoute: V2HostingPlansRoute,
+  V2RemoteRouteWakeRoute: V2RemoteRouteWakeRoute,
+  V2ServerClaimsRedeemRoute: V2ServerClaimsRedeemRoute,
   V2SlackAuthorizeRoute: V2SlackAuthorizeRoute,
   V2SlackCallbackRoute: V2SlackCallbackRoute,
   V1AgentTemplatesIndexRoute: V1AgentTemplatesIndexRoute,
@@ -2968,6 +3114,7 @@ const rootRouteChildren: RootRouteChildren = {
   V1AuthEmailVerifyRoute: V1AuthEmailVerifyRoute,
   V1MarketplaceAgentsAgentIdRoute: V1MarketplaceAgentsAgentIdRouteWithChildren,
   V1MarketplaceAgentsMineRoute: V1MarketplaceAgentsMineRoute,
+  V1MobileAuthEmailVerifyRoute: V1MobileAuthEmailVerifyRoute,
   V1SkillsAdminSubmissionsRoute: V1SkillsAdminSubmissionsRouteWithChildren,
   V2HostingBoatWebhookRoute: V2HostingBoatWebhookRoute,
   V2HostingClaimsRedeemRoute: V2HostingClaimsRedeemRoute,
@@ -2997,6 +3144,7 @@ const rootRouteChildren: RootRouteChildren = {
   V2HostingServersServerIdCheckoutRoute: V2HostingServersServerIdCheckoutRoute,
   V2HostingServersServerIdLifecycleRoute:
     V2HostingServersServerIdLifecycleRoute,
+  V2HostingServersServerIdRestartRoute: V2HostingServersServerIdRestartRoute,
   V2HostingServersServerIdStatusRoute: V2HostingServersServerIdStatusRoute,
   V2HostingServersServerIdWakeRoute: V2HostingServersServerIdWakeRoute,
   V2RemoteHostsHostIdDiscordDisconnectRoute:
@@ -3005,6 +3153,7 @@ const rootRouteChildren: RootRouteChildren = {
   V2RemoteHostsHostIdInvitesRoute: V2RemoteHostsHostIdInvitesRoute,
   V2RemoteHostsHostIdLiveActivityRoute: V2RemoteHostsHostIdLiveActivityRoute,
   V2RemoteHostsHostIdLogoRoute: V2RemoteHostsHostIdLogoRoute,
+  V2RemoteHostsHostIdNotificationRoute: V2RemoteHostsHostIdNotificationRoute,
   V2RemoteHostsHostIdSlackDisconnectRoute:
     V2RemoteHostsHostIdSlackDisconnectRoute,
   V2RemoteHostsHostIdSlackRouteRoute: V2RemoteHostsHostIdSlackRouteRoute,

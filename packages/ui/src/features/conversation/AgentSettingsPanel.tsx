@@ -3,6 +3,8 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_ACCESS_MODES,
   type AgentAccess,
+  type AgentBackupModels,
+  type AgentModelChoice,
   type AgentModelId,
   type AgentModelOption,
   type AgentProviderId,
@@ -22,6 +24,7 @@ import {
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
+  ArrowLeftRight,
   Bell,
   Brain,
   Button,
@@ -73,6 +76,7 @@ import {
 } from "solid-js";
 import { useText } from "../../text";
 import { AVATAR_HUE_LABEL } from "../agents/avatar-hue-label";
+import { BackupModelsPage } from "./BackupModels";
 
 export interface AgentRuntimeSettings {
   provider: AgentProviderId;
@@ -80,7 +84,10 @@ export interface AgentRuntimeSettings {
   reasoningEffort: AgentReasoningEffort;
 }
 
-export type AgentRuntimeSettingsPatch = AgentRuntimeSettings | Pick<AgentRuntimeSettings, "reasoningEffort">;
+/** A model choice can also move the agent to another account of its provider. */
+export type AgentRuntimeSettingsPatch =
+  | (AgentRuntimeSettings & Pick<UpdateAgentInput, "providerAccountId">)
+  | Pick<AgentRuntimeSettings, "reasoningEffort">;
 
 export interface AgentSettingsPanelProps {
   agent: AgentProfile;
@@ -96,6 +103,10 @@ export interface AgentSettingsPanelProps {
   automationEditable?: boolean;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
+  /** Backup models are local-only too: the Team API does not carry them. */
+  backupModelsEditable?: boolean;
+  /** Whether a usage limit holds this model and account now, for the backup models page. */
+  usageLimited?: (choice: AgentModelChoice) => boolean;
   /** The app default an agent without its own busy-message setting follows. */
   defaultBusyMessageMode?: BusyMessageMode;
   providerRuntimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>>;
@@ -106,6 +117,7 @@ export interface AgentSettingsPanelProps {
   onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
   onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
   onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
+  canConnectProvider?: (provider: AgentProviderId) => boolean;
   onAddCustomProvider?: (trigger: HTMLElement) => void;
   maxWidth: () => number;
   onClose: () => void;
@@ -136,10 +148,11 @@ const INSTRUCTIONS_SAVE_DELAY_MS = 400;
  * The pages behind the root list. The root edits the agent's face, name, title and instructions
  * in place, as the mobile app does, and shows one row for each page.
  */
-type AgentSettingsPage = "permissions" | "advanced";
+type AgentSettingsPage = "permissions" | "backup-models" | "advanced";
 
 const PAGE_TITLE: Record<AgentSettingsPage, AppTextKey> = {
   permissions: "agentSettings.permissions.title",
+  "backup-models": "agentSettings.backupModels.title",
   advanced: "agentSettings.advanced.title",
 };
 
@@ -174,6 +187,8 @@ interface AgentSettingsDraft {
   allowAutomation: boolean;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
+  /** Null asks first, with no saved order. */
+  backupModels: AgentBackupModels | null;
   /** Widening to full access waits here for the confirmation. */
   confirmingFullAccess: boolean;
   runtime: AgentRuntimeSettings;
@@ -221,6 +236,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     computerUse: true,
     allowAutomation: false,
     busyMessage: "default",
+    backupModels: null,
     confirmingFullAccess: false,
     runtime: untrack(() => ({ ...props.runtimeSettings })),
     saveError: null,
@@ -318,6 +334,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           String(agentComputerUseEnabled(agent)),
           String(agentAutomationAllowed(agent)),
           agent.busyMessageMode ?? "default",
+          JSON.stringify(agent.backupModels ?? null),
           runtimeSettings.provider,
           runtimeSettings.model,
           runtimeSettings.reasoningEffort,
@@ -358,6 +375,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.computerUse = agentComputerUseEnabled(agent);
           state.allowAutomation = agentAutomationAllowed(agent);
           state.busyMessage = agent.busyMessageMode ?? "default";
+          state.backupModels = agent.backupModels ?? null;
           if (agentChanged) state.confirmingFullAccess = false;
           state.runtime.provider = runtimeSettings.provider;
           state.runtime.model = runtimeSettings.model;
@@ -580,7 +598,11 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     await saveAgentPatch({ avatarSeed: seed });
   }
 
-  async function selectModel(nextModel: AgentModelId, nextProvider: AgentProviderId): Promise<void> {
+  async function selectModel(
+    nextModel: AgentModelId,
+    nextProvider: AgentProviderId,
+    accountId: string | null | undefined,
+  ): Promise<void> {
     const option = props.modelOptions.find(
       (candidate) => candidate.provider === nextProvider && candidate.id === nextModel,
     );
@@ -605,7 +627,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
       state.runtime.model = settings.model;
       state.runtime.reasoningEffort = settings.reasoningEffort;
     });
-    if (await saveRuntimeSettings(settings, settings, agentId)) return;
+    const updates = accountId === undefined ? settings : { ...settings, providerAccountId: accountId };
+    if (await saveRuntimeSettings(settings, updates, agentId)) return;
     // Roll back only what this call wrote: another agent, or a later pick, owns the panel now.
     if (props.agent.id !== agentId || !sameRuntimeSettings(draft.runtime, settings)) return;
     setDraft((state) => {
@@ -661,6 +684,48 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
       });
     }
   }
+
+  /** The store wraps the saved value in a proxy, so a newer save is told apart by its number. */
+  let backupModelsSave = 0;
+  async function saveBackupModels(next: AgentBackupModels | null): Promise<void> {
+    const agentId = props.agent.id;
+    const previous = draft.backupModels;
+    const save = ++backupModelsSave;
+    setDraft((state) => {
+      state.backupModels = next;
+    });
+    if (await saveAgentPatch({ backupModels: next }, agentId)) return;
+    if (!disposed && props.agent.id === agentId && backupModelsSave === save) {
+      setDraft((state) => {
+        state.backupModels = previous;
+      });
+    }
+  }
+
+  /** The agent's own model: the one it went back to, while a usage limit holds it on a backup. */
+  const ownModel = (): AgentModelChoice =>
+    props.agent.usageLimitReturn ?? {
+      provider: draft.runtime.provider,
+      model: draft.runtime.model,
+      ...(props.agent.providerAccountId ? { providerAccountId: props.agent.providerAccountId } : {}),
+    };
+  const ownModelName = () => {
+    const own = ownModel();
+    return (
+      props.modelOptions.find((option) => option.provider === own.provider && option.id === own.model)?.name ??
+      own.model
+    );
+  };
+
+  const backupModelsSummary = () => {
+    const mode = t(
+      draft.backupModels?.automatic
+        ? "agentSettings.backupModels.valueAutomatic"
+        : "agentSettings.backupModels.valueAsk",
+    );
+    const count = draft.backupModels?.order.length ?? 0;
+    return count > 0 ? t("agentSettings.backupModels.valueCount", { mode, count }) : mode;
+  };
 
   const appBusyMessageMode = () => props.defaultBusyMessageMode ?? DEFAULT_BUSY_MESSAGE_MODE;
   const busyMessageLabel = (choice: BusyMessageChoice) =>
@@ -979,12 +1044,15 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   onDownloadProvider={props.onDownloadProvider}
                   onCancelProviderDownload={props.onCancelProviderDownload}
                   onConnectProvider={props.onConnectProvider}
+                  canConnectProvider={props.canConnectProvider}
                   onAddCustomProvider={props.onAddCustomProvider}
                   disabled={props.working}
                   disabledReason={
                     props.working ? t("agentSettings.runtime.modelBusy") : t("agentSettings.runtime.modelUnavailable")
                   }
-                  onChange={(nextModel, provider) => void selectModel(nextModel, provider)}
+                  accountChoice
+                  providerAccountId={props.agent.providerAccountId}
+                  onChange={(nextModel, provider, accountId) => void selectModel(nextModel, provider, accountId)}
                 />
                 <Select<AgentReasoningEffort>
                   class="agent-settings-runtime-select"
@@ -1022,6 +1090,17 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   <SelectContent />
                 </Select>
               </SettingsLinkGroup>
+              <Show when={props.backupModelsEditable}>
+                <SettingsLinkGroup inset>
+                  <SettingsLinkRow
+                    ref={pageRowRef("backup-models")}
+                    icon={<ArrowLeftRight aria-hidden="true" />}
+                    label={t("agentSettings.backupModels.title")}
+                    value={backupModelsSummary()}
+                    onClick={() => openPage("backup-models")}
+                  />
+                </SettingsLinkGroup>
+              </Show>
               {props.links}
               <SettingsLinkGroup inset title={t("agentSettings.groups.rules")}>
                 <SettingsLinkRow
@@ -1136,6 +1215,20 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   />
                 </div>
               </Show>
+            </Show>
+            <Show when={page() === "backup-models"}>
+              <BackupModelsPage
+                agentName={props.agent.name}
+                own={ownModel()}
+                ownModel={ownModelName()}
+                value={draft.backupModels}
+                source={{
+                  modelOptions: props.modelOptions,
+                  providers: props.agentStatus.providers,
+                  limited: props.usageLimited,
+                }}
+                onChange={(next) => void saveBackupModels(next)}
+              />
             </Show>
             <Show when={page() === "advanced"}>
               <SettingsLinkGroup inset class="agent-settings-runtime-rows">

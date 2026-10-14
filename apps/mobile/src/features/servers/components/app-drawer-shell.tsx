@@ -24,6 +24,8 @@ interface AppDrawerContextValue {
   openDrawer: () => void;
   closeDrawer: () => void;
   openingGesture: PanGesture;
+  /** Turns off the pan that opens the drawer, for a screen whose own horizontal pans need it. */
+  setOpeningBlocked: (blocked: boolean) => void;
 }
 
 const AppDrawerContext = createContext<AppDrawerContextValue | null>(null);
@@ -47,7 +49,16 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const insets = useSafeAreaInsets();
   const { session } = useMobileSession();
   const { t } = useText();
-  const { activeServer, reorderServers, selectServer, servers } = useMobileWorkspace();
+  const {
+    activeServer,
+    setDefaultServer,
+    defaultServerId,
+    leaveServer,
+    removeServer,
+    reorderServers,
+    selectServer,
+    servers,
+  } = useMobileWorkspace();
   const [muted] = useThemeColor(["muted"]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerProgress = useSharedValue(0);
@@ -87,9 +98,10 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   // Rows attach their swipe to this gesture, so it must stay the same object. A new gesture on each
   // navigation or drawer change would rebuild the swipe of every row.
   const openingEnabled = useSharedValue(false);
+  const [openingBlocked, setOpeningBlocked] = useState(false);
   useEffect(() => {
-    openingEnabled.set(!drawerOpen && pathname === "/connected");
-  }, [drawerOpen, openingEnabled, pathname]);
+    openingEnabled.set(!drawerOpen && !openingBlocked && pathname === "/connected");
+  }, [drawerOpen, openingBlocked, openingEnabled, pathname]);
   const openingGesture = useMemo(
     () =>
       Gesture.Pan()
@@ -175,7 +187,7 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   );
 
   const contextValue = useMemo(
-    () => ({ closeDrawer, openDrawer, openingGesture }),
+    () => ({ closeDrawer, openDrawer, openingGesture, setOpeningBlocked }),
     [closeDrawer, openDrawer, openingGesture],
   );
 
@@ -209,11 +221,15 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
               listTopInset={drawerListTopInset}
               muted={muted}
               open={drawerOpen}
+              defaultServerId={defaultServerId}
               servers={servers}
               session={session}
               sideInset={drawerSideInset}
               topInset={insets.top}
               onNavigate={navigateAfterClosing}
+              onSetDefault={setDefaultServer}
+              onLeave={leaveServer}
+              onRemove={removeServer}
               onReorder={reorderServers}
               onSelectServer={(serverId) => {
                 selectServer(serverId);

@@ -67,9 +67,15 @@ import type {
   AccountUsage,
   AgentProviderId,
   AgentStatus,
+  ConnectProviderAccountInput,
+  HostProviderAccounts,
+  PasteProviderRelaySignInInput,
   ProviderApiKeyState,
   ProviderCodeLoginStart,
   ProviderHostSignInStatus,
+  ProviderRelaySignInStatus,
+  RemoveProviderAccountInput,
+  RenameProviderAccountInput,
   SetProviderApiKeyInput,
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
@@ -81,6 +87,7 @@ import type {
   InstallAgentTemplateResult,
   PublishAgentTemplateInput,
 } from "./ipc-agent-templates";
+import type { AgentWaitsSnapshot, CancelAgentWaitInput } from "./ipc-agent-waits";
 import type {
   AgentSummary,
   AvatarImageInput,
@@ -160,12 +167,15 @@ import type {
 } from "./ipc-channel-routines";
 import type { Channel, ChannelCommand, ChannelPage, ChannelReadInput, ChannelSummary } from "./ipc-chat-channels";
 import type {
+  CancelMessageLinkInput,
   ConversationFileSearchPage,
   ConversationPage,
   ConversationReadState,
   ConversationSearchPage,
   ConversationWithReadState,
   MarkConversationReadInput,
+  OpenMessageLinkInput,
+  PasteMessageLinkInput,
   ReadConversationPageInput,
   RespondToPromptInput,
   SearchConversationFilesInput,
@@ -201,8 +211,10 @@ import type {
   EventActivity,
   EventRoutine,
   EventRoutineRef,
+  EventRoutineRun,
   EventStatus,
   ListEventActivityInput,
+  ListEventRoutineRunsInput,
   ListEventRoutinesInput,
   SaveEventRoutineInput,
   SaveEventRoutineResult,
@@ -211,6 +223,7 @@ import type {
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
 import type { HostAnalytics, HostAnalyticsInput } from "./ipc-host-analytics";
 import type { HostReleaseStatus } from "./ipc-host-release";
+import type { HostTimezoneSettings } from "./ipc-host-timezone";
 import type {
   DeleteHostedSiteInput,
   HostedSiteList,
@@ -218,6 +231,14 @@ import type {
   PublishHostedSiteInput,
   ReplaceHostedSiteInput,
 } from "./ipc-hosted-sites";
+import type {
+  ApplyInstanceTransferInput,
+  ExportInstanceInput,
+  InstanceExportResult,
+  InstanceTransferPreview,
+  InstanceTransferResult,
+  InstanceTransferSummary,
+} from "./ipc-instance-transfer";
 import type {
   AgentPublicationPreview,
   AgentSubmission,
@@ -230,11 +251,16 @@ import type {
 } from "./ipc-marketplace-agents";
 import type {
   CancelMcpSignInInput,
+  CompleteMcpSignInRelayInput,
   McpServerConfig,
+  McpSignInAppInput,
+  McpSignInAppState,
+  McpSignInRelayPage,
   McpSignInState,
   McpTestResult,
   RemoveMcpServerInput,
   SaveMcpServerInput,
+  SaveMcpSignInAppInput,
   SetMcpServerEnabledInput,
   SignOutMcpServerInput,
   TestMcpServerInput,
@@ -246,6 +272,11 @@ import type {
   AddSlackOrchestratorResult,
   AddTelegramOrchestratorInput,
   ConnectTelegramChatInput,
+  HostAddMessagingOrchestratorInput,
+  HostMessagingConnectInput,
+  HostMessagingPlatformInput,
+  HostMessagingWorkspaceInput,
+  HostSetMessagingEnabledInput,
   MessagingOverview,
   MessagingWorkspaceInput,
   SetMessagingEnabledInput,
@@ -257,7 +288,11 @@ import type {
   TelegramOverview,
 } from "./ipc-messaging";
 import type { NotificationOpenedEvent, NotificationPreference } from "./ipc-notifications";
-import type { OnePasswordConnectInput, OnePasswordConnectorStatus } from "./ipc-onepassword-connector";
+import type {
+  OnePasswordConnectInput,
+  OnePasswordConnectorStatus,
+  OnePasswordHostConnectInput,
+} from "./ipc-onepassword-connector";
 import type {
   DetectedModelServer,
   DiscoverModelsInput,
@@ -289,10 +324,17 @@ import type {
   RemoveRoutineFlowPositionInput,
   RoutineFlowCanvas,
   RoutineFlowLink,
-  RoutineFlowsChanged,
   SaveRoutineFlowPositionInput,
   UpdateRoutineFlowLinkInput,
 } from "./ipc-routine-flows";
+import type {
+  ResendRoutineResultInput,
+  RoutineResultConnectionOption,
+  RoutineResultDelivery,
+  RoutineResultDestination,
+  RoutineResultRoutineInput,
+  SetRoutineResultDestinationInput,
+} from "./ipc-routine-results";
 import type {
   CreateRoutineInput,
   DeleteRoutineInput,
@@ -368,13 +410,17 @@ import type {
   UpdateTeamMemberInput,
 } from "./ipc-team-host";
 import type {
+  VoiceApiKeyInput,
   VoiceModelRequest,
   VoiceModelStatus,
   VoiceSettings,
+  VoiceStream,
+  VoiceStreamAudio,
+  VoiceStreamTranscript,
   VoiceTranscriptionInput,
   VoiceTranscriptionResult,
 } from "./ipc-voice";
-import type { AccountSession, MobileConnectedDevice, MobileConnectTicket } from "./mobile-connect";
+import type { AccountSession, MobileConnectedDevice, MobileConnectLink, MobileConnectTicket } from "./mobile-connect";
 
 declare const payloadType: unique symbol;
 declare const resultType: unique symbol;
@@ -513,7 +559,13 @@ export const IPC_ENDPOINTS = {
   providers: {
     setProviderOn: request<{ provider: AgentProviderId; on: boolean }, AgentStatus>()("app:set-provider-on"),
     connectProvider: request<AgentProviderId, AgentStatus>()("app:connect-provider"),
-    refreshAgentProviders: request<undefined, AgentStatus>()("app:refresh-agent-providers"),
+    /** Ends the sign-in that `connectProvider` started and that still waits for the browser. */
+    cancelProviderSignIn: request<AgentProviderId, AgentStatus>()("app:cancel-provider-sign-in"),
+    /**
+     * `automatic`: the app asks, not the user. A provider that OpenBot stopped starting after failed
+     * starts in a row then stays stopped; only a refresh the user asks for starts it again.
+     */
+    refreshAgentProviders: request<{ automatic: boolean } | undefined, AgentStatus>()("app:refresh-agent-providers"),
     /**
      * Restarts one provider's process after the turns that run on it end, and reads its version,
      * account and models again. It answers when the restart is scheduled; the provider's status has
@@ -547,6 +599,14 @@ export const IPC_ENDPOINTS = {
     startProviderCodeLogin: request<AgentProviderId, ProviderCodeLoginStart>()("app:start-provider-code-login"),
     /** Abandons a code sign-in: the provider is told, the code is dead, and the provider goes idle. */
     cancelProviderCodeLogin: request<AgentProviderId, AgentStatus>()("app:cancel-provider-code-login"),
+    /**
+     * Signs one more account of a provider in through the browser, or signs a signed-out one in
+     * again. It answers when the sign-in starts; the account's status tells how it ends. Removing a
+     * `connecting` account cancels its sign-in.
+     */
+    connectProviderAccount: request<ConnectProviderAccountInput, AgentStatus>()("app:connect-provider-account"),
+    renameProviderAccount: request<RenameProviderAccountInput, AgentStatus>()("app:rename-provider-account"),
+    removeProviderAccount: request<RemoveProviderAccountInput, AgentStatus>()("app:remove-provider-account"),
   },
   providerRuntimes: {
     getStatus: request<undefined, ProviderRuntimeSnapshot>()("provider-runtimes:get-status"),
@@ -570,7 +630,21 @@ export const IPC_ENDPOINTS = {
     getSettings: request<undefined, VoiceSettings>()("voice:get-settings"),
     setSettings: request<VoiceSettings, VoiceSettings>()("voice:set-settings"),
     transcribe: request<VoiceTranscriptionInput, VoiceTranscriptionResult>()("voice:transcribe"),
+    /** Saves or removes the ElevenLabs API key. Answers the status of the ElevenLabs model. */
+    setApiKey: request<VoiceApiKeyInput, VoiceModelStatus>()("voice:set-api-key"),
+    /**
+     * Opens a streamed dictation with the cloud model in use. Answers when the provider accepted it.
+     * A new stream ends the one before it.
+     */
+    startStream: request<undefined, VoiceStream>()("voice:start-stream"),
+    appendStream: request<VoiceStreamAudio, void>()("voice:append-stream"),
+    /** Ends the audio and answers the whole text. */
+    finishStream: request<VoiceStream, VoiceTranscriptionResult>()("voice:finish-stream"),
+    /** Ends a stream and drops its text. */
+    cancelStream: request<VoiceStream, void>()("voice:cancel-stream"),
     modelStatus: event<VoiceModelStatus>()("voice:model-status"),
+    /** The text of a stream so far. It can change until `finishStream` answers. */
+    streamTranscript: event<VoiceStreamTranscript>()("voice:stream-transcript"),
   },
   dynamicIsland: {
     getPreference: request<undefined, DynamicIslandPreference>()("dynamic-island:get-preference"),
@@ -670,6 +744,33 @@ export const IPC_ENDPOINTS = {
       "provider-admin:host-sign-in-status",
     ),
     cancelHostSignIn: scopedRequest<AgentProviderId, AgentStatus, "required">()("provider-admin:cancel-host-sign-in"),
+    // The accounts of a joined server's host's providers (`provider-accounts-v1`). The host's status,
+    // agent list and usage do not carry them, so the renderer adds them to its copy. An account signs
+    // in on the host's page, as `startHostSignIn` does; the account's state tells how it ended.
+    accounts: scopedQuery<HostProviderAccounts, "required">()("provider-admin:accounts"),
+    accountUsage: scopedQuery<AccountUsage, "required">()("provider-admin:account-usage"),
+    startAccountSignIn: scopedRequest<ConnectProviderAccountInput, void, "required">()(
+      "provider-admin:start-account-sign-in",
+    ),
+    accountSignInStatus: scopedRequest<AgentProviderId, ProviderHostSignInStatus, "required">()(
+      "provider-admin:account-sign-in-status",
+    ),
+    cancelAccountSignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:cancel-account-sign-in"),
+    renameAccount: scopedRequest<RenameProviderAccountInput, void, "required">()("provider-admin:rename-account"),
+    removeAccount: scopedRequest<RemoveProviderAccountInput, void, "required">()("provider-admin:remove-account"),
+    // A sign-in that a joined server's host starts and that opens in this computer's browser
+    // (`sign-in-relay-v1`). This computer takes the callback and sends its query to the host.
+    // `openRelaySignIn` opens the page when the user asks, and `pasteRelaySignIn` takes the address
+    // the browser shows when the callback cannot reach this computer.
+    startRelaySignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:start-relay-sign-in"),
+    relaySignInStatus: scopedRequest<AgentProviderId, ProviderRelaySignInStatus, "required">()(
+      "provider-admin:relay-sign-in-status",
+    ),
+    openRelaySignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:open-relay-sign-in"),
+    pasteRelaySignIn: scopedRequest<PasteProviderRelaySignInInput, void, "required">()(
+      "provider-admin:paste-relay-sign-in",
+    ),
+    cancelRelaySignIn: scopedRequest<AgentProviderId, AgentStatus, "required">()("provider-admin:cancel-relay-sign-in"),
     getApiKeyState: scopedRequest<AgentProviderId, ProviderApiKeyState, "required">()(
       "provider-admin:get-api-key-state",
     ),
@@ -722,8 +823,19 @@ export const IPC_ENDPOINTS = {
     addTelegramOrchestrator: request<AddTelegramOrchestratorInput, AddMessagingOrchestratorResult>()(
       "messaging:add-telegram-orchestrator",
     ),
+    // The same for a joined server with `connectors-v1`, which an owner or admin manages from here.
+    // The host opens no page: main opens it in this computer's browser. A Slack or Discord install
+    // returns to this computer's `openbot://` link, and main sends the sealed grant on to the host.
+    hostOverview: scopedRequest<HostMessagingPlatformInput, MessagingOverview, "required">()("messaging:host-overview"),
+    hostConnect: scopedRequest<HostMessagingConnectInput, void, "required">()("messaging:host-connect"),
+    hostDisconnect: scopedRequest<HostMessagingWorkspaceInput, void, "required">()("messaging:host-disconnect"),
+    hostReconnect: scopedRequest<HostMessagingWorkspaceInput, void, "required">()("messaging:host-reconnect"),
+    hostSetEnabled: scopedRequest<HostSetMessagingEnabledInput, void, "required">()("messaging:host-set-enabled"),
+    hostAddOrchestrator: scopedRequest<HostAddMessagingOrchestratorInput, AddMessagingOrchestratorResult, "required">()(
+      "messaging:host-add-orchestrator",
+    ),
   },
-  // The server name, logo and app update of one server's host. `host.updateIdentity` and `update`
+  // The server name, logo, timezone and app update of one server's host. `host.updateIdentity` and `update`
   // reach this computer only; these take the server, so a remote admin reaches the host. The
   // identity result is the server as the list shows it after the change.
   hostAdmin: {
@@ -737,9 +849,13 @@ export const IPC_ENDPOINTS = {
     setUpdateSettings: scopedRequest<HostUpdateSettingsChange, HostUpdateStatus, "required">()(
       "host-admin:set-update-settings",
     ),
+    // The server timezone. `null` is automatic: the host system zone.
+    getTimezone: scopedQuery<HostTimezoneSettings, "required">()("host-admin:get-timezone"),
+    setTimezone: scopedRequest<string | null, HostTimezoneSettings, "required">()("host-admin:set-timezone"),
   },
-  // The built-in GitHub connection of this computer. Local only: a remote client connects GitHub on
-  // the computer that runs OpenBot. The token stays in main; every answer is the status only.
+  // The built-in GitHub connection of this computer. The token stays in main; every answer is the
+  // status only. The `host*` endpoints reach the connection of a joined server (`connectors-v1`): the
+  // host runs the device flow, and main opens its GitHub pages in this computer's browser.
   githubConnector: {
     status: request<undefined, GitHubConnectorStatus>()("github-connector:status"),
     connect: request<undefined, GitHubConnectorStatus>()("github-connector:connect"),
@@ -749,15 +865,25 @@ export const IPC_ENDPOINTS = {
     openVerification: request<undefined, void>()("github-connector:open-verification"),
     openInstall: request<undefined, void>()("github-connector:open-install"),
     changed: event<GitHubConnectorStatus>()("github-connector:changed"),
+    hostStatus: scopedQuery<GitHubConnectorStatus, "required">()("github-connector:host-status"),
+    hostConnect: scopedQuery<GitHubConnectorStatus, "required">()("github-connector:host-connect"),
+    hostCancel: scopedQuery<GitHubConnectorStatus, "required">()("github-connector:host-cancel"),
+    hostDisconnect: scopedQuery<GitHubConnectorStatus, "required">()("github-connector:host-disconnect"),
+    hostRepositories: scopedQuery<GitHubConnectorRepositories, "required">()("github-connector:host-repositories"),
+    hostOpenVerification: scopedQuery<void, "required">()("github-connector:host-open-verification"),
+    hostOpenInstall: scopedQuery<void, "required">()("github-connector:host-open-install"),
   },
-  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
-  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
+  // The Bitwarden connection of this computer. Local only, like `onePasswordConnector`. The session
+  // key goes from the renderer to main once, in `connect`; every answer is the status only.
   bitwardenConnector: {
     status: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:status"),
     connect: request<string, BitwardenConnectorStatus>()("bitwarden-connector:connect"),
     disconnect: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:disconnect"),
     changed: event<BitwardenConnectorStatus>()("bitwarden-connector:changed"),
   },
+  // The 1Password connection of this computer. The token goes from the renderer to main once, in
+  // `connectWithToken`; every answer is the status only. The `host*` endpoints do the same for a
+  // joined server (`onepassword-connector-v1`), with a token only: the host has no 1Password app.
   onePasswordConnector: {
     status: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:status"),
     // Looks again for the CLI and the 1Password app's CLI integration, for a page that opens or regains focus.
@@ -771,6 +897,11 @@ export const IPC_ENDPOINTS = {
     cancel: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:cancel"),
     disconnect: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:disconnect"),
     changed: event<OnePasswordConnectorStatus>()("onepassword-connector:changed"),
+    hostStatus: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-status"),
+    hostConnectWithToken: scopedRequest<OnePasswordHostConnectInput, OnePasswordConnectorStatus, "required">()(
+      "onepassword-connector:host-connect-with-token",
+    ),
+    hostDisconnect: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-disconnect"),
   },
   hostedSites: {
     // The sites of one server. A joined server answers through `hosted-sites-v1`.
@@ -803,6 +934,8 @@ export const IPC_ENDPOINTS = {
     delete: request<DeleteHostedServerInput, void>()("hosted-servers:delete"),
     lifecycle: request<HostedServerLifecycleInput, void>()("hosted-servers:lifecycle"),
     wake: request<string, HostedServerSummary>()("hosted-servers:wake"),
+    // Owner only. Stops a running server and starts it again; a server that does not run starts.
+    restart: request<string, HostedServerSummary>()("hosted-servers:restart"),
   },
   marketplaceAgents: {
     list: request<MarketplaceAgentQuery | undefined, MarketplaceAgentPage>()("marketplace-agents:list"),
@@ -831,6 +964,10 @@ export const IPC_ENDPOINTS = {
     updateName: request<string, CentralAuthState>()("auth:update-name"),
     updateAvatar: request<AvatarImageInput | null, CentralAuthState>()("auth:update-avatar"),
     createMobileConnect: request<undefined, MobileConnectTicket>()("auth:create-mobile-connect"),
+    cancelMobileConnect: request<undefined, void>()("auth:cancel-mobile-connect"),
+    getMobileConnectLink: request<undefined, MobileConnectLink | null>()("auth:get-mobile-connect-link"),
+    createMobileConnectLink: request<undefined, MobileConnectLink>()("auth:create-mobile-connect-link"),
+    revokeMobileConnectLink: request<undefined, void>()("auth:revoke-mobile-connect-link"),
     listMobileConnectedDevices: request<undefined, MobileConnectedDevice[]>()("auth:list-mobile-connected-devices"),
     listAccountSessions: request<undefined, AccountSession[]>()("auth:list-account-sessions"),
     revokeAccountSession: request<string, void>()("auth:revoke-account-session"),
@@ -897,6 +1034,12 @@ export const IPC_ENDPOINTS = {
     searchConversationMessages: scopedRequest<SearchConversationMessagesInput, ConversationSearchPage>()(
       "agent:search-conversation-messages",
     ),
+    // On a joined server, a sign-in page that the agent printed goes through `sign-in-relay-v1`. The
+    // page is answered when this computer cannot take the callback, so the user pastes the address.
+    openMessageLink: scopedRequest<OpenMessageLinkInput, McpSignInRelayPage | null>()("agent:open-message-link"),
+    // Resolves when the sign-in ended, and rejects with its error.
+    pasteMessageLink: scopedRequest<PasteMessageLinkInput, void>()("agent:paste-message-link"),
+    cancelMessageLink: scopedRequest<CancelMessageLinkInput, void>()("agent:cancel-message-link"),
     // Local only: a joined server has no file search route, so the renderer asks only this computer.
     searchConversationFiles: request<SearchConversationFilesInput, ConversationFileSearchPage>()(
       "agent:search-conversation-files",
@@ -908,6 +1051,8 @@ export const IPC_ENDPOINTS = {
     sendMessage: scopedRequest<SendMessageInput, QueuedMessageReceipt>()("agent:send-message"),
     setMessageReaction: scopedRequest<SetMessageReactionInput, void>()("agent:set-message-reaction"),
     listQueue: scopedRequest<string, QueueSnapshot>()("agent:list-queue"),
+    listWaits: scopedRequest<string, AgentWaitsSnapshot>()("agent:list-waits"),
+    cancelWait: scopedRequest<CancelAgentWaitInput, void>()("agent:cancel-wait"),
     acknowledgeFailedTurn: scopedRequest<AcknowledgeFailedTurnInput, void>()("agent:acknowledge-failed-turn"),
     cancelQueuedMessage: scopedRequest<CancelQueuedMessageInput, void>()("agent:cancel-queued-message"),
     steerQueuedMessage: scopedRequest<SteerQueuedMessageInput, void>()("agent:steer-queued-message"),
@@ -970,7 +1115,8 @@ export const IPC_ENDPOINTS = {
   },
   /**
    * Routine flows: an agent routine's answer handed on from agent to agent, and the canvas that shows
-   * it. Only this computer's host keeps them; a remote server answers that it cannot.
+   * it. A joined server answers through `routine-flows-v1` when it supports it. The agent event
+   * `routine-flows-changed` says which canvas changed.
    */
   routineFlows: {
     canvas: scopedRequest<string, RoutineFlowCanvas>()("routine-flows:canvas"),
@@ -979,8 +1125,20 @@ export const IPC_ENDPOINTS = {
     connect: scopedRequest<ConnectRoutineFlowInput, RoutineFlowLink>()("routine-flows:connect"),
     disconnect: scopedRequest<DisconnectRoutineFlowInput, void>()("routine-flows:disconnect"),
     updateLink: scopedRequest<UpdateRoutineFlowLinkInput, RoutineFlowLink>()("routine-flows:update-link"),
-    /** The local agents whose canvases changed. */
-    changed: event<RoutineFlowsChanged>()("routine-flows:changed"),
+  },
+  /**
+   * Routine results: an agent routine's answer sent on to a messaging place. Only this computer's host
+   * keeps a destination, so the group has no remote route. The agent event `routines-changed` says
+   * when a destination or a delivery changed.
+   */
+  routineResults: {
+    options: request<undefined, RoutineResultConnectionOption[]>()("routine-results:options"),
+    destination: request<RoutineResultRoutineInput, RoutineResultDestination | null>()("routine-results:destination"),
+    setDestination: request<SetRoutineResultDestinationInput, RoutineResultDestination | null>()(
+      "routine-results:set-destination",
+    ),
+    deliveries: request<RoutineResultRoutineInput, RoutineResultDelivery[]>()("routine-results:deliveries"),
+    resend: request<ResendRoutineResultInput, void>()("routine-results:resend"),
   },
   agentAttachments: {
     chooseAttachments: scopedRequest<ChooseAttachmentsInput, DraftAttachment[]>()("agent:choose-attachments"),
@@ -1109,9 +1267,29 @@ export const IPC_ENDPOINTS = {
     // shows that tab: `mcpSignInPage` names it while the sign-in waits.
     signInMcpServer: scopedRequest<TestMcpServerInput, McpTestResult, "required">()("servers:mcp:sign-in"),
     mcpSignInPage: scopedRequest<CancelMcpSignInInput, string | null, "required">()("servers:mcp:sign-in-page"),
+    // A host with `sign-in-relay-v1` opens no tab: the page opens in this computer's browser, and the
+    // callback comes back here. `mcpSignInRelay` names the page while it waits, `openMcpSignInRelay`
+    // opens it when the user asks, and `completeMcpSignInRelay` takes the address the user pastes when
+    // no listener took the callback.
+    mcpSignInRelay: scopedRequest<CancelMcpSignInInput, McpSignInRelayPage | null, "required">()(
+      "servers:mcp:sign-in-relay",
+    ),
+    openMcpSignInRelay: scopedRequest<CancelMcpSignInInput, void, "required">()("servers:mcp:open-sign-in-relay"),
+    completeMcpSignInRelay: scopedRequest<CompleteMcpSignInRelayInput, void, "required">()(
+      "servers:mcp:complete-sign-in-relay",
+    ),
     cancelMcpSignIn: scopedRequest<CancelMcpSignInInput, void, "required">()("servers:mcp:cancel-sign-in"),
     signOutMcpServer: scopedRequest<SignOutMcpServerInput, McpSignInState[], "required">()("servers:mcp:sign-out"),
     listMcpSignIns: scopedQuery<McpSignInState[], "required">()("servers:mcp:list-sign-ins"),
+    // The OAuth app an administrator registered for a saved http row, and the exact callback address.
+    // The client secret goes in and never comes back.
+    mcpSignInApp: scopedRequest<McpSignInAppInput, McpSignInAppState, "required">()("servers:mcp:sign-in-app"),
+    saveMcpSignInApp: scopedRequest<SaveMcpSignInAppInput, McpSignInAppState, "required">()(
+      "servers:mcp:save-sign-in-app",
+    ),
+    removeMcpSignInApp: scopedRequest<McpSignInAppInput, McpSignInAppState, "required">()(
+      "servers:mcp:remove-sign-in-app",
+    ),
   },
   // Bound against the storage service, not `AgentService`, so it is its own group.
   storage: {
@@ -1131,6 +1309,17 @@ export const IPC_ENDPOINTS = {
     // from the app's resources, and `saveSkill` asks where to write it.
     readSkill: request<undefined, string>()("agent-import:read-skill"),
     saveSkill: request<undefined, ExportResult>()("agent-import:save-skill"),
+  },
+  // Bound against the instance transfer service: a server's agents and server settings in one file for
+  // another server. A remote server is reached with `instance-transfer-v1`; main opens both file
+  // dialogs and moves the file. `showExport` reveals the file this computer saved last.
+  instanceTransfer: {
+    summary: scopedQuery<InstanceTransferSummary, "required">()("instance-transfer:summary"),
+    export: scopedRequest<ExportInstanceInput, InstanceExportResult, "required">()("instance-transfer:export"),
+    showExport: request<undefined, void>()("instance-transfer:show-export"),
+    choose: scopedQuery<InstanceTransferPreview | null, "required">()("instance-transfer:choose"),
+    apply: scopedRequest<ApplyInstanceTransferInput, InstanceTransferResult, "required">()("instance-transfer:apply"),
+    discard: scopedRequest<string, void, "required">()("instance-transfer:discard"),
   },
   // The plugin deep link, its own group because its registrar holds the pending link rather than a
   // service. `takePendingListing` is what a window that finished loading after the link arrived
@@ -1173,6 +1362,9 @@ export const IPC_ENDPOINTS = {
     testRoutine: scopedRequest<EventRoutineRef, void, "required">()("events:test-routine"),
     rotateSecret: scopedRequest<EventRoutineRef, WebhookSecret, "required">()("events:rotate-secret"),
     listActivity: scopedRequest<ListEventActivityInput, EventActivity[], "required">()("events:list-activity"),
+    listRoutineRuns: scopedRequest<ListEventRoutineRunsInput, EventRoutineRun[], "required">()(
+      "events:list-routine-runs",
+    ),
   },
 
   remoteDesktop: {
@@ -1218,6 +1410,7 @@ export const IPC_GROUP_PATHS = {
   hostedSites: "hostedSites",
   routineFeed: "routineFeed",
   routineFlows: "routineFlows",
+  routineResults: "routineResults",
   billing: "billing",
   hostedServers: "hostedServers",
   marketplaceAgents: "marketplaceAgents",
@@ -1241,6 +1434,7 @@ export const IPC_GROUP_PATHS = {
   mcpServers: "agent",
   storage: "storage",
   agentImport: "agentImport",
+  instanceTransfer: "instanceTransfer",
   plugins: "plugins",
   host: "host",
   events: "events",

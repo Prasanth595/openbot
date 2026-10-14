@@ -163,7 +163,10 @@ export async function routeAgents(
     return json(200, layout);
   }
   if (method === "GET" && url.pathname === TEAM_API_ROUTES.agents.usage) {
-    return json(200, await runCauseEffect(agents.getUsage()));
+    // The provider's own sign-in only: a released client reads one limit per provider, and
+    // `provider-accounts-v1` gives the accounts after it.
+    const usage = await runCauseEffect(agents.getUsage());
+    return json(200, { ...usage, limits: usage.limits.filter((limit) => limit.accountId === undefined) });
   }
   if (method === "GET" && url.pathname === TEAM_API_ROUTES.agents.models) {
     // Only ids the peer's protocol accepts: its model list decoder fails closed on the whole array, and

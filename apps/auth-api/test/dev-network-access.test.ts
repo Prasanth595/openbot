@@ -34,11 +34,14 @@ describe("development Auth API LAN access", () => {
       "/v2/hosting/servers/",
       "/v2/hosting/servers/server-1/checkout",
       "/v2/hosting/servers/server-1/wake",
+      "/v2/hosting/servers/server-1/restart",
     ]) {
       expect(developmentNetworkRequestAllowed("192.168.1.20", path)).toBe(true);
     }
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v1/auth/logout")).toBe(false);
+    // A development code follows from the challenge ID, so email sign-in stays on loopback.
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v1/auth/email/start")).toBe(false);
+    expect(developmentNetworkRequestAllowed("192.168.1.20", "/v1/mobile-auth/email/verify")).toBe(false);
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v1/mobile-auth/ticket")).toBe(false);
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v1/mobile-auth/devices/session-id/other")).toBe(false);
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v1/me/other")).toBe(false);
@@ -62,5 +65,6 @@ describe("development Auth API LAN access", () => {
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v2/remote/sessions/session-1/other")).toBe(false);
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v2/hosting/servers/server-1/activity")).toBe(false);
     expect(developmentNetworkRequestAllowed("192.168.1.20", "/v2/hosting/servers/server-1")).toBe(false);
+    expect(developmentNetworkRequestAllowed("192.168.1.20", "/v2/hosting/servers/server-1/restart/other")).toBe(false);
   });
 });

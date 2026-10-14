@@ -27,12 +27,14 @@ import type {
   SetTeamTypingInput,
   TeamMemberSummary,
   TeamPresenceSnapshot,
+  TeamRole,
   TeamSessionSummary,
   UpdateHostIdentityInput,
   UpdateTeamMemberInput,
 } from "@openbot/contracts/ipc";
 import { conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
+import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
@@ -43,6 +45,8 @@ import type { TeamChatStore } from "../backend/team-chat-store";
 import { BrowserViewGateway } from "./browser-view-gateway";
 import type { VerifiedRemoteSessionTicket } from "./central-auth-manager";
 import { LiveActivityPushService, LiveActivitySendFailure } from "./live-activity-push";
+import type { PushNotificationStore } from "./push-notification-store";
+import { PushNotificationSendFailure, PushNotificationService } from "./push-notifications";
 import type { RemoteDesktopRuntimePaths } from "./remote-desktop-runtime-artifact";
 import { appendRemoteDiagnosticLog } from "./remote-diagnostics";
 import { RemoteScreenGateway, type RemoteScreenGatewayCreateRuntime } from "./remote-screen-gateway";
@@ -75,16 +79,22 @@ interface HostServiceOptions {
   channels?: ChannelService;
   mcpServers?: ForwardedApiOptions["mcpServers"];
   mcpSignIns?: ForwardedApiOptions["mcpSignIns"];
+  signInRelay?: ForwardedApiOptions["signInRelay"];
+  connectors?: ForwardedApiOptions["connectors"];
+  onePasswordConnector?: ForwardedApiOptions["onePasswordConnector"];
   providerHostSignIns?: ForwardedApiOptions["providerHostSignIns"];
+  providerAccounts?: ForwardedApiOptions["providerAccounts"];
   mcpToolRuntimePreparation?: ForwardedApiOptions["mcpToolRuntimePreparation"];
   storage?: ForwardedApiOptions["storage"];
   hostedSites?: ForwardedApiOptions["hostedSites"];
   events?: ForwardedApiOptions["events"];
   agentImport?: ForwardedApiOptions["agentImport"];
+  instanceTransfer?: ForwardedApiOptions["instanceTransfer"];
+  routineFlows?: ForwardedApiOptions["routineFlows"];
   admin?: ForwardedApiOptions["admin"];
   appVersion: string;
   store: TeamStore;
-  agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads" | "searchConversationFiles">;
+  agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads">;
   agentsReady: NonNullable<ForwardedApiOptions["agentsReady"]>;
   skills: NonNullable<ForwardedApiOptions["skills"]>;
   sidebarLayout: NonNullable<ForwardedApiOptions["sidebarLayout"]>;
@@ -136,6 +146,15 @@ interface HostServiceOptions {
     hostId: string,
     push: LiveActivityRelayPush,
   ) => Effect.Effect<"sent" | "gone", RemoteWorkflowError>;
+  /** Sends one sealed notification through the account service. `gone` means the phone gets no more. */
+  sendPushNotification?: (
+    hostId: string,
+    push: NotificationRelayPush,
+  ) => Effect.Effect<"sent" | "gone", RemoteWorkflowError>;
+  /** The phones that get notifications, kept for the next start. */
+  pushNotificationStore?: PushNotificationStore;
+  /** Whether the owner uses the desktop app on this computer now, so the owner's phone stays quiet. */
+  hostComputerInUse?: () => boolean;
   verifyRemoteSessionTicket?: (ticket: string) => Effect.Effect<VerifiedRemoteSessionTicket, RemoteWorkflowError>;
   endRemoteSession?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
   remoteControlPlaneUrl?: string;
@@ -194,6 +213,7 @@ export class HostService extends EventEmitter<HostEvents> {
   #lastBrowserViewInputAt: number | null = null;
   readonly #webrtcGateway: TeamWebRtcHostGateway | null;
   readonly #liveActivityPush: LiveActivityPushService | undefined;
+  readonly #pushNotifications: PushNotificationService | undefined;
   #status: HostStatus;
   #runtimeGeneration = 0;
   #startOperation: Fiber.Fiber<HostStatus, RemoteWorkflowError> | null = null;
@@ -288,6 +308,41 @@ export class HostService extends EventEmitter<HostEvents> {
           logger,
         })
       : undefined;
+    const sendPushNotification = options.sendPushNotification;
+    const pushNotificationStore = options.pushNotificationStore;
+    this.#pushNotifications =
+      sendPushNotification && pushNotificationStore
+        ? new PushNotificationService({
+            agents: options.agents,
+            store: pushNotificationStore,
+            send: (push) => {
+              const hostId = options.store.getIdentity()?.serverId;
+              if (!hostId)
+                return Effect.fail(
+                  new PushNotificationSendFailure({
+                    cause: new Error(sourceText("error.auth.hostCredentialUnavailable")),
+                  }),
+                );
+              return sendPushNotification(hostId, push).pipe(
+                Effect.mapError(({ cause }) => new PushNotificationSendFailure({ cause })),
+              );
+            },
+            // The Team API server is made below. A notification reads it when it is sent.
+            hiddenAgentIds: (protocol, capabilities) => this.#api.hiddenAgentIds(protocol, capabilities),
+            randomBytes: (size) => new Uint8Array(randomBytes(size)),
+            memberActive: (memberId) => {
+              const member = options.store.getMember(memberId);
+              return member !== null && !member.disabled;
+            },
+            lastUseElsewhere: (memberId, sessionId) => this.#api.lastMemberUseElsewhere(memberId, sessionId),
+            // The desktop app of this computer runs as the owner.
+            atHostComputer: (memberId) =>
+              memberId === options.store.getOwnerMemberId() && (options.hostComputerInUse?.() ?? false),
+            liveActivityShows: (sessionId, alert, startedAt) =>
+              this.#liveActivityPush?.showsEvent(sessionId, alert, startedAt) ?? false,
+            logger,
+          })
+        : undefined;
     this.#api = new TeamApiServer({
       appVersion: options.appVersion,
       store: options.store,
@@ -296,12 +351,18 @@ export class HostService extends EventEmitter<HostEvents> {
       channels: options.channels,
       mcpServers: options.mcpServers,
       mcpSignIns: options.mcpSignIns,
+      signInRelay: options.signInRelay,
+      connectors: options.connectors,
+      onePasswordConnector: options.onePasswordConnector,
       providerHostSignIns: options.providerHostSignIns,
+      providerAccounts: options.providerAccounts,
       mcpToolRuntimePreparation: options.mcpToolRuntimePreparation,
       storage: options.storage,
       hostedSites: options.hostedSites,
       events: options.events,
       agentImport: options.agentImport,
+      instanceTransfer: options.instanceTransfer,
+      routineFlows: options.routineFlows,
       // The identity route changes this host's name and logo through `updateIdentity`, so a change
       // from a joined admin runs every step a local one does.
       admin: {
@@ -322,12 +383,14 @@ export class HostService extends EventEmitter<HostEvents> {
       createInvite: (input) => this.createInvite(input),
       onSessionRevoked: (sessionId) => this.#revokeWebRtcSession(sessionId),
       liveActivityPush: this.#liveActivityPush,
+      pushNotifications: this.#pushNotifications,
     });
     this.#runtime = ManagedRuntime.make(
       Layer.succeed(
         HostApiRuntime,
         HostApiRuntime.of({
-          start: () => this.#api.start(),
+          // The saved phones get notifications again once the API runs, also before they connect.
+          start: () => this.#api.start().pipe(Effect.tap(() => Effect.sync(() => this.#pushNotifications?.start()))),
         }),
       ),
     );
@@ -357,6 +420,7 @@ export class HostService extends EventEmitter<HostEvents> {
           closeSession: (sessionId) =>
             Effect.gen({ self: this }, function* () {
               this.#liveActivityPush?.remove(sessionId);
+              this.#pushNotifications?.remove(sessionId);
               yield* this.#remoteScreen.revokeTeamSession(sessionId);
               yield* this.#browserView.revokeTeamSession(sessionId);
             }),
@@ -793,6 +857,7 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: string;
         username: string;
         sessionToken: string;
+        role: TeamRole;
       },
       RemoteWorkflowError,
       HostApiRuntime
@@ -827,6 +892,8 @@ export class HostService extends EventEmitter<HostEvents> {
         publicKey: identity.publicKey,
         username,
         sessionToken: authenticated.sessionToken,
+        // An owner can promote the test client, so the client shows what the host allows it.
+        role: authenticated.member.role,
       };
     },
     (operation) => this.#provide(operation),
@@ -1104,6 +1171,7 @@ export class HostService extends EventEmitter<HostEvents> {
     sessionId: string,
   ): Effect.fn.Return<void, RemoteWorkflowError> {
     this.#liveActivityPush?.remove(sessionId);
+    this.#pushNotifications?.remove(sessionId);
     const end = this.#options.endRemoteSession;
     const gateway = this.#webrtcGateway;
     yield* Effect.all([end ? end(sessionId) : Effect.void, gateway ? gateway.revokeSession(sessionId) : Effect.void], {
@@ -1301,8 +1369,11 @@ export class HostService extends EventEmitter<HostEvents> {
 
   readonly #stopRuntime = Effect.fn("HostService.stopRuntime")(function* (this: HostService) {
     this.#webRtcOnline = false;
-    // The phones register again when they connect to the next runtime.
-    const pendingPushes = yield* Effect.forkChild(this.#liveActivityPush?.dispose() ?? Effect.void);
+    // The phones register again when they connect to the next runtime. The saved notification
+    // phones are read again when it starts.
+    const pendingPushes = yield* Effect.forkChild(
+      Effect.all([this.#liveActivityPush?.dispose() ?? Effect.void, this.#pushNotifications?.dispose() ?? Effect.void]),
+    );
     return yield* Effect.acquireUseRelease(
       Effect.void,
       () => this.#webrtcGateway?.stop() ?? Effect.void,

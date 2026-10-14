@@ -5,8 +5,11 @@ import {
 } from "@openbot/ui/features/conversation/RoutineScheduleCard";
 import type { RoutineScheduleDraft } from "@openbot/ui/features/conversation/routine-schedule-draft";
 import {
+  ROUTINE_LOCAL_DRAFT_KINDS,
   ROUTINE_SAVED_DRAFT_KINDS,
   routineDraftProblem,
+  routineOnceCompleted,
+  routineOncePassed,
   routineScheduleFromDraft,
   routineScheduleToDraft,
 } from "@openbot/ui/features/conversation/routine-schedule-saved";
@@ -82,12 +85,15 @@ export function RoutineChatCard(props: RoutineChatCardProps) {
   async function sendSchedule(schedule: RoutineSchedule, request: number) {
     // Read when the save starts, so it keeps a rename or a pause that an earlier save loaded.
     const current = routine();
+    // A done one-time routine that gets a later time is active again, so it runs at that time.
+    const done = routineOnceCompleted({ ...current, schedule: current.trigger.schedule });
+    const later = !routineOncePassed(schedule, current.timezone);
     try {
       const { routine: saved } = await agentRoutinesPort(props.agentId).save({
         routineId: current.id,
         name: current.name,
         instruction: current.instruction,
-        active: current.active,
+        active: current.active || (done && later),
         timezone: current.timezone,
         schedule,
       });
@@ -114,7 +120,8 @@ export function RoutineChatCard(props: RoutineChatCardProps) {
       action={props.action}
       routineName={routine().name}
       schedule={draft()}
-      kinds={ROUTINE_SAVED_DRAFT_KINDS}
+      // Only this computer's host keeps a one-time routine, so only its card offers the one-time kind.
+      kinds={routine().trigger.schedule.kind === "once" ? ROUTINE_LOCAL_DRAFT_KINDS : ROUTINE_SAVED_DRAFT_KINDS}
       state={state()}
       errorText={errorText()}
       nextRunLabel={nextRunLabel(routine(), text)}

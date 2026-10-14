@@ -45,6 +45,18 @@ export function LandingPage() {
                 <PlatformLogo platform="linux" solid />
                 Linux
               </span>
+              <span class="landing-availability-divider" aria-hidden="true" />
+              <span class="landing-availability-platform">
+                <PlatformLogo platform="ios" />
+                iOS
+              </span>
+              <span class="landing-availability-separator" aria-hidden="true">
+                ·
+              </span>
+              <span class="landing-availability-platform">
+                <PlatformLogo platform="android" />
+                Android
+              </span>
             </p>
 
             <h1 id="landing-title" class="landing-title landing-hero-line" style={{ "--landing-hero-line": 1 }}>

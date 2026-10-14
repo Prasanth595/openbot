@@ -1,8 +1,9 @@
 # OpenBot on a hosted server. provision.sh replaces @SERVICE_USER@ and enables this unit. boat
-# stop and resume work like a reboot, so the unit starts again on each wake.
+# stop and resume work like a reboot, so the unit starts again on each wake. boat starts the desktop
+# about 8 seconds before the enabled units, and OpenBot starts with it.
 [Unit]
 Description=OpenBot hosted server
-Wants=network-online.target
+Wants=network-online.target openbot-update-apply.service
 After=network-online.target display-manager.service
 
 [Service]
@@ -28,4 +29,4 @@ OOMScoreAdjust=-500
 OOMPolicy=continue
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target lightdm.service

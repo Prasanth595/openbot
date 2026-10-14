@@ -2,10 +2,13 @@ import {
   isRoutineRun,
   ROUTINE_MISSED_COUNT_LIMIT,
   type RoutineMissedRuns,
+  type RoutineResultDelivery,
+  type RoutineResultDeliveryReason,
+  type RoutineResultDeliveryStatus,
   type RoutineRunFields,
 } from "@openbot/contracts/ipc";
 import type { EventActivity, EventRoutineRef, ListEventActivityInput } from "@openbot/contracts/ipc-events";
-import type { AppTextKey } from "@openbot/i18n";
+import type { AppMessages, AppTextKey } from "@openbot/i18n";
 import { Button, Check, CirclePause, Clock3, Minus, Text, TriangleAlert, X } from "@openbot/ui";
 import { createEffect, createSignal, For, Match, Show, Switch, untrack } from "solid-js";
 import { type TextValue, useText } from "../../text";
@@ -16,10 +19,17 @@ interface RoutineHistoryActivity {
   routine: EventRoutineRef;
 }
 
+/** Where each run's answer went outside OpenBot. Only an agent routine on this computer has it. */
+interface RoutineHistoryDeliveries {
+  items: RoutineResultDelivery[];
+  onResend: (runId: string) => Promise<void>;
+}
+
 interface RoutineRunHistoryProps {
   runs: RoutineRunFields[];
   onOpenRun?: ((messageId: string) => void) | undefined;
   activity?: RoutineHistoryActivity | undefined;
+  deliveries?: RoutineHistoryDeliveries | undefined;
 }
 
 type HistoryEntry =
@@ -80,6 +90,10 @@ export function RoutineRunHistory(props: RoutineRunHistoryProps) {
     },
   );
 
+  const resendDelivery = async (runId: string) => {
+    await props.deliveries?.onResend(runId);
+  };
+
   const entries = (): HistoryEntry[] =>
     [
       ...props.runs.map(
@@ -112,7 +126,19 @@ export function RoutineRunHistory(props: RoutineRunHistoryProps) {
             {(entry) => (
               <Switch>
                 <Match when={entry.kind === "run" && entry.run}>
-                  {(run) => <RunRow run={run()} onOpenRun={props.onOpenRun} />}
+                  {(run) => (
+                    <Show
+                      when={props.deliveries?.items.find((delivery) => delivery.runId === run().id)}
+                      fallback={<RunRow run={run()} onOpenRun={props.onOpenRun} />}
+                    >
+                      {(delivery) => (
+                        <div class="agent-routine-run-entry">
+                          <RunRow run={run()} onOpenRun={props.onOpenRun} />
+                          <DeliveryRow delivery={delivery()} onResend={resendDelivery} />
+                        </div>
+                      )}
+                    </Show>
+                  )}
                 </Match>
                 <Match when={entry.kind === "skipped" && entry}>
                   {(skipped) => (
@@ -154,10 +180,13 @@ export function RoutineRunHistory(props: RoutineRunHistoryProps) {
 function RunRow(props: { run: RoutineRunFields; onOpenRun?: ((messageId: string) => void) | undefined }) {
   const text = useText();
   const { t } = text;
-  const label = () =>
-    props.run.kind === "manual"
-      ? t("routine.history.manualRun", { time: formatRoutineRunTime(props.run.scheduledFor, text) })
-      : formatRoutineRunTime(props.run.scheduledFor, text);
+  const label = () => {
+    const time = formatRoutineRunTime(props.run.scheduledFor, text);
+    if (props.run.kind !== "manual") return time;
+    if (props.run.source === "script") return t("routine.history.scriptRun", { time });
+    if (props.run.source === "webhook") return t("routine.history.webhookRun", { time });
+    return t("routine.history.manualRun", { time });
+  };
   const late = () => lateStart(props.run);
   const content = (
     <>
@@ -192,6 +221,61 @@ function RunRow(props: { run: RoutineRunFields; onOpenRun?: ((messageId: string)
         </Button>
       )}
     </Show>
+  );
+}
+
+/**
+ * The delivery's status is not the run's: the run succeeded when its agent answered. A delivery that
+ * ended without a sure post can go again; a sent one cannot, so a click does not post it twice.
+ */
+function DeliveryRow(props: { delivery: RoutineResultDelivery; onResend: (runId: string) => Promise<void> }) {
+  const { t, errorMessage } = useText();
+  const [sending, setSending] = createSignal(false);
+  const [error, setError] = createSignal<string | null>(null);
+  const note = () => {
+    const status = t(DELIVERY_STATUS_LABEL[props.delivery.status], { place: props.delivery.destination.placeName });
+    const reason = props.delivery.reason;
+    return reason ? t("routine.delivery.withReason", { status, why: t(DELIVERY_REASON_LABEL[reason]) }) : status;
+  };
+  const canResend = () => props.delivery.status === "failed" || props.delivery.status === "uncertain";
+
+  async function resend(): Promise<void> {
+    setSending(true);
+    setError(null);
+    try {
+      await props.onResend(props.delivery.runId);
+    } catch (cause) {
+      setError(errorMessage(cause, t("routine.delivery.resendFailed")));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div class="agent-routine-delivery-row">
+      <span class="agent-routine-run-text">
+        <span class={`agent-routine-delivery-note agent-routine-delivery-${props.delivery.status}`}>{note()}</span>
+        <Show when={error()}>
+          {(message) => (
+            <Text variant="caption" tone="danger" role="alert">
+              {message()}
+            </Text>
+          )}
+        </Show>
+      </span>
+      <Show when={canResend()}>
+        <Button
+          variant="ghost"
+          type="button"
+          size="sm"
+          loading={sending()}
+          loadingLabel={t("routine.delivery.resending")}
+          onClick={() => void resend()}
+        >
+          {t("routine.delivery.resend")}
+        </Button>
+      </Show>
+    </div>
   );
 }
 
@@ -291,3 +375,20 @@ const RUN_STATUS_LABEL = {
   interrupted: "routine.runStatus.interrupted",
   cancelled: "routine.runStatus.cancelled",
 } as const satisfies Record<RoutineRunFields["status"], AppTextKey>;
+
+const DELIVERY_STATUS_LABEL = {
+  pending: "routine.delivery.pending",
+  sending: "routine.delivery.sending",
+  sent: "routine.delivery.sent",
+  failed: "routine.delivery.failed",
+  uncertain: "routine.delivery.uncertain",
+} as const satisfies Record<RoutineResultDeliveryStatus, keyof AppMessages>;
+
+const DELIVERY_REASON_LABEL = {
+  expired: "routine.delivery.reason.expired",
+  "connection-gone": "routine.delivery.reason.connectionGone",
+  refused: "routine.delivery.reason.refused",
+  "send-failed": "routine.delivery.reason.sendFailed",
+  restart: "routine.delivery.reason.restart",
+  stopped: "routine.delivery.reason.stopped",
+} as const satisfies Record<RoutineResultDeliveryReason, AppTextKey>;

@@ -4,6 +4,7 @@ import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
 import { AgentActivityIndicator } from "@openbot/ui/features/conversation/AgentActivity";
 import { AttachmentCards } from "@openbot/ui/features/conversation/AttachmentCards";
+import { UsageLimitAskCard } from "@openbot/ui/features/conversation/BackupModels";
 import { ChatActionMarker } from "@openbot/ui/features/conversation/ChatActionMarker";
 import { type ChatMessageAuthor, ChatMessageRow } from "@openbot/ui/features/conversation/ChatMessageRow";
 import { ChatRowBoundary } from "@openbot/ui/features/conversation/ChatRowBoundary";
@@ -20,7 +21,7 @@ import { TaskList } from "@openbot/ui/features/conversation/TaskList";
 import { UnreadMessagesBanner, UnreadMessagesDivider } from "@openbot/ui/features/conversation/UnreadMessages";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
-import { createMemo, createSignal, For, Loading, lazy, Show, untrack } from "solid-js";
+import { createMemo, createSignal, For, Loading, lazy, onCleanup, Show, untrack } from "solid-js";
 import { planItems, planTitle } from "../../app-message-projection";
 import { deviceSendShortcut } from "../../send-shortcut-preference";
 import { groupedMessageIds } from "./agent-message-timeline";
@@ -104,11 +105,11 @@ export function ConversationTimeline() {
     messageVirtualizer,
     newMessageCount,
     timelineMessages,
+    toggleRoutineRun,
     timelineIndexById,
     unreadBoundaryMessageId,
     moveChatSearch,
     openExternalMessageUrl,
-    openMoreMessageId,
     openReactionMessageId,
     openBrowserTakeoverTab,
     openRoutineSettings,
@@ -127,7 +128,6 @@ export function ConversationTimeline() {
     scheduleUnreadDividerVisibilityUpdate,
     setChatSearchQuery,
     setExpandedEmojiMessageId,
-    setOpenMoreMessageId,
     setOpenReactionMessageId,
     setRequiredInteractionElement,
     showScrollToLatest,
@@ -447,6 +447,7 @@ export function ConversationTimeline() {
                                         onSelectAgent={props.onSelectAgent}
                                         onOpenRoutine={openRoutineSettings}
                                         onOpenHostedSite={(url) => void openExternalMessageUrl(url)}
+                                        onToggleRoutineRun={toggleRoutineRun}
                                       />
                                     }
                                   >
@@ -454,7 +455,7 @@ export function ConversationTimeline() {
                                       <MarketplaceSuggestionChatCard
                                         messageId={message()?.id ?? initialMessage.id}
                                         appId={suggestion().appId}
-                                        localServer={props.server?.kind === "local"}
+                                        connectors={props.connectors}
                                         onOpenMarketplaceApp={props.onOpenMarketplaceApp}
                                       />
                                     )}
@@ -498,6 +499,7 @@ export function ConversationTimeline() {
                             <div class="chat-action-attachments">
                               <AttachmentCards
                                 attachments={message()?.attachments ?? []}
+                                mediaSource={runtime.attachmentMedia}
                                 onPreview={(attachment) => void previewAttachment(attachment)}
                                 onAction={attachmentAction}
                               />
@@ -560,11 +562,28 @@ export function ConversationTimeline() {
                   );
                 }
                 const initialVisual = untrack(() => chatVisualReply(initialMessage));
-                // The web client cannot load the page, so there the message shows its title and file.
-                if (initialVisual && chatVisualPageUrl(initialVisual.attachment.previewUrl)) {
+                // The desktop loads the page from its own scheme. The web client has no page URL: it
+                // reads the HTML and shows it as `srcdoc`. Another client shows the title and file.
+                const loadPage = runtime.visualPage;
+                if (initialVisual && (chatVisualPageUrl(initialVisual.attachment.previewUrl) || loadPage)) {
                   // A visual reply is the agent's page. It shows above the final reply, with no bubble.
                   const visual = () => chatVisualReply(message() ?? initialMessage) ?? initialVisual;
                   const pageUrl = () => chatVisualPageUrl(visual().attachment.previewUrl);
+                  const [page, setPage] = createSignal<{ html?: string; failed?: boolean }>({});
+                  if (loadPage && !pageUrl()) {
+                    let mounted = true;
+                    onCleanup(() => {
+                      mounted = false;
+                    });
+                    void loadPage(initialVisual.attachment).then(
+                      (html) => {
+                        if (mounted) setPage({ html });
+                      },
+                      () => {
+                        if (mounted) setPage({ failed: true });
+                      },
+                    );
+                  }
                   return (
                     <div
                       data-index={virtualRow.index}
@@ -602,7 +621,8 @@ export function ConversationTimeline() {
                         >
                           <ChatVisual
                             src={pageUrl()}
-                            failed={pageUrl() === undefined}
+                            html={page().html}
+                            failed={pageUrl() === undefined && (!loadPage || page().failed === true)}
                             title={(message() ?? initialMessage).body}
                             height={visual().height}
                             onOpenLink={(url) => void openExternalMessageUrl(url)}
@@ -682,6 +702,7 @@ export function ConversationTimeline() {
                             onOpenSharedFile={openSharedFile}
                             onOpenWorkspaceFile={openWorkspaceFile}
                             onDownload={(attachment) => attachmentAction(attachment, "download")}
+                            mediaSource={runtime.attachmentMedia}
                             class={pending() ? "message-entry-pending" : undefined}
                             footer={
                               pending() ? (
@@ -711,21 +732,12 @@ export function ConversationTimeline() {
                                 <MessageActions
                                   message={message() ?? initialMessage}
                                   pickerOpen={openReactionMessageId() === message()?.id}
-                                  moreOpen={openMoreMessageId() === message()?.id}
                                   expandedEmoji={expandedEmojiMessageId() === message()?.id}
                                   copied={copiedMessageId() === message()?.id}
                                   onTogglePicker={() => {
                                     const messageId = message()?.id;
                                     if (!messageId) return;
                                     setOpenReactionMessageId((current) => (current === messageId ? null : messageId));
-                                    setOpenMoreMessageId(null);
-                                    setExpandedEmojiMessageId(null);
-                                  }}
-                                  onToggleMore={() => {
-                                    const messageId = message()?.id;
-                                    if (!messageId) return;
-                                    setOpenMoreMessageId((current) => (current === messageId ? null : messageId));
-                                    setOpenReactionMessageId(null);
                                     setExpandedEmojiMessageId(null);
                                   }}
                                   onExpandEmoji={() => {
@@ -821,6 +833,17 @@ export function ConversationTimeline() {
                   onAlwaysAllow={props.onAlwaysAllowApproval}
                 />
               </Loading>
+            )}
+          </Show>
+          <Show when={props.usageLimitAsk}>
+            {(ask) => (
+              <UsageLimitAskCard
+                provider={ask().provider}
+                resetsAt={ask().resetsAt}
+                options={ask().options}
+                onSend={ask().onSend}
+                onWait={ask().onWait}
+              />
             )}
           </Show>
           <Show when={props.browserTakeover}>

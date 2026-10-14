@@ -18,6 +18,7 @@ export const messages = defineMessages("error.host", {
   "error.host.mobileConnectHostChanged": "The Mobile Connect host changed. Try again.",
   "error.host.noServer": "This computer has no server to change.",
   "error.host.identityLocalOnly": "The server name and logo can only be changed on the computer that runs it.",
+  "error.host.timezoneInvalid": "This timezone is not known.",
   "error.host.maintenanceInterrupted":
     "Interrupted host maintenance. Verify the application and reset host state before retrying.",
   "error.host.updateFailed":

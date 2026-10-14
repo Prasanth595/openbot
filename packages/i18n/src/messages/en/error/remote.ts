@@ -105,7 +105,7 @@ export const messages = defineMessages("error.remote", {
   "error.remote.operationFailed": "The remote operation failed.",
   "error.remote.connectionReplaced": "The connection was replaced.",
   "error.remote.desktopDidNotConnect": "The desktop did not connect.",
-  "error.remote.desktopRestarted": "The desktop restarted. Reconnecting with a new authenticated session.",
+  "error.remote.connectionDropped": "The server no longer has this connection. Connecting again.",
   "error.remote.dataBeforeAuth": "The host sent data before authentication.",
   "error.remote.eventStreamGap": "The host event stream has a gap.",
   "error.remote.malformedEvent": "The host returned a malformed event.",
@@ -185,12 +185,5 @@ export const messages = defineMessages("error.remote", {
   "error.remote.hostOtherAccount": "This host belongs to another account.",
   "error.remote.remoteNotConfigured": "Remote connections are not set up on this OpenBot service.",
   "error.remote.hostRefused": "The host refused the request ({status}).",
-  // Channel actions on mobile.
-  "error.remote.formUnavailable": "This form is no longer available.",
   "error.remote.hostedServerRemoval": "Use Billing to delete a hosted server.",
-  "error.remote.channelsUnsupported": "Update this desktop server to use channels.",
-  "error.remote.channelDeleteUnsupported": "Update this desktop server to delete channels.",
-  "error.remote.attachmentUploadCancelled": "Attachment upload cancelled.",
-  "error.remote.historyRefreshFailed": "The message was sent, but chat history could not refresh.",
-  "error.remote.taskHistoryRefreshFailed": "The task was changed, but chat history could not refresh.",
 });

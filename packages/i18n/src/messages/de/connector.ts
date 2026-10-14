@@ -66,15 +66,26 @@ export const messages = {
   "connector.github.disconnectEffectRevoke":
     "Danach öffnet sich GitHub. Dort kannst du den Zugriff von OpenBot widerrufen.",
   "connector.github.disconnectEffectKept": "Chats, Dateien und Agentenspeicher bleiben auf diesem Computer erhalten.",
+  // The same text for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.github.descriptionHost":
+    "Alle Agenten auf {host} können deine GitHub-Repositories, Issues und Pull Requests sowie gh und git verwenden.",
+  "connector.github.connectedSummaryHost": {
+    one: "{count} Repository · alle Agenten auf {host}",
+    other: "{count} Repositories · alle Agenten auf {host}",
+  },
+  "connector.github.disconnectConfirmDescriptionHost":
+    "Beim Trennen wird die Anmeldung von @{login} von {host} entfernt.",
+  "connector.github.disconnectEffectKeptHost": "Chats, Dateien und Agentenspeicher bleiben auf {host} erhalten.",
   "connector.github.keepConnected": "Verbindung beibehalten",
   "connector.github.close": "Schließen",
   "connector.dangerZone": "Gefahrenbereich",
   "connector.hub.onThisComputer": "Auf diesem Computer",
+  "connector.hub.onHost": "Auf {host}",
   "connector.hub.notSetUp": "Nicht eingerichtet",
   "connector.hub.available": "Verfügbar",
+  "connector.hub.localOnly": "Nur dein Computer",
   "connector.hub.open": "{name} öffnen",
   "connector.hub.setUp": "Einrichten",
-  "connector.hub.back": "Alle Konnektoren",
   "connector.hub.usedBy": "Verwendet von {names}",
   "connector.slack.title": "Slack",
   "connector.slack.description":
@@ -134,6 +145,8 @@ export const messages = {
   "connector.slack.disconnectTitle": "{workspace} trennen?",
   "connector.slack.disconnectDescription":
     "OpenBot antwortet nicht mehr in {workspace} und entfernt sein Slack-Token von diesem Computer.",
+  "connector.slack.disconnectDescriptionHost":
+    "OpenBot antwortet nicht mehr in {workspace} und entfernt sein Slack-Token von {host}.",
   "connector.slack.disconnectEffect":
     "Personen in {workspace} können deine Agenten nicht mehr über @OpenBot erreichen.",
   "connector.slack.removeEffectKept": "Die Unterhaltungen und der Slack Orchestrator bleiben in OpenBot erhalten.",
@@ -195,6 +208,8 @@ export const messages = {
   "connector.discord.disconnectTitle": "{workspace} trennen?",
   "connector.discord.disconnectDescription":
     "OpenBot antwortet nicht mehr in {workspace} und entfernt die Discord-Verbindung von diesem Computer.",
+  "connector.discord.disconnectDescriptionHost":
+    "OpenBot antwortet nicht mehr in {workspace} und entfernt die Discord-Verbindung von {host}.",
   "connector.discord.disconnectEffect":
     "Personen in {workspace} können deine Agenten nicht mehr über @OpenBot erreichen.",
   "connector.discord.removeEffectKept": "Die Unterhaltungen und der Discord Orchestrator bleiben in OpenBot erhalten.",
@@ -229,6 +244,8 @@ export const messages = {
     "Der OpenBot-Bot ist nicht mehr in diesem Chat. Trenne den Chat und füge den Bot dann erneut hinzu.",
   "connector.telegram.helpRelayUnavailable":
     "OpenBot kann auf diesem Computer keine Telegram-Nachrichten empfangen. Melde dich an, gib diesem Computer in den Servereinstellungen einen Namen und lass OpenBot geöffnet.",
+  "connector.telegram.helpRelayUnavailableHost":
+    "OpenBot auf {host} kann keine Telegram-Nachrichten empfangen. Melde dich auf {host} an, gib dem Server in den Servereinstellungen einen Namen und lass OpenBot geöffnet.",
   "connector.telegram.helpError": "OpenBot kann diesen Chat nicht erreichen. Verbinde ihn erneut oder trenne den Chat.",
   "connector.telegram.retryAt": "Telegram hat OpenBot gebeten zu warten. Neuer Versuch um {time}.",
   "connector.telegram.pause": "Pausieren",
@@ -329,6 +346,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "Verbunden",
   "connector.onePassword.statusConnecting": "Verbindung wird hergestellt",
   "connector.onePassword.statusNotSetUp": "Nicht eingerichtet",
+  "connector.onePassword.descriptionHost":
+    "Teile einen eigenen 1Password-Tresor über ein Dienstkonto mit OpenBot auf {host}, damit Agenten auf {host} sich in seinem Browser bei Websites anmelden können.",
+  "connector.onePassword.howItWorksHost":
+    "{host} verbindet sich mit einem Dienstkonto-Token. Erstelle auf 1Password.com ein Dienstkonto, das nur den Tresor lesen kann, den du mit OpenBot teilst, und füge sein Token hier ein. {host} prüft das Token und speichert es; dieser Computer speichert es nicht. Agenten sehen nie ein Passwort.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} vergisst das Token. Der Tresor und das Dienstkonto bleiben in 1Password; entferne sie dort, wenn du sie nicht mehr brauchst.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Anmeldedaten aus Bitwarden im Browser ausfüllen.",
   "connector.bitwarden.setup":
@@ -342,5 +365,5 @@ export const messages = {
   "connector.bitwarden.disconnect": "Bitwarden trennen",
   "connector.bitwarden.connected": "Verbunden",
   "connector.bitwarden.disconnected": "Nicht verbunden",
-  "connector.bitwarden.failed": "Die Verbindung mit Bitwarden konnte nicht hergestellt werden.",
+  "connector.bitwarden.actionFailed": "OpenBot konnte die Bitwarden-Verbindung nicht ändern.",
 } as const satisfies PartialTranslation<typeof source>;

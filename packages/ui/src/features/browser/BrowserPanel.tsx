@@ -250,7 +250,13 @@ export default function BrowserPanel(props: BrowserPanelProps) {
                       // Only user interaction activates a native tab. Collection registration can
                       // temporarily make the controlled selection absent and suggest the first tab.
                       onClick={() => props.onActivateTab(tab().id)}
-                      onFocus={() => props.activeTab?.id !== tab().id && props.onActivateTab(tab().id)}
+                      // Focus that comes back from the page or another window has no related
+                      // target. It lands on the tab the user chose before, not on a new choice.
+                      onFocus={(event) =>
+                        event.relatedTarget !== null &&
+                        props.activeTab?.id !== tab().id &&
+                        props.onActivateTab(tab().id)
+                      }
                       onPointerDown={(event) => {
                         if (props.canCloseTabs === false) return;
                         if (event.button !== 1) return;

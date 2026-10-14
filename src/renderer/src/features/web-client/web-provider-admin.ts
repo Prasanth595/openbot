@@ -7,6 +7,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { decodeRegistryEntries, decodeRegistryInstallResult, decodeRegistryOperations } from "@openbot/contracts/ipc";
 import { ACP_REGISTRY_ROUTES } from "@openbot/contracts/team-protocol/acp-registry-v1";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
 import {
   PROVIDERS_RUNTIMES_V2_CAPABILITY,
@@ -20,6 +21,7 @@ import { PROVIDERS_V4_CAPABILITY, PROVIDERS_V4_ROUTES } from "@openbot/contracts
 import { PROVIDERS_V5_CAPABILITY, PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
 import { runTeamEffect } from "@openbot/team-client";
 import {
+  cancelProviderAccountSignIn,
   cancelProviderCodeLogin,
   cancelProviderHostSignIn,
   cancelProviderRuntime,
@@ -30,34 +32,40 @@ import {
   getProviderApiKeyState,
   getProviderRuntimes,
   listCustomProviders,
+  listProviderAccounts,
   type ProviderCodeLoginRoutes,
   type ProviderRuntimeRoutes,
+  providerAccountSignInStatus,
+  providerAccountUsage,
   providerHostSignInStatus,
+  removeProviderAccount,
+  renameProviderAccount,
   saveCustomProvider,
   setProviderApiKey,
+  startProviderAccountSignIn,
   startProviderCodeLogin,
   startProviderHostSignIn,
   submitProviderCodeLogin,
 } from "@openbot/team-client/team-admin-requests";
 import type { TeamApiRequest } from "@openbot/team-client/team-api-requests";
+import type { ProviderAccountActions } from "@openbot/ui/components/provider-accounts";
+import { isAgentAccount } from "@openbot/ui/components/provider-accounts";
+import type { AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import type { AcpRegistrySettingsApi } from "@openbot/ui/features/custom-providers/AcpRegistrySettings";
 import { currentText } from "@openbot/ui/text";
 import { Effect } from "effect";
 import { createEffect, createMemo } from "solid-js";
+import { createHostAccounts, withHostAccounts, withHostProfileAccount } from "../agents/host-provider-accounts";
 import { hostCustomProvidersApi } from "../custom-providers/custom-providers-port";
 import { createCustomProvidersStore } from "../custom-providers/stores/custom-providers-store";
-import { createProviderCodeLogin } from "../provider-updates/provider-code-login";
+import { createProviderConnection } from "../provider-updates/provider-connection";
 import { createProviderRuntimeStore } from "../provider-updates/provider-runtime-store";
 import { remoteProviderRuntimes } from "../provider-updates/remote-provider-runtimes";
-import {
-  codeSignInProviders,
-  hostSignInProviders,
-  remoteAdminServer,
-  serverSupportsCapability,
-} from "../servers/server-capabilities";
+import { remoteAdminServer, serverSupportsCapability } from "../servers/server-capabilities";
 import type { HostProviderSettings } from "../settings/ProviderSettingsSection";
 import { hostProviderKeyApi } from "../settings/provider-key-api";
+import { webProviderRelay } from "./web-provider-relay";
 
 /** How often the host status is read while a code sign-in waits, in case a status event is lost. */
 const CODE_LOGIN_POLL_MS = 3000;
@@ -160,6 +168,25 @@ function webProviderAdmin(
       runTeamEffect(saveCustomProvider(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
     deleteCustomProvider: async (input, serverId) =>
       runTeamEffect(deleteCustomProvider(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
+    accounts: async (serverId) =>
+      runTeamEffect(listProviderAccounts(request(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    accountUsage: async (serverId) =>
+      runTeamEffect(providerAccountUsage(request(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    startAccountSignIn: async (input, serverId) =>
+      runTeamEffect(startProviderAccountSignIn(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
+    accountSignInStatus: async (provider, serverId) =>
+      runTeamEffect(
+        providerAccountSignInStatus(request(serverId), provider).pipe(Effect.mapError((error) => error.cause)),
+      ),
+    cancelAccountSignIn: async (provider, serverId) =>
+      runTeamEffect(
+        cancelProviderAccountSignIn(request(serverId), provider).pipe(Effect.mapError((error) => error.cause)),
+      ),
+    renameAccount: async (input, serverId) =>
+      runTeamEffect(renameProviderAccount(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
+    removeAccount: async (input, serverId) =>
+      runTeamEffect(removeProviderAccount(request(serverId), input).pipe(Effect.mapError((error) => error.cause))),
+    ...webProviderRelay(request),
   };
 }
 
@@ -171,6 +198,8 @@ export interface WebProviderSettingsOptions {
   readStatus: () => Promise<AgentStatus>;
   /** The host's browser, which shows a provider's sign-in page that the host opened. */
   browser: BrowserViewRuntime;
+  /** The host's agents, for the agents that use each account. */
+  agents: () => readonly AgentProfile[];
 }
 
 /**
@@ -178,7 +207,7 @@ export interface WebProviderSettingsOptions {
  * `providers-v1`. Keys go to the host and stay in the dialog input on this side; only their state
  * comes back.
  */
-export function createWebProviderSettings(options: WebProviderSettingsOptions): () => HostProviderSettings | undefined {
+export function createWebProviderSettings(options: WebProviderSettingsOptions) {
   // `request` refuses a server other than the connected one, so the connected one decides the routes.
   const admin = webProviderAdmin(
     options.request,
@@ -231,8 +260,18 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
     const id = serverId();
     return id ? hostProviderKeyApi(() => admin, id, openWebDestination) : undefined;
   });
-  const codeLogin = createProviderCodeLogin({
-    agentStatus: options.status,
+  // The released status and agent routes carry no account, so `provider-accounts-v1` adds them.
+  const accountsServerId = createMemo(() => remoteAdminServer(options.server(), PROVIDER_ACCOUNTS_CAPABILITY)?.id);
+  const hostAccounts = createHostAccounts({
+    serverId: accountsServerId,
+    accounts: (id) => admin.accounts(id),
+    usage: (id) => admin.accountUsage(id),
+  });
+  const status = createMemo(() => withHostAccounts(options.status(), hostAccounts.host()));
+  createEffect(options.status, hostAccounts.schedule);
+  createEffect(options.agents, hostAccounts.schedule);
+  const connection = createProviderConnection({
+    agentStatus: status,
     applyStatus: options.setStatus,
     target: () => {
       const id = serverId();
@@ -241,7 +280,6 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
         submit: (provider: AgentProviderId, code: string) => admin.submitCodeLogin({ provider, code }, id ?? ""),
         cancel: (provider: AgentProviderId) => admin.cancelCodeLogin(provider, id ?? ""),
         hostSignIn: {
-          providers: hostSignInProviders(options.server()),
           hostName: options.server()?.name ?? "",
           runtime: options.browser,
           clipboard: serverSupportsCapability(options.server(), "browser-view-clipboard"),
@@ -249,15 +287,60 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
           status: (provider: AgentProviderId) => admin.hostSignInStatus(provider, id ?? ""),
           cancel: (provider: AgentProviderId) => admin.cancelHostSignIn(provider, id ?? ""),
         },
+        ...(accountsServerId() ? { accountSignIn: accountSignIn(accountsServerId() ?? "") } : {}),
+        relay: {
+          hostName: options.server()?.name ?? "",
+          start: (provider: AgentProviderId) => admin.startRelaySignIn(provider, id ?? ""),
+          status: (provider: AgentProviderId) => admin.relaySignInStatus(provider, id ?? ""),
+          open: (provider: AgentProviderId) => admin.openRelaySignIn(provider, id ?? ""),
+          paste: (provider: AgentProviderId, address: string) =>
+            admin.pasteRelaySignIn({ provider, address }, id ?? ""),
+          cancel: (provider: AgentProviderId) => admin.cancelRelaySignIn(provider, id ?? ""),
+        },
       };
     },
-    providers: () => codeSignInProviders(options.server()),
+    place: () => ({ kind: "web-server", server: options.server() }),
     openVerificationUrl: (url) => void window.open(url, "_blank", "noopener"),
+    // The web client is served by the site that has the download page.
+    openAppDownload: () => void window.open("/download", "_blank", "noopener"),
+  });
+  /** As on desktop: the accounts are read again when an account sign-in ends. */
+  function accountSignIn(id: string) {
+    return {
+      hostName: options.server()?.name ?? "",
+      runtime: options.browser,
+      clipboard: serverSupportsCapability(options.server(), "browser-view-clipboard"),
+      start: (provider: AgentProviderId, accountId: string | null) =>
+        admin.startAccountSignIn({ provider, accountId }, id),
+      status: async (provider: AgentProviderId) => {
+        const result = await admin.accountSignInStatus(provider, id);
+        if (result.result) await hostAccounts.refresh().catch(() => undefined);
+        return result;
+      },
+      cancel: async (provider: AgentProviderId) => {
+        await admin.cancelAccountSignIn(provider, id);
+        await hostAccounts.refresh().catch(() => undefined);
+        return status();
+      },
+    };
+  }
+  const accountActions = createMemo<ProviderAccountActions | undefined>(() => {
+    const id = accountsServerId();
+    if (!id) return undefined;
+    const changed = async (request: Promise<void>) => {
+      await request;
+      await hostAccounts.refresh();
+    };
+    return {
+      connect: async (provider, accountId) => connection.connectAccount(provider, accountId),
+      rename: (provider, accountId, label) => changed(admin.renameAccount({ provider, accountId, label }, id)),
+      remove: (provider, accountId) => changed(admin.removeAccount({ provider, accountId }, id)),
+    };
   });
   // The host sends status events, but a browser that reconnects in the middle can miss the one that
   // ends the sign-in. The status is read again while the code is on screen.
   createEffect(
-    () => codeLogin.provider() !== null && codeLogin.state().phase !== "starting",
+    () => connection.provider() !== null && connection.state().phase !== "starting",
     (waiting) => {
       if (!waiting) return;
       const host = serverId();
@@ -292,7 +375,29 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
       return registry();
     },
     get agentStatus() {
-      return options.status();
+      return status();
+    },
+    get accountActions() {
+      return accountActions();
+    },
+    get providerAccountUsers() {
+      const host = hostAccounts.host();
+      const agents = host ? options.agents().map((agent) => withHostProfileAccount(agent, host)) : options.agents();
+      return Object.fromEntries(
+        (status().providers ?? []).map((provider) => [
+          provider.id,
+          Object.fromEntries(
+            (provider.accounts ?? []).map((account) => [
+              account.id,
+              agents
+                .filter(
+                  (agent) => agent.provider === provider.id && isAgentAccount(agent.providerAccountId, account.id),
+                )
+                .map((agent) => agent.name),
+            ]),
+          ),
+        ]),
+      );
     },
     get providerRuntimeStatuses() {
       return runtimes.providerRuntimeStatuses();
@@ -319,7 +424,12 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions): 
     get providerKeys() {
       return providerKeys();
     },
-    codeLogin,
+    connection,
   };
-  return () => (serverId() ? settings : undefined);
+  return {
+    settings: (): HostProviderSettings | undefined => (serverId() ? settings : undefined),
+    /** The status with the host's accounts, for the model picker and the dock. */
+    status,
+    hostAccounts,
+  };
 }

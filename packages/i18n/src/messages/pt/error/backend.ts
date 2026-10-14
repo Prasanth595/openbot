@@ -58,6 +58,8 @@ export const messages = {
   "error.backend.channelNotFound": "Canal não encontrado.",
   "error.backend.channelMemberUnavailable": "Um membro do canal está indisponível.",
   "error.backend.channelArchived": "Restaure este canal antes de enviar mensagens ou alterar tarefas.",
+  "error.backend.channelsRetired":
+    "Os canais não são mais compatíveis. Coloque os agentes em uma seção da barra lateral para que trabalhem juntos.",
   "error.backend.channelReferenceUnavailable": "A mensagem do canal usada como referência está indisponível.",
   "error.backend.channelTaskNotFound": "Tarefa do canal não encontrada.",
   "error.backend.channelTaskComplete": "Esta tarefa já está concluída.",
@@ -81,6 +83,10 @@ export const messages = {
   "error.backend.memoryOperationFailed": "A operação de memória falhou. Tente de novo.",
   "error.backend.memoryGone": "Esta memória não existe mais.",
   "error.backend.routineGone": "Esta rotina não existe mais.",
+  "error.backend.turnNotStarted": "O provedor não iniciou este turno.",
+  "error.backend.routineResultConnectionOff":
+    "Esta conexão de mensagens está desativada ou foi removida. Escolha outro lugar.",
+  "error.backend.routineResultNoDelivery": "Esta execução não tem uma resposta para enviar de novo.",
   "error.backend.channelMemoryLimit": "Um canal pode ter até {limit} memórias.",
   "error.backend.channelRoutineLimit": "Um canal pode ter no máximo {limit} rotinas.",
   "error.backend.agentRoutineLimit": "Um agente pode ter no máximo {limit} rotinas.",
@@ -136,6 +142,7 @@ export const messages = {
     "Os agendamentos personalizados devem ter um intervalo de pelo menos {minutes} minutos entre execuções.",
   "error.backend.routineAnchorInvalid": "O ponto de referência do intervalo da rotina é inválido.",
   "error.backend.routineNoOccurrence": "O agendamento não tem nenhuma ocorrência nos próximos cinco anos.",
+  "error.backend.routineOncePassed": "O horário desta rotina única já passou. Escolha uma data ou hora posterior.",
   "error.backend.routineTimezoneInvalid": "O fuso horário da rotina é inválido.",
   "error.backend.routineCronFields": "Os agendamentos personalizados devem usar cinco campos cron.",
   "error.backend.routineCronValueInvalid": "O valor do campo cron {field} é inválido.",
@@ -164,8 +171,18 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Estes agentes já estão conectados nesta rotina.",
   "error.backend.routineFlowCycle": "Esta conexão criaria um loop.",
   "error.backend.routineFlowLinkLimit": "Uma rotina pode ter no máximo {limit} conexões.",
+  "error.backend.agentWaitLimit":
+    "Este agente já tem {count} esperas abertas. Feche uma espera com openbot.close_wait antes de abrir outra.",
+  "error.backend.agentWaitGone": "Esta espera não está aberta. O agente a fechou ou alguém a cancelou.",
+  "error.backend.agentWaitNoRequest": "Uma espera precisa de uma mensagem para continuar. Este turno não tem mensagem.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Abra uma espera apenas no seu próprio chat. Uma tarefa de canal ou de mensagens não pode esperar.",
+  "error.backend.agentWaitNoteRequired": "Escreva uma nota curta que diga para que serve a espera.",
+  "error.backend.agentWaitRoutineGone": "Este agente não tem nenhuma rotina com este id.",
+  "error.backend.agentWaitNoRoutine":
+    "Somente uma execução de uma das suas rotinas desperta uma espera, e você não tem nenhuma rotina. Crie uma com openbot.create_routine e depois abra a espera.",
+  "error.backend.agentWaitRemoteUnsupported": "As esperas abertas só estão disponíveis para agentes neste computador.",
   "error.backend.routineFlowHandoffFailed": "A rotina não conseguiu passar o trabalho para este agente.",
-  "error.backend.routineFlowRemoteUnsupported": "Fluxos de rotina só estão disponíveis para agentes neste computador.",
   "error.backend.mcpServerLimit": "O OpenBot mantém até {limit} servidores MCP.",
   "error.backend.mcpServerNameTaken": "Já existe um servidor MCP chamado {name}.",
   "error.backend.mcpServerNoAnswer": "O servidor não respondeu em {seconds} segundos.",
@@ -262,4 +279,11 @@ export const messages = {
     "O servidor respondeu com {status}. Verifique a chave de API ou outras credenciais.",
   "error.backend.mcpServerHttpUrl":
     "O servidor respondeu com {status}. Verifique a URL. O link pode estar incorreto, expirado ou excluído.",
+  "error.backend.mcpSignInAppUrl": "O app de autenticação precisa de uma URL de servidor válida.",
+  "error.backend.mcpSignInAppClientId": "Digite o ID do cliente do app de autenticação.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "O servidor de autenticação deste servidor MCP mudou, então o OpenBot não enviou o app de autenticação a ele. Se a mudança estiver correta, remova o app de autenticação e adicione-o de novo.",
+  "error.backend.mcpSignInAppNoServer":
+    "Salve este servidor MCP como servidor de URL antes de adicionar um app de autenticação.",
+  "error.backend.mcpSignInAppUnavailable": "Este computador não consegue guardar um app de autenticação.",
 } as const satisfies PartialTranslation<typeof source>;

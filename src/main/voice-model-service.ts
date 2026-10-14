@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import { createReadStream, existsSync } from "node:fs";
 import { mkdir, open, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import type { VoiceModelId, VoiceModelStatus } from "@openbot/contracts/ipc";
+import type { LocalVoiceModelId, VoiceModelStatus } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Exit, Fiber, Result, Schema, Scope, Stream } from "effect";
 import { causeHelpers } from "../backend/effect-boundary";
@@ -84,7 +84,7 @@ const WHISPER_TURBO_MODEL_FILES: readonly VoiceModelFile[] = [
 ];
 
 /** The files of each model. */
-const VOICE_MODEL_FILES: Record<VoiceModelId, readonly VoiceModelFile[]> = {
+const VOICE_MODEL_FILES: Record<LocalVoiceModelId, readonly VoiceModelFile[]> = {
   "parakeet-tdt-0.6b-v3": PARAKEET_MODEL_FILES,
   "whisper-turbo": WHISPER_TURBO_MODEL_FILES,
 };
@@ -94,7 +94,7 @@ interface VoiceModelEvents {
 }
 
 interface VoiceModelServiceOptions {
-  modelId?: VoiceModelId;
+  modelId?: LocalVoiceModelId;
   directory: string;
   files?: readonly VoiceModelFile[];
   fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -107,7 +107,7 @@ interface VerifiedFile {
 }
 
 export class VoiceModelService extends EventEmitter<VoiceModelEvents> {
-  readonly modelId: VoiceModelId;
+  readonly modelId: LocalVoiceModelId;
   readonly #directory: string;
   readonly #files: readonly VoiceModelFile[];
   readonly #totalBytes: number;

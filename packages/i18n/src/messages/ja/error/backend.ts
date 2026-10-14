@@ -55,6 +55,8 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "チャンネルのメンバーを使用できません。",
   "error.backend.channelArchived":
     "メッセージを送信したりタスクを変更したりする前に、このチャンネルを復元してください。",
+  "error.backend.channelsRetired":
+    "チャンネルはサポートされなくなりました。エージェントを同じサイドバーのセクションに入れると、一緒に作業できます。",
   "error.backend.channelReferenceUnavailable": "参照先のチャンネルメッセージを使用できません。",
   "error.backend.channelTaskNotFound": "チャンネルのタスクが見つかりません。",
   "error.backend.channelTaskComplete": "このタスクはすでに完了しています。",
@@ -79,6 +81,10 @@ export const messages = {
   "error.backend.memoryOperationFailed": "メモリーの操作に失敗しました。もう一度お試しください。",
   "error.backend.memoryGone": "このメモリーはもう存在しません。",
   "error.backend.routineGone": "このルーティンはもう存在しません。",
+  "error.backend.turnNotStarted": "プロバイダーはこのターンを開始しませんでした。",
+  "error.backend.routineResultConnectionOff":
+    "このメッセージ接続はオフか削除されています。別の送信先を選んでください。",
+  "error.backend.routineResultNoDelivery": "この実行には再送信できる回答がありません。",
   "error.backend.channelMemoryLimit": "1 つのチャンネルに置けるメモリーは {limit} 個までです。",
   "error.backend.channelRoutineLimit": "1 つのチャンネルに置けるルーティンは {limit} 個までです。",
   "error.backend.agentRoutineLimit": "1 つのエージェントに置けるルーティンは {limit} 個までです。",
@@ -132,6 +138,8 @@ export const messages = {
   "error.backend.routineCronTooOften": "カスタムスケジュールの実行間隔は {minutes} 分以上にしてください。",
   "error.backend.routineAnchorInvalid": "ルーティンの間隔の起点が無効です。",
   "error.backend.routineNoOccurrence": "このスケジュールは今後 5 年以内に実行されません。",
+  "error.backend.routineOncePassed":
+    "この 1 回限りのルーティンの日時は過ぎています。後の日付または時刻を選んでください。",
   "error.backend.routineTimezoneInvalid": "ルーティンのタイムゾーンが無効です。",
   "error.backend.routineCronFields": "カスタムスケジュールには 5 つの cron フィールドを使用してください。",
   "error.backend.routineCronValueInvalid": "cron の {field} の値が無効です。",
@@ -161,9 +169,19 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "これらのエージェントはこのルーティンですでに接続されています。",
   "error.backend.routineFlowCycle": "この接続はループになります。",
   "error.backend.routineFlowLinkLimit": "1 つのルーティンの接続は最大 {limit} 個です。",
+  "error.backend.agentWaitLimit":
+    "このエージェントにはすでに開いている待機が {count} 件あります。別の待機を開く前に、openbot.close_wait で待機を閉じてください。",
+  "error.backend.agentWaitGone": "この待機は開いていません。エージェントが閉じたか、誰かがキャンセルしました。",
+  "error.backend.agentWaitNoRequest": "待機を続行するにはメッセージが必要です。このターンにはメッセージがありません。",
+  "error.backend.agentWaitOwnChatOnly":
+    "待機は自分のチャットでのみ開いてください。チャンネルやメッセージングのタスクは待機できません。",
+  "error.backend.agentWaitNoteRequired": "待機の目的を示す短いメモを入力してください。",
+  "error.backend.agentWaitRoutineGone": "このエージェントにはこの ID のルーティンがありません。",
+  "error.backend.agentWaitNoRoutine":
+    "待機を再開できるのは自分のルーティンの実行だけですが、ルーティンがありません。openbot.create_routine でルーティンを作成してから、待機を開いてください。",
+  "error.backend.agentWaitRemoteUnsupported":
+    "開いている待機は、このコンピューター上のエージェントでのみ使用できます。",
   "error.backend.routineFlowHandoffFailed": "ルーティンはこのエージェントに作業を渡せませんでした。",
-  "error.backend.routineFlowRemoteUnsupported":
-    "ルーティンのフローは、このコンピュータ上のエージェントでのみ利用できます。",
   "error.backend.mcpServerLimit": "OpenBot に保存できる MCP サーバーは {limit} 個までです。",
   "error.backend.mcpServerNameTaken": "{name} という名前の MCP サーバーはすでに存在します。",
   "error.backend.mcpServerNoAnswer": "サーバーは {seconds} 秒以内に応答しませんでした。",
@@ -262,4 +280,11 @@ export const messages = {
     "サーバーは {status} を返しました。API キーまたはその他の認証情報を確認してください。",
   "error.backend.mcpServerHttpUrl":
     "サーバーは {status} を返しました。URL を確認してください。リンクが間違っているか、期限切れか、削除されている可能性があります。",
+  "error.backend.mcpSignInAppUrl": "サインインアプリには有効なサーバー URL が必要です。",
+  "error.backend.mcpSignInAppClientId": "サインインアプリのクライアント ID を入力してください。",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "この MCP サーバーのサインインサーバーが変わったため、OpenBot はサインインアプリを送信しませんでした。この変更が正しい場合は、サインインアプリを削除してからもう一度追加してください。",
+  "error.backend.mcpSignInAppNoServer":
+    "サインインアプリを追加する前に、この MCP サーバーを URL サーバーとして保存してください。",
+  "error.backend.mcpSignInAppUnavailable": "このコンピューターではサインインアプリを保存できません。",
 } as const satisfies PartialTranslation<typeof source>;

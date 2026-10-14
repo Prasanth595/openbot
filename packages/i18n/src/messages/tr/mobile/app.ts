@@ -3,8 +3,6 @@ import type { messages as source } from "../../en/mobile/app";
 
 export const messages = {
   "mobile.app.route.scanQrCode": "QR kodunu tara",
-  "mobile.app.route.actionsNeeded": "Gerekli işlemler",
-  "mobile.app.route.newChannel": "Yeni kanal",
   "mobile.app.route.createAgent": "Ajan oluştur",
   "mobile.app.route.addSharedAgent": "Paylaşılan bir ajan ekle",
   "mobile.app.route.newSection": "Yeni bölüm",
@@ -14,7 +12,6 @@ export const messages = {
   "mobile.app.route.about": "Hakkında",
   "mobile.app.route.support": "Destek",
   "mobile.app.route.hiddenChats": "Gizli sohbetler",
-  "mobile.app.route.deletedChannels": "Silinen kanallar",
   "mobile.app.route.cropPhoto": "Taşı ve Ölçeklendir",
   "mobile.app.route.queuedMessages": "Kuyruktaki mesajlar",
   "mobile.app.route.messageOptions": "Mesaj seçenekleri",
@@ -26,10 +23,4 @@ export const messages = {
   "mobile.app.route.routines": "Rutinler",
   "mobile.app.route.routine": "Rutin",
   "mobile.app.route.usage": "Kullanım",
-  "mobile.app.route.message": "Mesaj",
-  "mobile.app.messageActions.reply": "Yanıtla",
-  "mobile.app.messageActions.selectText": "Metni Seç",
-  "mobile.app.messageActions.copied": "Mesaj kopyalandı",
-  "mobile.app.messageActions.copy": "Mesajı kopyala",
-  "mobile.app.messageActions.text": "Mesaj metni",
 } as const satisfies PartialTranslation<typeof source>;

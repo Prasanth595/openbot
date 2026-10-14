@@ -3,8 +3,9 @@
 A hosted server is an OpenBot server that runs in a [boat](https://boat.dev) sandbox, so it works
 when the user's computer is off. Each server is one boat sandbox for one account. The sandbox runs
 the Linux build of OpenBot on the boat desktop. The server runs while it is in use. After 15 minutes with no
-use, the Worker stops it and keeps its data. The next client starts it again, and the Worker cron
-starts it before its next routine run. A connected client counts as use for 5 minutes after its
+use, the Worker stops it and keeps its data. The next client starts it again, the Worker cron
+starts it before its next routine run, and Signal starts it for a Slack, Discord or Telegram message
+that addresses OpenBot (see [Connector events](#connector-events)). A connected client counts as use for 5 minutes after its
 last user action (`CLIENT_USE_WINDOW_MS`): a request that changes data, or a typing event. Reads and
 the requests that a client sends with no user action (polls, previews, mark-read) do not count
 (`src/main/team-api/client-use.ts`). So an app that is open but not used does not keep the server on:
@@ -17,7 +18,7 @@ uses the scripts and units of this page with `mode` set to `self`.
 The Worker enables hosted servers only when it has the boat and Stripe secrets and
 `HOSTED_SERVER_TEMPLATE`, and only for the account IDs or emails in `HOSTED_SERVERS_ALLOWED_USER_IDS` (`*`
 allows each account; with no value, no account can create a server). Production sets `*` in
-`wrangler.jsonc`, so each account can buy a server. See [Production](#production). An account can have 3 servers that are not
+`wrangler.jsonc`, so each account can buy a server. See [Production](#production). An account can have 50 servers that are not
 deleted (`MAX_SERVERS_PER_ACCOUNT`). An account has at most one server that waits for its first
 payment: a create with a new Idempotency-Key gives its plan to that server and opens a new page. So a
 cancelled or abandoned Checkout page adds no server, also when the client lost its key (the web client
@@ -37,7 +38,7 @@ has its own Stripe plan. Its machine comes from the plan
 | Server bootstrap | `src/main/hosted-server-bootstrap.ts` | On the first start, redeems the claim, signs in, and publishes the host. |
 | Start retry | `src/main/hosted-server-start-retry.ts` | Publishes the host again after a failed start. |
 | Activity report | `src/main/hosted-server-activity.ts` | Tells the Worker that the server is in use, and when its next routine runs. |
-| Memory guard | `src/main/hosted-server-memory.ts`, `src/backend/agent/memory-hold.ts`, `turn-slots.ts` | Reads the memory of the server, holds new turns when it is low, and limits the turns that run at the same time. See [Memory](#memory). |
+| Memory guard | `src/main/server-memory.ts`, `src/backend/agent/memory-hold.ts`, `turn-slots.ts` | Reads the memory of the server, holds new turns when it is low, and limits the turns that run at the same time. See [Memory](#memory). |
 | Billing link | `apps/auth-api/src/server/hosted-billing.ts`, `billing-service.ts` | Opens Stripe Checkout for a new server. Tells the hosting service when a subscription changes. |
 | Desktop and web clients | `AddServerOverlay`, `SettingsHostedServersTab`, `hosted-server-service.ts`, `web-hosted-servers.ts`, `web-hosted-server-wake.ts` | Pick a plan, pay, list, start, renew and delete. The web app shows the list in Billing. Start a stopped server when a connection fails. |
 | Mobile client | `mobile-workspace-context.tsx` | Starts the selected stopped server when a connection fails. |
@@ -78,7 +79,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    `~/.config/openbot-hosted/env` (mode 0600). `openbot.service` waits for this file.
 4. **First boot.** OpenBot starts with `OPENBOT_HOSTED_SERVER=1`. It redeems the claim at
    `POST /v2/hosting/claims/redeem`, signs in as the owner, keeps the host ID, and publishes the
-   host. `registerHost` refuses the host ID for any other account.
+   host. `registerHost` refuses the host ID for any other account. This claim is not the operator's
+   [server claim](self-hosted-server.md#sign-in-with-a-server-claim) of a self-hosted server.
 5. **In use.** OpenBot checks each minute whether the server is in use: an agent works, a remote
    desktop view is open, a file moves, or a remote client is connected (an open Team API event
    stream) and sent a user action or a typing event in the last 5 minutes. A key press or pointer
@@ -93,6 +95,10 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    `archived` for a server in use (for example, after maintenance), the webhook resumes the sandbox
    at once. The Worker cron (each minute on `test`) resumes a server that stays `stopped` for 2
    minutes.
+
+   A live Slack, Discord or Telegram connection is not use when the last Signal said
+   `ingress-queue` in `ready` and the host sent it a queue key: the server sleeps with its connectors.
+   Otherwise (an older Signal, or no key) the connection counts as use, so no message is lost.
 
    **Idle.** The cron stops a running server with no activity and no state change for 15 minutes:
    `desired_state = 'idle'`, and boat saves the disk. It does not stop a server whose next routine
@@ -159,7 +165,16 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    or that was not running at the plan change, gets the new machine at its next resume. When the data does not fit a smaller machine, boat refuses it
    (`409 type_too_small`); the server then starts on its old machine, and the Worker does not try
    again until the next plan change.
-9. **Delete.** `DELETE /v2/hosting/servers/:id` with `{confirmName}`. The Worker first closes the
+9. **Restart.** The owner or an admin selects Restart server in the server menu, above Leave or
+   Delete. The account host list (`GET /v2/remote/hosts/`) marks each hosted server with
+   `hosted: true` while its plan is active, so the clients of an admin know where to show it.
+   `POST /v2/hosting/servers/:id/restart` (the owner, or an active admin membership) moves a
+   `running` row to `stopping` and stops the sandbox. The `archived` webhook (or the cron) then
+   resumes it with the wake reason `restart`. A row in any other state gets a wake. boat answers `409` when the sandbox is busy; the Worker
+   puts the row back to `running` and answers `409 hosted_server_restart_busy`. The Worker uses stop
+   and resume because the production boat key has no command access. The clients connect again as
+   after a wake: a wake reply of `stopping` now also starts the reconnects.
+10. **Delete.** `DELETE /v2/hosting/servers/:id` with `{confirmName}`. The Worker first closes the
    open Checkout page. When the user paid on it just now, the Worker keeps the server and answers
    `409 hosted_server_paid`, so the owner sees the server before a second delete cancels the plan.
    Then it cancels the open plan now, with no refund. A Stripe failure stops the delete (502), so
@@ -373,7 +388,9 @@ the units it knows. So `openbot.service` runs `openbot-hosted-update trigger` as
 starts; it installs and starts the request units when they are missing. OpenBot offers the controls
 only when `/etc/systemd/system/openbot-update-request.path` is there at its start. Otherwise, and on
 hosts older than this release, the panel checks the release (`host-release-v1`) and shows the
-host-managed update path. A container has no request units.
+host-managed update path. A container has no request units. A container of `docker/instances` uses
+the same `HostedUpdateAdapter` with folders that the host mounts in `/var/lib/openbot-update`; see
+[Updates from the app](docker.md#updates-from-the-app).
 
 The Linux build contains `scripts/hosting/` (without the TypeScript files) in `resources/hosting`.
 On a server, root runs `openbot-hosted-update`:
@@ -386,13 +403,18 @@ On a server, root runs `openbot-hosted-update`:
    to `/opt/OpenBot/staged`.
    `staged.ready` comes after the last file. OpenBot keeps running. The download and unpack use
    idle CPU and disk priority.
-2. `openbot-update-apply.service` runs `apply` at boot, before `openbot.service`. boat stop and resume
-   work like a reboot, so the new release starts at the next wake of the server, not during use. It
-   copies `staged` to `app`, and then installs the scripts, AppArmor profile and units of the new
-   release. `.applying` and `staged` stay until all of this is complete, so after a stop or a
-   failure the next boot does it again, and `stage` does nothing until then. `openbot.service`
-   does not require `apply`, so it starts after a failure too: with the old release, or with a
-   partial copy after a failed copy, until the next boot.
+2. `apply` copies `staged` to `app`, and then installs the scripts, AppArmor profile and units of
+   the new release. `.applying` and `staged` stay until all of this is complete, so after a stop or
+   a failure the next start does it again, and `stage` does nothing until then.
+   `openbot-update-apply.service` runs `boot` before `openbot.service`. `boot` runs `apply` only on
+   a complete disk, or when `.applying` shows an interrupted copy. `openbot.service` does not
+   require it, so it starts after a failure too: with the old release, or with a partial copy after
+   a failed copy, until the next start. On a self-installed server, the new release starts at the
+   next boot. A hosted server installs it itself: when the release is staged, OpenBot asks root to
+   install it when idle, and when no connected client changed data or typed for 5 minutes and the
+   start was 5 minutes ago. Reading is not use. Server Settings shows this wait as "other work",
+   because `host-update-v1` has no reason for it. The automatic update switch of a hosted server
+   is always on.
 
 boat saves `/opt` by the paths that change, and it does not look into a directory that a rename
 moves. After the next stop, such a directory is empty or has its old files. So a release gets to
@@ -400,9 +422,17 @@ moves. After the next stop, such a directory is empty or has its old files. So a
 with a probe; not in boat documentation.]
 
 boat resumes a server on a machine that booted before, restores the disk lazily, and starts the
-units before the restore ends. `stage` waits until the restore ends (at most 4 minutes). `apply`
-waits only when it finds `staged.ready` or `.applying`, because OpenBot starts after it. When the
-restore does not show a staged release yet, the release applies at the next boot.
+units before the restore ends. The restore takes about 3.5 minutes. `stage` waits until it ends (at
+most 4 minutes), and OpenBot asks for `stage` before each install, so an install never stops
+OpenBot for the restore. `boot` waits only for an interrupted copy, because OpenBot starts after
+it. During a restore it skips a staged release and recovers an incomplete one.
+
+boat starts the desktop (`lightdm`) about 8 s after the resume, and then the enabled units of
+`multi-user.target` again, about 16 s after it. `openbot.service` is also wanted by
+`lightdm.service`, so it starts with the desktop. The second start of `openbot-update-apply.service`
+does nothing: the unit stays active (`RemainAfterExit`), and `boot` does nothing while OpenBot runs
+(after a failed `boot`). [Observed on a boat VM on 2026-10-11; not in boat
+documentation.]
 [Not confirmed in boat documentation: the `active` and `hydration-done` files in
 `/var/lib/ascii-lazy` that mark the restore. Observed on a boat VM.] `apply` never removes a staged
 release that is not complete.
@@ -444,7 +474,9 @@ A VM that never signed in keeps its claim in its env file. Each start of that se
 work again for one hour, so a VM that missed the first hour, or whose plan ended before it signed in,
 signs in at its next start. After the 10 minutes that follow the first redeem, the Worker never
 accepts the claim again, until the owner revokes the session of the server: then its next start makes
-the claim work again, and the server signs in with a new session. A new `REMOTE_TICKET_PRIVATE_JWK` changes
+the claim work again, and the server signs in with a new session. The account device list shows the
+session with the server name and `hostedServer: true`, so the owner can see which session to revoke
+when its token leaks. A new `REMOTE_TICKET_PRIVATE_JWK` changes
 each claim, so a VM that has no working session cannot sign in after the change; delete that server.
 
 A start that cannot reach the account server does not use the claim. The start retry signs in
@@ -454,7 +486,8 @@ again with backoff (30 s to 10 min) and then publishes the host.
 
 One systemd unit holds OpenBot, its browser tabs and every agent process: one `claude` process for
 each thread, and one set of MCP servers for each ACP session. A Starter server has 4 GB. The guards
-are only on a hosted server; the desktop app does not change.
+are on a hosted server, a [self-hosted server](self-hosted-server.md#memory) and a
+[container](docker.md#memory); the desktop app does not change.
 
 The unit (`openbot.service`):
 
@@ -475,7 +508,7 @@ The unit (`openbot.service`):
   less memory and does not protect main more: the memory test below shows the same victim in each
   case.
 
-The app (`HostedServerMemory`) reads the memory every 5 s. The free memory is the smaller of
+The app (`ServerMemory`) reads the memory every 5 s. The free memory is the smaller of
 `MemAvailable` and the free memory of the unit's cgroup (cgroup v2 `memory.max − memory.current`,
 plus `inactive_file` from `memory.stat`: the kernel takes that file cache back before the OOM killer
 acts). Each turn that started in the last 60 s counts 300 MB more, so routines that start together
@@ -504,6 +537,49 @@ unloads after 5 minutes. The active tab, a popup and its opener, and a tab with 
 takeover, a secret, a recording, a live view, staged uploads or sound do not unload. This also
 applies to the desktop app.
 
+## Connector events
+
+All messaging platforms use one path in Signal (`remote/api/src/ingress-queue.ts`). When an event
+comes for a route (a Slack workspace, a Discord guild or a Telegram chat) and no `ingress` socket
+holds it:
+
+1. Signal asks the Worker, signed, `POST /v2/remote/route-wake` with the route and `wake`. The Worker
+   finds the host in `slack_workspace_routes`, `discord_guild_routes` or `telegram_chat_routes`, and
+   answers `not_hosted`, `ended`, `sleeping` or `starting` before it starts anything, because Slack
+   waits at most 3 seconds. With `wake`, the server then starts in the background (`waitUntil`) as for
+   a client (`last_wake_reason = 'message'`). A plan that ended starts nothing. Signal asks at most
+   once a minute for each hosted route, and once in 10 minutes for another route.
+2. `wake` is true only for an event that addresses OpenBot: a Slack button press, mention, direct
+   message or thread reply from a person; a Discord mention or button press; a Telegram message or
+   button press.
+3. For such an event and a server that starts, Signal keeps the delivery frame, sealed to the host's
+   queue key (`@openbot/contracts/signal-protocol/ingress-queue`), in memory for at most 10 minutes
+   (64 events and 192 KB for each host). Slack gets 200, so it does not send the event again. Because
+   the start runs after the answer and can fail, Signal asks for the start again once a minute while
+   the host has kept events. Signal
+   cannot read a kept event, and a restart of Signal loses it. Signal also keeps the queue keys only
+   in memory, and a host sends its key only in its hello. So after a restart of Signal, a server that
+   sleeps still starts for an event, but Signal does not keep that event: Slack sends it again, and a
+   Telegram or Discord event is lost. This is accepted: it happens only to the events that arrive
+   before the host connects again. Signal keeps the keys of at most 100,000 hosts.
+4. Another Slack event of a hosted server gets 200 and is dropped: the host keeps only messages that
+   address OpenBot, and joins the public channels again when its connection starts.
+5. When the host's socket connects again, Signal sends each kept event of the routes that the socket
+   holds, in order, as `queued-delivery` with an `id`. The host opens it with its private key, handles
+   it as a normal delivery, and sends `queued-delivery-ack`. Signal keeps the event until that ack, and
+   sends it again on the host's next hello: the first socket can close before the host handled it. The
+   transports drop an event that they already handled.
+
+The host makes its queue key once (`src/main/ingress-queue-key.ts`, `openbot-ingress-queue-key-v1.json`
+in the user data folder), encrypted by the operating system, and sends the public half in each
+`ingress` hello. An older host sends no key, so Signal keeps nothing for it; a hello with no key
+removes the key that Signal had. A kept delivery that arrives before its connection has started waits
+up to 60 seconds for it, only while the connection can still start. When the account service does
+not answer, Signal keeps nothing and does not remember the failure. Signal says `ingress-queue` only
+when the account service had `/v2/remote/route-wake` when Signal started, so deploy the account
+service first. Generic webhooks do not
+start a server: their sender sends again after a 503.
+
 ## Tested on boat
 
 The `boat` scenario of `scripts/stripe-flows-e2e.ts` (see `apps/auth-api/README.md`) passed on
@@ -522,6 +598,12 @@ secret in `/srv` stays. From the resume call to the OpenBot start took 7 to 34 s
 took 40 ms. Most of the time is boat: it restores the disk and then starts the enabled units, 5 to
 20 s after the sandbox is `idle`.
 
+A wake test on 2026-10-11 (one hosted server with 0.37.0) measured, from the resume call: boat
+ready at 4 s, `openbot.service` at 17 s and the host register at 22 s. A wake with a staged release
+took 3 min 35 s, because `apply` waited for the restore. With the start at `lightdm`,
+`openbot.service` started at 8 s and the host registered at about 20 s: Electron starts slowly from
+the lazily restored disk, and the desktop session holds the display until about 12 s.
+
 A resize test on 2026-09-28 (one plain sandbox with `noEnv`, `small → default → small`, each a stop
 and a resume with `type`) confirmed that boat changes the machine in place with the same sandbox
 ID (2 vCPU/4 GB, then 4 vCPU/8 GB, then 2 vCPU/4 GB). Files in `/srv` and in the home folder stayed,
@@ -529,7 +611,7 @@ and an enabled systemd unit started again after each resume. The stop took 25 to
 sandbox was `idle` 3 to 6 s after the resume call.
 
 A memory test on 2026-09-30 (one `small` sandbox with `noEnv`, the scripts and the Linux AppImage of
-main, and a `HostedServerMemory` driver in a unit with the same limits as `openbot.service`)
+main, and a `ServerMemory` driver in a unit with the same limits as `openbot.service`)
 confirmed:
 
 - boat VMs use cgroup v2 with the memory controller, and the unit gets `memory.max` = 90% (3.4 GiB);

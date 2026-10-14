@@ -30,7 +30,7 @@ import {
   currentModelFromSessionSetup,
   sessionSettingsSnapshot,
 } from "./acp-configuration";
-import { AcpConnection } from "./acp-connection";
+import { AcpConnection, type AcpConnectionOptions } from "./acp-connection";
 import { acpPlanSteps, PLAN_UPDATED_METHOD } from "./agent/plan-updates";
 import { elicitationOptions, elicitationValue, secretElicitationField } from "./agent/prompts";
 import { isUsageLimitDiagnostic } from "./agent/provider-diagnostics";
@@ -67,6 +67,7 @@ import {
 } from "./protocol";
 import {
   type ProviderClientOperationError,
+  ProviderSignInError,
   providerCall,
   providerFailure,
   providerResult,
@@ -107,11 +108,20 @@ interface AcpTurn {
   thought: string;
   thoughtStarted: boolean;
   receivedOutput: boolean;
+  /** The model sent reasoning text. An empty OpenCode turn then names reasoning without an answer. */
+  reasoned: boolean;
   /**
    * The partial reply and the harness error that cut it. It becomes the answer when no text comes
    * after the error, because then the harness did not retry.
    */
   interruptedAnswer: string | null;
+  /** A failure that the server sent as answer text and then ended the turn as a success. */
+  providerError: string | null;
+  /**
+   * Where the answer text stood when Antigravity logged that its SDK failed this prompt. The
+   * server then sends the failure as answer text and ends the turn as a success.
+   */
+  sdkFailureAt: number | null;
   /** The prompt told the model not to answer, so an empty turn is a success. */
   answerOptional: boolean;
   messages: ThreadItem[];
@@ -174,7 +184,7 @@ const ACP_SESSION_IDLE_RELEASE_MS = 10 * 60_000;
  * user's MCP servers (`npx chrome-devtools-mcp` is about 300 MB), so one turn on each of five agents
  * otherwise holds five sets for ten minutes.
  */
-export const ACP_IDLE_SESSION_LIMIT = 2;
+const ACP_IDLE_SESSION_LIMIT = 2;
 
 interface AcpProviderAccount {
   email: string | null;
@@ -253,6 +263,8 @@ export interface AcpProviderOptions {
    * when this computer cannot make the sandbox, and then the process does not start.
    */
   confine?(target: SpawnTarget): SpawnTarget;
+  /** A temporary folder of its own for each process (`provider-temp.ts`). */
+  privateTemp?: AcpConnectionOptions["privateTemp"];
   signInMessage: string;
   /**
    * Whether the model this turn runs on may still be used. Read here, after every wait this client
@@ -273,6 +285,16 @@ export interface AcpProviderOptions {
     connection: ClientSideConnection,
     initialization: InitializeResponse,
   ): Effect.Effect<void, ProviderClientOperationError>;
+  /**
+   * The message for a refused sign-in while a saved key is in use, or `null` without a key. A
+   * refused key must say so: a browser sign-in cannot help while the key wins over it.
+   */
+  savedKeyRefusedMessage?: () => string | null;
+  /**
+   * The stderr line of a server that starts an interactive sign-in by itself when its token is not
+   * valid. The account check then reports sign-in required at once and does not wait for the user.
+   */
+  interactiveSignInPrompt?: RegExp;
   /**
    * Reads optional identity fields that ACP does not define. A provider extension failing must not
    * turn a working authenticated process into a signed-out one, so account/read falls back to null
@@ -336,6 +358,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   #models: AcpModel[] = [];
   #lastTurnStartedAt = 0;
   #signedIn = false;
+  /** Settles when the server asks for an interactive sign-in while `initialize` checks the account. */
+  #signInPrompt: Deferred.Deferred<void> | null = null;
 
   constructor(
     cli: AgentCliInfo,
@@ -350,9 +374,27 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       env: options.env,
       extraEnv: options.extraEnv,
       confine: options.confine,
+      privateTemp: options.privateTemp,
       label: () => this.#label,
       redact: (text) => this.#redact(text),
-      diagnostic: (message, origin) => this.emit("diagnostic", message, origin),
+      privateDiagnostic: options.interactiveSignInPrompt,
+      diagnostic: (message, origin) => {
+        // The prompt carries OAuth state, so it is not a diagnostic. Only an explicit sign-in opens it.
+        if (options.interactiveSignInPrompt?.test(message)) {
+          if (this.#signInPrompt) Deferred.doneUnsafe(this.#signInPrompt, Exit.void);
+          else {
+            // The token stopped being valid after the account check, and the server now waits five
+            // minutes for a browser that does not open. The process ends, so its request fails now.
+            this.#signedIn = false;
+            this.emit("exit", new Error(options.signInMessage));
+          }
+          return;
+        }
+        const failedSession = options.provider === "antigravity" ? GEMINI_SDK_FAILURE.exec(message)?.[1] : undefined;
+        const failedTurn = failedSession ? this.#threads.get(failedSession)?.activeTurn : undefined;
+        if (failedTurn && failedTurn.sdkFailureAt === null) failedTurn.sdkFailureAt = failedTurn.text.length;
+        this.emit("diagnostic", message, origin);
+      },
       exit: (error) => this.emit("exit", error),
       client: () => ({
         requestPermission: (params) => runCauseEffect(this.#requestPermission(params)),
@@ -885,19 +927,33 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       }),
     );
     const initialization = this.#initialization;
+    const signInPrompt = Deferred.makeUnsafe<void>();
+    this.#signInPrompt = signInPrompt;
     try {
       providerResult(yield* Effect.result(this.options.authenticate?.(connection, initialization) ?? Effect.void));
-      this.#models = providerResult(yield* Effect.result(this.#configuration.discoverModels(timeoutMs)));
+      const discovery = yield* Effect.raceFirst(
+        Effect.result(this.#configuration.discoverModels(timeoutMs)),
+        Deferred.await(signInPrompt).pipe(Effect.as(null)),
+      );
+      if (!discovery) {
+        this.#signedIn = false;
+        return;
+      }
+      this.#models = providerResult(discovery);
       if (this.#models.length === 0 && !this.options.allowNoModels) {
         throw new Error(sourceText("error.provider.acpNoModels"));
       }
       this.#signedIn = true;
     } catch (error) {
       if (isAuthenticationError(error)) {
+        const keyRefused = this.options.savedKeyRefusedMessage?.();
+        if (keyRefused) return yield* providerFailure(new ProviderSignInError({ message: keyRefused }));
         this.#signedIn = false;
         return;
       }
       return yield* providerFailure(error);
+    } finally {
+      this.#signInPrompt = null;
     }
   });
 
@@ -1475,7 +1531,10 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       thought: "",
       thoughtStarted: false,
       receivedOutput: false,
+      reasoned: false,
       interruptedAnswer: null,
+      providerError: null,
+      sdkFailureAt: null,
       answerOptional: isRecord(params) && params.answerOptional === true,
       messages: [],
       toolNames: new Map(),
@@ -1522,9 +1581,11 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           method: "openbot/usage",
           params: { threadId: thread.id, turnId: turn.id, usage: response.usage },
         });
-      // OpenCode can swallow provider errors and report a successful, empty ACP turn.
-      // Do not invent the upstream cause or report that turn as a successful reply. A turn told not
-      // to answer ends empty on purpose, and an error there costs no answer the user waits for.
+      // OpenCode reports a model reply with no text, or with reasoning only, as a successful empty
+      // turn and logs no error. OpenCode 1.18.31 failed the prompt on a rate limit and on a refused
+      // connection; other provider errors can still end here. Do not invent the upstream cause or
+      // report that turn as a successful reply. A turn told not to answer ends empty on purpose, and
+      // an error there costs no answer the user waits for.
       if (
         this.provider === "opencode" &&
         response.stopReason === "end_turn" &&
@@ -1535,17 +1596,41 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           thread,
           turn,
           "failed",
-          "OpenCode returned no response. Check the selected model's sign-in and billing in OpenCode, then retry or choose another model.",
+          sourceText(
+            turn.reasoned ? "error.provider.opencodeReasoningWithoutAnswer" : "error.provider.opencodeNoAnswer",
+          ),
         );
         return;
+      }
+      if (
+        this.provider === "antigravity" &&
+        !turn.providerError &&
+        !turn.stopped &&
+        response.stopReason === "end_turn"
+      ) {
+        // The server's SDK failed the prompt and sent its message as the answer (1.3.0). The text
+        // before the failure is the partial answer; the rest is the message.
+        const failureAt = turn.sdkFailureAt ?? (GEMINI_EXECUTION_ERROR_ANSWER.test(turn.text) ? 0 : null);
+        const failure = failureAt === null ? "" : turn.text.slice(failureAt).trim();
+        if (failureAt !== null) {
+          turn.providerError = geminiTurnFailure(failure || turn.text.trim());
+          turn.text = failure ? turn.text.slice(0, failureAt) : "";
+        }
       }
       const status =
         turn.stopped || response.stopReason === "cancelled"
           ? "interrupted"
           : response.stopReason === "end_turn"
-            ? "completed"
+            ? turn.providerError
+              ? "failed"
+              : "completed"
             : "failed";
-      yield* this.#completeTurn(thread, turn, status, status === "failed" ? response.stopReason : null);
+      yield* this.#completeTurn(
+        thread,
+        turn,
+        status,
+        status === "failed" ? (turn.providerError ?? response.stopReason) : null,
+      );
     } catch (error) {
       yield* this.#completeTurn(thread, turn, turn.stopped ? "interrupted" : "failed", turn.stopped ? null : error);
     }
@@ -1568,6 +1653,15 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     const turn = thread.activeTurn;
     if (!turn || turn.completing) return;
     if (update.sessionUpdate === "agent_message_chunk" && update.content.type === "text") {
+      // Antigravity reports an exhausted quota as answer text and ends the turn as a success.
+      const quota = this.provider === "antigravity" ? GEMINI_QUOTA_CHUNK.exec(update.content.text) : null;
+      if (quota) {
+        turn.receivedOutput = true;
+        turn.providerError = sourceText("error.provider.antigravityRateLimited", {
+          detail: shownFailureDetail(quota[1]?.trim() ?? ""),
+        });
+        return;
+      }
       // A harness reports a dropped stream as answer text, and then sends the retried answer (#1471).
       // The report gets its own muted item, so it is not joined to the answer around it. When no
       // retried answer comes, the partial reply and the report become the answer.
@@ -1587,7 +1681,8 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       }
       // Antigravity keeps session/prompt open while background tasks run. Its text must not
       // wait for that response. A later tool/thought boundary can still classify it as commentary.
-      if (this.provider === "antigravity" && update.content.text) {
+      // Text after an SDK failure is the failure, which the turn reports when it ends.
+      if (this.provider === "antigravity" && update.content.text && turn.sdkFailureAt === null) {
         if (!turn.text)
           this.emit("notification", {
             method: "item/started",
@@ -1606,6 +1701,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       return;
     }
     if (update.sessionUpdate === "agent_thought_chunk" && update.content.type === "text") {
+      if (update.content.text.trim()) turn.reasoned = true;
       this.#appendThought(thread, turn, update.content.text);
       return;
     }
@@ -1811,6 +1907,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (this.options.profileGeneration) return { outcome: { outcome: "cancelled" } };
     if (this.#historyReplays.has(params.sessionId)) return { outcome: { outcome: "cancelled" } };
     const thread = this.#threads.get(params.sessionId);
+    // The user stopped this Antigravity session, and its harness can still run until the resume.
+    // A tool that it asks for now must not run.
+    if (thread?.needsResume && !thread.activeTurn) return { outcome: { outcome: "cancelled" } };
     const turnId = thread?.activeTurn?.id ?? randomUUID();
     const kind =
       params.toolCall.kind === "execute"
@@ -2028,6 +2127,14 @@ function isSessionNotFound(error: unknown, sessionId: string, provider: AgentPro
   if (provider === "acp" && error.code === -32603) {
     return isRecord(error.data) && error.data.details === `Unsupported ACP session: ${sessionId}`;
   }
+  // Antigravity 1.3.0 has three exact forms: a load or resume puts the ID in data.sessionId, a
+  // configuration change uses the SDK's resource URI `session <id>`, and a prompt raises a plain
+  // error that the SDK wraps as an internal error.
+  if (provider === "antigravity") {
+    if (!isRecord(error.data)) return false;
+    if (error.code === -32603) return error.data.details === `Session not found: ${sessionId}`;
+    return error.code === -32002 && (error.data.sessionId === sessionId || error.data.uri === `session ${sessionId}`);
+  }
   if (error.code !== -32002) return false;
   const uri = isRecord(error.data) ? error.data.uri : undefined;
   return uri === sessionId || error.message.includes(sessionId);
@@ -2064,6 +2171,20 @@ function isOpenCodeServiceFailure(error: unknown): boolean {
  * mid-response. The response above may be incomplete." Only the full report matches, so answer text
  * that starts with "API Error: " stays in the answer.
  */
+/** Antigravity 1.3.0's `quota_exhausted_message`: a fixed header, then the reset time. */
+const GEMINI_QUOTA_CHUNK = /^\s*Usage Limit Reached\n\n([\s\S]*)$/u;
+/** The stderr record that Antigravity 1.3.0 writes before it sends an SDK failure as answer text. */
+const GEMINI_SDK_FAILURE = /\bAntigravity SDK error processing prompt for session (\S+)/u;
+/** `format_execution_error` of Antigravity 1.3.0 when the failure is not a Google API error. */
+const GEMINI_EXECUTION_ERROR_ANSWER = /^\s*Agent execution error: /u;
+
+/** The message of a Gemini turn that the server failed but reported as answer text. */
+function geminiTurnFailure(text: string): string {
+  // Google's API answer for a refused key. The key is the user's to fix, not the request.
+  if (/\bAPI key not valid\b|\bAPI_KEY_INVALID\b/u.test(text)) return sourceText("error.provider.geminiKeyRefused");
+  const key = GEMINI_REQUEST_FAILURES.find(([, pattern]) => pattern.test(text))?.[0];
+  return key ? sourceText(key, { detail: shownFailureDetail(text) }) : shownFailureDetail(text);
+}
 const HARNESS_ERROR_CHUNK = /^\s*API Error: [^\n]*The response above may be incomplete\.\s*$/u;
 
 const OPENCODE_FAILURE_DETAIL_LIMIT = 200;

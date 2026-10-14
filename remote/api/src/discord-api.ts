@@ -4,11 +4,13 @@
 
 import {
   DISCORD_CUSTOM_ID_PREFIX,
+  DISCORD_LIST_CHANNELS_LIMIT,
   DISCORD_LIST_MESSAGES_LIMIT,
   DISCORD_MESSAGE_TEXT_LIMIT,
   type DiscordApiErrorCode,
   type DiscordApiRequest,
   type DiscordButton,
+  type DiscordChannelSummary,
   type DiscordHistoryMessage,
 } from "@openbot/contracts/signal-protocol/discord-api";
 import { Effect, Schema } from "effect";
@@ -64,6 +66,7 @@ const discordApiRequestSchema = z.discriminatedUnion("op", [
   }),
   z.strictObject({ op: z.literal("member"), guildId: snowflakeSchema, userId: snowflakeSchema }),
   z.strictObject({ op: z.literal("channel"), guildId: snowflakeSchema, channelId: snowflakeSchema }),
+  z.strictObject({ op: z.literal("listChannels"), guildId: snowflakeSchema }),
   z.strictObject({
     op: z.literal("interactionReply"),
     guildId: snowflakeSchema,
@@ -133,6 +136,7 @@ type DiscordApiResult =
   | { messageId: string }
   | { name: string }
   | { messages: DiscordHistoryMessage[] }
+  | { channels: DiscordChannelSummary[] }
   | Record<string, never>;
 
 export interface DiscordApi {
@@ -145,6 +149,42 @@ const channelSchema = z.object({
   guild_id: snowflakeSchema.optional(),
   name: z.string().nullish(),
 });
+const permissionsSchema = z.string().regex(/^[0-9]{1,30}$/u);
+const overwriteSchema = z.object({
+  id: snowflakeSchema,
+  type: z.number().int(),
+  allow: permissionsSchema,
+  deny: permissionsSchema,
+});
+const guildChannelsSchema = z.array(
+  z.object({
+    id: snowflakeSchema,
+    type: z.number().int(),
+    name: z.string().nullish(),
+    permission_overwrites: z.array(overwriteSchema).optional(),
+  }),
+);
+const activeThreadsSchema = z.object({
+  threads: z.array(
+    z.object({
+      id: snowflakeSchema,
+      type: z.number().int(),
+      parent_id: snowflakeSchema.nullish(),
+      name: z.string().nullish(),
+    }),
+  ),
+  // One entry for each returned thread that the bot has joined.
+  members: z.array(z.object({ id: snowflakeSchema.optional() })).optional(),
+});
+const rolesSchema = z.array(z.object({ id: snowflakeSchema, permissions: permissionsSchema }));
+const botMemberSchema = z.object({ roles: z.array(snowflakeSchema) });
+/** Text and announcement channels: the guild channels that take a message. */
+const POSTABLE_CHANNEL_TYPES = new Set([0, 5]);
+const PRIVATE_THREAD_TYPE = 12;
+const ADMINISTRATOR = 1n << 3n;
+const VIEW_CHANNEL = 1n << 10n;
+const SEND_MESSAGES = 1n << 11n;
+const SEND_MESSAGES_IN_THREADS = 1n << 38n;
 const userSchema = z.object({
   id: snowflakeSchema,
   username: z.string(),
@@ -299,6 +339,53 @@ export function makeDiscordApi(transport: DiscordTransport, state: DiscordState)
         const channel = yield* guildChannel(request.guildId, request.channelId);
         return { name: channel.name };
       }
+      // Discord gives every channel of the guild, hidden ones too. Only the channels and threads that
+      // the bot can view and post in are listed, so a hidden channel's name does not reach the host.
+      case "listChannels": {
+        const guild = `/guilds/${request.guildId}` as const;
+        const botId = state.botUserId ?? state.applicationId;
+        const roles = yield* send({ method: "GET", route: `${guild}/roles` }).pipe(
+          Effect.flatMap((value) => decode(rolesSchema, value)),
+        );
+        const bot = yield* send({ method: "GET", route: `${guild}/members/${botId}` }).pipe(
+          Effect.flatMap((value) => decode(botMemberSchema, value)),
+        );
+        const guildChannels = yield* send({ method: "GET", route: `${guild}/channels` }).pipe(
+          Effect.flatMap((value) => decode(guildChannelsSchema, value)),
+        );
+        const active = yield* send({ method: "GET", route: `${guild}/threads/active` }).pipe(
+          Effect.flatMap((value) => decode(activeThreadsSchema, value)),
+        );
+        const memberRoles = new Set(bot.roles);
+        const rolePermissions = new Map(roles.map((role) => [role.id, BigInt(role.permissions)]));
+        let base = rolePermissions.get(request.guildId) ?? 0n;
+        for (const role of memberRoles) base |= rolePermissions.get(role) ?? 0n;
+        const permissions = new Map(
+          guildChannels.map((channel) => [
+            channel.id,
+            channelPermissions(base, channel.permission_overwrites ?? [], request.guildId, memberRoles, botId),
+          ]),
+        );
+        const can = (channelId: string | null | undefined, needed: bigint) =>
+          channelId != null && ((permissions.get(channelId) ?? 0n) & needed) === needed;
+        const joined = new Set((active.members ?? []).flatMap((member) => (member.id ? [member.id] : [])));
+        const channels: DiscordChannelSummary[] = [
+          ...guildChannels
+            .filter(
+              (channel) => POSTABLE_CHANNEL_TYPES.has(channel.type) && can(channel.id, VIEW_CHANNEL | SEND_MESSAGES),
+            )
+            .map((channel) => ({ id: channel.id, name: channel.name ?? "", kind: "channel" as const })),
+          ...active.threads
+            .filter(
+              (thread) =>
+                can(thread.parent_id, VIEW_CHANNEL | SEND_MESSAGES_IN_THREADS) &&
+                (thread.type !== PRIVATE_THREAD_TYPE || joined.has(thread.id)),
+            )
+            .map((thread) => ({ id: thread.id, name: thread.name ?? "", kind: "thread" as const })),
+        ].slice(0, DISCORD_LIST_CHANNELS_LIMIT);
+        for (const channel of channels) state.rememberChannel(channel.id, request.guildId, channel.name);
+        return { channels };
+      }
       case "interactionReply": {
         const token = state.interactionToken(request.interactionId, request.guildId);
         if (!token) return yield* failure(404, "not_found");
@@ -325,6 +412,34 @@ export function makeDiscordApi(transport: DiscordTransport, state: DiscordState)
   });
 
   return { call };
+}
+
+/**
+ * The bot's permissions in one channel, as Discord computes them: the guild permissions, then the
+ * `@everyone` overwrite, the overwrites of the bot's roles, and the bot's own overwrite.
+ */
+function channelPermissions(
+  base: bigint,
+  overwrites: readonly z.infer<typeof overwriteSchema>[],
+  guildId: string,
+  memberRoles: ReadonlySet<string>,
+  botId: string,
+): bigint {
+  if ((base & ADMINISTRATOR) === ADMINISTRATOR) return VIEW_CHANNEL | SEND_MESSAGES | SEND_MESSAGES_IN_THREADS;
+  let permissions = base;
+  const everyone = overwrites.find((overwrite) => overwrite.id === guildId);
+  if (everyone) permissions = (permissions & ~BigInt(everyone.deny)) | BigInt(everyone.allow);
+  let allow = 0n;
+  let deny = 0n;
+  for (const overwrite of overwrites)
+    if (overwrite.type === 0 && overwrite.id !== guildId && memberRoles.has(overwrite.id)) {
+      allow |= BigInt(overwrite.allow);
+      deny |= BigInt(overwrite.deny);
+    }
+  permissions = (permissions & ~deny) | allow;
+  const own = overwrites.find((overwrite) => overwrite.type === 1 && overwrite.id === botId);
+  if (own) permissions = (permissions & ~BigInt(own.deny)) | BigInt(own.allow);
+  return permissions;
 }
 
 function compareSnowflakes(left: string, right: string): number {

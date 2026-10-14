@@ -2,7 +2,10 @@ import type {
   AvatarImageInput,
   InviteSummary,
   McpServerConfig,
+  McpSignInAppState,
+  McpSignInRelayPage,
   McpTestResult,
+  SaveMcpSignInAppInput,
   ServerSummary,
   TeamInviteSummary,
   TeamPresenceMember,
@@ -14,7 +17,7 @@ import { desktopAnalytics } from "../../analytics";
 import { createSimpleContext } from "../../simple-context";
 import { mcpSignInRecord } from "./mcp-servers";
 import type { ServerSettingsSection } from "./ServerSettingsModal";
-import { serverCanAdminister, serverRoleCanAdminister } from "./server-capabilities";
+import { serverCanAdminister, serverRoleCanAdminister, serverSupportsCapability } from "./server-capabilities";
 import { useServers } from "./servers-context";
 import { serverAdminPort, serversPort } from "./servers-port";
 
@@ -63,6 +66,10 @@ const ServerSettings = createSimpleContext({
     const [serverSettingsMcpSignIns, setServerSettingsMcpSignIns] = createSignal<Record<string, boolean>>({});
     /** The host tab of each remote sign-in page, by the address it signs in to, while the sign-in waits. */
     const [serverSettingsMcpSignInPages, setServerSettingsMcpSignInPages] = createSignal<Record<string, string>>({});
+    /** The relayed sign-in page of each remote sign-in that waits in this computer's browser (`sign-in-relay-v1`). */
+    const [serverSettingsMcpSignInRelays, setServerSettingsMcpSignInRelays] = createSignal<
+      Record<string, McpSignInRelayPage>
+    >({});
     /** Bumped by every open and refresh, so a slower earlier load cannot paint over a newer one. */
     let serverSettingsRequest = 0;
     /**
@@ -86,6 +93,19 @@ const ServerSettings = createSimpleContext({
       () => leaveRequest() !== null && leaveConfirmServer() === null,
       (gone) => {
         if (gone) setLeaveRequest(null);
+      },
+    );
+    /** The hosted server that the restart confirmation from the server menu asks about, and the element that asked. */
+    const [restartRequest, setRestartRequest] = createSignal<{ serverId: string; trigger: HTMLElement | null } | null>(
+      null,
+    );
+    const restartConfirmServer = createMemo(
+      () => servers().find((server) => server.id === restartRequest()?.serverId) ?? null,
+    );
+    createEffect(
+      () => restartRequest() !== null && restartConfirmServer() === null,
+      (gone) => {
+        if (gone) setRestartRequest(null);
       },
     );
 
@@ -375,6 +395,13 @@ const ServerSettings = createSimpleContext({
       if (serverSettingsTarget()?.id === server.id) setServerSettingsOpen(false);
     }
 
+    /** Restarts the hosted server that the confirmation from the server menu asks about. */
+    async function restartConfirmedServer(): Promise<void> {
+      const server = restartConfirmServer();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      await serversPort().hostedServers.restart(server.id);
+    }
+
     async function removeMembership(server: ServerSummary): Promise<void> {
       const analytics = desktopAnalytics.scope();
       const action = server.role === "owner" ? "server_removed" : "server_left";
@@ -461,7 +488,11 @@ const ServerSettings = createSimpleContext({
       if (!server) throw new Error(currentText().t("server.settings.unavailable"));
       let waiting = true;
       const signIn = serversPort().agent.signInMcpServer({ config }, server.id);
-      if (server.kind === "remote") void followMcpSignInPage(server.id, config.url, () => waiting);
+      if (server.kind === "remote") {
+        if (serverSupportsCapability(server, "sign-in-relay-v1"))
+          void followMcpSignInRelay(server.id, config.url, () => waiting);
+        else void followMcpSignInPage(server.id, config.url, () => waiting);
+      }
       const result = await signIn.finally(() => {
         waiting = false;
       });
@@ -486,6 +517,42 @@ const ServerSettings = createSimpleContext({
       }
     }
 
+    /** Reads the relayed page of a sign-in until it ends. The page opens when the user asks. */
+    async function followMcpSignInRelay(serverId: string, url: string, waiting: () => boolean): Promise<void> {
+      const set = (page: McpSignInRelayPage | null) =>
+        setServerSettingsMcpSignInRelays((pages) => {
+          const { [url]: _previous, ...rest } = pages;
+          return page ? { ...rest, [url]: page } : rest;
+        });
+      try {
+        while (waiting()) {
+          const page = await serversPort()
+            .agent.mcpSignInRelay({ url }, serverId)
+            .catch(() => null);
+          if (!waiting()) return;
+          const current = serverSettingsMcpSignInRelays()[url];
+          if (current?.authorizeHost !== page?.authorizeHost || current?.listening !== page?.listening) set(page);
+          await new Promise((resolve) => setTimeout(resolve, MCP_SIGN_IN_PAGE_POLL_MS));
+        }
+      } finally {
+        set(null);
+      }
+    }
+
+    /** Opens a relayed sign-in page in this computer's browser, after the user checked its host name. */
+    async function openMcpSignInRelay(url: string): Promise<void> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      await serversPort().agent.openMcpSignInRelay({ url }, server.id);
+    }
+
+    /** The address the browser shows at the end of a relayed sign-in. Main sends only its query to the host. */
+    async function pasteMcpSignInRelay(url: string, address: string): Promise<void> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      await serversPort().agent.completeMcpSignInRelay({ url, address }, server.id);
+    }
+
     async function cancelMcpSignIn(url: string): Promise<void> {
       const server = serverSettingsTarget();
       if (!server) throw new Error(currentText().t("server.settings.unavailable"));
@@ -497,6 +564,33 @@ const ServerSettings = createSimpleContext({
       if (!server) throw new Error(currentText().t("server.settings.unavailable"));
       const states = await serversPort().agent.signOutMcpServer({ mcpServerId }, server.id);
       if (serverSettingsTargetId() === server.id) setServerSettingsMcpSignIns(mcpSignInRecord(states));
+    }
+
+    /** The OAuth app of a saved http row. The answer says only whether a secret is saved. */
+    async function mcpSignInApp(mcpServerId: string): Promise<McpSignInAppState> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      return serversPort().agent.mcpSignInApp({ mcpServerId }, server.id);
+    }
+
+    async function saveMcpSignInApp(input: SaveMcpSignInAppInput): Promise<McpSignInAppState> {
+      return changeMcpSignInApp((serverId) => serversPort().agent.saveMcpSignInApp(input, serverId));
+    }
+
+    async function removeMcpSignInApp(mcpServerId: string): Promise<McpSignInAppState> {
+      return changeMcpSignInApp((serverId) => serversPort().agent.removeMcpSignInApp({ mcpServerId }, serverId));
+    }
+
+    /** A changed or removed app drops the sign-in that the old client held, so the badges are read again. */
+    async function changeMcpSignInApp(
+      change: (serverId: string) => Promise<McpSignInAppState>,
+    ): Promise<McpSignInAppState> {
+      const server = serverSettingsTarget();
+      if (!server) throw new Error(currentText().t("server.settings.unavailable"));
+      const state = await change(server.id);
+      const signIns = await listMcpSignIns(server);
+      if (serverSettingsTargetId() === server.id) setServerSettingsMcpSignIns(signIns);
+      return state;
     }
 
     async function saveMcpServer(config: McpServerConfig): Promise<void> {
@@ -585,13 +679,24 @@ const ServerSettings = createSimpleContext({
       requestLeaveServer: (serverId: string, trigger: HTMLElement | null) => setLeaveRequest({ serverId, trigger }),
       cancelLeaveServer: () => setLeaveRequest(null),
       leaveConfirmedServer,
+      restartConfirmServer,
+      restartRestoreTarget: () => restartRequest()?.trigger ?? null,
+      requestRestartServer: (serverId: string, trigger: HTMLElement | null) => setRestartRequest({ serverId, trigger }),
+      cancelRestartServer: () => setRestartRequest(null),
+      restartConfirmedServer,
       serverSettingsMcp,
       serverSettingsMcpError,
       serverSettingsMcpSignIns,
       serverSettingsMcpSignInPages,
+      serverSettingsMcpSignInRelays,
+      openMcpSignInRelay,
+      pasteMcpSignInRelay,
       signInMcpServer,
       cancelMcpSignIn,
       signOutMcpServer,
+      mcpSignInApp,
+      saveMcpSignInApp,
+      removeMcpSignInApp,
       refreshMcpServers,
       saveMcpServer,
       removeMcpServer,

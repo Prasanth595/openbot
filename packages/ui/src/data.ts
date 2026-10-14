@@ -15,6 +15,7 @@ import type {
   HostedSiteConversationEvent,
   ImageGenerationInfo,
   MessageReaction,
+  ModelSwitchReason,
   QueueDeliveryStatus,
   RoutineConversationEvent,
   RoutineRunConversationEvent,
@@ -72,6 +73,8 @@ export interface RoutineRunMarkerModel {
   status: "queued" | RoutineRunConversationEvent["status"];
   timestamp: string;
   previousTransitions?: RoutineRunMarkerTransition[];
+  /** Set when the run has messages in the chat: whether they show under the run. */
+  expanded?: boolean;
 }
 
 export type ChatActionMarkerModel =
@@ -107,6 +110,8 @@ export type ChatActionMarkerModel =
       routineName: string;
       runs: Array<{ id: string; marker: RoutineRunMarkerModel }>;
       timestamp: string;
+      /** Set when the timeline shows the runs as rows under the group: whether they show. */
+      expanded?: boolean;
     }
   | {
       kind: "hosted-site";
@@ -125,6 +130,8 @@ export type ChatActionMarkerModel =
   | { kind: "marketplace-suggestion"; appId: string; timestamp: string }
   /** The user started a new chat: the agent does not see the messages above this marker. */
   | { kind: "context-reset"; timestamp: string }
+  /** The agent left its model for a usage limit, or went back to it. `text` is the host's note. */
+  | { kind: "model-switch"; reason: ModelSwitchReason; text: string; timestamp: string }
   | {
       kind: "unavailable";
       label: string;
@@ -188,6 +195,8 @@ export interface AgentProfile {
   provider: AgentProviderId;
   model: AgentModelId;
   reasoningEffort: AgentReasoningEffort;
+  /** The provider account after the first. Absent for the provider's own sign-in. */
+  providerAccountId?: string;
   /** Absent for an agent on a remote host, which does not share it; the host then decides. */
   access?: AgentAccess;
   /** Absent means on. Absent for an agent on a remote host too, which does not share it. */
@@ -196,6 +205,10 @@ export interface AgentProfile {
   allowAutomation?: boolean;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */
   busyMessageMode?: AgentSummary["busyMessageMode"];
+  /** Absent means ask before a switch at a usage limit. Absent for an agent on a remote host too. */
+  backupModels?: AgentSummary["backupModels"];
+  /** Set while the agent works on a backup model for a usage limit: the model it goes back to. */
+  usageLimitReturn?: AgentSummary["usageLimitReturn"];
   threadId: string | null;
   /** The agent's working directory. Absent for profiles built before it was tracked. */
   workspacePath?: string;

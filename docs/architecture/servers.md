@@ -80,6 +80,16 @@ the agent workspace; a symbolic link that leaves it is not listed. A missing pat
 message that names the path and the workspace. A client without the capability shows the file preview
 error. The desktop lists a local folder without the containment when the agent has no workspace limit.
 
+### Conversation files
+
+`conversation-file-search-v1` adds `POST /v1/conversation-files/search` with `{ query, cursor, limit? }`.
+Any member can send it. The host answers the files of agent chat messages whose name contains the
+query, newest first, with the agent, the message, the time and the attachment summary. An empty query
+lists the newest files. A page has at most 100 results (50 when `limit` is absent), and `nextCursor`
+gets the next page. Channel threads and the files of an agent hidden from the client are not listed.
+The capability is advertised only to protocol 7 clients. An older host answers 404, so a client
+sends the request only when the host advertises the capability.
+
 ### Agent import from a joined server
 
 `agent-import-v1` lets any member, not only an owner or admin, import a Grok Bot export into the host.
@@ -94,6 +104,50 @@ with the member as the actor. A member never revises a skill already in the host
 gets the existing skill and the result warns. `POST /v1/agent-import/discard` releases the token. On
 desktop, main opens the dialog, reads the file and sends it (`agent-import:choose` is server-scoped);
 the web client uses the browser chooser and ships the export skill in its bundle.
+
+### Instance transfer with a joined server
+
+`instance-transfer-v1` moves a server's agents and server settings to or from an OpenBot transfer file
+(see [Instance transfer](agents.md#instance-transfer)). Only an owner or admin can use it: the file holds
+every agent's memories and files, and an import adds server settings. It is protocol 7 only. Every file
+that crosses the connection is at most 100 MB, the size of one WebRTC file transfer; a computer's own
+server keeps the 2 GB limit. `POST /v1/instance-transfer/summary` lists the agents with their counts and
+no avatar address. `POST /v1/instance-transfer/export` takes `{ agentIds, includeFiles, includeSettings }`,
+writes the file to `instance-transfer-uploads/` in the host's user data, sends it as an attachment and
+removes it. `POST /v1/instance-transfer/stage` takes the raw `.zip` and answers the preview without
+avatars, under a token that only the caller can apply or discard; an upload nobody applies is removed
+after 30 minutes. `POST /v1/instance-transfer/apply` takes `{ token, keys, includeSettings, timezone }`
+and answers the new agents by id and name, which the client reads with the agent list.
+`POST /v1/instance-transfer/discard` releases the token. On desktop, main opens both dialogs and moves
+the file (`instance-transfer:*` is server-scoped). The web client does not show the Transfer section: its
+downloads are limited to 10 MB.
+
+### Routine flows
+
+`routine-flows-v1` serves the routine canvas (see [Routine flows](agents.md#routine-flows)) to a
+joined desktop and to the web client. Its routes are `POST /v1/routine-flows/canvas`,
+`/positions/save`, `/positions/remove`, `/links/connect`, `/links/disconnect` and `/links/update`,
+with the input in the body. Any member who can see the agents can read and change a canvas, as with
+the agent routine routes; it is not an admin capability. A member sees a routine only when every
+agent it touches is visible, and the host answers a hidden or unknown agent, routine or link with
+404. A webhook trigger's URL goes only to an owner or admin; a member reads it as null. Step input,
+output and error cross with at most 4,000 characters each, and the host empties the step texts of the
+routines with the oldest runs first when a canvas would pass three quarters of one WebRTC frame. The
+optional event `routine-flows-changed { agentId }` names the canvas that changed; the host sends it
+only to a connection with the capability and never for a hidden agent. Webhook config, secret
+rotation and webhook test runs stay on `events-v1`. A client without the capability shows a notice
+in the Routines view; the web client shows the view switch only when the host serves it.
+
+### History extent
+
+`history-extent-v1` lets the chat's day rail draw the history that is not loaded on a joined server.
+It adds `olderCount` and `oldestAt` (at most 64 characters) beside the frozen keys of `pageInfo` on
+`GET /v1/agents/:id/conversation-page` and `GET /v1/direct/conversations/:id/page`, and at the top
+level of the `POST /v1/channels/read` page. The host adds them only on protocol 7 and only when the
+request advertises the capability, so a released client reads the same bytes as before. A host
+without the capability never sends them, so a client keeps them whenever they are present, and a
+malformed value fails closed. The WebRTC host peer encodes the local response again with the same
+option, so the fields reach the web client and a joined desktop through the data channel too.
 
 ### Skill events
 
@@ -121,11 +175,14 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `agent-install-v1` | Add an agent from a listing or a shared template, by id | `agentAdmin` |
 | `agent-update-v1` | Update an agent added from a listing to the listing's current version, by id | `agentAdmin` |
 | `providers-v1` | Code sign-in, provider API keys, managed runtimes, custom endpoints | `providerAdmin` |
+| `instance-transfer-v1` | Export and import the server's agents and server settings as a transfer file | `instanceTransfer` |
 | `providers-v3` | Code sign-in for Codex, Claude and Grok; send the code a Claude sign-in page shows | `providerAdmin` |
 | `providers-v4` | Code or link sign-in and managed runtimes, Cursor and Cline included | `providerAdmin` |
 | `host-admin-v1` | Server name and logo | `hostAdmin` |
 | `host-update-v1` | Check for, download and restart into an app update; cancel a restart that waits | `hostAdmin` |
+| `host-timezone-v1` | Read and set the server timezone | `hostAdmin` |
 | `events-v1` | Manage webhook routines, their secrets, and activity | `events` |
+| `routine-recovery-v1` | Read and set a routine's missed-run policy; read its runs with the missed occurrences | `events` |
 
 These IPC groups take a required server id and route with `scopedHandler`. A key travels only towards
 the host; no response carries one. `providers-v1` has no progress event, so the renderer reads runtime
@@ -161,6 +218,12 @@ then opens with that provider. The choice stays in memory for the server; it is 
 setup file of this computer. A member, the local server, and a host without `providers-v1` open the
 form directly.
 
+`host-timezone-v1` reads and sets the server timezone (`openbot-server-timezone-v1.json`; `null` is
+automatic, the system zone of the host). When an agent creates a routine, the zone comes from the tool
+call first, then from the sender's last message in that turn, then from this setting. The sender's
+zone stays in memory only, so after a restart a queued message uses the server timezone. Agent import
+and instance transfer use it in place of the system zone. A change does not move existing routines.
+
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until
 `describeRestartReadiness` reports no running work or happens as soon as the update is ready. The
@@ -171,8 +234,11 @@ reads the status again every second while a check, a download or a restart runs.
 set the host's automatic download and automatic install when idle through the settings route; an
 automatic install is a schedule with no requester.
 
-When a member with update access connects, `host-update-toast.tsx` reads the status once: it offers a new version and
-shows a live percentage while the host downloads. All members get the `host-restart` event
+`server-update-flow.tsx` reads the update status once on each connection of a member with update access.
+The sidebar header then shows an update button next to the server name. Each time the user enters a server
+that has a new version, the update dialog opens again; it stays closed on a reconnect to the same server. The dialog confirm calls `start`, which downloads and restarts in one call. The
+dialog reads the status while the update runs and follows the connection until the host is back with
+the new version. A hidden dialog keeps a notice with the live status, also after a server switch on desktop; entering the server then does not open the dialog again. The web client reads only the connected host, so it stops following the update when the user leaves that server; the header button shows the update again on return. A host that still waits to restart after a connection drop did not restart. All members get the `host-restart` event
 (`waiting`, `restarting`, `none`) from the host's event stream, and the host sends the current state
 again when a client declares the capability. Like `channelEvent`, the event skips the frozen v1-v3
 event encoders at each hop (host peer, client transport, `remote-peer.ts`, SSE stream). A client that
@@ -196,9 +262,10 @@ reconciliation. The server context menu controls mute for local and remote serve
 
 `renderer-forwarders.ts` continues to deliver live events for muted servers, but suppresses
 system notifications. Remote notification content uses the source server's agent list. Both
-server mute and per-agent notification settings apply. Unread state is unchanged. Mobile does
-not deliver system notifications; it shows agent state in its Live Activity. Mute settings are not
-synchronized between devices.
+server mute and per-agent notification settings apply. Unread state is unchanged. The iPhone app
+has its own level and mute for each server, which the host applies to the notifications it sends to
+that phone (see [iPhone notifications](channels-and-messaging.md#iphone-notifications)). Mute
+settings are not synchronized between devices.
 
 ## Billing
 
@@ -299,6 +366,9 @@ or disabled. The new check reads only the official stable release manifest for t
 and architecture. It never installs files, restarts the host, or changes update preferences.
 The host checks that the manifest contains a compatible asset and returns only version, phase,
 and installation method. Feed errors return a safe status and can be retried.
+The method is `self-update` when the host's updater can install, also in a container of
+`docker/instances`, whose host pulls the image on request
+([Updates from the app](../docker.md#updates-from-the-app)). Other containers report `container`.
 
 `HostReleaseService` owns release discovery. `RequestedUpdate` still owns idle restarts and
 `UpdateService` still owns app updates. Desktop and web use the new capability when available;

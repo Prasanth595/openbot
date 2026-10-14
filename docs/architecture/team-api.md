@@ -12,17 +12,29 @@ passes only serializable, validated commands and events to the native React UI; 
 module or development build is required.
 Mobile server labels in the drawer and connection settings describe the authenticated application
 connection, not membership or Signal presence. Each membership has its own transport and recovery controller while mobile is active.
+On a return to the app, the selected server connects first; the others become active when it is
+online, or after 3 s.
 Switching servers changes the visible workspace without closing other connections. iOS `inactive`
 transitions leave connections alone. Backgrounding retains the last connection status and pauses
 recovery; transport failures received in the background are retained for resume. Only the paired desktop is Local;
-other servers are Remote regardless of the account role. Connecting becomes Online after compatibility and workspace synchronization succeed;
-transport failures and reconnect attempts show Offline, and protocol failures show Connection error.
+other servers are Remote regardless of the account role. Connecting becomes Online after compatibility succeeds and the agents,
+the read state and the sections load. These three reads run together. Cached conversations load
+again after Online, the open conversation first; a chat that did not load then loads when it opens.
+Transport failures and reconnect attempts show Offline, and protocol failures show Connection error.
 The existing RTC connection updates and recovery controller are the source of truth; the indicator
-adds no polling or health requests. Foreground resume reuses a healthy connection without a workspace
-reload. Canceled reads and event resets request data synchronization without showing a reconnect on
-a healthy connection. Invite selection and manual refresh reuse the same controller. A transient RTC
-disconnected state has a five-second recovery window, including on resume; failed or closed states
-drive recovery immediately. Backgrounding pauses the grace timer and cancels pending reads so they cannot block resume.
+adds no polling or health requests. Foreground resume reuses a healthy connection and reads the
+workspace again without showing a reconnect. The time away decides what happens to the connection:
+after less than 30 s the path is kept. After 30 s the host stopped using the path (ICE consent), so the
+peer renews its Signal socket and restarts ICE; a host that dropped the connection answers with a new
+fingerprint, and the peer fails at once instead of after a read timeout. A connection that is lost
+while a return checks it is replaced at once, with no countdown, as when the check fails. After 160 s Signal has told
+the host to drop the connection (120 s socket idle timeout, then 30 s), so the peer is replaced on the
+same session at once, without a resume hello, and the first attempt shows Connecting. Canceled reads
+and event resets request data synchronization without showing a reconnect on a healthy connection. Invite selection and manual refresh reuse the same controller. A transient RTC
+disconnected state has a 15-second recovery window, including on resume; failed or closed states
+drive recovery immediately. Signal's `rate_limited`, or a close with code 1008 and no error frame,
+makes the next Signal socket wait 60 s; another refusal with code 1008, such as an invalid ticket,
+reconnects at once. Backgrounding pauses the grace timer and cancels pending reads so they cannot block resume.
 Explicit refresh bypasses the retry cooldown without overlapping a pending connection attempt.
 The native/DOM mailbox carries concurrent commands by ID. Switching or disconnecting cancels
 pending callers immediately; peer generations reject late callbacks from a superseded host.
@@ -32,9 +44,25 @@ needs the published host. The separate development test-client role never auto-p
 Mobile Connect tickets and QR codes bind the started host ID and SHA-256 public-key fingerprint.
 Mobile verifies that binding at redemption and against the directory, pins the key, and selects
 that host rather than the first account-owned desktop. Legacy unbound QR codes require regeneration.
+A permanent Mobile Connect link uses the same URL and redemption route, so released phone apps
+accept it. It has the same host binding and redeems more than once. D1 keeps only its hash. It stops
+working when the desktop replaces or revokes it, or when the desktop session that made it ends. The
+desktop keeps the link in its encrypted session file and deletes it at sign-out.
+`mobile_auth_sessions.connect_link_host_id` records the host whose link signed in a phone. A revoke
+signs out those phones, also when the link row went with its desktop session, and the device list
+shows each phone's method. `DELETE /v1/mobile-auth/ticket?host=` spends the unused one-time codes of
+that host when the desktop cancels the code that it shows.
+A phone can also sign in with an email code. It requests the code through `/v1/auth/email/start` and
+verifies it through `/v1/mobile-auth/email/verify`, which writes the `auth_sessions` row and its
+`mobile_auth_sessions` row in one batch; `/v1/auth/email/verify` would make a desktop session. This
+session has no host binding: the phone stores `signIn: "email"` with it, connects to every host in
+the account directory and pins each host key on first use, as the web client does. A stored session
+with no host and no marker is still a legacy QR session and is revoked. The development LAN allow
+list keeps both email routes on loopback, because a development code follows from its challenge ID.
 Desktop invitation QR codes contain the same one-use link as Copy link. The signed-in mobile
 scanner validates that link and opens the invitation review before acceptance. These codes join
-one server; Mobile Connect codes sign in to the desktop account and select the paired host.
+one server; Mobile Connect codes sign in to the desktop account. Mobile keeps the paired host as the
+default server above the drawer divider until the user changes it, and opens on the first server.
 Both clients read account-wide membership from D1's indexed `remote_memberships` / `remote_hosts`
 join. An offline paired desktop does not remove other memberships, and mobile connects directly
 to each host independently. A cold launch refreshes the account directory. Both clients check again

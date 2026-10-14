@@ -1,4 +1,10 @@
-import type { VoiceLanguage, VoiceModelId, VoiceModelStatus, VoiceSettings } from "@openbot/contracts/ipc";
+import {
+  ELEVENLABS_VOICE_MODEL_ID,
+  type VoiceLanguage,
+  type VoiceModelId,
+  type VoiceModelStatus,
+  type VoiceSettings,
+} from "@openbot/contracts/ipc";
 import { toast } from "@openbot/ui";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore } from "solid-js";
@@ -10,13 +16,19 @@ interface SettingsVoiceState {
   settings: VoiceSettings | null;
 }
 
-const EMPTY_STATUSES: SettingsVoiceState["statuses"] = { "parakeet-tdt-0.6b-v3": null, "whisper-turbo": null };
+const EMPTY_STATUSES: SettingsVoiceState["statuses"] = {
+  "parakeet-tdt-0.6b-v3": null,
+  "whisper-turbo": null,
+  [ELEVENLABS_VOICE_MODEL_ID]: null,
+};
 
 type FailureKey =
   | "settings.voice.loadFailed"
   | "settings.voice.saveFailed"
   | "settings.voice.downloadFailed"
-  | "settings.voice.cancelFailed";
+  | "settings.voice.cancelFailed"
+  | "settings.voice.apiKey.saveFailed"
+  | "settings.voice.apiKey.removeFailed";
 
 /**
  * The Voice tab's view of the dictation models and settings. It is created by the settings dialog,
@@ -66,6 +78,20 @@ export function createSettingsVoiceStore(active: () => boolean) {
       .catch((error: unknown) => fail(error, "settings.voice.cancelFailed"));
   }
 
+  /** Saves or removes the ElevenLabs key. Main keeps the key; the answer is the cloud model's status. */
+  function setApiKey(key: string | null): Promise<boolean> {
+    return voicePort()
+      .voice.setApiKey({ key })
+      .then((status) => {
+        setStatus(status);
+        return true;
+      })
+      .catch((error: unknown) => {
+        fail(error, key === null ? "settings.voice.apiKey.removeFailed" : "settings.voice.apiKey.saveFailed");
+        return false;
+      });
+  }
+
   function save(patch: Partial<VoiceSettings>): void {
     const current = state.settings;
     if (!current) return;
@@ -92,6 +118,8 @@ export function createSettingsVoiceStore(active: () => boolean) {
     state,
     download,
     cancel,
+    saveApiKey: (key: string) => setApiKey(key),
+    removeApiKey: () => setApiKey(null),
     useModel: (modelId: VoiceModelId) => save({ modelId }),
     setLanguage: (language: VoiceLanguage) => save({ language }),
   };

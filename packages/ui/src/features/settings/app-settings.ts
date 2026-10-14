@@ -18,6 +18,8 @@ export interface GeneralSettingsValue {
   restoreLastWorkspace: boolean;
   externalLinkTarget: ExternalLinkTarget;
   desktopNotifications: boolean;
+  /** Notifications show the start of the agent's reply, question or command. */
+  notificationPreview: boolean;
   macBookNotch: boolean;
   macBookNotchHaptics: boolean;
   macBookNotchIdle: boolean;
@@ -56,6 +58,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
   restoreLastWorkspace: true,
   externalLinkTarget: "Default browser",
   desktopNotifications: true,
+  notificationPreview: true,
   macBookNotch: true,
   macBookNotchHaptics: true,
   macBookNotchIdle: true,

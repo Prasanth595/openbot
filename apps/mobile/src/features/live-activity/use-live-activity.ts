@@ -27,9 +27,11 @@ import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { useLiveActivitiesPreference } from "@/features/settings/model/live-activities";
 import type { LiveWorkspaceStore } from "@/features/workspace/model/live-workspace-store";
 import type { MobileAgent, MobileServer } from "@/features/workspace/model/workspace-types";
+import { pushEnvironment } from "@/shared/lib/push-environment";
 import { currentLocale, currentText } from "@/shared/lib/text";
 import { agentLiveActivity } from "./agent-live-activity";
 import type { AgentLiveActivityNative } from "./agent-live-activity.types";
+import { useLiveActivityHost } from "./model/live-activity-host";
 import { liveActivityHostKeys, loadLiveActivitySecret, resetLiveActivitySecret } from "./model/live-activity-keys";
 import {
   type LiveActivityRequest,
@@ -93,6 +95,7 @@ export function useLiveActivity({
   }, []);
   const sync = useRef<LiveActivitySync<AgentLiveActivityProps> | null>(null);
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const [activityStartedAt, setActivityStartedAt] = useState<number | null>(null);
   /** The phone secret. Each host gets its own secret and keys made from it. */
   const [secret, setSecret] = useState<Uint8Array | null>(null);
   const secretRef = useRef(secret);
@@ -145,8 +148,10 @@ export function useLiveActivity({
   }, []);
 
   const syncFor = useCallback((native: AgentLiveActivityNative) => {
-    sync.current ??= new LiveActivitySync(native.starter, (token) => {
-      if (!disposed.current) setPushToken(token);
+    sync.current ??= new LiveActivitySync(native.starter, (token, startedAt) => {
+      if (disposed.current) return;
+      setPushToken(token);
+      setActivityStartedAt(startedAt);
     });
     return sync.current;
   }, []);
@@ -440,6 +445,11 @@ export function useLiveActivity({
   // closed connection as away.
   const pushServerId =
     live && enabled && pushToken && secret && activeServerId && supportsPush(activeServerId) ? activeServerId : null;
+  // The notification registration tells this host when the activity started.
+  useEffect(() => {
+    useLiveActivityHost.setState({ serverId: pushServerId, startedAt: pushServerId ? activityStartedAt : null });
+    return () => useLiveActivityHost.setState({ serverId: null, startedAt: null });
+  }, [pushServerId, activityStartedAt]);
   // The request needs the connection. When it comes back, the phone tells the host again.
   const pushServerOnline = servers.some((server) => server.id === pushServerId && server.state === "online");
   useEffect(() => {
@@ -604,11 +614,6 @@ function performAction(
         decision: action.decision,
       });
   }
-}
-
-/** Development builds get their push tokens from the APNs sandbox. */
-function pushEnvironment(): LiveActivityPushRegistration["environment"] {
-  return __DEV__ || process.env.EXPO_PUBLIC_APP_ENV === "development" ? "development" : "production";
 }
 
 /** The picture name of an agent photo. It changes with the photo version. */

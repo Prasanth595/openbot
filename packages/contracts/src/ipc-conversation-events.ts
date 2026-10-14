@@ -303,6 +303,25 @@ export function channelRoutingConversationEvent(message: ConversationMessage): C
 export const CONTEXT_RESET_ITEM_TYPE = "context-reset";
 
 /**
+ * The item types of the markers that show a switch of model for a plan's usage limit: one when the
+ * agent leaves its model, one when it goes back. The text is a readable sentence that names the
+ * model, as for the context reset.
+ */
+export const MODEL_SWITCH_ITEM_TYPE_PREFIX = "model-switch:";
+export const MODEL_SWITCH_ITEM_TYPES = {
+  "usage-limit": `${MODEL_SWITCH_ITEM_TYPE_PREFIX}usage-limit`,
+  "usage-limit-ended": `${MODEL_SWITCH_ITEM_TYPE_PREFIX}usage-limit-ended`,
+} as const;
+export type ModelSwitchReason = keyof typeof MODEL_SWITCH_ITEM_TYPES;
+
+export function modelSwitchReason(message: ConversationMessage): ModelSwitchReason | null {
+  if (message.author !== "system" || message.source !== "system" || message.status !== "completed") return null;
+  if (message.itemType === MODEL_SWITCH_ITEM_TYPES["usage-limit"]) return "usage-limit";
+  if (message.itemType === MODEL_SWITCH_ITEM_TYPES["usage-limit-ended"]) return "usage-limit-ended";
+  return null;
+}
+
+/**
  * The item type of a message that one agent sends to another, in the sender's thread and in the
  * recipient's thread. It is traffic between agents, not a message to the user.
  */

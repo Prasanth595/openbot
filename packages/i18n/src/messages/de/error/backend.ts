@@ -56,6 +56,8 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "Ein Kanalmitglied ist nicht verfügbar.",
   "error.backend.channelArchived":
     "Stelle diesen Kanal wieder her, bevor du Nachrichten sendest oder Aufgaben änderst.",
+  "error.backend.channelsRetired":
+    "Kanäle werden nicht mehr unterstützt. Lege Agenten in einen Seitenleistenbereich, damit sie zusammenarbeiten.",
   "error.backend.channelReferenceUnavailable": "Die referenzierte Kanalnachricht ist nicht verfügbar.",
   "error.backend.channelTaskNotFound": "Kanalaufgabe nicht gefunden.",
   "error.backend.channelTaskComplete": "Diese Aufgabe ist bereits abgeschlossen.",
@@ -79,6 +81,10 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Der Vorgang für die Erinnerung ist fehlgeschlagen. Versuche es erneut.",
   "error.backend.memoryGone": "Diese Erinnerung existiert nicht mehr.",
   "error.backend.routineGone": "Diese Routine existiert nicht mehr.",
+  "error.backend.turnNotStarted": "Der Anbieter hat diesen Durchgang nicht gestartet.",
+  "error.backend.routineResultConnectionOff":
+    "Diese Messaging-Verbindung ist aus oder entfernt. Wähle einen anderen Ort.",
+  "error.backend.routineResultNoDelivery": "Dieser Lauf hat keine Antwort, die erneut gesendet werden kann.",
   "error.backend.channelMemoryLimit": "Ein Kanal kann bis zu {limit} Erinnerungen haben.",
   "error.backend.channelRoutineLimit": "Ein Kanal kann höchstens {limit} Routinen haben.",
   "error.backend.agentRoutineLimit": "Ein Agent kann höchstens {limit} Routinen haben.",
@@ -138,6 +144,8 @@ export const messages = {
     "Benutzerdefinierte Zeitpläne dürfen höchstens alle {minutes} Minuten ausgeführt werden.",
   "error.backend.routineAnchorInvalid": "Der Startpunkt des Routinenintervalls ist ungültig.",
   "error.backend.routineNoOccurrence": "Der Zeitplan enthält in den nächsten fünf Jahren keine Ausführung.",
+  "error.backend.routineOncePassed":
+    "Der Zeitpunkt dieser einmaligen Routine liegt in der Vergangenheit. Wähle ein späteres Datum oder eine spätere Uhrzeit.",
   "error.backend.routineTimezoneInvalid": "Die Zeitzone der Routine ist ungültig.",
   "error.backend.routineCronFields": "Benutzerdefinierte Zeitpläne müssen fünf cron-Felder verwenden.",
   "error.backend.routineCronValueInvalid": "Der cron-Wert {field} ist ungültig.",
@@ -168,8 +176,21 @@ export const messages = {
   "error.backend.routineFlowDuplicate": "Diese Agenten sind in dieser Routine bereits verbunden.",
   "error.backend.routineFlowCycle": "Diese Verbindung würde eine Schleife erzeugen.",
   "error.backend.routineFlowLinkLimit": "Eine Routine kann höchstens {limit} Verbindungen haben.",
+  "error.backend.agentWaitLimit":
+    "Dieser Agent hat bereits {count} offene Wartevorgänge. Schließe einen Wartevorgang mit openbot.close_wait, bevor du einen neuen öffnest.",
+  "error.backend.agentWaitGone":
+    "Dieser Wartevorgang ist nicht offen. Der Agent hat ihn geschlossen, oder jemand hat ihn abgebrochen.",
+  "error.backend.agentWaitNoRequest":
+    "Ein Wartevorgang braucht eine Nachricht, um fortzufahren. Dieser Durchlauf hat keine Nachricht.",
+  "error.backend.agentWaitOwnChatOnly":
+    "Öffne einen Wartevorgang nur in deinem eigenen Chat. Eine Kanal- oder Messaging-Aufgabe kann nicht warten.",
+  "error.backend.agentWaitNoteRequired": "Gib eine kurze Notiz an, wofür der Wartevorgang ist.",
+  "error.backend.agentWaitRoutineGone": "Dieser Agent hat keine Routine mit dieser ID.",
+  "error.backend.agentWaitNoRoutine":
+    "Nur eine Ausführung einer deiner Routinen weckt einen Wartevorgang, und du hast keine Routine. Erstelle eine mit openbot.create_routine und öffne dann den Wartevorgang.",
+  "error.backend.agentWaitRemoteUnsupported":
+    "Offene Wartevorgänge sind nur für Agenten auf diesem Computer verfügbar.",
   "error.backend.routineFlowHandoffFailed": "Die Routine konnte die Arbeit nicht an diesen Agenten übergeben.",
-  "error.backend.routineFlowRemoteUnsupported": "Routinenabläufe sind nur für Agenten auf diesem Computer verfügbar.",
   "error.backend.mcpServerLimit": "OpenBot verwaltet bis zu {limit} MCP-Server.",
   "error.backend.mcpServerNameTaken": "Ein MCP-Server mit dem Namen {name} existiert bereits.",
   "error.backend.mcpServerNoAnswer": "Der Server hat innerhalb von {seconds} Sekunden nicht geantwortet.",
@@ -272,4 +293,11 @@ export const messages = {
     "Der Server hat mit {status} geantwortet. Prüfe den API-Schlüssel oder andere Zugangsdaten.",
   "error.backend.mcpServerHttpUrl":
     "Der Server hat mit {status} geantwortet. Prüfe die URL. Der Link ist möglicherweise falsch, abgelaufen oder gelöscht.",
+  "error.backend.mcpSignInAppUrl": "Die Anmelde-App braucht eine gültige Server-URL.",
+  "error.backend.mcpSignInAppClientId": "Gib die Client-ID der Anmelde-App ein.",
+  "error.backend.mcpSignInAppIssuerChanged":
+    "Der Anmeldeserver dieses MCP-Servers hat sich geändert, daher hat OpenBot ihm die Anmelde-App nicht gesendet. Wenn die Änderung korrekt ist, entferne die Anmelde-App und füge sie erneut hinzu.",
+  "error.backend.mcpSignInAppNoServer":
+    "Speichere diesen MCP-Server als URL-Server, bevor du eine Anmelde-App hinzufügst.",
+  "error.backend.mcpSignInAppUnavailable": "Dieser Computer kann keine Anmelde-App speichern.",
 } as const satisfies PartialTranslation<typeof source>;

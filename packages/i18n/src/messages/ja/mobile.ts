@@ -4,10 +4,10 @@ import { messages as mobileAgent } from "./mobile/agent";
 import { messages as mobileApp } from "./mobile/app";
 import { messages as mobileAuth } from "./mobile/auth";
 import { messages as mobileBrowser } from "./mobile/browser";
-import { messages as mobileChannel } from "./mobile/channel";
 import { messages as mobileChat } from "./mobile/chat";
 import { messages as mobileLink } from "./mobile/link";
 import { messages as mobileLiveActivity } from "./mobile/liveActivity";
+import { messages as mobileOnboarding } from "./mobile/onboarding";
 import { messages as mobileSearch } from "./mobile/search";
 import { messages as mobileServer } from "./mobile/server";
 import { messages as mobileSettings } from "./mobile/settings";
@@ -25,12 +25,12 @@ export const jaMobile = {
   ...mobileBrowser,
   ...mobileSearch,
   ...mobileAgent,
-  ...mobileChannel,
   ...mobileAuth,
   ...mobileServer,
   ...mobileSettings,
   ...mobileLink,
   ...mobileLiveActivity,
+  ...mobileOnboarding,
   ...mobileWorkspace,
   ...mobileShared,
 } as const satisfies PartialTranslation<AppMobileMessages>;

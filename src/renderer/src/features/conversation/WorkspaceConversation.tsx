@@ -1,9 +1,20 @@
-import { type AgentProviderId, agentProviderName } from "@openbot/contracts/agent-providers";
-import type { CentralAuthUser, UpdateAgentInput } from "@openbot/contracts/ipc";
+import type { AgentProviderId } from "@openbot/contracts/agent-providers";
+import {
+  type AgentModelChoice,
+  type CentralAuthUser,
+  sameAgentModelChoice,
+  type UpdateAgentInput,
+} from "@openbot/contracts/ipc";
 import { hasVisibleToasts } from "@openbot/ui";
-import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLoginDialog";
+import {
+  type BackupModelSource,
+  rememberedBackupModels,
+  type UsageLimitAskCardProps,
+  usageLimitAskOptions,
+} from "@openbot/ui/features/conversation/BackupModels";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import { createMemo, Show } from "solid-js";
+import { createMemo } from "solid-js";
+import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { useNavigation } from "../../navigation";
 import { usePlatform } from "../../platform";
 import { useProviders } from "../../providers";
@@ -12,8 +23,10 @@ import { useTurns } from "../../turns";
 import { turnsPort } from "../../turns-port";
 import { useAuth } from "../account/account-context";
 import { useAgents } from "../agents/agents-context";
+import { withHostAccountUsage } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
 import { useBrowserTabs } from "../browser/browser-context";
+import { useConnectors } from "../connectors/connectors-context";
 import { useCustomAgents } from "../custom-agents/custom-agents-context";
 import { useCustomProviders } from "../custom-providers/custom-providers-context";
 import { useRemoteDesktop } from "../remote-desktop/remote-desktop-context";
@@ -40,10 +53,12 @@ import { useConversation } from "./conversation-context";
  * composer state that survives one - which is why the id is read per prop
  * rather than captured once.
  */
+
 export function WorkspaceConversation(props: { account: () => CentralAuthUser }) {
   const scopeIsCurrent = createScopeGuard();
   const serverScope = useServerScope();
   const platform = usePlatform();
+  const connectors = useConnectors();
   const { activeServer, activeServerSupportsCapability, joinServerOpen } = useServers();
   const { serverSettingsOpen, openServerSettings } = useServerSettings();
   const {
@@ -61,21 +76,22 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     providerRuntimeDownloadsAvailable,
     downloadProviderRuntime,
     cancelProviderRuntimeDownload,
-    connectProvider,
     providerAdminServerId,
-    codeLogin,
+    connection,
   } = useProviders();
   /**
-   * The composer's code sign-in, on this computer only. The dialog shows here only while this
-   * surface started it: Settings shows its own for the sign-ins it starts.
+   * The composer's sign-ins: Connect, and the code from the ⋯ menu. The dialog shows here only while
+   * this surface started it: Settings shows its own for the sign-ins it starts.
    */
-  const signInWithCode = (provider: AgentProviderId) => codeLogin.start(provider, "composer");
+  const connectFromComposer = (provider: AgentProviderId) => connection.connect(provider, "composer");
+  const signInWithCode = (provider: AgentProviderId) => connection.alternative(provider, "composer");
   // Not gated on the server: the picker needs these IDs to label a model it is already showing, and
   // a remote server's OpenCode has its own catalogue. Only the write paths are local-only.
   const { customProviders } = useCustomProviders();
   const { customAgents } = useCustomAgents();
   const {
     agentStatus,
+    hostAccountLimits,
     agentList,
     agentListConnecting,
     activeAgent,
@@ -87,6 +103,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const {
     contextStates,
     activeQueue,
+    activeWaits,
     activeRoutineIds,
     activeRoutines,
     pendingPrompts,
@@ -98,10 +115,16 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     respondToApprovalRequest,
     respondToBrowserTakeover,
     cancelQueuedMessage,
+    cancelWait,
     steerQueuedMessage,
     updateQueuedMessage,
     reorderQueue,
     stopActiveTurn,
+    usageLimits,
+    usageLimitedModels,
+    waitedUsageLimits,
+    setWaitedUsageLimits,
+    queues,
   } = useTurns();
   const {
     activeMessages,
@@ -217,15 +240,15 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         }
       : agent;
   });
-  /** Whether the composer offers the code sign-in for the agent's provider on this computer. */
+  /** Whether this window runs the sign-in of the agent's provider: on this computer, or on a server it administers. */
+  const composerSignIn = () => {
+    const provider = conversationAgent()?.provider;
+    return provider !== undefined && connection.connectKind(provider) !== null;
+  };
+  /** Whether the composer offers the code sign-in for the agent's provider, when its Connect is slow or fails. */
   const composerCodeSignIn = () => {
     const provider = conversationAgent()?.provider;
-    return (
-      activeServer()?.kind === "local" &&
-      !providerAdminServerId() &&
-      provider !== undefined &&
-      codeLogin.providers().includes(provider)
-    );
+    return composerSignIn() && provider !== undefined && connection.alternativeKind(provider) === "code";
   };
 
   /** Access of a joined server's agent goes to its host; every other field keeps the Team API route. */
@@ -256,12 +279,69 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     () => activeServer()?.kind === "local" && providerRuntimeDownloadsAvailable(),
   );
 
+  /** Whether a usage limit holds this model and account now. */
+  const usageLimited = (choice: AgentModelChoice) =>
+    usageLimitedModels().some((limited) => sameAgentModelChoice(limited, choice));
+
+  /**
+   * A usage limit holds the active agent's queued message on this computer. The chat asks where to
+   * send it, unless the agent switches by itself to a saved backup model that is ready.
+   */
+  const usageLimitAsk = createMemo((): UsageLimitAskCardProps | undefined => {
+    const agent = activeAgent();
+    if (!agent || activeServer()?.kind !== "local") return undefined;
+    const limits = usageLimits();
+    if (!(agent.id in limits)) return undefined;
+    const resetsAt = limits[agent.id] ?? null;
+    if (waitedUsageLimits()[agent.id] === resetsAt && agent.id in waitedUsageLimits()) return undefined;
+    if (!queues()[agent.id]?.deliveries.some((delivery) => delivery.status === "queued")) return undefined;
+    const source: BackupModelSource = {
+      modelOptions: modelOptions(),
+      providers: agentStatus().providers,
+      limited: usageLimited,
+    };
+    const options = usageLimitAskOptions(agent, agent.backupModels, source);
+    if (options.length === 0) return undefined;
+    const backupModels = agent.backupModels;
+    if (
+      backupModels?.automatic &&
+      backupModels.order.some((choice) => options.some((option) => sameAgentModelChoice(option.choice, choice)))
+    )
+      return undefined;
+    const agentId = agent.id;
+    const reasoningEffort = agent.reasoningEffort;
+    return {
+      provider: agent.provider,
+      resetsAt,
+      options,
+      onSend: (option, remember) => {
+        // The agent keeps its reasoning effort where the other model has it.
+        const model = modelOptions().find(
+          (candidate) => candidate.provider === option.choice.provider && candidate.id === option.choice.model,
+        );
+        return updateAgent(agentId, {
+          provider: option.choice.provider,
+          model: option.choice.model,
+          providerAccountId: option.choice.providerAccountId ?? null,
+          reasoningEffort:
+            model && !model.supportedReasoningEfforts.includes(reasoningEffort)
+              ? model.defaultReasoningEffort
+              : reasoningEffort,
+          leaveUsageLimit: true,
+          ...(remember ? { backupModels: rememberedBackupModels(option.choice, backupModels) } : {}),
+        });
+      },
+      onWait: () => setWaitedUsageLimits((current) => ({ ...current, [agentId]: resetsAt })),
+    };
+  });
+
   return (
     <>
       <Conversation
         contextState={contextStates()[activeAgent()?.id ?? ""]}
         platform={platform.appInfo()?.platform}
         onOpenMarketplace={() => setSkillsMarketplaceOpen(true)}
+        connectors={connectors.active}
         onOpenMarketplaceApp={(request) => {
           setPendingPluginConnect(request.connect);
           setPendingPluginSlug(request.appId);
@@ -275,15 +355,16 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
             : agentStatus()
         }
         agentsConnecting={agentListConnecting()}
-        accountUsage={auth.accountUsage()}
+        accountUsage={withHostAccountUsage(auth.accountUsage(), hostAccountLimits())}
         providerRuntimeStatuses={providerDownloads() ? providerRuntimeStatuses() : undefined}
         customProviders={customProviders()}
         // The custom agents are this computer's. A joined host's picker counts its own from its models.
         customAgents={activeServer()?.kind === "local" ? customAgents() : undefined}
         onDownloadProvider={providerDownloads() ? downloadProviderRuntime : undefined}
         onCancelProviderDownload={providerDownloads() ? cancelProviderRuntimeDownload : undefined}
-        onConnectProvider={localProviderDownloads() ? connectProvider : undefined}
-        onSignInProvider={activeServer()?.kind === "local" ? connectProvider : undefined}
+        onConnectProvider={localProviderDownloads() || providerAdminServerId() ? connectFromComposer : undefined}
+        canConnectProvider={(provider) => connection.connectKind(provider) !== null}
+        onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
         onSignInWithCodeProvider={composerCodeSignIn() ? signInWithCode : undefined}
         onManageProviders={manageProviders() ? openProviderSettings : undefined}
         agent={conversationAgent()}
@@ -330,6 +411,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         remoteDesktopEnabled={!platform.landingPreview && activeServerSupportsCapability("remote-desktop")}
         prompt={activePrompt()}
         approval={activeApproval()}
+        usageLimitAsk={usageLimitAsk()}
+        usageLimited={activeServer()?.kind === "local" ? usageLimited : undefined}
         browserTakeover={activeBrowserTakeover()}
         activeTurnId={activeAgent() ? activeTurns()[activeAgent()?.id ?? ""] : null}
         activityDetail={activeAgent() ? turnProgress()[activeAgent()?.id ?? ""]?.detail : undefined}
@@ -381,6 +464,8 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onClearAgentContext={clearActiveAgentContext()}
         onRespondToBrowserTakeover={respondToBrowserTakeover}
         onCancelQueuedMessage={cancelQueuedMessage}
+        waits={activeWaits()}
+        onCancelWait={cancelWait}
         onSteerQueuedMessage={steerQueuedMessage}
         onUpdateQueuedMessage={updateQueuedMessage}
         onReorderQueue={reorderQueue}
@@ -389,18 +474,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onOpenRemoteDesktop={openRemoteDesktopWorkspace}
         onStop={stopActiveTurn}
       />
-      <Show when={codeLogin.opener() === "composer" && codeLogin.provider()}>
-        {(provider) => (
-          <ProviderCodeLoginDialog
-            open={true}
-            providerName={agentProviderName(provider())}
-            state={codeLogin.state()}
-            onOpenVerificationUrl={codeLogin.openVerificationUrl}
-            onCancel={codeLogin.cancel}
-            onSubmitCode={codeLogin.submit}
-          />
-        )}
-      </Show>
+      <ProviderSignInDialogs api={connection} opener="composer" />
     </>
   );
 }

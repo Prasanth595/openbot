@@ -8,6 +8,7 @@ import {
   DISCORD_ROUTE_TTL_SECONDS,
   type DiscordRouteGuild,
 } from "@openbot/contracts/signal-protocol/discord-route";
+import type { IngressRoute } from "@openbot/contracts/signal-protocol/ingress-queue";
 import {
   SLACK_ROUTE_AUDIENCE,
   SLACK_ROUTE_TEAMS_LIMIT,
@@ -70,7 +71,7 @@ export class RemoteControlPlaneError extends Schema.TaggedError<RemoteControlPla
     super({ status, code, message });
   }
 }
-export class RemoteOperationError extends Schema.TaggedError<RemoteOperationError>()("RemoteOperationError", {}) {}
+class RemoteOperationError extends Schema.TaggedError<RemoteOperationError>()("RemoteOperationError", {}) {}
 export type RemoteFailure = RemoteControlPlaneError | RemoteOperationError;
 function remoteValidate<A>(operation: () => A): Effect.Effect<A, RemoteFailure> {
   return Effect.try({
@@ -606,7 +607,9 @@ export class RemoteControlPlane {
       const result = yield* remoteCall(() =>
         dependencies.database
           .prepare(
-            `SELECT h.host_id, h.name, h.logo_key, h.device_public_key, h.auth_epoch, m.membership_id, m.role
+            `SELECT h.host_id, h.name, h.logo_key, h.device_public_key, h.auth_epoch, m.membership_id, m.role,
+           EXISTS(SELECT 1 FROM hosted_servers s WHERE s.server_id = h.host_id
+             AND s.desired_state NOT IN ('deleted', 'stopped')) AS hosted
          FROM remote_memberships m
          JOIN remote_hosts h ON h.host_id = m.host_id
          WHERE m.user_id = ? AND m.status = 'active'
@@ -621,6 +624,7 @@ export class RemoteControlPlane {
             auth_epoch: number;
             membership_id: string;
             role: RemoteMemberRole;
+            hosted: number;
           }>(),
       );
       return yield* Effect.forEach(
@@ -636,6 +640,8 @@ export class RemoteControlPlane {
               membershipId: row.membership_id,
               role: row.role,
               memberLimit: yield* this.#memberLimit(row.host_id),
+              // A server with an ended plan is not marked: a restart needs a new plan, which only the owner buys.
+              hosted: row.hosted === 1,
             };
           }),
         { concurrency: "unbounded" },
@@ -1686,6 +1692,31 @@ export class RemoteControlPlane {
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
 
+  /** The host that a Slack workspace, Discord guild or Telegram chat is linked to, or null. */
+  readonly routeHost = Effect.fn("RemoteControlPlane.routeHost")(
+    function* (
+      this: RemoteControlPlane,
+      route: IngressRoute,
+    ): Effect.fn.Return<string | null, RemoteFailure, RemoteDependencies> {
+      const dependencies = yield* RemoteDependencies;
+      const statement =
+        route.platform === "slack"
+          ? dependencies.database
+              .prepare("SELECT host_id FROM slack_workspace_routes WHERE team_id = ? AND app_id = ?")
+              .bind(route.teamId, route.appId)
+          : route.platform === "discord"
+            ? dependencies.database
+                .prepare("SELECT host_id FROM discord_guild_routes WHERE guild_id = ?")
+                .bind(route.guildId)
+            : dependencies.database
+                .prepare("SELECT host_id FROM telegram_chat_routes WHERE bot_id = ? AND chat_id = ?")
+                .bind(route.botId, route.chatId);
+      const row = yield* remoteCall(() => statement.first<{ host_id: string }>());
+      return row?.host_id ?? null;
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
   /**
    * Registers one opaque webhook route ID for the authenticated host. A route ID is never freed:
    * senders can still post to a revoked or deleted host's URL, so only the live owner may register it.
@@ -2291,6 +2322,40 @@ export class RemoteControlPlane {
         return yield* new RemoteControlPlaneError(401, "host_unauthorized", "The host credential is invalid.");
       }
       return host;
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /**
+   * Whether a member's device session on this host is still open: not ended, the membership active,
+   * and the account session of the device not signed out. The notification relay sends nothing for a
+   * closed one, because a host does not learn when the account service ends a session.
+   */
+  readonly sessionOpen = Effect.fn("RemoteControlPlane.sessionOpen")(
+    function* (
+      this: RemoteControlPlane,
+      hostId: string,
+      sessionId: string,
+    ): Effect.fn.Return<boolean, RemoteFailure, RemoteDependencies> {
+      const dependencies = yield* RemoteDependencies;
+      const now = dependencies.now();
+      const row = yield* remoteCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT 1 AS open FROM remote_sessions s
+           JOIN remote_memberships m
+             ON m.membership_id = s.membership_id AND m.host_id = s.host_id AND m.status = 'active'
+          WHERE s.session_id = ? AND s.host_id = ? AND s.ended_at IS NULL AND s.expires_at > ?
+            AND (s.auth_session_hash IS NULL OR EXISTS(
+              SELECT 1 FROM auth_sessions
+               WHERE token_hash = s.auth_session_hash AND user_id = s.user_id AND revoked_at IS NULL AND expires_at > ?
+            ))
+          LIMIT 1`,
+          )
+          .bind(sessionId, hostId, now, now)
+          .first<{ open: number }>(),
+      );
+      return row !== null;
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);

@@ -275,6 +275,25 @@
   margin: 0;
 }
 
+/* A relayed sign-in: the page is in the user's own browser, so the dialog holds only the address field. */
+.mcp-sign-in-relay-open {
+  margin-top: var(--openbot-space-4);
+}
+
+.mcp-sign-in-relay-form {
+  margin-top: var(--openbot-space-4);
+}
+
+.mcp-sign-in-relay-row {
+  display: flex;
+  gap: var(--openbot-space-2);
+}
+
+.mcp-sign-in-relay-row > .ui-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .mcp-sign-in-page-footer {
   display: flex;
   align-items: center;

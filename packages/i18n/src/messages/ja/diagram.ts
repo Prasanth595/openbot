@@ -93,7 +93,10 @@ export const messages = {
   "diagram.routine.recent": "最近の実行",
   "diagram.routine.runLabel": "{status}、{time}",
   "diagram.routine.manual": "手動",
-  "diagram.flows.remoteOnly": "ルーティンのフローは、このコンピューター上のエージェントでのみ使用できます。",
+  "diagram.flows.unsupported":
+    "このサーバーはルーティンフローに対応していません。サーバーを実行しているコンピュータの OpenBot を更新してください。",
+  "diagram.flows.webhookAdminOnly":
+    "Webhook ルーティンを変更または実行できるのは、このサーバーのオーナーまたは管理者だけです。",
   "diagram.flows.loadFailed": "このエージェントのルーティンを読み込めませんでした。",
   "diagram.flows.saveFailed": "ルーティンへのこの変更を保存できませんでした。",
   "diagram.flows.runFailed": "このルーティンを開始できませんでした。",

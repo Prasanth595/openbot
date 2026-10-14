@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { isAndroid } from "@/shared/lib/platform";
 import { createStreamRevealPool, streamRevealWindow } from "../model/stream-reveal-pool";
 
 const AnimatedTypography = Animated.createAnimatedComponent(Typography);
@@ -20,6 +21,9 @@ const REVEAL_TIMING = {
   easing: Easing.bezier(0.23, 1, 0.32, 1),
   reduceMotion: ReduceMotion.System,
 };
+// A nested text has no native view on Android, so each frame of a word's fade lays out and draws
+// its whole paragraph again, and the paragraph flickers. There each word shows at once.
+const WORD_FADE = !isAndroid;
 
 export function StreamRevealProvider({ children }: PropsWithChildren) {
   const [pool] = useState(() => createStreamRevealPool());
@@ -130,9 +134,10 @@ export function StreamingTailText({
   type,
   style,
 }: Omit<TextProps, "text"> & { body: string; enabled: boolean }) {
-  const [baseline, setBaseline] = useState(enabled ? "" : body);
-  if ((!enabled && baseline !== body) || !body.startsWith(baseline)) setBaseline(body);
-  const { prefix, words } = streamRevealWindow(body, baseline, enabled);
+  const fade = enabled && WORD_FADE;
+  const [baseline, setBaseline] = useState(fade ? "" : body);
+  if ((!fade && baseline !== body) || !body.startsWith(baseline)) setBaseline(body);
+  const { prefix, words } = streamRevealWindow(body, baseline, fade);
   const settle = useCallback(
     (end: number) => {
       setBaseline((previous) => (body.startsWith(previous) && end > previous.length ? body.slice(0, end) : previous));
@@ -150,7 +155,7 @@ export function StreamingTailText({
           onSettled={settle}
           type={type}
           style={style}
-          enabled={enabled}
+          enabled={fade}
         />
       ))}
     </>

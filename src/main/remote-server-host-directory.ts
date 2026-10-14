@@ -101,6 +101,7 @@ export function reconcileWebRtcHosts(input: WebRtcHostReconciliationInput): WebR
         logoVersion: host.logoKey,
         role: host.role,
         ...(host.memberLimit === undefined ? {} : { memberLimit: host.memberLimit }),
+        ...(host.hosted === undefined ? {} : { hosted: host.hosted }),
         transport: "webrtc-v2",
       };
     });

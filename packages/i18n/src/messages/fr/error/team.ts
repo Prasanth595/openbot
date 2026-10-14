@@ -67,14 +67,22 @@ export const messages = {
   "error.team.contextResetUnsupported":
     "Commencer une nouvelle discussion n’est pas pris en charge par cette connexion.",
   "error.team.workspaceDirectoryUnsupported": "L’affichage des dossiers n’est pas pris en charge par cette connexion.",
+  "error.team.conversationFileSearchUnsupported":
+    "La recherche de fichiers n’est pas prise en charge par cette connexion.",
+  "error.team.routineFlowsUnsupported":
+    "Ce serveur ne prend pas en charge les flux de routines. Mettez à jour OpenBot sur l’ordinateur qui l’exécute.",
+  "error.team.routineCanvasTooLarge":
+    "Ce canevas de routines est trop volumineux pour être envoyé à cet appareil. Raccourcissez les instructions des routines sur l’ordinateur qui exécute le serveur.",
   "error.team.agentImportUnsupported": "L’importation d’agents n’est pas prise en charge par cette connexion.",
   "error.team.liveActivityUnsupported": "Cet hôte ne peut pas mettre à jour l’activité en direct d’un téléphone.",
+  "error.team.pushNotificationsUnsupported": "Cet hôte ne peut pas envoyer de notifications à un téléphone.",
   "error.team.agentUpdateTargetRequired": "Un agent à mettre à jour est requis.",
   "error.team.queueEditUnsupported": "Ce client ne prend pas en charge la modification de la file d’attente.",
   "error.team.skillsUnsupported": "Les compétences ne sont pas prises en charge par cette connexion.",
   "error.team.hostIdentityUnsupported":
     "Les modifications de l’identité du serveur ne sont pas prises en charge par cette connexion.",
   "error.team.hostUpdateUnsupported": "Les mises à jour de l’hôte ne sont pas prises en charge par cette connexion.",
+  "error.team.hostTimezoneUnsupported": "Cette connexion ne prend pas en charge le fuseau horaire du serveur.",
   "error.team.attachmentNameRequired": "Un nom de pièce jointe sûr est requis.",
   "error.team.attachmentNotFound": "Pièce jointe introuvable.",
   "error.team.sharedFileTooLarge": "Le fichier partagé dépasse la limite de 100 Mo.",
@@ -104,4 +112,13 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Les réglages des agents ne sont pas pris en charge par cette connexion.",
   "error.team.adminRequired": "Un accès administrateur est requis.",
   "error.team.requestTooLarge": "Le corps de la requête est trop volumineux.",
+  "error.team.signInRelayUnsupported":
+    "Ce serveur ne peut pas relayer les connexions. Mettez à jour OpenBot sur l’hôte.",
+  "error.team.connectorsUnsupported":
+    "Les connexions de ce serveur ne peuvent pas être gérées d’ici. Mettez à jour OpenBot sur l’hôte.",
+  "error.team.connectorPageRefused": "Le serveur a envoyé une page qu’OpenBot n’ouvre pas.",
+  "error.team.signInRelayUnknown": "Cette connexion est terminée ou n’existe pas.",
+  "error.team.signInRelayUsed": "Cette connexion a déjà été envoyée.",
+  "error.team.signInRelayMismatch": "Cette adresse ne vient pas de cette connexion.",
+  "error.team.signInRelayLinkUnknown": "Aucun agent de ce serveur n'a affiché ce lien de connexion.",
 } as const satisfies PartialTranslation<typeof source>;

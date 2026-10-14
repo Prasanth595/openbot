@@ -112,7 +112,7 @@ export const messages = {
   "error.remote.operationFailed": "L’opération distante a échoué.",
   "error.remote.connectionReplaced": "La connexion a été remplacée.",
   "error.remote.desktopDidNotConnect": "L’ordinateur ne s’est pas connecté.",
-  "error.remote.desktopRestarted": "L’ordinateur a redémarré. Reconnexion avec une nouvelle session authentifiée.",
+  "error.remote.connectionDropped": "Le serveur n’a plus cette connexion. Nouvelle connexion en cours.",
   "error.remote.dataBeforeAuth": "L’hôte a envoyé des données avant l’authentification.",
   "error.remote.eventStreamGap": "Le flux d’événements de l’hôte présente un trou.",
   "error.remote.malformedEvent": "L’hôte a renvoyé un événement mal formé.",
@@ -193,13 +193,5 @@ export const messages = {
   "error.remote.hostOtherAccount": "Cet hôte appartient à un autre compte.",
   "error.remote.remoteNotConfigured": "Les connexions à distance ne sont pas configurées sur ce service OpenBot.",
   "error.remote.hostRefused": "L’hôte a refusé la demande ({status}).",
-  "error.remote.formUnavailable": "Ce formulaire n’est plus disponible.",
   "error.remote.hostedServerRemoval": "Utilisez Facturation pour supprimer un serveur hébergé.",
-  "error.remote.channelsUnsupported": "Mettez à jour ce serveur de bureau pour utiliser les canaux.",
-  "error.remote.channelDeleteUnsupported": "Mettez à jour ce serveur de bureau pour supprimer des canaux.",
-  "error.remote.attachmentUploadCancelled": "Envoi de la pièce jointe annulé.",
-  "error.remote.historyRefreshFailed":
-    "Le message a été envoyé, mais l’historique de la discussion n’a pas pu être actualisé.",
-  "error.remote.taskHistoryRefreshFailed":
-    "La tâche a été modifiée, mais l’historique de la discussion n’a pas pu être actualisé.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -2,8 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
-  "error.agent.historyUnavailable":
-    "このリクエストでは履歴を利用できません。最近の履歴をもう一度読み取るか、チャンネルの作業には channel_history を使用してください。",
+  "error.agent.historyUnavailable": "このリクエストでは履歴を利用できません。最近の履歴をもう一度読み取ってください。",
   "error.agent.toolRequestInvalid":
     "ツール検出の引数が無効です。宣言されたスキーマと、元の修飾されたツール名を使用してください。",
   "error.agent.approvalWhileDeleting": "エージェントの削除中は承認できません。",
@@ -92,6 +91,8 @@ export const messages = {
   "error.agent.automationLocalOnly": "ローカルスクリプトは、エージェントを実行しているコンピュータでのみ許可できます。",
   "error.agent.busyMessageModeLocalOnly":
     "エージェントの作業中のメッセージの扱いは、エージェントを実行しているコンピュータでのみ設定できます。",
+  "error.agent.backupModelsLocalOnly":
+    "バックアップモデルは、エージェントを実行しているコンピュータでのみ設定できます。",
   "error.agent.localScriptsOff": "このエージェントはローカルスクリプトを許可していません。",
   "error.agent.localScriptsRateLimited":
     "過去 1 時間に、ローカルスクリプトがこのエージェントに {limit} 件のメッセージまたはルーティンのリクエストを送信しました。後でもう一度お試しください。",
@@ -103,6 +104,8 @@ export const messages = {
     "このプロバイダーの「ワークスペースのみ」は macOS でのみ利用できます。エージェントの設定で「フルアクセス」を選んでください。",
   "error.agent.lowMemory":
     "このサーバーはメモリが不足しています。メッセージはキューで待機し、メモリが空くと開始します。より大きいプランにすると、サーバーのメモリが増えます。",
+  "error.agent.lowMemoryServer":
+    "このサーバーはメモリが不足しています。メッセージはキューで待機し、メモリが空くと開始します。",
   "error.agent.workspaceOnlyToolMissing":
     "「ワークスペースのみ」には {tool} が必要ですが、OpenBot は見つけられませんでした。インストールするか、エージェントの設定で「フルアクセス」を選んでください。",
 } as const satisfies PartialTranslation<typeof source>;

@@ -1,12 +1,8 @@
 import { isAvatarMimeType } from "@openbot/contracts/avatar-images";
 import {
   assertStorageUsageScope,
-  CHANNEL_CHATS_CAPABILITY,
   decodeAgentAdminSettings,
   decodeAgentHostSettings,
-  decodeChannelRoutineRuns,
-  decodeChannelRoutines,
-  decodeChannelSummaries,
   decodeInstalledSkills,
   decodeStorageUsage,
   isAgentMemory,
@@ -28,14 +24,21 @@ import { AGENT_INSTALL_CAPABILITY } from "@openbot/contracts/team-protocol/agent
 import { AGENT_MEMORIES_CAPABILITY } from "@openbot/contracts/team-protocol/agent-memories-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
-import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
+import {
+  CONVERSATION_FILE_SEARCH_CAPABILITY,
+  CONVERSATION_FILE_SEARCH_ROUTES,
+  type ConversationFileSearchRequest,
+  decodeConversationFileSearchResponse,
+} from "@openbot/contracts/team-protocol/conversation-file-search-v1";
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
+  TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
   TEAM_SEMANTIC_TAGS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -51,6 +54,7 @@ import {
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
+  listProviderAccounts,
   listSharedTables,
   previewAgentTemplate,
   publishAgentTemplate,
@@ -58,6 +62,7 @@ import {
   resetAgentSessionSetting,
   rotateEventRoutineSecret,
   saveEventRoutine,
+  setAgentProviderAccount,
   setAgentSessionSetting,
   setAgentSkillEnabled,
   testEventRoutine,
@@ -115,6 +120,8 @@ type HostRequestActions = Pick<
   | "listEventActivity"
   | "loadHostAnalytics"
   | "searchMessages"
+  | "canSearchFiles"
+  | "searchFiles"
   | "loadAgentSkills"
   | "setAgentSkillEnabled"
   | "uninstallAgentSkill"
@@ -123,6 +130,8 @@ type HostRequestActions = Pick<
   | "updateAgentAdminSettings"
   | "loadAgentHostSettings"
   | "updateAgentHostSettings"
+  | "loadProviderAccounts"
+  | "setAgentProviderAccount"
   | "canStartNewChat"
   | "startNewChat"
   | "loadAgentSessionSettings"
@@ -140,9 +149,11 @@ type HostRequestActions = Pick<
   | "duplicateAgent"
   | "loadQueue"
   | "canEditQueue"
+  | "canRetryMessage"
   | "attachmentSupport"
   | "editQueue"
   | "changeQueue"
+  | "setMessageReaction"
   | "downloadAttachment"
 >;
 
@@ -337,15 +348,12 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
-    loadRoutineCalendar: (input, serverId) =>
+    loadRoutineCalendar: (input, serverId, owners) =>
       runTeamRequest(
         buildRoutineCalendar(
           { from: new Date(input.from), to: new Date(input.to) },
           new Date(),
-          routineCalendarSource(
-            teamApi(serverId),
-            capabilities.get(serverId)?.includes(CHANNEL_CHATS_CAPABILITY) ?? false,
-          ),
+          routineCalendarSource(teamApi(serverId), owners),
         ),
       ),
     loadHostAnalytics: (input, serverId) =>
@@ -359,6 +367,17 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
+    canSearchFiles: (serverId) => capabilities.get(serverId)?.includes(CONVERSATION_FILE_SEARCH_CAPABILITY) ?? false,
+    searchFiles: (query, serverId, cursor) => {
+      const body: ConversationFileSearchRequest = { query, cursor: cursor || null, limit: 50 };
+      return request(
+        "POST",
+        CONVERSATION_FILE_SEARCH_ROUTES.search,
+        decodeConversationFileSearchResponse,
+        body,
+        serverId,
+      );
+    },
     // A host too old to know the route answers 404, so ask its advertised capabilities first.
     loadAgentSkills: async (agentId, serverId, manage = false) => {
       if (manage) return runTeamRequest(listAgentSkills(skillsAdmin(serverId), agentId));
@@ -393,6 +412,15 @@ export function createHostRequestActions({
       if (!capabilities.get(serverId)?.includes(AGENT_HOST_SETTINGS_CAPABILITY))
         throw new Error(currentText().t("mobile.agent.host.unsupported"));
       return request("POST", AGENT_HOST_SETTINGS_ROUTES.update, decodeAgentHostSettings, { ...input }, serverId);
+    },
+    loadProviderAccounts: async (serverId) =>
+      capabilities.get(serverId)?.includes(PROVIDER_ACCOUNTS_CAPABILITY)
+        ? runTeamRequest(listProviderAccounts(teamApi(serverId)))
+        : null,
+    setAgentProviderAccount: async (input, serverId) => {
+      if (!capabilities.get(serverId)?.includes(PROVIDER_ACCOUNTS_CAPABILITY))
+        throw new Error(currentText().t("mobile.agent.runtime.accountUnsupported"));
+      await runTeamRequest(setAgentProviderAccount(teamApi(serverId), input));
     },
     canStartNewChat: (serverId) => capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY) ?? false,
     startNewChat: async (agentId, serverId) => {
@@ -442,6 +470,7 @@ export function createHostRequestActions({
         serverId,
       ),
     canEditQueue: (serverId) => capabilities.get(serverId)?.includes(TEAM_QUEUE_EDIT_CAPABILITY) ?? false,
+    canRetryMessage: (serverId) => capabilities.get(serverId)?.includes(TEAM_MESSAGE_CLIENT_ID_CAPABILITY) ?? false,
     attachmentSupport: (serverId) => {
       const advertised = capabilities.get(serverId) ?? [];
       return {
@@ -470,6 +499,9 @@ export function createHostRequestActions({
             ? TEAM_API_ROUTES.agent.queueSteer
             : TEAM_API_ROUTES.agent.queueReorder;
       await request("POST", route(agentId), ignoreResponse, input, serverId);
+    },
+    setMessageReaction: async (agentId, serverId, messageId, emoji) => {
+      await request("POST", TEAM_API_ROUTES.agent.reactions(agentId), ignoreResponse, { messageId, emoji }, serverId);
     },
     downloadAttachment: (serverId, attachmentId) => {
       const download = () =>
@@ -501,7 +533,10 @@ export function createHostRequestActions({
 }
 
 /** The routes that the desktop calendar reads from a remote host, so both place the same runs. */
-function routineCalendarSource(request: TeamApiRequest, channels: boolean): RoutineCalendarSource<TeamRequestError> {
+function routineCalendarSource(
+  request: TeamApiRequest,
+  knownOwners?: readonly RoutineCalendarOwner[],
+): RoutineCalendarSource<TeamRequestError> {
   /** One request to this server as an Effect. */
   const send = <T>(method: string, path: string, decode: (value: unknown) => T, body?: TeamProtocolV2Json) =>
     Effect.tryPromise({
@@ -510,22 +545,11 @@ function routineCalendarSource(request: TeamApiRequest, channels: boolean): Rout
     });
   return {
     owners: () =>
-      Effect.gen(function* () {
-        // A host from before channels rejects the channel routes; its agents still have routines.
-        const [agents, channelList] = yield* Effect.all(
-          [
-            send("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries),
-            channels ? send("GET", CHANNEL_ROUTES.list, decodeChannelSummaries) : Effect.succeed([]),
-          ],
-          { concurrency: "unbounded" },
-        );
-        return [
-          ...agents.map((agent): RoutineCalendarOwner => ({ kind: "agent", agentId: agent.id })),
-          ...channelList
-            .filter((channel) => !channel.archived)
-            .map((channel): RoutineCalendarOwner => ({ kind: "channel", channelId: channel.id })),
-        ];
-      }),
+      knownOwners
+        ? Effect.succeed([...knownOwners])
+        : send("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries).pipe(
+            Effect.map((agents) => agents.map((agent): RoutineCalendarOwner => ({ kind: "agent", agentId: agent.id }))),
+          ),
     routines: (owner) =>
       owner.kind === "agent"
         ? send("GET", TEAM_API_ROUTES.agent.routines(owner.agentId), (value) => {
@@ -533,7 +557,8 @@ function routineCalendarSource(request: TeamApiRequest, channels: boolean): Rout
               throw new Error("The host returned invalid routines.");
             return value;
           })
-        : send("POST", CHANNEL_ROUTES.routines, decodeChannelRoutines, { channelId: owner.channelId }),
+        : // The phone lists only agents as owners.
+          Effect.succeed([]),
     runs: (owner, routineId, limit) =>
       owner.kind === "agent"
         ? send("GET", `${TEAM_API_ROUTES.agent.routineRuns(owner.agentId, routineId)}?limit=${limit}`, (value) => {
@@ -541,11 +566,7 @@ function routineCalendarSource(request: TeamApiRequest, channels: boolean): Rout
               throw new Error("The host returned an invalid routine history.");
             return value;
           })
-        : send("POST", CHANNEL_ROUTES.routineRuns, decodeChannelRoutineRuns, {
-            channelId: owner.channelId,
-            routineId,
-            limit,
-          }),
+        : Effect.succeed([]),
   };
 }
 

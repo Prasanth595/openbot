@@ -81,6 +81,16 @@ export class RequestTimeoutError extends Error {
   }
 }
 
+/**
+ * The provider started a turn of its own, such as after a background task ended, before this turn
+ * could start. Nothing ran, so the caller queues the message again for when that turn ends.
+ */
+export class ProviderTurnActiveError extends Error {
+  constructor(readonly providerName: string) {
+    super(`${providerName} is in a turn that it started itself.`);
+  }
+}
+
 /** What of the CLI's last stderr line a status message carries. The full line is in the log. */
 const EXIT_DETAIL_LIMIT = 300;
 

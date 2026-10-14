@@ -161,8 +161,11 @@ Secrets are never passed as process arguments. The other values are Worker
 variables. The SMTP connection uses TLS from the start and accepts only port 465.
 
 GitHub Actions reads the remote-control secrets, `SKILLS_ADMIN_TOKEN`, `SITE_REPORT_HASH_SECRET`, and the optional
-`SITE_OPERATIONS_ADMIN_TOKEN` from the `cloudflare-production` Environment. It includes them in Wrangler's temporary
-runtime secrets file.
+`SITE_OPERATIONS_ADMIN_TOKEN` and `SERVER_CLAIMS_ADMIN_TOKEN` from the `cloudflare-production` Environment. It includes
+them in Wrangler's temporary runtime secrets file.
+
+`SERVER_CLAIMS_ADMIN_TOKEN` lets an operator sign a new server in for a user without an email code: see
+[server claims](../../docs/self-hosted-server.md#sign-in-with-a-server-claim). Without it, the endpoint answers 401.
 
 Use `bun run api:deploy:test` for the isolated `openbot-auth-api-test` Worker
 and the `openbot-auth-test` D1 database.
@@ -241,12 +244,19 @@ requests. It does not carry Team API or Remote Desktop data.
 To deploy your own copy of this Worker with your own Signal, see
 [Self-hosted remote access](../../docs/self-hosting.md).
 
-### Live Activity relay
+### Live Activity and notification relay
 
 `POST /v2/remote/hosts/:hostId/live-activity` forwards a sealed iPhone Live Activity update from a
 host to Apple Push Notification service. The host seals the content for the phone, so the Worker
 cannot read it. The Worker checks the host credential and `LIVE_ACTIVITY_RATE_LIMITER`, makes the
-APNs payload itself with no alert text, and stores and logs nothing.
+APNs payload itself, and stores and logs nothing. An update that shows an event that notifies the
+member has an `alert` with the sound of the phone and "OpenBot" as its only text (iOS shows the text
+on Apple Watch only); a host cannot give the text.
+
+`POST /v2/remote/hosts/:hostId/notification` forwards a sealed iPhone notification in the same way.
+It has its own key in `LIVE_ACTIVITY_RATE_LIMITER`, and it sends nothing for a device session that
+has ended (`RemoteControlPlane.sessionOpen`), because the host does not learn about the end. The
+alert has "OpenBot" as its only text and `mutable-content`; the app opens the sealed bytes.
 
 The relay is off until `APNS_PRIVATE_KEY` (the `.p8` key text) and `APNS_KEY_ID` are set. Create
 the key in Apple Developer > Keys with the Apple Push Notifications service, then add both to the

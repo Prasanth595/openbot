@@ -27,7 +27,6 @@ export default function ServerRoutinesLayout() {
     >
       <Stack.Screen name="index" options={{ title: t("mobile.app.route.routines") }} />
       <Stack.Screen name="agent-routine" options={{ title: t("mobile.app.route.routine") }} />
-      <Stack.Screen name="channel-routine" options={{ title: t("mobile.app.route.routine") }} />
     </Stack>
   );
 }

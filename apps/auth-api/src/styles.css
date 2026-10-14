@@ -1060,6 +1060,10 @@ a {
   line-height: 1.5;
 }
 
+.join-card-status-empty {
+  margin: 0;
+}
+
 @media (max-width: 520px) {
   .join-page {
     padding-right: 14px;
@@ -1206,6 +1210,14 @@ a {
 
 .landing-availability-separator {
   color: var(--openbot-text-dim);
+}
+
+/* Between the desktop systems and the phone apps. */
+.landing-availability-divider {
+  width: 1px;
+  height: 12px;
+  margin-inline: 2px;
+  background: var(--openbot-border-strong);
 }
 
 .landing-title {
@@ -1410,6 +1422,23 @@ a {
 .landing-download-menu-item:focus-visible {
   outline: 2px solid var(--openbot-logo-production);
   outline-offset: -2px;
+}
+
+.landing-download-menu-separator {
+  height: 1px;
+  margin: 4px 5px;
+  border: 0;
+  background: var(--openbot-border-strong);
+}
+
+.landing-download-menu-label {
+  padding: 6px 11px 4px;
+  color: var(--openbot-text-muted);
+  text-align: left;
+  font-family: var(--openbot-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .landing-preview {
@@ -3737,6 +3766,11 @@ a {
     font-size: 8px;
   }
 
+  /* The five systems do not fit on a phone with the words in front of them. */
+  .landing-availability-copy {
+    display: none;
+  }
+
   .landing-availability-platform {
     gap: 3px;
   }
@@ -3813,6 +3847,16 @@ a {
 
   .landing-glow {
     min-height: 300px;
+  }
+}
+
+@media (max-width: 400px) {
+  .landing-availability {
+    gap: 4px;
+  }
+
+  .landing-availability-divider {
+    margin-inline: 1px;
   }
 }
 
@@ -4337,10 +4381,6 @@ a {
   display: block;
 }
 
-.post-media-frame {
-  position: relative;
-}
-
 .post-media {
   display: block;
   width: 100%;
@@ -4391,8 +4431,7 @@ a {
    `z-index` is what keeps it above the gradient host: that host is positioned,
    so without a layer of its own the picture paints underneath and the mount
    reads as a gradient with no screenshot on it. */
-.post-mount .post-media,
-.post-mount .post-media-frame {
+.post-mount .post-media {
   position: relative;
   z-index: 1;
 }
@@ -4408,46 +4447,6 @@ a {
   color: var(--openbot-text-muted);
   font-size: 14px;
   line-height: 1.5;
-}
-
-/* The control that stops a moving picture. It sits on the picture rather than
-   under it, because the thing it stops is what the reader is looking at, and it is
-   opaque so that it stays readable over any frame. */
-.post-media-toggle {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 13px 7px 11px;
-  border: 1px solid var(--openbot-border-strong);
-  border-radius: var(--openbot-radius-pill);
-  background: var(--openbot-bg-overlay);
-  color: var(--openbot-text-primary);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  transition: background-color var(--openbot-duration-normal) ease;
-}
-
-.post-media-toggle:focus-visible {
-  outline: 0;
-  box-shadow: 0 0 0 3px var(--openbot-accent-strong);
-}
-
-.post-media-toggle-icon {
-  width: 9px;
-  height: 11px;
-  background: currentcolor;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-}
-
-.post-media-toggle[data-state="playing"] .post-media-toggle-icon {
-  background: linear-gradient(to right, currentcolor 0 3px, transparent 3px 6px, currentcolor 6px);
-  clip-path: none;
 }
 
 .post-more {
@@ -4602,10 +4601,6 @@ a {
     color: var(--openbot-text-primary);
   }
 
-  .post-media-toggle:hover {
-    background: var(--openbot-bg-surface-raised);
-  }
-
   .post-featured-title a:hover {
     color: var(--openbot-text-secondary);
   }
@@ -4636,8 +4631,7 @@ a {
 
   .post-card-art,
   .post-card-art-title,
-  .post-featured-art-title,
-  .post-media-toggle {
+  .post-featured-art-title {
     transition: none;
     transform: none;
   }
@@ -8279,6 +8273,7 @@ a {
 
 .changelog-release-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   color: var(--openbot-text-dim);
@@ -8293,6 +8288,54 @@ a {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* The stores that have a mobile version. A store that still reviews it reads as waiting. */
+.changelog-stores {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.changelog-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--openbot-radius-pill);
+  box-shadow: inset 0 0 0 1px var(--changelog-hairline);
+  color: var(--openbot-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.changelog-store-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--openbot-success);
+}
+
+.changelog-store-detail {
+  color: var(--openbot-text-dim);
+  font-weight: 500;
+}
+
+.changelog-store[data-state="review"] {
+  background: var(--openbot-warning-soft);
+  box-shadow: none;
+  color: var(--openbot-warning-text);
+}
+
+.changelog-store[data-state="review"] .changelog-store-dot {
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.changelog-store[data-state="review"] .changelog-store-detail {
+  color: inherit;
 }
 
 .changelog-release-title {

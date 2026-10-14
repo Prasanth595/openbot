@@ -3,7 +3,7 @@ import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
   "error.agent.historyUnavailable":
-    "O histórico está indisponível para esta solicitação. Leia o histórico recente novamente ou use channel_history para trabalho em canais.",
+    "O histórico está indisponível para esta solicitação. Leia o histórico recente novamente.",
   "error.agent.toolRequestInvalid":
     "Argumentos de descoberta de ferramentas inválidos. Use o esquema declarado e um nome de ferramenta qualificado original.",
   "error.agent.approvalWhileDeleting": "Não é possível conceder aprovação enquanto o agente está sendo excluído.",
@@ -88,6 +88,7 @@ export const messages = {
   "error.agent.automationLocalOnly": "Scripts locais só podem ser permitidos no computador que roda o agente.",
   "error.agent.busyMessageModeLocalOnly":
     "O que as mensagens fazem enquanto o agente trabalha só pode ser definido no computador que roda o agente.",
+  "error.agent.backupModelsLocalOnly": "Os modelos de reserva só podem ser definidos no computador que roda o agente.",
   "error.agent.localScriptsOff": "Este agente não permite scripts locais.",
   "error.agent.localScriptsRateLimited":
     "Scripts locais enviaram {limit} mensagens ou pedidos de rotina a este agente na última hora. Tente de novo mais tarde.",
@@ -99,6 +100,8 @@ export const messages = {
     "Somente o espaço de trabalho está disponível para este provedor apenas no macOS. Escolha Acesso completo nas configurações do agente.",
   "error.agent.lowMemory":
     "Este servidor está com pouca memória. Sua mensagem aguarda na fila e começa quando houver memória livre. Um plano maior oferece mais memória ao servidor.",
+  "error.agent.lowMemoryServer":
+    "Este servidor está com pouca memória. Sua mensagem aguarda na fila e começa quando houver memória livre.",
   "error.agent.workspaceOnlyToolMissing":
     "Somente o espaço de trabalho exige {tool}, que o OpenBot não encontrou. Instale a ferramenta ou escolha Acesso completo nas configurações do agente.",
 } as const satisfies PartialTranslation<typeof source>;

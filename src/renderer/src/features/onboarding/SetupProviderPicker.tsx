@@ -10,8 +10,12 @@ import {
   type SaveCustomProviderInput,
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
-import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLoginDialog";
-import { freeModelsReady, ProviderPicker, type ProviderPickerOption } from "@openbot/ui/components/ProviderPicker";
+import {
+  freeModelsReady,
+  type ProviderConnection,
+  ProviderPicker,
+  type ProviderPickerOption,
+} from "@openbot/ui/components/ProviderPicker";
 import { CustomProviderDialog } from "@openbot/ui/features/custom-providers/CustomProviderDialog";
 import { CustomProviderListDialog } from "@openbot/ui/features/custom-providers/CustomProviderListDialog";
 import { DetectedProviders } from "@openbot/ui/features/custom-providers/DetectedProviders";
@@ -25,7 +29,8 @@ import {
 import { useText } from "@openbot/ui/text";
 import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
-import type { ProviderCodeLoginApi } from "../../components/provider-code-login-api";
+import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
+import type { ProviderConnectionApi } from "../../components/provider-connection-api";
 import { createCustomProviderHostState } from "../custom-providers/custom-provider-host-state";
 import { FREE_PROVIDER, onboardingProviderRows } from "./onboarding-provider-rows";
 import { fallbackProviderState } from "./onboarding-provider-state";
@@ -43,7 +48,7 @@ export interface SetupProviderProps {
   /** The newer runtime main offers per provider; the row's actions menu offers it as in Settings. */
   providerAvailableVersions?: Partial<Record<AgentProviderId, string | null>> | undefined;
   onUpdateProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
-  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
@@ -54,10 +59,10 @@ export interface SetupProviderProps {
    */
   providerKeys?: ProviderKeyApi | undefined;
   /**
-   * The sign-in finished on another device. First run is where it is needed most: the browser this
-   * computer opens is the part of the hand-off that is most likely to be missing or wrong here.
+   * How each row signs in. First run needs its ⋯ menu most: the browser this computer opens is the
+   * part of the hand-off that is most likely to be missing or wrong here.
    */
-  codeLogin?: ProviderCodeLoginApi | undefined;
+  connection?: ProviderConnectionApi | undefined;
   onRefreshProviders?: (() => void | Promise<void>) | undefined;
   /** Accepts a described endpoint. Without it the step offers no custom provider at all. */
   onAddCustomProvider?: ((value: SaveCustomProviderInput) => Promise<CustomProviderRestart>) | undefined;
@@ -415,6 +420,16 @@ export function createSetupProviders(
         focusRefreshTimer = setTimeout(synchronize, 250);
         return;
       }
+      // A refresh cancels a sign-in that OpenBot runs, such as Gemini's Google sign-in. The browser
+      // takes focus, so the user often comes back before the sign-in is complete. That sign-in
+      // reports its own result.
+      const signingIn = props.agentStatus.providers?.some(
+        (status) => providersAwaitingFocusRefresh.has(status.id) && status.connectionState === "connecting",
+      );
+      if (signingIn) {
+        blurredAfterProviderConnect = false;
+        return;
+      }
       providersAwaitingFocusRefresh.clear();
       blurredAfterProviderConnect = false;
       void refreshProviders();
@@ -467,7 +482,14 @@ export function createSetupProviders(
 
   /** Resolves `false` when the request failed; the error then says why. */
   async function connectProvider(provider: AgentProviderId): Promise<boolean> {
-    if (!props.onConnectProvider || props.refreshingProviders) return true;
+    const connection = props.connection;
+    const kind = connection?.connectKind(provider);
+    if (!connection || !kind || props.refreshingProviders) return true;
+    // A dialog sign-in reports itself in its dialog. The browser sign-in reports in the row.
+    if (kind === "dialog") {
+      await connection.connect(provider);
+      return true;
+    }
     keepProviderRows();
     setError("");
     setProviderErrors((current) => ({ ...current, [provider]: undefined }));
@@ -478,7 +500,7 @@ export function createSetupProviders(
       props.agentStatus.providers?.find((candidate) => candidate.id === provider)?.message ?? null,
     );
     try {
-      await props.onConnectProvider(provider);
+      await connection.connect(provider);
       return true;
     } catch (cause) {
       providersAwaitingFocusRefresh.delete(provider);
@@ -594,6 +616,20 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
   const { t } = useText();
   const source = () => props.providers.props;
   const lazyProviderMode = () => Boolean(source().providerRuntimeStatuses || source().onDownloadProvider);
+  /** The rows' Connect goes through the step, which follows the browser sign-in it starts. */
+  const connection = createMemo((): ProviderConnection | undefined => {
+    const api = source().connection;
+    return api
+      ? {
+          connectKind: api.connectKind,
+          alternativeKind: api.alternativeKind,
+          alternative: api.alternative,
+          connect: async (provider) => {
+            await props.providers.connectProvider(provider);
+          },
+        }
+      : undefined;
+  });
   return (
     <>
       <ProviderPicker
@@ -606,13 +642,8 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
         focusFirst
         disabled={props.disabled}
         refreshingProviders={source().refreshingProviders}
-        onConnectProvider={
-          source().onConnectProvider
-            ? async (provider) => {
-                await props.providers.connectProvider(provider);
-              }
-            : undefined
-        }
+        connection={connection()}
+        onCancelProviderSignIn={source().onCancelProviderSignIn}
         onDownloadProvider={
           source().onDownloadProvider
             ? async (provider) => {
@@ -631,8 +662,6 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
         onSignInProvider={
           source().onSignInProvider || source().providerKeys ? props.providers.signInProvider : undefined
         }
-        onSignInWithCodeProvider={source().codeLogin?.start}
-        codeSignInProviders={source().codeLogin?.providers()}
         onUpdateProvider={source().onUpdateProvider}
         menuMount={props.menuMount}
         onRefreshProviders={
@@ -711,7 +740,7 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
                 provider={provider}
                 onClose={props.providers.closeKeyDialog}
                 onReconnect={
-                  source().onConnectProvider
+                  source().connection?.connectKind(provider) === "browser"
                     ? async () => {
                         await props.providers.connectProvider(provider);
                       }
@@ -724,18 +753,7 @@ export function SetupProviderPicker(props: SetupProviderPickerProps) {
       </Show>
       {/* Sits beside the picker it was started from, so the code covers the row rather
           than a step the user has not reached. */}
-      <Show when={source().codeLogin?.provider() ? source().codeLogin : undefined}>
-        {(api) => (
-          <ProviderCodeLoginDialog
-            open={true}
-            providerName={SETUP_PROVIDERS.find((candidate) => candidate.id === api().provider())?.name ?? ""}
-            state={api().state()}
-            onOpenVerificationUrl={api().openVerificationUrl}
-            onCancel={api().cancel}
-            onSubmitCode={api().submit}
-          />
-        )}
-      </Show>
+      <ProviderSignInDialogs api={source().connection} />
     </>
   );
 }

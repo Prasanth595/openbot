@@ -1,5 +1,7 @@
-// The pages of sign-ins that an administrator starts on this host from another computer and finishes
-// through the live view of a private tab (`mcp-sign-in-v1`, `provider-host-sign-in-v1`).
+// The pages of sign-ins that an administrator starts on this host from another computer. The page opens
+// in a private tab and the administrator finishes through its live view (`mcp-sign-in-v1`,
+// `provider-host-sign-in-v1`), or the host only records the page address and the administrator's own
+// computer opens it and relays the callback (`sign-in-relay-v1`).
 
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Duration, Effect, Exit, Fiber, Scope } from "effect";
@@ -17,7 +19,13 @@ export interface HostSignInPage<R> {
   result: R | null;
 }
 
+/** How a sign-in shows its page: in a private tab here, or only as an address that a client opens. */
+export type HostSignInPageMode = "tab" | "relay";
+
 interface HostSignIn<R> extends HostSignInPage<R> {
+  mode: HostSignInPageMode;
+  /** The page address, in `relay` mode, once the sign-in asked to open it. */
+  pageUrl: string | null;
   /** The sign-in. `#finish` waits for it apart, so an interrupt still ends the sign-in. */
   run?: Fiber.Fiber<unknown, unknown>;
 }
@@ -43,8 +51,9 @@ export class HostSignInPages<K, R> {
     key: K,
     run: (openPage: (url: string) => Promise<void>) => Effect.Effect<A, E>,
     resultOf: (exit: Exit.Exit<A, E>) => R,
+    mode: HostSignInPageMode = "tab",
   ) {
-    const signIn: HostSignIn<R> = { tabId: null, result: null };
+    const signIn: HostSignIn<R> = { mode, tabId: null, pageUrl: null, result: null };
     this.#signIns.set(key, signIn);
     const fiber = yield* Effect.forkIn(
       run((url) => runCauseEffect(this.#show(key, signIn, url))),
@@ -57,6 +66,12 @@ export class HostSignInPages<K, R> {
       this.#scope,
     );
   });
+
+  /** The page address of a `relay` sign-in of `key`; `null` until the sign-in asked to open it. */
+  pageUrl(key: K): string | null {
+    const signIn = this.#signIns.get(key);
+    return signIn?.mode === "relay" && signIn.result === null ? signIn.pageUrl : null;
+  }
 
   /** Undefined when no sign-in of `key` runs or ended a short time ago. */
   status(key: K): HostSignInPage<R> | undefined {
@@ -83,6 +98,10 @@ export class HostSignInPages<K, R> {
     signIn: HostSignIn<R>,
     url: string,
   ) {
+    if (signIn.mode === "relay") {
+      signIn.pageUrl = url;
+      return;
+    }
     const tab = yield* this.#browser.openPrivate(url);
     if (this.#signIns.get(key) === signIn && signIn.result === null) {
       signIn.tabId = tab.id;

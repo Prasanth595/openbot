@@ -1,27 +1,38 @@
 import { PROVIDERS_V5_CAPABILITY, PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
-import { Effect } from "effect";
+import { Cause, Effect, Exit, Fiber } from "effect";
 import type { RemoteWorkflowError } from "../remote-service-effects";
 // The providers of one server's host: code sign-in, API keys, managed CLI runtimes and custom
 // endpoints. On a joined server they belong to the host, so the request goes there, and the host
 // answers only an owner or admin. A key only travels towards the host; no result carries one.
 
 import type { ManagedProviderId } from "@openbot/contracts/agent-providers";
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   type AgentProviderId,
   type AgentStatus,
   decodeCustomProviderResult,
   decodeCustomProviderSummaries,
+  decodeHostProviderAccountUsage,
   decodeProviderApiKeyStatus,
   decodeProviderCodeLoginStart,
   decodeProviderHostSignInStatus,
   decodeProviderRuntimeSnapshot,
+  decodeSignInRelayFlow,
+  type McpTestResult,
+  type PasteProviderRelaySignInInput,
+  type ProviderRelaySignInStatus,
   type SubmitProviderCodeLoginInput,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import {
+  PROVIDER_ACCOUNTS_CAPABILITY,
+  PROVIDER_ACCOUNTS_ROUTES,
+} from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import {
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
+  PROVIDER_HOST_SIGN_IN_ERROR_LIMIT,
   PROVIDER_HOST_SIGN_IN_ROUTES,
 } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_CAPABILITY, PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
@@ -34,6 +45,11 @@ import {
   PROVIDERS_SIGN_IN_V3_ROUTES,
 } from "@openbot/contracts/team-protocol/providers-v3";
 import { PROVIDERS_V4_CAPABILITY, PROVIDERS_V4_ROUTES } from "@openbot/contracts/team-protocol/providers-v4";
+import {
+  SIGN_IN_RELAY_CAPABILITY,
+  SIGN_IN_RELAY_PROVIDERS,
+  SIGN_IN_RELAY_ROUTES,
+} from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { normalizePastedCode } from "../../backend/agent/cli-code-login";
 import { AgentLifecycleFailed, type AgentService } from "../../backend/agent-service";
@@ -41,14 +57,22 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
-import { decodeAgentStatusFromHost } from "../remote-agent-decoding";
+import { decodeAgentStatusFromHost, decodeHostProviderAccountsFromHost } from "../remote-agent-decoding";
 import { acceptEmpty, type ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
+import { type SignInRelayClient, signInRelayRemote } from "../sign-in-relay-client";
 import { parseProviderId } from "./app-inputs";
 import { parseDeleteCustomProvider, parseSaveCustomProvider } from "./custom-provider-inputs";
 import type { IpcGroupHandlers } from "./define-ipc-group";
-import { parseManagedProviderId, parseProviderApiKeyInput } from "./provider-handlers";
+import {
+  parseConnectProviderAccountInput,
+  parseManagedProviderId,
+  parseProviderApiKeyInput,
+  parseRemoveProviderAccountInput,
+  parseRenameProviderAccountInput,
+} from "./provider-handlers";
 import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
+import { isObject, requireString } from "./validation";
 
 interface ProviderAdminRemoteServers {
   supportsCapability(serverId: string, capability: TeamCurrentCapability): boolean;
@@ -69,6 +93,14 @@ interface ProviderAdminIpcDependencies {
   runtimes: Pick<ProviderRuntimeManager, "getStatus" | "download" | "cancel" | "checkForUpdates">;
   customProviders: PeerCustomProviderChanges;
   remoteServers: ProviderAdminRemoteServers;
+  /** Opens the page of a joined server's sign-in in this computer's browser, and relays the callback. */
+  relay: Pick<SignInRelayClient, "run" | "page" | "open" | "paste">;
+}
+
+/** A relayed sign-in that runs on this computer, and how it ended once it did. */
+interface RelayedSignIn {
+  fiber: Fiber.Fiber<McpTestResult, unknown>;
+  result: { error: string | null } | null;
 }
 
 export function providerAdminIpcHandlers({
@@ -77,6 +109,7 @@ export function providerAdminIpcHandlers({
   runtimes,
   customProviders,
   remoteServers,
+  relay,
 }: ProviderAdminIpcDependencies): Pick<IpcGroupHandlers, "providerAdmin"> {
   function remote<T>(serverId: string, path: string, body: unknown, decoder: ResponseDecoder<T>): Promise<T> {
     if (!remoteServers.supportsCapability(serverId, PROVIDERS_ADMIN_CAPABILITY))
@@ -133,6 +166,59 @@ export function providerAdminIpcHandlers({
       },
     });
 
+  /** The accounts of a joined server's host's providers, which only a host with `provider-accounts-v1` holds. */
+  function requireAccounts(serverId: string): void {
+    if (!remoteServers.supportsCapability(serverId, PROVIDER_ACCOUNTS_CAPABILITY))
+      throw new Error(sourceText("error.team.providersUnsupported"));
+  }
+  const accountsQuery = <T>(path: string, decoder: ResponseDecoder<T>) =>
+    scopedQueryHandler({
+      local: () => Promise.reject(new Error(sourceText("error.team.providersUnsupported"))),
+      remote: (serverId) => {
+        requireAccounts(serverId);
+        return runCauseEffect(remoteServers.request(serverId, path, decoder, { method: "POST", body: {} }));
+      },
+    });
+  const accountsRequest = <I, T>(
+    parse: (value: unknown) => I,
+    path: string,
+    decoder: ResponseDecoder<T>,
+    body: (input: I) => unknown = (input) => input,
+  ) =>
+    scopedHandler(parse, {
+      local: () => Promise.reject(new Error(sourceText("error.team.providersUnsupported"))),
+      remote: (input: I, serverId: string) => {
+        requireAccounts(serverId);
+        return runCauseEffect(remoteServers.request(serverId, path, decoder, { method: "POST", body: body(input) }));
+      },
+    });
+
+  /**
+   * A sign-in that a joined server's host starts and that opens in this computer's browser, for the
+   * providers that only a host with `sign-in-relay-v1` relays. It runs here until it ends, and the
+   * renderer reads `relaySignInStatus` as it does for the host's own page.
+   */
+  const relayed = new Map<string, RelayedSignIn>();
+  const relayKey = (serverId: string, provider: AgentProviderId) => `provider\n${serverId}\n${provider}`;
+  const relaySignIn = <I, T>(parse: (value: unknown) => I, run: (input: I, serverId: string) => T | Promise<T>) =>
+    scopedHandler(parse, {
+      local: () => Promise.reject(new Error(sourceText("error.team.providersUnsupported"))),
+      remote: run,
+    });
+  function requireRelay(serverId: string, provider: AgentProviderId): void {
+    if (
+      !remoteServers.supportsCapability(serverId, SIGN_IN_RELAY_CAPABILITY) ||
+      !SIGN_IN_RELAY_PROVIDERS.some((candidate) => candidate === provider)
+    )
+      throw new Error(sourceText("error.team.providersUnsupported"));
+  }
+  async function stopRelay(key: string): Promise<void> {
+    const running = relayed.get(key);
+    relayed.delete(key);
+    // The interrupt cancels the flow on the host, which stops the host's sign-in.
+    if (running) await Effect.runPromise(Fiber.interrupt(running.fiber));
+  }
+
   const runtime = (route: "runtimesDownload" | "runtimesCancel") => (provider: ManagedProviderId, serverId: string) =>
     remote(serverId, runtimeRoutes(serverId)[route], { provider }, decodeProviderRuntimeSnapshot);
 
@@ -167,6 +253,59 @@ export function providerAdminIpcHandlers({
       cancelHostSignIn: hostSignIn((provider, serverId) =>
         remoteChange(serverId, PROVIDER_HOST_SIGN_IN_ROUTES.cancel, { provider }),
       ),
+      accounts: accountsQuery(PROVIDER_ACCOUNTS_ROUTES.list, decodeHostProviderAccountsFromHost),
+      accountUsage: accountsQuery(PROVIDER_ACCOUNTS_ROUTES.usage, decodeHostProviderAccountUsage),
+      startAccountSignIn: accountsRequest(
+        parseConnectProviderAccountInput,
+        PROVIDER_ACCOUNTS_ROUTES.signInStart,
+        acceptEmpty,
+      ),
+      accountSignInStatus: accountsRequest(
+        parseProviderId,
+        PROVIDER_ACCOUNTS_ROUTES.signInStatus,
+        decodeProviderHostSignInStatus,
+        (provider) => ({ provider }),
+      ),
+      cancelAccountSignIn: accountsRequest(
+        parseProviderId,
+        PROVIDER_ACCOUNTS_ROUTES.signInCancel,
+        acceptEmpty,
+        (provider) => ({ provider }),
+      ),
+      renameAccount: accountsRequest(parseRenameProviderAccountInput, PROVIDER_ACCOUNTS_ROUTES.rename, acceptEmpty),
+      removeAccount: accountsRequest(parseRemoveProviderAccountInput, PROVIDER_ACCOUNTS_ROUTES.remove, acceptEmpty),
+      startRelaySignIn: relaySignIn(parseProviderId, async (provider, serverId) => {
+        requireRelay(serverId, provider);
+        const key = relayKey(serverId, provider);
+        await stopRelay(key);
+        const post = <T>(path: string, decoder: ResponseDecoder<T>, body: unknown) =>
+          remoteServers.request(serverId, path, decoder, { method: "POST", body });
+        const start = post(SIGN_IN_RELAY_ROUTES.providerStart, decodeSignInRelayFlow, { provider });
+        const running: RelayedSignIn = {
+          fiber: Effect.runFork(relay.run(key, signInRelayRemote(post, start))),
+          result: null,
+        };
+        relayed.set(key, running);
+        running.fiber.addObserver((exit) => {
+          running.result = relayEnding(exit);
+        });
+      }),
+      relaySignInStatus: relaySignIn(parseProviderId, (provider, serverId): ProviderRelaySignInStatus => {
+        const key = relayKey(serverId, provider);
+        const running = relayed.get(key);
+        if (!running) return { page: null, result: { error: sourceText("error.mcp.relayEnded") } };
+        return { page: running.result ? null : relay.page(key), result: running.result };
+      }),
+      openRelaySignIn: relaySignIn(parseProviderId, (provider, serverId) => relay.open(relayKey(serverId, provider))),
+      pasteRelaySignIn: relaySignIn(parsePasteRelaySignInInput, ({ provider, address }, serverId) =>
+        relay.paste(relayKey(serverId, provider), address),
+      ),
+      cancelRelaySignIn: relaySignIn(parseProviderId, async (provider, serverId) => {
+        await stopRelay(relayKey(serverId, provider));
+        return runCauseEffect(
+          remoteServers.request(serverId, TEAM_API_ROUTES.agents.status, decodeAgentStatusFromHost),
+        );
+      }),
       getApiKeyState: scopedHandler(parseProviderId, {
         local: (provider) => ({ provider, status: credentials.status(provider) }),
         remote: async (provider, serverId) => ({
@@ -244,4 +383,21 @@ export function providerAdminIpcHandlers({
 function parseSubmitCodeLoginInput(value: unknown): SubmitProviderCodeLoginInput {
   if (!isDynamicRecord(value) || !isString(value.code)) throw new Error(sourceText("error.provider.codeLoginBadCode"));
   return { provider: parseProviderId(value.provider), code: normalizePastedCode(value.code) };
+}
+
+/** The address holds a grant, so the error never quotes it. */
+function parsePasteRelaySignInInput(value: unknown): PasteProviderRelaySignInInput {
+  if (!isObject(value)) throw new Error(sourceText("error.mcp.relayAddressInvalid"));
+  return {
+    provider: parseProviderId(value.provider),
+    address: requireString(value.address, "Address", INPUT_LIMITS.signInRelayAddress),
+  };
+}
+
+/** How a relayed sign-in ended, in the words the renderer shows. */
+function relayEnding(exit: Exit.Exit<McpTestResult, unknown>): { error: string | null } {
+  if (Exit.isSuccess(exit)) return { error: exit.value.error?.slice(0, PROVIDER_HOST_SIGN_IN_ERROR_LIMIT) ?? null };
+  const cause = Cause.squash(exit.cause);
+  const message = cause instanceof Error && cause.message ? cause.message : sourceText("error.mcp.relayEnded");
+  return { error: message.slice(0, PROVIDER_HOST_SIGN_IN_ERROR_LIMIT) };
 }

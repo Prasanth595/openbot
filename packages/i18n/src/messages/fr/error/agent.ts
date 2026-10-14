@@ -3,7 +3,7 @@ import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
   "error.agent.historyUnavailable":
-    "L’historique n’est pas disponible pour cette demande. Relisez l’historique récent, ou utilisez channel_history pour le travail dans un canal.",
+    "L’historique n’est pas disponible pour cette demande. Relisez l’historique récent.",
   "error.agent.toolRequestInvalid":
     "Arguments de découverte d’outils non valides. Utilisez le schéma déclaré et un nom d’outil qualifié d’origine.",
   "error.agent.approvalWhileDeleting": "Impossible d’accorder l’approbation pendant la suppression de l’agent.",
@@ -96,6 +96,8 @@ export const messages = {
     "Les scripts locaux ne peuvent être autorisés que sur l’ordinateur qui exécute l’agent.",
   "error.agent.busyMessageModeLocalOnly":
     "Le comportement des messages pendant le travail de l’agent ne peut être réglé que sur l’ordinateur qui exécute l’agent.",
+  "error.agent.backupModelsLocalOnly":
+    "Les modèles de secours ne peuvent être réglés que sur l’ordinateur qui exécute l’agent.",
   "error.agent.localScriptsOff": "Cet agent n’autorise pas les scripts locaux.",
   "error.agent.localScriptsRateLimited":
     "Des scripts locaux ont envoyé à cet agent {limit} demandes de message ou de routine au cours de la dernière heure. Réessayez plus tard.",
@@ -107,6 +109,8 @@ export const messages = {
     "« Espace de travail uniquement » n’est disponible pour ce fournisseur que sur macOS. Choisissez « Accès complet » dans les réglages de l’agent.",
   "error.agent.lowMemory":
     "Ce serveur manque de mémoire. Votre message attend dans la file et démarre quand la mémoire est libre. Une offre plus grande donne plus de mémoire au serveur.",
+  "error.agent.lowMemoryServer":
+    "Ce serveur manque de mémoire. Votre message attend dans la file et démarre quand la mémoire est libre.",
   "error.agent.workspaceOnlyToolMissing":
     "« Espace de travail uniquement » nécessite {tool}, qu’OpenBot n’a pas trouvé. Installez-le, ou choisissez « Accès complet » dans les réglages de l’agent.",
 } as const satisfies PartialTranslation<typeof source>;

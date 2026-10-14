@@ -1,5 +1,6 @@
 import { INPUT_LIMITS } from "./input-limits";
 import { type AvatarHue, isAvatarHue, isAvatarSeed } from "./ipc-agent-identity";
+import { type AgentModelChoice, isAgentModelChoice } from "./ipc-agents";
 import {
   type AgentApproval,
   type AgentApprovalPermissions,
@@ -203,6 +204,11 @@ export interface AgentRuntimeSnapshot {
    * a released Team API snapshot: its adapters project a fixed key list.
    */
   usageLimits?: Array<{ agentId: string; resetsAt: number | null }>;
+  /**
+   * Each provider account and model that a usage limit holds, also when no agent is on it now. Absent
+   * from a released Team API snapshot, as `usageLimits` is.
+   */
+  usageLimitedModels?: AgentModelChoice[];
 }
 
 export function isAgentRuntimeSnapshot(value: unknown): value is AgentRuntimeSnapshot {
@@ -259,7 +265,11 @@ export function isAgentRuntimeSnapshot(value: unknown): value is AgentRuntimeSna
             isDynamicRecord(limit) &&
             isIdentifier(limit.agentId) &&
             (limit.resetsAt === null || (isNumber(limit.resetsAt) && Number.isFinite(limit.resetsAt))),
-        )))
+        ))) &&
+    (value.usageLimitedModels === undefined ||
+      (Array.isArray(value.usageLimitedModels) &&
+        value.usageLimitedModels.length <= INPUT_LIMITS.agents &&
+        value.usageLimitedModels.every(isAgentModelChoice)))
   );
 }
 

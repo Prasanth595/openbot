@@ -58,8 +58,8 @@ Public guides live in `apps/auth-api/src/content/guides/`. To add one:
 4. Open the guide in a local preview and check the guide index, article page, feed and social card.
 
 Write for someone who has OpenBot open and is trying to complete a task. Use short paragraphs, plain English and the
-exact names of buttons, settings and files. Keep product claims tied to the current app. Use `ArticleImage`,
-`ArticleGif`, `ArticleClip` or `ArticleVideo` only when the media adds information that the text does not.
+exact names of buttons, settings and files. Keep product claims tied to the current app. Use `ArticleImage` only
+when the picture adds information that the text does not.
 
 Use `OPENBOT_LINKS` for external links and include useful `alt` text for every image. Do not paste bare URLs into a
 guide.
@@ -109,7 +109,7 @@ Claude Code can only read: it gets the Read, Grep and Glob tools and the `git di
 
 ## Security-sensitive changes
 
-Preserve the following boundaries and their tests:
+Preserve the following boundaries, and their tests where they exist:
 
 - Electron sandboxing, context isolation, navigation policy, and IPC sender validation.
 - Attachment realpath, MIME, size, quota, and managed-protocol checks.

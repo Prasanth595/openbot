@@ -1,9 +1,10 @@
 import type { HostedServerIssue } from "@openbot/contracts/ipc";
-import { Show } from "solid-js";
+import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { Button } from "../../button";
 import { ErrorReference } from "../../error-reference";
 import { useText } from "../../text";
 import { AppLoadingScreen } from "../account/AppLoadingScreen";
+import { ServerStatusDialog } from "./ServerStatusDialog";
 
 export type ServerWorkspacePhase =
   | "connecting"
@@ -12,6 +13,7 @@ export type ServerWorkspacePhase =
   | "waiting"
   | "sleeping"
   | "waking"
+  | "updating"
   | "blocked";
 
 export interface ServerConnectionNoticeProps {
@@ -24,6 +26,10 @@ export interface ServerConnectionNoticeProps {
   detail?: string | null;
   /** The code of the failure in `detail`, for a user to copy into a report. */
   reference?: string | null;
+  /** The OpenBot version that the server restarts into, while it updates. */
+  updateVersion?: string | null;
+  /** Removes Details, for a notice that is not about the server connection. */
+  hideDetails?: boolean;
   onRetry: () => void;
   onManage?: () => void;
 }
@@ -31,6 +37,8 @@ export interface ServerConnectionNoticeProps {
 /** Connection feedback stays visible until the workspace can answer the user's actions. */
 export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
   const { t } = useText();
+  const since = Date.now();
+  const [detailsOpen, setDetailsOpen] = createSignal(false);
   const title = () => {
     switch (props.issue) {
       case "plan_ended":
@@ -45,6 +53,8 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
         return t("server.connection.sleeping", { name: props.name });
       case "waking":
         return t("server.connection.waking", { name: props.name });
+      case "updating":
+        return t("server.connection.updating", { name: props.name });
       case "loading":
         return t("server.connection.loading", { name: props.name });
       case "connecting":
@@ -76,6 +86,25 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
           {t("server.connection.manage")}
         </Button>
       </Show>
+      <Show when={!props.hideDetails}>
+        <Button variant="ghost" onClick={() => setDetailsOpen(true)}>
+          {t("server.connection.details")}
+        </Button>
+      </Show>
+      <ServerStatusDialog
+        open={detailsOpen()}
+        onClose={() => setDetailsOpen(false)}
+        name={props.name}
+        title={title()}
+        phase={props.phase}
+        initial={props.initial}
+        issue={props.issue ?? null}
+        updateVersion={props.updateVersion ?? null}
+        remainingSeconds={props.remainingSeconds ?? 0}
+        detail={props.detail ?? null}
+        reference={props.reference ?? null}
+        since={since}
+      />
     </>
   );
   return (
@@ -100,6 +129,70 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
         actions={actions()}
       />
     </Show>
+  );
+}
+
+// A history that loads faster than this does not cover the chat, so a fast switch does not flash.
+const CONVERSATION_LOADING_DELAY_MS = 150;
+
+export interface ConversationLoadNoticeProps {
+  /** The agent whose history loads. */
+  name: string;
+  /** The first page of the history is loading. */
+  loading: boolean;
+  /** Why the history did not load. The notice then shows Retry. */
+  error: string | null;
+  onRetry: () => void;
+}
+
+/**
+ * While an agent's history loads for the first time, the crew of the app loading screen covers the
+ * chat, and jumps out when the history is ready. A failed load shows the notice with Retry.
+ */
+export function ConversationLoadNotice(props: ConversationLoadNoticeProps) {
+  const { t } = useText();
+  const waiting = () => props.loading && !props.error;
+  // Each wait gets its own screen: a screen that started its exit cannot load again.
+  const [screen, setScreen] = createSignal<number | null>(null);
+  // The screen that started its exit. It stays ready, so a new wait does not stop its exit.
+  const [exiting, setExiting] = createSignal<number | null>(null);
+  let screens = 0;
+  createEffect(waiting, (current) => {
+    if (!current) {
+      setExiting(untrack(screen));
+      return;
+    }
+    const timer = setTimeout(() => {
+      screens += 1;
+      setScreen(screens);
+    }, CONVERSATION_LOADING_DELAY_MS);
+    return () => clearTimeout(timer);
+  });
+  return (
+    <>
+      <Show when={screen()} keyed>
+        {(key) => (
+          <AppLoadingScreen
+            ready={key === exiting() || !waiting()}
+            label={t("server.connection.loading", { name: props.name })}
+            title={t("server.connection.loading", { name: props.name })}
+            onExited={() => setScreen((current) => (current === key ? null : current))}
+          />
+        )}
+      </Show>
+      <Show when={props.error}>
+        {(error) => (
+          <ServerConnectionNotice
+            name={props.name}
+            phase="blocked"
+            initial={false}
+            detail={error()}
+            hideDetails
+            onRetry={props.onRetry}
+          />
+        )}
+      </Show>
+    </>
   );
 }
 

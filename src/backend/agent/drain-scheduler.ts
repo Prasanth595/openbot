@@ -1,7 +1,8 @@
 import { AGENT_PROVIDERS } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
-import type { AgentProvider } from "../agent-client";
+import { type AgentProvider, ProviderTurnActiveError } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { ChannelService } from "../channel-service";
 import { causeHelpers } from "../effect-boundary";
@@ -33,6 +34,11 @@ import { codexSandboxPolicy, workspaceWritableRoots } from "./workspace-sandbox"
 /** Shown to the user when a message names a model of an endpoint that was taken out. */
 export const REMOVED_ENDPOINT_MESSAGE = sourceText("error.agent.endpointRemoved");
 
+const logger = createOpenBotLogger("drain-scheduler");
+const CHANNEL_START_FAILED = "The provider could not start this assignment. Resume to try again.";
+/** How long messages wait for their turn after the provider did not confirm `turn/start` in time. */
+const TURN_START_GRACE_MS = 5 * 60_000;
+
 export interface DrainHooks {
   emitError(code: string, error: unknown, agentId?: string): void;
   isStopping(): boolean;
@@ -50,6 +56,14 @@ export interface DrainHooks {
   redactMcp(text: string): string;
   /** Gives a channel task back to its channel after a spent plan refused it; false when it cannot go back. */
   requeueChannelDelivery(deliveryId: string): Effect.Effect<boolean>;
+  /**
+   * Starts the move of this agent to another model for a usage limit, if one is due: back to its own
+   * model, or to a backup model during a hold. True when a move started; the move schedules the drain
+   * again when it ends. Each path that starts a queue comes here, so no message runs on the wrong model.
+   */
+  followUsageLimit(agentId: string): boolean;
+  /** Whether this turn already ended. A provider can end a turn before its `turn/start` answer is read. */
+  turnEnded(turnId: string): boolean;
 }
 
 export interface DrainSchedulerOptions {
@@ -102,6 +116,8 @@ export class DrainScheduler {
   readonly #messaging: MessagingThreads | undefined;
   readonly #drainingAgents = new Set<string>();
   readonly #settingsHolds = new Map<string, number>();
+  /** The last hold `#reportHold` logged per agent, so a waiting queue logs once per reason. */
+  readonly #reportedHolds = new Map<string, string>();
   /**
    * The model each agent's running turn was started with, by turn id. The agent record can be moved
    * to another model while that turn runs, but the CLI keeps the session it opened, so this is the
@@ -152,20 +168,40 @@ export class DrainScheduler {
 
   /** The clauses of this agent's own state. `#heldByMachine` adds the memory and the turn slots. */
   mayDrain(agentId: string): boolean {
-    return (
-      !this.#settingsHolds.has(agentId) &&
-      !this.#conversation.workingSnapshot(agentId)?.activeTurnId &&
-      (this.#channels?.mayDrain(agentId) ?? true) &&
-      this.#profileSave.mayDrain(agentId) &&
-      this.#duplication.mayDrain(agentId) &&
-      this.#compaction.mayDrain(agentId) &&
-      this.#routines.mayDrain(agentId) &&
-      this.#usageLimits.mayDrain(agentId)
-    );
+    return this.#heldBy(agentId) === null;
   }
 
-  scheduleDrain(agentId: string): void {
-    this.#scheduleDrain(agentId);
+  /** The first clause of `mayDrain` that holds this agent, or null when none does. */
+  #heldBy(agentId: string): string | null {
+    if (this.#settingsHolds.has(agentId)) return "session-settings";
+    if (this.#conversation.workingSnapshot(agentId)?.activeTurnId) return "active-turn";
+    if (!(this.#channels?.mayDrain(agentId) ?? true)) return "channel";
+    if (!this.#profileSave.mayDrain(agentId)) return "profile-save";
+    if (!this.#duplication.mayDrain(agentId)) return "duplication";
+    if (!this.#compaction.mayDrain(agentId)) return "compaction";
+    if (!this.#routines.mayDrain(agentId)) return "routine";
+    if (!this.#usageLimits.mayDrain(agentId)) return "usage-limit";
+    return null;
+  }
+
+  /**
+   * Logs once why a queued message of this agent waits, and again only when the reason changes. A
+   * queue that never starts again then names the clause that holds it.
+   */
+  #reportHold(agentId: string, reason: string): void {
+    if (this.#reportedHolds.get(agentId) === reason || !this.#mailbox.nextQueued(agentId)) return;
+    this.#reportedHolds.set(agentId, reason);
+    const working = reason === "active-turn" ? this.#conversation.workingSnapshot(agentId) : undefined;
+    logger.info("A queued message waits.", {
+      agentId,
+      reason,
+      ...(working ? { threadId: working.threadId, turnId: working.activeTurnId } : {}),
+    });
+  }
+
+  /** `followUsageLimit` is false after a move that failed, so that the drain does not try it again. */
+  scheduleDrain(agentId: string, followUsageLimit = true): void {
+    this.#scheduleDrain(agentId, followUsageLimit);
     this.retrySlotWaiters();
   }
 
@@ -185,17 +221,16 @@ export class DrainScheduler {
     }
   }
 
-  #scheduleDrain(agentId: string): void {
-    if (
-      this.#hooks.isStopping() ||
-      !this.#providers.isReady() ||
-      this.#drainingAgents.has(agentId) ||
-      this.#scheduledDrains.has(agentId) ||
-      !this.mayDrain(agentId) ||
-      this.#heldByMachine(agentId)
-    ) {
-      return;
-    }
+  #scheduleDrain(agentId: string, followUsageLimit = true): void {
+    if (this.#hooks.isStopping() || this.#scheduledDrains.has(agentId)) return;
+    const hold =
+      (!this.#providers.isReady() && "providers-not-ready") ||
+      (this.#drainingAgents.has(agentId) && "drain-running") ||
+      this.#heldBy(agentId) ||
+      (this.#heldByMachine(agentId) && "machine");
+    if (hold) this.#reportHold(agentId, hold);
+    if (followUsageLimit && (!hold || hold === "usage-limit") && this.#hooks.followUsageLimit(agentId)) return;
+    if (hold) return;
     this.#scheduledDrains.add(agentId);
     const completion = Deferred.makeUnsafe<void, DeliveryStartFailed>();
     // Publish the scheduled work before its microtask, so deletion must wait for the attempt.
@@ -235,6 +270,7 @@ export class DrainScheduler {
     this.#drainingAgents.delete(agentId);
     this.#scheduledDrains.delete(agentId);
     this.#slotWaiters.delete(agentId);
+    this.#reportedHolds.delete(agentId);
     this.retrySlotWaiters();
   }
 
@@ -242,6 +278,7 @@ export class DrainScheduler {
     this.#drainingAgents.clear();
     this.#scheduledDrains.clear();
     this.#slotWaiters.clear();
+    this.#reportedHolds.clear();
   }
 
   /**
@@ -274,19 +311,23 @@ export class DrainScheduler {
   }
 
   readonly #drainAgent = Effect.fn("DrainScheduler.drainAgent")(function* (this: DrainScheduler, agentId: string) {
-    if (
-      this.#hooks.isStopping() ||
-      this.#drainingAgents.has(agentId) ||
-      !this.mayDrain(agentId) ||
-      !this.#providers.isReady() ||
+    if (this.#hooks.isStopping()) return;
+    const hold =
+      (this.#drainingAgents.has(agentId) && "drain-running") ||
+      this.#heldBy(agentId) ||
+      (!this.#providers.isReady() && "providers-not-ready") ||
       // Before the try, so the delivery is not rescheduled in a loop while the CLI is replaced.
       // ProviderRuntime schedules this agent again once the new client is ready.
-      this.#deliveryProviders(agentId).some((provider) => this.#providers.isReplacingCli(provider)) ||
+      (this.#deliveryProviders(agentId).some((provider) => this.#providers.isReplacingCli(provider)) &&
+        "provider-cli-replaced") ||
       // Last, because it records the agent as waiting. Another drain can take the last slot
       // between the schedule and this start.
-      this.#heldByMachine(agentId)
-    )
+      (this.#heldByMachine(agentId) && "machine");
+    if (hold) {
+      this.#reportHold(agentId, hold);
       return;
+    }
+    this.#reportedHolds.delete(agentId);
     this.#drainingAgents.add(agentId);
     yield* Effect.gen({ self: this }, function* () {
       const snapshot = this.#conversation.workingSnapshot(agentId);
@@ -430,6 +471,7 @@ export class DrainScheduler {
             snapshot,
             routineRun:
               item.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(item.delivery.id) : null,
+            wokenWaits: item.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(item.delivery.id) : [],
             executionText: execution?.text,
           }),
         ),
@@ -514,18 +556,41 @@ export class DrainScheduler {
       // The provider has accepted the turn. Publish the active turn before the first mailbox write
       // can yield: queue reconciliation may run while delivery rows change, and an idle cached
       // snapshot with a running delivery is a stale state for clients.
-      snapshot.activeTurnId = response.turn.id;
+      // A provider can end the turn before this answer is read, as when an ACP process exits during
+      // `turn/start`. Its end already cleared the turn, so it is not marked active again: no later
+      // event would end it, and it would hold every message of this agent.
+      if (!this.#hooks.turnEnded(response.turn.id)) snapshot.activeTurnId = response.turn.id;
       confirmedTurnId = response.turn.id;
       this.#turnModels.set(agent.id, { turnId: response.turn.id, model: agent.model });
       for (const item of batch)
         yield* this.#mailbox.markRunning(item.delivery.id, response.turn.id).pipe(toDeliveryStartFailed);
       if (this.#channels)
         yield* this.#channels.accepted(delivery.id, threadId, response.turn.id).pipe(toDeliveryStartFailed);
-      const currentDelivery = this.#mailbox.getDelivery(delivery.id)?.delivery;
-      if (currentDelivery?.status === "running" && currentDelivery.turnId === response.turn.id) {
-        for (const item of batch) this.#mailboxSync.syncDeliveryMessage(snapshot, item.delivery.id);
+      if (this.#hooks.turnEnded(response.turn.id)) {
+        // The end found these messages before they ran, or while the writes above waited, so it
+        // left them running. Nothing else settles them.
+        for (const item of batch) {
+          const current = this.#mailbox.getDelivery(item.delivery.id)?.delivery;
+          if (current?.status !== "running" || current.turnId !== response.turn.id) continue;
+          yield* this.#mailbox.markTerminal(item.delivery.id, "interrupted", null).pipe(toDeliveryStartFailed);
+          if (channelDelivery && this.#channels)
+            yield* this.#channels.deliveryFailed(item.delivery.id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
+          this.#messaging?.deliverySettled(item.delivery.id, "interrupted");
+        }
+        const live = this.#conversation.ensureSnapshot(agent.id, threadId);
+        for (const held of new Set([snapshot, live])) {
+          if (held.activeTurnId === response.turn.id) held.activeTurnId = null;
+        }
+        for (const item of batch) this.#mailboxSync.syncDeliveryMessage(live, item.delivery.id);
         this.#mailboxSync.emitQueue(agent.id);
-        this.#conversation.emitConversation(snapshot);
+        this.#conversation.emitConversation(live);
+      } else {
+        const currentDelivery = this.#mailbox.getDelivery(delivery.id)?.delivery;
+        if (currentDelivery?.status === "running" && currentDelivery.turnId === response.turn.id) {
+          for (const item of batch) this.#mailboxSync.syncDeliveryMessage(snapshot, item.delivery.id);
+          this.#mailboxSync.emitQueue(agent.id);
+          this.#conversation.emitConversation(snapshot);
+        }
       }
       yield* this.#threads.deletePendingHandoff(threadId).pipe(
         Effect.catch((failure) =>
@@ -552,6 +617,13 @@ export class DrainScheduler {
             );
             return;
           }
+          // The provider started a turn of its own after the check above. Nothing ran, and `mayDrain`
+          // holds the messages until that turn ends.
+          if (error instanceof ProviderTurnActiveError) {
+            for (const item of batch) yield* this.#mailbox.restoreQueued(item.delivery.id).pipe(toDeliveryStartFailed);
+            this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+            return;
+          }
           if (isRequestTimeout(error, "turn/start")) {
             turnMayRun = true;
             this.#channels?.deliveryUncertain(delivery.id);
@@ -559,6 +631,14 @@ export class DrainScheduler {
               "delivery_start_unconfirmed",
               `${error.providerName} did not confirm the turn start in time. OpenBot will wait for lifecycle events instead of retrying potentially duplicated work.`,
               delivery.recipientAgentId,
+            );
+            // The wait has a limit: a turn that never starts would keep these messages starting, and
+            // the agent's queue would stop with no notice.
+            const ids = batch.map(({ delivery: item }) => item.id);
+            yield* Effect.forkDetach(
+              this.#settleUnstarted(delivery.recipientAgentId, ids, releaseReservation).pipe(
+                Effect.delay(TURN_START_GRACE_MS),
+              ),
             );
             return;
           }
@@ -590,9 +670,7 @@ export class DrainScheduler {
           }
           this.#mailboxSync.emitQueue(delivery.recipientAgentId);
           if (this.#channels)
-            yield* this.#channels
-              .deliveryFailed(delivery.id, "The provider could not start this assignment. Resume to try again.")
-              .pipe(toDeliveryStartFailed);
+            yield* this.#channels.deliveryFailed(delivery.id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
           this.#messaging?.deliveryFailed(delivery.id);
           this.#hooks.emitError("delivery_start_failed", error, delivery.recipientAgentId);
           this.scheduleDrain(delivery.recipientAgentId);
@@ -609,6 +687,33 @@ export class DrainScheduler {
       ),
     );
   }, Effect.uninterruptible);
+
+  /**
+   * Ends the messages of an unconfirmed `turn/start` that no turn took by the deadline. A turn that
+   * started late took them already, and holds its reservation like any turn.
+   */
+  readonly #settleUnstarted = Effect.fn("DrainScheduler.settleUnstarted")(
+    function* (this: DrainScheduler, agentId: string, deliveryIds: readonly string[], releaseReservation: () => void) {
+      if (this.#hooks.isStopping()) return;
+      let settled = false;
+      for (const id of deliveryIds) {
+        const current = this.#mailbox.getDelivery(id)?.delivery;
+        if (current?.status !== "starting" || current.turnId) continue;
+        yield* this.#mailbox
+          .markTerminal(id, "interrupted", sourceText("error.backend.turnNotStarted"))
+          .pipe(toDeliveryStartFailed);
+        if (this.#channels?.store.assignmentForDelivery(id))
+          yield* this.#channels.deliveryFailed(id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
+        this.#messaging?.deliverySettled(id, "interrupted");
+        settled = true;
+      }
+      if (!settled) return;
+      releaseReservation();
+      this.#mailboxSync.emitQueue(agentId);
+      this.scheduleDrain(agentId);
+    },
+    Effect.catch((failure) => Effect.sync(() => this.#hooks.emitError("delivery_start_unconfirmed", failure.cause))),
+  );
 
   /** The model this turn runs on, or `null` when this agent's running turn is not the one asked for. */
   modelForTurn(agentId: string, turnId: string): string | null {

@@ -17,6 +17,7 @@ import {
   updateProfileToolSchema,
 } from "./agent/profile-tools";
 import { ROUTINE_NO_UPDATE_TOOL } from "./agent/routine-quiet-runs";
+import { captureScreenToolShape } from "./agent/screen-capture";
 import {
   assignAgentSectionToolSchema,
   createSectionToolSchema,
@@ -24,9 +25,19 @@ import {
   renameSectionToolSchema,
 } from "./agent/sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS } from "./agent/skill-tools";
-import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
+import {
+  AWAIT_EVENT_TOOL,
+  awaitEventToolSchema,
+  CLOSE_WAIT_TOOL,
+  closeWaitToolSchema,
+} from "./agent-waits/agent-waits";
+import { MESSAGING_TOOL_DEFINITIONS } from "./messaging/messaging-tools";
 import { ROUTINE_FLOW_TOOL_DEFINITIONS } from "./routine-flows/routine-flow-tools";
-import { routineScheduleZodSchema } from "./routine-tool-schema";
+import {
+  routineLimitPolicyZodSchema,
+  routineMissedPolicyZodSchema,
+  routineScheduleZodSchema,
+} from "./routine-tool-schema";
 
 interface OpenBotToolDefinition {
   name: string;
@@ -77,8 +88,9 @@ export const htmlPreviewToolSchema = z.object({
 });
 
 /** Shared declarations for Codex, Grok, and Claude. Service handlers enforce execution rules. */
+// Channel tools are left out: channels are deprecated and archived at start.
 export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
-  ...CHANNEL_TOOL_DEFINITIONS,
+  ...MESSAGING_TOOL_DEFINITIONS,
   ...HISTORY_TOOL_DEFINITIONS,
   ...DATA_TOOL_DEFINITIONS,
   ...LOCAL_SKILL_TOOL_DEFINITIONS,
@@ -134,6 +146,18 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     shape: htmlRenderToolSchema.shape,
   },
   {
+    name: "list_capture_sources",
+    description:
+      "List the displays and windows of this computer that capture_screen can capture: display ids, desktop bounds in points, scale factors, and window ids and titles.",
+    shape: {},
+  },
+  {
+    name: "capture_screen",
+    description:
+      "Capture one display, one window, or a region of one display of this computer, and get the image. The user approves each capture first, and sees the image in this conversation. Call list_capture_sources first to get ids and bounds. A region uses desktop points.",
+    shape: captureScreenToolShape,
+  },
+  {
     name: "list_sections",
     description:
       "List sidebar sections (folders), their stable ids, and agent assignments before choosing message recipients or grouping agents.",
@@ -163,7 +187,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "list_agents",
     description:
-      "List local OpenBot agents with their name, title, description, and progress: status (working, queued, or ready), queuedMessages, turnStartedAt while working, and lastActivityAt. OpenBot does not track which files an agent changed.",
+      "List local OpenBot agents with their name, title, description, and progress: status (working, queued, or ready), queuedMessages, turnStartedAt while working, and lastActivityAt. Call it to find the teammate for work outside your remit: match the work to titles and descriptions. OpenBot does not track which files an agent changed.",
     shape: {},
   },
   {
@@ -205,7 +229,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "create_routine",
     description:
-      "Create a scheduled routine for this agent, or for another local agent when agentId is provided. It is active by default. Without a timezone, it uses the timezone of the person whose message this turn answers, or the host timezone when that is unknown. Interval, advanced-every, and custom schedules must not run more often than every 3 minutes. When watching a folder for new files and no interval was requested, use a 15 minute interval and keep the folder path plus handling instructions in the routine instruction.",
+      "Create a scheduled routine for this agent, or for another local agent when agentId is provided. It is active by default. Without a timezone, it uses the timezone of the person whose message this turn answers, or the server timezone when that is unknown. Interval, advanced-every, and custom schedules must not run more often than every 3 minutes. For a one-time reminder or task, use a once schedule: it runs one time and then pauses the routine. When watching a folder for new files and no interval was requested, use a 15 minute interval and keep the folder path plus handling instructions in the routine instruction.",
     shape: {
       agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
       name: z.string().min(1).max(INPUT_LIMITS.routineName),
@@ -215,12 +239,14 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       ),
       active: z.boolean().optional(),
       timezone: z.string().min(1).max(128).describe("IANA timezone such as Europe/Warsaw.").optional(),
+      limitPolicy: routineLimitPolicyZodSchema.optional(),
+      missedPolicy: routineMissedPolicyZodSchema.optional(),
     },
   },
   {
     name: "update_routine",
     description:
-      "Update, pause, or resume an existing routine for this agent, or for another local agent when agentId is provided. Replacement schedules must not run more often than every 3 minutes.",
+      "Update, pause, or resume an existing routine for this agent, or for another local agent when agentId is provided. Fields you leave out keep their saved values. Replacement schedules must not run more often than every 3 minutes. A one-time routine that already ran resumes only with a new once schedule in the future. The result is the saved routine.",
     shape: {
       agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
       routineId: z.string().min(1).max(INPUT_LIMITS.identifier),
@@ -230,6 +256,8 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
         .describe("Routine schedule. Must not run more often than every 3 minutes.")
         .optional(),
       active: z.boolean().optional(),
+      limitPolicy: routineLimitPolicyZodSchema.optional(),
+      missedPolicy: routineMissedPolicyZodSchema.optional(),
     },
   },
   {
@@ -252,8 +280,20 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: ROUTINE_NO_UPDATE_TOOL,
     description:
-      "Use only in a scheduled routine run, when the routine task gives nothing to report. OpenBot then removes your text answers of this run and sends no notification; the run history still shows the run. Do not call it when you report anything. In a manual Test run, the user sees your answer.",
+      "Use only in a scheduled, script or webhook routine run, when the routine task gives nothing to report. OpenBot then collapses your text answers of this run into the run in the chat and sends no notification; the run history still shows the run. Do not call it when you report anything. In a manual Test run, the user sees your answer.",
     shape: {},
+  },
+  {
+    name: AWAIT_EVENT_TOOL,
+    description:
+      "Open a wait when you cannot finish the current request in this turn because you wait for something outside it: a build, a deploy, a later check. OpenBot shows the wait to the user until you close it. The next run of one of your routines wakes the wait, or a local script event that names its waitId. The run that wakes it repeats the request and your note. Give routineId to let only that routine wake it. After this call, tell the user what you wait for and end your turn.",
+    shape: awaitEventToolSchema.shape,
+  },
+  {
+    name: CLOSE_WAIT_TOOL,
+    description:
+      "Close an open wait when its request is done, or when it can no longer be done. Leave it open to wait for the next run again.",
+    shape: closeWaitToolSchema.shape,
   },
   ...MEMORY_RECALL_TOOL_DEFINITIONS,
   {

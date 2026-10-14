@@ -1,9 +1,11 @@
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   type EventRoutineOwner,
   type EventRoutineRef,
   isEventRoutineOwner,
   isEventRoutineTriggerInput,
   type ListEventActivityInput,
+  type ListEventRoutineRunsInput,
   type ListEventRoutinesInput,
   type SaveEventRoutineInput,
 } from "@openbot/contracts/ipc-events";
@@ -75,6 +77,21 @@ export function parseListEventActivity(value: unknown): ListEventActivityInput {
   const scope = { owner: owner(input.owner), routineId: requiredString(input.routineId, 128) };
   if (input.limit === undefined) return scope;
   if (typeof input.limit !== "number" || !Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 500) {
+    throw invalidEventInput();
+  }
+  return { ...scope, limit: input.limit };
+}
+
+export function parseListEventRoutineRuns(value: unknown): ListEventRoutineRunsInput {
+  const input = record(value);
+  const scope = { owner: owner(input.owner), routineId: requiredString(input.routineId, 128) };
+  if (input.limit === undefined) return scope;
+  if (
+    typeof input.limit !== "number" ||
+    !Number.isSafeInteger(input.limit) ||
+    input.limit < 1 ||
+    input.limit > INPUT_LIMITS.routineRunsPage
+  ) {
     throw invalidEventInput();
   }
   return { ...scope, limit: input.limit };

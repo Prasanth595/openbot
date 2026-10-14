@@ -9,10 +9,9 @@ import type {
   ProviderRuntimeStatus,
   SaveCustomProviderInput,
 } from "@openbot/contracts/ipc";
-import { agentProviderDescriptor } from "@openbot/contracts/ipc";
 import { Text } from "@openbot/ui";
-import { ProviderCodeLoginDialog } from "@openbot/ui/components/ProviderCodeLoginDialog";
 import { ProviderPicker } from "@openbot/ui/components/ProviderPicker";
+import type { ProviderAccountActions } from "@openbot/ui/components/provider-accounts";
 import {
   AcpRegistrySettings,
   type AcpRegistrySettingsApi,
@@ -44,7 +43,8 @@ import {
 } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
 import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, createStore, Show, untrack } from "solid-js";
-import type { ProviderCodeLoginApi } from "../../components/provider-code-login-api";
+import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
+import type { ProviderConnectionApi } from "../../components/provider-connection-api";
 import { createCustomProviderHostState } from "../custom-providers/custom-provider-host-state";
 import { savedCustomModel } from "../onboarding/SetupProviderPicker";
 import { createSettingsGeneralStore, type SettingsGeneralStore } from "./stores/general-store";
@@ -65,7 +65,7 @@ interface ProviderSettingsSectionProps {
   onCancelProviderRestart?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onSetProviderOn?: ((provider: AgentProviderId, on: boolean) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
-  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /**
    * Accepts a described endpoint. Without it the section offers no custom provider at all, which is
    * how a remote server hides the whole feature: these endpoints merge into the OpenCode process on
@@ -77,10 +77,10 @@ interface ProviderSettingsSectionProps {
   /** Without it the rows are listed but not removable, which is what a story without the callback shows. */
   onDeleteCustomProvider?: ((id: string) => Promise<CustomProviderRestart>) | undefined;
   onSignInProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
-  /** Opens the code sign-in. Absent in the stories, where there is no provider to answer it. */
-  onSignInWithCodeProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
-  /** The providers the code sign-in reaches. Without it, the providers whose descriptor offers one. */
-  codeSignInProviders?: readonly AgentProviderId[] | undefined;
+  /** Adds, names and removes the accounts of each provider that can hold more than one. */
+  accountActions?: ProviderAccountActions | undefined;
+  /** The sign-ins that a row's Connect and ⋯ menu run. Absent in the stories, where no provider answers it. */
+  connection?: ProviderConnectionApi | undefined;
   /** Local model servers and ACP agents that the host found. Without it the section shows no such list. */
   providerDetection?: ProviderDetection | undefined;
   detectedProviderApi?: DetectedProviderApi | undefined;
@@ -203,7 +203,8 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         onRestartProvider={props.onRestartProvider}
         onCancelProviderRestart={props.onCancelProviderRestart}
         onSetProviderOn={props.onSetProviderOn}
-        onConnectProvider={props.onConnectProvider}
+        connection={props.connection}
+        onCancelProviderSignIn={props.onCancelProviderSignIn}
         onInstallProvider={props.onInstallProvider}
         onAddCustomProvider={
           props.onAddCustomProvider ? (props.detectedProviderApi ? () => setChoosing(true) : host.openForm) : undefined
@@ -211,8 +212,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         onSelectCustomProvider={props.onAddCustomProvider ? () => void selectProvider("opencode", true) : undefined}
         onManageCustomProviders={props.onAddCustomProvider ? host.openList : undefined}
         onSignInProvider={props.onSignInProvider}
-        onSignInWithCodeProvider={props.onSignInWithCodeProvider}
-        codeSignInProviders={props.codeSignInProviders}
+        accountActions={props.accountActions}
         menuMount={props.selectMount}
         detected={
           <Show when={props.providerDetection}>
@@ -347,12 +347,11 @@ function createProviderKeyState(props: { readonly open: boolean; readonly provid
 
 type ProviderKeyState = ReturnType<typeof createProviderKeyState>;
 
-/** The key and code sign-in dialogs the section opens. Both portal over the dialog they open from. */
+/** The key and sign-in dialogs the section opens. Both portal over the dialog they open from. */
 function ProviderSettingsDialogs(props: {
   keys: ProviderKeyState;
   providerKeys?: ProviderKeyApi | undefined;
-  codeLogin?: ProviderCodeLoginApi | undefined;
-  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  connection?: ProviderConnectionApi | undefined;
 }) {
   return (
     <>
@@ -363,23 +362,15 @@ function ProviderSettingsDialogs(props: {
             provider={props.keys.keyProvider()}
             onClose={props.keys.closeKeyDialog}
             onReconnect={
-              props.onConnectProvider ? () => props.onConnectProvider?.(props.keys.keyProvider()) : undefined
+              // The reconnect asks the provider again, which only this computer's browser sign-in does.
+              props.connection?.connectKind(props.keys.keyProvider()) === "browser"
+                ? () => props.connection?.connect(props.keys.keyProvider())
+                : undefined
             }
           />
         )}
       </Show>
-      <Show when={props.codeLogin?.provider() ? props.codeLogin : undefined}>
-        {(api) => (
-          <ProviderCodeLoginDialog
-            open={true}
-            providerName={agentProviderDescriptor(api().provider() ?? "codex").displayName}
-            state={api().state()}
-            onOpenVerificationUrl={api().openVerificationUrl}
-            onCancel={api().cancel}
-            onSubmitCode={api().submit}
-          />
-        )}
-      </Show>
+      <ProviderSignInDialogs api={props.connection} />
     </>
   );
 }
@@ -403,14 +394,19 @@ export interface HostProviderSettings {
   offProviders?: readonly AgentProviderId[] | undefined;
   /** The names of the agents that use each provider. A provider with one stays on. */
   providerUsers?: Partial<Record<AgentProviderId, readonly string[]>> | undefined;
+  /** The names of the agents that use each account, by provider and account. */
+  providerAccountUsers?: Partial<Record<AgentProviderId, Readonly<Record<string, readonly string[]>>>> | undefined;
+  /** Adds, names and removes provider accounts on the computer that runs the providers. */
+  accountActions?: ProviderAccountActions | undefined;
   onSetProviderOn?: ((provider: AgentProviderId, on: boolean) => void | Promise<void>) | undefined;
   customProviders?: readonly CustomProviderSummary[] | undefined;
   onAddCustomProvider?: ((value: SaveCustomProviderInput) => Promise<CustomProviderRestart>) | undefined;
   onDeleteCustomProvider?: ((id: string) => Promise<CustomProviderRestart>) | undefined;
   providerKeys?: ProviderKeyApi | undefined;
-  codeLogin?: ProviderCodeLoginApi | undefined;
+  /** How each row signs in, from where the user connects. */
+  connection?: ProviderConnectionApi | undefined;
   /** The browser sign-in and the install guide open on this computer, so only its section has them. */
-  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /** The scan is of this computer, so a joined server's section shows no found list. */
   providerDetection?: ProviderDetection | undefined;
@@ -458,6 +454,9 @@ export function HostProviderSettingsPanel(
     get providerUsers() {
       return props.providerUsers;
     },
+    get providerAccountUsers() {
+      return props.providerAccountUsers;
+    },
   });
   return (
     <>
@@ -471,11 +470,13 @@ export function HostProviderSettingsPanel(
         onRestartProvider={props.onRestartProvider}
         onCancelProviderRestart={props.onCancelProviderRestart}
         onSetProviderOn={props.onSetProviderOn}
-        onConnectProvider={props.onConnectProvider}
+        connection={props.connection}
+        onCancelProviderSignIn={props.onCancelProviderSignIn}
         onInstallProvider={props.onInstallProvider}
         onAddCustomProvider={props.onAddCustomProvider}
         customProviders={props.customProviders}
         onDeleteCustomProvider={props.onDeleteCustomProvider}
+        accountActions={props.accountActions}
         // With detection off there is no list, not an empty one.
         providerDetection={props.detectionSettings?.enabled === false ? undefined : props.providerDetection}
         detectedProviderApi={props.detectedProviderApi}
@@ -483,8 +484,6 @@ export function HostProviderSettingsPanel(
         customAgents={props.customAgents}
         acpRegistry={props.acpRegistry}
         onSignInProvider={props.providerKeys ? keys.openKeyDialog : undefined}
-        onSignInWithCodeProvider={props.codeLogin?.start}
-        codeSignInProviders={props.codeLogin?.providers()}
       />
       <Show when={props.detectionSettings}>
         {(value) => (
@@ -495,12 +494,7 @@ export function HostProviderSettingsPanel(
           />
         )}
       </Show>
-      <ProviderSettingsDialogs
-        keys={keys}
-        providerKeys={props.providerKeys}
-        codeLogin={props.codeLogin}
-        onConnectProvider={props.onConnectProvider}
-      />
+      <ProviderSettingsDialogs keys={keys} providerKeys={props.providerKeys} connection={props.connection} />
     </>
   );
 }

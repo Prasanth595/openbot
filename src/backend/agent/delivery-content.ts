@@ -1,9 +1,16 @@
 import { createHash } from "node:crypto";
 import { expandAttachmentReferences } from "@openbot/contracts/attachment-references";
 import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
-import type { AgentSummary, ConversationSnapshot, QueueDeliveryStatus, RoutineRun } from "@openbot/contracts/ipc";
+import type {
+  AgentSummary,
+  AgentWait,
+  ConversationSnapshot,
+  QueueDeliveryStatus,
+  RoutineRun,
+} from "@openbot/contracts/ipc";
+import { wokenWaitsPromptText } from "../agent-waits/agent-waits";
 import type { DeliveryContext } from "../mailbox-store";
-import { ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
+import { quietRoutineRun, ROUTINE_NO_UPDATE_TOOL } from "./routine-quiet-runs";
 
 export function responseAttachmentMessageId(threadId: string, turnId: string, callId: string): string {
   const digest = createHash("sha256").update(`${threadId}\0${turnId}\0${callId}`).digest("hex").slice(0, 32);
@@ -65,7 +72,9 @@ export interface DeliveryPromptSources {
   agentNames: ReadonlyMap<string, string>;
   /** The conversation the delivery joins. A user reply quotes the message it answers from it. */
   snapshot: ConversationSnapshot;
-  routineRun: Pick<RoutineRun, "kind"> | null;
+  routineRun: Pick<RoutineRun, "kind" | "source"> | null;
+  /** The open waits that a routine run wakes. The run continues their requests. */
+  wokenWaits?: readonly AgentWait[];
   /** The prompt a channel task or an external message sends in place of the delivery text. */
   executionText?: string;
 }
@@ -209,7 +218,9 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
       .join("\n");
   }
   if (delivery.sender.kind === "routine") {
-    const runKind = sources.routineRun?.kind === "manual" ? "manual Test run" : "scheduled run";
+    const run = sources.routineRun;
+    const testRun = run !== null && !quietRoutineRun(run);
+    const runKind = testRun ? "manual Test run" : run?.source ? `${run.source} run` : "scheduled run";
     text = [
       "Execute one run of an existing OpenBot routine now.",
       `Routine name: ${delivery.sender.routineName}`,
@@ -218,12 +229,14 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
       "The routine already exists, and its schedule is already configured.",
       "Do not create, update, delete, list, or test routines during this run.",
       "Perform the task below now. Do not answer only that the routine or monitoring is active.",
-      sources.routineRun?.kind === "manual"
+      testRun
         ? "This is a manual Test run. Report the action and result even when a normal scheduled run would suppress a notification because there is no change."
-        : `This is a scheduled run. Follow the notification conditions in the routine task. When they give nothing to report, call the ${ROUTINE_NO_UPDATE_TOOL} tool instead of a written answer.`,
+        : `This is a ${runKind}. Follow the notification conditions in the routine task. When they give nothing to report, call the ${ROUTINE_NO_UPDATE_TOOL} tool instead of a written answer.`,
       "--- routine task ---",
       displayText,
     ].join("\n");
+    const waits = wokenWaitsPromptText(sources.wokenWaits ?? []);
+    if (waits) text += `\n\n${waits}`;
   }
   if (managedAttachments.length) {
     text += `${ATTACHED_FILES_HEADER}${managedAttachments.map((item) => `- ${item.name}: ${item.path}`).join("\n")}`;

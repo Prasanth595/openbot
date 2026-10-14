@@ -102,6 +102,7 @@ export const messages = defineMessages("error.provider", {
   "error.provider.localOnly": "Providers can only be changed on the computer that runs the agents.",
   "error.provider.keyRequired": "A provider key is required.",
   "error.provider.keyTooLong": "The provider key is too long.",
+  "error.provider.keyInvalidCharacters": "The provider key contains a space or a character that a key cannot contain.",
   "error.provider.noModel": "The selected provider has no available model.",
   "error.provider.noModelNamed": "{provider} has no model available.",
   "error.provider.acpNoModels": "ACP CLI did not advertise any ACP models. OpenBot will not guess a fallback model.",
@@ -141,6 +142,10 @@ export const messages = defineMessages("error.provider", {
   "error.provider.cliTimedOut": "{provider} did not answer in time. The computer may be busy. OpenBot will try again.",
   "error.provider.cliTimedOutRefresh":
     "{provider} did not answer in time. The computer may be busy. Refresh the providers to try again.",
+  "error.provider.startStopped":
+    "{provider} did not start several times in a row, so OpenBot stopped trying. Refresh the providers to try again.",
+  "error.provider.tempDiskSpace":
+    "{provider} needs at least 1 GB of free disk space to start. Free up space, then refresh the providers.",
   "error.provider.noCodeSignIn": "{provider} cannot be signed in with a code.",
   "error.provider.codeLoginNoLink": "The provider did not show a sign-in link. Try again.",
   "error.provider.hostSignInEnded": "{provider} did not finish signing in. Try again.",
@@ -154,6 +159,7 @@ export const messages = defineMessages("error.provider", {
   "error.provider.cliBusyUpdate": "The {provider} CLI is working on a turn. Wait for it to finish, then update.",
   "error.provider.cliSelectFailed": "OpenBot could not select the installed managed CLI.",
   "error.provider.noAuthenticatedAccount": "{provider} did not return an authenticated account.",
+  "error.provider.signInExpired": "Your {provider} sign-in expired. Sign in again to continue.",
   "error.provider.cliActivateFailed": "OpenBot could not activate the managed CLI.",
   "error.provider.cliBusyReconnect": "The {provider} CLI is working on a turn. Wait for it to finish, then reconnect.",
   "error.provider.opencodeCredentialsRejected":
@@ -170,6 +176,10 @@ export const messages = defineMessages("error.provider", {
     "The model provider failed on its side. Your connection is not the cause. Try again later or choose another model.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode could not connect to the model provider. Check the network connection of the computer that runs OpenBot, then try again.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "The OpenCode model ended the turn with no answer. Try again, or choose another model.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "The OpenCode model ended the turn after its reasoning, with no answer. Try again, or choose another model.",
   "error.provider.chatgptPageFailed": "OpenBot could not open the ChatGPT connection page.",
   "error.provider.noneReady": "No agent provider is ready.",
   "error.provider.claudeTurnActive": "Wait for the active Claude turn before refreshing its context.",
@@ -217,6 +227,12 @@ export const messages = defineMessages("error.provider", {
   "error.provider.geminiBrowserUnavailable":
     "Gemini could not open the sign-in page. Install a browser and xdg-utils, then connect from a desktop session on this host. A server with no desktop cannot complete this sign-in.",
   "error.provider.acpSignInFailed": "The sign-in did not complete.",
+  "error.provider.acpSignInFailedReason": "The sign-in did not complete: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "This provider does not offer this sign-in on this computer. Update the provider, then try again.",
+  "error.provider.httpsSignInLinkOnly": "Only HTTPS sign-in links can open in the browser.",
+  "error.provider.geminiKeyRefused":
+    "Gemini refused the saved API key. Replace or remove the key in Settings, then connect again.",
   "error.provider.messageTooLarge": "OpenBot stopped {provider} because it sent a message larger than {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "An agent ID must be lowercase letters, digits or `-`, and cannot be the ID of a built-in provider.",
@@ -250,6 +266,16 @@ export const messages = defineMessages("error.provider", {
   "error.provider.useSettingsReadOnly":
     "The saved provider settings cannot be read. Update OpenBot before you change them.",
   "error.provider.useChangeFailed": "OpenBot could not change the provider setting.",
+  "error.provider.accountsUnsupported": "{provider} can hold one account only.",
+  "error.provider.accountNeedsConnection": "Connect {provider} before you add another account.",
+  "error.provider.accountLimit": "{provider} can hold at most {limit} accounts.",
+  "error.provider.accountNotFound": "This {provider} account is not on this computer. Refresh and try again.",
+  "error.provider.accountAlreadyAdded": "This {provider} account is already connected.",
+  "error.provider.accountDefault": "The first {provider} account cannot be removed.",
+  "error.provider.accountInUse": "An agent on this account is working. Try again when the agent stops.",
+  "error.provider.accountsReadOnly":
+    "The saved provider accounts cannot be read. Update OpenBot before you change them.",
+  "error.provider.accountSignedOut": "This {provider} account is signed out. Sign in again.",
   "error.provider.sessionSettingUnavailable": "This setting is not available in the current provider session.",
   "error.provider.sessionSettingInvalid": "This value is not available for the setting.",
   "error.provider.sessionSettingsBusy": "Wait for the current turn to finish before changing a session setting.",

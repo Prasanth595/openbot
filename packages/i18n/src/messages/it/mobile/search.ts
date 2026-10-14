@@ -1,0 +1,30 @@
+import type { PartialTranslation } from "../../../message";
+import type { messages as source } from "../../en/mobile/search";
+
+export const messages = {
+  "mobile.search.clear": "Cancella ricerca",
+  "mobile.search.filter.label": "Filtra i risultati",
+  "mobile.search.filter.all": "Tutti",
+  "mobile.search.filter.agents": "Agenti",
+  "mobile.search.filter.messages": "Messaggi",
+  "mobile.search.filter.files": "File",
+  "mobile.search.filter.routines": "Routine",
+  "mobile.search.filter.settings": "Impostazioni",
+  "mobile.search.clearFilter": "Rimuovi il filtro",
+  "mobile.search.seeAll": "Mostra tutto",
+  "mobile.search.seeAllLabel": "Mostra tutto in {section}",
+  "mobile.search.emptyTitle": "Nessun risultato",
+  "mobile.search.emptyBody": "Prova con un'altra ricerca.",
+  "mobile.search.hintTitle": "Cerca nei messaggi",
+  "mobile.search.hintBody": "Scrivi una parola di un messaggio in una chat con un agente.",
+  "mobile.search.loading": "Ricerca…",
+  "mobile.search.failedTitle": "Impossibile caricare tutti i risultati",
+  "mobile.search.errorBody": "Controlla la connessione a questo computer, poi riprova.",
+  "mobile.search.retry": "Riprova",
+  "mobile.search.showMore": "Mostra altri messaggi",
+  "mobile.search.showMoreFiles": "Mostra altri file",
+  "mobile.search.youWrote": "Tu: {text}",
+  "mobile.search.authorText": "{author}: {text}",
+  "mobile.search.fileDetail": "{name} · {size}",
+  "mobile.search.routinePaused": "In pausa",
+} as const satisfies PartialTranslation<typeof source>;

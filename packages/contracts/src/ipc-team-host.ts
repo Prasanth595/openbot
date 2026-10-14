@@ -76,6 +76,8 @@ export interface ServerSummary {
   active: boolean;
   /** The active members that the host allows. Absent when the account server did not give one. */
   memberLimit?: number;
+  /** A hosted server, which its owner and its admins can restart. Absent when the account server did not say. */
+  hosted?: boolean;
   compatibility?: ServerCompatibility | null;
   issue?: ServerConnectionIssue | null;
   connectionSequence?: number;

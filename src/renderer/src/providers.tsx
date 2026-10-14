@@ -4,8 +4,10 @@ import {
   agentProviderDescriptor,
   LOCAL_SERVER_ID,
 } from "@openbot/contracts/ipc";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { classifyFailure } from "@openbot/telemetry";
 import { toast } from "@openbot/ui";
+import type { ProviderAccountActions } from "@openbot/ui/components/provider-accounts";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, flush, onSettled } from "solid-js";
 import { desktopAnalytics } from "./analytics";
@@ -14,16 +16,10 @@ import { useAgents } from "./features/agents/agents-context";
 import { conversationPort } from "./features/conversation/conversation-port";
 import { hostCustomProvidersApi } from "./features/custom-providers/custom-providers-port";
 import { createCustomProvidersStore } from "./features/custom-providers/stores/custom-providers-store";
-import { createProviderCodeLogin } from "./features/provider-updates/provider-code-login";
+import { createProviderConnection } from "./features/provider-updates/provider-connection";
 import { createProviderRuntimeStore } from "./features/provider-updates/provider-runtime-store";
 import { remoteProviderRuntimes } from "./features/provider-updates/remote-provider-runtimes";
-import {
-  codeSignInProviders,
-  hostSignInProviders,
-  localCodeSignInProviders,
-  remoteAdminServer,
-  serverSupportsCapability,
-} from "./features/servers/server-capabilities";
+import { remoteAdminServer, serverSupportsCapability } from "./features/servers/server-capabilities";
 import { useServers } from "./features/servers/servers-context";
 import { hostProviderKeyApi, providerKeyApi } from "./features/settings/provider-key-api";
 import { usePlatform } from "./platform";
@@ -39,7 +35,7 @@ import { createSimpleContext } from "./simple-context";
 const Providers = createSimpleContext({
   name: "Providers",
   init: () => {
-    const { agentStatus, setAgentStatus } = useAgents();
+    const { agentStatus, setAgentStatus, refreshHostAccounts } = useAgents();
     const { activeServer } = useServers();
     const { appInfo } = usePlatform();
     const [refreshingProviders, setRefreshingProviders] = createSignal(false);
@@ -143,6 +139,12 @@ const Providers = createSimpleContext({
       }
     }
 
+    /** Ends a browser sign-in that Connect started. The provider then shows its state from before. */
+    async function cancelProviderSignIn(provider: AgentProviderId): Promise<void> {
+      const status = await providersPort().cancelProviderSignIn(provider);
+      flush(() => applyAgentStatus(status));
+    }
+
     /** Opens a connect attempt: the status that ends it is matched back to this scope by provider. */
     function beginProviderConnection(provider: AgentProviderId) {
       const analytics = desktopAnalytics.scope();
@@ -164,14 +166,15 @@ const Providers = createSimpleContext({
       });
     }
 
-    async function refreshAgentProviders(): Promise<void> {
+    /** `automatic`: the app asks, not the user, so a provider OpenBot stopped starting stays stopped. */
+    async function refreshAgentProviders(options = { automatic: false }): Promise<void> {
       if (refreshingProviders() || agentStatus().phase === "starting" || agentStatus().phase === "restarting") {
         return;
       }
       const analytics = desktopAnalytics.scope();
       setRefreshingProviders(true);
       try {
-        const status = await providersPort().refreshAgentProviders();
+        const status = await providersPort().refreshAgentProviders(options);
         flush(() => applyAgentStatus(status));
         analytics.track("provider_action", { action: "refresh", result: "succeeded" });
       } catch (error) {
@@ -196,6 +199,42 @@ const Providers = createSimpleContext({
       const status = await providersPort().setProviderOn({ provider, on });
       if (activeServer()?.id === server.id) flush(() => applyAgentStatus(status));
     }
+
+    /** The joined server whose host's provider accounts this window manages (`provider-accounts-v1`). */
+    const accountsAdminServerId = createMemo(() => remoteAdminServer(activeServer(), PROVIDER_ACCOUNTS_CAPABILITY)?.id);
+
+    /**
+     * The accounts of the providers of this computer, or of a joined server's host that serves
+     * `provider-accounts-v1`. An older host and a member get none.
+     */
+    const providerAccounts = createMemo<ProviderAccountActions | undefined>(() => {
+      const hostServerId = accountsAdminServerId();
+      if (hostServerId) {
+        const changed = async (request: Promise<void>) => {
+          await request;
+          await refreshHostAccounts();
+        };
+        return {
+          connect: async (provider, accountId) => connection.connectAccount(provider, accountId),
+          rename: (provider, accountId, label) =>
+            changed(providerAdmin().renameAccount({ provider, accountId, label }, hostServerId)),
+          remove: (provider, accountId) =>
+            changed(providerAdmin().removeAccount({ provider, accountId }, hostServerId)),
+        };
+      }
+      if (activeServer()?.kind !== "local") return undefined;
+      const apply = async (request: Promise<AgentStatus>) => {
+        const serverId = activeServer()?.id;
+        const status = await request;
+        if (activeServer()?.id === serverId) flush(() => applyAgentStatus(status));
+      };
+      return {
+        connect: (provider, accountId) => apply(providersPort().connectProviderAccount({ provider, accountId })),
+        rename: (provider, accountId, label) =>
+          apply(providersPort().renameProviderAccount({ provider, accountId, label })),
+        remove: (provider, accountId) => apply(providersPort().removeProviderAccount({ provider, accountId })),
+      };
+    });
 
     async function restartProvider(provider: AgentProviderId): Promise<void> {
       await changeProviderRestart(provider, providersPort().restartProvider);
@@ -230,10 +269,34 @@ const Providers = createSimpleContext({
     });
 
     /**
-     * The code sign-in as the one object its surfaces take. Onboarding and Settings both offer it
-     * and would otherwise each assemble the same six pieces.
+     * An account sign-in on the host's page. The released status does not carry the accounts, so the
+     * accounts are read again when the sign-in ends.
      */
-    const codeLogin = createProviderCodeLogin({
+    function accountSignIn(serverId: string) {
+      return {
+        hostName: activeServer()?.name ?? "",
+        runtime: conversationPort().browser,
+        clipboard: serverSupportsCapability(activeServer(), "browser-view-clipboard"),
+        start: (provider: AgentProviderId, accountId: string | null) =>
+          providerAdmin().startAccountSignIn({ provider, accountId }, serverId),
+        status: async (provider: AgentProviderId) => {
+          const status = await providerAdmin().accountSignInStatus(provider, serverId);
+          if (status.result) await refreshHostAccounts().catch(() => undefined);
+          return status;
+        },
+        cancel: async (provider: AgentProviderId) => {
+          await providerAdmin().cancelAccountSignIn(provider, serverId);
+          await refreshHostAccounts().catch(() => undefined);
+          return agentStatus();
+        },
+      };
+    }
+
+    /**
+     * The provider sign-in as the one object its surfaces take. Onboarding, Settings, the composer
+     * and the model picker all offer it, so each offers the same ways in.
+     */
+    const connection = createProviderConnection({
       agentStatus,
       applyStatus: applyAgentStatus,
       target: () => {
@@ -244,13 +307,21 @@ const Providers = createSimpleContext({
               submit: (provider, code) => providerAdmin().submitCodeLogin({ provider, code }, serverId),
               cancel: (provider) => providerAdmin().cancelCodeLogin(provider, serverId),
               hostSignIn: {
-                providers: hostSignInProviders(activeServer()),
                 hostName: activeServer()?.name ?? "",
                 runtime: conversationPort().browser,
                 clipboard: serverSupportsCapability(activeServer(), "browser-view-clipboard"),
                 start: (provider) => providerAdmin().startHostSignIn(provider, serverId),
                 status: (provider) => providerAdmin().hostSignInStatus(provider, serverId),
                 cancel: (provider) => providerAdmin().cancelHostSignIn(provider, serverId),
+              },
+              ...(accountsAdminServerId() === serverId ? { accountSignIn: accountSignIn(serverId) } : {}),
+              relay: {
+                hostName: activeServer()?.name ?? "",
+                start: (provider) => providerAdmin().startRelaySignIn(provider, serverId),
+                status: (provider) => providerAdmin().relaySignInStatus(provider, serverId),
+                open: (provider) => providerAdmin().openRelaySignIn(provider, serverId),
+                paste: (provider, address) => providerAdmin().pasteRelaySignIn({ provider, address }, serverId),
+                cancel: (provider) => providerAdmin().cancelRelaySignIn(provider, serverId),
               },
             }
           : {
@@ -259,10 +330,16 @@ const Providers = createSimpleContext({
               cancel: (provider) => providersPort().cancelProviderCodeLogin(provider),
             };
       },
-      providers: () =>
-        providerAdminServerId() ? codeSignInProviders(activeServer()) : localCodeSignInProviders(appInfo()?.platform),
+      // A member of a joined server cannot connect its providers. This computer's own are connected here.
+      place: () =>
+        providerAdminServerId()
+          ? { kind: "app-server", server: activeServer() }
+          : activeServer()?.kind === "remote"
+            ? null
+            : { kind: "computer", platform: appInfo()?.platform },
+      connectInBrowser: connectProvider,
       openVerificationUrl: (url) => void appPort().openUrl(url),
-      connection: {
+      analytics: {
         begin: (provider) => {
           const analytics = beginProviderConnection(provider);
           return () => endFailedProviderConnection(provider, analytics);
@@ -279,10 +356,12 @@ const Providers = createSimpleContext({
       refreshingProviders,
       applyAgentStatus,
       connectProvider,
-      codeLogin,
+      cancelProviderSignIn,
+      connection,
       openProviderInstallGuide,
       refreshAgentProviders,
       setProviderOn,
+      providerAccounts,
       restartProvider,
       cancelProviderRestart,
     };
