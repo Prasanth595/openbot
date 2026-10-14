@@ -266,13 +266,26 @@ export class ChannelRoutineScheduler implements RoutineDueSource {
       for (const due of pending) {
         if (!active()) break;
         if (this.#excluded().has(due.routine.channelId)) continue;
-        const scheduledFor = yield* channelRoutineStep(() => {
-          // A one-time trigger completes in the place of an advance, with the same at-most-once order.
-          if (due.schedule.kind === "once") {
+        if (due.schedule.kind === "once") {
+          const run = yield* channelRoutineStep(() => {
+            // Persist work before completion. A crash leaves a run that startup can resume.
+            const queued =
+              due.routine.limitPolicy === "skip" && this.#hooks.usageLimited(due.routine.channelId)
+                ? null
+                : this.#routines.createRun(due.routine, due.triggerId, "scheduled", due.nextRunAt);
             this.#routines.completeTrigger(due.routine.id, due.triggerId, now);
             changed.add(due.routine.channelId);
-            return due.nextRunAt;
+            return queued;
+          });
+          if (run) {
+            const request = yield* channelRoutineStep(() =>
+              run.requestMessageId ? run : this.#routines.attachRequest(run.id, randomUUID()),
+            );
+            yield* this.#issueEffect(request);
           }
+          continue;
+        }
+        const scheduledFor = yield* channelRoutineStep(() => {
           const occurrence = collapseMissedOccurrences(
             due.schedule,
             due.routine.timezone,
