@@ -144,6 +144,7 @@ export const messages = defineMessages("routine", {
   "routine.delivery.reason.refused": "cannot post in this place",
   "routine.delivery.reason.sendFailed": "the platform did not accept it",
   "routine.delivery.reason.restart": "OpenBot stopped during the send",
+  "routine.delivery.reason.stopped": "sending to this place was turned off",
   "routine.delivery.resend": "Send again",
   "routine.delivery.resending": "Sending…",
   "routine.delivery.resendFailed": "Could not send the answer again.",

@@ -390,4 +390,5 @@ const DELIVERY_REASON_LABEL = {
   refused: "routine.delivery.reason.refused",
   "send-failed": "routine.delivery.reason.sendFailed",
   restart: "routine.delivery.reason.restart",
+  stopped: "routine.delivery.reason.stopped",
 } as const satisfies Record<RoutineResultDeliveryReason, AppTextKey>;

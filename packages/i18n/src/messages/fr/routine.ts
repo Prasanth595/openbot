@@ -147,6 +147,7 @@ export const messages = {
   "routine.delivery.reason.refused": "impossible de publier à cet emplacement",
   "routine.delivery.reason.sendFailed": "la plateforme ne l’a pas accepté",
   "routine.delivery.reason.restart": "OpenBot s’est arrêté pendant l’envoi",
+  "routine.delivery.reason.stopped": "l’envoi vers ce lieu a été désactivé",
   "routine.delivery.resend": "Renvoyer",
   "routine.delivery.resending": "Envoi…",
   "routine.delivery.resendFailed": "Impossible de renvoyer la réponse.",

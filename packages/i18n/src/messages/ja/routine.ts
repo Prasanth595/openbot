@@ -142,6 +142,7 @@ export const messages = {
   "routine.delivery.reason.refused": "この場所には投稿できません",
   "routine.delivery.reason.sendFailed": "プラットフォームが受け付けませんでした",
   "routine.delivery.reason.restart": "送信中に OpenBot が停止しました",
+  "routine.delivery.reason.stopped": "この場所への送信がオフになりました",
   "routine.delivery.resend": "再送信",
   "routine.delivery.resending": "送信中…",
   "routine.delivery.resendFailed": "回答を再送信できませんでした。",

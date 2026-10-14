@@ -145,6 +145,7 @@ export const messages = {
   "routine.delivery.reason.refused": "bu yerde gönderi yapılamıyor",
   "routine.delivery.reason.sendFailed": "platform kabul etmedi",
   "routine.delivery.reason.restart": "OpenBot gönderim sırasında durdu",
+  "routine.delivery.reason.stopped": "bu yere gönderim kapatıldı",
   "routine.delivery.resend": "Yeniden gönder",
   "routine.delivery.resending": "Gönderiliyor…",
   "routine.delivery.resendFailed": "Yanıt yeniden gönderilemedi.",

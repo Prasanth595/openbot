@@ -38,7 +38,7 @@ export interface RoutineResultPendingRun {
 }
 
 /** How long a delivery waits for its connection to run before it fails. */
-export const ROUTINE_RESULT_EXPIRY_MS = 24 * 60 * 60 * 1000;
+const ROUTINE_RESULT_EXPIRY_MS = 24 * 60 * 60 * 1000;
 /** The newest deliveries the editor shows, which is more than its run history lists. */
 const DELIVERY_LIST_LIMIT = 50;
 
@@ -70,7 +70,9 @@ export class RoutineResultStore {
 
   /**
    * Saves or removes a routine's destination. A save marks the time, so only the runs that end after
-   * it send their answers there. The same place again keeps the time: nothing new is sent.
+   * it send their answers there. The same place again keeps the time: nothing new is sent. A removal
+   * also ends the answers that wait, so none posts after the user stopped sending. A post on its way
+   * keeps going: part of it can be in the place already.
    */
   setDestination(
     routineId: string,
@@ -79,7 +81,19 @@ export class RoutineResultStore {
   ): RoutineResultDestination | null {
     const db = this.#database.connection;
     if (!destination) {
-      db.prepare("DELETE FROM routine_result_destinations WHERE routine_id = ?").run(routineId);
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        db.prepare("DELETE FROM routine_result_destinations WHERE routine_id = ?").run(routineId);
+        db.prepare(
+          `UPDATE routine_result_deliveries SET status = 'failed', reason = 'stopped', next_attempt_at = NULL,
+             updated_at = ? WHERE routine_id = ? AND status = 'pending'`,
+        ).run(now, routineId);
+        db.exec("COMMIT");
+      } catch (error) {
+        // SQLite may have rolled back already, and a second ROLLBACK would replace the error that did it.
+        if (db.isTransaction) db.exec("ROLLBACK");
+        throw error;
+      }
       return null;
     }
     db.prepare(

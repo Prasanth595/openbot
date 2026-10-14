@@ -28,6 +28,7 @@ import type {
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Cause, Context, Effect, Exit, Fiber, Layer, ManagedRuntime, Schema, Scope, Semaphore } from "effect";
+import { isNoUpdateAnswer } from "../agent/routine-quiet-runs";
 import type { MessagingPostFailure } from "../messaging/messaging-threads";
 import type { RoutineResultOutgoing, RoutineResultStore } from "./routine-result-store";
 
@@ -64,7 +65,7 @@ export interface RoutineResultsDependencies {
   now?: () => Date;
 }
 
-export interface RoutineResultsShape {
+interface RoutineResultsShape {
   options(): Effect.Effect<RoutineResultConnectionOption[]>;
   destination(input: RoutineResultRoutineInput): Effect.Effect<RoutineResultDestination | null, RoutineResultFailed>;
   setDestination(
@@ -116,7 +117,7 @@ class RoutineResults extends Context.Service<RoutineResults, RoutineResultsShape
           const saved = yield* attempt(() => {
             ownRoutine(input);
             const chosen = input.destination;
-            if (!chosen) return store.setDestination(input.routineId, null);
+            if (!chosen) return store.setDestination(input.routineId, null, now().toISOString());
             const connection = dependencies.connection(chosen.connectionId);
             if (!connection) throw new RoutineResultError(sourceText("error.backend.routineResultConnectionOff"));
             return store.setDestination(
@@ -158,7 +159,9 @@ class RoutineResults extends Context.Service<RoutineResults, RoutineResultsShape
           const changed = new Set<string>();
           for (const run of store.runsWithoutDelivery(since)) {
             const delivery = run.deliveryId ? dependencies.delivery(run.deliveryId) : null;
-            const answer = delivery?.turnId ? dependencies.turnAnswer(run.agentId, delivery.turnId) : null;
+            const output = delivery?.turnId ? dependencies.turnAnswer(run.agentId, delivery.turnId) : null;
+            // A Test run keeps the no-update marker in its chat; the place gets nothing for it.
+            const answer = output && !isNoUpdateAnswer(output) ? output : null;
             store.createDelivery(run, answer ? resultText(run.routineName, answer) : null, at);
             if (answer) changed.add(run.agentId);
           }

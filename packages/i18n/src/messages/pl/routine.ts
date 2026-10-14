@@ -172,6 +172,7 @@ export const messages = {
   "routine.delivery.reason.refused": "nie może publikować w tym miejscu",
   "routine.delivery.reason.sendFailed": "platforma tego nie przyjęła",
   "routine.delivery.reason.restart": "OpenBot zatrzymał się podczas wysyłania",
+  "routine.delivery.reason.stopped": "wysyłanie do tego miejsca zostało wyłączone",
   "routine.delivery.resend": "Wyślij ponownie",
   "routine.delivery.resending": "Wysyłanie…",
   "routine.delivery.resendFailed": "Nie udało się ponownie wysłać odpowiedzi.",

@@ -37,6 +37,11 @@ export function mockRoutineResults(
       if (!owns(agentId, routineId)) throw new Error("This routine no longer exists.");
       if (!destination) {
         destinations.delete(routineId);
+        const now = new Date().toISOString();
+        for (const delivery of deliveries.get(routineId) ?? []) {
+          if (delivery.status === "pending")
+            Object.assign(delivery, { status: "failed", reason: "stopped", updatedAt: now });
+        }
       } else {
         const connection = connections.find((entry) => entry.connectionId === destination.connectionId);
         if (!connection) throw new Error("This messaging connection is off or removed.");

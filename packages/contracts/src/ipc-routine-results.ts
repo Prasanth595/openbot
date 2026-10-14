@@ -25,6 +25,7 @@ export type RoutineResultDeliveryStatus = (typeof ROUTINE_RESULT_DELIVERY_STATUS
  * - `refused`: the connection cannot post in that place.
  * - `send-failed`: the platform refused or did not answer the post.
  * - `restart`: OpenBot stopped during the post.
+ * - `stopped`: the user stopped sending to a place before the answer went.
  */
 export const ROUTINE_RESULT_DELIVERY_REASONS = [
   "expired",
@@ -32,6 +33,7 @@ export const ROUTINE_RESULT_DELIVERY_REASONS = [
   "refused",
   "send-failed",
   "restart",
+  "stopped",
 ] as const;
 export type RoutineResultDeliveryReason = (typeof ROUTINE_RESULT_DELIVERY_REASONS)[number];
 

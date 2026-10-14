@@ -38,7 +38,7 @@ interface RoutineSaveResult {
 }
 
 /** The place an agent routine sends its answers to, and what became of each one. */
-export interface RoutineResultsPort {
+interface RoutineResultsPort {
   options: () => Promise<RoutineResultConnectionOption[]>;
   destination: (routineId: string) => Promise<RoutineResultDestination | null>;
   setDestination: (
