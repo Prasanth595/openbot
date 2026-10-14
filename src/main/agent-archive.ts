@@ -86,7 +86,7 @@ export function executableEntries(bytes: Uint8Array): Set<string> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let end = bytes.length - 22;
   while (end >= 0 && view.getUint32(end, true) !== 0x06054b50) end -= 1;
-  const count = end < 0 ? 0 : view.getUint16(end + 10, true);
+  const count = end < 0 ? 0 : view.getUint16(end + 8, true);
   let offset = end < 0 ? 0 : view.getUint32(end + 16, true);
   if (count === 0xffff || offset === 0xffffffff) return names;
   for (let index = 0; index < count; index += 1) {
