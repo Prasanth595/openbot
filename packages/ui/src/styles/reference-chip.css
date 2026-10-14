@@ -55,6 +55,14 @@
   object-fit: contain;
 }
 
+/* In the text, a line icon has the size and stroke of a file chip's page icon. Agent faces and logos
+   keep the full box. */
+:is(.message-reference-chip, .composer-mention-token) .reference-chip-icon > svg.lucide {
+  width: var(--openbot-icon-xs);
+  height: var(--openbot-icon-xs);
+  stroke-width: var(--openbot-icon-stroke);
+}
+
 .reference-chip-name {
   min-width: 0;
   overflow: hidden;
