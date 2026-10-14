@@ -445,12 +445,12 @@
   font-size: var(--openbot-text-sm);
 }
 
+/* The reason is why the answer is missing from the place, so it wraps rather than cuts off. */
 .agent-routine-delivery-note {
   min-width: 0;
-  overflow: hidden;
   color: var(--openbot-text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .agent-routine-delivery-failed,

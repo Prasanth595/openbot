@@ -20,7 +20,8 @@ interface RoutineResultDestinationFieldProps {
   onChange: (choice: RoutineResultChoice | null) => void;
 }
 
-const NONE = "";
+/** Kobalte shows an empty key as no selection. A place key always holds a `/`, so it is never this one. */
+const NONE = "none";
 
 interface PlaceEntry {
   key: string;
@@ -30,8 +31,12 @@ interface PlaceEntry {
   available: boolean;
 }
 
+/**
+ * Kobalte puts the key in a `[data-key="…"]` selector without escaping it, so the key must not hold a
+ * quote or a backslash. `encodeURIComponent` encodes both, and the `/` between the parts.
+ */
 function placeKey(choice: { connectionId: string; placeId: string }): string {
-  return JSON.stringify([choice.connectionId, choice.placeId]);
+  return `${encodeURIComponent(choice.connectionId)}/${encodeURIComponent(choice.placeId)}`;
 }
 
 /** Where an agent routine sends each answer, as well as to its chat. */
@@ -69,14 +74,19 @@ export function RoutineResultDestinationField(props: RoutineResultDestinationFie
     return found.available ? place : t("routine.settings.resultDestination.unavailable", { place });
   };
   const failed = () => props.options.filter((connection) => connection.placesFailed);
+  const selected = () => (props.value ? placeKey(props.value) : NONE);
 
   return (
     <div class="settings-field">
       <span id="agent-routine-result-destination-label">{t("routine.settings.resultDestination")}</span>
       <Select<string>
         options={[NONE, ...entries().map((candidate) => candidate.key)]}
-        value={props.value ? placeKey(props.value) : NONE}
-        onChange={(key) => props.onChange(key ? (entry(key)?.choice ?? null) : null)}
+        value={selected()}
+        onChange={(key) => {
+          // Kobalte selects the same key again when the options load; only a new place is a change.
+          if ((key ?? NONE) === selected()) return;
+          props.onChange(key ? (entry(key)?.choice ?? null) : null);
+        }}
         itemComponent={(item) => <SelectItem item={item.item}>{label(item.item.rawValue)}</SelectItem>}
       >
         <SelectTrigger aria-labelledby="agent-routine-result-destination-label">
