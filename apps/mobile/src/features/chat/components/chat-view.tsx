@@ -743,6 +743,17 @@ export function ChatView({
                   current && current.selected !== selected ? { ...current, selected } : current,
                 )
               }
+              onNativeSelection={(message, selected) =>
+                setSelection((current) => {
+                  if (selected) {
+                    return current?.message.id === message.id && current.selected === selected
+                      ? current
+                      : { message, selected };
+                  }
+                  // An empty selection ends only the selection of its own message.
+                  return current?.message.id === message.id ? null : current;
+                })
+              }
               onDismissSelection={() => setSelection(null)}
               muted={muted}
               raised={raised}

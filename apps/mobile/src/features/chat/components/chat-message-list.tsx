@@ -84,6 +84,7 @@ import { useText } from "@/shared/lib/text";
 import { CHAT_HISTORY_BATCH, type ChatHistoryBoundary, chatHistoryStart } from "../model/chat-layout";
 import { mentionDraft } from "../model/chat-mentions";
 import type { ChatTarget } from "../model/chat-target";
+import { nativeTextSelection } from "../model/native-text-selection";
 import { isStreamingReply } from "../model/reply-reveal";
 import { uploadProgressAt } from "../model/upload-progress";
 import { ChatAttachmentView } from "./chat-attachment";
@@ -272,6 +273,8 @@ interface ChatMessageListProps {
   onSelectText?: (message: ChatBubbleMessage) => void;
   /** The selected part of the message text, or an empty string. */
   onSelectionChange?: (selected: string) => void;
+  /** Native text views report the text selected in a message, or an empty string at its end. */
+  onNativeSelection?: (message: ChatBubbleMessage, selected: string) => void;
   /** A tap outside the selected text ends the selection. */
   onDismissSelection?: () => void;
   /** The message whose files are uploading, how many finished, and how to stop the rest. */
@@ -329,6 +332,7 @@ interface MessageRowShared {
     react: (message: ChatBubbleMessage, emoji: string | null) => Promise<void>;
     selectText: (message: ChatBubbleMessage) => void;
     selectionChange: (selected: string) => void;
+    nativeSelection: (message: ChatBubbleMessage, selected: string) => void;
     /** The row of the selected message. A tap outside it ends the selection. */
     selectionArea: (view: View | null) => void;
   };
@@ -444,6 +448,23 @@ const MessageRow = memo(function MessageRow({
 }) {
   const { t } = useText();
   const [selectionHeight, setSelectionHeight] = useState(0);
+  // Native text views keep a selection until they draw again. When the chat ends the selection
+  // from outside, such as with a tap elsewhere, the next generation draws them without it.
+  const [selectionGeneration, setSelectionGeneration] = useState(0);
+  const wasSelecting = useRef(selecting);
+  useEffect(() => {
+    if (wasSelecting.current && !selecting) setSelectionGeneration((generation) => generation + 1);
+    wasSelecting.current = selecting;
+  }, [selecting]);
+  const bubble = message.kind === "message" ? message : null;
+  const nativeSelect = shared.actions.nativeSelection;
+  const nativeSelection = useMemo(
+    () =>
+      bubble && nativeTextSelection && shared.canSelectText
+        ? { generation: selectionGeneration, onSelect: (selected: string) => nativeSelect(bubble, selected) }
+        : undefined,
+    [bubble, nativeSelect, selectionGeneration, shared.canSelectText],
+  );
   const {
     agents,
     agentsById,
@@ -483,10 +504,16 @@ const MessageRow = memo(function MessageRow({
     [eligible, message.id, complete, replySession.progress, enabled, markRevealed, replyHaptics],
   );
   const waiting = awaitingFirstWord(message, shared);
+  // Native text views select in place, so only the fallback covers the text with a field.
+  const overlaySelecting = selecting && !nativeTextSelection;
   // Another person in an agent chat: a person's bubble in their own colour, seeded by the member id
   // as on desktop, so it does not read as the reader's own.
   const memberColor =
     message.kind === "message" && message.sender ? getBloubAvatarColor(message.sender.id, null) : undefined;
+  const textColor =
+    message.kind === "message" && message.author === "user" && userBubbleStyle && !memberColor
+      ? userForeground
+      : foreground;
   const rendered =
     message.kind === "routine" ? (
       <RoutineMarkerRow key={message.id} message={message} muted={muted} />
@@ -570,26 +597,28 @@ const MessageRow = memo(function MessageRow({
             ]}
           >
             {/* The message text stays mounted while the reader selects, so it does not change size or
-                play its reveal again. The selectable text covers it at the same place. */}
-            <View style={selecting ? { minHeight: selectionHeight } : undefined}>
+                play its reveal again. Without native text views, the selectable text covers it at
+                the same place. */}
+            <View style={overlaySelecting ? { minHeight: selectionHeight } : undefined}>
               <View
-                style={selecting ? { opacity: 0 } : undefined}
-                accessibilityElementsHidden={selecting}
-                importantForAccessibility={selecting ? "no-hide-descendants" : "auto"}
+                style={overlaySelecting ? { opacity: 0 } : undefined}
+                accessibilityElementsHidden={overlaySelecting}
+                importantForAccessibility={overlaySelecting ? "no-hide-descendants" : "auto"}
               >
                 <ChatMarkdown
                   agents={agents}
                   body={message.body}
                   selectable={message.author === "user"}
-                  color={message.author === "user" && userBubbleStyle && !memberColor ? userForeground : foreground}
+                  color={textColor}
                   playback={playback}
                   animationEnabled={shared.animationActive && arrivals.has(message.id)}
+                  nativeSelection={nativeSelection}
                 />
               </View>
-              {selecting ? (
+              {overlaySelecting ? (
                 <ChatSelectableText
                   text={markdownPlainText(message.body)}
-                  color={foreground}
+                  color={textColor}
                   onHeight={setSelectionHeight}
                   onSelectionChange={actions.selectionChange}
                 />
@@ -600,8 +629,9 @@ const MessageRow = memo(function MessageRow({
       </Animated.View>
     );
   if (message.kind !== "message") return rendered;
-  // Selection actions are for the text of an agent reply, as on desktop.
-  const selectable = shared.canSelectText && message.author === "agent" && Boolean(message.body.trim());
+  // The fallback selection starts from Select text or a touch and hold. Native text views select
+  // the word under the finger on their own, so they need neither.
+  const selectable = shared.canSelectText && !nativeTextSelection && Boolean(message.body.trim());
   const replyPreview =
     source?.kind === "message"
       ? mentionDraft(source.body).text || t("mobile.chat.reply.attachment")
@@ -740,6 +770,7 @@ export function ChatMessageList({
   selectingMessageId = null,
   onSelectText,
   onSelectionChange,
+  onNativeSelection,
   onDismissSelection,
   focusMessageId = null,
   onFocusPlaced,
@@ -879,14 +910,15 @@ export function ChatMessageList({
     focusHandlers.current.onFocusPlaced?.();
   }, []);
   const selectionArea = useRef<View | null>(null);
-  const actionHandlers = useRef({ onReply, onReact, onSelectText, onSelectionChange });
-  actionHandlers.current = { onReply, onReact, onSelectText, onSelectionChange };
+  const actionHandlers = useRef({ onReply, onReact, onSelectText, onSelectionChange, onNativeSelection });
+  actionHandlers.current = { onReply, onReact, onSelectText, onSelectionChange, onNativeSelection };
   const actions = useMemo<MessageRowShared["actions"]>(
     () => ({
       reply: (message) => actionHandlers.current.onReply?.(message),
       react: async (message, emoji) => actionHandlers.current.onReact?.(message, emoji),
       selectText: (message) => actionHandlers.current.onSelectText?.(message),
       selectionChange: (selected) => actionHandlers.current.onSelectionChange?.(selected),
+      nativeSelection: (message, selected) => actionHandlers.current.onNativeSelection?.(message, selected),
       selectionArea: (view) => {
         selectionArea.current = view;
       },
