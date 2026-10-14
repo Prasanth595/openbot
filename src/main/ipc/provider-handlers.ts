@@ -149,7 +149,7 @@ export function parseManagedProviderId(value: unknown): ManagedProviderId {
   return provider;
 }
 
-export function parseProviderUseInput(value: unknown): { provider: AgentProviderId; on: boolean } {
+function parseProviderUseInput(value: unknown): { provider: AgentProviderId; on: boolean } {
   if (!isDynamicRecord(value) || typeof value.on !== "boolean") throw new Error("Invalid provider switch.");
   const provider = parseProviderId(value.provider);
   if (provider === "acp") throw new Error("Custom agents do not have a built-in provider switch.");

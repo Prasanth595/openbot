@@ -100,12 +100,12 @@ const ACCOUNT_USAGE_READ_TIMEOUT_MS = 30_000;
  */
 const INSTALLED_CLI_START_TIMEOUT_MS = 180_000;
 /** How long a provider CLI stays running with nothing to do before its process is stopped. */
-export const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
+const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
 /**
  * The same for a provider no agent is set to. Every signed-in provider starts at launch to read its
  * models, and an unused OpenCode process alone held about 300 MB for the full idle time.
  */
-export const PROVIDER_UNASSIGNED_RELEASE_MS = 60_000;
+const PROVIDER_UNASSIGNED_RELEASE_MS = 60_000;
 const PROVIDER_IDLE_CHECK_MS = 60_000;
 /** How often a restart the user asked for checks whether the provider's turns have ended. */
 const PROVIDER_RESTART_POLL_MS = 1_000;

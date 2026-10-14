@@ -42,7 +42,7 @@ export interface CaptureImage {
 }
 
 /** The part of a `DesktopCapturerSource` that a capture uses. */
-export interface CaptureSource {
+interface CaptureSource {
   id: string;
   name: string;
   /** The `Display.id` of a screen source, as a string. Empty for a window, and on some Linux desktops. */
@@ -51,7 +51,7 @@ export interface CaptureSource {
 }
 
 /** The part of an Electron `Display` that a capture uses. */
-export interface CaptureDisplay {
+interface CaptureDisplay {
   id: number;
   label: string;
   bounds: ScreenCaptureRectangle;

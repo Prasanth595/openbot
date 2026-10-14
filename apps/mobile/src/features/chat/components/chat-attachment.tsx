@@ -32,7 +32,7 @@ const FILL = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 } as c
  * image's own width; an image too wide for the column scales down to the column's width
  * instead, so nothing is cropped.
  */
-export function imageFrame(dimensions: ImageDimensions | null, maxWidth: number) {
+function imageFrame(dimensions: ImageDimensions | null, maxWidth: number) {
   const ratio = dimensions ? dimensions.width / dimensions.height : UNKNOWN_RATIO;
   const width = IMAGE_HEIGHT * ratio;
   if (width > maxWidth) return { width: maxWidth, height: Math.round(maxWidth / ratio) };

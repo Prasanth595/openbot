@@ -397,7 +397,7 @@ function socketAdapter(ws: ElysiaSocketLike, trustProxy: boolean): SignalSocket 
   };
 }
 
-export function signalClientIp(
+function signalClientIp(
   remoteAddress: string | undefined,
   forwardedFor: string | null | undefined,
   trustProxy: boolean,

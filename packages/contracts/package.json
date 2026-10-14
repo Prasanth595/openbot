@@ -133,15 +133,13 @@
     "./team-protocol/v7-webrtc-adapter": "./src/team-protocol/v7-webrtc-adapter.ts"
   },
   "scripts": {
-    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --config vitest.config.ts src"
+    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "emoji-regex": "10.6.0",
     "marked": "catalog:"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

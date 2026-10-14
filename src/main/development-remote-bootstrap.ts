@@ -96,7 +96,7 @@ export const startDevelopmentRemoteRole = Effect.fn("DevelopmentRemote.startRole
   yield* connectDevelopmentRemoteServer(remoteServers);
 });
 
-export const ensureDevelopmentAccount = Effect.fn("DevelopmentRemote.ensureAccount")(function* (
+const ensureDevelopmentAccount = Effect.fn("DevelopmentRemote.ensureAccount")(function* (
   manager: Pick<CentralAuthManager, "initialize" | "logout" | "requestEmailCode" | "verifyEmailCode">,
   email: string,
 ) {

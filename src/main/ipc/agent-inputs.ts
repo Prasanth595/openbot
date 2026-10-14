@@ -73,7 +73,7 @@ import type { PayloadDecoder } from "../trusted-ipc";
 import { parseAvatarImage } from "./avatar-inputs";
 import { isObject, requireString } from "./validation";
 
-export function parseAgentRequest(value: unknown): AgentIpcRequest {
+function parseAgentRequest(value: unknown): AgentIpcRequest {
   if (!isObject(value)) throw new Error("Invalid agent request.");
   return {
     serverId: requireString(value.serverId, "serverId"),

@@ -322,7 +322,7 @@ export class HostedSiteDesktopService {
   }
 }
 
-export const prepareSite = Effect.fn("HostedSite.prepare")(function* (
+const prepareSite = Effect.fn("HostedSite.prepare")(function* (
   sourcePath: string,
   allowedRoots?: readonly string[],
 ): Effect.fn.Return<PreparedSite, HostedSiteFailure> {

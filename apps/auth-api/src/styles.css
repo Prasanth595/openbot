@@ -4381,10 +4381,6 @@ a {
   display: block;
 }
 
-.post-media-frame {
-  position: relative;
-}
-
 .post-media {
   display: block;
   width: 100%;
@@ -4435,8 +4431,7 @@ a {
    `z-index` is what keeps it above the gradient host: that host is positioned,
    so without a layer of its own the picture paints underneath and the mount
    reads as a gradient with no screenshot on it. */
-.post-mount .post-media,
-.post-mount .post-media-frame {
+.post-mount .post-media {
   position: relative;
   z-index: 1;
 }
@@ -4452,46 +4447,6 @@ a {
   color: var(--openbot-text-muted);
   font-size: 14px;
   line-height: 1.5;
-}
-
-/* The control that stops a moving picture. It sits on the picture rather than
-   under it, because the thing it stops is what the reader is looking at, and it is
-   opaque so that it stays readable over any frame. */
-.post-media-toggle {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 13px 7px 11px;
-  border: 1px solid var(--openbot-border-strong);
-  border-radius: var(--openbot-radius-pill);
-  background: var(--openbot-bg-overlay);
-  color: var(--openbot-text-primary);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  cursor: pointer;
-  transition: background-color var(--openbot-duration-normal) ease;
-}
-
-.post-media-toggle:focus-visible {
-  outline: 0;
-  box-shadow: 0 0 0 3px var(--openbot-accent-strong);
-}
-
-.post-media-toggle-icon {
-  width: 9px;
-  height: 11px;
-  background: currentcolor;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-}
-
-.post-media-toggle[data-state="playing"] .post-media-toggle-icon {
-  background: linear-gradient(to right, currentcolor 0 3px, transparent 3px 6px, currentcolor 6px);
-  clip-path: none;
 }
 
 .post-more {
@@ -4646,10 +4601,6 @@ a {
     color: var(--openbot-text-primary);
   }
 
-  .post-media-toggle:hover {
-    background: var(--openbot-bg-surface-raised);
-  }
-
   .post-featured-title a:hover {
     color: var(--openbot-text-secondary);
   }
@@ -4680,8 +4631,7 @@ a {
 
   .post-card-art,
   .post-card-art-title,
-  .post-featured-art-title,
-  .post-media-toggle {
+  .post-featured-art-title {
     transition: none;
     transform: none;
   }

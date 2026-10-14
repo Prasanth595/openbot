@@ -140,6 +140,14 @@ rather than passed through. Paths are followed by the allowlisted campaign tags 
 `[a-z0-9._-]`; a value outside that shape is dropped, not shortened, and no other query parameter or
 hash is ever included. Session replay and automatic interaction capture remain disabled.
 
+To check the desktop send paths, start the dev app with
+`OPENBOT_ANALYTICS_CAPTURE_URL=http://localhost:47321 bun run dev`, then run
+`bun run test:analytics-redaction -- --allow-mutations`. The app sends its analytics and failure
+reports to that local capture server instead of OpenPanel. The script seeds a secret marker into an
+agent, an MCP server, a routine and browser addresses, and checks that no captured request holds it.
+It writes `.openbot-build/analytics-redaction-e2e/report.json`. A packaged build ignores the setting,
+and only a loopback `http:` origin is accepted.
+
 ## Required dashboards
 
 1. Product Health: weekly meaningful accounts, successful-turn rate, P50/P90 duration, and failures
@@ -306,7 +314,5 @@ user presentations, and host events count local failures. The same failure can h
 Compare failed turns against existing `system_turn_completed` outcomes for a turn failure rate.
 Track notification counts separately by severity and presentation. No external alerts are added.
 
-Run `bun run test:desktop -- packages/telemetry/src/reports.test.ts --maxWorkers=1` to verify a
-refused HTTP send followed by restart and delivery. The test writes the received safe payloads
-and result to `.openbot-build/telemetry/transport.json`. Live project access, dashboard creation,
-and production delivery must be verified after deployment; local tests do not establish them.
+Live project access, dashboard creation, and production delivery must be verified after
+deployment.

@@ -154,8 +154,8 @@ capability answers that the sign-in must be done on the host.
 - [ ] One flow completes once, for one member, before its deadline.
 - [ ] The code is registered with `registerSecretValue` and never logged.
 - [ ] The route uses `requireAdmin`, and its codec is in an optional capability (not in bootstrap).
-- [ ] A test covers single use, the other member, expiry and a state mismatch. See
-      [`src/main/sign-in-relay-host.test.ts`](../../src/main/sign-in-relay-host.test.ts).
+- [ ] Single use, the other member, expiry and a state mismatch are checked. See
+      [Test a sign-in through a joined server](#test-a-sign-in-through-a-joined-server).
 
 ## Add a provider
 
@@ -188,7 +188,7 @@ other places.
 5. **Contracts and preload.** The `AgentAuthState` arm in `ipc-agent-status.ts`, then
    `ipc-provider-admin.ts`, `src/preload/provider-runtime.ts` and `src/preload/agent-decoding.ts`.
 6. **Renderer.** `SetupProviderPicker.tsx`, `ProviderSettingsSection.tsx`, `app-defaults.ts`, and
-   the preview `mock-provider-runtimes.ts` and `app-test-harness.ts`.
+   the preview `mock-provider-runtimes.ts`.
 7. **Logo.** The `ProviderLogoVariant` union and its SVG in
    [`packages/brand/src/ProviderLogo.tsx`](../../packages/brand/src/ProviderLogo.tsx), and the color
    in `packages/brand/src/tokens.css`.
@@ -199,8 +199,6 @@ other places.
 9. **Text and docs.** Error keys in `error/provider.ts` and onboarding text in all languages
    ([docs/i18n.md](../i18n.md)). A section in [Providers](providers.md), and a
    `changelog.d/<branch>.md` file.
-10. **Tests.** `provider-runtime.test.ts`, `provider-visibility.test.ts` and
-    `team-api-server.admin.test.ts`.
 
 **Worked example: Codex browser sign-in.** The driver row uses `signIn: { kind: "browser" }`.
 `CodexLoginFlow.startBrowser` in [`codex-login.ts`](../../src/backend/agent/codex-login.ts) asks the
@@ -379,30 +377,20 @@ Team API adapters are permanent (see [Team API compatibility](team-api.md)). Wor
 7. **Browser client.** Add the requests to
    [`team-admin-requests.ts`](../../packages/team-client/src/team-admin-requests.ts), and gate them
    on the host's capabilities in the web client.
-8. **Fixtures.** Add accepted and refused payloads to
-   [`optional-routes.test.ts`](../../packages/contracts/src/team-protocol/optional-routes.test.ts),
-   and assert that the capability is not in bootstrap.
+8. **Bootstrap.** Make sure that the capability is not in bootstrap.
 9. **Text.** Error messages use `sourceText(key)` with keys in all languages of `@openbot/i18n`.
 
 ## Test a sign-in through a joined server
 
-1. Unit: run the relay host test and the listener test, one at a time:
-   ```sh
-   bun run test:desktop -- src/main/sign-in-relay-host.test.ts
-   bun run test:desktop -- src/main/mcp-oauth-redirect-server.test.ts
-   bun run test:desktop -- packages/contracts/src/team-protocol/optional-routes.test.ts
-   bun run test:desktop -- src/main/sign-in-relay-client.test.ts
-   bun run test:desktop -- src/main/relayed-messaging-installs.test.ts
-   ```
-2. Two clients: `bun run dev:test-client` starts the services, the app and a second client with its
+1. Two clients: `bun run dev:test-client` starts the services, the app and a second client with its
    own profile (see [README.md: Commands](../../README.md#commands)). Join the app from the second
    client as an admin. Add a URL MCP server with OAuth on the host, and press Sign in on the client.
    The page must open in the client's browser, and the host must show the server as signed in.
-3. Paste fallback: hold port 28417 on the client with another program, and sign in again. The dialog
+2. Paste fallback: hold port 28417 on the client with another program, and sign in again. The dialog
    asks for the address. Paste the address from the browser. The host must sign in.
-4. Browser client: open `/app` and sign in to the same server. The dialog shows "Open sign-in page"
+3. Browser client: open `/app` and sign in to the same server. The dialog shows "Open sign-in page"
    and the paste field.
-5. Check the logs of both computers. They must not contain `code=`, the code or the `state`.
+4. Check the logs of both computers. They must not contain `code=`, the code or the `state`.
 
 Use `bun run dev:automation` for snapshots and screenshots. Do not drive another worktree's app.
 

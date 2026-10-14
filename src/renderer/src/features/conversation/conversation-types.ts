@@ -84,9 +84,8 @@ export interface ConversationProps {
   providerRuntimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>>;
   /**
    * The endpoints the user named, so both model pickers can tell a custom model from an OpenCode
-   * one. It travels as a prop rather than through `useCustomProviders()`, because
-   * `AgentSettingsPanel.test.tsx` mounts that component bare and a context `use()` throws without
-   * its provider - the same path `providerRuntimeStatuses` above already takes.
+   * one. It travels as a prop rather than through `useCustomProviders()`, the same
+   * path `providerRuntimeStatuses` above already takes.
    */
   customProviders?: readonly CustomProviderSummary[];
   /** The user's own ACP agents on this computer, for the model picker's Custom tab. */

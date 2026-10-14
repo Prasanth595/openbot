@@ -865,7 +865,7 @@ function authValidate<A>(operation: () => A): Effect.Effect<A, AuthServiceError 
   return Effect.try({ try: operation, catch: authFailure });
 }
 
-export function generateOneTimeCode(): string {
+function generateOneTimeCode(): string {
   const bytes = new Uint8Array(ONE_TIME_CODE_LENGTH);
   crypto.getRandomValues(bytes);
   const raw = [...bytes].map((byte) => ONE_TIME_CODE_ALPHABET[byte & 31]).join("");
@@ -880,7 +880,7 @@ const developmentOneTimeCode = Effect.fn("Auth.developmentCode")(function* (chal
   return `${raw.slice(0, 4)}-${raw.slice(4)}`;
 });
 
-export function normalizeOneTimeCode(value: string): string {
+function normalizeOneTimeCode(value: string): string {
   const normalized = normalizeSharedOneTimeCode(value);
   if (!normalized) {
     throw new AuthServiceError(400, "invalid_sign_in_code", "The sign-in code is invalid.");

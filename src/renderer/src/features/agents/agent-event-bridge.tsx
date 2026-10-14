@@ -37,10 +37,7 @@ import { agentsPort } from "./agents-port";
  * depends on this, so the import edge only ever points down and the cycle rule
  * is satisfied by construction.
  *
- * It renders `null` and must stay renderable with no view above it - the
- * harnesses in `App.test.tsx` and `App.read-state.test.tsx` mount the providers
- * with no `AppView` at all, and that is how they drive the app: emit an event,
- * assert the state it produced.
+ * It renders `null` and must stay renderable with no view above it.
  *
  * Conversation invalidations also cover read cursors changed on another device.
  */
