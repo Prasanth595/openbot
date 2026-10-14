@@ -817,18 +817,17 @@ export class BillingService {
       action === "plan_started"
         ? yield* billingCall(() =>
             dependencies.database
-              .prepare(
-                `SELECT
-                   EXISTS(SELECT 1 FROM billing_subscriptions
-                           WHERE user_id = ?1 AND stripe_subscription_id <> ?2 AND status = 'canceled') AS ended,
-                   EXISTS(SELECT 1 FROM billing_subscriptions
-                           WHERE user_id = ?1 AND stripe_subscription_id <> ?2
-                             AND status IN ('active', 'trialing', 'past_due', 'unpaid', 'paused')) AS open`,
-              )
+              .prepare("SELECT status FROM billing_subscriptions WHERE user_id = ? AND stripe_subscription_id <> ?")
               .bind(ownerId, subscription.id)
-              .first<{ ended: number; open: number }>(),
+              .all<{ status: string }>(),
           ).pipe(
-            Effect.map((row) => row !== null && row.ended === 1 && row.open === 0),
+            Effect.map(
+              ({ results }) =>
+                results.some((row) => row.status === "canceled") &&
+                !results.some(
+                  (row) => isOneOf(BILLING_SUBSCRIPTION_STATUSES, row.status) && isOpenBillingStatus(row.status),
+                ),
+            ),
             Effect.catch(() => Effect.succeed(undefined)),
           )
         : undefined;

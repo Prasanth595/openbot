@@ -26,7 +26,7 @@ function sendCheckoutAttribution(): void {
   if (!sessionId) return;
   url.searchParams.delete("checkout");
   window.history.replaceState(window.history.state, "", url);
-  const firstTouch = readFirstTouch(window.localStorage, Date.now());
+  const firstTouch = readFirstTouch(() => window.localStorage, Date.now());
   if (!firstTouch) return;
   void fetch("/api/browser/checkout-attribution", {
     method: "POST",

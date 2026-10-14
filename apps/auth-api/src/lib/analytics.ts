@@ -475,8 +475,8 @@ function rememberLandingFirstTouch(
   attribution: ReturnType<typeof landingAttribution>,
   screen: LandingScreenPath,
 ): void {
-  const storage = document.defaultView?.localStorage;
-  if (!storage) return;
+  const view = document.defaultView;
+  if (!view) return;
   const now = Date.now();
   const touch: FirstTouch = {
     acquisitionSource: attribution.acquisition_source,
@@ -485,7 +485,7 @@ function rememberLandingFirstTouch(
     firstVisitOn: firstTouchDay(now),
   };
   for (const tag of campaignTags(document.location.href)) touch[tag.field] = tag.value;
-  rememberFirstTouch(storage, touch, now);
+  rememberFirstTouch(() => view.localStorage, touch, now);
 }
 
 // OpenPanel expects a URL. Keep only the domain, never credentials, ports or URL contents.

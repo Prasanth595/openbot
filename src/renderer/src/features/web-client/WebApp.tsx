@@ -251,7 +251,7 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
   }
   async function verify(challengeId: string, code: string) {
     // The first website visit of this browser, so that reports can name the source of a new account.
-    const firstTouch = readFirstTouch(window.localStorage, Date.now());
+    const firstTouch = readFirstTouch(() => window.localStorage, Date.now());
     const value = await signInRequest("email/verify", { challengeId, code, ...(firstTouch ? { firstTouch } : {}) });
     if (value === null) return;
     const account = accountFrom(value);

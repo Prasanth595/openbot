@@ -81,10 +81,13 @@ export function firstTouchDay(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-/** The saved first touch of this browser, or null when there is none, it is damaged or too old. */
-export function readFirstTouch(storage: Pick<Storage, "getItem">, now: number): FirstTouch | null {
+/**
+ * The saved first touch of this browser, or null when there is none, it is damaged or too old.
+ * `storage` is a getter because reading `window.localStorage` throws when the browser blocks storage.
+ */
+export function readFirstTouch(storage: () => Pick<Storage, "getItem">, now: number): FirstTouch | null {
   try {
-    const stored = storage.getItem(FIRST_TOUCH_STORAGE_KEY);
+    const stored = storage().getItem(FIRST_TOUCH_STORAGE_KEY);
     const touch = stored ? parseFirstTouch(JSON.parse(stored)) : null;
     if (!touch) return null;
     const age = now - Date.parse(`${touch.firstVisitOn}T00:00:00Z`);
@@ -96,13 +99,13 @@ export function readFirstTouch(storage: Pick<Storage, "getItem">, now: number): 
 
 /** Saves the visit unless this browser already has a valid first touch. Storage failures are silent. */
 export function rememberFirstTouch(
-  storage: Pick<Storage, "getItem" | "setItem">,
+  storage: () => Pick<Storage, "getItem" | "setItem">,
   touch: FirstTouch,
   now: number,
 ): void {
   try {
     if (readFirstTouch(storage, now)) return;
-    storage.setItem(FIRST_TOUCH_STORAGE_KEY, JSON.stringify(touch));
+    storage().setItem(FIRST_TOUCH_STORAGE_KEY, JSON.stringify(touch));
   } catch {
     // Attribution must never change what the website does.
   }
