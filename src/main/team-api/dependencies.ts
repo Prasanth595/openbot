@@ -13,6 +13,7 @@ import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import type { RemoteWorkflowError } from "../remote-service-effects";
 import type { RequestedUpdate } from "../requested-update";
+import type { ServerTimezonePreferenceStore } from "../server-timezone-preference-store";
 import type { SkillMarketplaceService } from "../skill-marketplace-service";
 // What `TeamApiServer` needs from the rest of the main process, and nothing else.
 //
@@ -253,6 +254,8 @@ export interface TeamApiAdmin {
   identity?: TeamApiHostIdentity;
   /** `host-update-v1`: the app update of this computer. Advertised also when the host user turned it off. */
   update?: Pick<RequestedUpdate, "snapshot" | "check" | "start" | "requestWhenIdle" | "cancel" | "changeSettings">;
+  /** `host-timezone-v1`: the server timezone. */
+  timezone?: Pick<ServerTimezonePreferenceStore, "get" | "set">;
 }
 
 interface TeamApiHostIdentity {

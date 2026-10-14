@@ -282,6 +282,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Şimdi sesi açmak için kapatın.",
   "server.settings.notifyAbout": "Şunun hakkında bildir",
   "server.settings.notifyAboutDescription": "Hangi ajan olaylarının bir masaüstü bildirimi göstereceği.",
+  "server.settings.agents": "Ajanlar",
+  "server.settings.timezone": "Saat dilimi",
+  "server.settings.timezoneDescription":
+    "Mesaj gönderenin saat dilimini belirtmediğinde yeni rutinler bu saat dilimini kullanır.",
+  "server.settings.timezoneAutomatic": "Otomatik ({zone})",
+  "server.settings.timezoneLoadFailed": "Sunucunun saat dilimi yüklenemedi.",
   "server.settings.remoteOnline": "Ana makine çevrim içi. Yayımlama sahibi tarafından kontrol edilir.",
   "server.settings.remoteOffline": "Ana makine çevrim dışı. Yayımlama sahibi tarafından kontrol edilir.",
   "server.settings.saveIdentityFirst": "Yayımlamadan önce sunucu kimliğini kaydedin.",

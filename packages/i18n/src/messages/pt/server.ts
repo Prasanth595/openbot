@@ -275,6 +275,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Desative para reativar as notificações agora.",
   "server.settings.notifyAbout": "Notificar sobre",
   "server.settings.notifyAboutDescription": "Quais eventos dos agentes mostram uma notificação na área de trabalho.",
+  "server.settings.agents": "Agentes",
+  "server.settings.timezone": "Fuso horário",
+  "server.settings.timezoneDescription":
+    "As novas rotinas usam este fuso horário quando a mensagem não informa o fuso horário do remetente.",
+  "server.settings.timezoneAutomatic": "Automático ({zone})",
+  "server.settings.timezoneLoadFailed": "Não foi possível carregar o fuso horário do servidor.",
   "server.settings.remoteOnline": "O computador anfitrião está online. Seu proprietário controla a publicação.",
   "server.settings.remoteOffline": "O computador anfitrião está offline. Seu proprietário controla a publicação.",
   "server.settings.saveIdentityFirst": "Salve a identidade do servidor antes de publicar.",

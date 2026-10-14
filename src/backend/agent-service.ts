@@ -271,6 +271,11 @@ export interface AgentServiceOptions {
    * default cap, which was the only cap before the setting existed.
    */
   agentMemoryLimit?: () => number;
+  /**
+   * The server timezone, for a routine an agent creates without a zone from the tool call or the
+   * sender. The main process owns the preference. Omitted, the host system zone.
+   */
+  timezone?: () => string;
   deleteWithRevokedApproval?: (
     agentId: string,
     remove: () => Effect.Effect<void, AgentRemovalFailed>,
@@ -301,7 +306,7 @@ export interface AgentServiceOptions {
   /** The 1Password vault the user shared with OpenBot, or `null`. The browser fills logins from it. */
   passwordVault?: PasswordVault | null;
   /**
-   * The memory of a hosted server, or `null` on each other computer. With it, no new turn starts
+   * The memory of a server, or `null` on a desktop computer. With it, no new turn starts
    * while memory is low, and only a fixed number of turns run at the same time.
    */
   hostMemory?: HostMemory | null;
@@ -477,6 +482,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     this.#routines = new RoutineScheduler({
       timer: this.#routineTimer,
       waits: this.#waits,
+      ...(options.timezone ? { timezone: options.timezone } : {}),
       store,
       mailbox,
       conversation: this.#conversation,

@@ -98,6 +98,8 @@ export const messages = {
     "Tryb „Tylko obszar roboczy” jest dla tego dostawcy dostępny wyłącznie w macOS. Wybierz pełny dostęp w ustawieniach agenta.",
   "error.agent.lowMemory":
     "Na tym serwerze brakuje pamięci. Twoja wiadomość czeka w kolejce i ruszy, gdy pamięć się zwolni. Większy plan daje serwerowi więcej pamięci.",
+  "error.agent.lowMemoryServer":
+    "Na tym serwerze brakuje pamięci. Twoja wiadomość czeka w kolejce i ruszy, gdy pamięć się zwolni.",
   "error.agent.workspaceOnlyToolMissing":
     "Tryb „Tylko obszar roboczy” wymaga narzędzia {tool}, którego OpenBot nie znalazł. Zainstaluj je lub wybierz pełny dostęp w ustawieniach agenta.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -205,8 +205,10 @@ export class InstanceTransferService {
   ): Effect.fn.Return<InstanceTransferSummary, ArchiveOperationError> {
     const agents: InstanceTransferAgent[] = [];
     for (const agent of this.options.agents.listAgents()) {
-      const files = yield* workspaceFiles(agent.workspacePath);
-      const skills = yield* skillFolders(agent.workspacePath);
+      // The counts are a preview: a folder that cannot be read stops the export, not this screen,
+      // so an export without files stays possible.
+      const files = yield* workspaceFiles(agent.workspacePath).pipe(Effect.orElseSucceed(() => []));
+      const skills = yield* skillFolders(agent.workspacePath).pipe(Effect.orElseSucceed(() => []));
       agents.push({
         id: agent.id,
         name: agent.name,
@@ -954,8 +956,12 @@ const walk = Effect.fn("InstanceTransfer.walk")(function* (
   while (pending.length > 0) {
     const directory = pending.pop() ?? root;
     const listed = yield* Effect.result(archiveCall(() => readdir(directory, { withFileTypes: true })));
-    // A missing folder has no files: a new agent may not have a workspace yet.
-    if (Result.isFailure(listed)) continue;
+    // A missing folder has no files: a new agent may not have a workspace yet. A folder that cannot
+    // be read stops the export, as a file that cannot be read does, so no file is left out silently.
+    if (Result.isFailure(listed)) {
+      if (isMissingFileError(listed.failure.cause)) continue;
+      return yield* listed.failure;
+    }
     for (const entry of listed.success) {
       const path = join(directory, entry.name);
       const name = relative(root, path).split(sep).join("/");
@@ -966,6 +972,7 @@ const walk = Effect.fn("InstanceTransfer.walk")(function* (
         const info = yield* Effect.result(archiveCall(() => lstat(path)));
         if (Result.isSuccess(info))
           files.push({ name, path, size: info.success.size, executable: (info.success.mode & 0o111) !== 0 });
+        else if (!isMissingFileError(info.failure.cause)) return yield* info.failure;
       }
     }
   }
@@ -980,12 +987,17 @@ const skillFolders = Effect.fn("InstanceTransfer.skillFolders")(function* (
   for (const folder of MANAGED_SKILL_FOLDERS) {
     const root = join(workspace, ...folder.split("/"));
     const listed = yield* Effect.result(archiveCall(() => readdir(root)));
-    if (Result.isFailure(listed)) continue;
+    if (Result.isFailure(listed)) {
+      if (isMissingFileError(listed.failure.cause)) continue;
+      return yield* listed.failure;
+    }
     for (const slug of listed.success) {
       if (skills.has(slug) || isUnsafeArchivePath(slug)) continue;
       const directory = join(root, slug);
       // `stat` follows a link: `npx skills` links each skill folder to one shared copy.
       const info = yield* Effect.result(archiveCall(() => stat(directory)));
+      // A link to a skill that is gone is not a skill.
+      if (Result.isFailure(info) && !isMissingFileError(info.failure.cause)) return yield* info.failure;
       if (Result.isFailure(info) || !info.success.isDirectory()) continue;
       const files = yield* walk(directory);
       if (files.some((file) => file.name === OWNERSHIP_MARKER) || !files.some((file) => file.name === "SKILL.md"))

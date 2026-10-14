@@ -276,6 +276,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Wyłącz, aby od razu przywrócić dźwięk.",
   "server.settings.notifyAbout": "Powiadamiaj mnie o",
   "server.settings.notifyAboutDescription": "Które zdarzenia agentów pokazują powiadomienie na pulpicie.",
+  "server.settings.agents": "Agenci",
+  "server.settings.timezone": "Strefa czasowa",
+  "server.settings.timezoneDescription":
+    "Nowe rutyny używają tej strefy czasowej, gdy wiadomość nie podaje strefy czasowej nadawcy.",
+  "server.settings.timezoneAutomatic": "Automatycznie ({zone})",
+  "server.settings.timezoneLoadFailed": "Nie udało się wczytać strefy czasowej serwera.",
   "server.settings.remoteOnline": "Host jest online. Publikacją zarządza jego właściciel.",
   "server.settings.remoteOffline": "Host jest offline. Publikacją zarządza jego właściciel.",
   "server.settings.saveIdentityFirst": "Przed publikacją zapisz tożsamość serwera.",

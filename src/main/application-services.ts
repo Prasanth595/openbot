@@ -152,7 +152,6 @@ import { HostService } from "./host-service";
 import { HostUpdateCoordinator } from "./host-update-coordinator";
 import { CLIENT_USE_WINDOW_MS, HostedServerActivity } from "./hosted-server-activity";
 import { applyHostedServerAccount, type HostedServerEnvironment } from "./hosted-server-bootstrap";
-import { HostedServerMemory } from "./hosted-server-memory";
 import { HostedServerDesktopService, withHostingDeveloperKey } from "./hosted-server-service";
 import { HostedServerStartRetry } from "./hosted-server-start-retry";
 import { HostedSiteDesktopService } from "./hosted-site-service";
@@ -217,7 +216,9 @@ import { StatementTimings } from "./resource-summary";
 import { RoutineFeedServer } from "./routine-feed-server";
 import { clearRoutineHold, ROUTINE_HOLD_FILE, takeRoutineHold, writeRoutineHold } from "./routine-hold-file";
 import { ScreenCapturer } from "./screen-capture";
+import { ServerMemory } from "./server-memory";
 import { ServerMode, type ServerModeEnvironment } from "./server-mode";
+import { ServerTimezonePreferenceStore } from "./server-timezone-preference-store";
 import {
   configureApplicationProtocol,
   configureAttachmentProtocol,
@@ -270,6 +271,7 @@ const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
 const PUSH_NOTIFICATION_FILE = "openbot-push-notifications-v1.json";
 const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
+const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
 const DYNAMIC_ISLAND_PREFERENCE_FILE = "openbot-dynamic-island-preference-v1.json";
 const BROWSER_STATE_FILE = "openbot-browser-state-v1.json";
@@ -317,7 +319,7 @@ const TEARDOWN_ORDER = {
   requestedUpdate: 13,
   hostedServerStartRetry: 14,
   hostedServerActivity: 15,
-  hostedServerMemory: 16,
+  serverMemory: 16,
   serverMode: 17,
   computerUseHighlight: 18,
   computerUsePermissionHelp: 19,
@@ -437,6 +439,7 @@ export interface ApplicationServices {
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitPreferenceStore;
+  serverTimezone: ServerTimezonePreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
   agentInitialization: AgentInitializationGate<AgentLifecycleFailed>;
@@ -863,17 +866,18 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.teamWebRtcBridge, "the team WebRTC bridge", () =>
     runCauseEffect(teamWebRtcBridge.stop()),
   );
-  // Only a hosted server: its machine is small, and one unit holds OpenBot and every agent process.
-  const hostMemory = hostedServer
-    ? new HostedServerMemory({
-        onError: (message, error) => logger.warn(message, toLogValue(error)),
-      })
-    : null;
+  // Only a hosted, self-hosted or container server: one unit or container holds OpenBot and every
+  // agent process. The desktop app does not hold turns for memory.
+  const hostMemory =
+    hostedServer || serverModeEnvironment
+      ? new ServerMemory({
+          hostedPlan: hostedServer !== null,
+          onError: (message, error) => logger.warn(message, toLogValue(error)),
+        })
+      : null;
   if (hostMemory) {
     hostMemory.start();
-    teardown.push(TEARDOWN_ORDER.hostedServerMemory, "the hosted server memory reading", () =>
-      Effect.runPromise(hostMemory.stop()),
-    );
+    teardown.push(TEARDOWN_ORDER.serverMemory, "the server memory reading", () => Effect.runPromise(hostMemory.stop()));
   }
   const browser = new BrowserHost(mainWindow, store.downloadsRoot, join(app.getPath("userData"), BROWSER_STATE_FILE), {
     memoryLow: () => (hostMemory?.level() ?? "ok") !== "ok",
@@ -924,6 +928,10 @@ export async function createApplicationServices({
     join(app.getPath("userData"), AGENT_MEMORY_LIMIT_PREFERENCE_FILE),
   );
   await runCauseEffect(agentMemoryLimit.load());
+  const serverTimezone = new ServerTimezonePreferenceStore(
+    join(app.getPath("userData"), SERVER_TIMEZONE_PREFERENCE_FILE),
+  );
+  await runCauseEffect(serverTimezone.load());
   const remoteSessionReuse = new RemoteSessionReusePreferenceStore(
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
@@ -1364,6 +1372,7 @@ export async function createApplicationServices({
     approvalAutomation,
     busyMessageMode: () => busyMessageMode.get().mode,
     agentMemoryLimit: () => agentMemoryLimit.get().limit,
+    timezone: () => serverTimezone.effective(),
     deleteWithRevokedApproval: (agentId, remove) =>
       approvalAutomation.deleteAgent(agentId, remove).pipe(toAgentRemovalFailed),
     tables,
@@ -1686,7 +1695,7 @@ export async function createApplicationServices({
       installLocal: (input) => skills.installLocal(input),
     },
     () => host.channelActor(),
-    undefined,
+    () => serverTimezone.effective(),
     join(app.getPath("userData"), "agent-import-uploads"),
   );
   // The same owners the Settings screens write through, so an import has their checks and restarts.
@@ -1696,6 +1705,7 @@ export async function createApplicationServices({
     sharedRoot: store.sharedRoot,
     appVersion: app.getVersion(),
     uploadDirectory: join(app.getPath("userData"), "instance-transfer-uploads"),
+    timezone: () => serverTimezone.effective(),
     settings: {
       mcpServers: () => service.listMcpServers(),
       saveMcpServer: (config) => service.saveMcpServer({ config }),
@@ -1809,6 +1819,7 @@ export async function createApplicationServices({
         cancel: () => scheduledUpdate().cancel(),
         changeSettings: (change) => scheduledUpdate().changeSettings(change),
       },
+      timezone: serverTimezone,
     },
     // The host's Team API routes share the IPC handlers' runtime preparation: a first server
     // saved, enabled, or tested remotely must start and await the managed download like a local one.
@@ -2364,6 +2375,7 @@ export async function createApplicationServices({
         version: app.getVersion(),
         centralAuth,
         host,
+        memory: hostMemory,
         onError: (message, error) => logger.warn(message, toLogValue(error)),
       })
     : null;
@@ -2423,6 +2435,7 @@ export async function createApplicationServices({
     notificationPreference,
     busyMessageMode,
     agentMemoryLimit,
+    serverTimezone,
     remoteSessionReuse,
     remoteSessionCache,
     agentInitialization,

@@ -7,9 +7,10 @@ import {
 import { AGENT_SESSION_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-member-update-v1";
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
+import { HOST_TIMEZONE_ROUTES } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import type { PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
 // Admin requests to one host: agent settings and skills, shared tables, agent share links, the server name and logo,
-// the app update, MCP servers, storage, hosted sites and providers.
+// the server timezone, the app update, MCP servers, storage, hosted sites and providers.
 //
 // The desktop sends the same routes from the main process. The web client and the mobile app send
 // them through their own transport, so the path, body and decoding of each request are here once.
@@ -47,6 +48,7 @@ import {
   decodeHostProviderAccounts,
   decodeHostProviderAccountUsage,
   decodeHostReleaseStatus,
+  decodeHostTimezoneSettings,
   decodeHostUpdateStatus,
   decodeInstalledSkills,
   decodeMcpServerConfigs,
@@ -72,6 +74,7 @@ import {
   type HostProviderAccounts,
   type HostReleaseStatus,
   type HostSetMessagingEnabledInput,
+  type HostTimezoneSettings,
   type HostUpdateSettingsChange,
   type HostUpdateStatus,
   type InstallAgentTemplateInput,
@@ -435,6 +438,18 @@ export function setHostUpdateSettings(
   settings: HostUpdateSettingsChange,
 ): Effect.Effect<HostUpdateStatus, TeamAdminRequestError> {
   return adminCall(() => request("POST", HOST_UPDATE_ROUTES.settings, decodeHostUpdateStatus, settings));
+}
+
+export function getHostTimezone(request: TeamApiRequest): Effect.Effect<HostTimezoneSettings, TeamAdminRequestError> {
+  return adminCall(() => request("POST", HOST_TIMEZONE_ROUTES.settings, decodeHostTimezoneSettings, {}));
+}
+
+/** `null` returns the server to the system zone of its computer. */
+export function setHostTimezone(
+  request: TeamApiRequest,
+  timezone: string | null,
+): Effect.Effect<HostTimezoneSettings, TeamAdminRequestError> {
+  return adminCall(() => request("POST", HOST_TIMEZONE_ROUTES.update, decodeHostTimezoneSettings, { timezone }));
 }
 
 /** The one MCP read route, and the only one the host answers to a GET. */

@@ -68,7 +68,7 @@ open a database that a newer one migrated. It also refuses a computer that is a 
 
 | Command | Use |
 | --- | --- |
-| `openbot status` | Show the version, the account, the server state and a staged update. |
+| `openbot status` | Show the version, the account, the server state, the memory and a staged update. |
 | `openbot login [<email>] [--name <name>]` | Sign in with an email code. |
 | `openbot login --claim [--name <name>]` | Sign in with an operator's one-time claim (see [Sign in with a server claim](#sign-in-with-a-server-claim)). |
 | `openbot mobile-connect` | Show a Mobile Connect QR code for the phone app (see [Phone app](#phone-app)). |
@@ -82,6 +82,28 @@ open a database that a newer one migrated. It also refuses a computer that is a 
 
 Run the account commands with `sudo` or as the service user. Other users cannot open the control
 socket.
+
+## Memory
+
+A self-hosted server uses the memory guards of a hosted server (see
+[Memory](hosted-servers.md#memory)). When free memory is low, new turns wait in the queue and start
+again when memory is available. A message from a person starts first. The browser opens no new tab
+and unloads idle pages sooner. A fixed number of turns run at the same time: 4 up to 5 GiB of memory,
+8 up to 10 GiB, and 16 above.
+
+The memory ceiling is the smaller of the machine memory and the limit of `openbot.service`
+(`MemoryMax=90%`). To give OpenBot less memory, lower the limit with
+`sudo systemctl edit openbot.service`, for example `MemoryMax=2G`, and restart the service. The
+turn limit and the low-memory levels then use the new ceiling. `openbot status` shows the ceiling,
+the free memory, the level (`ok`, `low` or `critical`) and the turn limit:
+
+```text
+Memory: 1228 MiB free of 3481 MiB (ok)
+Turns at the same time: at most 4
+```
+
+The guard reads cgroup v2. On a system with cgroup v1, it uses the machine memory and the log has
+one warning.
 
 ## Phone app
 

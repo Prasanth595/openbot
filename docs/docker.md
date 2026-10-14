@@ -218,6 +218,25 @@ OpenBot does not update itself in a container. A new image replaces it. An insta
 [Updates from the app](#updates-from-the-app). Do not go back to an older tag: an older OpenBot cannot
 open a database that a newer one migrated, so it does not start.
 
+## Memory
+
+The container uses the memory guards of a hosted server (see [Memory](hosted-servers.md#memory)).
+When free memory is low, new turns wait in the queue and start again when memory is available. A
+message from a person starts first. The browser opens no new tab and unloads idle pages sooner.
+
+The memory ceiling is the smaller of the memory of the host and the memory limit of the container
+(`--memory`, or `mem_limit` in Compose). Without a limit, the ceiling is the memory of the host. A
+fixed number of turns run at the same time: 4 up to 5 GiB of ceiling, 8 up to 10 GiB, and 16 above.
+`/dev/shm` and the `tmpfs` folders count toward the limit too. `docker exec openbot openbot status`
+shows the ceiling, the free memory, the level (`ok`, `low` or `critical`) and the turn limit.
+
+The guard reads cgroup v2, which current Docker hosts use. On a host with cgroup v1, the container
+sees only the memory of the host, so the guard uses it, and the log has one warning.
+
+Main has an OOM score adjustment of 0 in the container, and each process that it starts gets 500.
+So when the container is out of memory, the kernel is more likely to stop a provider CLI, an MCP
+server or an agent tool than OpenBot.
+
 ## Environment
 
 Pass these with `-e` or the `environment` of the Compose file, never in an image. Agents inherit the

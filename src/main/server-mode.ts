@@ -32,6 +32,7 @@ import type { HostService } from "./host-service";
 import { readBodyWithin } from "./http-body";
 import { createHostedMobileConnect } from "./mobile-connect-host";
 import { RemoteWorkflowError, remoteCall, toRemoteWorkflowError } from "./remote-service-effects";
+import type { ServerMemory } from "./server-memory";
 
 const CONTROL_SOCKET_FILE = "control.sock";
 const MAX_BODY_BYTES = 4096;
@@ -71,6 +72,8 @@ export interface ServerModeOptions {
     | "createMobileConnect"
   >;
   host: Pick<HostService, "getStatus" | "configure" | "start" | "updateIdentity" | "getMobileConnectHost">;
+  /** The memory guard, so that `status` shows the memory ceiling and the turn limit. */
+  memory: Pick<ServerMemory, "level" | "sample" | "turnLimit"> | null;
   onError: (message: string, error: unknown) => void;
   /** Tests only. */
   uid?: number;
@@ -235,7 +238,20 @@ export class ServerMode {
         server: host.phase,
         server_name: host.serverName ?? this.#pendingName,
         server_message: this.#publishError ?? host.message,
+        ...this.#memoryLines(),
       },
+    };
+  }
+
+  #memoryLines(): Answer["lines"] {
+    const memory = this.#options.memory;
+    const sample = memory?.sample();
+    if (!memory || !sample) return {};
+    return {
+      memory_level: memory.level(),
+      memory_limit: sample.total,
+      memory_available: sample.available,
+      turn_limit: memory.turnLimit(),
     };
   }
 

@@ -103,6 +103,8 @@ export const messages = {
     "Solo workspace è disponibile per questo provider solo su macOS. Scegli Accesso completo nelle impostazioni dell'agente.",
   "error.agent.lowMemory":
     "Questo server ha poca memoria. Il tuo messaggio resta in coda e parte quando si libera memoria. Un piano più grande dà più memoria al server.",
+  "error.agent.lowMemoryServer":
+    "Questo server ha poca memoria. Il tuo messaggio resta in coda e parte quando si libera memoria.",
   "error.agent.workspaceOnlyToolMissing":
     "Solo workspace richiede {tool}, che OpenBot non ha trovato. Installalo, oppure scegli Accesso completo nelle impostazioni dell'agente.",
 } as const satisfies PartialTranslation<typeof source>;

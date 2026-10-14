@@ -76,6 +76,7 @@ export const messages = {
   "error.team.skillsUnsupported": "To połączenie nie obsługuje umiejętności.",
   "error.team.hostIdentityUnsupported": "To połączenie nie obsługuje zmian tożsamości serwera.",
   "error.team.hostUpdateUnsupported": "To połączenie nie obsługuje aktualizacji hosta.",
+  "error.team.hostTimezoneUnsupported": "To połączenie nie obsługuje strefy czasowej serwera.",
   "error.team.attachmentNameRequired": "Wymagana jest bezpieczna nazwa załącznika.",
   "error.team.attachmentNotFound": "Nie znaleziono załącznika.",
   "error.team.sharedFileTooLarge": "Udostępniony plik przekracza limit 100 MB.",

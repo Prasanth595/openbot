@@ -116,6 +116,8 @@ export const messages = {
     "Nur Arbeitsbereich ist für diesen Anbieter nur unter macOS verfügbar. Wähle Vollzugriff in den Agenteneinstellungen.",
   "error.agent.lowMemory":
     "Dieser Server hat wenig freien Arbeitsspeicher. Deine Nachricht wartet in der Warteschlange und startet, wenn Speicher frei ist. Ein größerer Tarif gibt dem Server mehr Arbeitsspeicher.",
+  "error.agent.lowMemoryServer":
+    "Dieser Server hat wenig freien Arbeitsspeicher. Deine Nachricht wartet in der Warteschlange und startet, wenn Speicher frei ist.",
   "error.agent.workspaceOnlyToolMissing":
     "Nur Arbeitsbereich benötigt {tool}, das OpenBot nicht gefunden hat. Installiere es oder wähle Vollzugriff in den Agenteneinstellungen.",
 } as const satisfies PartialTranslation<typeof source>;

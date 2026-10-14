@@ -283,6 +283,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}. Deaktiviere diese Option, um die Stummschaltung jetzt aufzuheben.",
   "server.settings.notifyAbout": "Benachrichtige mich über",
   "server.settings.notifyAboutDescription": "Welche Agentenereignisse eine Desktop-Benachrichtigung anzeigen.",
+  "server.settings.agents": "Agenten",
+  "server.settings.timezone": "Zeitzone",
+  "server.settings.timezoneDescription":
+    "Neue Routinen verwenden diese Zeitzone, wenn die Nachricht die Zeitzone des Absenders nicht angibt.",
+  "server.settings.timezoneAutomatic": "Automatisch ({zone})",
+  "server.settings.timezoneLoadFailed": "Die Zeitzone des Servers konnte nicht geladen werden.",
   "server.settings.remoteOnline": "Der Host ist online. Sein Eigentümer steuert die Veröffentlichung.",
   "server.settings.remoteOffline": "Der Host ist offline. Sein Eigentümer steuert die Veröffentlichung.",
   "server.settings.saveIdentityFirst": "Speichere die Serveridentität vor der Veröffentlichung.",

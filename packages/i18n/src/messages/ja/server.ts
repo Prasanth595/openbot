@@ -271,6 +271,12 @@ export const messages = {
   "server.settings.mutedUntilDescription": "{until}。今すぐミュートを解除するにはオフにしてください。",
   "server.settings.notifyAbout": "通知する内容",
   "server.settings.notifyAboutDescription": "デスクトップ通知を表示するエージェントのイベントです。",
+  "server.settings.agents": "エージェント",
+  "server.settings.timezone": "タイムゾーン",
+  "server.settings.timezoneDescription":
+    "メッセージに送信者のタイムゾーンがない場合、新しいルーティンはこのタイムゾーンを使います。",
+  "server.settings.timezoneAutomatic": "自動 ({zone})",
+  "server.settings.timezoneLoadFailed": "サーバーのタイムゾーンを読み込めませんでした。",
   "server.settings.remoteOnline": "ホストはオンラインです。公開設定はオーナーが管理しています。",
   "server.settings.remoteOffline": "ホストはオフラインです。公開設定はオーナーが管理しています。",
   "server.settings.saveIdentityFirst": "公開する前にサーバーの ID を保存してください。",
