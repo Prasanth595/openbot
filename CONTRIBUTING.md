@@ -109,7 +109,7 @@ Claude Code can only read: it gets the Read, Grep and Glob tools and the `git di
 
 ## Security-sensitive changes
 
-Preserve the following boundaries and their tests:
+Preserve the following boundaries, and their tests where they exist:
 
 - Electron sandboxing, context isolation, navigation policy, and IPC sender validation.
 - Attachment realpath, MIME, size, quota, and managed-protocol checks.

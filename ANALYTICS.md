@@ -306,7 +306,5 @@ user presentations, and host events count local failures. The same failure can h
 Compare failed turns against existing `system_turn_completed` outcomes for a turn failure rate.
 Track notification counts separately by severity and presentation. No external alerts are added.
 
-Run `bun run test:desktop -- packages/telemetry/src/reports.test.ts --maxWorkers=1` to verify a
-refused HTTP send followed by restart and delivery. The test writes the received safe payloads
-and result to `.openbot-build/telemetry/transport.json`. Live project access, dashboard creation,
-and production delivery must be verified after deployment; local tests do not establish them.
+Live project access, dashboard creation, and production delivery must be verified after
+deployment.

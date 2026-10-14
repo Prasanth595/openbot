@@ -27,7 +27,9 @@ Report a finding when the diff:
 - Mocks the unit under test, or stubs so much of the collaborator graph that the assertion can only
   observe the mocks. *Exception:* `electron`, `electron-updater`, and `node:` built-ins have no
   injectable seam and are exempt by policy.
-- Adds a unit test that no line of the PR body's "Failure modes" section names. `AGENTS.md` asks
+- Adds a vitest file outside the categories `AGENTS.md` keeps: migrations, the trust boundary,
+  secret redaction and check-rule fixtures. Other behaviour gets an E2E script under `scripts/`.
+- Adds a vitest file that no line of the PR body's "Failure modes" section names. `AGENTS.md` asks
   for that list before an isolated test; a test without one is a test written after the code.
 - Adds a new test *file* for a boundary an existing file already covers, or tests the same behaviour
   at both the component and the application level. `AGENTS.md` asks for one test, preferably E2E.
