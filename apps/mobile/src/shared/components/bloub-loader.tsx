@@ -22,7 +22,6 @@ import Animated, {
   useFrameCallback,
   useSharedValue,
   withSequence,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Circle, Path } from "react-native-svg";
@@ -38,11 +37,15 @@ import {
   REST_FRAME,
 } from "@/shared/lib/bloub-loader-frames";
 import { useReducedMotion } from "@/shared/lib/motion";
+import { SPLASH_EASE_OUT } from "@/shared/lib/splash-motion";
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
-const LOADER_SPRING = { duration: 240, dampingRatio: 0.75, overshootClamping: true, reduceMotion: ReduceMotion.System };
+// The loader grows from a little smaller and fades in, and leaves the same way. It never starts
+// from or ends at nothing.
+const HIDDEN_SCALE = 0.9;
+const ENTER = { duration: 220, easing: SPLASH_EASE_OUT, reduceMotion: ReduceMotion.System };
+const EXIT = { duration: 200, easing: SPLASH_EASE_OUT, reduceMotion: ReduceMotion.System };
 // Longer than preparing the settling sequence takes, short enough that a stalled
 // JS thread cannot hold the loader over the app.
 const SETTLE_DEADLINE_MS = 250;
@@ -109,11 +112,17 @@ export function BloubLoader({
   label,
   active = true,
   visible = true,
+  enterInstantly = false,
+  onExitStart,
   onExitComplete,
 }: {
   label: string;
   active?: boolean;
   visible?: boolean;
+  /** Show at full size at once, because a view around the loader animates its arrival. */
+  enterInstantly?: boolean;
+  /** The loader starts to leave: the content below can start to appear. */
+  onExitStart?: () => void;
   onExitComplete?: () => void;
 }) {
   const animation = useContext(BloubAnimationContext);
@@ -134,6 +143,12 @@ export function BloubLoader({
     },
     [onExitComplete],
   );
+  const startExit = useCallback(
+    (revision: number) => {
+      if (exitRevision.current === revision) onExitStart?.();
+    },
+    [onExitStart],
+  );
   const frame = useDerivedValue(() => {
     if (reducedMotion) return REST_FRAME;
     const settling = idleFrames.get();
@@ -148,6 +163,7 @@ export function BloubLoader({
     let cancelExitDeadline: (() => void) | undefined;
     if (reducedMotion) {
       scale.set(1);
+      if (!visible) startExit(revision);
       opacity.set(
         withTiming(visible ? 1 : 0, { duration: 150, reduceMotion: ReduceMotion.Never }, (finished) => {
           if (finished && !visible) scheduleOnRN(finishExit, revision);
@@ -155,24 +171,38 @@ export function BloubLoader({
       );
     } else if (visible) {
       idleFrames.set(null);
-      opacity.set(1);
-      scale.set(withSpring(1, LOADER_SPRING));
+      if (enterInstantly) {
+        scale.set(1);
+        opacity.set(1);
+      } else {
+        // A loader that is still leaving turns back from where it is.
+        if (opacity.get() === 0) scale.set(HIDDEN_SCALE);
+        scale.set(withTiming(1, ENTER));
+        opacity.set(withTiming(1, ENTER));
+      }
     } else {
       // Every branch below reports the exit through an animation callback, and the
       // overlay above stays over the app until that report arrives. Leave on a
       // deadline as well, so a dropped callback cannot strand the loader.
       const exitDeadline = setTimeout(() => {
         cancelAnimation(scale);
-        scale.set(0);
+        cancelAnimation(opacity);
+        opacity.set(0);
+        startExit(revision);
         finishExit(revision);
       }, EXIT_DEADLINE_MS);
       cancelExitDeadline = () => clearTimeout(exitDeadline);
+      // A short swell, then the loader shrinks a little and fades. The screen below starts to
+      // appear with the swell, so the two overlap instead of following each other.
       const scaleDown = () => {
         "worklet";
         scale.set(
+          withSequence(withTiming(1.08, { duration: 80, easing: SPLASH_EASE_OUT }), withTiming(HIDDEN_SCALE, EXIT)),
+        );
+        opacity.set(
           withSequence(
-            withTiming(1.08, { duration: 80, easing: EASE_OUT }),
-            withSpring(0, LOADER_SPRING, (finished) => {
+            withTiming(1, { duration: 80 }),
+            withTiming(0, EXIT, (finished) => {
               if (finished) scheduleOnRN(finishExit, revision);
             }),
           ),
@@ -182,6 +212,7 @@ export function BloubLoader({
         // Loading finished before preparation: REST_FRAME is already idle.
         idleFrames.set([REST_FRAME]);
         idleFrameIndex.set(0);
+        startExit(revision);
         scaleDown();
       } else {
         const sourceIndex = frameIndex.get();
@@ -196,6 +227,7 @@ export function BloubLoader({
         const settleDeadline = setTimeout(() => {
           cancelSettling?.();
           cancelSettling = undefined;
+          startExit(revision);
           scaleDown();
         }, SETTLE_DEADLINE_MS);
         cancelSettling = prepareReturnToIdleFrames(sourceIndex, (settling) => {
@@ -206,7 +238,9 @@ export function BloubLoader({
               settling.length - 1,
               { duration: IDLE_MORPH_SECONDS * 1000, easing: Easing.linear, reduceMotion: ReduceMotion.System },
               (finished) => {
-                if (finished) scaleDown();
+                if (!finished) return;
+                scheduleOnRN(startExit, revision);
+                scaleDown();
               },
             ),
           );
@@ -225,7 +259,19 @@ export function BloubLoader({
       cancelAnimation(scale);
       cancelAnimation(opacity);
     };
-  }, [finishExit, frameIndex, frames, idleFrameIndex, idleFrames, opacity, reducedMotion, scale, visible]);
+  }, [
+    enterInstantly,
+    finishExit,
+    frameIndex,
+    frames,
+    idleFrameIndex,
+    idleFrames,
+    opacity,
+    reducedMotion,
+    scale,
+    startExit,
+    visible,
+  ]);
   useEffect(() => {
     if (active) return retainPlayback();
   }, [active, retainPlayback]);
