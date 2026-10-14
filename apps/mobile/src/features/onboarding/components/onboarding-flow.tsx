@@ -262,7 +262,11 @@ export function OnboardingFlow({
   const trimmedName = name.trim();
 
   const online = servers.some((server) => server.state === "online");
-  const connecting = online ? null : (servers[0] ?? null);
+  // A server on its way shows the loader. One that could not connect shows the choices again, so the
+  // user can try another way.
+  const connecting = online
+    ? null
+    : (servers.find((server) => server.state === "connecting" || server.state === "unknown") ?? null);
   // The server step shows only while the account has no connected server.
   const needsServer = !online;
 
