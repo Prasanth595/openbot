@@ -183,6 +183,11 @@ export class MessagingService {
   readonly #live = new Map<string, LiveConnection>();
   /** The deliveries that Signal kept, each waiting for the transport of its connection. */
   readonly #transportWaiters = new Map<string, Set<() => void>>();
+  /**
+   * When the kept deliveries of each connection stop waiting for its transport. The deliveries of one
+   * socket share it, so a connection that does not start costs one wait, not one wait for each event.
+   */
+  readonly #transportDeadlines = new Map<string, number>();
   readonly #status: MessagingStatusPosts;
   /**
    * Status posts by `linkId:platformMessageId`, until the turn that answers the message ends and its
@@ -245,6 +250,14 @@ export class MessagingService {
       }),
       this.#agents.onEvent((event) => this.#agentEvent(event)),
     );
+    // Signal sends the kept deliveries again to each new socket: they get a new wait.
+    const ingress = this.#ingress;
+    if (ingress)
+      this.#unsubscribe.push(
+        ingress.onState((state) => {
+          if (state === "online") this.#transportDeadlines.clear();
+        }),
+      );
     this.#threads.setContextSource((link, origin) => this.#promptContext(link, origin));
     this.#threads.setHistorySource((link, scope, limit) => this.#recentMessages(link, scope, limit));
     this.#threads.setOutbound({
@@ -646,6 +659,8 @@ export class MessagingService {
     const live = this.#live.get(record.connectionId);
     const starting = live ? STARTING_STATES.has(live.state) : !this.#connectionsStarted;
     if (current()?.deliver || !queued || !record.enabled || !starting) return Effect.sync(current);
+    const deadline = this.#transportDeadlines.get(record.connectionId) ?? Date.now() + QUEUED_TRANSPORT_WAIT_MS;
+    this.#transportDeadlines.set(record.connectionId, deadline);
     return Effect.callback<void>((resume) => {
       const waiters = this.#transportWaiters.get(record.connectionId) ?? new Set<() => void>();
       const ready = () => resume(Effect.void);
@@ -656,7 +671,7 @@ export class MessagingService {
         if (waiters.size === 0) this.#transportWaiters.delete(record.connectionId);
       });
     }).pipe(
-      Effect.timeoutOrElse({ duration: QUEUED_TRANSPORT_WAIT_MS, orElse: () => Effect.void }),
+      Effect.timeoutOrElse({ duration: Math.max(0, deadline - Date.now()), orElse: () => Effect.void }),
       Effect.map(current),
     );
   }
@@ -892,6 +907,7 @@ export class MessagingService {
       },
     });
     // After `start`: a transport takes deliveries only once it has its sink.
+    this.#transportDeadlines.delete(record.connectionId);
     for (const ready of [...(this.#transportWaiters.get(record.connectionId) ?? [])]) ready();
     // So people can mention OpenBot in any public channel without inviting it first. Channels made
     // while the host was off are joined here too.

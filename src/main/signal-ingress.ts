@@ -2,7 +2,11 @@ import type { MessagingPlatform } from "@openbot/contracts/ipc";
 import { decodeSignalServerMessage } from "@openbot/contracts/signal-protocol/decode";
 import { type DiscordApiRequest, decodeDiscordApiError } from "@openbot/contracts/signal-protocol/discord-api";
 import { DISCORD_API_PATH } from "@openbot/contracts/signal-protocol/discord-route";
-import { INGRESS_QUEUE_CAPABILITY, openQueuedDelivery } from "@openbot/contracts/signal-protocol/ingress-queue";
+import {
+  INGRESS_QUEUE_CAPABILITY,
+  openQueuedDelivery,
+  type QueuedSignalMessage,
+} from "@openbot/contracts/signal-protocol/ingress-queue";
 import {
   SIGNAL_PROTOCOL_VERSION,
   type SignalClientMessage,
@@ -17,7 +21,7 @@ import {
   type TelegramCallResult,
 } from "@openbot/contracts/signal-protocol/telegram-route";
 import { createOpenBotLogger } from "@openbot/logging";
-import { Context, Effect, Exit, Layer, ManagedRuntime, Option, Result, Scope, Semaphore } from "effect";
+import { Context, Deferred, Effect, Exit, Layer, ManagedRuntime, Option, Result, Scope, Semaphore } from "effect";
 import WebSocket from "ws";
 import {
   DiscordApiError,
@@ -35,6 +39,13 @@ import { type RemoteWorkflowError, remoteDecode } from "./remote-service-effects
 import { downloadTelegramFile, signalHttpOrigin, uploadTelegramFile } from "./telegram-files";
 
 const logger = createOpenBotLogger("signal-ingress");
+
+/** The route of a kept delivery, as Signal keeps its order: one Slack team, Discord guild or Telegram chat. */
+function queuedRoute(message: QueuedSignalMessage): string {
+  if (message.type === "slack-delivery") return `slack:${message.teamId}`;
+  if (message.type === "discord-delivery") return `discord:${message.guildId}`;
+  return `telegram:${message.chatId}`;
+}
 
 const BACKOFF_START_MS = 2_000;
 const BACKOFF_LIMIT_MS = 5 * 60_000;
@@ -176,6 +187,8 @@ export class SignalIngress implements MessagingIngress {
   /** `null` until it is loaded, and when this host has none. */
   #queueKey: IngressQueueKey | null = null;
   readonly #queuedOrder = Semaphore.makeUnsafe(1);
+  /** The last kept delivery of each route, by `queuedRoute`. A later one of the route waits for it. */
+  readonly #queuedRoutes = new Map<string, Deferred.Deferred<void>>();
 
   readonly #loadQueueKey: Effect.Effect<IngressQueueKey | null>;
 
@@ -483,10 +496,12 @@ export class SignalIngress implements MessagingIngress {
       return;
     }
     // A delivery that Signal kept while this host started. Signal already answered the platform, so it
-    // is handled also when this socket closed meanwhile. The kept deliveries are handled one at a time,
-    // in the order that Signal sent them, and each is acknowledged so that Signal stops keeping it.
+    // is handled also when this socket closed meanwhile. The kept deliveries are opened one at a time,
+    // in the order that Signal sent them. Signal keeps the order of each route, so a delivery waits only
+    // for the earlier ones of its route: a connection that is not available does not hold back the
+    // others. Each is acknowledged so that Signal stops keeping it.
     const { id, sealed } = message;
-    yield* this.#queuedOrder.withPermit(
+    const turn = yield* this.#queuedOrder.withPermit(
       Effect.gen({ self: this }, function* () {
         const key = this.#queueKey;
         const opened = key
@@ -494,15 +509,33 @@ export class SignalIngress implements MessagingIngress {
               Effect.catch(() => Effect.succeed(null)),
             )
           : null;
-        if (opened) yield* this.#dispatch(socket, opened, true);
-        else logger.warn("A kept delivery from Signal could not be opened, and is dropped.");
-        // An acknowledgement that cannot be sent now is not needed: Signal sends the delivery again on
-        // the next hello, and the transports drop an event that they already handled.
-        const current = this.#socket;
-        if (current?.readyState !== WebSocket.OPEN || !this.#capabilities.has(INGRESS_QUEUE_CAPABILITY)) return;
-        const ack: SignalClientMessage = { type: "queued-delivery-ack", version: SIGNAL_PROTOCOL_VERSION, id };
-        current.send(JSON.stringify(ack));
+        if (!opened) return null;
+        const route = queuedRoute(opened);
+        const previous = this.#queuedRoutes.get(route);
+        const done = Deferred.makeUnsafe<void>();
+        this.#queuedRoutes.set(route, done);
+        return { opened, route, previous, done };
       }),
+    );
+    yield* Effect.gen({ self: this }, function* () {
+      if (turn) {
+        if (turn.previous) yield* Deferred.await(turn.previous);
+        yield* this.#dispatch(socket, turn.opened, true);
+      } else logger.warn("A kept delivery from Signal could not be opened, and is dropped.");
+      // An acknowledgement that cannot be sent now is not needed: Signal sends the delivery again on
+      // the next hello, and the transports drop an event that they already handled.
+      const current = this.#socket;
+      if (current?.readyState !== WebSocket.OPEN || !this.#capabilities.has(INGRESS_QUEUE_CAPABILITY)) return;
+      const ack: SignalClientMessage = { type: "queued-delivery-ack", version: SIGNAL_PROTOCOL_VERSION, id };
+      current.send(JSON.stringify(ack));
+    }).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
+          if (!turn) return;
+          Deferred.doneUnsafe(turn.done, Effect.void);
+          if (this.#queuedRoutes.get(turn.route) === turn.done) this.#queuedRoutes.delete(turn.route);
+        }),
+      ),
     );
   });
 
