@@ -5,40 +5,13 @@ import { isString } from "@openbot/contracts/runtime-values";
 import { displayMessageReferences, type TeammatePrompt, teammatePrompts } from "./agent/delivery-content";
 import { imageGenerationFailure, isImageGenerationItem } from "./agent/image-generation";
 import type { DeliveryContext } from "./mailbox-store";
-import type { ThreadItem, ThreadResponse } from "./protocol";
+import type { ThreadItem } from "./protocol";
 
 export interface ThreadTurnMessageContext {
   id: string;
   status?: string;
   startedAt?: number;
   baseTime?: number;
-}
-
-export function snapshotFromThread(
-  agentId: string,
-  thread: ThreadResponse["thread"],
-  findDelivery: (deliveryId: string) => DeliveryContext | null,
-  findMessageDelivery: (messageId: string) => DeliveryContext | null,
-): ConversationSnapshot {
-  const messages: ConversationMessage[] = [];
-  for (const turn of thread.turns ?? []) {
-    messages.push(
-      ...messagesFromThreadItems(
-        agentId,
-        {
-          id: turn.id,
-          ...(turn.status === undefined ? {} : { status: turn.status }),
-          ...(turn.startedAt === undefined ? {} : { startedAt: turn.startedAt }),
-        },
-        turn.items ?? [],
-        0,
-        findDelivery,
-        findMessageDelivery,
-      ),
-    );
-  }
-  sortConversationMessages(messages);
-  return { agentId, threadId: thread.id, activeTurnId: null, revision: 0, messages };
 }
 
 /**
@@ -279,38 +252,6 @@ function mergeConversationMessages(
   const merged = [...messages.values()];
   sortConversationMessages(merged);
   return merged;
-}
-
-export function mergeProviderHistory(
-  stored: ConversationSnapshot,
-  imported: ConversationSnapshot,
-  provider?: AgentProviderId,
-): ConversationSnapshot {
-  if (provider === "claude") {
-    const kept = { ...stored, messages: stored.messages.filter((message) => !isStoredClaudeNotice(message)) };
-    return mergeConversationSnapshots(kept, reconcileClaudeHistory(kept, imported));
-  }
-  const importedIds = new Set(imported.messages.map((message) => message.id));
-  const importedAssistantMessages = new Set(
-    imported.messages.filter(isProviderAssistantMessage).map(providerMessageIdentity),
-  );
-  const reconciledStored = {
-    ...stored,
-    messages: stored.messages.filter(
-      (message) =>
-        importedIds.has(message.id) ||
-        !isProviderAssistantMessage(message) ||
-        !importedAssistantMessages.has(providerMessageIdentity(message)),
-    ),
-  };
-  return mergeConversationSnapshots(reconciledStored, imported);
-}
-
-function reconcileClaudeHistory(stored: ConversationSnapshot, imported: ConversationSnapshot): ConversationSnapshot {
-  return {
-    ...imported,
-    messages: reconcileClaudeHistoryMessages(stored.messages, imported.messages),
-  };
 }
 
 function reconcileClaudeHistoryMessages(

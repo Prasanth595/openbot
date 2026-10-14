@@ -64,8 +64,8 @@ export interface AgentProviderDescriptor {
    * The sign-in that this computer's driver runs when the browser callback cannot reach OpenBot.
    * `device`: a device code or a link that the user finishes on any device. `paste`: a code that
    * the user pastes back, which only a computer where `pasteCodeSignInSupported` can run. `null`:
-   * none. It mirrors the driver's `codeSignIn` in `src/backend/provider-drivers.ts`, and
-   * `provider-drivers.test.ts` keeps the two in step.
+   * none. It mirrors the driver's `codeSignIn` in `src/backend/provider-drivers.ts`; keep the
+   * two in step.
    *
    * Declared here rather than beside the backend's sign-in driver because the picker decides
    * whether to offer the second sign-in before it has asked main anything, and a capability the

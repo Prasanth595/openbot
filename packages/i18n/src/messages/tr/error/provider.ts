@@ -273,6 +273,16 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "Kayıtlı sağlayıcı ayarları okunamıyor. Bunları değiştirmeden önce OpenBot'u güncelleyin.",
   "error.provider.useChangeFailed": "OpenBot sağlayıcı ayarını değiştiremedi.",
+  "error.provider.accountsUnsupported": "{provider} yalnızca bir hesap destekler.",
+  "error.provider.accountNeedsConnection": "Başka bir hesap eklemeden önce {provider} sağlayıcısına bağlanın.",
+  "error.provider.accountLimit": "{provider} en fazla {limit} hesap destekler.",
+  "error.provider.accountNotFound": "Bu {provider} hesabı bu bilgisayarda yok. Yenileyip tekrar deneyin.",
+  "error.provider.accountAlreadyAdded": "Bu {provider} hesabı zaten bağlı.",
+  "error.provider.accountDefault": "İlk {provider} hesabı kaldırılamaz.",
+  "error.provider.accountInUse": "Bu hesabı kullanan bir ajan çalışıyor. Ajan durduğunda tekrar deneyin.",
+  "error.provider.accountsReadOnly":
+    "Kayıtlı sağlayıcı hesapları okunamıyor. Bunları değiştirmeden önce OpenBot'u güncelleyin.",
+  "error.provider.accountSignedOut": "Bu {provider} hesabının oturumu kapalı. Tekrar giriş yapın.",
   "error.provider.sessionSettingUnavailable": "Bu ayar mevcut sağlayıcı oturumunda kullanılamıyor.",
   "error.provider.sessionSettingInvalid": "Bu değer bu ayar için kullanılamıyor.",
   "error.provider.sessionSettingsBusy": "Bir oturum ayarını değiştirmeden önce mevcut turun bitmesini bekleyin.",

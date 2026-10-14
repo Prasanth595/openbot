@@ -34,7 +34,7 @@ export function setCompletionSoundEnabled(enabled: boolean, storage?: Pick<Stora
   }
 }
 
-export function shouldPlayCompletionSound(
+function shouldPlayCompletionSound(
   event: AgentEvent,
   agents: NotificationAgent[],
   storage?: PreferenceStorage,

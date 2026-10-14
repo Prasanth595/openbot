@@ -382,7 +382,11 @@ A change to the desktop app or the web client and the iPhone app gets one file i
 into `apps/mobile/CHANGELOG.md` and set the version in `apps/mobile/app.json`,
 `apps/mobile/package.json` and the copy of it in `bun.lock`. The pre-commit hook checks the new section when a commit changes the
 `app.json` version. The new section is `## [x.y.z] - In review`, and `/changelog` does not show it
-until the store makes the build available. Then `bun run mobile:release:published` writes the date.
+until a store makes the build available. Each store reviews the build on its own. When one store has
+it, `bun run mobile:release:published ios` (or `android`) writes the date of that store, such as
+`## [x.y.z] - 2026-10-14 (Android)`. Run it again for the other store:
+`## [x.y.z] - 2026-10-14 (Android), 2026-10-16 (iOS)`. A date with no store is the date of both
+stores. `/changelog` shows each store, and a store that does not have the version as "In review".
 
 `scripts/check-release-notes.ts` stops a release when the section is missing, empty or appears two
 times, or when it has an unknown group, a group with no items, an item with no text or outside a

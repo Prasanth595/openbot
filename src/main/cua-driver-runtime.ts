@@ -96,7 +96,7 @@ const REQUIRED_PERMISSIONS: Readonly<Partial<Record<NodeJS.Platform, readonly Ma
  * Narrow on purpose: a test supplies its own, and a wider type would make it write an assertion to
  * satisfy overloads this code never uses.
  */
-export interface SpawnDriverOptions {
+interface SpawnDriverOptions {
   cwd: string;
   env: NodeJS.ProcessEnv;
   stdio: ["pipe", "pipe", "pipe"];
@@ -930,7 +930,7 @@ const readPermissionsOverMcpEffect = Effect.fn("CuaDriver.permissions")(
  * the driver does. Anything it does not recognise counts as not granted, which keeps a driver
  * release that renames a field from reporting a permission the user never gave.
  */
-export function readPermissionResult(result: unknown, platform: NodeJS.Platform): ComputerUsePermission[] {
+function readPermissionResult(result: unknown, platform: NodeJS.Platform): ComputerUsePermission[] {
   const structured = isDynamicRecord(result) ? result.structuredContent : undefined;
   const source: DynamicRecord = isDynamicRecord(structured) ? structured : isDynamicRecord(result) ? result : {};
   return requiredPermissions(platform).map((id) => ({ id, granted: grantedIn(source, id) }));

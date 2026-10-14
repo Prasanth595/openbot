@@ -46,16 +46,6 @@ function signatureDigest(secret: string, timestamp: string, deliveryId: string, 
   return createHmac("sha256", secret).update(`${timestamp}.${deliveryId}.`).update(body).digest();
 }
 
-/** Formats the documented `sha256=<lowercase hex>` signature header. */
-export function createWebhookSignature(
-  secret: string,
-  timestamp: string,
-  deliveryId: string,
-  body: Uint8Array,
-): string {
-  return `${WEBHOOK_SIGNATURE_PREFIX}${signatureDigest(secret, timestamp, deliveryId, body).toString("hex")}`;
-}
-
 /**
  * Checks input bounds, timestamp freshness, and the HMAC in constant time.
  *

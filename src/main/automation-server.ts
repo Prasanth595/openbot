@@ -22,7 +22,7 @@ import { approvalDecision, promptAnswers } from "./team-api/request-helpers";
 const logger = createOpenBotLogger("automation");
 
 /** A script that loops can wake an agent at most this often, so it cannot spend the user's quota. */
-export const AUTOMATION_RUNS_PER_HOUR = 30;
+const AUTOMATION_RUNS_PER_HOUR = 30;
 const HOUR_MS = 60 * 60 * 1000;
 // A payload is at most 4,000 characters; four UTF-8 bytes each plus JSON escapes stay below this.
 const BODY_LIMIT_BYTES = 32 * 1024;

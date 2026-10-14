@@ -280,6 +280,19 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "保存されたプロバイダーの設定を読み取れません。変更する前に OpenBot を更新してください。",
   "error.provider.useChangeFailed": "OpenBot はプロバイダーの設定を変更できませんでした。",
+  "error.provider.accountsUnsupported": "{provider} で使えるアカウントは 1 つだけです。",
+  "error.provider.accountNeedsConnection": "別のアカウントを追加する前に {provider} に接続してください。",
+  "error.provider.accountLimit": "{provider} で使えるアカウントは最大 {limit} 個です。",
+  "error.provider.accountNotFound":
+    "この {provider} アカウントはこのコンピュータにありません。更新してからもう一度お試しください。",
+  "error.provider.accountAlreadyAdded": "この {provider} アカウントはすでに接続されています。",
+  "error.provider.accountDefault": "最初の {provider} アカウントは削除できません。",
+  "error.provider.accountInUse":
+    "このアカウントを使うエージェントが作業中です。エージェントが停止してからもう一度お試しください。",
+  "error.provider.accountsReadOnly":
+    "保存されたプロバイダーのアカウントを読み取れません。変更する前に OpenBot を更新してください。",
+  "error.provider.accountSignedOut":
+    "この {provider} アカウントはサインアウトしています。もう一度サインインしてください。",
   "error.provider.sessionSettingUnavailable": "この設定は現在のプロバイダーセッションでは利用できません。",
   "error.provider.sessionSettingInvalid": "この値はこの設定では利用できません。",
   "error.provider.sessionSettingsBusy": "セッションの設定を変更する前に、現在のターンが終わるまでお待ちください。",

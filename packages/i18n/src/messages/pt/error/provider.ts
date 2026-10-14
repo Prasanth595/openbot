@@ -275,6 +275,17 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "As configurações salvas do provedor não podem ser lidas. Atualize o OpenBot antes de alterá-las.",
   "error.provider.useChangeFailed": "O OpenBot não conseguiu mudar a configuração do provedor.",
+  "error.provider.accountsUnsupported": "{provider} aceita apenas uma conta.",
+  "error.provider.accountNeedsConnection": "Conecte {provider} antes de adicionar outra conta.",
+  "error.provider.accountLimit": "{provider} aceita no máximo {limit} contas.",
+  "error.provider.accountNotFound": "Esta conta de {provider} não está neste computador. Atualize e tente novamente.",
+  "error.provider.accountAlreadyAdded": "Esta conta de {provider} já está conectada.",
+  "error.provider.accountDefault": "A primeira conta de {provider} não pode ser removida.",
+  "error.provider.accountInUse":
+    "Um agente que usa esta conta está trabalhando. Tente novamente quando o agente parar.",
+  "error.provider.accountsReadOnly":
+    "As contas salvas do provedor não podem ser lidas. Atualize o OpenBot antes de alterá-las.",
+  "error.provider.accountSignedOut": "A sessão desta conta de {provider} foi encerrada. Entre novamente.",
   "error.provider.sessionSettingUnavailable": "Esta configuração não está disponível na sessão atual do provedor.",
   "error.provider.sessionSettingInvalid": "Este valor não está disponível para a configuração.",
   "error.provider.sessionSettingsBusy": "Aguarde o turno atual terminar antes de mudar uma configuração de sessão.",

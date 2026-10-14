@@ -13,4 +13,7 @@ export const messages = defineMessages("dialog", {
   "dialog.chooseAgentExport": "Choose an agent export",
   "dialog.filter.agentExports": "Agent exports",
   "dialog.saveExportSkill": "Save the export skill",
+  "dialog.saveTransfer": "Save the transfer file",
+  "dialog.chooseTransfer": "Choose a transfer file",
+  "dialog.filter.transfer": "OpenBot transfer files",
 });

@@ -23,7 +23,7 @@ const FOCUS = 1.7;
 const WIDE = 1;
 const CYCLE = LEAD + FOCUS + WIDE;
 export const FRAME_COUNT = Math.round(CYCLE * FPS);
-export const SETTLE = 0.45;
+const SETTLE = 0.45;
 export const IDLE_FPS = 30;
 const IDLE_SECONDS = 8;
 

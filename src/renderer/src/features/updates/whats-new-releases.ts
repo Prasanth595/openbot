@@ -10,7 +10,7 @@ const releaseSchema = z.object({
 });
 
 /** Decode the bundled editorial data at its read boundary. Never load commits or remote fallback text. */
-export const whatsNewReleasesSchema = z.array(releaseSchema);
+const whatsNewReleasesSchema = z.array(releaseSchema);
 
 /** Each retry reads the asset again. The URL points into the installed app, not a remote service. */
 export async function loadWhatsNewReleases(signal: AbortSignal) {

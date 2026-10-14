@@ -48,6 +48,14 @@ OpenPanel reads campaign attribution from whichever event creates the session, a
 are sent concurrently.
 See [PRIVACY.md](../../PRIVACY.md) for the data boundary.
 
+`rememberLandingFirstTouch` saves the first visit in `localStorage` (`@openbot/contracts/first-touch`
+owns the shape, the parser and the 90-day age). The web client sends it with `email/verify`, and
+`/billing/return` sends it with the Checkout Session ID to `POST /api/browser/checkout-attribution`.
+`AccountAttribution` (`src/server/account-attribution.ts`) checks it again, keeps the first value
+for each account in D1 `account_attribution`, and sends `account_attributed`. `BillingSales` copies
+it to the `payment_succeeded` and `revenue` ledger events. The flow and its limits are in
+[ANALYTICS.md](../../ANALYTICS.md#first-touch-attribution).
+
 The OpenPanel Growth dashboard uses a session funnel from `landing_viewed` to
 `landing_download_clicked`. A download click is not a completed download or installation.
 Break down the funnel by `acquisition_source`, then `source_platform` once schema version 8

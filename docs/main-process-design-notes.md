@@ -27,29 +27,7 @@ renderer sends visible to the same coverage checks.
 
 `index.ts` calls `app.setPath`, `app.enableSandbox` and
 `protocol.registerSchemesAsPrivileged` at module scope. Tests that import it need an Electron mock.
-Source coverage tests read the file instead. A service without an Electron dependency can use
-ordinary unit tests; an unnecessary import would force it into the Electron mock setup.
-
-## Test harnesses
-
-The remote-server suite once had eight separate socket fakes. Five declared `readonly readyState`,
-so closing the fake left it OPEN. The event stream's two `readyState !== WebSocket.OPEN` guards
-could not run in the tests that appeared to cover them. `FakeEventSocket` in
-`remote-server-test-harness.ts` now models that transition in one place. The harness is a plain
-`.ts` module with no test cases, like `src/backend/agent-service-test-harness.ts`.
-
-Remote-server modules each have a matching test file. The backend's `agent-service.*.test.ts`
-pattern splits tests of one large class and is not the model for this module family.
-
-`TeamApiServer` is different: its cases call routes through real HTTP listeners. Route domains are
-the useful test boundary, so `team-api-server.*.test.ts` follows that split. Its shared harness
-requires explicit choices where defaults would change what a case tests. `host-service.test.ts`
-was separated because those cases test another class.
-
-Service events, returned promises, listener callbacks and harness barriers identify the state a
-test needs. `waitForServer` reports differences against the complete server summary.
-`deferredRoute` separates request arrival from its response. Fixed elapsed time cannot provide
-those guarantees under runner load. Use fake timers for behavior whose input is elapsed time.
+Source coverage tests read the file instead.
 
 ## Construction and shutdown
 

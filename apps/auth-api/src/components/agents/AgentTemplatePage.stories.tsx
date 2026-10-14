@@ -54,7 +54,7 @@ const TEMPLATE: AgentTemplateDetail = {
 
 /**
  * The site header's links need a router. The real route tree carries Worker-only modules, so this is
- * the same small stand-in tree `test/plugins-page.test.tsx` uses. It is built at module level:
+ * a small stand-in tree. It is built at module level:
  * creating a router writes reactive state, which Solid refuses inside a component.
  */
 const rootRoute = createRootRoute();

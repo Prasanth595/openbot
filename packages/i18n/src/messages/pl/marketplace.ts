@@ -185,6 +185,14 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.topCrash":
     "Wyjaśnij najczęstszą awarię w projekcie mobilnym i jej prawdopodobną przyczynę.",
   "marketplace.plugin.sentry.prompt.releaseHealth": "Jaka jest kondycja bieżącego wydania w porównaniu z poprzednim?",
+  "marketplace.plugin.vercel.tagline": "Wdrożenia, logi budowania i projekty",
+  "marketplace.plugin.vercel.description":
+    "Vercel pozwala agentom wyświetlać projekty i ostatnie wdrożenia, czytać logi budowania i działania oraz ustalać, dlaczego budowanie się nie powiodło. Każdy użytkownik loguje się na własne konto Vercel przez przeglądarkę i wybiera zespoły, których mogą używać agenci. W tych zespołach agenci mają takie same uprawnienia jak konto użytkownika. Mogą też zmieniać zmienne środowiskowe, domeny, rekordy DNS i wdrożenia oraz kupować domeny.",
+  "marketplace.plugin.vercel.app":
+    "Projekty, wdrożenia, logi budowania i logi działania przez serwer MCP Vercel z logowaniem w przeglądarce.",
+  "marketplace.plugin.vercel.prompt.failedBuild": "Dlaczego ostatnie wdrożenie produkcyjne się nie powiodło?",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "Wypisz dzisiejsze wdrożenia i ich status.",
+  "marketplace.plugin.vercel.prompt.runtimeErrors": "Które ścieżki miały błędy działania w ostatniej godzinie?",
   "marketplace.plugin.context7.tagline": "Aktualna dokumentacja bibliotek",
   "marketplace.plugin.context7.description":
     "Context7 pobiera aktualną dokumentację i opisy API bibliotek oraz frameworków, więc odpowiedzi dotyczą wersji, której projekt faktycznie używa. Nie wymaga konta ani klucza.",
