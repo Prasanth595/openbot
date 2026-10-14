@@ -64,5 +64,5 @@ export const routineScheduleZodSchema = z
 export const routineMissedPolicyZodSchema = z
   .enum(ROUTINE_MISSED_POLICIES)
   .describe(
-    "What happens to a run that came due while OpenBot was not running: skip records and drops it, run-once runs it when OpenBot starts. A one-time schedule uses run-once when this is omitted; other schedules use skip.",
+    "What happens to a run that came due while OpenBot was not running: skip records and drops it, run-once runs it when OpenBot starts. When a routine is created with no value, a one-time schedule uses run-once and other schedules use skip. An update with no value keeps the saved policy.",
   );

@@ -11,7 +11,7 @@ import {
 } from "../host-events-inputs";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
-import { readJson, requireAdmin } from "./request-helpers";
+import { readJson, requireAdmin, requireReleasedSchedule } from "./request-helpers";
 
 const EVENT_ROUTE_PATHS = new Set<string>(Object.values(EVENTS_ROUTES));
 
@@ -62,8 +62,11 @@ export async function routeEvents(
           ({ trigger }) => trigger.kind !== "schedule" || isReleasedRoutineSchedule(trigger.schedule),
         ),
       );
-    case EVENTS_ROUTES.saveRoutine:
-      return json(200, await runEventsEffect(events.saveRoutine(input(parseSaveEventRoutine))));
+    case EVENTS_ROUTES.saveRoutine: {
+      const routine = input(parseSaveEventRoutine);
+      if (routine.trigger.kind === "schedule") requireReleasedSchedule(routine.trigger.schedule);
+      return json(200, await runEventsEffect(events.saveRoutine(routine)));
+    }
     case EVENTS_ROUTES.deleteRoutine:
       await runEventsEffect(events.deleteRoutine(input(parseEventRoutineRef)));
       return json(200, {});

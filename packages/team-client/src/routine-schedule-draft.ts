@@ -96,8 +96,12 @@ export function switchDraftKind(
   const time = routineDraftTime(draft) ?? DEFAULT_TIME;
   const days = draftDays(draft);
   switch (kind) {
-    case "once":
-      return { kind, date: routineDateKey(today), time };
+    case "once": {
+      // A time that has passed today is for tomorrow, so the new draft can be saved.
+      const passed = time <= clock(today.getHours(), today.getMinutes());
+      const day = passed ? new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1) : today;
+      return { kind, date: routineDateKey(day), time };
+    }
     case "hourly":
       return { kind, everyHours: 1, days: days ?? ROUTINE_EVERY_DAY, window: DEFAULT_WINDOW };
     case "daily":

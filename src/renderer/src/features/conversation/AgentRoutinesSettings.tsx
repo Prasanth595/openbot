@@ -387,6 +387,14 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
     if (target) performExit(target);
   }
 
+  /** A done one-time routine that gets a later time is active again, so it runs at that time. */
+  function reopened(value: RoutineDraft): RoutineDraft {
+    const base = draftBase;
+    if (value.active || value.schedule.kind !== "once" || !base || !routineCompleted(base)) return value;
+    const later = !routineOnceCompleted({ active: false, timezone: base.timezone, schedule: value.schedule });
+    return later ? { ...value, active: true } : value;
+  }
+
   function changeDraft(change: (current: RoutineDraft) => RoutineDraft): void {
     setDraft((current) => (current ? change(current) : current));
     draftRevision += 1;
@@ -496,7 +504,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
         onSelect={(choice) =>
           changeDraft((value) => {
             if (choice === "webhook") return { ...value, triggerKind: "webhook" };
-            return withSchedule(value, switchDraftKind(value.scheduleDraft, choice, new Date()));
+            return reopened(withSchedule(value, switchDraftKind(value.scheduleDraft, choice, new Date())));
           })
         }
       />
@@ -750,7 +758,7 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                     schedule={current().scheduleDraft}
                     kinds={scheduleKinds()}
                     action={triggerMenu(current)}
-                    onChange={(scheduleDraft) => changeDraft((value) => withSchedule(value, scheduleDraft))}
+                    onChange={(scheduleDraft) => changeDraft((value) => reopened(withSchedule(value, scheduleDraft)))}
                   />
                 </Show>
               </section>

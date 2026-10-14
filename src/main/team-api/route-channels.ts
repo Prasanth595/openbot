@@ -24,7 +24,7 @@ import {
 import type { TeamApiAgents } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
-import { readJson, stringField } from "./request-helpers";
+import { readJson, requireReleasedSchedule, stringField } from "./request-helpers";
 
 /**
  * The settings half of a channel is served from `AgentService`, the same object the IPC handlers
@@ -145,10 +145,14 @@ async function routeChannelSettings(
           .listChannelRoutines(channelId(body))
           .filter((routine) => isReleasedRoutineSchedule(routine.trigger.schedule)),
       );
-    case CHANNEL_ROUTES.routineCreate:
-      return json(201, agents.createChannelRoutine(parseCreateChannelRoutine(body)));
+    case CHANNEL_ROUTES.routineCreate: {
+      const input = parseCreateChannelRoutine(body);
+      requireReleasedSchedule(input.schedule);
+      return json(201, agents.createChannelRoutine(input));
+    }
     case CHANNEL_ROUTES.routineUpdate: {
       const input = parseUpdateChannelRoutine(body);
+      requireReleasedSchedule(input.schedule);
       const hidden = agents
         .listChannelRoutines(input.channelId)
         .some((routine) => routine.id === input.routineId && !isReleasedRoutineSchedule(routine.trigger.schedule));
