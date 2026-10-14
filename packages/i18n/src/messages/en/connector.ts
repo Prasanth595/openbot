@@ -376,6 +376,5 @@ export const messages = defineMessages("connector", {
   "connector.bitwarden.disconnect": "Disconnect Bitwarden",
   "connector.bitwarden.connected": "Connected",
   "connector.bitwarden.disconnected": "Not connected",
-  "connector.bitwarden.failed": "Could not connect to Bitwarden.",
   "connector.bitwarden.actionFailed": "OpenBot could not change the Bitwarden connection.",
 });

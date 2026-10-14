@@ -104,11 +104,15 @@ export function createConnectorRegistry(
       equals: (before, after) => before.length === after.length && before.every((item, index) => item === after[index]),
     },
   );
-  // GitHub tells its availability only after a read, so a new server is read before it can show.
+  // GitHub tells its availability only after a read, so a new server is read before it can show. A
+  // joined server's capabilities come after its id, so the connectors it can reach are part of the key.
   createEffect(
-    () => server()?.id,
-    (id) => {
-      if (id) reload();
+    () => {
+      const id = server()?.id;
+      return id ? `${id}:${reachable().map((controller) => controller.id)}` : undefined;
+    },
+    (key) => {
+      if (key) reload();
     },
   );
   return {

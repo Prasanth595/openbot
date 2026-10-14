@@ -1,4 +1,5 @@
 import { Marketplace } from "@openbot/ui/features/marketplace/Marketplace";
+import type { MarketplaceApp } from "@openbot/ui/features/marketplace/marketplace-model";
 import { createMarketplaceNavigation } from "@openbot/ui/features/marketplace/marketplace-view";
 import { McpKeyDialog } from "@openbot/ui/features/settings/McpKeyDialog";
 import { McpLocalDialog } from "@openbot/ui/features/settings/McpLocalDialog";
@@ -84,12 +85,28 @@ export function MarketplaceModal(props: MarketplaceModalProps) {
     () => {
       const slug = connectWhenReady();
       if (!slug) return null;
-      return controller.appStatesRead() && controller.model.apps().some((app) => app.id === slug) ? slug : null;
+      // A connector shows "idle" before its first read, so a connected one could connect again.
+      const read = (app: MarketplaceApp) =>
+        app.kind !== "connector" || controller.model.connector(app.connector)?.ready() === true;
+      return controller.appStatesRead() && controller.model.apps().some((app) => app.id === slug && read(app))
+        ? slug
+        : null;
     },
     (slug) => {
       if (!slug) return;
       setConnectWhenReady(null);
       untrack(() => startConnect(slug));
+    },
+  );
+  // Slack, Discord and Telegram change with no event from main, so each available connector is
+  // followed while the window is open, as in Settings › Connectors.
+  createEffect(
+    () => (props.open ? props.connectors?.available() : undefined),
+    (controllers) => {
+      const stops = (controllers ?? []).map((connector) => connector.watch());
+      return () => {
+        for (const stop of stops) stop();
+      };
     },
   );
   /* A Connect press ends with the window, so a later open does not connect. */

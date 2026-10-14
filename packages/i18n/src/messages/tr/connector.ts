@@ -384,6 +384,5 @@ export const messages = {
   "connector.bitwarden.disconnect": "Bitwarden Bağlantısını Kes",
   "connector.bitwarden.connected": "Bağlandı",
   "connector.bitwarden.disconnected": "Bağlı değil",
-  "connector.bitwarden.failed": "Bitwarden'a bağlanılamadı.",
   "connector.bitwarden.actionFailed": "OpenBot Bitwarden bağlantısını değiştiremedi.",
 } as const satisfies PartialTranslation<typeof source>;

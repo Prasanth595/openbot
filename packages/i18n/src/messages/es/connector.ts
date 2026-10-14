@@ -358,6 +358,5 @@ export const messages = {
   "connector.bitwarden.disconnect": "Desconectar Bitwarden",
   "connector.bitwarden.connected": "Conectado",
   "connector.bitwarden.disconnected": "Sin conexión",
-  "connector.bitwarden.failed": "No se pudo conectar con Bitwarden.",
   "connector.bitwarden.actionFailed": "OpenBot no pudo cambiar la conexión de Bitwarden.",
 } as const satisfies PartialTranslation<typeof source>;

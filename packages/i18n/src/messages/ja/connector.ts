@@ -355,6 +355,5 @@ export const messages = {
   "connector.bitwarden.disconnect": "Bitwarden を切断",
   "connector.bitwarden.connected": "接続済み",
   "connector.bitwarden.disconnected": "未接続",
-  "connector.bitwarden.failed": "Bitwarden に接続できませんでした。",
   "connector.bitwarden.actionFailed": "OpenBot は Bitwarden の接続を変更できませんでした。",
 } as const satisfies PartialTranslation<typeof source>;
