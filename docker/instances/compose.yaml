@@ -16,10 +16,17 @@ services:
     # No swap above the memory limit.
     memswap_limit: ${OPENBOT_MEM:?}
     pids_limit: 8192
-    # Agents and Chromium write temporary files here and not in the container layer, which has no
-    # size limit. It counts toward the memory limit.
+    # The container layer is on the disk of the host and has no size limit, so nothing can write to
+    # it. OpenBot and agents write to /data and to these tmpfs folders, which count toward the memory
+    # limit.
+    read_only: true
     tmpfs:
       - /tmp:exec,mode=1777,size=${OPENBOT_TMP:-8g}
+      - /var/tmp:exec,mode=1777,size=1g
+      - /run/lock:mode=1777,size=1m
+      # XDG_RUNTIME_DIR: the control socket, D-Bus and the keyring. Main refuses it unless the image
+      # user owns it with mode 0700.
+      - /run/openbot:mode=0700,uid=1000,gid=1000,size=64m
     # The file system of the instance, with its disk limit. OpenBot only connects out, so the
     # instances publish no port.
     volumes:
