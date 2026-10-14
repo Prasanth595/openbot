@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@openbot/ui";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createSignal, untrack } from "solid-js";
+import { createEffect, createSignal, Show, untrack } from "solid-js";
 
 /** The timezone calls of one server's host. The desktop reaches them through main. */
 export type HostTimezoneCalls = Pick<OpenBotDesktopApi["hostAdmin"], "getTimezone" | "setTimezone">;
@@ -65,7 +65,8 @@ export function ServerTimezoneSetting(
 
   const zones = () => {
     const chosen = settings()?.timezone;
-    const known = Intl.supportedValuesOf("timeZone");
+    // V8 lists canonical zones only, and "UTC" is not one of them.
+    const known = ["UTC", ...Intl.supportedValuesOf("timeZone").filter((zone) => zone !== "UTC")];
     return [AUTOMATIC, ...(chosen && !known.includes(chosen) ? [chosen] : []), ...known];
   };
   const label = (zone: string) =>
@@ -90,21 +91,25 @@ export function ServerTimezoneSetting(
         <ItemTitle id="server-settings-timezone-label">{t("server.settings.timezone")}</ItemTitle>
         <ItemDescription>{loadError() ?? t("server.settings.timezoneDescription")}</ItemDescription>
       </ItemContent>
-      <ItemActions>
-        <Select<string>
-          options={zones()}
-          value={settings()?.timezone ?? AUTOMATIC}
-          disabled={props.disabled || !settings()}
-          placement="bottom-end"
-          onChange={choose}
-          itemComponent={(item) => <SelectItem item={item.item}>{label(item.item.rawValue)}</SelectItem>}
-        >
-          <SelectTrigger size="sm" aria-labelledby="server-settings-timezone-label">
-            <SelectValue<string>>{(state) => label(state.selectedOption())}</SelectValue>
-          </SelectTrigger>
-          <SelectContent mount={props.menuMount} />
-        </Select>
-      </ItemActions>
+      <Show when={settings()}>
+        {(current) => (
+          <ItemActions>
+            <Select<string>
+              options={zones()}
+              value={current().timezone ?? AUTOMATIC}
+              disabled={props.disabled}
+              placement="bottom-end"
+              onChange={choose}
+              itemComponent={(item) => <SelectItem item={item.item}>{label(item.item.rawValue)}</SelectItem>}
+            >
+              <SelectTrigger size="sm" aria-labelledby="server-settings-timezone-label">
+                <SelectValue<string>>{(state) => label(state.selectedOption())}</SelectValue>
+              </SelectTrigger>
+              <SelectContent mount={props.menuMount} />
+            </Select>
+          </ItemActions>
+        )}
+      </Show>
     </Item>
   );
 }
