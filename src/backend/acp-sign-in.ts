@@ -6,7 +6,7 @@ import { redactText, registerSecretValue } from "@openbot/logging";
 import { Effect, Fiber } from "effect";
 import { cliSpawnTarget } from "./cli";
 import { type ProviderClientOperationError, ProviderSignInError, providerFailure } from "./provider-client-effects";
-import { createProviderTempDirectory, type ProviderTempOptions } from "./provider-temp";
+import { type ProviderTempOptions, spawnWithProviderTemp } from "./provider-temp";
 import { stopProcessTree } from "./windows-process-tree";
 
 /** The messages this client sends: two requests, and a refusal for each request the server makes. */
@@ -54,36 +54,23 @@ export const startAcpAuthentication = Effect.fnUntraced(function* (options: {
   const target = cliSpawnTarget(options.executable, options.argv);
   const child = yield* Effect.acquireRelease(
     Effect.try({
-      try: () => {
-        const temp = options.privateTemp ? createProviderTempDirectory(options.privateTemp) : null;
-        try {
-          const started = spawn(target.command, target.args, {
+      try: () =>
+        spawnWithProviderTemp(options.privateTemp, (tempEnv) =>
+          spawn(target.command, target.args, {
             cwd: process.cwd(),
             env: {
               ...process.env,
               ...options.env,
               ...(options.openGoogleSignIn ? { BROWSER: "true" } : {}),
-              ...temp?.env,
+              ...tempEnv,
             },
             windowsVerbatimArguments: target.windowsVerbatimArguments,
             // Only Gemini on Linux delegates the browser launch. Other servers still open it themselves.
             stdio: ["pipe", "pipe", "pipe"],
             shell: false,
             windowsHide: process.platform === "win32",
-          });
-          if (temp) {
-            started.once("close", temp.dispose);
-            // A process that never started has no `close` to wait for.
-            started.once("error", () => {
-              if (started.pid === undefined) temp.dispose();
-            });
-          }
-          return started;
-        } catch (error) {
-          temp?.dispose();
-          throw error;
-        }
-      },
+          }),
+        ),
       catch: providerFailure,
     }),
     (child) => stopProcessTree(child).pipe(Effect.orDie),

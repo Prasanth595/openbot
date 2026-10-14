@@ -47,6 +47,7 @@ import {
   requireProviderDriver,
   savedCustomAgents,
 } from "./../provider-drivers";
+import { ProviderTempDiskSpaceError } from "../provider-temp";
 import { startProviderTerminalLogin } from "../provider-terminal-login";
 import { recordRestartActivity } from "../restart-activity";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
@@ -2162,15 +2163,18 @@ export class ProviderRuntime implements ProviderPort {
         const previousClient = this.#clients.get(provider);
         const previousCli = this.#cli.get(provider);
         const previousAccount = this.#accounts.get(provider);
+        const previousActivatedAt = this.#activatedAt.get(provider);
         const wasReleased = this.#released.delete(provider);
         if (!wasReleased && previousClient !== client) this.#countActivation(provider);
         this.#clients.set(provider, client);
-        this.#activatedAt.set(provider, Date.now());
+        if (previousClient !== client) this.#activatedAt.set(provider, Date.now());
         this.#cli.set(provider, cli);
         this.#accounts.set(provider, account);
         const restorePrevious = Effect.gen({ self: this }, function* () {
           if (previousClient) this.#clients.set(provider, previousClient);
           else this.#clients.delete(provider);
+          if (previousActivatedAt === undefined) this.#activatedAt.delete(provider);
+          else this.#activatedAt.set(provider, previousActivatedAt);
           if (previousCli) this.#cli.set(provider, previousCli);
           else this.#cli.delete(provider);
           if (previousAccount) this.#accounts.set(provider, previousAccount);
@@ -2330,6 +2334,8 @@ export class ProviderRuntime implements ProviderPort {
       yield* providerStep(() => {
         this.#clearProviderConnectionState(provider);
         this.#cli.delete(provider);
+        // A new CLI gets new starts: the failures were of the one it replaces.
+        this.#startFailures.delete(provider);
       });
       // Other providers can have live turns. Replacement must not run start recovery.
       yield* this.#connect("starting", [provider], {
@@ -2601,7 +2607,9 @@ export class ProviderRuntime implements ProviderPort {
               });
               if (!(failed instanceof CodexCliError || failed instanceof ProviderSignInError)) {
                 this.#emitProviderError(provider, "start_failed", failed);
-                if (this.#countStartFailure(provider)) return this.#showStartStopped(provider);
+                // No process started, and the row keeps the reason the user can act on.
+                if (!(failed instanceof ProviderTempDiskSpaceError) && this.#countStartFailure(provider))
+                  return this.#showStartStopped(provider);
               }
               return message;
             }),
@@ -2822,7 +2830,7 @@ export class ProviderRuntime implements ProviderPort {
     const providers = updateProviderStatus(this.#status.providers, client.provider, {
       state: "error",
       version: this.#cli.get(client.provider)?.version ?? null,
-      message: stopped ? this.#startStoppedMessage(client.provider) : this.#redactMcp(error.message),
+      message: startStopped ? this.#startStoppedMessage(client.provider) : this.#redactMcp(error.message),
     });
     const anotherProviderIsReady = this.#clients.size > 0 || this.#released.size > 0;
 
@@ -2839,7 +2847,9 @@ export class ProviderRuntime implements ProviderPort {
               phase: "blocked",
               providers,
               capabilities: { ...this.#status.capabilities, chat: "unavailable" },
-              message: this.#startStoppedMessage(client.provider),
+              message: startStopped
+                ? this.#startStoppedMessage(client.provider)
+                : `${providerLabel(client.provider)} stopped repeatedly. Restart OpenBot after checking the CLI.`,
             },
       );
       return;

@@ -274,6 +274,7 @@ export interface ProviderClientContext {
   /**
    * A folder OpenBot owns for the temporary files of provider processes, emptied at each launch.
    * Optional for the same reason as `reportMcpDrops`: without it a process uses the system folder.
+   * The app gives it on Windows only.
    */
   readonly providerTempDirectory?: string;
   /** The free bytes on the volume of a path. Optional: without it the volume is read. */
@@ -583,24 +584,15 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       timeoutMs: CLI_LOGIN_TIMEOUT_MS,
     },
     resolveCli: resolveAntigravityCli,
-    createClient: (cli, timeout, context, confinement) => {
-      const temp = antigravityTemp(context);
-      return new AcpAgentClient(cli, timeout, {
+    createClient: (cli, timeout, context, confinement) =>
+      new AcpAgentClient(cli, timeout, {
         provider: "antigravity",
         argv: ANTIGRAVITY_ARGV,
         ...ANTIGRAVITY_SERVING_OPTIONS,
         discoveryCwd: () => discoveryFolder("antigravity"),
-        privateTemp: temp,
+        privateTemp: antigravityTemp(context),
         ...(confinement
-          ? {
-              confine: (target) => {
-                const paths = antigravityStatePaths();
-                return confineSpawnTarget(target, confinement, {
-                  ...paths,
-                  writable: temp ? [...paths.writable, temp.root] : paths.writable,
-                });
-              },
-            }
+          ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityStatePaths()) }
           : {}),
         ...antigravityKeyOptions(context, true),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
@@ -610,8 +602,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpToolRuntimes: context.mcpToolRuntimes,
         mcpAuthorization: context.mcpAuthorization,
         history: context.history?.("antigravity"),
-      });
-    },
+      }),
     // A profile-generation client asks one question and must not act: no MCP servers, and every
     // permission request is cancelled.
     createProfileClient: (cli, timeout, context) =>

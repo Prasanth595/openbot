@@ -2,12 +2,13 @@
 // server that, like the Windows PyInstaller build, unpacks itself into the temporary folder at each
 // start. Checks that each process gets its own temporary folder and that OpenBot removes it, that
 // failed starts stop after the limit, that an automatic refresh does not start the provider again
-// and a user refresh does, and that low disk space stops a start before the process spawns.
+// and a user refresh does, that low disk space stops a start before the process spawns, and that a
+// launch removes what an earlier run left.
 // `bun scripts/antigravity-start-e2e.ts`. Writes .openbot-build/antigravity-start-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { ConversationRuntime } from "../src/backend/agent/conversation-runtime";
@@ -22,6 +23,7 @@ import {
   NO_PROVIDER_CREDENTIALS,
   requireProviderDriver,
 } from "../src/backend/provider-drivers";
+import { sweepProviderTemp } from "../src/backend/provider-temp";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/antigravity-start-e2e");
 const WAIT_MS = 15_000;
@@ -58,7 +60,8 @@ interface Report {
   automaticRefresh?: { spawns: number };
   userRefresh?: { spawns: number };
   leftInTempRoot?: string[];
-  lowDisk?: { spawns: number; lastError: string | null | undefined };
+  launchSweep?: { left: string[] };
+  lowDisk?: { attempts: number; spawns: number; message: string | null | undefined };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-antigravity-start-e2e-"));
@@ -145,7 +148,7 @@ try {
   const [started] = await starts();
   assert.ok(started);
   const tempRoot = join(stoppedRoot, "antigravity");
-  const envInRoot = [started.TMP, started.TEMP, started.TMPDIR].every((path) => path.startsWith(`${tempRoot}/`));
+  const envInRoot = [started.TMP, started.TEMP, started.TMPDIR].every((path) => path.startsWith(`${tempRoot}${sep}`));
   const unpackedWhileRunning = (await entries(started.unpacked)).length > 0;
   await runCauseEffect(client.stop());
   await waitFor("the stopped process's folder to be removed", async () => (await entries(tempRoot)).length === 0);
@@ -193,14 +196,27 @@ try {
   );
   report.leftInTempRoot = await entries(join(capRoot, "antigravity"));
 
-  // 5. Low disk space stops the start before the process spawns, and says why.
+  // 5. Low disk space stops each start before the process spawns, and the row keeps saying why: no
+  // process started, so it is not a failed start.
   await rm(log, { force: true });
   const lowDisk = runtime(join(root, "temp-low-disk"), () => 0).providers;
-  await runCauseEffect(lowDisk.ensureProvider("antigravity").pipe(Effect.ignore));
-  report.lowDisk = { spawns: (await starts()).length, lastError: antigravityRow(lowDisk)?.lastError };
+  for (let attempt = 0; attempt < attempts; attempt += 1)
+    await runCauseEffect(lowDisk.ensureProvider("antigravity").pipe(Effect.ignore));
+  report.lowDisk = { attempts, spawns: (await starts()).length, message: antigravityRow(lowDisk)?.message };
   await runCauseEffect(lowDisk.dispose());
   assert.equal(report.lowDisk.spawns, 0);
-  assert.equal(report.lowDisk.lastError, sourceText("error.provider.tempDiskSpace", { provider: "Gemini" }));
+  assert.equal(report.lowDisk.message, sourceText("error.provider.tempDiskSpace", { provider: "Gemini" }));
+
+  // 6. At launch, folders that an earlier run left are removed.
+  const sweepRoot = join(root, "temp-sweep");
+  await mkdir(join(sweepRoot, "antigravity", "run-earlier", "_MEI1a2b"), { recursive: true });
+  await writeFile(join(sweepRoot, "antigravity", "run-earlier", "_MEI1a2b", "python310.dll"), "");
+  await sweepProviderTemp(sweepRoot);
+  await waitFor(
+    "the earlier run's folder to be removed",
+    async () => (await entries(join(sweepRoot, "antigravity"))).length === 0,
+  );
+  report.launchSweep = { left: await entries(join(sweepRoot, "antigravity")) };
 
   report.passed = true;
 } finally {
