@@ -275,9 +275,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     provider: AgentProviderId,
     change: (accounts: ProviderAccountStatus[]) => ProviderAccountStatus[],
   ): AgentStatus => {
+    const providers = agentStatus.providers;
+    if (!providers) return agentStatus;
     agentStatus = {
       ...agentStatus,
-      providers: agentStatus.providers?.map((row) => {
+      providers: providers.map((row) => {
         if (row.id !== provider) return row;
         const accounts = row.accounts ?? [
           { id: DEFAULT_PROVIDER_ACCOUNT_ID, label: null, email: null, state: "connected", message: null },

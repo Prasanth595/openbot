@@ -282,12 +282,12 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     if (!entry || entry.account.id === DEFAULT_PROVIDER_ACCOUNT_ID || entry.account.state === "connected") {
       return status;
     }
+    const { connectionState: _connection, ...rest } = status;
     return {
-      ...status,
+      ...rest,
       state:
         entry.account.state === "checking" || entry.account.state === "connecting" ? "checking" : "sign-in-required",
       message: entry.account.message,
-      connectionState: undefined,
     };
   };
   const entryName = (key: RailKey): string => {

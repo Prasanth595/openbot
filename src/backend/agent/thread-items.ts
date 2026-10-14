@@ -238,7 +238,7 @@ export function toolProgressText(item: ThreadItem, completed: boolean): string |
 }
 
 /** The provider account after the first that an agent runs on, or null for the provider's own sign-in. */
-export function agentProviderAccount(agent: { providerAccountId?: string }): string | null {
+export function agentProviderAccount(agent: { providerAccountId?: string | undefined }): string | null {
   const accountId = agent.providerAccountId;
   return accountId && accountId !== DEFAULT_PROVIDER_ACCOUNT_ID ? accountId : null;
 }

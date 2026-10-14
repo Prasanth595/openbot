@@ -573,6 +573,9 @@ function samePage(shown: McpSignInRelayPage | null, page: McpSignInRelayPage): b
 function accountTarget(target: ProviderCodeLoginTarget, accountId: string | null | undefined): ProviderCodeLoginTarget {
   const account = target.accountSignIn;
   if (accountId === undefined) return target;
-  if (!account) return { ...target, hostSignIn: undefined };
+  if (!account) {
+    const { hostSignIn: _ownSignIn, ...rest } = target;
+    return rest;
+  }
   return { ...target, hostSignIn: { ...account, start: (provider) => account.start(provider, accountId) } };
 }

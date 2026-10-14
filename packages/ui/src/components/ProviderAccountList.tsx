@@ -107,7 +107,7 @@ export function ProviderAccountList(props: ProviderAccountListProps) {
                   >
                     <Ellipsis aria-hidden="true" />
                   </DropdownMenu.Trigger>
-                  <DropdownMenu.Portal mount={props.menuMount}>
+                  <DropdownMenu.Portal mount={props.menuMount ?? document.body}>
                     <DropdownMenu.Content>
                       <DropdownMenu.Item onSelect={() => setRenaming(account().id)}>
                         <Pencil aria-hidden="true" />
