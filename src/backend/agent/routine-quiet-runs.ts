@@ -13,7 +13,7 @@ import { bridgedToolName, getString, type ThreadItem } from "../protocol";
  * answers in the user's language, and a phrase match in every language is a guess. The brackets make
  * it unlikely as the start or the whole of a real report.
  */
-export const ROUTINE_NO_UPDATE_MARKER = "[[no-update]]";
+const ROUTINE_NO_UPDATE_MARKER = "[[no-update]]";
 
 /**
  * The OpenBot tool that a quiet routine run calls when it has nothing to report. A model often

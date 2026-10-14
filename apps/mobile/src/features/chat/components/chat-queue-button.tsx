@@ -16,6 +16,8 @@ interface ChatQueueButtonProps {
   pending?: QueuedUpload | null;
   liquidGlassAvailable: boolean;
   fallbackBackground: ViewStyle["backgroundColor"];
+  /** The number of queued messages that the chat already shows above the composer. */
+  inline?: number;
 }
 
 export const ChatQueueButton = memo(function ChatQueueButton({
@@ -23,6 +25,7 @@ export const ChatQueueButton = memo(function ChatQueueButton({
   pending,
   liquidGlassAvailable,
   fallbackBackground,
+  inline = 0,
 }: ChatQueueButtonProps) {
   const { t } = useText();
   const muted = useThemeColor("muted");
@@ -37,6 +40,9 @@ export const ChatQueueButton = memo(function ChatQueueButton({
   // entry for them alone, also before the first answer arrives.
   const onlyReplies = count === 0 && !failed && queue.waiting.length > 0;
   if (count === 0 && !failed && !onlyReplies) return null;
+  // When the rows above the composer show all messages, the entry is not necessary. It stays for
+  // more messages, an upload, an error and the teammates that the agent waits for.
+  if (count <= inline && !queue.error && queue.waiting.length === 0) return null;
   const label = failed
     ? t("mobile.chat.queue.unavailable")
     : onlyReplies

@@ -464,7 +464,7 @@ function assertRemoteAttachmentSupport(
 }
 
 /** A ZIP download that failed. The cause is the error the renderer reads. */
-export class AttachmentArchiveFailed extends Schema.TaggedError<AttachmentArchiveFailed>()("AttachmentArchiveFailed", {
+class AttachmentArchiveFailed extends Schema.TaggedError<AttachmentArchiveFailed>()("AttachmentArchiveFailed", {
   cause: Schema.Defect(),
 }) {}
 
@@ -475,7 +475,7 @@ function archiveFailure(message: string): Effect.Effect<never, AttachmentArchive
 }
 
 // Names are archive labels only; file access always uses a managed attachment ID.
-export const saveAttachmentArchive = Effect.fn("Attachments.saveArchive")(function* (
+const saveAttachmentArchive = Effect.fn("Attachments.saveArchive")(function* (
   input: DownloadAttachmentsInput,
   chooseDestination: () => Effect.Effect<string | undefined, AttachmentArchiveFailed>,
   readAttachment: (

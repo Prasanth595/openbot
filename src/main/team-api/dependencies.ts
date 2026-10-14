@@ -44,9 +44,11 @@ import type { AgentImportService } from "../agent-import-service";
 import type { BrowserViewGateway } from "../browser-view-gateway";
 import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
+import type { InstanceTransferService } from "../instance-transfer-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
+import type { ProviderAccountsHost } from "../provider-accounts-host";
 import type { ProviderHostSignIns } from "../provider-host-sign-ins";
 import type { PushNotificationService } from "../push-notifications";
 import type { RemoteScreenGateway } from "../remote-screen-gateway";
@@ -184,6 +186,12 @@ export type TeamApiSignInRelay = Pick<
  */
 export type TeamApiProviderHostSignIns = Pick<ProviderHostSignIns, "start" | "status" | "cancel">;
 
+/** Its presence is what `#protocolSupport` advertises `provider-accounts-v1` on. The routes are admin-only. */
+export type TeamApiProviderAccounts = Pick<
+  ProviderAccountsHost,
+  "list" | "usage" | "startSignIn" | "signInStatus" | "cancelSignIn" | "rename" | "remove" | "setAgentAccount"
+>;
+
 /** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
 export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
 /** `hosted-sites-v1`: the openbot.site sites of this server. Members list; only admins delete. */
@@ -191,6 +199,12 @@ export type TeamApiHostedSites = Pick<HostedSiteDesktopService, "listServerSites
 
 /** Its presence is what `#protocolSupport` advertises `agent-import-v1` on. Any member can use it. */
 export type TeamApiAgentImport = Pick<AgentImportService, "stageUpload" | "apply" | "discard">;
+
+/** Its presence is what `#protocolSupport` advertises `instance-transfer-v1` on. Only admins use it. */
+export type TeamApiInstanceTransfer = Pick<
+  InstanceTransferService,
+  "summary" | "exportForMember" | "stageUpload" | "apply" | "discard"
+>;
 
 /**
  * Its presence is what `#protocolSupport` advertises `routine-flows-v1` on. Any member who can see
@@ -316,11 +330,13 @@ export interface TeamApiOptions {
   signInRelay?: TeamApiSignInRelay;
   connectors?: TeamApiConnectors;
   providerHostSignIns?: TeamApiProviderHostSignIns;
+  providerAccounts?: TeamApiProviderAccounts;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;
   hostedSites?: TeamApiHostedSites;
   agentImport?: TeamApiAgentImport;
+  instanceTransfer?: TeamApiInstanceTransfer;
   routineFlows?: TeamApiRoutineFlows;
   admin?: TeamApiAdmin;
   appVersion?: string;

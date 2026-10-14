@@ -11,6 +11,9 @@ import type {
 } from "@openbot/contracts/ipc";
 import { mcpConfigErrors } from "@openbot/contracts/ipc";
 import { createPluginShareUrl } from "@openbot/contracts/plugin-links";
+import { connectorSummary } from "@openbot/ui/features/connectors/ConnectorDetailPanel";
+import { CONNECTOR_LISTINGS } from "@openbot/ui/features/connectors/connector-catalog";
+import { isConnectorId } from "@openbot/ui/features/connectors/connectors";
 import { safeBrowserUrl } from "@openbot/ui/features/conversation/RichMessageText";
 import type {
   AgentListingState,
@@ -20,7 +23,6 @@ import type {
   SkillRead,
 } from "@openbot/ui/features/marketplace/marketplace-model";
 import { serverAddress } from "@openbot/ui/features/marketplace/marketplace-view";
-import type { BitwardenConnectorPanelProps } from "@openbot/ui/features/settings/BitwardenConnectorPanel";
 import type { McpConnectSubject } from "@openbot/ui/features/settings/McpConnectShell";
 import {
   isPluginAppConfig,
@@ -35,8 +37,7 @@ import { errorReference } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onCleanup, untrack } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
 import { writeClipboardText } from "../../clipboard";
-import { type GitHubConnectorController, githubPanelProps } from "../connectors/github-connector";
-import { type OnePasswordConnectorController, onePasswordPanelProps } from "../connectors/onepassword-connector";
+import type { ConnectorRegistry } from "../connectors/connector-registry";
 import { desktopMarketplaceCalls, type MarketplaceCalls, type MarketplaceSignInRelay } from "./marketplace-calls";
 import { createPluginAppConfig } from "./marketplace-plugin-catalog";
 import { localizedPlugin } from "./marketplace-plugin-text";
@@ -71,11 +72,8 @@ export interface MarketplaceControllerProps {
   /** The joined server in `hostServerId` when its host also updates an agent. */
   agentUpdateServerId?: string | undefined;
   onRunPluginPrompt?: ((agentId: string, prompt: MarketplacePluginPrompt) => void) | undefined;
-  /** This computer's GitHub connection, when it can have one. */
-  githubConnector?: GitHubConnectorController | undefined;
-  /** This computer's 1Password connection. Absent on a joined server. */
-  onePasswordConnector?: OnePasswordConnectorController | undefined;
-  bitwardenConnector?: BitwardenConnectorPanelProps | undefined;
+  /** The connectors of the server. Each one that this account can connect is an app. */
+  connectors?: ConnectorRegistry | undefined;
   /** What the Marketplace calls. Absent: this computer's bridge. */
   calls?: MarketplaceCalls | undefined;
 }
@@ -367,59 +365,32 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     return parts.some(Boolean) ? "attention" : "idle";
   }
 
-  const githubPanel = createMemo(() => {
-    const connector = props.githubConnector;
-    return connector ? githubPanelProps(connector) : undefined;
-  });
-  const onePasswordPanel = createMemo(() => {
-    const connector = props.onePasswordConnector;
-    return connector ? onePasswordPanelProps(connector) : undefined;
-  });
-
   /** The catalog listings in the reader's language. Made once per language, not on each status change. */
   const localPlugins = createMemo(() => (props.plugins ?? []).map((plugin) => localizedPlugin(plugin, t)));
 
+  /** The controller of a connector app that this account can connect. */
+  const connector = (id: string) => {
+    if (!isConnectorId(id)) return undefined;
+    const entry = props.connectors?.get(id);
+    return entry?.access === "available" ? entry.controller : undefined;
+  };
+
   const apps = createMemo((): MarketplaceApp[] => {
     const plugins = localPlugins();
-    const github = props.githubConnector;
-    const githubState = github?.status().state;
     return [
-      ...(github
-        ? [
-            {
-              kind: "github",
-              id: "github",
-              name: t("connector.github.title"),
-              tagline: t("marketplace.app.githubTagline"),
-              category: "coding",
-              status: githubState === "connected" ? "connected" : githubState === "expired" ? "attention" : "idle",
-            } satisfies MarketplaceApp,
-          ]
-        : []),
-      ...(props.onePasswordConnector
-        ? [
-            {
-              kind: "onepassword",
-              id: "onepassword",
-              name: t("connector.onePassword.title"),
-              tagline: t("marketplace.app.onePasswordTagline"),
-              category: "productivity",
-              status: props.onePasswordConnector.status().state === "connected" ? "connected" : "idle",
-            } satisfies MarketplaceApp,
-          ]
-        : []),
-      ...(props.bitwardenConnector
-        ? [
-            {
-              kind: "bitwarden",
-              id: "bitwarden",
-              name: t("connector.bitwarden.title"),
-              tagline: t("connector.bitwarden.description"),
-              category: "productivity",
-              status: props.bitwardenConnector.status.connected ? "connected" : "idle",
-            } satisfies MarketplaceApp,
-          ]
-        : []),
+      ...(props.connectors?.available() ?? []).map((controller): MarketplaceApp => {
+        const listing = CONNECTOR_LISTINGS[controller.id];
+        const { status } = connectorSummary(controller.detail, t);
+        return {
+          kind: "connector",
+          id: controller.id,
+          connector: controller.id,
+          name: t(listing.title),
+          tagline: t(listing.tagline),
+          category: listing.category,
+          status: status === "unavailable" ? "idle" : status,
+        };
+      }),
       ...plugins.map(
         (plugin): MarketplaceApp => ({
           kind: "plugin",
@@ -814,18 +785,9 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
 
     apps,
     canConnectApps: () => Boolean(props.pluginServerId),
-    appBusy: (id) => Boolean(busy[`app:${id}`]),
-    connectApp: async (app) => {
-      if (app.kind === "plugin") return installPlugin(app.plugin);
-      if (app.kind === "github") props.githubConnector?.connect();
-      return false;
-    },
-    disconnectApp: (app) => {
-      if (app.kind === "plugin") setUninstalling(app.plugin);
-      if (app.kind === "github") props.githubConnector?.disconnect();
-      if (app.kind === "bitwarden") props.bitwardenConnector?.onDisconnect();
-      if (app.kind === "onepassword") props.onePasswordConnector?.disconnect();
-    },
+    appBusy: (id) => Boolean(busy[`app:${id}`]) || connector(id)?.busy() === true,
+    connectApp: (app) => installPlugin(app.plugin),
+    disconnectApp: (app) => setUninstalling(app.plugin),
     removeServer,
     get runPrompt() {
       const run = props.onRunPluginPrompt;
@@ -834,18 +796,7 @@ export function createMarketplaceController(props: MarketplaceControllerProps) {
     },
     copyLink,
     openUrl: openPluginUrl,
-    get github() {
-      const panel = githubPanel();
-      return panel ? () => panel : undefined;
-    },
-    get bitwarden() {
-      const panel = props.bitwardenConnector;
-      return panel ? () => panel : undefined;
-    },
-    get onePassword() {
-      const panel = onePasswordPanel();
-      return panel ? () => panel : undefined;
-    },
+    connector,
 
     error,
     errorReference: errorCode,

@@ -4,6 +4,7 @@ import { Button } from "../../button";
 import { ErrorReference } from "../../error-reference";
 import { useText } from "../../text";
 import { AppLoadingScreen } from "../account/AppLoadingScreen";
+import { ServerStatusDialog } from "./ServerStatusDialog";
 
 export type ServerWorkspacePhase =
   | "connecting"
@@ -12,6 +13,7 @@ export type ServerWorkspacePhase =
   | "waiting"
   | "sleeping"
   | "waking"
+  | "updating"
   | "blocked";
 
 export interface ServerConnectionNoticeProps {
@@ -24,6 +26,10 @@ export interface ServerConnectionNoticeProps {
   detail?: string | null;
   /** The code of the failure in `detail`, for a user to copy into a report. */
   reference?: string | null;
+  /** The OpenBot version that the server restarts into, while it updates. */
+  updateVersion?: string | null;
+  /** Removes Details, for a notice that is not about the server connection. */
+  hideDetails?: boolean;
   onRetry: () => void;
   onManage?: () => void;
 }
@@ -31,6 +37,8 @@ export interface ServerConnectionNoticeProps {
 /** Connection feedback stays visible until the workspace can answer the user's actions. */
 export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
   const { t } = useText();
+  const since = Date.now();
+  const [detailsOpen, setDetailsOpen] = createSignal(false);
   const title = () => {
     switch (props.issue) {
       case "plan_ended":
@@ -45,6 +53,8 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
         return t("server.connection.sleeping", { name: props.name });
       case "waking":
         return t("server.connection.waking", { name: props.name });
+      case "updating":
+        return t("server.connection.updating", { name: props.name });
       case "loading":
         return t("server.connection.loading", { name: props.name });
       case "connecting":
@@ -76,6 +86,25 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
           {t("server.connection.manage")}
         </Button>
       </Show>
+      <Show when={!props.hideDetails}>
+        <Button variant="ghost" onClick={() => setDetailsOpen(true)}>
+          {t("server.connection.details")}
+        </Button>
+      </Show>
+      <ServerStatusDialog
+        open={detailsOpen()}
+        onClose={() => setDetailsOpen(false)}
+        name={props.name}
+        title={title()}
+        phase={props.phase}
+        initial={props.initial}
+        issue={props.issue ?? null}
+        updateVersion={props.updateVersion ?? null}
+        remainingSeconds={props.remainingSeconds ?? 0}
+        detail={props.detail ?? null}
+        reference={props.reference ?? null}
+        since={since}
+      />
     </>
   );
   return (
@@ -158,6 +187,7 @@ export function ConversationLoadNotice(props: ConversationLoadNoticeProps) {
             phase="blocked"
             initial={false}
             detail={error()}
+            hideDetails
             onRetry={props.onRetry}
           />
         )}

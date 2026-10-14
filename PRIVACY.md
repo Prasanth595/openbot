@@ -40,7 +40,8 @@ browser also stores the chosen interface language and whether the completion sou
 no message content.
 Signing out revokes that credential's remote sessions and tells other open tabs to clear private
 state. Host identity pins remain so a later sign-in cannot silently trust a replacement host key.
-The web client adds no chat or account analytics events. It does not send email codes, credentials,
+The web client adds no chat analytics events. At sign-in it sends the saved first website visit
+of the browser, described in "Product analytics", to the account service. It does not send email codes, credentials,
 message content, file content, or search queries to telemetry.
 
 Production builds of OpenBot desktop, the configured mobile app, and the website use a self-hosted OpenPanel service for product
@@ -62,6 +63,9 @@ revenue, paid accounts, paid servers, and scheduled cancellations. These totals 
 The service stores payment facts and a delivery ledger in D1 to prevent duplicate revenue events.
 It does not send Stripe identifiers, server identifiers, or Checkout return tokens to OpenPanel.
 An account deletion clears its profile reference and stops pending account event delivery.
+The account service also sends an event when it makes a new account (with the app used to sign in)
+and when it saves the first website visit of an account. A payment event and a revenue event include
+that first visit when the account has one.
 
 ## AI conversation context
 
@@ -153,7 +157,14 @@ the path of a news article, guide or comparison published on openbot.run, togeth
 reading position reached (start, half, or end), and the section of the page a link was clicked in.
 That path is a published article address and nothing else: it is matched against the site's own list
 of articles, so no other part of a visited URL can be reported through it. Reading position is taken
-from where the article sits on screen, never from how long it was open. Referrals from openbot.run and its subdomains are omitted. OpenPanel can also derive
+from where the article sits on screen, never from how long it was open. Referrals from openbot.run and its subdomains are omitted.
+The production website also saves the first visit of the browser in its `localStorage`: the source
+category, the platform name, the first website page, the day, and the allowlisted campaign tags.
+It saves no referrer, IP address or identifier. A later visit does not change it, and it is not used
+after 90 days. When you sign in on the web, or open the page after a desktop checkout in the same
+browser, the browser sends it to the account service. The account service keeps the first one that
+it gets on your account and sends it to OpenPanel with your account ID. To remove it from a
+browser, clear the site data of openbot.run. OpenPanel can also derive
 session, device, browser, operating-system, network, and approximate geographic metadata from a
 request. The analytics service runs on OpenBot's self-hosted infrastructure and receives events
 through `analytics.openbot.run`.
@@ -235,6 +246,9 @@ The service stores:
   end, and expiration times;
 - the current account avatar file and its content type when the user uploads an avatar.
 - optional host logo files and their content types when the owner uploads a logo.
+- the first website visit of an account, when a browser sends it: the source category, platform
+  name, first website page, day, allowlisted campaign tags, whether it came from a sign-in or a
+  checkout, and the save time. Deleting the account removes it.
 - webhook routes: for each webhook routine of a host, the opaque route ID, the host ID, the owner
   account ID, the link time, and the revocation time. When the routine stops using a route, or the
   host is deleted, the service sets the revocation time and the route stops working. The service
@@ -534,7 +548,9 @@ Network traffic can also occur when:
 - an MCP server the user enabled is reached at its own address, and, when that server asks for a
   sign-in, OpenBot connects to the server's authorization service to register itself, to exchange
   the grant the browser returns, and to renew the token. Nothing about the user's agents,
-  conversations or files is sent in those requests;
+  conversations or files is sent in those requests. The registration names OpenBot's logo at
+  `openbot.run`; an authorization service that shows it on its sign-in page can make the browser
+  load it from `openbot.run`;
 - the user presses Install on the 1Password page. OpenBot downloads the 1Password CLI release that it
   pins from `cache.agilebits.com`, checks its SHA-256, and keeps it in
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user
@@ -1028,6 +1044,14 @@ keys of the phone cannot make it show text. A host that has the keys can show te
 of its own server. Signing out removes the keys from the phone, asks each connected host to remove
 the registration, and makes a new phone secret. A host that does not get the request sends nothing
 more, because the account service refuses the ended session.
+
+A notification of an approval also contains, in the sealed bytes, the ID of the request and of its
+turn, and whether the text shows the whole command or file change. The notification then shows Deny,
+and Allow when the text shows it all; a paired Apple Watch shows the same buttons. iOS asks to unlock the
+device first. The app sends the answer to the host over the encrypted host connection, as the
+approval card in the chat does, so the account service and Apple do not see it. To connect while the
+phone is locked, the app keeps its sign-in, the keys of the hosts and the server list choices in the
+iOS keychain with access after the first unlock since the phone started, on this device only.
 
 Settings > Notifications turns this off, and sets the preview and the sound. The events and the mute
 of each server are in the same place and in the server settings.

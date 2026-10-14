@@ -154,18 +154,17 @@ export function AppAction(props: {
       : t("marketplace.app.connectNamed", { name: props.app.name });
   const connect = () => {
     const app = props.app;
-    /* GitHub signs in with a device code. Its page owns that dialog, and opens it while the sign-in waits. */
-    if (app.kind === "github") {
+    /* A connector's page owns its dialogs: the GitHub device code, a password manager's setup. A
+       connector with a one-click connect starts it there. One that needs attention opens its page, which
+       says what to fix. A connector shows "idle" before its first read, so it connects only after it. */
+    if (app.kind === "connector") {
       const view = props.scope.nav.state.stack.at(-1);
       if (view?.kind !== "app" || view.id !== app.id) props.scope.nav.go({ kind: "app", id: app.id });
-      model().github?.().onConnect();
+      const connector = model().connector(app.connector);
+      if (app.status === "idle" && connector?.ready()) connector.connect?.();
       return;
     }
-    /* Password managers need setup input. Their pages own those choices. */
-    if (app.kind === "onepassword" || app.kind === "bitwarden") {
-      props.scope.nav.go({ kind: "app", id: app.id });
-      return;
-    }
+    if (app.kind !== "plugin") return;
     void model()
       .connectApp(app)
       .then((connected) => {
@@ -181,8 +180,9 @@ export function AppAction(props: {
         </Show>
       }
     >
-      {/* A custom server is turned on in Server settings › MCP, not here. */}
-      <Show when={model().canConnectApps() && props.app.kind !== "custom"}>
+      {/* A custom server is turned on in Server settings › MCP, not here. The Apps tab lists only the
+          connectors that this account can connect. */}
+      <Show when={props.app.kind === "connector" || (props.app.kind === "plugin" && model().canConnectApps())}>
         <Button
           type="button"
           variant={props.variant ?? (props.size ? "outline" : "default")}

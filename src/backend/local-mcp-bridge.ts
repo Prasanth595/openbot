@@ -49,7 +49,7 @@ export interface LocalMcpSession {
  * a call that sends nothing: opencode after 60 seconds, unless a progress notification resets the
  * deadline. `ask_user` waits for the user, which can take much longer.
  */
-export const LOCAL_MCP_PROGRESS_INTERVAL_MS = 20_000;
+const LOCAL_MCP_PROGRESS_INTERVAL_MS = 20_000;
 
 interface BridgeRoute {
   namespace: DynamicToolNamespace;

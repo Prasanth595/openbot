@@ -6,6 +6,7 @@ import { useLayout } from "../../layout";
 import { AccountDock } from "../../lazy-views";
 import { usePlatform } from "../../platform";
 import { useAgents } from "../agents/agents-context";
+import { withHostAccountUsage } from "../agents/host-provider-accounts";
 import { useServers } from "../servers/servers-context";
 import { useSettings } from "../settings/settings-context";
 import { useUpdates } from "../updates/updates-context";
@@ -22,7 +23,7 @@ export function WorkspaceAccountDock(props: { account: () => CentralAuthUser }) 
   const layout = useLayout();
   const auth = useAuth();
   const updates = useUpdates();
-  const { activeAgent, agentStatus } = useAgents();
+  const { activeAgent, agentStatus, hostAccountLimits, refreshHostAccountUsage } = useAgents();
   const { activeServerId } = useServers();
   const { openAppSettings, setSkillsMarketplaceOpen } = useSettings();
   const usageReady = createMemo(() => {
@@ -63,9 +64,10 @@ export function WorkspaceAccountDock(props: { account: () => CentralAuthUser }) 
         account={props.account()}
         appInfo={platform.appInfo()}
         agentStatus={agentStatus()}
-        accountUsage={auth.accountUsage()}
+        accountUsage={withHostAccountUsage(auth.accountUsage(), hostAccountLimits())}
         usageProvider={activeAgent()?.provider ?? null}
         usageModel={activeAgent()?.model ?? null}
+        usageAccountId={activeAgent()?.providerAccountId ?? null}
         usageTargetKey={usageTargetKey()}
         usageRefreshRevision={auth.accountUsageRefreshRevision()}
         usageReady={usageReady()}
@@ -74,6 +76,7 @@ export function WorkspaceAccountDock(props: { account: () => CentralAuthUser }) 
         withServerRail={layout.serverRailVisible()}
         onRefreshUsage={() => {
           const targetKey = usageTargetKey();
+          void refreshHostAccountUsage().catch(() => undefined);
           return targetKey ? auth.refreshAccountUsage(targetKey) : Promise.resolve({ limits: [] });
         }}
         onUpdateAction={updates.runAction}

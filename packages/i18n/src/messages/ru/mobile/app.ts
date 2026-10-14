@@ -23,10 +23,4 @@ export const messages = {
   "mobile.app.route.routines": "Регулярные задачи",
   "mobile.app.route.routine": "Регулярная задача",
   "mobile.app.route.usage": "Использование",
-  "mobile.app.route.message": "Сообщение",
-  "mobile.app.messageActions.reply": "Ответить",
-  "mobile.app.messageActions.selectText": "Выделить текст",
-  "mobile.app.messageActions.copied": "Сообщение скопировано",
-  "mobile.app.messageActions.copy": "Копировать сообщение",
-  "mobile.app.messageActions.text": "Текст сообщения",
 } as const satisfies PartialTranslation<typeof source>;

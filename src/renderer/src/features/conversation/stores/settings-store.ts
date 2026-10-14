@@ -13,7 +13,7 @@ export function runtimeSettingsEqual(left: AgentRuntimeSettings, right: AgentRun
   );
 }
 
-export function isCompleteRuntimeSettingsPatch(updates: AgentRuntimeSettingsPatch): updates is AgentRuntimeSettings {
+function isCompleteRuntimeSettingsPatch(updates: AgentRuntimeSettingsPatch): updates is AgentRuntimeSettings {
   return "provider" in updates && "model" in updates;
 }
 
@@ -135,6 +135,7 @@ export function createSettingsStore(deps: SettingsStoreDeps) {
     provider: AgentProviderId,
     persist = true,
     reportComposerError = false,
+    accountId?: string | null,
   ): Promise<boolean> {
     const option = deps.props.modelOptions.find(
       (candidate) => candidate.provider === provider && candidate.id === model,
@@ -149,13 +150,19 @@ export function createSettingsStore(deps: SettingsStoreDeps) {
     if (!persist) return true;
     return saveRuntimeSettings(
       { provider, model, reasoningEffort },
-      { provider, model, reasoningEffort },
+      accountId === undefined
+        ? { provider, model, reasoningEffort }
+        : { provider, model, reasoningEffort, providerAccountId: accountId },
       reportComposerError ? currentText().t("composer.error.changeModel") : null,
     );
   }
 
-  async function selectAndConfirmModel(model: AgentModelId, provider: AgentProviderId): Promise<void> {
-    await selectModel(model, provider, true, true);
+  async function selectAndConfirmModel(
+    model: AgentModelId,
+    provider: AgentProviderId,
+    accountId?: string | null,
+  ): Promise<void> {
+    await selectModel(model, provider, true, true, accountId);
   }
 
   async function selectAndConfirmReasoning(effort: AgentReasoningEffort): Promise<void> {

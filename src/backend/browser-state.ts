@@ -85,7 +85,7 @@ function browserEnvironment(value: unknown): BrowserEnvironment | null {
 }
 
 const X_HOSTS = new Set(["x.com", "www.x.com"]);
-export const X_LANDING_URL = "https://x.com/";
+const X_LANDING_URL = "https://x.com/";
 
 export function persistentBrowserUrl(value: string, options: { popup?: boolean } = {}): string {
   const url = new URL(value);
@@ -128,7 +128,7 @@ export function isPersistableBrowserUrl(value: string): boolean {
  * `bots.json` after the migrations ran never went through it at all. `reownStoredBrowserTab` does that
  * part against the roster, which knows.
  */
-export function storedBrowserTab(value: unknown): StoredBrowserTab | null {
+function storedBrowserTab(value: unknown): StoredBrowserTab | null {
   if (
     !isRecord(value) ||
     !isString(value.id) ||

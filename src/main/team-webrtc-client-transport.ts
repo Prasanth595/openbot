@@ -369,6 +369,32 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
   }
 
   /**
+   * Connects like `connect`, and a host that reads connected must also answer. After a host restart,
+   * the path can stay open while the new host process ignores this peer. Each request then timed out
+   * until the app restarted.
+   */
+  retry(hostId: string): Effect.Effect<void, RemoteWorkflowError> {
+    return this.#owned(
+      Effect.gen({ self: this }, function* () {
+        const checked = this.#active.get(hostId);
+        if (checked?.connected) {
+          const answer = yield* this.requestResponse(hostId, "/v1/compatibility").pipe(Effect.result);
+          if (Result.isSuccess(answer)) return;
+          const timedOut =
+            answer.failure.cause instanceof TeamWebRtcRequestError && answer.failure.cause.code === "remote_timeout";
+          // Close the old peer now: a late answer on it would arrive before authentication and fail the
+          // protocol. The session stays.
+          if (timedOut && checked.connected && this.#active.get(hostId) === checked) {
+            this.#onDisconnected(hostId);
+            yield* TeamClientBridge.use((bridge) => bridge.disconnect(hostId)).pipe(Effect.ignore);
+          }
+        }
+        yield* this.#ensureConnected(hostId, true);
+      }),
+    );
+  }
+
+  /**
    * Whether the data channel to this host is up and authenticated. `connect` resolves either way,
    * and only the first of the two announces itself with a `connected` event, so a caller that has
    * to reconcile its own state with the transport's needs to be able to ask.

@@ -351,10 +351,16 @@ To release a new marketing version, run `bun run mobile:release:patch`, `mobile:
 `apps/mobile/CHANGELOG.md`, which the Mobile tab of the public `/changelog` page shows, and sets the
 version in `app.json`, `package.json` and `bun.lock`. Merge that change to `main`, then dispatch the release.
 
-The new section is `## [x.y.z] - In review`, and `/changelog` does not show it. Apple can take days to
-approve a build for external testers. When testers can install the build, run
-`bun run mobile:release:published`. It replaces `In review` with today's date. Merge that change to
-`main`, and the site shows the version. A new `mobile:release:*` stops while a version is in review.
+The new section is `## [x.y.z] - In review`, and `/changelog` does not show it. Apple and Google
+review a build on their own, and each can take days. When testers can install the build from one
+store, run `bun run mobile:release:published ios` or `bun run mobile:release:published android`.
+It writes today's date for that store, for example `## [x.y.z] - 2026-10-14 (Android)`. Merge that
+change to `main`, and the site shows the version with that store, and the other store as "In review".
+When the other store makes the build available, run the command again with that store. The heading
+becomes `## [x.y.z] - 2026-10-14 (Android), 2026-10-16 (iOS)`, or `## [x.y.z] - 2026-10-14` when
+both dates are the same. Use `both` when the two stores make the build available on the same day.
+For an older version, add `--version x.y.z`. A new `mobile:release:*` stops while no store has the
+current version.
 The signed `.ipa` is saved as a GitHub Actions artifact for seven days before upload. If upload
 fails, download that artifact and retry with Transporter to avoid rebuilding. Re-running the full
 workflow creates a new build number.
@@ -408,7 +414,7 @@ upload, select **Run workflow** on `main` in GitHub, or run
 
 EAS increments the remote Android `versionCode`; a failed build can consume a number. iOS and Android
 use the same marketing version in `app.json` and the same notes in `apps/mobile/CHANGELOG.md`. Run
-`bun run mobile:release:published` when testers on both platforms can install the build.
+`bun run mobile:release:published android` when testers can install the build from Google Play.
 The signed `.aab` is saved as a GitHub Actions artifact for seven days before upload. If upload fails,
 upload that artifact in Play Console to avoid rebuilding.
 

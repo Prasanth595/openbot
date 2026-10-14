@@ -24,6 +24,7 @@ import {
   Smartphone,
   Spinner,
   Switch,
+  UserRoundPlus,
   X,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
@@ -32,6 +33,8 @@ import { providerUpdateAvailable, providerVersionLabel } from "../features/provi
 import { useText } from "../text";
 import { createCodeSignInFallback } from "./createCodeSignInFallback";
 import { MoreProvidersDialog } from "./MoreProvidersDialog";
+import { ProviderAccountList } from "./ProviderAccountList";
+import type { ProviderAccountActions, ProviderPickerAccount } from "./provider-accounts";
 
 /**
  * What a row's Connect opens: the sign-in in this computer's browser, which the row follows itself,
@@ -101,6 +104,11 @@ export interface ProviderPickerOption {
   off?: boolean | undefined;
   /** The names of the agents that use the provider. While there is one, the switch does not turn it off. */
   usedBy?: readonly string[] | undefined;
+  /**
+   * The accounts of a provider that can hold more than one, its own sign-in first. With
+   * `accountActions`, a connected row offers Add account, and lists them from the second one on.
+   */
+  accounts?: readonly ProviderPickerAccount[] | undefined;
 }
 
 export interface ProviderPickerProps {
@@ -139,6 +147,8 @@ export interface ProviderPickerProps {
   onSetProviderOn?: ((provider: AgentProviderId, on: boolean) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onSignInProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  /** Adds, signs in, names and removes the accounts of a row. Settings has it; onboarding does not. */
+  accountActions?: ProviderAccountActions | undefined;
   /**
    * The dialog element a row's actions menu portals into. Without it the menu lands beside the
    * dialog in `body`, where a modal makes it inert and out of reach.
@@ -553,6 +563,21 @@ export function ProviderPicker(props: ProviderPickerProps) {
               const usedById = () => `${inputId()}-used-by`;
               /** An off row is not a choice, so it never holds the check. */
               const checked = () => !off() && checkedProvider() === option().id;
+              /** Another account is offered on a connected row of a provider that can hold one. */
+              const accountsOffered = () =>
+                Boolean(props.accountActions && option().accounts) && available() && !off() && !connecting();
+              /** From the second account on, the row counts them and lists each one under it. */
+              const listedAccounts = () => {
+                const accounts = option().accounts ?? [];
+                return props.accountActions && accounts.length > 1 && !off() ? accounts : null;
+              };
+              const [accountError, setAccountError] = createSignal<string | null>(null);
+              const addAccount = () => {
+                setAccountError(null);
+                void Promise.resolve(props.accountActions?.connect(option().id, null)).catch((error: unknown) =>
+                  setAccountError(errorMessage(error, t("provider.account.actionFailed", { name: option().name }))),
+                );
+              };
               return (
                 <div
                   class={[
@@ -585,7 +610,13 @@ export function ProviderPicker(props: ProviderPickerProps) {
                     <ProviderLogo provider={option().id} class="provider-picker-logo" />
                     <span class="provider-picker-identity">
                       <span class="provider-picker-name">{option().name}</span>
-                      <Show when={option().email ?? option().description ?? (props.versionInDetail ? version() : null)}>
+                      <Show
+                        when={
+                          listedAccounts()
+                            ? t("provider.account.count", { count: listedAccounts()?.length ?? 0 })
+                            : (option().email ?? option().description ?? (props.versionInDetail ? version() : null))
+                        }
+                      >
                         {(detail) => <small class="provider-picker-email">{detail()}</small>}
                       </Show>
                       <Show when={off() ? undefined : option().checkError}>
@@ -678,6 +709,20 @@ export function ProviderPicker(props: ProviderPickerProps) {
                   <div class="provider-picker-actions">
                     {/* An off provider has no process to act on, so the switch is its only action. */}
                     <Show when={!off()}>
+                      <Show when={accountsOffered()}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          class="provider-picker-install provider-picker-add-account"
+                          aria-label={t("provider.account.addLabel", { name: option().name })}
+                          disabled={props.disabled || props.refreshingProviders}
+                          onClick={addAccount}
+                        >
+                          <UserRoundPlus aria-hidden="true" />
+                          {t("provider.account.add")}
+                        </Button>
+                      </Show>
                       <Show when={codeFallbackOffered()}>
                         <Button
                           type="button"
@@ -938,6 +983,29 @@ export function ProviderPicker(props: ProviderPickerProps) {
                   </div>
                   {/* Outside the label: inside it, the message would be part of the radio's name, and
                     a click on it would choose the provider. */}
+                  <Show when={accountError()}>
+                    {(message) => (
+                      <small class="provider-picker-check-error provider-picker-used-by" role="alert">
+                        {message()}
+                      </small>
+                    )}
+                  </Show>
+                  <Show when={listedAccounts()}>
+                    {(accounts) => (
+                      <Show when={props.accountActions}>
+                        {(actions) => (
+                          <ProviderAccountList
+                            provider={option().id}
+                            providerName={option().name}
+                            accounts={accounts()}
+                            actions={actions()}
+                            disabled={props.disabled}
+                            menuMount={props.menuMount}
+                          />
+                        )}
+                      </Show>
+                    )}
+                  </Show>
                   <Show when={useChanges[option().id]?.error}>
                     {(message) => (
                       <small class="provider-picker-check-error provider-picker-used-by" role="alert">
