@@ -12,7 +12,7 @@ export const useOnboardingProgress = create<{ ready: boolean; finished: readonly
 }));
 
 /** Reads the stored list. A missing or damaged value means that no account finished. */
-export function decodeOnboardingProgress(stored: string | null): string[] {
+function decodeOnboardingProgress(stored: string | null): string[] {
   let value: unknown = null;
   try {
     value = stored === null ? null : JSON.parse(stored);

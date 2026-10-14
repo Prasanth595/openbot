@@ -26,7 +26,7 @@ const FLOAT = { from: { transform: [{ translateY: 0 }] }, to: { transform: [{ tr
 export type CrowdMotion = "full" | "fade" | "none";
 
 /** A placeholder character in a scene. It is not an agent and opens nothing. */
-export interface SceneBot {
+interface SceneBot {
   seed: string;
   hue: AvatarHue;
   mood: AvatarMood;
@@ -82,7 +82,7 @@ function share(value: `${number}%`): number {
 }
 
 /** A placeholder character that pops in at its point, then floats. Only index 0 animates its face. */
-export function FloatingBot({
+function FloatingBot({
   bot,
   index,
   reducedMotion,
