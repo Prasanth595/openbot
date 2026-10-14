@@ -27,7 +27,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
-import { Context, Effect, Exit, Fiber, Layer, ManagedRuntime, Schema, Scope, Semaphore } from "effect";
+import { Cause, Context, Effect, Exit, Fiber, Layer, ManagedRuntime, Schema, Scope, Semaphore } from "effect";
 import type { MessagingPostFailure } from "../messaging/messaging-threads";
 import type { RoutineResultOutgoing, RoutineResultStore } from "./routine-result-store";
 
@@ -72,7 +72,7 @@ export interface RoutineResultsShape {
   ): Effect.Effect<RoutineResultDestination | null, RoutineResultFailed>;
   deliveries(input: RoutineResultRoutineInput): Effect.Effect<RoutineResultDelivery[], RoutineResultFailed>;
   resend(input: ResendRoutineResultInput): Effect.Effect<void, RoutineResultFailed>;
-  /** At startup: a post that a stop cut off may be in its place in part. Then sweeps. */
+  /** At startup: a post that a stop cut off may be in its place in part. Then starts a sweep and returns. */
   recover(): Effect.Effect<void>;
   /** Keeps each new answer and posts each one that is due. */
   sweep(): Effect.Effect<void>;
@@ -176,8 +176,19 @@ class RoutineResults extends Context.Service<RoutineResults, RoutineResultsShape
           const result = yield* dependencies
             .post(item.destination.connectionId, item.destination.placeId, item.text)
             .pipe(
-              // A stop during the post leaves it in part: the row says so, and startup finds no `sending`.
-              Effect.onInterrupt(() => Effect.sync(() => store.end(item.runId, "uncertain", "restart"))),
+              // A stop or a defect during the post can leave it in part: the row says so, and does not stay `sending`.
+              Effect.onExit((exit) =>
+                Exit.isSuccess(exit)
+                  ? Effect.void
+                  : Effect.sync(() =>
+                      store.end(
+                        item.runId,
+                        "uncertain",
+                        Cause.hasInterruptsOnly(exit.cause) ? "restart" : "send-failed",
+                        now().toISOString(),
+                      ),
+                    ),
+              ),
             );
           const at = now();
           if ("posted" in result) {
@@ -205,26 +216,31 @@ class RoutineResults extends Context.Service<RoutineResults, RoutineResultsShape
           }
         });
 
-        /** Starts a wait for the next pending attempt, in place of the one before. */
-        const schedule = Effect.fn("RoutineResults.schedule")(function* () {
+        /**
+         * Starts a wait for the next pending attempt, in place of the one before. The new wait is set before
+         * the old one stops, so a second call during the stop replaces it too. `shortest` keeps a sweep that
+         * failed from starting again at once.
+         */
+        const schedule = Effect.fn("RoutineResults.schedule")(function* (shortest: number) {
           const previous = timer;
-          timer = null;
-          if (previous) yield* Fiber.interrupt(previous);
           const next = store.nextAttemptAt();
-          if (!next) return;
-          const delay = Math.max(0, Date.parse(next) - now().getTime());
+          const delay = next ? Math.max(shortest, Date.parse(next) - now().getTime()) : null;
           // The wait lets go of itself before it sweeps, so the sweep's own `schedule` does not stop it.
-          timer = yield* Effect.forkIn(
-            Effect.sleep(delay).pipe(
-              Effect.andThen(
-                Effect.sync(() => {
-                  timer = null;
-                }),
-              ),
-              Effect.andThen(() => sweep()),
-            ),
-            scope,
-          );
+          timer =
+            delay === null
+              ? null
+              : yield* Effect.forkIn(
+                  Effect.sleep(delay).pipe(
+                    Effect.andThen(
+                      Effect.sync(() => {
+                        timer = null;
+                      }),
+                    ),
+                    Effect.andThen(() => sweep()),
+                  ),
+                  scope,
+                );
+          if (previous) yield* Fiber.interrupt(previous);
         });
 
         const sweepOnce = Effect.fn("RoutineResults.sweepOnce")(function* () {
@@ -244,21 +260,23 @@ class RoutineResults extends Context.Service<RoutineResults, RoutineResultsShape
               return;
             }
             sweeping = true;
+            let failed = false;
             try {
               do {
                 again = false;
-                yield* lock
-                  .withPermit(sweepOnce())
-                  .pipe(
-                    Effect.catchCause((cause) =>
-                      Effect.sync(() => logger.warn("A routine result sweep failed.", { cause: String(cause) })),
-                    ),
-                  );
+                yield* lock.withPermit(sweepOnce()).pipe(
+                  Effect.catchCause((cause) =>
+                    Effect.sync(() => {
+                      failed = true;
+                      logger.warn("A routine result sweep failed.", { cause: String(cause) });
+                    }),
+                  ),
+                );
               } while (again);
             } finally {
               sweeping = false;
             }
-            yield* schedule().pipe(
+            yield* schedule(failed ? FIRST_RETRY_MS : 0).pipe(
               Effect.catchCause((cause) =>
                 Effect.sync(() => logger.warn("A routine result wait did not start.", { cause: String(cause) })),
               ),
@@ -276,7 +294,8 @@ class RoutineResults extends Context.Service<RoutineResults, RoutineResultsShape
             ),
           );
           if (touched.length > 0) dependencies.changed(touched);
-          yield* sweep();
+          // Forked: startup does not wait for the posts, and `close` stops them.
+          yield* Effect.forkIn(sweep(), scope);
         });
 
         const notice = Effect.fn("RoutineResults.notice")(function* (event: AgentEvent) {

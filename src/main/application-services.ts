@@ -1412,7 +1412,6 @@ export async function createApplicationServices({
       },
     }),
   );
-  service.on("event", (event) => Effect.runFork(routineFlowRuntime.notice(event)));
   teardown.push(TEARDOWN_ORDER.routineFlows, "the routine flows", () => Effect.runPromise(routineFlowRuntime.close()));
   // An agent routine's answer sent on to a messaging place; see `routine-results.ts`.
   const routineResultRuntime = await Effect.runPromise(
@@ -1440,7 +1439,10 @@ export async function createApplicationServices({
       },
     }),
   );
-  service.on("event", (event) => Effect.runFork(routineResultRuntime.notice(event)));
+  service.on("event", (event) => {
+    Effect.runFork(routineFlowRuntime.notice(event));
+    Effect.runFork(routineResultRuntime.notice(event));
+  });
   teardown.push(TEARDOWN_ORDER.routineResults, "the routine results", () =>
     Effect.runPromise(routineResultRuntime.close()),
   );
