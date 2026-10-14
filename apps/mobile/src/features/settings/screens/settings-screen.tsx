@@ -1,8 +1,12 @@
 import { router } from "expo-router";
 import { Typography } from "heroui-native";
+import { useState } from "react";
+import { useUniwind } from "uniwind";
 import { mobileUserName } from "@/features/auth/api/mobile-user-name";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { SettingsContent, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
+import { SettingsSwitch } from "@/features/settings/components/settings-controls";
+import { localAgentsPreference, useLocalAgentsPreference } from "@/features/settings/model/local-agents";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -10,7 +14,14 @@ import { useText } from "@/shared/lib/text";
 export function SettingsScreen() {
   const { session } = useMobileSession();
   const { t } = useText();
+  const { theme } = useUniwind();
+  const localAgents = useLocalAgentsPreference();
+  const [localAgentsError, setLocalAgentsError] = useState<string | null>(null);
   const displayName = session ? mobileUserName(session.user) : t("mobile.settings.home.profile");
+  function saveLocalAgents(enabled: boolean) {
+    setLocalAgentsError(null);
+    void localAgentsPreference.save(enabled).catch(() => setLocalAgentsError(t("mobile.settings.saveFailed")));
+  }
   return (
     <SettingsContent>
       <SettingsSection>
@@ -51,6 +62,28 @@ export function SettingsScreen() {
         <SettingsRow onPress={() => router.push("/settings/privacy")}>
           <Typography.Paragraph type="body-sm">{t("mobile.settings.privacy.title")}</Typography.Paragraph>
         </SettingsRow>
+      </SettingsSection>
+      <SettingsSection
+        footer={
+          localAgents.loadFailed
+            ? t("mobile.settings.localAgents.loadFailed")
+            : (localAgentsError ?? t("mobile.settings.localAgents.footer"))
+        }
+      >
+        <SettingsRow>
+          <SettingsSwitch
+            value={localAgents.enabled}
+            disabled={!localAgents.ready || localAgents.saving}
+            label={t("mobile.settings.localAgents.toggle")}
+            dark={theme === "dark"}
+            onValueChange={saveLocalAgents}
+          />
+        </SettingsRow>
+        {localAgents.loadFailed ? (
+          <SettingsRow disclosure={false} onPress={() => void localAgentsPreference.load().catch(() => undefined)}>
+            <Typography.Paragraph>{t("common.tryAgain")}</Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
       </SettingsSection>
       <SettingsSection title={t("mobile.settings.conversations.title")}>
         <SettingsRow onPress={() => router.push("/settings/hidden-chats")}>

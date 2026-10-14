@@ -16,6 +16,12 @@ export const messages = {
   "mobile.settings.about.privacy": "プライバシーポリシー",
   "mobile.settings.home.profile": "プロフィール",
   "mobile.settings.home.preferences": "環境設定",
+  "mobile.settings.localAgents.toggle": "ローカルエージェント",
+  "mobile.settings.localAgents.footer":
+    "連携したコンピューターのエージェントをこのデバイスに表示します。オフにしてもチャットは保存され、他のサーバーは利用できます。コンピューターで実行中の作業は続行されます。",
+  "mobile.settings.localAgents.loadFailed":
+    "この設定を読み取れませんでした。ローカルエージェントは無効のままです。他のサーバーは利用できます。もう一度お試しください。",
+  "mobile.settings.localAgents.disabled": "このデバイスではローカルエージェントが無効です。設定で有効にしてください。",
   "mobile.settings.home.about": "OpenBot について",
   "mobile.settings.home.support": "サポート",
   "mobile.settings.home.supportHint": "ヘルプとサポートログの保存",

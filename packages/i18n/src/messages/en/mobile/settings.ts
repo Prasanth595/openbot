@@ -15,6 +15,12 @@ export const messages = defineMessages("mobile.settings", {
   "mobile.settings.about.privacy": "Privacy policy",
   "mobile.settings.home.profile": "Profile",
   "mobile.settings.home.preferences": "Preferences",
+  "mobile.settings.localAgents.toggle": "Local agents",
+  "mobile.settings.localAgents.footer":
+    "Show agents from your linked computer on this device. When off, their chats stay saved and other servers remain available. Work already running on the computer continues.",
+  "mobile.settings.localAgents.loadFailed":
+    "Could not read this setting. Local agents stay disabled. Other servers are available. Try again.",
+  "mobile.settings.localAgents.disabled": "Local agents are disabled on this device. Enable them in Settings.",
   "mobile.settings.home.about": "About OpenBot",
   "mobile.settings.home.support": "Support",
   "mobile.settings.home.supportHint": "Get help and save a support log",

@@ -16,6 +16,12 @@ export const messages = {
   "mobile.settings.about.privacy": "Политика конфиденциальности",
   "mobile.settings.home.profile": "Профиль",
   "mobile.settings.home.preferences": "Параметры",
+  "mobile.settings.localAgents.toggle": "Локальные агенты",
+  "mobile.settings.localAgents.footer":
+    "Показывать на этом устройстве агентов связанного компьютера. При отключении чаты сохраняются, а другие серверы остаются доступны. Работа, уже запущенная на компьютере, продолжается.",
+  "mobile.settings.localAgents.loadFailed":
+    "Не удалось прочитать эту настройку. Локальные агенты остаются отключёнными. Другие серверы доступны. Повторите попытку.",
+  "mobile.settings.localAgents.disabled": "Локальные агенты отключены на этом устройстве. Включите их в Настройках.",
   "mobile.settings.home.about": "Об OpenBot",
   "mobile.settings.home.support": "Поддержка",
   "mobile.settings.home.supportHint": "Помощь и сохранение журнала поддержки",

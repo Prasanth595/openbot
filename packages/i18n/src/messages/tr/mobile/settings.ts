@@ -16,6 +16,12 @@ export const messages = {
   "mobile.settings.about.privacy": "Gizlilik politikası",
   "mobile.settings.home.profile": "Profil",
   "mobile.settings.home.preferences": "Tercihler",
+  "mobile.settings.localAgents.toggle": "Yerel ajanlar",
+  "mobile.settings.localAgents.footer":
+    "Bağlı bilgisayarınızdaki ajanları bu cihazda gösterir. Kapalı olduğunda sohbetleri kayıtlı kalır ve diğer sunucular kullanılabilir. Bilgisayarda zaten çalışan işler devam eder.",
+  "mobile.settings.localAgents.loadFailed":
+    "Bu ayar okunamadı. Yerel ajanlar devre dışı kalır. Diğer sunucular kullanılabilir. Tekrar deneyin.",
+  "mobile.settings.localAgents.disabled": "Yerel ajanlar bu cihazda devre dışı. Ayarlardan etkinleştirin.",
   "mobile.settings.home.about": "OpenBot Hakkında",
   "mobile.settings.home.support": "Destek",
   "mobile.settings.home.supportHint": "Yardım alın ve destek günlüğünü kaydedin",

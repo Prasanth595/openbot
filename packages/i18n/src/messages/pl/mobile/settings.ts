@@ -16,6 +16,12 @@ export const messages = {
   "mobile.settings.about.privacy": "Polityka prywatności",
   "mobile.settings.home.profile": "Profil",
   "mobile.settings.home.preferences": "Preferencje",
+  "mobile.settings.localAgents.toggle": "Lokalni agenci",
+  "mobile.settings.localAgents.footer":
+    "Pokazuj na tym urządzeniu agentów z połączonego komputera. Po wyłączeniu tej opcji czaty pozostają zapisane, a inne serwery są dostępne. Praca już uruchomiona na komputerze jest kontynuowana.",
+  "mobile.settings.localAgents.loadFailed":
+    "Nie można odczytać tego ustawienia. Lokalni agenci pozostają wyłączeni. Inne serwery są dostępne. Spróbuj ponownie.",
+  "mobile.settings.localAgents.disabled": "Lokalni agenci są wyłączeni na tym urządzeniu. Włącz ich w Ustawieniach.",
   "mobile.settings.home.about": "O OpenBot",
   "mobile.settings.home.support": "Pomoc",
   "mobile.settings.home.supportHint": "Uzyskaj pomoc i zapisz dziennik pomocy",
