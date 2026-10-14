@@ -3,7 +3,7 @@
 // then fails with the query that never matched, not with vitest's generic
 // "test timed out".
 
-/** How long a wait polls before failing with the condition that never held. */
+/** The DOM wait deadline in `setupTests.ts`. */
 const WAIT_TIMEOUT_MS = 10_000;
 
 /** Vitest's per-test budget. Strictly greater, so a wait deadline always reports first. */

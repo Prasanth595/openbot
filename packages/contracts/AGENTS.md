@@ -9,16 +9,17 @@ mock — so the cost of a change is paid by code you cannot edit.
 - Never use the application SemVer as a wire protocol version; application versions are diagnostic
   metadata only.
 - Keep a frozen codec, adapter, and client and host fixtures for each released protocol under
-  `src/team-protocol`, and one registered adapter per supported protocol. Do not serialize current
-  IPC types across the boundary.
+  `src/team-protocol`, and one registered adapter per supported protocol. The fixtures are the record
+  of each released wire format; no unit test reads them, so compare a codec change against them by
+  hand. Do not serialize current IPC types across the boundary.
 - Use capabilities for additive, optional behaviour; a missing capability disables only its own
   feature.
 - A required field, a removed field, or a semantic change needs a new protocol version. Never change
   the meaning of a released one.
 - Age, release count and SemVer distance are not reasons to remove an adapter. Removal needs a
   separate architecture decision — a security issue, data-loss risk, semantics that cannot be kept,
-  or cost an adapter cannot contain — plus a changelog entry, update instructions, both
-  update-direction tests, and clear UI text.
+  or cost an adapter cannot contain — plus a changelog entry, update instructions, an E2E check of
+  both update directions, and clear UI text.
 - Malformed known payloads fail closed as `protocol_error`. Unknown optional events are ignored.
 
 ## One channel list, two mirrors
