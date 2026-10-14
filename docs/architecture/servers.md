@@ -212,7 +212,7 @@ automatic install is a schedule with no requester.
 The sidebar header then shows an update button next to the server name. Each time the user enters a server
 that has a new version, the update dialog opens again; it stays closed on a reconnect to the same server. The dialog confirm calls `start`, which downloads and restarts in one call. The
 dialog reads the status while the update runs and follows the connection until the host is back with
-the new version. A hidden dialog keeps a notice with the live status, also after a server switch; entering the server then does not open the dialog again. A host that still waits to restart after a connection drop did not restart. All members get the `host-restart` event
+the new version. A hidden dialog keeps a notice with the live status, also after a server switch on desktop; entering the server then does not open the dialog again. The web client reads only the connected host, so it stops following the update when the user leaves that server; the header button shows the update again on return. A host that still waits to restart after a connection drop did not restart. All members get the `host-restart` event
 (`waiting`, `restarting`, `none`) from the host's event stream, and the host sends the current state
 again when a client declares the capability. Like `channelEvent`, the event skips the frozen v1-v3
 event encoders at each hop (host peer, client transport, `remote-peer.ts`, SSE stream). A client that

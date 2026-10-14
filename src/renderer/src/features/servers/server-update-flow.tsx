@@ -81,6 +81,8 @@ function offerable(status: HostUpdateStatus): boolean {
   if (status.remoteUpdates !== "allowed" || status.restart || !status.availableVersion) return false;
   return (
     status.phase === "available" ||
+    // The host checks for a new version again on a timer, and keeps the version it found.
+    status.phase === "checking" ||
     status.phase === "downloading" ||
     status.phase === "ready" ||
     (status.phase === "error" && status.errorCode === "download_failed")
@@ -225,7 +227,7 @@ function stageOf(flow: Flow): ServerUpdateStage {
 function downloadOf(flow: Flow): ServerUpdateDownload {
   const { phase, errorCode, restart } = flow.status;
   if (flow.result === "online" || flow.wentDown || flow.restarting) return "done";
-  if (phase === "checking" || phase === "downloading" || (phase === "available" && restart)) return "running";
+  if (phase === "downloading" || ((phase === "checking" || phase === "available") && restart)) return "running";
   if (phase === "ready" || phase === "installing") return "done";
   return phase === "error" && errorCode === "download_failed" ? "failed" : "pending";
 }
