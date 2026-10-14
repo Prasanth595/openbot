@@ -92,7 +92,8 @@ mkdir openbot-data && sudo chown 1000:1000 openbot-data
 ```
 
 The data has your account session, your provider sign-ins and your conversations. Protect it as you
-protect a home folder. To back it up, stop the container and copy the volume.
+protect a home folder. To back it up, stop the container and copy the volume. An instance of
+`docker/instances` has commands for this, see [Backups](#backups).
 
 ## Commands
 
@@ -210,6 +211,92 @@ requests to `/etc/fstab` and enable the path unit of the instance. An instance w
 its env file keeps that tag and offers no update in the app. An instance made before this release gets them with `setup`, then
 `openbot-instance upgrade <name>` once. A container started with `docker/compose.yaml` or
 `docker run` has no request folders, so it offers no update in the app.
+
+### Backups
+
+`openbot-instance backup <name>` copies all of `/data` of an instance into one archive: the
+conversations, attachments, agents, routines, memories, skills, workspaces, `Shared` with the shared
+tables, both databases, the provider sign-ins and the keyring with its password. A restore of this
+archive gives back the same instance, with the same agent, conversation and memory IDs. It is not a
+[transfer](architecture/agents.md#instance-transfer), which adds agents with new IDs to another server.
+
+Set the folder of the backups in `instances/<name>.env`, then run the first backup as root:
+
+```sh
+echo OPENBOT_BACKUP_DIR=/var/backups/openbot >>/opt/openbot-docker/instances/main.env
+/opt/openbot-docker/instances/openbot-instance backup main --verify
+```
+
+| Setting | Use |
+| --- | --- |
+| `OPENBOT_BACKUP_DIR` | The folder of the backups. Each instance has the folder `<name>` in it. It must not be in the data of an instance, because a backup has the keys of the instance. Use another disk, or copy the folder to another computer. |
+| `OPENBOT_BACKUP_KEEP` | The number of complete backups to keep. The default is 7. An older backup is deleted only after a new one is complete. |
+| `OPENBOT_BACKUP_MAX_AGE` | Hours. When the newest complete backup is older, `backups` shows it as overdue and exits with 1. |
+| `OPENBOT_BACKUP_WORK` | The folder where `verify` unpacks a backup. The default is `/var/tmp`. It needs free space for the data, and the user of the data must be able to reach it. |
+
+A backup stops the container, waits until OpenBot closes its databases, writes the archive and starts
+the container again. The instance is offline while the archive is written. The output and the status
+show how long. A running turn stops, as on a restart. Each backup is a folder `<UTC time>` with:
+
+| File | Contents |
+| --- | --- |
+| `data.tar.zst` | `/data` without `lost+found`. With `gzip` (`data.tar.gz`) when the host has no `zstd`. |
+| `manifest.json` | The OpenBot version and image, the size, the checksum of the archive, the folders in `/data`, the stop and the time offline. |
+| `required.sha256` | The checksums of `openbot.db`, the keyring, its password and `agent-data.db`. |
+| `instance.env` | A copy of the env file of the instance. |
+| `SHA256SUMS` | The checksums of the other files. |
+| `verified.json` | The result of the last verification, when there is one. |
+
+The backup writes to `<UTC time>.partial` and renames the folder only when all files are written. A
+backup fails, and keeps the earlier backups, when a file cannot be read, the folder has less free space
+than the data uses, the copy stops, or the database or the keyring is missing.
+
+`openbot-instance verify <name> [<backup>]` checks the newest backup or the one given. It needs
+`sqlite3` 3.37 or later on the host. It compares the checksums, unpacks the archive into a temporary
+folder in `OPENBOT_BACKUP_WORK`, and checks that the database, the keyring and its password are there and
+are the files that were copied. It runs `PRAGMA integrity_check` on both databases, reads the schema
+version, counts agents, threads, messages, memories and shared tables, and finds shared tables whose
+owner is not an agent of the backup. Nothing in the folder runs: no routine starts and no message goes
+out. Root does not unpack the archive or open a database, because agents can change every file in
+`/data`. The user of the data does that, and `sqlite3` runs in `-safe` mode. Thus that user (UID 1000
+without user namespace remapping) can read the temporary folder until verification deletes it.
+Verification does not check each attachment file.
+
+`openbot-instance backups <name>` shows the backups and the last backup and verification, with the
+error when one failed. `--json` gives the same for a monitor. It exits with 1 when the last backup or
+verification failed or the newest backup is overdue. Root keeps the state in
+`/srv/openbot/<name>/backup-status`.
+
+A daily backup at 04:00, with a verification after it:
+
+```sh
+systemctl enable --now openbot-instance-backup@main.timer
+systemctl edit openbot-instance-backup@main.timer   # another time: OnCalendar= under [Timer]
+```
+
+The timer runs outside the container, so it also backs up an instance that does not work. `setup`
+installs the units. A backup and an update of the same instance never run at the same time.
+
+To restore, the instance must exist. For a new host, `create` it with the same name first.
+
+```sh
+openbot-instance restore main 20261014T040000Z --replace
+openbot-instance up main
+```
+
+`restore` checks the checksums, stops the container and unpacks the backup next to the data. Only
+when the archive is unpacked does it replace `/data`. When the instance has data, `restore` needs
+`--replace`, which deletes that data, so back it up first. `restore` does not start the instance:
+
+- Start it only when the instance of the backup does not run anywhere else. Two copies would use the
+  same server identity and the same account session.
+- `restore` refuses a backup from a newer OpenBot than the image of the instance. Pull a newer image
+  first. An older OpenBot cannot open a database that a newer one migrated. Do not use a backup to go
+  back to an older version.
+- A newer OpenBot migrates the database on its first start. Back up the restored data again before you
+  upgrade when you want to keep the version that the backup had.
+- The provider sign-ins are in the backup. A provider can still ask for a new sign-in when its session
+  expired. The account session is in the backup too.
 
 ## Upgrades
 
