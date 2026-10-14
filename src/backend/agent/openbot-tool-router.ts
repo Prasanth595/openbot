@@ -834,7 +834,7 @@ export class OpenBotToolRouter {
       messageId: string;
       file: { bytes: Uint8Array; name: string; mimeType: string };
       text: string;
-      itemType: ConversationMessage["itemType"];
+      itemType: string;
       eventType: string;
       detail: (attachmentId: string) => Record<string, string | number>;
     },
