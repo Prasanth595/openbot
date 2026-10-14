@@ -44,6 +44,11 @@ export interface OnePasswordConnectorPanelProps {
   onConnectWithToken: (token: string) => void;
   onCancel: () => void;
   onDisconnect: () => void;
+  /**
+   * The joined server whose connection this is, or undefined for this computer's. A server connects
+   * with a service account token only, so the page shows no setup steps.
+   */
+  hostName?: string | undefined;
 }
 
 /** The status of the connection, as its page header and every list of connectors show it. */
@@ -74,7 +79,8 @@ function setupSteps(setup: OnePasswordSetup): { cli: StepState; app: StepState; 
  * Before a connection the page is three steps, each with the one button it needs: install the CLI,
  * turn on its integration in the 1Password app, and create the shared vault. The page checks the
  * setup while it shows and when the window gets the focus back, so a step done in the 1Password app
- * is ticked without a click. A user without the CLI pastes a service account token instead.
+ * is ticked without a click. A user without the CLI pastes a service account token instead. A joined
+ * server has only the token form.
  */
 export function OnePasswordConnectorPanel(props: OnePasswordConnectorPanelProps) {
   const { t, sourceText } = useText();
@@ -98,7 +104,11 @@ export function OnePasswordConnectorPanel(props: OnePasswordConnectorPanelProps)
         name={t("connector.onePassword.title")}
         status={header().status}
         statusLabel={t(header().label)}
-        subtitle={t("connector.onePassword.description")}
+        subtitle={
+          props.hostName
+            ? t("connector.onePassword.descriptionHost", { host: props.hostName })
+            : t("connector.onePassword.description")
+        }
       />
 
       <Show when={props.status.error}>
@@ -115,7 +125,15 @@ export function OnePasswordConnectorPanel(props: OnePasswordConnectorPanelProps)
         )}
       </Show>
 
-      <Show when={props.status.state !== "connected"}>
+      <Show when={props.status.state !== "connected" && props.hostName}>
+        {(host) => (
+          <Text variant="body-sm" tone="muted">
+            {t("connector.onePassword.howItWorksHost", { host: host() })}
+          </Text>
+        )}
+      </Show>
+
+      <Show when={props.status.state !== "connected" && !props.hostName}>
         <Text variant="body-sm" tone="muted">
           {t("connector.onePassword.howItWorks")}
         </Text>
@@ -204,7 +222,7 @@ export function OnePasswordConnectorPanel(props: OnePasswordConnectorPanelProps)
 
       <Show when={props.status.state === "disconnected"}>
         <Show
-          when={tokenOpen()}
+          when={tokenOpen() || props.hostName}
           fallback={
             <Button
               type="button"
@@ -298,7 +316,11 @@ export function OnePasswordConnectorPanel(props: OnePasswordConnectorPanelProps)
         </SettingsSection>
         <DangerZone
           title={t("connector.onePassword.disconnectTitle")}
-          description={t("connector.onePassword.disconnectSummary")}
+          description={
+            props.hostName
+              ? t("connector.onePassword.disconnectSummaryHost", { host: props.hostName })
+              : t("connector.onePassword.disconnectSummary")
+          }
           action={t("connector.onePassword.disconnect")}
           busy={props.busy}
           confirm

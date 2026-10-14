@@ -44,6 +44,7 @@ import {
   decodeHostGitHubConnectorRepositories,
   decodeHostGitHubConnectorStatus,
   decodeHostMessagingOverview,
+  decodeHostOnePasswordConnectorStatus,
   decodeHostProviderAccounts,
   decodeHostProviderAccountUsage,
   decodeHostReleaseStatus,
@@ -90,6 +91,8 @@ import {
   type McpSignInStatus,
   type McpTestResult,
   type MessagingOverview,
+  type OnePasswordConnectorStatus,
+  type OnePasswordHostConnectInput,
   type ProviderCodeLoginStart,
   type ProviderHostSignInStatus,
   type ProviderRuntimeSnapshot,
@@ -144,6 +147,7 @@ import { HOSTED_SITES_ROUTES } from "@openbot/contracts/team-protocol/hosted-sit
 import { MCP_SIGN_IN_APP_ROUTES } from "@openbot/contracts/team-protocol/mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/mcp-sign-in-v1";
 import { MCP_ROUTES } from "@openbot/contracts/team-protocol/mcp-v1";
+import { ONEPASSWORD_CONNECTOR_ROUTES } from "@openbot/contracts/team-protocol/onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_ROUTES } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_ROUTES } from "@openbot/contracts/team-protocol/provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/providers-v1";
@@ -919,6 +923,20 @@ export function githubConnectorRepositories(
 ): Effect.Effect<GitHubConnectorRepositories, TeamAdminRequestError> {
   return adminCall(() =>
     request("POST", CONNECTORS_ROUTES.githubRepositories, decodeHostGitHubConnectorRepositories, {}),
+  );
+}
+
+/**
+ * The host's 1Password connection (`onepassword-connector-v1`): read it, connect with a service
+ * account token, or disconnect. No answer carries the token.
+ */
+export function onePasswordConnectorRequest(
+  request: TeamApiRequest,
+  route: keyof typeof ONEPASSWORD_CONNECTOR_ROUTES,
+  body: OnePasswordHostConnectInput | Record<string, never> = {},
+): Effect.Effect<OnePasswordConnectorStatus, TeamAdminRequestError> {
+  return adminCall(() =>
+    request("POST", ONEPASSWORD_CONNECTOR_ROUTES[route], decodeHostOnePasswordConnectorStatus, { ...body }),
   );
 }
 

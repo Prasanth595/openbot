@@ -286,7 +286,11 @@ import type {
   TelegramOverview,
 } from "./ipc-messaging";
 import type { NotificationOpenedEvent, NotificationPreference } from "./ipc-notifications";
-import type { OnePasswordConnectInput, OnePasswordConnectorStatus } from "./ipc-onepassword-connector";
+import type {
+  OnePasswordConnectInput,
+  OnePasswordConnectorStatus,
+  OnePasswordHostConnectInput,
+} from "./ipc-onepassword-connector";
 import type {
   DetectedModelServer,
   DiscoverModelsInput,
@@ -321,6 +325,14 @@ import type {
   SaveRoutineFlowPositionInput,
   UpdateRoutineFlowLinkInput,
 } from "./ipc-routine-flows";
+import type {
+  ResendRoutineResultInput,
+  RoutineResultConnectionOption,
+  RoutineResultDelivery,
+  RoutineResultDestination,
+  RoutineResultRoutineInput,
+  SetRoutineResultDestinationInput,
+} from "./ipc-routine-results";
 import type {
   CreateRoutineInput,
   DeleteRoutineInput,
@@ -867,8 +879,9 @@ export const IPC_ENDPOINTS = {
     disconnect: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:disconnect"),
     changed: event<BitwardenConnectorStatus>()("bitwarden-connector:changed"),
   },
-  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
-  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
+  // The 1Password connection of this computer. The token goes from the renderer to main once, in
+  // `connectWithToken`; every answer is the status only. The `host*` endpoints do the same for a
+  // joined server (`onepassword-connector-v1`), with a token only: the host has no 1Password app.
   onePasswordConnector: {
     status: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:status"),
     // Looks again for the CLI and the 1Password app's CLI integration, for a page that opens or regains focus.
@@ -882,6 +895,11 @@ export const IPC_ENDPOINTS = {
     cancel: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:cancel"),
     disconnect: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:disconnect"),
     changed: event<OnePasswordConnectorStatus>()("onepassword-connector:changed"),
+    hostStatus: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-status"),
+    hostConnectWithToken: scopedRequest<OnePasswordHostConnectInput, OnePasswordConnectorStatus, "required">()(
+      "onepassword-connector:host-connect-with-token",
+    ),
+    hostDisconnect: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-disconnect"),
   },
   hostedSites: {
     // The sites of one server. A joined server answers through `hosted-sites-v1`.
@@ -1105,6 +1123,20 @@ export const IPC_ENDPOINTS = {
     connect: scopedRequest<ConnectRoutineFlowInput, RoutineFlowLink>()("routine-flows:connect"),
     disconnect: scopedRequest<DisconnectRoutineFlowInput, void>()("routine-flows:disconnect"),
     updateLink: scopedRequest<UpdateRoutineFlowLinkInput, RoutineFlowLink>()("routine-flows:update-link"),
+  },
+  /**
+   * Routine results: an agent routine's answer sent on to a messaging place. Only this computer's host
+   * keeps a destination, so the group has no remote route. The agent event `routines-changed` says
+   * when a destination or a delivery changed.
+   */
+  routineResults: {
+    options: request<undefined, RoutineResultConnectionOption[]>()("routine-results:options"),
+    destination: request<RoutineResultRoutineInput, RoutineResultDestination | null>()("routine-results:destination"),
+    setDestination: request<SetRoutineResultDestinationInput, RoutineResultDestination | null>()(
+      "routine-results:set-destination",
+    ),
+    deliveries: request<RoutineResultRoutineInput, RoutineResultDelivery[]>()("routine-results:deliveries"),
+    resend: request<ResendRoutineResultInput, void>()("routine-results:resend"),
   },
   agentAttachments: {
     chooseAttachments: scopedRequest<ChooseAttachmentsInput, DraftAttachment[]>()("agent:choose-attachments"),
@@ -1373,6 +1405,7 @@ export const IPC_GROUP_PATHS = {
   hostedSites: "hostedSites",
   routineFeed: "routineFeed",
   routineFlows: "routineFlows",
+  routineResults: "routineResults",
   billing: "billing",
   hostedServers: "hostedServers",
   marketplaceAgents: "marketplaceAgents",

@@ -4,15 +4,19 @@ import { type ConnectorController, createConnectorActions, NO_WATCH } from "./co
 import { type OnePasswordConnectorPort, onePasswordConnectorPort } from "./onepassword-connector-port";
 
 /**
- * The 1Password connection of this computer. Reads the status once and then follows main's
- * `changed` event: the CLI waits for an approval in the 1Password app, and the login count arrives
- * after the vault is read. Call it inside a component: the subscription ends with that component.
+ * The 1Password connection of this computer or of a joined server. Reads the status once and then
+ * follows the port's `changed` event: the CLI waits for an approval in the 1Password app, and the
+ * login count arrives after the vault is read. Call it inside a component: the subscription ends with
+ * that component.
  *
  * Cancel does not wait for another action: Connect waits for the CLI, and Cancel is the way out.
- * The page asks for the setup first, so a card has no one-click connect.
+ * The page asks for the setup first, so a card has no one-click connect. A joined server connects
+ * with a token only; its check reads the host's status, and the host reads its logins again.
  */
 export function createOnePasswordConnector(
   port: () => OnePasswordConnectorPort = onePasswordConnectorPort,
+  /** The joined server whose connection this is, or undefined for this computer's. */
+  hostName?: () => string | undefined,
 ): ConnectorController {
   const [status, setStatus] = createSignal<OnePasswordConnectorStatus>(DISCONNECTED_ONEPASSWORD_CONNECTOR);
   const actions = createConnectorActions("connector.onePassword.actionFailed");
@@ -60,7 +64,10 @@ export function createOnePasswordConnector(
         get busy() {
           return actions.busy();
         },
-        // The user turns on the CLI integration in the 1Password app, outside this window.
+        get hostName() {
+          return hostName?.();
+        },
+        // The user turns on the CLI integration or adds logins in the 1Password app, outside this window.
         onWatchSetup: () => {
           checkSetup();
           window.addEventListener("focus", checkSetup);

@@ -131,6 +131,7 @@ import { createMockProviderRuntimes, type MockProviderRuntimeOptions } from "./m
 import { mockRoutineCalendar } from "./mock-routine-calendar";
 import { createMockRoutineFeed } from "./mock-routine-feed";
 import { mockRoutineFlows } from "./mock-routine-flows";
+import { type MockRoutineResultsOptions, mockRoutineResults } from "./mock-routine-results";
 import { applySidebarLayoutAction } from "./mock-sidebar-layout";
 import { createMockSkills, type MockSkillsOptions } from "./mock-skills";
 import { createMockStorage } from "./mock-storage";
@@ -145,7 +146,8 @@ export interface MockOpenBotOptions
     MockBrowserOptions,
     MockTeamOptions,
     MockSkillsOptions,
-    MockHostUpdateOptions {
+    MockHostUpdateOptions,
+    MockRoutineResultsOptions {
   appInfo?: AppInfo;
   analyticsPreference?: AnalyticsPreference;
   languagePreference?: AppLanguagePreference;
@@ -789,6 +791,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     routineFlows: mockRoutineFlows(
       { routines, routineRuns, links: options.routineFlowLinks, steps: options.routineFlowSteps },
       (agentId) => emitAgentEvent({ type: "routine-flows-changed", agentId }),
+    ),
+    routineResults: mockRoutineResults(routines, options, (agentId) =>
+      emitAgentEvent({ type: "routines-changed", agentId }),
     ),
     auth: mockAuth.auth,
     skills: mockSkills.skills,

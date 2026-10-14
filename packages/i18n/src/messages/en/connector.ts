@@ -363,6 +363,13 @@ export const messages = defineMessages("connector", {
   "connector.onePassword.statusConnected": "Connected",
   "connector.onePassword.statusConnecting": "Connecting",
   "connector.onePassword.statusNotSetUp": "Not set up",
+  // The same page for the connection of a joined server. {host} is the server name, such as Studio.
+  "connector.onePassword.descriptionHost":
+    "Share a dedicated 1Password vault with OpenBot on {host} through a service account, so agents on {host} can sign in to sites in its browser.",
+  "connector.onePassword.howItWorksHost":
+    "{host} connects with a service account token. On 1Password.com, create a service account that can read only the vault you share with OpenBot, then paste its token here. {host} checks the token and keeps it; this computer does not. Agents never see a password.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} forgets the token. The vault and the service account stay in 1Password; remove them there if you no longer need them.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Fill browser logins from Bitwarden.",
   "connector.bitwarden.setup":

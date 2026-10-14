@@ -137,6 +137,7 @@ import { webHostMessaging } from "./web-messaging-connector";
 import { createWebServerNotifications } from "./web-notification-preferences";
 import { createWebNotificationRouting } from "./web-notification-routing";
 import { requestWebNotificationPermission } from "./web-notifications";
+import { webOnePasswordConnectorPort } from "./web-onepassword-connector";
 import { createWebProviderSettings, openWebDestination } from "./web-provider-admin";
 import { webRoutineFlowsHost } from "./web-routine-flows";
 import { createWebServerSettings } from "./web-server-settings";
@@ -625,6 +626,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   // The host's connectors, for an owner or admin. The web client has no computer of its own.
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
+  const onePasswordPort = webOnePasswordConnectorPort(() => hostRequest());
   const webMessaging = webHostMessaging(hostRequest);
   onCleanup(webMessaging.dispose);
   const connectors = createConnectorRegistry(server, {
@@ -632,6 +634,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     server: createConnectorSet(
       {
         github: () => githubPort,
+        onePassword: () => onePasswordPort,
         messaging: hostMessagingApi(
           () => connectorTarget()?.id,
           () => webMessaging.api,

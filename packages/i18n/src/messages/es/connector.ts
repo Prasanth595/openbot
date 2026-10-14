@@ -345,6 +345,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "Conectado",
   "connector.onePassword.statusConnecting": "Conectando",
   "connector.onePassword.statusNotSetUp": "Sin configurar",
+  "connector.onePassword.descriptionHost":
+    "Comparte una bóveda dedicada de 1Password con OpenBot en {host} mediante una cuenta de servicio, para que los agentes de {host} puedan iniciar sesión en sitios desde su navegador.",
+  "connector.onePassword.howItWorksHost":
+    "{host} se conecta con un token de cuenta de servicio. En 1Password.com, crea una cuenta de servicio que solo pueda leer la bóveda que compartes con OpenBot y pega aquí su token. {host} comprueba el token y lo guarda; este ordenador no. Los agentes nunca ven una contraseña.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} olvida el token. La bóveda y la cuenta de servicio permanecen en 1Password; elimínalas allí si ya no las necesitas.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Rellena los inicios de sesión del navegador desde Bitwarden.",
   "connector.bitwarden.setup":

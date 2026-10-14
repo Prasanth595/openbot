@@ -361,6 +361,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "Połączono",
   "connector.onePassword.statusConnecting": "Łączenie",
   "connector.onePassword.statusNotSetUp": "Nieskonfigurowany",
+  "connector.onePassword.descriptionHost":
+    "Udostępnij OpenBot na {host} osobny sejf 1Password przez konto usługi, aby agenci na {host} mogli logować się na strony w jego przeglądarce.",
+  "connector.onePassword.howItWorksHost":
+    "{host} łączy się tokenem konta usługi. Na 1Password.com utwórz konto usługi, które może odczytywać tylko sejf udostępniany OpenBot, a potem wklej tutaj jego token. {host} sprawdza token i go przechowuje; ten komputer go nie przechowuje. Agenci nigdy nie widzą hasła.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} zapomina token. Sejf i konto usługi zostają w 1Password; usuń je tam, jeśli już ich nie potrzebujesz.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Wypełniaj loginy w przeglądarce z Bitwarden.",
   "connector.bitwarden.setup":

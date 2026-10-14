@@ -36,6 +36,7 @@ import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_APP_CAPABILITY } from "./mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_CAPABILITY } from "./mcp-sign-in-v1";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "./message-client-id-v1";
+import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "./onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "./provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_CAPABILITY } from "./provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "./providers-v1";
@@ -100,6 +101,7 @@ export {
   MCP_SERVERS_CAPABILITY,
   MCP_SIGN_IN_APP_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
+  ONEPASSWORD_CONNECTOR_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
   PROVIDERS_ADMIN_CAPABILITY,
@@ -193,6 +195,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   TEAM_HISTORY_EXTENT_CAPABILITY,
   PUSH_NOTIFICATIONS_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
+  ONEPASSWORD_CONNECTOR_CAPABILITY,
   HOST_TIMEZONE_CAPABILITY,
 ] as const;
 
@@ -276,6 +279,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
     capability !== PUSH_NOTIFICATIONS_CAPABILITY &&
     capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
+    capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
+    capability !== HOST_TIMEZONE_CAPABILITY &&
     capability !== INSTANCE_TRANSFER_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
@@ -300,6 +305,8 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
       capability !== PUSH_NOTIFICATIONS_CAPABILITY &&
       capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
+      capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
+      capability !== HOST_TIMEZONE_CAPABILITY &&
       capability !== INSTANCE_TRANSFER_CAPABILITY,
   );
 }

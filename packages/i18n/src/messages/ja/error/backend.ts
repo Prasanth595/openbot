@@ -81,6 +81,9 @@ export const messages = {
   "error.backend.memoryOperationFailed": "メモリーの操作に失敗しました。もう一度お試しください。",
   "error.backend.memoryGone": "このメモリーはもう存在しません。",
   "error.backend.routineGone": "このルーティンはもう存在しません。",
+  "error.backend.routineResultConnectionOff":
+    "このメッセージ接続はオフか削除されています。別の送信先を選んでください。",
+  "error.backend.routineResultNoDelivery": "この実行には再送信できる回答がありません。",
   "error.backend.channelMemoryLimit": "1 つのチャンネルに置けるメモリーは {limit} 個までです。",
   "error.backend.channelRoutineLimit": "1 つのチャンネルに置けるルーティンは {limit} 個までです。",
   "error.backend.agentRoutineLimit": "1 つのエージェントに置けるルーティンは {limit} 個までです。",
