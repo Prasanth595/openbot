@@ -119,6 +119,8 @@ interface ManagedViewSession {
    * key typed after it must not land first.
    */
   input: Semaphore.Semaphore;
+  /** One socket at a time starts or replaces the view. A view that stops ends the page's screencast. */
+  views: Semaphore.Semaphore;
   /** The client draws the pointer itself and asked for the page's cursor. */
   reportCursor: boolean;
   /** The client shows the menu of its own right-clicks. */
@@ -157,6 +159,7 @@ export class BrowserViewGateway {
       frameSizes: new Map(),
       rememberFrames: false,
       input: Semaphore.makeUnsafe(1),
+      views: Semaphore.makeUnsafe(1),
       reportCursor: false,
       reportContextMenu: false,
       viewport: null,
@@ -268,10 +271,6 @@ export class BrowserViewGateway {
   ): Effect.fn.Return<void, RemoteWorkflowError, BrowserViewPort> {
     if (session.socket) session.socket.close(1000, "The browser view moved to a new connection.");
     session.socket = client;
-    // The old socket's close no longer detaches this session, so its lease is released here. A start
-    // that is still pending sees the new socket and releases its own lease when it completes.
-    const previousView = session.stopView;
-    session.stopView = null;
     recordRestartActivity();
     client.on("message", (data, binary) => {
       if (binary || session.socket !== client) return;
@@ -279,8 +278,13 @@ export class BrowserViewGateway {
     });
     client.once("close", () => this.#dispatch(this.#detach(session, client)));
     client.once("error", () => this.#dispatch(this.#detach(session, client)));
-    if (previousView) yield* previousView().pipe(Effect.catch(() => Effect.void));
     return yield* Effect.gen({ self: this }, function* () {
+      // The old socket's close no longer detaches this session, so its view stops here. Stopping a
+      // view stops the page's screencast, so it must end before the next view starts.
+      const previousView = session.stopView;
+      session.stopView = null;
+      if (previousView) yield* previousView();
+      if (session.socket !== client) return;
       const browser = yield* BrowserViewPort;
       const stopView = yield* browser.start(
         session.tabId,
@@ -321,6 +325,7 @@ export class BrowserViewGateway {
           yield* this.#detach(session, client);
         }),
       ),
+      session.views.withPermits(1),
     );
   });
 
