@@ -591,6 +591,7 @@ async function createMessagingServices({
       telegramDriver({ ingress: signalIngress }),
     ],
     downloadsRoot: join(app.getPath("userData"), "messaging-downloads"),
+    statusPath: join(app.getPath("userData"), "openbot-messaging-status-v1.json"),
     ingress: signalIngress,
     sidebar: sidebarLayout,
     slackApp: {

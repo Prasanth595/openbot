@@ -18,6 +18,8 @@ import type { ThreadLifecycle } from "./thread-lifecycle";
 export interface BootRecoveryHooks {
   executionThreads?(): Array<{ id: string; threadId: string }>;
   deliveryThreadId?(deliveryId: string): string | null;
+  /** Tells the external conversation of a delivery that the recovery settled it. */
+  deliverySettled?(deliveryId: string, terminal: "completed" | "failed" | "interrupted"): void;
   /**
    * Whether this routine delivery can have ended quiet: a scheduled run, or a run of a deleted
    * routine, whose record is gone. A Test, script or webhook run cannot.
@@ -237,6 +239,7 @@ export class BootRecovery {
           this.#conversation.publishConversation(snapshot);
         }
         this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+        this.#hooks.deliverySettled?.(delivery.id, terminal);
       });
     }
   });

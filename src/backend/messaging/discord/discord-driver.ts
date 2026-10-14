@@ -379,38 +379,44 @@ class DiscordAdapter implements MessagingAdapter {
     if (cached) return yield* Deferred.await(cached);
     const name = Deferred.makeUnsafe<string>();
     this.#names.set(userId, name);
-    const result = yield* this.#call({ op: "member", guildId: this.#guildId, userId }, decodeDiscordName).pipe(
-      Effect.catch(() =>
-        Effect.sync(() => {
-          this.#names.delete(userId);
-          return userId;
-        }),
+    // Detached, so a caller with a deadline stops waiting at it. The lookup still completes the cache
+    // entry, which a later caller then reads.
+    yield* Effect.forkDetach(
+      this.#call({ op: "member", guildId: this.#guildId, userId }, decodeDiscordName).pipe(
+        Effect.catch(() =>
+          Effect.sync(() => {
+            this.#names.delete(userId);
+            return userId;
+          }),
+        ),
+        Effect.flatMap((result) => Deferred.succeed(name, result)),
+        Effect.uninterruptible,
       ),
     );
-    yield* Deferred.succeed(name, result);
-    return result;
-  }, Effect.uninterruptible);
+    return yield* Deferred.await(name);
+  });
 
   readonly placeName = Effect.fnUntraced(function* (this: DiscordAdapter, platformChannelId: string) {
     const cached = this.#places.get(platformChannelId);
     if (cached) return yield* Deferred.await(cached);
     const name = Deferred.makeUnsafe<string>();
     this.#places.set(platformChannelId, name);
-    const result = yield* this.#call(
-      { op: "channel", guildId: this.#guildId, channelId: platformChannelId },
-      decodeDiscordName,
-    ).pipe(
-      Effect.map((channel) => `#${channel}`),
-      Effect.catch(() =>
-        Effect.sync(() => {
-          this.#places.delete(platformChannelId);
-          return platformChannelId;
-        }),
+    // Detached for the same reason as `authorName`.
+    yield* Effect.forkDetach(
+      this.#call({ op: "channel", guildId: this.#guildId, channelId: platformChannelId }, decodeDiscordName).pipe(
+        Effect.map((channel) => `#${channel}`),
+        Effect.catch(() =>
+          Effect.sync(() => {
+            this.#places.delete(platformChannelId);
+            return platformChannelId;
+          }),
+        ),
+        Effect.flatMap((result) => Deferred.succeed(name, result)),
+        Effect.uninterruptible,
       ),
     );
-    yield* Deferred.succeed(name, result);
-    return result;
-  }, Effect.uninterruptible);
+    return yield* Deferred.await(name);
+  });
 
   /** A Signal that predates `listChannels` refuses it as an invalid request. */
   places(): Effect.Effect<MessagingPlace[], MessagingAdapterError> {

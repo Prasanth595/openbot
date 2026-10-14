@@ -23,7 +23,7 @@ export const mentionNames = Effect.fnUntraced(function* (
 ) {
   const distinct = [...new Set(ids)].slice(0, NAME_LOOKUPS);
   if (distinct.length === 0) return new Map<string, string>();
-  // Detached: `nameOf` is uninterruptible, and the deadline must not wait for it.
+  // Detached: a lookup can take long, and the deadline must not wait for it.
   const lookups = yield* Effect.forkDetach(
     Effect.forEach(
       distinct,

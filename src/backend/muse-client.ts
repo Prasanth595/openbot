@@ -610,9 +610,11 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
       },
       id,
     ).pipe(
+      // `turn/started` is already out, so the turn must end too: without `turn/completed` the agent
+      // keeps it as its running turn and holds every later message.
       Effect.onError(() =>
         Effect.sync(() => {
-          thread.turn = null;
+          if (thread.turn?.id === id) this.#finish(thread, "failed");
         }),
       ),
     );

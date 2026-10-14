@@ -86,6 +86,9 @@ interface PendingApproval {
 type ToolApprovalDecision = "accept" | "decline" | "cancel";
 
 const TOOL_APPROVAL_METHOD = "openbot/tool-approval";
+/** The agent reads this, not the user: it says how to ask in a Slack, Discord or Telegram turn. */
+const MESSAGING_QUESTION_REFUSED =
+  "This conversation is in Slack, Discord or Telegram, where nobody can answer a question card. Ask the question in your answer: the person replies in the conversation.";
 
 interface PendingBrowserTakeover {
   client: AgentClient;
@@ -148,6 +151,12 @@ export interface AttentionRegistryOptions {
    * the limit the user chose, so Auto approve and Turbo do not answer it.
    */
   workspaceSandboxed?(agentId: string): boolean;
+  /**
+   * Whether this thread answers a Slack, Discord or Telegram conversation. Nobody there can answer a
+   * question card, and the turn would wait for one with no limit while every other conversation of
+   * the agent waits behind it.
+   */
+  messagingThread?(threadId: string): boolean;
   emit(event: AgentEvent): void;
   emitError(code: string, error: unknown, agentId?: string): void;
   emitRuntimeSnapshot(): void;
@@ -186,6 +195,7 @@ export class AttentionRegistry {
   readonly #routines: RoutineAttention;
   readonly #approvalAutomation: ApprovalAutomationPolicy;
   readonly #workspaceSandboxed: (agentId: string) => boolean;
+  readonly #messagingThread: (threadId: string) => boolean;
   readonly #emit: (event: AgentEvent) => void;
   readonly #emitError: (code: string, error: unknown, agentId?: string) => void;
   readonly #emitRuntimeSnapshot: () => void;
@@ -201,6 +211,7 @@ export class AttentionRegistry {
     this.#routines = options.routines;
     this.#approvalAutomation = options.approvalAutomation ?? NO_APPROVAL_AUTOMATION;
     this.#workspaceSandboxed = options.workspaceSandboxed ?? (() => false);
+    this.#messagingThread = options.messagingThread ?? (() => false);
     this.#emit = options.emit;
     this.#emitError = options.emitError;
     this.#emitRuntimeSnapshot = options.emitRuntimeSnapshot;
@@ -735,6 +746,13 @@ export class AttentionRegistry {
       });
       return;
     }
+    if (this.#messagingThread(publicThreadId)) {
+      client.respond(request.id, {
+        success: false,
+        contentItems: [{ type: "inputText", text: MESSAGING_QUESTION_REFUSED }],
+      });
+      return;
+    }
 
     const messageId = this.#persistQuestionPrompt(agentId, publicThreadId, turnId, request.id, questions);
     this.#prompts.set(request.id, {
@@ -774,6 +792,11 @@ export class AttentionRegistry {
       return;
     }
     const publicThreadId = this.#conversation.publicThreadId(agentId, threadId);
+    // No answers is what the provider gets for a question that nobody answered.
+    if (this.#messagingThread(publicThreadId)) {
+      client.respond(request.id, { answers: {} });
+      return;
+    }
     const messageId = this.#persistQuestionPrompt(agentId, publicThreadId, turnId, request.id, questions);
     this.#prompts.set(request.id, {
       client,
@@ -810,6 +833,10 @@ export class AttentionRegistry {
         "A local plugin requested an unsupported security hand-off, so OpenBot declined it.",
         agentId,
       );
+      return;
+    }
+    if (this.#messagingThread(publicThreadId)) {
+      client.respond(request.id, { action: "cancel", content: null, _meta: null });
       return;
     }
 

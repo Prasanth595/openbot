@@ -35,6 +35,9 @@ import { codexSandboxPolicy, workspaceWritableRoots } from "./workspace-sandbox"
 export const REMOVED_ENDPOINT_MESSAGE = sourceText("error.agent.endpointRemoved");
 
 const logger = createOpenBotLogger("drain-scheduler");
+const CHANNEL_START_FAILED = "The provider could not start this assignment. Resume to try again.";
+/** How long messages wait for their turn after the provider did not confirm `turn/start` in time. */
+const TURN_START_GRACE_MS = 5 * 60_000;
 
 export interface DrainHooks {
   emitError(code: string, error: unknown, agentId?: string): void;
@@ -59,6 +62,8 @@ export interface DrainHooks {
    * again when it ends. Each path that starts a queue comes here, so no message runs on the wrong model.
    */
   followUsageLimit(agentId: string): boolean;
+  /** Whether this turn already ended. A provider can end a turn before its `turn/start` answer is read. */
+  turnEnded(turnId: string): boolean;
 }
 
 export interface DrainSchedulerOptions {
@@ -551,18 +556,41 @@ export class DrainScheduler {
       // The provider has accepted the turn. Publish the active turn before the first mailbox write
       // can yield: queue reconciliation may run while delivery rows change, and an idle cached
       // snapshot with a running delivery is a stale state for clients.
-      snapshot.activeTurnId = response.turn.id;
+      // A provider can end the turn before this answer is read, as when an ACP process exits during
+      // `turn/start`. Its end already cleared the turn, so it is not marked active again: no later
+      // event would end it, and it would hold every message of this agent.
+      if (!this.#hooks.turnEnded(response.turn.id)) snapshot.activeTurnId = response.turn.id;
       confirmedTurnId = response.turn.id;
       this.#turnModels.set(agent.id, { turnId: response.turn.id, model: agent.model });
       for (const item of batch)
         yield* this.#mailbox.markRunning(item.delivery.id, response.turn.id).pipe(toDeliveryStartFailed);
       if (this.#channels)
         yield* this.#channels.accepted(delivery.id, threadId, response.turn.id).pipe(toDeliveryStartFailed);
-      const currentDelivery = this.#mailbox.getDelivery(delivery.id)?.delivery;
-      if (currentDelivery?.status === "running" && currentDelivery.turnId === response.turn.id) {
-        for (const item of batch) this.#mailboxSync.syncDeliveryMessage(snapshot, item.delivery.id);
+      if (this.#hooks.turnEnded(response.turn.id)) {
+        // The end found these messages before they ran, or while the writes above waited, so it
+        // left them running. Nothing else settles them.
+        for (const item of batch) {
+          const current = this.#mailbox.getDelivery(item.delivery.id)?.delivery;
+          if (current?.status !== "running" || current.turnId !== response.turn.id) continue;
+          yield* this.#mailbox.markTerminal(item.delivery.id, "interrupted", null).pipe(toDeliveryStartFailed);
+          if (channelDelivery && this.#channels)
+            yield* this.#channels.deliveryFailed(item.delivery.id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
+          this.#messaging?.deliverySettled(item.delivery.id, "interrupted");
+        }
+        const live = this.#conversation.ensureSnapshot(agent.id, threadId);
+        for (const held of new Set([snapshot, live])) {
+          if (held.activeTurnId === response.turn.id) held.activeTurnId = null;
+        }
+        for (const item of batch) this.#mailboxSync.syncDeliveryMessage(live, item.delivery.id);
         this.#mailboxSync.emitQueue(agent.id);
-        this.#conversation.emitConversation(snapshot);
+        this.#conversation.emitConversation(live);
+      } else {
+        const currentDelivery = this.#mailbox.getDelivery(delivery.id)?.delivery;
+        if (currentDelivery?.status === "running" && currentDelivery.turnId === response.turn.id) {
+          for (const item of batch) this.#mailboxSync.syncDeliveryMessage(snapshot, item.delivery.id);
+          this.#mailboxSync.emitQueue(agent.id);
+          this.#conversation.emitConversation(snapshot);
+        }
       }
       yield* this.#threads.deletePendingHandoff(threadId).pipe(
         Effect.catch((failure) =>
@@ -604,6 +632,14 @@ export class DrainScheduler {
               `${error.providerName} did not confirm the turn start in time. OpenBot will wait for lifecycle events instead of retrying potentially duplicated work.`,
               delivery.recipientAgentId,
             );
+            // The wait has a limit: a turn that never starts would keep these messages starting, and
+            // the agent's queue would stop with no notice.
+            const ids = batch.map(({ delivery: item }) => item.id);
+            yield* Effect.forkDetach(
+              this.#settleUnstarted(delivery.recipientAgentId, ids, releaseReservation).pipe(
+                Effect.delay(TURN_START_GRACE_MS),
+              ),
+            );
             return;
           }
           const reason = this.#hooks.redactMcp(error instanceof Error ? error.message : String(error));
@@ -634,9 +670,7 @@ export class DrainScheduler {
           }
           this.#mailboxSync.emitQueue(delivery.recipientAgentId);
           if (this.#channels)
-            yield* this.#channels
-              .deliveryFailed(delivery.id, "The provider could not start this assignment. Resume to try again.")
-              .pipe(toDeliveryStartFailed);
+            yield* this.#channels.deliveryFailed(delivery.id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
           this.#messaging?.deliveryFailed(delivery.id);
           this.#hooks.emitError("delivery_start_failed", error, delivery.recipientAgentId);
           this.scheduleDrain(delivery.recipientAgentId);
@@ -653,6 +687,33 @@ export class DrainScheduler {
       ),
     );
   }, Effect.uninterruptible);
+
+  /**
+   * Ends the messages of an unconfirmed `turn/start` that no turn took by the deadline. A turn that
+   * started late took them already, and holds its reservation like any turn.
+   */
+  readonly #settleUnstarted = Effect.fn("DrainScheduler.settleUnstarted")(
+    function* (this: DrainScheduler, agentId: string, deliveryIds: readonly string[], releaseReservation: () => void) {
+      if (this.#hooks.isStopping()) return;
+      let settled = false;
+      for (const id of deliveryIds) {
+        const current = this.#mailbox.getDelivery(id)?.delivery;
+        if (current?.status !== "starting" || current.turnId) continue;
+        yield* this.#mailbox
+          .markTerminal(id, "interrupted", "The provider did not start this turn.")
+          .pipe(toDeliveryStartFailed);
+        if (this.#channels?.store.assignmentForDelivery(id))
+          yield* this.#channels.deliveryFailed(id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
+        this.#messaging?.deliverySettled(id, "interrupted");
+        settled = true;
+      }
+      if (!settled) return;
+      releaseReservation();
+      this.#mailboxSync.emitQueue(agentId);
+      this.scheduleDrain(agentId);
+    },
+    Effect.catch((failure) => Effect.sync(() => this.#hooks.emitError("delivery_start_unconfirmed", failure.cause))),
+  );
 
   /** The model this turn runs on, or `null` when this agent's running turn is not the one asked for. */
   modelForTurn(agentId: string, turnId: string): string | null {
