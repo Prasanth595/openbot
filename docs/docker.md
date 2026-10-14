@@ -123,13 +123,13 @@ folder of the repository to the host, for example to `/opt/openbot-docker`, and 
 | `instances/<name>.env` | The name and the limits of the instance. Change `OPENBOT_CPUS` or `OPENBOT_MEM`, then run `openbot-instance up <name>`. `OPENBOT_DISK` is for information only: a change to it does nothing. |
 | `/srv/openbot/<name>/data.img` | An ext4 image. Its size is the disk limit. `create` reserves all of it on the disk of the host, so the images can never need more space than the host has. |
 | `/srv/openbot/<name>/data` | The mount of the image, which is `/data` in the container. `/etc/fstab` mounts it before Docker starts. `X-fstrim.notrim` stops `fstrim.timer` from freeing the reserved space. |
-| `/srv/openbot/<name>/update-requests` | The update requests of the app. The container writes empty files here. |
+| `/srv/openbot/<name>/update-requests` | The update requests of the app. The container writes empty files here. It is a tmpfs of 64 KiB and 16 files, which `/etc/fstab` mounts. |
 | `/srv/openbot/<name>/update-status` | The state of an update, which root writes. The container can only read it. |
 
 The container is `openbot-<name>`. Its root file system is read-only: the container layer is on the
 disk of the host, where Docker on ext4 cannot limit its size. Outside `/data`, the container writes
 only to `tmpfs` folders that count toward the memory limit: `/tmp` (8 GiB), `/var/tmp` (1 GiB),
-`/run/lock` and `/run/openbot`. Before the image is mounted, root owns the folder, so the container cannot write to
+`/run/lock` and `/run/openbot`, and to the small tmpfs of its update requests. Before the image is mounted, root owns the folder, so the container cannot write to
 `/data` and stops. It never starts with an empty home folder.
 
 ### Logs
@@ -191,8 +191,8 @@ Agents have full access in their container, so the host limits what a container 
 
 There is no command to remove an instance. To remove one and delete its data: `run <name> logout`,
 `down <name>`, `systemctl disable --now openbot-instance-update@<name>.path`,
-`umount /srv/openbot/<name>/data`, delete its line in `/etc/fstab`, then delete `/srv/openbot/<name>`
-and `instances/<name>.env`.
+`umount /srv/openbot/<name>/data /srv/openbot/<name>/update-requests`, delete its two lines in
+`/etc/fstab`, then delete `/srv/openbot/<name>` and `instances/<name>.env`.
 
 ### Updates from the app
 
@@ -205,8 +205,9 @@ when it is newer than the container. For an install, it makes the container agai
 with the same data. It writes the state of the request to `update-status`, which the container mounts
 read-only.
 
-`setup` installs the units. `create`, `up` and `upgrade` make the folders and enable the path unit of
-the instance. An instance made before this release gets them with `setup`, then
+`setup` installs the units. `create`, `up` and `upgrade` make the folders, add the tmpfs of the
+requests to `/etc/fstab` and enable the path unit of the instance. An instance with `OPENBOT_TAG` in
+its env file keeps that tag and offers no update in the app. An instance made before this release gets them with `setup`, then
 `openbot-instance upgrade <name>` once. A container started with `docker/compose.yaml` or
 `docker run` has no request folders, so it offers no update in the app.
 

@@ -127,16 +127,29 @@ start() {
 }
 
 # The folders that compose.yaml mounts for updates from the app. Docker would make a missing one as
-# root, and the container could not write requests to it.
+# root, and the container could not write requests to it. The container can write the request
+# folder, so it is a small tmpfs, not a folder on the disk of the host outside the disk limit.
+# /etc/fstab mounts it before Docker starts.
 update_folders() {
   check_name "$1"
-  local folder=$DATA/$1 owner
+  local folder=$DATA/$1 owner requests
+  requests=$DATA/$1/update-requests
   owner=$(data_owner) || return
-  install -d -o "${owner%:*}" -g "${owner#*:}" -m 0700 "$folder/update-requests" &&
-    install -d -m 0755 "$folder/update-status" &&
-    systemctl enable --now --quiet "$UPDATE_UNIT@$1.path" &&
-    # OpenBot offers updates only when this file is there.
+  install -d -m 0700 "$requests" && install -d -m 0755 "$folder/update-status" || return
+  if ! grep -qF " $requests tmpfs " /etc/fstab; then
+    printf 'tmpfs %s tmpfs size=64k,nr_inodes=16,mode=0700,uid=%s,gid=%s,nodev,nosuid,noexec,nofail,x-systemd.before=docker.service 0 0\n' \
+      "$requests" "${owner%:*}" "${owner#*:}" >>/etc/fstab
+    systemctl daemon-reload
+  fi
+  mountpoint -q "$requests" || mount "$requests" || return
+  systemctl enable --now --quiet "$UPDATE_UNIT@$1.path" || return
+  # OpenBot offers updates only when this file is there. An instance with a fixed OPENBOT_TAG keeps
+  # the version that the administrator chose.
+  if grep -q '^OPENBOT_TAG=' "$(env_file "$1")"; then
+    rm -f "$folder/update-status/enabled"
+  else
     touch "$folder/update-status/enabled"
+  fi
 }
 
 set_state() {
@@ -180,7 +193,8 @@ update_request() {
   rm -rf -- "$requests/update-stage" "$requests/update-install"
   # OpenBot sees that the request runs while the time of the state changes. `set -e` does not apply
   # in the subshells below, so each step checks its own result.
-  (while sleep 5; do touch "$status/state"; done) >/dev/null 2>&1 &
+  # -c: a touch that runs during the end of the request does not make the state again.
+  (while sleep 5; do touch -c "$status/state"; done) >/dev/null 2>&1 &
   keeper=$!
   (stage "$name") || result=$?
   if [ "$install" -eq 1 ] && [ -e "$status/staged.ready" ]; then
