@@ -1499,8 +1499,17 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       updateAgent: async (input: UpdateAgentInput) => {
         const current = agents.find((agent) => agent.id === input.agentId);
         if (!current) throw new Error("Agent not found");
-        const { agentId: _agentId, busyMessageMode, providerAccountId, ...updates } = input;
+        const {
+          agentId: _agentId,
+          busyMessageMode,
+          providerAccountId,
+          backupModels,
+          leaveUsageLimit: _leaveUsageLimit,
+          ...updates
+        } = input;
         const updated: AgentSummary = { ...current, ...updates };
+        if (backupModels === null) delete updated.backupModels;
+        else if (backupModels) updated.backupModels = backupModels;
         if (providerAccountId === null || (updates.provider && !providerAccountId)) delete updated.providerAccountId;
         else if (providerAccountId) updated.providerAccountId = providerAccountId;
         // `null` returns the agent to the app default, which an agent records by having no value.

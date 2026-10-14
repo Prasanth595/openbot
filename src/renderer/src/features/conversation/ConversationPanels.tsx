@@ -312,6 +312,8 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                 (serverCanAdminister(props.server, "agent-host-settings-v1") && agent().allowAutomation !== undefined)
               }
               busyMessageModeEditable={props.server?.kind === "local"}
+              backupModelsEditable={props.server?.kind === "local"}
+              usageLimited={props.usageLimited}
               defaultBusyMessageMode={props.defaultBusyMessageMode}
               memoryLimit={props.server?.kind === "local" ? props.agentMemoryLimit : undefined}
               agents={props.agents}

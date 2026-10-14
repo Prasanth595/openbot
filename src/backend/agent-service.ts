@@ -90,12 +90,16 @@ import type {
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import {
+  type AgentModelChoice,
   agentAutomationAllowed,
   type BusyMessageMode,
   CONTEXT_RESET_ITEM_TYPE,
   DEFAULT_BUSY_MESSAGE_MODE,
   isContextResetMarker,
+  MODEL_SWITCH_ITEM_TYPES,
+  type ModelSwitchReason,
   type QueueSteerFallback,
+  sameAgentModelChoice,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
 import { ContextResetBusyError } from "@openbot/contracts/team-protocol/context-reset-v1";
@@ -165,7 +169,7 @@ import {
 import { ThreadLifecycle } from "./agent/thread-lifecycle";
 import { toToolOperationFailed } from "./agent/tool-operation";
 import { type AgentBrowserHost, TurnLifecycle } from "./agent/turn-lifecycle";
-import { toUsageReadFailed, UsageLimitGate } from "./agent/usage-limit-gate";
+import { toUsageReadFailed, UsageLimitGate, type UsageLimitKey } from "./agent/usage-limit-gate";
 import type { AgentProvider } from "./agent-client";
 import type { AgentTables } from "./agent-data/agent-tables";
 import type { AgentStore } from "./agent-store";
@@ -538,7 +542,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
                 );
             this.#channelRoutines.reconcileAll();
             yield* this.#boot.backfillProviderHistory().pipe(Effect.forkIn(this.#scope));
-            for (const agent of this.#store.list()) this.#drain.scheduleDrain(agent.id);
+            // Limits are not kept over a restart, so an agent on a backup model goes back first.
+            for (const agent of this.#store.list()) this.#drainOrFollowUsageLimit(agent.id);
           }).pipe(toProviderOperationFailed),
         onProviderLost: (client) => {
           this.#boot.orphanDeliveriesOf(client.provider, (agentId) => this.#providers.runsOnOwnProcess(agentId));
@@ -935,16 +940,31 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         readUsage: (provider, model, accountId) =>
           this.#providers.usage({ provider, model, ...(accountId ? { accountId } : {}) }).pipe(toUsageReadFailed),
         // The refused turn's drain must not wait for the queues, so the owned scope settles them.
+        // An agent set to switch without asking then moves to its first backup model.
         held: (agentIds) =>
           this.#settleHeldQueues(agentIds).pipe(
             Effect.catch((failure) => Effect.sync(() => this.#emitError("usage_limit_hold_failed", failure.cause))),
+            Effect.andThen(Effect.forEach(agentIds, (agentId) => this.#followUsageLimit(agentId), { discard: true })),
             Effect.forkIn(this.#scope, { startImmediately: true }),
             Effect.asVoid,
           ),
-        // A channel task that went back to its queue is assigned again only by a pump.
-        released: () =>
+        // A channel task that went back to its queue is assigned again only by a pump. An agent that
+        // left this model for a backup goes back to it.
+        released: (limit) =>
           this.channels.wake().pipe(
             Effect.catch((failure) => Effect.sync(() => this.#emitError("usage_limit_release_failed", failure.cause))),
+            Effect.andThen(
+              Effect.forEach(
+                this.#store
+                  .list()
+                  .filter((agent) => agent.usageLimitReturn && sameUsageLimit(agent.usageLimitReturn, limit)),
+                (agent) =>
+                  this.#followUsageLimit(agent.id).pipe(
+                    Effect.andThen((moved) => Effect.sync(() => moved && this.#drain.scheduleDrain(agent.id))),
+                  ),
+                { discard: true },
+              ),
+            ),
             Effect.forkIn(this.#scope, { startImmediately: true }),
             Effect.asVoid,
           ),
@@ -1016,7 +1036,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         emit: (event) => this.#emit(event),
         emitError: (code, error, agentId, context) => this.#emitError(code, error, agentId, context),
         emitRuntimeSnapshot: () => this.#emitRuntimeSnapshot(),
-        scheduleDrain: (agentId) => this.#drain.scheduleDrain(agentId),
+        scheduleDrain: (agentId) => this.#drainOrFollowUsageLimit(agentId),
         dropRefusedSession: (agentId, externalThreadId) =>
           this.#threads.dropRefusedProviderSession(agentId, externalThreadId),
         listAgents: () => this.listAgents(),
@@ -1962,19 +1982,22 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       .pipe(Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "updateAgent", cause: failure.cause })));
   }
 
+  /** `returning` is set for the move back to the model a usage limit made the agent leave. */
   readonly #applyAgentUpdate = Effect.fn("AgentService.updateAgent")(function* (
     this: AgentService,
     input: UpdateAgentInput,
     initiatingAgentId?: string,
+    returning = false,
   ) {
     // A provider change waits until the agent has no work. It is checked again after the reads below.
     const requireIdle = (previous: AgentSummary) => {
       // A spent plan holds the queue until it resets, and a switch to another provider is the way out
       // of that hold. So while the hold lasts, only started work blocks the switch; the queue then
-      // runs on the new provider.
-      const hasPendingWork = this.#usageLimits.mayDrain(input.agentId)
-        ? this.#mailbox.hasUnfinishedDelivery(input.agentId)
-        : this.#mailbox.hasStartedDelivery(input.agentId);
+      // runs on the new provider. The move back after the limit takes the queue with it too.
+      const hasPendingWork =
+        !returning && this.#usageLimits.mayDrain(input.agentId)
+          ? this.#mailbox.hasUnfinishedDelivery(input.agentId)
+          : this.#mailbox.hasStartedDelivery(input.agentId);
       const activeTurn =
         this.#conversation.workingSnapshot(input.agentId)?.activeTurnId ??
         (previous.threadId ? this.#store.database.readActiveTurnId(input.agentId, previous.threadId) : null);
@@ -2058,6 +2081,22 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     }
     if (requestedProvider && (input.provider || input.model))
       yield* lifecycleStep("check provider switch", () => this.#providers.requireProviderOn(requestedProvider));
+    // Leaving a model at its usage limit keeps the model to go back to: the first one left, when the
+    // agent moves on from one backup to the next.
+    const previousChoice = previous ? agentModelChoice(previous) : undefined;
+    const nextChoice: AgentModelChoice | undefined =
+      previous && requestedProvider
+        ? {
+            provider: requestedProvider,
+            model: requestedModel?.id ?? previous.model,
+            ...(requestedAccount ? { providerAccountId: requestedAccount } : {}),
+          }
+        : undefined;
+    const moved = previousChoice && nextChoice && !sameAgentModelChoice(previousChoice, nextChoice);
+    const leaving = Boolean(moved && input.leaveUsageLimit && wasHeld);
+    const returnTo = leaving && previous ? (previous.usageLimitReturn ?? previousChoice) : undefined;
+    const usageLimitReturn =
+      returning || (returnTo && nextChoice && sameAgentModelChoice(returnTo, nextChoice)) ? null : returnTo;
     const agent = yield* this.#store.updateAgent(
       {
         ...input,
@@ -2065,9 +2104,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         ...(previous && (accountChanged || input.providerAccountId !== undefined)
           ? { providerAccountId: requestedAccount }
           : {}),
+        ...(usageLimitReturn !== undefined ? { usageLimitReturn } : {}),
       },
       initiatingAgentId,
     );
+    if (moved && (leaving || returning))
+      this.#appendModelSwitchMarker(agent, leaving ? "usage-limit" : "usage-limit-ended");
     const profileChanged = standingProfileChanged(previous, agent);
     const activeSession = this.#store.activeProviderSession(agent.id);
     const providerChanged =
@@ -2122,6 +2164,132 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     }
     return agent;
   }, Effect.uninterruptible);
+
+  /**
+   * The model a usage limit moves this agent to now, or null. An agent goes back to the model it
+   * left once no limit holds that model. An agent held by a limit, set to switch without asking and
+   * with queued work, moves to its first backup model that is ready. Only an agent with no started
+   * work moves; the end of its turn tries again.
+   */
+  #usageLimitMove(agentId: string): { input: UpdateAgentInput; returning: boolean } | null {
+    const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+    if (!agent || (!agent.usageLimitReturn && !agent.backupModels?.automatic)) return null;
+    if (this.#runsTurn(agentId) || this.#mailbox.hasStartedDelivery(agentId)) return null;
+    const ready = (choice: AgentModelChoice) =>
+      this.#modelChoiceReady(choice) && !this.#usageLimits.isLimited(usageLimitOf(choice));
+    // The agent keeps its reasoning effort where the other model has it.
+    const move = (choice: AgentModelChoice) => {
+      const model = this.#endpoints
+        .available()
+        .find((option) => option.provider === choice.provider && option.id === choice.model);
+      return {
+        agentId,
+        provider: choice.provider,
+        model: choice.model,
+        providerAccountId: choice.providerAccountId ?? null,
+        reasoningEffort:
+          model && !model.supportedReasoningEfforts.includes(agent.reasoningEffort)
+            ? model.defaultReasoningEffort
+            : agent.reasoningEffort,
+      };
+    };
+    if (agent.usageLimitReturn && ready(agent.usageLimitReturn))
+      return { input: move(agent.usageLimitReturn), returning: true };
+    if (this.#usageLimits.mayDrain(agentId) || !agent.backupModels?.automatic || !this.#mailbox.nextQueued(agentId))
+      return null;
+    const current = agentModelChoice(agent);
+    const next = agent.backupModels.order.find((choice) => !sameAgentModelChoice(choice, current) && ready(choice));
+    return next ? { input: { ...move(next), leaveUsageLimit: true }, returning: false } : null;
+  }
+
+  /** Whether the provider is on, the account exists, and the model list has the model. */
+  #modelChoiceReady(choice: AgentModelChoice): boolean {
+    const account = agentProviderAccount(choice);
+    try {
+      this.#providers.requireProviderOn(choice.provider);
+    } catch {
+      return false;
+    }
+    return (
+      (!account || this.#providers.hasProviderAccount(choice.provider, account)) &&
+      this.#endpoints.available().some((model) => model.provider === choice.provider && model.id === choice.model)
+    );
+  }
+
+  /** Makes the move of `#usageLimitMove`, if one is due. True when the agent moved. */
+  readonly #followUsageLimit = Effect.fn("AgentService.followUsageLimit")(function* (
+    this: AgentService,
+    agentId: string,
+  ) {
+    return yield* this.#endpoints
+      .runExclusive(() =>
+        Effect.gen({ self: this }, function* () {
+          const move = this.#usageLimitMove(agentId);
+          if (!move) return false;
+          yield* this.#applyAgentUpdate(move.input, undefined, move.returning);
+          return true;
+        }),
+      )
+      .pipe(
+        Effect.catch((failure) =>
+          Effect.sync(() => {
+            this.#emitError("usage_limit_switch_failed", failure, agentId);
+            return false;
+          }),
+        ),
+      );
+  });
+
+  /** Schedules the agent's drain, after a move of `#usageLimitMove` when one is due. */
+  #drainOrFollowUsageLimit(agentId: string): void {
+    if (!this.#usageLimitMove(agentId)) {
+      this.#drain.scheduleDrain(agentId);
+      return;
+    }
+    Effect.runFork(
+      this.#followUsageLimit(agentId).pipe(
+        Effect.ensuring(Effect.sync(() => this.#drain.scheduleDrain(agentId))),
+        Effect.forkIn(this.#scope, { startImmediately: true }),
+      ),
+    );
+  }
+
+  /** A note in the agent's chat that it left its model for a usage limit, or went back to it. */
+  #appendModelSwitchMarker(agent: AgentSummary, reason: ModelSwitchReason): void {
+    const model =
+      this.#endpoints.available().find((option) => option.provider === agent.provider && option.id === agent.model)
+        ?.name ?? agent.model;
+    const database = this.#store.database;
+    try {
+      this.#conversation.withConversationTransaction(agent.id, ({ threadId, snapshot }) => {
+        const message: ConversationMessage = {
+          id: `model-switch-${randomUUID()}`,
+          author: "system",
+          source: "system",
+          text: sourceText(
+            reason === "usage-limit" ? "status.agent.modelSwitchedForLimit" : "status.agent.modelReturnedAfterLimit",
+            { model },
+          ),
+          createdAt: new Date().toISOString(),
+          status: "completed",
+          itemType: MODEL_SWITCH_ITEM_TYPES[reason],
+        };
+        snapshot.messages.push(message);
+        sortConversationMessages(snapshot.messages);
+        snapshot.revision = database.appendConversationMessage({
+          agentId: agent.id,
+          threadId,
+          activeTurnId: snapshot.activeTurnId,
+          message,
+          eventType: "thread.model-switched",
+        });
+        return { result: undefined, snapshot };
+      });
+    } catch (error) {
+      // The switch is stored; only its note is lost.
+      this.#emitError("model_switch_marker_failed", error, agent.id);
+    }
+  }
 
   readonly setAvatar = Effect.fn("AgentService.setAvatar")(function* (
     this: AgentService,
@@ -3343,6 +3511,23 @@ export class AgentLifecycleFailed extends Schema.TaggedError<AgentLifecycleFaile
   operation: Schema.String,
   cause: Schema.Defect(),
 }) {}
+
+function agentModelChoice(agent: AgentSummary): AgentModelChoice {
+  return {
+    provider: agent.provider,
+    model: agent.model,
+    ...(agent.providerAccountId ? { providerAccountId: agent.providerAccountId } : {}),
+  };
+}
+
+function usageLimitOf(choice: AgentModelChoice): UsageLimitKey {
+  return { provider: choice.provider, accountId: agentProviderAccount(choice), model: choice.model };
+}
+
+function sameUsageLimit(choice: AgentModelChoice, limit: UsageLimitKey): boolean {
+  const own = usageLimitOf(choice);
+  return own.provider === limit.provider && own.accountId === limit.accountId && own.model === limit.model;
+}
 
 function lifecycleStep<A>(operation: string, run: () => A): Effect.Effect<A, AgentLifecycleFailed> {
   return Effect.try({ try: run, catch: (cause) => new AgentLifecycleFailed({ operation, cause }) });

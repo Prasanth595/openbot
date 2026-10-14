@@ -15,6 +15,7 @@ import type {
   HostedSiteConversationEvent,
   ImageGenerationInfo,
   MessageReaction,
+  ModelSwitchReason,
   QueueDeliveryStatus,
   RoutineConversationEvent,
   RoutineRunConversationEvent,
@@ -129,6 +130,8 @@ export type ChatActionMarkerModel =
   | { kind: "marketplace-suggestion"; appId: string; timestamp: string }
   /** The user started a new chat: the agent does not see the messages above this marker. */
   | { kind: "context-reset"; timestamp: string }
+  /** The agent left its model for a usage limit, or went back to it. `text` is the host's note. */
+  | { kind: "model-switch"; reason: ModelSwitchReason; text: string; timestamp: string }
   | {
       kind: "unavailable";
       label: string;
@@ -202,6 +205,10 @@ export interface AgentProfile {
   allowAutomation?: boolean;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */
   busyMessageMode?: AgentSummary["busyMessageMode"];
+  /** Absent means ask before a switch at a usage limit. Absent for an agent on a remote host too. */
+  backupModels?: AgentSummary["backupModels"];
+  /** Set while the agent works on a backup model for a usage limit: the model it goes back to. */
+  usageLimitReturn?: AgentSummary["usageLimitReturn"];
   threadId: string | null;
   /** The agent's working directory. Absent for profiles built before it was tracked. */
   workspacePath?: string;

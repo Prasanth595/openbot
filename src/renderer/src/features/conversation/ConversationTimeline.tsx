@@ -4,6 +4,7 @@ import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
 import { AgentActivityIndicator } from "@openbot/ui/features/conversation/AgentActivity";
 import { AttachmentCards } from "@openbot/ui/features/conversation/AttachmentCards";
+import { UsageLimitAskCard } from "@openbot/ui/features/conversation/BackupModels";
 import { ChatActionMarker } from "@openbot/ui/features/conversation/ChatActionMarker";
 import { type ChatMessageAuthor, ChatMessageRow } from "@openbot/ui/features/conversation/ChatMessageRow";
 import { ChatRowBoundary } from "@openbot/ui/features/conversation/ChatRowBoundary";
@@ -832,6 +833,17 @@ export function ConversationTimeline() {
                   onAlwaysAllow={props.onAlwaysAllowApproval}
                 />
               </Loading>
+            )}
+          </Show>
+          <Show when={props.usageLimitAsk}>
+            {(ask) => (
+              <UsageLimitAskCard
+                provider={ask().provider}
+                resetsAt={ask().resetsAt}
+                options={ask().options}
+                onSend={ask().onSend}
+                onWait={ask().onWait}
+              />
             )}
           </Show>
           <Show when={props.browserTakeover}>

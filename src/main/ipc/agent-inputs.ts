@@ -22,6 +22,7 @@ import {
   type ImportAttachmentsInput,
   type InterruptTurnInput,
   isAgentAccess,
+  isAgentBackupModels,
   isAgentModel,
   isAgentProvider,
   isAvatarHue,
@@ -596,6 +597,22 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
       throw new Error("Invalid busy message mode.");
     }
     result.busyMessageMode = value.busyMessageMode;
+  }
+  if (value.backupModels !== undefined) {
+    if (value.backupModels !== null && !isAgentBackupModels(value.backupModels))
+      throw new Error("Invalid backup models.");
+    result.backupModels = value.backupModels && {
+      automatic: value.backupModels.automatic,
+      order: value.backupModels.order.map(({ provider, model, providerAccountId }) => ({
+        provider,
+        model,
+        ...(providerAccountId === undefined ? {} : { providerAccountId }),
+      })),
+    };
+  }
+  if (value.leaveUsageLimit !== undefined) {
+    if (!isBoolean(value.leaveUsageLimit)) throw new Error("Invalid usage limit switch.");
+    result.leaveUsageLimit = value.leaveUsageLimit;
   }
   if (value.avatarSeed !== undefined) {
     if (!isAvatarSeed(value.avatarSeed)) throw new Error("Invalid avatar seed.");

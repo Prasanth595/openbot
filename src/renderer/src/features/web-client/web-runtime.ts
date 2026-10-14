@@ -1002,7 +1002,8 @@ export function createWebWorkspaceRuntime(
     async updateAgent(input) {
       // The released agent route ignores the account, so it goes on `provider-accounts-v1` after the
       // profile: a provider change there returns the agent to the new provider's own sign-in.
-      const { providerAccountId, ...profile } = input;
+      // Backup models stay on the host computer: the Team API does not carry them.
+      const { providerAccountId, backupModels: _backupModels, leaveUsageLimit: _leaveUsageLimit, ...profile } = input;
       if (providerAccountId !== undefined && !capabilities.includes(PROVIDER_ACCOUNTS_CAPABILITY))
         throw new Error(currentText().t("error.team.providersUnsupported"));
       await request("PATCH", TEAM_API_ROUTES.agent.one(input.agentId), { ...profile });

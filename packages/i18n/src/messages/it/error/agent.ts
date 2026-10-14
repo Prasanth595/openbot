@@ -90,6 +90,8 @@ export const messages = {
   "error.agent.automationLocalOnly": "Gli script locali si possono consentire solo sul computer che esegue l'agente.",
   "error.agent.busyMessageModeLocalOnly":
     "Cosa fanno i messaggi mentre l'agente lavora si può impostare solo sul computer che lo esegue.",
+  "error.agent.backupModelsLocalOnly":
+    "I modelli di riserva si possono impostare solo sul computer che esegue l'agente.",
   "error.agent.localScriptsOff": "Questo agente non consente gli script locali.",
   "error.agent.localScriptsRateLimited":
     "Gli script locali hanno inviato a questo agente {limit} messaggi o richieste di routine nell'ultima ora. Riprova più tardi.",

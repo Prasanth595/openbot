@@ -91,6 +91,8 @@ export const messages = {
   "error.agent.automationLocalOnly": "ローカルスクリプトは、エージェントを実行しているコンピュータでのみ許可できます。",
   "error.agent.busyMessageModeLocalOnly":
     "エージェントの作業中のメッセージの扱いは、エージェントを実行しているコンピュータでのみ設定できます。",
+  "error.agent.backupModelsLocalOnly":
+    "バックアップモデルは、エージェントを実行しているコンピュータでのみ設定できます。",
   "error.agent.localScriptsOff": "このエージェントはローカルスクリプトを許可していません。",
   "error.agent.localScriptsRateLimited":
     "過去 1 時間に、ローカルスクリプトがこのエージェントに {limit} 件のメッセージまたはルーティンのリクエストを送信しました。後でもう一度お試しください。",

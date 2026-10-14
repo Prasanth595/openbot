@@ -86,6 +86,7 @@ export const messages = {
   "error.agent.automationLocalOnly": "Локальные скрипты можно разрешить только на компьютере, где работает агент.",
   "error.agent.busyMessageModeLocalOnly":
     "Поведение сообщений, пока агент работает, можно задать только на компьютере, где он работает.",
+  "error.agent.backupModelsLocalOnly": "Резервные модели можно задать только на компьютере, где работает агент.",
   "error.agent.localScriptsOff": "Этот агент не разрешает локальные скрипты.",
   "error.agent.localScriptsRateLimited":
     "За последний час локальные скрипты отправили этому агенту {limit} запросов сообщений или процедур. Повторите попытку позже.",

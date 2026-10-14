@@ -5,5 +5,7 @@ export const messages = {
   "status.agent.claudeWriteOutside":
     "{path} konumuna yaz (ajanın çalışma alanının, paylaşılan klasörün ve geçici klasörlerin dışı).",
   "status.agent.contextCleared": "Bağlam temizlendi. Yeni bir sohbet burada başlıyor.",
+  "status.agent.modelSwitchedForLimit": "Kullanım sınırına ulaşıldı. {model} modeline geçildi.",
+  "status.agent.modelReturnedAfterLimit": "Kullanım sınırı bitti. {model} modeline geri dönüldü.",
   "status.agent.marketplaceSuggested": "Bir Marketplace uygulaması önerildi: {app}.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -2,6 +2,7 @@ import type {
   AccountUsage,
   AgentContextState,
   AgentEvent,
+  AgentModelChoice,
   AgentModelOption,
   AgentProviderId,
   AgentStatus,
@@ -25,6 +26,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
+import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
 import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { AccountProfilePanelProps } from "@openbot/ui/features/settings/AccountProfilePanel";
 import type { JSX } from "@solidjs/web";
@@ -169,6 +171,10 @@ export interface ConversationProps {
   remoteDesktopVisible: boolean;
   prompt: Extract<AgentEvent, { type: "prompt" }> | undefined;
   approval: Extract<AgentEvent, { type: "approval" }>["approval"] | undefined;
+  /** A usage limit holds the agent's queued message on this computer. The chat asks where to send it. */
+  usageLimitAsk?: UsageLimitAskCardProps | undefined;
+  /** Whether a usage limit holds this model and account now. Absent for a joined server. */
+  usageLimited?: (choice: AgentModelChoice) => boolean;
   browserTakeover: Extract<AgentEvent, { type: "browser-takeover-requested" }>["request"] | undefined;
   onSelectAgent: (agentId: string) => void;
   onUpdateAgent: (agentId: string, updates: Omit<UpdateAgentInput, "agentId">) => Promise<void>;

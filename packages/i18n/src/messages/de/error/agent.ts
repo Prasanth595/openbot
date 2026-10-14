@@ -103,6 +103,8 @@ export const messages = {
     "Lokale Skripte können nur auf dem Computer erlaubt werden, auf dem der Agent läuft.",
   "error.agent.busyMessageModeLocalOnly":
     "Das Verhalten von Nachrichten während der Arbeit des Agenten kann nur auf dem Computer eingestellt werden, auf dem der Agent läuft.",
+  "error.agent.backupModelsLocalOnly":
+    "Ersatzmodelle können nur auf dem Computer eingestellt werden, auf dem der Agent läuft.",
   "error.agent.localScriptsOff": "Dieser Agent erlaubt keine lokalen Skripte.",
   "error.agent.localScriptsRateLimited":
     "Lokale Skripte haben diesem Agenten in der letzten Stunde {limit} Nachrichten- oder Routinenanfragen gesendet. Versuche es später erneut.",

@@ -84,6 +84,7 @@ export const messages = defineMessages("error.agent", {
   "error.agent.automationLocalOnly": "Local scripts can only be allowed on the computer that runs the agent.",
   "error.agent.busyMessageModeLocalOnly":
     "What messages do while the agent works can only be set on the computer that runs the agent.",
+  "error.agent.backupModelsLocalOnly": "Backup models can only be set on the computer that runs the agent.",
   "error.agent.localScriptsOff": "This agent does not allow local scripts.",
   "error.agent.localScriptsRateLimited":
     "Local scripts sent this agent {limit} message or routine requests in the last hour. Try again later.",

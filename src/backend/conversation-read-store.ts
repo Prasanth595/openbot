@@ -9,6 +9,7 @@ import {
   type ConversationSnapshot,
   HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX,
   MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX,
+  MODEL_SWITCH_ITEM_TYPE_PREFIX,
   ROUTINE_EVENT_ITEM_TYPE_PREFIX,
   ROUTINE_QUIET_ANSWER_ITEM_TYPE,
   ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX,
@@ -266,6 +267,7 @@ export class ConversationReadStore {
       AND COALESCE(item_type, '') NOT LIKE '${ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX}%'
       AND COALESCE(item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
       AND COALESCE(item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
+      AND COALESCE(item_type, '') NOT LIKE '${MODEL_SWITCH_ITEM_TYPE_PREFIX}%'
       AND COALESCE(item_type, '') != '${CONTEXT_RESET_ITEM_TYPE}'`;
     // One pass over the ordered thread: the first unread row carries the count of all of them.
     const firstRow = this.database.connection
@@ -369,6 +371,7 @@ function stateFromSnapshot(snapshot: ConversationSnapshot, throughMessageId: str
         !message.itemType?.startsWith(ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX) &&
         !message.itemType?.startsWith(HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX) &&
         !message.itemType?.startsWith(MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX) &&
+        !message.itemType?.startsWith(MODEL_SWITCH_ITEM_TYPE_PREFIX) &&
         message.itemType !== CONTEXT_RESET_ITEM_TYPE,
     );
   return {

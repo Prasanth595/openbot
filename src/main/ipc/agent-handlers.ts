@@ -346,6 +346,9 @@ export function agentIpcHandlers({
           if (input.busyMessageMode !== undefined) {
             throw new Error(sourceText("error.agent.busyMessageModeLocalOnly"));
           }
+          if (input.backupModels !== undefined || input.leaveUsageLimit !== undefined) {
+            throw new Error(sourceText("error.agent.backupModelsLocalOnly"));
+          }
           // The released agent route does not carry the account, so it changes on its own route after
           // the rest: a provider change on the host returns the agent to the new provider's own sign-in.
           const { providerAccountId, ...update } = input;

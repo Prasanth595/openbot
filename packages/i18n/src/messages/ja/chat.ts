@@ -69,6 +69,17 @@ export const messages = {
   "chat.marker.openRoutine": "ルーティン {name} を開く",
   "chat.marker.unavailable": "利用不可",
   "chat.marker.contextReset": "新しいチャットを開始しました",
+  "chat.usageLimit.title": "{provider} の使用量の上限に達しました",
+  "chat.usageLimit.onHold": "メッセージを保留中",
+  "chat.usageLimit.bodyReset":
+    "メッセージはまだ開始されていません。今すぐ別のモデルに送信するか、{reset} までお待ちください。",
+  "chat.usageLimit.body":
+    "メッセージはまだ開始されていません。今すぐ別のモデルに送信するか、上限が解除されるまでお待ちください。",
+  "chat.usageLimit.sendTo": "送信先",
+  "chat.usageLimit.remember": "次回から確認せずに切り替える",
+  "chat.usageLimit.wait": "リセットを待つ",
+  "chat.usageLimit.send": "{model} に送信",
+  "chat.usageLimit.failed": "モデルを変更できませんでした。もう一度お試しください。",
   "chat.marker.marketplaceSuggestion": "Marketplace のアプリを提案しました",
   "chat.marker.skill.created": "スキルを作成しました",
   "chat.marker.skill.revised": "スキルを改訂しました",

@@ -69,6 +69,17 @@ export const messages = {
   "chat.marker.openRoutine": "Ouvrir la routine {name}",
   "chat.marker.unavailable": "Indisponible",
   "chat.marker.contextReset": "Nouvelle discussion commencée",
+  "chat.usageLimit.title": "Limite d’utilisation de {provider} atteinte",
+  "chat.usageLimit.onHold": "Message en attente",
+  "chat.usageLimit.bodyReset":
+    "Votre message n’a pas démarré. Envoyez-le maintenant à un autre modèle, ou attendez jusqu’à {reset}.",
+  "chat.usageLimit.body":
+    "Votre message n’a pas démarré. Envoyez-le maintenant à un autre modèle, ou attendez la fin de la limite.",
+  "chat.usageLimit.sendTo": "Envoyer à",
+  "chat.usageLimit.remember": "La prochaine fois, changer sans demander",
+  "chat.usageLimit.wait": "Attendre la réinitialisation",
+  "chat.usageLimit.send": "Envoyer à {model}",
+  "chat.usageLimit.failed": "Le modèle n’a pas pu être changé. Réessayez.",
   "chat.marker.marketplaceSuggestion": "A suggéré une app du Marketplace",
   "chat.marker.skill.created": "Compétence créée",
   "chat.marker.skill.revised": "Compétence révisée",

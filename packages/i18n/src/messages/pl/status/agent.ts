@@ -5,5 +5,7 @@ export const messages = {
   "status.agent.claudeWriteOutside":
     "Zapis {path} poza obszarem roboczym agenta, folderem współdzielonym i folderami tymczasowymi.",
   "status.agent.contextCleared": "Kontekst wyczyszczony. Tutaj zaczyna się nowy czat.",
+  "status.agent.modelSwitchedForLimit": "Osiągnięto limit użycia. Przełączono na {model}.",
+  "status.agent.modelReturnedAfterLimit": "Limit użycia się skończył. Wrócono do {model}.",
   "status.agent.marketplaceSuggested": "Zaproponowano aplikację z Marketplace: {app}.",
 } as const satisfies PartialTranslation<typeof source>;

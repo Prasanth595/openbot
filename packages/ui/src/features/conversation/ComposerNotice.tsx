@@ -225,7 +225,7 @@ export function ComposerUpdateNotice(props: {
 }
 
 /** The reset moment, in the reader's own locale. A window with no reported reset gets no sentence. */
-function formatUsageReset(resetsAt: number | null | undefined, format: AppFormat): string | null {
+export function formatUsageReset(resetsAt: number | null | undefined, format: AppFormat): string | null {
   if (resetsAt === null || resetsAt === undefined) return null;
   const date = new Date(resetsAt * 1_000);
   if (Number.isNaN(date.getTime())) return null;

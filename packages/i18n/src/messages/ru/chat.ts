@@ -84,6 +84,17 @@ export const messages = {
   "chat.marker.openRoutine": "Открыть регулярную задачу {name}",
   "chat.marker.unavailable": "Недоступно",
   "chat.marker.contextReset": "Начат новый чат",
+  "chat.usageLimit.title": "Лимит использования {provider} исчерпан",
+  "chat.usageLimit.onHold": "Сообщение отложено",
+  "chat.usageLimit.bodyReset":
+    "Ваше сообщение ещё не запущено. Отправьте его другой модели сейчас или подождите до {reset}.",
+  "chat.usageLimit.body":
+    "Ваше сообщение ещё не запущено. Отправьте его другой модели сейчас или подождите, пока лимит сбросится.",
+  "chat.usageLimit.sendTo": "Отправить в",
+  "chat.usageLimit.remember": "В следующий раз переключать без вопросов",
+  "chat.usageLimit.wait": "Дождаться сброса",
+  "chat.usageLimit.send": "Отправить в {model}",
+  "chat.usageLimit.failed": "Не удалось изменить модель. Повторите попытку.",
   "chat.marker.marketplaceSuggestion": "Предложено приложение из каталога",
   "chat.marker.skill.created": "Навык создан",
   "chat.marker.skill.revised": "Навык изменён",

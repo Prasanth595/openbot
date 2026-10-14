@@ -30,7 +30,7 @@ export interface UsageLimitHooks {
   /** The agents a limit now holds, each time a refused turn reports it. Must not wait for their queues. */
   held(agentIds: readonly string[]): Effect.Effect<void>;
   /** A limit ended, after its agents' drains were scheduled. Must not wait for the work it starts. */
-  released(): Effect.Effect<void>;
+  released(limit: UsageLimitKey): Effect.Effect<void>;
 }
 
 export interface UsageLimitGateOptions {
@@ -38,11 +38,14 @@ export interface UsageLimitGateOptions {
   hooks: UsageLimitHooks;
 }
 
-interface UsageLimit {
+export interface UsageLimitKey {
   provider: AgentProvider;
   /** The provider account after the first, or null for the provider's own sign-in. */
   accountId: string | null;
   model: string;
+}
+
+interface UsageLimit extends UsageLimitKey {
   /** Epoch seconds, or null while the provider has not said. */
   resetsAt: number | null;
   timer: ReturnType<typeof setTimeout> | null;
@@ -77,6 +80,11 @@ export class UsageLimitGate {
   mayDrain(agentId: string): boolean {
     const agent = this.#agent(agentId);
     return !agent || !this.#limits.has(limitKey(providerForAgent(agent), accountOf(agent), agent.model));
+  }
+
+  /** Whether a limit holds this provider account and model. */
+  isLimited(limit: UsageLimitKey): boolean {
+    return this.#limits.has(limitKey(limit.provider, limit.accountId, limit.model));
   }
 
   /** The agents whose queue a limit holds, for the runtime snapshot. */
@@ -218,7 +226,7 @@ export class UsageLimitGate {
       this.#announced.delete(limit.provider);
     this.#hooks.emitRuntimeSnapshot();
     for (const agent of this.#heldAgents(limit)) this.#hooks.scheduleDrain(agent.id);
-    yield* this.#hooks.released();
+    yield* this.#hooks.released({ provider: limit.provider, accountId: limit.accountId, model: limit.model });
   });
 
   #heldAgents(limit: UsageLimit) {

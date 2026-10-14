@@ -86,6 +86,7 @@ export const messages = {
   "error.agent.automationLocalOnly": "Na lokalne skrypty można zezwolić tylko na komputerze, na którym działa agent.",
   "error.agent.busyMessageModeLocalOnly":
     "Zachowanie wiadomości podczas pracy agenta można ustawić tylko na komputerze, na którym działa agent.",
+  "error.agent.backupModelsLocalOnly": "Modele zapasowe można ustawić tylko na komputerze, na którym działa agent.",
   "error.agent.localScriptsOff": "Ten agent nie zezwala na lokalne skrypty.",
   "error.agent.localScriptsRateLimited":
     "Lokalne skrypty wysłały do tego agenta {limit} żądań wiadomości lub rutyn w ciągu ostatniej godziny. Spróbuj ponownie później.",

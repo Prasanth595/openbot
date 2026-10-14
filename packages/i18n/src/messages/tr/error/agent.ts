@@ -85,6 +85,7 @@ export const messages = {
   "error.agent.automationLocalOnly": "Yerel betiklere yalnızca ajanı çalıştıran bilgisayarda izin verilebilir.",
   "error.agent.busyMessageModeLocalOnly":
     "Ajan çalışırken mesajların ne yapacağı yalnızca ajanı çalıştıran bilgisayarda ayarlanabilir.",
+  "error.agent.backupModelsLocalOnly": "Yedek modeller yalnızca ajanı çalıştıran bilgisayarda ayarlanabilir.",
   "error.agent.localScriptsOff": "Bu ajan yerel betiklere izin vermiyor.",
   "error.agent.localScriptsRateLimited":
     "Yerel betikler son bir saatte bu ajana {limit} mesaj veya rutin isteği gönderdi. Daha sonra tekrar deneyin.",
