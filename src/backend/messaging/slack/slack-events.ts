@@ -133,6 +133,7 @@ export function plainText(text: string, botUserId: string): string {
     .replaceAll(`<@${botUserId}>`, "")
     .replace(/<@([A-Z0-9]+)(?:\|[^>]*)?>/g, "@$1")
     .replace(/<#[A-Z0-9]+\|([^>]*)>/g, "#$1")
+    .replace(/<#([A-Z0-9]+)>/g, "#$1")
     .replace(/<!(here|channel|everyone)>/g, "@$1")
     .replace(/<(https?:[^|>]+)\|([^>]+)>/g, "$2 ($1)")
     .replace(/<(https?:[^>]+)>/g, "$1")
