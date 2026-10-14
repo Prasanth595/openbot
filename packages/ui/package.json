@@ -277,6 +277,7 @@
     "./features/files/StorageUsageBar": "./src/features/files/StorageUsageBar.tsx",
     "./features/files/files-view": "./src/features/files/files-view.ts",
     "./features/import/AgentImportView": "./src/features/import/AgentImportView.tsx",
+    "./features/transfer/InstanceTransferView": "./src/features/transfer/InstanceTransferView.tsx",
     "./components/GlobalSearch": "./src/components/GlobalSearch.tsx",
     "./components/ProviderCodeLoginDialog": "./src/components/ProviderCodeLoginDialog.tsx",
     "./components/ProviderUseAppDialog": "./src/components/ProviderUseAppDialog.tsx",
@@ -331,6 +332,7 @@
     "./features/conversation/conversation.css": "./src/features/conversation/conversation.css",
     "./features/files/files.css": "./src/features/files/files.css",
     "./features/import/agent-import.css": "./src/features/import/agent-import.css",
+    "./features/transfer/instance-transfer.css": "./src/features/transfer/instance-transfer.css",
     "./features/conversation/AgentSessionSettings": "./src/features/conversation/AgentSessionSettings.tsx",
     "./features/conversation/AgentSettingsPanel": "./src/features/conversation/AgentSettingsPanel.tsx",
     "./features/conversation/ConversationHeader": "./src/features/conversation/ConversationHeader.tsx"

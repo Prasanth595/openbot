@@ -237,7 +237,6 @@ export const messages = {
   "chat.actions.moreEmoji": "Plus d’emoji",
   "chat.actions.replyUser": "Répondre au message de l’utilisateur",
   "chat.actions.reply": "Répondre au message de {name}",
-  "chat.actions.more": "Plus d’actions sur le message",
   "chat.selection.label": "Actions sur le texte sélectionné",
   "chat.selection.sendFailed": "Envoi impossible",
   "chat.selection.close": "Fermer les actions sur le texte sélectionné",

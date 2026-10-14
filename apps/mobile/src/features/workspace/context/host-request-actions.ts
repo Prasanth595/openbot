@@ -153,6 +153,7 @@ type HostRequestActions = Pick<
   | "attachmentSupport"
   | "editQueue"
   | "changeQueue"
+  | "setMessageReaction"
   | "downloadAttachment"
 >;
 
@@ -498,6 +499,9 @@ export function createHostRequestActions({
             ? TEAM_API_ROUTES.agent.queueSteer
             : TEAM_API_ROUTES.agent.queueReorder;
       await request("POST", route(agentId), ignoreResponse, input, serverId);
+    },
+    setMessageReaction: async (agentId, serverId, messageId, emoji) => {
+      await request("POST", TEAM_API_ROUTES.agent.reactions(agentId), ignoreResponse, { messageId, emoji }, serverId);
     },
     downloadAttachment: (serverId, attachmentId) => {
       const download = () =>

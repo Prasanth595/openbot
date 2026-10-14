@@ -1,5 +1,6 @@
 import type { FirstTouch } from "@openbot/contracts/first-touch";
 import type { MobileConnectHostBinding } from "@openbot/contracts/mobile-connect";
+import { isString } from "@openbot/contracts/runtime-values";
 import {
   isUuidV4,
   normalizeEmailAddress,
@@ -30,6 +31,7 @@ import type {
 const CHALLENGE_TTL_MS = 10 * 60_000;
 const RESEND_COOLDOWN_MS = 60_000;
 const TEAM_TICKET_TTL_MS = 2 * 60_000;
+const SERVER_CLAIM_TTL_MS = 15 * 60_000;
 const MOBILE_CONNECT_SERVER_ID = "00000000-0000-4000-8000-000000000002";
 // The host ID rule of `isMobileConnectHostBinding`.
 const MOBILE_CONNECT_HOST_ID_PATTERN = /^[A-Za-z0-9-]{1,128}$/u;
@@ -450,6 +452,50 @@ export class AuthService {
     (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
   ).bind(this);
 
+  /** For an operator: the caller checks the admin token. Creates the user of the email when there is none. */
+  readonly createServerClaim = Effect.fn("AuthService.createServerClaim")(
+    function* (
+      this: AuthService,
+      emailInput: string,
+    ): Effect.fn.Return<{ claim: string; expiresAt: number }, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      const email = yield* authValidate(() => normalizeEmail(emailInput));
+      const now = dependencies.now();
+      const claim = randomToken();
+      const expiresAt = now + SERVER_CLAIM_TTL_MS;
+      yield* dependencies.repository.createServerClaim({
+        claimHash: yield* sha256(claim),
+        email,
+        createdAt: now,
+        expiresAt,
+      });
+      return { claim, expiresAt };
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
+  /** A server exchanges a claim once for a desktop session of the claim's user. */
+  readonly redeemServerClaim = Effect.fn("AuthService.redeemServerClaim")(
+    function* (
+      this: AuthService,
+      claim: unknown,
+      sourceIp: string,
+    ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      const now = dependencies.now();
+      // A claim is 32 random bytes; this limit stops a caller that guesses claims.
+      yield* this.#enforceRateLimit(`server-claim:ip:${normalizeSourceIp(sourceIp)}`, 30, now);
+      if (!isString(claim) || claim.length < 16 || claim.length > 128) return yield* invalidServerClaim();
+      const session = yield* dependencies.repository.redeemServerClaim({
+        claimHash: yield* sha256(claim),
+        now,
+        session: { id: crypto.randomUUID(), token: randomToken(), expiresAt: PERSISTENT_SESSION_EXPIRES_AT },
+      });
+      return session ?? (yield* invalidServerClaim());
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly issueTeamAuthTicket = Effect.fn("AuthService.issueTeamAuthTicket")(
     function* (
       this: AuthService,
@@ -806,6 +852,10 @@ export class AuthServiceError extends Schema.TaggedError<AuthServiceError>()("Au
 export class AuthOperationError extends Schema.TaggedError<AuthOperationError>()("AuthOperationError", {
   message: Schema.String,
 }) {}
+
+function invalidServerClaim(): AuthServiceError {
+  return new AuthServiceError(401, "server_claim_invalid", "The server claim is invalid or used.");
+}
 
 function authFailure(error: unknown): AuthServiceError | AuthOperationError {
   return error instanceof AuthServiceError ? error : new AuthOperationError({ message: "Account operation failed." });

@@ -144,6 +144,7 @@ it("restores attachment-only messages in file order from a reloaded conversation
       body: "",
       streaming: false,
       status: "completed",
+      createdAt: "now",
       replyToMessageId: undefined,
       attachments,
     },

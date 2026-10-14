@@ -23,6 +23,7 @@ describe("auth data retention", () => {
     expect(ids(database, "remote_sessions", "session_id")).toEqual(["active"]);
     expect(ids(database, "remote_invites", "invite_id")).toEqual(["active"]);
     expect(ids(database, "mobile_connect_links", "link_hash")).toEqual(["active"]);
+    expect(ids(database, "server_claims", "claim_hash")).toEqual(["active"]);
     expect(ids(database, "users", "id")).toEqual(["user"]);
     expect(ids(database, "team_tunnels", "server_id")).toEqual(["server"]);
   });
@@ -49,6 +50,9 @@ describe("auth data retention", () => {
     database
       .prepare("INSERT INTO remote_invites(invite_id, expires_at, used_at, revoked_at) VALUES (?, ?, NULL, NULL)")
       .run("boundary", now - 24 * 60 * 60_000);
+    database
+      .prepare("INSERT INTO server_claims(claim_hash, user_id, expires_at, redeemed_at) VALUES (?, ?, ?, NULL)")
+      .run("boundary", "user", now);
 
     runRetention(database, now);
 
@@ -58,6 +62,7 @@ describe("auth data retention", () => {
     expect(count(database, "team_auth_tickets")).toBe(0);
     expect(count(database, "remote_sessions")).toBe(0);
     expect(count(database, "remote_invites")).toBe(0);
+    expect(count(database, "server_claims")).toBe(0);
   });
 });
 
@@ -108,6 +113,12 @@ function createDatabase(): DatabaseSync {
       link_hash TEXT PRIMARY KEY,
       revoked_at INTEGER
     );
+    CREATE TABLE server_claims (
+      claim_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL,
+      redeemed_at INTEGER
+    );
   `);
   return database;
 }
@@ -152,6 +163,12 @@ function insertFixtures(database: DatabaseSync, now: number): void {
   remoteInvite.run("expired", now - 24 * 60 * 60_000 - 1, null, null);
   remoteInvite.run("used", now + 1, now - 24 * 60 * 60_000 - 1, null);
   remoteInvite.run("revoked", now + 1, null, now - 24 * 60 * 60_000 - 1);
+  const serverClaim = database.prepare(
+    "INSERT INTO server_claims(claim_hash, user_id, expires_at, redeemed_at) VALUES (?, ?, ?, ?)",
+  );
+  serverClaim.run("active", "user", now + 1, null);
+  serverClaim.run("expired", "user", now - 1, null);
+  serverClaim.run("redeemed", "user", now + 1, now - 1);
 }
 
 function runRetention(database: DatabaseSync, now: number): void {

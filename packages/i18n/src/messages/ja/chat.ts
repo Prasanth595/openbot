@@ -221,7 +221,6 @@ export const messages = {
   "chat.actions.moreEmoji": "その他の絵文字",
   "chat.actions.replyUser": "ユーザーのメッセージに返信",
   "chat.actions.reply": "{name} のメッセージに返信",
-  "chat.actions.more": "その他のメッセージ操作",
   "chat.selection.label": "選択したテキストの操作",
   "chat.selection.sendFailed": "送信できませんでした",
   "chat.selection.close": "選択したテキストの操作を閉じる",

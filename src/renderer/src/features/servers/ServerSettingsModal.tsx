@@ -18,6 +18,7 @@ import {
   AlertDescription,
   AlertIcon,
   AlertTitle,
+  ArrowLeftRight,
   Blocks,
   Button,
   CalendarClock,
@@ -55,6 +56,7 @@ import { type ServerImportOptions, ServerImportPanel } from "./ServerImportPanel
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
 import { type ServerRoutineFeedOptions, ServerRoutineFeedPanel } from "./ServerRoutineFeedPanel";
+import { type ServerTransferOptions, ServerTransferPanel } from "./ServerTransferPanel";
 import { type ServerUpdateOptions, ServerUpdatePanel } from "./ServerUpdatePanel";
 import { serverRoleCanAdminister } from "./server-capabilities";
 import type { ServerSettingsSectionHost } from "./server-settings-section";
@@ -147,6 +149,11 @@ export interface ServerSettingsModalProps {
    */
   agentImport?: ServerImportOptions | undefined;
   /**
+   * The Transfer section appears only when a caller supplies this: the local server, or a remote
+   * host with `instance-transfer-v1` where the user is an owner or admin.
+   */
+  instanceTransfer?: ServerTransferOptions | undefined;
+  /**
    * The connectors of this server. The Connectors section appears only when the server can run one
    * of them for this account.
    */
@@ -183,6 +190,7 @@ export type ServerSettingsSection =
   | "providers"
   | "updates"
   | "import"
+  | "transfer"
   | "routines"
   | "connectors";
 type Section = ServerSettingsSection;
@@ -197,6 +205,7 @@ const sections = {
   providers: { title: "server.settings.providersTitle", description: "server.settings.providersDescription" },
   updates: { title: "server.settings.updatesTitle", description: "server.settings.updatesDescription" },
   import: { title: "server.settings.importTitle", description: "server.settings.importDescription" },
+  transfer: { title: "server.settings.transferTitle", description: "server.settings.transferDescription" },
   routines: { title: "server.settings.routinesTitle", description: "server.settings.routinesDescription" },
   connectors: { title: "server.settings.connectorsTitle", description: "server.settings.connectorsDescription" },
 } as const satisfies Record<Section, { title: AppTextKey; description: AppTextKey }>;
@@ -373,6 +382,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         value === "providers" ||
         value === "updates" ||
         value === "import" ||
+        value === "transfer" ||
         value === "routines" ||
         value === "connectors"
       )
@@ -571,6 +581,12 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
                 <span>{t(sections.import.title)}</span>
               </Tabs.Trigger>
             </Show>
+            <Show when={props.instanceTransfer}>
+              <Tabs.Trigger class="settings-modal-nav-item" value="transfer">
+                <ArrowLeftRight aria-hidden="true" />
+                <span>{t(sections.transfer.title)}</span>
+              </Tabs.Trigger>
+            </Show>
             <Show when={props.routineFeed}>
               <Tabs.Trigger class="settings-modal-nav-item" value="routines">
                 <CalendarClock aria-hidden="true" />
@@ -690,6 +706,16 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
               {/* Keyed: an open export belongs to one server, so another server starts a new panel. */}
               <Show when={props.server.id} keyed>
                 {(serverId) => <ServerImportPanel serverId={serverId} {...agentImport()} />}
+              </Show>
+            </Tabs.Content>
+          )}
+        </Show>
+        <Show when={props.instanceTransfer}>
+          {(instanceTransfer) => (
+            <Tabs.Content value="transfer" class="settings-modal-tab-panel server-settings-panel" data-tab="transfer">
+              {/* Keyed: an open file belongs to one server, so another server starts a new panel. */}
+              <Show when={props.server.id} keyed>
+                {(serverId) => <ServerTransferPanel serverId={serverId} {...instanceTransfer()} />}
               </Show>
             </Tabs.Content>
           )}

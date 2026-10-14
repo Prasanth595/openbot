@@ -229,6 +229,14 @@ import type {
   ReplaceHostedSiteInput,
 } from "./ipc-hosted-sites";
 import type {
+  ApplyInstanceTransferInput,
+  ExportInstanceInput,
+  InstanceExportResult,
+  InstanceTransferPreview,
+  InstanceTransferResult,
+  InstanceTransferSummary,
+} from "./ipc-instance-transfer";
+import type {
   AgentPublicationPreview,
   AgentSubmission,
   InstallMarketplaceAgentInput,
@@ -1260,6 +1268,17 @@ export const IPC_ENDPOINTS = {
     readSkill: request<undefined, string>()("agent-import:read-skill"),
     saveSkill: request<undefined, ExportResult>()("agent-import:save-skill"),
   },
+  // Bound against the instance transfer service: a server's agents and server settings in one file for
+  // another server. A remote server is reached with `instance-transfer-v1`; main opens both file
+  // dialogs and moves the file. `showExport` reveals the file this computer saved last.
+  instanceTransfer: {
+    summary: scopedQuery<InstanceTransferSummary, "required">()("instance-transfer:summary"),
+    export: scopedRequest<ExportInstanceInput, InstanceExportResult, "required">()("instance-transfer:export"),
+    showExport: request<undefined, void>()("instance-transfer:show-export"),
+    choose: scopedQuery<InstanceTransferPreview | null, "required">()("instance-transfer:choose"),
+    apply: scopedRequest<ApplyInstanceTransferInput, InstanceTransferResult, "required">()("instance-transfer:apply"),
+    discard: scopedRequest<string, void, "required">()("instance-transfer:discard"),
+  },
   // The plugin deep link, its own group because its registrar holds the pending link rather than a
   // service. `takePendingListing` is what a window that finished loading after the link arrived
   // asks for; `openListing` is the same slug pushed to a window that was already there.
@@ -1369,6 +1388,7 @@ export const IPC_GROUP_PATHS = {
   mcpServers: "agent",
   storage: "storage",
   agentImport: "agentImport",
+  instanceTransfer: "instanceTransfer",
   plugins: "plugins",
   host: "host",
   events: "events",

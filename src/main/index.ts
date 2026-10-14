@@ -63,6 +63,7 @@ import { githubConnectorIpcHandlers } from "./ipc/github-connector-handlers";
 import { hostAdminIpcHandlers } from "./ipc/host-admin-handlers";
 import { hostedServerIpcHandlers } from "./ipc/hosted-server-handlers";
 import { hostedSiteIpcHandlers } from "./ipc/hosted-site-handlers";
+import { instanceTransferIpcHandlers } from "./ipc/instance-transfer-handlers";
 import { marketplaceAgentIpcHandlers } from "./ipc/marketplace-agent-handlers";
 import { mcpServerIpcHandlers } from "./ipc/mcp-server-handlers";
 import { memoryIpcHandlers } from "./ipc/memory-handlers";
@@ -476,6 +477,7 @@ function registerIpcHandlers({
   marketplaceAgents,
   agentTemplates,
   agentImport,
+  instanceTransfer,
   voice,
   dynamicIsland,
   cuaDriver,
@@ -551,6 +553,7 @@ function registerIpcHandlers({
         ? join(process.resourcesPath, "agent-import", "grok-bot", "SKILL.md")
         : resolve(__dirname, "../../resources/agent-import/grok-bot/SKILL.md"),
     }),
+    ...instanceTransferIpcHandlers({ instanceTransfer, remoteServers, getMainWindow, translate: language.translate }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,

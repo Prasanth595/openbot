@@ -609,6 +609,14 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
                 }
               : undefined
           }
+          // Owners and admins move this computer's server, or a remote host with `instance-transfer-v1`.
+          instanceTransfer={
+            server().kind === "local"
+              ? { onSignIn: (provider) => void connection.connect(provider) }
+              : serverCanAdminister(server(), "instance-transfer-v1")
+                ? {}
+                : undefined
+          }
           connectors={props.connectors}
           // The feed listens on this computer, so a calendar app on another one cannot read it.
           routineFeed={

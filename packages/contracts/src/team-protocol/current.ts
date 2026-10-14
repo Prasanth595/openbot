@@ -30,6 +30,7 @@ import { HOST_MEMBER_UPDATE_CAPABILITY } from "./host-member-update-v1";
 import { HOST_RELEASE_CAPABILITY } from "./host-release-v1";
 import { HOST_UPDATE_CAPABILITY } from "./host-update-v1";
 import { HOSTED_SITES_CAPABILITY } from "./hosted-sites-v1";
+import { INSTANCE_TRANSFER_CAPABILITY } from "./instance-transfer-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_APP_CAPABILITY } from "./mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_CAPABILITY } from "./mcp-sign-in-v1";
@@ -92,6 +93,7 @@ export {
   HOST_RELEASE_CAPABILITY,
   HOST_UPDATE_CAPABILITY,
   HOSTED_SITES_CAPABILITY,
+  INSTANCE_TRANSFER_CAPABILITY,
   LIVE_ACTIVITY_PUSH_CAPABILITY,
   MCP_SERVERS_CAPABILITY,
   MCP_SIGN_IN_APP_CAPABILITY,
@@ -172,6 +174,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   QUIET_TURN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
   AGENT_IMPORT_CAPABILITY,
+  INSTANCE_TRANSFER_CAPABILITY,
   AGENT_PUBLISH_CAPABILITY,
   LIVE_ACTIVITY_PUSH_CAPABILITY,
   HOSTED_SITES_CAPABILITY,
@@ -269,7 +272,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== ROUTINE_FLOWS_CAPABILITY &&
     capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
     capability !== PUSH_NOTIFICATIONS_CAPABILITY &&
-    capability !== PROVIDER_ACCOUNTS_CAPABILITY,
+    capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
+    capability !== INSTANCE_TRANSFER_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -292,6 +296,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== ROUTINE_FLOWS_CAPABILITY &&
       capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
       capability !== PUSH_NOTIFICATIONS_CAPABILITY &&
-      capability !== PROVIDER_ACCOUNTS_CAPABILITY,
+      capability !== PROVIDER_ACCOUNTS_CAPABILITY &&
+      capability !== INSTANCE_TRANSFER_CAPABILITY,
   );
 }

@@ -256,6 +256,10 @@ export const requireOperationsAdmin = Effect.fn("Auth.requireOperationsAdmin")(f
   return yield* adminTokenMatches(requireWorkerBindings(env).SITE_OPERATIONS_ADMIN_TOKEN, bearerToken(request));
 });
 
+export const requireServerClaimsAdmin = Effect.fn("Auth.requireServerClaimsAdmin")(function* (request: Request) {
+  return yield* adminTokenMatches(requireWorkerBindings(env).SERVER_CLAIMS_ADMIN_TOKEN, bearerToken(request));
+});
+
 export function requestTeamInviteEmailDelivery(): TeamInviteEmailDelivery | null {
   const bindings = requireWorkerBindings(env);
   return createTeamInviteEmailDelivery(bindings);

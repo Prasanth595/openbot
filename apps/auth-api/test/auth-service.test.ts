@@ -364,6 +364,15 @@ class MemoryAuthRepository implements AuthRepository {
     });
   }
 
+  // Server claims are tested against D1 in `server-claims.test.ts`.
+  createServerClaim(): Effect.Effect<void, AuthStoreError> {
+    return Effect.die(new Error("Unused"));
+  }
+
+  redeemServerClaim(): Effect.Effect<null, AuthStoreError> {
+    return Effect.die(new Error("Unused"));
+  }
+
   revokeMobileAuthDevice(userId: string, sessionId: string): Effect.Effect<boolean, AuthStoreError> {
     return Effect.sync(() => {
       const device = this.mobileDevices.get(sessionId);

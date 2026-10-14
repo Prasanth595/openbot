@@ -68,6 +68,94 @@ describe("remote browser responses", () => {
   });
 });
 
+/** A member's WebRTC host, as the manager reads it from `servers.json`. */
+async function createWebRtcHost() {
+  const directory = await mkdtemp(join(tmpdir(), "openbot-webrtc-host-"));
+  const statePath = join(directory, "servers.json");
+  const hostId = "viewer-host";
+  const publicKey = "viewer-host-public-key";
+  await writeFile(
+    statePath,
+    JSON.stringify({
+      version: 3,
+      activeServerId: hostId,
+      servers: [
+        {
+          id: hostId,
+          name: "Viewer host",
+          apiUrl: `webrtc://${hostId}`,
+          fingerprint: fingerprint(publicKey),
+          publicKey,
+          username: "person@example.com",
+          encryptedToken: "",
+          remoteDesktopAvailable: true,
+          logoVersion: null,
+          role: "member",
+          transport: "webrtc-v2",
+        },
+      ],
+    }),
+  );
+  const bridge = new TeamWebRtcBridge();
+  vi.spyOn(bridge, "disconnect").mockReturnValue(Effect.void);
+  const transport = new TeamWebRtcClientTransport({
+    bridge,
+    listHosts: () =>
+      authCall(async () => [
+        {
+          hostId,
+          name: "Viewer host",
+          logoKey: null,
+          devicePublicKey: publicKey,
+          authEpoch: 1,
+          membershipId: "member-1",
+          role: "member",
+        },
+      ]),
+    startSession: () => authCall(async () => ({ sessionId: "session-1", hostId, expiresAt: Date.now() + 60_000 })),
+    issueTicket: () =>
+      authCall(async () => ({
+        ticket: "ticket",
+        expiresAt: Date.now() + 60_000,
+        signalUrl: "wss://signal.openbot.run/v1/signal",
+      })),
+    endSession: () => authCall(async () => undefined),
+    createInvite: () =>
+      authCall(async () => ({
+        inviteId: "invite-1",
+        token: "token",
+        expiresAt: Date.now() + 60_000,
+        permanent: false,
+        useCount: 0,
+      })),
+    listInvites: () => authCall(async () => []),
+    previewInvite: () =>
+      authCall(async () => {
+        throw new Error("Unexpected invite preview.");
+      }),
+    acceptInvite: () =>
+      authCall(async () => {
+        throw new Error("Unexpected invite acceptance.");
+      }),
+    revokeInvite: () => authCall(async () => undefined),
+    listMembers: () => authCall(async () => []),
+    updateMember: () => authCall(async () => undefined),
+    removeMember: () => authCall(async () => undefined),
+    removeOwnedHost: () => authCall(async () => undefined),
+    getPrincipalId: () => "person-1",
+    controlPlaneUrl: "https://api.openbot.run",
+    downloadHostLogo: () => authCall(async () => ({ bytes: new Uint8Array(), mimeType: "image/png" })),
+    transferDirectory: join(directory, "transfers"),
+  });
+  const manager = new RemoteServerManager(
+    statePath,
+    { encrypt: (value) => Buffer.from(value), decrypt: (value) => value.toString() },
+    { createTeamAuthTicket: () => authCall(async () => "ticket"), getEmail: () => "person@example.com" },
+    { webrtcTransport: transport },
+  );
+  return { directory, hostId, transport, manager };
+}
+
 describe("remote server links", () => {
   it("creates token-free preview URLs", () => {
     const preview = remoteAttachmentPreviewUrl("00000000-0000-4000-8000-000000000000", "draft 1");
@@ -592,83 +680,7 @@ describe("remote server links", () => {
   });
 
   it("sends viewer JSON through RPC and keeps viewer authorization errors scoped to Remote Desktop", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "openbot-webrtc-viewer-"));
-    const statePath = join(directory, "servers.json");
-    const hostId = "viewer-host";
-    const publicKey = "viewer-host-public-key";
-    await writeFile(
-      statePath,
-      JSON.stringify({
-        version: 3,
-        activeServerId: hostId,
-        servers: [
-          {
-            id: hostId,
-            name: "Viewer host",
-            apiUrl: `webrtc://${hostId}`,
-            fingerprint: fingerprint(publicKey),
-            publicKey,
-            username: "person@example.com",
-            encryptedToken: "",
-            remoteDesktopAvailable: true,
-            logoVersion: null,
-            role: "member",
-            transport: "webrtc-v2",
-          },
-        ],
-      }),
-    );
-    const bridge = new TeamWebRtcBridge();
-    vi.spyOn(bridge, "disconnect").mockReturnValue(Effect.void);
-    const transport = new TeamWebRtcClientTransport({
-      bridge,
-      listHosts: () =>
-        authCall(async () => [
-          {
-            hostId,
-            name: "Viewer host",
-            logoKey: null,
-            devicePublicKey: publicKey,
-            authEpoch: 1,
-            membershipId: "member-1",
-            role: "member",
-          },
-        ]),
-      startSession: () => authCall(async () => ({ sessionId: "session-1", hostId, expiresAt: Date.now() + 60_000 })),
-      issueTicket: () =>
-        authCall(async () => ({
-          ticket: "ticket",
-          expiresAt: Date.now() + 60_000,
-          signalUrl: "wss://signal.openbot.run/v1/signal",
-        })),
-      endSession: () => authCall(async () => undefined),
-      createInvite: () =>
-        authCall(async () => ({
-          inviteId: "invite-1",
-          token: "token",
-          expiresAt: Date.now() + 60_000,
-          permanent: false,
-          useCount: 0,
-        })),
-      listInvites: () => authCall(async () => []),
-      previewInvite: () =>
-        authCall(async () => {
-          throw new Error("Unexpected invite preview.");
-        }),
-      acceptInvite: () =>
-        authCall(async () => {
-          throw new Error("Unexpected invite acceptance.");
-        }),
-      revokeInvite: () => authCall(async () => undefined),
-      listMembers: () => authCall(async () => []),
-      updateMember: () => authCall(async () => undefined),
-      removeMember: () => authCall(async () => undefined),
-      removeOwnedHost: () => authCall(async () => undefined),
-      getPrincipalId: () => "person-1",
-      controlPlaneUrl: "https://api.openbot.run",
-      downloadHostLogo: () => authCall(async () => ({ bytes: new Uint8Array(), mimeType: "image/png" })),
-      transferDirectory: join(directory, "transfers"),
-    });
+    const { directory, hostId, transport, manager } = await createWebRtcHost();
     const requestResponse = vi
       .spyOn(transport, "requestResponse")
       .mockReturnValueOnce(Effect.succeed({ status: 204, body: {} }))
@@ -679,12 +691,6 @@ describe("remote server links", () => {
           }),
         ),
       );
-    const manager = new RemoteServerManager(
-      statePath,
-      { encrypt: (value) => Buffer.from(value), decrypt: (value) => value.toString() },
-      { createTeamAuthTicket: () => authCall(async () => "ticket"), getEmail: () => "person@example.com" },
-      { webrtcTransport: transport },
-    );
 
     try {
       await runCauseEffect(manager.initialize());
@@ -714,6 +720,33 @@ describe("remote server links", () => {
         ),
       ).rejects.toThrow("Viewer grant expired.");
       expect(manager.list().find((server) => server.id === hostId)?.issue).toBeNull();
+    } finally {
+      await runCauseEffect(manager.stop());
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not save or read a host error over WebRTC as a transfer file", async () => {
+    const { directory, hostId, transport, manager } = await createWebRtcHost();
+    vi.spyOn(transport, "requestResponse").mockReturnValue(
+      Effect.succeed({ status: 400, body: { error: "The transfer file is larger than 100 MB." } }),
+    );
+
+    try {
+      await runCauseEffect(manager.initialize());
+      await runCauseEffect(manager.awaitHostDirectory());
+      await expect(
+        runCauseEffect(
+          manager.downloadInstanceTransfer(hostId, {
+            agentIds: ["agent-1"],
+            includeFiles: true,
+            includeSettings: true,
+          }),
+        ),
+      ).rejects.toThrow("The transfer file is larger than 100 MB.");
+      await expect(
+        runCauseEffect(manager.stageInstanceTransfer(hostId, new Uint8Array([80, 75, 3, 4]))),
+      ).rejects.toThrow("The transfer file is larger than 100 MB.");
     } finally {
       await runCauseEffect(manager.stop());
       await rm(directory, { recursive: true, force: true });

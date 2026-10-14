@@ -109,7 +109,6 @@ export function ConversationTimeline() {
     unreadBoundaryMessageId,
     moveChatSearch,
     openExternalMessageUrl,
-    openMoreMessageId,
     openReactionMessageId,
     openBrowserTakeoverTab,
     openRoutineSettings,
@@ -128,7 +127,6 @@ export function ConversationTimeline() {
     scheduleUnreadDividerVisibilityUpdate,
     setChatSearchQuery,
     setExpandedEmojiMessageId,
-    setOpenMoreMessageId,
     setOpenReactionMessageId,
     setRequiredInteractionElement,
     showScrollToLatest,
@@ -733,21 +731,12 @@ export function ConversationTimeline() {
                                 <MessageActions
                                   message={message() ?? initialMessage}
                                   pickerOpen={openReactionMessageId() === message()?.id}
-                                  moreOpen={openMoreMessageId() === message()?.id}
                                   expandedEmoji={expandedEmojiMessageId() === message()?.id}
                                   copied={copiedMessageId() === message()?.id}
                                   onTogglePicker={() => {
                                     const messageId = message()?.id;
                                     if (!messageId) return;
                                     setOpenReactionMessageId((current) => (current === messageId ? null : messageId));
-                                    setOpenMoreMessageId(null);
-                                    setExpandedEmojiMessageId(null);
-                                  }}
-                                  onToggleMore={() => {
-                                    const messageId = message()?.id;
-                                    if (!messageId) return;
-                                    setOpenMoreMessageId((current) => (current === messageId ? null : messageId));
-                                    setOpenReactionMessageId(null);
                                     setExpandedEmojiMessageId(null);
                                   }}
                                   onExpandEmoji={() => {

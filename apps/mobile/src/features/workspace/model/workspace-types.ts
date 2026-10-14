@@ -173,6 +173,8 @@ export interface MobileWorkspaceContextValue {
     input: { deliveryId?: string; expectedTurnId?: string; deliveryIds?: string[] },
   ) => Promise<void>;
   editQueue: (agentId: string, serverId: string, input: QueueEditRequest) => Promise<QueueSnapshot>;
+  /** Sets the reader's reaction on a message of an agent chat. `null` removes it. */
+  setMessageReaction: (agentId: string, serverId: string, messageId: string, emoji: string | null) => Promise<void>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
   /** The default server first, then the other servers in the order saved on this device. */
   servers: MobileServer[];

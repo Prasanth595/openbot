@@ -1483,31 +1483,66 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
           return parsed;
         },
       );
-      if (this.#sessionAccountId !== null && this.#sessionAccountId !== redeemed.user.id) {
-        this.#teamHostTokens.clear();
-      }
-      const previousToken = this.#sessionToken;
-      const previousMobileConnectLink = this.#mobileConnectLink;
-      this.#sessionToken = redeemed.sessionToken;
-      this.#mobileConnectLink = null;
-      // The claim is spent. A session that is not stored ends at the next start, so a failed write fails
-      // the redeem, and the session is not kept in memory. The start retry redeems the claim again in its
-      // retry window.
-      const attempt7 = yield* Effect.gen({ self: this }, function* () {
-        yield* this.#writeStoredSession({ required: true });
-      }).pipe(Effect.result);
-      if (Result.isFailure(attempt7)) {
-        const error = attempt7.failure.cause;
-        this.#sessionToken = previousToken;
-        this.#mobileConnectLink = previousMobileConnectLink;
-        return yield* new CentralAuthOperationError({ cause: error });
-      }
-      const user = this.#resolveUserAvatar(redeemed.user);
-      this.#setState({ status: "signed_in", user });
+      // The start retry redeems the claim again in its retry window when the session is not stored.
+      const user = yield* this.#applyClaimedSession(redeemed);
       return { hostId: redeemed.hostId, name: redeemed.name, user };
     },
     (operation) => this.#owned(operation),
   ).bind(this);
+
+  /**
+   * Signs a self-hosted server in with a one-time claim that an operator made for the owner's email.
+   * The answer is null when it signed in. A failure leaves the state as it was and gives the issue.
+   * The caller checks that the session can be stored first: the claim works only once.
+   */
+  readonly redeemServerClaim = Effect.fn("CentralAuth.redeemServerClaim")(
+    function* (
+      this: CentralAuthManager,
+      claim: string,
+    ): Effect.fn.Return<CentralAuthIssue | null, never, CentralAuthTransport> {
+      return yield* Effect.gen({ self: this }, function* () {
+        const session = yield* this.#requestEffect(
+          "/v2/server-claims/redeem",
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ claim }) },
+          decodeSessionResponse,
+        );
+        yield* this.#applyClaimedSession(session);
+        return null;
+      }).pipe(
+        Effect.catch(({ cause: error }) =>
+          Effect.succeed(centralAuthIssue(error, "server_claim_failed", sourceText("error.auth.serviceError"))),
+        ),
+      );
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  /**
+   * Stores the session that a claim gave and signs in. A session that is not stored ends at the next
+   * start, so a failed write fails, and the session is not kept in memory. A failed write also removes
+   * the stored session file.
+   */
+  readonly #applyClaimedSession = Effect.fn("CentralAuth.applyClaimedSession")(function* (
+    this: CentralAuthManager,
+    session: { sessionToken: string; user: CentralAuthUser },
+  ): Effect.fn.Return<CentralAuthUser, CentralAuthOperationError, CentralAuthTransport> {
+    if (this.#sessionAccountId !== null && this.#sessionAccountId !== session.user.id) {
+      this.#teamHostTokens.clear();
+    }
+    const previousToken = this.#sessionToken;
+    const previousMobileConnectLink = this.#mobileConnectLink;
+    this.#sessionToken = session.sessionToken;
+    this.#mobileConnectLink = null;
+    const stored = yield* this.#writeStoredSession({ required: true }).pipe(Effect.result);
+    if (Result.isFailure(stored)) {
+      this.#sessionToken = previousToken;
+      this.#mobileConnectLink = previousMobileConnectLink;
+      return yield* new CentralAuthOperationError({ cause: stored.failure.cause });
+    }
+    const user = this.#resolveUserAvatar(session.user);
+    this.#setState({ status: "signed_in", user });
+    return user;
+  });
 
   readonly logout = Effect.fn("CentralAuth.logout")(
     function* (

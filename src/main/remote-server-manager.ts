@@ -24,7 +24,9 @@ import type {
   DirectTypingRealtimeEvent,
   DraftAttachment,
   DuplicateAgentResult,
+  ExportInstanceInput,
   HostedServerIssue,
+  InstanceTransferPreview,
   InvitePreview,
   InviteSummary,
   JoinServerInput,
@@ -45,6 +47,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   decodeRemoteAgentImportPreview,
+  decodeRemoteInstanceTransferPreview,
   LOCAL_SERVER_ID,
   REMOTE_DESKTOP_SETUP_CAPABILITY,
   type RemoteDesktopTestInput,
@@ -55,6 +58,7 @@ import { AGENT_IMPORT_ROUTES } from "@openbot/contracts/team-protocol/agent-impo
 import { decodeBrowserViewSessionResponse } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_MEMBER_LEAVE_CAPABILITY, type TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import type { HostRestartEvent } from "@openbot/contracts/team-protocol/host-update-v1";
+import { INSTANCE_TRANSFER_ROUTES } from "@openbot/contracts/team-protocol/instance-transfer-v1";
 import { decodeTeamProtocolV1CurrentHttpResponse } from "@openbot/contracts/team-protocol/v1-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import { WAKE_RECONNECT_STATES } from "@openbot/team-client/hosted-server-wake";
@@ -86,7 +90,7 @@ import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors"
 import { RemoteEventRefresh } from "./remote-server-event-refresh";
 import { RemoteEventStream } from "./remote-server-event-stream";
 import { reconcileWebRtcHosts } from "./remote-server-host-directory";
-import { requestJson } from "./remote-server-http";
+import { requestJson, throwRemoteResponseError } from "./remote-server-http";
 import { RemotePresenceCache } from "./remote-server-presence";
 import { RemoteServerStore, type TokenCipher } from "./remote-server-store";
 import type { StoredRemoteServer } from "./remote-server-stored-shape";
@@ -1591,6 +1595,63 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     },
     (operation) => this.#owned(operation),
   ).bind(this);
+
+  /** Sends an OpenBot transfer file to the host with `instance-transfer-v1` and answers its preview. */
+  readonly stageInstanceTransfer = Effect.fn("RemoteManager.stageInstanceTransfer")(
+    function* (
+      this: RemoteServerManager,
+      serverId: string,
+      bytes: Uint8Array,
+    ): Effect.fn.Return<InstanceTransferPreview, RemoteWorkflowError, RemoteRequest> {
+      const server = yield* remoteDecode(() => this.#store.require(serverId));
+      const url = new URL(INSTANCE_TRANSFER_ROUTES.stage, server.apiUrl);
+      const response = yield* this.#client.fetch(
+        server,
+        url,
+        { method: "POST", headers: { "Content-Type": "application/zip" }, body: Buffer.from(bytes) },
+        true,
+        AGENT_IMPORT_UPLOAD_TIMEOUT_MS,
+      );
+      yield* this.#rejectHostError(response, url);
+      const value = yield* remoteCall(() => response.json());
+      return yield* remoteDecode(() => decodeRemoteInstanceTransferPreview(value));
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  /** The host's transfer file, made with `instance-transfer-v1`. */
+  readonly downloadInstanceTransfer = Effect.fn("RemoteManager.downloadInstanceTransfer")(
+    function* (
+      this: RemoteServerManager,
+      serverId: string,
+      input: ExportInstanceInput,
+    ): Effect.fn.Return<Uint8Array, RemoteWorkflowError, RemoteRequest> {
+      const server = yield* remoteDecode(() => this.#store.require(serverId));
+      const url = new URL(INSTANCE_TRANSFER_ROUTES.export, server.apiUrl);
+      const response = yield* this.#client.fetch(
+        server,
+        url,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) },
+        true,
+        AGENT_IMPORT_UPLOAD_TIMEOUT_MS,
+      );
+      yield* this.#rejectHostError(response, url);
+      return new Uint8Array(yield* remoteCall(() => response.arrayBuffer()));
+    },
+    (operation) => this.#owned(operation),
+  ).bind(this);
+
+  /**
+   * The WebRTC path of `fetch` answers a host error as a response, not a failure. A transfer must not
+   * read that error as a file or a preview.
+   */
+  #rejectHostError(response: Response, url: URL) {
+    return response.ok
+      ? Effect.void
+      : throwRemoteResponseError(response, "POST", url.pathname).pipe(
+          Effect.mapError((cause) => new RemoteWorkflowError({ cause })),
+        );
+  }
 
   readonly setAgentAvatar = Effect.fn("RemoteManager.setAgentAvatar")(
     function* (

@@ -246,7 +246,6 @@ export const messages = {
   "chat.actions.moreEmoji": "Daha fazla emoji",
   "chat.actions.replyUser": "Kullanıcı mesajına yanıt ver",
   "chat.actions.reply": "{name} mesajına yanıt ver",
-  "chat.actions.more": "Daha fazla mesaj işlemi",
   "chat.selection.label": "Seçilen metin için işlemler",
   "chat.selection.sendFailed": "Gönderilemedi",
   "chat.selection.close": "Seçilen metin işlemlerini kapat",

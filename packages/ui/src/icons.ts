@@ -2,6 +2,7 @@ export { default as AlarmClock } from "lucide-solid/icons/alarm-clock";
 export { default as AppWindow } from "lucide-solid/icons/app-window";
 export { default as ArrowDown } from "lucide-solid/icons/arrow-down";
 export { default as ArrowLeft } from "lucide-solid/icons/arrow-left";
+export { default as ArrowLeftRight } from "lucide-solid/icons/arrow-left-right";
 export { default as ArrowRight } from "lucide-solid/icons/arrow-right";
 export { default as ArrowRightToLine } from "lucide-solid/icons/arrow-right-to-line";
 export { default as ArrowUp } from "lucide-solid/icons/arrow-up";
