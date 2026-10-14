@@ -1763,7 +1763,9 @@ export class BrowserCdpEngine {
         // it returns, so the quiet wait can run in the document that is going away. Chromium rejects
         // that evaluation when the page navigates. The navigation is the result of the action, not a
         // failure of it: wait for the next document instead of reporting an error, because the
-        // caller then stops the load and leaves the tab on an empty document.
+        // caller then stops the load and leaves the tab on an empty document. A page that never becomes
+        // quiet and changes its URL in place (`replaceState`) loads no new document, so it keeps the
+        // short quiet limit.
         while (true) {
           const navigationGeneration = this.#navigationGeneration;
           if (this.#contents.isLoading()) yield* waitForLoading(this.#contents, Math.max(1, deadline - Date.now()));
@@ -1775,10 +1777,11 @@ export class BrowserCdpEngine {
             Effect.as(true),
             Effect.catch((failure) =>
               browserSync(() => {
-                if (navigationGeneration !== this.#navigationGeneration || this.#contents.isLoading())
-                  return Date.now() >= deadline;
+                const navigated = navigationGeneration !== this.#navigationGeneration;
                 const error = failure.cause;
-                if (error instanceof Error && error.message === "DOM did not become quiet.") return true;
+                if (error instanceof Error && error.message === "DOM did not become quiet.")
+                  return !(navigated && this.#contents.isLoading()) || Date.now() >= deadline;
+                if (navigated || this.#contents.isLoading()) return Date.now() >= deadline;
                 throw error;
               }),
             ),
