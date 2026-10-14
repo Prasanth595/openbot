@@ -328,6 +328,14 @@ import type {
   UpdateRoutineFlowLinkInput,
 } from "./ipc-routine-flows";
 import type {
+  ResendRoutineResultInput,
+  RoutineResultConnectionOption,
+  RoutineResultDelivery,
+  RoutineResultDestination,
+  RoutineResultRoutineInput,
+  SetRoutineResultDestinationInput,
+} from "./ipc-routine-results";
+import type {
   CreateRoutineInput,
   DeleteRoutineInput,
   ListRoutineRunsInput,
@@ -1118,6 +1126,20 @@ export const IPC_ENDPOINTS = {
     disconnect: scopedRequest<DisconnectRoutineFlowInput, void>()("routine-flows:disconnect"),
     updateLink: scopedRequest<UpdateRoutineFlowLinkInput, RoutineFlowLink>()("routine-flows:update-link"),
   },
+  /**
+   * Routine results: an agent routine's answer sent on to a messaging place. Only this computer's host
+   * keeps a destination, so the group has no remote route. The agent event `routines-changed` says
+   * when a destination or a delivery changed.
+   */
+  routineResults: {
+    options: request<undefined, RoutineResultConnectionOption[]>()("routine-results:options"),
+    destination: request<RoutineResultRoutineInput, RoutineResultDestination | null>()("routine-results:destination"),
+    setDestination: request<SetRoutineResultDestinationInput, RoutineResultDestination | null>()(
+      "routine-results:set-destination",
+    ),
+    deliveries: request<RoutineResultRoutineInput, RoutineResultDelivery[]>()("routine-results:deliveries"),
+    resend: request<ResendRoutineResultInput, void>()("routine-results:resend"),
+  },
   agentAttachments: {
     chooseAttachments: scopedRequest<ChooseAttachmentsInput, DraftAttachment[]>()("agent:choose-attachments"),
     discardDraftAttachment: scopedRequest<string, void>()("agent:discard-draft-attachment"),
@@ -1388,6 +1410,7 @@ export const IPC_GROUP_PATHS = {
   hostedSites: "hostedSites",
   routineFeed: "routineFeed",
   routineFlows: "routineFlows",
+  routineResults: "routineResults",
   billing: "billing",
   hostedServers: "hostedServers",
   marketplaceAgents: "marketplaceAgents",

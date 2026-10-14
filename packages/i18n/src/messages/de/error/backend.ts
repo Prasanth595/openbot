@@ -81,6 +81,9 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Der Vorgang für die Erinnerung ist fehlgeschlagen. Versuche es erneut.",
   "error.backend.memoryGone": "Diese Erinnerung existiert nicht mehr.",
   "error.backend.routineGone": "Diese Routine existiert nicht mehr.",
+  "error.backend.routineResultConnectionOff":
+    "Diese Messaging-Verbindung ist aus oder entfernt. Wähle einen anderen Ort.",
+  "error.backend.routineResultNoDelivery": "Dieser Lauf hat keine Antwort, die erneut gesendet werden kann.",
   "error.backend.channelMemoryLimit": "Ein Kanal kann bis zu {limit} Erinnerungen haben.",
   "error.backend.channelRoutineLimit": "Ein Kanal kann höchstens {limit} Routinen haben.",
   "error.backend.agentRoutineLimit": "Ein Agent kann höchstens {limit} Routinen haben.",

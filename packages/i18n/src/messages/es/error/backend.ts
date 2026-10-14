@@ -80,6 +80,9 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Falló la operación de memoria. Inténtalo de nuevo.",
   "error.backend.memoryGone": "Este recuerdo ya no existe.",
   "error.backend.routineGone": "Esta rutina ya no existe.",
+  "error.backend.routineResultConnectionOff":
+    "Esta conexión de mensajería está desactivada o eliminada. Elige otro lugar.",
+  "error.backend.routineResultNoDelivery": "Esta ejecución no tiene una respuesta para enviar de nuevo.",
   "error.backend.channelMemoryLimit": "Un canal puede tener hasta {limit} recuerdos.",
   "error.backend.channelRoutineLimit": "Un canal puede tener un máximo de {limit} rutinas.",
   "error.backend.agentRoutineLimit": "Un agente puede tener un máximo de {limit} rutinas.",

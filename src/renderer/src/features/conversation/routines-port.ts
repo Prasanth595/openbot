@@ -5,6 +5,9 @@ import type {
   RoutineFields,
   RoutineLimitPolicy,
   RoutineMissedPolicy,
+  RoutineResultConnectionOption,
+  RoutineResultDelivery,
+  RoutineResultDestination,
   RoutineRunFields,
   RoutineSchedule,
 } from "@openbot/contracts/ipc";
@@ -34,6 +37,18 @@ interface RoutineSaveResult {
   secret: string | null;
 }
 
+/** The place an agent routine sends its answers to, and what became of each one. */
+interface RoutineResultsPort {
+  options: () => Promise<RoutineResultConnectionOption[]>;
+  destination: (routineId: string) => Promise<RoutineResultDestination | null>;
+  setDestination: (
+    routineId: string,
+    destination: { connectionId: string; placeId: string; placeName: string } | null,
+  ) => Promise<RoutineResultDestination | null>;
+  deliveries: (routineId: string) => Promise<RoutineResultDelivery[]>;
+  resend: (runId: string) => Promise<void>;
+}
+
 export interface RoutinesPort {
   ownerId: string;
   /** The word the editor reads in its placeholder: "Describe what this agent should do." */
@@ -58,6 +73,19 @@ export interface RoutinesPort {
   subscribe: (reload: () => void) => () => void;
   /** Webhook triggers and activity, for a host with event support. */
   events?: { owner: EventRoutineOwner; api: RoutineWebhooksApi };
+  /** Only for an agent on this computer: the released Team API has no routine destinations. */
+  results?: RoutineResultsPort;
+}
+
+function agentRoutineResults(agentId: string): RoutineResultsPort {
+  const api = window.openbot.routineResults;
+  return {
+    options: () => api.options(),
+    destination: (routineId) => api.destination({ agentId, routineId }),
+    setDestination: (routineId, destination) => api.setDestination({ agentId, routineId, destination }),
+    deliveries: (routineId) => api.deliveries({ agentId, routineId }),
+    resend: (runId) => api.resend({ agentId, runId }),
+  };
 }
 
 export function agentRoutinesPort(agentId: string, automation = false, localHost = false): RoutinesPort {
@@ -85,6 +113,7 @@ export function agentRoutinesPort(agentId: string, automation = false, localHost
     ...(automation
       ? { runCommand: (routineId: string) => window.openbot.agent.automationRunCommand({ agentId, routineId }) }
       : {}),
+    ...(localHost ? { results: agentRoutineResults(agentId) } : {}),
     subscribe: (reload) =>
       window.openbot.agent.onEvent((event) => {
         if (event.type === "routines-changed" && event.agentId === agentId) reload();
@@ -147,9 +176,9 @@ export function channelRoutinesPort(
 export function eventRoutinesPort(
   owner: EventRoutineOwner,
   api: EventRoutinesApi,
-  legacy: Pick<RoutinesPort, "listRuns" | "subscribe" | "runCommand" | "missedPolicy">,
+  legacy: Pick<RoutinesPort, "listRuns" | "subscribe" | "runCommand" | "missedPolicy" | "results">,
 ): RoutinesPort {
-  const runCommand = legacy.runCommand;
+  const { runCommand, results } = legacy;
   const recoveryRuns = api.listRuns;
   const missedPolicyKept = legacy.missedPolicy || recoveryRuns !== undefined;
   return {
@@ -184,6 +213,7 @@ export function eventRoutinesPort(
     remove: (routineId) => api.deleteRoutine({ id: routineId, owner }),
     test: (routineId) => api.testRoutine({ id: routineId, owner }),
     ...(runCommand ? { runCommand } : {}),
+    ...(results ? { results } : {}),
     subscribe: legacy.subscribe,
   };
 }

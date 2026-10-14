@@ -184,6 +184,11 @@ import {
 import { decodeProviderRuntimeSnapshot } from "./provider-runtime";
 import { decodeRoutineFlowCanvas, decodeRoutineFlowLink } from "./routine-flow-decoding";
 import {
+  decodeRoutineResultDeliveries,
+  decodeRoutineResultDestination,
+  decodeRoutineResultOptions,
+} from "./routine-result-decoding";
+import {
   decodeAgentInstallation,
   decodeAgentPublicationPreview,
   decodeAgentSubmission,
@@ -576,6 +581,13 @@ const openbotApi: OpenBotDesktopApi = {
     connect: decodeRoutineFlowLink,
     disconnect: decodeVoid,
     updateLink: decodeRoutineFlowLink,
+  }),
+  routineResults: bridgeGroup(IPC_ENDPOINTS.routineResults, {
+    options: decodeRoutineResultOptions,
+    destination: decodeRoutineResultDestination,
+    setDestination: decodeRoutineResultDestination,
+    deliveries: decodeRoutineResultDeliveries,
+    resend: decodeVoid,
   }),
   voice: bridgeGroup(IPC_ENDPOINTS.voice, {
     getModelStatus: decodeVoiceModelStatus,

@@ -80,6 +80,9 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Operacja na pamięci nie powiodła się. Spróbuj ponownie.",
   "error.backend.memoryGone": "To wspomnienie już nie istnieje.",
   "error.backend.routineGone": "Ta rutyna już nie istnieje.",
+  "error.backend.routineResultConnectionOff":
+    "To połączenie z komunikatorem jest wyłączone lub usunięte. Wybierz inne miejsce.",
+  "error.backend.routineResultNoDelivery": "To uruchomienie nie ma odpowiedzi do ponownego wysłania.",
   "error.backend.channelMemoryLimit": "Kanał może mieć maksymalnie {limit} wspomnień.",
   "error.backend.channelRoutineLimit": "Kanał może mieć maksymalnie {limit} rutyn.",
   "error.backend.agentRoutineLimit": "Agent może mieć maksymalnie {limit} rutyn.",

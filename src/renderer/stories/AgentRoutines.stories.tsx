@@ -1,4 +1,4 @@
-import type { Routine, RoutineRun } from "@openbot/contracts/ipc";
+import type { Routine, RoutineResultDelivery, RoutineResultDestination, RoutineRun } from "@openbot/contracts/ipc";
 import { onCleanup } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -7,7 +7,7 @@ import AgentSettingsPanel from "../src/features/conversation/AgentSettingsPanel"
 import { desktopEventRoutinesApi } from "../src/features/conversation/routine-webhooks-api";
 import { agentRoutinesPort, eventRoutinesPort } from "../src/features/conversation/routines-port";
 import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS } from "./fixtures";
-import { createMockOpenBot } from "./mock-openbot";
+import { createMockOpenBot, type MockOpenBotOptions } from "./mock-openbot";
 
 const morningBrief: Routine = {
   id: "routine-morning-brief",
@@ -55,9 +55,14 @@ const fullPanelRuns: RoutineRun[] = [
   storyRun("run-yesterday", "failed", "scheduled", 28),
 ];
 
-function RoutinesStory(props: { routines?: Routine[]; runs?: RoutineRun[]; localHost?: boolean }) {
+function RoutinesStory(props: {
+  routines?: Routine[];
+  runs?: RoutineRun[];
+  localHost?: boolean;
+  results?: Pick<MockOpenBotOptions, "routineResultOptions" | "routineResultDestinations" | "routineResultDeliveries">;
+}) {
   const previousApi = window.openbot;
-  const mock = createMockOpenBot({ routines: { chief: props.routines ?? storyRoutines } });
+  const mock = createMockOpenBot({ routines: { chief: props.routines ?? storyRoutines }, ...props.results });
   window.openbot = mock.api;
   if (props.runs) mock.api.agent.listRoutineRuns = async () => structuredClone(props.runs ?? []);
   onCleanup(() => {
@@ -260,6 +265,70 @@ export const MissedRuns: Story = {
           missed: { count: 1, until: null },
         },
       ]}
+    />
+  ),
+};
+
+const newsChannel: RoutineResultDestination = {
+  connectionId: "connection-slack",
+  platform: "slack",
+  connectionName: "Acme",
+  placeId: "C-news",
+  placeName: "news",
+};
+
+function storyDelivery(
+  runId: string,
+  status: RoutineResultDelivery["status"],
+  reason: RoutineResultDelivery["reason"],
+  hours: number,
+): RoutineResultDelivery {
+  return {
+    runId,
+    status,
+    reason,
+    attempts: 1,
+    destination: newsChannel,
+    updatedAt: hoursAgo(hours),
+    sentAt: status === "sent" ? hoursAgo(hours) : null,
+  };
+}
+
+/**
+ * Each answer of the morning brief also goes to a Slack channel. One went, one waited a day for its
+ * connection, and OpenBot stopped during one. Each run succeeded: the delivery has its own status.
+ */
+export const ResultDestination: Story = {
+  render: () => (
+    <RoutinesStory
+      localHost
+      runs={[
+        storyRun("run-sent", "succeeded", "scheduled", 0),
+        storyRun("run-expired", "succeeded", "scheduled", 24),
+        storyRun("run-restart", "succeeded", "scheduled", 48),
+      ]}
+      results={{
+        routineResultOptions: [
+          {
+            connectionId: "connection-slack",
+            platform: "slack",
+            connectionName: "Acme",
+            places: [
+              { id: "C-general", name: "general" },
+              { id: "C-news", name: "news" },
+            ],
+            placesFailed: false,
+          },
+        ],
+        routineResultDestinations: { [morningBrief.id]: newsChannel },
+        routineResultDeliveries: {
+          [morningBrief.id]: [
+            storyDelivery("run-sent", "sent", null, 0),
+            storyDelivery("run-expired", "failed", "expired", 0),
+            storyDelivery("run-restart", "uncertain", "restart", 48),
+          ],
+        },
+      }}
     />
   ),
 };

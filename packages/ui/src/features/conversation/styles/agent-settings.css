@@ -429,6 +429,35 @@
   margin-bottom: var(--openbot-space-2);
 }
 
+/* A run whose answer went to a messaging place: the run row, then where the answer went. */
+.agent-routine-run-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.agent-routine-delivery-row {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 var(--openbot-space-2) 5px;
+  font-size: var(--openbot-text-sm);
+}
+
+/* The reason is why the answer is missing from the place, so it wraps rather than cuts off. */
+.agent-routine-delivery-note {
+  min-width: 0;
+  color: var(--openbot-text-muted);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.agent-routine-delivery-failed,
+.agent-routine-delivery-uncertain {
+  color: var(--openbot-warning);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .ui-button.agent-routine-run-link:hover:not(:disabled) {
     background: var(--openbot-bg-control-hover);
