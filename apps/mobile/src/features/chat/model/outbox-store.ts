@@ -122,7 +122,7 @@ export class OutboxStore {
   private dirty = false;
   /** Set and cleared in the same task as the loop's last check, so no change waits for a loop that ended. */
   private looping = false;
-  private writing: Promise<boolean> = Promise.resolve(true);
+  private writing: Promise<void> = Promise.resolve();
   private readonly now: () => number;
 
   constructor(private readonly options: OutboxStoreOptions) {
@@ -215,8 +215,8 @@ export class OutboxStore {
 
   /**
    * Adds a message at the end of its chat, and saves it on the phone at once. `replaces` are the
-   * messages that Edit gave to its composer: they go when the phone has saved this one, and come
-   * back stopped when it cannot.
+   * messages that Edit gave to its composer: they go when the save of this one ends, so that an app
+   * closed before then still has the original.
    */
   add(
     target: OutboxTarget,
@@ -254,37 +254,34 @@ export class OutboxStore {
     this.memoryFiles.set(clientMessageId, files);
     this.messages = [...this.messages, message];
     this.publish();
-    void this.save(message, files).then((saved) => {
-      if (!saved) this.stopEditing(replaces);
-      else for (const id of replaces) void this.cancel(id);
+    void this.save(message, files).then(() => {
+      for (const id of replaces) void this.cancel(id);
     });
     this.pump();
     return message;
   }
 
-  /** Whether the phone has the message and its files now. */
-  private async save(message: OutboxMessage, files: ChatAttachment[]): Promise<boolean> {
+  private async save(message: OutboxMessage, files: ChatAttachment[]): Promise<void> {
     const { storage } = this.options;
-    if (!storage) return true;
+    if (!storage) return;
     try {
       if (files.length) {
         const stored = await storage.writeFiles(message.clientMessageId, files);
         if (!this.messages.some((item) => item.clientMessageId === message.clientMessageId)) {
           await storage.removeFiles(message.clientMessageId);
-          return false;
+          return;
         }
         this.update(message.clientMessageId, { files: stored });
       }
-      return await this.persist();
+      await this.persist();
     } catch {
       // A message cancelled during the write has no files to keep.
       if (!this.messages.some((item) => item.clientMessageId === message.clientMessageId)) {
         await storage.removeFiles(message.clientMessageId).catch(() => undefined);
-        return false;
+        return;
       }
       this.storageFailed = true;
       this.publish();
-      return false;
     }
   }
 
@@ -414,14 +411,10 @@ export class OutboxStore {
     );
   }
 
-  /**
-   * Writes the outbox after every change. Writes run one at a time; the last one has the latest list.
-   * Whether the phone has the latest list now.
-   */
-  private persist(): Promise<boolean> {
+  /** Writes the outbox after every change. Writes run one at a time; the last one has the latest list. */
+  private persist(): Promise<void> {
     this.dirty = true;
-    if (!this.options.storage) return Promise.resolve(true);
-    if (!this.loaded) return Promise.resolve(false);
+    if (!this.loaded || !this.options.storage) return Promise.resolve();
     if (!this.looping) {
       this.looping = true;
       this.writing = this.writeLoop();
@@ -429,7 +422,7 @@ export class OutboxStore {
     return this.writing;
   }
 
-  private async writeLoop(): Promise<boolean> {
+  private async writeLoop(): Promise<void> {
     const { storage } = this.options;
     try {
       while (this.dirty && storage && this.canSave) {
@@ -437,11 +430,9 @@ export class OutboxStore {
         // A file write that has not finished has no name yet. Its message is saved when it has one.
         await storage.save({ version: 1, messages: this.messages.filter((message) => !hasUnsavedFiles(message)) });
       }
-      return this.canSave;
     } catch {
       this.storageFailed = true;
       this.publish();
-      return false;
     } finally {
       this.looping = false;
     }
