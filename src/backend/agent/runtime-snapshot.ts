@@ -1,4 +1,5 @@
 import { CHAT_VISUAL_ITEM_TYPE_PREFIX } from "@openbot/contracts/chat-visual";
+import { AGENT_ROSTER_BYTES_LIMIT, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_RUNTIME_PERMISSION_PATHS_LIMIT,
   AGENT_RUNTIME_QUESTION_DESCRIPTION_LIMIT,
@@ -16,6 +17,7 @@ import type { MailboxStore } from "../mailbox-store";
 import type { OpenBotDatabase } from "../openbot-database";
 import type { AttentionRegistry } from "./attention-registry";
 import type { ConversationRuntime } from "./conversation-runtime";
+import { AgentRosterBudgetExceeded, compactRuntimeRosterEntry } from "./roster-admission";
 import type { TurnLifecycle } from "./turn-lifecycle";
 import type { UsageLimitGate } from "./usage-limit-gate";
 
@@ -71,22 +73,24 @@ export function compactRuntimeApproval(approval: AgentApproval): AgentRuntimeSna
 }
 
 function fitRuntimeSnapshot(snapshot: AgentRuntimeSnapshot): AgentRuntimeSnapshot {
-  if (runtimeSnapshotBytes(snapshot) <= AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) return snapshot;
+  const budget =
+    snapshot.agents.length > INPUT_LIMITS.agents ? AGENT_ROSTER_BYTES_LIMIT : AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT;
+  if (runtimeSnapshotBytes(snapshot) <= budget) return snapshot;
 
   // Local-only context goes first, so it never costs Team clients a field they had before.
   if (snapshot.contextStates?.length) {
     snapshot.contextStates = [];
-    if (runtimeSnapshotBytes(snapshot) <= AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) return snapshot;
+    if (runtimeSnapshotBytes(snapshot) <= budget) return snapshot;
   }
 
   snapshot.agents = snapshot.agents.map((agent) => ({ ...agent, preview: "", avatarUrl: null }));
-  if (runtimeSnapshotBytes(snapshot) <= AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) return snapshot;
+  if (runtimeSnapshotBytes(snapshot) <= budget) return snapshot;
 
   snapshot.work = [];
-  if (runtimeSnapshotBytes(snapshot) <= AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) return snapshot;
+  if (runtimeSnapshotBytes(snapshot) <= budget) return snapshot;
 
   snapshot.latestMessages = snapshot.latestMessages.map((message) => ({ ...message, text: "" }));
-  if (runtimeSnapshotBytes(snapshot) <= AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) return snapshot;
+  if (runtimeSnapshotBytes(snapshot) <= budget) return snapshot;
 
   snapshot.pendingPrompts = snapshot.pendingPrompts.map((prompt) => ({
     ...prompt,
@@ -108,10 +112,10 @@ function fitRuntimeSnapshot(snapshot: AgentRuntimeSnapshot): AgentRuntimeSnapsho
       ? { fileSystem: { read: [], write: [] }, network: approval.permissions.network }
       : null,
   }));
-  if (runtimeSnapshotBytes(snapshot) <= AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) return snapshot;
+  if (runtimeSnapshotBytes(snapshot) <= budget) return snapshot;
 
   while (
-    runtimeSnapshotBytes(snapshot) > AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT &&
+    runtimeSnapshotBytes(snapshot) > budget &&
     snapshot.pendingPrompts.length + snapshot.pendingApprovals.length + snapshot.pendingBrowserTakeovers.length > 0
   ) {
     snapshot.attentionComplete = false;
@@ -119,20 +123,22 @@ function fitRuntimeSnapshot(snapshot: AgentRuntimeSnapshot): AgentRuntimeSnapsho
     else if (snapshot.pendingApprovals.length > 0) snapshot.pendingApprovals.pop();
     else snapshot.pendingPrompts.pop();
   }
-  if (runtimeSnapshotBytes(snapshot) <= AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) return snapshot;
+  if (runtimeSnapshotBytes(snapshot) <= budget) return snapshot;
 
-  snapshot.agents = snapshot.agents.map((agent) => ({
-    ...agent,
-    name: agent.name.slice(0, 40),
-    preview: "",
-    avatarSeed: agent.id,
-    avatarUrl: null,
-  }));
+  snapshot.agents = snapshot.agents.map(compactRuntimeRosterEntry);
+  if (snapshot.agents.length > INPUT_LIMITS.agents && runtimeSnapshotBytes(snapshot) > budget) {
+    // These are reply previews and model hints, not the conversation or the usage gate's state.
+    // The roster, active turns, failed turns and per-agent holds must remain complete.
+    snapshot.latestMessages = [];
+    snapshot.usageLimitedModels = [];
+    if (runtimeSnapshotBytes(snapshot) > budget) throw new AgentRosterBudgetExceeded();
+  }
   return snapshot;
 }
 
 function runtimeSnapshotBytes(snapshot: AgentRuntimeSnapshot): number {
-  return Buffer.byteLength(JSON.stringify({ type: "runtime-snapshot", snapshot }));
+  const type = snapshot.agents.length > INPUT_LIMITS.agents ? "large-runtime-snapshot" : "runtime-snapshot";
+  return Buffer.byteLength(JSON.stringify({ type, snapshot }));
 }
 
 export interface RuntimeSnapshotSources {

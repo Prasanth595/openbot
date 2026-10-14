@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { AGENT_ROSTER_BYTES_LIMIT, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT,
   type AgentEvent,
@@ -24,6 +24,7 @@ import {
   type TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import { encodeLargeAgentRosterEvent, LARGE_AGENT_ROSTER_CAPABILITY } from "@openbot/contracts/team-protocol";
 import { ACP_REGISTRY_CAPABILITY } from "@openbot/contracts/team-protocol/acp-registry-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import {
@@ -104,6 +105,7 @@ import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Scope } from "effect";
 import type * as Ws from "ws";
 import { AgentDuplicationFailed, duplicateAgentIntoLayout } from "../backend/agent/duplication-gate";
+import { AgentRosterBudgetExceeded } from "../backend/agent/roster-admission";
 import { AgentMemorySelectionError } from "../backend/agent-memory-store";
 import { runCauseEffect } from "../backend/effect-boundary";
 import { McpServerError } from "../backend/mcp-server-store";
@@ -905,10 +907,29 @@ export class TeamApiServer {
     capabilities: ReadonlySet<string>,
     options: { preserveSemanticTags?: boolean } = {},
   ): string | null {
+    if (
+      !capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY) &&
+      this.#options.agents.listAgents().length > INPUT_LIMITS.agents &&
+      (event.type === "agents-changed" || event.type === "runtime-snapshot")
+    ) {
+      return this.#encodeProviderEvent(
+        { type: "error", code: "client_update_required", message: sourceText("error.agent.largeRosterClientUpdate") },
+        capabilities,
+        options,
+      );
+    }
     const protocol = eventProtocol(capabilities);
     const hidden = hiddenProviderAgentIds(this.#options.agents.listAgents(), protocol);
-    const visible = protocol === 1 ? legacyProviderView(event, hidden) : hiddenAgentView(event, hidden, protocol);
-    if (!isAgentEvent(visible) && !isTeamRealtimeEvent(visible)) return null;
+    const visible = providerEventView(
+      protocol === 1 ? legacyProviderView(event, hidden) : hiddenAgentView(event, hidden, protocol),
+    );
+    if (!visible) return null;
+    if (
+      (visible.type === "agents-changed" && visible.agents.length > INPUT_LIMITS.agents) ||
+      (visible.type === "runtime-snapshot" && visible.snapshot.agents.length > INPUT_LIMITS.agents)
+    ) {
+      return encodeLargeAgentRosterEvent(visible);
+    }
     if (protocol !== 1)
       return (
         protocol === 7
@@ -1106,7 +1127,10 @@ export class TeamApiServer {
         if (!payload) continue;
         outgoing = payload;
       }
-      const limit = event.type === "runtime-snapshot" ? AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT : JSON_LIMIT;
+      const limit =
+        event.type === "runtime-snapshot" && !connection.capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY)
+          ? AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT
+          : JSON_LIMIT;
       if (Buffer.byteLength(outgoing) > limit) continue;
       if (client.readyState !== webSockets.WebSocket.OPEN) continue;
       client.send(outgoing);
@@ -1124,7 +1148,10 @@ export class TeamApiServer {
       if (!completionSnapshot) continue;
       // The snapshot is this client's own. It does not fit, so this client loses the snapshot and
       // keeps the turn, and the clients after it in the loop still get the turn.
-      if (Buffer.byteLength(completionSnapshot) > AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) continue;
+      const snapshotLimit = connection.capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY)
+        ? AGENT_ROSTER_BYTES_LIMIT
+        : AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT;
+      if (Buffer.byteLength(completionSnapshot) > snapshotLimit) continue;
       client.send(completionSnapshot);
     }
   }
@@ -1282,19 +1309,32 @@ export class TeamApiServer {
     connection.snapshotResponsePending = true;
     if (rateLimited) connection.nextSnapshotRequestAt = now + RUNTIME_SNAPSHOT_REQUEST_INTERVAL_MS;
     try {
-      const payload = this.#encodeProviderEvent(
-        {
-          type: "runtime-snapshot",
-          snapshot: this.#options.agents.getRuntimeSnapshot(),
-        },
-        connection.capabilities,
-      );
+      const event: AgentEvent =
+        !connection.capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY) &&
+        this.#options.agents.listAgents().length > INPUT_LIMITS.agents
+          ? {
+              type: "error",
+              code: "client_update_required",
+              message: sourceText("error.agent.largeRosterClientUpdate"),
+            }
+          : { type: "runtime-snapshot", snapshot: this.#options.agents.getRuntimeSnapshot() };
+      const payload = this.#encodeProviderEvent(event, connection.capabilities);
       if (!payload) throw new Error("Runtime snapshot is not supported by Team protocol v1.");
-      if (Buffer.byteLength(payload) > AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT) {
+      const snapshotLimit = connection.capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY)
+        ? AGENT_ROSTER_BYTES_LIMIT
+        : AGENT_RUNTIME_SNAPSHOT_BYTES_LIMIT;
+      if (Buffer.byteLength(payload) > snapshotLimit) {
         throw new Error("Runtime snapshot exceeds its transport budget.");
       }
       client.send(payload, (error) => {
         connection.snapshotResponsePending = false;
+        if (
+          !connection.capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY) &&
+          this.#options.agents.listAgents().length > INPUT_LIMITS.agents
+        ) {
+          client.close(1008, "Update OpenBot to connect to this host");
+          return;
+        }
         if (error && client.readyState === webSockets.WebSocket.OPEN) {
           client.close(1011, "Runtime snapshot could not be sent");
           return;
@@ -1304,8 +1344,18 @@ export class TeamApiServer {
           this.#sendRuntimeSnapshot(client, connection, true);
         }
       });
-    } catch {
+    } catch (error) {
       connection.snapshotResponsePending = false;
+      if (error instanceof AgentRosterBudgetExceeded) {
+        const payload = this.#encodeProviderEvent(
+          { type: "error", code: "protocol_error", message: error.message },
+          connection.capabilities,
+        );
+        if (payload) {
+          client.send(payload, () => client.close(1009, "Saved agents exceed the transport budget"));
+          return;
+        }
+      }
       client.close(1011, "Runtime snapshot could not be created");
     }
   }
@@ -1677,6 +1727,11 @@ export class TeamApiServer {
       empty: (status) => this.#empty(response, status),
     };
   }
+}
+
+/** Validate the provider projection into current event types before selecting its wire codec. */
+function providerEventView(value: unknown): AgentEvent | TeamRealtimeEvent | null {
+  return isAgentEvent(value) || isTeamRealtimeEvent(value) ? value : null;
 }
 
 function unavailableSidebarLayout(): TeamApiSidebarLayout {

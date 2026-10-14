@@ -1,0 +1,28 @@
+{
+  "agents": [
+    {
+      "id": "agent-fixture-001",
+      "name": "Fixture 001",
+      "title": "Builder",
+      "avatarSeed": "builder",
+      "avatarHue": 215,
+      "skillCount": 0,
+      "routineCount": 0,
+      "memoryCount": 0,
+      "fileCount": 0,
+      "fileBytes": 0
+    },
+    {
+      "id": "agent-fixture-002",
+      "name": "Fixture 002",
+      "title": "Reviewer",
+      "avatarSeed": "reviewer",
+      "avatarHue": null,
+      "skillCount": 0,
+      "routineCount": 0,
+      "memoryCount": 0,
+      "fileCount": 0,
+      "fileBytes": 0
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("error.agent", {
+  "error.agent.rosterBudget":
+    "These agents exceed the 1 MB roster or runtime transport budget. Reduce profile text or remove an agent before adding more.",
+  "error.agent.largeRosterClientUpdate":
+    "This host has more than 100 agents. Update OpenBot on this device to connect.",
   "error.agent.historyUnavailable": "History is unavailable for this request. Read recent history again.",
   "error.agent.toolRequestInvalid":
     "Invalid tool discovery arguments. Use the declared schema and an original qualified tool name.",

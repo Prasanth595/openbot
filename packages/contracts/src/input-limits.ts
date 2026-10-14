@@ -1,3 +1,10 @@
+export {
+  AGENT_ROSTER_BYTES_LIMIT,
+  AGENT_ROSTER_ITEMS_LIMIT,
+  fitsAgentRosterBudget,
+  isBoundedAgentRoster,
+} from "./agent-roster-limits";
+
 export const INPUT_LIMITS = {
   identifier: 128,
   email: 254,

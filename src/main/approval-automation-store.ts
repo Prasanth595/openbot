@@ -1,4 +1,4 @@
-import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { isBoundedAgentRoster } from "@openbot/contracts/input-limits";
 import {
   type ApprovalAutomationPreference,
   agentAutoApprovalEnabled,
@@ -43,7 +43,7 @@ export const readApprovalAutomation = Effect.fn("ApprovalAutomation.read")(funct
   }
   if (isDynamicRecord(parsed) && parsed.version === 1 && isBoolean(parsed.turbo)) {
     const ids = parsed.autoApproveAgentIds;
-    if (Array.isArray(ids) && ids.length <= INPUT_LIMITS.agents && ids.every(isString)) {
+    if (isBoundedAgentRoster(ids) && ids.every(isString)) {
       const granted = new Set(ids);
       // Snapshot every existing choice before enabling the default for future agents.
       return yield* writeApprovalAutomation(path, {

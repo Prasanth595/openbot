@@ -8,7 +8,7 @@ import {
   parseSetMcpServerEnabled,
   parseTestMcpServer,
 } from "../ipc/mcp-inputs";
-import { type McpToolRuntimePreparation, prepareToolRuntimeForTest } from "../ipc/mcp-server-handlers";
+import { type McpToolRuntimePreparation, prepareToolRuntimeForTest } from "../mcp-tool-runtime-preparation";
 import type { TeamApiMcpServers } from "./dependencies";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";

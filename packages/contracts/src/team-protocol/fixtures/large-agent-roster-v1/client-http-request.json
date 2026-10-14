@@ -1,0 +1,5 @@
+{
+  "agentIds": ["agent-fixture-001", "agent-fixture-002"],
+  "includeFiles": false,
+  "includeSettings": false
+}

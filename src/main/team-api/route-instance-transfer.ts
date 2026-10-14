@@ -1,5 +1,6 @@
 import { rm } from "node:fs/promises";
 import { parseApplyInstanceTransferInput, parseExportInstanceInput } from "@openbot/contracts/ipc";
+import { LARGE_AGENT_ROSTER_CAPABILITY, releasedAgentCollectionRoute } from "@openbot/contracts/team-protocol";
 import {
   INSTANCE_TRANSFER_CAPABILITY,
   INSTANCE_TRANSFER_REMOTE_BYTES,
@@ -28,14 +29,22 @@ export async function routeInstanceTransfer(
   newAgentHidden: () => boolean,
 ): Promise<RouteOutcome> {
   const { method, url, capabilities, member, request, response, json } = context;
-  if (method !== "POST" || !ROUTES.has(url.pathname)) return "unmatched";
+  const largeRoute = releasedAgentCollectionRoute(url.pathname);
+  const pathname = largeRoute ?? url.pathname;
+  if (method !== "POST" || !ROUTES.has(pathname)) return "unmatched";
   if (!instanceTransfer || !capabilities.has(INSTANCE_TRANSFER_CAPABILITY))
     throw new HttpError(400, sourceText("error.team.instanceTransferUnsupported"));
   requireAdmin(member);
+  if (largeRoute && !capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY))
+    throw new HttpError(400, sourceText("error.agent.largeRosterClientUpdate"));
 
-  switch (url.pathname) {
-    case INSTANCE_TRANSFER_ROUTES.summary:
-      return json(200, await answer(() => runCauseEffect(instanceTransfer.summary()), 400));
+  switch (pathname) {
+    case INSTANCE_TRANSFER_ROUTES.summary: {
+      const summary = await answer(() => runCauseEffect(instanceTransfer.summary()), 400);
+      if (!largeRoute && summary.agents.length > 100)
+        throw new HttpError(409, sourceText("error.agent.largeRosterClientUpdate"));
+      return json(200, summary);
+    }
     case INSTANCE_TRANSFER_ROUTES.export: {
       let input: ReturnType<typeof parseExportInstanceInput>;
       try {
@@ -62,7 +71,12 @@ export async function routeInstanceTransfer(
             throw new HttpError(413, sourceText("error.import.transferRemoteTooLarge"));
           throw error;
         });
-      return json(200, await answer(() => runCauseEffect(instanceTransfer.stageUpload(read, member.id)), 400));
+      const preview = await answer(() => runCauseEffect(instanceTransfer.stageUpload(read, member.id)), 400);
+      if (!largeRoute && preview.agents.length > 100) {
+        await Effect.runPromise(instanceTransfer.discard(preview.token, member.id));
+        throw new HttpError(409, sourceText("error.agent.largeRosterClientUpdate"));
+      }
+      return json(200, preview);
     }
     case INSTANCE_TRANSFER_ROUTES.discard:
       await Effect.runPromise(instanceTransfer.discard(stringField(await readJson(request), "token"), member.id));

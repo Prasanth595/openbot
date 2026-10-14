@@ -8,6 +8,7 @@
 // below does not change which codec a route gets.
 import { channelRequest, channelResponse, isChannelRoute } from "./channels-v1";
 import { isChannelHistoryExtentRoute, withChannelHistoryExtent } from "./history-extent-v1";
+import { largeAgentCollectionResponseToCurrent } from "./large-agent-roster-routes";
 import { isMcpRoute, mcpRequest, mcpResponse } from "./mcp-v1";
 import { optionalRouteCodec } from "./optional-routes";
 import { isStorageRoute, storageRequest, storageResponse } from "./storage-v1";
@@ -19,6 +20,8 @@ export interface TeamSideRouteOptions {
    * capability; a client passes `true`, because a host sends the extent only when it was negotiated.
    */
   historyExtent?: boolean;
+  /** The client translates the large roster's frozen agent keys after wire validation. */
+  fromHost?: boolean;
 }
 
 export interface TeamSideRouteCodec {
@@ -47,7 +50,10 @@ export function teamSideRouteCodec(path: string): TeamSideRouteCodec | null {
   return admin
     ? {
         request: (_path, value) => admin.request(value),
-        response: (_path, status, value) => admin.response(status, value),
+        response: (path, status, value, options) => {
+          const projected = admin.response(status, value);
+          return options?.fromHost ? largeAgentCollectionResponseToCurrent(path, projected) : projected;
+        },
       }
     : null;
 }

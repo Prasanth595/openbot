@@ -77,8 +77,8 @@ export function decodeImportManifest(
   const exportedAt =
     isBoundedString(source.exportedAt, 64) && !Number.isNaN(Date.parse(source.exportedAt)) ? source.exportedAt : null;
   if (!Array.isArray(value.agents) || value.agents.length === 0) throw new Error(sourceText("error.import.noAgents"));
-  if (value.agents.length > INPUT_LIMITS.agents)
-    throw new Error(sourceText("error.import.tooManyAgents", { limit: INPUT_LIMITS.agents }));
+  if (value.agents.length > AGENT_IMPORT_LIMITS.files)
+    throw new Error(sourceText("error.import.tooManyAgents", { limit: AGENT_IMPORT_LIMITS.files }));
 
   const warnings: string[] = [];
   const keys = new Set<string>();

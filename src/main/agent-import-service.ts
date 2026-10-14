@@ -72,6 +72,8 @@ const IMPORT_ARCHIVE: ArchiveLimits = {
 
 export interface AgentImportAgents {
   listAgents(): AgentSummary[];
+  agentLimit?(): number;
+  checkAgentProfileAdmission?: AgentService["checkAgentProfileAdmission"];
   createAgentProfile(input: {
     name: string;
     title?: string;
@@ -380,9 +382,21 @@ export class AgentImportService {
     const selectedChannels = staged.channels.filter((channel) => input.channelKeys.includes(channel.key));
     if (selectedChannels.length !== input.channelKeys.length)
       return yield* archiveFailure(new Error(sourceText("error.import.channelNotInExport")));
-    if (this.agents.listAgents().length + selected.length > INPUT_LIMITS.agents)
-      return yield* archiveFailure(
-        new Error(sourceText("error.import.serverAgentLimit", { limit: INPUT_LIMITS.agents })),
+    const agentLimit = this.agents.agentLimit?.() ?? INPUT_LIMITS.agents;
+    if (this.agents.listAgents().length + selected.length > agentLimit)
+      return yield* archiveFailure(new Error(sourceText("error.import.serverAgentLimit", { limit: agentLimit })));
+    if (this.agents.checkAgentProfileAdmission)
+      yield* archiveSync(() =>
+        this.agents.checkAgentProfileAdmission?.(
+          selected.map((agent) => ({
+            name: agent.name,
+            title: agent.title,
+            description: agent.description,
+            avatarSeed: "x".repeat(128),
+            avatarHue: null,
+            hasAvatar: agent.avatar !== null,
+          })),
+        ),
       );
 
     // The archive is read again rather than held since `stage`: an export can be hundreds of MB.

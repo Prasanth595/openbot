@@ -1,4 +1,5 @@
 import { parseApplyAgentImportInput } from "@openbot/contracts/ipc";
+import { LARGE_AGENT_ROSTER_CAPABILITY, releasedAgentCollectionRoute } from "@openbot/contracts/team-protocol";
 import {
   AGENT_IMPORT_CAPABILITY,
   AGENT_IMPORT_ROUTES,
@@ -24,7 +25,8 @@ export async function routeAgentImport(
   newAgentHidden: () => boolean,
 ): Promise<RouteOutcome> {
   const { method, url, capabilities, member, request, json } = context;
-  const route = method === "POST" ? url.pathname : null;
+  const largeRoute = releasedAgentCollectionRoute(url.pathname);
+  const route = method === "POST" ? (largeRoute ?? url.pathname) : null;
   if (
     route !== AGENT_IMPORT_ROUTES.stage &&
     route !== AGENT_IMPORT_ROUTES.apply &&
@@ -33,6 +35,8 @@ export async function routeAgentImport(
     return "unmatched";
   if (!agentImport || !capabilities.has(AGENT_IMPORT_CAPABILITY))
     throw new HttpError(400, sourceText("error.team.agentImportUnsupported"));
+  if (largeRoute && !capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY))
+    throw new HttpError(400, sourceText("error.agent.largeRosterClientUpdate"));
 
   if (route === AGENT_IMPORT_ROUTES.discard) {
     await Effect.runPromise(agentImport.discard(stringField(await readJson(request), "token"), member.id));
@@ -45,7 +49,12 @@ export async function routeAgentImport(
           throw new HttpError(413, sourceText("error.import.remoteZipTooLarge"));
         throw error;
       });
-    return json(200, await answer(() => runCauseEffect(agentImport.stageUpload(read, member.id)), 400));
+    const preview = await answer(() => runCauseEffect(agentImport.stageUpload(read, member.id)), 400);
+    if (!largeRoute && preview.agents.length > 100) {
+      await Effect.runPromise(agentImport.discard(preview.token, member.id));
+      throw new HttpError(409, sourceText("error.agent.largeRosterClientUpdate"));
+    }
+    return json(200, preview);
   }
   // `readJson` has already run the body through the agent-import wire codec.
   const body = await readJson(request);

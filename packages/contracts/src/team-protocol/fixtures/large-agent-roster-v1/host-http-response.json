@@ -1,0 +1,43 @@
+[
+  {
+    "id": "agent-fixture-001",
+    "provider": "pi",
+    "name": "Fixture 001",
+    "title": "Builder",
+    "description": "Writes the code.",
+    "notifications": true,
+    "model": "anthropic/claude-sonnet-5-5",
+    "reasoningEffort": "medium",
+    "threadId": "thread-001",
+    "workspacePath": "/OpenBot/Agents/agent-fixture-001",
+    "preview": "No messages yet",
+    "updatedAt": null,
+    "avatarSeed": "builder",
+    "avatarHue": 215,
+    "avatarUrl": null,
+    "marketplaceSource": {
+      "agentId": "fixture-listing",
+      "versionId": "fixture-version",
+      "version": 1,
+      "skillIds": [],
+      "routineIds": []
+    }
+  },
+  {
+    "id": "agent-fixture-002",
+    "provider": "muse",
+    "name": "Fixture 002",
+    "title": "Reviewer",
+    "description": "",
+    "notifications": true,
+    "model": "muse-1",
+    "reasoningEffort": "medium",
+    "threadId": "thread-002",
+    "workspacePath": "/OpenBot/Agents/agent-fixture-002",
+    "preview": "No messages yet",
+    "updatedAt": null,
+    "avatarSeed": "reviewer",
+    "avatarHue": null,
+    "avatarUrl": null
+  }
+]

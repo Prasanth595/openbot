@@ -9,6 +9,7 @@ import {
 } from "@openbot/contracts/signal-protocol/messages";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import {
+  agentCollectionRoute,
   decodeTeamProtocolV2AuthFrame,
   decodeTeamProtocolV2EventFrame,
   decodeTeamProtocolV2RpcFrame,
@@ -16,6 +17,8 @@ import {
   decodeTeamProtocolV7WebRtcHttpResponse,
   encodeTeamProtocolV2Frame,
   encodeTeamProtocolV7WebRtcHttpRequest,
+  LARGE_AGENT_ROSTER_CAPABILITY,
+  releasedAgentCollectionRoute,
   TEAM_PROTOCOL_V2_CHANNELS,
   type TeamProtocolV2AuthFrame,
   type TeamProtocolV2Json,
@@ -274,6 +277,7 @@ interface PeerState {
   /** The close code of the last Signal socket, so a connection timeout can name it. */
   lastSignalClose: number | null;
   hostProtocol?: number;
+  hostCapabilities?: readonly string[];
 }
 
 const CHANNELS: ChannelKind[] = ["rpc", "events", "files", "desktop"];
@@ -1191,12 +1195,19 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
           const status = frame.result.status;
           const body = frame.result.body;
           if (pending.method === "GET" && pending.path === TEAM_API_ROUTES.compatibility && status === 200) {
-            state.hostProtocol = (yield* peerDecode(() => decodeTeamProtocolSupportV7Base(body))).protocol.maximum;
+            const support = yield* peerDecode(() => decodeTeamProtocolSupportV7Base(body));
+            state.hostProtocol = support.protocol.maximum;
+            state.hostCapabilities = support.capabilities;
           }
           pending.resolve({
             status: frame.result.status,
             body: sideRoute
-              ? yield* peerDecode(() => sideRoute.response(pending.path, status, body, { historyExtent: true }))
+              ? yield* peerDecode(() =>
+                  sideRoute.response(pending.path, status, body, {
+                    historyExtent: true,
+                    fromHost: releasedAgentCollectionRoute(pending.path) === "/v1/agents",
+                  }),
+                )
               : yield* peerDecode(() =>
                   decodeTeamProtocolV7WebRtcHttpResponse(pending.method, pending.path, status, body),
                 ),
@@ -1301,7 +1312,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
 
   function requestEffect(
     method: string,
-    path: string,
+    requestedPath: string,
     body: TeamProtocolV2Json,
     upload?: RemoteFileUpload,
     onUploadProgress?: (sent: number, total: number) => void,
@@ -1313,6 +1324,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         if (state && (method === "GET" || method === "HEAD")) state.needsResync = true;
         return yield* new RemotePeerError({ message: sourceText("error.remote.selectedServerOffline") });
       }
+      const path = agentCollectionRoute(
+        requestedPath,
+        state.hostCapabilities?.includes(LARGE_AGENT_ROSTER_CAPABILITY) ?? false,
+      );
       const delivery = upload && onUploadProgress ? trackUploadDelivery(state, onUploadProgress) : null;
       return yield* Effect.gen(function* () {
         const bodyTransferId = upload ? yield* files.upload(upload, delivery?.queued) : null;

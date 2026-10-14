@@ -7,8 +7,9 @@
 // still offered, and invalid settings are left out with a warning.
 
 import { isAgentProvider } from "@openbot/contracts/agent-providers";
-import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { AGENT_ROSTER_ITEMS_LIMIT, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
+  INSTANCE_TRANSFER_LIMITS,
   isAgentImportKey,
   isAvatarHue,
   isBusyMessageMode,
@@ -100,7 +101,10 @@ const Settings = Schema.Struct({
     }),
   ).check(Schema.isMaxLength(32)),
   sidebarSections: Schema.Array(
-    Schema.Struct({ name: name(128), agentKeys: Schema.Array(Key).check(Schema.isMaxLength(INPUT_LIMITS.agents)) }),
+    Schema.Struct({
+      name: name(128),
+      agentKeys: Schema.Array(Key).check(Schema.isMaxLength(AGENT_ROSTER_ITEMS_LIMIT)),
+    }),
   ).check(Schema.isMaxLength(64)),
   routineFlows: Schema.Array(
     Schema.Struct({
@@ -118,7 +122,7 @@ const Manifest = Schema.Struct({
   format: Schema.Literal(INSTANCE_TRANSFER_FORMAT),
   version: Schema.Number,
   source: Schema.Struct({ appVersion: text(64), exportedAt: Schema.NullOr(text(64)) }),
-  agents: Schema.Array(Schema.Unknown).check(Schema.isMaxLength(INPUT_LIMITS.agents)),
+  agents: Schema.Array(Schema.Unknown).check(Schema.isMaxLength(INSTANCE_TRANSFER_LIMITS.files)),
   settings: Schema.NullOr(Schema.Unknown),
   shared: Schema.NullOr(Schema.Literal(SHARED_FOLDER)),
   /** Providers that were signed in on the computer that made the file. Never a token. */
