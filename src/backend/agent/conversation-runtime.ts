@@ -115,7 +115,7 @@ export function withDatabaseTransaction<T>(
  * How long an agent's snapshot stays in memory after its last use. The sweep runs at the same
  * interval, so an idle snapshot leaves memory between one and two periods after its last use.
  */
-export const CONVERSATION_SNAPSHOT_IDLE_MS = 10 * 60_000;
+const CONVERSATION_SNAPSHOT_IDLE_MS = 10 * 60_000;
 
 interface EvictedSnapshot {
   threadId: string;

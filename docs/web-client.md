@@ -217,25 +217,10 @@ for messages, models, settings and events. File previews use a small synthetic t
 file transport and browser streaming still need real-host checks. The existing `/app-preview`
 and desktop stories remain the comparison surfaces. Do not commit screenshot assets.
 
-Run one focused file at a time:
-
-```sh
-bun run --cwd apps/auth-api test:server -- test/browser-api.test.ts --maxWorkers=1
-bun run --cwd apps/auth-api test:server -- test/remote-control-plane.test.ts --maxWorkers=1
-bun run test:desktop -- src/renderer/src/features/web-client/WebApp.test.tsx --maxWorkers=1
-bun run test:desktop -- src/renderer/src/features/web-client/WebWorkspace.test.tsx --maxWorkers=1
-bun run test:desktop -- src/renderer/src/features/web-client/web-runtime.dom.test.ts --maxWorkers=1
-bun run test:desktop -- src/renderer/src/features/web-client/web-host-lock.dom.test.ts --maxWorkers=1
-bun run test:desktop -- packages/team-client/src/remote-directory.test.ts --maxWorkers=1
-bun run test:desktop -- packages/team-client/src/remote-peer.test.ts --maxWorkers=1
-bun run test:desktop -- packages/team-client/src/file-upload.test.ts --maxWorkers=1
-bun run test:desktop -- packages/team-client/src/browser-view.test.ts --maxWorkers=1
-```
-
 Lint changed files only. CI owns broad type checks, builds, UI checks and full suites. Shared
-team-client changes also affect mobile; its bearer authentication and existing peer tests must
-remain green. Main-process stream imports use a compatibility re-export. Signal and database
-schemas are unchanged.
+team-client changes also affect mobile; check its bearer authentication and peer connection.
+Main-process stream imports use a compatibility re-export. Signal and database schemas are
+unchanged.
 
 ## Release gate
 

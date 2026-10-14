@@ -2,7 +2,7 @@ import { blockChatMath, chatMathBlockStart, chatMathStart, inlineChatMath } from
 import { chatTagReferences } from "@openbot/contracts/chat-tag-references";
 import { Marked } from "marked";
 
-export const markdown = new Marked({
+const markdown = new Marked({
   gfm: true,
   breaks: true,
   extensions: [

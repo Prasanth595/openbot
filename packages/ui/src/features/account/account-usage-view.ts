@@ -6,8 +6,11 @@ import {
   accountUsageCoversModel,
   agentProviderDescriptor,
   agentProviderName,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   isAgentProvider,
+  type ProviderAccountStatus,
 } from "@openbot/contracts/ipc";
+import { providerAccountName } from "../../components/provider-accounts";
 import { currentText, type TextValue } from "../../text";
 
 type UsageText = Pick<TextValue, "t" | "format">;
@@ -26,6 +29,9 @@ export interface AccountUsageWindowRow {
 
 export interface AccountUsageProviderRow {
   provider: AgentProviderId;
+  /** The account after the first that the reading is for. Null for the provider's own sign-in. */
+  accountId: string | null;
+  /** The provider, and the account when the provider has more than one. */
   name: string;
   /** The window that stops work first. The dock chip shows it. */
   remainingPercent: number | null;
@@ -47,32 +53,54 @@ export function usageTone(remainingPercent: number | null): AccountUsageTone {
 }
 
 /**
- * One row per connected provider. A limit the provider reported fills the remaining amount; an
- * available provider with no reading still appears, so the dock does not hide Claude or Grok.
+ * One row per connected provider account. A limit the provider reported fills the remaining amount;
+ * an available provider with no reading still appears, so the dock does not hide Claude or Grok.
  */
 export function accountUsageProviderRows(
   usage: AccountUsage | null,
-  providers?: ReadonlyArray<{ id: string; state: string }>,
+  providers?: ReadonlyArray<{ id: string; state: string; accounts?: readonly ProviderAccountStatus[] | undefined }>,
   text: UsageText = currentText(),
 ): AccountUsageProviderRow[] {
-  const rows = new Map<AgentProviderId, AccountUsageProviderRow>();
+  const accountsOf = (provider: AgentProviderId) => {
+    const accounts = providers?.find((candidate) => candidate.id === provider)?.accounts ?? [];
+    return accounts.length > 1 ? accounts : [];
+  };
+  const rows = new Map<string, AccountUsageProviderRow>();
   for (const limit of usage?.limits ?? []) {
     if (!isAgentProvider(limit.id)) continue;
-    rows.set(limit.id, usageRow(limit.id, limit, text));
+    const accountId = limit.accountId ?? null;
+    rows.set(usageRowKey(limit.id, accountId), usageRow(limit.id, accountId, accountsOf(limit.id), limit, text));
   }
   for (const provider of providers ?? []) {
-    if (!isAgentProvider(provider.id) || provider.state !== "available" || rows.has(provider.id)) continue;
-    if (provider.id === "opencode") continue;
-    rows.set(provider.id, usageRow(provider.id, null, text));
+    if (!isAgentProvider(provider.id) || provider.state !== "available" || provider.id === "opencode") continue;
+    const accounts = accountsOf(provider.id);
+    const ids = accounts.length
+      ? accounts.flatMap((account) =>
+          account.id === DEFAULT_PROVIDER_ACCOUNT_ID ? [null] : account.state === "connected" ? [account.id] : [],
+        )
+      : [null];
+    for (const accountId of ids) {
+      if (!rows.has(usageRowKey(provider.id, accountId)))
+        rows.set(usageRowKey(provider.id, accountId), usageRow(provider.id, accountId, accounts, null, text));
+    }
   }
+  const accountOrder = (row: AccountUsageProviderRow) =>
+    accountsOf(row.provider).findIndex((account) => account.id === (row.accountId ?? DEFAULT_PROVIDER_ACCOUNT_ID));
   return [...rows.values()].sort(
     (left, right) =>
-      agentProviderDescriptor(left.provider).pickerOrder - agentProviderDescriptor(right.provider).pickerOrder,
+      agentProviderDescriptor(left.provider).pickerOrder - agentProviderDescriptor(right.provider).pickerOrder ||
+      accountOrder(left) - accountOrder(right),
   );
+}
+
+function usageRowKey(provider: AgentProviderId, accountId: string | null): string {
+  return `${provider}\u0000${accountId ?? ""}`;
 }
 
 function usageRow(
   provider: AgentProviderId,
+  accountId: string | null,
+  accounts: readonly ProviderAccountStatus[],
   limit: AccountUsageLimit | null,
   text: UsageText,
 ): AccountUsageProviderRow {
@@ -94,7 +122,10 @@ function usageRow(
   const remainingPercent = binding?.remainingPercent ?? null;
   return {
     provider,
-    name: agentProviderName(provider),
+    accountId,
+    name: accounts.length
+      ? `${agentProviderName(provider)} · ${providerAccountName(text.t, accounts, accountId ?? DEFAULT_PROVIDER_ACCOUNT_ID)}`
+      : agentProviderName(provider),
     remainingPercent,
     tone: usageTone(remainingPercent),
     windows,
@@ -103,17 +134,19 @@ function usageRow(
 }
 
 /**
- * The row the dock chip shows. With an active agent it is that agent's provider only, so a spent
- * Grok quota does not show as the limit of a ChatGPT agent. With no agent it is the lowest row.
+ * The row the dock chip shows. With an active agent it is that agent's provider account only, so a
+ * spent Grok quota does not show as the limit of a ChatGPT agent. With no agent it is the lowest row.
  */
 export function accountUsageSummary(
   rows: AccountUsageProviderRow[],
   provider?: AgentProviderId | null,
   model?: string | null,
+  accountId?: string | null,
 ): AccountUsageProviderRow | null {
   if (provider) {
     if (!accountUsageCoversModel(provider, model)) return null;
-    return rows.find((row) => row.provider === provider) ?? null;
+    const rowsOfProvider = rows.filter((row) => row.provider === provider);
+    return rowsOfProvider.find((row) => row.accountId === (accountId ?? null)) ?? rowsOfProvider[0] ?? null;
   }
   let lowest: AccountUsageProviderRow | null = null;
   for (const row of rows) {

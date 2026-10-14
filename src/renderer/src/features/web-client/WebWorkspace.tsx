@@ -84,17 +84,15 @@ import {
 import { type NewAgentDraft, newAgentInput } from "../agents/agent-create-input";
 import { type CreationPreference, resolveCreationModel } from "../agents/agent-creation-model";
 import { claimErrorToast, readableAgentError } from "../agents/agent-error-text";
+import { withHostAccountUsage, withHostProfileAccount } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
 import { ChannelConversation } from "../channels/ChannelConversation";
 import { readChannelSelection, writeChannelSelection } from "../channels/channel-selection";
 import { ChannelsControllerProvider } from "../channels/channels-context";
 import { createChannelsController } from "../channels/channels-controller";
 import { globalSearchChannels } from "../channels/global-search-channels";
-import { createDiscordConnector } from "../connectors/discord-connector";
-import { createGitHubConnector } from "../connectors/github-connector";
+import { createConnectorRegistry, createConnectorSet } from "../connectors/connector-registry";
 import { hostMessagingApi } from "../connectors/host-messaging-port";
-import { createSlackConnector } from "../connectors/slack-connector";
-import { createTelegramConnector } from "../connectors/telegram-connector";
 import { Conversation, createConversationController } from "../conversation/Conversation";
 import { clearStoredQueueEdit } from "../conversation/composer-draft";
 import { ConversationControllerProvider } from "../conversation/conversation-controller-context";
@@ -105,11 +103,16 @@ import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props"
 import { ServerOnboarding } from "../onboarding/ServerOnboarding";
 import { RoutineFlowsCanvas } from "../routine-flows/RoutineFlowsCanvas";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
-import { watchHostUpdate } from "../servers/host-update-toast";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
-import { remoteUpdateServer, serverRoleCanAdminister } from "../servers/server-capabilities";
+import { remoteAdminServer, remoteUpdateServer, serverRoleCanAdminister } from "../servers/server-capabilities";
 import { createServerConnectionToast } from "../servers/server-connection-toast";
+import {
+  offerServerUpdate,
+  ServerUpdateDialogHost,
+  serverUpdateBadge,
+  showServerUpdate,
+} from "../servers/server-update-flow";
 import { isReaderAuthor } from "../team/reader-identity";
 import { WebAgentSettings } from "./WebAgentSettings";
 import { WebConnectComputer } from "./WebConnectComputer";
@@ -274,6 +277,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   /** The host list was read and holds no computer to connect to. */
   const noHost = () => !workspace.state.host && (workspace.state.hostsLoaded || Boolean(workspace.state.hostsError));
   const hostOffline = () => !noHost() && !workspace.state.workspaceLoaded;
+  // A host that restarts into an update drops the connection on purpose. That error is not news.
+  const hostUpdating = () => workspace.state.hostRestart?.state === "restarting";
   createServerConnectionToast(() => {
     const host = workspace.state.host;
     return host
@@ -284,7 +289,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           quiet: Boolean(
             !workspace.state.workspaceLoaded ||
               workspace.state.hostedSleep ||
-              workspace.state.hostRestart ||
+              workspace.state.hostRestart?.state === "restarting" ||
               workspace.state.incompatibility,
           ),
         }
@@ -538,14 +543,18 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const eventsEnabled = () =>
     workspace.state.capabilities.includes(EVENTS_CAPABILITY) &&
     (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
-  const providerSettings = createWebProviderSettings({
+  const providerAdmin = createWebProviderSettings({
     server: () => (workspace.runtime.admin ? server() : undefined),
     request: hostRequest,
     status,
     setStatus,
     readStatus: () => workspace.runtime.status(),
     browser: workspace.runtime.browser,
+    agents: () => workspace.profiles(),
   });
+  const providerSettings = providerAdmin.settings;
+  /** The usage of the providers' own sign-ins, with that of the host's other accounts. */
+  const accountUsage = () => withHostAccountUsage(usageReading.accountUsage(), providerAdmin.hostAccounts.limits());
   const connectFromComposer = (provider: AgentProviderId) =>
     providerSettings()?.connection?.connect(provider, "composer");
   /** Whether the composer's sign-in notice can connect the agent's provider from this tab. */
@@ -589,7 +598,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   );
   /** The Team API agent summary has no access, so the agent shows the host's answer. */
   const conversationAgent = createMemo(() => {
-    const agent = workspace.selected();
+    const selected = workspace.selected();
+    const host = providerAdmin.hostAccounts.host();
+    const agent = selected && host ? withHostProfileAccount(selected, host) : selected;
     const settings = remoteAgentAdmin.settings();
     const automation = remoteAgentAdmin.automation();
     return agent
@@ -608,38 +619,35 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     relaySupported: () => workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY),
   });
   const marketplaceCalls = createWebMarketplaceCalls(props.accountFetch, hostRequest);
-  // The host's connectors, for an owner or admin. GitHub shows when the host has a GitHub App.
-  const connectorsEnabled = createMemo(
-    () =>
-      workspace.state.capabilities.includes(CONNECTORS_CAPABILITY) &&
-      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
-  );
+  // The host's connectors, for an owner or admin. The web client has no computer of its own.
+  const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
-  const githubController = createGitHubConnector(
-    () => githubPort,
-    () => server()?.name ?? null,
-  );
-  createEffect(
-    () => connectorsEnabled() && server()?.id,
-    (id) => {
-      if (id) githubController.reload();
-    },
-  );
-  const githubConnector = () =>
-    connectorsEnabled() && githubController.status().available ? githubController : undefined;
   const webMessaging = webHostMessaging(hostRequest);
   onCleanup(webMessaging.dispose);
-  const hostMessaging = {
-    messaging: hostMessagingApi(
-      () => (connectorsEnabled() ? server()?.id : undefined),
-      () => webMessaging.api,
+  const connectors = createConnectorRegistry(server, {
+    computer: {},
+    server: createConnectorSet(
+      {
+        github: () => githubPort,
+        messaging: hostMessagingApi(
+          () => connectorTarget()?.id,
+          () => webMessaging.api,
+        ),
+      },
+      { agents: workspace.profiles, hostName: () => server()?.name },
     ),
-  };
-  const slackController = createSlackConnector(() => hostMessaging);
-  const discordController = createDiscordConnector(() => hostMessaging);
-  const telegramController = createTelegramConnector(() => hostMessaging);
+  });
+  /** The app that a suggestion card opens in Marketplace. A plugin link from the address comes in props. */
+  const [suggestedApp, setSuggestedApp] = createSignal<{ appId: string; connect: boolean } | null>(null);
   const agentTemplateCalls = createWebAgentTemplateCalls(props.accountFetch, hostRequest);
   const [marketplaceOpen, setMarketplaceOpen] = createSignal(false);
+  // A sign-in can change in another tab, so each window reads the connectors again when it opens.
+  createEffect(
+    () => marketplaceOpen() || serverSettings.state.open,
+    (open) => {
+      if (open) connectors.reload();
+    },
+  );
   // A link opens its overlay once it has arrived, which can be after sign-in.
   createEffect(
     () => props.inviteUrl,
@@ -797,21 +805,31 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     setServerSettingsSection(section);
     serverSettings.open(trigger);
   }
-  // A member learns about a new version, or sees the download that runs, each time the host connects.
+  // Each time the user enters a host that has a new version, the update dialog opens. A reconnect does not offer again.
+  let entry: { id: string; offered: boolean } | null = null;
   createEffect(
     () => {
       const current = server();
-      // An id, not an object: the summary is rebuilt on each host change, and one read is enough.
-      return current?.state === "online" && remoteUpdateServer(current) ? current.id : null;
+      return current ? { id: current.id, online: current.state === "online" } : null;
     },
-    (serverId) => {
-      if (!serverId) return;
-      watchHostUpdate({
-        serverId,
-        name: untrack(() => server()?.name) ?? "",
-        calls: hostUpdateCalls,
-        openUpdates: () => void openServerSettings(serverId, null, "updates"),
-      });
+    (current) => {
+      if (current?.id !== entry?.id) {
+        entry = current ? { id: current.id, offered: false } : null;
+        void offerServerUpdate(null);
+      }
+      if (!current?.online || !entry || entry.offered) return;
+      entry.offered = true;
+      const active = untrack(server);
+      void offerServerUpdate(
+        active && remoteUpdateServer(active)
+          ? {
+              serverId: active.id,
+              name: active.name,
+              canManage: serverRoleCanAdminister(active),
+              calls: hostUpdateCalls,
+            }
+          : null,
+      );
     },
   );
   const channelsPort = createWebChannelsPort(
@@ -1124,25 +1142,28 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   name={workspace.state.host?.name ?? t("webClient.notice.findingHosts")}
                   initial={!workspace.state.workspaceLoaded}
                   issue={workspace.state.hostedIssue}
+                  updateVersion={workspace.state.hostRestart?.version ?? null}
                   detail={
-                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue && !hostUpdating()
                       ? (workspace.state.connectionError?.message ?? null)
                       : null
                   }
                   reference={
-                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue && !hostUpdating()
                       ? (workspace.state.connectionError?.reference ?? null)
                       : null
                   }
                   phase={
                     workspace.state.hostedSleep ??
-                    (workspace.state.recovery?.phase === "suspended"
-                      ? "blocked"
-                      : workspace.state.status === "connecting"
-                        ? "loading"
-                        : workspace.state.workspaceLoaded
-                          ? "reconnecting"
-                          : "connecting")
+                    (hostUpdating()
+                      ? "updating"
+                      : workspace.state.recovery?.phase === "suspended"
+                        ? "blocked"
+                        : workspace.state.status === "connecting"
+                          ? "loading"
+                          : workspace.state.workspaceLoaded
+                            ? "reconnecting"
+                            : "connecting")
                   }
                   remainingSeconds={
                     workspace.state.recovery?.phase === "waiting" || workspace.state.recovery?.phase === "cooldown"
@@ -1258,6 +1279,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     : undefined
                 }
                 serverName={workspace.state.host?.name ?? "OpenBot"}
+                serverUpdate={(() => {
+                  const id = server()?.id;
+                  const badge = id ? serverUpdateBadge(id) : null;
+                  return id && badge ? { ...badge, onOpen: () => void showServerUpdate(id) } : undefined;
+                })()}
                 serverMenu={{
                   servers: servers(),
                   view: layout.serverView(),
@@ -1341,10 +1367,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 // A browser has no app platform, but it draws the same shelf as the desktop app.
                 appInfo={null}
                 shelf
-                agentStatus={status()}
-                accountUsage={usageReading.accountUsage()}
+                agentStatus={providerAdmin.status()}
+                accountUsage={accountUsage()}
                 usageProvider={workspace.selected()?.provider ?? null}
                 usageModel={workspace.selected()?.model ?? null}
+                usageAccountId={conversationAgent()?.providerAccountId ?? null}
                 usageTargetKey={usageReading.usageTargetKey()}
                 usageRefreshRevision={0}
                 usageReady={usageReading.usageReady()}
@@ -1359,7 +1386,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }}
                 compact={compact()}
                 withServerRail={layout.serverRailVisible()}
-                onRefreshUsage={usageReading.refreshUsage}
+                onRefreshUsage={() => {
+                  void providerAdmin.hostAccounts.refreshUsage().catch(() => undefined);
+                  return usageReading.refreshUsage();
+                }}
                 onUpdateAction={unavailable}
                 onLogout={signOut}
                 onOpenExternal={openWebDestination}
@@ -1381,6 +1411,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           }
           after={
             <>
+              <ServerUpdateDialogHost hosts={workspace.hostViews()} />
               <AddServerOverlay
                 open={addServer() !== null}
                 calls={hostedServerCalls}
@@ -1414,7 +1445,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 open={marketplaceOpen()}
                 onOpenChange={setMarketplaceOpen}
                 calls={marketplaceCalls}
-                githubConnector={githubConnector()}
+                connectors={connectors}
                 server={server()}
                 agents={workspace.state.agents}
                 activeAgentId={workspace.state.selectedId ?? ""}
@@ -1433,8 +1464,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   setMarketplaceOpen(false);
                   await openAddedAgent(agent);
                 }}
-                pluginSlug={props.pluginSlug}
-                onPluginSlugConsumed={() => props.onPluginSlugConsumed?.()}
+                pluginSlug={suggestedApp()?.appId ?? props.pluginSlug}
+                pluginConnect={suggestedApp()?.connect ?? false}
+                onPluginSlugConsumed={() => {
+                  if (suggestedApp()) setSuggestedApp(null);
+                  else props.onPluginSlugConsumed?.();
+                }}
               />
               <Show when={accountSettingsOpen()}>
                 <Loading>
@@ -1466,11 +1501,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     remoteDesktopSupported={false}
                     server={target()}
                     hostStatus={null}
-                    githubConnector={githubConnector()}
-                    slackConnector={connectorsEnabled() ? slackController : undefined}
-                    discordConnector={connectorsEnabled() ? discordController : undefined}
-                    telegramConnector={connectorsEnabled() ? telegramController : undefined}
-                    connectorAgents={workspace.profiles()}
+                    connectors={connectors}
                     members={serverSettings.state.members}
                     invites={serverSettings.state.invites}
                     loading={serverSettings.state.loading}
@@ -1704,10 +1735,17 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
             <Conversation
               runtime={runtime}
               onOpenMarketplace={() => setMarketplaceOpen(true)}
+              connectors={connectors}
+              onOpenMarketplaceApp={(request) => {
+                setSuggestedApp(request);
+                setMarketplaceOpen(true);
+              }}
               agentStatus={
-                workspace.state.status === "online" && workspace.conversation()?.page ? status() : CONNECTING_STATUS
+                workspace.state.status === "online" && workspace.conversation()?.page
+                  ? providerAdmin.status()
+                  : CONNECTING_STATUS
               }
-              accountUsage={usageReading.accountUsage()}
+              accountUsage={accountUsage()}
               // As in the desktop app on a joined host: an owner or admin downloads the host's
               // providers, and Connect runs the provider's route for this tab.
               providerRuntimeStatuses={providerSettings()?.providerRuntimeStatuses}

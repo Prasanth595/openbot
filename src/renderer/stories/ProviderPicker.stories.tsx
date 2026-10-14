@@ -296,3 +296,52 @@ export const ProviderSwitchError: Story = {
     />
   ),
 };
+
+/**
+ * Codex has two accounts, so its row lists them under the provider with the agents that use each.
+ * Claude has one, so its row shows the provider name and offers Add account.
+ */
+export const ProviderAccounts: Story = {
+  args: {
+    embedded: true,
+    label: undefined,
+    hint: undefined,
+    options: [
+      {
+        id: "codex",
+        name: "Codex",
+        state: "available",
+        accounts: [
+          {
+            id: "default",
+            label: "Work",
+            email: "person@example.com",
+            state: "available",
+            message: null,
+            usedBy: ["Ada"],
+          },
+          {
+            id: "a0123456789abcdef",
+            label: null,
+            email: "person@home.example",
+            state: "available",
+            message: null,
+            usedBy: ["Rex", "Mila"],
+          },
+        ],
+      },
+      {
+        id: "claude",
+        name: "Claude",
+        state: "available",
+        email: "person@example.com",
+        accounts: [{ id: "default", label: null, email: "person@example.com", state: "available", message: null }],
+      },
+    ],
+    accountActions: {
+      connect: fn(async () => undefined),
+      rename: fn(async () => undefined),
+      remove: fn(async () => undefined),
+    },
+  },
+};

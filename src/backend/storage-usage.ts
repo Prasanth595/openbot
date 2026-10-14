@@ -32,7 +32,7 @@ import {
 import type { MailboxStore, MailboxStoredFile } from "./mailbox-store";
 import { StoredStateFailure, storedIO, storedSync } from "./stored-state-effects";
 
-export interface StorageRoots {
+interface StorageRoots {
   /** The SQLite file. Its `-wal` and `-shm` companions are counted with it. */
   database: string;
   downloads: string;

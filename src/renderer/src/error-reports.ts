@@ -22,10 +22,14 @@ export function configureDesktopReports(
   tracking: boolean,
   user: Pick<CentralAuthUser, "id" | "email"> | null,
 ): void {
-  if (!import.meta.env.PROD || info.variant !== "production") return;
+  const capture = info.analyticsCaptureUrl;
+  if (capture === undefined && (!import.meta.env.PROD || info.variant !== "production")) return;
   queue ??= new ReportQueue(
     indexedReportStorage("openbot-desktop-error-reports-v1"),
-    openPanelTransport({ clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2" }),
+    openPanelTransport({
+      clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2",
+      ...(capture === undefined ? {} : { endpoint: `${capture}/track` }),
+    }),
     { surface: "desktop", platform: info.platform, app_version: info.version, event_schema_version: 7 },
   );
   configureErrorReports(tracking, user?.id ?? null);

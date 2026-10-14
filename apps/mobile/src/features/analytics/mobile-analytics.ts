@@ -16,7 +16,7 @@ const metadata = {
 
 // RN's SDK adds Android install referrers and paths itself. Replace its final
 // properties so those additions cannot expose campaign URLs or route identifiers.
-export function filterMobilePayload(event: TrackHandlerPayload): boolean {
+function filterMobilePayload(event: TrackHandlerPayload): boolean {
   if (!mobileAnalytics.isEnabled()) return false;
   if (event.type === "identify") {
     event.payload = { profileId: event.payload.profileId, email: event.payload.email, properties: metadata };

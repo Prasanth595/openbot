@@ -60,7 +60,7 @@ function stoppedBlocker(tasks: ChannelTask[], task: ChannelTask, seen = new Set<
  * `hasAssignment` separates "nobody has picked this up yet" from "a member is on it": an assignment
  * is a durable row, so the difference survives a restart too.
  */
-export function channelRunStatusForTasks(
+function channelRunStatusForTasks(
   tasks: ChannelTask[],
   hasAssignment: boolean,
 ): { status: ChannelRoutineRunStatus; error: string | null } {

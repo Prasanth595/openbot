@@ -16,6 +16,7 @@ import { useConversation } from "../conversation/conversation-context";
 import { useDirectMessages } from "../conversation/direct-messages-context";
 import { useServerActions } from "../servers/server-actions";
 import { useServerSettings } from "../servers/server-settings";
+import { serverUpdateBadge, showServerUpdate } from "../servers/server-update-flow";
 import { useServers } from "../servers/servers-context";
 import { useSettings } from "../settings/settings-context";
 import { usePresence } from "../team/team-context";
@@ -157,6 +158,11 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
         const server = activeServer();
         if (server) openServerSettings(server.id, trigger);
       }}
+      serverUpdate={(() => {
+        const server = activeServer();
+        const badge = server ? serverUpdateBadge(server.id) : null;
+        return server && badge ? { ...badge, onOpen: () => void showServerUpdate(server.id) } : undefined;
+      })()}
       serverMenu={
         platform.appInfo()
           ? {

@@ -28,7 +28,9 @@ docker run -d --name openbot --restart unless-stopped \
 docker exec -it openbot openbot login
 ```
 
-`openbot login` asks for your email and the code that OpenBot sends to it. After the sign-in, the
+`openbot login` asks for your email and the code that OpenBot sends to it. An operator who sets up
+the container for somebody else can use `openbot login --claim` instead (see
+[server claims](self-hosted-server.md#sign-in-with-a-server-claim)). After the sign-in, the
 server shows in the server list of that account. Then connect a provider from the app, as on a
 [hosted server](hosted-servers.md#providers).
 
@@ -104,10 +106,117 @@ In the container, `openbot status`, `login`, `mobile-connect`, `logout`, `name` 
 | Upgrade | `docker compose pull && docker compose up -d`, or pull the image and make the container again with the same volume |
 | Remove | `docker exec openbot openbot logout`, then `docker stop openbot && docker rm openbot`. The data stays in the volume. `docker volume rm openbot-data` deletes it. |
 
+## Several instances on one host
+
+`docker/instances/` runs more than one OpenBot container on one Linux host with systemd. Each
+instance has its own CPU, memory and disk limit, its own data and its own account. Copy the `docker`
+folder of the repository to the host, for example to `/opt/openbot-docker`, and run as root:
+
+```sh
+/opt/openbot-docker/instances/openbot-instance setup
+/opt/openbot-docker/instances/openbot-instance create main --cpus 8 --mem 32g --disk 200G
+/opt/openbot-docker/instances/openbot-instance run main login
+```
+
+| Path | Contents |
+| --- | --- |
+| `instances/<name>.env` | The name and the limits of the instance. Change `OPENBOT_CPUS` or `OPENBOT_MEM`, then run `openbot-instance up <name>`. `OPENBOT_DISK` is for information only: a change to it does nothing. |
+| `/srv/openbot/<name>/data.img` | An ext4 image. Its size is the disk limit. `create` reserves all of it on the disk of the host, so the images can never need more space than the host has. |
+| `/srv/openbot/<name>/data` | The mount of the image, which is `/data` in the container. `/etc/fstab` mounts it before Docker starts. `X-fstrim.notrim` stops `fstrim.timer` from freeing the reserved space. |
+| `/srv/openbot/<name>/update-requests` | The update requests of the app. The container writes empty files here. It is a tmpfs of 64 KiB and 16 files, which `/etc/fstab` mounts. |
+| `/srv/openbot/<name>/update-status` | The state of an update, which root writes. The container can only read it. |
+
+The container is `openbot-<name>`. Its root file system is read-only: the container layer is on the
+disk of the host, where Docker on ext4 cannot limit its size. Outside `/data`, the container writes
+only to `tmpfs` folders that count toward the memory limit: `/tmp` (8 GiB), `/var/tmp` (1 GiB),
+`/run/lock` and `/run/openbot`, and to the small tmpfs of its update requests. Before the image is mounted, root owns the folder, so the container cannot write to
+`/data` and stops. It never starts with an empty home folder.
+
+### Logs
+
+The container log goes through the `syslog` log driver to a socket of rsyslog,
+`/var/lib/openbot-docker/dev/log`, and not to the journal or `/var/log/syslog`, whose size limits
+other services share. rsyslog writes `/var/log/openbot/openbot-<name>.log`. logrotate rotates it each
+day, or sooner when it is larger than 200 MB. `openbot-logrotate.timer` checks every 5 minutes. It keeps
+the 30 newest rotated files and none older than 30 days, so one instance keeps at most 31 files of
+about 200 MB. An instance that writes very much keeps less than 30 days. `docker logs` reads the local
+cache of Docker, which keeps
+only the recent lines. rsyslog cuts a line longer than 8 KB. `setup` installs the rsyslog and logrotate
+files and the timer. Its drop-in `docker.service.d/openbot.conf` makes Docker start after rsyslog, because
+a container does not start without the socket, and require `openbot-firewall.service`: when the
+firewall fails, Docker does not start.
+
+### Host settings
+
+`setup` also installs `/etc/sysctl.d/90-openbot-docker.conf`. With userns-remap, all containers run as
+one host user and share its inotify limits, so the file raises them. Each container may open 65536
+files (Docker gives 1024 by default). Add `"live-restore": true` to `/etc/docker/daemon.json`, then run
+`systemctl reload docker`: a restart or upgrade of Docker then does not stop the instances.
+
+### Isolation
+
+Agents have full access in their container, so the host limits what a container can reach.
+
+- **Network.** `setup` makes the Docker network `openbot` (`172.30.0.0/16`, bridge `br-openbot`)
+  with inter-container traffic off, so instances cannot reach each other. It installs
+  `openbot-firewall.service`, which runs `instances/openbot-firewall` before Docker starts. The
+  chain `OPENBOT-EGRESS` in `DOCKER-USER` drops traffic to private, local and multicast ranges and to
+  the addresses in `/etc/openbot-docker/deny`. A rule at the start of `INPUT` drops traffic from the
+  bridge to the host. The containers reach only the internet. `create`, `up` and `upgrade` refuse
+  to start a container when the firewall is off.
+- **Other servers.** Traffic from a container leaves with the address of the host. Put servers that
+  trust that address in `/etc/openbot-docker/deny`, one per line, then run `setup` again.
+- **Users.** With `"userns-remap": "default"` in `/etc/docker/daemon.json`, UID 1000 in the
+  container is the start of the `dockremap` range in `/etc/subuid` plus 1000 on the host, a user with
+  no rights there. `create` gives the data to that user. This setting is for the whole Docker
+  daemon: Docker then uses another data folder, so containers, images and networks made before are
+  not visible until it is removed. To turn it on for existing instances: `down` each instance, add
+  the setting, restart Docker, run `setup`, `chown -R <uid>:<gid>` each `/srv/openbot/<name>/data`,
+  then `up` each instance. `setup` shows a warning when it is off.
+- **DNS.** Docker sends the DNS queries of a container from the network of the container, so the
+  firewall also applies to them. When the host uses a resolver on a private or link-local address,
+  for example on AWS or GCP, the containers have no DNS. Then set `dns:` in `compose.yaml` to
+  resolvers on the internet.
+- **Kernel.** The containers share the kernel of the host. For owners that you do not trust, use a
+  host with no other services, or a virtual machine for each instance.
+
+| Task | Command |
+| --- | --- |
+| Show the instances | `openbot-instance list` |
+| Stop, start, restart | `openbot-instance down <name>`, `up <name>`, `restart <name>` |
+| Read the log | `openbot-instance logs <name> -f` (recent lines), or `/var/log/openbot/openbot-<name>.log*` (30 days) |
+| Upgrade | In the app (see [Updates from the app](#updates-from-the-app)), or `openbot-instance upgrade <name>` or `upgrade --all` |
+| `openbot` commands | `openbot-instance run <name> status`, `login`, `mobile-connect`, `name <name>` |
+| Make the disk larger | `down <name>`, `umount /srv/openbot/<name>/data`, `fallocate --length <new size> data.img`, `e2fsck -f data.img`, `resize2fs data.img`, `mount /srv/openbot/<name>/data`, `up <name>` |
+
+There is no command to remove an instance. To remove one and delete its data: `run <name> logout`,
+`down <name>`, `systemctl disable --now openbot-instance-update@<name>.path`,
+`umount /srv/openbot/<name>/data /srv/openbot/<name>/update-requests`, delete its two lines in
+`/etc/fstab`, then delete `/srv/openbot/<name>` and `instances/<name>.env`.
+
+### Updates from the app
+
+The owner or an admin updates an instance in Server settings › Updates, or in the update dialog, as on a
+hosted server. The container never gets the Docker socket. OpenBot writes an empty request file to
+`/srv/openbot/<name>/update-requests`. `openbot-instance-update@<name>.path` sees it and runs
+`openbot-instance update-request <name>` as root. Root only tests and removes the request; it never
+reads or follows it. It pulls the image of the instance and writes its version to `update-status` only
+when it is newer than the container. For an install, it makes the container again from that image,
+with the same data. It writes the state of the request to `update-status`, which the container mounts
+read-only.
+
+`setup` installs the units. `create`, `up` and `upgrade` make the folders, add the tmpfs of the
+requests to `/etc/fstab` and enable the path unit of the instance. An instance with `OPENBOT_TAG` in
+its env file keeps that tag and offers no update in the app. An instance made before this release gets them with `setup`, then
+`openbot-instance upgrade <name>` once. A container started with `docker/compose.yaml` or
+`docker run` has no request folders, so it offers no update in the app.
+
 ## Upgrades
 
-OpenBot does not update itself in a container. A new image replaces it. Do not go back to an older
-tag: an older OpenBot cannot open a database that a newer one migrated, so it does not start.
+OpenBot does not update itself in a container. A new image replaces it. An instance of
+`docker/instances` can ask the host for that from the app, see
+[Updates from the app](#updates-from-the-app). Do not go back to an older tag: an older OpenBot cannot
+open a database that a newer one migrated, so it does not start.
 
 ## Environment
 
