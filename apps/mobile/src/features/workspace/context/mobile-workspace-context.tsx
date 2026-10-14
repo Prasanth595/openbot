@@ -1442,6 +1442,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           ...current.filter((agent) => agent.id !== created.id),
           projectAgent(activeServer.id, created),
         ]);
+        return created.id;
       },
       updateAgent: async (input: UpdateAgentInput, serverId = activeServerIdRef.current ?? undefined) => {
         if (!serverId || !agents.some((agent) => agent.id === input.agentId && agent.serverId === serverId))

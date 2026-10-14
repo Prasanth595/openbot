@@ -5,11 +5,19 @@ import { type LucideIcon, X } from "lucide-react-native";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Keyboard, Pressable, ScrollView, type TextInput, useWindowDimensions, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
-import Animated, { LayoutAnimationConfig, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, {
+  LayoutAnimationConfig,
+  ReduceMotion,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { scheduleOnRN } from "react-native-worklets";
 
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
-import { redeemMobileConnectUrl } from "@/features/auth/api/mobile-auth";
+import { type MobileSession, redeemMobileConnectUrl } from "@/features/auth/api/mobile-auth";
 import { AppLogo } from "@/features/auth/components/app-logo";
 import type { EmailCodeInputHandle } from "@/features/auth/components/email-code-input";
 import { MorphText } from "@/features/auth/components/morph-text";
@@ -19,9 +27,16 @@ import { SIGN_IN_EASE_MOVE, type SignInMotion, signInMotion } from "@/features/a
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { type SignInStep, useEmailSignIn } from "@/features/auth/model/use-email-sign-in";
 import { useSignInChoreography } from "@/features/auth/model/use-sign-in-choreography";
+import { useAppLoadingOverlay } from "@/shared/components/app-loading-overlay";
 import { SplashWallpaper } from "@/shared/components/splash-backdrop";
 import { useReducedMotion } from "@/shared/lib/motion";
-import { SPLASH_LOGO_SIZE, SPLASH_MORPH_START, splashReveal, splashTravel } from "@/shared/lib/splash-motion";
+import {
+  SPLASH_EASE_OUT,
+  SPLASH_LOGO_SIZE,
+  SPLASH_MORPH_START,
+  splashReveal,
+  splashTravel,
+} from "@/shared/lib/splash-motion";
 import { useText } from "@/shared/lib/text";
 import {
   SPLASH_HANDOFF_DEADLINE_MS,
@@ -39,14 +54,29 @@ const SIDE_MARGIN = 24;
 const KEYBOARD_GAP = 24;
 // The lift moves with the slots, with the same curve and duration.
 const LIFT_MOVE = { duration: 300, easing: SIGN_IN_EASE_MOVE };
+// After sign-in the text and controls leave first. The native stack then replaces this screen with
+// a still picture of it, so everything that moves after that point lives in the loader overlay.
+const DEPARTURE_MS = 180;
+const DEPARTURE_DROP = 6;
+// The hero is measured once the keyboard is closed. A lost callback skips the flight.
+const HERO_MEASURE_DEADLINE_MS = 150;
 
-function useContentReveal(delay: number) {
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+/** The content rises in after the splash, and sinks out with `departure` when sign-in succeeds. */
+function useContentReveal(delay: number, departure: SharedValue<number>) {
   const motion = useContext(SplashMotionContext);
   const progress = motion?.progress;
   const reducedMotion = motion?.reducedMotion ?? false;
   return useAnimatedStyle(() => {
-    const opacity = progress ? splashReveal(progress.get(), delay, reducedMotion) : 1;
-    return { opacity, transform: [{ translateY: reducedMotion ? 0 : (1 - opacity) * 8 }] };
+    const reveal = progress ? splashReveal(progress.get(), delay, reducedMotion) : 1;
+    const leave = departure.get();
+    return {
+      opacity: reveal * leave,
+      transform: [{ translateY: reducedMotion ? 0 : (1 - reveal) * 8 + (1 - leave) * DEPARTURE_DROP }],
+    };
   });
 }
 
@@ -178,9 +208,12 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
   const reportContentReady = useContext(SplashContentReadyContext);
   const motion = useContext(SplashMotionContext);
   const insets = useSafeAreaInsets();
-  const titleStyle = useContentReveal(280);
-  const actionsStyle = useContentReveal(340);
+  const departure = useSharedValue(1);
+  const titleStyle = useContentReveal(280, departure);
+  const actionsStyle = useContentReveal(340, departure);
   const hero = useRef<View>(null);
+  const [heroHidden, setHeroHidden] = useState(false);
+  const { handOff } = useAppLoadingOverlay();
   const [heroOffset, setHeroOffset] = useState({ x: 0, y: 0 });
   const progress = motion?.progress;
   const reduced = motion?.reducedMotion ?? false;
@@ -200,7 +233,38 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
   const formWidth = Math.min(FORM_MAX_WIDTH, windowWidth - 2 * SIDE_MARGIN);
   const { connect } = useMobileSession();
   const reducedMotion = useReducedMotion();
-  const signIn = useEmailSignIn({ connect, reduced: reducedMotion });
+  // The email path leaves in three beats: the text and controls fade, the logo flies into the
+  // loader, and then the app replaces this screen. It never throws: the session is already valid.
+  const connectWithHandOff = useCallback(
+    async (session: MobileSession) => {
+      try {
+        await new Promise<void>((resolve) => {
+          departure.set(
+            withTiming(0, { duration: DEPARTURE_MS, easing: SPLASH_EASE_OUT, reduceMotion: ReduceMotion.Never }, () =>
+              scheduleOnRN(resolve),
+            ),
+          );
+        });
+        const origin = await new Promise<{ x: number; y: number; size: number } | null>((resolve) => {
+          const deadline = setTimeout(() => resolve(null), HERO_MEASURE_DEADLINE_MS);
+          hero.current?.measureInWindow((x, y, width) => {
+            clearTimeout(deadline);
+            resolve(width > 0 ? { x, y, size: width } : null);
+          });
+        });
+        if (origin) {
+          await handOff({ ...origin, mark: <AppLogo size={HERO_SIZE} /> });
+          setHeroHidden(true);
+          // The still picture of this screen must not contain the logo that now flies.
+          await nextFrame();
+        }
+      } finally {
+        connect(session);
+      }
+    },
+    [connect, departure, handOff],
+  );
+  const signIn = useEmailSignIn({ connect: connectWithHandOff, reduced: reducedMotion });
   const { step } = signIn;
   // The step changes at once; the stage on the screen follows it one phase at a time.
   const emailInput = useRef<TextInput>(null);
@@ -351,7 +415,7 @@ export function SignInScreen({ notice }: { notice?: SignInNotice }) {
                   ref={hero}
                   collapsable={false}
                   onLayout={reportHero}
-                  style={{ width: HERO_SIZE, height: HERO_SIZE }}
+                  style={{ width: HERO_SIZE, height: HERO_SIZE, opacity: heroHidden ? 0 : 1 }}
                 >
                   <Animated.View style={heroStyle}>
                     <AppLogo
