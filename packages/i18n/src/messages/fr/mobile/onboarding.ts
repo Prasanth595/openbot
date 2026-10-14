@@ -42,6 +42,8 @@ export const messages = {
   "mobile.onboarding.custom.title": "Créez votre propre agent",
   "mobile.onboarding.custom.body": "Balayez pour changer l’apparence, puis choisissez une couleur.",
   "mobile.onboarding.custom.shuffle": "Surprenez-moi",
+  "mobile.onboarding.custom.previousLook": "Apparence précédente",
+  "mobile.onboarding.custom.nextLook": "Apparence suivante",
   "mobile.onboarding.role.question": "Quel est mon rôle ?",
   "mobile.onboarding.custom.roleLabel": "Rôle",
   "mobile.onboarding.custom.rolePlaceholder": "En quoi doit-il vous aider ?",

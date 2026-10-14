@@ -144,7 +144,7 @@ export function LookStep({
           <OnboardingIconButton
             appearDelay={glassAfter(0)}
             icon={ChevronLeft}
-            label={t("mobile.agent.appearance.moreFaces")}
+            label={t("mobile.onboarding.custom.previousLook")}
             size={ARROW_SIZE}
             onPress={() => advance(-1)}
           />
@@ -152,7 +152,7 @@ export function LookStep({
           <OnboardingIconButton
             appearDelay={glassAfter(0)}
             icon={ChevronRight}
-            label={t("mobile.agent.appearance.moreFaces")}
+            label={t("mobile.onboarding.custom.nextLook")}
             size={ARROW_SIZE}
             onPress={() => advance(1)}
           />

@@ -42,6 +42,8 @@ export const messages = {
   "mobile.onboarding.custom.title": "自分だけのエージェントを作りましょう",
   "mobile.onboarding.custom.body": "スワイプして外観を変え、色を選んでください。",
   "mobile.onboarding.custom.shuffle": "おまかせ",
+  "mobile.onboarding.custom.previousLook": "前の外観",
+  "mobile.onboarding.custom.nextLook": "次の外観",
   "mobile.onboarding.role.question": "私の仕事は何ですか?",
   "mobile.onboarding.custom.roleLabel": "役割",
   "mobile.onboarding.custom.rolePlaceholder": "何を手伝ってもらいますか?",

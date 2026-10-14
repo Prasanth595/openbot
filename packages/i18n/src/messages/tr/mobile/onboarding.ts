@@ -42,6 +42,8 @@ export const messages = {
   "mobile.onboarding.custom.title": "Kendi ajanınızı oluşturun",
   "mobile.onboarding.custom.body": "Görünümü değiştirmek için kaydırın, sonra bir renk seçin.",
   "mobile.onboarding.custom.shuffle": "Beni şaşırt",
+  "mobile.onboarding.custom.previousLook": "Önceki görünüm",
+  "mobile.onboarding.custom.nextLook": "Sonraki görünüm",
   "mobile.onboarding.role.question": "Benim işim ne?",
   "mobile.onboarding.custom.roleLabel": "Rol",
   "mobile.onboarding.custom.rolePlaceholder": "Size hangi konuda yardım etsin?",

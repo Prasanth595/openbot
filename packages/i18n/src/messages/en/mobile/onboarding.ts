@@ -41,6 +41,8 @@ export const messages = defineMessages("mobile.onboarding", {
   "mobile.onboarding.custom.title": "Make your own agent",
   "mobile.onboarding.custom.body": "Swipe to change the look, then pick a color.",
   "mobile.onboarding.custom.shuffle": "Surprise me",
+  "mobile.onboarding.custom.previousLook": "Previous look",
+  "mobile.onboarding.custom.nextLook": "Next look",
   "mobile.onboarding.role.question": "What is my job?",
   "mobile.onboarding.custom.roleLabel": "Role",
   "mobile.onboarding.custom.rolePlaceholder": "What should it help you with?",
