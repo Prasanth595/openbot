@@ -73,8 +73,8 @@ export function RichMessageText(props: RichMessageTextProps) {
   } | null>(null);
 
   const openTooltip = (anchor: HTMLElement, content: string, onlyWhenTruncated = false) => {
-    const label = anchor.querySelector<HTMLElement>(".inline-file-reference-name");
-    if (onlyWhenTruncated && (!label || label.scrollWidth <= label.clientWidth + 1)) {
+    // The chip, not its inline name, clips the name and shows the ellipsis.
+    if (onlyWhenTruncated && anchor.scrollWidth <= anchor.clientWidth + 1) {
       setTooltip(null);
       return;
     }
