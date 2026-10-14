@@ -19,7 +19,7 @@ export function JoinPage() {
       /android|iphone|ipad|ipod/iu.test(navigator.userAgent) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
     );
-    const platform = detectDownloadPlatform(globalThis.navigator) === "windows" ? "windows" : "macos";
+    const platform = detectDownloadPlatform(globalThis.navigator) ?? "macos";
     let validInvite = true;
     try {
       const pageUrl = new URL(window.location.href);
@@ -30,7 +30,7 @@ export function JoinPage() {
       validInvite = false;
       setInvalid(true);
     }
-    if (platform === "windows") setDownloadUrl(OPENBOT_DOWNLOAD_LINKS.windows);
+    setDownloadUrl(OPENBOT_DOWNLOAD_LINKS[platform]);
     const cleanup = landingAnalytics.startJoin(document, window.location.hostname, { validInvite, platform });
     return cleanup;
   });

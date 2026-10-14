@@ -11,6 +11,7 @@ import { isBoolean, isOneOf } from "@openbot/contracts/runtime-values";
 import { OpenPanel, OpenPanelBase, type OpenPanelOptions, type TrackProperties } from "@openpanel/web";
 import { CONTENT_COLLECTIONS } from "./content";
 import { type CollectionId, type ContentCollection, findArticle } from "./content-collection";
+import { DOWNLOAD_PLATFORM_ORDER, type DownloadPlatform } from "./download-platforms";
 import {
   OPENBOT_ALTERNATE_DOWNLOAD_LINKS,
   OPENBOT_DOWNLOAD_LINKS,
@@ -44,7 +45,7 @@ interface LandingAnalyticsEvents {
   join_page_action:
     | { action: "view"; valid_invite: boolean }
     | { action: "open_app" }
-    | { action: "download"; platform: "macos" | "windows" };
+    | { action: "download"; platform: DownloadPlatform };
 }
 
 type LandingEventName = keyof LandingAnalyticsEvents;
@@ -268,7 +269,7 @@ class LandingAnalytics {
   startJoin(
     document: Document,
     hostname: string,
-    options: { validInvite: boolean; platform: "macos" | "windows" },
+    options: { validInvite: boolean; platform: DownloadPlatform },
   ): () => void {
     if (isLikelyAutomation(document.defaultView?.navigator)) return () => undefined;
     if (!this.#ensureClient(hostname)) return () => undefined;
@@ -288,12 +289,8 @@ class LandingAnalytics {
         return;
       }
       const href = link?.getAttribute("href");
-      if (href === OPENBOT_DOWNLOAD_LINKS.macos || href === OPENBOT_DOWNLOAD_LINKS.windows) {
-        this.#track("join_page_action", {
-          action: "download",
-          platform: href === OPENBOT_DOWNLOAD_LINKS.windows ? "windows" : "macos",
-        });
-      }
+      const platform = DOWNLOAD_PLATFORM_ORDER.find((id) => OPENBOT_DOWNLOAD_LINKS[id] === href);
+      if (platform) this.#track("join_page_action", { action: "download", platform });
     };
     return this.#replaceClickListener(document, handleClick, "/join");
   }
@@ -416,10 +413,10 @@ function isSafeLandingProperty(name: LandingEventName, key: string, value: unkno
   if (key === "collection") return CONTENT_COLLECTIONS.some((collection) => collection.id === value);
   if (key === "slug") return typeof value === "string" && PUBLISHED_SLUGS.has(value);
   if (key === "depth") return isOneOf(["start", "half", "end"] as const, value);
-  // The invitation page only ever offers the two platforms it can detect; the download events cover
-  // every platform the site links to, Linux and the phone apps included.
+  // The invitation page offers only the desktop installers; the download events cover every platform
+  // the site links to, the phone apps included.
   if (key === "platform") {
-    if (name === "join_page_action") return value === "macos" || value === "windows";
+    if (name === "join_page_action") return isOneOf(DOWNLOAD_PLATFORM_ORDER, value);
     return isOneOf(["linux", "macos", "windows", "ios", "android"] as const, value);
   }
   if (key === "placement") return isOneOf(LANDING_PLACEMENTS, value);
