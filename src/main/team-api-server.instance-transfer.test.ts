@@ -21,7 +21,7 @@ const summary: InstanceTransferSummary = {
       name: "Research",
       title: "Analyst",
       avatarSeed: "research",
-      avatarHue: null,
+      avatarHue: 30,
       avatarUrl: "openbot-avatar://agent-1/1",
       skillCount: 1,
       routineCount: 2,

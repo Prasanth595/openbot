@@ -497,7 +497,7 @@ describe("instance-transfer-v1", () => {
     name: "Research",
     title: "Analyst",
     avatarSeed: "research",
-    avatarHue: null,
+    avatarHue: 30,
     skillCount: 1,
     routineCount: 2,
     memoryCount: 3,

@@ -46,7 +46,7 @@ const summary = fields({
       name,
       title: string(120),
       avatarSeed: string(128),
-      avatarHue: nullable(string(32)),
+      avatarHue: nullable(count),
       skillCount: count,
       routineCount: count,
       memoryCount: count,
