@@ -35,7 +35,9 @@ session=$(dbus-launch --sh-syntax)
 eval "$session"
 # The lock of the last run stays in the container too.
 rm -f /tmp/.X0-lock /tmp/.X11-unix/X0
-Xvfb :0 -screen 0 1280x800x24 -nolisten tcp >/dev/null 2>&1 &
+# The subshell exits at once, so tini adopts Xvfb. As a child of OpenBot, Xvfb would get the high OOM
+# value of the agent processes, and OpenBot stops when the kernel kills its display.
+(Xvfb :0 -screen 0 1280x800x24 -nolisten tcp >/dev/null 2>&1 &)
 export DISPLAY=:0
 for _ in $(seq 1 100); do
   xdpyinfo >/dev/null 2>&1 && break

@@ -16,8 +16,11 @@ const RECOVER_MARGIN_BYTES = 256 * MIB;
  * gets this value, so the OOM killer picks a provider CLI, an MCP server or an agent tool before main.
  */
 const CHILD_OOM_SCORE_ADJ = 500;
+const PROC_READ_CONCURRENCY = 16;
 
 export interface ServerMemoryOptions {
+  /** True on a hosted server, whose plan sets the memory. */
+  hostedPlan: boolean;
   /** Called one time when the memory files cannot be read (the level then stays "ok"), and when a listener fails. */
   onError: (message: string, error: unknown) => void;
   now?: () => number;
@@ -47,8 +50,11 @@ export class ServerMemory implements HostMemory {
   #readErrorLogged = false;
   #noCgroupLogged = false;
 
+  readonly hostedPlan: boolean;
+
   constructor(options: ServerMemoryOptions) {
     this.#options = options;
+    this.hostedPlan = options.hostedPlan;
   }
 
   start(): void {
@@ -204,7 +210,13 @@ const readUnitMemory = Effect.fn("ServerMemory.readUnit")(function* () {
   if (!cgroup) return "unknown";
   // A container with its own cgroup namespace sees "0::/", and its limit at /sys/fs/cgroup/memory.max.
   const root = `/sys/fs/cgroup${cgroup.slice(3)}`;
-  const max = (yield* optionalMemoryIO(() => readFile(`${root}/memory.max`, "utf8")))?.trim();
+  // Only a missing file means no memory controller. Another failure is a read error.
+  const max = (yield* memoryIO(() => readFile(`${root}/memory.max`, "utf8")).pipe(
+    Effect.catchIf(
+      ({ cause }) => cause instanceof Error && "code" in cause && cause.code === "ENOENT",
+      () => Effect.succeed(null),
+    ),
+  ))?.trim();
   if (max === undefined) return "unknown";
   if (max === "max") return "unlimited";
   const current = Number((yield* memoryIO(() => readFile(`${root}/memory.current`, "utf8"))).trim());
@@ -221,7 +233,8 @@ const readUnitMemory = Effect.fn("ServerMemory.readUnit")(function* () {
  * A process can end during the walk, so each read and write can fail and is ignored.
  *
  * An Electron process runs the same binary as main. Chromium sets the values of its renderers and GPU
- * process itself, and the zygotes and the GPU broker keep the -500 of main. `app.getAppMetrics()` does
+ * process itself, and the zygotes and the GPU broker keep the value of main (-500 in the unit, 0 in a
+ * container). `app.getAppMetrics()` does
  * not list the zygotes or the broker, so the binary is the test: with 500, the OOM killer could kill a
  * zygote, and then no new renderer can start.
  */
@@ -243,7 +256,8 @@ const raiseChildOomScores = Effect.fn("ServerMemory.raiseChildOomScores")(functi
         siblings.push(Number(entry));
         children.set(parent, siblings);
       }),
-    { concurrency: "unbounded", discard: true },
+    // A self-hosted machine can have thousands of processes. Each read holds a file descriptor.
+    { concurrency: PROC_READ_CONCURRENCY, discard: true },
   );
   const descendants: number[] = [];
   const pending = [...(children.get(process.pid) ?? [])];

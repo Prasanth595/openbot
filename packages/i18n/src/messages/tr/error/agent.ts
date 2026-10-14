@@ -97,6 +97,8 @@ export const messages = {
     "Yalnızca çalışma alanı bu sağlayıcı için yalnızca macOS'ta kullanılabilir. Ajan ayarlarından Tam erişim'i seçin.",
   "error.agent.lowMemory":
     "Bu sunucunun belleği azaldı. Mesajınız kuyrukta bekler ve bellek boşaldığında başlar. Daha büyük bir plan sunucuya daha fazla bellek sağlar.",
+  "error.agent.lowMemoryServer":
+    "Bu sunucunun belleği azaldı. Mesajınız kuyrukta bekler ve bellek boşaldığında başlar.",
   "error.agent.workspaceOnlyToolMissing":
     "Yalnızca çalışma alanı OpenBot'un bulamadığı {tool} aracına ihtiyaç duyar. Aracı yükleyin veya ajan ayarlarından Tam erişim'i seçin.",
 } as const satisfies PartialTranslation<typeof source>;

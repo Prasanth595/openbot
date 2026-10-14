@@ -103,6 +103,8 @@ export const messages = {
     "Solo espacio de trabajo está disponible para este proveedor únicamente en macOS. Elige Acceso completo en los ajustes del agente.",
   "error.agent.lowMemory":
     "Este servidor tiene poca memoria disponible. Tu mensaje espera en la cola y se iniciará cuando se libere memoria. Un plan superior proporciona más memoria al servidor.",
+  "error.agent.lowMemoryServer":
+    "Este servidor tiene poca memoria disponible. Tu mensaje espera en la cola y se iniciará cuando se libere memoria.",
   "error.agent.workspaceOnlyToolMissing":
     "Solo espacio de trabajo requiere {tool}, que OpenBot no encontró. Instálalo o elige Acceso completo en los ajustes del agente.",
 } as const satisfies PartialTranslation<typeof source>;

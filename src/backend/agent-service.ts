@@ -301,7 +301,7 @@ export interface AgentServiceOptions {
   /** The 1Password vault the user shared with OpenBot, or `null`. The browser fills logins from it. */
   passwordVault?: PasswordVault | null;
   /**
-   * The memory of a hosted server, or `null` on each other computer. With it, no new turn starts
+   * The memory of a server, or `null` on a desktop computer. With it, no new turn starts
    * while memory is low, and only a fixed number of turns run at the same time.
    */
   hostMemory?: HostMemory | null;

@@ -868,6 +868,7 @@ export async function createApplicationServices({
   const hostMemory =
     hostedServer || serverModeEnvironment
       ? new ServerMemory({
+          hostedPlan: hostedServer !== null,
           onError: (message, error) => logger.warn(message, toLogValue(error)),
         })
       : null;

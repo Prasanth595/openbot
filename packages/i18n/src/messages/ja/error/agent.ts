@@ -104,6 +104,8 @@ export const messages = {
     "このプロバイダーの「ワークスペースのみ」は macOS でのみ利用できます。エージェントの設定で「フルアクセス」を選んでください。",
   "error.agent.lowMemory":
     "このサーバーはメモリが不足しています。メッセージはキューで待機し、メモリが空くと開始します。より大きいプランにすると、サーバーのメモリが増えます。",
+  "error.agent.lowMemoryServer":
+    "このサーバーはメモリが不足しています。メッセージはキューで待機し、メモリが空くと開始します。",
   "error.agent.workspaceOnlyToolMissing":
     "「ワークスペースのみ」には {tool} が必要ですが、OpenBot は見つけられませんでした。インストールするか、エージェントの設定で「フルアクセス」を選んでください。",
 } as const satisfies PartialTranslation<typeof source>;
