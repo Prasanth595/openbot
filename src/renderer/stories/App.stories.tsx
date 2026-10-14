@@ -240,6 +240,8 @@ const signedOutSecondaryAccounts = [
   { id: DEFAULT_PROVIDER_ACCOUNT_ID, label: null, email: "person@example.com", state: "connected", message: null },
   { id: "a0000000000000001", label: null, email: null, state: "signed-out", message: null },
 ] satisfies ProviderAccountStatus[];
+const signedOutSecondaryProviders = STORY_AGENT_STATUS.providers;
+if (!signedOutSecondaryProviders) throw new Error("Story agent status fixtures need providers.");
 
 /** Select the signed-out secondary account while the default account still reports usage. */
 export const SelectedSignedOutSecondaryAccount: Story = {
@@ -253,7 +255,7 @@ export const SelectedSignedOutSecondaryAccount: Story = {
         })),
         agentStatus: {
           ...STORY_AGENT_STATUS,
-          providers: STORY_AGENT_STATUS.providers?.map((provider) =>
+          providers: signedOutSecondaryProviders.map((provider) =>
             provider.id === "codex" ? { ...provider, accounts: signedOutSecondaryAccounts } : provider,
           ),
         },
