@@ -268,6 +268,10 @@ export class BrowserViewGateway {
   ): Effect.fn.Return<void, RemoteWorkflowError, BrowserViewPort> {
     if (session.socket) session.socket.close(1000, "The browser view moved to a new connection.");
     session.socket = client;
+    // The old socket's close no longer detaches this session, so its lease is released here. A start
+    // that is still pending sees the new socket and releases its own lease when it completes.
+    const previousView = session.stopView;
+    session.stopView = null;
     recordRestartActivity();
     client.on("message", (data, binary) => {
       if (binary || session.socket !== client) return;
@@ -275,6 +279,7 @@ export class BrowserViewGateway {
     });
     client.once("close", () => this.#dispatch(this.#detach(session, client)));
     client.once("error", () => this.#dispatch(this.#detach(session, client)));
+    if (previousView) yield* previousView().pipe(Effect.catch(() => Effect.void));
     return yield* Effect.gen({ self: this }, function* () {
       const browser = yield* BrowserViewPort;
       const stopView = yield* browser.start(
