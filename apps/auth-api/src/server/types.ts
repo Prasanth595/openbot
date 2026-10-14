@@ -190,7 +190,7 @@ export interface TeamInviteEmailDelivery {
 }
 
 export type EmailVerificationResult =
-  | { status: "verified"; session: { sessionToken: string; user: AuthUser } }
+  | { status: "verified"; session: { sessionToken: string; user: AuthUser }; created: boolean }
   | { status: "invalid" | "expired" | "too_many_attempts" };
 
 export type EmailChallengeDeliveryState = "pending" | "sent" | "failed";

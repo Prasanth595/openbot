@@ -1,3 +1,12 @@
+import {
+  type FIRST_TOUCH_CAMPAIGN_FIELDS,
+  FIRST_TOUCH_CAMPAIGN_VALUE,
+  type FirstTouch,
+  type FirstTouchAcquisitionSource,
+  type FirstTouchSourcePlatform,
+  firstTouchDay,
+  rememberFirstTouch,
+} from "@openbot/contracts/first-touch";
 import { isBoolean, isOneOf } from "@openbot/contracts/runtime-values";
 import { OpenPanel, OpenPanelBase, type OpenPanelOptions, type TrackProperties } from "@openpanel/web";
 import { CONTENT_COLLECTIONS } from "./content";
@@ -14,7 +23,7 @@ export const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
 const ANALYTICS_SCHEMA_VERSION = 9;
 
-type LandingAcquisitionSource = "direct" | "search" | "social" | "github" | "other";
+type LandingAcquisitionSource = FirstTouchAcquisitionSource;
 
 /** How far into an article the reader got. Reported once per depth per article view. */
 export type ArticleReadDepth = "start" | "half" | "end";
@@ -235,9 +244,9 @@ export class LandingAnalytics {
     if (!this.#ensureClient(hostname)) return () => undefined;
     const screen = safeScreenPath(screenPath);
     this.#campaignPath = landingCampaignPath(screen, document.location.href);
-    this.#client?.setGlobalProperties({
-      ...landingAttribution(document, hostname),
-    });
+    const attribution = landingAttribution(document, hostname);
+    this.#client?.setGlobalProperties(attribution);
+    rememberLandingFirstTouch(document, attribution, screen);
     this.#pageStarted = true;
     this.#flushPending();
     this.#screenView(screen);
@@ -264,9 +273,9 @@ export class LandingAnalytics {
     if (isLikelyAutomation(document.defaultView?.navigator)) return () => undefined;
     if (!this.#ensureClient(hostname)) return () => undefined;
     this.#campaignPath = landingCampaignPath("/join", document.location.href);
-    this.#client?.setGlobalProperties({
-      ...landingAttribution(document, hostname),
-    });
+    const attribution = landingAttribution(document, hostname);
+    this.#client?.setGlobalProperties(attribution);
+    rememberLandingFirstTouch(document, attribution, "/join");
     this.#pageStarted = true;
     this.#flushPending();
     this.#screenView("/join");
@@ -423,31 +432,60 @@ export function isLikelyAutomation(navigator: Pick<Navigator, "userAgent" | "web
   return navigator.webdriver || /(?:bot|crawler|spider|headless|lighthouse|preview)/iu.test(navigator.userAgent);
 }
 
-const CAMPAIGN_PARAMETERS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
+const CAMPAIGN_PARAMETERS = [
+  { parameter: "utm_source", field: "utmSource" },
+  { parameter: "utm_medium", field: "utmMedium" },
+  { parameter: "utm_campaign", field: "utmCampaign" },
+  { parameter: "utm_content", field: "utmContent" },
+  { parameter: "utm_term", field: "utmTerm" },
+] as const satisfies readonly { parameter: string; field: (typeof FIRST_TOUCH_CAMPAIGN_FIELDS)[number] }[];
+
 /**
  * Campaign tags are marketer-authored labels. A value that is not a bounded lowercase label is
  * dropped instead of truncated, so no free text can escape through a campaign link.
  */
-const SAFE_CAMPAIGN_VALUE = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+function campaignTags(href: string): ((typeof CAMPAIGN_PARAMETERS)[number] & { value: string })[] {
+  let search: URLSearchParams;
+  try {
+    search = new URL(href).searchParams;
+  } catch {
+    return [];
+  }
+  return CAMPAIGN_PARAMETERS.flatMap((tag) => {
+    const value = search.get(tag.parameter)?.trim().toLowerCase() ?? "";
+    return FIRST_TOUCH_CAMPAIGN_VALUE.test(value) ? [{ ...tag, value }] : [];
+  });
+}
 
 /**
  * OpenPanel reads campaign attribution from the query of the reported path, so the allowlisted tags
  * must travel with the path. Every other parameter and the hash are dropped by construction.
  */
 export function landingCampaignPath(screenPath: LandingScreenPath, href: string): string {
-  let search: URLSearchParams;
-  try {
-    search = new URL(href).searchParams;
-  } catch {
-    return screenPath;
-  }
-  const campaign = new URLSearchParams();
-  for (const key of CAMPAIGN_PARAMETERS) {
-    const value = search.get(key)?.trim().toLowerCase() ?? "";
-    if (SAFE_CAMPAIGN_VALUE.test(value)) campaign.set(key, value);
-  }
-  const query = campaign.toString();
+  const query = new URLSearchParams(campaignTags(href).map((tag) => [tag.parameter, tag.value])).toString();
   return query ? `${screenPath}?${query}` : screenPath;
+}
+
+/**
+ * Saves the first visit of this browser, once, so a later sign-up on the web or a checkout can name
+ * its source. The values are the ones this page already sends; nothing else is read.
+ */
+function rememberLandingFirstTouch(
+  document: Document,
+  attribution: ReturnType<typeof landingAttribution>,
+  screen: LandingScreenPath,
+): void {
+  const storage = document.defaultView?.localStorage;
+  if (!storage) return;
+  const now = Date.now();
+  const touch: FirstTouch = {
+    acquisitionSource: attribution.acquisition_source,
+    sourcePlatform: attribution.source_platform,
+    landingPage: screen,
+    firstVisitOn: firstTouchDay(now),
+  };
+  for (const tag of campaignTags(document.location.href)) touch[tag.field] = tag.value;
+  rememberFirstTouch(storage, touch, now);
 }
 
 // OpenPanel expects a URL. Keep only the domain, never credentials, ports or URL contents.
@@ -502,7 +540,12 @@ const SOURCE_PLATFORMS = [
   { platform: "duckduckgo", category: "search", domains: ["duckduckgo.com"], tags: ["duckduckgo"] },
   { platform: "brave", category: "search", domains: ["search.brave.com"], tags: ["brave"] },
   { platform: "yahoo", category: "search", domains: ["yahoo.com", "yahoo.co.jp"], tags: ["yahoo"] },
-] as const;
+] as const satisfies readonly {
+  platform: FirstTouchSourcePlatform;
+  category: LandingAcquisitionSource;
+  domains: readonly string[];
+  tags: readonly string[];
+}[];
 
 export function landingAttribution(document: Document, hostname: string) {
   const referrer = landingReferrer(document.referrer, hostname);
@@ -519,9 +562,10 @@ export function landingAttribution(document: Document, hostname: string) {
   );
   const source = tagged ?? referred;
   const category: LandingAcquisitionSource = source?.category ?? (campaignSource || referrer ? "other" : "direct");
+  const platform: FirstTouchSourcePlatform = source?.platform ?? "unknown";
   return {
     acquisition_source: category,
-    source_platform: source?.platform ?? "unknown",
+    source_platform: platform,
     __referrer: referrer,
   };
 }

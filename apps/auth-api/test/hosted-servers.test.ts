@@ -557,7 +557,9 @@ describe("hosted servers", () => {
     const context = await setup();
     const server = await createRunningServer(context);
     await runApiEffect(context.service.delete(owner, server.serverId, "Cloud one"));
-    expect(context.events.map(({ accountId, event }) => [accountId, event.name, event.action])).toEqual([
+    expect(
+      context.events.map(({ accountId, event }) => [accountId, event.name, "action" in event ? event.action : null]),
+    ).toEqual([
       ["owner", "billing_action", "checkout_started"],
       ["owner", "billing_action", "plan_started"],
       ["owner", "hosted_server_action", "provisioned"],

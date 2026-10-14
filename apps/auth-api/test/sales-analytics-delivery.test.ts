@@ -48,7 +48,7 @@ describe("sales analytics delivery", () => {
         profileId: "user_123",
         properties: expect.objectContaining({
           __revenue: 1200,
-          event_schema_version: 9,
+          event_schema_version: 10,
           __timestamp: "2023-11-14T22:13:20.000Z",
         }),
       },

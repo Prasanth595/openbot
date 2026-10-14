@@ -1,6 +1,6 @@
 import { isDynamicRecord, isOneOf } from "@openbot/contracts/runtime-values";
 import { Effect, Schema } from "effect";
-import { ACCOUNT_ANALYTICS_SCHEMA_VERSION } from "./account-analytics";
+import { ACCOUNT_ANALYTICS_SCHEMA_VERSION, FIRST_TOUCH_PROPERTIES } from "./account-analytics";
 
 const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const SEND_TIMEOUT_MS = 5_000;
@@ -68,6 +68,7 @@ const SALES_ANALYTICS_EVENT_PROPERTIES = {
     "recovery",
     "subscription_status",
     "server_status",
+    ...FIRST_TOUCH_PROPERTIES,
   ],
   revenue: [
     "__revenue",
@@ -81,6 +82,7 @@ const SALES_ANALYTICS_EVENT_PROPERTIES = {
     "interval",
     "payment_kind",
     "recovery",
+    ...FIRST_TOUCH_PROPERTIES,
   ],
   billing_snapshot: [
     "snapshot_date",

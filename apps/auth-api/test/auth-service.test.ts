@@ -134,7 +134,7 @@ class MemoryAuthRepository implements AuthRepository {
         expiresAt: input.session.expiresAt,
         revoked: false,
       });
-      return { status: "verified", session: { sessionToken: input.session.token, user } };
+      return { status: "verified", session: { sessionToken: input.session.token, user }, created: true };
     });
   }
 
@@ -409,6 +409,7 @@ describe("email one-time codes", () => {
         challengeId: challenge.challengeId,
         code: deliveredCode,
         sourceIp: "203.0.113.4",
+        surface: "desktop",
       }),
     );
     expect(session.user.email).toBe("person@example.com");
@@ -613,6 +614,7 @@ describe("email one-time codes", () => {
           challengeId: challenge.challengeId,
           code: deliveredCode,
           sourceIp: "203.0.113.4",
+          surface: "desktop",
         }),
       ),
     ).rejects.toMatchObject({ code: "invalid_sign_in_code" });
@@ -653,6 +655,7 @@ describe("email one-time codes", () => {
             challengeId: challenge.challengeId,
             code: "AAAA-AAAA",
             sourceIp: "203.0.113.4",
+            surface: "desktop",
           }),
         ),
       ).rejects.toMatchObject({ code: "invalid_sign_in_code" });
@@ -663,6 +666,7 @@ describe("email one-time codes", () => {
           challengeId: challenge.challengeId,
           code: "AAAA-AAAA",
           sourceIp: "203.0.113.4",
+          surface: "desktop",
         }),
       ),
     ).rejects.toMatchObject({ code: "too_many_code_attempts", status: 429 });
@@ -687,6 +691,7 @@ describe("email one-time codes", () => {
         challengeId: challenge.challengeId,
         code: challenge.developmentCode,
         sourceIp: "203.0.113.4",
+        surface: "desktop",
       }),
     );
 
@@ -753,7 +758,12 @@ describe("email one-time codes", () => {
     });
     await expect(
       runApiEffect(
-        service.verifyEmailCode({ challengeId: idempotencyKey, code: deliveredCode, sourceIp: "203.0.113.4" }),
+        service.verifyEmailCode({
+          challengeId: idempotencyKey,
+          code: deliveredCode,
+          sourceIp: "203.0.113.4",
+          surface: "desktop",
+        }),
       ),
     ).resolves.toMatchObject({ user: { email: "person@example.com" } });
     expect(send).toHaveBeenCalledOnce();

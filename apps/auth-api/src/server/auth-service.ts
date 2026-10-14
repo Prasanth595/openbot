@@ -1,3 +1,4 @@
+import type { FirstTouch } from "@openbot/contracts/first-touch";
 import type { MobileConnectHostBinding } from "@openbot/contracts/mobile-connect";
 import {
   isUuidV4,
@@ -8,6 +9,8 @@ import {
   validateProfileName,
 } from "@openbot/contracts/validation";
 import { Context, Effect, Layer, Result, Schema } from "effect";
+import { type AccountAnalytics, type AccountSurface, NO_ACCOUNT_ANALYTICS } from "./account-analytics";
+import type { AccountAttribution } from "./account-attribution";
 import { randomToken, sha256 } from "./crypto";
 import type { AuthStoreError } from "./d1-auth-repository";
 import type { RemoteFailure } from "./remote-control-plane";
@@ -44,6 +47,9 @@ interface AuthServiceOptions {
   now?: () => number;
   flushSessionRevocations?: () => Effect.Effect<void, RemoteFailure>;
   profileChanged?: (userId: string) => Effect.Effect<void, RemoteFailure>;
+  analytics?: AccountAnalytics;
+  /** Saves the first website visit that a sign-in on the web sends. */
+  attribution?: AccountAttribution;
 }
 
 export interface EmailSignInStart {
@@ -69,6 +75,8 @@ class AuthDependencies extends Context.Service<
     now: () => number;
     flushSessionRevocations: () => Effect.Effect<void, RemoteFailure>;
     profileChanged: (userId: string) => Effect.Effect<void, RemoteFailure>;
+    analytics: AccountAnalytics;
+    attribution: AccountAttribution | null;
   }
 >()("@openbot/auth-api/AuthDependencies") {}
 
@@ -85,6 +93,8 @@ export class AuthService {
       now: options.now ?? Date.now,
       flushSessionRevocations: options.flushSessionRevocations ?? (() => Effect.void),
       profileChanged: options.profileChanged ?? (() => Effect.void),
+      analytics: options.analytics ?? NO_ACCOUNT_ANALYTICS,
+      attribution: options.attribution ?? null,
     });
   }
 
@@ -251,6 +261,9 @@ export class AuthService {
         challengeId: string;
         code: string;
         sourceIp: string;
+        surface: Exclude<AccountSurface, "mobile">;
+        /** Only the web client sends one; it is already checked. */
+        firstTouch?: FirstTouch | null;
       },
     ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
       return yield* this.#verifyEmailChallenge(input);
@@ -271,7 +284,7 @@ export class AuthService {
     ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
       const dependencies = yield* AuthDependencies;
       const device = yield* authValidate(() => normalizeMobileDevice(input.device));
-      const session = yield* this.#verifyEmailChallenge({ ...input, device });
+      const session = yield* this.#verifyEmailChallenge({ ...input, device, surface: "mobile" });
       // The new session replaces the earlier session of this device.
       yield* dependencies.flushSessionRevocations();
       return session;
@@ -281,7 +294,14 @@ export class AuthService {
 
   readonly #verifyEmailChallenge = Effect.fn("AuthService.verifyEmailChallenge")(function* (
     this: AuthService,
-    input: { challengeId: string; code: string; sourceIp: string; device?: MobileAuthDeviceIdentity },
+    input: {
+      challengeId: string;
+      code: string;
+      sourceIp: string;
+      surface: AccountSurface;
+      firstTouch?: FirstTouch | null;
+      device?: MobileAuthDeviceIdentity;
+    },
   ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
     const dependencies = yield* AuthDependencies;
     const now = dependencies.now();
@@ -303,7 +323,19 @@ export class AuthService {
       },
       ...(input.device ? { device: input.device } : {}),
     });
-    return yield* authValidate(() => verificationResult(result));
+    const session = yield* authValidate(() => verificationResult(result));
+    const firstTouch = input.firstTouch ?? null;
+    const { attribution } = dependencies;
+    if (firstTouch && attribution) {
+      // The source of an account is for reports. Its failure must not fail the sign-in.
+      yield* attribution
+        .record(session.user.id, firstTouch, "sign_in")
+        .pipe(Effect.catch(() => Effect.sync(() => console.warn("Account attribution save failed."))));
+    }
+    if (result.status === "verified" && result.created) {
+      dependencies.analytics.track(session.user.id, { name: "account_created", surface: input.surface, firstTouch });
+    }
+    return session;
   });
 
   readonly authenticate = Effect.fn("AuthService.authenticate")(

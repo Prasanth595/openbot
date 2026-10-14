@@ -9,6 +9,8 @@ import {
 } from "@openbot/contracts/billing";
 import { isOneOf } from "@openbot/contracts/runtime-values";
 import { Effect, Schema } from "effect";
+import { firstTouchProperties, NO_ACCOUNT_ANALYTICS } from "./account-analytics";
+import { AccountAttribution } from "./account-attribution";
 import { BillingUsd, BillingUsdError } from "./billing-usd";
 import { SalesAnalyticsDelivery, SalesAnalyticsDeliveryError } from "./sales-analytics-delivery";
 import type { StripeEvent } from "./stripe-client";
@@ -547,12 +549,20 @@ export class BillingSales {
     };
     if (row.fact_type === "payment_succeeded") {
       const recovery = yield* this.#recovery(row.invoice_id, profileId, eventTimestamp);
+      // The source of the account, when it is known at this time. `account_attributed` names it later.
+      const firstTouch = profileId
+        ? firstTouchProperties(
+            yield* new AccountAttribution({ database: this.#database, analytics: NO_ACCOUNT_ANALYTICS })
+              .read(profileId)
+              .pipe(Effect.mapError(() => new BillingSalesError({ code: "database" }))),
+          )
+        : {};
       if (!attributes.suppressBillingAction)
         yield* this.#enqueue(
           `billing:${row.source_key}`,
           profileId,
           "billing_action",
-          { ...actionProperties, action: "payment_succeeded", ...(recovery ? { recovery } : {}) },
+          { ...actionProperties, action: "payment_succeeded", ...(recovery ? { recovery } : {}), ...firstTouch },
           eventTimestamp,
         );
       if (attributes.amount !== undefined && attributes.amount > 0 && attributes.currency) {
@@ -583,6 +593,7 @@ export class BillingSales {
             ...(attributes.interval ? { interval: attributes.interval } : {}),
             payment_kind: attributes.paymentKind ?? "adjustment",
             ...(recovery ? { recovery } : {}),
+            ...firstTouch,
           },
           eventTimestamp,
         );

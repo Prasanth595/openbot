@@ -60,6 +60,7 @@ function setup() {
       revokeAccountSession: vi.fn().mockReturnValue(Effect.succeed(undefined)),
     },
     avatarBucket: () => avatars,
+    attribution: () => ({ recordCheckout: vi.fn() }),
     hostedSites: () => ({ list: vi.fn(), delete: vi.fn() }),
     remote: {
       removeOwnedHost: vi.fn().mockReturnValue(Effect.succeed(undefined)),

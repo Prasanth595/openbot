@@ -241,7 +241,7 @@ export class D1AuthRepository implements AuthRepository {
       );
       if (consumed.meta.changes !== 1) return { status: "invalid" };
 
-      const user = yield* this.#upsertEmailUserEffect(challenge.email, input.now);
+      const { user, created } = yield* this.#upsertEmailUserEffect(challenge.email, input.now);
       const tokenHash = yield* sha256(input.session.token).pipe(
         Effect.mapError(() => new AuthStoreError({ message: "Account store operation failed." })),
       );
@@ -270,6 +270,7 @@ export class D1AuthRepository implements AuthRepository {
       return {
         status: "verified",
         session: { sessionToken: input.session.token, user },
+        created,
       };
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
@@ -994,12 +995,12 @@ export class D1AuthRepository implements AuthRepository {
     this: D1AuthRepository,
     email: string,
     now: number,
-  ): Effect.fn.Return<AuthUser, AuthStoreError, AuthDatabase> {
+  ): Effect.fn.Return<{ user: AuthUser; created: boolean }, AuthStoreError, AuthDatabase> {
     const database = yield* AuthDatabase;
     const existing = yield* storeCall(() =>
       database.prepare("SELECT id, email, name, avatar_url FROM users WHERE email = ?").bind(email).first<UserRow>(),
     );
-    if (existing) return mapUser(existing);
+    if (existing) return { user: mapUser(existing), created: false };
     const id = crypto.randomUUID();
     yield* storeCall(() =>
       database
@@ -1011,7 +1012,7 @@ export class D1AuthRepository implements AuthRepository {
         .bind(id, `email:${email}`, email, now, now)
         .run(),
     );
-    return { id, email, name: null, avatarUrl: null };
+    return { user: { id, email, name: null, avatarUrl: null }, created: true };
   });
 }
 
