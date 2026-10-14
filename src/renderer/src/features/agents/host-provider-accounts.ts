@@ -109,6 +109,9 @@ export function createHostAccounts(source: HostAccountsSource) {
   }
 
   createEffect(source.serverId, () => {
+    // The previous server's accounts must not show for this one while its request runs or after it fails.
+    setHost(null);
+    setLimits([]);
     void refresh().catch(() => undefined);
     void refreshUsage().catch(() => undefined);
   });

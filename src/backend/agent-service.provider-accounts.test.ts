@@ -33,6 +33,7 @@ describe("AgentService: provider accounts", () => {
     await runCauseEffect(accounts.load());
     const removed = await runCauseEffect(accounts.create("codex"));
     const kept = await runCauseEffect(accounts.create("codex"));
+    if (!removed) throw new Error("The provider has too many accounts.");
     const started = await startService(root, { provider: "codex", providerAccounts: accounts });
     service = started.service;
     const { initialMessage: _initialMessage, ...profile } = CREATE_AGENT_INPUT;

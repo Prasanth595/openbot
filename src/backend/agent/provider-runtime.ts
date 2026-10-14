@@ -772,76 +772,88 @@ export class ProviderRuntime implements ProviderPort {
       orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
     });
     if (!scope) {
-      const available = (this.status().providers ?? []).filter(
-        (item) => isAgentProvider(item.id) && item.state === "available" && item.connectionState !== "connecting",
+      const statuses = (this.status().providers ?? []).filter(
+        (item) => isAgentProvider(item.id) && !item.off && item.connectionState !== "connecting",
       );
-      const providers = available
+      // The default sign-in and the extra accounts are read apart: a provider whose own sign-in has
+      // no reading can still have extra accounts that report one.
+      const available = new Set(statuses.filter((item) => item.state === "available").map((item) => item.id));
+      const providers = statuses
         .map((item) => item.id)
         .filter(isAgentProvider)
+        .filter((provider) => available.has(provider) || ProviderAccounts.support(provider))
         .sort((left, right) => agentProviderDescriptor(left).pickerOrder - agentProviderDescriptor(right).pickerOrder);
       // By provider, then by provider and account: the provider's own sign-in comes first.
       const collected = new Map<string, AccountUsage["limits"][number]>();
+      const logFailure = (provider: AgentProvider) =>
+        Effect.catch((error: ProviderOperationFailed | ProviderAccountFailed) =>
+          Effect.sync(() => {
+            logger.warn("Could not read provider usage.", {
+              provider,
+              message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
+            });
+          }),
+        );
+      const readDefault = (provider: AgentProvider) =>
+        Effect.gen({ self: this }, function* () {
+          let usage: AccountUsage;
+          if (provider === "opencode") {
+            // The Go quota is one HTTPS request with the saved key, so do not start OpenCode for it.
+            usage = normalizeAccountUsage(
+              yield* readOpenCodeGoUsage(this.#credentials.apiKey("opencode")).pipe(
+                toProviderOperationFailed,
+                deadline,
+              ),
+            );
+          } else {
+            // Starting a provider that has no usage reading only to get nothing back cost a cold
+            // start on every dock poll.
+            if (!agentProviderDescriptor(provider).reportsUsage) return;
+            const kept = this.#released.has(provider) ? this.#lastUsage.get(provider) : undefined;
+            if (kept && !usageWindowHasReset(kept)) {
+              collected.set(provider, kept);
+              this.#emit({ type: "usage-changed", usage: { limits: [...collected.values()] } });
+              return;
+            }
+            if (this.#released.has(provider) && this.#usageUnreported.has(provider)) return;
+            if (!this.#clients.has(provider)) yield* this.ensureProvider(provider);
+            const client = this.#clients.get(provider);
+            if (!client) return;
+            const model =
+              provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
+            usage = yield* this.#refreshUsage(client, model, false).pipe(deadline);
+          }
+          const limit = usage.limits[0];
+          if (!limit || (!limit.primary && !limit.secondary)) {
+            this.#usageUnreported.add(provider);
+            return;
+          }
+          this.#usageUnreported.delete(provider);
+          collected.set(provider, { ...limit, id: provider });
+          this.#lastUsage.set(provider, { ...limit, id: provider });
+          this.#emit({
+            type: "usage-changed",
+            usage: { limits: [...collected.values()] },
+          });
+        });
+      const readAccounts = (provider: AgentProvider) =>
+        Effect.gen({ self: this }, function* () {
+          if (!this.#providerAccounts || !ProviderAccounts.support(provider)) return;
+          if (!agentProviderDescriptor(provider).reportsUsage) return;
+          const model = provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
+          const accountLimits = yield* this.#providerAccounts.usage(provider, model).pipe(deadline);
+          if (accountLimits.length === 0) return;
+          for (const accountLimit of accountLimits)
+            collected.set(`${provider}:${accountLimit.accountId ?? ""}`, accountLimit);
+          this.#emit({ type: "usage-changed", usage: { limits: [...collected.values()] } });
+        });
       yield* Effect.forEach(
         providers,
         (provider) =>
-          Effect.gen({ self: this }, function* () {
-            let usage: AccountUsage;
-            if (provider === "opencode") {
-              // The Go quota is one HTTPS request with the saved key, so do not start OpenCode for it.
-              usage = normalizeAccountUsage(
-                yield* readOpenCodeGoUsage(this.#credentials.apiKey("opencode")).pipe(
-                  toProviderOperationFailed,
-                  deadline,
-                ),
-              );
-            } else {
-              // Starting a provider that has no usage reading only to get nothing back cost a cold
-              // start on every dock poll.
-              if (!agentProviderDescriptor(provider).reportsUsage) return;
-              const kept = this.#released.has(provider) ? this.#lastUsage.get(provider) : undefined;
-              if (kept && !usageWindowHasReset(kept)) {
-                collected.set(provider, kept);
-                this.#emit({ type: "usage-changed", usage: { limits: [...collected.values()] } });
-                return;
-              }
-              if (this.#released.has(provider) && this.#usageUnreported.has(provider)) return;
-              if (!this.#clients.has(provider)) yield* this.ensureProvider(provider);
-              const client = this.#clients.get(provider);
-              if (!client) return;
-              const model =
-                provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
-              usage = yield* this.#refreshUsage(client, model, false).pipe(deadline);
-            }
-            const limit = usage.limits[0];
-            if (!limit || (!limit.primary && !limit.secondary)) {
-              this.#usageUnreported.add(provider);
-              return;
-            }
-            this.#usageUnreported.delete(provider);
-            collected.set(provider, { ...limit, id: provider });
-            this.#lastUsage.set(provider, { ...limit, id: provider });
-            this.#emit({
-              type: "usage-changed",
-              usage: { limits: [...collected.values()] },
-            });
-            if (provider === "opencode" || !this.#providerAccounts) return;
-            const model =
-              provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
-            const accountLimits = yield* this.#providerAccounts.usage(provider, model).pipe(deadline);
-            if (accountLimits.length === 0) return;
-            for (const accountLimit of accountLimits)
-              collected.set(`${provider}:${accountLimit.accountId ?? ""}`, accountLimit);
-            this.#emit({ type: "usage-changed", usage: { limits: [...collected.values()] } });
-          }).pipe(
-            Effect.catch((error) =>
-              Effect.sync(() => {
-                logger.warn("Could not read provider usage.", {
-                  provider,
-                  message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
-                });
-              }),
-            ),
-          ),
+          Effect.gen(function* () {
+            if (available.has(provider)) yield* readDefault(provider).pipe(logFailure(provider));
+            yield* readAccounts(provider).pipe(logFailure(provider));
+          }),
         { concurrency: "unbounded", discard: true },
       );
       return { limits: structuredClone([...collected.values()]) };

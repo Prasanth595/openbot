@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { DEFAULT_PROVIDER_ACCOUNT_ID } from "@openbot/contracts/ipc";
 import { afterEach, describe, expect, it } from "vitest";
 import { runCauseEffect } from "../effect-boundary";
-import { ProviderAccountStore } from "./provider-account-store";
+import { ProviderAccountStore, type StoredProviderAccount } from "./provider-account-store";
 
 const roots: string[] = [];
 
@@ -30,6 +30,12 @@ async function openStore(list: string, folders: string): Promise<ProviderAccount
   return store;
 }
 
+async function create(store: ProviderAccountStore, provider: "codex" | "claude"): Promise<StoredProviderAccount> {
+  const account = await runCauseEffect(store.create(provider));
+  if (!account) throw new Error("The provider has too many accounts.");
+  return account;
+}
+
 async function exists(path: string): Promise<boolean> {
   return stat(path).then(
     () => true,
@@ -41,9 +47,9 @@ describe("ProviderAccountStore", () => {
   it("gives each account a private folder, and keeps the list, the names and the other folders", async () => {
     const { list, folders } = await paths();
     const store = await openStore(list, folders);
-    const first = await runCauseEffect(store.create("codex"));
-    const second = await runCauseEffect(store.create("codex"));
-    const claude = await runCauseEffect(store.create("claude"));
+    const first = await create(store, "codex");
+    const second = await create(store, "codex");
+    const claude = await create(store, "claude");
 
     const homes = [first, second, claude].map((account) => store.home(account));
     expect(new Set(homes).size).toBe(3);

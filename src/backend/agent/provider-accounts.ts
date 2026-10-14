@@ -150,13 +150,14 @@ export class ProviderAccounts {
     let account: StoredProviderAccount;
     const added = accountId === null;
     if (added) {
-      if (this.#store.list(provider).length + 1 >= MAX_PROVIDER_ACCOUNTS)
+      const created = yield* this.#store
+        .create(provider)
+        .pipe(Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })));
+      if (!created)
         return yield* accountFailure(
           sourceText("error.provider.accountLimit", { provider: name, limit: MAX_PROVIDER_ACCOUNTS }),
         );
-      account = yield* this.#store
-        .create(provider)
-        .pipe(Effect.mapError((error) => new ProviderAccountFailed({ cause: error.cause })));
+      account = created;
     } else {
       const stored = this.account(provider, accountId);
       if (!stored) return yield* accountFailure(sourceText("error.provider.accountNotFound", { provider: name }));
@@ -191,6 +192,8 @@ export class ProviderAccounts {
               const message = this.#message(provider, Cause.squash(cause));
               logger.warn("A provider account did not sign in.", { provider, message });
               if (added) {
+                // A sign-in that ended before its check failed can have left a credential outside the folder.
+                yield* this.#signOut(account).pipe(Effect.ignore);
                 yield* this.#store.remove(account).pipe(Effect.ignore);
                 this.#forget(account.id);
                 this.#host.changed();
@@ -231,6 +234,7 @@ export class ProviderAccounts {
       this.#setState(accountId, { state: "signed-out", message: null });
       return;
     }
+    yield* this.#signOut(account).pipe(Effect.ignore);
     yield* this.#store.remove(account).pipe(Effect.ignore);
     this.#forget(accountId);
     this.#host.changed();

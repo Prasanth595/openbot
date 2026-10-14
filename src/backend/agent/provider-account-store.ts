@@ -2,17 +2,21 @@ import { randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { AGENT_PROVIDERS, type AgentProviderId } from "@openbot/contracts/agent-providers";
-import { DEFAULT_PROVIDER_ACCOUNT_ID, PROVIDER_ACCOUNT_LABEL_MAX_LENGTH } from "@openbot/contracts/ipc";
+import {
+  DEFAULT_PROVIDER_ACCOUNT_ID,
+  MAX_PROVIDER_ACCOUNTS,
+  PROVIDER_ACCOUNT_LABEL_MAX_LENGTH,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Schema, Semaphore } from "effect";
 import { writeJsonFileAtomically } from "../atomic-json-file";
 import { causeHelpers } from "../effect-boundary";
 import { isMissingFileError } from "../file-errors";
 
-/** A provider account after the first. Its credentials stay in its folder, never in this list. */
 /** A provider that can hold accounts: every built-in one. */
 export type AccountProvider = Exclude<AgentProviderId, "acp">;
 
+/** A provider account after the first. Its credentials stay in its folder, never in this list. */
 export interface StoredProviderAccount {
   id: string;
   provider: AccountProvider;
@@ -96,7 +100,10 @@ export class ProviderAccountStore {
     return join(this.#root, account.id);
   }
 
-  /** Makes an empty, private folder and saves the account that signs in to it. */
+  /**
+   * Makes an empty, private folder and saves the account that signs in to it. Null when the provider
+   * already has `MAX_PROVIDER_ACCOUNTS`, checked in the same write so that two requests cannot pass it.
+   */
   readonly create = Effect.fn("ProviderAccountStore.create")(function* (
     this: ProviderAccountStore,
     provider: AgentProviderId,
@@ -107,6 +114,8 @@ export class ProviderAccountStore {
       });
     return yield* this.#change((file) =>
       Effect.gen({ self: this }, function* () {
+        if (file.accounts.filter((account) => account.provider === provider).length + 1 >= MAX_PROVIDER_ACCOUNTS)
+          return { file, result: null };
         const account: StoredProviderAccount = { id: `a${randomBytes(8).toString("hex")}`, provider, label: null };
         const home = this.home(account);
         yield* Effect.tryPromise({
@@ -178,6 +187,7 @@ export class ProviderAccountStore {
             cause: new Error(sourceText("error.provider.accountsReadOnly")),
           });
         const { file, result } = yield* update(this.#file);
+        if (file === this.#file) return result;
         yield* writeJsonFileAtomically(this.#path, file, { createDirectory: true }).pipe(toStoreFailed);
         this.#file = file;
         return result;

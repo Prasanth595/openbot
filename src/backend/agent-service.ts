@@ -2012,8 +2012,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             : previous && requestedProvider !== providerForAgent(previous)
               ? null
               : previousAccount;
+        // Only a requested account is checked: an agent whose account record is lost (a damaged or
+        // newer store) can still be renamed or moved to another account.
         if (
           requestedAccount &&
+          input.providerAccountId !== undefined &&
           (!requestedProvider || !this.#providers.hasProviderAccount(requestedProvider, requestedAccount))
         )
           throw new Error(

@@ -12,7 +12,6 @@ import {
   type AgentStatus,
   decodeCustomProviderResult,
   decodeCustomProviderSummaries,
-  decodeHostProviderAccounts,
   decodeHostProviderAccountUsage,
   decodeProviderApiKeyStatus,
   decodeProviderCodeLoginStart,
@@ -58,7 +57,7 @@ import { runCauseEffect } from "../../backend/effect-boundary";
 import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
-import { decodeAgentStatusFromHost } from "../remote-agent-decoding";
+import { decodeAgentStatusFromHost, decodeHostProviderAccountsFromHost } from "../remote-agent-decoding";
 import { acceptEmpty, type ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
 import { type SignInRelayClient, signInRelayRemote } from "../sign-in-relay-client";
@@ -254,7 +253,7 @@ export function providerAdminIpcHandlers({
       cancelHostSignIn: hostSignIn((provider, serverId) =>
         remoteChange(serverId, PROVIDER_HOST_SIGN_IN_ROUTES.cancel, { provider }),
       ),
-      accounts: accountsQuery(PROVIDER_ACCOUNTS_ROUTES.list, decodeHostProviderAccounts),
+      accounts: accountsQuery(PROVIDER_ACCOUNTS_ROUTES.list, decodeHostProviderAccountsFromHost),
       accountUsage: accountsQuery(PROVIDER_ACCOUNTS_ROUTES.usage, decodeHostProviderAccountUsage),
       startAccountSignIn: accountsRequest(
         parseConnectProviderAccountInput,

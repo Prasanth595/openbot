@@ -69,7 +69,10 @@ export function ProviderAccountList(props: ProviderAccountListProps) {
               ]
                 .filter(Boolean)
                 .join(" · ");
-            const signInOffered = () => !own() && (account().state === "signed-out" || account().state === "error");
+            // A state that a newer host added shows as a failure.
+            const state = (): ProviderAccountState =>
+              Object.hasOwn(ACCOUNT_STATE_TEXT, account().state) ? account().state : "error";
+            const signInOffered = () => !own() && (state() === "signed-out" || state() === "error");
             return (
               <li class="provider-picker-account">
                 <span class="provider-picker-account-copy">
@@ -93,8 +96,8 @@ export function ProviderAccountList(props: ProviderAccountListProps) {
                     {(message) => <small class="provider-picker-check-error">{message()}</small>}
                   </Show>
                 </span>
-                <Badge class="provider-picker-status" variant={ACCOUNT_STATE_VARIANT[account().state]} shape="pill">
-                  {t(ACCOUNT_STATE_TEXT[account().state])}
+                <Badge class="provider-picker-status" variant={ACCOUNT_STATE_VARIANT[state()]} shape="pill">
+                  {t(ACCOUNT_STATE_TEXT[state()])}
                 </Badge>
                 <DropdownMenu.Root placement="bottom-end" gutter={4} modal={false}>
                   <DropdownMenu.Trigger
