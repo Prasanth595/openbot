@@ -2,6 +2,7 @@ import type { AgentEvent, RespondToApprovalInput, TeamRealtimeEvent } from "@ope
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notificationActionsNative as native } from "@/features/push-notifications/notification-actions";
 import { answersApproval, type NotificationApprovalAnswer } from "@/features/push-notifications/notification-approvals";
+import { useAppLanguage } from "@/features/settings/model/app-language";
 import { supportLog, supportLogValue } from "@/features/support/model/support-log";
 import { InactiveRequestError, type PendingApproval } from "@/features/workspace/model/pending-approvals";
 import { currentText, useText } from "@/shared/lib/text";
@@ -142,15 +143,18 @@ export function useNotificationAnswers(input: NotificationAnswersInput): Notific
     [waitForRequest],
   );
 
-  // The button titles follow the app language.
+  // The button titles follow the app language. iOS keeps them after the app stops, so a start in the
+  // background, which reads the language only when the user opens the app, keeps the saved titles.
+  const languageReady = useAppLanguage((state) => state.ready);
   useEffect(() => {
+    if (!languageReady) return;
     void native
       ?.registerCategories({
         approve: t("mobile.workspace.notification.allow"),
         deny: t("mobile.workspace.notification.deny"),
       })
       .catch(() => undefined);
-  }, [t]);
+  }, [t, languageReady]);
 
   useEffect(() => native?.onAnswer((value) => void answer(value)), [answer]);
 
