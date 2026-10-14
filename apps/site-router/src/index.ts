@@ -114,6 +114,17 @@ export const routeRequest = Effect.fn("SiteRouter.routeRequest")(
 
     const path = requestPath(url.pathname);
     if (path === null) return errorResponse(404, "Page not found");
+    // A directory page needs its trailing slash, or the browser resolves its relative links one level up.
+    // The relative Location keeps local hosted sites on their own origin; one leading slash keeps it on this host.
+    if (path && !path.endsWith("/") && !route.files[path] && route.files[`${path}/index.html`]) {
+      return new Response(null, {
+        status: 308,
+        headers: secureHeaders({
+          Location: `/${url.pathname.replace(/^\/+/, "")}/${url.search}`,
+          "Cache-Control": "no-store",
+        }),
+      });
+    }
     const file = resolveFile(route, path);
     if (!file) return errorResponse(404, "Page not found");
     if (file.mimeType !== "text/html" && runtime) {
