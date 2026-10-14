@@ -777,19 +777,7 @@ export class HostedServerService {
       serverId: string,
     ): Effect.fn.Return<HostedServerSummary, HostedFailure, HostedServerDependencies> {
       const dependencies = yield* HostedServerDependencies;
-      const row = yield* hostedCall(() =>
-        dependencies.database
-          .prepare(
-            `SELECT ${ROW_COLUMNS} FROM hosted_servers h
-           WHERE h.server_id = ? AND h.desired_state != 'deleted' AND (h.owner_user_id = ? OR EXISTS(
-             SELECT 1 FROM remote_memberships m
-             WHERE m.host_id = h.server_id AND m.user_id = ? AND m.status = 'active' AND m.role IN ('owner', 'admin')
-           ))`,
-          )
-          .bind(serverId, user.id, user.id)
-          .first<HostedServerRow>(),
-      );
-      if (!row) return yield* notFound();
+      const row = yield* this.#requireUsableRow(user, serverId, "admins");
       if (row.desired_state === "stopped") {
         return yield* new HostedServerServiceError(402, "plan_required", sourceText("error.billing.planRequired"));
       }
@@ -2263,19 +2251,25 @@ export class HostedServerService {
     return { billing: this.#billing };
   }
 
-  /** A server that is not deleted, of which the user is the owner or an active member. */
+  /**
+   * A server that is not deleted, of which the user is the owner or an active member. With `admins`, the
+   * membership must also have the owner or the admin role.
+   */
   readonly #requireUsableRow = Effect.fn("HostedServerService.requireUsableRow")(function* (
     this: HostedServerService,
     user: AuthUser,
     serverId: string,
+    members: "all" | "admins" = "all",
   ): Effect.fn.Return<HostedServerRow, HostedFailure, HostedServerDependencies> {
     const dependencies = yield* HostedServerDependencies;
+    const roles = members === "admins" ? " AND m.role IN ('owner', 'admin')" : "";
     const row = yield* hostedCall(() =>
       dependencies.database
         .prepare(
           `SELECT ${ROW_COLUMNS} FROM hosted_servers h
          WHERE h.server_id = ? AND h.desired_state != 'deleted' AND (h.owner_user_id = ? OR EXISTS(
-           SELECT 1 FROM remote_memberships m WHERE m.host_id = h.server_id AND m.user_id = ? AND m.status = 'active'
+           SELECT 1 FROM remote_memberships m
+           WHERE m.host_id = h.server_id AND m.user_id = ? AND m.status = 'active'${roles}
          ))`,
         )
         .bind(serverId, user.id, user.id)

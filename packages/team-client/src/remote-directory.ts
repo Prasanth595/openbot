@@ -28,7 +28,9 @@ export interface RemoteTeamHost {
   role: "owner" | "admin" | "member";
   /** The active members that the host's plan allows. An account server from before plans sends none. */
   memberLimit?: number;
-  /** A hosted server: its owner and its admins can restart it. An older account server sends none. */
+  /**
+   * A hosted server with a plan: its owner and its admins can restart it. An older account server sends none.
+   */
   hosted?: boolean;
 }
 
@@ -177,7 +179,6 @@ export class RemoteTeamDirectoryClient {
             const memberLimit = candidate.memberLimit;
             const hosted = candidate.hosted;
             if (
-              (hosted !== undefined && !isBoolean(hosted)) ||
               (memberLimit !== undefined &&
                 (!isNumber(memberLimit) || !Number.isSafeInteger(memberLimit) || memberLimit < 1)) ||
               !isString(candidate.hostId) ||
@@ -202,7 +203,8 @@ export class RemoteTeamDirectoryClient {
                 membershipId: candidate.membershipId,
                 role: candidate.role,
                 ...(memberLimit === undefined ? {} : { memberLimit }),
-                ...(hosted === undefined ? {} : { hosted }),
+                // A bad value drops only the flag, so the server stays in the list.
+                ...(isBoolean(hosted) ? { hosted } : {}),
               },
             ];
           }),

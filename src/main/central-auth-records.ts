@@ -23,7 +23,9 @@ export interface RemoteHostSummary {
   role: "owner" | "admin" | "member";
   /** The active members that the host's plan allows. An account server from before plans sends none. */
   memberLimit?: number;
-  /** A hosted server: its owner and its admins can restart it. An older account server sends none. */
+  /**
+   * A hosted server with a plan: its owner and its admins can restart it. An older account server sends none.
+   */
   hosted?: boolean;
 }
 
