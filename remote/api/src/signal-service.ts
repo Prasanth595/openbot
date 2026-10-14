@@ -213,6 +213,8 @@ type IngressDeliveryKind = "slack" | "webhook";
 
 type IngressDeliveryResult = Extract<SignalClientMessage, { type: `${IngressDeliveryKind}-delivery-result` }>;
 
+type TelegramDeliveryMessage = Extract<QueuedSignalMessage, { type: "telegram-delivery" }>;
+
 /** One Slack or webhook request that waits for the answer of an `ingress` socket. */
 interface PendingDelivery {
   kind: IngressDeliveryKind;
@@ -284,6 +286,11 @@ export class SignalService {
   // Telegram chat (`<bot ID>:<chat ID>`) to its `ingress` socket, with a floor like the Slack one.
   readonly #telegramChats = new Map<string, string>();
   readonly #telegramRouteFloor = new Map<string, number>();
+  // A chat that the account service just linked, to its host. A route ticket that the host got before
+  // the link does not name the chat, so a socket that says hello with it gets the chat from here. A
+  // ticket lives for `TELEGRAM_ROUTE_TTL_SECONDS`, so after that time every ticket names the chat.
+  // The TTL is the same for each entry, so the oldest entry is first.
+  readonly #telegramLinks = new Map<string, { hostId: string; linkedAt: number; expiresAt: number }>();
   // A delivered callback query (`<bot ID>:<query ID>`) to the socket that can answer it. The TTL is
   // the same for each entry, so the oldest entry is first.
   readonly #telegramCallbacks = new Map<string, { socketId: string; expiresAt: number }>();
@@ -841,6 +848,21 @@ export class SignalService {
     const route = telegramRouteKey(botId, chatId);
     const socketId = this.#telegramChats.get(route);
     const ingress = socketId ? this.#peers.get(socketId) : undefined;
+    const frame: TelegramDeliveryMessage = {
+      type: "telegram-delivery",
+      version: 1,
+      botId,
+      chatId,
+      bodyBase64: Buffer.from(body).toString("base64"),
+      ...(linked ? { linked: true as const } : {}),
+    };
+    // The link can land while the host's socket connects again: then no socket, or a socket that
+    // closes, holds the chat. The host acknowledges a kept event, so its next socket gets the link.
+    const link = linked ? this.#telegramLinks.get(route) : undefined;
+    if (link && this.#queue.enabled) {
+      this.#fork(this.#keepLink(link.hostId, botId, chatId, frame));
+      return ingress !== undefined;
+    }
     if (!ingress) {
       this.#metrics.telegramDeliveriesUnrouted += 1;
       this.#fork(
@@ -848,7 +870,7 @@ export class SignalService {
           { platform: "telegram", botId, chatId },
           route,
           wakes && !linked,
-          { type: "telegram-delivery", version: 1, botId, chatId, bodyBase64: Buffer.from(body).toString("base64") },
+          frame,
           callbackQueryId ? { botId, queryId: callbackQueryId } : null,
         ),
       );
@@ -856,16 +878,42 @@ export class SignalService {
     }
     if (callbackQueryId) this.#rememberCallback(telegramRouteKey(botId, callbackQueryId), ingress.socket.id);
     this.#metrics.telegramDeliveries += 1;
-    this.#send(ingress.socket, {
-      type: "telegram-delivery",
-      version: 1,
-      botId,
-      chatId,
-      bodyBase64: Buffer.from(body).toString("base64"),
-      ...(linked ? { linked: true as const } : {}),
-    });
+    this.#send(ingress.socket, frame);
     return true;
   }
+
+  /**
+   * Keeps the linked `/start` update for its host until a socket of the host acknowledges it. A host
+   * that sent no queue key gets it only on the socket that holds the chat now, as before.
+   */
+  readonly #keepLink = Effect.fn("Signal.keepLink")(function* (
+    this: SignalService,
+    hostId: string,
+    botId: string,
+    chatId: string,
+    frame: TelegramDeliveryMessage,
+  ) {
+    const route = telegramRouteKey(botId, chatId);
+    const outcome = yield* this.#queue.keep(
+      hostId,
+      { platform: "telegram", botId, chatId },
+      queueRouteKey("telegram", route),
+      frame,
+    );
+    const socketId = this.#telegramChats.get(route);
+    const peer = socketId ? this.#peers.get(socketId) : undefined;
+    if (outcome === "queued") {
+      this.#metrics.queuedDeliveries += 1;
+      if (peer) this.#flushQueue(peer);
+      return;
+    }
+    if (!peer) {
+      this.#metrics.telegramDeliveriesUnrouted += 1;
+      return;
+    }
+    this.#metrics.telegramDeliveries += 1;
+    this.#send(peer.socket, frame);
+  });
 
   /**
    * Links a chat with a link code from its `/start` message, and routes it to the newest `ingress`
@@ -880,6 +928,17 @@ export class SignalService {
       const route = telegramRouteKey(botId, chatId);
       if (link.linkedAt < (this.#telegramRouteFloor.get(route) ?? 0)) return false;
       this.#telegramRouteFloor.set(route, link.linkedAt);
+      const now = Date.now();
+      for (const [key, entry] of this.#telegramLinks) {
+        if (entry.expiresAt > now) break;
+        this.#telegramLinks.delete(key);
+      }
+      this.#telegramLinks.delete(route);
+      this.#telegramLinks.set(route, {
+        hostId: link.hostId,
+        linkedAt: link.linkedAt,
+        expiresAt: now + TELEGRAM_ROUTE_TTL_SECONDS * 1_000,
+      });
       let ingress: AuthenticatedPeer | null = null;
       for (const peer of this.#peers.values()) {
         if (peer.peer === "ingress" && peer.claims.hostId === link.hostId) ingress = peer;
@@ -1190,6 +1249,17 @@ export class SignalService {
             this.#telegramRouteFloor.set(route, chat.linkedAt);
             this.#telegramChats.set(route, socket.id);
             peer.telegramChats.push(route);
+          }
+          // A chat that was linked after the host got this route ticket.
+          if (message.telegramRoute && this.#telegram) {
+            const now = Date.now();
+            for (const [route, link] of this.#telegramLinks) {
+              if (link.hostId !== claims.hostId || link.expiresAt <= now || peer.telegramChats.includes(route))
+                continue;
+              if (link.linkedAt < (this.#telegramRouteFloor.get(route) ?? 0)) continue;
+              this.#telegramChats.set(route, socket.id);
+              peer.telegramChats.push(route);
+            }
           }
           const heldGuilds: string[] = [];
           for (const guild of discordRoute.guilds) {

@@ -10,6 +10,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { resolve } from "node:path";
+import {
+  createIngressQueueKeyPair,
+  importIngressQueuePrivateKey,
+  openQueuedDelivery,
+} from "@openbot/contracts/signal-protocol/ingress-queue";
 import { SLACK_EVENTS_PATH } from "@openbot/contracts/signal-protocol/slack-route";
 import { TELEGRAM_ROUTE_AUDIENCE, TELEGRAM_UPDATES_PATH } from "@openbot/contracts/signal-protocol/telegram-route";
 import {
@@ -45,6 +50,9 @@ const HOST_ID = "host-e2e";
 const ROUTED_CHAT = "-100";
 const SECOND_CHAT = "-300";
 const WEBHOOK_ROUTE = "route-e2e";
+const LINK_HOST_ID = "host-link-e2e";
+const LINK_CHAT = "-500";
+const LINK_CODE = randomBytes(32).toString("base64url");
 
 interface Check {
   name: string;
@@ -117,6 +125,11 @@ function startControlPlane(port: number): Promise<Server> {
     if (!signed) return answer(401);
     if (path === "/v2/remote/resume/validate") return answer(200, { valid: true });
     if (path === "/v2/remote/telegram-route/validate") return answer(200, { chats: payload.chats });
+    // Only the one link code of this run links a chat, to the host of the link check.
+    if (path === "/v2/remote/telegram-route/link")
+      return payload.code === LINK_CODE ? answer(200, { hostId: LINK_HOST_ID, linkedAt: Date.now() }) : answer(404);
+    // With route wakes, Signal keeps events for a host. No route here is of a hosted server.
+    if (path === "/v2/remote/route-wake") return answer(200, { hostId: null, state: "not_hosted" });
     if (path === "/v2/remote/webhook-route/validate")
       return answer(200, { routes: payload.routes.map((route: { id: string }) => route.id) });
     return answer(404);
@@ -140,7 +153,9 @@ async function sign(claims: JWTPayload, audience: string, key = privateKey) {
 }
 
 function remoteTicket(
-  overrides: Partial<Pick<RemoteTicketClaims, "sessionExpiresAt" | "protocolMinimum" | "protocolMaximum">> = {},
+  overrides: Partial<
+    Pick<RemoteTicketClaims, "hostId" | "membershipId" | "sessionExpiresAt" | "protocolMinimum" | "protocolMaximum">
+  > = {},
   key = privateKey,
 ) {
   const now = Math.floor(Date.now() / 1_000);
@@ -372,6 +387,51 @@ try {
     const answer = JSON.parse(await ingress.next((frame) => frame.includes('"call-unrouted"'), "telegram-call-result"));
     expect(answer.ok === false && answer.errorCode === 403, `answer: ${JSON.stringify(answer)}`);
     return `ok=false errorCode=${answer.errorCode} description=${answer.description}`;
+  });
+
+  await check("A Telegram link that lands while its host connects again reaches the next socket", async () => {
+    const queueKey = await createIngressQueueKeyPair();
+    // The route ticket is made before the link, so it does not name the chat.
+    const staleRoute = await sign({ hid: LINK_HOST_ID, chats: [] }, TELEGRAM_ROUTE_AUDIENCE);
+    const hello = async () =>
+      JSON.stringify({
+        type: "hello",
+        version: 1,
+        peer: "ingress",
+        token: await remoteTicket({ hostId: LINK_HOST_ID, membershipId: `${LINK_HOST_ID}:host` }),
+        telegramRoute: staleRoute,
+        queueKey: queueKey.publicKey,
+      });
+    const first = await connect(signalUrl);
+    first.socket.send(await hello());
+    await first.next((frame) => frame.includes('"type":"ready"'), "first socket of the link host ready");
+    first.socket.close();
+    await withDeadline(first.closed, "first socket of the link host closed");
+    const linked = await postUpdate(update(LINK_CHAT, `/start ${LINK_CODE}`));
+    expect(linked.status === 200, `link update: ${linked.status}`);
+    const second = await connect(signalUrl);
+    second.socket.send(await hello());
+    const kept = JSON.parse(
+      await second.next((frame) => frame.includes('"type":"queued-delivery"'), "kept link on the next socket"),
+    );
+    const opened = await openQueuedDelivery(
+      await importIngressQueuePrivateKey(queueKey.privateKey),
+      LINK_HOST_ID,
+      kept.sealed,
+    );
+    expect(
+      opened.type === "telegram-delivery" && opened.chatId === LINK_CHAT && opened.linked === true,
+      `kept frame: ${opened.type}`,
+    );
+    second.socket.send(JSON.stringify({ type: "queued-delivery-ack", version: 1, id: kept.id }));
+    // The next socket holds the chat, though its route ticket does not name it.
+    await postUpdate(update(LINK_CHAT, "after link"));
+    await second.next(
+      (frame) => frame.includes('"type":"telegram-delivery"') && frame.includes(`"chatId":"${LINK_CHAT}"`),
+      "update of the linked chat on the next socket",
+    );
+    second.socket.close();
+    return "the next socket got the kept link with linked=true, and the next update of the chat";
   });
 
   // 2. Signed account events: Signal acts only on an event that the account service signed now.
