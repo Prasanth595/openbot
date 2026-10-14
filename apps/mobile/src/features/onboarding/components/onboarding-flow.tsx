@@ -13,6 +13,7 @@ import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 
+import type { WelcomeHandOff } from "@/features/agents/components/empty-agents-scene";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { AgentStep } from "@/features/onboarding/components/agent-step";
@@ -183,7 +184,12 @@ function StepProgress({
  * agent is one character that moves from step to step and talks to the user. Every step before
  * the agent exists can be skipped. The flow creates nothing until the user chooses Create.
  */
-export function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
+export function OnboardingFlow({
+  onFinish,
+}: {
+  /** `welcome` is set when the user skips the welcome: the empty home takes over its screen. */
+  onFinish: (welcome?: WelcomeHandOff) => void;
+}) {
   const { t, errorMessage } = useText();
   const motion = useOnboardingMotion();
   const { session, signOut } = useMobileSession();
@@ -272,8 +278,12 @@ export function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     void refreshMobileFeatures(session.apiUrl);
   }, [session, step]);
 
+  // The keyboard closes while the field that opened it is still there. On Android, a focused field
+  // that goes with its step's exit animation leaves the keyboard open, with nothing to type into
+  // and no way to close it.
   const go = useCallback(
     (next: Step, nextDirection: 1 | -1) => {
+      void KeyboardController.dismiss();
       heroDrag.set(0);
       setDirection(nextDirection);
       setStep(next);
@@ -341,17 +351,36 @@ export function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     const unsubscribe = navigation.addListener("transitionEnd", (event) => {
       if (event.data.closing) onFinish();
     });
-    const deadline = setTimeout(onFinish, CHAT_OPEN_DEADLINE_MS);
+    const deadline = setTimeout(() => onFinish(), CHAT_OPEN_DEADLINE_MS);
     return () => {
       unsubscribe();
       clearTimeout(deadline);
     };
   }, [navigation, onFinish, openingChat]);
 
+  // The empty home has the layout of the welcome. Skipped on the welcome, the flow fades off the
+  // same group and text, and the home's action starts where the welcome's main action stands.
+  const primaryPlace = useRef<View>(null);
+  const finishing = useRef(false);
   const skip = () => {
+    if (finishing.current) return;
+    finishing.current = true;
     void haptics.selection();
-    onFinish();
+    void KeyboardController.dismiss();
+    const place = step === "hello" ? primaryPlace.current : null;
+    if (!place) {
+      onFinish();
+      return;
+    }
+    const label = t("mobile.onboarding.hello.start");
+    place.measureInWindow((x, _y, width) => onFinish(width > 0 ? { label, x, width } : undefined));
   };
+  useEffect(
+    () => () => {
+      void KeyboardController.dismiss();
+    },
+    [],
+  );
 
   const connectComputer = () => {
     Alert.alert(t("mobile.onboarding.server.computerTitle"), t("mobile.onboarding.server.computerSteps"), [
@@ -626,6 +655,7 @@ export function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           onBack={previous !== null ? back : null}
           onSkip={step !== "ready" ? skip : null}
           busy={pending || openingChat || leaving !== null}
+          primaryRef={primaryPlace}
         />
       </KeyboardAvoidingView>
       {position >= 0 ? (

@@ -3,7 +3,7 @@ import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 import { useCSSVariable } from "uniwind";
 
 import type {
@@ -12,6 +12,7 @@ import type {
   OnboardingPrimaryButtonProps,
 } from "@/features/onboarding/components/onboarding-buttons.types";
 import { useGlassEntrance } from "@/features/onboarding/components/onboarding-glass";
+import { swapEntering, swapExiting, useOnboardingMotion } from "@/features/onboarding/components/onboarding-motion";
 import { readableOn } from "@/features/onboarding/model/onboarding-colors";
 import { useLiquidGlass } from "@/shared/lib/use-liquid-glass";
 
@@ -103,6 +104,7 @@ export function OnboardingPrimaryButton({
   color,
   appearDelay,
 }: OnboardingPrimaryButtonProps) {
+  const motion = useOnboardingMotion();
   const action = String(useCSSVariable("--openbot-action") ?? "#f0f0f0");
   const actionForeground = String(useCSSVariable("--openbot-action-foreground") ?? "#141414");
   return (
@@ -115,13 +117,23 @@ export function OnboardingPrimaryButton({
       width="100%"
       appearDelay={appearDelay}
     >
-      <Typography
-        numberOfLines={1}
-        className="px-5 font-sans font-semibold text-[17px]"
-        style={{ color: color ? readableOn(color) : actionForeground }}
-      >
-        {label}
-      </Typography>
+      {/* A new label fades in where the old one fades out. The glass stays. */}
+      <LayoutAnimationConfig skipEntering>
+        <Animated.View
+          key={label}
+          entering={swapEntering(motion)}
+          exiting={swapExiting(motion)}
+          style={{ flexShrink: 1 }}
+        >
+          <Typography
+            numberOfLines={1}
+            className="px-5 font-sans font-semibold text-[17px]"
+            style={{ color: color ? readableOn(color) : actionForeground }}
+          >
+            {label}
+          </Typography>
+        </Animated.View>
+      </LayoutAnimationConfig>
     </GlassControl>
   );
 }

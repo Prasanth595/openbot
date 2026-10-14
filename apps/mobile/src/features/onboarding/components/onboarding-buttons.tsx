@@ -1,11 +1,13 @@
 import { Button } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
+import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 
 import type {
   OnboardingIconButtonProps,
   OnboardingPillButtonProps,
   OnboardingPrimaryButtonProps,
 } from "@/features/onboarding/components/onboarding-buttons.types";
+import { swapEntering, swapExiting, useOnboardingMotion } from "@/features/onboarding/components/onboarding-motion";
 import { readableOn } from "@/features/onboarding/model/onboarding-colors";
 
 // Every control beside the main action has its height, so the row reads as one set.
@@ -18,6 +20,7 @@ const REGULAR = 44;
  * tonal; a chosen pill takes the agent's colour.
  */
 export function OnboardingPrimaryButton({ label, onPress, disabled = false, color }: OnboardingPrimaryButtonProps) {
+  const motion = useOnboardingMotion();
   return (
     <Button
       size="lg"
@@ -28,13 +31,23 @@ export function OnboardingPrimaryButton({ label, onPress, disabled = false, colo
       accessibilityLabel={label}
       onPress={onPress}
     >
-      <Button.Label
-        className={color ? "font-sans font-semibold" : "font-sans font-semibold text-action-foreground"}
-        style={color ? { color: readableOn(color) } : undefined}
-        numberOfLines={1}
-      >
-        {label}
-      </Button.Label>
+      {/* A new label fades in where the old one fades out. */}
+      <LayoutAnimationConfig skipEntering>
+        <Animated.View
+          key={label}
+          entering={swapEntering(motion)}
+          exiting={swapExiting(motion)}
+          style={{ flexShrink: 1 }}
+        >
+          <Button.Label
+            className={color ? "font-sans font-semibold" : "font-sans font-semibold text-action-foreground"}
+            style={color ? { color: readableOn(color) } : undefined}
+            numberOfLines={1}
+          >
+            {label}
+          </Button.Label>
+        </Animated.View>
+      </LayoutAnimationConfig>
     </Button>
   );
 }

@@ -1,6 +1,6 @@
 import { Typography } from "heroui-native";
 import { ChevronLeft } from "lucide-react-native";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { ScrollView, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
@@ -102,10 +102,13 @@ export function OnboardingFooter({
   onBack,
   onSkip,
   busy,
+  primaryRef,
 }: {
   motion: OnboardingMotion;
   /** Absent on a step whose own content holds its actions. */
   primary: FooterAction | null;
+  /** The place of the main action, which the empty home takes over when the user skips. */
+  primaryRef?: RefObject<View | null>;
   onBack: (() => void) | null;
   onSkip: (() => void) | null;
   busy: boolean;
@@ -129,7 +132,7 @@ export function OnboardingFooter({
           onPress={() => onBack?.()}
         />
       </Slot>
-      <View className="flex-1" style={{ height: CONTROL_SIZE }}>
+      <View ref={primaryRef} collapsable={false} className="flex-1" style={{ height: CONTROL_SIZE }}>
         {primary ? (
           <OnboardingPrimaryButton
             label={primary.label}

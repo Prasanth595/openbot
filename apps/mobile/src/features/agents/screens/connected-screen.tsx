@@ -5,7 +5,7 @@ import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { EllipsisVertical, Layers3, Search, WifiOff } from "lucide-react-native";
-import { useContext, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -20,6 +20,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
+import { CROWD_TOP } from "@/features/agents/components/agent-crowd";
 import {
   type AgentListRevealState,
   AgentListRowReveal,
@@ -28,7 +29,7 @@ import {
 import { AgentListRow } from "@/features/agents/components/agent-list-row";
 import { useAgentPinTransition } from "@/features/agents/components/agent-pin-transition";
 import { AgentWaitingGroupHeader } from "@/features/agents/components/agent-wait-badge";
-import { EmptyAgentsScene } from "@/features/agents/components/empty-agents-scene";
+import { EmptyAgentsScene, type WelcomeHandOff } from "@/features/agents/components/empty-agents-scene";
 import { PinnedAgentsGrid } from "@/features/agents/components/pinned-agents-grid";
 import { SidebarSectionHeader } from "@/features/agents/components/sidebar-section-header";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
@@ -203,6 +204,12 @@ export function ConnectedScreen() {
   // connection state, so the loader does not cover it.
   const onboarding = useOnboardingGate();
   const onboardingReady = onboarding.active && (!isLoaderPresent || isLoaderLeaving);
+  // Skipped on its welcome, the flow fades off the empty home, which has the welcome's layout. The
+  // home reads where the welcome's main action stood when it comes in; later visits do not.
+  const [welcomeHandOff, setWelcomeHandOff] = useState<WelcomeHandOff | null>(null);
+  useEffect(() => {
+    if (welcomeHandOff) setWelcomeHandOff(null);
+  }, [welcomeHandOff]);
   // The header actions belong to the list. While the loader shows they have nothing to act on, so
   // they come in with the list. The header itself stays, so its height does not change.
   const headerActions = listReady && !onboarding.active;
@@ -277,6 +284,15 @@ export function ConnectedScreen() {
     void haptics.impact("soft");
     router.push("/add-agent");
   };
+  const sceneShows = listReady && showAgentsScene;
+  const finishGate = onboarding.finish;
+  const finishOnboarding = useCallback(
+    (welcome?: WelcomeHandOff) => {
+      setWelcomeHandOff(welcome ?? null);
+      finishGate();
+    },
+    [finishGate],
+  );
   const listReveal = useAgentListReveal(listReady, activeServer.id);
   // Collapse keeps stable list cells and changes their heights on the UI thread.
   // Enable cell reflow again when a host layout update moves agents or sections.
@@ -321,16 +337,13 @@ export function ConnectedScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {onboardingReady ? (
-        // The flow fades out over the home, which comes in under it with its own reveal.
-        <Animated.View exiting={ONBOARDING_EXIT} style={StyleSheet.absoluteFill}>
-          <OnboardingFlow onFinish={onboarding.finish} />
-        </Animated.View>
-      ) : onboarding.active ? null : listReady && showAgentsScene ? (
-        // The transparent header covers the top of the screen. The bottom matches the list's `pb-safe-offset-4`.
+      {onboarding.active ? null : sceneShows ? (
+        // The scene has the insets of the welcome, so the characters stand in the same places on
+        // both. Its top leaves the transparent header and its blur clear.
         <EmptyAgentsScene
           onAddAgent={addAgent}
-          style={{ paddingTop: headerHeight, paddingBottom: insets.bottom + 16 }}
+          style={{ paddingTop: insets.top + CROWD_TOP, paddingBottom: insets.bottom + 12 }}
+          afterWelcome={welcomeHandOff}
         />
       ) : listReady ? (
         <Animated.FlatList
@@ -461,6 +474,13 @@ export function ConnectedScreen() {
       {onboarding.active ? null : (
         <SheetScrollEdgeEffect style={{ height: headerHeight + 20, left: 0, position: "absolute", right: 0, top: 0 }} />
       )}
+
+      {onboardingReady ? (
+        // The flow fades out over the home, which comes in under it with its own reveal.
+        <Animated.View exiting={ONBOARDING_EXIT} style={StyleSheet.absoluteFill}>
+          <OnboardingFlow onFinish={finishOnboarding} />
+        </Animated.View>
+      ) : null}
 
       <Stack.Screen
         options={{
