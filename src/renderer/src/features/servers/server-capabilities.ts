@@ -58,6 +58,7 @@ export function serverSupportsCapability(
       capability === "events-v1" ||
       capability === "context-reset-v1" ||
       capability === "routine-flows-v1" ||
+      capability === "routine-recovery-v1" ||
       capability === "agent-import-v1" ||
       capability === "instance-transfer-v1") &&
     server?.kind === "remote"
@@ -65,6 +66,14 @@ export function serverSupportsCapability(
     return server.compatibility?.capabilities.includes(capability) === true;
   }
   return server?.kind !== "remote" || !server.compatibility || server.compatibility.capabilities.includes(capability);
+}
+
+/**
+ * Whether the routine editor sends a joined server's routines through `routine-recovery-v1`, which
+ * keeps `missedPolicy` and the missed-run history. This computer's host keeps them through IPC.
+ */
+export function remoteRoutineRecovery(server: ServerSummary | undefined): boolean {
+  return server?.kind === "remote" && serverCanAdminister(server, "routine-recovery-v1");
 }
 
 /**

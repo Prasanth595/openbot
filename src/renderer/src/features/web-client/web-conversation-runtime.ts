@@ -36,9 +36,13 @@ function webHostAdmin(
   onHostEvent?: HostEvents,
   eventsEnabled?: () => boolean,
   sessionSettingsEnabled?: () => boolean,
+  routineRecoveryEnabled?: () => boolean,
 ): NonNullable<ConversationRuntime["admin"]> {
   // `request()` names the connected host at call time, so a host switch reaches the new host.
-  const eventRoutines = webEventRoutinesApi((...args) => request()(...args));
+  const eventRoutines = webEventRoutinesApi(
+    (...args) => request()(...args),
+    () => routineRecoveryEnabled?.() === true,
+  );
   return {
     get sessionSettings() {
       if (sessionSettingsEnabled?.() !== true) return undefined;
@@ -104,6 +108,7 @@ export function createWebConversationRuntime(
   eventsEnabled?: () => boolean,
   sessionSettingsEnabled?: () => boolean,
   signInRelayEnabled?: () => boolean,
+  routineRecoveryEnabled?: () => boolean,
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
@@ -236,6 +241,8 @@ export function createWebConversationRuntime(
       }
     },
     cancelImportFiles,
-    admin: adminRequest ? webHostAdmin(adminRequest, onHostEvent, eventsEnabled, sessionSettingsEnabled) : undefined,
+    admin: adminRequest
+      ? webHostAdmin(adminRequest, onHostEvent, eventsEnabled, sessionSettingsEnabled, routineRecoveryEnabled)
+      : undefined,
   };
 }

@@ -42,6 +42,7 @@ import {
   openBotToolResult,
   routineToolAgentId,
   routineToolArguments,
+  routineToolPolicies,
   routineToolSchedule,
   routineToolString,
 } from "./routine-tools";
@@ -538,6 +539,8 @@ export class RoutineScheduler implements RoutineDueSource {
         "schedule",
         "active",
         "timezone",
+        "limitPolicy",
+        "missedPolicy",
       ]);
       const agentId = this.#toolAgentId(args, senderAgentId);
       const active = args.active === undefined ? true : args.active;
@@ -567,6 +570,7 @@ export class RoutineScheduler implements RoutineDueSource {
           active,
           timezone,
           schedule: routineToolSchedule(args.schedule),
+          ...routineToolPolicies(args),
         },
         { turnId: agentId === senderAgentId ? params.turnId : undefined },
       );
@@ -581,12 +585,16 @@ export class RoutineScheduler implements RoutineDueSource {
         "instruction",
         "schedule",
         "active",
+        "limitPolicy",
+        "missedPolicy",
       ]);
+      const policies = routineToolPolicies(args);
       const input: UpdateRoutineInput = {
         agentId: this.#toolAgentId(args, senderAgentId),
         routineId: routineToolString(args.routineId, "routineId", INPUT_LIMITS.identifier, "routineId is required."),
+        ...policies,
       };
-      let hasUpdate = false;
+      let hasUpdate = Object.keys(policies).length > 0;
       if (args.name !== undefined) {
         input.name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
         hasUpdate = true;

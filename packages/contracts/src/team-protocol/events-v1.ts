@@ -187,3 +187,6 @@ export const EVENTS_CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
     adminRoute(fields({ owner, routineId: identifier }, { limit: count }), list(activity, 10_000)),
   ],
 ]);
+
+/** `routine-recovery-v1` reads routines with the same owner and trigger decoders. */
+export { owner as routineOwner, triggerInput as routineTriggerInput };

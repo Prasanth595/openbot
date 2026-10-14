@@ -107,6 +107,7 @@
     "./team-protocol/workspace-directory-v1": "./src/team-protocol/workspace-directory-v1.ts",
     "./team-protocol/conversation-file-search-v1": "./src/team-protocol/conversation-file-search-v1.ts",
     "./team-protocol/routine-flows-v1": "./src/team-protocol/routine-flows-v1.ts",
+    "./team-protocol/routine-recovery-v1": "./src/team-protocol/routine-recovery-v1.ts",
     "./team-protocol/live-activity-push-v1": "./src/team-protocol/live-activity-push-v1.ts",
     "./team-protocol/push-notifications-v1": "./src/team-protocol/push-notifications-v1.ts",
     "./team-protocol/providers-v1": "./src/team-protocol/providers-v1.ts",

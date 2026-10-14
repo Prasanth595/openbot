@@ -1,4 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { ROUTINE_LIMIT_POLICIES, ROUTINE_MISSED_POLICIES } from "@openbot/contracts/ipc";
 import { z } from "zod";
 
 const ROUTINE_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -46,3 +47,15 @@ export const routineScheduleZodSchema = z
     z.object({ kind: z.literal("custom"), expression: z.string().min(1).max(INPUT_LIMITS.routineCron) }).strict(),
   ])
   .describe("Routine schedule. Weekdays use 0 for Sunday through 6 for Saturday; clock values use HH:mm local time.");
+
+export const routineLimitPolicyZodSchema = z
+  .enum(ROUTINE_LIMIT_POLICIES)
+  .describe(
+    "What a run does while the agent's provider account is at its usage limit: wait runs it after the reset, skip drops it. New routines use wait.",
+  );
+
+export const routineMissedPolicyZodSchema = z
+  .enum(ROUTINE_MISSED_POLICIES)
+  .describe(
+    "What the routine does with occurrences that came due while OpenBot or its server was off: skip records and drops them, run-once runs the newest one when OpenBot starts and records the others. New routines use skip.",
+  );

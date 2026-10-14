@@ -1,4 +1,5 @@
-import type { EventRoutineOwner } from "@openbot/contracts/ipc-events";
+import type { RoutineRunFields } from "@openbot/contracts/ipc";
+import type { EventRoutineOwner, EventRoutineRun } from "@openbot/contracts/ipc-events";
 import { Effect, Schema } from "effect";
 import type { RoutineScheduler } from "./agent/routine-scheduler";
 import type { ChannelRoutineScheduler } from "./channel-routine-scheduler";
@@ -68,6 +69,16 @@ export class RoutineRecords {
       : this.#options.channelRoutines.saveRecord(owner.id, routineId, input);
   }
 
+  /** The newest runs of one routine, with the records of the occurrences it missed. */
+  listRuns(owner: EventRoutineOwner, routineId: string, limit: number): EventRoutineRun[] {
+    if (owner.kind === "agent") {
+      return this.#options.agentRoutines
+        .listRuns({ agentId: owner.id, routineId, limit }, true)
+        .map((run) => ({ ...eventRoutineRun(run), deliveryId: run.deliveryId }));
+    }
+    return this.#options.channelRoutines.listRuns({ channelId: owner.id, routineId, limit }, true).map(eventRoutineRun);
+  }
+
   /** Tells open editors to reload, for example after a background route sync stored a webhook URL. */
   changed(owner: EventRoutineOwner): void {
     if (owner.kind === "agent") this.#options.agentRoutines.stateChanged(owner.id);
@@ -109,4 +120,37 @@ export class RoutineRecords {
           .receiveWebhook(owner.id, routineId, event)
           .pipe(Effect.mapError(failed("receive")));
   }
+}
+
+/** The fields of a run that `routine-recovery-v1` carries, without its owner. */
+function eventRoutineRun({
+  id,
+  routineId,
+  triggerId,
+  kind,
+  source,
+  scheduledFor,
+  routineName,
+  instruction,
+  status,
+  error,
+  missed,
+  createdAt,
+  updatedAt,
+}: RoutineRunFields): EventRoutineRun {
+  return {
+    id,
+    routineId,
+    triggerId,
+    kind,
+    ...(source === undefined ? {} : { source }),
+    scheduledFor,
+    routineName,
+    instruction,
+    status,
+    error,
+    ...(missed === undefined ? {} : { missed }),
+    createdAt,
+    updatedAt,
+  };
 }
