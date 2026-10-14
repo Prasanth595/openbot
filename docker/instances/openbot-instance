@@ -70,20 +70,25 @@ setup() {
   sed "s#/opt/openbot-docker/instances/#$HERE/#" "$HERE/$FIREWALL" >"/etc/systemd/system/$FIREWALL"
   systemctl daemon-reload
   systemctl enable --quiet "$FIREWALL"
-  systemctl restart "$FIREWALL"
+  # Docker requires the unit, so a restart of the unit would restart Docker. Apply the rules directly.
+  "$HERE/openbot-firewall"
+  systemctl start "$FIREWALL"
   docker network inspect "$NETWORK" >/dev/null 2>&1 ||
     docker network create --driver bridge --subnet "$SUBNET" \
       --opt com.docker.network.bridge.name=br-openbot \
       --opt com.docker.network.bridge.enable_icc=false "$NETWORK" >/dev/null
   install -m 0644 "$HERE/openbot-sysctl.conf" /etc/sysctl.d/90-openbot-docker.conf
   sysctl --quiet --load /etc/sysctl.d/90-openbot-docker.conf
-  # Container logs: rsyslog writes them to /var/log/openbot, and logrotate keeps 30 days.
+  # Container logs: rsyslog writes them to /var/log/openbot, and openbot-logrotate.timer limits them.
   install -d -m 0755 /var/lib/openbot-docker "$(dirname "$LOG_SOCKET")"
   install -d -o syslog -g adm -m 0750 /var/log/openbot
-  install -m 0644 "$HERE/openbot-logrotate" /etc/logrotate.d/openbot-docker
+  install -m 0644 "$HERE/openbot-logrotate" /etc/openbot-docker/logrotate.conf
+  rm -f /etc/logrotate.d/openbot-docker /etc/systemd/system/docker.service.d/openbot-rsyslog.conf
+  install -m 0644 "$HERE/openbot-logrotate.service" "$HERE/openbot-logrotate.timer" /etc/systemd/system/
   install -d -m 0755 /etc/systemd/system/docker.service.d
-  install -m 0644 "$HERE/docker-after-rsyslog.conf" /etc/systemd/system/docker.service.d/openbot-rsyslog.conf
+  install -m 0644 "$HERE/docker-openbot.conf" /etc/systemd/system/docker.service.d/openbot.conf
   systemctl daemon-reload
+  systemctl enable --now --quiet openbot-logrotate.timer
   if ! cmp --silent "$HERE/openbot-rsyslog.conf" /etc/rsyslog.d/30-openbot-docker.conf || [ ! -S "$LOG_SOCKET" ]; then
     install -m 0644 "$HERE/openbot-rsyslog.conf" /etc/rsyslog.d/30-openbot-docker.conf
     rsyslogd -N1 >/dev/null || fail "rsyslog refuses /etc/rsyslog.d/30-openbot-docker.conf."
@@ -147,17 +152,23 @@ create() {
 
   install -d -m 0755 "$DATA"
   install -d -m 0700 "$folder"
+  # Until the instance exists, a failed step removes what create made, so create can run again.
+  trap 'umount "$folder/data" 2>/dev/null || true; rm -rf "$folder"' ERR
   install -d -m 0755 "$folder/data"
-  truncate --size "$disk" "$folder/data.img"
-  # No blocks kept for root: the user of the image uses all of the limit.
-  mkfs.ext4 -q -m 0 "$folder/data.img"
-  printf '%s %s ext4 loop,nofail,x-systemd.before=docker.service 0 2\n' "$folder/data.img" "$folder/data" >>/etc/fstab
-  systemctl daemon-reload
-  mount "$folder/data"
+  # Reserve all of the space now. A sparse image could grow past the free space of the host, and the
+  # database in it would then get write errors.
+  fallocate --length "$disk" "$folder/data.img"
+  # No blocks kept for root: the user of the image uses all of the limit. A discard would free the
+  # reserved space again, so mkfs does none and fstrim.timer skips the mount (X-fstrim.notrim).
+  mkfs.ext4 -q -m 0 -E nodiscard "$folder/data.img"
+  mount -o loop "$folder/data.img" "$folder/data"
   # The image user. This changes the mounted file system, not the folder under it.
   chown "$(data_owner)" "$folder/data"
   chmod 0700 "$folder/data"
-  printf 'OPENBOT_NAME=%s\nOPENBOT_CPUS=%s\nOPENBOT_MEM=%s\nOPENBOT_DISK=%s\n' \
+  printf '%s %s ext4 loop,nofail,x-systemd.before=docker.service,X-fstrim.notrim 0 2\n' "$folder/data.img" "$folder/data" >>/etc/fstab
+  trap - ERR
+  systemctl daemon-reload
+  printf '# OPENBOT_DISK is the size of data.img, for information. See docs/docker.md to change it.\nOPENBOT_NAME=%s\nOPENBOT_CPUS=%s\nOPENBOT_MEM=%s\nOPENBOT_DISK=%s\n' \
     "$name" "$cpus" "$mem" "$disk" >"$env"
   start "$name"
   echo "Sign in the instance: openbot-instance run $name login"

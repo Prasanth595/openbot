@@ -118,9 +118,9 @@ folder of the repository to the host, for example to `/opt/openbot-docker`, and 
 
 | Path | Contents |
 | --- | --- |
-| `instances/<name>.env` | The name and the limits of the instance. Change `OPENBOT_CPUS` or `OPENBOT_MEM`, then run `openbot-instance up <name>`. |
-| `/srv/openbot/<name>/data.img` | A sparse ext4 image. Its size is the disk limit. It uses only the disk space that it holds. |
-| `/srv/openbot/<name>/data` | The mount of the image, which is `/data` in the container. `/etc/fstab` mounts it before Docker starts. |
+| `instances/<name>.env` | The name and the limits of the instance. Change `OPENBOT_CPUS` or `OPENBOT_MEM`, then run `openbot-instance up <name>`. `OPENBOT_DISK` is for information only: a change to it does nothing. |
+| `/srv/openbot/<name>/data.img` | An ext4 image. Its size is the disk limit. `create` reserves all of it on the disk of the host, so the images can never need more space than the host has. |
+| `/srv/openbot/<name>/data` | The mount of the image, which is `/data` in the container. `/etc/fstab` mounts it before Docker starts. `X-fstrim.notrim` stops `fstrim.timer` from freeing the reserved space. |
 
 The container is `openbot-<name>`. Its root file system is read-only: the container layer is on the
 disk of the host, where Docker on ext4 cannot limit its size. Outside `/data`, the container writes
@@ -133,9 +133,14 @@ only to `tmpfs` folders that count toward the memory limit: `/tmp` (8 GiB), `/va
 The container log goes through the `syslog` log driver to a socket of rsyslog,
 `/var/lib/openbot-docker/dev/log`, and not to the journal or `/var/log/syslog`, whose size limits
 other services share. rsyslog writes `/var/log/openbot/openbot-<name>.log`. logrotate rotates it each
-day and deletes files older than 30 days. `docker logs` reads the local cache of Docker, which keeps
+day, or sooner when it is larger than 200 MB. `openbot-logrotate.timer` checks every 5 minutes. It keeps
+the 30 newest rotated files and none older than 30 days, so one instance keeps at most 31 files of
+about 200 MB. An instance that writes very much keeps less than 30 days. `docker logs` reads the local
+cache of Docker, which keeps
 only the recent lines. rsyslog cuts a line longer than 8 KB. `setup` installs the rsyslog and logrotate
-files, and makes Docker start after rsyslog: a container does not start without the socket.
+files and the timer. Its drop-in `docker.service.d/openbot.conf` makes Docker start after rsyslog, because
+a container does not start without the socket, and require `openbot-firewall.service`: when the
+firewall fails, Docker does not start.
 
 ### Host settings
 
@@ -164,6 +169,10 @@ Agents have full access in their container, so the host limits what a container 
   not visible until it is removed. To turn it on for existing instances: `down` each instance, add
   the setting, restart Docker, run `setup`, `chown -R <uid>:<gid>` each `/srv/openbot/<name>/data`,
   then `up` each instance. `setup` shows a warning when it is off.
+- **DNS.** Docker sends the DNS queries of a container from the network of the container, so the
+  firewall also applies to them. When the host uses a resolver on a private or link-local address,
+  for example on AWS or GCP, the containers have no DNS. Then set `dns:` in `compose.yaml` to
+  resolvers on the internet.
 - **Kernel.** The containers share the kernel of the host. For owners that you do not trust, use a
   host with no other services, or a virtual machine for each instance.
 
@@ -174,7 +183,7 @@ Agents have full access in their container, so the host limits what a container 
 | Read the log | `openbot-instance logs <name> -f` (recent lines), or `/var/log/openbot/openbot-<name>.log*` (30 days) |
 | Upgrade | `openbot-instance upgrade <name>` or `upgrade --all` |
 | `openbot` commands | `openbot-instance run <name> status`, `login`, `mobile-connect`, `name <name>` |
-| Make the disk larger | `down <name>`, `umount /srv/openbot/<name>/data`, `truncate --size +100G data.img`, `e2fsck -f data.img`, `resize2fs data.img`, `mount /srv/openbot/<name>/data`, `up <name>` |
+| Make the disk larger | `down <name>`, `umount /srv/openbot/<name>/data`, `fallocate --length <new size> data.img`, `e2fsck -f data.img`, `resize2fs data.img`, `mount /srv/openbot/<name>/data`, `up <name>` |
 
 There is no command to remove an instance. To remove one and delete its data: `run <name> logout`,
 `down <name>`, `umount /srv/openbot/<name>/data`, delete its line in `/etc/fstab`, then delete
