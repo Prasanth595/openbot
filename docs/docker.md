@@ -111,6 +111,7 @@ instance has its own CPU, memory and disk limit, its own data and its own accoun
 folder of the repository to the host, for example to `/opt/openbot-docker`, and run as root:
 
 ```sh
+/opt/openbot-docker/instances/openbot-instance setup
 /opt/openbot-docker/instances/openbot-instance create main --cpus 8 --mem 32g --disk 200G
 /opt/openbot-docker/instances/openbot-instance run main login
 ```
@@ -124,6 +125,29 @@ folder of the repository to the host, for example to `/opt/openbot-docker`, and 
 The container is `openbot-<name>`. `/tmp` in the container is a `tmpfs` of 8 GiB that counts toward
 the memory limit. Before the image is mounted, root owns the folder, so the container cannot write to
 `/data` and stops. It never starts with an empty home folder.
+
+### Isolation
+
+Agents have full access in their container, so the host limits what a container can reach.
+
+- **Network.** `setup` makes the Docker network `openbot` (`172.30.0.0/16`, bridge `br-openbot`)
+  with inter-container traffic off, so instances cannot reach each other. It installs
+  `openbot-firewall.service`, which runs `instances/openbot-firewall` before Docker starts. The
+  chain `OPENBOT-EGRESS` in `DOCKER-USER` drops traffic to private, local and multicast ranges and to
+  the addresses in `/etc/openbot-docker/deny`. A rule at the start of `INPUT` drops traffic from the
+  bridge to the host. The containers reach only the internet. `create`, `up` and `upgrade` refuse
+  to start a container when the firewall is off.
+- **Other servers.** Traffic from a container leaves with the address of the host. Put servers that
+  trust that address in `/etc/openbot-docker/deny`, one per line, then run `setup` again.
+- **Users.** With `"userns-remap": "default"` in `/etc/docker/daemon.json`, UID 1000 in the
+  container is the start of the `dockremap` range in `/etc/subuid` plus 1000 on the host, a user with
+  no rights there. `create` gives the data to that user. This setting is for the whole Docker
+  daemon: Docker then uses another data folder, so containers, images and networks made before are
+  not visible until it is removed. To turn it on for existing instances: `down` each instance, add
+  the setting, restart Docker, run `setup`, `chown -R <uid>:<gid>` each `/srv/openbot/<name>/data`,
+  then `up` each instance. `setup` shows a warning when it is off.
+- **Kernel.** The containers share the kernel of the host. For owners that you do not trust, use a
+  host with no other services, or a virtual machine for each instance.
 
 | Task | Command |
 | --- | --- |

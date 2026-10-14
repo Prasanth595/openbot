@@ -24,8 +24,16 @@ services:
     # instances publish no port.
     volumes:
       - /srv/openbot/${OPENBOT_NAME:?}/data:/data
+    # The network of all instances. They cannot reach each other, and openbot-firewall lets them
+    # reach only the internet.
+    networks:
+      - openbot
     logging:
       driver: json-file
       options:
         max-size: 50m
         max-file: "3"
+
+networks:
+  openbot:
+    external: true
