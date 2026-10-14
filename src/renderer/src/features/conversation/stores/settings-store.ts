@@ -13,7 +13,7 @@ export function runtimeSettingsEqual(left: AgentRuntimeSettings, right: AgentRun
   );
 }
 
-export function isCompleteRuntimeSettingsPatch(updates: AgentRuntimeSettingsPatch): updates is AgentRuntimeSettings {
+function isCompleteRuntimeSettingsPatch(updates: AgentRuntimeSettingsPatch): updates is AgentRuntimeSettings {
   return "provider" in updates && "model" in updates;
 }
 

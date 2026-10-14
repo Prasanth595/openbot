@@ -106,7 +106,7 @@ function refuseWith(refusal: abstract new (...args: never) => { status: number; 
     );
 }
 
-export function browserSessionToken(request: Request): string | null {
+function browserSessionToken(request: Request): string | null {
   const values = (request.headers.get("Cookie") ?? "")
     .split(";")
     .map((part) => part.trim())

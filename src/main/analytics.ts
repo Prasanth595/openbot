@@ -135,7 +135,7 @@ interface AnalyticsRoutineRun {
 }
 
 /** Counts and closed-set names only: never a user-authored name, URL or command. */
-export interface AnalyticsInventory {
+interface AnalyticsInventory {
   agentCount: number;
   enabledRoutineCount: number;
   customMcpServerCount: number;
@@ -839,7 +839,7 @@ function normalizeAnalyticsIdentity(user: AnalyticsIdentity | null): AnalyticsId
   return id && email ? { id, email } : null;
 }
 
-export function sanitizeHostEvent(name: HostEventName, properties: HostProperties): HostProperties {
+function sanitizeHostEvent(name: HostEventName, properties: HostProperties): HostProperties {
   const allowed = HOST_ALLOWLIST[name];
   return Object.fromEntries(
     Object.entries(properties).flatMap(([key, value]) => {
@@ -941,7 +941,7 @@ function sanitizeHostProperty(name: HostEventName, key: string, value: unknown):
  * address, a single-label or intranet name, or a name with no public ICANN suffix. Private suffixes
  * are ignored on purpose, so `user.github.io` reports as `github.io` and never names the user.
  */
-export function analyticsDomain(hostname: string): string | undefined {
+function analyticsDomain(hostname: string): string | undefined {
   const host = hostname.trim().toLowerCase().replace(/\.$/u, "");
   if (!host || host.length > 253) return undefined;
   const parsed = parseDomain(host, { allowPrivateDomains: false, extractHostname: false });

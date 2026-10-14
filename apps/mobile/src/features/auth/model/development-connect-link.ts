@@ -19,7 +19,7 @@ function isMobileConnectLink(value: string): boolean {
   return /^openbot:\/\/mobile-connect(?:[/?#]|$)/iu.test(value.trim());
 }
 
-export function readDevelopmentConnectLink(value: string, development: boolean): string | null {
+function readDevelopmentConnectLink(value: string, development: boolean): string | null {
   if (!development || !isMobileConnectLink(value)) return null;
   const link = value.trim();
   const payload = parseMobileConnectUrl(link);

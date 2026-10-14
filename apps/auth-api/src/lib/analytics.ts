@@ -19,7 +19,7 @@ import {
 } from "./landing-links";
 import { MOBILE_APPS } from "./mobile-apps";
 
-export const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
+const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
 const ANALYTICS_SCHEMA_VERSION = 9;
 
@@ -127,7 +127,7 @@ export function safeScreenPath(path: string): LandingScreenPath {
  * Resolves a site path to the article it names, or null. The slug is looked up in the registry, so
  * a link to an article that does not exist reports nothing rather than a new string.
  */
-export function articleFromPath(path: string): ArticleReference | null {
+function articleFromPath(path: string): ArticleReference | null {
   const [pathname = ""] = path.split(/[?#]/u);
   for (const collection of CONTENT_COLLECTIONS) {
     const prefix = `${collection.indexRoute}/`;
@@ -215,11 +215,11 @@ const EVENT_PROPERTY_ALLOWLIST = {
  */
 const PENDING_EVENT_LIMIT = 4;
 
-export function shouldEnableLandingAnalytics(hostname: string, productionBuild: boolean): boolean {
+function shouldEnableLandingAnalytics(hostname: string, productionBuild: boolean): boolean {
   return productionBuild && hostname === "openbot.run";
 }
 
-export class LandingAnalytics {
+class LandingAnalytics {
   readonly #createClient: ClientFactory;
   readonly #productionBuild: boolean;
   #client: OpenPanelClient | null = null;
@@ -427,7 +427,7 @@ function isSafeLandingProperty(name: LandingEventName, key: string, value: unkno
   return false;
 }
 
-export function isLikelyAutomation(navigator: Pick<Navigator, "userAgent" | "webdriver"> | null | undefined): boolean {
+function isLikelyAutomation(navigator: Pick<Navigator, "userAgent" | "webdriver"> | null | undefined): boolean {
   if (!navigator) return false;
   return navigator.webdriver || /(?:bot|crawler|spider|headless|lighthouse|preview)/iu.test(navigator.userAgent);
 }
@@ -461,7 +461,7 @@ function campaignTags(href: string): ((typeof CAMPAIGN_PARAMETERS)[number] & { v
  * OpenPanel reads campaign attribution from the query of the reported path, so the allowlisted tags
  * must travel with the path. Every other parameter and the hash are dropped by construction.
  */
-export function landingCampaignPath(screenPath: LandingScreenPath, href: string): string {
+function landingCampaignPath(screenPath: LandingScreenPath, href: string): string {
   const query = new URLSearchParams(campaignTags(href).map((tag) => [tag.parameter, tag.value])).toString();
   return query ? `${screenPath}?${query}` : screenPath;
 }
@@ -489,7 +489,7 @@ function rememberLandingFirstTouch(
 }
 
 // OpenPanel expects a URL. Keep only the domain, never credentials, ports or URL contents.
-export function landingReferrer(referrer: string, hostname: string): string {
+function landingReferrer(referrer: string, hostname: string): string {
   try {
     const url = new URL(referrer);
     if (url.protocol !== "https:" && url.protocol !== "http:") return "";
@@ -547,7 +547,7 @@ const SOURCE_PLATFORMS = [
   tags: readonly string[];
 }[];
 
-export function landingAttribution(document: Document, hostname: string) {
+function landingAttribution(document: Document, hostname: string) {
   const referrer = landingReferrer(document.referrer, hostname);
   let campaignSource = "";
   try {

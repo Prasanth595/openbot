@@ -2039,7 +2039,7 @@ function projectProviderAwareRoutineSchedule(value: DynamicRecord): TeamProtocol
   }
 }
 
-// Exported for the shared route table's coverage case in `src/main/team-api-server.test.ts`. The host
+// Exported so the shared route table can be checked against it. The host
 // encodes every JSON response through this adapter, so a path `TEAM_API_ROUTES` builds that this
 // frozen list cannot name is a route no client can be answered on. Classification only: it reads the
 // list below and decides nothing, so exporting it leaves every released response meaning what it did.

@@ -157,7 +157,7 @@ export function createAccountAnalytics(options: AccountAnalyticsOptions): Accoun
  * The properties of one event, checked at runtime against the allowlists. A value that is not on a
  * list is dropped, and an unknown action drops the event.
  */
-export function accountEventProperties(event: AccountAnalyticsEvent): AnalyticsProperties | null {
+function accountEventProperties(event: AccountAnalyticsEvent): AnalyticsProperties | null {
   const properties: AnalyticsProperties = {
     surface: "account_api",
     environment: "production",

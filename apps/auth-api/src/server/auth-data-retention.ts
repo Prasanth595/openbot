@@ -13,13 +13,13 @@ export interface AuthRetentionResult {
   serverClaims: number;
 }
 
-export interface AuthRetentionOperation {
+interface AuthRetentionOperation {
   name: keyof AuthRetentionResult;
   sql: string;
   cutoff: number;
 }
 
-export function authRetentionOperations(now: number): AuthRetentionOperation[] {
+function authRetentionOperations(now: number): AuthRetentionOperation[] {
   return [
     {
       name: "challenges",

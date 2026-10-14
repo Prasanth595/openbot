@@ -16,7 +16,7 @@ const config: KnipConfig = {
     "packages/contracts/src/team-protocol/v*.ts": ["exports", "types"],
     "packages/contracts/src/team-protocol/*-v*.ts": ["exports", "types"],
     "packages/contracts/src/team-protocol/provider-aware-codec.ts": ["exports", "types"],
-    // A generator writes this file, and `build-plugin-catalog.test.ts` requires its exact output.
+    // A generator writes this file.
     "apps/auth-api/src/lib/plugin-catalog.generated.ts": ["exports", "types"],
   },
   // Host tools that scripts and tests call. They are not npm packages.

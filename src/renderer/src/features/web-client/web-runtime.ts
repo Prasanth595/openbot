@@ -1142,7 +1142,7 @@ function decodeWebConversationSnapshot(value: unknown): ConversationPage {
   return { ...value, references: {}, pageInfo: { hasOlder: false, olderCursor: null } };
 }
 
-export function decodeWebConversationPage(value: unknown): ConversationPage {
+function decodeWebConversationPage(value: unknown): ConversationPage {
   if (
     !isConversationWithReadState(value) ||
     !isDynamicRecord(value) ||

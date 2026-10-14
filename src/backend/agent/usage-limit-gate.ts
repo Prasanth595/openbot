@@ -9,7 +9,7 @@ import { providerForAgent } from "./thread-items";
 export const USAGE_LIMIT_METHOD = "openbot/usageLimit";
 
 /** How often a limit with no reported reset is read again. A usage read is one request, not a turn. */
-export const USAGE_LIMIT_RECHECK_MS = 15 * 60_000;
+const USAGE_LIMIT_RECHECK_MS = 15 * 60_000;
 
 /** Time after the reported reset before work starts again, so the provider's clock has passed it too. */
 const RESET_GRACE_MS = 30_000;

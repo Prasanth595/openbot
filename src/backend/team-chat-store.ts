@@ -379,7 +379,7 @@ export class TeamChatStore {
   }
 }
 
-export function directThreadId(leftMemberId: string, rightMemberId: string): string {
+function directThreadId(leftMemberId: string, rightMemberId: string): string {
   const memberIds = sortedMemberIds(leftMemberId, rightMemberId);
   const digest = createHash("sha256").update(`${memberIds[0]}\0${memberIds[1]}`).digest("hex").slice(0, 32);
   return `dm-${digest}`;
