@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import {
   copyFile,
   type FileHandle,
@@ -326,10 +327,22 @@ export class AttachmentFiles {
         const attachments: StoredAttachment[] = [];
         let total = 0;
         for (const source of inspected) {
-          const name = uniqueName(sanitizeName(source.path), usedNames);
+          const sourceName = sanitizeName(source.path);
+          const name = yield* attachmentCall(async () => {
+            while (true) {
+              const candidate = uniqueName(sourceName, usedNames);
+              try {
+                await copyFile(source.path, join(temporaryRoot, candidate), constants.COPYFILE_EXCL);
+                return candidate;
+              } catch (error) {
+                if (error === null || typeof error !== "object" || !("code" in error) || error.code !== "EEXIST") {
+                  throw error;
+                }
+              }
+            }
+          }).pipe(Effect.uninterruptible);
           const id = randomUUID();
           const targetPath = join(temporaryRoot, name);
-          yield* attachmentCall(() => copyFile(source.path, targetPath)).pipe(Effect.uninterruptible);
           const copied = yield* attachmentCall(() => stat(targetPath));
           if (copied.size > MAX_FILE_BYTES) throw new Error(`${name} exceeds the 100 MB limit.`);
           total += copied.size;
