@@ -77,6 +77,18 @@ const CHECKS: readonly Check[] = [
     refusal: "attachmentId is too long.",
   },
   {
+    name: "an attachment id that is a path opens no file",
+    method: ["agent", "openAttachment"],
+    args: [{ attachmentId: "../../../../etc/passwd", action: "open" }],
+    refusal: en["error.attachment.unavailable"],
+  },
+  {
+    name: "a shared file path cannot leave the shared folder",
+    method: ["agent", "openSharedFile"],
+    args: [{ path: "../../../../etc/passwd", action: "open" }],
+    refusal: en["error.backend.sharedFileOutside"],
+  },
+  {
     name: "only a shipped app language is saved",
     method: ["setAppLanguagePreference"],
     args: [{ language: "../../xx" }],

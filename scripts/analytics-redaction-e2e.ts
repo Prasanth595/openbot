@@ -200,6 +200,11 @@ assert.equal(
   `Start the dev app with OPENBOT_ANALYTICS_CAPTURE_URL=${CAPTURE_URL}.`,
 );
 
+// The renderer reports `desktop_app_opened` once per load. Load the window again, so that the
+// renderer send path is checked too, and not only the host's.
+await page.reload();
+await page.waitForFunction(() => document.readyState === "complete");
+
 const fakeDirectory = mkdtempSync(join(tmpdir(), "openbot-analytics-e2e-"));
 const fakeAgentPath = join(fakeDirectory, "fake-acp-agent");
 writeFileSync(fakeAgentPath, FAKE_AGENT);
@@ -288,6 +293,9 @@ try {
       }
     }
   };
+  const opened = await waitForEvent("desktop_app_opened");
+  check("the renderer reports that the app opened", opened.properties.surface === "desktop", opened.properties);
+
   const agent = await createAgent("Answers", "Say hello to");
   cleanup.push(() => page.evaluate((id) => window.openbot.agent.deleteAgent(id), agent.id));
   const completed = await waitForEvent("system_turn_completed", (event) => event.properties.provider === "acp");
