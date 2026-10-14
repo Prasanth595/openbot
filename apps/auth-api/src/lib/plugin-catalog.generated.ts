@@ -70,7 +70,7 @@ export const PLUGIN_CATALOG_INDEX: PluginCatalogIndex = {
       slug: "vercel",
       version: "1.0.0",
       featured: false,
-      detailSha256: "12f6c6839d44fcafcd11668c601b73b586a753780585e16b02378b91ee56624e",
+      detailSha256: "7e5ead435028c8e74d1e4bf84e7e61bc4216de8d0636a862d160e48391589253",
     },
     {
       slug: "context7",
@@ -452,7 +452,7 @@ export const PLUGIN_CATALOG_DETAILS: Record<string, PluginCatalogDetail> = {
     name: "Vercel",
     tagline: "Deployments, build logs and projects",
     description:
-      "Vercel lets agents list projects and recent deployments, read build and runtime logs, and find why a build failed. Each user signs in to their own Vercel account through the browser and chooses the teams that agents can use. Vercel gives agents the same rights as your account in those teams: they can also change environment variables, domains, DNS records and deployments, and buy domains.",
+      "Vercel lets agents list projects and recent deployments, read build and runtime logs, and find why a build failed. Each user signs in to their own Vercel account through the browser and chooses the teams that agents can use. In those teams, agents get the same rights as the user's account. They can also change environment variables, domains, DNS records and deployments, and buy domains.",
     category: "coding",
     creatorName: "vercel.com",
     iconUrl: "https://vercel.com/favicon.ico",

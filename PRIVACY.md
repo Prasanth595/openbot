@@ -548,7 +548,9 @@ Network traffic can also occur when:
 - an MCP server the user enabled is reached at its own address, and, when that server asks for a
   sign-in, OpenBot connects to the server's authorization service to register itself, to exchange
   the grant the browser returns, and to renew the token. Nothing about the user's agents,
-  conversations or files is sent in those requests;
+  conversations or files is sent in those requests. The registration names OpenBot's logo at
+  `openbot.run`; an authorization service that shows it on its sign-in page can make the browser
+  load it from `openbot.run`;
 - the user presses Install on the 1Password page. OpenBot downloads the 1Password CLI release that it
   pins from `cache.agilebits.com`, checks its SHA-256, and keeps it in
   `~/Library/Application Support/OpenBot/provider-state/1password-cli`. The request carries no user
