@@ -17,6 +17,7 @@ import {
   updateProfileToolSchema,
 } from "./agent/profile-tools";
 import { ROUTINE_NO_UPDATE_TOOL } from "./agent/routine-quiet-runs";
+import { captureScreenToolShape } from "./agent/screen-capture";
 import {
   assignAgentSectionToolSchema,
   createSectionToolSchema,
@@ -139,6 +140,18 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     name: "html_render",
     description: `Show a finished HTML page (chart, table, diagram, collage, mockup) in this conversation, above your final text reply; call it before you write that reply. The user already sees the page, so the reply must not announce it or restate it: add only what the page does not say. OpenBot fits the frame to the page height. A height lower than the page caps the frame, and the rest scrolls in it. ${VISUAL_PAGE_RULES}`,
     shape: htmlRenderToolSchema.shape,
+  },
+  {
+    name: "list_capture_sources",
+    description:
+      "List the displays and windows of this computer that capture_screen can capture: display ids, desktop bounds in points, scale factors, and window ids and titles.",
+    shape: {},
+  },
+  {
+    name: "capture_screen",
+    description:
+      "Capture one display, one window, or a region of one display of this computer, and get the image. The user approves each capture first, and sees the image in this conversation. Call list_capture_sources first to get ids and bounds. A region uses desktop points.",
+    shape: captureScreenToolShape,
   },
   {
     name: "list_sections",

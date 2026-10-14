@@ -5,4 +5,11 @@ export const messages = defineMessages("status.agent", {
     "Write {path}, outside the agent's workspace, the shared folder and the temporary folders.",
   "status.agent.contextCleared": "Context cleared. A new chat starts here.",
   "status.agent.marketplaceSuggested": "Suggested a Marketplace app: {app}.",
+  "status.agent.screenCaptureScreen": "Capture the main screen and send the image to the agent's model.",
+  "status.agent.screenCaptureDisplay": "Capture the display {name} and send the image to the agent's model.",
+  "status.agent.screenCaptureWindow": "Capture the window {name} and send the image to the agent's model.",
+  "status.agent.screenCaptureRegion":
+    "Capture the screen area at {x}, {y}, {width} × {height} points and send the image to the agent's model.",
+  "status.agent.screenCaptureProgress": "Asking to capture the screen…",
+  "status.agent.screenCaptureReviewing": "Reviewing the screen capture…",
 });

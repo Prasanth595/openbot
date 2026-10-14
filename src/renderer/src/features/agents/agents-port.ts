@@ -20,6 +20,8 @@ export interface AgentsPort {
     | "updateAgent"
     | "updateAgentAdminSettings"
   >;
+  /** The accounts of a joined server's providers, which its released agent routes do not carry. */
+  providerAdmin: Pick<OpenBotDesktopApi["providerAdmin"], "accounts" | "accountUsage">;
 }
 
 /** Read on each call: tests and stories replace `window.openbot` per case. */

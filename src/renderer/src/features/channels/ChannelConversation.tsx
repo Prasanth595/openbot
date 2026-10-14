@@ -308,7 +308,6 @@ export function ChannelConversation(props: ChannelConversationProps) {
   const [showScrollToLatest, setShowScrollToLatest] = createSignal(false);
   const [unreadDividerVisible, setUnreadDividerVisible] = createSignal(false);
   const [virtualScrollMargin, setVirtualScrollMargin] = createSignal(0);
-  const [openMoreMessageId, setOpenMoreMessageId] = createSignal<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = createSignal<string | null>(null);
   const [newMessageCount, setNewMessageCount] = createSignal(0);
   let stickToLatest = true;
@@ -466,7 +465,6 @@ export function ChannelConversation(props: ChannelConversationProps) {
       (reference) => attachmentNames.get(reference.attachmentId),
     );
     if (!text) return;
-    setOpenMoreMessageId(null);
     setCopyError(null);
     try {
       await writeClipboardText(text);
@@ -850,15 +848,9 @@ export function ChannelConversation(props: ChannelConversationProps) {
                                   authorName={entry()?.author.name ?? initialEntry.author.name}
                                   reactions={false}
                                   pickerOpen={false}
-                                  moreOpen={openMoreMessageId() === initialEntry.id}
                                   expandedEmoji={false}
                                   copied={copiedMessageId() === initialEntry.id}
                                   onTogglePicker={() => {}}
-                                  onToggleMore={() =>
-                                    setOpenMoreMessageId((current) =>
-                                      current === initialEntry.id ? null : initialEntry.id,
-                                    )
-                                  }
                                   onExpandEmoji={() => {}}
                                   onReact={() => {}}
                                   onReply={

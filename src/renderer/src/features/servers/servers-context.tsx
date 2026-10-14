@@ -4,12 +4,17 @@ import { WAKE_RECONNECT_STATES } from "@openbot/team-client/hosted-server-wake";
 import { classifyFailure } from "@openbot/telemetry";
 import { toast } from "@openbot/ui";
 import { currentText } from "@openbot/ui/text";
-import { createEffect, createMemo, createSignal, flush, onSettled } from "solid-js";
+import { createEffect, createMemo, createSignal, flush, onSettled, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { FALLBACK_HOST_STATUS } from "../../app-defaults";
 import { createSimpleContext } from "../../simple-context";
-import { watchHostUpdate } from "./host-update-toast";
-import { olderAppSide, remoteUpdateServer, serverSupportsCapability } from "./server-capabilities";
+import {
+  olderAppSide,
+  remoteUpdateServer,
+  serverRoleCanAdminister,
+  serverSupportsCapability,
+} from "./server-capabilities";
+import { checkServerUpdate, offerServerUpdate, type ServerUpdateTarget } from "./server-update-flow";
 import { serversPort } from "./servers-port";
 
 /**
@@ -140,10 +145,19 @@ const Servers = createSimpleContext({
       openHostUpdate = opener;
     }
 
-    /** The connection of each admin server whose update status was read, so each connection reads it once. */
+    /** The connection of each server whose update status was read, so each connection reads it once. */
     const updateChecks = new Map<string, number>();
-    /** `serverId:sequence` of each version mismatch notice that already offered the update. */
-    const mismatchOffers = new Set<string>();
+    /** The server that the user entered last, and whether its update was offered while they stay on it. */
+    let entry: { id: string; offered: boolean } | null = null;
+
+    function updateTarget(server: ServerSummary): ServerUpdateTarget {
+      return {
+        serverId: server.id,
+        name: server.name,
+        canManage: serverRoleCanAdminister(server),
+        calls: serversPort().hostAdmin,
+      };
+    }
 
     function applyServerSummaries(value: ServerSummary[]): void {
       setServersLoaded(true);
@@ -187,20 +201,13 @@ const Servers = createSimpleContext({
             },
             report: { operation: "team", source: "system", cause_code: "unknown" },
           });
-          if (offerUpdate) mismatchOffers.add(`${serverId}:${sequence}`);
         }
-        // An admin learns about a new version, or sees the download that runs, when the host connects.
+        // Each connection reads the update status once, so the sidebar header shows a new version.
         if (canUpdate && server.state === "online" && updateChecks.get(server.id) !== sequence) {
           updateChecks.set(server.id, sequence);
-          const opener = openHostUpdate;
-          const serverId = server.id;
-          watchHostUpdate({
-            serverId,
-            name: server.name,
-            calls: serversPort().hostAdmin,
-            ...(opener ? { openUpdates: () => opener(serverId) } : {}),
-            offer: !mismatchOffers.has(`${serverId}:${sequence}`),
-          });
+          // The entry offer reads the status of the server that the user enters.
+          if (!server.active || (entry?.id === server.id && entry.offered))
+            void checkServerUpdate(updateTarget(server));
         }
       }
       setServers(value);
@@ -298,6 +305,25 @@ const Servers = createSimpleContext({
       setHostedServersLoaded(true);
       return list.available;
     }
+
+    // Each time the user enters a server that has a new version, the update dialog opens. A selection
+    // writes the list without `applyServerSummaries`, so this follows the list. A reconnect does not offer again.
+    createEffect(
+      () => {
+        const active = servers().find((server) => server.active);
+        return active ? { id: active.id, online: active.state === "online" } : null;
+      },
+      (current) => {
+        if (current?.id !== entry?.id) {
+          entry = current ? { id: current.id, offered: false } : null;
+          void offerServerUpdate(null);
+        }
+        if (!current?.online || !entry || entry.offered) return;
+        entry.offered = true;
+        const active = untrack(servers).find((server) => server.id === current.id);
+        void offerServerUpdate(remoteUpdateServer(active) && active ? updateTarget(active) : null);
+      },
+    );
 
     // A server that the add server dialog creates comes into the list as an owned remote server. Each
     // owned server is read once, so a server that another computer of this account runs is not read again.

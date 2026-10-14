@@ -47,6 +47,8 @@ export interface SidebarProps {
   onOpenServerSettings?: (trigger: HTMLElement) => void;
   /** The desktop server menu. Without it, the server name opens the server settings. */
   serverMenu?: Omit<ServerMenuProps, "serverName" | "compact">;
+  /** A new OpenBot version of the server. The header shows a button that opens its update. */
+  serverUpdate?: { version: string; running: boolean; onOpen: () => void } | undefined;
   agents: AgentProfile[];
   activeAgentId: string;
   showPeople?: boolean;

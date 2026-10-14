@@ -145,7 +145,12 @@ function PlansContent({ children }: { children: ReactNode }) {
 async function readPlans(session: MobileSession): Promise<PlansData> {
   const calls = hostedServerCalls(session);
   const [catalog, list] = await Promise.all([calls.plans(), calls.list(), refreshMobileFeatures(session.apiUrl, true)]);
-  useHostedServerAvailability.setState({ userId: session.user.id, available: list.available, checkedAt: Date.now() });
+  useHostedServerAvailability.setState({
+    userId: session.user.id,
+    available: list.available,
+    serverIds: new Set(list.servers.map((server) => server.serverId)),
+    checkedAt: Date.now(),
+  });
   return { plans: catalog.plans, list };
 }
 

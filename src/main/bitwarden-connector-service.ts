@@ -56,7 +56,7 @@ function failure(): PasswordVaultError {
 }
 
 /** No shell, inherited credentials, or command output in an error. */
-export const runBitwardenCli: BitwardenCliRunner = (executable, args, key, signal) => {
+const runBitwardenCli: BitwardenCliRunner = (executable, args, key, signal) => {
   const env: NodeJS.ProcessEnv = { BW_SESSION: key, BITWARDENCLI_INTERACTIVE: "false" };
   for (const name of [
     "HOME",

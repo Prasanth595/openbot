@@ -24,6 +24,7 @@ import type {
   DraftAttachment,
   HostAnalytics,
   HostAnalyticsInput,
+  HostProviderAccounts,
   InstallAgentTemplateInput,
   InstalledSkill,
   QueueSnapshot,
@@ -36,6 +37,7 @@ import type {
   RoutineCalendarInput,
   RoutineCalendarOwner,
   SetAgentMemoryInclusionInput,
+  SetAgentProviderAccountInput,
   SetAgentSessionSettingInput,
   SetEnabledSkillInput,
   SharedTable,
@@ -171,6 +173,8 @@ export interface MobileWorkspaceContextValue {
     input: { deliveryId?: string; expectedTurnId?: string; deliveryIds?: string[] },
   ) => Promise<void>;
   editQueue: (agentId: string, serverId: string, input: QueueEditRequest) => Promise<QueueSnapshot>;
+  /** Sets the reader's reaction on a message of an agent chat. `null` removes it. */
+  setMessageReaction: (agentId: string, serverId: string, messageId: string, emoji: string | null) => Promise<void>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
   /** The default server first, then the other servers in the order saved on this device. */
   servers: MobileServer[];
@@ -279,6 +283,15 @@ export interface MobileWorkspaceContextValue {
   loadAgentHostSettings: (agentId: string, serverId: string) => Promise<AgentHostSettings | null>;
   /** Owners and admins only; the host refuses a member. Resolves with the settings the host saved. */
   updateAgentHostSettings: (input: UpdateAgentHostSettingsInput, serverId: string) => Promise<AgentHostSettings>;
+  /** An owner or admin of an online host that serves `provider-accounts-v1`. The host checks the role again. */
+  canManageProviderAccounts: (serverId: string) => boolean;
+  /**
+   * The accounts of the host's providers, and the agents on an account after the first. Null when
+   * the host does not advertise `provider-accounts-v1`. Owners and admins only; the host refuses a member.
+   */
+  loadProviderAccounts: (serverId: string) => Promise<HostProviderAccounts | null>;
+  /** Owners and admins only. The host refuses an agent that works, and an account of another provider. */
+  setAgentProviderAccount: (input: SetAgentProviderAccountInput, serverId: string) => Promise<void>;
   /** True when the host advertises `context-reset-v1`. Any member can start a new chat. */
   canStartNewChat: (serverId: string) => boolean;
   /** The agent forgets the messages before it. The host refuses while the agent works. */

@@ -71,7 +71,7 @@ export class RemoteControlPlaneError extends Schema.TaggedError<RemoteControlPla
     super({ status, code, message });
   }
 }
-export class RemoteOperationError extends Schema.TaggedError<RemoteOperationError>()("RemoteOperationError", {}) {}
+class RemoteOperationError extends Schema.TaggedError<RemoteOperationError>()("RemoteOperationError", {}) {}
 export type RemoteFailure = RemoteControlPlaneError | RemoteOperationError;
 function remoteValidate<A>(operation: () => A): Effect.Effect<A, RemoteFailure> {
   return Effect.try({

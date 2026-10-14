@@ -16,8 +16,7 @@
     "./provider-logo-shape": "./src/provider-logo-shape.ts"
   },
   "scripts": {
-    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --config vitest.config.ts"
+    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@norbert_bodziony/bloub": "catalog:",
@@ -28,12 +27,6 @@
     "solid-js": "2.0.0-rc.0"
   },
   "devDependencies": {
-    "@solidjs/testing-library": "catalog:",
-    "@solidjs/vite-plugin": "catalog:",
-    "@testing-library/jest-dom": "catalog:",
-    "jsdom": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

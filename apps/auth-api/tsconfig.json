@@ -17,7 +17,6 @@
     "vite.config.ts",
     "renderer-preview-alias.ts",
     "render-content-images.ts",
-    "vitest.config.ts",
-    "vitest.client.config.ts"
+    "vitest.config.ts"
   ]
 }
