@@ -356,6 +356,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "Подключено",
   "connector.onePassword.statusConnecting": "Подключение",
   "connector.onePassword.statusNotSetUp": "Не настроено",
+  "connector.onePassword.descriptionHost":
+    "Предоставьте OpenBot на {host} доступ к отдельному сейфу 1Password через сервисный аккаунт, чтобы агенты на {host} могли входить на сайты в его браузере.",
+  "connector.onePassword.howItWorksHost":
+    "{host} подключается по токену сервисного аккаунта. На 1Password.com создайте сервисный аккаунт, который может читать только сейф, открытый для OpenBot, и вставьте сюда его токен. {host} проверяет токен и хранит его; этот компьютер его не хранит. Агенты никогда не видят пароль.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} забывает токен. Сейф и сервисный аккаунт остаются в 1Password; удалите их там, если они больше не нужны.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Подставлять логины в браузере из Bitwarden.",
   "connector.bitwarden.setup":

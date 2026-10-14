@@ -337,6 +337,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "Connecté",
   "connector.onePassword.statusConnecting": "Connexion en cours",
   "connector.onePassword.statusNotSetUp": "Non configuré",
+  "connector.onePassword.descriptionHost":
+    "Partagez un coffre 1Password dédié avec OpenBot sur {host} via un compte de service, pour que les agents de {host} puissent se connecter aux sites dans son navigateur.",
+  "connector.onePassword.howItWorksHost":
+    "{host} se connecte avec un jeton de compte de service. Sur 1Password.com, créez un compte de service qui ne peut lire que le coffre que vous partagez avec OpenBot, puis collez son jeton ici. {host} vérifie le jeton et le conserve ; cet ordinateur ne le conserve pas. Les agents ne voient jamais de mot de passe.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} oublie le jeton. Le coffre et le compte de service restent dans 1Password ; supprimez-les là-bas si vous n’en avez plus besoin.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Remplir les identifiants du navigateur depuis Bitwarden.",
   "connector.bitwarden.setup":

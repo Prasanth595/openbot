@@ -1766,6 +1766,9 @@ export async function createApplicationServices({
     // Present, so the host advertises `connectors-v1`. GitHub answers `available: false` when this
     // build has no GitHub App. The routes are admin-only.
     connectors: { github: githubConnector, messaging },
+    // Present, so the host advertises `onepassword-connector-v1`. An owner or admin connects it with
+    // a service account token, as a host with no screen cannot approve the 1Password app.
+    onePasswordConnector,
     // Present on Linux, so the host advertises `provider-host-sign-in-v1`. The routes are admin-only.
     providerHostSignIns,
     // Present, so the host advertises `provider-accounts-v1`. The routes are admin-only.

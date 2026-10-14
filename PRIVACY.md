@@ -481,7 +481,10 @@ is not included in analytics; provider output uses the application's secret reda
   OpenBot keeps the list of logins (titles and web addresses) in memory, never on disk. A password
   or a one-time code is read from 1Password when the browser fills it, goes only to that page, and
   is never sent to an agent, a provider, a log or a team member. The token and each filled value
-  are redacted from logs, exports and diagnostics.
+  are redacted from logs, exports and diagnostics. An owner or admin of a joined server can paste a
+  service account token for that server in Settings › Connectors. The token goes once, over the
+  encrypted connection, to the server, which keeps it in the same file on its own disk. The
+  computer that sent it does not keep it, and no answer from the server carries it.
 - `~/Library/Application Support/OpenBot/logs/trace.ndjson` is a local trace of IPC calls,
   provider turns, main-process failures, and the steps of each connection to a joined server. Each
   line holds a time, the IPC channel name, the turn origin, the failure origin (`uncaughtException`

@@ -285,7 +285,11 @@ import type {
   TelegramOverview,
 } from "./ipc-messaging";
 import type { NotificationOpenedEvent, NotificationPreference } from "./ipc-notifications";
-import type { OnePasswordConnectInput, OnePasswordConnectorStatus } from "./ipc-onepassword-connector";
+import type {
+  OnePasswordConnectInput,
+  OnePasswordConnectorStatus,
+  OnePasswordHostConnectInput,
+} from "./ipc-onepassword-connector";
 import type {
   DetectedModelServer,
   DiscoverModelsInput,
@@ -863,8 +867,9 @@ export const IPC_ENDPOINTS = {
     disconnect: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:disconnect"),
     changed: event<BitwardenConnectorStatus>()("bitwarden-connector:changed"),
   },
-  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
-  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
+  // The 1Password connection of this computer. The token goes from the renderer to main once, in
+  // `connectWithToken`; every answer is the status only. The `host*` endpoints do the same for a
+  // joined server (`onepassword-connector-v1`), with a token only: the host has no 1Password app.
   onePasswordConnector: {
     status: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:status"),
     // Looks again for the CLI and the 1Password app's CLI integration, for a page that opens or regains focus.
@@ -878,6 +883,11 @@ export const IPC_ENDPOINTS = {
     cancel: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:cancel"),
     disconnect: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:disconnect"),
     changed: event<OnePasswordConnectorStatus>()("onepassword-connector:changed"),
+    hostStatus: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-status"),
+    hostConnectWithToken: scopedRequest<OnePasswordHostConnectInput, OnePasswordConnectorStatus, "required">()(
+      "onepassword-connector:host-connect-with-token",
+    ),
+    hostDisconnect: scopedQuery<OnePasswordConnectorStatus, "required">()("onepassword-connector:host-disconnect"),
   },
   hostedSites: {
     // The sites of one server. A joined server answers through `hosted-sites-v1`.

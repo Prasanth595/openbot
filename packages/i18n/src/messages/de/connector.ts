@@ -346,6 +346,12 @@ export const messages = {
   "connector.onePassword.statusConnected": "Verbunden",
   "connector.onePassword.statusConnecting": "Verbindung wird hergestellt",
   "connector.onePassword.statusNotSetUp": "Nicht eingerichtet",
+  "connector.onePassword.descriptionHost":
+    "Teile einen eigenen 1Password-Tresor über ein Dienstkonto mit OpenBot auf {host}, damit Agenten auf {host} sich in seinem Browser bei Websites anmelden können.",
+  "connector.onePassword.howItWorksHost":
+    "{host} verbindet sich mit einem Dienstkonto-Token. Erstelle auf 1Password.com ein Dienstkonto, das nur den Tresor lesen kann, den du mit OpenBot teilst, und füge sein Token hier ein. {host} prüft das Token und speichert es; dieser Computer speichert es nicht. Agenten sehen nie ein Passwort.",
+  "connector.onePassword.disconnectSummaryHost":
+    "{host} vergisst das Token. Der Tresor und das Dienstkonto bleiben in 1Password; entferne sie dort, wenn du sie nicht mehr brauchst.",
   "connector.bitwarden.title": "Bitwarden",
   "connector.bitwarden.description": "Anmeldedaten aus Bitwarden im Browser ausfüllen.",
   "connector.bitwarden.setup":

@@ -667,6 +667,9 @@ const openbotApi: OpenBotDesktopApi = {
     cancel: decodeOnePasswordConnectorStatus,
     disconnect: decodeOnePasswordConnectorStatus,
     changed: decodeOnePasswordConnectorStatus,
+    hostStatus: decodeOnePasswordConnectorStatus,
+    hostConnectWithToken: decodeOnePasswordConnectorStatus,
+    hostDisconnect: decodeOnePasswordConnectorStatus,
   }),
   routineFeed: bridgeGroup(IPC_ENDPOINTS.routineFeed, {
     get: decodeRoutineFeed,

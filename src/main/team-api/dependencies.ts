@@ -48,6 +48,7 @@ import type { InstanceTransferService } from "../instance-transfer-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
+import type { OnePasswordConnectorService } from "../onepassword-connector-service";
 import type { ProviderAccountsHost } from "../provider-accounts-host";
 import type { ProviderHostSignIns } from "../provider-host-sign-ins";
 import type { PushNotificationService } from "../push-notifications";
@@ -321,6 +322,12 @@ export type TeamApiRemoteScreen = Pick<
 > &
   Partial<Pick<RemoteScreenGateway, "checkSetup" | "test">>;
 
+/** `onepassword-connector-v1`: the 1Password connection of this host, by a service account token. */
+export type TeamApiOnePasswordConnector = Pick<
+  OnePasswordConnectorService,
+  "status" | "connectWithToken" | "disconnect"
+>;
+
 export interface TeamApiOptions {
   /** `events-v1`: admin-only event source and routine management. */
   events?: HostEventsApi;
@@ -329,6 +336,7 @@ export interface TeamApiOptions {
   mcpSignIns?: TeamApiMcpSignIns;
   signInRelay?: TeamApiSignInRelay;
   connectors?: TeamApiConnectors;
+  onePasswordConnector?: TeamApiOnePasswordConnector;
   providerHostSignIns?: TeamApiProviderHostSignIns;
   providerAccounts?: TeamApiProviderAccounts;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
