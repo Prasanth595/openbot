@@ -144,8 +144,19 @@ function antigravityKeyOptions(context: ProviderClientContext, agentEnvironment:
       key() && initialization.authMethods?.some((method) => method.id === GEMINI_API_KEY_METHOD)
         ? providerCall(() => connection.authenticate({ methodId: GEMINI_API_KEY_METHOD })).pipe(Effect.asVoid)
         : Effect.void,
+    savedKeyRefusedMessage: () => (key() ? sourceText("error.provider.geminiKeyRefused") : null),
   };
 }
+
+/**
+ * Antigravity 1.3.0 starts Google's browser sign-in by itself when `session/new` finds no valid
+ * token, and waits there for five minutes. A client that serves turns must never open that page:
+ * `BROWSER=true` stops the launch, and the prompt line tells the account check to stop waiting.
+ */
+const ANTIGRAVITY_SERVING_OPTIONS = {
+  env: { BROWSER: "true" },
+  interactiveSignInPrompt: /Open the following link to authenticate the ACP server: /u,
+};
 
 const GEMINI_API_KEY_METHOD = "gemini-api-key";
 
@@ -508,7 +519,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       new AcpAgentClient(cli, timeout, {
         provider: "antigravity",
         argv: ANTIGRAVITY_ARGV,
-        env: {},
+        ...ANTIGRAVITY_SERVING_OPTIONS,
+        discoveryCwd: () => discoveryFolder("antigravity"),
         ...(confinement
           ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityStatePaths()) }
           : {}),
@@ -528,7 +540,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         provider: "antigravity",
         argv: ANTIGRAVITY_ARGV,
         profileGeneration: true,
-        env: {},
+        ...ANTIGRAVITY_SERVING_OPTIONS,
+        discoveryCwd: () => discoveryFolder("antigravity"),
         ...antigravityKeyOptions(context, false),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
         servesModel: context.servesModel,
@@ -672,7 +685,7 @@ function customAgentChild(
     provider: "acp",
     label: config.name,
     allowNoModels: true,
-    discoveryCwd: () => folder ?? customAgentDiscoveryFolder(config.id),
+    discoveryCwd: () => folder ?? discoveryFolder(config.id),
     redactValues: () => values,
     argv: config.args,
     env,
@@ -711,9 +724,10 @@ let customAgentDiscoveryRoot: string | undefined;
 /**
  * An empty folder for the session that lists an agent's models, apart from every workspace. The
  * root is new for each run and private (`mkdtemp`): a fixed path in a shared temp folder could be made
- * first by another user, with an agent config file in it that the agent would then load.
+ * first by another user, with an agent config file in it that the agent would then load. Gemini uses
+ * the folder `antigravity`, an id that no custom agent can have.
  */
-function customAgentDiscoveryFolder(agentId: string): string {
+function discoveryFolder(agentId: string): string {
   customAgentDiscoveryRoot ??= mkdtempSync(join(tmpdir(), "openbot-custom-agents-"));
   const folder = join(customAgentDiscoveryRoot, agentId);
   mkdirSync(folder, { recursive: true, mode: 0o700 });

@@ -35,6 +35,7 @@ import type { ProviderSession } from "../database/provider-sessions";
 import type { MailboxStore } from "../mailbox-store";
 import { agentMcpServers } from "../mcp-provider-shapes";
 import type { MessagingThreads } from "../messaging/messaging-threads";
+import { MESSAGING_OUTBOUND_TOOLS } from "../messaging/messaging-tools";
 import { CHAT_VISUAL_PREVIEW_DEFAULT_WIDTH, htmlPreviewToolSchema, htmlRenderToolSchema } from "../openbot-tools";
 import { type AppServerRequest, type DynamicToolCallParams, type DynamicToolResult, isRecord } from "../protocol";
 import { handleRoutineFlowTool, type RoutineFlowTools } from "../routine-flows/routine-flow-tools";
@@ -564,6 +565,9 @@ export class OpenBotToolRouter {
     }
 
     const executionThreadId = this.#conversation.publicThreadId(senderAgentId, params.threadId);
+    // Any agent can post on its own initiative, such as a routine that reports to a Discord channel.
+    if (MESSAGING_OUTBOUND_TOOLS.has(params.tool))
+      return yield* this.#messaging.outboundTool(params.tool, params.arguments);
     if (params.tool.startsWith("messaging_")) {
       // Only the agent that answers a platform conversation, in that conversation's own thread.
       const link = this.#messaging.store.linkForThread(executionThreadId);

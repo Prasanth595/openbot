@@ -19,7 +19,6 @@ import {
   Server,
   ShieldCheck,
   Sparkles,
-  Trash2,
   UserRound,
   UsersRound,
   Vibrate,
@@ -29,7 +28,6 @@ import { Pressable, View } from "react-native";
 
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { ChatNavigationGateContext } from "@/features/agents/components/chat-link-pressable";
-import { ChannelAvatar } from "@/features/channels/components/channel-avatar";
 import {
   type MobileSearchResult,
   type MobileSearchSettingId,
@@ -143,7 +141,6 @@ const SETTING_ICON = {
   liveActivities: Radio,
   privacy: ShieldCheck,
   hiddenChats: EyeOff,
-  deletedChannels: Trash2,
   support: LifeBuoy,
   about: Info,
   serverOptions: Server,
@@ -175,8 +172,6 @@ function openSetting(id: MobileSearchSettingId, serverId: string) {
       return router.push("/settings/privacy");
     case "hiddenChats":
       return router.push("/settings/hidden-chats");
-    case "deletedChannels":
-      return router.push({ pathname: "/settings/deleted-chats", params: { serverId } });
     case "support":
       return router.push("/settings/support");
     case "about":
@@ -199,13 +194,12 @@ function fileIcon(file: Extract<MobileSearchResult, { kind: "file" }>["file"]): 
 
 /**
  * One search result. A press closes the search and opens what the result names: the chat, the
- * channel, the message or the file in its chat, or the routine.
+ * message or the file in its chat, or the routine.
  */
 export function MobileSearchResultRow({
   result,
   query,
   serverId,
-  agents,
   onLeave,
 }: {
   result: MobileSearchResult;
@@ -213,8 +207,6 @@ export function MobileSearchResultRow({
   serverId: string;
   /** Runs before a result closes the search to open what it names. */
   onLeave: () => void;
-  /** The agents of the server, by ID, for the member avatars of a channel. */
-  agents: ReadonlyMap<string, MobileAgent>;
 }) {
   const { t, format } = useText();
   const gate = useContext(ChatNavigationGateContext);
@@ -242,24 +234,6 @@ export function MobileSearchResultRow({
           trailing={agent.updatedLabel}
           query={query}
           onPress={() => openChat(agent.id)}
-        />
-      );
-    }
-    case "channel": {
-      const { channel } = result;
-      const last = channel.lastMessage;
-      return (
-        <SearchRow
-          leading={<ChannelAvatar channel={channel} agents={agents} size={AVATAR_SIZE} />}
-          title={channel.name}
-          detail={last ? t("mobile.search.authorText", { author: last.authorName, text: last.text }) : channel.title}
-          trailing={formatUpdatedAt(last?.at ?? null, format)}
-          query={query}
-          onPress={() => {
-            onLeave();
-            router.back();
-            router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } });
-          }}
         />
       );
     }
@@ -325,16 +299,10 @@ export function MobileSearchResultRow({
           onPress={() => {
             onLeave();
             router.back();
-            if (owner.kind === "agent")
-              router.push({
-                pathname: "/agent-info/[agentId]/routine",
-                params: { agentId: owner.agent.id, serverId: owner.agent.serverId, recordId: routine.id },
-              });
-            else
-              router.push({
-                pathname: "/channel-info/[channelId]/routine",
-                params: { channelId: owner.channel.id, serverId, recordId: routine.id },
-              });
+            router.push({
+              pathname: "/agent-info/[agentId]/routine",
+              params: { agentId: owner.agent.id, serverId: owner.agent.serverId, recordId: routine.id },
+            });
           }}
         />
       );

@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Deferred, Effect } from "effect";
 import { RemoteWorkflowError } from "./remote-service-effects";
 // @vitest-environment node
 
@@ -15,8 +15,10 @@ import {
 import { decodeTeamProtocolV1ClientEvent } from "@openbot/contracts/team-protocol/v1";
 import {
   decodeTeamProtocolV2AuthFrame,
+  decodeTeamProtocolV2EventFrame,
   decodeTeamProtocolV2RpcFrame,
   encodeTeamProtocolV2Frame,
+  type TeamProtocolV2Json,
   teamProtocolV2AuthenticationTranscript,
 } from "@openbot/contracts/team-protocol/v2";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -40,6 +42,8 @@ class FakeBridge extends TeamWebRtcBridge {
   readonly connections: Array<{ peerId: string; signalUrl: string; token: string; peer: "host" | "client" }> = [];
   readonly disconnectedPeers: string[] = [];
   readonly sent: Array<{ peerId: string; channel: string; data: string | ArrayBuffer }> = [];
+  /** Runs before an `events` frame counts as sent. A test can fail or hold that frame. */
+  eventSend: () => Effect.Effect<void, RemoteWorkflowError> = () => Effect.void;
 
   override readonly connect = (input: { peerId: string; signalUrl: string; token: string; peer: "host" | "client" }) =>
     Effect.sync(() => {
@@ -60,9 +64,13 @@ class FakeBridge extends TeamWebRtcBridge {
     channel: "rpc" | "events" | "files" | "desktop",
     data: string | ArrayBuffer,
   ): Effect.Effect<void, RemoteWorkflowError> =>
-    Effect.sync(() => {
-      this.sent.push({ peerId, channel, data });
-    });
+    (channel === "events" ? this.eventSend() : Effect.void).pipe(
+      Effect.andThen(
+        Effect.sync(() => {
+          this.sent.push({ peerId, channel, data });
+        }),
+      ),
+    );
 }
 
 describe("TeamWebRtcHostGateway", () => {
@@ -674,7 +682,127 @@ describe("TeamWebRtcHostGateway", () => {
     await runCauseEffect(gateway.stop());
     await runCauseEffect(gateway.dispose());
   });
+
+  it("keeps the event sequence that a released client accepts when a send fails or stalls", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "openbot-webrtc-host-events-"));
+    directories.push(directory);
+    const bridge = new FakeBridge();
+    const store = new TeamStore(join(directory, "team.json"));
+    await runCauseEffect(store.initialize());
+    await runCauseEffect(
+      store.configureWithAccount("Test Host", {
+        id: "owner-account",
+        email: "owner@example.com",
+        name: "Owner",
+        avatarUrl: null,
+      }),
+    );
+    const keys = generateKeyPairSync("ed25519", {
+      publicKeyEncoding: { type: "spki", format: "pem" },
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    });
+    const localServer = createServer((_request, response) => response.end());
+    const eventsServer = new WebSocketServer({ server: localServer });
+    await new Promise<void>((resolve) => localServer.listen(0, "127.0.0.1", resolve));
+    const address = localServer.address();
+    if (!address || typeof address === "string") throw new Error("The local Team API did not open a TCP port.");
+    serverCleanups.push(
+      () =>
+        new Promise<void>((resolve) => {
+          for (const client of eventsServer.clients) client.terminate();
+          eventsServer.close(() => localServer.close(() => resolve()));
+        }),
+    );
+    const gateway = new TeamWebRtcHostGateway({
+      bridge,
+      store,
+      appVersion: "1.0.0",
+      transferDirectory: join(directory, "transfers"),
+      verifyClientTicket: () =>
+        Effect.succeed({
+          sessionId: "session-1",
+          hostId: "host-1",
+          userId: "member-account",
+          membershipId: "membership-1",
+          role: "member",
+          authEpoch: 1,
+          sessionExpiresAt: 8_640_000_000_000,
+          clientPublicKey: keys.publicKey,
+        }),
+    });
+    await runCauseEffect(
+      gateway.start({
+        hostId: "host-1",
+        signalUrl: "wss://signal.example.test/v1/signal",
+        ticket: "initial",
+        localApiPort: address.port,
+      }),
+    );
+    await authenticatePhone(bridge, "peer-1", "session-1", "client-ticket", keys);
+    const acknowledge = (throughSequence: number) =>
+      bridge.emit(
+        "data",
+        "peer-1",
+        "events",
+        encodeTeamProtocolV2Frame({ version: 2, type: "event-ack", throughSequence }),
+      );
+    acknowledge(0);
+    await vi.waitFor(() => expect(eventsServer.clients.size).toBe(1));
+    const [events] = eventsServer.clients;
+    if (!events) throw new Error("The host did not open its local event socket.");
+    // The host reads a ping after the messages before it, so its pong means that it has these events.
+    const publish = (agents: string[]) =>
+      new Promise<void>((resolve) => {
+        for (const botId of agents) events.send(JSON.stringify({ type: "queue-invalidated", botId }));
+        events.once("pong", () => resolve());
+        events.ping();
+      });
+    const lastApplied = () => releasedClientEvents(bridge).at(-1);
+
+    // A send can fail, such as after a full data channel for 60 seconds.
+    bridge.eventSend = () => {
+      bridge.eventSend = () => Effect.void;
+      return Effect.fail(new RemoteWorkflowError({ cause: new Error("The data channel stayed full.") }));
+    };
+    await publish(["bot-1", "bot-2", "bot-3"]);
+    await vi.waitFor(() => expect(lastApplied()).toMatchObject({ botId: "bot-3" }));
+
+    // A slow send must not let the next events arrive first.
+    const release = Deferred.makeUnsafe<void>();
+    bridge.eventSend = () => {
+      bridge.eventSend = () => Effect.void;
+      return Deferred.await(release);
+    };
+    await publish(["bot-4", "bot-5", "bot-6"]);
+    Deferred.doneUnsafe(release, Effect.void);
+    await vi.waitFor(() => expect(lastApplied()).toMatchObject({ botId: "bot-6" }));
+
+    // The host keeps at most 2,000 events that the client did not acknowledge. An acknowledgement
+    // from before that limit must not move the client back after it has newer events.
+    await publish(Array.from({ length: 2_000 }, (_, index) => `bulk-${index}`));
+    acknowledge(3);
+    await publish(["bot-7"]);
+    await vi.waitFor(() => expect(lastApplied()).toMatchObject({ botId: "bot-7" }));
+    await runCauseEffect(gateway.stop());
+    await runCauseEffect(gateway.dispose());
+  });
 });
+
+/** Reads the `events` frames as a released client does. That client disconnects on a sequence gap. */
+function releasedClientEvents(bridge: FakeBridge): TeamProtocolV2Json[] {
+  let lastSequence = 0;
+  const applied: TeamProtocolV2Json[] = [];
+  for (const message of bridge.sent) {
+    if (message.channel !== "events" || !isString(message.data)) continue;
+    const frame = decodeTeamProtocolV2EventFrame(message.data);
+    if (frame.type === "event-reset") lastSequence = frame.nextSequence - 1;
+    if (frame.type !== "event" || frame.sequence <= lastSequence) continue;
+    if (frame.sequence !== lastSequence + 1) throw new Error(`Event ${frame.sequence} came after ${lastSequence}.`);
+    lastSequence = frame.sequence;
+    applied.push(frame.payload);
+  }
+  return applied;
+}
 
 async function authenticatePhone(
   bridge: FakeBridge,

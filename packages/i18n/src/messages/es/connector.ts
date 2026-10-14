@@ -85,7 +85,6 @@ export const messages = {
   "connector.hub.available": "Disponible",
   "connector.hub.open": "Abrir {name}",
   "connector.hub.setUp": "Configurar",
-  "connector.hub.back": "Todos los conectores",
   "connector.hub.usedBy": "Lo usan {names}",
   "connector.slack.title": "Slack",
   "connector.slack.description":

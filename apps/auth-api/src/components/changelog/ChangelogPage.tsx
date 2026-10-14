@@ -14,6 +14,7 @@ import { SiteHeader } from "../landing/SiteHeader";
 import { Button, ButtonLink } from "../ui/button";
 import { ChangelogPlatformTabs, PLATFORM_LABELS } from "./ChangelogPlatformTabs";
 import { ChangelogRelease } from "./ChangelogRelease";
+import { ChangelogStores } from "./ChangelogStores";
 import { ChangelogSwap, createPlatformSwap } from "./ChangelogSwap";
 
 /** The seed for the hero's colours: the Sunset family, the one the featured article on /news uses. */
@@ -244,6 +245,7 @@ function LatestRelease(props: { platform: ChangelogPlatform }) {
             <Show when={release().date}>
               {(date) => <span class="changelog-latest-date">· {formatArticleDate(date())}</span>}
             </Show>
+            <ChangelogStores stores={release().stores} />
           </p>
           <Show
             when={props.platform === "mobile"}

@@ -2,11 +2,9 @@ import { type Href, Link, router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { Eye } from "lucide-react-native";
-import { type ReactNode, useMemo } from "react";
+import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
-import { ChannelAvatar } from "@/features/channels/components/channel-avatar";
-import { useChannels } from "@/features/channels/components/use-channels";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { haptics } from "@/shared/lib/haptics";
@@ -14,19 +12,10 @@ import { useText } from "@/shared/lib/text";
 
 export function HiddenChatsScreen() {
   const { t } = useText();
-  const { hiddenAgents, unhideAgent, agents, activeServer, hiddenChannelIds, unhideChannel } = useMobileWorkspace();
-  const channels = useChannels(activeServer.id);
-  const hiddenChannels = channels.channels.filter(
-    (channel) => !channel.archived && hiddenChannelIds.includes(channel.id),
-  );
-  const members = useMemo(
-    () => new Map(agents.filter((agent) => agent.serverId === activeServer.id).map((agent) => [agent.id, agent])),
-    [agents, activeServer.id],
-  );
+  const { hiddenAgents, unhideAgent } = useMobileWorkspace();
   const foreground = useThemeColor("foreground");
-  const total = hiddenAgents.length + hiddenChannels.length;
-  const items: { id: string; name: string; href: Href; avatar: ReactNode; show: () => void }[] = [
-    ...hiddenAgents.map((agent) => ({
+  const items: { id: string; name: string; href: Href; avatar: ReactNode; show: () => void }[] = hiddenAgents.map(
+    (agent) => ({
       id: agent.id,
       name: agent.name,
       href: { pathname: "/chat/[agentId]" as const, params: { agentId: agent.id } },
@@ -43,23 +32,10 @@ export function HiddenChatsScreen() {
       show: () => {
         unhideAgent(agent.id);
         void haptics.notification();
-        if (total === 1) router.back();
+        if (hiddenAgents.length === 1) router.back();
       },
-    })),
-    ...hiddenChannels.map((channel) => ({
-      id: channel.id,
-      name: channel.name,
-      href: { pathname: "/channel/[channelId]" as const, params: { channelId: channel.id, serverId: activeServer.id } },
-      avatar: (
-        <ChannelAvatar channel={channel} agents={members} size={46} disconnected={activeServer.state !== "online"} />
-      ),
-      show: () => {
-        if (!unhideChannel(channel.id, activeServer.id)) return;
-        void haptics.notification();
-        if (total === 1) router.back();
-      },
-    })),
-  ];
+    }),
+  );
 
   return (
     <SheetScrollView contentContainerClassName="gap-5 px-5 pb-safe-offset-5 pt-7">

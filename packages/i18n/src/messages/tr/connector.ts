@@ -94,7 +94,6 @@ export const messages = {
   // {name} Slack gibi bir entegrasyonun adıdır.
   "connector.hub.open": "{name} uygulamasını aç",
   "connector.hub.setUp": "Ayarla",
-  "connector.hub.back": "Tüm bağlayıcılar",
   // {names} "Chief, Research" gibi ajanları listeler.
   "connector.hub.usedBy": "{names} tarafından kullanılıyor",
 

@@ -153,7 +153,8 @@ Do these steps on each computer that hosts or connects.
 
 3. Sign in with an email address. The code comes from your SMTP account.
 4. To connect an iPhone, scan the connection QR code from the desktop app. The phone then uses the
-   service of that desktop.
+   service of that desktop. Email sign-in on the phone always uses `openbot.run`, so it cannot
+   connect to a self-hosted service.
 
 Set the variables each time that you start the app. Without them, the app uses `openbot.run` and
 sends your session token there. To go back to `openbot.run`, sign out first.

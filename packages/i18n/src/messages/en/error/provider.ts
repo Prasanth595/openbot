@@ -155,6 +155,7 @@ export const messages = defineMessages("error.provider", {
   "error.provider.cliBusyUpdate": "The {provider} CLI is working on a turn. Wait for it to finish, then update.",
   "error.provider.cliSelectFailed": "OpenBot could not select the installed managed CLI.",
   "error.provider.noAuthenticatedAccount": "{provider} did not return an authenticated account.",
+  "error.provider.signInExpired": "Your {provider} sign-in expired. Sign in again to continue.",
   "error.provider.cliActivateFailed": "OpenBot could not activate the managed CLI.",
   "error.provider.cliBusyReconnect": "The {provider} CLI is working on a turn. Wait for it to finish, then reconnect.",
   "error.provider.opencodeCredentialsRejected":
@@ -171,6 +172,10 @@ export const messages = defineMessages("error.provider", {
     "The model provider failed on its side. Your connection is not the cause. Try again later or choose another model.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode could not connect to the model provider. Check the network connection of the computer that runs OpenBot, then try again.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "The OpenCode model ended the turn with no answer. Try again, or choose another model.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "The OpenCode model ended the turn after its reasoning, with no answer. Try again, or choose another model.",
   "error.provider.chatgptPageFailed": "OpenBot could not open the ChatGPT connection page.",
   "error.provider.noneReady": "No agent provider is ready.",
   "error.provider.claudeTurnActive": "Wait for the active Claude turn before refreshing its context.",
@@ -218,6 +223,12 @@ export const messages = defineMessages("error.provider", {
   "error.provider.geminiBrowserUnavailable":
     "Gemini could not open the sign-in page. Install a browser and xdg-utils, then connect from a desktop session on this host. A server with no desktop cannot complete this sign-in.",
   "error.provider.acpSignInFailed": "The sign-in did not complete.",
+  "error.provider.acpSignInFailedReason": "The sign-in did not complete: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "This provider does not offer this sign-in on this computer. Update the provider, then try again.",
+  "error.provider.httpsSignInLinkOnly": "Only HTTPS sign-in links can open in the browser.",
+  "error.provider.geminiKeyRefused":
+    "Gemini refused the saved API key. Replace or remove the key in Settings, then connect again.",
   "error.provider.messageTooLarge": "OpenBot stopped {provider} because it sent a message larger than {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "An agent ID must be lowercase letters, digits or `-`, and cannot be the ID of a built-in provider.",

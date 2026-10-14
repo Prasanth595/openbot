@@ -162,6 +162,7 @@ export const messages = {
   "error.provider.cliBusyUpdate": "{provider} CLI pracuje nad turą. Zaczekaj, aż skończy, a potem zaktualizuj.",
   "error.provider.cliSelectFailed": "Nie udało się wybrać zainstalowanego zarządzanego CLI.",
   "error.provider.noAuthenticatedAccount": "{provider} nie zwrócił uwierzytelnionego konta.",
+  "error.provider.signInExpired": "Logowanie do {provider} wygasło. Zaloguj się ponownie, aby kontynuować.",
   "error.provider.cliActivateFailed": "Nie udało się aktywować zarządzanego CLI.",
   "error.provider.cliBusyReconnect": "{provider} CLI pracuje nad turą. Zaczekaj, aż skończy, a potem połącz ponownie.",
   "error.provider.opencodeCredentialsRejected":
@@ -178,6 +179,10 @@ export const messages = {
     "Wystąpił błąd po stronie dostawcy modelu. Twoje połączenie nie jest przyczyną. Spróbuj ponownie później lub wybierz inny model.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode nie połączył się z dostawcą modelu. Sprawdź połączenie sieciowe komputera, na którym działa OpenBot, a potem spróbuj ponownie.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "Model OpenCode zakończył turę bez odpowiedzi. Spróbuj ponownie albo wybierz inny model.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "Model OpenCode zakończył turę po rozumowaniu, bez odpowiedzi. Spróbuj ponownie albo wybierz inny model.",
   "error.provider.chatgptPageFailed": "Nie udało się otworzyć strony połączenia ChatGPT.",
   "error.provider.noneReady": "Żaden dostawca agentów nie jest gotowy.",
   "error.provider.claudeTurnActive": "Zaczekaj na zakończenie aktywnej tury Claude, zanim odświeżysz jego kontekst.",
@@ -226,6 +231,12 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini nie otworzył strony logowania. Zainstaluj przeglądarkę i xdg-utils, a potem połącz się z sesji pulpitu na tym hoście. Serwer bez pulpitu nie może ukończyć tego logowania.",
   "error.provider.acpSignInFailed": "Logowanie nie zostało ukończone.",
+  "error.provider.acpSignInFailedReason": "Logowanie nie zostało ukończone: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Ten dostawca nie oferuje tego logowania na tym komputerze. Zaktualizuj dostawcę i spróbuj ponownie.",
+  "error.provider.httpsSignInLinkOnly": "W przeglądarce można otworzyć tylko linki logowania HTTPS.",
+  "error.provider.geminiKeyRefused":
+    "Gemini odrzucił zapisany klucz API. Zastąp lub usuń klucz w Ustawieniach, a następnie połącz ponownie.",
   "error.provider.messageTooLarge":
     "OpenBot zatrzymał {provider}, ponieważ wysłał on wiadomość większą niż {limit} MB.",
   "error.provider.customAgentIdInvalid":

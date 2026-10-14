@@ -97,7 +97,7 @@ export function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentLi
   const { t } = useText();
   const [background] = useThemeColor(["background"]);
   const { width: windowWidth } = useWindowDimensions();
-  const { pinnedAgentIds, pinnedChannelIds } = useMobileWorkspace();
+  const { pinnedAgentIds } = useMobileWorkspace();
   const { toggleAgentPinAnimated, transition } = useAgentPinTransition();
   const editMenu = useRef<MenuComponentRef>(null);
   const agentContextMenu = useAgentContextMenu(agent);
@@ -201,7 +201,7 @@ export function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentLi
   return (
     <AgentPinSwipeRow
       agentName={agent.name}
-      pinBlocked={!canToggleAgentPin([...pinnedAgentIds, ...pinnedChannelIds], agent.id)}
+      pinBlocked={!canToggleAgentPin(pinnedAgentIds, agent.id)}
       onPin={(withHaptic) => toggleAgentPinAnimated(agent.id, { haptic: withHaptic })}
     >
       {Platform.OS === "android" ? (

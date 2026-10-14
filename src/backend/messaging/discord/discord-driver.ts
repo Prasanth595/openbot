@@ -6,6 +6,7 @@ import {
   type DiscordApiRequest,
   type DiscordButton,
   type DiscordHistoryMessage,
+  decodeDiscordChannels,
   decodeDiscordHistory,
   decodeDiscordMessageId,
   decodeDiscordName,
@@ -26,6 +27,7 @@ import type {
   MessagingDriver,
   MessagingDriverOptions,
   MessagingIngress,
+  MessagingPlace,
   StatusReaction,
 } from "../messaging-types";
 import { DiscordApiError, MessagingAdapterError } from "../messaging-types";
@@ -399,6 +401,19 @@ class DiscordAdapter implements MessagingAdapter {
     yield* Deferred.succeed(name, result);
     return result;
   }, Effect.uninterruptible);
+
+  /** A Signal that predates `listChannels` refuses it as an invalid request. */
+  places(): Effect.Effect<MessagingPlace[], MessagingAdapterError> {
+    return this.#call({ op: "listChannels", guildId: this.#guildId }, decodeDiscordChannels).pipe(
+      Effect.map((channels) =>
+        channels.map((channel) => ({
+          id: channel.id,
+          name: channel.kind === "channel" ? `#${channel.name}` : channel.name,
+          kind: channel.kind,
+        })),
+      ),
+    );
+  }
 
   /** Signal posts with no mention allowed, so a mention shows the person and pings nobody. */
   mention(userId: string): string {

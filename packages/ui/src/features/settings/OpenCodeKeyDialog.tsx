@@ -211,7 +211,9 @@ export function OpenCodeKeyDialog(props: OpenCodeKeyDialogProps) {
                 <Button type="button" variant="ghost" disabled={busy()} onClick={props.onClose}>
                   {t("common.cancel")}
                 </Button>
-                <Show when={props.onReconnect}>
+                {/* Gemini's reconnect is a Google sign-in, which a saved key overrides. The row's
+                    Connect offers it once the key is removed. */}
+                <Show when={props.onReconnect && provider() !== "antigravity"}>
                   <Button type="button" variant="ghost" disabled={busy()} onClick={() => void reconnect()}>
                     {t("provider.action.reconnect")}
                   </Button>

@@ -61,13 +61,14 @@ const NETWORK_CODES = [
  * in the middle: `failed to fetch codex rate limits: GET https://… failed: 401 Unauthorized; body={
  * "error": { "message": "Could not parse your authentication token…" } }`. The anchored status rules
  * below cannot see that, and without this set the whole exchange - URL, headers and body - was
- * printed to the user verbatim.
+ * printed to the user verbatim. Codex also reports an expired sign-in as `workspace routing
+ * discovery unauthorized (401)`, with the code after the word.
  *
  * Bare `401` is deliberately not a signal: it matches ports, byte counts and IDs. Every entry here
  * pairs the code with a word that only an authentication failure uses.
  */
 const AUTH_SIGNALS =
-  /\b401\s+unauthorized\b|\bhttp\s*401\b|"status"\s*:\s*401\b|\bunauthorized_unknown\b|could not parse your authentication token|please try signing in again|\binvalid_api_key\b|\bnot authenticated\b/iu;
+  /\b401\s+unauthorized\b|\bunauthorized\s*\(\s*401\s*\)|\bhttp\s*401\b|"status"\s*:\s*401\b|\bunauthorized_unknown\b|could not parse your authentication token|please try signing in again|\binvalid_api_key\b|\bnot authenticated\b/iu;
 
 /** Runtime output, stack traces, paths and serialized objects: never shown, whatever the kind. */
 const TECHNICAL_OUTPUT =

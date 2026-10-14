@@ -52,6 +52,8 @@ class FakeSlack {
   readonly replies = new Map<string, DynamicRecord[]>();
   /** The newest messages of channel C1, newest first, as `conversations.history` gives them. */
   channelHistory: DynamicRecord[] = [];
+  /** The workspace's channels. `users.conversations` gives the ones that OpenBot is a member of. */
+  channels: DynamicRecord[] = [];
   appId = "A1";
   rejectBotToken = false;
   rateLimitOnce: string | null = null;
@@ -189,6 +191,8 @@ class FakeSlack {
         return reply({ messages: this.replies.get(params.ts ?? "") ?? [] });
       case "conversations.history":
         return reply({ messages: params.channel === "C1" ? this.channelHistory : [] });
+      case "users.conversations":
+        return reply({ channels: this.channels.filter((channel) => channel.is_member === true) });
       case "chat.postMessage":
         this.#ts += 1;
         return reply({ ts: `${this.#ts}.000` });
@@ -509,6 +513,42 @@ describe.sequential("Slack messaging end to end", () => {
     expect(direct).toMatchObject({ success: false });
     expect(memories.list(connectionId).some((memory) => memory.text === "A private fact.")).toBe(false);
     report.workspaceMemories = { sharedAcrossThreads: true, cap: 32, historyCalls: 1 };
+  });
+
+  // Failure modes: the user's own chat or a routine run cannot reach a connected platform; a secret
+  // in the text reaches Slack; the list shows a channel OpenBot cannot post in; an unknown
+  // connection id posts anyway.
+  it("lets an agent outside a platform turn list the places and post to one, without secrets", async () => {
+    const { agent, client, store } = await connected();
+    slack.channels = [
+      { id: "C1", name: "general", is_member: true },
+      { id: "C9", name: "bot-inflow", is_member: true, is_private: true },
+      { id: "C7", name: "random", is_member: false },
+    ];
+    await runCauseEffect(service?.sendMessage({ agentId: agent.id, text: "Report to Slack." }) ?? Effect.void);
+    await waitFor(() => Boolean(store.activeProviderSession(agent.id)?.externalSessionId));
+    const session = store.activeProviderSession(agent.id)?.externalSessionId ?? "";
+    const call = async (name: string, args: DynamicRecord) =>
+      (await callOpenBotTool(client, session, "tool_call", { name: `openbot.${name}`, arguments: args })).result;
+
+    const connections = openBotToolPayload(await call("messaging_list_places", {})).connections;
+    expect(connections).toEqual([{ connection: expect.any(String), platform: "Slack", name: expect.any(String) }]);
+    const connection = String((Array.isArray(connections) ? connections[0] : {})?.connection);
+    expect(openBotToolPayload(await call("messaging_list_places", { connection })).places).toEqual([
+      { id: "C1", name: "#general", kind: "channel" },
+      { id: "C9", name: "#bot-inflow", kind: "private" },
+    ]);
+
+    const posted = await call("messaging_post", { connection, place: "C9", text: `Daily report. Token ${BOT_TOKEN}` });
+    expect(openBotToolPayload(posted)).toEqual({ posted: true });
+    const post = slack.of("chat.postMessage").find((request) => request.params.channel === "C9");
+    expect(post?.params.text).toContain("Daily report.");
+    expect(post?.params.text).not.toContain(BOT_TOKEN);
+    expect(post?.params.thread_ts).toBeUndefined();
+    expect(await call("messaging_post", { connection: "missing", place: "C9", text: "Hi" })).toMatchObject({
+      success: false,
+    });
+    expect(slack.of("chat.postMessage").filter((request) => request.params.channel === "C9")).toHaveLength(1);
   });
 
   it("runs a redelivered event once, and a reply without a mention only in a known thread", async () => {

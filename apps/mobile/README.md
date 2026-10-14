@@ -171,9 +171,8 @@ and hold on a waiting message opens the native context menu with Edit and Don't 
 history waits for the server, `Waiting for connection` shows under the reconnect status above the
 composer; in the chat that status shows only the attempt and the countdown. The outbox is saved per account in the app's documents,
 so it survives a restart. Each chat sends its messages one at a time and in order while its server is
-online. An agent message carries a `clientMessageId` when the host advertises `message-client-id-v1`,
-and a channel message uses the same id as its `operationId`, so a repeat after a lost reply stores
-the message once. A message that the host refused shows `Not sent`, and its menu adds Retry; it holds
+online. A message carries a `clientMessageId` when the host advertises `message-client-id-v1`, so a
+repeat after a lost reply stores the message once. A message that the host refused shows `Not sent`, and its menu adds Retry; it holds
 the later messages of its chat. A message that the host may have stored is not repeated when
 the host cannot drop a repeat, or 12 hours after its first attempt; it shows `Not confirmed`. This
 visual state is derived only in the mobile UI: it never changes the agent's synced avatar profile or
@@ -207,7 +206,7 @@ src/
   app/                  Expo Router routes and layouts only
     (app)/              routes available to an authenticated session
   features/
-    auth/               QR sign-in, session storage, and session context
+    auth/               QR and email sign-in, session storage, and session context
     agents/             agent list, agent actions, and pin transitions
     chat/               chat screen and its focused UI sections
     search/             search model, controls, results, and screen
@@ -352,10 +351,16 @@ To release a new marketing version, run `bun run mobile:release:patch`, `mobile:
 `apps/mobile/CHANGELOG.md`, which the Mobile tab of the public `/changelog` page shows, and sets the
 version in `app.json`, `package.json` and `bun.lock`. Merge that change to `main`, then dispatch the release.
 
-The new section is `## [x.y.z] - In review`, and `/changelog` does not show it. Apple can take days to
-approve a build for external testers. When testers can install the build, run
-`bun run mobile:release:published`. It replaces `In review` with today's date. Merge that change to
-`main`, and the site shows the version. A new `mobile:release:*` stops while a version is in review.
+The new section is `## [x.y.z] - In review`, and `/changelog` does not show it. Apple and Google
+review a build on their own, and each can take days. When testers can install the build from one
+store, run `bun run mobile:release:published ios` or `bun run mobile:release:published android`.
+It writes today's date for that store, for example `## [x.y.z] - 2026-10-14 (Android)`. Merge that
+change to `main`, and the site shows the version with that store, and the other store as "In review".
+When the other store makes the build available, run the command again with that store. The heading
+becomes `## [x.y.z] - 2026-10-14 (Android), 2026-10-16 (iOS)`, or `## [x.y.z] - 2026-10-14` when
+both dates are the same. Use `both` when the two stores make the build available on the same day.
+For an older version, add `--version x.y.z`. A new `mobile:release:*` stops while no store has the
+current version.
 The signed `.ipa` is saved as a GitHub Actions artifact for seven days before upload. If upload
 fails, download that artifact and retry with Transporter to avoid rebuilding. Re-running the full
 workflow creates a new build number.
@@ -409,7 +414,7 @@ upload, select **Run workflow** on `main` in GitHub, or run
 
 EAS increments the remote Android `versionCode`; a failed build can consume a number. iOS and Android
 use the same marketing version in `app.json` and the same notes in `apps/mobile/CHANGELOG.md`. Run
-`bun run mobile:release:published` when testers on both platforms can install the build.
+`bun run mobile:release:published android` when testers can install the build from Google Play.
 The signed `.aab` is saved as a GitHub Actions artifact for seven days before upload. If upload fails,
 upload that artifact in Play Console to avoid rebuilding.
 

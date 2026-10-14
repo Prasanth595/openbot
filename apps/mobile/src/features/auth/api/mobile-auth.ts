@@ -1,5 +1,6 @@
 import { type AvatarMimeType, isValidAvatarImage } from "@openbot/contracts/avatar-images";
 import { AVATAR_IMAGE_LIMITS } from "@openbot/contracts/input-limits";
+import { OPENBOT_CONTROL_PLANE_ORIGIN } from "@openbot/contracts/invite-links";
 import type { CentralAuthUser } from "@openbot/contracts/ipc";
 import {
   isMobileConnectDevelopmentHost,
@@ -9,7 +10,8 @@ import {
   validateMobileConnectHostBinding,
 } from "@openbot/contracts/mobile-connect";
 import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import { validateProfileName } from "@openbot/contracts/validation";
+import { normalizeEmailAddress, normalizeOneTimeCode, validateProfileName } from "@openbot/contracts/validation";
+import type { MobileTextKey } from "@openbot/i18n/mobile";
 import * as Crypto from "expo-crypto";
 import * as Device from "expo-device";
 import * as SecureStore from "expo-secure-store";
@@ -38,7 +40,13 @@ export interface MobileSession {
   apiUrl: string;
   sessionToken: string;
   user: CentralAuthUser;
-  host: MobileConnectHostBinding;
+  /** The desktop whose QR code signed the phone in. An email sign-in has no host. */
+  host?: MobileConnectHostBinding;
+  /**
+   * Set when an email code signed the phone in. A stored session with no host and no marker is a
+   * legacy QR session, which is revoked and never restored.
+   */
+  signIn?: "email";
 }
 
 type MobileCredential = Pick<MobileSession, "apiUrl" | "sessionToken">;
@@ -99,10 +107,141 @@ async function redeemMobileConnectSession(value: string): Promise<MobileSession>
     throw new Error(apiErrorMessage(body) ?? currentText().t("mobile.auth.error.codeExpired"));
   }
 
-  const session = decodeMobileSession(body, payload.apiUrl);
+  const session = decodeMobileSession(body, payload.apiUrl, false);
   session.host = validateMobileConnectHostBinding(payload.host, session.host);
   await saveMobileSession(session);
   return session;
+}
+
+/** The account service for email sign-in. A development build can name a local one. */
+function mobileAccountApiUrl(): string {
+  const override = process.env.EXPO_PUBLIC_OPENBOT_API_URL;
+  return (override && __DEV__ && normalizeAccountApiUrl(override)) || OPENBOT_CONTROL_PLANE_ORIGIN;
+}
+
+export interface MobileEmailChallenge {
+  challengeId: string;
+  email: string;
+  resendAt: number;
+  /** Only a development account service sends it. */
+  developmentCode?: string;
+}
+
+/** A failed email sign-in step. `code` is the account service error code. */
+export class MobileEmailSignInError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly retryAfterSeconds?: number,
+  ) {
+    super(message);
+  }
+}
+
+/** Sends a sign-in code. Use the same `requestId` again to check the delivery of the same code. */
+export async function startMobileEmailSignIn(email: string, requestId: string): Promise<MobileEmailChallenge> {
+  const text = currentText();
+  const address = normalizeEmailAddress(email);
+  if (!address) throw new MobileEmailSignInError(text.t("mobile.auth.email.error.invalidEmail"), "invalid_email");
+  const { response, body } = await mobileEmailRequest(
+    "/v1/auth/email/start",
+    { email: address },
+    { "Idempotency-Key": requestId },
+  );
+  if (!response.ok) throw mobileEmailError(response, body, "mobile.auth.email.error.sendFailed");
+  if (!isDynamicRecord(body) || !isString(body.challengeId) || typeof body.resendAt !== "number") {
+    throw new MobileEmailSignInError(text.t("mobile.auth.email.error.sendFailed"), "invalid_response");
+  }
+  return {
+    challengeId: body.challengeId,
+    email: address,
+    resendAt: body.resendAt,
+    ...(isString(body.developmentCode) ? { developmentCode: body.developmentCode } : {}),
+  };
+}
+
+/** Verifies the code and saves the new session. The session is a mobile session with no host. */
+export async function verifyMobileEmailCode(challengeId: string, code: string): Promise<MobileSession> {
+  if (mobileConnectInFlight) throw new Error(currentText().t("mobile.auth.error.connectionInProgress"));
+  mobileConnectInFlight = true;
+  try {
+    const normalized = normalizeOneTimeCode(code);
+    if (!normalized) {
+      throw new MobileEmailSignInError(
+        currentText().t("mobile.auth.email.error.codeIncorrect"),
+        "invalid_sign_in_code",
+      );
+    }
+    void retryMobileSessionRevocations();
+    const current = await serializeMobileSessionStorage(() => readStoredSessionAndRevokeInvalid(true));
+    if (current) throw new Error(currentText().t("mobile.auth.error.alreadySignedIn"));
+    const device = await mobileDeviceIdentity();
+    const apiUrl = mobileAccountApiUrl();
+    const { response, body } = await mobileEmailRequest("/v1/mobile-auth/email/verify", {
+      challengeId,
+      code: normalized,
+      deviceId: device.id,
+      deviceName: device.name,
+      platform: device.platform,
+    });
+    if (!response.ok) throw mobileEmailError(response, body, "mobile.auth.email.error.verifyFailed");
+    const session = decodeMobileSession(body, apiUrl, true);
+    await saveMobileSession(session);
+    return session;
+  } finally {
+    mobileConnectInFlight = false;
+  }
+}
+
+async function mobileEmailRequest(
+  path: string,
+  payload: Record<string, string>,
+  headers: Record<string, string> = {},
+): Promise<{ response: Response; body: DynamicRecord | null }> {
+  try {
+    return await withMobileAuthRequestTimeout(async (signal) => {
+      const request = await fetch(new URL(path, mobileAccountApiUrl()).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify(payload),
+        signal,
+      });
+      return { response: request, body: await readResponseBody(request, signal) };
+    });
+  } catch {
+    throw new MobileEmailSignInError(
+      currentText().t("mobile.auth.error.accountServiceUnreachable"),
+      "auth_api_unavailable",
+    );
+  }
+}
+
+const EMAIL_SIGN_IN_ERRORS = new Map<string, MobileTextKey>([
+  ["invalid_email", "mobile.auth.email.error.invalidEmail"],
+  ["code_recently_sent", "mobile.auth.email.error.wait"],
+  ["rate_limited", "mobile.auth.email.error.wait"],
+  ["email_delivery_rate_limited", "mobile.auth.email.error.wait"],
+  ["email_delivery_pending", "mobile.auth.email.error.deliveryUnconfirmed"],
+  ["email_delivery_timeout", "mobile.auth.email.error.deliveryUnconfirmed"],
+  ["email_delivery_unknown", "mobile.auth.email.error.deliveryUnconfirmed"],
+  ["invalid_sign_in_code", "mobile.auth.email.error.codeIncorrect"],
+  ["sign_in_code_expired", "mobile.auth.email.error.codeExpired"],
+  ["too_many_code_attempts", "mobile.auth.email.error.tooManyAttempts"],
+]);
+
+function mobileEmailError(
+  response: Response,
+  body: DynamicRecord | null,
+  fallback: MobileTextKey,
+): MobileEmailSignInError {
+  const code = isDynamicRecord(body?.error) && isString(body.error.code) ? body.error.code : "";
+  const key = EMAIL_SIGN_IN_ERRORS.get(code) ?? fallback;
+  const retryAfter = Number(response.headers.get("Retry-After"));
+  return new MobileEmailSignInError(
+    currentText().t(key),
+    code,
+    Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+  );
 }
 
 export async function readMobileSession(): Promise<MobileSession | null> {
@@ -534,22 +673,23 @@ async function mobileDeviceIdentity(): Promise<{
   return { id, name: name || "Mobile device", platform };
 }
 
-function decodeMobileSession(value: unknown, apiUrl: string): MobileSession {
+/** A QR session must have a valid host. An email session has none. */
+function decodeMobileSession(value: unknown, apiUrl: string, emailSignIn: boolean): MobileSession {
   if (!isDynamicRecord(value) || !isString(value.sessionToken) || value.sessionToken.length > 512) {
     throw new Error("The account service returned an invalid mobile session.");
   }
+  const user = decodeUser(value.user);
+  if (emailSignIn) {
+    if (value.host !== undefined) throw new Error("The mobile session host is invalid.");
+    return { apiUrl, sessionToken: value.sessionToken, user, signIn: "email" };
+  }
   if (!isMobileConnectHostBinding(value.host)) throw new Error("The mobile session host is invalid.");
-  return {
-    apiUrl,
-    sessionToken: value.sessionToken,
-    user: decodeUser(value.user),
-    host: value.host,
-  };
+  return { apiUrl, sessionToken: value.sessionToken, user, host: value.host };
 }
 
 function decodeStoredMobileSession(value: unknown): MobileSession {
   const credential = decodeStoredMobileCredential(value);
-  return decodeMobileSession(value, credential.apiUrl);
+  return decodeMobileSession(value, credential.apiUrl, isDynamicRecord(value) && value.signIn === "email");
 }
 
 // This minimal decoder is only for cleanup, never for restoring authentication.
@@ -562,11 +702,17 @@ function decodeStoredMobileCredential(value: unknown): MobileCredential {
     value.sessionToken.length > 512
   )
     throw new Error("Invalid stored mobile credential.");
-  const parsed = parseMobileConnectUrl(
-    `openbot://mobile-connect?api=${encodeURIComponent(value.apiUrl)}&ticket=${"x".repeat(32)}`,
+  const apiUrl = normalizeAccountApiUrl(value.apiUrl);
+  if (!apiUrl) throw new Error("Invalid stored account API.");
+  return { apiUrl, sessionToken: value.sessionToken };
+}
+
+/** The Mobile Connect rule for an account service origin: HTTPS, or HTTP on a private network. */
+function normalizeAccountApiUrl(value: string): string | null {
+  return (
+    parseMobileConnectUrl(`openbot://mobile-connect?api=${encodeURIComponent(value)}&ticket=${"x".repeat(32)}`)
+      ?.apiUrl ?? null
   );
-  if (!parsed) throw new Error("Invalid stored account API.");
-  return { apiUrl: parsed.apiUrl, sessionToken: value.sessionToken };
 }
 
 function decodeUser(value: unknown): CentralAuthUser {

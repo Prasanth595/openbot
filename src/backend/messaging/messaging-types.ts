@@ -25,6 +25,13 @@ export interface MessageTarget {
   replyThreadId: string | null;
 }
 
+/** A channel, thread or chat that OpenBot can post in, for the agent's `messaging_list_places` tool. */
+export interface MessagingPlace {
+  id: string;
+  name: string;
+  kind: "channel" | "private" | "thread" | "chat";
+}
+
 export interface InboundFile {
   id: string;
   name: string;
@@ -157,6 +164,8 @@ export interface MessagingAdapter {
   download(file: InboundFile, destination: string, maxBytes: number): Effect.Effect<void, MessagingAdapterError>;
   authorName(userId: string): Effect.Effect<string, MessagingAdapterError>;
   placeName(platformChannelId: string): Effect.Effect<string, MessagingAdapterError>;
+  /** The places of this connection that OpenBot can post in now. */
+  places(): Effect.Effect<MessagingPlace[], MessagingAdapterError>;
   mention(userId: string): string;
   /** Joins every public place the platform lets OpenBot join without an invitation. */
   joinPublicPlaces?(): Effect.Effect<void, MessagingAdapterError>;

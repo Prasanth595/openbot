@@ -521,6 +521,7 @@ const openbotApi: OpenBotDesktopApi = {
   }),
   ...bridgeGroup(IPC_ENDPOINTS.providers, {
     connectProvider: decodeAgentStatusFromMain,
+    cancelProviderSignIn: decodeAgentStatusFromMain,
     refreshAgentProviders: decodeAgentStatusFromMain,
     setProviderOn: decodeAgentStatusFromMain,
     restartProvider: decodeAgentStatusFromMain,

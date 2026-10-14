@@ -116,6 +116,55 @@ describe("D1 auth sessions", () => {
   });
 });
 
+describe("email sign-in on a phone", () => {
+  it("makes a mobile session that cannot act as a desktop and replaces the device's earlier session", async () => {
+    const database = migratedDatabase();
+    try {
+      let now = 1_000;
+      const service = new AuthService({
+        repository: new D1AuthRepository(sqliteD1(database)),
+        delivery: null,
+        exposeDevelopmentCode: true,
+        now: () => now,
+      });
+      const device = { id: crypto.randomUUID(), name: "Phone", platform: "ios" as const };
+      const signIn = async () => {
+        const challenge = await runApiEffect(service.startEmailSignIn("person@example.com", "203.0.113.4"));
+        now += 61_000;
+        return runApiEffect(
+          service.verifyMobileEmailCode({
+            challengeId: challenge.challengeId,
+            code: challenge.developmentCode ?? "",
+            sourceIp: "203.0.113.5",
+            device,
+          }),
+        );
+      };
+
+      const first = await signIn();
+      expect(first).toEqual({
+        sessionToken: expect.any(String),
+        user: expect.objectContaining({ id: expect.any(String) }),
+      });
+      await expect(runApiEffect(service.authenticateMobileSession(first.sessionToken))).resolves.toMatchObject({
+        email: "person@example.com",
+      });
+      await expect(runApiEffect(service.authenticateDesktopSession(first.sessionToken))).resolves.toBeNull();
+      await expect(
+        runApiEffect(service.issueMobileAuthTicket(first.sessionToken, "203.0.113.4")),
+      ).rejects.toMatchObject({ status: 401, code: "unauthorized" });
+
+      const second = await signIn();
+      await expect(runApiEffect(service.authenticateMobileSession(first.sessionToken))).resolves.toBeNull();
+      await expect(runApiEffect(service.authenticateMobileSession(second.sessionToken))).resolves.toMatchObject({
+        id: first.user.id,
+      });
+    } finally {
+      database.close();
+    }
+  });
+});
+
 describe("persistent Mobile Connect links", () => {
   it("signs in many phones until the link is replaced, revoked, or its desktop session or host key changes", async () => {
     const database = migratedDatabase();

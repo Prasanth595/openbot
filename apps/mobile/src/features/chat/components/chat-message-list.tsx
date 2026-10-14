@@ -48,7 +48,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useCSSVariable } from "uniwind";
-import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { ChatActivityRow, type ChatActivitySpec } from "@/features/chat/components/chat-activity-row";
 import { type ApprovalDecision, approvalTitle, ChatApprovalCard } from "@/features/chat/components/chat-approval-card";
@@ -219,7 +218,6 @@ interface ChatMessageListProps {
   /** Something covers the list, such as the voice mode, so screen readers skip it. */
   accessibilityHidden?: boolean;
   activity?: MobileAgentActivity;
-  activities?: MobileAgentActivity[];
   agents: MobileAgent[];
   motion: ChatMotion;
   sending: boolean;
@@ -231,7 +229,6 @@ interface ChatMessageListProps {
   appActive: boolean;
   activeTurnId: string | null;
   questionForm?: QuestionPromptController;
-  onSelectQuestion?: (messageId: string) => void;
   /** The approvals that this chat's agents wait on, shown below the activity as on the desktop. */
   approvals?: readonly PendingApproval[];
   /** The browser requests that this chat's agents wait on. The phone shows them above the composer. */
@@ -306,11 +303,9 @@ interface MessageRowShared {
   markRevealed: (id: string) => void;
   replyHaptics: ReturnType<typeof useReplyHaptics>;
   canReply: boolean;
-  canSelectQuestion: boolean;
   actions: {
     reply: (message: ChatBubbleMessage) => void;
     openActions: (message: ChatBubbleMessage) => void;
-    selectQuestion: (messageId: string) => void;
   };
 }
 
@@ -376,11 +371,7 @@ function ContextResetMarkerRow({ muted }: { muted: ViewStyle["backgroundColor"] 
 
 function playbackEligible(message: VisibleMessage) {
   return (
-    message.kind === "message" &&
-    message.author === "agent" &&
-    (message.streaming || message.status === "completed") &&
-    !message.superseded &&
-    (!message.speaker || message.speaker.kind === "agent")
+    message.kind === "message" && message.author === "agent" && (message.streaming || message.status === "completed")
   );
 }
 
@@ -464,7 +455,6 @@ const MessageRow = memo(function MessageRow({
     [eligible, message.id, complete, replySession.progress, enabled, markRevealed, replyHaptics],
   );
   const waiting = awaitingFirstWord(message, shared);
-  const speaker = message.kind === "message" && message.speaker ? agentsById.get(message.speaker.id) : undefined;
   // Another person in an agent chat: a person's bubble in their own colour, seeded by the member id
   // as on desktop, so it does not read as the reader's own.
   const memberColor =
@@ -475,19 +465,13 @@ const MessageRow = memo(function MessageRow({
     ) : message.kind === "context-reset" ? (
       <ContextResetMarkerRow key={message.id} muted={muted} />
     ) : message.kind === "exchange-group" ? (
-      <ChatExchangeGroup key={message.id} group={message} agents={agents} agentsById={agentsById} muted={muted} />
-    ) : message.kind === "exchange" || message.kind === "channel-routing" ? (
-      <ChatExchangeMarker key={message.id} message={message} agents={agents} agentsById={agentsById} muted={muted} />
+      <ChatExchangeGroup key={message.id} group={message} agentsById={agentsById} muted={muted} />
+    ) : message.kind === "exchange" ? (
+      <ChatExchangeMarker key={message.id} message={message} agentsById={agentsById} muted={muted} />
     ) : message.kind === "plan" ? (
       <ChatPlan key={message.id} message={message} />
     ) : message.kind === "question" ? (
-      <ChatQuestionPrompt
-        key={message.id}
-        prompt={message.prompt}
-        controller={questionForm}
-        canSend={canSend}
-        onActivate={shared.canSelectQuestion ? () => actions.selectQuestion(message.id) : undefined}
-      />
+      <ChatQuestionPrompt key={message.id} prompt={message.prompt} controller={questionForm} canSend={canSend} />
     ) : (
       <Animated.View
         key={message.id}
@@ -507,24 +491,6 @@ const MessageRow = memo(function MessageRow({
           <Typography.Paragraph type="body-xs" className="shrink px-1" numberOfLines={1} style={{ color: memberColor }}>
             {message.sender.name.trim() || t("mobile.chat.speaker.memberFallback")}
           </Typography.Paragraph>
-        ) : null}
-        {message.speaker && message.author !== "user" ? (
-          <View className="flex-row items-center gap-1 px-1">
-            {message.speaker.kind === "agent" ? (
-              <BloubAvatarThumbnail
-                agentId={speaker?.id}
-                serverId={speaker?.serverId}
-                seed={speaker?.avatarSeed ?? message.speaker.id}
-                hue={speaker?.avatarHue ?? null}
-                size={20}
-              />
-            ) : null}
-            <Typography.Paragraph type="body-xs" className="shrink text-muted" numberOfLines={1}>
-              {message.superseded
-                ? t("mobile.chat.speaker.superseded", { name: message.speaker.name })
-                : message.speaker.name}
-            </Typography.Paragraph>
-          </View>
         ) : null}
         {message.imageGeneration ? (
           <ChatImageGeneration
@@ -665,7 +631,6 @@ export function ChatMessageList({
   target,
   accessibilityHidden = false,
   activity,
-  activities,
   agents,
   motion,
   sending,
@@ -676,7 +641,6 @@ export function ChatMessageList({
   appActive,
   activeTurnId,
   questionForm,
-  onSelectQuestion,
   approvals = NO_APPROVALS,
   browserRequests = NO_BROWSER_REQUESTS,
   serverName = "",
@@ -773,10 +737,7 @@ export function ChatMessageList({
   );
   const arrivals = useMessageArrivals(replySession.key, messages, animateMessages && historyState === "ready");
   const agentColorMessages = useAgentColorMessages((state) => state.enabled);
-  const userBubbleColor = getBloubAvatarColor(
-    target.kind === "agent" ? target.avatarSeed : target.id,
-    target.kind === "agent" ? target.avatarHue : null,
-  );
+  const userBubbleColor = getBloubAvatarColor(target.avatarSeed, target.avatarHue);
   const appearance = useConnectionAppearance(!canSend);
   const red = Number.parseInt(userBubbleColor.slice(1, 3), 16);
   const green = Number.parseInt(userBubbleColor.slice(3, 5), 16);
@@ -840,13 +801,12 @@ export function ChatMessageList({
     focusHandlers.current.openAt(y);
     focusHandlers.current.onFocusPlaced?.();
   }, []);
-  const actionHandlers = useRef({ onReply, onOpenActions, onSelectQuestion });
-  actionHandlers.current = { onReply, onOpenActions, onSelectQuestion };
+  const actionHandlers = useRef({ onReply, onOpenActions });
+  actionHandlers.current = { onReply, onOpenActions };
   const actions = useMemo<MessageRowShared["actions"]>(
     () => ({
       reply: (message) => actionHandlers.current.onReply?.(message),
       openActions: (message) => actionHandlers.current.onOpenActions(message),
-      selectQuestion: (messageId) => actionHandlers.current.onSelectQuestion?.(messageId),
     }),
     [],
   );
@@ -861,7 +821,7 @@ export function ChatMessageList({
       themeMuted,
       foreground,
       userForeground,
-      userBubbleStyle: target.kind === "agent" && agentColorMessages ? userBubbleStyle : undefined,
+      userBubbleStyle: agentColorMessages ? userBubbleStyle : undefined,
       firstMessageStyle: motion.firstMessageStyle,
       onUserLayout: motion.onUserLayout,
       screenReaderEnabled,
@@ -874,13 +834,11 @@ export function ChatMessageList({
       markRevealed,
       replyHaptics,
       canReply: Boolean(onReply),
-      canSelectQuestion: Boolean(onSelectQuestion),
       actions,
     }),
     [
       agents,
       agentsById,
-      target.kind,
       target.serverId,
       canSend,
       muted,
@@ -900,7 +858,6 @@ export function ChatMessageList({
       markRevealed,
       replyHaptics,
       onReply,
-      onSelectQuestion,
       actions,
     ],
   );
@@ -965,11 +922,7 @@ export function ChatMessageList({
       (message) => message.kind === "thinking" && message.turnId === (activity?.turnId ?? activeTurnId),
     );
     const replying = messages.some(
-      (message) =>
-        isStreamingReply(message) &&
-        message.kind === "message" &&
-        message.body.trim() &&
-        (!activity?.agentId || !message.speaker || message.speaker.id === activity.agentId),
+      (message) => isStreamingReply(message) && message.kind === "message" && message.body.trim(),
     );
     // One run of text, as desktop shows it: the row clamps the label, and blank lines would fill it.
     const thinkingDetail =
@@ -998,11 +951,7 @@ export function ChatMessageList({
                 : replying
                   ? t("mobile.chat.activity.responding")
                   : t("mobile.chat.activity.thinking");
-    const activityAgent = activity?.agentId
-      ? agentsById.get(activity.agentId)
-      : target.kind === "agent"
-        ? target
-        : undefined;
+    const activityAgent = activity?.agentId ? agentsById.get(activity.agentId) : target;
     // As on desktop, the conversation's own turn keeps the row: turn events can arrive late.
     if (!(activity || sending || awaitingTurn || activeTurnId || messages.some(isStreamingReply) || pendingReveal))
       return null;
@@ -1024,9 +973,7 @@ export function ChatMessageList({
         activity?.phase !== "waiting",
     };
   };
-  const activityRows = useActivityPresence(
-    (activities?.length ? activities : [activity]).flatMap((entry) => activitySpec(entry) ?? []),
-  );
+  const activityRows = useActivityPresence([activity].flatMap((entry) => activitySpec(entry) ?? []));
 
   return (
     <Animated.View
@@ -1142,7 +1089,6 @@ export function ChatMessageList({
                       key={String(approval.requestId)}
                       approval={approval}
                       agentName={agentsById.get(approval.agentId)?.name ?? target.name}
-                      showAgentName={target.kind === "channel"}
                       serverName={serverName}
                       canAnswer={canSend}
                       respond={(decision) => onRespondApproval(approval, decision)}

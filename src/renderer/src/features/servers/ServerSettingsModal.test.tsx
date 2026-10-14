@@ -17,6 +17,7 @@ import type { ProviderCodeLoginState } from "@openbot/ui/components/ProviderCode
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
+import type { ProviderConnectionApi } from "../../components/provider-connection-api";
 import { createMockOpenBot } from "../../preview/mock-openbot";
 import type { HostProviderSettings } from "../settings/ProviderSettingsSection";
 import { mcpToolRuntimeNote as note } from "./mcp-servers";
@@ -1298,12 +1299,25 @@ describe("ServerSettingsModal providers", () => {
       openExternal: vi.fn(async () => undefined),
     };
     const onConnectProvider = vi.fn(async () => undefined);
+    // This computer: Connect, and the dialog's Reconnect, are the browser sign-in.
+    const connection: ProviderConnectionApi = {
+      connectKind: () => "browser",
+      alternativeKind: () => null,
+      connect: onConnectProvider,
+      alternative: vi.fn(),
+      provider: () => null,
+      state: () => ({ phase: "starting" }),
+      opener: () => null,
+      useApp: () => null,
+      closeUseApp: vi.fn(),
+      submit: vi.fn(),
+      cancel: vi.fn(),
+      openVerificationUrl: vi.fn(),
+      openRelayPage: vi.fn(async () => undefined),
+      pasteRelayAddress: vi.fn(async () => undefined),
+    };
     render(() => (
-      <ProvidersSection
-        agentStatus={openCodeReadyStatus}
-        providerKeys={providerKeys}
-        onConnectProvider={onConnectProvider}
-      />
+      <ProvidersSection agentStatus={openCodeReadyStatus} providerKeys={providerKeys} connection={connection} />
     ));
 
     await screen.findByText("Free");
@@ -1336,11 +1350,15 @@ describe("ServerSettingsModal providers", () => {
     const [state, setState] = createSignal<ProviderCodeLoginState>({ phase: "starting" });
     const [provider, setProvider] = createSignal<AgentProviderId | null>(null);
     const codeLogin = {
-      providers: () => ["codex" as const],
+      connectKind: () => null,
+      alternativeKind: (id: AgentProviderId) => (id === "codex" ? ("code" as const) : null),
       provider,
       state,
       submit: vi.fn(),
-      start: vi.fn((id: AgentProviderId) => {
+      connect: vi.fn(async () => undefined),
+      useApp: () => null,
+      closeUseApp: vi.fn(),
+      alternative: vi.fn((id: AgentProviderId) => {
         setProvider(id);
         setState({
           phase: "waiting",
@@ -1355,7 +1373,7 @@ describe("ServerSettingsModal providers", () => {
       pasteRelayAddress: vi.fn(async () => undefined),
       opener: () => null,
     };
-    render(() => <ProvidersSection agentStatus={codexSignedOutStatus} codeLogin={codeLogin} />);
+    render(() => <ProvidersSection agentStatus={codexSignedOutStatus} connection={codeLogin} />);
 
     // The menu is a Kobalte trigger: it wants the pointer press as well as the click.
     const moreActions = await screen.findByRole("button", { name: "More actions for ChatGPT" });
@@ -1363,7 +1381,7 @@ describe("ServerSettingsModal providers", () => {
     fireEvent.click(moreActions);
     fireEvent.pointerUp(await screen.findByRole("menuitem", { name: "Log in with code" }), { button: 0 });
 
-    await waitFor(() => expect(codeLogin.start).toHaveBeenCalledWith("codex"));
+    await waitFor(() => expect(codeLogin.alternative).toHaveBeenCalledWith("codex"));
     expect(await screen.findByLabelText("Login code K T Q 4 - B 6 2 M X")).toHaveTextContent("KTQ4-B62MX");
 
     fireEvent.click(screen.getByRole("button", { name: "Close log in to ChatGPT" }));

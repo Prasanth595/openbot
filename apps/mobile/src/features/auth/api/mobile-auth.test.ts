@@ -12,6 +12,7 @@ import {
   revokeMobileAccountSession,
   updateMobileProfile,
   validateMobileSession,
+  verifyMobileEmailCode,
 } from "./mobile-auth";
 import { mobileUserName } from "./mobile-user-name";
 
@@ -222,6 +223,33 @@ describe("Mobile Connect redemption", () => {
     native.fetch.mockResolvedValueOnce(Response.json(session));
     await expect(redeemMobileConnectUrl(qrCode)).resolves.toEqual(session);
     expect(await readMobileSession()).toEqual(session);
+  });
+});
+
+describe("email sign-in", () => {
+  it("saves a session with no host and restores it on the next launch without revoking it", async () => {
+    native.storage.clear();
+    native.storage.set("openbot.mobile.device-id.v1", "existing-device");
+    native.fetch.mockResolvedValueOnce(Response.json({ sessionToken: "email-token", user: session.user }));
+    const signedIn = await verifyMobileEmailCode("challenge", "abcd-efgh");
+    expect(native.fetch).toHaveBeenCalledWith(
+      `${session.apiUrl}/v1/mobile-auth/email/verify`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          challengeId: "challenge",
+          code: "ABCDEFGH",
+          deviceId: "existing-device",
+          deviceName: "Mobile device",
+          platform: "ios",
+        }),
+      }),
+    );
+    const expected = { apiUrl: session.apiUrl, sessionToken: "email-token", user: session.user, signIn: "email" };
+    expect(signedIn).toEqual(expected);
+    native.fetch.mockClear();
+    expect(await readMobileSession()).toEqual(expected);
+    expect(native.fetch).not.toHaveBeenCalled();
   });
 });
 

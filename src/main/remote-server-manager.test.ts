@@ -974,7 +974,7 @@ describe("remote connection failures", () => {
 
     // Retrying by hand is the act the suspension was waiting for. A host still suspended after it
     // reads every later disconnect as the old failure and never reconnects on its own again.
-    vi.spyOn(transport, "connect").mockReturnValue(Effect.succeed(undefined));
+    vi.spyOn(transport, "retry").mockReturnValue(Effect.succeed(undefined));
     await runCauseEffect(fixture.manager.retryConnection(hostId));
     transport.emit("disconnected", hostId);
     expect(fixture.server(hostId)).toMatchObject({ state: "offline" });
@@ -1015,7 +1015,7 @@ describe("remote connection failures", () => {
     const roster = vi.fn();
     fixture.manager.on("agent", roster);
     const disconnect = vi.spyOn(transport, "disconnect");
-    vi.spyOn(transport, "connect").mockImplementation(() =>
+    vi.spyOn(transport, "retry").mockImplementation(() =>
       remoteCall(async () => {
         transport.emit("connected", hostId);
       }),
@@ -1026,7 +1026,7 @@ describe("remote connection failures", () => {
     expect(disconnect).not.toHaveBeenCalled();
   });
 
-  // A retry has to leave a working host reading as working. `connect` on a channel that never
+  // A retry has to leave a working host reading as working. `retry` on a channel that never
   // dropped announces nothing -- there is no new session to announce -- so nothing else clears the
   // "connecting" the retry itself just set, and the host read as reconnecting for as long as it
   // stayed up.
@@ -1043,7 +1043,7 @@ describe("remote connection failures", () => {
         role: "member",
       },
     ]);
-    vi.spyOn(transport, "connect").mockReturnValue(Effect.succeed(undefined));
+    vi.spyOn(transport, "retry").mockReturnValue(Effect.succeed(undefined));
     vi.spyOn(transport, "isConnected").mockReturnValue(true);
     const fixture = await createRemoteManager({
       servers: [storedHttpsServer(hostId, { transport: "webrtc-v2", apiUrl: `webrtc://${hostId}` })],

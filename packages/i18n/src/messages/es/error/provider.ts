@@ -166,6 +166,7 @@ export const messages = {
     "La CLI de {provider} está procesando un turno. Espera a que termine y luego actualiza.",
   "error.provider.cliSelectFailed": "OpenBot no pudo seleccionar la CLI gestionada instalada.",
   "error.provider.noAuthenticatedAccount": "{provider} no devolvió una cuenta autenticada.",
+  "error.provider.signInExpired": "Tu sesión de {provider} caducó. Vuelve a iniciar sesión para continuar.",
   "error.provider.cliActivateFailed": "OpenBot no pudo activar la CLI gestionada.",
   "error.provider.cliBusyReconnect":
     "La CLI de {provider} está procesando un turno. Espera a que termine y vuelve a conectar.",
@@ -183,6 +184,10 @@ export const messages = {
     "El proveedor del modelo tuvo un fallo interno. Tu conexión no es la causa. Inténtalo más tarde o elige otro modelo.\n{detail}",
   "error.provider.opencodeNetwork":
     "OpenCode no pudo conectarse al proveedor del modelo. Comprueba la conexión de red del equipo que ejecuta OpenBot e inténtalo de nuevo.\n{detail}",
+  "error.provider.opencodeNoAnswer":
+    "El modelo de OpenCode terminó el turno sin respuesta. Inténtalo de nuevo o elige otro modelo.",
+  "error.provider.opencodeReasoningWithoutAnswer":
+    "El modelo de OpenCode terminó el turno después de razonar, sin respuesta. Inténtalo de nuevo o elige otro modelo.",
   "error.provider.chatgptPageFailed": "OpenBot no pudo abrir la página de conexión de ChatGPT.",
   "error.provider.noneReady": "Ningún proveedor de agentes está listo.",
   "error.provider.claudeTurnActive": "Espera a que termine el turno activo de Claude antes de actualizar su contexto.",
@@ -232,6 +237,12 @@ export const messages = {
   "error.provider.geminiBrowserUnavailable":
     "Gemini no pudo abrir la página de inicio de sesión. Instala un navegador y xdg-utils, y conéctate desde una sesión de escritorio en este host. Un servidor sin escritorio no puede completar este inicio de sesión.",
   "error.provider.acpSignInFailed": "El inicio de sesión no se completó.",
+  "error.provider.acpSignInFailedReason": "El inicio de sesión no se completó: {reason}",
+  "error.provider.acpSignInMethodMissing":
+    "Este proveedor no ofrece este inicio de sesión en este ordenador. Actualiza el proveedor y vuelve a intentarlo.",
+  "error.provider.httpsSignInLinkOnly": "Solo se pueden abrir en el navegador enlaces de inicio de sesión HTTPS.",
+  "error.provider.geminiKeyRefused":
+    "Gemini rechazó la clave de API guardada. Reemplaza o elimina la clave en Ajustes y vuelve a conectar.",
   "error.provider.messageTooLarge": "OpenBot detuvo {provider} porque envió un mensaje de más de {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "Un ID de agente debe contener letras minúsculas, dígitos o `-`, y no puede ser el ID de un proveedor integrado.",

@@ -762,6 +762,47 @@ describe("TeamWebRtcClientTransport", () => {
     }
   });
 
+  // After a host restart, the path stayed open while the new host process ignored this peer. Each
+  // request timed out, and Retry returned at once because the host read connected.
+  it("connects again on a retry when a host that reads connected does not answer", async () => {
+    const bridge = new TeamWebRtcBridge();
+    const connect = vi.spyOn(bridge, "connect").mockImplementation(({ peerId }) =>
+      remoteCall(async () => {
+        queueMicrotask(() => bridge.emit("connected", peerId, channelBinding));
+      }),
+    );
+    const disconnect = vi.spyOn(bridge, "disconnect").mockReturnValue(Effect.void);
+    const authentication = mockAuthenticatedSend(bridge);
+    const authenticatedSend = authentication.send.getMockImplementation();
+    let hostAnswers = true;
+    authentication.send.mockImplementation((hostId, channel, data) =>
+      hostAnswers ? (authenticatedSend?.(hostId, channel, data) ?? Effect.void) : Effect.void,
+    );
+    const transport = createTransport(bridge);
+    transport.pinHostKey("host-1", hostKeys.publicKey);
+    try {
+      await runCauseEffect(transport.connect("host-1"));
+      await runCauseEffect(transport.retry("host-1"));
+      expect(connect).toHaveBeenCalledOnce();
+
+      hostAnswers = false;
+      authentication.send.mockClear();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+      const retry = runCauseEffect(transport.retry("host-1"));
+      await vi.waitFor(() => expect(authentication.send).toHaveBeenCalledOnce());
+      hostAnswers = true;
+      await vi.advanceTimersByTimeAsync(15_000);
+      await retry;
+      // A late answer on the old peer would arrive before authentication and fail the protocol.
+      expect(disconnect).toHaveBeenCalledWith("host-1");
+      expect(connect).toHaveBeenCalledTimes(2);
+      expect(transport.isConnected("host-1")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+      await runCauseEffect(transport.stop());
+    }
+  });
+
   // A new connection forgets the host protocol. The first request must still carry the v7 list, or
   // a v7 route such as the provider sign-in refuses it as an unsupported connection.
   it("reads the host protocol before the first request on a new connection", async () => {

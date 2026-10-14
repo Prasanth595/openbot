@@ -6,7 +6,6 @@ export const messages = {
   "mobile.search.filter.label": "結果を絞り込む",
   "mobile.search.filter.all": "すべて",
   "mobile.search.filter.agents": "エージェント",
-  "mobile.search.filter.channels": "チャンネル",
   "mobile.search.filter.messages": "メッセージ",
   "mobile.search.filter.files": "ファイル",
   "mobile.search.filter.routines": "ルーティン",

@@ -253,29 +253,58 @@ export class AuthService {
         sourceIp: string;
       },
     ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
-      const dependencies = yield* AuthDependencies;
-      const now = dependencies.now();
-      yield* this.#enforceRateLimit(`verify:ip:${normalizeSourceIp(input.sourceIp)}`, 30, now);
-      if (!input.challengeId || input.challengeId.length > 128 || input.code.length > 32) {
-        return yield* new AuthServiceError(400, "invalid_sign_in_code", "The sign-in code is invalid.");
-      }
-      const idHash = yield* sha256(input.challengeId);
-      const normalizedCode = yield* authValidate(() => safeNormalizeCode(input.code));
-      const codeHash = yield* sha256(normalizedCode);
-      const result = yield* dependencies.repository.verifyEmailChallenge({
-        idHash,
-        codeHash,
-        now,
-        session: {
-          id: crypto.randomUUID(),
-          token: randomToken(),
-          expiresAt: PERSISTENT_SESSION_EXPIRES_AT,
-        },
-      });
-      return yield* authValidate(() => verificationResult(result));
+      return yield* this.#verifyEmailChallenge(input);
     },
     (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
   ).bind(this);
+
+  /** Signs a phone in with an email code. The session is a mobile session with no host binding. */
+  readonly verifyMobileEmailCode = Effect.fn("AuthService.verifyMobileEmailCode")(
+    function* (
+      this: AuthService,
+      input: {
+        challengeId: string;
+        code: string;
+        sourceIp: string;
+        device: MobileAuthDeviceIdentity;
+      },
+    ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
+      const dependencies = yield* AuthDependencies;
+      const device = yield* authValidate(() => normalizeMobileDevice(input.device));
+      const session = yield* this.#verifyEmailChallenge({ ...input, device });
+      // The new session replaces the earlier session of this device.
+      yield* dependencies.flushSessionRevocations();
+      return session;
+    },
+    (operation) => operation.pipe(Effect.mapError(authFailure), Effect.provide(this.#layer)),
+  ).bind(this);
+
+  readonly #verifyEmailChallenge = Effect.fn("AuthService.verifyEmailChallenge")(function* (
+    this: AuthService,
+    input: { challengeId: string; code: string; sourceIp: string; device?: MobileAuthDeviceIdentity },
+  ): Effect.fn.Return<{ sessionToken: string; user: AuthUser }, AuthWorkflowFailure, AuthDependencies> {
+    const dependencies = yield* AuthDependencies;
+    const now = dependencies.now();
+    yield* this.#enforceRateLimit(`verify:ip:${normalizeSourceIp(input.sourceIp)}`, 30, now);
+    if (!input.challengeId || input.challengeId.length > 128 || input.code.length > 32) {
+      return yield* new AuthServiceError(400, "invalid_sign_in_code", "The sign-in code is invalid.");
+    }
+    const idHash = yield* sha256(input.challengeId);
+    const normalizedCode = yield* authValidate(() => safeNormalizeCode(input.code));
+    const codeHash = yield* sha256(normalizedCode);
+    const result = yield* dependencies.repository.verifyEmailChallenge({
+      idHash,
+      codeHash,
+      now,
+      session: {
+        id: crypto.randomUUID(),
+        token: randomToken(),
+        expiresAt: PERSISTENT_SESSION_EXPIRES_AT,
+      },
+      ...(input.device ? { device: input.device } : {}),
+    });
+    return yield* authValidate(() => verificationResult(result));
+  });
 
   readonly authenticate = Effect.fn("AuthService.authenticate")(
     function* (

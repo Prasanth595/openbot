@@ -12,12 +12,35 @@ import type { ProviderCodeLoginState } from "@openbot/ui/components/ProviderCode
 import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import { createSignal } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ProviderConnectionApi } from "../../components/provider-connection-api";
 import { STORY_AGENT_STATUS } from "../../preview/fixtures";
 import { createMockOpenBot, type MockOpenBotControls } from "../../preview/mock-openbot";
 import { FirstRunFlow } from "./FirstRunFlow";
 
 let activeMock: MockOpenBotControls | undefined;
 const previousApi = window.openbot;
+
+/** The connection of this computer: Connect is the browser sign-in, and the ⋯ menu offers nothing. */
+function browserConnection(connect: (provider: AgentProviderId) => unknown = vi.fn()): ProviderConnectionApi {
+  return {
+    connectKind: () => "browser",
+    alternativeKind: () => null,
+    connect: async (provider) => {
+      await connect(provider);
+    },
+    alternative: vi.fn(),
+    provider: () => null,
+    state: () => ({ phase: "starting" }),
+    opener: () => null,
+    useApp: () => null,
+    closeUseApp: vi.fn(),
+    submit: vi.fn(),
+    cancel: vi.fn(),
+    openVerificationUrl: vi.fn(),
+    openRelayPage: vi.fn(async () => undefined),
+    pasteRelayAddress: vi.fn(async () => undefined),
+  };
+}
 
 afterEach(() => {
   activeMock?.dispose();
@@ -340,7 +363,7 @@ describe("FirstRunFlow", () => {
         providerRuntimeStatuses={runtimeStatuses()}
         onDownloadProvider={onDownloadProvider}
         onCancelProviderDownload={onCancelProviderDownload}
-        onConnectProvider={onConnectProvider}
+        connection={browserConnection(onConnectProvider)}
         onSave={async () => undefined}
       />
     ));
@@ -408,7 +431,7 @@ describe("FirstRunFlow", () => {
           providerRuntimeStatuses={runtimeStatuses}
           onDownloadProvider={onDownloadProvider}
           onCancelProviderDownload={vi.fn()}
-          onConnectProvider={vi.fn()}
+          connection={browserConnection(vi.fn())}
           onSave={async () => undefined}
         />
         <Toaster />
@@ -421,10 +444,10 @@ describe("FirstRunFlow", () => {
     await fireEvent.click(download);
     expect(onDownloadProvider).toHaveBeenCalledWith("codex");
 
-    // The main button stays pressable and says what it is waiting for, rather than leaving the
-    // screen to be read as broken.
-    await fireEvent.click(view.getByRole("button", { name: "Connect" }));
-    expect(await view.findAllByText("Download ChatGPT to continue.")).toHaveLength(2);
+    // The main button names the step that the provider waits for, and starts it.
+    onDownloadProvider.mockClear();
+    await fireEvent.click(view.getByRole("button", { name: "Download" }));
+    expect(onDownloadProvider).toHaveBeenCalledWith("codex");
   });
 
   it("connects the selected provider from the main button and says so", async () => {
@@ -445,7 +468,7 @@ describe("FirstRunFlow", () => {
           state={{ completed: false, preferredProvider: null, preferredModel: null }}
           agentStatus={agentStatus}
           platform="darwin"
-          onConnectProvider={onConnectProvider}
+          connection={browserConnection(onConnectProvider)}
           onSave={async () => undefined}
         />
         <Toaster />
@@ -499,7 +522,7 @@ describe("FirstRunFlow", () => {
         platform="linux"
         providerRuntimeStatuses={runtimeStatuses()}
         onDownloadProvider={onDownloadProvider}
-        onConnectProvider={onConnectProvider}
+        connection={browserConnection(onConnectProvider)}
         onSave={onSave}
       />
     ));
@@ -574,7 +597,7 @@ describe("FirstRunFlow", () => {
         providerRuntimeStatuses={runtimeStatuses()}
         onDownloadProvider={vi.fn()}
         onCancelProviderDownload={vi.fn()}
-        onConnectProvider={vi.fn()}
+        connection={browserConnection(vi.fn())}
         onSave={async () => undefined}
       />
     ));
@@ -667,11 +690,15 @@ describe("FirstRunFlow", () => {
     const [state, setState] = createSignal<ProviderCodeLoginState>({ phase: "starting" });
     const [provider, setProvider] = createSignal<AgentProviderId | null>(null);
     const codeLogin = {
-      providers: () => ["codex" as const],
+      connectKind: () => null,
+      alternativeKind: (id: AgentProviderId) => (id === "codex" ? ("code" as const) : null),
       provider,
       state,
       submit: vi.fn(),
-      start: vi.fn((id: AgentProviderId) => {
+      connect: vi.fn(async () => undefined),
+      useApp: () => null,
+      closeUseApp: vi.fn(),
+      alternative: vi.fn((id: AgentProviderId) => {
         setProvider(id);
         setState({
           phase: "waiting",
@@ -691,7 +718,7 @@ describe("FirstRunFlow", () => {
         state={{ completed: false, preferredProvider: null, preferredModel: null }}
         agentStatus={agentStatus}
         platform="darwin"
-        codeLogin={codeLogin}
+        connection={codeLogin}
         onSave={async () => undefined}
       />
     ));
@@ -703,7 +730,7 @@ describe("FirstRunFlow", () => {
     await fireEvent.click(moreActions);
     await fireEvent.pointerUp(await screen.findByRole("menuitem", { name: "Log in with code" }), { button: 0 });
 
-    await waitFor(() => expect(codeLogin.start).toHaveBeenCalledWith("codex"));
+    await waitFor(() => expect(codeLogin.alternative).toHaveBeenCalledWith("codex"));
     expect(await screen.findByLabelText("Login code K T Q 4 - B 6 2 M X")).toHaveTextContent("KTQ4-B62MX");
 
     await fireEvent.click(screen.getByRole("button", { name: "Close log in to ChatGPT" }));

@@ -54,9 +54,9 @@ export function subscribeMobileConnectLink(listener: Listener): () => void {
 }
 
 export function isSameMobileConnectTarget(
-  session: { apiUrl: string; host: MobileConnectHostBinding },
+  session: { apiUrl: string; host?: MobileConnectHostBinding },
   link: string,
 ): boolean {
   const payload = parseMobileConnectUrl(link);
-  return payload?.apiUrl === session.apiUrl && payload.host?.hostId === session.host.hostId;
+  return payload?.apiUrl === session.apiUrl && payload.host?.hostId === session.host?.hostId;
 }

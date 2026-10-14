@@ -47,7 +47,7 @@ import {
 import { useText } from "@openbot/ui/text";
 import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
-import { ConnectorsPanel } from "../connectors/ConnectorsPanel";
+import { ConnectorsPanel, type ConnectorsPanelDetail } from "../connectors/ConnectorsPanel";
 import type { DiscordConnectorController } from "../connectors/discord-connector";
 import type { GitHubConnectorController } from "../connectors/github-connector";
 import type { OnePasswordConnectorController } from "../connectors/onepassword-connector";
@@ -230,6 +230,9 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
   const [section, setSection] = createSignal<Section>("general");
   /** Set while the MCP panel shows a form, so the header reads `MCP › Connect to a custom MCP`. */
   const [mcpDetail, setMcpDetail] = createSignal<McpPanelDetail | null>(null);
+  /** Set while an integration page is open, so the header reads `Connectors › GitHub`. */
+  const [connectorDetail, setConnectorDetail] = createSignal<ConnectorsPanelDetail | null>(null);
+  const crumbDetail = () => (section() === "mcp" ? mcpDetail() : section() === "connectors" ? connectorDetail() : null);
   /** The key of the one action in flight, gating every panel at once rather than belonging to any. */
   const [busy, setBusy] = createSignal<string | null>(null);
   const [modalElement, setModalElement] = createSignal<HTMLElement | undefined>();
@@ -409,11 +412,11 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         open={props.open}
         onOpenChange={props.onOpenChange}
         title={
-          <Show when={section() === "mcp" && mcpDetail()} fallback={t(sections[section()].title)}>
+          <Show when={crumbDetail()} fallback={t(sections[section()].title)}>
             {(detail) => (
               <span class="settings-modal-crumbs">
                 <Button type="button" variant="ghost" class="settings-modal-crumb-parent" onClick={detail().back}>
-                  {t(sections.mcp.title)}
+                  {t(sections[section()].title)}
                 </Button>
                 <ChevronRight class="settings-modal-crumb-separator" aria-hidden="true" />
                 <span class="settings-modal-crumb-current">{detail().title}</span>
@@ -774,6 +777,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
               telegram={props.telegramConnector}
               agents={props.connectorAgents ?? []}
               hostName={local() ? undefined : props.server.name}
+              onDetailChange={setConnectorDetail}
             />
           </Tabs.Content>
         </Show>

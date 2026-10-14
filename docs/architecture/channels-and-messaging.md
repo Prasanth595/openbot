@@ -87,7 +87,7 @@ a selected lead, and linked agent conversations. Agent membership selects who ca
 It does not restrict human access: each authenticated server member can read and use its channels.
 The Electron app provides the channel interface. A creation dialog provides member search and optional
 coordination settings. The chat shows each author and keeps settings in a side panel. Channels use the sidebar
-context menu for management and have no Pause or Resume controls. The mobile interface is unchanged.
+context menu for management and have no Pause or Resume controls. The mobile app has no channel interface.
 
 `ChannelStore` stores the canonical transcript, channel configuration, tasks, assignments, summaries,
 execution threads, and human read positions in SQLite. Migration 18 adds these projections without
@@ -140,27 +140,11 @@ separate payload codecs. Released Team API adapters keep their existing meaning.
 the capability only when its channel service is connected. Unsupported remote hosts show an explanation
 in place of channel controls. The account API and Signal service add no channel storage or routing.
 
-Mobile uses the same host channel IDs and `channel-chats-v1` commands. The host database stores
-channel settings, members, messages, memories, routines, and read positions. Mobile keeps only an
-in-memory view. Reconnect loads the host list again. `channels-changed` events refresh the list and
-open channel history, with one request sequence per host and one pending refresh for an event burst.
-Closing a channel retains a short message window (up to 50 messages), as single chats do,
-and releases larger windows. Only open channels refresh their history. Server removal discards its cached channels and late
-responses. The mobile chat list and message history use virtualized lists. Channel member selection
-uses static avatar thumbnails without activity subscriptions or animation timers. Channels appear
-next to agents in the same list, with up to four static member avatars that fade when the host
-is offline. Channel pins share the existing pinned grid and 16-chat limit; local preferences
-preserve agent pins and channel pins separately. Hide removes a channel from the home list and
-unpins it; the shared Hidden chats sheet restores it. Channel and agent pinning use the same
-measured overlay movement, with static folder artwork for channels. Agent and channel screens
-use the same mobile `ChatView`, header, message list, reply gestures, composer, camera, and keyboard
-motion. Their data adapters provide history, sending, and read positions; channels also provide
-author labels and task actions. Channel send retries retain their operation ID and uploaded files.
-
-Mobile channel settings use one native sheet with a nested stack for memories and routines. The
-memory and routine editors share their controls with agent settings and use channel API operations.
-Channel settings have no provider or model controls because each member retains its own runtime.
-No account API, Signal, IPC contract, or database migration changes are required for mobile channels.
+The mobile app has no channel interface. It reads no channel routes or events, and its routine
+calendar and search show only agent routines. Its local preferences no longer keep channel pins or
+hidden channels: a saved record that has them still reads, and the next write drops them. The phone
+cannot read an outbox message that an older app version saved for a channel. It keeps the saved list
+aside as `messages.unreadable-<time>.json` and does not send that message.
 
 ## Messaging connections
 
@@ -268,7 +252,10 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   `openbot` tools. `OpenBotToolRouter` finds the link from the calling turn's execution thread and
   refuses a call from any other thread; no argument names a connection or a channel. The history
   tool calls the adapter's `recent` through `MessagingThreads.setHistorySource`. A fact is not saved
-  from a direct message.
+  from a direct message. The two outbound tools, `messaging_list_places` and `messaging_post`, are
+  the exception: the router passes them to `MessagingThreads.outboundTool` from any thread, their
+  arguments name an enabled connection and a place, and `MessagingService` answers them through
+  `MessagingThreads.setOutbound` with the adapter's `places` and `postAnswer`, after `redactText`.
 - **Order.** The one-turn-per-agent rule is unchanged, so Slack requests wait behind the agent's own
   work and behind channel work that holds the host. The Slack thread shows a waiting post.
 - **Replies.** `MessagingThreads` reports each turn start and end. `MessagingService` posts a status

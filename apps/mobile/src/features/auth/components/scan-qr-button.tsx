@@ -5,7 +5,7 @@ import type { ScanQrButtonProps } from "@/features/auth/components/scan-qr-butto
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
-export function ScanQrButton({ onPress, width }: ScanQrButtonProps) {
+export function ScanQrButton({ onPress, width, height }: ScanQrButtonProps) {
   const { t } = useText();
   const brandColor = String(useCSSVariable("--openbot-logo-production") ?? "#cdadec");
   const labelColor = String(useCSSVariable("--openbot-logo-eye") ?? "#040007");
@@ -19,7 +19,12 @@ export function ScanQrButton({ onPress, width }: ScanQrButtonProps) {
       feedbackVariant="scale"
       className="min-h-13 w-full"
       accessibilityLabel={t("mobile.auth.scanQrCode")}
-      style={{ width, backgroundColor: brandColor, borderRadius: cornerRadius }}
+      style={{
+        width,
+        ...(height === undefined ? {} : { height }),
+        backgroundColor: brandColor,
+        borderRadius: cornerRadius,
+      }}
       onPress={() => {
         void haptics.impact("light");
         onPress();

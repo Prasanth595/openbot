@@ -17,6 +17,7 @@ import {
   DropdownMenu,
   Ellipsis,
   Input,
+  Link,
   RefreshCw,
   RotateCcw,
   SlidersHorizontal,
@@ -31,6 +32,33 @@ import { providerUpdateAvailable, providerVersionLabel } from "../features/provi
 import { useText } from "../text";
 import { createCodeSignInFallback } from "./createCodeSignInFallback";
 import { MoreProvidersDialog } from "./MoreProvidersDialog";
+
+/**
+ * What a row's Connect opens: the sign-in in this computer's browser, which the row follows itself,
+ * or a dialog that the caller shows (a code, a page or the hand-off to the app).
+ */
+export type ProviderConnectKind = "browser" | "dialog";
+
+/**
+ * What a row's ⋯ menu offers instead of its Connect: a code, or the address that the browser of a
+ * relayed sign-in shows at its end.
+ */
+export type ProviderAlternativeSignIn = "code" | "address";
+
+/**
+ * How the provider rows sign in. The caller decides each row's ways in from where the user connects;
+ * the rows only show and run them, so every surface offers the same ones.
+ */
+export interface ProviderConnection {
+  /** What the row's Connect opens, or null when the row has no Connect here. */
+  connectKind: (provider: AgentProviderId) => ProviderConnectKind | null;
+  /** The second way in that the row's ⋯ menu offers, or null when it offers none. */
+  alternativeKind: (provider: AgentProviderId) => ProviderAlternativeSignIn | null;
+  /** Runs the row's Connect. A rejection is shown on the row. */
+  connect: (provider: AgentProviderId) => void | Promise<void>;
+  /** Runs the second way in from the ⋯ menu. */
+  alternative: (provider: AgentProviderId) => void;
+}
 
 export interface ProviderPickerOption {
   id: AgentProviderId;
@@ -86,7 +114,10 @@ export interface ProviderPickerProps {
   allowUnavailableSelection?: boolean;
   focusFirst?: boolean;
   refreshingProviders?: boolean | undefined;
-  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  /** How each row signs in. Without it, no row offers Connect or a second way in. */
+  connection?: ProviderConnection | undefined;
+  /** Ends the browser sign-in that Connect started, so a closed or stuck page is not a dead end. */
+  onCancelProviderSignIn?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   /**
@@ -108,18 +139,6 @@ export interface ProviderPickerProps {
   onSetProviderOn?: ((provider: AgentProviderId, on: boolean) => void | Promise<void>) | undefined;
   onInstallProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onSignInProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
-  /**
-   * Starts the sign-in the user finishes on another device. Offered beside the row's usual sign-in,
-   * never instead of it: this is the way out for a computer whose browser cannot complete the
-   * hand-off, and only for a provider in `codeSignInProviders`.
-   */
-  onSignInWithCodeProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
-  /**
-   * The providers the computer that runs them can sign in with a code. A host decides this by its
-   * capabilities, so an older host never shows a button that it refuses. Without it, the providers
-   * whose descriptor says `codeSignIn`.
-   */
-  codeSignInProviders?: readonly AgentProviderId[] | undefined;
   /**
    * The dialog element a row's actions menu portals into. Without it the menu lands beside the
    * dialog in `body`, where a modal makes it inert and out of reach.
@@ -436,47 +455,81 @@ export function ProviderPicker(props: ProviderPickerProps) {
               const runtimeAction = () => {
                 if (updatable() && props.onUpdateProvider && runtimeStatus()?.phase === "not-downloaded") return;
                 const action = providerRuntimeAction(state(), connecting(), runtimeStatus());
-                // A remote host has no browser sign-in, so its caller passes no onConnectProvider:
-                // show only the Connect, Reconnect or Restart that the key dialog or a code sign-in
-                // can answer.
+                // A dialog sign-in, such as a host's, cannot restart the provider: show only the
+                // Connect or Reconnect that it, or the key dialog, can answer.
                 if (action !== "connect" && action !== "reconnect" && action !== "restart") return action;
-                if (props.onConnectProvider) return action;
-                if (action !== "restart" && codeSignInOffered()) return action;
+                if (browserConnect()) return action;
+                if (action !== "restart" && dialogConnect()) return action;
                 return option().id === "opencode" &&
                   (action === "reconnect" || connectOptional()) &&
                   props.onSignInProvider
                   ? action
                   : undefined;
               };
+              const connectKind = () => props.connection?.connectKind(option().id) ?? null;
+              /** A runtime still being downloaded has no CLI to sign in with yet. */
+              const runtimeReady = () => (runtimeStatus()?.phase ?? "ready") === "ready";
+              /** Connect opens this computer's browser, and the row follows that sign-in. */
+              const browserConnect = () => connectKind() === "browser";
               /**
-               * The row has a way in the user finishes elsewhere, and something to run it with.
+               * Connect opens a dialog that the user finishes there, or on another device.
                *
                * Offered while connected as well: that is how the user reaches a second account,
                * which is otherwise only possible by signing out first and hoping the new sign-in
-               * works. A runtime still being downloaded has no CLI to ask for a code yet.
+               * works.
                */
-              const codeSignInOffered = () =>
-                Boolean(props.onSignInWithCodeProvider) &&
-                (props.codeSignInProviders?.includes(option().id) ?? agentProviderDescriptor(option().id).codeSignIn) &&
-                (runtimeStatus()?.phase ?? "ready") === "ready";
+              const dialogConnect = () => connectKind() === "dialog" && runtimeReady();
+              /** The second way in that the ⋯ menu offers, when it differs from Connect. */
+              const alternative = (): ProviderAlternativeSignIn | null =>
+                runtimeReady() ? (props.connection?.alternativeKind(option().id) ?? null) : null;
               /**
                * The browser sign-in is slow or failed. Only a row whose Connect is that browser
-               * hand-off offers the code here; a host's Connect is already the code.
+               * hand-off offers the code here; a host's Connect is already its most direct way in.
                */
               const codeFallback = createCodeSignInFallback(connecting);
               const codeFallbackOffered = () =>
-                Boolean(props.onConnectProvider) &&
-                codeSignInOffered() &&
+                browserConnect() &&
+                alternative() === "code" &&
                 !off() &&
                 state() !== "available" &&
                 codeFallback.offered();
-              const signInWithCode = () => {
+              const signInAlternative = () => {
                 codeFallback.startedWithCode();
-                void props.onSignInWithCodeProvider?.(option().id);
+                props.connection?.alternative(option().id);
               };
+              /** A Connect that failed before the sign-in started. The status reports the rest. */
+              const [connectError, setConnectError] = createSignal<string | null>(null);
               const connect = () => {
-                codeFallback.startedInBrowser();
-                void props.onConnectProvider?.(option().id);
+                if (browserConnect()) codeFallback.startedInBrowser();
+                else codeFallback.startedWithCode();
+                setConnectError(null);
+                void Promise.resolve(props.connection?.connect(option().id)).catch((error: unknown) =>
+                  setConnectError(errorMessage(error, t("app.provider.connectFailedRetry", { name: option().name }))),
+                );
+              };
+              /**
+               * A sign-in that Connect started and that waits for the browser. A download or an update
+               * also marks the row connecting, until its new runtime is ready.
+               */
+              const signingIn = () => connecting() && browserConnect() && runtimeReady();
+              const hostSignInHint = () =>
+                !off() &&
+                option().id === "antigravity" &&
+                runtimeStatus()?.phase === "ready" &&
+                !available() &&
+                !connecting() &&
+                connectKind() === null;
+              /**
+               * Why the row cannot be used, as text: a hover title is easy to miss. A row that is not
+               * downloaded says so with its Download button.
+               */
+              const statusMessage = () => {
+                if (off() || connecting() || hostSignInHint()) return undefined;
+                const runtime = runtimeStatus();
+                if (runtime?.phase === "download-error") return runtime.message ?? undefined;
+                const message = option().message;
+                if (!message || state() === "not-installed") return undefined;
+                return message === option().checkError || message === option().lastError ? undefined : message;
               };
               /**
                * Every row with a runtime on the computer offers Update in the same place, so the user
@@ -489,10 +542,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                 Boolean(props.onRestartProvider) && (option().restartPending || (available() && !connecting()));
               const diagnosticsOffered = () => Boolean(option().lastError && option().diagnostics);
               const actionsMenu = () =>
-                (codeSignInOffered() && option().id !== "antigravity") ||
-                updateOffered() ||
-                restartOffered() ||
-                diagnosticsOffered();
+                alternative() !== null || updateOffered() || restartOffered() || diagnosticsOffered();
               const inputId = () => `${pickerId}-${option().id}`;
               const off = () => Boolean(option().off);
               /** The refused attempt on this row, until the agents move to another provider. */
@@ -555,19 +605,28 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           {t("provider.restartPending")}
                         </small>
                       </Show>
-                      <Show
-                        when={
-                          !off() &&
-                          option().id === "antigravity" &&
-                          runtimeStatus()?.phase === "ready" &&
-                          !available() &&
-                          !connecting() &&
-                          !props.onConnectProvider &&
-                          !codeSignInOffered()
-                        }
-                      >
+                      <Show when={hostSignInHint()}>
                         <small class="provider-picker-email" role="status">
                           {t("provider.gemini.hostSignIn")}
+                        </small>
+                      </Show>
+                      <Show when={connectError() ?? statusMessage()}>
+                        {(message) => (
+                          <small
+                            class={[
+                              "provider-picker-status-message",
+                              state() === "error" || runtimeStatus()?.phase === "download-error" || connectError()
+                                ? "provider-picker-check-error"
+                                : "provider-picker-email",
+                            ]}
+                          >
+                            {sourceText(message())}
+                          </small>
+                        )}
+                      </Show>
+                      <Show when={!off() && signingIn()}>
+                        <small class="provider-picker-email" role="status">
+                          {t("provider.connecting.browserHint")}
                         </small>
                       </Show>
                     </span>
@@ -627,7 +686,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           class="provider-picker-install"
                           aria-label={t("provider.aria.codeFallback", { name: option().name })}
                           disabled={props.disabled || props.refreshingProviders}
-                          onClick={signInWithCode}
+                          onClick={signInAlternative}
                         >
                           {t("provider.action.signInWithCode")}
                         </Button>
@@ -649,15 +708,13 @@ export function ProviderPicker(props: ProviderPickerProps) {
                               if (action() === "cancel") {
                                 void props.onCancelProviderDownload?.(option().id);
                               } else if (action() !== "download" && action() !== "retry") {
-                                // Reconnect and an optional Connect open the key dialog; the rest stay on onConnectProvider.
+                                // Reconnect and an optional Connect open the key dialog; the rest stay on the connection.
                                 if (
                                   option().id === "opencode" &&
                                   (action() === "reconnect" || connectOptional()) &&
                                   props.onSignInProvider
                                 ) {
                                   void props.onSignInProvider(option().id);
-                                } else if (!props.onConnectProvider && codeSignInOffered()) {
-                                  signInWithCode();
                                 } else {
                                   connect();
                                 }
@@ -670,12 +727,31 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           </Button>
                         )}
                       </Show>
+                      <Show when={signingIn() && props.onCancelProviderSignIn}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          aria-label={t("provider.aria.cancelSignIn", { name: option().name })}
+                          disabled={props.disabled}
+                          onClick={() => {
+                            setConnectError(null);
+                            void Promise.resolve(props.onCancelProviderSignIn?.(option().id)).catch((error: unknown) =>
+                              setConnectError(
+                                errorMessage(error, t("provider.connecting.cancelFailed", { name: option().name })),
+                              ),
+                            );
+                          }}
+                        >
+                          {t("common.cancel")}
+                        </Button>
+                      </Show>
                       <Show
                         when={
                           !runtimeStatus() &&
                           agentProviderDescriptor(option().id).installGuideLink !== null &&
                           state() === "not-installed" &&
-                          !props.onConnectProvider &&
+                          !browserConnect() &&
                           props.onInstallProvider
                         }
                       >
@@ -691,7 +767,7 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           {t("provider.action.install")}
                         </Button>
                       </Show>
-                      <Show when={!runtimeStatus() && props.onConnectProvider}>
+                      <Show when={!runtimeStatus() && browserConnect()}>
                         <Button
                           type="button"
                           variant={providerAction(state(), connecting()) === "connect" ? "default" : "outline"}
@@ -720,17 +796,14 @@ export function ProviderPicker(props: ProviderPickerProps) {
                         when={
                           props.onSignInProvider &&
                           !connectOptional() &&
-                          // A released host stores a Gemini key but never reads it, so only this computer offers it.
-                          (option().id === "opencode" ||
-                          option().id === "muse" ||
-                          (option().id === "antigravity" && props.onConnectProvider)
+                          (option().id === "opencode" || option().id === "muse"
                             ? runtimeAction() === undefined ||
                               runtimeAction() === "connect" ||
                               runtimeAction() === "restart"
                             : option().id === "claude" &&
                               !runtimeStatus() &&
                               state() === "sign-in-required" &&
-                              !props.onConnectProvider)
+                              connectKind() === null)
                         }
                       >
                         <Button
@@ -743,6 +816,30 @@ export function ProviderPicker(props: ProviderPickerProps) {
                           onClick={() => void props.onSignInProvider?.(option().id)}
                         >
                           {t("provider.action.signIn")}
+                        </Button>
+                      </Show>
+                      {/* Gemini's Connect and Reconnect are the Google sign-in, and a saved key wins
+                      over it, so the key stays reachable in every state, Connected included: a
+                      refused key must stay replaceable and removable. A released host stores a
+                      Gemini key but never reads it, so only this computer offers it. */}
+                      <Show
+                        when={
+                          props.onSignInProvider &&
+                          browserConnect() &&
+                          option().id === "antigravity" &&
+                          runtimeStatus()?.phase === "ready"
+                        }
+                      >
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="xs"
+                          class="provider-picker-install"
+                          aria-label={t("provider.aria.apiKey", { name: option().name })}
+                          disabled={props.disabled || props.refreshingProviders}
+                          onClick={() => void props.onSignInProvider?.(option().id)}
+                        >
+                          {t("provider.action.apiKey")}
                         </Button>
                       </Show>
                       {/* The row's secondary actions: Update on every downloaded runtime, and the code
@@ -790,12 +887,19 @@ export function ProviderPicker(props: ProviderPickerProps) {
                                   </DropdownMenu.Item>
                                 </Show>
                               </Show>
-                              {/* Gemini on a host signs in on a page of the host's browser, which Connect opens. It has no code. */}
-                              <Show when={codeSignInOffered() && option().id !== "antigravity"}>
-                                <DropdownMenu.Item onSelect={signInWithCode}>
-                                  <Smartphone aria-hidden="true" />
-                                  {t("provider.action.signInWithCode")}
-                                </DropdownMenu.Item>
+                              <Show when={alternative()}>
+                                {(kind) => (
+                                  <DropdownMenu.Item onSelect={signInAlternative}>
+                                    <Show when={kind() === "address"} fallback={<Smartphone aria-hidden="true" />}>
+                                      <Link aria-hidden="true" />
+                                    </Show>
+                                    {t(
+                                      kind() === "address"
+                                        ? "provider.action.pasteAddress"
+                                        : "provider.action.signInWithCode",
+                                    )}
+                                  </DropdownMenu.Item>
+                                )}
                               </Show>
                               <Show when={diagnosticsOffered()}>
                                 <DropdownMenu.Item

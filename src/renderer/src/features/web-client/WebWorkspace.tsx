@@ -4,6 +4,7 @@ import {
   type AddedAgent,
   type AgentApproval,
   type AgentModelOption,
+  type AgentProviderId,
   type AgentStatus,
   type AppInfo,
   type BrowserTakeoverRequest,
@@ -66,6 +67,7 @@ import { Effect } from "effect";
 import { createEffect, createMemo, createSignal, Loading, lazy, onCleanup, onSettled, Show, untrack } from "solid-js";
 import { actionToast } from "../../action-toast";
 import { toAgentMessage } from "../../app-message-projection";
+import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { isGlobalSearchShortcut } from "../../global-search-shortcut";
 import { LayoutProvider, useLayout } from "../../layout";
 import { AgentUsagePanel } from "../../lazy-views";
@@ -272,6 +274,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   /** The host list was read and holds no computer to connect to. */
   const noHost = () => !workspace.state.host && (workspace.state.hostsLoaded || Boolean(workspace.state.hostsError));
   const hostOffline = () => !noHost() && !workspace.state.workspaceLoaded;
+  // A host that restarts into an update drops the connection on purpose. That error is not news.
+  const hostUpdating = () => workspace.state.hostRestart?.state === "restarting";
   createServerConnectionToast(() => {
     const host = workspace.state.host;
     return host
@@ -282,7 +286,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           quiet: Boolean(
             !workspace.state.workspaceLoaded ||
               workspace.state.hostedSleep ||
-              workspace.state.hostRestart ||
+              workspace.state.hostRestart?.state === "restarting" ||
               workspace.state.incompatibility,
           ),
         }
@@ -544,6 +548,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     readStatus: () => workspace.runtime.status(),
     browser: workspace.runtime.browser,
   });
+  const connectFromComposer = (provider: AgentProviderId) =>
+    providerSettings()?.connection?.connect(provider, "composer");
+  /** Whether the composer's sign-in notice can connect the agent's provider from this tab. */
+  const composerSignIn = () => {
+    const provider = conversationAgent()?.provider;
+    return provider !== undefined && (providerSettings()?.connection?.connectKind(provider) ?? null) !== null;
+  };
   const runtime = createWebConversationRuntime(
     workspace.runtime,
     () => workspace.state.host?.hostId ?? "",
@@ -1115,25 +1126,28 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   name={workspace.state.host?.name ?? t("webClient.notice.findingHosts")}
                   initial={!workspace.state.workspaceLoaded}
                   issue={workspace.state.hostedIssue}
+                  updateVersion={workspace.state.hostRestart?.version ?? null}
                   detail={
-                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue && !hostUpdating()
                       ? (workspace.state.connectionError?.message ?? null)
                       : null
                   }
                   reference={
-                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue
+                    workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue && !hostUpdating()
                       ? (workspace.state.connectionError?.reference ?? null)
                       : null
                   }
                   phase={
                     workspace.state.hostedSleep ??
-                    (workspace.state.recovery?.phase === "suspended"
-                      ? "blocked"
-                      : workspace.state.status === "connecting"
-                        ? "loading"
-                        : workspace.state.workspaceLoaded
-                          ? "reconnecting"
-                          : "connecting")
+                    (hostUpdating()
+                      ? "updating"
+                      : workspace.state.recovery?.phase === "suspended"
+                        ? "blocked"
+                        : workspace.state.status === "connecting"
+                          ? "loading"
+                          : workspace.state.workspaceLoaded
+                            ? "reconnecting"
+                            : "connecting")
                   }
                   remainingSeconds={
                     workspace.state.recovery?.phase === "waiting" || workspace.state.recovery?.phase === "cooldown"
@@ -1572,6 +1586,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               />
               <RestartServerDialog
                 server={restartServer()}
+                servers={servers()}
                 onClose={() => setRestartRequest(null)}
                 onRestart={restartHost}
                 restoreFocusTarget={restartRequest()?.trigger}
@@ -1699,11 +1714,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               }
               accountUsage={usageReading.accountUsage()}
               // As in the desktop app on a joined host: an owner or admin downloads the host's
-              // providers, and the sign-in stays in the host's settings.
+              // providers, and Connect runs the provider's route for this tab.
               providerRuntimeStatuses={providerSettings()?.providerRuntimeStatuses}
               customProviders={providerSettings()?.customProviders}
               onDownloadProvider={providerSettings()?.onDownloadProvider}
               onCancelProviderDownload={providerSettings()?.onCancelProviderDownload}
+              onConnectProvider={providerSettings() ? connectFromComposer : undefined}
+              canConnectProvider={(provider) =>
+                (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
+              }
+              onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
               onManageProviders={
                 providerSettings()
                   ? (trigger: HTMLElement) => {
@@ -1822,6 +1842,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   void workspace.run(() => workspace.runtime.stop(page.agentId, page.activeTurnId ?? ""));
               }}
             />
+            <ProviderSignInDialogs api={providerSettings()?.connection} opener="composer" />
           </Show>
         </WorkspaceFrame>
       </ChannelsControllerProvider>
