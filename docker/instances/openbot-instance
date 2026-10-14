@@ -1,0 +1,144 @@
+#!/bin/bash
+# Runs several OpenBot containers on one host. Each instance has its own CPU, memory and disk limit,
+# its own data and its own account. See docs/docker.md#several-instances-on-one-host.
+#
+# An instance is the env file <name>.env next to this script and the folder /srv/openbot/<name>.
+# /srv/openbot/<name>/data is an ext4 image on a loop device, so the disk limit is the size of that
+# file system. Before the mount, the folder belongs to root, so a container that starts before the
+# mount cannot write to /data and stops. It never starts with an empty home folder.
+set -euo pipefail
+
+HERE=$(dirname "$(readlink -f "$0")")
+COMPOSE=$HERE/compose.yaml
+DATA=/srv/openbot
+
+fail() {
+  echo "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+Usage: openbot-instance <command>
+
+  create <name> --cpus <n> --mem <n>g --disk <n>G
+                              Make an instance and start it. Then sign it in with
+                              `openbot-instance run <name> login`.
+  list                        Show the instances, their state and disk use.
+  up | down | restart <name>  Start, stop or restart an instance. The data stays.
+  logs <name> [-f]            Show the log of an instance.
+  upgrade <name> | --all      Pull the image and make the container again.
+  run <name> <command>        Run `openbot <command>` in the instance, for example
+                              status, login, mobile-connect or name.
+
+Change the CPU or memory limit in <name>.env, then run `openbot-instance up <name>`.
+EOF
+}
+
+check_name() {
+  [[ $1 =~ ^[a-z0-9][a-z0-9-]{0,23}$ ]] ||
+    fail "An instance name has 1 to 24 characters: a-z, 0-9 and -. It starts with a letter or a digit."
+}
+
+env_file() {
+  echo "$HERE/$1.env"
+}
+
+compose() {
+  local name=$1
+  shift
+  check_name "$name"
+  [ -f "$(env_file "$name")" ] || fail "There is no instance $name."
+  docker compose --project-name "openbot-$name" --file "$COMPOSE" --env-file "$(env_file "$name")" "$@"
+}
+
+create() {
+  [ "$#" -ge 1 ] || fail "Give the name of the instance."
+  local name=$1 cpus='' mem='' disk=''
+  shift
+  check_name "$name"
+  while [ "$#" -gt 0 ]; do
+    case $1 in
+      --cpus) cpus=${2:-} ;;
+      --mem) mem=${2:-} ;;
+      --disk) disk=${2:-} ;;
+      *) fail "Unknown option $1." ;;
+    esac
+    shift 2 || fail "Give a value for $1."
+  done
+  [[ $cpus =~ ^[0-9]+(\.[0-9]+)?$ ]] || fail "Give the CPU limit, for example --cpus 8."
+  [[ $mem =~ ^[0-9]+[mg]$ ]] || fail "Give the memory limit, for example --mem 32g."
+  [[ $disk =~ ^[0-9]+[MGT]$ ]] || fail "Give the disk limit, for example --disk 200G."
+  local env folder=$DATA/$name
+  env=$(env_file "$name")
+  [ ! -e "$env" ] || fail "The instance $name exists."
+  [ ! -e "$folder" ] || fail "$folder exists. Move it away or choose another name."
+  [ "$(id -u)" -eq 0 ] || fail "Run create as root."
+
+  install -d -m 0755 "$DATA"
+  install -d -m 0700 "$folder"
+  install -d -m 0755 "$folder/data"
+  truncate --size "$disk" "$folder/data.img"
+  # No blocks kept for root: the user of the image uses all of the limit.
+  mkfs.ext4 -q -m 0 "$folder/data.img"
+  printf '%s %s ext4 loop,nofail,x-systemd.before=docker.service 0 2\n' "$folder/data.img" "$folder/data" >>/etc/fstab
+  systemctl daemon-reload
+  mount "$folder/data"
+  # The image user, UID 1000. This changes the mounted file system, not the folder under it.
+  chown 1000:1000 "$folder/data"
+  chmod 0700 "$folder/data"
+  printf 'OPENBOT_NAME=%s\nOPENBOT_CPUS=%s\nOPENBOT_MEM=%s\nOPENBOT_DISK=%s\n' \
+    "$name" "$cpus" "$mem" "$disk" >"$env"
+  compose "$name" up --detach
+  echo "Sign in the instance: openbot-instance run $name login"
+}
+
+list() {
+  local env name state
+  printf '%-24s %-10s %-6s %-6s %s\n' NAME STATE CPUS MEMORY DISK
+  for env in "$HERE"/*.env; do
+    [ -e "$env" ] || continue
+    name=$(basename "$env" .env)
+    state=$(docker inspect --format '{{.State.Status}}' "openbot-$name" 2>/dev/null || echo missing)
+    # shellcheck source=/dev/null
+    (
+      source "$env"
+      printf '%-24s %-10s %-6s %-6s %s\n' "$name" "$state" "$OPENBOT_CPUS" "$OPENBOT_MEM" \
+        "$(df --human-readable --output=used,size "$DATA/$name/data" 2>/dev/null | tail -n 1 | xargs)"
+    )
+  done
+}
+
+command=${1:-}
+shift || true
+case $command in
+  create) create "$@" ;;
+  list) list ;;
+  up) compose "${1:-}" up --detach ;;
+  down) compose "${1:-}" down ;;
+  restart) compose "${1:-}" restart ;;
+  logs) compose "${1:-}" logs "${@:2}" ;;
+  upgrade)
+    if [ "${1:-}" = --all ]; then
+      for env in "$HERE"/*.env; do
+        [ -e "$env" ] || continue
+        compose "$(basename "$env" .env)" pull
+        compose "$(basename "$env" .env)" up --detach
+      done
+    else
+      compose "${1:-}" pull
+      compose "${1:-}" up --detach
+    fi
+    ;;
+  run)
+    check_name "${1:-}"
+    # login asks for the code in a terminal. Scripts and ssh without -t have none.
+    terminal=()
+    [ ! -t 0 ] || terminal=(--tty)
+    docker exec --interactive "${terminal[@]}" "openbot-$1" openbot "${@:2}"
+    ;;
+  *)
+    usage
+    [ -z "$command" ] || exit 1
+    ;;
+esac

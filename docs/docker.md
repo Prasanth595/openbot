@@ -104,6 +104,40 @@ In the container, `openbot status`, `login`, `mobile-connect`, `logout`, `name` 
 | Upgrade | `docker compose pull && docker compose up -d`, or pull the image and make the container again with the same volume |
 | Remove | `docker exec openbot openbot logout`, then `docker stop openbot && docker rm openbot`. The data stays in the volume. `docker volume rm openbot-data` deletes it. |
 
+## Several instances on one host
+
+`docker/instances/` runs more than one OpenBot container on one Linux host with systemd. Each
+instance has its own CPU, memory and disk limit, its own data and its own account. Copy the `docker`
+folder of the repository to the host, for example to `/opt/openbot-docker`, and run as root:
+
+```sh
+/opt/openbot-docker/instances/openbot-instance create main --cpus 8 --mem 32g --disk 200G
+/opt/openbot-docker/instances/openbot-instance run main login
+```
+
+| Path | Contents |
+| --- | --- |
+| `instances/<name>.env` | The name and the limits of the instance. Change `OPENBOT_CPUS` or `OPENBOT_MEM`, then run `openbot-instance up <name>`. |
+| `/srv/openbot/<name>/data.img` | A sparse ext4 image. Its size is the disk limit. It uses only the disk space that it holds. |
+| `/srv/openbot/<name>/data` | The mount of the image, which is `/data` in the container. `/etc/fstab` mounts it before Docker starts. |
+
+The container is `openbot-<name>`. `/tmp` in the container is a `tmpfs` of 8 GiB that counts toward
+the memory limit. Before the image is mounted, root owns the folder, so the container cannot write to
+`/data` and stops. It never starts with an empty home folder.
+
+| Task | Command |
+| --- | --- |
+| Show the instances | `openbot-instance list` |
+| Stop, start, restart | `openbot-instance down <name>`, `up <name>`, `restart <name>` |
+| Read the log | `openbot-instance logs <name> -f` |
+| Upgrade | `openbot-instance upgrade <name>` or `upgrade --all` |
+| `openbot` commands | `openbot-instance run <name> status`, `login`, `mobile-connect`, `name <name>` |
+| Make the disk larger | `down <name>`, `umount /srv/openbot/<name>/data`, `truncate --size +100G data.img`, `e2fsck -f data.img`, `resize2fs data.img`, `mount /srv/openbot/<name>/data`, `up <name>` |
+
+There is no command to remove an instance. To remove one and delete its data: `run <name> logout`,
+`down <name>`, `umount /srv/openbot/<name>/data`, delete its line in `/etc/fstab`, then delete
+`/srv/openbot/<name>` and `instances/<name>.env`.
+
 ## Upgrades
 
 OpenBot does not update itself in a container. A new image replaces it. Do not go back to an older
