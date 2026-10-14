@@ -825,14 +825,16 @@ export const IPC_ENDPOINTS = {
     hostOpenVerification: scopedQuery<void, "required">()("github-connector:host-open-verification"),
     hostOpenInstall: scopedQuery<void, "required">()("github-connector:host-open-install"),
   },
-  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
-  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
+  // The Bitwarden connection of this computer. Local only, like `onePasswordConnector`. The session
+  // key goes from the renderer to main once, in `connect`; every answer is the status only.
   bitwardenConnector: {
     status: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:status"),
     connect: request<string, BitwardenConnectorStatus>()("bitwarden-connector:connect"),
     disconnect: request<undefined, BitwardenConnectorStatus>()("bitwarden-connector:disconnect"),
     changed: event<BitwardenConnectorStatus>()("bitwarden-connector:changed"),
   },
+  // The 1Password connection of this computer. Local only, like `githubConnector`. The token goes
+  // from the renderer to main once, in `connectWithToken`; every answer is the status only.
   onePasswordConnector: {
     status: request<undefined, OnePasswordConnectorStatus>()("onepassword-connector:status"),
     // Looks again for the CLI and the 1Password app's CLI integration, for a page that opens or regains focus.

@@ -456,7 +456,7 @@ export function ConversationTimeline() {
                                       <MarketplaceSuggestionChatCard
                                         messageId={message()?.id ?? initialMessage.id}
                                         appId={suggestion().appId}
-                                        localServer={props.server?.kind === "local"}
+                                        connectors={props.connectors}
                                         onOpenMarketplaceApp={props.onOpenMarketplaceApp}
                                       />
                                     )}

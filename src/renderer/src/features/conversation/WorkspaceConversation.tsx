@@ -14,6 +14,7 @@ import { useAuth } from "../account/account-context";
 import { useAgents } from "../agents/agents-context";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
 import { useBrowserTabs } from "../browser/browser-context";
+import { useConnectors } from "../connectors/connectors-context";
 import { useCustomAgents } from "../custom-agents/custom-agents-context";
 import { useCustomProviders } from "../custom-providers/custom-providers-context";
 import { useRemoteDesktop } from "../remote-desktop/remote-desktop-context";
@@ -44,6 +45,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const scopeIsCurrent = createScopeGuard();
   const serverScope = useServerScope();
   const platform = usePlatform();
+  const connectors = useConnectors();
   const { activeServer, activeServerSupportsCapability, joinServerOpen } = useServers();
   const { serverSettingsOpen, openServerSettings } = useServerSettings();
   const {
@@ -264,6 +266,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         contextState={contextStates()[activeAgent()?.id ?? ""]}
         platform={platform.appInfo()?.platform}
         onOpenMarketplace={() => setSkillsMarketplaceOpen(true)}
+        connectors={connectors.active}
         onOpenMarketplaceApp={(request) => {
           setPendingPluginConnect(request.connect);
           setPendingPluginSlug(request.appId);

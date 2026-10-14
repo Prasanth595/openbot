@@ -28,6 +28,7 @@ import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiv
 import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
 import type { AccountProfilePanelProps } from "@openbot/ui/features/settings/AccountProfilePanel";
 import type { JSX } from "@solidjs/web";
+import type { ConnectorRegistry } from "../connectors/connector-registry";
 import type { ConversationRuntime } from "./conversation-runtime";
 
 /**
@@ -67,6 +68,8 @@ export interface ConversationProps {
    * pressed Connect or Install on the card: the page then starts the connect step.
    */
   onOpenMarketplaceApp?: (request: { appId: string; connect: boolean }) => void;
+  /** The connectors of the server on screen, which a suggestion card for a connector reads. */
+  connectors?: ConnectorRegistry | undefined;
   platform?: import("@openbot/contracts/ipc").AppInfo["platform"];
 
   agentStatus: AgentStatus;
