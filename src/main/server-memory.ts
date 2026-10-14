@@ -12,29 +12,31 @@ const TURN_RESERVE_MS = 60_000;
 /** A low level goes back to "ok" only this far above the low threshold, so it does not flap. */
 const RECOVER_MARGIN_BYTES = 256 * MIB;
 /**
- * The unit starts main at -500. Each process that main starts gets this value, so the OOM killer in
- * the unit picks a provider CLI, an MCP server or an agent tool before main.
+ * `openbot.service` starts main at -500, and a container starts it at 0. Each process that main starts
+ * gets this value, so the OOM killer picks a provider CLI, an MCP server or an agent tool before main.
  */
 const CHILD_OOM_SCORE_ADJ = 500;
 
-export interface HostedServerMemoryOptions {
+export interface ServerMemoryOptions {
   /** Called one time when the memory files cannot be read (the level then stays "ok"), and when a listener fails. */
   onError: (message: string, error: unknown) => void;
   now?: () => number;
 }
 
-interface MemorySample {
+export interface MemorySample {
+  /** The effective memory ceiling: the smaller of the machine memory and the cgroup limit. */
   total: number;
   available: number;
 }
 
 /**
- * Owns the memory reading of a hosted server. Every 5 seconds it reads the memory of the systemd unit
- * (cgroup v2) and of the machine, and gives each new child process of main a high OOM value.
- * The backend reads the level through `HostMemory` and holds new turns while it is not "ok".
+ * Owns the memory reading of a hosted, self-hosted or container server. Every 5 seconds it reads the
+ * memory of its cgroup (v2), such as the systemd unit or the container, and of the machine, and gives
+ * each new child process of main a high OOM value. The backend reads the level through `HostMemory`
+ * and holds new turns while it is not "ok". The desktop app does not use it.
  */
-export class HostedServerMemory implements HostMemory {
-  readonly #options: HostedServerMemoryOptions;
+export class ServerMemory implements HostMemory {
+  readonly #options: ServerMemoryOptions;
   readonly #listeners = new Set<() => void>();
   /** The start times of the turns reserved in the last `TURN_RESERVE_MS`. Each one is its own object, so its release removes only it. */
   readonly #reservations = new Set<{ at: number }>();
@@ -43,8 +45,9 @@ export class HostedServerMemory implements HostMemory {
   #sample: MemorySample | null = null;
   #level: HostMemoryLevel = "ok";
   #readErrorLogged = false;
+  #noCgroupLogged = false;
 
-  constructor(options: HostedServerMemoryOptions) {
+  constructor(options: ServerMemoryOptions) {
     this.#options = options;
   }
 
@@ -65,6 +68,11 @@ export class HostedServerMemory implements HostMemory {
 
   level(): HostMemoryLevel {
     return this.#level;
+  }
+
+  /** The last reading, or null before the first one and when the memory files cannot be read. */
+  sample(): MemorySample | null {
+    return this.#sample;
   }
 
   turnLimit(): 4 | 8 | 16 {
@@ -105,7 +113,7 @@ export class HostedServerMemory implements HostMemory {
     }).pipe(Effect.uninterruptible);
   }
 
-  #tick = Effect.fn("HostedServerMemory.tick")(function* (this: HostedServerMemory) {
+  #tick = Effect.fn("ServerMemory.tick")(function* (this: ServerMemory) {
     this.#sample = yield* this.#read();
     this.#level = this.#nextLevel();
     yield* raiseChildOomScores();
@@ -113,12 +121,12 @@ export class HostedServerMemory implements HostMemory {
       try {
         listener();
       } catch (error) {
-        this.#options.onError("A hosted server memory listener failed.", error);
+        this.#options.onError("A server memory listener failed.", error);
       }
     }
   });
 
-  #read = Effect.fn("HostedServerMemory.read")(function* (this: HostedServerMemory) {
+  #read = Effect.fn("ServerMemory.read")(function* (this: ServerMemory) {
     const result = yield* Effect.result(
       Effect.gen(function* () {
         const text = yield* memoryIO(() => readFile("/proc/meminfo", "utf8"));
@@ -127,17 +135,30 @@ export class HostedServerMemory implements HostMemory {
           catch: (cause) => new HostMemoryFailure({ cause }),
         });
         const unit = yield* readUnitMemory();
-        if (!unit) return machine;
+        if (typeof unit === "string") return { sample: machine, unit };
         return {
-          total: Math.min(machine.total, unit.max),
-          available: Math.min(machine.available, Math.max(0, unit.max - unit.current)),
+          sample: {
+            total: Math.min(machine.total, unit.max),
+            available: Math.min(machine.available, Math.max(0, unit.max - unit.current)),
+          },
+          unit: "limited" as const,
         };
       }),
     );
-    if (result._tag === "Success") return result.success;
+    if (result._tag === "Success") {
+      if (result.success.unit === "unknown" && !this.#noCgroupLogged) {
+        this.#noCgroupLogged = true;
+        // In a container on cgroup v1, the machine memory is the memory of the host, not the limit.
+        this.#options.onError(
+          "The server has no cgroup v2 memory limit to read. The memory guard uses the machine memory.",
+          null,
+        );
+      }
+      return result.success.sample;
+    }
     if (!this.#readErrorLogged) {
       this.#readErrorLogged = true;
-      this.#options.onError("The hosted server could not read its memory use.", result.failure.cause);
+      this.#options.onError("The server could not read its memory use.", result.failure.cause);
     }
     return null;
   });
@@ -172,17 +193,20 @@ function parseMeminfo(text: string): MemorySample {
 }
 
 /**
- * The limit and the use of the unit's cgroup, with no reclaimable file cache, or null when the unit
- * has no limit or no cgroup v2.
+ * The limit and the use of main's cgroup, with no reclaimable file cache. "unlimited" when the cgroup
+ * has no limit, and "unknown" when there is no cgroup v2 memory controller to read (cgroup v1 or a
+ * hybrid hierarchy).
  */
-const readUnitMemory = Effect.fn("HostedServerMemory.readUnit")(function* () {
+const readUnitMemory = Effect.fn("ServerMemory.readUnit")(function* () {
   const cgroup = (yield* memoryIO(() => readFile("/proc/self/cgroup", "utf8")))
     .split("\n")
     .find((line) => line.startsWith("0::"));
-  if (!cgroup) return null;
+  if (!cgroup) return "unknown";
+  // A container with its own cgroup namespace sees "0::/", and its limit at /sys/fs/cgroup/memory.max.
   const root = `/sys/fs/cgroup${cgroup.slice(3)}`;
-  const max = (yield* memoryIO(() => readFile(`${root}/memory.max`, "utf8"))).trim();
-  if (max === "max") return null;
+  const max = (yield* optionalMemoryIO(() => readFile(`${root}/memory.max`, "utf8")))?.trim();
+  if (max === undefined) return "unknown";
+  if (max === "max") return "unlimited";
   const current = Number((yield* memoryIO(() => readFile(`${root}/memory.current`, "utf8"))).trim());
   // `memory.current` counts the file cache too. The kernel takes the inactive part back before the
   // OOM killer acts, so it is free memory, as it is in `MemAvailable`.
@@ -201,7 +225,7 @@ const readUnitMemory = Effect.fn("HostedServerMemory.readUnit")(function* () {
  * not list the zygotes or the broker, so the binary is the test: with 500, the OOM killer could kill a
  * zygote, and then no new renderer can start.
  */
-const raiseChildOomScores = Effect.fn("HostedServerMemory.raiseChildOomScores")(function* () {
+const raiseChildOomScores = Effect.fn("ServerMemory.raiseChildOomScores")(function* () {
   const electron = yield* optionalMemoryIO(() => readlink("/proc/self/exe"));
   const children = new Map<number, number[]>();
   const entries = yield* optionalMemoryIO(() => readdir("/proc"));

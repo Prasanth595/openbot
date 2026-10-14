@@ -152,7 +152,6 @@ import { HostService } from "./host-service";
 import { HostUpdateCoordinator } from "./host-update-coordinator";
 import { CLIENT_USE_WINDOW_MS, HostedServerActivity } from "./hosted-server-activity";
 import { applyHostedServerAccount, type HostedServerEnvironment } from "./hosted-server-bootstrap";
-import { HostedServerMemory } from "./hosted-server-memory";
 import { HostedServerDesktopService, withHostingDeveloperKey } from "./hosted-server-service";
 import { HostedServerStartRetry } from "./hosted-server-start-retry";
 import { HostedSiteDesktopService } from "./hosted-site-service";
@@ -217,6 +216,7 @@ import { StatementTimings } from "./resource-summary";
 import { RoutineFeedServer } from "./routine-feed-server";
 import { clearRoutineHold, ROUTINE_HOLD_FILE, takeRoutineHold, writeRoutineHold } from "./routine-hold-file";
 import { ScreenCapturer } from "./screen-capture";
+import { ServerMemory } from "./server-memory";
 import { ServerMode, type ServerModeEnvironment } from "./server-mode";
 import {
   configureApplicationProtocol,
@@ -317,7 +317,7 @@ const TEARDOWN_ORDER = {
   requestedUpdate: 13,
   hostedServerStartRetry: 14,
   hostedServerActivity: 15,
-  hostedServerMemory: 16,
+  serverMemory: 16,
   serverMode: 17,
   computerUseHighlight: 18,
   computerUsePermissionHelp: 19,
@@ -863,17 +863,17 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.teamWebRtcBridge, "the team WebRTC bridge", () =>
     runCauseEffect(teamWebRtcBridge.stop()),
   );
-  // Only a hosted server: its machine is small, and one unit holds OpenBot and every agent process.
-  const hostMemory = hostedServer
-    ? new HostedServerMemory({
-        onError: (message, error) => logger.warn(message, toLogValue(error)),
-      })
-    : null;
+  // Only a hosted, self-hosted or container server: one unit or container holds OpenBot and every
+  // agent process. The desktop app does not hold turns for memory.
+  const hostMemory =
+    hostedServer || serverModeEnvironment
+      ? new ServerMemory({
+          onError: (message, error) => logger.warn(message, toLogValue(error)),
+        })
+      : null;
   if (hostMemory) {
     hostMemory.start();
-    teardown.push(TEARDOWN_ORDER.hostedServerMemory, "the hosted server memory reading", () =>
-      Effect.runPromise(hostMemory.stop()),
-    );
+    teardown.push(TEARDOWN_ORDER.serverMemory, "the server memory reading", () => Effect.runPromise(hostMemory.stop()));
   }
   const browser = new BrowserHost(mainWindow, store.downloadsRoot, join(app.getPath("userData"), BROWSER_STATE_FILE), {
     memoryLow: () => (hostMemory?.level() ?? "ok") !== "ok",
@@ -2361,6 +2361,7 @@ export async function createApplicationServices({
         version: app.getVersion(),
         centralAuth,
         host,
+        memory: hostMemory,
         onError: (message, error) => logger.warn(message, toLogValue(error)),
       })
     : null;

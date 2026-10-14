@@ -38,7 +38,7 @@ has its own Stripe plan. Its machine comes from the plan
 | Server bootstrap | `src/main/hosted-server-bootstrap.ts` | On the first start, redeems the claim, signs in, and publishes the host. |
 | Start retry | `src/main/hosted-server-start-retry.ts` | Publishes the host again after a failed start. |
 | Activity report | `src/main/hosted-server-activity.ts` | Tells the Worker that the server is in use, and when its next routine runs. |
-| Memory guard | `src/main/hosted-server-memory.ts`, `src/backend/agent/memory-hold.ts`, `turn-slots.ts` | Reads the memory of the server, holds new turns when it is low, and limits the turns that run at the same time. See [Memory](#memory). |
+| Memory guard | `src/main/server-memory.ts`, `src/backend/agent/memory-hold.ts`, `turn-slots.ts` | Reads the memory of the server, holds new turns when it is low, and limits the turns that run at the same time. See [Memory](#memory). |
 | Billing link | `apps/auth-api/src/server/hosted-billing.ts`, `billing-service.ts` | Opens Stripe Checkout for a new server. Tells the hosting service when a subscription changes. |
 | Desktop and web clients | `AddServerOverlay`, `SettingsHostedServersTab`, `hosted-server-service.ts`, `web-hosted-servers.ts`, `web-hosted-server-wake.ts` | Pick a plan, pay, list, start, renew and delete. The web app shows the list in Billing. Start a stopped server when a connection fails. |
 | Mobile client | `mobile-workspace-context.tsx` | Starts the selected stopped server when a connection fails. |
@@ -484,7 +484,8 @@ again with backoff (30 s to 10 min) and then publishes the host.
 
 One systemd unit holds OpenBot, its browser tabs and every agent process: one `claude` process for
 each thread, and one set of MCP servers for each ACP session. A Starter server has 4 GB. The guards
-are only on a hosted server; the desktop app does not change.
+are on a hosted server, a [self-hosted server](self-hosted-server.md#memory) and a
+[container](docker.md#memory); the desktop app does not change.
 
 The unit (`openbot.service`):
 
@@ -505,7 +506,7 @@ The unit (`openbot.service`):
   less memory and does not protect main more: the memory test below shows the same victim in each
   case.
 
-The app (`HostedServerMemory`) reads the memory every 5 s. The free memory is the smaller of
+The app (`ServerMemory`) reads the memory every 5 s. The free memory is the smaller of
 `MemAvailable` and the free memory of the unit's cgroup (cgroup v2 `memory.max − memory.current`,
 plus `inactive_file` from `memory.stat`: the kernel takes that file cache back before the OOM killer
 acts). Each turn that started in the last 60 s counts 300 MB more, so routines that start together
@@ -608,7 +609,7 @@ and an enabled systemd unit started again after each resume. The stop took 25 to
 sandbox was `idle` 3 to 6 s after the resume call.
 
 A memory test on 2026-09-30 (one `small` sandbox with `noEnv`, the scripts and the Linux AppImage of
-main, and a `HostedServerMemory` driver in a unit with the same limits as `openbot.service`)
+main, and a `ServerMemory` driver in a unit with the same limits as `openbot.service`)
 confirmed:
 
 - boat VMs use cgroup v2 with the memory controller, and the unit gets `memory.max` = 90% (3.4 GiB);
