@@ -2,6 +2,8 @@ import { env, waitUntil } from "cloudflare:workers";
 import { HOSTING_DEVELOPER_KEY_HEADER } from "@openbot/contracts/hosted-servers";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
+import { type AccountAnalytics, createAccountAnalytics } from "./account-analytics";
+import { AccountAttribution } from "./account-attribution";
 import { adminTokenMatches } from "./admin-token";
 import { AgentMarketplace, AgentMarketplaceError } from "./agent-marketplace";
 import { AgentTemplates } from "./agent-templates";
@@ -35,11 +37,26 @@ import {
 } from "./remote-control-plane";
 import { SkillMarketplace, SkillMarketplaceError } from "./skill-marketplace";
 import { SlackAppError, SlackAppService } from "./slack-app";
-import { requireWorkerBindings, type TeamInviteEmailDelivery } from "./types";
+import { requireWorkerBindings, type TeamInviteEmailDelivery, type WorkerBindings } from "./types";
+
+function accountAnalytics(bindings: WorkerBindings): AccountAnalytics {
+  return createAccountAnalytics({
+    clientId: bindings.OPENPANEL_CLIENT_ID,
+    clientSecret: bindings.OPENPANEL_CLIENT_SECRET,
+    fetch: (input, init) => fetch(input, init),
+    schedule,
+  });
+}
+
+export function requestAccountAttribution(): AccountAttribution {
+  const bindings = requireWorkerBindings(env);
+  return new AccountAttribution({ database: bindings.DB, analytics: accountAnalytics(bindings) });
+}
 
 export function requestAuthService(): AuthService {
   const bindings = requireWorkerBindings(env);
   const exposeDevelopmentCode = bindings.AUTH_EXPOSE_DEVELOPMENT_CODE === "true";
+  const analytics = accountAnalytics(bindings);
   return new AuthService({
     repository: new D1AuthRepository(bindings.DB),
     delivery: exposeDevelopmentCode ? null : createEmailCodeDelivery(bindings),
@@ -47,6 +64,8 @@ export function requestAuthService(): AuthService {
     // The revocation is already written and the cron redelivers it, so the answer does not wait.
     flushSessionRevocations: () => Effect.sync(() => schedule(deliverPendingRemoteAuthEvents(bindings, Date.now()))),
     profileChanged: (userId) => notifyAccountProfileChanged(bindings, userId, schedule),
+    analytics,
+    attribution: new AccountAttribution({ database: bindings.DB, analytics }),
   });
 }
 
@@ -235,6 +254,10 @@ export const requireSkillsAdmin = Effect.fn("Auth.requireSkillsAdmin")(function*
 
 export const requireOperationsAdmin = Effect.fn("Auth.requireOperationsAdmin")(function* (request: Request) {
   return yield* adminTokenMatches(requireWorkerBindings(env).SITE_OPERATIONS_ADMIN_TOKEN, bearerToken(request));
+});
+
+export const requireServerClaimsAdmin = Effect.fn("Auth.requireServerClaimsAdmin")(function* (request: Request) {
+  return yield* adminTokenMatches(requireWorkerBindings(env).SERVER_CLAIMS_ADMIN_TOKEN, bearerToken(request));
 });
 
 export function requestTeamInviteEmailDelivery(): TeamInviteEmailDelivery | null {

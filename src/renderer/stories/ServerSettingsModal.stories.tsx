@@ -9,9 +9,6 @@ import { sourceText } from "@openbot/i18n/source";
 import { createSignal, createStore, onSettled, snapshot } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import type { GitHubConnectorController } from "../src/features/connectors/github-connector";
-import type { SlackConnectorController } from "../src/features/connectors/slack-connector";
-import type { TelegramConnectorController } from "../src/features/connectors/telegram-connector";
 import type { McpPanelSignIn } from "../src/features/servers/ServerMcpPanel";
 import { ServerSettingsModal, type ServerSettingsModalProps } from "../src/features/servers/ServerSettingsModal";
 import {
@@ -22,6 +19,7 @@ import {
   STORY_PRESENCE,
   STORY_SERVERS,
 } from "../src/preview/fixtures";
+import { storyConnectorRegistry } from "./connector-fixtures";
 import { createSignInHost } from "./mcp-sign-in-host";
 import { createMockOpenBot } from "./mock-openbot";
 
@@ -406,8 +404,8 @@ export const ContainerReleaseAvailable: Story = {
 };
 
 /**
- * This computer's connectors: GitHub is connected, Slack and Telegram are not set up. Open one to see
- * the header read `Connectors › GitHub`; the parent crumb goes back to the list.
+ * This computer's connectors: GitHub is connected; Slack, Discord and Telegram are not set up. Open
+ * one to see the header read `Connectors › GitHub`; the parent crumb goes back to the list.
  */
 export const Connectors: Story = {
   args: { initialSection: "connectors" },
@@ -415,58 +413,6 @@ export const Connectors: Story = {
 };
 
 function ConnectorsStory(props: { settings: ServerSettingsModalProps }) {
-  const github: GitHubConnectorController = {
-    hostName: () => null,
-    status: () => ({
-      available: true,
-      state: "connected",
-      login: "octocat",
-      avatarUrl: null,
-      userCode: null,
-      verificationUri: null,
-      error: null,
-    }),
-    busy: () => false,
-    repositories: () => ({
-      repositories: [
-        { fullName: "octocat/hello-world", private: false },
-        { fullName: "octocat/private-notes", private: true },
-      ],
-      total: 2,
-    }),
-    repositoriesError: () => null,
-    reload: fn(),
-    connect: fn(),
-    cancel: fn(),
-    disconnect: fn(),
-    openVerification: fn(),
-    openInstall: fn(),
-  };
-  const slack: SlackConnectorController = {
-    overview: () => ({ connections: [] }),
-    busy: () => false,
-    watch: () => () => undefined,
-    connectWorkspace: fn(),
-    disconnectWorkspace: fn(),
-    reconnect: fn(),
-    setEnabled: fn(),
-    models: () => undefined,
-    addOrchestrator: fn(),
-  };
-  const telegram: TelegramConnectorController = {
-    overview: () => ({ connections: [] }),
-    busy: () => false,
-    watch: () => () => undefined,
-    connectChat: fn(),
-    disconnectChat: fn(),
-    reconnect: fn(),
-    setEnabled: fn(),
-    models: () => undefined,
-    addOrchestrator: fn(),
-  };
-  return (
-    <RemoteSetupStory
-      settings={{ ...props.settings, githubConnector: github, slackConnector: slack, telegramConnector: telegram }}
-    />
-  );
+  const connectors = storyConnectorRegistry(localServer);
+  return <RemoteSetupStory settings={{ ...props.settings, connectors }} />;
 }

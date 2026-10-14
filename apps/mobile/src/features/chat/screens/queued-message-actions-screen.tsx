@@ -16,7 +16,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import { AttachmentThumbnail, useAttachmentFile } from "../components/attachment-preview";
 import { useQueuedChat } from "../context/queued-messages-context";
-import { queuedMessagePreview } from "../model/queued-message-view";
+import { queuedMessageLocks, queuedMessagePreview } from "../model/queued-message-view";
 
 export function QueuedMessageActionsScreen() {
   const { t, format } = useText();
@@ -37,10 +37,7 @@ export function QueuedMessageActionsScreen() {
     );
   }
 
-  // Editing holds one delivery on the host: our own hold locks every other row until it ends.
-  const locked = queue.busy || !queue.online || Boolean(held && held.id !== delivery.id);
-  // Another device holds this one. Only confirmed deletion remains available.
-  const editedElsewhere = Boolean(delivery.editing) && held?.id !== delivery.id;
+  const { locked, editedElsewhere } = queuedMessageLocks(delivery, { busy: queue.busy, online: queue.online, held });
   const finish = (action: Promise<boolean>) => {
     void action.then((done) => {
       void haptics.notification(done ? "success" : "error");

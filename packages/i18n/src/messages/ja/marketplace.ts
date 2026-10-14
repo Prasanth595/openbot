@@ -173,6 +173,14 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.topCrash":
     "モバイルプロジェクトで最も多いクラッシュと、その原因として考えられるものを説明してください。",
   "marketplace.plugin.sentry.prompt.releaseHealth": "現在のリリースは前回と比べてどのくらい健全ですか？",
+  "marketplace.plugin.vercel.tagline": "デプロイ、ビルドログ、プロジェクト",
+  "marketplace.plugin.vercel.description":
+    "Vercel を使うと、エージェントはプロジェクトと最近のデプロイを一覧表示し、ビルドログとランタイムログを読み、ビルドが失敗した理由を調べられます。各ユーザーはブラウザで自分の Vercel アカウントにサインインし、エージェントが使えるチームを選びます。それらのチームでは、エージェントはユーザーのアカウントと同じ権限を持ちます。環境変数、ドメイン、DNS レコード、デプロイの変更や、ドメインの購入もできます。",
+  "marketplace.plugin.vercel.app":
+    "プロジェクト、デプロイ、ビルドログ、ランタイムログを、ブラウザでサインインする Vercel の MCP サーバーで提供します。",
+  "marketplace.plugin.vercel.prompt.failedBuild": "直近の本番デプロイが失敗したのはなぜですか？",
+  "marketplace.plugin.vercel.prompt.recentDeployments": "今日のデプロイとそのステータスを一覧にしてください。",
+  "marketplace.plugin.vercel.prompt.runtimeErrors": "過去 1 時間にランタイムエラーが発生したルートはどれですか？",
   "marketplace.plugin.context7.tagline": "最新のライブラリドキュメント",
   "marketplace.plugin.context7.description":
     "Context7 はライブラリとフレームワークの最新のドキュメントと API リファレンスを取得するので、回答はプロジェクトが実際に使っているバージョンに基づきます。アカウントもキーも不要です。",

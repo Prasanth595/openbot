@@ -31,6 +31,7 @@ import {
   type BusyMessageMode,
   type CreateAgentInput,
   DEFAULT_AGENT_ACCESS,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   type DuplicateAgentResult,
   decodeAgentProfileDraft,
   decodeSaveAgentProfileResult,
@@ -42,6 +43,7 @@ import {
   isAvatarHue,
   isAvatarSeed,
   isBusyMessageMode,
+  isProviderAccountId,
   isReasoningEffort,
   isSidebarLayoutSnapshot,
   providerForLegacyModel,
@@ -75,6 +77,8 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   allowAutomation?: boolean;
   // Absent means the app default, as for every agent stored before the setting existed.
   busyMessageMode?: BusyMessageMode;
+  // Absent means the provider's own sign-in, as for every agent stored before accounts existed.
+  providerAccountId?: string;
 };
 type StoredAgentBase = Omit<PersistedStoredAgent, "avatarSeed" | "avatarHue"> & DynamicRecord;
 
@@ -655,6 +659,17 @@ export class AgentStore {
         if (!isBoolean(input.allowAutomation)) throw new Error("Invalid automation value.");
         next.allowAutomation = input.allowAutomation;
       }
+      // A provider change without an account returns the agent to the new provider's own sign-in.
+      if (
+        input.providerAccountId === null ||
+        input.providerAccountId === DEFAULT_PROVIDER_ACCOUNT_ID ||
+        (input.provider !== undefined && input.provider !== agent.provider && input.providerAccountId === undefined)
+      )
+        delete next.providerAccountId;
+      else if (input.providerAccountId !== undefined) {
+        if (!isProviderAccountId(input.providerAccountId)) throw new Error("Invalid provider account.");
+        next.providerAccountId = input.providerAccountId;
+      }
       if (input.busyMessageMode === null) delete next.busyMessageMode;
       else if (input.busyMessageMode !== undefined) {
         if (!isBusyMessageMode(input.busyMessageMode)) throw new Error("Invalid busy message mode.");
@@ -684,13 +699,16 @@ export class AgentStore {
             }
           : undefined;
       Object.assign(agent, next);
-      // A copy cannot remove a field, and `null` above returned the agent to the app default.
+      // A copy cannot remove a field, and `null` above returned the agent to the app default or to
+      // the provider's own sign-in.
       if (next.busyMessageMode === undefined) delete agent.busyMessageMode;
+      if (next.providerAccountId === undefined) delete agent.providerAccountId;
       try {
         this.#persist(modelChange ? "agent.model-changed" : "agent.updated", modelChange);
       } catch (error) {
         Object.assign(agent, previous);
         if (previous.busyMessageMode === undefined) delete agent.busyMessageMode;
+        if (previous.providerAccountId === undefined) delete agent.providerAccountId;
         throw error;
       }
       return { ...agent };
@@ -1653,6 +1671,7 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.computerUse === undefined || isBoolean(record.computerUse)) &&
     (record.allowAutomation === undefined || isBoolean(record.allowAutomation)) &&
     (record.busyMessageMode === undefined || isBusyMessageMode(record.busyMessageMode)) &&
+    (record.providerAccountId === undefined || isProviderAccountId(record.providerAccountId)) &&
     isAvatarSeed(record.avatarSeed) &&
     (record.avatarHue === null || isAvatarHue(record.avatarHue)) &&
     isMarketplaceSource(record.marketplaceSource)
@@ -1715,6 +1734,10 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)
       ? value.busyMessageMode
       : reset("busyMessageMode", undefined);
+  const providerAccountId =
+    value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)
+      ? value.providerAccountId
+      : reset("providerAccountId", undefined);
   let marketplaceSource: StoredAgent["marketplaceSource"];
   if (value.marketplaceSource !== undefined) {
     if (isMarketplaceSource(value.marketplaceSource)) {
@@ -1756,6 +1779,7 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     ...(computerUse === undefined ? {} : { computerUse }),
     ...(allowAutomation === undefined ? {} : { allowAutomation }),
     ...(busyMessageMode === undefined ? {} : { busyMessageMode }),
+    ...(providerAccountId === undefined ? {} : { providerAccountId }),
     ...(sessionSettingOverrides === undefined ? {} : { sessionSettingOverrides }),
     ...(sessionSettingResets === undefined ? {} : { sessionSettingResets }),
     ...(marketplaceSource === undefined ? {} : { marketplaceSource }),

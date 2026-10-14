@@ -1,4 +1,5 @@
 import type { OnePasswordConnectorStatus, OnePasswordSetup } from "@openbot/contracts/ipc";
+import type { AppTextKey } from "@openbot/i18n";
 import {
   Alert,
   AlertContent,
@@ -45,12 +46,13 @@ export interface OnePasswordConnectorPanelProps {
   onDisconnect: () => void;
 }
 
-const HEADER_STATUS = {
+/** The status of the connection, as its page header and every list of connectors show it. */
+export const ONEPASSWORD_STATUS = {
   disconnected: { status: "idle", label: "connector.onePassword.statusNotSetUp" },
-  connecting: { status: "idle", label: "connector.onePassword.statusConnecting" },
-  "choose-account": { status: "idle", label: "connector.onePassword.statusConnecting" },
+  connecting: { status: "connecting", label: "connector.onePassword.statusConnecting" },
+  "choose-account": { status: "connecting", label: "connector.onePassword.statusConnecting" },
   connected: { status: "connected", label: "connector.onePassword.statusConnected" },
-} as const satisfies Record<OnePasswordConnectorStatus["state"], { status: IntegrationStatus; label: string }>;
+} as const satisfies Record<OnePasswordConnectorStatus["state"], { status: IntegrationStatus; label: AppTextKey }>;
 
 /** `done` shows a check; `waiting` is a step whose earlier step is not done, so its action is off. */
 type StepState = "done" | "current" | "waiting";
@@ -78,7 +80,7 @@ export function OnePasswordConnectorPanel(props: OnePasswordConnectorPanelProps)
   const { t, sourceText } = useText();
   const [tokenOpen, setTokenOpen] = createSignal(false);
   const [token, setToken] = createSignal("");
-  const header = () => HEADER_STATUS[props.status.state];
+  const header = () => ONEPASSWORD_STATUS[props.status.state];
   const steps = () => setupSteps(props.status.setup);
   onSettled(() => props.onWatchSetup());
   const submitToken = (event: SubmitEvent) => {

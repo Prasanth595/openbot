@@ -192,7 +192,7 @@ function terminalCommand(platform: NodeJS.Platform, argv: readonly string[]): { 
  * null until all of it is there. The shapes are the pinned CLIs' (Grok 1.0.22, Claude 2.1.263,
  * Cursor 2026.10.01, Cline 3.0.68); the tests hold samples of each.
  */
-export function parseCliCodePrompt(flow: CliCodePrompt["flow"], output: string): CliCodePrompt | null {
+function parseCliCodePrompt(flow: CliCodePrompt["flow"], output: string): CliCodePrompt | null {
   const text = stripTerminalCodes(output);
   // Only a link that something has ended: a chunk can stop in the middle of one.
   const url = text.match(/https:\/\/[^\s"'<>]+(?=[\s"'<>])/)?.[0];

@@ -62,10 +62,14 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
   #nextId = 1;
   #stopping = false;
 
-  constructor(executable: string, requestTimeoutMs = 30_000) {
+  /** Added to the inherited environment, such as the `CODEX_HOME` of an account after the first. */
+  readonly #extraEnv: Readonly<Record<string, string>> | undefined;
+
+  constructor(executable: string, requestTimeoutMs = 30_000, extraEnv?: Readonly<Record<string, string>>) {
     super();
     this.#executable = executable;
     this.#requestTimeoutMs = requestTimeoutMs;
+    this.#extraEnv = extraEnv;
   }
 
   get running(): boolean {
@@ -80,7 +84,7 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     const target = cliSpawnTarget(this.#executable, ["app-server", "--listen", "stdio://"]);
     const child = spawn(target.command, target.args, {
       stdio: ["pipe", "pipe", "pipe"],
-      env: process.env,
+      env: this.#extraEnv ? { ...process.env, ...this.#extraEnv } : process.env,
       windowsVerbatimArguments: target.windowsVerbatimArguments,
       windowsHide: true,
     });

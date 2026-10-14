@@ -38,6 +38,7 @@ import {
   TEAM_SEMANTIC_TAGS_CAPABILITY,
 } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -53,6 +54,7 @@ import {
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
+  listProviderAccounts,
   listSharedTables,
   previewAgentTemplate,
   publishAgentTemplate,
@@ -60,6 +62,7 @@ import {
   resetAgentSessionSetting,
   rotateEventRoutineSecret,
   saveEventRoutine,
+  setAgentProviderAccount,
   setAgentSessionSetting,
   setAgentSkillEnabled,
   testEventRoutine,
@@ -127,6 +130,8 @@ type HostRequestActions = Pick<
   | "updateAgentAdminSettings"
   | "loadAgentHostSettings"
   | "updateAgentHostSettings"
+  | "loadProviderAccounts"
+  | "setAgentProviderAccount"
   | "canStartNewChat"
   | "startNewChat"
   | "loadAgentSessionSettings"
@@ -148,6 +153,7 @@ type HostRequestActions = Pick<
   | "attachmentSupport"
   | "editQueue"
   | "changeQueue"
+  | "setMessageReaction"
   | "downloadAttachment"
 >;
 
@@ -407,6 +413,15 @@ export function createHostRequestActions({
         throw new Error(currentText().t("mobile.agent.host.unsupported"));
       return request("POST", AGENT_HOST_SETTINGS_ROUTES.update, decodeAgentHostSettings, { ...input }, serverId);
     },
+    loadProviderAccounts: async (serverId) =>
+      capabilities.get(serverId)?.includes(PROVIDER_ACCOUNTS_CAPABILITY)
+        ? runTeamRequest(listProviderAccounts(teamApi(serverId)))
+        : null,
+    setAgentProviderAccount: async (input, serverId) => {
+      if (!capabilities.get(serverId)?.includes(PROVIDER_ACCOUNTS_CAPABILITY))
+        throw new Error(currentText().t("mobile.agent.runtime.accountUnsupported"));
+      await runTeamRequest(setAgentProviderAccount(teamApi(serverId), input));
+    },
     canStartNewChat: (serverId) => capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY) ?? false,
     startNewChat: async (agentId, serverId) => {
       // A host too old to know the route answers 404, so refuse before the request.
@@ -484,6 +499,9 @@ export function createHostRequestActions({
             ? TEAM_API_ROUTES.agent.queueSteer
             : TEAM_API_ROUTES.agent.queueReorder;
       await request("POST", route(agentId), ignoreResponse, input, serverId);
+    },
+    setMessageReaction: async (agentId, serverId, messageId, emoji) => {
+      await request("POST", TEAM_API_ROUTES.agent.reactions(agentId), ignoreResponse, { messageId, emoji }, serverId);
     },
     downloadAttachment: (serverId, attachmentId) => {
       const download = () =>

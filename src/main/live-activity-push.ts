@@ -40,7 +40,7 @@ const ACTIVITY_LIFETIME_MS = 8 * 60 * 60 * 1000;
 /** iOS removes an ended Live Activity from the Lock Screen 4 hours later. */
 const REGISTRATION_LIFETIME_MS = ACTIVITY_LIFETIME_MS + 4 * 60 * 60 * 1000;
 
-export type LiveActivityPushAgents = Pick<TeamApiAgents, "on" | "off" | "getRuntimeSnapshot" | "listConversationReads">;
+type LiveActivityPushAgents = Pick<TeamApiAgents, "on" | "off" | "getRuntimeSnapshot" | "listConversationReads">;
 
 export interface LiveActivityPushOptions {
   agents: LiveActivityPushAgents;

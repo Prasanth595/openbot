@@ -31,6 +31,19 @@ const HOSTED_UPDATE_PATHS: HostedUpdatePaths = {
   stagedReady: "/opt/OpenBot/staged.ready",
 };
 
+/**
+ * The folders that docker/instances/compose.yaml mounts in a container. OpenBot writes requests, and
+ * `openbot-instance update-request` on the host pulls the image and makes the container again.
+ */
+export const CONTAINER_UPDATE_PATHS: HostedUpdatePaths = {
+  requests: "/var/lib/openbot-update/requests",
+  state: "/var/lib/openbot-update/status/state",
+  stagedReady: "/var/lib/openbot-update/status/staged.ready",
+};
+
+/** The host writes this file when its path unit acts on the requests of the container. */
+export const CONTAINER_UPDATE_TRIGGER = "/var/lib/openbot-update/status/enabled";
+
 interface HostedUpdateOptions {
   currentVersion: string;
   arch: string;

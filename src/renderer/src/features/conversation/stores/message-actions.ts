@@ -27,7 +27,6 @@ export interface MessageActionsDeps {
   editingDeliveryId: () => string | null;
   editingPendingSave: () => StoredQueueEdit["pendingSave"] | null;
   setOpenReactionMessageId: (id: string | null) => void;
-  setOpenMoreMessageId: (id: string | null) => void;
   setExpandedEmojiMessageId: (id: string | null) => void;
   copiedMessageId: () => string | null;
   setCopiedMessageId: (id: string | null) => void;
@@ -38,7 +37,6 @@ export function createMessageActions(deps: MessageActionsDeps) {
   function replyToMessage(message: AgentMessage) {
     deps.updateCurrentDraft({ replyToMessageId: message.id });
     deps.setOpenReactionMessageId(null);
-    deps.setOpenMoreMessageId(null);
   }
 
   async function reactToMessage(message: AgentMessage, emoji: MessageReaction | null) {

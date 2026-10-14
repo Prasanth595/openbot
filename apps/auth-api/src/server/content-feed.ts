@@ -50,7 +50,7 @@ function latestSiteModifiedAt(): string {
   return CONTENT_COLLECTIONS.map(latestModifiedAt).toSorted().at(-1) ?? "2026-01-01";
 }
 
-export function contentSitemapXml(): string {
+function contentSitemapXml(): string {
   const entries = [
     { loc: OPENBOT_SITE_URL, lastmod: latestSiteModifiedAt() },
     { loc: downloadPageUrl("hub"), lastmod: DOWNLOAD_PAGES_UPDATED_AT },
@@ -83,7 +83,7 @@ export function contentSitemapXml(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 }
 
-export function contentRssXml(collection: ContentCollection): string {
+function contentRssXml(collection: ContentCollection): string {
   const items = collection.articles
     .map((article) => {
       const url = articleUrl(collection, article.slug);

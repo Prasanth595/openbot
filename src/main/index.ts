@@ -32,6 +32,7 @@ import { requestNotificationPermission, showRetainedNotification } from "./deskt
 import { guardDevelopmentOutput } from "./development-output";
 import {
   developmentUserDataName,
+  readAnalyticsCaptureUrl,
   readDevelopmentInstanceId,
   readDevelopmentProfile,
   readDevelopmentRemoteDebuggingPort,
@@ -63,6 +64,7 @@ import { githubConnectorIpcHandlers } from "./ipc/github-connector-handlers";
 import { hostAdminIpcHandlers } from "./ipc/host-admin-handlers";
 import { hostedServerIpcHandlers } from "./ipc/hosted-server-handlers";
 import { hostedSiteIpcHandlers } from "./ipc/hosted-site-handlers";
+import { instanceTransferIpcHandlers } from "./ipc/instance-transfer-handlers";
 import { marketplaceAgentIpcHandlers } from "./ipc/marketplace-agent-handlers";
 import { mcpServerIpcHandlers } from "./ipc/mcp-server-handlers";
 import { memoryIpcHandlers } from "./ipc/memory-handlers";
@@ -145,6 +147,7 @@ const inviteLinkOptions = {
 const developmentRemoteDebuggingPort = !app.isPackaged
   ? readDevelopmentRemoteDebuggingPort(process.env.OPENBOT_DEV_REMOTE_DEBUGGING_PORT)
   : null;
+const analyticsCaptureUrl = !app.isPackaged ? readAnalyticsCaptureUrl(process.env.OPENBOT_ANALYTICS_CAPTURE_URL) : null;
 // Electron exposes FedCM without an account chooser, so every request fails with a NetworkError.
 // Sites such as Google Sign-In use FedCM when it exists and fall back to their popup when it does not.
 app.commandLine.appendSwitch("disable-features", "FedCm");
@@ -476,6 +479,7 @@ function registerIpcHandlers({
   marketplaceAgents,
   agentTemplates,
   agentImport,
+  instanceTransfer,
   voice,
   dynamicIsland,
   cuaDriver,
@@ -510,6 +514,7 @@ function registerIpcHandlers({
       logoColor,
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
       appVariant,
+      analyticsCaptureUrl,
       getMainWindow,
       setAnalyticsTrackingEnabled: (enabled) => analytics.setTrackingEnabled(enabled),
       trace,
@@ -551,6 +556,7 @@ function registerIpcHandlers({
         ? join(process.resourcesPath, "agent-import", "grok-bot", "SKILL.md")
         : resolve(__dirname, "../../resources/agent-import/grok-bot/SKILL.md"),
     }),
+    ...instanceTransferIpcHandlers({ instanceTransfer, remoteServers, getMainWindow, translate: language.translate }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,
@@ -756,12 +762,8 @@ function acceptDeepLink(link: DeepLink): void {
     receiveMcpAuthorizationCode(link.state, link.code);
     return;
   }
-  if (link.kind === "slack-workspace") {
-    receiveSlackSignIn(link);
-    return;
-  }
-  if (link.kind === "discord-guild") {
-    receiveDiscordSignIn(link);
+  if (link.kind === "slack-workspace" || link.kind === "discord-guild") {
+    receiveMessagingInstall(link);
     return;
   }
   pendingDeepLink = link;
@@ -797,40 +799,26 @@ function takeRendererDeepLink(link: DeepLink | null): RendererDeepLink | null {
 }
 
 /**
- * Hands a Slack install the sealed token it is waiting for. An install that this computer opened for
- * a joined server sends the token on to that server. As with an MCP grant, a link this run did not
- * start does nothing and raises no window.
+ * Hands a Slack or Discord install the sealed grant it is waiting for. An install that this computer
+ * opened for a joined server sends the grant on to that server. As with an MCP grant, a link this run
+ * did not start does nothing and raises no window.
  */
-function receiveSlackSignIn(link: Extract<DeepLink, { kind: "slack-workspace" }>): void {
+function receiveMessagingInstall(link: Extract<DeepLink, { kind: "slack-workspace" | "discord-guild" }>): void {
   const current = services;
   if (!current) return;
-  void Effect.runPromise(current.messaging.completeSlackWorkspace(link.nonce, link.grant))
-    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("slack", link.nonce, link.grant))
+  const platform = link.kind === "slack-workspace" ? "slack" : "discord";
+  const completed =
+    platform === "slack"
+      ? current.messaging.completeSlackWorkspace(link.nonce, link.grant)
+      : current.messaging.completeDiscordGuild(link.nonce, link.grant);
+  void Effect.runPromise(completed)
+    .then((accepted) => accepted || current.relayedMessagingInstalls.forward(platform, link.nonce, link.grant))
     .then((accepted) => {
       const window = windowHolder.current;
       if (accepted && window && !window.isDestroyed()) showMainWindow(window);
     })
     .catch(() => {
-      // The Slack settings show the connection's state. The error can quote Slack.
-    });
-}
-
-/**
- * Hands a Discord install the sealed guild link it is waiting for, or sends it on to the joined server
- * that started it. As with a Slack install, a link this run did not start does nothing and raises no
- * window.
- */
-function receiveDiscordSignIn(link: Extract<DeepLink, { kind: "discord-guild" }>): void {
-  const current = services;
-  if (!current) return;
-  void Effect.runPromise(current.messaging.completeDiscordGuild(link.nonce, link.grant))
-    .then((accepted) => accepted || current.relayedMessagingInstalls.forward("discord", link.nonce, link.grant))
-    .then((accepted) => {
-      const window = windowHolder.current;
-      if (accepted && window && !window.isDestroyed()) showMainWindow(window);
-    })
-    .catch(() => {
-      // The Discord settings show the connection's state.
+      // The connector settings show the connection's state. The error can quote Slack or Discord.
     });
 }
 
@@ -941,6 +929,7 @@ if (!hasSingleInstanceLock) {
         windows,
         appIconPath,
         appVariant,
+        analyticsCaptureUrl,
         developmentRemoteRole,
         developmentTestClientEnabled,
         hostedServer,

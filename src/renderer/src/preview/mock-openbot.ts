@@ -39,6 +39,7 @@ import {
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
   DEFAULT_BUSY_MESSAGE_MODE,
   DEFAULT_DYNAMIC_ISLAND_PREFERENCE,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
   DEFAULT_PROVIDER_DETECTION_SETTINGS,
   DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE,
   type DirectConversationSnapshot,
@@ -56,6 +57,7 @@ import {
   type OpenBotDesktopApi,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
+  type ProviderAccountStatus,
   type ProviderDetectionSettings,
   type QueueDelivery,
   type QueuedMessageReceipt,
@@ -88,6 +90,7 @@ import {
 import { sourceText } from "@openbot/i18n/source";
 import { AGENT_IMPORT_PREVIEW, AGENT_IMPORT_SKILL } from "../../stories/agent-import-fixtures";
 import { filePreviewForPath } from "../../stories/file-previews";
+import { INSTANCE_TRANSFER_PREVIEW } from "../../stories/instance-transfer-fixtures";
 import { toggleChannelMember } from "../features/channels/channels-draft";
 import {
   STORY_AGENT_TEMPLATE_DETAIL,
@@ -268,6 +271,25 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let dynamicIslandPreference: DynamicIslandPreference = { ...DEFAULT_DYNAMIC_ISLAND_PREFERENCE };
   let dynamicIslandPresentation: DynamicIslandPresentation = { serverId: "local", mode: "idle" };
   let agentStatus = clone(options.agentStatus ?? STORY_AGENT_STATUS);
+  const changeProviderAccounts = (
+    provider: AgentProviderId,
+    change: (accounts: ProviderAccountStatus[]) => ProviderAccountStatus[],
+  ): AgentStatus => {
+    const providers = agentStatus.providers;
+    if (!providers) return agentStatus;
+    agentStatus = {
+      ...agentStatus,
+      providers: providers.map((row) => {
+        if (row.id !== provider) return row;
+        const accounts = row.accounts ?? [
+          { id: DEFAULT_PROVIDER_ACCOUNT_ID, label: null, email: null, state: "connected", message: null },
+        ];
+        return { ...row, accounts: change(accounts) };
+      }),
+    };
+    emitAgentEvent({ type: "status", status: clone(agentStatus) });
+    return agentStatus;
+  };
   let agents = clone(options.agents ?? STORY_AGENT_SUMMARIES);
   const sessionSettings = new Map<string, AgentSessionSettings>();
   function previewSessionSettings(agentId: string): AgentSessionSettings {
@@ -718,6 +740,43 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       providerApiKeys.delete(provider);
       return clone(agentStatus);
     },
+    // A new account signs in at once: the preview has no browser page to wait for.
+    connectProviderAccount: async ({ provider, accountId }) => {
+      const changed = changeProviderAccounts(provider, (accounts) =>
+        accountId
+          ? accounts.map((account) =>
+              account.id === accountId ? { ...account, state: "connected", message: null } : account,
+            )
+          : [
+              ...accounts,
+              {
+                id: `a${(accounts.length + 1).toString(16).padStart(16, "0")}`,
+                label: null,
+                email: `account${accounts.length + 1}@example.com`,
+                state: "connected",
+                message: null,
+              },
+            ],
+      );
+      return clone(changed);
+    },
+    renameProviderAccount: async ({ provider, accountId, label }) =>
+      clone(
+        changeProviderAccounts(provider, (accounts) =>
+          accounts.map((account) => (account.id === accountId ? { ...account, label } : account)),
+        ),
+      ),
+    removeProviderAccount: async ({ provider, accountId }) => {
+      agents = agents.map((agent) => {
+        if (agent.provider !== provider || agent.providerAccountId !== accountId) return agent;
+        const { providerAccountId: _removed, ...moved } = agent;
+        return moved;
+      });
+      emitAgentEvent({ type: "agents-changed", agents });
+      return clone(
+        changeProviderAccounts(provider, (accounts) => accounts.filter((account) => account.id !== accountId)),
+      );
+    },
     getProviderApiKeyState: async (provider) => ({
       provider,
       status: providerApiKeys.has(provider) ? "saved" : "missing",
@@ -923,6 +982,23 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       startHostSignIn: async () => undefined,
       hostSignInStatus: async () => ({ tabId: null, result: null }),
       cancelHostSignIn: async () => clone(agentStatus),
+      // The preview host's accounts are the ones of this computer.
+      accounts: async () => ({
+        providers: (agentStatus.providers ?? []).flatMap((row) =>
+          row.accounts ? [{ provider: row.id, accounts: clone(row.accounts) }] : [],
+        ),
+        agents: [],
+      }),
+      accountUsage: async () => ({ limits: [] }),
+      startAccountSignIn: async () => undefined,
+      accountSignInStatus: async () => ({ tabId: null, result: null }),
+      cancelAccountSignIn: async () => undefined,
+      renameAccount: async (input) => {
+        await api.renameProviderAccount(input);
+      },
+      removeAccount: async (input) => {
+        await api.removeProviderAccount(input);
+      },
       startRelaySignIn: async () => undefined,
       relaySignInStatus: async () => ({ page: null, result: null }),
       openRelaySignIn: async () => undefined,
@@ -1423,8 +1499,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       updateAgent: async (input: UpdateAgentInput) => {
         const current = agents.find((agent) => agent.id === input.agentId);
         if (!current) throw new Error("Agent not found");
-        const { agentId: _agentId, busyMessageMode, ...updates } = input;
+        const { agentId: _agentId, busyMessageMode, providerAccountId, ...updates } = input;
         const updated: AgentSummary = { ...current, ...updates };
+        if (providerAccountId === null || (updates.provider && !providerAccountId)) delete updated.providerAccountId;
+        else if (providerAccountId) updated.providerAccountId = providerAccountId;
         // `null` returns the agent to the app default, which an agent records by having no value.
         if (busyMessageMode === null) delete updated.busyMessageMode;
         else if (busyMessageMode) updated.busyMessageMode = busyMessageMode;
@@ -2056,6 +2134,42 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       discard: async () => undefined,
       readSkill: async () => AGENT_IMPORT_SKILL,
       saveSkill: async () => ({ saved: true }),
+    },
+    instanceTransfer: {
+      summary: async () =>
+        clone({
+          agents: agents.map((agent, index) => ({
+            id: agent.id,
+            name: agent.name,
+            title: agent.title,
+            avatarSeed: agent.avatarSeed,
+            avatarHue: agent.avatarHue,
+            avatarUrl: agent.avatarUrl,
+            skillCount: index % 4,
+            routineCount: routines.get(agent.id)?.length ?? 0,
+            memoryCount: memories.get(agent.id)?.length ?? 0,
+            fileCount: index * 37,
+            fileBytes: index * 3_400_000,
+          })),
+        }),
+      export: async () => ({
+        saved: true,
+        fileName: `openbot-transfer-${new Date().toISOString().slice(0, 10)}.zip`,
+        warnings: [],
+      }),
+      showExport: async () => undefined,
+      choose: async () => clone(INSTANCE_TRANSFER_PREVIEW),
+      apply: async ({ token, keys }) => {
+        if (token !== INSTANCE_TRANSFER_PREVIEW.token)
+          throw new Error("The export is no longer open. Choose it again.");
+        const imported = INSTANCE_TRANSFER_PREVIEW.agents
+          .filter((agent) => keys.includes(agent.key))
+          .map((agent) => createAgentSummary({ name: agent.name, title: agent.title, description: agent.description }));
+        agents = [...agents, ...imported];
+        emitAgentEvent({ type: "agents-changed", agents });
+        return clone({ agents: imported, skipped: [], signIn: ["claude"], warnings: [] });
+      },
+      discard: async () => undefined,
     },
     remoteDesktop: mockTeam.remoteDesktop,
   };

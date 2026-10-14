@@ -1,4 +1,5 @@
 import { agentTemplateIdFromWebAppSearch, WEB_APP_AGENT_TEMPLATE_PARAM } from "@openbot/contracts/agent-template-links";
+import { type FirstTouch, readFirstTouch } from "@openbot/contracts/first-touch";
 import { inviteUrlFromWebAppSearch, WEB_APP_INVITE_FIELDS } from "@openbot/contracts/invite-links";
 import type { AppVariant, CentralAuthState, CentralAuthUser } from "@openbot/contracts/ipc";
 import { pluginSlugFromWebAppSearch, WEB_APP_PLUGIN_PARAM } from "@openbot/contracts/plugin-links";
@@ -131,7 +132,10 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
   };
   async function request(
     path: string,
-    body?: { email: string } | { challengeId: string | null; code: string } | Record<string, never>,
+    body?:
+      | { email: string }
+      | { challengeId: string | null; code: string; firstTouch?: FirstTouch }
+      | Record<string, never>,
   ) {
     const response = await accountFetch(`/api/browser/${path}`, {
       method: body ? "POST" : "GET",
@@ -246,7 +250,9 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
     });
   }
   async function verify(challengeId: string, code: string) {
-    const value = await signInRequest("email/verify", { challengeId, code });
+    // The first website visit of this browser, so that reports can name the source of a new account.
+    const firstTouch = readFirstTouch(() => window.localStorage, Date.now());
+    const value = await signInRequest("email/verify", { challengeId, code, ...(firstTouch ? { firstTouch } : {}) });
     if (value === null) return;
     const account = accountFrom(value);
     sessionGeneration += 1;

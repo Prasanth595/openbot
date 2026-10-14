@@ -13,7 +13,7 @@ import { articleHead } from "../../lib/content-metadata";
 
 // In `loader` for the reason given in routes/news/$slug.tsx: an unknown slug is a
 // real not-found response, not a 200 with an error card.
-export function loadComparison(slug: string): CollectionArticle {
+function loadComparison(slug: string): CollectionArticle {
   const article = findArticle(COMPARE_COLLECTION, slug);
   if (!article || !COMPARISONS[slug]) throw notFound();
   return article;
