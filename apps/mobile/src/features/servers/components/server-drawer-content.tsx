@@ -124,30 +124,16 @@ export function ServerDrawerContent({
       { id: "list", title: "", displayInline: true, subactions: listActions },
     ];
     const exit = serverExit(server);
-    if (exit === "leave")
+    if (exit)
       actions.push({
         id: "exit",
         title: "",
         displayInline: true,
         subactions: [
           {
-            id: "leave",
-            title: t("mobile.server.settings.leave"),
-            image: "rectangle.portrait.and.arrow.right",
-            attributes: { destructive: true },
-          },
-        ],
-      });
-    if (exit === "remove")
-      actions.push({
-        id: "exit",
-        title: "",
-        displayInline: true,
-        subactions: [
-          {
-            id: "remove",
-            title: t("mobile.server.settings.remove"),
-            image: "trash",
+            id: exit,
+            title: exit === "leave" ? t("mobile.server.settings.leave") : t("mobile.server.settings.remove"),
+            image: exit === "leave" ? "rectangle.portrait.and.arrow.right" : "trash",
             attributes: { destructive: true },
           },
         ],
