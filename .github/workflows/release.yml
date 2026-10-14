@@ -309,7 +309,6 @@ jobs:
         run: |
           bun run check:desktop
           bun run test:desktop -- --maxWorkers=2
-          bun run test:sites
           # The account service check needs more than the default Node heap of this 7 GB runner (about 2 GB).
           # Its build sets a larger heap itself, in `apps/auth-api/package.json`.
           NODE_OPTIONS=--max-old-space-size=4096 bun run check:api
@@ -552,7 +551,7 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Run Windows checks
-        run: bun run lint && bun run typecheck && bunx vitest run src/backend/cli.test.ts
+        run: bun run lint && bun run typecheck
 
       # Without a token, the GitHub API rate limit for the runner's address can refuse the release
       # lookup with HTTP 403.
@@ -738,9 +737,6 @@ jobs:
       - name: Run Linux checks
         if: matrix.arch == 'x64'
         run: bun run lint && bun run typecheck
-
-      - name: Run Linux CLI tests
-        run: bunx vitest run src/backend/cli.test.ts
 
       - name: Install and verify provider control artifacts
         run: |

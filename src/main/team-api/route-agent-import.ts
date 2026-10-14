@@ -79,7 +79,7 @@ export async function routeAgentImport(
  * An export the host cannot read, or a closed token, is a sentence for the member, not a host fault.
  * A system error, such as a full disk, names host paths: it goes to the logger and answers 500.
  */
-async function answer<T>(run: () => Promise<T>, status: number): Promise<T> {
+export async function answer<T>(run: () => Promise<T>, status: number): Promise<T> {
   try {
     return await run();
   } catch (error) {

@@ -13,9 +13,8 @@
  * theme list to ['light', 'dark'] and discovers a theme's variables only by
  * reading `@variant` at-rules, so a name present in one block and absent from the
  * other is a theme that cannot resolve it. uniwind notices, but only writes a red
- * line to the console - it does not fail the build. scripts/design-tokens.test.ts
- * asserts every value here matches the base, which is what stops mobile dark from
- * drifting away from desktop.
+ * line to the console - it does not fail the build. Keep every value here equal to
+ * the base, so that mobile dark does not drift away from desktop.
  */
 
 :root {

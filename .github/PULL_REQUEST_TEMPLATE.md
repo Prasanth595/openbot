@@ -11,7 +11,7 @@
 
 ## Failure modes
 
-<!-- Remove this section unless the PR adds or changes a unit test. Write the list before the code: one line per way the system can fail, with the test that covers it. -->
+<!-- Remove this section unless the PR adds or changes a vitest file. Write the list before the code: one line per way the system can fail, with the test that covers it. -->
 
 - 
 

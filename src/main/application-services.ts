@@ -17,7 +17,12 @@ import { type AgentAdminSettingsService, createAgentAdminSettings } from "./agen
 import { spawnAgentDatabaseHost } from "./agent-database-host-process";
 import { type AgentHostSettingsService, createAgentHostSettings } from "./agent-host-settings";
 import { HostReleaseService, readInstallationMode } from "./host-release-service";
-import { HOSTED_UPDATE_TRIGGER, HostedUpdateAdapter } from "./hosted-update-adapter";
+import {
+  CONTAINER_UPDATE_PATHS,
+  CONTAINER_UPDATE_TRIGGER,
+  HOSTED_UPDATE_TRIGGER,
+  HostedUpdateAdapter,
+} from "./hosted-update-adapter";
 import { LocalSkillLibrary } from "./local-skill-library";
 import { localSkillTools } from "./local-skill-tools";
 import { MAC_PERMISSION_URLS } from "./mac-permission-urls";
@@ -66,9 +71,21 @@ import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { REMOTE_ACCOUNT_CHECK_INTERVAL_MS } from "@openbot/team-client";
-import { app, type BrowserWindow, clipboard, nativeImage, powerMonitor, safeStorage, screen, shell } from "electron";
+import {
+  app,
+  type BrowserWindow,
+  clipboard,
+  desktopCapturer,
+  nativeImage,
+  powerMonitor,
+  safeStorage,
+  screen,
+  shell,
+  systemPreferences,
+} from "electron";
 import { pasteCodeLoginSupported } from "../backend/agent/cli-code-login";
 import { toMcpGatewayFailed } from "../backend/agent/mcp-gateway";
+import { ProviderAccountStore } from "../backend/agent/provider-account-store";
 import { AgentLifecycleFailed, AgentService } from "../backend/agent-service";
 import { AgentStore } from "../backend/agent-store";
 import { BrowserHost } from "../backend/browser-host";
@@ -140,6 +157,7 @@ import { HostedServerStartRetry } from "./hosted-server-start-retry";
 import { HostedSiteDesktopService } from "./hosted-site-service";
 import { IdleRestart } from "./idle-restart";
 import { loadIngressQueueKey } from "./ingress-queue-key";
+import { InstanceTransferService } from "./instance-transfer-service";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
 import { LogoColorService } from "./logo-color-service";
@@ -171,6 +189,7 @@ import { MessagingCredentialStore } from "./messaging-credential-store";
 import { NotificationPreferenceStore } from "./notification-preference-store";
 import { OnePasswordConnectorService } from "./onepassword-connector-service";
 import { OnePasswordConnectorStore } from "./onepassword-connector-store";
+import { ProviderAccountsHost } from "./provider-accounts-host";
 import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
@@ -196,6 +215,7 @@ import { ResourceMonitor } from "./resource-monitor";
 import { StatementTimings } from "./resource-summary";
 import { RoutineFeedServer } from "./routine-feed-server";
 import { clearRoutineHold, ROUTINE_HOLD_FILE, takeRoutineHold, writeRoutineHold } from "./routine-hold-file";
+import { ScreenCapturer } from "./screen-capture";
 import { ServerMode, type ServerModeEnvironment } from "./server-mode";
 import {
   configureApplicationProtocol,
@@ -302,6 +322,7 @@ const TEARDOWN_ORDER = {
   computerUsePermissionHelp: 19,
   dynamicIsland: 20,
   // Before the browser, so no sign-in opens a tab while it stops.
+  providerAccountsHost: 27,
   providerHostSignIns: 28,
   mcpHostSignIns: 29,
   browser: 30,
@@ -354,6 +375,8 @@ export interface ApplicationServiceContext {
   windows: MainWindowController;
   appIconPath: string;
   appVariant: AppVariant;
+  /** A local server that receives analytics in an unpackaged build. See `readAnalyticsCaptureUrl`. */
+  analyticsCaptureUrl: string | null;
   developmentRemoteRole: DevelopmentRemoteRole | null;
   developmentTestClientEnabled: boolean;
   /** Set only in a hosted server VM. */
@@ -439,6 +462,7 @@ export interface ApplicationServices {
   marketplaceAgents: AgentMarketplaceService;
   agentTemplates: AgentTemplateService;
   agentImport: AgentImportService;
+  instanceTransfer: InstanceTransferService;
   voice: VoiceTranscriptionService;
   dynamicIsland: DynamicIslandWindowController;
   cuaDriver: CuaDriverRuntime;
@@ -670,6 +694,7 @@ export async function createApplicationServices({
   windows,
   appIconPath,
   appVariant,
+  analyticsCaptureUrl,
   developmentRemoteRole,
   developmentTestClientEnabled,
   hostedServer,
@@ -939,6 +964,11 @@ export async function createApplicationServices({
    */
   const providerUse = new ProviderUseSettingsStore(join(app.getPath("userData"), "openbot-provider-use-v1.json"));
   await runCauseEffect(providerUse.load());
+  const providerAccounts = new ProviderAccountStore(
+    join(app.getPath("userData"), "openbot-provider-accounts-v1.json"),
+    join(app.getPath("userData"), "provider-accounts"),
+  );
+  await runCauseEffect(providerAccounts.load());
   const providerRuntimes = new ProviderRuntimeManager({
     isProviderOn: (provider) => !providerUse.off().includes(provider),
     root: providerRuntimeRoot({
@@ -1255,10 +1285,18 @@ export async function createApplicationServices({
     mailbox,
     browser,
     visualPreview: new ChatVisualPreviewer(),
+    screenCapture: new ScreenCapturer({
+      platform: process.platform,
+      screenAccess: () => systemPreferences.getMediaAccessStatus("screen"),
+      displays: () => screen.getAllDisplays(),
+      primaryDisplayId: () => screen.getPrimaryDisplay().id,
+      getSources: (options) => desktopCapturer.getSources(options),
+    }),
     hostMemory,
     retireChannels: true,
     requestTimeoutMs: 30_000,
     offProviders: providerUse.off(),
+    providerAccounts,
     saveProviderUse: (provider, on) =>
       providerUse
         .set(provider, on)
@@ -1644,8 +1682,33 @@ export async function createApplicationServices({
     undefined,
     join(app.getPath("userData"), "agent-import-uploads"),
   );
+  // The same owners the Settings screens write through, so an import has their checks and restarts.
+  const instanceTransfer = new InstanceTransferService({
+    agents: service,
+    skills: { library: () => skills.requireLocalLibrary(), installLocal: (input) => skills.installLocal(input) },
+    sharedRoot: store.sharedRoot,
+    appVersion: app.getVersion(),
+    uploadDirectory: join(app.getPath("userData"), "instance-transfer-uploads"),
+    settings: {
+      mcpServers: () => service.listMcpServers(),
+      saveMcpServer: (config) => service.saveMcpServer({ config }),
+      customProviders: () => customProviderChanges.list(),
+      saveCustomProvider: (input) => customProviderChanges.save(input),
+      customAgents: () => customAgentChanges.list(),
+      providersOff: () => providerUse.off(),
+      sidebar: () => sidebarLayout.getSnapshot(),
+      mutateSidebar: (action) => sidebarLayout.mutate(action, service.sidebarChatIds()),
+      routineFlowLinks: (agentId) => routineFlowRuntime.canvas(agentId).pipe(Effect.map((canvas) => canvas.links)),
+      connectRoutineFlow: (input) => routineFlowRuntime.connect(input),
+      signedInProviders: () =>
+        (service.getStatus().providers ?? [])
+          .filter((provider) => provider.state === "available" && !provider.off)
+          .map((provider) => provider.id),
+    },
+  });
   const mcpHostSignIns = new McpHostSignIns({ service, browser });
   const providerSignIns = new ProviderHostSignIns({ service, browser });
+  const providerAccountsHost = new ProviderAccountsHost({ service, browser });
   // The flows end with the sign-ins they relay, which `mcpHostSignIns` and `providerSignIns` close.
   const signInRelayHost = new SignInRelayHost({
     mcp: mcpHostSignIns,
@@ -1661,6 +1724,9 @@ export async function createApplicationServices({
   });
   teardown.push(TEARDOWN_ORDER.mcpHostSignIns, "MCP sign-ins of joined servers", () =>
     Effect.runPromise(mcpHostSignIns.close()),
+  );
+  teardown.push(TEARDOWN_ORDER.providerAccountsHost, "Provider account sign-ins of joined servers", () =>
+    Effect.runPromise(providerAccountsHost.close()),
   );
   teardown.push(TEARDOWN_ORDER.providerHostSignIns, "Provider sign-ins of joined servers", () =>
     Effect.runPromise(providerSignIns.close()),
@@ -1695,12 +1761,16 @@ export async function createApplicationServices({
     connectors: { github: githubConnector, messaging },
     // Present on Linux, so the host advertises `provider-host-sign-in-v1`. The routes are admin-only.
     providerHostSignIns,
+    // Present, so the host advertises `provider-accounts-v1`. The routes are admin-only.
+    providerAccounts: providerAccountsHost,
     // Present, so the host advertises `storage-v1`. Members read; only admins delete or clear.
     storage: storageUsage,
     // Present, so the host advertises `hosted-sites-v1`. Members list; only admins delete.
     hostedSites,
     // Present, so the host advertises `agent-import-v1`. Any member can import.
     agentImport,
+    // Present, so the host advertises `instance-transfer-v1`. Only owners and admins.
+    instanceTransfer,
     // Present, so the host advertises `routine-flows-v1`. Any member who can see the agents.
     routineFlows: routineFlowRuntime,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.
@@ -1858,19 +1928,23 @@ export async function createApplicationServices({
         : resolve(__dirname, "../../resources/plugin-catalog"),
     ),
   );
-  const failureReports =
-    app.isPackaged && appVariant === "production"
-      ? new ReportQueue(
-          fileReportStorage(join(app.getPath("userData"), "openbot-error-reports-v1.json")),
-          openPanelTransport({ clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2", origin: "openbot-app://app" }),
-          {
-            surface: "desktop_host",
-            app_version: app.getVersion(),
-            platform: analyticsPlatform,
-            event_schema_version: 8,
-          },
-        )
-      : undefined;
+  const analyticsEnabled = (app.isPackaged && appVariant === "production") || analyticsCaptureUrl !== null;
+  const failureReports = analyticsEnabled
+    ? new ReportQueue(
+        fileReportStorage(join(app.getPath("userData"), "openbot-error-reports-v1.json")),
+        openPanelTransport({
+          clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2",
+          origin: "openbot-app://app",
+          ...(analyticsCaptureUrl ? { endpoint: `${analyticsCaptureUrl}/track` } : {}),
+        }),
+        {
+          surface: "desktop_host",
+          app_version: app.getVersion(),
+          platform: analyticsPlatform,
+          event_schema_version: 8,
+        },
+      )
+    : undefined;
   const trace = new TraceFile({ directory: join(app.getPath("userData"), "logs") });
   teardown.push(TEARDOWN_ORDER.trace, "the trace file", () => Effect.runPromise(trace.close()));
   const resourceMonitor = new ResourceMonitor({
@@ -1886,7 +1960,8 @@ export async function createApplicationServices({
   service.on("event", (event) => resourceMonitor.observeAgentEvent(event));
   const analytics = new HostAnalytics({
     ...(failureReports ? { reports: failureReports } : {}),
-    enabled: app.isPackaged && appVariant === "production",
+    enabled: analyticsEnabled,
+    ...(analyticsCaptureUrl ? { apiUrl: analyticsCaptureUrl } : {}),
     trackingEnabled: analyticsPreference.enabled,
     appVersion: app.getVersion(),
     platform: analyticsPlatform,
@@ -2065,12 +2140,19 @@ export async function createApplicationServices({
   // Skip the file check in dev: unpacked runs never enable updates, so avoid touching resourcesPath.
   const updateMetadataAvailable = app.isPackaged && existsSync(join(process.resourcesPath, "app-update.yml"));
   // A hosted or self-installed server runs a release that root owns. Root installs updates for it
-  // when openbot-hosted-update has installed its request units. A container has none.
-  const hostedInstaller =
+  // when openbot-hosted-update has installed its request units. A container of openbot-instance asks
+  // the host instead, which pulls the image. Other containers have neither.
+  const containerInstaller =
     app.isPackaged &&
     process.platform === "linux" &&
-    (process.env.OPENBOT_HOSTED_SERVER === "1" || installationMode === "self") &&
-    existsSync(HOSTED_UPDATE_TRIGGER);
+    installationMode === "container" &&
+    existsSync(CONTAINER_UPDATE_TRIGGER);
+  const hostedInstaller =
+    containerInstaller ||
+    (app.isPackaged &&
+      process.platform === "linux" &&
+      (process.env.OPENBOT_HOSTED_SERVER === "1" || installationMode === "self") &&
+      existsSync(HOSTED_UPDATE_TRIGGER));
   const updatesEnabled =
     app.isPackaged &&
     (hostedInstaller || (supportsInstalledUpdates(process.platform) && updateMetadataAvailable)) &&
@@ -2081,7 +2163,11 @@ export async function createApplicationServices({
   let updateAdapter: UpdateAdapter = createDisabledUpdateAdapter();
   let updaterEnabled = updatesEnabled;
   if (updatesEnabled && hostedInstaller) {
-    updateAdapter = new HostedUpdateAdapter({ currentVersion, arch: process.arch });
+    updateAdapter = new HostedUpdateAdapter({
+      currentVersion,
+      arch: process.arch,
+      ...(containerInstaller ? { paths: CONTAINER_UPDATE_PATHS } : {}),
+    });
   } else if (updatesEnabled) {
     try {
       const updaterModule = await import("electron-updater");
@@ -2356,6 +2442,7 @@ export async function createApplicationServices({
     marketplaceAgents,
     agentTemplates,
     agentImport,
+    instanceTransfer,
     voice,
     dynamicIsland,
     cuaDriver,

@@ -119,6 +119,28 @@ function notificationSubject(
   return null;
 }
 
+/**
+ * True when the preview of an approval shows all that the user allows, so a notification can offer
+ * Approve: a command, or the reason of a file change, not cut and with no secret hidden, and no grant
+ * of a folder or of permissions that the notification cannot show. Deny is safe for every approval.
+ */
+export function approvalShownWhole(
+  approval: Extract<AgentEvent, { type: "approval" }>["approval"],
+  redact: (text: string) => string,
+): boolean {
+  const { kind, command, reason, grantRoot, permissions } = approval;
+  if (grantRoot !== null || permissions !== null) return false;
+  if (kind === "command" && command) {
+    if (redact(command) !== command) return false;
+    const length = Array.from(command.replace(/\s+/gu, " ").trim()).length;
+    return length > 0 && length <= PREVIEW_LIMIT;
+  }
+  // The reason is Markdown. The notification shows it as plain text, so it must lose nothing on the way.
+  if (kind !== "file-change" || !reason || redact(reason) !== reason) return false;
+  const shown = plainPreview(reason);
+  return shown !== null && shown === reason.replace(/\s+/gu, " ").trim();
+}
+
 /** Agent Markdown as plain text, cut to the preview length. */
 function plainPreview(text: string): string | null {
   return previewText(markdownPreviewText(cleanAgentMessageText(text)));

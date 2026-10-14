@@ -48,7 +48,7 @@ export interface McpProbeResult {
  */
 // SDK errors can quote credentials. Internal operations have no tracing spans; only the
 // redacted McpProbeResult crosses the probe boundary.
-export class McpProbeFailure extends Schema.TaggedError<McpProbeFailure>()("McpProbeFailure", {
+class McpProbeFailure extends Schema.TaggedError<McpProbeFailure>()("McpProbeFailure", {
   cause: Schema.Defect(),
 }) {}
 
@@ -168,7 +168,7 @@ function describeProbeFailure(
  * address the row holds, so a test that passed over https would hide that every agent still fails.
  * The sentence names the https address instead, without its query, which can carry a key.
  */
-export function describeSignInChallenge(url: string, finalUrl: string, place: McpSignInPlace | null): string | null {
+function describeSignInChallenge(url: string, finalUrl: string, place: McpSignInPlace | null): string | null {
   if (place === null) return null;
   if (!normalizeResource(url))
     return sourceText("error.backend.mcpSignInNeedsHttps", { url: httpsAddress(finalUrl, url) });
@@ -373,7 +373,7 @@ class McpTimeout extends Error {
 }
 
 /** The failure, in the words the panel shows. Secrets are removed before the text leaves here. */
-export function describeMcpError(error: unknown, config: McpServerConfig, timeoutMs: number): string {
+function describeMcpError(error: unknown, config: McpServerConfig, timeoutMs: number): string {
   const described = describeMcpErrorText(error, config, timeoutMs);
   // A bridge that never answers is the case the native connection replaces: say where to go.
   const bridgeUrl = mcpRemoteBridgeUrl(config);

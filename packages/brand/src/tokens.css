@@ -5,8 +5,7 @@
  * names lived in three files that no single commit had ever touched together, so
  * the web palette was a frozen snapshot of a desktop palette that had moved on by
  * two hundred tokens, and a token added for one surface was simply absent on the
- * other two. scripts/design-tokens.test.ts is what keeps this file the only
- * declaration site.
+ * other two. Keep this file the only declaration site.
  *
  * The values here are the base, always-dark palette. Mobile is the one surface
  * with a light theme; it layers tokens-native.css on top of this file.

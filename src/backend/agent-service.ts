@@ -144,16 +144,24 @@ import {
   ProfileGenerationFailed,
 } from "./agent/profile-generation";
 import { ProfileSave, standingProfileChanged, toProfileSaveFailed } from "./agent/profile-save";
+import type { ProviderAccountStore } from "./agent/provider-account-store";
 import { isPlanLimitDiagnostic } from "./agent/provider-diagnostics";
 import { type AgentClientFactory, ProviderRuntime, toProviderOperationFailed } from "./agent/provider-runtime";
 import { QueueControls } from "./agent/queue-controls";
 import { quietRoutineRun } from "./agent/routine-quiet-runs";
 import { type RoutineMutationOptions, RoutineScheduler, toRoutineOperationFailed } from "./agent/routine-scheduler";
 import { buildRuntimeSnapshot } from "./agent/runtime-snapshot";
+import type { ScreenCaptureHost } from "./agent/screen-capture";
 import { SessionSettings } from "./agent/session-settings";
 import type { AgentSidebar } from "./agent/sidebar-tools";
 import type { LocalSkillTools } from "./agent/skill-tools";
-import { isRequestTimeout, providerForAgent, providerLabel, type ToolUsageSignal } from "./agent/thread-items";
+import {
+  agentProviderAccount,
+  isRequestTimeout,
+  providerForAgent,
+  providerLabel,
+  type ToolUsageSignal,
+} from "./agent/thread-items";
 import { ThreadLifecycle } from "./agent/thread-lifecycle";
 import { toToolOperationFailed } from "./agent/tool-operation";
 import { type AgentBrowserHost, TurnLifecycle } from "./agent/turn-lifecycle";
@@ -227,6 +235,8 @@ export interface AgentServiceOptions {
   hostedSites?: AgentHostedSites | null;
   /** Draws pages for `html_preview`. Without it the tool tells the agent to show the page unchecked. */
   visualPreview?: ChatVisualPreviewHost | null;
+  /** Captures the desktop for `capture_screen`; null where this process has no desktop. */
+  screenCapture?: ScreenCaptureHost | null;
   sidebarLayout?: AgentSidebar | null;
   /**
    * What a spawned CLI is given beyond its own binary: the stored keys, and the user's own model
@@ -235,6 +245,8 @@ export interface AgentServiceOptions {
    */
   credentials?: ProviderClientContext;
   offProviders?: readonly AgentProvider[];
+  /** The provider accounts after the first. Omitted, each provider holds its own sign-in only. */
+  providerAccounts?: ProviderAccountStore;
   saveProviderUse?: (provider: AgentProvider, on: boolean) => Effect.Effect<void, AgentLifecycleFailed>;
   localSkillTools?: () => LocalSkillTools;
   /** Built after the service, so read when a tool call needs it. */
@@ -486,6 +498,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
     this.#providers = new ProviderRuntime({
       offProviders: options.offProviders ?? [],
+      ...(options.providerAccounts ? { accounts: options.providerAccounts } : {}),
       saveProviderUse: (provider, on) =>
         (options.saveProviderUse?.(provider, on) ?? Effect.void).pipe(toProviderOperationFailed),
       conversation: this.#conversation,
@@ -919,7 +932,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         emit: (event) => this.#emit(event),
         emitRuntimeSnapshot: () => this.#emitRuntimeSnapshot(),
         scheduleDrain: (agentId) => this.#drain.scheduleDrain(agentId),
-        readUsage: (provider, model) => this.#providers.usage({ provider, model }).pipe(toUsageReadFailed),
+        readUsage: (provider, model, accountId) =>
+          this.#providers.usage({ provider, model, ...(accountId ? { accountId } : {}) }).pipe(toUsageReadFailed),
         // The refused turn's drain must not wait for the queues, so the owned scope settles them.
         held: (agentIds) =>
           this.#settleHeldQueues(agentIds).pipe(
@@ -1058,6 +1072,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       routineFlowTools: this.#routineFlowTools,
       approvalAutomation: options.approvalAutomation,
       visualPreview: options.visualPreview,
+      screenCapture: options.screenCapture,
       hooks: {
         listAgents: () => this.listAgents(),
         listModels: () => this.listModels(),
@@ -1117,9 +1132,22 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       return found;
     });
     return yield* this.#providers
-      .usage(agent ? { provider: agent.provider, model: agent.model } : undefined)
+      .usage(
+        agent
+          ? {
+              provider: agent.provider,
+              model: agent.model,
+              ...(agent.providerAccountId ? { accountId: agent.providerAccountId } : {}),
+            }
+          : undefined,
+      )
       .pipe(Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "get usage", cause: failure.cause })));
   }).bind(this);
+
+  /** The readings of the provider accounts after the first. The provider's own sign-ins are not read. */
+  getProviderAccountUsage() {
+    return this.#providers.accountUsage();
+  }
 
   listAgents(): AgentSummary[] {
     return this.#duplication.visibleAgents(this.#store.list());
@@ -1954,39 +1982,67 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         throw new Error(sourceText("error.agent.waitBeforeProviderChange"));
       }
     };
-    const { previous, requestedModel, requestedProvider } = yield* lifecycleStep("validate agent update", () => {
-      this.#conversation.requireKnownAgent(input.agentId);
-      const previous = this.#store.list().find((agent) => agent.id === input.agentId);
-      const requestedModel = input.model
-        ? this.#endpoints
-            .available()
-            .find((model) => model.id === input.model && (!input.provider || model.provider === input.provider))
-        : undefined;
-      if (input.model && !requestedModel) {
-        // A change of model alone stays on the agent's provider, so that provider is the one to explain.
-        const provider = input.provider ?? (previous ? providerForAgent(previous) : undefined);
-        throw modelUnavailableError(
-          input.model,
-          provider,
-          this.#endpoints.available(),
-          this.#providers.status().providers ?? [],
-        );
-      }
-      const requestedProvider = input.provider ?? requestedModel?.provider ?? previous?.provider;
-      if (input.provider && requestedModel && requestedModel.provider !== input.provider) {
-        throw new Error(sourceText("error.agent.modelProviderMismatch"));
-      }
-      if (requestedProvider && previous && requestedProvider !== providerForAgent(previous)) {
-        if (!input.model || !input.provider) {
-          throw new Error("Changing provider requires an atomic provider and model selection.");
+    const { previous, requestedModel, requestedProvider, previousAccount, requestedAccount } = yield* lifecycleStep(
+      "validate agent update",
+      () => {
+        this.#conversation.requireKnownAgent(input.agentId);
+        const previous = this.#store.list().find((agent) => agent.id === input.agentId);
+        const requestedModel = input.model
+          ? this.#endpoints
+              .available()
+              .find((model) => model.id === input.model && (!input.provider || model.provider === input.provider))
+          : undefined;
+        if (input.model && !requestedModel) {
+          // A change of model alone stays on the agent's provider, so that provider is the one to explain.
+          const provider = input.provider ?? (previous ? providerForAgent(previous) : undefined);
+          throw modelUnavailableError(
+            input.model,
+            provider,
+            this.#endpoints.available(),
+            this.#providers.status().providers ?? [],
+          );
         }
-        requireIdle(previous);
-      }
-      return { previous, requestedModel, requestedProvider };
-    });
+        const requestedProvider = input.provider ?? requestedModel?.provider ?? previous?.provider;
+        if (input.provider && requestedModel && requestedModel.provider !== input.provider) {
+          throw new Error(sourceText("error.agent.modelProviderMismatch"));
+        }
+        if (requestedProvider && previous && requestedProvider !== providerForAgent(previous)) {
+          if (!input.model || !input.provider) {
+            throw new Error("Changing provider requires an atomic provider and model selection.");
+          }
+          requireIdle(previous);
+        }
+        // An account belongs to one provider, so a provider change without one returns the agent to
+        // the new provider's own sign-in.
+        const previousAccount = previous ? agentProviderAccount(previous) : null;
+        const requestedAccount =
+          input.providerAccountId !== undefined
+            ? agentProviderAccount({ providerAccountId: input.providerAccountId ?? undefined })
+            : previous && requestedProvider !== providerForAgent(previous)
+              ? null
+              : previousAccount;
+        // Only a requested account is checked: an agent whose account record is lost (a damaged or
+        // newer store) can still be renamed or moved to another account.
+        if (
+          requestedAccount &&
+          input.providerAccountId !== undefined &&
+          (!requestedProvider || !this.#providers.hasProviderAccount(requestedProvider, requestedAccount))
+        )
+          throw new Error(
+            sourceText("error.provider.accountNotFound", {
+              provider: requestedProvider ? providerLabel(requestedProvider) : "",
+            }),
+          );
+        // The sessions of one account are not in the folder of another, so an account change is
+        // handed over like a provider change.
+        if (previous && requestedAccount !== previousAccount) requireIdle(previous);
+        return { previous, requestedModel, requestedProvider, previousAccount, requestedAccount };
+      },
+    );
     const wasHeld = !this.#usageLimits.mayDrain(input.agentId);
     const captures: Array<readonly [ProviderSession, string]> = [];
-    if (requestedProvider && previous && requestedProvider !== providerForAgent(previous)) {
+    const accountChanged = previous !== undefined && requestedAccount !== previousAccount;
+    if (requestedProvider && previous && (requestedProvider !== providerForAgent(previous) || accountChanged)) {
       yield* this.#providers.ensureProvider(requestedProvider);
       // Before the sessions are retired below, while the previous provider still holds them. The
       // steps are saved only once the switch is stored: a switch that fails keeps the session.
@@ -2003,12 +2059,19 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     if (requestedProvider && (input.provider || input.model))
       yield* lifecycleStep("check provider switch", () => this.#providers.requireProviderOn(requestedProvider));
     const agent = yield* this.#store.updateAgent(
-      { ...input, ...(requestedModel && !input.provider ? { provider: requestedModel.provider } : {}) },
+      {
+        ...input,
+        ...(requestedModel && !input.provider ? { provider: requestedModel.provider } : {}),
+        ...(previous && (accountChanged || input.providerAccountId !== undefined)
+          ? { providerAccountId: requestedAccount }
+          : {}),
+      },
       initiatingAgentId,
     );
     const profileChanged = standingProfileChanged(previous, agent);
     const activeSession = this.#store.activeProviderSession(agent.id);
-    const providerChanged = previous && requestedProvider && requestedProvider !== providerForAgent(previous);
+    const providerChanged =
+      (previous && requestedProvider && requestedProvider !== providerForAgent(previous)) || accountChanged;
     if (previous?.threadId && providerChanged) {
       // Retire first, with no wait after the update: a turn that starts while a file is written
       // binds a session of the new provider, and a later retirement would close that one too.
@@ -2341,6 +2404,76 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       .connectProvider(provider, openExternal)
       .pipe(
         Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "connectProvider", cause: failure.cause })),
+      );
+  }
+
+  /** See `ProviderRuntime.connectProviderAccount`. */
+  connectProviderAccount(
+    provider: AgentProvider,
+    accountId: string | null,
+    openExternal: (url: string) => Promise<void>,
+  ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return this.#providers
+      .connectProviderAccount(provider, accountId, openExternal)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "connectProviderAccount", cause: failure.cause }),
+        ),
+      );
+  }
+
+  /** See `ProviderRuntime.signInProviderAccountOnHost`. */
+  signInProviderAccountOnHost(
+    provider: AgentProvider,
+    accountId: string | null,
+    openPage: (url: string) => Promise<void>,
+  ): Effect.Effect<void, AgentLifecycleFailed> {
+    return this.#providers
+      .signInProviderAccountOnHost(provider, accountId, openPage)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "signInProviderAccountOnHost", cause: failure.cause }),
+        ),
+      );
+  }
+
+  renameProviderAccount(
+    provider: AgentProvider,
+    accountId: string,
+    label: string | null,
+  ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return this.#providers
+      .renameProviderAccount(provider, accountId, label)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "renameProviderAccount", cause: failure.cause }),
+        ),
+      );
+  }
+
+  /**
+   * Moves the account's agents to the provider's own sign-in, then removes the account and its
+   * credentials. Refused while one of those agents has work, as a provider change is.
+   */
+  removeProviderAccount(provider: AgentProvider, accountId: string): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return this.#endpoints
+      .runExclusive(() =>
+        Effect.gen({ self: this }, function* () {
+          const agents = this.#store
+            .list()
+            .filter((agent) => providerForAgent(agent) === provider && agentProviderAccount(agent) === accountId);
+          yield* lifecycleStep("check provider account", () => {
+            if (agents.some((agent) => this.#runsTurn(agent.id) || this.#mailbox.hasUnfinishedDelivery(agent.id)))
+              throw new Error(sourceText("error.provider.accountInUse"));
+          });
+          for (const agent of agents) yield* this.#applyAgentUpdate({ agentId: agent.id, providerAccountId: null });
+          return yield* this.#providers.removeProviderAccount(provider, accountId);
+        }),
+      )
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "removeProviderAccount", cause: failure.cause }),
+        ),
       );
   }
 

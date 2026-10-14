@@ -25,6 +25,9 @@ export const messages = {
   "mobile.workspace.error.approvalInactive":
     "Этот запрос больше не ждёт ответа. Другое устройство уже ответило, или задача остановилась.",
   "mobile.workspace.error.approvalOffline": "Подключитесь к серверу, чтобы ответить на этот запрос.",
+  "mobile.workspace.notification.allow": "Разрешить",
+  "mobile.workspace.notification.deny": "Отклонить",
+  "mobile.workspace.notification.answerFailed": "Ваш ответ не дошёл до сервера. Откройте OpenBot, чтобы ответить.",
   "mobile.workspace.alert.preferencesTitle": "Не удалось сохранить настройки чата",
   "mobile.workspace.alert.preferencesBody": "Прежние настройки сохранены. Повторите попытку.",
   "mobile.workspace.alert.updateRequiredTitle": "Нужно обновление",

@@ -27,6 +27,7 @@ export interface WorkerBindings {
   EMAIL_DELIVERY_WEBHOOK_SECRET?: string;
   SKILLS_ADMIN_TOKEN?: string;
   SITE_OPERATIONS_ADMIN_TOKEN?: string;
+  SERVER_CLAIMS_ADMIN_TOKEN?: string;
   SITE_REPORT_HASH_SECRET?: string;
   SITE_COOKIE_ISOLATION_READY?: string;
   SITE_PUBLISH_ENABLED?: string;
@@ -190,7 +191,7 @@ export interface TeamInviteEmailDelivery {
 }
 
 export type EmailVerificationResult =
-  | { status: "verified"; session: { sessionToken: string; user: AuthUser } }
+  | { status: "verified"; session: { sessionToken: string; user: AuthUser }; created: boolean }
   | { status: "invalid" | "expired" | "too_many_attempts" };
 
 export type EmailChallengeDeliveryState = "pending" | "sent" | "failed";
@@ -302,4 +303,17 @@ export interface AuthRepository {
   authenticateMobileSession(sessionToken: string, now: number): Effect.Effect<AuthUser | null, AuthStoreError>;
   listMobileAuthDevices(userId: string, now: number): Effect.Effect<MobileAuthDevice[], AuthStoreError>;
   revokeMobileAuthDevice(userId: string, sessionId: string, now: number): Effect.Effect<boolean, AuthStoreError>;
+  /** Creates the user of the email when there is none. */
+  createServerClaim(input: {
+    claimHash: string;
+    email: string;
+    createdAt: number;
+    expiresAt: number;
+  }): Effect.Effect<void, AuthStoreError>;
+  /** Spends the claim and makes a desktop session. Null when the claim is unknown, used or expired. */
+  redeemServerClaim(input: {
+    claimHash: string;
+    now: number;
+    session: { id: string; token: string; expiresAt: number };
+  }): Effect.Effect<{ sessionToken: string; user: AuthUser } | null, AuthStoreError>;
 }

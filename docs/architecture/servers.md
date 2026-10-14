@@ -105,6 +105,23 @@ gets the existing skill and the result warns. `POST /v1/agent-import/discard` re
 desktop, main opens the dialog, reads the file and sends it (`agent-import:choose` is server-scoped);
 the web client uses the browser chooser and ships the export skill in its bundle.
 
+### Instance transfer with a joined server
+
+`instance-transfer-v1` moves a server's agents and server settings to or from an OpenBot transfer file
+(see [Instance transfer](agents.md#instance-transfer)). Only an owner or admin can use it: the file holds
+every agent's memories and files, and an import adds server settings. It is protocol 7 only. Every file
+that crosses the connection is at most 100 MB, the size of one WebRTC file transfer; a computer's own
+server keeps the 2 GB limit. `POST /v1/instance-transfer/summary` lists the agents with their counts and
+no avatar address. `POST /v1/instance-transfer/export` takes `{ agentIds, includeFiles, includeSettings }`,
+writes the file to `instance-transfer-uploads/` in the host's user data, sends it as an attachment and
+removes it. `POST /v1/instance-transfer/stage` takes the raw `.zip` and answers the preview without
+avatars, under a token that only the caller can apply or discard; an upload nobody applies is removed
+after 30 minutes. `POST /v1/instance-transfer/apply` takes `{ token, keys, includeSettings, timezone }`
+and answers the new agents by id and name, which the client reads with the agent list.
+`POST /v1/instance-transfer/discard` releases the token. On desktop, main opens both dialogs and moves
+the file (`instance-transfer:*` is server-scoped). The web client does not show the Transfer section: its
+downloads are limited to 10 MB.
+
 ### Routine flows
 
 `routine-flows-v1` serves the routine canvas (see [Routine flows](agents.md#routine-flows)) to a
@@ -158,6 +175,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `agent-install-v1` | Add an agent from a listing or a shared template, by id | `agentAdmin` |
 | `agent-update-v1` | Update an agent added from a listing to the listing's current version, by id | `agentAdmin` |
 | `providers-v1` | Code sign-in, provider API keys, managed runtimes, custom endpoints | `providerAdmin` |
+| `instance-transfer-v1` | Export and import the server's agents and server settings as a transfer file | `instanceTransfer` |
 | `providers-v3` | Code sign-in for Codex, Claude and Grok; send the code a Claude sign-in page shows | `providerAdmin` |
 | `providers-v4` | Code or link sign-in and managed runtimes, Cursor and Cline included | `providerAdmin` |
 | `host-admin-v1` | Server name and logo | `hostAdmin` |
@@ -208,8 +226,11 @@ reads the status again every second while a check, a download or a restart runs.
 set the host's automatic download and automatic install when idle through the settings route; an
 automatic install is a schedule with no requester.
 
-When a member with update access connects, `host-update-toast.tsx` reads the status once: it offers a new version and
-shows a live percentage while the host downloads. All members get the `host-restart` event
+`server-update-flow.tsx` reads the update status once on each connection of a member with update access.
+The sidebar header then shows an update button next to the server name. Each time the user enters a server
+that has a new version, the update dialog opens again; it stays closed on a reconnect to the same server. The dialog confirm calls `start`, which downloads and restarts in one call. The
+dialog reads the status while the update runs and follows the connection until the host is back with
+the new version. A hidden dialog keeps a notice with the live status, also after a server switch on desktop; entering the server then does not open the dialog again. The web client reads only the connected host, so it stops following the update when the user leaves that server; the header button shows the update again on return. A host that still waits to restart after a connection drop did not restart. All members get the `host-restart` event
 (`waiting`, `restarting`, `none`) from the host's event stream, and the host sends the current state
 again when a client declares the capability. Like `channelEvent`, the event skips the frozen v1-v3
 event encoders at each hop (host peer, client transport, `remote-peer.ts`, SSE stream). A client that
@@ -337,6 +358,9 @@ or disabled. The new check reads only the official stable release manifest for t
 and architecture. It never installs files, restarts the host, or changes update preferences.
 The host checks that the manifest contains a compatible asset and returns only version, phase,
 and installation method. Feed errors return a safe status and can be retried.
+The method is `self-update` when the host's updater can install, also in a container of
+`docker/instances`, whose host pulls the image on request
+([Updates from the app](../docker.md#updates-from-the-app)). Other containers report `container`.
 
 `HostReleaseService` owns release discovery. `RequestedUpdate` still owns idle restarts and
 `UpdateService` still owns app updates. Desktop and web use the new capability when available;

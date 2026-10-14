@@ -10,15 +10,16 @@ export interface AuthRetentionResult {
   remoteSessions: number;
   remoteInvites: number;
   mobileConnectLinks: number;
+  serverClaims: number;
 }
 
-export interface AuthRetentionOperation {
+interface AuthRetentionOperation {
   name: keyof AuthRetentionResult;
   sql: string;
   cutoff: number;
 }
 
-export function authRetentionOperations(now: number): AuthRetentionOperation[] {
+function authRetentionOperations(now: number): AuthRetentionOperation[] {
   return [
     {
       name: "challenges",
@@ -71,6 +72,11 @@ export function authRetentionOperations(now: number): AuthRetentionOperation[] {
       sql: "DELETE FROM mobile_connect_links WHERE revoked_at IS NOT NULL AND revoked_at <= ?",
       cutoff: now,
     },
+    {
+      name: "serverClaims",
+      sql: "DELETE FROM server_claims WHERE expires_at <= ? OR redeemed_at IS NOT NULL",
+      cutoff: now,
+    },
   ];
 }
 
@@ -97,6 +103,7 @@ const prune = Effect.fn("AuthRetention.prune")(function* (now: number) {
     remoteSessions: 0,
     remoteInvites: 0,
     mobileConnectLinks: 0,
+    serverClaims: 0,
   };
   for (const [index, operation] of operations.entries()) {
     deleted[operation.name] += results[index]?.meta.changes ?? 0;

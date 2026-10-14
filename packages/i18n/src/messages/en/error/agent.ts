@@ -97,4 +97,21 @@ export const messages = defineMessages("error.agent", {
     "This server is low on memory. Your message waits in the queue and starts when memory is free. A larger plan gives the server more memory.",
   "error.agent.workspaceOnlyToolMissing":
     "Workspace only needs {tool}, which OpenBot did not find. Install it, or choose Full access in the agent settings.",
+  "error.agent.screenCaptureOff":
+    "Screen capture is off for this agent. The user can turn on Computer Use in the agent settings.",
+  "error.agent.screenCaptureUnavailable": "Screen capture is not available on this computer.",
+  "error.agent.screenCaptureShared":
+    "Screen capture does not work in a channel or in a Slack, Discord or Telegram conversation, because other people get its files.",
+  "error.agent.screenCaptureDeclined": "The user did not allow this screen capture. Nothing was captured.",
+  "error.agent.screenCaptureWindowMissing":
+    "That window is not open now. Call list_capture_sources to get the current window ids.",
+  "error.agent.screenCaptureDisplayMissing":
+    "That display is not connected now. Call list_capture_sources to get the current display ids.",
+  "error.agent.screenCaptureRegionOutside":
+    "The region is not inside one display. Use desktop points inside the bounds of one display from list_capture_sources.",
+  "error.agent.screenCapturePermissionMissing":
+    "OpenBot does not have the Screen Recording permission. Ask the user to open System Settings > Privacy & Security > Screen & System Audio Recording, turn on OpenBot, then quit and open OpenBot again.",
+  "error.agent.screenCaptureEmptyWindows":
+    "Windows gave an empty image. Ask the user to unlock the computer and close protected content. A policy of the organization can also stop screen capture.",
+  "error.agent.screenCaptureFailed": "The screen capture failed. Try again.",
 });

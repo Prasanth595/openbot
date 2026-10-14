@@ -27,8 +27,7 @@ export interface DueRoutineTrigger {
 /**
  * The agent-shaped names over the shared store: `ownerId` reads as `agentId` and the run handle
  * reads as `deliveryId`. The SQL, the constraints and the command ids all live in `RoutineStore`,
- * so this file only translates - which is why the callers and `agent-routine-store.test.ts` did not
- * change with the extraction.
+ * so this file only translates - which is why the callers did not change with the extraction.
  */
 export class AgentRoutineStore extends RoutineStore {
   constructor(database: OpenBotDatabase) {

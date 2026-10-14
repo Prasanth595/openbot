@@ -2379,7 +2379,7 @@ function descendants(tasks: ChannelTask[], id: string): ChannelTask[] {
   }
   return tasks.filter((task) => selected.has(task.id) && !terminal(task));
 }
-export function resourcesConflict(left: string[], right: string[]): boolean {
+function resourcesConflict(left: string[], right: string[]): boolean {
   return (
     !left.length ||
     !right.length ||

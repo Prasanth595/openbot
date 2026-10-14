@@ -214,29 +214,25 @@ risks since the last release.
 
 ## Tests
 
-- Keep tests minimal. Do not add a regression test by default. Add a test only when a bug can lose
-  user data, break a released protocol, weaken the trust boundary, or leak a secret, or when the
-  same bug came back.
-- A database migration always needs tests: data-preservation fixtures for every affected released
-  schema, plus the failure and rollback cases that [src/backend/AGENTS.md](src/backend/AGENTS.md)
-  lists.
-- Highly prefer E2E tests as the sole testing mechanism. Use them to verify complex features work.
-  At the end of E2E tests, produce a verifiable and repeatable artifact, such as a JSON report or a
-  screenshot under `.openbot-build/`.
-- If you must test a system in isolation, first write down all the ways it could fail, then write
-  the code. Put the list in the PR body under "Failure modes": one line per failure, with the test
-  that covers it.
+- Use E2E tests only. Do not add unit tests. An E2E test is a script under `scripts/` (such as
+  `scripts/*-e2e.ts` or `scripts/*-smoke.ts`) that drives the real app, process or service. At the
+  end, it writes a verifiable and repeatable artifact, such as a JSON report or a screenshot under
+  `.openbot-build/`.
+- Vitest files are permitted only for these protected areas:
+  - Database migrations: data-preservation fixtures for every affected released schema, plus the
+    failure and rollback cases that [src/backend/AGENTS.md](src/backend/AGENTS.md) lists. A
+    migration always needs them.
+  - The renderer-to-main trust boundary: sender validation, navigation and permission policy, CSP,
+    sandboxing, and preload payload decoding.
+  - Secret redaction on log, export, and send paths.
+  - Lint and UI check rule fixtures (see [Check rules](#check-rules)).
 - Do not assert what TypeScript, Biome, or `check:ui` already enforce.
-- Wait for state, an event, or a promise, not elapsed time. A spy can provide the wait condition,
-  such as `await waitFor(() => expect(send).toHaveBeenCalled())`; assert the user consequence after
-  that wait. Do not remove synchronization because it uses a spy.
-- Assert behavior and data. Query accessible roles and names; use `toHaveFocus()` for focus.
-  Do not assert markup, classes, layout, animation timing, or snapshots. Use exact text only for
-  product contracts, error/security messages, serialized output, or localization keys.
+- Wait for state, an event, or a promise, not elapsed time.
+- Assert behavior and data. Do not assert markup, classes, layout, animation timing, or snapshots.
 - Use Storybook for visual details only. Do not add story `play` functions: CI does not run them.
   Do not add `data-testid` hooks; `check:ui` allows none.
 - `*.test.ts` uses Node; `*.test.tsx` uses JSX and jsdom; `*.dom.test.ts` uses DOM without a
-  component. Keep pure logic in Node tests.
+  component.
 
 ### Check rules
 
