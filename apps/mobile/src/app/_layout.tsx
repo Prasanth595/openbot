@@ -17,6 +17,7 @@ import { useCSSVariable, useUniwind, withUniwind } from "uniwind";
 import { MobileAnalyticsLifecycle } from "@/features/analytics/lifecycle";
 import { DevelopmentConnectLinkHandler } from "@/features/auth/components/development-connect-link-handler";
 import { MobileSessionProvider, useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { loadOnboardingProgress } from "@/features/onboarding/model/onboarding-progress";
 import { loadAppLanguage } from "@/features/settings/model/app-language";
 import { loadAppearance, useAppearance } from "@/features/settings/model/appearance";
 import { loadDictationLanguage } from "@/features/settings/model/dictation-language";
@@ -34,6 +35,7 @@ import { useReducedMotion } from "@/shared/lib/motion";
 import { nativeSplash } from "@/shared/lib/native-splash";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { queryClient } from "@/shared/lib/query-client";
+import { SPLASH_LOGO_SIZE } from "@/shared/lib/splash-motion";
 import { useText } from "@/shared/lib/text";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
 import {
@@ -48,6 +50,10 @@ export const unstable_settings = {
   initialRouteName: "index",
 };
 
+// The sign-in screen and the app replace each other with this fade (iOS). The sign-in logo flies
+// into the loader above it, so the fade only has to bring in the background.
+const SESSION_FADE_MS = 300;
+
 installSupportLog();
 
 const UniwindGestureHandlerRootView = withUniwind(GestureHandlerRootView);
@@ -56,7 +62,7 @@ function RootNavigator() {
   const { t } = useText();
   const { loading, session } = useMobileSession();
   const pathname = usePathname();
-  const { setLoadingLabel, isLoaderPresent } = useAppLoadingOverlay();
+  const { setLoadingLabel, isLoaderPresent, isLoaderRequested, handOff, holdLoader } = useAppLoadingOverlay();
   const appearanceReady = useAppearance((state) => state.ready);
   // Motion choices are read before the first screen, so no screen starts an animation that Settings turned off.
   const motionReady = useMotionPreferences((state) => state.ready);
@@ -86,6 +92,29 @@ function RootNavigator() {
     [reportContentReady],
   );
 
+  // A signed-in launch: the home screen asks for the loader while the splash still covers it. The
+  // loader waits out of sight, then grows out of the splash mark as the splash lifts, so the user
+  // sees the mark turn into the loader instead of a second face drawn over it.
+  const splashHandOff = useRef(false);
+  useLayoutEffect(() => {
+    if (!session) {
+      holdLoader(false);
+      return;
+    }
+    if (covered) {
+      splashHandOff.current = false;
+      holdLoader(true);
+      return;
+    }
+    // Only the launch reveal hands off. A loader asked for later enters on its own. The flight
+    // starts in the same commit that releases the hold, so the loader never shows before it.
+    if (!splashHandOff.current && !motion.complete && isLoaderRequested) {
+      void handOff({ centered: true, size: SPLASH_LOGO_SIZE, mark: null });
+    }
+    splashHandOff.current = true;
+    holdLoader(false);
+  }, [covered, handOff, holdLoader, isLoaderRequested, motion.complete, session]);
+
   useLayoutEffect(() => {
     if (loading || !session || (pathname !== "/" && pathname !== "/connected")) setLoadingLabel(null);
     // The splash backdrop covers account loading on its own, so it never raises
@@ -113,7 +142,11 @@ function RootNavigator() {
                   }}
                 >
                   <Stack.Protected guard={!session}>
-                    <Stack.Screen name="index" options={{ headerShown: false }} />
+                    {/* Signing out goes back, so it fades like signing in instead of sliding forward. */}
+                    <Stack.Screen
+                      name="index"
+                      options={{ animation: "fade", animationDuration: SESSION_FADE_MS, headerShown: false }}
+                    />
                     <Stack.Screen
                       name="scan-qr-code"
                       options={{
@@ -125,7 +158,12 @@ function RootNavigator() {
                   <Stack.Protected guard={Boolean(session)}>
                     <Stack.Screen
                       name="(app)"
-                      options={{ animation: "fade", gestureEnabled: false, headerShown: false }}
+                      options={{
+                        animation: "fade",
+                        animationDuration: SESSION_FADE_MS,
+                        gestureEnabled: false,
+                        headerShown: false,
+                      }}
                     />
                   </Stack.Protected>
                   <Stack.Screen name="incoming-link" options={{ headerShown: false }} />
@@ -176,6 +214,7 @@ export default function RootLayout() {
     void loadMotionPreferences().catch(() => undefined);
     void loadDictationLanguage().catch(() => undefined);
     void loadAppLanguage().catch(() => undefined);
+    void loadOnboardingProgress().catch(() => undefined);
   }, []);
 
   return (

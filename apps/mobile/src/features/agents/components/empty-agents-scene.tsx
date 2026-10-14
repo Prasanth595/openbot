@@ -26,7 +26,8 @@ const POP_IN = {
 const FADE_IN = { from: { opacity: 0 }, to: { opacity: 1 } };
 const FLOAT = { from: { transform: [{ translateY: 0 }] }, to: { transform: [{ translateY: -6 }] } };
 
-interface SceneBot {
+/** A placeholder character in a scene. It is not an agent and opens nothing. */
+export interface SceneBot {
   seed: string;
   hue: AvatarHue;
   mood: AvatarMood;
@@ -53,7 +54,8 @@ const SCENE_BOTS: readonly SceneBot[] = [
   { seed: "mobile:empty-agents:bottom", hue: 215, mood: "idle", size: 36, x: "52%", y: "93%", floatMs: 3300 },
 ];
 
-function FloatingBot({
+/** A placeholder character that pops in at its point, then floats. Only index 0 animates its face. */
+export function FloatingBot({
   bot,
   index,
   reducedMotion,

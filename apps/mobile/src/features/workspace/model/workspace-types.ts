@@ -209,7 +209,8 @@ export interface MobileWorkspaceContextValue {
     input: { serverName?: string; logo?: AvatarImageInput | null },
   ) => Promise<void>;
   addRemoteServer: (input: AddRemoteServerInput) => Promise<string>;
-  createAgent: (input: CreateAgentInput) => Promise<void>;
+  /** Creates an agent on the active server and returns its id. */
+  createAgent: (input: CreateAgentInput) => Promise<string>;
   updateAgent: (input: UpdateAgentInput, serverId?: string) => Promise<void>;
   setAgentAvatar: (agentId: string, image: RemoteFileUpload | null, serverId: string) => Promise<void>;
   loadAgentAvatar: (agentId: string, avatarUrl: string, serverId: string) => Promise<string>;

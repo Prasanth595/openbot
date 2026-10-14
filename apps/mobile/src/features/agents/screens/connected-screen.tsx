@@ -6,11 +6,12 @@ import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { EllipsisVertical, Layers3, Search, WifiOff } from "lucide-react-native";
 import { useContext, useLayoutEffect, useMemo, useState } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
   FadeIn,
+  FadeOut,
   LinearTransition,
   ReduceMotion,
   useAnimatedStyle,
@@ -31,6 +32,8 @@ import { EmptyAgentsScene } from "@/features/agents/components/empty-agents-scen
 import { PinnedAgentsGrid } from "@/features/agents/components/pinned-agents-grid";
 import { SidebarSectionHeader } from "@/features/agents/components/sidebar-section-header";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
+import { OnboardingFlow } from "@/features/onboarding/components/onboarding-flow";
+import { useOnboardingGate } from "@/features/onboarding/model/use-onboarding-gate";
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
@@ -44,6 +47,7 @@ import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+const ONBOARDING_EXIT = FadeOut.duration(220).easing(EASE_OUT);
 const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 const LIST_REFLOW = LinearTransition.duration(240).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 
@@ -168,7 +172,7 @@ function openFromMenu(href: Href): void {
 
 export function ConnectedScreen() {
   const { t, sourceText } = useText();
-  const { isLoaderPresent } = useAppLoadingOverlay();
+  const { isLoaderPresent, isLoaderLeaving } = useAppLoadingOverlay();
   const { openDrawer } = useAppDrawer();
   const {
     sidebarByServer,
@@ -193,12 +197,22 @@ export function ConnectedScreen() {
   const showLoader =
     (serverDirectoryState === "loading" && servers.length === 0) ||
     (hasSelectedServer && activeServer.initialConnectionPending);
-  const listReady = !showLoader && !isLoaderPresent;
+  // The list starts to come in while the loader leaves, so the two overlap instead of waiting in turn.
+  const listReady = !showLoader && (!isLoaderPresent || isLoaderLeaving);
+  // A new account gets the first-run flow in place of the empty home. The flow shows its own
+  // connection state, so the loader does not cover it.
+  const onboarding = useOnboardingGate();
+  const onboardingReady = onboarding.active && (!isLoaderPresent || isLoaderLeaving);
+  // The header actions belong to the list. While the loader shows they have nothing to act on, so
+  // they come in with the list. The header itself stays, so its height does not change.
+  const headerActions = listReady && !onboarding.active;
   // Connecting to a server continues while the user reads a chat, so the label only
   // belongs to this screen while it is the route on top.
   useScreenLoadingLabel(
     "/connected",
-    showLoader ? t(hasSelectedServer ? "mobile.agent.home.connecting" : "mobile.agent.home.loadingServers") : null,
+    showLoader && !onboarding.active
+      ? t(hasSelectedServer ? "mobile.agent.home.connecting" : "mobile.agent.home.loadingServers")
+      : null,
   );
   const pinnedAgents = pinnedAgentIds
     .map((agentId) => activeAgents.find((agent) => agent.id === agentId))
@@ -307,7 +321,12 @@ export function ConnectedScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {listReady && showAgentsScene ? (
+      {onboardingReady ? (
+        // The flow fades out over the home, which comes in under it with its own reveal.
+        <Animated.View exiting={ONBOARDING_EXIT} style={StyleSheet.absoluteFill}>
+          <OnboardingFlow onFinish={onboarding.finish} />
+        </Animated.View>
+      ) : onboarding.active ? null : listReady && showAgentsScene ? (
         // The transparent header covers the top of the screen. The bottom matches the list's `pb-safe-offset-4`.
         <EmptyAgentsScene
           onAddAgent={addAgent}
@@ -408,6 +427,10 @@ export function ConnectedScreen() {
                     {t("mobile.agent.home.noServersBody")}
                   </Typography.Paragraph>
                 </View>
+                {/* The drawer holds the ways to add a server. Without this, the next step is hidden. */}
+                <Button size="md" variant="secondary" onPress={openDrawer}>
+                  <Button.Label>{t("mobile.agent.home.openServers")}</Button.Label>
+                </Button>
               </View>
             ) : !hasSelectedServer ? (
               <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
@@ -435,55 +458,61 @@ export function ConnectedScreen() {
 
       {/* The list scrolls under the transparent header, which gets the blur of the chat header. iOS 27
           shows no native scroll edge effect here. The native top edge is hidden to avoid two effects. */}
-      <SheetScrollEdgeEffect style={{ height: headerHeight + 20, left: 0, position: "absolute", right: 0, top: 0 }} />
+      {onboarding.active ? null : (
+        <SheetScrollEdgeEffect style={{ height: headerHeight + 20, left: 0, position: "absolute", right: 0, top: 0 }} />
+      )}
 
       <Stack.Screen
         options={{
-          headerLeft: isAndroid
-            ? () => (
-                <View className="flex-row items-center gap-2">
-                  <HeaderIconButton accessibilityLabel={t("mobile.agent.home.openServers")} onPress={openDrawer}>
-                    <Layers3 color={iconColor} size={22} strokeWidth={1.8} />
-                  </HeaderIconButton>
-                  <ConnectionHeaderStatus server={hasSelectedServer ? activeServer : undefined} />
-                </View>
-              )
-            : undefined,
-          headerRight: isAndroid
-            ? () => (
-                <View className="flex-row items-center gap-1">
-                  <HeaderIconButton
-                    accessibilityLabel={t("mobile.agent.home.searchAgents")}
-                    onPress={() => {
-                      void haptics.impact("soft");
-                      router.push("/search-agents");
-                    }}
-                  >
-                    <Search color={iconColor} size={22} strokeWidth={1.9} />
-                  </HeaderIconButton>
-                  <MenuView
-                    actions={optionsActions}
-                    onPressAction={(event) => {
-                      if (event.nativeEvent.event === "add-section")
-                        router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
-                      if (event.nativeEvent.event === "add-agent") router.push("/add-agent");
-                      if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
-                      if (event.nativeEvent.event === "mark-all-read") markAllChatsRead();
-                    }}
-                    style={{ height: 44, width: 44 }}
-                  >
-                    <View
-                      accessibilityLabel={t("mobile.agent.home.chatOptions")}
-                      accessibilityRole="button"
-                      accessible
-                      className="size-11 items-center justify-center rounded-full"
+          // The first-run flow is a whole screen with its own back and skip actions.
+          headerShown: !onboarding.active,
+          headerLeft:
+            isAndroid && headerActions
+              ? () => (
+                  <View className="flex-row items-center gap-2">
+                    <HeaderIconButton accessibilityLabel={t("mobile.agent.home.openServers")} onPress={openDrawer}>
+                      <Layers3 color={iconColor} size={22} strokeWidth={1.8} />
+                    </HeaderIconButton>
+                    <ConnectionHeaderStatus server={hasSelectedServer ? activeServer : undefined} />
+                  </View>
+                )
+              : undefined,
+          headerRight:
+            isAndroid && headerActions
+              ? () => (
+                  <View className="flex-row items-center gap-1">
+                    <HeaderIconButton
+                      accessibilityLabel={t("mobile.agent.home.searchAgents")}
+                      onPress={() => {
+                        void haptics.impact("soft");
+                        router.push("/search-agents");
+                      }}
                     >
-                      <EllipsisVertical color={iconColor} size={24} strokeWidth={1.9} />
-                    </View>
-                  </MenuView>
-                </View>
-              )
-            : undefined,
+                      <Search color={iconColor} size={22} strokeWidth={1.9} />
+                    </HeaderIconButton>
+                    <MenuView
+                      actions={optionsActions}
+                      onPressAction={(event) => {
+                        if (event.nativeEvent.event === "add-section")
+                          router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
+                        if (event.nativeEvent.event === "add-agent") router.push("/add-agent");
+                        if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
+                        if (event.nativeEvent.event === "mark-all-read") markAllChatsRead();
+                      }}
+                      style={{ height: 44, width: 44 }}
+                    >
+                      <View
+                        accessibilityLabel={t("mobile.agent.home.chatOptions")}
+                        accessibilityRole="button"
+                        accessible
+                        className="size-11 items-center justify-center rounded-full"
+                      >
+                        <EllipsisVertical color={iconColor} size={24} strokeWidth={1.9} />
+                      </View>
+                    </MenuView>
+                  </View>
+                )
+              : undefined,
           headerTintColor: foreground,
           headerTransparent: true,
           scrollEdgeEffects: { top: "hidden" },
@@ -491,7 +520,7 @@ export function ConnectedScreen() {
         }}
       />
 
-      {isIOS ? (
+      {isIOS && headerActions ? (
         <>
           <Stack.Toolbar placement="left">
             <Stack.Toolbar.Button icon="square.stack.3d.up.fill" onPress={openDrawer} />

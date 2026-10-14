@@ -18,7 +18,7 @@ const PREVIEW_SIZE = 144;
 // Centred on the avatar. In a sheet with a clear header it reaches up behind the header's blur.
 const GLOW_HEIGHT = 340;
 
-const HUE_LABELS = {
+export const HUE_LABELS = {
   0: "mobile.agent.appearance.hue.red",
   30: "mobile.agent.appearance.hue.orange",
   55: "mobile.agent.appearance.hue.yellow",

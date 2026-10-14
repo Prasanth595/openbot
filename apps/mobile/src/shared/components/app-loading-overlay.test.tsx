@@ -48,6 +48,10 @@ vi.mock("react-native", () => ({
   ),
 }));
 
+vi.mock("@/shared/components/loader-flight", () => ({
+  LoaderFlight: ({ children }: PropsWithChildren) => <>{children}</>,
+}));
+
 vi.mock("@/shared/components/bloub-loader", () => ({
   BloubLoader: ({ label, onExitComplete }: { label: string; onExitComplete: () => void }) => {
     native.finishExit = onExitComplete;

@@ -192,6 +192,8 @@ vi.mock("react-native-keyboard-controller", () => ({
   useReanimatedKeyboardAnimation: () => ({ height: { get: () => 0 }, progress: { get: () => 0 } }),
 }));
 vi.mock("@/shared/components/splash-backdrop", () => ({ SplashWallpaper: () => null }));
+// The email path hands the logo to the loader overlay. The QR path does not use it.
+vi.mock("@/shared/components/app-loading-overlay", () => ({ useAppLoadingOverlay: () => ({ handOff: vi.fn() }) }));
 vi.mock("expo-router", () => ({ Stack: { Screen: () => null }, router: { push: vi.fn() } }));
 vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("expo-status-bar", () => ({ StatusBar: () => null }));
