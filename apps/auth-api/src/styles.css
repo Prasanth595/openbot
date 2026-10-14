@@ -8323,6 +8323,7 @@ a {
 
 .changelog-release-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   color: var(--openbot-text-dim);
@@ -8337,6 +8338,54 @@ a {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* The stores that have a mobile version. A store that still reviews it reads as waiting. */
+.changelog-stores {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.changelog-store {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--openbot-radius-pill);
+  box-shadow: inset 0 0 0 1px var(--changelog-hairline);
+  color: var(--openbot-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.changelog-store-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--openbot-success);
+}
+
+.changelog-store-detail {
+  color: var(--openbot-text-dim);
+  font-weight: 500;
+}
+
+.changelog-store[data-state="review"] {
+  background: var(--openbot-warning-soft);
+  box-shadow: none;
+  color: var(--openbot-warning-text);
+}
+
+.changelog-store[data-state="review"] .changelog-store-dot {
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.changelog-store[data-state="review"] .changelog-store-detail {
+  color: inherit;
 }
 
 .changelog-release-title {
