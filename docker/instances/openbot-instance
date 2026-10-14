@@ -556,6 +556,13 @@ backup_steps() {
   version=$(release_version "$CONTAINER")
   image=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)
   image_id=$(docker inspect --format '{{.Image}}' "$CONTAINER" 2>/dev/null || true)
+  # `down` removes the container. Then the version comes from the image of the instance, so that a
+  # restore can refuse an older image.
+  if [ -z "$image" ]; then
+    image=$(compose "$name" config --images | head -n 1 || true)
+    image_id=$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null || true)
+    version=$(release_version "$image")
+  fi
   container_running "$CONTAINER" && was_running=true
   if $was_running; then
     RESTART=1
@@ -742,6 +749,8 @@ restore() {
     fail "The backup is from OpenBot $version, and the image of $name is $target. Pull a newer image first."
   fi
   [ -n "$target" ] || echo "The version of the image of $name is not known. Pull it with docker compose first." >&2
+  [ -n "$version" ] ||
+    echo "The backup has no OpenBot version. Make sure that the image of $name is not older than the backup." >&2
   if [ -n "$(find "$data" -mindepth 1 -maxdepth 1 ! -name lost+found -print -quit)" ] && [ "$replace" -eq 0 ]; then
     fail "$data has data. Back it up, then add --replace to delete it and restore $backup."
   fi

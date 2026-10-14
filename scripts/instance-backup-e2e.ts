@@ -342,6 +342,22 @@ async function main(): Promise<void> {
       result.stdout.includes(`Verifying /backups/main/${made}.`),
       `verified ${made}`,
     );
+
+    // `down` removes the container. The backup takes the version from the image of the instance.
+    must("docker rm --force openbot-main >/dev/null");
+    result = instance("backup", "main");
+    const removedBackup = completeBackups().at(-1) ?? "";
+    const removedVersion = must(
+      `sed -n 's/^  "openbotVersion": "\\(.*\\)",$/\\1/p' /backups/main/${removedBackup}/manifest.json`,
+    );
+    must(
+      `docker run --detach --name openbot-main --stop-timeout 20 -v ${data}:/data ghcr.io/nightly-labs/openbot:latest >/dev/null`,
+    );
+    check(
+      "a backup without a container has the version of the image",
+      result.status === 0 && removedVersion === "0.40.0",
+      `openbotVersion ${removedVersion}`,
+    );
     const latest = completeBackups().at(-1) ?? "";
 
     // While a backup holds the lock of the instance, `down` waits and does not stop the container.
