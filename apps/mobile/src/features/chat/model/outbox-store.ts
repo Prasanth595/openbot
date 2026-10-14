@@ -55,6 +55,8 @@ export interface OutboxSnapshot {
   /** Messages whose request that can store them is in flight. Their host row can arrive before the receipt. */
   storing: ReadonlySet<string>;
   online: ReadonlySet<string>;
+  /** Messages whose text and files are in a composer after Edit. The chat does not draw them. */
+  editing: ReadonlySet<string>;
   /** The phone could not save or read the outbox. Unsaved messages send only while the app runs. */
   storageFailed: boolean;
 }
@@ -96,6 +98,7 @@ export class OutboxStore {
     uploads: new Map(),
     storing: new Set(),
     online: new Set(),
+    editing: new Set(),
     storageFailed: false,
   };
   private readonly listeners = new Set<() => void>();
@@ -107,6 +110,8 @@ export class OutboxStore {
   private readonly cancelRequests = new Set<string>();
   /** Messages that Edit reads back. They neither start nor leave the outbox until it is done. */
   private readonly holds = new Set<string>();
+  /** Messages that a composer has after Edit. They stay saved and stopped, and nothing sends them. */
+  private editing: ReadonlySet<string> = new Set();
   private online: ReadonlySet<string> = new Set();
   private storageFailed = false;
   /** Saves wait for the load: a save before it would replace messages that the phone kept. */
@@ -197,6 +202,7 @@ export class OutboxStore {
       this.messages = this.messages.map((message) =>
         message.state === "failed" &&
         !message.returned &&
+        !message.stopped &&
         reconnected.has(message.target.serverId) &&
         outboxRetrySafe(message, now)
           ? { ...message, state: "waiting", error: null }
@@ -207,10 +213,15 @@ export class OutboxStore {
     this.pump();
   }
 
-  /** Adds a message at the end of its chat, and saves it on the phone at once. */
+  /**
+   * Adds a message at the end of its chat, and saves it on the phone at once. `replaces` are the
+   * messages that Edit gave to its composer: they go when the save of this one ends, so that an app
+   * closed before then still has the original.
+   */
   add(
     target: OutboxTarget,
     input: { text: string; replyToMessageId: string | null; files: readonly ChatAttachment[] },
+    replaces: readonly string[] = [],
   ): OutboxMessage {
     const clientMessageId = this.options.randomId();
     // Composer file ids restart in each chat, and an outbox outlives the chat that wrote it.
@@ -238,11 +249,14 @@ export class OutboxStore {
       messageId: null,
       error: null,
       returned: false,
+      stopped: false,
     };
     this.memoryFiles.set(clientMessageId, files);
     this.messages = [...this.messages, message];
     this.publish();
-    void this.save(message, files);
+    void this.save(message, files).then(() => {
+      for (const id of replaces) void this.cancel(id);
+    });
     this.pump();
     return message;
   }
@@ -261,7 +275,7 @@ export class OutboxStore {
       }
       await this.persist();
     } catch {
-      // A message cancelled or edited during the write has no files to keep.
+      // A message cancelled during the write has no files to keep.
       if (!this.messages.some((item) => item.clientMessageId === message.clientMessageId)) {
         await storage.removeFiles(message.clientMessageId).catch(() => undefined);
         return;
@@ -278,7 +292,7 @@ export class OutboxStore {
     if (!outboxRetrySafe(message, this.now())) {
       this.update(clientMessageId, { repeatSafe: false });
     } else {
-      this.update(clientMessageId, { state: "waiting", error: null, returned: false });
+      this.update(clientMessageId, { state: "waiting", error: null, returned: false, stopped: false });
     }
     void this.persist();
     this.pump();
@@ -290,10 +304,15 @@ export class OutboxStore {
     await this.forget(clientMessageId);
   }
 
-  /** Removes a message that is not sending and gives its text, reply and files back to the composer. */
+  /**
+   * Gives the text, reply and files of a message that is not sending to the composer. The message
+   * stays saved, stopped, until the composer sends the change (`cancel`) or the chat closes
+   * (`stopEditing`): a composer draft is not saved.
+   */
   async edit(clientMessageId: string): Promise<OutboxDraft | null> {
     const message = this.find(clientMessageId);
-    if (!message || !removable(message) || this.holds.has(clientMessageId)) return null;
+    if (!message || !removable(message) || this.holds.has(clientMessageId) || this.editing.has(clientMessageId))
+      return null;
     // Read the files first: when the read fails, the message stays where it is.
     this.holds.add(clientMessageId);
     let files: ChatAttachment[];
@@ -304,11 +323,23 @@ export class OutboxStore {
       this.pump();
       throw error;
     }
-    // Take it before anything can start it: the messages behind it go after this.
+    // Stop it before anything can start it: the messages behind it go after this.
     this.holds.delete(clientMessageId);
-    if (!this.take(clientMessageId)) return null;
-    await this.forget(clientMessageId);
+    const current = this.find(clientMessageId);
+    if (!current || !removable(current)) return null;
+    this.editing = new Set([...this.editing, clientMessageId]);
+    this.update(clientMessageId, { state: "failed", error: null, returned: false, stopped: true });
+    await this.persist();
+    this.pump();
     return { text: message.text, replyToMessageId: message.replyToMessageId, files };
+  }
+
+  /** Shows again the messages of an edit that was not sent. They wait, stopped, for the person. */
+  stopEditing(clientMessageIds: Iterable<string>): void {
+    const ids = new Set(clientMessageIds);
+    if (![...ids].some((id) => this.editing.has(id))) return;
+    this.editing = new Set([...this.editing].filter((id) => !ids.has(id)));
+    this.publish();
   }
 
   /** Stops the upload of a sending message. The chat then puts it back in the composer. */
@@ -335,6 +366,8 @@ export class OutboxStore {
     const message = this.find(clientMessageId);
     if (!message || !removable(message)) return null;
     this.messages = this.messages.filter((item) => item !== message);
+    if (this.editing.has(clientMessageId))
+      this.editing = new Set([...this.editing].filter((id) => id !== clientMessageId));
     this.publish();
     this.pump();
     return message;
@@ -411,7 +444,7 @@ export class OutboxStore {
     const blocked = new Set<string>();
     for (const message of this.messages) {
       const key = outboxTargetKey(message.target);
-      if (blocked.has(key) || message.state === "sent") continue;
+      if (blocked.has(key) || message.state === "sent" || this.editing.has(message.clientMessageId)) continue;
       blocked.add(key);
       // A start changes the list. Read the message as it is now.
       const current = this.find(message.clientMessageId);
@@ -509,6 +542,7 @@ export class OutboxStore {
       uploads: new Map(this.uploads),
       storing: this.storing,
       online: this.online,
+      editing: this.editing,
       storageFailed: this.storageFailed,
     };
     for (const listener of this.listeners) listener();

@@ -367,3 +367,21 @@ input.custom-acp-code {
 .acp-registry-form > .ui-field {
   flex-basis: 100%;
 }
+
+/* A registry entry in a narrow column. Translated action labels can be wider than the row, so the
+ * actions move under the entry and then wrap among themselves. The entry keeps a readable width and
+ * no action is clipped. */
+.acp-registry-entry.ui-item {
+  flex-wrap: wrap;
+}
+
+.acp-registry-entry .ui-item-content {
+  flex-basis: 180px;
+}
+
+.acp-registry-entry .ui-item-actions {
+  min-width: 0;
+  flex-shrink: 1;
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}

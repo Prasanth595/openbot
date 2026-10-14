@@ -222,7 +222,7 @@ export function AcpRegistrySettings(props: { api: AcpRegistrySettingsApi }) {
       <ItemGroup>
         <For each={state.entries}>
           {(entry) => (
-            <Item>
+            <Item class="acp-registry-entry">
               <ItemContent>
                 <ItemTitle>{entry.name}</ItemTitle>
                 <ItemDescription>{entry.description}</ItemDescription>
