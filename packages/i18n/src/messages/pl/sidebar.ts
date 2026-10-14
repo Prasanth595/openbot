@@ -3,7 +3,11 @@ import type { messages as source } from "../en/sidebar";
 
 export const messages = {
   "sidebar.delete.retainedAgentDescription":
-    "Lokalny agent zostanie usunięty z aplikacji, a jego rutyny i wiadomości zostaną zatrzymane. Tożsamość, rozmowa, pamięć, ustawienia i pliki pozostaną na tym komputerze. Możesz cofnąć ostatnie usunięcie na pasku bocznym. Możesz przywracać usuniętych agentów na pasku bocznym, od najnowszego usunięcia.",
+    "Lokalny agent zostanie usunięty z aplikacji, a jego rutyny i wiadomości zostaną zatrzymane. Tożsamość, rozmowa, pamięć, ustawienia i pliki pozostaną na tym komputerze. Możesz przywracać usuniętych agentów na pasku bocznym, od najnowszego usunięcia.",
+  "sidebar.delete.permanently": "Usuń trwale",
+  "sidebar.delete.permanentTitle": "Trwale usunąć „{name}”?",
+  "sidebar.delete.permanentDescription":
+    "Ta czynność trwale usuwa usuniętego agenta oraz jego lokalną rozmowę, pamięć, ustawienia i pliki. Nie będzie można go przywrócić.",
   "sidebar.retainedAgentsNotice": "Dane pozostają na tym komputerze.",
   "sidebar.restoreLastDeletedAgent": "Przywróć ostatnio usuniętego agenta",
   "sidebar.frame.label": "Nawigacja agentów",

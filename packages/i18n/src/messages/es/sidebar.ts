@@ -4,6 +4,10 @@ import type { messages as source } from "../en/sidebar";
 export const messages = {
   "sidebar.delete.retainedAgentDescription":
     "Esto retira el agente local de la aplicación y detiene sus rutinas y mensajes. Su identidad, conversación, recuerdos, ajustes y archivos permanecen en este equipo. Puedes restaurar los agentes eliminados desde la barra lateral, empezando por el más reciente.",
+  "sidebar.delete.permanently": "Eliminar permanentemente",
+  "sidebar.delete.permanentTitle": "¿Eliminar «{name}» permanentemente?",
+  "sidebar.delete.permanentDescription":
+    "Esto elimina permanentemente el agente retirado y su conversación, memorias, ajustes y archivos locales. No podrás restaurarlo.",
   "sidebar.retainedAgentsNotice": "Los datos quedan en este equipo.",
   "sidebar.restoreLastDeletedAgent": "Restaurar el último agente eliminado",
   "sidebar.frame.label": "Navegación de agentes",

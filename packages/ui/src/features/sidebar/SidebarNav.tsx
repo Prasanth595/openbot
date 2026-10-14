@@ -5,7 +5,7 @@
  */
 
 import { Bot, CheckCheck, ContextMenu, FolderPlus, Hash } from "@openbot/ui";
-import { For, Show } from "solid-js";
+import { createUniqueId, For, Show } from "solid-js";
 import { useText } from "../../text";
 import { SidebarChannelRow } from "./SidebarChannelRow";
 import { SidebarEmptyState } from "./SidebarEmptyState";
@@ -24,6 +24,7 @@ export function SidebarNav() {
     handleListDragLeave,
     layoutMutable,
     pending,
+    openDelete,
     props,
     reorderAnnouncement,
     resolvedPinnedItems,
@@ -34,6 +35,7 @@ export function SidebarNav() {
     waitingAgents,
   } = useSidebarScope();
   const { t } = useText();
+  const retainedNoticeId = createUniqueId();
   return (
     <nav
       ref={setAgentListElement}
@@ -91,7 +93,11 @@ export function SidebarNav() {
         <ContextMenu.Root modal={false}>
           <ContextMenu.Trigger class="sidebar-list-context-trigger" aria-label={t("sidebar.nav.freeArea")} />
           <ContextMenu.Portal>
-            <ContextMenu.Content class="agent-context-menu" aria-label={t("sidebar.nav.actions")}>
+            <ContextMenu.Content
+              class="agent-context-menu"
+              aria-label={t("sidebar.nav.actions")}
+              aria-describedby={props.onRestoreLastDeletedAgent ? retainedNoticeId : undefined}
+            >
               <Show when={props.createSupported !== false}>
                 <ContextMenu.Item onSelect={() => props.onCreateAgent()}>
                   <Bot class="agent-context-icon size-4" aria-hidden="true" />
@@ -105,9 +111,14 @@ export function SidebarNav() {
                 >
                   <span>{t("sidebar.restoreLastDeletedAgent")}</span>
                 </ContextMenu.Item>
-                <ContextMenu.Item disabled>
-                  <span>{t("sidebar.retainedAgentsNotice")}</span>
-                </ContextMenu.Item>
+                <p id={retainedNoticeId}>{t("sidebar.retainedAgentsNotice")}</p>
+              </Show>
+              <Show when={props.permanentDeleteTarget}>
+                {(target) => (
+                  <ContextMenu.Item onSelectAfterClose={() => openDelete("permanent", target().id)}>
+                    <span>{t("sidebar.delete.permanently")}</span>
+                  </ContextMenu.Item>
+                )}
               </Show>
               <Show when={props.onCreateChannel}>
                 <ContextMenu.Item onSelect={() => props.onCreateChannel?.()}>

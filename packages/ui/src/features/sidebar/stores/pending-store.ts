@@ -8,7 +8,7 @@ import type { ChannelSummary, SidebarSection } from "@openbot/contracts/ipc";
 import { createMemo, createStore } from "solid-js";
 import type { AgentProfile } from "../../../data";
 import { currentText } from "../../../text";
-import type { SidebarProps } from "../sidebar-types";
+import type { SidebarPermanentDeleteTarget, SidebarProps } from "../sidebar-types";
 
 /**
  * The one delete confirmation the sidebar can have open: an agent, channel or custom section, never both.
@@ -17,12 +17,13 @@ import type { SidebarProps } from "../sidebar-types";
  */
 interface SidebarPendingDelete {
   agent?: AgentProfile;
+  permanent?: SidebarPermanentDeleteTarget;
   deleting: boolean;
   error: string | null;
   /** The agent, channel or section, whichever `kind` names. */
   id: string;
   /** Which confirmation is on screen. Each dialog renders from one arm. */
-  kind: "agent" | "channel" | "section";
+  kind: "agent" | "channel" | "section" | "permanent";
 }
 
 /** What the section editor is editing: a section about to exist, or the one being renamed. */
@@ -53,6 +54,8 @@ export function createSidebarPendingStore(deps: {
   const { customSectionById, props } = deps;
 
   const [pending, setPending] = createStore<SidebarPending>({ deletion: null, sectionEditor: null });
+  // Store writes are queued. Claim the operation before another same-turn submit can read them.
+  let deleteInFlight = false;
   // Each dialog reads these: only one confirmation exists, and each dialog only renders while it is
   // the one. That is also why a section delete no longer needs its own pair of flags.
   const deleting = () => pending.deletion?.deleting === true;
@@ -63,6 +66,7 @@ export function createSidebarPendingStore(deps: {
     const deletion = pending.deletion;
     return deletion?.kind === "agent" ? deletion.agent : undefined;
   });
+  const permanentDeleteTarget = createMemo(() => pending.deletion?.permanent);
   const channelDeleteTarget = createMemo<ChannelSummary | undefined>(() => {
     const deletion = pending.deletion;
     return deletion?.kind === "channel" ? props.channels?.find((channel) => channel.id === deletion.id) : undefined;
@@ -75,12 +79,16 @@ export function createSidebarPendingStore(deps: {
   });
 
   function openDelete(kind: SidebarPendingDelete["kind"], id: string): void {
+    if (deleteInFlight) return;
+    const permanent = kind === "permanent" ? props.permanentDeleteTarget : undefined;
+    if (kind === "permanent" && (!permanent || permanent.id !== id)) return;
     setPending((state) => {
       state.deletion = {
         deleting: false,
         error: null,
         id,
         kind,
+        ...(permanent ? { permanent: { ...permanent } } : {}),
         ...(kind === "agent" ? { agent: props.agents.find((agent) => agent.id === id) } : {}),
       };
     });
@@ -88,6 +96,7 @@ export function createSidebarPendingStore(deps: {
 
   /** Closing the confirmation is what discards a failed attempt's message; nothing else has to. */
   function closeDelete(): void {
+    if (deleteInFlight) return;
     setPending((state) => {
       state.deletion = null;
     });
@@ -95,6 +104,7 @@ export function createSidebarPendingStore(deps: {
 
   /** Marks the confirmation as running and drops what the previous attempt said. */
   function beginDelete(): void {
+    deleteInFlight = true;
     setPending((state) => {
       if (!state.deletion) return;
       state.deletion.deleting = true;
@@ -104,6 +114,7 @@ export function createSidebarPendingStore(deps: {
 
   /** A failed delete leaves the confirmation open, no longer running, saying why. */
   function failDelete(cause: unknown): void {
+    deleteInFlight = false;
     setPending((state) => {
       if (!state.deletion) return;
       state.deletion.deleting = false;
@@ -114,13 +125,21 @@ export function createSidebarPendingStore(deps: {
 
   async function confirmDelete() {
     const deletion = pending.deletion;
-    if (!deletion || deletion.deleting || (deletion.kind !== "agent" && deletion.kind !== "channel")) return;
-    const onDelete = deletion.kind === "agent" ? props.onDeleteAgent : props.onDeleteChannel;
+    if (!deletion || deleteInFlight || deletion.kind === "section") return;
+    const onDelete =
+      deletion.kind === "permanent"
+        ? deletion.permanent?.onConfirm
+        : deletion.kind === "agent"
+          ? props.onDeleteAgent
+          : props.onDeleteChannel;
     if (!onDelete) return;
     beginDelete();
     try {
       await onDelete(deletion.id);
-      closeDelete();
+      deleteInFlight = false;
+      setPending((state) => {
+        state.deletion = null;
+      });
     } catch (error) {
       failDelete(error);
     }
@@ -240,11 +259,14 @@ export function createSidebarPendingStore(deps: {
 
   async function confirmSectionDelete(): Promise<void> {
     const deletion = pending.deletion;
-    if (deletion?.kind !== "section" || deletion.deleting) return;
+    if (deletion?.kind !== "section" || deleteInFlight) return;
     beginDelete();
     try {
       await props.onMutateLayout({ type: "delete", sectionId: deletion.id });
-      closeDelete();
+      deleteInFlight = false;
+      setPending((state) => {
+        state.deletion = null;
+      });
     } catch (error) {
       failDelete(error);
     }
@@ -261,6 +283,7 @@ export function createSidebarPendingStore(deps: {
     deleting,
     openDelete,
     pending,
+    permanentDeleteTarget,
     releaseSectionNameInput,
     saveSectionEditor,
     sectionDeleteTarget,

@@ -1,12 +1,20 @@
 import { Dialog, DropdownMenu } from "@openbot/ui";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import type { SidebarProps } from "@openbot/ui/features/sidebar/sidebar-types";
-import { fireEvent, render, screen, within } from "@solidjs/testing-library";
+import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
 import type { JSX } from "@solidjs/web";
 import { createSignal } from "solid-js";
 import { afterEach, expect, it, vi } from "vitest";
 import { toAgentProfile } from "../../app-message-projection";
-import { AGENTS } from "../../app-test-harness";
+import { AppProviders } from "../../app-providers";
+import { AGENTS, emitServers, installOpenbotStub, testServer, trackAnalytics } from "../../app-test-harness";
+import { useAgentActions } from "../agents/agent-actions";
+import { useServers } from "../servers/servers-context";
+
+function requireValue<T>(value: T | undefined): T {
+  if (value === undefined) throw new Error("Test scope is not ready");
+  return value;
+}
 
 function renderSidebar(overrides: Partial<SidebarProps> = {}, extra?: () => JSX.Element) {
   const onMutateLayout = vi.fn(async () => {});
@@ -552,6 +560,8 @@ it.each(["undo", "user focus", "disposed scope"])("closes actual agent deletion 
     return;
   }
   done.resolve();
+  // Completion enables the button before the controlled dialog runs its close scheduler.
+  await waitFor(() => expect(confirm).toBeEnabled());
   await schedule.close();
   if (mode === "user focus") {
     const draft = screen.getByRole("textbox", { name: "Conversation draft" });
@@ -569,4 +579,188 @@ it.each(["undo", "user focus", "disposed scope"])("closes actual agent deletion 
   await fireEvent.keyDown(navigation, { key: "z", ctrlKey: true });
   expect(restore).toHaveBeenCalledOnce();
   expect(screen.getByRole("button", { name: new RegExp(`^${AGENTS[0].name}`) })).toBeInTheDocument();
+});
+
+// Failure modes: Cancel deletes data, confirmation drifts to a new target, or repeat submission deletes twice.
+it.each(["cancel", "success", "error"])("confirms captured permanent deletion with %s", async (mode) => {
+  const result = Promise.withResolvers<void>();
+  const remove = vi.fn(() => result.promise);
+  const [candidate, setCandidate] = createSignal<SidebarProps["permanentDeleteTarget"]>({
+    id: "latest",
+    name: "Latest removed",
+    onConfirm: remove,
+  });
+  const restore = vi.fn(async () => {});
+  renderSidebar({
+    get permanentDeleteTarget() {
+      return candidate();
+    },
+    onRestoreLastDeletedAgent: restore,
+    canRestoreLastDeletedAgent: true,
+  });
+  await fireEvent.contextMenu(screen.getByLabelText("Sidebar free area"));
+  const menu = await screen.findByRole("menu");
+  expect(menu).toHaveAccessibleDescription("Removed data stays on this computer.");
+  expect(screen.queryByRole("menuitem", { name: "Removed data stays on this computer." })).not.toBeInTheDocument();
+  const schedule = controlCloseSchedule();
+  await fireEvent.pointerUp(screen.getByRole("menuitem", { name: "Delete permanently" }), { button: 0 });
+  await finishClose(schedule);
+  const dialog = screen.getByRole("alertdialog", { name: "Delete “Latest removed” permanently?" });
+  const cancel = within(dialog).getByRole("button", { name: "Cancel" });
+  expect(cancel).toHaveFocus();
+  setCandidate({ id: "older", name: "Older removed", onConfirm: vi.fn(async () => {}) });
+  expect(dialog).toHaveAccessibleName("Delete “Latest removed” permanently?");
+  if (mode === "cancel") {
+    await fireEvent.click(cancel);
+    await finishClose(schedule);
+    expect(remove).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    return;
+  }
+  const confirm = within(dialog).getByRole("button", { name: "Delete permanently" });
+  await fireEvent.click(confirm);
+  await fireEvent.click(confirm);
+  expect(remove).toHaveBeenCalledOnce();
+  if (mode === "error") {
+    result.reject(new Error("Cannot delete local data"));
+    // The promise rejection is the event. Use the rendered error as the completion barrier.
+    await Promise.resolve();
+    expect(await within(dialog).findByText("Cannot delete local data")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Delete permanently" })).toBeEnabled();
+  } else {
+    result.resolve();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    await finishClose(schedule);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await fireEvent.contextMenu(screen.getByLabelText("Sidebar free area"));
+    await fireEvent.pointerUp(await screen.findByRole("menuitem", { name: "Delete permanently" }), { button: 0 });
+    await finishClose(schedule);
+    expect(screen.getByRole("alertdialog", { name: "Delete “Older removed” permanently?" })).toBeInTheDocument();
+  }
+  expect(restore).not.toHaveBeenCalled();
+});
+
+it("uses the existing delete operation and refreshes the next retained candidate after successful uninstall", async () => {
+  installOpenbotStub();
+  const candidate = {
+    ...AGENTS[0],
+    marketplaceSource: {
+      listingId: "listing",
+      versionId: "version",
+      version: 1,
+      skillIds: [],
+      routineIds: [],
+    },
+  };
+  vi.mocked(window.openbot.agent.lastDeletedAgent).mockResolvedValue(candidate);
+  let actions: ReturnType<typeof useAgentActions> | undefined;
+  function Probe() {
+    actions = useAgentActions();
+    return null;
+  }
+  render(() => (
+    <AppProviders>
+      <Probe />
+    </AppProviders>
+  ));
+  await vi.waitFor(() => expect(actions?.permanentDeleteTarget()?.id).toBe(candidate.id));
+  const target = requireValue(requireValue(actions).permanentDeleteTarget());
+  const deleted = Promise.withResolvers<void>();
+  vi.mocked(window.openbot.agent.deleteAgent).mockReturnValue(deleted.promise);
+  const first = target.onConfirm();
+  expect(trackAnalytics).not.toHaveBeenCalledWith(
+    "marketplace_action",
+    expect.objectContaining({ action: "uninstall", result: "succeeded" }),
+  );
+  await target.onConfirm();
+  expect(window.openbot.agent.deleteAgent).toHaveBeenCalledExactlyOnceWith(candidate.id, "local");
+  vi.mocked(window.openbot.agent.lastDeletedAgent).mockResolvedValue(AGENTS[1]);
+  deleted.resolve();
+  await first;
+  expect(requireValue(actions).permanentDeleteTarget()?.id).toBe(AGENTS[1].id);
+  expect(requireValue(actions).canRestoreLastDeletedAgent()).toBe(true);
+  expect(trackAnalytics).toHaveBeenCalledWith("marketplace_action", {
+    entity: "agent",
+    action: "uninstall",
+    result: "succeeded",
+  });
+  expect(window.openbot.agent.removeAgentForRecovery).not.toHaveBeenCalled();
+});
+
+it.each(["before submit", "pending reply"])(
+  "keeps permanent deletion in its captured server scope (%s)",
+  async (mode) => {
+    installOpenbotStub();
+    vi.mocked(window.openbot.agent.lastDeletedAgent).mockResolvedValue(AGENTS[0]);
+    let actions: ReturnType<typeof useAgentActions> | undefined;
+    let servers: ReturnType<typeof useServers> | undefined;
+    function Probe() {
+      actions = useAgentActions();
+      servers = useServers();
+      return null;
+    }
+    render(() => (
+      <AppProviders>
+        <Probe />
+      </AppProviders>
+    ));
+    await vi.waitFor(() => expect(actions?.permanentDeleteTarget()?.id).toBe(AGENTS[0].id));
+    const oldTarget = requireValue(requireValue(actions).permanentDeleteTarget());
+    const deleted = Promise.withResolvers<void>();
+    vi.mocked(window.openbot.agent.deleteAgent).mockReturnValue(deleted.promise);
+    const pending = mode === "pending reply" ? oldTarget.onConfirm() : undefined;
+    emitServers?.([testServer("local", false), testServer("studio", true)]);
+    await vi.waitFor(() => expect(servers?.activeServerId()).toBe("studio"));
+    expect(requireValue(actions).permanentDeleteTarget()).toBeUndefined();
+    if (pending) {
+      const queryCount = vi.mocked(window.openbot.agent.lastDeletedAgent).mock.calls.length;
+      deleted.resolve();
+      await pending;
+      expect(window.openbot.agent.lastDeletedAgent).toHaveBeenCalledTimes(queryCount);
+      expect(window.openbot.agent.deleteAgent).toHaveBeenCalledExactlyOnceWith(AGENTS[0].id, "local");
+    } else {
+      await expect(oldTarget.onConfirm()).rejects.toThrow();
+      expect(window.openbot.agent.deleteAgent).not.toHaveBeenCalled();
+    }
+    expect(requireValue(actions).canRestoreLastDeletedAgent()).toBe(false);
+  },
+);
+
+it("does not report retention or a failed permanent delete as a successful marketplace uninstall", async () => {
+  installOpenbotStub();
+  const candidate = {
+    ...AGENTS[0],
+    marketplaceSource: {
+      listingId: "listing",
+      versionId: "version",
+      version: 1,
+      skillIds: [],
+      routineIds: [],
+    },
+  };
+  vi.mocked(window.openbot.agent.listAgents).mockResolvedValue([candidate]);
+  vi.mocked(window.openbot.agent.lastDeletedAgent).mockResolvedValue(candidate);
+  let actions: ReturnType<typeof useAgentActions> | undefined;
+  function Probe() {
+    actions = useAgentActions();
+    return null;
+  }
+  render(() => (
+    <AppProviders>
+      <Probe />
+    </AppProviders>
+  ));
+  await vi.waitFor(() => expect(actions?.permanentDeleteTarget()?.id).toBe(candidate.id));
+  await requireValue(actions).deleteAgent(candidate.id);
+  await vi.waitFor(() => expect(actions?.permanentDeleteTarget()?.id).toBe(candidate.id));
+  vi.mocked(window.openbot.agent.deleteAgent).mockRejectedValue(new Error("Deletion failed"));
+  await expect(requireValue(requireValue(actions).permanentDeleteTarget()).onConfirm()).rejects.toThrow(
+    "Deletion failed",
+  );
+  expect(requireValue(actions).permanentDeleteTarget()?.id).toBe(candidate.id);
+  expect(requireValue(actions).canRestoreLastDeletedAgent()).toBe(true);
+  expect(trackAnalytics).not.toHaveBeenCalledWith(
+    "marketplace_action",
+    expect.objectContaining({ action: "uninstall", result: "succeeded" }),
+  );
 });

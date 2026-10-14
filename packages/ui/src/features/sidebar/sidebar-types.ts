@@ -25,6 +25,13 @@ import type { SidebarPinnedItem } from "./sidebar-pins";
  */
 export type SidebarView = "agents" | "routines";
 
+/** The application owns the captured target, server scope and delete operation. */
+export interface SidebarPermanentDeleteTarget {
+  id: string;
+  name: string;
+  onConfirm: () => Promise<void>;
+}
+
 export interface SidebarProps {
   /** The switch over the list is shown only when the caller handles `onViewChange`. */
   view?: SidebarView;
@@ -80,6 +87,7 @@ export interface SidebarProps {
   onDeleteAgent: (agentId: string) => Promise<void>;
   onRestoreLastDeletedAgent?: (() => Promise<void>) | undefined;
   canRestoreLastDeletedAgent?: boolean;
+  permanentDeleteTarget?: SidebarPermanentDeleteTarget | undefined;
   compact: boolean;
   /** A card under the chat list, such as an announcement. The compact sidebar has no room for it. */
   footer?: JSX.Element;

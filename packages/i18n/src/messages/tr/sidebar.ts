@@ -4,6 +4,10 @@ import type { messages as source } from "../en/sidebar";
 export const messages = {
   "sidebar.delete.retainedAgentDescription":
     "Yerel ajan uygulamadan kaldırılır; rutinleri ve mesajları durdurulur. Kimliği, sohbeti, anıları, ayarları ve dosyaları bu bilgisayarda tutulur. Kaldırılan ajanları kenar çubuğundan en son kaldırılan ajandan başlayarak geri yükleyebilirsiniz.",
+  "sidebar.delete.permanently": "Kalıcı olarak sil",
+  "sidebar.delete.permanentTitle": "“{name}” kalıcı olarak silinsin mi?",
+  "sidebar.delete.permanentDescription":
+    "Bu işlem kaldırılan ajanı ve yerel konuşmasını, belleğini, ayarlarını ve dosyalarını kalıcı olarak siler. Geri yükleyemezsiniz.",
   "sidebar.retainedAgentsNotice": "Veriler bu bilgisayarda saklanır.",
   "sidebar.restoreLastDeletedAgent": "Son silinen ajanı geri yükle",
   "sidebar.frame.label": "Ajan gezintisi",

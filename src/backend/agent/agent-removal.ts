@@ -107,6 +107,10 @@ export class AgentRemoval {
   readonly restoreLast = Effect.fn("AgentRemoval.restoreLast")(function* (this: AgentRemoval) {
     if (this.#deleting.size > 0)
       return yield* new AgentRemovalFailed({ cause: new Error(sourceText("error.agent.deletionBusy")) });
+    yield* removalStep(() => {
+      const candidate = this.#store.lastRetainedAgent();
+      if (candidate) this.#routines.skipMissedForAgent(candidate.id, new Date());
+    });
     const agent = yield* this.#store.restoreLastRetainedAgent().pipe(toAgentRemovalFailed);
     if (!agent) return null;
     this.#retainedBlocks.get(agent.id)?.();

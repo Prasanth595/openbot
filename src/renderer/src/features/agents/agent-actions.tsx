@@ -3,6 +3,7 @@ import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-prot
 import { classifyFailure } from "@openbot/telemetry";
 import type { AgentProfile } from "@openbot/ui/data";
 import type { FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
+import type { SidebarPermanentDeleteTarget } from "@openbot/ui/features/sidebar/sidebar-types";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createSignal } from "solid-js";
 import { actionToast } from "../../action-toast";
@@ -68,34 +69,54 @@ const AgentActions = createSimpleContext({
 
     const [lastDeleted, setLastDeleted] = createSignal<AgentSummary | null>(null);
     const [restoring, setRestoring] = createSignal(false);
+    const [permanentlyDeleting, setPermanentlyDeleting] = createSignal(false);
+    // Signals commit later; this claim prevents a second bridge call in the same turn.
+    let permanentDeleteInFlight = false;
+    let restoreInFlight = false;
     let recoveryQuery = 0;
+    async function refreshRecoveryCandidate(serverId: string) {
+      const query = ++recoveryQuery;
+      setLastDeleted(null);
+      try {
+        const agent = await agentsPort().agent.lastDeletedAgent(serverId);
+        if (scopeIsCurrent() && serverId === activeServerId() && query === recoveryQuery) setLastDeleted(agent);
+      } catch {
+        // An unavailable candidate must not leave an old irreversible action enabled.
+      }
+    }
     createEffect(
       () => ({ server: activeServer(), serverId: activeServerId(), agents: agentList() }),
       ({ server, serverId }) => {
-        const query = ++recoveryQuery;
-        setLastDeleted(null);
-        if (server?.kind === "remote") return;
-        void agentsPort()
-          .agent.lastDeletedAgent(serverId)
-          .then((agent) => {
-            if (scopeIsCurrent() && query === recoveryQuery) setLastDeleted(agent);
-          })
-          .catch(() => {});
+        if (server?.kind === "remote") {
+          ++recoveryQuery;
+          setLastDeleted(null);
+          return;
+        }
+        void refreshRecoveryCandidate(serverId);
       },
     );
 
     async function restoreLastDeletedAgent() {
-      if (activeServer()?.kind === "remote" || restoring() || !lastDeleted()) return;
+      if (
+        !scopeIsCurrent() ||
+        activeServer()?.kind === "remote" ||
+        restoreInFlight ||
+        permanentDeleteInFlight ||
+        !lastDeleted()
+      )
+        return;
       const serverId = activeServerId();
+      restoreInFlight = true;
       setRestoring(true);
       try {
         const agent = await agentsPort().agent.restoreLastDeletedAgent(serverId);
-        if (!scopeIsCurrent()) return;
+        if (!scopeIsCurrent() || serverId !== activeServerId()) return;
         setLastDeleted(null);
         if (agent) {
           addNewAgent(agent);
           selectAgent(agent.id);
         }
+        await refreshRecoveryCandidate(serverId);
       } catch (error) {
         if (!scopeIsCurrent()) return;
         const { t, errorMessage } = currentText();
@@ -103,8 +124,47 @@ const AgentActions = createSimpleContext({
           description: errorMessage(error, t("agent.error.restoreFailed")),
         });
       } finally {
+        restoreInFlight = false;
         if (scopeIsCurrent()) setRestoring(false);
       }
+    }
+
+    /** Capture identity and scope before the shared UI opens an irreversible confirmation. */
+    function permanentDeleteTarget(): SidebarPermanentDeleteTarget | undefined {
+      const candidate = lastDeleted();
+      if (!candidate || activeServer()?.kind === "remote" || restoring() || permanentlyDeleting()) return;
+      const serverId = activeServerId();
+      return {
+        id: candidate.id,
+        name: candidate.name,
+        async onConfirm() {
+          if (
+            !scopeIsCurrent() ||
+            serverId !== activeServerId() ||
+            activeServer()?.kind === "remote" ||
+            lastDeleted()?.id !== candidate.id ||
+            restoreInFlight
+          )
+            throw new Error(currentText().t("error.agent.deletionBusy"));
+          if (permanentDeleteInFlight) return;
+          permanentDeleteInFlight = true;
+          setPermanentlyDeleting(true);
+          ++recoveryQuery;
+          const analytics = desktopAnalytics.scope();
+          try {
+            await agentsPort().agent.deleteAgent(candidate.id, serverId);
+            if (candidate.marketplaceSource) {
+              analytics.track("marketplace_action", { entity: "agent", action: "uninstall", result: "succeeded" });
+            }
+            if (!scopeIsCurrent() || serverId !== activeServerId()) return;
+            removePinnedSidebarItemEverywhere({ kind: "agent", id: candidate.id });
+            await refreshRecoveryCandidate(serverId);
+          } finally {
+            permanentDeleteInFlight = false;
+            if (scopeIsCurrent() && serverId === activeServerId()) setPermanentlyDeleting(false);
+          }
+        },
+      };
     }
 
     /** Asks the host for the agent. */
@@ -213,7 +273,7 @@ const AgentActions = createSimpleContext({
         if (local) await agentsPort().agent.removeAgentForRecovery(agentId, serverId);
         else await agentsPort().agent.deleteAgent(agentId, serverId);
         analytics.track("agent_action", { action: "delete", result: "succeeded", ...(properties ?? {}) });
-        if (marketplaceAgent) {
+        if (marketplaceAgent && !local) {
           analytics.track("marketplace_action", { entity: "agent", action: "uninstall", result: "succeeded" });
         }
         if (!scopeIsCurrent()) return;
@@ -235,7 +295,7 @@ const AgentActions = createSimpleContext({
           failure_code: "delete_failed",
           ...(properties ?? {}),
         });
-        if (marketplaceAgent) {
+        if (marketplaceAgent && !local) {
           analytics.track("marketplace_action", {
             entity: "agent",
             action: "uninstall",
@@ -255,7 +315,8 @@ const AgentActions = createSimpleContext({
       duplicateAgent,
       deleteAgent,
       restoreLastDeletedAgent,
-      canRestoreLastDeletedAgent: () => lastDeleted() !== null && !restoring(),
+      permanentDeleteTarget,
+      canRestoreLastDeletedAgent: () => lastDeleted() !== null && !restoring() && !permanentlyDeleting(),
     };
   },
 });

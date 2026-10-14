@@ -718,8 +718,14 @@ export class RoutineStore {
    * occurrence due, so the scheduler runs it now. A trigger that came due while a restart held the
    * routines stays due as well, so it runs once now.
    */
-  skipMissed(now = new Date(), held?: RoutineHoldWindow, excludedOwnerIds: ReadonlySet<string> = new Set()): void {
+  skipMissed(
+    now = new Date(),
+    held?: RoutineHoldWindow,
+    excludedOwnerIds: ReadonlySet<string> = new Set(),
+    onlyOwnerId?: string,
+  ): void {
     for (const routine of this.#allActive()) {
+      if (onlyOwnerId !== undefined && routine.ownerId !== onlyOwnerId) continue;
       if (excludedOwnerIds.has(routine.ownerId)) continue;
       const { trigger } = routine;
       const due = Date.parse(trigger.nextRunAt);

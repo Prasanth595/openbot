@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { AgentEvent } from "@openbot/contracts/ipc";
 import { Effect } from "effect";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { RoutineScheduler } from "./agent/routine-scheduler";
 import { AgentRoutineStore } from "./agent-routine-store";
 import type { AgentService } from "./agent-service";
 import {
@@ -25,12 +26,15 @@ beforeEach(async () => {
 afterEach(async () => {
   await stopAgentTestFixture(root, service);
   service = null;
+  vi.useRealTimers();
 });
 
 it("excludes retained agents from scheduled and manual work and blocks stale delivery admission across restart", async () => {
   const { store, mailbox } = stores(root);
   service = createTestService({ store, mailbox, clientFactory: (provider) => new FakeAgentClient(provider) });
   await runCauseEffect(service.initialize());
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-08-25T10:00:00.000Z"));
   const agent = await runCauseEffect(store.getOrCreate("chief"));
   const routine = service.createRoutine({
     agentId: agent.id,
@@ -60,11 +64,23 @@ it("excludes retained agents from scheduled and manual work and blocks stale del
   expect(service.listAgents()).toEqual([]);
   expect(service.nextRoutineDueAt()).toBeNull();
   expect(() => restartedMailbox.prepareDelivery([agent.id])).toThrow();
+  vi.setSystemTime(new Date("2026-08-25T11:00:00.000Z"));
   const restored = await runCauseEffect(service.restoreLastDeletedAgent());
   expect(restored?.id).toBe(agent.id);
   expect(restored?.threadId).toBe(store.list()[0]?.threadId);
   expect(service.nextRoutineDueAt()).not.toBeNull();
-  expect(service.listRoutines(agent.id)).toEqual([routine]);
+  expect(service.listRoutines(agent.id)).toEqual([
+    {
+      ...routine,
+      trigger: {
+        ...routine.trigger,
+        nextRunAt: "2026-08-26T09:00:00.000Z",
+        updatedAt: "2026-08-25T11:00:00.000Z",
+      },
+    },
+  ]);
+  expect(service.nextRoutineDueAt()).toBe("2026-08-26T09:00:00.000Z");
+  expect(new AgentRoutineStore(store.database).listRuns(agent.id, routine.id)).toEqual([]);
   expect(() => restartedMailbox.prepareDelivery([agent.id])).not.toThrow();
 });
 
@@ -202,4 +218,97 @@ it.each([false, true])("rejects a pre-removal messaging admission after its wait
   expect(mailbox.listQueue(agent.id).deliveries).toEqual([]);
   enqueue.mockRestore();
   prepare.mockRestore();
+});
+
+// Failure modes: restore replays old work, changes unrelated triggers, or loses run-once policy.
+it.each(["skip", "run-once"] as const)(
+  "applies %s missed policy only to the restored agent before scheduling",
+  async (missedPolicy) => {
+    const { store, mailbox } = stores(root);
+    service = createTestService({ store, mailbox, clientFactory: (provider) => new FakeAgentClient(provider) });
+    await runCauseEffect(service.initialize());
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    try {
+      vi.setSystemTime(new Date("2026-08-25T10:00:00.000Z"));
+      const routines = new AgentRoutineStore(store.database);
+      const active = await runCauseEffect(store.getOrCreate("active"));
+      const older = await runCauseEffect(store.getOrCreate("older"));
+      const latest = await runCauseEffect(store.getOrCreate("latest"));
+      const currentService = service;
+      const create = (agentId: string) =>
+        currentService.createRoutine({
+          agentId,
+          name: "Quarter hour",
+          instruction: "Check",
+          active: true,
+          timezone: "UTC",
+          missedPolicy,
+          schedule: { kind: "interval", amount: 15, unit: "minutes", anchorAt: "2026-08-25T10:00:00.000Z" },
+        });
+      const activeRoutine = create(active.id);
+      const olderRoutine = create(older.id);
+      const latestRoutine = create(latest.id);
+      await runCauseEffect(service.removeAgentForRecovery(older.id));
+      await runCauseEffect(service.removeAgentForRecovery(latest.id));
+      vi.setSystemTime(new Date("2026-08-25T12:07:00.000Z"));
+      await expect(runCauseEffect(service.restoreLastDeletedAgent())).resolves.toMatchObject({ id: latest.id });
+      expect(routines.get(active.id, activeRoutine.id)).toEqual(activeRoutine);
+      expect(routines.get(older.id, olderRoutine.id)).toEqual(olderRoutine);
+      expect(routines.listRuns(active.id, activeRoutine.id, 10, true)).toEqual([]);
+      expect(routines.listRuns(older.id, olderRoutine.id, 10, true)).toEqual([]);
+      expect(routines.get(latest.id, latestRoutine.id)?.trigger.nextRunAt).toBe(
+        missedPolicy === "skip" ? "2026-08-25T12:15:00.000Z" : "2026-08-25T12:00:00.000Z",
+      );
+      expect(routines.listRuns(latest.id, latestRoutine.id, 10, true)).toEqual([
+        expect.objectContaining({
+          status: "cancelled",
+          missed: {
+            count: missedPolicy === "skip" ? 8 : 7,
+            until: missedPolicy === "skip" ? "2026-08-25T12:00:00.000Z" : "2026-08-25T11:45:00.000Z",
+          },
+        }),
+      ]);
+      expect(service.lastDeletedAgent()?.id).toBe(older.id);
+      expect(() => mailbox.prepareDelivery([older.id])).toThrow();
+      expect(() => mailbox.prepareDelivery([latest.id])).not.toThrow();
+    } finally {
+      await runCauseEffect(service.stop());
+      vi.useRealTimers();
+    }
+  },
+);
+
+it("keeps the candidate blocked if missed-run reconciliation fails", async () => {
+  const { store, mailbox } = stores(root);
+  service = createTestService({ store, mailbox, clientFactory: (provider) => new FakeAgentClient(provider) });
+  await runCauseEffect(service.initialize());
+  const agent = await runCauseEffect(store.getOrCreate("chief"));
+  await runCauseEffect(service.removeAgentForRecovery(agent.id));
+  const reconcile = vi.spyOn(RoutineScheduler.prototype, "skipMissedForAgent").mockImplementationOnce(() => {
+    throw new Error("injected reconciliation failure");
+  });
+  try {
+    await expect(runCauseEffect(service.restoreLastDeletedAgent())).rejects.toThrow("injected reconciliation failure");
+    expect(service.listAgents()).toEqual([]);
+    expect(service.lastDeletedAgent()?.id).toBe(agent.id);
+    expect(() => mailbox.prepareDelivery([agent.id])).toThrow();
+    await expect(runCauseEffect(service.restoreLastDeletedAgent())).resolves.toMatchObject({ id: agent.id });
+  } finally {
+    reconcile.mockRestore();
+  }
+});
+
+it("deletes the newest retained agent through the service and keeps the prior candidate recoverable", async () => {
+  const { store, mailbox } = stores(root);
+  service = createTestService({ store, mailbox, clientFactory: (provider) => new FakeAgentClient(provider) });
+  await runCauseEffect(service.initialize());
+  const older = await runCauseEffect(store.getOrCreate("older"));
+  const latest = await runCauseEffect(store.getOrCreate("latest"));
+  await runCauseEffect(service.removeAgentForRecovery(older.id));
+  await runCauseEffect(service.removeAgentForRecovery(latest.id));
+  await runCauseEffect(service.deleteAgent(latest.id));
+  expect(store.retainedAgents()).toEqual([older]);
+  expect(service.lastDeletedAgent()?.id).toBe(older.id);
+  await expect(runCauseEffect(service.restoreLastDeletedAgent())).resolves.toMatchObject({ id: older.id });
+  expect(() => mailbox.prepareDelivery([older.id])).not.toThrow();
 });

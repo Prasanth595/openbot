@@ -4,6 +4,10 @@ import type { messages as source } from "../en/sidebar";
 export const messages = {
   "sidebar.delete.retainedAgentDescription":
     "ローカルエージェントをアプリから削除し、ルーティンとメッセージを停止します。識別情報、会話、メモリ、設定、ファイルはこのコンピューターに保持されます。削除したエージェントは、サイドバーから新しい順に復元できます。",
+  "sidebar.delete.permanently": "完全に削除",
+  "sidebar.delete.permanentTitle": "「{name}」を完全に削除しますか？",
+  "sidebar.delete.permanentDescription":
+    "削除済みのエージェントと、そのローカルの会話、メモリ、設定、ファイルを完全に削除します。復元できません。",
   "sidebar.retainedAgentsNotice": "削除したデータはこのコンピューターに残ります。",
   "sidebar.restoreLastDeletedAgent": "最後に削除したエージェントを復元",
   "sidebar.frame.label": "エージェントのナビゲーション",

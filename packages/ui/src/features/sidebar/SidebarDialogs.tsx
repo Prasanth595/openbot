@@ -18,6 +18,7 @@ export function SidebarDialogs() {
     channelDeleteTarget,
     deleting,
     props,
+    permanentDeleteTarget,
     sectionDeleteTarget,
   } = useSidebarScope();
   const { t } = useText();
@@ -37,6 +38,22 @@ export function SidebarDialogs() {
   // Each dialog unmounts with its target, so its text never shows an empty name while it closes.
   return (
     <>
+      <Show when={permanentDeleteTarget()}>
+        {(target) => (
+          <ConfirmDialog
+            {...shared}
+            open
+            initialFocus="cancel"
+            restoreFocusTarget={getAgentListElement()}
+            pending={deleting()}
+            error={deleteError()}
+            title={t("sidebar.delete.permanentTitle", { name: target().name })}
+            description={t("sidebar.delete.permanentDescription")}
+            confirmLabel={t("sidebar.delete.permanently")}
+            onConfirm={confirmDelete}
+          />
+        )}
+      </Show>
       <Show when={agentDialog()}>
         {(agent) => (
           <ConfirmDialog

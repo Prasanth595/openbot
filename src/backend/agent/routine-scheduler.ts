@@ -256,6 +256,11 @@ export class RoutineScheduler implements RoutineDueSource {
     this.#routines.skipMissed(now, held, this.#hooks.excludedAgents());
   }
 
+  /** Apply released missed-run policy while the restore candidate is still blocked. */
+  skipMissedForAgent(agentId: string, now: Date): void {
+    this.#routines.skipMissed(now, undefined, new Set(), agentId);
+  }
+
   create(input: CreateRoutineInput, options: RoutineMutationOptions = {}): Routine {
     this.#conversation.requireKnownAgent(input.agentId);
     const routine =

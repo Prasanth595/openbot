@@ -3,7 +3,11 @@ import type { messages as source } from "../en/sidebar";
 
 export const messages = {
   "sidebar.delete.retainedAgentDescription":
-    "L’agente locale viene rimosso dall’app e le sue routine e i suoi messaggi vengono fermati. Identità, conversazione, memorie, impostazioni e file restano su questo computer. Puoi annullare l’ultima rimozione dalla barra laterale. Puoi ripristinare gli agenti rimossi dalla barra laterale, dal più recente al più vecchio.",
+    "L’agente locale viene rimosso dall’app e le sue routine e i suoi messaggi vengono fermati. Identità, conversazione, memorie, impostazioni e file restano su questo computer. Puoi ripristinare gli agenti rimossi dalla barra laterale, dal più recente al più vecchio.",
+  "sidebar.delete.permanently": "Elimina definitivamente",
+  "sidebar.delete.permanentTitle": "Eliminare «{name}» definitivamente?",
+  "sidebar.delete.permanentDescription":
+    "Questa azione elimina definitivamente l’agente rimosso e la sua conversazione, le memorie, le impostazioni e i file locali. Non potrai ripristinarlo.",
   "sidebar.retainedAgentsNotice": "I dati restano su questo computer.",
   "sidebar.restoreLastDeletedAgent": "Ripristina l’ultimo agente eliminato",
   "sidebar.frame.label": "Navigazione degli agenti",

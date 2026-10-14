@@ -53,8 +53,14 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
     duplicatingAgentIds,
     openBotSetup,
   } = useAgents();
-  const { editAgent, duplicateAgent, deleteAgent, restoreLastDeletedAgent, canRestoreLastDeletedAgent } =
-    useAgentActions();
+  const {
+    editAgent,
+    duplicateAgent,
+    deleteAgent,
+    restoreLastDeletedAgent,
+    canRestoreLastDeletedAgent,
+    permanentDeleteTarget,
+  } = useAgentActions();
   const { activeTurns, queues, failedTurns, usageLimits, pendingPrompts, pendingApprovals } = useTurns();
   const { unreadReplies, recentReplies, markAllAgentMessagesRead } = useConversation();
   const { directPeople } = usePresence();
@@ -206,6 +212,9 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
         activeServer()?.kind !== "remote" && platform.appInfo() ? restoreLastDeletedAgent : undefined
       }
       canRestoreLastDeletedAgent={canRestoreLastDeletedAgent()}
+      permanentDeleteTarget={
+        activeServer()?.kind !== "remote" && platform.appInfo() ? permanentDeleteTarget() : undefined
+      }
       compact={layout.leftPanelCompact()}
       onExpand={layout.expandSidebar}
       onOpenSearch={() => setGlobalSearchVisibility(true)}
