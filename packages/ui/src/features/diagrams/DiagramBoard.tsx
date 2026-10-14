@@ -22,7 +22,9 @@ import {
   type DiagramConnectionProblem,
   diagramBounds,
   diagramConnectionProblem,
+  diagramEdgeArrow,
   diagramEdgeCarries,
+  diagramEdgeEnd,
   diagramEdgeMidpoint,
   diagramEdgePath,
   diagramExecutionSteps,
@@ -496,7 +498,13 @@ export function DiagramBoard(props: DiagramBoardProps) {
                         const path = () => {
                           const from = nodeById().get(current().from);
                           const to = nodeById().get(current().to);
-                          return from && to ? diagramEdgePath(diagramOutputPort(from), diagramInputPort(to)) : "";
+                          return from && to
+                            ? diagramEdgePath(diagramOutputPort(from), diagramEdgeEnd(diagramInputPort(to)))
+                            : "";
+                        };
+                        const arrow = () => {
+                          const to = nodeById().get(current().to);
+                          return to ? diagramEdgeArrow(diagramInputPort(to)) : "";
                         };
                         return (
                           <g
@@ -512,6 +520,7 @@ export function DiagramBoard(props: DiagramBoardProps) {
                           >
                             <path class="diagram-edge-hit" d={path()} />
                             <path class="diagram-edge-line" d={path()} />
+                            <path class="diagram-edge-arrow" d={arrow()} />
                           </g>
                         );
                       }}
@@ -542,7 +551,10 @@ export function DiagramBoard(props: DiagramBoardProps) {
                     <Show when={ends()}>
                       {(pair) => {
                         const midpoint = () =>
-                          diagramEdgeMidpoint(diagramOutputPort(pair().from), diagramInputPort(pair().to));
+                          diagramEdgeMidpoint(
+                            diagramOutputPort(pair().from),
+                            diagramEdgeEnd(diagramInputPort(pair().to)),
+                          );
                         return (
                           <Show when={edgeRemovable(edge.id)}>
                             <Button
