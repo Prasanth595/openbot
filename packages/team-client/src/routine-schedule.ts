@@ -228,9 +228,7 @@ function nextCronOccurrence(spec: CronSpec, timezone: string, after: Date): Date
   const start = zonedParts(after, timezone);
   const calendar = new Date(Date.UTC(start.year, start.month - 1, start.day));
   const exactTimes = spec.exactTimes;
-  const repeatedStartHour =
-    zonedDateTimeCandidates({ ...start, minute: 0 }, timezone).length > 1 ||
-    zonedDateTimeCandidates({ ...start, minute: 30 }, timezone).length > 1;
+  const repeatedStart = zonedDateTimeCandidates(start, timezone).length > 1;
   for (let offset = 0; offset <= MAX_SEARCH_DAYS; offset += 1) {
     const current = new Date(calendar.getTime() + offset * 86_400_000);
     const year = current.getUTCFullYear();
@@ -250,22 +248,30 @@ function nextCronOccurrence(spec: CronSpec, timezone: string, after: Date): Date
             : dayMatches || weekdayMatches;
     if (!calendarMatches) continue;
 
+    let repeatedCandidate: Date | undefined;
     for (const hour of spec.hour.values) {
       for (const minute of spec.minute.values) {
         if (exactTimes && !exactTimes.has(`${hour}:${minute}`)) continue;
-        if (
-          offset === 0 &&
-          (hour < start.hour || (hour === start.hour && minute < start.minute)) &&
-          !(repeatedStartHour && hour === start.hour)
-        ) {
+        if (offset === 0 && (hour < start.hour || (hour === start.hour && minute < start.minute)) && !repeatedStart) {
           continue;
         }
-        for (const candidate of zonedDateTimeCandidates({ year, month, day, weekday, hour, minute }, timezone)) {
+        const candidates = zonedDateTimeCandidates({ year, month, day, weekday, hour, minute }, timezone);
+        for (const [index, candidate] of candidates.entries()) {
           if (candidate.getTime() <= after.getTime()) continue;
-          return candidate;
+          // First occurrences follow wall-clock order. A second occurrence can precede a later
+          // wall time's first occurrence, even across hours when the clock moves back several hours.
+          if (index === 0) {
+            return repeatedCandidate && repeatedCandidate.getTime() < candidate.getTime()
+              ? repeatedCandidate
+              : candidate;
+          }
+          if (!repeatedCandidate || candidate.getTime() < repeatedCandidate.getTime()) {
+            repeatedCandidate = candidate;
+          }
         }
       }
     }
+    if (repeatedCandidate) return repeatedCandidate;
   }
   throw new RoutineInputError(sourceText("error.backend.routineNoOccurrence"));
 }
