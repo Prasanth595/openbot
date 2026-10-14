@@ -84,7 +84,7 @@ const config: KnipConfig = {
     },
     "apps/site-router": {
       entry: ["src/index.ts"],
-      project: ["src/**/*.ts", "test/**/*.ts"],
+      project: ["src/**/*.ts"],
     },
     "apps/mobile": {
       entry: [
@@ -104,7 +104,7 @@ const config: KnipConfig = {
     },
     "remote/api": {
       entry: ["src/index.ts"],
-      project: ["src/**/*.ts", "test/**/*.ts"],
+      project: ["src/**/*.ts"],
     },
     "packages/*": {
       project: ["src/**/*.{ts,tsx,css}"],
