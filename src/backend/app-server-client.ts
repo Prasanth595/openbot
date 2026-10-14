@@ -1,7 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { type DynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
-import { Effect } from "effect";
+import { Effect, Fiber } from "effect";
 import { type AgentProvider, RequestTimeoutError } from "./agent-client";
 import { cliSpawnTarget } from "./cli";
 import { JsonLineDecoder, LineTooLongError } from "./jsonl";
@@ -59,6 +59,8 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
   readonly #toolRequests = new Map<RequestId, { threadId: string; turnId: string; controller: AbortController }>();
   readonly #interruptedTurns = new Set<string>();
   #process: ChildProcessWithoutNullStreams | null = null;
+  /** The end of a process that failed. `stop` waits for it, because `#process` no longer holds it. */
+  #ending: Fiber.Fiber<void> | null = null;
   #nextId = 1;
   #stopping = false;
 
@@ -122,7 +124,10 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
 
   readonly stop = Effect.fn("CodexAppServer.stop")(function* (this: CodexAppServerClient) {
     const child = this.#process;
-    if (!child) return;
+    if (!child) {
+      if (this.#ending) yield* Fiber.join(this.#ending);
+      return;
+    }
     this.#stopping = true;
     this.#cancelToolRequests();
     this.#process = null;
@@ -372,8 +377,7 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     }
     this.#pending.clear();
 
-    // `stop` cannot reach this process after `#process` is cleared, so the end is bounded here.
-    Effect.runFork(endProcess(child));
+    this.#ending = Effect.runFork(endProcess(child));
     if (!this.#stopping) this.emit("exit", error);
   }
 }
@@ -386,7 +390,10 @@ const endProcess = Effect.fn("CodexAppServer.endProcess")(function* (child: Chil
     const forceKill = setTimeout(() => {
       if (child.exitCode === null) child.kill("SIGKILL");
     }, 2_000);
-    const exited = () => resume(Effect.void);
+    const exited = () => {
+      clearTimeout(forceKill);
+      resume(Effect.void);
+    };
     child.once("exit", exited);
     child.kill("SIGTERM");
     return Effect.sync(() => {
