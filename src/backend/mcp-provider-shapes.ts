@@ -213,7 +213,7 @@ export const usableMcpServer = Effect.fnUntraced(function* (
  * Exported for its own test, like `pickWindowsExecutable`: the case that matters is the one this
  * machine cannot reach, a `null` path, which is every Windows machine.
  */
-export function appendToolRuntimes(path: string | null, binDirectories: readonly string[]): string | null {
+function appendToolRuntimes(path: string | null, binDirectories: readonly string[]): string | null {
   if (binDirectories.length === 0) return path;
   // `null` means "wherever this process would look", which is what naming a directory here takes
   // away: from this point the value is the whole search path, and anything left out of it is gone.
@@ -268,10 +268,7 @@ function shellWord(value: string): string {
 /** Share one lookup per command and PATH. A miss is removed so new installs can be found. */
 const resolvedCommands = new Map<string, Deferred.Deferred<string | null, McpShapeFailed>>();
 
-export const resolveMcpCommand = Effect.fn("McpShape.resolveCommand")(function* (
-  command: string,
-  path: string | null = null,
-) {
+const resolveMcpCommand = Effect.fn("McpShape.resolveCommand")(function* (command: string, path: string | null = null) {
   const trimmed = expandHomePath(command);
   if (!trimmed) return null;
   if (isAbsolute(trimmed) || trimmed.startsWith(".")) return trimmed;
@@ -372,7 +369,7 @@ const lookUpMcpCommand = Effect.fn("McpShape.lookUpCommand")(
  */
 let loginShellPathOnce: Deferred.Deferred<string | null> | null = null;
 
-export const loginShellPath = Effect.fn("McpShape.loginShellPath")(function* () {
+const loginShellPath = Effect.fn("McpShape.loginShellPath")(function* () {
   if (loginShellPathOnce) return yield* Deferred.await(loginShellPathOnce);
   const pending = Deferred.makeUnsafe<string | null>();
   loginShellPathOnce = pending;

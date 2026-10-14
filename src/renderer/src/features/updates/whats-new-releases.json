@@ -1,5 +1,63 @@
 [
   {
+    "version": "0.39.1",
+    "date": "2026-10-14",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Codex, Claude and Grok can have more than one account. Add one in Settings > Providers, and select the account of each agent in the model picker.",
+          "The Usage menu shows the limits of each account.",
+          "Agents can capture the screen: one display, one window, or an area. You approve each capture first, unless Turbo approves it for the agent.",
+          "Vercel is in Marketplace > Apps."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Copy, React and Reply are now in one row under each message.",
+          "Agents in Slack, Discord and Telegram answer simple questions themselves."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.39.0",
+    "date": "2026-10-14",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Server settings > Transfer moves agents, their skills, routines and memories, and server settings to another server, also between computers.",
+          "Slack, Discord and Telegram now show in Marketplace › Apps.",
+          "The server connection notice has a Details button that shows why the server is away and each step until it is back."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "When a joined server has a new version, a dialog shows the update steps, and one click starts the update.",
+          "When you restart a hosted server, the dialog shows each step until the server is back online.",
+          "Connect on a provider row uses the easiest sign-in for the place you are in.",
+          "On the routine canvas, each connection ends in an arrow where it goes into the next card."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "The app connects again after a server on another computer restarts.",
+          "Selecting a server on another computer connects at once.",
+          "A phone or another computer stays connected when it is slow to read updates.",
+          "An expired ChatGPT sign-in now asks you to sign in again.",
+          "When an OpenCode model ends a turn with no answer, the chat says so.",
+          "More interface text shows in your selected language."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.38.2",
     "date": "2026-10-13",
     "notices": [],

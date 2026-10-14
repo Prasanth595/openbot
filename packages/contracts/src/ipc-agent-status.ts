@@ -58,6 +58,53 @@ export interface AgentProviderStatus {
   lastError?: string | null;
   /** When `lastError` happened, in milliseconds since the epoch. */
   lastErrorAt?: number;
+  /**
+   * The accounts of a provider that can hold more than one, the provider's own sign-in first as
+   * `DEFAULT_PROVIDER_ACCOUNT_ID`. Absent when the provider holds one account only. Local only:
+   * released Team API adapters omit it.
+   */
+  accounts?: ProviderAccountStatus[];
+}
+
+/** The account a provider signed in first, in the CLI's own folder. An agent with no account uses it. */
+export const DEFAULT_PROVIDER_ACCOUNT_ID = "default";
+
+const PROVIDER_ACCOUNT_ID = /^(?:default|a[0-9a-f]{16})$/u;
+
+/** The provider's own sign-in, or an account after the first as the account store names it. */
+export function isProviderAccountId(value: unknown): value is string {
+  return typeof value === "string" && PROVIDER_ACCOUNT_ID.test(value);
+}
+
+/** The most accounts one provider can hold, its own sign-in included. */
+export const MAX_PROVIDER_ACCOUNTS = 10;
+
+export const PROVIDER_ACCOUNT_STATES = ["connected", "connecting", "checking", "signed-out", "error"] as const;
+export type ProviderAccountState = (typeof PROVIDER_ACCOUNT_STATES)[number];
+
+/** One account of a provider. Its credentials stay in its own folder on the computer that runs it. */
+export interface ProviderAccountStatus {
+  id: string;
+  /** The name the user gave it. Null shows the email. */
+  label: string | null;
+  email: string | null;
+  /** One of `ProviderAccountState`, open at the trust boundary like the provider `state`. */
+  state: ProviderAccountState;
+  message: string | null;
+}
+
+/** The longest name a user can give a provider account. */
+export const PROVIDER_ACCOUNT_LABEL_MAX_LENGTH = 60;
+
+export function isProviderAccountStatus(value: unknown): value is ProviderAccountStatus {
+  return (
+    isDynamicRecord(value) &&
+    isProviderAccountId(value.id) &&
+    isNullableBoundedString(value.label, PROVIDER_ACCOUNT_LABEL_MAX_LENGTH) &&
+    isNullableBoundedString(value.email, INPUT_LIMITS.email) &&
+    isBoundedString(value.state, INPUT_LIMITS.identifier) &&
+    isNullableBoundedString(value.message, INPUT_LIMITS.messageText)
+  );
 }
 
 function isAgentProviderStatus(value: unknown): value is AgentProviderStatus {
@@ -74,7 +121,11 @@ function isAgentProviderStatus(value: unknown): value is AgentProviderStatus {
     (value.off === undefined || typeof value.off === "boolean") &&
     (value.restartPending === undefined || typeof value.restartPending === "boolean") &&
     (value.lastError === undefined || isNullableBoundedString(value.lastError, INPUT_LIMITS.messageText)) &&
-    (value.lastErrorAt === undefined || isFiniteNumber(value.lastErrorAt))
+    (value.lastErrorAt === undefined || isFiniteNumber(value.lastErrorAt)) &&
+    (value.accounts === undefined ||
+      (Array.isArray(value.accounts) &&
+        value.accounts.length <= MAX_PROVIDER_ACCOUNTS &&
+        value.accounts.every(isProviderAccountStatus)))
   );
 }
 
@@ -113,6 +164,8 @@ function isAccountUsageWindow(value: unknown): value is AccountUsageWindow {
 
 export interface AccountUsageLimit {
   id: string;
+  /** The provider account the reading is for. Absent for the provider's own sign-in. */
+  accountId?: string;
   primary: AccountUsageWindow | null;
   secondary: AccountUsageWindow | null;
 }
@@ -129,6 +182,7 @@ export function isAccountUsage(value: unknown): value is AccountUsage {
       (limit) =>
         isDynamicRecord(limit) &&
         isBoundedString(limit.id, INPUT_LIMITS.identifier) &&
+        (limit.accountId === undefined || isProviderAccountId(limit.accountId)) &&
         (limit.primary === null || isAccountUsageWindow(limit.primary)) &&
         (limit.secondary === null || isAccountUsageWindow(limit.secondary)),
     )
@@ -175,6 +229,41 @@ export function isAgentStatus(value: unknown): value is AgentStatus {
 export interface SetProviderApiKeyInput {
   provider: AgentProviderId;
   key: string;
+}
+
+/** Signs a provider account in: a new one when `accountId` is null, or one that is signed out. */
+export interface ConnectProviderAccountInput {
+  provider: AgentProviderId;
+  accountId: string | null;
+}
+
+/** A null label returns the account to its email. */
+export interface RenameProviderAccountInput {
+  provider: AgentProviderId;
+  accountId: string;
+  label: string | null;
+}
+
+/** Removes an account and its credentials. Its agents move to the provider's own sign-in. */
+export interface RemoveProviderAccountInput {
+  provider: AgentProviderId;
+  accountId: string;
+}
+
+/**
+ * The accounts of a joined server's host (`provider-accounts-v1`). The host's released status and
+ * agent list do not carry them, so the client adds them to its copy.
+ */
+export interface HostProviderAccounts {
+  providers: { provider: AgentProviderId; accounts: ProviderAccountStatus[] }[];
+  /** The agents on an account after the first. Every other agent uses the provider's own sign-in. */
+  agents: { agentId: string; accountId: string }[];
+}
+
+/** Moves an agent of a joined server to an account of its provider. Null is the provider's own sign-in. */
+export interface SetAgentProviderAccountInput {
+  agentId: string;
+  accountId: string | null;
 }
 
 /** The code a `paste` sign-in's page showed. It is a credential: it only travels towards the host. */

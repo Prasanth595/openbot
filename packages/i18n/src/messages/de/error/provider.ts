@@ -288,6 +288,18 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "Die gespeicherten Anbietereinstellungen können nicht gelesen werden. Aktualisiere OpenBot, bevor du sie änderst.",
   "error.provider.useChangeFailed": "OpenBot konnte die Anbietereinstellung nicht ändern.",
+  "error.provider.accountsUnsupported": "{provider} unterstützt nur ein Konto.",
+  "error.provider.accountNeedsConnection": "Verbinde {provider}, bevor du ein weiteres Konto hinzufügst.",
+  "error.provider.accountLimit": "{provider} unterstützt höchstens {limit} Konten.",
+  "error.provider.accountNotFound":
+    "Dieses {provider}-Konto ist nicht auf diesem Computer. Aktualisiere und versuche es erneut.",
+  "error.provider.accountAlreadyAdded": "Dieses {provider}-Konto ist bereits verbunden.",
+  "error.provider.accountDefault": "Das erste {provider}-Konto kann nicht entfernt werden.",
+  "error.provider.accountInUse":
+    "Ein Agent mit diesem Konto arbeitet gerade. Versuche es erneut, wenn der Agent anhält.",
+  "error.provider.accountsReadOnly":
+    "Die gespeicherten Anbieterkonten können nicht gelesen werden. Aktualisiere OpenBot, bevor du sie änderst.",
+  "error.provider.accountSignedOut": "Dieses {provider}-Konto ist abgemeldet. Melde dich erneut an.",
   "error.provider.sessionSettingUnavailable": "Diese Einstellung ist in der aktuellen Anbietersitzung nicht verfügbar.",
   "error.provider.sessionSettingInvalid": "Dieser Wert ist für die Einstellung nicht verfügbar.",
   "error.provider.sessionSettingsBusy":

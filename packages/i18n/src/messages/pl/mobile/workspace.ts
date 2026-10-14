@@ -26,6 +26,10 @@ export const messages = {
   "mobile.workspace.error.approvalInactive":
     "To żądanie już nie czeka. Odpowiedziało na nie inne urządzenie albo zadanie zostało zatrzymane.",
   "mobile.workspace.error.approvalOffline": "Połącz się z serwerem, aby odpowiedzieć na to żądanie.",
+  "mobile.workspace.notification.allow": "Zezwól",
+  "mobile.workspace.notification.deny": "Odmów",
+  "mobile.workspace.notification.answerFailed":
+    "Twoja odpowiedź nie dotarła do serwera. Otwórz OpenBot, aby odpowiedzieć.",
   "mobile.workspace.alert.preferencesTitle": "Nie udało się zapisać preferencji czatu",
   "mobile.workspace.alert.preferencesBody": "Poprzednie preferencje zostały zachowane. Spróbuj ponownie.",
   "mobile.workspace.alert.updateRequiredTitle": "Wymagana aktualizacja",

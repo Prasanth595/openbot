@@ -24,7 +24,7 @@ import { Effect, Result, Schema } from "effect";
 import type { ResponseDecoder } from "./remote-host-decoding";
 import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors";
 
-export const REMOTE_REQUEST_TIMEOUT_MS = 15_000;
+const REMOTE_REQUEST_TIMEOUT_MS = 15_000;
 
 export interface RemoteJsonRequestOptions {
   method?: string;

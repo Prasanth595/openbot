@@ -81,6 +81,7 @@ function BrandMark(props: { brand: Brand; class?: string }) {
 
 const STATUS_LABEL: Record<IntegrationStatus, string> = {
   connected: "Connected",
+  connecting: "Connecting",
   attention: "Needs attention",
   idle: "Not set up",
   unavailable: "Unavailable",

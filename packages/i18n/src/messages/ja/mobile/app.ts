@@ -23,10 +23,4 @@ export const messages = {
   "mobile.app.route.routines": "ルーティン",
   "mobile.app.route.routine": "ルーティン",
   "mobile.app.route.usage": "使用量",
-  "mobile.app.route.message": "メッセージ",
-  "mobile.app.messageActions.reply": "返信",
-  "mobile.app.messageActions.selectText": "テキストを選択",
-  "mobile.app.messageActions.copied": "メッセージをコピーしました",
-  "mobile.app.messageActions.copy": "メッセージをコピー",
-  "mobile.app.messageActions.text": "メッセージのテキスト",
 } as const satisfies PartialTranslation<typeof source>;

@@ -5,7 +5,7 @@ import { findPlugin, type SitePlugin } from "../../lib/plugins";
 
 // The same reason the article routes give: the lookup is in `loader`, so a slug the catalog does not
 // hold ends as a real not-found response rather than a 200 that draws an error card.
-export function loadPlugin(slug: string): SitePlugin {
+function loadPlugin(slug: string): SitePlugin {
   const plugin = findPlugin(slug);
   if (!plugin) throw notFound();
   return plugin;

@@ -22,10 +22,4 @@ export const messages = defineMessages("mobile.app", {
   "mobile.app.route.routines": "Routines",
   "mobile.app.route.routine": "Routine",
   "mobile.app.route.usage": "Usage",
-  "mobile.app.route.message": "Message",
-  "mobile.app.messageActions.reply": "Reply",
-  "mobile.app.messageActions.selectText": "Select Text",
-  "mobile.app.messageActions.copied": "Message copied",
-  "mobile.app.messageActions.copy": "Copy message",
-  "mobile.app.messageActions.text": "Message text",
 });

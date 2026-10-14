@@ -59,7 +59,7 @@ interface SubmissionRow {
   created_at: number;
 }
 
-export interface SkillArchivePreview {
+interface SkillArchivePreview {
   name: string;
   description: string;
   slug: string;
@@ -677,7 +677,7 @@ export class SkillMarketplaceError extends Schema.TaggedError<SkillMarketplaceEr
   }
 }
 
-export function enforceSubmissionLimits(input: { skillCount?: number; versionCount?: number }): void {
+function enforceSubmissionLimits(input: { skillCount?: number; versionCount?: number }): void {
   if ((input.skillCount ?? 0) >= MAX_SKILLS_PER_USER) {
     throw new SkillMarketplaceError(409, "skill_limit", `You can submit up to ${MAX_SKILLS_PER_USER} skills.`);
   }
@@ -690,7 +690,7 @@ export function enforceSubmissionLimits(input: { skillCount?: number; versionCou
   }
 }
 
-export function inspectSkillArchive(bytes: Uint8Array): SkillArchivePreview {
+function inspectSkillArchive(bytes: Uint8Array): SkillArchivePreview {
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_ARCHIVE_BYTES) {
     throw new SkillMarketplaceError(413, "bundle_too_large", "The skill bundle must be under 10 MB.");
   }

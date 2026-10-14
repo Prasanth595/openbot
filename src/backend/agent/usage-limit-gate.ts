@@ -3,13 +3,13 @@ import { Effect, Exit, Schema, Scope } from "effect";
 import type { AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import { causeHelpers } from "../effect-boundary";
-import { providerForAgent } from "./thread-items";
+import { agentProviderAccount as accountOf, providerForAgent } from "./thread-items";
 
 /** A provider client's report that the plan refused this turn, with the reset in epoch seconds when it gave one. */
 export const USAGE_LIMIT_METHOD = "openbot/usageLimit";
 
 /** How often a limit with no reported reset is read again. A usage read is one request, not a turn. */
-export const USAGE_LIMIT_RECHECK_MS = 15 * 60_000;
+const USAGE_LIMIT_RECHECK_MS = 15 * 60_000;
 
 /** Time after the reported reset before work starts again, so the provider's clock has passed it too. */
 const RESET_GRACE_MS = 30_000;
@@ -21,8 +21,12 @@ export interface UsageLimitHooks {
   emit(event: AgentEvent): void;
   emitRuntimeSnapshot(): void;
   scheduleDrain(agentId: string): void;
-  /** The provider's usage reading for this model, or null when it gives none. */
-  readUsage(provider: AgentProvider, model: string): Effect.Effect<AccountUsage | null, UsageReadFailed>;
+  /** The account's usage reading for this model, or null when it gives none. A null account is the provider's own sign-in. */
+  readUsage(
+    provider: AgentProvider,
+    model: string,
+    accountId: string | null,
+  ): Effect.Effect<AccountUsage | null, UsageReadFailed>;
   /** The agents a limit now holds, each time a refused turn reports it. Must not wait for their queues. */
   held(agentIds: readonly string[]): Effect.Effect<void>;
   /** A limit ended, after its agents' drains were scheduled. Must not wait for the work it starts. */
@@ -36,6 +40,8 @@ export interface UsageLimitGateOptions {
 
 interface UsageLimit {
   provider: AgentProvider;
+  /** The provider account after the first, or null for the provider's own sign-in. */
+  accountId: string | null;
   model: string;
   /** Epoch seconds, or null while the provider has not said. */
   resetsAt: number | null;
@@ -45,7 +51,7 @@ interface UsageLimit {
 /**
  * The plan limits of the provider accounts, and the queues they hold.
  *
- * Owns one entry per provider and model whose last turn the plan refused. While an entry exists, no
+ * Owns one entry per provider account and model whose last turn the plan refused. While an entry exists, no
  * agent on that provider and model starts a turn: its messages and routine runs stay queued instead
  * of failing one by one. A model is part of the key because a weekly window can cover one model
  * family only; an account-wide window costs each other model one refused, requeued turn.
@@ -70,13 +76,13 @@ export class UsageLimitGate {
 
   mayDrain(agentId: string): boolean {
     const agent = this.#agent(agentId);
-    return !agent || !this.#limits.has(limitKey(providerForAgent(agent), agent.model));
+    return !agent || !this.#limits.has(limitKey(providerForAgent(agent), accountOf(agent), agent.model));
   }
 
   /** The agents whose queue a limit holds, for the runtime snapshot. */
   limitedAgents(): NonNullable<AgentRuntimeSnapshot["usageLimits"]> {
     return this.#store.list().flatMap((agent) => {
-      const limit = this.#limits.get(limitKey(providerForAgent(agent), agent.model));
+      const limit = this.#limits.get(limitKey(providerForAgent(agent), accountOf(agent), agent.model));
       return limit ? [{ agentId: agent.id, resetsAt: limit.resetsAt }] : [];
     });
   }
@@ -95,8 +101,9 @@ export class UsageLimitGate {
     if (!agent) return;
     const provider = providerForAgent(agent);
     const turnModel = model ?? agent.model;
-    const key = limitKey(provider, turnModel);
-    const limit = this.#limits.get(key) ?? { provider, model: turnModel, resetsAt: null, timer: null };
+    const accountId = accountOf(agent);
+    const key = limitKey(provider, accountId, turnModel);
+    const limit = this.#limits.get(key) ?? { provider, accountId, model: turnModel, resetsAt: null, timer: null };
     // A reset already past would release the queue at once into the same refusal.
     const future = (value: number | null) => (value !== null && value * 1_000 > Date.now() ? value : null);
     limit.resetsAt = future(resetsAt) ?? future(limit.resetsAt);
@@ -128,7 +135,7 @@ export class UsageLimitGate {
     const agent = this.#agent(agentId);
     if (!agent) return;
     const provider = providerForAgent(agent);
-    const key = limitKey(provider, model ?? agent.model);
+    const key = limitKey(provider, accountOf(agent), model ?? agent.model);
     if (this.#limits.has(key)) yield* this.#release(key);
     if (![...this.#limits.values()].some((limit) => limit.provider === provider)) this.#announced.delete(provider);
   }).bind(this);
@@ -187,7 +194,7 @@ export class UsageLimitGate {
   ) {
     // A reading that fails counts as a reading that shows no spent window.
     const usage = yield* this.#hooks
-      .readUsage(limit.provider, limit.model)
+      .readUsage(limit.provider, limit.model, limit.accountId)
       .pipe(Effect.catch(() => Effect.succeed(null)));
     const resetsAt = usage ? spentWindowReset(usage) : null;
     if (resetsAt === null || this.#limits.get(key) !== limit) return null;
@@ -217,12 +224,17 @@ export class UsageLimitGate {
   #heldAgents(limit: UsageLimit) {
     return this.#store
       .list()
-      .filter((agent) => providerForAgent(agent) === limit.provider && agent.model === limit.model);
+      .filter(
+        (agent) =>
+          providerForAgent(agent) === limit.provider &&
+          accountOf(agent) === limit.accountId &&
+          agent.model === limit.model,
+      );
   }
 }
 
-function limitKey(provider: AgentProvider, model: string): string {
-  return `${provider}\u0000${model}`;
+function limitKey(provider: AgentProvider, accountId: string | null, model: string): string {
+  return `${provider}\u0000${accountId ?? ""}\u0000${model}`;
 }
 
 /** The latest future reset among the spent windows of a reading, in epoch seconds. */
