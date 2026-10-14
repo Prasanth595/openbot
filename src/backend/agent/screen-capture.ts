@@ -10,7 +10,7 @@ export interface ScreenCaptureRectangle {
   height: number;
 }
 
-export interface ScreenCaptureDisplay {
+interface ScreenCaptureDisplay {
   id: string;
   /** The name the operating system gives the display, or an empty string. */
   name: string;
@@ -21,7 +21,7 @@ export interface ScreenCaptureDisplay {
   primary: boolean;
 }
 
-export interface ScreenCaptureWindow {
+interface ScreenCaptureWindow {
   id: string;
   name: string;
 }

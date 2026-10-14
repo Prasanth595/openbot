@@ -106,7 +106,7 @@ function contains(outer: ScreenCaptureRectangle, inner: ScreenCaptureRectangle):
 }
 
 /** The region in the pixels of the display capture. The scale is read from the image, not assumed. */
-export function regionPixels(
+function regionPixels(
   display: CaptureDisplay,
   image: { width: number; height: number },
   region: ScreenCaptureRectangle,

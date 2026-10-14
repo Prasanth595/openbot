@@ -83,7 +83,7 @@ interface PendingApproval {
   decide?: (decision: ToolApprovalDecision) => void;
 }
 
-export type ToolApprovalDecision = "accept" | "decline" | "cancel";
+type ToolApprovalDecision = "accept" | "decline" | "cancel";
 
 const TOOL_APPROVAL_METHOD = "openbot/tool-approval";
 
