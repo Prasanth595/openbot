@@ -148,7 +148,7 @@ export function diagramEdgePath(from: DiagramPoint, to: DiagramPoint): string {
   return `M ${from.x} ${from.y} C ${from.x + bend} ${from.y}, ${to.x - bend} ${to.y}, ${to.x} ${to.y}`;
 }
 
-/** From an input port's centre to the tip of the arrow that enters it: the tip touches the port's ring. */
+/** From an input port's centre to the tip of the arrow that enters it: the tip goes 1px into the 7px port's ring. */
 const DIAGRAM_ARROW_TIP_GAP = 6;
 const DIAGRAM_ARROW_LENGTH = 9;
 const DIAGRAM_ARROW_HALF_WIDTH = 5.5;
