@@ -358,6 +358,9 @@ or disabled. The new check reads only the official stable release manifest for t
 and architecture. It never installs files, restarts the host, or changes update preferences.
 The host checks that the manifest contains a compatible asset and returns only version, phase,
 and installation method. Feed errors return a safe status and can be retried.
+The method is `self-update` when the host's updater can install, also in a container of
+`docker/instances`, whose host pulls the image on request
+([Updates from the app](../docker.md#updates-from-the-app)). Other containers report `container`.
 
 `HostReleaseService` owns release discovery. `RequestedUpdate` still owns idle restarts and
 `UpdateService` still owns app updates. Desktop and web use the new capability when available;

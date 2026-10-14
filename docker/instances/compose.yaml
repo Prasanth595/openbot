@@ -36,6 +36,10 @@ services:
     # instances publish no port.
     volumes:
       - /srv/openbot/${OPENBOT_NAME:?}/data:/data
+      # Updates from the app: OpenBot writes requests, and root on the host writes the state. See
+      # update-request in openbot-instance.
+      - /srv/openbot/${OPENBOT_NAME:?}/update-requests:/var/lib/openbot-update/requests
+      - /srv/openbot/${OPENBOT_NAME:?}/update-status:/var/lib/openbot-update/status:ro
     # The network of all instances. They cannot reach each other, and openbot-firewall lets them
     # reach only the internet.
     networks:
