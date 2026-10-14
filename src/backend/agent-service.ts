@@ -2367,9 +2367,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
-  refreshProviders(): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+  refreshProviders(options: { automatic: boolean }): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
     return this.#providers
-      .refreshProviders()
+      .refreshProviders(options)
       .pipe(
         Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "refreshProviders", cause: failure.cause })),
       );

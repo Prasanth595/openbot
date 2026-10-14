@@ -147,6 +147,10 @@ export const messages = {
     "{provider} zamanında yanıt vermedi. Bilgisayar meşgul olabilir. OpenBot tekrar deneyecek.",
   "error.provider.cliTimedOutRefresh":
     "{provider} zamanında yanıt vermedi. Bilgisayar meşgul olabilir. Tekrar denemek için sağlayıcıları yenileyin.",
+  "error.provider.startStopped":
+    "{provider} art arda birkaç kez başlamadı, bu yüzden OpenBot denemeyi bıraktı. Tekrar denemek için sağlayıcıları yenileyin.",
+  "error.provider.tempDiskSpace":
+    "{provider} başlamak için en az 1 GB boş disk alanı gerektirir. Yer açın, ardından sağlayıcıları yenileyin.",
   "error.provider.noCodeSignIn": "{provider} bir kod ile oturum açamaz.",
   "error.provider.codeLoginNoLink": "Sağlayıcı bir oturum açma bağlantısı göstermedi. Tekrar deneyin.",
   "error.provider.hostSignInEnded": "{provider} oturum açma işlemi tamamlanmadı. Tekrar deneyin.",

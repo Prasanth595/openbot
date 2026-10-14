@@ -275,7 +275,7 @@ export function AgentEventBridge() {
         const authFailure = classifyUserError(event.message) === "auth";
         // A failed refresh is not reported: the error the user already has is the report, and a
         // second toast for the probe that went looking for its cause only buries the first.
-        if (authFailure) void refreshAgentProviders().catch(() => undefined);
+        if (authFailure) void refreshAgentProviders({ automatic: true }).catch(() => undefined);
         const agentId = event.agentId;
         if (agentId) {
           // The banner above the composer, in the same column as the usage-limit and sign-in

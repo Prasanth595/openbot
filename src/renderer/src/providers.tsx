@@ -166,14 +166,15 @@ const Providers = createSimpleContext({
       });
     }
 
-    async function refreshAgentProviders(): Promise<void> {
+    /** `automatic`: the app asks, not the user, so a provider OpenBot stopped starting stays stopped. */
+    async function refreshAgentProviders(options = { automatic: false }): Promise<void> {
       if (refreshingProviders() || agentStatus().phase === "starting" || agentStatus().phase === "restarting") {
         return;
       }
       const analytics = desktopAnalytics.scope();
       setRefreshingProviders(true);
       try {
-        const status = await providersPort().refreshAgentProviders();
+        const status = await providersPort().refreshAgentProviders(options);
         flush(() => applyAgentStatus(status));
         analytics.track("provider_action", { action: "refresh", result: "succeeded" });
       } catch (error) {

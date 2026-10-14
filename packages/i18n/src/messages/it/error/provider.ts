@@ -149,6 +149,10 @@ export const messages = {
     "{provider} non ha risposto in tempo. Il computer potrebbe essere occupato. OpenBot riproverà.",
   "error.provider.cliTimedOutRefresh":
     "{provider} non ha risposto in tempo. Il computer potrebbe essere occupato. Aggiorna i provider per riprovare.",
+  "error.provider.startStopped":
+    "{provider} non si è avviato più volte di seguito, quindi OpenBot ha smesso di provare. Aggiorna i provider per riprovare.",
+  "error.provider.tempDiskSpace":
+    "{provider} ha bisogno di almeno 1 GB di spazio libero su disco per avviarsi. Libera spazio, poi aggiorna i provider.",
   "error.provider.noCodeSignIn": "Non si può accedere a {provider} con un codice.",
   "error.provider.codeLoginNoLink": "Il provider non ha mostrato un link di accesso. Riprova.",
   "error.provider.hostSignInEnded": "{provider} non ha completato l'accesso. Riprova.",

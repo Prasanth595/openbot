@@ -149,6 +149,10 @@ export const messages = {
   "error.provider.cliTimedOut": "{provider} не ответил вовремя. Возможно, компьютер занят. OpenBot повторит попытку.",
   "error.provider.cliTimedOutRefresh":
     "{provider} не ответил вовремя. Возможно, компьютер занят. Обновите провайдеров, чтобы повторить попытку.",
+  "error.provider.startStopped":
+    "{provider} несколько раз подряд не запустился, поэтому OpenBot перестал пытаться. Обновите провайдеров, чтобы повторить попытку.",
+  "error.provider.tempDiskSpace":
+    "Для запуска {provider} нужно не меньше 1 ГБ свободного места на диске. Освободите место, затем обновите провайдеров.",
   "error.provider.noCodeSignIn": "В {provider} нельзя войти с помощью кода.",
   "error.provider.codeLoginNoLink": "Провайдер не показал ссылку для входа. Повторите попытку.",
   "error.provider.hostSignInEnded": "Вход в {provider} не завершён. Повторите попытку.",

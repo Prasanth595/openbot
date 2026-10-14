@@ -41,6 +41,7 @@ import {
 } from "./../protocol";
 import { ProviderSignInError } from "../provider-client-effects";
 import {
+  antigravityTemp,
   BUILT_IN_PROVIDER_DRIVERS,
   type ProviderClientContext,
   requireProviderDriver,
@@ -107,6 +108,14 @@ const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
  */
 const PROVIDER_UNASSIGNED_RELEASE_MS = 60_000;
 const PROVIDER_IDLE_CHECK_MS = 60_000;
+/**
+ * Starts that fail in a row before OpenBot stops starting a provider by itself. A start that fails,
+ * that times out, or whose process ends within `STABLE_RUN_MS` counts. Only a user action starts the
+ * provider again: each start of the Windows Gemini server unpacks about 310 MB, and a loop of starts
+ * filled the disk.
+ */
+const START_FAILURE_LIMIT = 3;
+const STABLE_RUN_MS = 2 * 60_000;
 /** How often a restart the user asked for checks whether the provider's turns have ended. */
 const PROVIDER_RESTART_POLL_MS = 1_000;
 /**
@@ -372,6 +381,10 @@ export class ProviderRuntime implements ProviderPort {
   #preferredModel: AgentModelId | null;
   /** Per provider: one provider that exits must not delay, or take the retries of, another. */
   readonly #restartAttempts = new Map<AgentProvider, number>();
+  /** Starts in a row that failed (`START_FAILURE_LIMIT`). A user action clears them. */
+  readonly #startFailures = new Map<AgentProvider, number>();
+  /** When each provider's current client became its client. */
+  readonly #activatedAt = new Map<AgentProvider, number>();
   readonly #restartTimers = new Map<AgentProvider, NodeJS.Timeout>();
   /**
    * Providers whose client exited and whose deliveries `onProviderLost` left for restart recovery.
@@ -580,6 +593,7 @@ export class ProviderRuntime implements ProviderPort {
       yield* this.refreshProvider(provider);
     } else {
       this.#resetRestarts(provider);
+      this.#startFailures.delete(provider);
       this.cancelProviderRestart(provider);
       this.#released.delete(provider);
       this.#exitRecovery.delete(provider);
@@ -710,6 +724,7 @@ export class ProviderRuntime implements ProviderPort {
       // Out of the map before it stops, so #handleExit reads the exit as expected, not as a crash.
       this.#clients.delete(provider);
       this.#released.add(provider);
+      this.#startFailures.delete(provider);
       this.#conversation.unloadClientThreads(client);
       logger.info("Stopped an idle provider CLI.", { provider });
       yield* client.stop().pipe(toProviderOperationFailed).pipe(Effect.ignore);
@@ -958,7 +973,15 @@ export class ProviderRuntime implements ProviderPort {
     });
   }).bind(this);
 
-  readonly refreshProviders = Effect.fn("ProviderRuntime.refreshProviders")(function* (this: ProviderRuntime) {
+  /**
+   * `automatic`: the app asked, not the user, so a provider that OpenBot stopped starting
+   * (`START_FAILURE_LIMIT`) stays stopped.
+   */
+  readonly refreshProviders = Effect.fn("ProviderRuntime.refreshProviders")(function* (
+    this: ProviderRuntime,
+    options: { automatic: boolean },
+  ) {
+    if (!options.automatic) this.#startFailures.clear();
     if (this.#providerRefresh) return yield* Deferred.await(this.#providerRefresh);
     if (this.#status.phase === "starting" || this.#status.phase === "restarting") return this.status();
     const completion = Deferred.makeUnsafe<AgentStatus, ProviderOperationFailed>();
@@ -975,6 +998,7 @@ export class ProviderRuntime implements ProviderPort {
   ) {
     if (this.#off.has(provider) || this.#clients.has(provider)) return this.status();
     this.#resetRestarts(provider);
+    this.#startFailures.delete(provider);
     yield* this.#startProvider(provider, { preserveCheckErrors: true, refreshRuntimeInBackground: true });
     return this.status();
   }).bind(this);
@@ -1018,6 +1042,7 @@ export class ProviderRuntime implements ProviderPort {
     openExternal: (url: string) => Promise<void>,
     onHost: boolean,
   ) {
+    this.#startFailures.delete(provider);
     const start = this.#providerStarts.get(provider);
     if (start) yield* Deferred.await(start);
     if (start && this.#clients.has(provider) && this.#accounts.has(provider)) return this.status();
@@ -1067,8 +1092,9 @@ export class ProviderRuntime implements ProviderPort {
           )
           .pipe(toProviderOperationFailed);
         return this.status();
-      case "acp-authenticate":
+      case "acp-authenticate": {
         yield* this.#cancelCliLogin(provider);
+        const temp = provider === "antigravity" ? antigravityTemp(this.#credentials) : undefined;
         yield* this.#cliLogin
           .start(provider, (cli) =>
             startAcpAuthentication({
@@ -1077,6 +1103,7 @@ export class ProviderRuntime implements ProviderPort {
               env: { ...signIn.env },
               methodId: signIn.methodId,
               timeoutMs: signIn.timeoutMs,
+              privateTemp: temp && { ...temp, provider: providerLabel(provider) },
               ...(provider === "antigravity" && (onHost || process.platform === "linux")
                 ? { openGoogleSignIn: openExternal }
                 : {}),
@@ -1084,6 +1111,7 @@ export class ProviderRuntime implements ProviderPort {
           )
           .pipe(toProviderOperationFailed);
         return this.status();
+      }
       case "external":
         return yield* this.#reprobeProvider(provider);
       case "terminal":
@@ -1748,6 +1776,7 @@ export class ProviderRuntime implements ProviderPort {
     provider: AgentProvider,
   ) {
     if (this.#restartsWhenIdle.has(provider)) return this.status();
+    this.#startFailures.delete(provider);
     if (!this.#clients.has(provider)) {
       if (this.#released.has(provider)) {
         // A failed start is reported on the provider status, as for a turn that wakes it.
@@ -2136,6 +2165,7 @@ export class ProviderRuntime implements ProviderPort {
         const wasReleased = this.#released.delete(provider);
         if (!wasReleased && previousClient !== client) this.#countActivation(provider);
         this.#clients.set(provider, client);
+        this.#activatedAt.set(provider, Date.now());
         this.#cli.set(provider, cli);
         this.#accounts.set(provider, account);
         const restorePrevious = Effect.gen({ self: this }, function* () {
@@ -2402,6 +2432,13 @@ export class ProviderRuntime implements ProviderPort {
     } = {},
   ) {
     requestedProviders = requestedProviders.filter((provider) => !this.#off.has(provider));
+    // A provider OpenBot stopped starting keeps its row as it is, and no process starts.
+    const stopped = requestedProviders.filter(
+      (provider) => this.#startStopped(provider) && !this.#clients.has(provider),
+    );
+    for (const provider of stopped) this.#showStartStopped(provider);
+    requestedProviders = requestedProviders.filter((provider) => !stopped.includes(provider));
+    if (requestedProviders.length === 0) return;
     const disposals = this.#disposals;
     const disposed = () => this.#hooks.isStopping() || disposals !== this.#disposals;
     const hadClients = this.#clients.size > 0 || this.#released.size > 0;
@@ -2501,6 +2538,7 @@ export class ProviderRuntime implements ProviderPort {
           if (!this.#released.has(provider)) this.#countActivation(provider);
           this.#cli.set(provider, resolvedCli);
           this.#clients.set(provider, candidate);
+          this.#activatedAt.set(provider, Date.now());
           this.#accounts.set(provider, account.account);
           activated.push(provider);
           this.#setStatus({
@@ -2531,6 +2569,7 @@ export class ProviderRuntime implements ProviderPort {
               });
               if (isProviderTimeout(error)) {
                 this.#recordProviderError(provider, error);
+                if (this.#countStartFailure(provider)) return this.#showStartStopped(provider);
                 // A busy computer, not a broken CLI: say so, keep the version, and try again later.
                 const message = this.#retryAfterTimeout(provider, !disposed());
                 this.#setStatus({
@@ -2560,8 +2599,10 @@ export class ProviderRuntime implements ProviderPort {
                   message: failure.message === null ? null : this.#redactMcp(failure.message),
                 }),
               });
-              if (!(failed instanceof CodexCliError || failed instanceof ProviderSignInError))
+              if (!(failed instanceof CodexCliError || failed instanceof ProviderSignInError)) {
                 this.#emitProviderError(provider, "start_failed", failed);
+                if (this.#countStartFailure(provider)) return this.#showStartStopped(provider);
+              }
               return message;
             }),
           ),
@@ -2772,15 +2813,20 @@ export class ProviderRuntime implements ProviderPort {
     this.#hooks.onProviderLost(client);
     this.#exitRecovery.add(client.provider);
     this.#emitProviderError(client.provider, "exited", error);
+    // A process that ran for a while was a good start, and its exit is not one more failure.
+    const ranFor = Date.now() - (this.#activatedAt.get(client.provider) ?? 0);
+    if (ranFor >= STABLE_RUN_MS) this.#startFailures.delete(client.provider);
+    const startStopped = ranFor < STABLE_RUN_MS && this.#countStartFailure(client.provider);
+    const attempts = this.#restartAttempts.get(client.provider) ?? 0;
+    const stopped = startStopped || attempts >= 3;
     const providers = updateProviderStatus(this.#status.providers, client.provider, {
       state: "error",
       version: this.#cli.get(client.provider)?.version ?? null,
-      message: this.#redactMcp(error.message),
+      message: stopped ? this.#startStoppedMessage(client.provider) : this.#redactMcp(error.message),
     });
     const anotherProviderIsReady = this.#clients.size > 0 || this.#released.size > 0;
-    const attempts = this.#restartAttempts.get(client.provider) ?? 0;
 
-    if (attempts >= 3) {
+    if (stopped) {
       this.#setStatus(
         anotherProviderIsReady
           ? {
@@ -2793,7 +2839,7 @@ export class ProviderRuntime implements ProviderPort {
               phase: "blocked",
               providers,
               capabilities: { ...this.#status.capabilities, chat: "unavailable" },
-              message: `${providerLabel(client.provider)} stopped repeatedly. Restart OpenBot after checking the CLI.`,
+              message: this.#startStoppedMessage(client.provider),
             },
       );
       return;
@@ -2834,6 +2880,39 @@ export class ProviderRuntime implements ProviderPort {
         Effect.runFork(this.#restart(provider, afterTimeout).pipe(Effect.forkIn(this.#scope)));
       }, delayMs),
     );
+  }
+
+  #startStopped(provider: AgentProvider): boolean {
+    return (this.#startFailures.get(provider) ?? 0) >= START_FAILURE_LIMIT;
+  }
+
+  /** Counts one failed start, and answers whether OpenBot now stops starting the provider. */
+  #countStartFailure(provider: AgentProvider): boolean {
+    const failures = (this.#startFailures.get(provider) ?? 0) + 1;
+    this.#startFailures.set(provider, failures);
+    if (failures < START_FAILURE_LIMIT) return false;
+    clearTimeout(this.#restartTimers.get(provider));
+    this.#restartTimers.delete(provider);
+    if (failures === START_FAILURE_LIMIT) logger.warn("OpenBot stopped starting a provider.", { provider, failures });
+    return true;
+  }
+
+  #startStoppedMessage(provider: AgentProvider): string {
+    return sourceText("error.provider.startStopped", { provider: providerLabel(provider) });
+  }
+
+  /** Shows on the provider row that OpenBot stopped starting it, and answers the message. */
+  #showStartStopped(provider: AgentProvider): string {
+    const message = this.#startStoppedMessage(provider);
+    const row = this.#status.providers?.find((candidate) => candidate.id === provider);
+    this.#setStatus({
+      providers: updateProviderStatus(this.#status.providers, provider, {
+        state: "error",
+        version: this.#cli.get(provider)?.version ?? row?.version ?? null,
+        message,
+      }),
+    });
+    return message;
   }
 
   /** A refresh the user asked for gets new automatic retries, and no retry of the old ones is left. */

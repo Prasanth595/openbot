@@ -150,6 +150,10 @@ export const messages = {
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。OpenBot が再試行します。",
   "error.provider.cliTimedOutRefresh":
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。プロバイダーを更新して再試行してください。",
+  "error.provider.startStopped":
+    "{provider} の起動に続けて何度も失敗したため、OpenBot は再試行を停止しました。プロバイダーを更新して再試行してください。",
+  "error.provider.tempDiskSpace":
+    "{provider} の起動には 1 GB 以上の空きディスク容量が必要です。空き容量を確保してから、プロバイダーを更新してください。",
   "error.provider.noCodeSignIn": "{provider} にはコードでサインインできません。",
   "error.provider.codeLoginNoLink": "プロバイダーがサインインのリンクを表示しませんでした。もう一度お試しください。",
   "error.provider.hostSignInEnded": "{provider} のサインインが完了しませんでした。もう一度お試しください。",

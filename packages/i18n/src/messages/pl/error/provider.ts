@@ -149,6 +149,10 @@ export const messages = {
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. OpenBot spróbuje ponownie.",
   "error.provider.cliTimedOutRefresh":
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. Odśwież dostawców, aby spróbować ponownie.",
+  "error.provider.startStopped":
+    "{provider} kilka razy z rzędu się nie uruchomił, więc OpenBot przestał próbować. Odśwież dostawców, aby spróbować ponownie.",
+  "error.provider.tempDiskSpace":
+    "{provider} potrzebuje do uruchomienia co najmniej 1 GB wolnego miejsca na dysku. Zwolnij miejsce, a potem odśwież dostawców.",
   "error.provider.noCodeSignIn": "Dostawca {provider} nie obsługuje logowania kodem.",
   "error.provider.codeLoginNoLink": "Dostawca nie pokazał linku logowania. Spróbuj ponownie.",
   "error.provider.hostSignInEnded": "Logowanie do {provider} nie zostało ukończone. Spróbuj ponownie.",

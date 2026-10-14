@@ -30,7 +30,7 @@ import {
   currentModelFromSessionSetup,
   sessionSettingsSnapshot,
 } from "./acp-configuration";
-import { AcpConnection } from "./acp-connection";
+import { AcpConnection, type AcpConnectionOptions } from "./acp-connection";
 import { acpPlanSteps, PLAN_UPDATED_METHOD } from "./agent/plan-updates";
 import { elicitationOptions, elicitationValue, secretElicitationField } from "./agent/prompts";
 import { isUsageLimitDiagnostic } from "./agent/provider-diagnostics";
@@ -263,6 +263,8 @@ export interface AcpProviderOptions {
    * when this computer cannot make the sandbox, and then the process does not start.
    */
   confine?(target: SpawnTarget): SpawnTarget;
+  /** A temporary folder of its own for each process (`provider-temp.ts`). */
+  privateTemp?: AcpConnectionOptions["privateTemp"];
   signInMessage: string;
   /**
    * Whether the model this turn runs on may still be used. Read here, after every wait this client
@@ -372,6 +374,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       env: options.env,
       extraEnv: options.extraEnv,
       confine: options.confine,
+      privateTemp: options.privateTemp,
       label: () => this.#label,
       redact: (text) => this.#redact(text),
       privateDiagnostic: options.interactiveSignInPrompt,

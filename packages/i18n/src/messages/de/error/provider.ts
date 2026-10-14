@@ -151,6 +151,10 @@ export const messages = {
     "{provider} hat nicht rechtzeitig geantwortet. Der Computer ist möglicherweise ausgelastet. OpenBot versucht es erneut.",
   "error.provider.cliTimedOutRefresh":
     "{provider} hat nicht rechtzeitig geantwortet. Der Computer ist möglicherweise ausgelastet. Aktualisiere die Anbieter, um es erneut zu versuchen.",
+  "error.provider.startStopped":
+    "{provider} ist mehrmals hintereinander nicht gestartet, daher versucht OpenBot es nicht mehr. Aktualisiere die Anbieter, um es erneut zu versuchen.",
+  "error.provider.tempDiskSpace":
+    "{provider} braucht zum Starten mindestens 1 GB freien Speicherplatz. Gib Speicherplatz frei und aktualisiere dann die Anbieter.",
   "error.provider.noCodeSignIn": "Bei {provider} ist keine Anmeldung mit einem Code möglich.",
   "error.provider.codeLoginNoLink": "Der Anbieter hat keinen Anmeldelink angezeigt. Versuche es erneut.",
   "error.provider.hostSignInEnded": "Die Anmeldung bei {provider} wurde nicht abgeschlossen. Versuche es erneut.",

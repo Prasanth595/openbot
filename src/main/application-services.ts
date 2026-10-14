@@ -1280,6 +1280,12 @@ export async function createApplicationServices({
   teardown.push(TEARDOWN_ORDER.computerUsePermissionHelp, "the Computer Use permission help", () => {
     computerUsePermissionHelp.close();
   });
+  // No provider process of this profile runs yet, so what is left here is from processes that an
+  // earlier run stopped or lost. A file that cannot be removed now is tried again at the next launch.
+  const providerTempDirectory = join(app.getPath("userData"), "provider-temp");
+  await rm(providerTempDirectory, { recursive: true, force: true, maxRetries: 3 }).catch((error: unknown) =>
+    logger.warn("The provider temporary folder was not emptied.", toLogValue(error)),
+  );
   const service: AgentService = new AgentService({
     store,
     mailbox,
@@ -1340,6 +1346,7 @@ export async function createApplicationServices({
       // service asks for one at each hand-off; only a test the user pressed may open a browser.
       mcpOAuth,
       providerStateDirectory: join(app.getPath("userData"), "provider-state"),
+      providerTempDirectory,
       // Paths only: `gh` and `git` read the token from the files the connection keeps current.
       agentEnvironment: (inherited) => githubConnector.agentEnvironment(inherited),
     },

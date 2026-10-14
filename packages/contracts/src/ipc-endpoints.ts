@@ -546,7 +546,11 @@ export const IPC_ENDPOINTS = {
     connectProvider: request<AgentProviderId, AgentStatus>()("app:connect-provider"),
     /** Ends the sign-in that `connectProvider` started and that still waits for the browser. */
     cancelProviderSignIn: request<AgentProviderId, AgentStatus>()("app:cancel-provider-sign-in"),
-    refreshAgentProviders: request<undefined, AgentStatus>()("app:refresh-agent-providers"),
+    /**
+     * `automatic`: the app asks, not the user. A provider that OpenBot stopped starting after failed
+     * starts in a row then stays stopped; only a refresh the user asks for starts it again.
+     */
+    refreshAgentProviders: request<{ automatic: boolean } | undefined, AgentStatus>()("app:refresh-agent-providers"),
     /**
      * Restarts one provider's process after the turns that run on it end, and reads its version,
      * account and models again. It answers when the restart is scheduled; the provider's status has

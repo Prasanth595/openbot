@@ -57,7 +57,9 @@ export function providerIpcHandlers({
         await runCauseEffect(providerRuntimes.downloadAndWait(provider));
         return service.getStatus();
       }),
-      refreshAgentProviders: handler(() => runCauseEffect(service.refreshProviders())),
+      refreshAgentProviders: payloadHandler(parseRefreshProvidersInput, (input) =>
+        runCauseEffect(service.refreshProviders({ automatic: input?.automatic === true })),
+      ),
       restartProvider: payloadHandler(parseProviderId, (provider) => runCauseEffect(service.restartProvider(provider))),
       cancelProviderRestart: payloadHandler(parseProviderId, async (provider) =>
         service.cancelProviderRestart(provider),
@@ -147,6 +149,12 @@ export function parseManagedProviderId(value: unknown): ManagedProviderId {
   const provider = parseProviderId(value);
   if (!isManagedRuntimeProvider(provider)) throw new Error("OpenBot does not manage this provider's CLI.");
   return provider;
+}
+
+function parseRefreshProvidersInput(value: unknown): { automatic: boolean } | undefined {
+  if (value === undefined) return undefined;
+  if (!isDynamicRecord(value) || typeof value.automatic !== "boolean") throw new Error("Invalid provider refresh.");
+  return { automatic: value.automatic };
 }
 
 function parseProviderUseInput(value: unknown): { provider: AgentProviderId; on: boolean } {

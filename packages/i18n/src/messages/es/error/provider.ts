@@ -150,6 +150,10 @@ export const messages = {
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. OpenBot lo intentará de nuevo.",
   "error.provider.cliTimedOutRefresh":
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. Actualiza los proveedores para intentarlo de nuevo.",
+  "error.provider.startStopped":
+    "{provider} no se inició varias veces seguidas, así que OpenBot dejó de intentarlo. Actualiza los proveedores para intentarlo de nuevo.",
+  "error.provider.tempDiskSpace":
+    "{provider} necesita al menos 1 GB de espacio libre en disco para iniciarse. Libera espacio y luego actualiza los proveedores.",
   "error.provider.noCodeSignIn": "No se puede iniciar sesión en {provider} con un código.",
   "error.provider.codeLoginNoLink": "El proveedor no mostró un enlace de inicio de sesión. Inténtalo de nuevo.",
   "error.provider.hostSignInEnded": "No se completó el inicio de sesión en {provider}. Inténtalo de nuevo.",

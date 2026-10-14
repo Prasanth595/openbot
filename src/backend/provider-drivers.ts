@@ -178,6 +178,20 @@ const ANTIGRAVITY_SERVING_OPTIONS = {
 const GEMINI_API_KEY_METHOD = "gemini-api-key";
 
 /**
+ * The Windows Antigravity server unpacks about 310 MB into the temporary folder at each start, and a
+ * process that is stopped or times out leaves that copy behind. Each process gets a folder that
+ * OpenBot removes (`provider-temp.ts`).
+ */
+export function antigravityTemp(context: Pick<ProviderClientContext, "providerTempDirectory" | "availableDiskBytes">) {
+  return context.providerTempDirectory
+    ? {
+        root: join(context.providerTempDirectory, "antigravity"),
+        availableDiskBytes: context.availableDiskBytes,
+      }
+    : undefined;
+}
+
+/**
  * Google's registry starts the Linux build with an empty `--uid=`, and the other builds with no
  * argument. OpenBot starts it the same way.
  */
@@ -257,6 +271,13 @@ export interface ProviderClientContext {
    * write. Optional for the same reason as `reportMcpDrops`.
    */
   readonly providerStateDirectory?: string;
+  /**
+   * A folder OpenBot owns for the temporary files of provider processes, emptied at each launch.
+   * Optional for the same reason as `reportMcpDrops`: without it a process uses the system folder.
+   */
+  readonly providerTempDirectory?: string;
+  /** The free bytes on the volume of a path. Optional: without it the volume is read. */
+  readonly availableDiskBytes?: (path: string) => number;
   /**
    * Variables an agent's tools run with, beyond the user's own environment: today the paths that
    * point `gh` and `git` at the built-in GitHub connection. Paths only, never a secret, because a
@@ -562,14 +583,24 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       timeoutMs: CLI_LOGIN_TIMEOUT_MS,
     },
     resolveCli: resolveAntigravityCli,
-    createClient: (cli, timeout, context, confinement) =>
-      new AcpAgentClient(cli, timeout, {
+    createClient: (cli, timeout, context, confinement) => {
+      const temp = antigravityTemp(context);
+      return new AcpAgentClient(cli, timeout, {
         provider: "antigravity",
         argv: ANTIGRAVITY_ARGV,
         ...ANTIGRAVITY_SERVING_OPTIONS,
         discoveryCwd: () => discoveryFolder("antigravity"),
+        privateTemp: temp,
         ...(confinement
-          ? { confine: (target) => confineSpawnTarget(target, confinement, antigravityStatePaths()) }
+          ? {
+              confine: (target) => {
+                const paths = antigravityStatePaths();
+                return confineSpawnTarget(target, confinement, {
+                  ...paths,
+                  writable: temp ? [...paths.writable, temp.root] : paths.writable,
+                });
+              },
+            }
           : {}),
         ...antigravityKeyOptions(context, true),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
@@ -579,7 +610,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         mcpToolRuntimes: context.mcpToolRuntimes,
         mcpAuthorization: context.mcpAuthorization,
         history: context.history?.("antigravity"),
-      }),
+      });
+    },
     // A profile-generation client asks one question and must not act: no MCP servers, and every
     // permission request is cancelled.
     createProfileClient: (cli, timeout, context) =>
@@ -589,6 +621,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         profileGeneration: true,
         ...ANTIGRAVITY_SERVING_OPTIONS,
         discoveryCwd: () => discoveryFolder("antigravity"),
+        privateTemp: antigravityTemp(context),
         ...antigravityKeyOptions(context, false),
         signInMessage: sourceText("error.provider.antigravitySignIn"),
         servesModel: context.servesModel,
