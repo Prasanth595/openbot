@@ -2,6 +2,7 @@ import {
   type AgentEvent,
   type CreateAgentInput,
   isQueuedMessageReceipt,
+  type RespondToApprovalInput,
   type SidebarLayoutSnapshot,
   type TeamRealtimeEvent,
   type UpdateAgentInput,
@@ -22,6 +23,7 @@ import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-pro
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -59,7 +61,6 @@ import {
 } from "@openbot/team-client/team-api-requests";
 import { replaceEqualDeep, useQueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
-import * as SecureStore from "expo-secure-store";
 import {
   createContext,
   type PropsWithChildren,
@@ -130,8 +131,10 @@ import type {
   MobileServerDirectoryState,
   MobileWorkspaceContextValue,
 } from "@/features/workspace/model/workspace-types";
+import * as LockedKeychain from "@/shared/lib/locked-keychain";
 import { currentText } from "@/shared/lib/text";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
+import { useNotificationAnswers } from "./use-notification-answers";
 
 export type {
   MobileAgent,
@@ -207,7 +210,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const orderKey = serverOrderKey(session.apiUrl, session.user.id);
   const storedServerOrder = useMemo(() => {
     try {
-      return decodeServerOrder(SecureStore.getItem(orderKey));
+      return decodeServerOrder(LockedKeychain.getItem(orderKey));
     } catch {
       return [];
     }
@@ -219,7 +222,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const defaultKey = defaultServerKey(session.apiUrl, session.user.id);
   const storedDefaultServer = useMemo(() => {
     try {
-      return decodeDefaultServer(SecureStore.getItem(defaultKey), session.host?.hostId);
+      return decodeDefaultServer(LockedKeychain.getItem(defaultKey), session.host?.hostId);
     } catch {
       return session.host?.hostId ?? null;
     }
@@ -249,9 +252,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const preferenceStore = useMemo(
     () =>
       createWorkspacePreferences(session.apiUrl, session.user.id, {
-        get: (key) => SecureStore.getItem(key),
-        set: (key, value) =>
-          SecureStore.setItem(key, value, { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY }),
+        // A notification button connects while the phone is locked, and the connection reads them first.
+        get: (key) => LockedKeychain.getItem(key),
+        set: (key, value) => LockedKeychain.setItem(key, value),
       }),
     [session.apiUrl, session.user.id],
   );
@@ -627,6 +630,33 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   );
   const foregroundRef = useRef(foreground);
   foregroundRef.current = foreground;
+  /** Sends an answer to a request that the host waits on. */
+  const sendApproval = useCallback(
+    async (serverId: string, input: RespondToApprovalInput) => {
+      try {
+        await Effect.runPromise(
+          respondToApproval(teamApi(serverId), input).pipe(Effect.mapError((error) => error.cause)),
+        );
+      } catch (error) {
+        // Another device answered first, or the turn ended. The request is gone on the host too.
+        if (error instanceof InactiveRequestError)
+          liveState.update("approvalRequests", (current) => dropApproval(current, serverId, input.requestId));
+        throw error;
+      }
+      // The host answered the agent. Its resolved event can arrive after this, or not at all on a
+      // connection that drops now, so the card goes at once.
+      liveState.update("approvalRequests", (current) => dropApproval(current, serverId, input.requestId));
+    },
+    [teamApi, liveState],
+  );
+  const notificationAnswers = useNotificationAnswers({
+    connectedNow: (serverId) =>
+      foregroundRef.current && serversRef.current.find((server) => server.id === serverId)?.state === "online",
+    pendingApprovals: (serverId) => liveState.get().approvalRequests[serverId] ?? [],
+    send: sendApproval,
+  });
+  const { serverOnline: notificationServerOnline, teamEvent: notificationTeamEvent } = notificationAnswers;
+  const answeringServerIds = notificationAnswers.answeringServerIds;
   /**
    * Set on background entry with the selected server. Until it clears, the other servers stay
    * inactive. A new selection ends it, so the server that the user leaves keeps its attempt.
@@ -662,6 +692,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         ),
       );
       if (status.phase === "online" && hostId === activeServerIdRef.current) setHold(null);
+      if (status.phase === "online") notificationServerOnline(hostId);
       // The status repeats each second while it waits, so each failed attempt asks once.
       if (status.phase === "online") wakeAttempts.current.delete(hostId);
       if (status.phase !== "waiting" && status.phase !== "cooldown") return;
@@ -669,7 +700,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       wakeAttempts.current.set(hostId, status.attempt);
       wakeSelectedServer(hostId);
     },
-    [wakeSelectedServer],
+    [wakeSelectedServer, notificationServerOnline],
   );
   // The next retry of an offline server can be two minutes away, so a server starts when it is selected.
   useEffect(() => {
@@ -685,8 +716,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       conversationStore.cancelRequests();
       conversationStore.flush();
     }
-    directoryRefresh.setActive(foreground);
-  }, [foreground, directoryRefresh, conversationStore]);
+  }, [foreground, conversationStore]);
+  // A notification button needs the server list also in the background, after a start there.
+  const answering = answeringServerIds.length > 0;
+  useEffect(() => {
+    directoryRefresh.setActive(foreground || answering);
+  }, [foreground, answering, directoryRefresh]);
 
   // On a return to the app the selected server connects first; the others follow when it is online,
   // or after a short wait. The phone then sets up the connection the user waits for alone, and the
@@ -802,6 +837,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         const next = reducePendingApprovals(previous, event);
         return next === previous ? current : { ...current, [serverId]: next };
       });
+      notificationTeamEvent(serverId, event);
       if (event.type === "runtime-snapshot") {
         liveState.update("browserRequests", (current) => {
           const next = replaceEqualDeep(
@@ -902,11 +938,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       }
       if (event.type === "agents-changed") {
         replaceServerAgents(serverId, event.agents);
-        // The admin and host settings of an agent are not in the agent summary. The host sends this event
-        // when one of them changes, so an open settings page reads them again.
+        // The admin and host settings and the provider account of an agent are not in the agent summary.
+        // The host sends this event when one of them changes, so an open settings page reads them again.
         void queryClient.invalidateQueries({
           queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId],
-          predicate: (query) => ["admin", "host", "session-settings"].includes(String(query.queryKey.at(-1))),
+          predicate: (query) =>
+            ["admin", "host", "session-settings", "provider-accounts"].includes(String(query.queryKey.at(-1))),
         });
       } else if (event.type === "conversation") {
         const knownIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
@@ -950,6 +987,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       session.user.id,
       sessionScope,
       applyConversationReads,
+      notificationTeamEvent,
     ],
   );
 
@@ -1223,9 +1261,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       servers: orderedServers,
       reorderServers: (serverIds) => {
         try {
-          SecureStore.setItem(orderKey, JSON.stringify(serverIds), {
-            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-          });
+          LockedKeychain.setItem(orderKey, JSON.stringify(serverIds));
           setSavedServerOrder({ key: orderKey, ids: serverIds });
           return true;
         } catch (error) {
@@ -1247,12 +1283,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         // The server that is no longer the default goes to the top of the list.
         const order = previous && previous !== serverId ? [previous, ...listed] : listed;
         try {
-          SecureStore.setItem(orderKey, JSON.stringify(order), {
-            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-          });
-          SecureStore.setItem(defaultKey, JSON.stringify(serverId), {
-            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-          });
+          LockedKeychain.setItem(orderKey, JSON.stringify(order));
+          LockedKeychain.setItem(defaultKey, JSON.stringify(serverId));
           setSavedServerOrder({ key: orderKey, ids: order });
           setSavedDefaultServer({ key: defaultKey, id: serverId });
           return true;
@@ -1285,19 +1317,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         if (!pending) throw new InactiveRequestError(currentText().t("mobile.workspace.error.approvalInactive"));
         if (serversRef.current.find((server) => server.id === serverId)?.state !== "online")
           throw new Error(currentText().t("mobile.workspace.error.approvalOffline"));
-        try {
-          await Effect.runPromise(
-            respondToApproval(teamApi(serverId), input).pipe(Effect.mapError((error) => error.cause)),
-          );
-        } catch (error) {
-          // Another device answered first, or the turn ended. The request is gone on the host too.
-          if (error instanceof InactiveRequestError)
-            liveState.update("approvalRequests", (current) => dropApproval(current, serverId, input.requestId));
-          throw error;
-        }
-        // The host answered the agent. Its resolved event can arrive after this, or not at all on a
-        // connection that drops now, so the card goes at once.
-        liveState.update("approvalRequests", (current) => dropApproval(current, serverId, input.requestId));
+        await sendApproval(serverId, input);
       },
       respondToBrowserTakeover: (serverId, input) =>
         Effect.runPromise(
@@ -1340,6 +1360,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       canManageAgentAccess: (serverId) => administers(serverId, AGENT_ADMIN_CAPABILITY),
       canManageAgentHostSettings: (serverId) => administers(serverId, AGENT_HOST_SETTINGS_CAPABILITY),
       canPublishAgent: (serverId) => administers(serverId, AGENT_PUBLISH_CAPABILITY),
+      canManageProviderAccounts: (serverId) => administers(serverId, PROVIDER_ACCOUNTS_CAPABILITY),
       updateServerIdentity: async (serverId, input) => {
         const server = serversRef.current.find((candidate) => candidate.id === serverId);
         if (!server || server.role === "member")
@@ -1617,6 +1638,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     preferences,
     updatePreferences,
     supportsPushNotifications,
+    sendApproval,
   ]);
 
   return (
@@ -1628,7 +1650,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             key={server.id}
             hostId={server.id}
             publicKey={server.publicKey}
-            active={foreground && (!othersHeld || server.id === activeServerId)}
+            active={
+              (foreground && (!othersHeld || server.id === activeServerId)) || answeringServerIds.includes(server.id)
+            }
             directory={directory}
             register={registerConnection}
             load={loadServer}

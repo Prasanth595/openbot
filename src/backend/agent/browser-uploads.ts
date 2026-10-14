@@ -39,7 +39,7 @@ interface BrowserUploadReservation {
 }
 
 /** The `handleDynamicTool` callbacks this controller uses to bind a staging directory to a real input. */
-export interface BrowserUploadHooks {
+interface BrowserUploadHooks {
   onUploadTargetResolved?: (inputId: string, documentId: string) => void;
   onUploadAssigned?: (inputId: string, documentId: string) => void;
   onUploadOperationStarted?: (completion: Fiber.Fiber<void, BrowserOperationError>) => void;

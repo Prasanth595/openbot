@@ -6,6 +6,7 @@ import type {
   ConversationMessage,
   ConversationMessageSender,
   ConversationQuestionPrompt,
+  ConversationReaction,
   ImageGenerationInfo,
   QueueDelivery,
   RoutineConversationEventAction,
@@ -52,6 +53,10 @@ export type ChatMessage =
       imageGeneration?: ImageGenerationInfo;
       /** Why the turn of a failed user message stopped, as the host reported it. */
       failureReason?: string;
+      /** When the host stored the message. A message that waits on the phone has none. */
+      createdAt?: string;
+      /** The reactions on the message: the reader's own and the agents'. */
+      reactions?: readonly ConversationReaction[];
     }
   /** The task list of an agent plan. The header is `heading` when set, else a catalog title. */
   | {
@@ -65,7 +70,16 @@ export type ChatMessage =
     }
   | { id: string; kind: "thinking"; turnId: string | undefined; steps: { id: string; text: string }[] };
 
+/** A message that shows as a bubble: text, files or a generated image. */
+export type ChatBubbleMessage = Extract<ChatMessage, { kind: "message" }>;
+
 export type ExchangeMarker = Extract<ChatMessage, { kind: "exchange" }>;
+
+/** An older host sends only the reader's own reaction, in `reaction`. */
+function messageReactions(message: ConversationMessage): readonly ConversationReaction[] | undefined {
+  if (message.reactions?.length) return message.reactions;
+  return message.reaction ? [{ emoji: message.reaction, actor: { kind: "user" } }] : undefined;
+}
 
 /** Consecutive messages to and from other agents, drawn as one row as on desktop. */
 export interface ExchangeGroup {
@@ -362,6 +376,8 @@ export function projectChatMessages(
           attachments: message.attachments,
           imageGeneration: message.imageGeneration,
           replyToMessageId: message.replyToMessageId,
+          createdAt: message.createdAt,
+          reactions: messageReactions(message),
         };
         projectedBubbles.set(message, { readerKey, bubble });
       }

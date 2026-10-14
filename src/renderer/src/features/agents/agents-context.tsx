@@ -5,10 +5,11 @@ import type {
   AvatarImageInput,
   UpdateAgentInput,
 } from "@openbot/contracts/ipc";
+import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import type { AgentProfile } from "@openbot/ui/data";
 import { createFirstAgentDraft, type FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
 import { currentText } from "@openbot/ui/text";
-import { createMemo, createSignal, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, untrack } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
 import { FALLBACK_STATUS } from "../../app-defaults";
 import { agentProfilesEqual, toAgentProfile } from "../../app-message-projection";
@@ -24,6 +25,12 @@ import { useUsage } from "../usage/usage-context";
 import type { CreationPreference } from "./agent-creation-model";
 import { readAgentSelection, writeAgentSelection } from "./agent-selection";
 import { agentsPort } from "./agents-port";
+import {
+  createHostAccounts,
+  withHostAccounts,
+  withHostAgentAccount,
+  withHostProfileAccount,
+} from "./host-provider-accounts";
 
 /**
  * The agents on the active server: the roster, which one is open, the provider
@@ -119,7 +126,24 @@ const Agents = createSimpleContext({
       );
     });
     const [settingsRequest, setSettingsRequest] = createSignal<AgentSettingsRequest | null>(null);
-    const [agentStatus, setAgentStatus] = createSignal<AgentStatus>(FALLBACK_STATUS);
+    const [providerStatus, setAgentStatus] = createSignal<AgentStatus>(FALLBACK_STATUS);
+    /**
+     * The accounts of a joined server's providers, and the agents on an account after the first. None
+     * on this computer, whose status and agents carry them, and on a host without `provider-accounts-v1`.
+     */
+    const hostAccounts = createHostAccounts({
+      serverId: createMemo(() => remoteAdminServer(activeServer(), PROVIDER_ACCOUNTS_CAPABILITY)?.id),
+      accounts: (serverId) => agentsPort().providerAdmin.accounts(serverId),
+      usage: (serverId) => agentsPort().providerAdmin.accountUsage(serverId),
+      applied: (host) => {
+        for (const profile of agentList()) {
+          const next = withHostProfileAccount(profile, host);
+          if (next !== profile) updateStored(profile, next);
+        }
+      },
+    });
+    const agentStatus = createMemo(() => withHostAccounts(providerStatus(), hostAccounts.host()));
+    createEffect(providerStatus, hostAccounts.schedule);
     let openedAgentChatId: string | null = null;
 
     const activeAgent = createMemo(() => {
@@ -158,8 +182,9 @@ const Agents = createSimpleContext({
 
     function applyStoredAgents(storedAgents: AgentSummary[]): void {
       const currentById = new Map(agentList().map((agent) => [agent.id, agent]));
+      const host = untrack(hostAccounts.host);
       const profiles = storedAgents.map((stored) => {
-        const next = toAgentProfile(stored);
+        const next = toAgentProfile(withHostAgentAccount(stored, host));
         const existing = currentById.get(next.id);
         if (!existing) return createStoredProfile(next);
         if (!agentProfilesEqual(existing, next)) updateStored(existing, next);
@@ -177,6 +202,8 @@ const Agents = createSimpleContext({
         setAgentSetupError(null);
         setAgentSetupOpen(true);
       }
+      // An agent event can be a provider or an account change made elsewhere.
+      hostAccounts.schedule();
     }
 
     function openBotSetup(): void {
@@ -213,6 +240,7 @@ const Agents = createSimpleContext({
           ...updates,
         });
         const next = toAgentProfile(stored);
+        if (updates.provider !== undefined || updates.providerAccountId !== undefined) hostAccounts.schedule();
         setAgentList((current) => {
           const existingIndex = current.findIndex((agent) => agent.id === agentId);
           if (existingIndex === -1) return [...current, createStoredProfile(next)];
@@ -304,6 +332,9 @@ const Agents = createSimpleContext({
       setSettingsRequest,
       agentStatus,
       setAgentStatus,
+      hostAccountLimits: hostAccounts.limits,
+      refreshHostAccounts: hostAccounts.refresh,
+      refreshHostAccountUsage: hostAccounts.refreshUsage,
       explicitlyOpenedAgentChatId,
       setExplicitlyOpenedAgentChatId,
       analyticsAgentProperties,

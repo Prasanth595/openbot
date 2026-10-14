@@ -13,7 +13,7 @@ import {
   isAgentSessionSettingOverrides,
   isAgentSessionSettingResets,
 } from "./ipc-agent-session-settings";
-import { type AgentProviderId, isAgentProvider } from "./ipc-agent-status";
+import { type AgentProviderId, isAgentProvider, isProviderAccountId } from "./ipc-agent-status";
 import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
@@ -99,6 +99,11 @@ export interface AgentSummary {
    * app default.
    */
   busyMessageMode?: BusyMessageMode;
+  /**
+   * The provider account the agent's turns run on. Local-only, like `access`. Absent means the
+   * provider's own sign-in, `DEFAULT_PROVIDER_ACCOUNT_ID`.
+   */
+  providerAccountId?: string;
   threadId: string | null;
   workspacePath: string;
   preview: string;
@@ -132,6 +137,7 @@ export function isAgentSummary(value: unknown): value is AgentSummary {
     (value.computerUse === undefined || isBoolean(value.computerUse)) &&
     (value.allowAutomation === undefined || isBoolean(value.allowAutomation)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
+    (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)) &&
     (value.threadId === null || isIdentifier(value.threadId)) &&
     isBoundedString(value.workspacePath, INPUT_LIMITS.path) &&
     isBoundedString(value.preview, INPUT_LIMITS.messageText) &&
@@ -174,6 +180,8 @@ export interface UpdateAgentInput {
   allowAutomation?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;
+  /** `null` returns the agent to the provider's own sign-in. */
+  providerAccountId?: string | null;
   avatarSeed?: string;
   avatarHue?: AvatarHue | null;
 }

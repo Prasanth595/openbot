@@ -241,7 +241,7 @@ export class D1AuthRepository implements AuthRepository {
       );
       if (consumed.meta.changes !== 1) return { status: "invalid" };
 
-      const user = yield* this.#upsertEmailUserEffect(challenge.email, input.now);
+      const { user, created } = yield* this.#upsertEmailUserEffect(challenge.email, input.now);
       const tokenHash = yield* sha256(input.session.token).pipe(
         Effect.mapError(() => new AuthStoreError({ message: "Account store operation failed." })),
       );
@@ -270,6 +270,7 @@ export class D1AuthRepository implements AuthRepository {
       return {
         status: "verified",
         session: { sessionToken: input.session.token, user },
+        created,
       };
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
@@ -973,6 +974,83 @@ export class D1AuthRepository implements AuthRepository {
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
 
+  readonly createServerClaim = Effect.fn("D1AuthRepository.createServerClaim")(
+    function* (
+      this: D1AuthRepository,
+      input: { claimHash: string; email: string; createdAt: number; expiresAt: number },
+    ): Effect.fn.Return<void, AuthStoreError, AuthDatabase> {
+      const database = yield* AuthDatabase;
+      // One batch, and no conflict on a user that another request creates at the same time.
+      const [, created] = yield* storeCall(() =>
+        database.batch([
+          database
+            .prepare(
+              `INSERT INTO users(id, identity_key, email, name, avatar_url, created_at, updated_at)
+           VALUES (?, ?, ?, NULL, NULL, ?, ?) ON CONFLICT DO NOTHING`,
+            )
+            .bind(crypto.randomUUID(), `email:${input.email}`, input.email, input.createdAt, input.createdAt),
+          database
+            .prepare(
+              `INSERT INTO server_claims(claim_hash, user_id, created_at, expires_at)
+           SELECT ?, id, ?, ? FROM users WHERE email = ?`,
+            )
+            .bind(input.claimHash, input.createdAt, input.expiresAt, input.email),
+        ]),
+      );
+      if (created?.meta.changes !== 1) return yield* new AuthStoreError({ message: "Account store operation failed." });
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
+  readonly redeemServerClaim = Effect.fn("D1AuthRepository.redeemServerClaim")(
+    function* (
+      this: D1AuthRepository,
+      input: { claimHash: string; now: number; session: { id: string; token: string; expiresAt: number } },
+    ): Effect.fn.Return<{ sessionToken: string; user: AuthUser } | null, AuthStoreError, AuthDatabase> {
+      const database = yield* AuthDatabase;
+      const tokenHash = yield* storeHash(input.session.token);
+      // The session row is made only by the redeem that spent the claim.
+      const [spent] = yield* storeCall(() =>
+        database.batch([
+          database
+            .prepare(
+              `UPDATE server_claims SET redeemed_at = ?, session_id = ?
+           WHERE claim_hash = ? AND redeemed_at IS NULL AND expires_at > ?`,
+            )
+            .bind(input.now, input.session.id, input.claimHash, input.now),
+          database
+            .prepare(
+              `INSERT INTO auth_sessions(id, user_id, token_hash, expires_at, created_at, last_used_at)
+           SELECT ?, user_id, ?, ?, ?, ? FROM server_claims WHERE claim_hash = ? AND session_id = ?`,
+            )
+            .bind(
+              input.session.id,
+              tokenHash,
+              input.session.expiresAt,
+              input.now,
+              input.now,
+              input.claimHash,
+              input.session.id,
+            ),
+        ]),
+      );
+      if (spent?.meta.changes !== 1) return null;
+      // Through the new session: the retention job can already have removed the spent claim.
+      const row = yield* storeCall(() =>
+        database
+          .prepare(
+            `SELECT users.id, users.email, users.name, users.avatar_url
+         FROM auth_sessions JOIN users ON users.id = auth_sessions.user_id
+         WHERE auth_sessions.id = ?`,
+          )
+          .bind(input.session.id)
+          .first<UserRow>(),
+      );
+      return row ? { sessionToken: input.session.token, user: mapUser(row) } : null;
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly #updateSessionActivityEffect = Effect.fn("D1AuthRepository.updateSessionActivity")(function* (
     this: D1AuthRepository,
     tokenHash: string,
@@ -994,12 +1072,12 @@ export class D1AuthRepository implements AuthRepository {
     this: D1AuthRepository,
     email: string,
     now: number,
-  ): Effect.fn.Return<AuthUser, AuthStoreError, AuthDatabase> {
+  ): Effect.fn.Return<{ user: AuthUser; created: boolean }, AuthStoreError, AuthDatabase> {
     const database = yield* AuthDatabase;
     const existing = yield* storeCall(() =>
       database.prepare("SELECT id, email, name, avatar_url FROM users WHERE email = ?").bind(email).first<UserRow>(),
     );
-    if (existing) return mapUser(existing);
+    if (existing) return { user: mapUser(existing), created: false };
     const id = crypto.randomUUID();
     yield* storeCall(() =>
       database
@@ -1011,7 +1089,7 @@ export class D1AuthRepository implements AuthRepository {
         .bind(id, `email:${email}`, email, now, now)
         .run(),
     );
-    return { id, email, name: null, avatarUrl: null };
+    return { user: { id, email, name: null, avatarUrl: null }, created: true };
   });
 }
 

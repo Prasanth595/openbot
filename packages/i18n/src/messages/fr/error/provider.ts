@@ -291,6 +291,16 @@ export const messages = {
   "error.provider.useSettingsReadOnly":
     "Les réglages enregistrés du fournisseur sont illisibles. Mettez à jour OpenBot avant de les modifier.",
   "error.provider.useChangeFailed": "OpenBot n’a pas pu modifier le réglage du fournisseur.",
+  "error.provider.accountsUnsupported": "{provider} ne peut avoir qu’un seul compte.",
+  "error.provider.accountNeedsConnection": "Connectez {provider} avant d’ajouter un autre compte.",
+  "error.provider.accountLimit": "{provider} peut avoir au maximum {limit} comptes.",
+  "error.provider.accountNotFound": "Ce compte {provider} n’est pas sur cet ordinateur. Actualisez et réessayez.",
+  "error.provider.accountAlreadyAdded": "Ce compte {provider} est déjà connecté.",
+  "error.provider.accountDefault": "Le premier compte {provider} ne peut pas être supprimé.",
+  "error.provider.accountInUse": "Un agent qui utilise ce compte est au travail. Réessayez quand l’agent s’arrête.",
+  "error.provider.accountsReadOnly":
+    "Les comptes enregistrés du fournisseur sont illisibles. Mettez à jour OpenBot avant de les modifier.",
+  "error.provider.accountSignedOut": "Ce compte {provider} est déconnecté. Reconnectez-vous.",
   "error.provider.sessionSettingUnavailable":
     "Ce réglage n’est pas disponible dans la session actuelle du fournisseur.",
   "error.provider.sessionSettingInvalid": "Cette valeur n’est pas disponible pour ce réglage.",
