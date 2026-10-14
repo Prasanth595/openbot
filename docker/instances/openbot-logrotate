@@ -1,0 +1,18 @@
+# Keeps the container logs of the OpenBot instances for 30 days: the file of today and one file for
+# each of the 30 days before it. `openbot-instance setup` installs it as /etc/logrotate.d/openbot-docker.
+/var/log/openbot/*.log {
+	# rsyslogd writes as syslog, which owns the folder.
+	su syslog adm
+	daily
+	rotate 30
+	maxage 30
+	dateext
+	missingok
+	notifempty
+	compress
+	delaycompress
+	sharedscripts
+	postrotate
+		/usr/lib/rsyslog/rsyslog-rotate
+	endscript
+}

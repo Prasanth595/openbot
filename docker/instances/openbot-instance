@@ -17,6 +17,7 @@ DATA=/srv/openbot
 NETWORK=openbot
 SUBNET=172.30.0.0/16
 FIREWALL=openbot-firewall.service
+LOG_SOCKET=/var/lib/openbot-docker/dev/log
 
 fail() {
   echo "$*" >&2
@@ -74,12 +75,25 @@ setup() {
     docker network create --driver bridge --subnet "$SUBNET" \
       --opt com.docker.network.bridge.name=br-openbot \
       --opt com.docker.network.bridge.enable_icc=false "$NETWORK" >/dev/null
+  # Container logs: rsyslog writes them to /var/log/openbot, and logrotate keeps 30 days.
+  install -d -m 0755 /var/lib/openbot-docker "$(dirname "$LOG_SOCKET")"
+  install -d -o syslog -g adm -m 0750 /var/log/openbot
+  install -m 0644 "$HERE/openbot-logrotate" /etc/logrotate.d/openbot-docker
+  install -d -m 0755 /etc/systemd/system/docker.service.d
+  install -m 0644 "$HERE/docker-after-rsyslog.conf" /etc/systemd/system/docker.service.d/openbot-rsyslog.conf
+  systemctl daemon-reload
+  if ! cmp --silent "$HERE/openbot-rsyslog.conf" /etc/rsyslog.d/30-openbot-docker.conf || [ ! -S "$LOG_SOCKET" ]; then
+    install -m 0644 "$HERE/openbot-rsyslog.conf" /etc/rsyslog.d/30-openbot-docker.conf
+    rsyslogd -N1 >/dev/null || fail "rsyslog refuses /etc/rsyslog.d/30-openbot-docker.conf."
+    systemctl restart rsyslog
+  fi
   docker info --format '{{.SecurityOptions}}' | grep -q name=userns ||
     echo "Docker runs without userns-remap: UID 1000 in a container is UID 1000 on the host." >&2
 }
 
-# Starts nothing without the firewall and the network.
+# Starts nothing without the firewall, the network and the log socket.
 ready() {
+  [ -S "$LOG_SOCKET" ] || fail "The log socket $LOG_SOCKET is missing. Run: openbot-instance setup"
   systemctl is-active --quiet "$FIREWALL" || fail "The firewall of the instances is off. Run: openbot-instance setup"
   docker network inspect "$NETWORK" >/dev/null 2>&1 || fail "The network $NETWORK is missing. Run: openbot-instance setup"
 }

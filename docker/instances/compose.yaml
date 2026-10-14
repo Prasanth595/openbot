@@ -35,11 +35,16 @@ services:
     # reach only the internet.
     networks:
       - openbot
+    # rsyslog writes the log to /var/log/openbot/openbot-<name>.log, and logrotate keeps 30 days.
+    # `docker logs` reads the local cache of Docker. A line longer than 8 KB is cut.
     logging:
-      driver: json-file
+      driver: syslog
       options:
-        max-size: 50m
-        max-file: "3"
+        syslog-address: unixgram:///var/lib/openbot-docker/dev/log
+        tag: "{{.Name}}"
+        # A slow rsyslog never stops OpenBot. When the buffer is full, lines are lost.
+        mode: non-blocking
+        max-buffer-size: 4m
 
 networks:
   openbot:
