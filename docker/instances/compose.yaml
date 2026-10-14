@@ -16,6 +16,11 @@ services:
     # No swap above the memory limit.
     memswap_limit: ${OPENBOT_MEM:?}
     pids_limit: 8192
+    # The soft limit of Docker is 1024 open files, which is too few for Chromium and agent builds.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 524288
     # The container layer is on the disk of the host and has no size limit, so nothing can write to
     # it. OpenBot and agents write to /data and to these tmpfs folders, which count toward the memory
     # limit.

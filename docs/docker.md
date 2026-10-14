@@ -137,6 +137,13 @@ day and deletes files older than 30 days. `docker logs` reads the local cache of
 only the recent lines. rsyslog cuts a line longer than 8 KB. `setup` installs the rsyslog and logrotate
 files, and makes Docker start after rsyslog: a container does not start without the socket.
 
+### Host settings
+
+`setup` also installs `/etc/sysctl.d/90-openbot-docker.conf`. With userns-remap, all containers run as
+one host user and share its inotify limits, so the file raises them. Each container may open 65536
+files (Docker gives 1024 by default). Add `"live-restore": true` to `/etc/docker/daemon.json`, then run
+`systemctl reload docker`: a restart or upgrade of Docker then does not stop the instances.
+
 ### Isolation
 
 Agents have full access in their container, so the host limits what a container can reach.

@@ -75,6 +75,8 @@ setup() {
     docker network create --driver bridge --subnet "$SUBNET" \
       --opt com.docker.network.bridge.name=br-openbot \
       --opt com.docker.network.bridge.enable_icc=false "$NETWORK" >/dev/null
+  install -m 0644 "$HERE/openbot-sysctl.conf" /etc/sysctl.d/90-openbot-docker.conf
+  sysctl --quiet --load /etc/sysctl.d/90-openbot-docker.conf
   # Container logs: rsyslog writes them to /var/log/openbot, and logrotate keeps 30 days.
   install -d -m 0755 /var/lib/openbot-docker "$(dirname "$LOG_SOCKET")"
   install -d -o syslog -g adm -m 0750 /var/log/openbot
