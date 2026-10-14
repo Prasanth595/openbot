@@ -14,7 +14,7 @@ import { causeHelpers } from "../effect-boundary";
 import { isMissingFileError } from "../file-errors";
 
 /** A provider that can hold accounts: every built-in one. */
-export type AccountProvider = Exclude<AgentProviderId, "acp">;
+type AccountProvider = Exclude<AgentProviderId, "acp">;
 
 /** A provider account after the first. Its credentials stay in its folder, never in this list. */
 export interface StoredProviderAccount {
