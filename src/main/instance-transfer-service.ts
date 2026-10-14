@@ -13,7 +13,7 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
-import type { AgentProviderId } from "@openbot/contracts/agent-providers";
+import { type AgentProviderId, agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_IMPORT_LIMITS,
@@ -208,7 +208,7 @@ export class InstanceTransferService {
       // The counts are a preview: a folder that cannot be read stops the export, not this screen,
       // so an export without files stays possible.
       const files = yield* workspaceFiles(agent.workspacePath).pipe(Effect.orElseSucceed(() => []));
-      const skills = yield* skillFolders(agent.workspacePath).pipe(Effect.orElseSucceed(() => []));
+      const skills = yield* skillFolders(agent.workspacePath, agent.provider).pipe(Effect.orElseSucceed(() => []));
       agents.push({
         id: agent.id,
         name: agent.name,
@@ -259,7 +259,7 @@ export class InstanceTransferService {
 
       const skills: string[] = [];
       // An import refuses an agent with more skills than the limit, so the export keeps the first ones.
-      const folders = yield* skillFolders(agent.workspacePath);
+      const folders = yield* skillFolders(agent.workspacePath, agent.provider);
       if (folders.length > INPUT_LIMITS.agentSkills)
         warnings.push(
           sourceText("error.import.transferSkillLimit", {
@@ -988,9 +988,12 @@ const walk = Effect.fn("InstanceTransfer.walk")(function* (
 /** The skills a user or a marketplace installed. OpenBot's own skills are installed again on import. */
 const skillFolders = Effect.fn("InstanceTransfer.skillFolders")(function* (
   workspace: string,
+  provider: AgentProviderId,
 ): Effect.fn.Return<Array<{ slug: string; files: FileEntry[] }>, ArchiveOperationError> {
   const skills = new Map<string, FileEntry[]>();
-  for (const folder of MANAGED_SKILL_FOLDERS) {
+  // Prefer the copy the current provider reads; keep other folders for skills with no active copy.
+  const folders = new Set([...agentProviderDescriptor(provider).skillFolders, ...MANAGED_SKILL_FOLDERS]);
+  for (const folder of folders) {
     const root = join(workspace, ...folder.split("/"));
     const listed = yield* Effect.result(archiveCall(() => readdir(root)));
     if (Result.isFailure(listed)) {
