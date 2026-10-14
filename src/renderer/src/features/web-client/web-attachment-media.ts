@@ -6,7 +6,7 @@ import { createSignal } from "solid-js";
 import type { WebWorkspaceRuntime } from "./web-runtime";
 
 /** An image above this size keeps its file icon: a thumbnail must not cost a large download. */
-export const WEB_THUMBNAIL_BYTES = 2 * 1024 * 1024;
+const WEB_THUMBNAIL_BYTES = 2 * 1024 * 1024;
 /** The host connection sends at most this many bytes for one file. */
 const WEB_MEDIA_BYTES = MOBILE_ATTACHMENT_BYTES;
 const CACHE_BYTES = 64 * 1024 * 1024;

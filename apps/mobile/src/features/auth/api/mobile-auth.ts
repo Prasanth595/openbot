@@ -18,6 +18,7 @@ import * as SecureStore from "expo-secure-store";
 import { z } from "zod";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { currentText } from "@/shared/lib/text";
+import * as LockedKeychain from "../../../shared/lib/locked-keychain";
 // Relative: the Node test project resolves no `@/` path that the test does not mock.
 import { fetch } from "../../support/model/logged-fetch";
 
@@ -254,15 +255,17 @@ export async function readMobileSession(): Promise<MobileSession | null> {
 // revocation retries on startup or before the next QR redemption; these tokens
 // deliberately never expire and must not be silently discarded or overwritten.
 async function readStoredSessionAndRevokeInvalid(requireRevocation: boolean): Promise<MobileSession | null> {
-  const stored = await SecureStore.getItemAsync(MOBILE_SESSION_KEY);
+  const stored = await LockedKeychain.getItemAsync(MOBILE_SESSION_KEY);
   if (!stored) return null;
+  // A keychain that the lock keeps closed does not make the session invalid. Only the stored data can.
+  const storedRevocations = await LockedKeychain.getItemAsync(MOBILE_REVOCATIONS_KEY);
   let credential: MobileCredential | null = null;
   try {
     const value = JSON.parse(stored);
     credential = decodeStoredMobileCredential(value);
     const storedCredential = credential;
-    if ((await readPendingRevocations()).some((pending) => sameCredential(pending, storedCredential))) {
-      await SecureStore.deleteItemAsync(MOBILE_SESSION_KEY);
+    if (decodePendingRevocations(storedRevocations).some((pending) => sameCredential(pending, storedCredential))) {
+      await LockedKeychain.deleteItemAsync(MOBILE_SESSION_KEY);
       return null;
     }
     return decodeStoredMobileSession(value);
@@ -277,7 +280,7 @@ async function readStoredSessionAndRevokeInvalid(requireRevocation: boolean): Pr
         return null;
       }
     }
-    await SecureStore.deleteItemAsync(MOBILE_SESSION_KEY);
+    await LockedKeychain.deleteItemAsync(MOBILE_SESSION_KEY);
     return null;
   }
 }
@@ -426,14 +429,12 @@ export async function logoutMobileSession(session: MobileSession): Promise<void>
     const pending = await readPendingRevocations();
     if (!pending.some((item) => sameCredential(item, session))) {
       pending.push({ apiUrl: session.apiUrl, sessionToken: session.sessionToken });
-      await SecureStore.setItemAsync(MOBILE_REVOCATIONS_KEY, JSON.stringify(pending), {
-        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-      });
+      await LockedKeychain.setItemAsync(MOBILE_REVOCATIONS_KEY, JSON.stringify(pending));
       revocationRetryRequested = true;
     }
-    const stored = await SecureStore.getItemAsync(MOBILE_SESSION_KEY);
+    const stored = await LockedKeychain.getItemAsync(MOBILE_SESSION_KEY);
     if (stored && sameCredential(decodeStoredMobileCredential(JSON.parse(stored)), session)) {
-      await SecureStore.deleteItemAsync(MOBILE_SESSION_KEY);
+      await LockedKeychain.deleteItemAsync(MOBILE_SESSION_KEY);
     }
   });
   void retryMobileSessionRevocations();
@@ -444,7 +445,10 @@ function sameCredential(left: MobileCredential, right: MobileCredential): boolea
 }
 
 async function readPendingRevocations(): Promise<MobileCredential[]> {
-  const stored = await SecureStore.getItemAsync(MOBILE_REVOCATIONS_KEY);
+  return decodePendingRevocations(await LockedKeychain.getItemAsync(MOBILE_REVOCATIONS_KEY));
+}
+
+function decodePendingRevocations(stored: string | null): MobileCredential[] {
   if (!stored) return [];
   return z.array(z.unknown()).parse(JSON.parse(stored)).map(decodeStoredMobileCredential);
 }
@@ -472,11 +476,9 @@ export function retryMobileSessionRevocations(): Promise<void> {
               await serializeMobileSessionStorage(async () => {
                 const remaining = (await readPendingRevocations()).filter((item) => !sameCredential(item, credential));
                 if (remaining.length === 0) {
-                  await SecureStore.deleteItemAsync(MOBILE_REVOCATIONS_KEY);
+                  await LockedKeychain.deleteItemAsync(MOBILE_REVOCATIONS_KEY);
                 } else {
-                  await SecureStore.setItemAsync(MOBILE_REVOCATIONS_KEY, JSON.stringify(remaining), {
-                    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-                  });
+                  await LockedKeychain.setItemAsync(MOBILE_REVOCATIONS_KEY, JSON.stringify(remaining));
                 }
               });
             } catch {
@@ -611,38 +613,32 @@ async function readResponseBody(response: Response, signal: AbortSignal): Promis
 }
 
 async function saveMobileSession(session: MobileSession): Promise<void> {
-  await serializeMobileSessionStorage(() =>
-    SecureStore.setItemAsync(MOBILE_SESSION_KEY, JSON.stringify(session), {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    }),
-  );
+  await serializeMobileSessionStorage(() => LockedKeychain.setItemAsync(MOBILE_SESSION_KEY, JSON.stringify(session)));
 }
 
 async function saveMobileSessionIfCurrent(session: MobileSession): Promise<void> {
   await serializeMobileSessionStorage(async () => {
-    const stored = await SecureStore.getItemAsync(MOBILE_SESSION_KEY);
+    const stored = await LockedKeychain.getItemAsync(MOBILE_SESSION_KEY);
     if (!stored) return;
     try {
       if (decodeStoredMobileSession(JSON.parse(stored)).sessionToken !== session.sessionToken) return;
     } catch {
       return;
     }
-    await SecureStore.setItemAsync(MOBILE_SESSION_KEY, JSON.stringify(session), {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
+    await LockedKeychain.setItemAsync(MOBILE_SESSION_KEY, JSON.stringify(session));
   });
 }
 
 async function deleteMobileSessionIfCurrent(sessionToken: string): Promise<void> {
   await serializeMobileSessionStorage(async () => {
-    const stored = await SecureStore.getItemAsync(MOBILE_SESSION_KEY);
+    const stored = await LockedKeychain.getItemAsync(MOBILE_SESSION_KEY);
     if (!stored) return;
     try {
       if (decodeStoredMobileCredential(JSON.parse(stored)).sessionToken !== sessionToken) return;
     } catch {
       // Corrupt session data cannot represent a newer valid session while storage operations are serialized.
     }
-    await SecureStore.deleteItemAsync(MOBILE_SESSION_KEY);
+    await LockedKeychain.deleteItemAsync(MOBILE_SESSION_KEY);
   });
 }
 

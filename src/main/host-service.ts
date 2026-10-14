@@ -82,11 +82,13 @@ interface HostServiceOptions {
   signInRelay?: ForwardedApiOptions["signInRelay"];
   connectors?: ForwardedApiOptions["connectors"];
   providerHostSignIns?: ForwardedApiOptions["providerHostSignIns"];
+  providerAccounts?: ForwardedApiOptions["providerAccounts"];
   mcpToolRuntimePreparation?: ForwardedApiOptions["mcpToolRuntimePreparation"];
   storage?: ForwardedApiOptions["storage"];
   hostedSites?: ForwardedApiOptions["hostedSites"];
   events?: ForwardedApiOptions["events"];
   agentImport?: ForwardedApiOptions["agentImport"];
+  instanceTransfer?: ForwardedApiOptions["instanceTransfer"];
   routineFlows?: ForwardedApiOptions["routineFlows"];
   admin?: ForwardedApiOptions["admin"];
   appVersion: string;
@@ -351,11 +353,13 @@ export class HostService extends EventEmitter<HostEvents> {
       signInRelay: options.signInRelay,
       connectors: options.connectors,
       providerHostSignIns: options.providerHostSignIns,
+      providerAccounts: options.providerAccounts,
       mcpToolRuntimePreparation: options.mcpToolRuntimePreparation,
       storage: options.storage,
       hostedSites: options.hostedSites,
       events: options.events,
       agentImport: options.agentImport,
+      instanceTransfer: options.instanceTransfer,
       routineFlows: options.routineFlows,
       // The identity route changes this host's name and logo through `updateIdentity`, so a change
       // from a joined admin runs every step a local one does.

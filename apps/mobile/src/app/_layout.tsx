@@ -35,6 +35,7 @@ import { nativeSplash } from "@/shared/lib/native-splash";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { queryClient } from "@/shared/lib/query-client";
 import { useText } from "@/shared/lib/text";
+import { startedInBackground, untilForeground } from "@/shared/lib/until-foreground";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
 import {
   SplashContentReadyContext,
@@ -61,6 +62,9 @@ function RootNavigator() {
   // Motion choices are read before the first screen, so no screen starts an animation that Settings turned off.
   const motionReady = useMotionPreferences((state) => state.ready);
   const preferencesReady = appearanceReady && motionReady;
+  // A start in the background shows nothing, and it reads no settings until the user opens the app. The
+  // screens render at once, so the workspace can answer a notification button, and they stay mounted.
+  const [hiddenStart] = useState(startedInBackground);
   const busy = loading || !preferencesReady || (!session && isLoaderPresent);
   const { covered, reportArtwork, reportContentReady } = useSplashGate(busy, nativeSplash, preferencesReady);
 
@@ -103,7 +107,7 @@ function RootNavigator() {
             accessibilityElementsHidden={covered}
             importantForAccessibility={covered ? "no-hide-descendants" : "auto"}
           >
-            {!loading && preferencesReady ? (
+            {!loading && (preferencesReady || hiddenStart) ? (
               <View className="flex-1" onLayout={session || pathname !== "/" ? () => reportReady() : undefined}>
                 <Stack
                   screenOptions={{
@@ -167,15 +171,19 @@ export default function RootLayout() {
     if (!isAndroid) return;
     void SystemUI.setBackgroundColorAsync(canvas).catch(() => undefined);
   }, [canvas]);
+  // A locked phone does not open the settings, and a failed read keeps a default. So a start in the
+  // background, for a notification button, reads them when the user first opens the app.
   useEffect(() => {
-    void loadAppearance().catch(() => undefined);
-    void loadHapticsPreference().catch(() => undefined);
-    void loadAgentColorMessages().catch(() => undefined);
-    void loadLiveActivitiesPreference().catch(() => undefined);
-    void loadPushNotificationPreference().catch(() => undefined);
-    void loadMotionPreferences().catch(() => undefined);
-    void loadDictationLanguage().catch(() => undefined);
-    void loadAppLanguage().catch(() => undefined);
+    void untilForeground().then(() => {
+      void loadAppearance().catch(() => undefined);
+      void loadHapticsPreference().catch(() => undefined);
+      void loadAgentColorMessages().catch(() => undefined);
+      void loadLiveActivitiesPreference().catch(() => undefined);
+      void loadPushNotificationPreference().catch(() => undefined);
+      void loadMotionPreferences().catch(() => undefined);
+      void loadDictationLanguage().catch(() => undefined);
+      void loadAppLanguage().catch(() => undefined);
+    });
   }, []);
 
   return (

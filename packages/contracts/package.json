@@ -17,6 +17,7 @@
     "./discord-app": "./src/discord-app.ts",
     "./discord-guild-grant": "./src/discord-guild-grant.ts",
     "./event-filter-value": "./src/event-filter-value.ts",
+    "./first-touch": "./src/first-touch.ts",
     "./chat-math": "./src/chat-math.ts",
     "./chat-preview": "./src/chat-preview.ts",
     "./chat-visual": "./src/chat-visual.ts",
@@ -30,6 +31,7 @@
     "./landing-preview-messages": "./src/landing-preview-messages.ts",
     "./markdown-lists": "./src/markdown-lists.ts",
     "./markdown-preview-text": "./src/markdown-preview-text.ts",
+    "./selection-instruction": "./src/selection-instruction.ts",
     "./agent-memory-context": "./src/agent-memory-context.ts",
     "./ipc": "./src/ipc.ts",
     "./ipc-events": "./src/ipc-events.ts",
@@ -60,6 +62,7 @@
     "./team-protocol/browser-view-v1": "./src/team-protocol/browser-view-v1.ts",
     "./team-protocol/mcp-sign-in-app-v1": "./src/team-protocol/mcp-sign-in-app-v1.ts",
     "./team-protocol/mcp-sign-in-v1": "./src/team-protocol/mcp-sign-in-v1.ts",
+    "./team-protocol/provider-accounts-v1": "./src/team-protocol/provider-accounts-v1.ts",
     "./team-protocol/provider-host-sign-in-v1": "./src/team-protocol/provider-host-sign-in-v1.ts",
     "./team-protocol/sign-in-relay-v1": "./src/team-protocol/sign-in-relay-v1.ts",
     "./team-protocol/connectors-v1": "./src/team-protocol/connectors-v1.ts",
@@ -95,6 +98,7 @@
     "./team-protocol/agent-memories-v1": "./src/team-protocol/agent-memories-v1.ts",
     "./team-protocol/agent-host-settings-v1": "./src/team-protocol/agent-host-settings-v1.ts",
     "./team-protocol/agent-import-v1": "./src/team-protocol/agent-import-v1.ts",
+    "./team-protocol/instance-transfer-v1": "./src/team-protocol/instance-transfer-v1.ts",
     "./team-protocol/agent-install-v1": "./src/team-protocol/agent-install-v1.ts",
     "./team-protocol/agent-publish-v1": "./src/team-protocol/agent-publish-v1.ts",
     "./team-protocol/agent-update-v1": "./src/team-protocol/agent-update-v1.ts",
@@ -129,15 +133,13 @@
     "./team-protocol/v7-webrtc-adapter": "./src/team-protocol/v7-webrtc-adapter.ts"
   },
   "scripts": {
-    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --config vitest.config.ts src"
+    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "emoji-regex": "10.6.0",
     "marked": "catalog:"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

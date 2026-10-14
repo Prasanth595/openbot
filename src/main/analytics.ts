@@ -105,6 +105,8 @@ function createOpenPanelClient(options: OpenPanelOptions): HostOpenPanelClient {
 export interface HostAnalyticsOptions {
   reports?: ReportQueue;
   enabled: boolean;
+  /** The OpenPanel API. Production when omitted; a dev capture server in `analytics-redaction-e2e`. */
+  apiUrl?: string;
   trackingEnabled?: boolean;
   appVersion: string;
   platform: "darwin" | "win32" | "linux";
@@ -135,7 +137,7 @@ interface AnalyticsRoutineRun {
 }
 
 /** Counts and closed-set names only: never a user-authored name, URL or command. */
-export interface AnalyticsInventory {
+interface AnalyticsInventory {
   agentCount: number;
   enabledRoutineCount: number;
   customMcpServerCount: number;
@@ -254,7 +256,7 @@ export class HostAnalytics {
       return;
     }
     try {
-      const client = createClient({ apiUrl: OPENPANEL_API_URL, clientId: OPENPANEL_CLIENT_ID });
+      const client = createClient({ apiUrl: options.apiUrl ?? OPENPANEL_API_URL, clientId: OPENPANEL_CLIENT_ID });
       client.setGlobalProperties({
         surface: "desktop_host",
         environment: "production",
@@ -839,7 +841,7 @@ function normalizeAnalyticsIdentity(user: AnalyticsIdentity | null): AnalyticsId
   return id && email ? { id, email } : null;
 }
 
-export function sanitizeHostEvent(name: HostEventName, properties: HostProperties): HostProperties {
+function sanitizeHostEvent(name: HostEventName, properties: HostProperties): HostProperties {
   const allowed = HOST_ALLOWLIST[name];
   return Object.fromEntries(
     Object.entries(properties).flatMap(([key, value]) => {
@@ -941,7 +943,7 @@ function sanitizeHostProperty(name: HostEventName, key: string, value: unknown):
  * address, a single-label or intranet name, or a name with no public ICANN suffix. Private suffixes
  * are ignored on purpose, so `user.github.io` reports as `github.io` and never names the user.
  */
-export function analyticsDomain(hostname: string): string | undefined {
+function analyticsDomain(hostname: string): string | undefined {
   const host = hostname.trim().toLowerCase().replace(/\.$/u, "");
   if (!host || host.length > 253) return undefined;
   const parsed = parseDomain(host, { allowPrivateDomains: false, extractHostname: false });

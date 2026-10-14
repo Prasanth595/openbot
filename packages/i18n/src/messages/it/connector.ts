@@ -71,6 +71,7 @@ export const messages = {
   "connector.hub.onHost": "Su {host}",
   "connector.hub.notSetUp": "Non configurato",
   "connector.hub.available": "Disponibile",
+  "connector.hub.localOnly": "Solo il tuo computer",
   "connector.hub.open": "Apri {name}",
   "connector.hub.setUp": "Configura",
   "connector.hub.usedBy": "Usato da {names}",
@@ -346,5 +347,5 @@ export const messages = {
   "connector.bitwarden.disconnect": "Disconnetti Bitwarden",
   "connector.bitwarden.connected": "Connesso",
   "connector.bitwarden.disconnected": "Non connesso",
-  "connector.bitwarden.failed": "Impossibile connettersi a Bitwarden.",
+  "connector.bitwarden.actionFailed": "OpenBot non è riuscito a cambiare la connessione a Bitwarden.",
 } as const satisfies PartialTranslation<typeof source>;
