@@ -996,6 +996,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           if (!this.#usageLimitMove(agentId)) return false;
           Effect.runFork(
             this.#followUsageLimit(agentId).pipe(
+              // The `held` hook kept the queue for this move, so a move that failed settles it.
+              Effect.tap((moved) =>
+                moved || this.#usageLimits.mayDrain(agentId)
+                  ? Effect.void
+                  : this.#settleHeldQueues([agentId]).pipe(
+                      Effect.catch((failure) =>
+                        Effect.sync(() => this.#emitError("usage_limit_hold_failed", failure.cause, agentId)),
+                      ),
+                    ),
+              ),
               Effect.andThen((moved) => Effect.sync(() => this.#drain.scheduleDrain(agentId, moved))),
               Effect.forkIn(this.#scope, { startImmediately: true }),
             ),
