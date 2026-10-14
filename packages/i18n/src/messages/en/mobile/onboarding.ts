@@ -56,7 +56,6 @@ export const messages = defineMessages("mobile.onboarding", {
   "mobile.onboarding.name.idea3": "Sage",
   "mobile.onboarding.name.idea4": "Echo",
   "mobile.onboarding.task.question": "What should I do first?",
-  "mobile.onboarding.task.body": "Write a first task or choose an idea. You can also skip this.",
   "mobile.onboarding.task.label": "First task",
   "mobile.onboarding.task.placeholder": "Describe a task",
   "mobile.onboarding.task.create": "Create {name}",

@@ -22,11 +22,9 @@ import { ConversationStep } from "@/features/onboarding/components/conversation-
 import { HelloStep } from "@/features/onboarding/components/hello-step";
 import { LookStep } from "@/features/onboarding/components/look-step";
 import { NameStep } from "@/features/onboarding/components/name-step";
-import { OnboardingPillButton } from "@/features/onboarding/components/onboarding-buttons";
 import { HeroSlotProvider, type HeroSlotRect, OnboardingHero } from "@/features/onboarding/components/onboarding-hero";
 import {
   EASE_OUT_CSS,
-  glassAfter,
   type OnboardingMotion,
   STAGGER_MS,
   stepEntering,
@@ -531,7 +529,6 @@ export function OnboardingFlow({
         name={trimmedName}
         caption={draft.roleTitle}
         question={t("mobile.onboarding.task.question")}
-        hint={t("mobile.onboarding.task.body")}
         ideas={draft.ideas.map((key) => t(key))}
         value={task}
         onChange={setTask}
@@ -540,21 +537,12 @@ export function OnboardingFlow({
         maxLength={INPUT_LIMITS.messageText}
         color={draftColor}
         disabled={pending}
+        action={{ label: t("mobile.onboarding.task.withoutTask"), onPress: () => void create("") }}
       >
         {error ? (
           <Typography.Paragraph accessibilityRole="alert" type="body-sm" align="center" className="text-danger-text">
             {error}
           </Typography.Paragraph>
-        ) : null}
-        {task.trim() ? (
-          <View className="items-center">
-            <OnboardingPillButton
-              appearDelay={glassAfter(0)}
-              label={t("mobile.onboarding.task.withoutTask")}
-              disabled={pending}
-              onPress={() => void create("")}
-            />
-          </View>
         ) : null}
       </ConversationStep>
     ) : step === "ready" && created ? (

@@ -57,8 +57,6 @@ export const messages = {
   "mobile.onboarding.name.idea3": "セージ",
   "mobile.onboarding.name.idea4": "エコー",
   "mobile.onboarding.task.question": "最初に何をしましょうか?",
-  "mobile.onboarding.task.body":
-    "最初のタスクを書くか、アイデアを選んでください。この手順はスキップすることもできます。",
   "mobile.onboarding.task.label": "最初のタスク",
   "mobile.onboarding.task.placeholder": "タスクを説明してください",
   "mobile.onboarding.task.create": "{name} を作成",

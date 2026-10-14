@@ -67,6 +67,7 @@ export function NameStep({
       <View className="min-h-24 w-full items-center justify-end">
         <SpeechBubble
           motion={motion}
+          color={color}
           tail="bottom"
           delay={STAGGER_MS * 2}
           text={

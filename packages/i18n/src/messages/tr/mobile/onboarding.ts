@@ -57,7 +57,6 @@ export const messages = {
   "mobile.onboarding.name.idea3": "Sage",
   "mobile.onboarding.name.idea4": "Echo",
   "mobile.onboarding.task.question": "İlk olarak ne yapayım?",
-  "mobile.onboarding.task.body": "İlk görevi yazın veya bir fikir seçin. Bu adımı atlayabilirsiniz de.",
   "mobile.onboarding.task.label": "İlk görev",
   "mobile.onboarding.task.placeholder": "Bir görev tanımlayın",
   "mobile.onboarding.task.create": "{name} adlı ajanı oluştur",

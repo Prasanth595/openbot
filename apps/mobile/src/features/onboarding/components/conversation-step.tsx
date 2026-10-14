@@ -1,4 +1,4 @@
-import { Typography } from "heroui-native";
+import { Separator, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { type ReactNode, useEffect, useRef } from "react";
 import { Keyboard, Platform, ScrollView, TextInput, View } from "react-native";
@@ -18,6 +18,13 @@ import { STEP_TOP_GAP } from "@/features/onboarding/components/onboarding-parts"
 import { haptics } from "@/shared/lib/haptics";
 
 const HEADER_HERO_SIZE = 56;
+// The replies come once the agent has finished "typing", one after another.
+const REPLIES_AT = STAGGER_MS + TYPING_MS;
+
+/** When the glass of reply `index` forms. The action after the replies comes in as one more reply. */
+function replyGlassDelay(index: number): number {
+  return glassAfter(REPLIES_AT + (index + 1) * STAGGER_MS);
+}
 
 /**
  * A step that reads as the first chat with the new agent: the agent in the header, its question in
@@ -29,7 +36,6 @@ export function ConversationStep({
   name,
   caption,
   question,
-  hint,
   ideas,
   value,
   onChange,
@@ -38,6 +44,7 @@ export function ConversationStep({
   maxLength,
   color,
   disabled,
+  action,
   children,
 }: {
   motion: OnboardingMotion;
@@ -45,7 +52,6 @@ export function ConversationStep({
   /** The role under the name, or null. */
   caption: string | null;
   question: string;
-  hint?: string;
   /** Replies, already in the reader's language. */
   ideas: readonly string[];
   value: string;
@@ -56,11 +62,12 @@ export function ConversationStep({
   /** The colour of the agent. */
   color: string;
   disabled: boolean;
+  /** A choice that acts at once, last among the replies and set apart from them. */
+  action?: { label: string; onPress: () => void };
   /** Errors and actions under the replies. */
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
-  const repliesAt = STAGGER_MS + TYPING_MS;
   // With the keyboard open, the ideas belong right above the field. While the field is in use, the
   // conversation keeps its end in view as the keyboard shrinks it, so the field never cuts them.
   const scroller = useRef<ScrollView>(null);
@@ -100,21 +107,14 @@ export function ConversationStep({
         alwaysBounceVertical={false}
         showsVerticalScrollIndicator={false}
       >
-        <SpeechBubble motion={motion} tail="top" delay={STAGGER_MS} text={question} />
-        {hint ? (
-          <Animated.View entering={popEntering(motion, repliesAt)}>
-            <Typography.Paragraph type="body-sm" color="muted">
-              {hint}
-            </Typography.Paragraph>
-          </Animated.View>
-        ) : null}
+        <SpeechBubble motion={motion} tail="top" delay={STAGGER_MS} text={question} color={color} />
         <View className="items-end gap-2">
           {ideas.map((idea, index) => {
             const chosen = value === idea;
             return (
               <View key={idea} className="max-w-[86%]">
                 <GlassChoice
-                  appearDelay={glassAfter(repliesAt + (index + 1) * STAGGER_MS)}
+                  appearDelay={replyGlassDelay(index)}
                   label={idea}
                   selected={chosen}
                   disabled={disabled}
@@ -122,7 +122,8 @@ export function ConversationStep({
                   radius={22}
                   onPress={() => {
                     void haptics.selection();
-                    onChange(idea);
+                    // A second tap on the chosen reply takes it back.
+                    onChange(chosen ? "" : idea);
                   }}
                 >
                   <Typography type="body-sm" className="px-4 py-3 font-medium">
@@ -132,6 +133,33 @@ export function ConversationStep({
               </View>
             );
           })}
+          {action ? (
+            <>
+              <Animated.View
+                entering={popEntering(motion, replyGlassDelay(ideas.length))}
+                className="my-1 w-16"
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden
+              >
+                <Separator />
+              </Animated.View>
+              <View className="max-w-[86%]">
+                <GlassChoice
+                  appearDelay={replyGlassDelay(ideas.length)}
+                  label={action.label}
+                  selected={false}
+                  disabled={disabled}
+                  color={color}
+                  radius={22}
+                  onPress={action.onPress}
+                >
+                  <Typography type="body-sm" className="px-4 py-3 font-medium">
+                    {action.label}
+                  </Typography>
+                </GlassChoice>
+              </View>
+            </>
+          ) : null}
         </View>
         {children}
       </ScrollView>

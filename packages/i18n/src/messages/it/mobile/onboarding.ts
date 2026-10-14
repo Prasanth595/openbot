@@ -57,7 +57,6 @@ export const messages = {
   "mobile.onboarding.name.idea3": "Sage",
   "mobile.onboarding.name.idea4": "Echo",
   "mobile.onboarding.task.question": "Cosa devo fare per prima cosa?",
-  "mobile.onboarding.task.body": "Scrivi una prima attività o scegli un'idea. Puoi anche saltare questo passaggio.",
   "mobile.onboarding.task.label": "Prima attività",
   "mobile.onboarding.task.placeholder": "Descrivi un'attività",
   "mobile.onboarding.task.create": "Crea {name}",
