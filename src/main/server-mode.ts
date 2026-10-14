@@ -7,8 +7,9 @@
  * this process over a Unix socket in the runtime directory that systemd makes for the service user
  * (mode 0700). Only that user and root can connect. Agents run as the same user and already have
  * full access to its files, so the socket gives them nothing new. The socket answers a closed list
- * of requests: status, the email-code sign-in, the server name, sign-out and a Mobile Connect code.
- * It never sends the session token or the sign-in code back. The Mobile Connect code signs one phone
+ * of requests: status, the email-code sign-in, the sign-in with an operator's one-time claim, the
+ * server name, sign-out and a Mobile Connect code. It never sends the session token, the sign-in code
+ * or the claim back. The Mobile Connect code signs one phone
  * in to the account of the server; the account service lets it work for one sign-in, for two minutes.
  *
  * The protocol is HTTP with form bodies and `key=value` text lines, so the command needs only
@@ -61,7 +62,7 @@ export interface ServerModeOptions {
   version: string;
   centralAuth: Pick<
     CentralAuthManager,
-    "getState" | "requestEmailCode" | "verifyEmailCode" | "logout" | "createMobileConnect"
+    "getState" | "requestEmailCode" | "verifyEmailCode" | "redeemServerClaim" | "logout" | "createMobileConnect"
   >;
   host: Pick<HostService, "getStatus" | "configure" | "start" | "updateIdentity" | "getMobileConnectHost">;
   onError: (message: string, error: unknown) => void;
@@ -199,6 +200,8 @@ export class ServerMode {
         return runCauseEffect(this.#startLogin(body.get("email") ?? "", body.get("name")));
       case "POST /v1/login/verify":
         return runCauseEffect(this.#verifyLogin(body.get("challenge") ?? "", body.get("code") ?? "", body.get("name")));
+      case "POST /v1/login/claim":
+        return runCauseEffect(this.#claimLogin(body.get("claim") ?? "", body.get("name")));
       case "POST /v1/name":
         return runCauseEffect(this.#rename(body.get("name") ?? ""));
       case "POST /v1/mobile-connect":
@@ -264,6 +267,28 @@ export class ServerMode {
     }
     const state = yield* this.#options.centralAuth
       .verifyEmailCode(challenge.trim(), code.trim())
+      .pipe(Effect.mapError(({ cause }) => new RemoteWorkflowError({ cause })));
+    // The entry point publishes the host when the account change is applied. `status` shows it.
+    if (state.status === "signed_in") return this.#status();
+    return issueFailure(state);
+  });
+
+  /** Signs in with a one-time claim that an operator made for the owner's email. */
+  readonly #claimLogin = Effect.fn("ServerMode.claimLogin")(function* (
+    this: ServerMode,
+    claim: string,
+    name: string | null,
+  ): Effect.fn.Return<Answer, RemoteWorkflowError> {
+    if (!claim.trim()) return failure(400, "invalid_request");
+    let serverName: string | null = null;
+    if (name !== null) {
+      serverName = parseHostedServerName(name);
+      if (!serverName) return nameFailure(name);
+    }
+    if (this.#options.centralAuth.getState().status === "signed_in") return failure(409, "signed_in");
+    if (serverName) this.#pendingName = serverName;
+    const state = yield* this.#options.centralAuth
+      .redeemServerClaim(claim.trim())
       .pipe(Effect.mapError(({ cause }) => new RemoteWorkflowError({ cause })));
     // The entry point publishes the host when the account change is applied. `status` shows it.
     if (state.status === "signed_in") return this.#status();

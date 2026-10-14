@@ -28,7 +28,9 @@ docker run -d --name openbot --restart unless-stopped \
 docker exec -it openbot openbot login
 ```
 
-`openbot login` asks for your email and the code that OpenBot sends to it. After the sign-in, the
+`openbot login` asks for your email and the code that OpenBot sends to it. An operator who sets up
+the container for somebody else can use `openbot login --claim <claim>` instead (see
+[server claims](self-hosted-server.md#sign-in-with-a-server-claim)). After the sign-in, the
 server shows in the server list of that account. Then connect a provider from the app, as on a
 [hosted server](hosted-servers.md#providers).
 

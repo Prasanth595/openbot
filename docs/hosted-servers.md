@@ -79,7 +79,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    `~/.config/openbot-hosted/env` (mode 0600). `openbot.service` waits for this file.
 4. **First boot.** OpenBot starts with `OPENBOT_HOSTED_SERVER=1`. It redeems the claim at
    `POST /v2/hosting/claims/redeem`, signs in as the owner, keeps the host ID, and publishes the
-   host. `registerHost` refuses the host ID for any other account.
+   host. `registerHost` refuses the host ID for any other account. This claim is not the operator's
+   [server claim](self-hosted-server.md#sign-in-with-a-server-claim) of a self-hosted server.
 5. **In use.** OpenBot checks each minute whether the server is in use: an agent works, a remote
    desktop view is open, a file moves, or a remote client is connected (an open Team API event
    stream) and sent a user action or a typing event in the last 5 minutes. A key press or pointer

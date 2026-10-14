@@ -12,6 +12,7 @@ import { RemoteWorkflowError, remoteCall } from "./remote-service-effects";
 import { ServerMode, takeServerModeEnvironment } from "./server-mode";
 
 const SESSION_TOKEN = "session-token-that-must-stay-in-main";
+const CLAIM = "claim-that-must-stay-in-main";
 const MOBILE_CONNECT_URL = "openbot://mobile-connect?api=https%3A%2F%2Fapi.example&ticket=t";
 
 let directory: string;
@@ -61,6 +62,18 @@ function fixture() {
         // The real manager keeps the token to itself; a leak would come from echoing what it holds.
         const held = { ...state, sessionToken: SESSION_TOKEN };
         return held;
+      }),
+    ),
+    redeemServerClaim: vi.fn((claim: string) =>
+      Effect.sync(() => {
+        state =
+          claim === CLAIM
+            ? { status: "signed_in", user: { id: "u1", email: "owner@example.com", name: null, avatarUrl: null } }
+            : {
+                status: "error",
+                issue: { code: "server_claim_invalid", message: "The server claim is invalid or used." },
+              };
+        return { ...state, sessionToken: SESSION_TOKEN };
       }),
     ),
     logout: vi.fn(() =>
@@ -196,6 +209,31 @@ describe("ServerMode control socket", () => {
     expect(host.configure).toHaveBeenCalledOnce();
     const status = await send("GET", "/v1/status");
     expect(status.text).toContain("server=online\nserver_name=Lab Server\n");
+  });
+
+  it("signs in with an operator's claim, never sends it or the session back, and publishes once", async () => {
+    const { mode, host, centralAuth } = fixture();
+    server = mode;
+    await runCauseEffect(server.listen());
+
+    expect(await send("POST", "/v1/login/claim", "claim=used&name=Lab%20Server")).toEqual({
+      status: 502,
+      text: "error=server_claim_invalid\nmessage=The server claim is invalid or used.\n",
+    });
+
+    const claimed = await send("POST", "/v1/login/claim", `claim=${CLAIM}&name=Lab%20Server`);
+    expect(claimed.status).toBe(200);
+    expect(claimed.text).not.toContain(SESSION_TOKEN);
+    expect(claimed.text).not.toContain(CLAIM);
+    expect(claimed.text).toContain("account=signed_in\n");
+    expect(await send("POST", "/v1/login/claim", `claim=${CLAIM}`)).toEqual({
+      status: 409,
+      text: "error=signed_in\n",
+    });
+    expect(centralAuth.redeemServerClaim).toHaveBeenCalledTimes(2);
+
+    await runCauseEffect(mode.publish());
+    expect(host.configure).toHaveBeenCalledExactlyOnceWith({ serverName: "Lab Server" });
   });
 
   it("shows why publishing failed, on one line", async () => {
