@@ -101,6 +101,7 @@ import {
   remainingTime,
   runTabAction,
   runTabEvaluation,
+  runTabFillFields,
 } from "./browser-tab-operations";
 import {
   type BrowserDynamicToolHooks,
@@ -1440,6 +1441,18 @@ export class BrowserHost {
       }),
     click: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     type: (call, params, hooks) => this.#runInputTool(call, params, hooks),
+    fill_fields: ({ args }, params) =>
+      Effect.gen({ self: this }, function* () {
+        yield* browserSync(() => this.#requireToolTab(params, args.tabId));
+        const tab = yield* this.#requireTab(args.tabId);
+        const result = yield* runTabFillFields(tab, args.revision, args.fields, args.timeoutMs ?? 10_000, () =>
+          this.#requireToolTab(params, args.tabId),
+        );
+        return {
+          ...textResult(result),
+          success: result.status === "completed",
+        };
+      }),
     press: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     hover: (call, params, hooks) => this.#runInputTool(call, params, hooks),
     scroll: (call, params, hooks) => this.#runInputTool(call, params, hooks),

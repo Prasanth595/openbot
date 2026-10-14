@@ -1,6 +1,12 @@
-import type { BrowserTarget } from "@openbot/contracts/ipc";
+import type { BrowserSnapshot, BrowserTarget } from "@openbot/contracts/ipc";
 import { Deferred, Effect, Fiber } from "effect";
 import { type BrowserOperationError, browserFailure, browserSync } from "./browser-effects";
+import {
+  BrowserFillFieldsFailure,
+  type BrowserFillFieldsProgress,
+  type BrowserFillFieldsReason,
+  fillFieldsFailure,
+} from "./browser-fill-fields";
 import type { BrowserHostTab, KeepQueueBlocked } from "./browser-host-tab";
 import { describeBrowserTarget } from "./browser-navigation";
 import { TimeoutError, withTimeout } from "./with-timeout";
@@ -309,6 +315,140 @@ export const runTabEvaluation = Effect.fn("BrowserTab.evaluate")(
           ),
         ),
       ),
+    ),
+);
+
+export interface BrowserFillFieldsResult {
+  tabId: string;
+  status: "completed" | "refused" | "partial" | "snapshot_failed";
+  inputCompleted: boolean;
+  confirmed: number[];
+  failedIndex: number | null;
+  uncertainIndex: number | null;
+  reason?: BrowserFillFieldsReason;
+  snapshot?: BrowserSnapshot;
+}
+
+/** One queue slot owns all input, one final capture, and any work that survives its deadline. */
+export const runTabFillFields = Effect.fn("BrowserTab.fillFields")(
+  (
+    tab: BrowserHostTab,
+    revision: number,
+    fields: readonly { ref: string; text: string }[],
+    timeoutMs: number,
+    requirePolicy: () => void,
+  ) =>
+    enqueueTabOperation(tab, (_tab, keepQueueBlocked) =>
+      Effect.gen(function* () {
+        const deadline = Date.now() + timeoutMs;
+        const progress: BrowserFillFieldsProgress = {
+          confirmed: [],
+          failedIndex: null,
+          uncertainIndex: null,
+          stopped: false,
+        };
+        const checkPolicy = () => {
+          try {
+            requirePolicy();
+          } catch {
+            throw fillFieldsFailure("policy_changed");
+          }
+        };
+        let inputCompleted = false;
+        const result = (reason?: BrowserFillFieldsReason, snapshot?: BrowserSnapshot): BrowserFillFieldsResult => ({
+          tabId: tab.id,
+          status: !reason
+            ? "completed"
+            : inputCompleted
+              ? "snapshot_failed"
+              : progress.confirmed.length || progress.uncertainIndex !== null
+                ? "partial"
+                : "refused",
+          inputCompleted,
+          confirmed: [...progress.confirmed],
+          failedIndex: progress.failedIndex,
+          uncertainIndex: progress.uncertainIndex,
+          ...(reason ? { reason } : {}),
+          ...(snapshot ? { snapshot } : {}),
+        });
+        return yield* Effect.gen(function* () {
+          yield* browserSync(checkPolicy);
+          const completion = yield* Effect.forkIn(
+            tab.engine.fillFields(revision, fields, deadline, progress, checkPolicy),
+            tab.scope,
+            { startImmediately: true },
+          );
+          // Always await native input cleanup, including an external debugger's unabortable
+          // command. A response deadline must not release this queue slot early.
+          keepQueueBlocked(Fiber.await(completion));
+          yield* withTimeout(
+            Fiber.join(completion),
+            yield* browserSync(() => remainingTime(deadline, "Browser fill_fields timed out.")),
+            "Browser fill_fields timed out.",
+          ).pipe(
+            Effect.onInterrupt(() =>
+              Effect.sync(() => {
+                progress.stopped = true;
+                if (tab.engine.cancelPendingCommands()) completion.interruptUnsafe();
+              }),
+            ),
+            Effect.catch((error) => {
+              progress.stopped = true;
+              if (error instanceof TimeoutError) {
+                if (tab.engine.cancelPendingCommands()) completion.interruptUnsafe();
+                return Effect.fail(browserFailure(error));
+              }
+              return Effect.fail(error);
+            }),
+          );
+          inputCompleted = true;
+          yield* browserSync(checkPolicy);
+          const settleTimeout = yield* browserSync(() => remainingTime(deadline, "Browser fill_fields timed out."));
+          yield* boundEngineOperation(
+            tab,
+            tab.engine.settle(settleTimeout),
+            settleTimeout,
+            "Browser fill_fields timed out.",
+            keepQueueBlocked,
+          );
+          yield* browserSync(checkPolicy);
+          const captured = yield* readTabSnapshot(
+            tab,
+            tab.revision + 1,
+            keepQueueBlocked,
+            yield* browserSync(() => remainingTime(deadline, "Browser fill_fields timed out.")),
+            "Browser fill_fields timed out.",
+          );
+          // A card or takeover that appeared during capture must never release that capture.
+          yield* browserSync(checkPolicy);
+          tab.diagnostics.action({ action: "fill_fields", outcome: "success" });
+          return result(undefined, captured.snapshot);
+        }).pipe(
+          Effect.onInterrupt(() =>
+            Effect.sync(() => {
+              progress.stopped = true;
+              tab.diagnostics.action({ action: "fill_fields", outcome: "error", detail: "interrupted" });
+            }),
+          ),
+          Effect.catch((error) =>
+            Effect.sync(() => {
+              progress.stopped = true;
+              const reason: BrowserFillFieldsReason =
+                tab.closing || tab.contents.isDestroyed()
+                  ? "tab_closed"
+                  : error.cause instanceof BrowserFillFieldsFailure
+                    ? error.cause.reason
+                    : isTimeoutError(error.cause)
+                      ? "deadline"
+                      : inputCompleted
+                        ? "snapshot_failed"
+                        : "input_failed";
+              tab.diagnostics.action({ action: "fill_fields", outcome: "error", detail: reason });
+              return result(reason);
+            }),
+          ),
+        );
+      }),
     ),
 );
 

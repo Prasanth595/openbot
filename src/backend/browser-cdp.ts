@@ -49,6 +49,13 @@ import {
   stringValue,
 } from "./browser-cdp-values";
 import { type BrowserOperationError, browserCall, browserFailure, browserSync } from "./browser-effects";
+import {
+  type BrowserFillFieldsProgress,
+  type BrowserPreparedField,
+  FILL_FIELD_STATE_FUNCTION,
+  fillFieldsFailure,
+  fillPreparedFields,
+} from "./browser-fill-fields";
 import { describeBrowserTarget, stopLoadingAndWait, waitForLoading } from "./browser-navigation";
 import { createFramePacer } from "./browser-screencast-pacing";
 
@@ -606,6 +613,135 @@ export class BrowserCdpEngine {
           yield* dispatchShortcut(send, "Enter", resolved.sessionId);
         }
       }),
+    );
+  });
+
+  /** One lease retains all exact field handles until the last native input and cleanup complete. */
+  readonly fillFields = Effect.fn("BrowserCdp.fillFields")(function* (
+    this: BrowserCdpEngine,
+    revision: number,
+    fields: readonly { ref: string; text: string }[],
+    deadline: number,
+    progress: BrowserFillFieldsProgress,
+    checkPolicy: () => void,
+  ): Effect.fn.Return<void, BrowserOperationError> {
+    if (!this.#lastSnapshot || this.#lastSnapshot.revision !== revision)
+      return yield* fillFieldsFailure("stale_snapshot");
+    const generation = this.#navigationGeneration;
+    const origin = yield* browserSync(() => new URL(this.#contents.getURL()).origin);
+    yield* this.#leaseEffect(
+      (send) =>
+        Effect.gen({ self: this }, function* () {
+          const document = yield* send("DOM.getDocument", { depth: 0 });
+          const documentNodeId = numberValue(recordValue(document.root)?.backendNodeId);
+          if (!documentNodeId) return yield* fillFieldsFailure("document_changed");
+          const contextId = yield* automationContextId(send);
+          const objects: string[] = [];
+          const prepared: BrowserPreparedField[] = [];
+          const checkDocument = () =>
+            Effect.gen({ self: this }, function* () {
+              if (progress.stopped || Date.now() >= deadline) return yield* fillFieldsFailure("deadline");
+              if (generation !== this.#navigationGeneration) return yield* fillFieldsFailure("document_changed");
+              yield* browserSync(checkPolicy);
+              const current = yield* send("DOM.getDocument", { depth: 0 });
+              if (numberValue(recordValue(current.root)?.backendNodeId) !== documentNodeId)
+                return yield* fillFieldsFailure("document_changed");
+            });
+          const state = (
+            objectId: string,
+            expected: string | null,
+            select = false,
+            text: string | null = null,
+            requireActive = false,
+          ) =>
+            Effect.gen(function* () {
+              const result = yield* send("Runtime.callFunctionOn", {
+                objectId,
+                functionDeclaration: FILL_FIELD_STATE_FUNCTION,
+                arguments: [expected, origin, select, text, requireActive].map((value) => ({ value })),
+                returnByValue: true,
+              });
+              const value = recordValue(result.result)?.value;
+              if (result.exceptionDetails || !isString(value)) return yield* fillFieldsFailure("target_changed");
+              return value;
+            });
+          yield* Effect.gen({ self: this }, function* () {
+            // No focus or input occurs until every field passes this preflight.
+            for (const [index, field] of fields.entries()) {
+              progress.failedIndex = index;
+              yield* checkDocument();
+              const record = this.#targets.get(field.ref);
+              if (!record || record.targetId) return yield* fillFieldsFailure("invalid_target");
+              const target: BrowserTarget = { kind: "ref", ref: field.ref, revision };
+              const resolved = yield* this.#resolveElementEffect(send, target, deadline);
+              const object = yield* send("DOM.resolveNode", {
+                backendNodeId: resolved.backendNodeId,
+                executionContextId: contextId,
+              });
+              const objectId = stringValue(recordValue(object.object)?.objectId);
+              if (!objectId) return yield* fillFieldsFailure("invalid_target");
+              objects.push(objectId);
+              const fingerprint = yield* state(objectId, null).pipe(
+                Effect.catch(() => Effect.fail(fillFieldsFailure("invalid_target"))),
+              );
+              const verify = () =>
+                Effect.gen({ self: this }, function* () {
+                  yield* checkDocument();
+                  const current = yield* this.#targetFingerprint(send, resolved.backendNodeId);
+                  if (
+                    !current.visible ||
+                    current.role !== record.element.role ||
+                    current.name !== record.element.name ||
+                    current.tag !== record.element.tag ||
+                    current.visibleText !== record.visibleText
+                  )
+                    return yield* fillFieldsFailure("target_changed");
+                  yield* state(objectId, fingerprint);
+                });
+              prepared.push({
+                verify,
+                replace: (onDispatch) =>
+                  Effect.gen({ self: this }, function* () {
+                    yield* send("DOM.focus", { backendNodeId: resolved.backendNodeId });
+                    // Focus handlers can replace a node or change its policy. Recheck the retained
+                    // object and its selection, rather than searching for a replacement target.
+                    yield* state(objectId, fingerprint, true);
+                    yield* verify();
+                    yield* state(objectId, fingerprint, false, null, true);
+                    if (generation !== this.#navigationGeneration) return yield* fillFieldsFailure("document_changed");
+                    if (progress.stopped || Date.now() >= deadline) return yield* fillFieldsFailure("deadline");
+                    yield* browserSync(checkPolicy);
+                    yield* Effect.gen({ self: this }, function* () {
+                      onDispatch();
+                      if (field.text.length === 0) yield* dispatchShortcut(send, "Backspace");
+                      else yield* send("Input.insertText", { text: field.text });
+                      // An already dispatched command must drain before its queue slot can end.
+                      // Acknowledgment alone does not prove which field kept the text.
+                      // Closing or takeover can start inside the input acknowledgment callback.
+                      // Do not send a new confirmation command to that withdrawn tab.
+                      yield* browserSync(checkPolicy);
+                      if (generation !== this.#navigationGeneration)
+                        return yield* fillFieldsFailure("document_changed");
+                      yield* state(objectId, fingerprint, false, field.text);
+                      if (generation !== this.#navigationGeneration)
+                        return yield* fillFieldsFailure("document_changed");
+                    }).pipe(Effect.uninterruptible);
+                  }),
+              });
+            }
+            progress.failedIndex = null;
+            yield* fillPreparedFields(prepared, progress, deadline, checkPolicy);
+          }).pipe(
+            Effect.ensuring(
+              Effect.suspend(() =>
+                Effect.forEach(objects, (objectId) => send("Runtime.releaseObject", { objectId }).pipe(Effect.ignore), {
+                  discard: true,
+                }),
+              ),
+            ),
+          );
+        }),
+      false,
     );
   });
 
