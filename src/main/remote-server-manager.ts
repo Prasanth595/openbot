@@ -172,8 +172,9 @@ const REMOTE_DUPLICATION_TIMEOUT_MS = TEAM_WEBRTC_REMOTE_REQUEST_TIMEOUT_MILLISE
 /** An export of up to 100 MB goes up and is read in one request, and apply creates many agents. */
 export const AGENT_IMPORT_UPLOAD_TIMEOUT_MS = TEAM_WEBRTC_REMOTE_REQUEST_TIMEOUT_MILLISECONDS;
 // How long a host that restarts into an update keeps the fast retry after Signal first misses it. A
-// host that is not back by then is offline, as any other host.
-const HOST_RESTART_RETRY_MS = 10 * 60_000;
+// host that is not back by then is offline, as any other host. A hosted server restarts its whole
+// machine and restores its disk; one took 18 minutes.
+const HOST_RESTART_RETRY_MS = 30 * 60_000;
 // How long a hosted server keeps the short retry after a wake request. It boots in about a minute; a
 // server that is not back by then is asked about again.
 const HOSTED_SERVER_START_MS = 5 * 60_000;
@@ -958,7 +959,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
           this.#events.resumeReconnect(serverId);
           this.#connections.setState(serverId, "connecting");
           this.#emitChanged();
-          yield* transport.connect(serverId);
+          yield* transport.retry(serverId);
           // The `connected` handler is what turns that "connecting" back into "online", and a host
           // that was already connected raises no such event -- the session it would announce is the
           // one still running. Retrying a host whose channel had never actually dropped therefore

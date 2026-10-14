@@ -354,6 +354,49 @@ it("renews Signal for a lost client path, and reports the peer when the path doe
   expect(rtc.close).toHaveBeenCalled();
 });
 
+// After a host restart, the new host process answers an ICE restart with a new connection. The
+// path read `connected` again, but the new host never authenticated the peer, so each request timed
+// out until the app restarted.
+it("reports the peer when an answer comes from a new host connection", async () => {
+  const { posted, command } = await startBridge();
+  await command({
+    type: "connect",
+    peerId: "host-1",
+    peer: "client",
+    signalUrl: "wss://signal.example.test",
+    token: "test",
+    iceTransportPolicy: "all",
+  });
+  const signal = SignalSocket.instances[0];
+  if (!signal) throw new Error("No Signal socket.");
+  signal.dispatchEvent(new Event("open"));
+  signal.message({ type: "ready", version: 1, connectionId: "connection-1", resumeToken: "resume", iceServers: [] });
+  await vi.waitFor(() => expect(PeerConnection.instances).toHaveLength(1));
+  const rtc = PeerConnection.instances[0];
+  if (!rtc) throw new Error("No RTC connection.");
+  const answer = (fingerprint: string) =>
+    signal.message({
+      type: "answer",
+      version: 1,
+      channel: "team",
+      connectionId: "connection-1",
+      sdp: `a=fingerprint:sha-256 ${fingerprint}`,
+    });
+
+  answer("host-a");
+  await vi.waitFor(() => expect(rtc.remoteDescription?.sdp).toBe("a=fingerprint:sha-256 host-a"));
+  answer("HOST-A");
+  await vi.waitFor(() => expect(rtc.remoteDescription?.sdp).toBe("a=fingerprint:sha-256 HOST-A"));
+  expect(posted("peer-disconnected")).toEqual([]);
+
+  answer("HOST-B");
+  await vi.waitFor(() =>
+    expect(posted("peer-disconnected")).toEqual([{ type: "peer-disconnected", peerId: "host-1" }]),
+  );
+  expect(rtc.close).toHaveBeenCalled();
+  expect(rtc.remoteDescription?.sdp).toBe("a=fingerprint:sha-256 HOST-A");
+});
+
 // Signal sends the `connectionId` of a refresh back in its `ready`. Sent with the connection's ID,
 // the answer read as a kept path whose deadline had passed, so the client asked again at once, until
 // Signal closed the socket for its message limit.

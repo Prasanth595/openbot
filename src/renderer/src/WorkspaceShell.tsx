@@ -94,6 +94,8 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
   // the host send English source text, so show the issue in the reader's language. The scope failure
   // is already translated.
   const connectionFailure = () => {
+    // A host that restarts into an update drops the connection on purpose. That error is not news.
+    if (activeServer()?.hostRestart?.state === "restarting") return null;
     const issue = activeServer()?.issue;
     if (issue) return { message: sourceText(issue.message), reference: issue.reference ?? null };
     return scope.connection.failed ? scope.connection.failure : null;
@@ -115,7 +117,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
           id: server.id,
           name: server.name,
           ready: scope.loaded(),
-          quiet: Boolean(server.hostedSleep || server.hostRestart || blockedRemoteServer()),
+          quiet: Boolean(server.hostedSleep || server.hostRestart?.state === "restarting" || blockedRemoteServer()),
         }
       : null;
   });
@@ -154,17 +156,20 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
               issue={activeServer()?.hostedIssue ?? null}
               detail={connectionFailure()?.message ?? null}
               reference={connectionFailure()?.reference ?? null}
+              updateVersion={activeServer()?.hostRestart?.version ?? null}
               phase={
                 activeServer()?.hostedSleep ??
-                (serversLoadFailed()
-                  ? "blocked"
-                  : scope.connection.failed
-                    ? "waiting"
-                    : activeServer()?.state === "online"
-                      ? "loading"
-                      : scope.connection.hasContent
-                        ? "reconnecting"
-                        : "connecting")
+                (activeServer()?.hostRestart?.state === "restarting"
+                  ? "updating"
+                  : serversLoadFailed()
+                    ? "blocked"
+                    : scope.connection.failed
+                      ? "waiting"
+                      : activeServer()?.state === "online"
+                        ? "loading"
+                        : scope.connection.hasContent
+                          ? "reconnecting"
+                          : "connecting")
               }
               remainingSeconds={
                 scope.connection.recovery.phase === "waiting" || scope.connection.recovery.phase === "cooldown"
