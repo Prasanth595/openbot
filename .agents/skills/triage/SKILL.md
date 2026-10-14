@@ -15,8 +15,9 @@ Ask only when you cannot continue without the user.
 
 ## Inputs
 
-- **Issue**: a number, a GitHub URL, or pasted text. With a number or URL,
-  the repository is the one in the URL, else the `origin` of this worktree.
+- **Issue**: a number, a GitHub URL, or pasted text. The issue must be in
+  the `origin` repository of this worktree. When a URL points to a
+  different repository, stop and tell the user.
 - **Mode**: debug and fix, unless the user asks for a diagnosis only.
 
 Issue labels do not change this workflow. Do not add or remove labels.
@@ -57,7 +58,7 @@ an issue, a `path:line`, or a command output.
 | Verdict | Evidence that proves it |
 | --- | --- |
 | `duplicate` | An open or closed issue or PR for the same root cause. Search with `gh issue list --state all --search` and `gh pr list --state all --search`. |
-| `already fixed` | A commit on `origin/main` that fixes it, from `git log origin/main --grep` or `git log -S`. Give the first release tag that holds it: `git tag --contains <sha>`. |
+| `already fixed` | A commit on `origin/main` that fixes it, from `git log origin/main --grep` or `git log -S`. Give the first release tag that holds it: `git tag --contains <sha> --list 'v*' --sort=v:refname \| head -n 1`. |
 | `works as intended` | The code, a test, or a doc that defines the current behavior as correct. |
 | `out of scope` | A product constraint or a non-negotiable rule in `AGENTS.md` that the requested change breaks. Example: chats or files that leave the user's computer, or a change to a released Team API meaning. |
 | `environment` | The cause is outside OpenBot: provider CLI version, OS setting, network, or a third-party service. |
