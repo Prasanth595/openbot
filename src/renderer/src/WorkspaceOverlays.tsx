@@ -1,5 +1,6 @@
 import type { CentralAuthUser, ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
+import { isAgentAccount } from "@openbot/ui/components/provider-accounts";
 import type { AcpRegistrySettingsApi } from "@openbot/ui/features/custom-providers/AcpRegistrySettings";
 import type { CustomAgentSettingsApi } from "@openbot/ui/features/custom-providers/CustomAgentSettings";
 import { providerDiagnosticsText } from "@openbot/ui/features/provider-diagnostics/provider-diagnostics";
@@ -261,6 +262,7 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
     cancelProviderSignIn,
     openProviderInstallGuide,
     setProviderOn,
+    providerAccounts,
     restartProvider,
     cancelProviderRestart,
     connection,
@@ -429,6 +431,27 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
               .map((agent) => agent.name),
           ]),
         );
+      },
+      get providerAccountUsers() {
+        return Object.fromEntries(
+          (agentStatus().providers ?? []).map((provider) => [
+            provider.id,
+            Object.fromEntries(
+              (provider.accounts ?? []).map((account) => [
+                account.id,
+                agentList()
+                  .filter(
+                    (agent) => agent.provider === provider.id && isAgentAccount(agent.providerAccountId, account.id),
+                  )
+                  .map((agent) => agent.name),
+              ]),
+            ),
+          ]),
+        );
+      },
+      // The active server's accounts: a joined host offers them only with `provider-accounts-v1`.
+      get accountActions() {
+        return providerAccounts();
       },
       onRestartProvider: local ? restartProvider : undefined,
       onCancelProviderRestart: local ? cancelProviderRestart : undefined,

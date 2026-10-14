@@ -28,6 +28,7 @@ import {
   isAvatarSeed,
   isBusyMessageMode,
   isMessageReaction,
+  isProviderAccountId,
   isReasoningEffort,
   isRoutineSchedule,
   type ListChannelRoutineRunsInput,
@@ -584,6 +585,11 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
   if (value.allowAutomation !== undefined) {
     if (!isBoolean(value.allowAutomation)) throw new Error("Invalid automation value.");
     result.allowAutomation = value.allowAutomation;
+  }
+  if (value.providerAccountId !== undefined) {
+    if (value.providerAccountId !== null && !isProviderAccountId(value.providerAccountId))
+      throw new Error("Invalid provider account.");
+    result.providerAccountId = value.providerAccountId;
   }
   if (value.busyMessageMode !== undefined) {
     if (value.busyMessageMode !== null && !isBusyMessageMode(value.busyMessageMode)) {

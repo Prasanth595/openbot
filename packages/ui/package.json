@@ -47,6 +47,7 @@
     "./avatar-image": "./src/avatar-image.ts",
     "./bloub-avatar": "./src/bloub-avatar.tsx",
     "./components/ProviderModelPicker": "./src/components/ProviderModelPicker.tsx",
+    "./components/provider-accounts": "./src/components/provider-accounts.ts",
     "./components/StandingApprovalConfirmation": "./src/components/StandingApprovalConfirmation.tsx",
     "./components/SwapLabel": "./src/components/SwapLabel.tsx",
     "./components/TypingDots": "./src/components/TypingDots.tsx",

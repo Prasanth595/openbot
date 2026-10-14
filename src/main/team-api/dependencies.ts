@@ -48,6 +48,7 @@ import type { InstanceTransferService } from "../instance-transfer-service";
 import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
+import type { ProviderAccountsHost } from "../provider-accounts-host";
 import type { ProviderHostSignIns } from "../provider-host-sign-ins";
 import type { PushNotificationService } from "../push-notifications";
 import type { RemoteScreenGateway } from "../remote-screen-gateway";
@@ -184,6 +185,12 @@ export type TeamApiSignInRelay = Pick<
  * passes it: there the Gemini CLI prints its sign-in page instead of opening a browser.
  */
 export type TeamApiProviderHostSignIns = Pick<ProviderHostSignIns, "start" | "status" | "cancel">;
+
+/** Its presence is what `#protocolSupport` advertises `provider-accounts-v1` on. The routes are admin-only. */
+export type TeamApiProviderAccounts = Pick<
+  ProviderAccountsHost,
+  "list" | "usage" | "startSignIn" | "signInStatus" | "cancelSignIn" | "rename" | "remove" | "setAgentAccount"
+>;
 
 /** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
 export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
@@ -323,6 +330,7 @@ export interface TeamApiOptions {
   signInRelay?: TeamApiSignInRelay;
   connectors?: TeamApiConnectors;
   providerHostSignIns?: TeamApiProviderHostSignIns;
+  providerAccounts?: TeamApiProviderAccounts;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;

@@ -24,6 +24,7 @@ import { INSTANCE_TRANSFER_CODECS } from "./instance-transfer-v1";
 import { LIVE_ACTIVITY_PUSH_CODECS } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_APP_CODECS } from "./mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_CODECS } from "./mcp-sign-in-v1";
+import { PROVIDER_ACCOUNTS_CODECS } from "./provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_CODECS } from "./provider-host-sign-in-v1";
 import { PROVIDERS_ADMIN_CODECS } from "./providers-v1";
 import { PROVIDERS_RUNTIMES_V2_CODECS } from "./providers-v2";
@@ -74,6 +75,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...CONNECTORS_CODECS,
   ...CONVERSATION_FILE_SEARCH_CODECS,
   ...ROUTINE_FLOWS_CODECS,
+  ...PROVIDER_ACCOUNTS_CODECS,
 ]);
 
 export function optionalRouteCodec(path: string): OptionalRouteCodec | undefined {

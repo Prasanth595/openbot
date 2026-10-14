@@ -67,11 +67,15 @@ import type {
   AccountUsage,
   AgentProviderId,
   AgentStatus,
+  ConnectProviderAccountInput,
+  HostProviderAccounts,
   PasteProviderRelaySignInInput,
   ProviderApiKeyState,
   ProviderCodeLoginStart,
   ProviderHostSignInStatus,
   ProviderRelaySignInStatus,
+  RemoveProviderAccountInput,
+  RenameProviderAccountInput,
   SetProviderApiKeyInput,
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
@@ -576,6 +580,14 @@ export const IPC_ENDPOINTS = {
     startProviderCodeLogin: request<AgentProviderId, ProviderCodeLoginStart>()("app:start-provider-code-login"),
     /** Abandons a code sign-in: the provider is told, the code is dead, and the provider goes idle. */
     cancelProviderCodeLogin: request<AgentProviderId, AgentStatus>()("app:cancel-provider-code-login"),
+    /**
+     * Signs one more account of a provider in through the browser, or signs a signed-out one in
+     * again. It answers when the sign-in starts; the account's status tells how it ends. Removing a
+     * `connecting` account cancels its sign-in.
+     */
+    connectProviderAccount: request<ConnectProviderAccountInput, AgentStatus>()("app:connect-provider-account"),
+    renameProviderAccount: request<RenameProviderAccountInput, AgentStatus>()("app:rename-provider-account"),
+    removeProviderAccount: request<RemoveProviderAccountInput, AgentStatus>()("app:remove-provider-account"),
   },
   providerRuntimes: {
     getStatus: request<undefined, ProviderRuntimeSnapshot>()("provider-runtimes:get-status"),
@@ -713,6 +725,20 @@ export const IPC_ENDPOINTS = {
       "provider-admin:host-sign-in-status",
     ),
     cancelHostSignIn: scopedRequest<AgentProviderId, AgentStatus, "required">()("provider-admin:cancel-host-sign-in"),
+    // The accounts of a joined server's host's providers (`provider-accounts-v1`). The host's status,
+    // agent list and usage do not carry them, so the renderer adds them to its copy. An account signs
+    // in on the host's page, as `startHostSignIn` does; the account's state tells how it ended.
+    accounts: scopedQuery<HostProviderAccounts, "required">()("provider-admin:accounts"),
+    accountUsage: scopedQuery<AccountUsage, "required">()("provider-admin:account-usage"),
+    startAccountSignIn: scopedRequest<ConnectProviderAccountInput, void, "required">()(
+      "provider-admin:start-account-sign-in",
+    ),
+    accountSignInStatus: scopedRequest<AgentProviderId, ProviderHostSignInStatus, "required">()(
+      "provider-admin:account-sign-in-status",
+    ),
+    cancelAccountSignIn: scopedRequest<AgentProviderId, void, "required">()("provider-admin:cancel-account-sign-in"),
+    renameAccount: scopedRequest<RenameProviderAccountInput, void, "required">()("provider-admin:rename-account"),
+    removeAccount: scopedRequest<RemoveProviderAccountInput, void, "required">()("provider-admin:remove-account"),
     // A sign-in that a joined server's host starts and that opens in this computer's browser
     // (`sign-in-relay-v1`). This computer takes the callback and sends its query to the host.
     // `openRelaySignIn` opens the page when the user asks, and `pasteRelaySignIn` takes the address

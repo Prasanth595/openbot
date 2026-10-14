@@ -80,6 +80,7 @@ import {
 } from "electron";
 import { pasteCodeLoginSupported } from "../backend/agent/cli-code-login";
 import { toMcpGatewayFailed } from "../backend/agent/mcp-gateway";
+import { ProviderAccountStore } from "../backend/agent/provider-account-store";
 import { AgentLifecycleFailed, AgentService } from "../backend/agent-service";
 import { AgentStore } from "../backend/agent-store";
 import { BrowserHost } from "../backend/browser-host";
@@ -183,6 +184,7 @@ import { MessagingCredentialStore } from "./messaging-credential-store";
 import { NotificationPreferenceStore } from "./notification-preference-store";
 import { OnePasswordConnectorService } from "./onepassword-connector-service";
 import { OnePasswordConnectorStore } from "./onepassword-connector-store";
+import { ProviderAccountsHost } from "./provider-accounts-host";
 import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
@@ -315,6 +317,7 @@ const TEARDOWN_ORDER = {
   computerUsePermissionHelp: 19,
   dynamicIsland: 20,
   // Before the browser, so no sign-in opens a tab while it stops.
+  providerAccountsHost: 27,
   providerHostSignIns: 28,
   mcpHostSignIns: 29,
   browser: 30,
@@ -956,6 +959,11 @@ export async function createApplicationServices({
    */
   const providerUse = new ProviderUseSettingsStore(join(app.getPath("userData"), "openbot-provider-use-v1.json"));
   await runCauseEffect(providerUse.load());
+  const providerAccounts = new ProviderAccountStore(
+    join(app.getPath("userData"), "openbot-provider-accounts-v1.json"),
+    join(app.getPath("userData"), "provider-accounts"),
+  );
+  await runCauseEffect(providerAccounts.load());
   const providerRuntimes = new ProviderRuntimeManager({
     isProviderOn: (provider) => !providerUse.off().includes(provider),
     root: providerRuntimeRoot({
@@ -1283,6 +1291,7 @@ export async function createApplicationServices({
     retireChannels: true,
     requestTimeoutMs: 30_000,
     offProviders: providerUse.off(),
+    providerAccounts,
     saveProviderUse: (provider, on) =>
       providerUse
         .set(provider, on)
@@ -1694,6 +1703,7 @@ export async function createApplicationServices({
   });
   const mcpHostSignIns = new McpHostSignIns({ service, browser });
   const providerSignIns = new ProviderHostSignIns({ service, browser });
+  const providerAccountsHost = new ProviderAccountsHost({ service, browser });
   // The flows end with the sign-ins they relay, which `mcpHostSignIns` and `providerSignIns` close.
   const signInRelayHost = new SignInRelayHost({
     mcp: mcpHostSignIns,
@@ -1709,6 +1719,9 @@ export async function createApplicationServices({
   });
   teardown.push(TEARDOWN_ORDER.mcpHostSignIns, "MCP sign-ins of joined servers", () =>
     Effect.runPromise(mcpHostSignIns.close()),
+  );
+  teardown.push(TEARDOWN_ORDER.providerAccountsHost, "Provider account sign-ins of joined servers", () =>
+    Effect.runPromise(providerAccountsHost.close()),
   );
   teardown.push(TEARDOWN_ORDER.providerHostSignIns, "Provider sign-ins of joined servers", () =>
     Effect.runPromise(providerSignIns.close()),
@@ -1743,6 +1756,8 @@ export async function createApplicationServices({
     connectors: { github: githubConnector, messaging },
     // Present on Linux, so the host advertises `provider-host-sign-in-v1`. The routes are admin-only.
     providerHostSignIns,
+    // Present, so the host advertises `provider-accounts-v1`. The routes are admin-only.
+    providerAccounts: providerAccountsHost,
     // Present, so the host advertises `storage-v1`. Members read; only admins delete or clear.
     storage: storageUsage,
     // Present, so the host advertises `hosted-sites-v1`. Members list; only admins delete.
