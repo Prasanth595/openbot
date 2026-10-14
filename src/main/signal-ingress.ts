@@ -40,6 +40,8 @@ const BACKOFF_START_MS = 2_000;
 const BACKOFF_LIMIT_MS = 5 * 60_000;
 const PING_INTERVAL_MS = 30_000;
 const PONG_TIMEOUT_MS = 10_000;
+/** How long a new socket waits for the upgrade and then for Signal's `ready`. */
+const READY_TIMEOUT_MS = 15_000;
 /** How long a Discord call waits for the session of a socket that is still connecting. */
 const DISCORD_SESSION_WAIT_MS = 15_000;
 /** Signal gives a Discord call about 10 seconds, and an upload carries up to 10 MB. */
@@ -150,6 +152,7 @@ export class SignalIngress implements MessagingIngress {
   #socket: WebSocket | null = null;
   #retry: ReturnType<typeof setTimeout> | null = null;
   #ping: ReturnType<typeof setInterval> | null = null;
+  #readyDeadline: ReturnType<typeof setTimeout> | null = null;
   #backoffMs = BACKOFF_START_MS;
   #generation = 0;
   #apiUrl: string | null = null;
@@ -425,6 +428,12 @@ export class SignalIngress implements MessagingIngress {
     if (telegram && telegramRoute !== null) this.#telegramBackoffMs = BACKOFF_START_MS;
     const socket = new WebSocket(bootstrap.signalUrl);
     this.#socket = socket;
+    // A socket that stalls before `ready` closes, so that the retry opens a new one.
+    this.#clearReadyDeadline();
+    this.#readyDeadline = setTimeout(() => {
+      this.#readyDeadline = null;
+      if (socket === this.#socket) socket.terminate();
+    }, READY_TIMEOUT_MS);
     this.#apiUrl = discordApiUrl(bootstrap.signalUrl);
     this.#signalOrigin = signalHttpOrigin(bootstrap.signalUrl);
     socket.on("open", () => {
@@ -446,6 +455,7 @@ export class SignalIngress implements MessagingIngress {
       this.#discordSession = null;
       this.#endTelegram();
       this.#stopPing();
+      this.#clearReadyDeadline();
       this.#webhookReady = false;
       if (this.#held() > 0 || this.#webhookHolders > 0) this.#wait("unavailable");
     });
@@ -503,6 +513,7 @@ export class SignalIngress implements MessagingIngress {
     queued: boolean,
   ) {
     if (message.type === "ready") {
+      this.#clearReadyDeadline();
       this.#capabilities = new Set(message.capabilities ?? []);
       this.#backoffMs = BACKOFF_START_MS;
       this.#startPing(socket);
@@ -705,6 +716,7 @@ export class SignalIngress implements MessagingIngress {
     this.#generation += 1;
     this.#clearRetry();
     this.#stopPing();
+    this.#clearReadyDeadline();
     this.#endTelegram();
     const socket = this.#socket;
     this.#socket = null;
@@ -726,6 +738,11 @@ export class SignalIngress implements MessagingIngress {
   #clearRetry(): void {
     if (this.#retry) clearTimeout(this.#retry);
     this.#retry = null;
+  }
+
+  #clearReadyDeadline(): void {
+    if (this.#readyDeadline) clearTimeout(this.#readyDeadline);
+    this.#readyDeadline = null;
   }
 
   #startPing(socket: WebSocket): void {
