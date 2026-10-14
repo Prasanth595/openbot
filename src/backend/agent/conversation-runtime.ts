@@ -306,19 +306,30 @@ export class ConversationRuntime {
   }
 
   #evictCachedSnapshots(): void {
+    // Nothing else changes a cache while this runs, and a trim keeps its cache committed, so each
+    // full signature is computed at most once per call, not once per removal.
+    const committed = new Map<CachedSnapshot, boolean>();
+    const isCommitted = (cached: CachedSnapshot): boolean => {
+      let result = committed.get(cached);
+      if (result === undefined) {
+        result = this.#cacheIsCommitted(cached);
+        committed.set(cached, result);
+      }
+      return result;
+    };
     while (this.#cachedSnapshotBytes > CONVERSATION_CACHE_TOTAL_BYTES_LIMIT) {
       let oldest:
         | { kind: "agent"; id: string; usedAt: number }
         | { kind: "execution"; id: string; usedAt: number }
         | undefined;
       for (const [id, cached] of this.#cachedSnapshots) {
-        if (!this.#cacheIsCommitted(cached)) continue;
+        if (!isCommitted(cached)) continue;
         if (cached.snapshot.messages.every((message) => isActiveMessage(message, cached.snapshot.activeTurnId)))
           continue;
         if (!oldest || cached.usedAt < oldest.usedAt) oldest = { kind: "agent", id, usedAt: cached.usedAt };
       }
       for (const [id, cached] of this.#cachedExecutionSnapshots) {
-        if (!this.#cacheIsCommitted(cached)) continue;
+        if (!isCommitted(cached)) continue;
         if (cached.snapshot.messages.every((message) => isActiveMessage(message, cached.snapshot.activeTurnId)))
           continue;
         if (!oldest || cached.usedAt < oldest.usedAt) oldest = { kind: "execution", id, usedAt: cached.usedAt };
@@ -362,15 +373,27 @@ export class ConversationRuntime {
     return cached.signature === conversationContentSignature(cached.snapshot);
   }
 
+  /**
+   * Removes the oldest completed messages, all in one pass, until the process budget holds or none
+   * remain. The trimmed chat stays the oldest, so removing them one by one would pick it each time.
+   */
   #trimCompletedCache(cached: CachedSnapshot): boolean {
     const activeTurnId = cached.snapshot.activeTurnId;
-    const index = cached.snapshot.messages.findIndex((message) => !isActiveMessage(message, activeTurnId));
-    if (index < 0) return false;
-    const [removed] = cached.snapshot.messages.splice(index, 1);
-    if (!removed) return false;
+    const completed = cached.snapshot.messages.filter((message) => !isActiveMessage(message, activeTurnId));
+    const { count } = oldestMessagesToRemove(
+      completed,
+      this.#cachedSnapshotBytes - CONVERSATION_CACHE_TOTAL_BYTES_LIMIT,
+    );
+    if (count === 0) return false;
+    const removed = new Set(completed.slice(0, count));
+    // In place: a caller can hold this array.
+    const messages = cached.snapshot.messages;
+    messages.splice(0, messages.length, ...messages.filter((message) => !removed.has(message)));
     const previousBytes = cached.bytes;
-    cached.omittedMessageIds.add(removed.id);
-    cached.messageSignatures.delete(removed.id);
+    for (const message of removed) {
+      cached.omittedMessageIds.add(message.id);
+      cached.messageSignatures.delete(message.id);
+    }
     cached.bytes = completedCacheBytes(cached.snapshot);
     cached.signature = conversationContentSignature(cached.snapshot);
     cached.activeTurnId = cached.snapshot.activeTurnId;
@@ -750,9 +773,10 @@ function boundedConversationSnapshot(snapshot: ConversationSnapshot): CachedSnap
   const completedMessages = allCompletedMessages.slice(-CONVERSATION_CACHE_MESSAGE_LIMIT);
   const completedSnapshot = { ...snapshot, messages: completedMessages };
   let completedBytes = conversationSnapshotBytes(completedSnapshot);
-  while (completedMessages.length > 0 && completedBytes > CONVERSATION_CACHE_BYTES_LIMIT) {
-    completedMessages.shift();
-    completedBytes = conversationSnapshotBytes({ ...snapshot, messages: completedMessages });
+  if (completedBytes > CONVERSATION_CACHE_BYTES_LIMIT) {
+    const removed = oldestMessagesToRemove(completedMessages, completedBytes - CONVERSATION_CACHE_BYTES_LIMIT);
+    completedMessages.splice(0, removed.count);
+    completedBytes -= removed.bytes;
   }
   const retainedAllMessages =
     completedMessages.length === allCompletedMessages.length &&
@@ -818,6 +842,26 @@ function copySnapshotContents(target: ConversationSnapshot, source: Conversation
 
 function conversationSnapshotBytes(snapshot: ConversationSnapshot): number {
   return Buffer.byteLength(JSON.stringify(snapshot), "utf8");
+}
+
+/**
+ * The fewest oldest messages whose removal makes the serialized array at least `excessBytes`
+ * shorter, and that byte count. An array serializes as its elements joined by commas, so removing
+ * an element removes its own bytes and one comma while another element remains. Only the removed
+ * messages are serialized.
+ */
+function oldestMessagesToRemove(
+  messages: readonly ConversationMessage[],
+  excessBytes: number,
+): { count: number; bytes: number } {
+  let count = 0;
+  let bytes = 0;
+  for (const message of messages) {
+    if (bytes >= excessBytes) break;
+    bytes += Buffer.byteLength(JSON.stringify(message), "utf8") + (count < messages.length - 1 ? 1 : 0);
+    count += 1;
+  }
+  return { count, bytes };
 }
 
 function messageSignature(message: ConversationMessage): string {
