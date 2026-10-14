@@ -90,7 +90,7 @@ import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors"
 import { RemoteEventRefresh } from "./remote-server-event-refresh";
 import { RemoteEventStream } from "./remote-server-event-stream";
 import { reconcileWebRtcHosts } from "./remote-server-host-directory";
-import { requestJson } from "./remote-server-http";
+import { requestJson, throwRemoteResponseError } from "./remote-server-http";
 import { RemotePresenceCache } from "./remote-server-presence";
 import { RemoteServerStore, type TokenCipher } from "./remote-server-store";
 import type { StoredRemoteServer } from "./remote-server-stored-shape";
@@ -1612,6 +1612,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
         true,
         AGENT_IMPORT_UPLOAD_TIMEOUT_MS,
       );
+      yield* this.#rejectHostError(response, url);
       const value = yield* remoteCall(() => response.json());
       return yield* remoteDecode(() => decodeRemoteInstanceTransferPreview(value));
     },
@@ -1634,10 +1635,23 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
         true,
         AGENT_IMPORT_UPLOAD_TIMEOUT_MS,
       );
+      yield* this.#rejectHostError(response, url);
       return new Uint8Array(yield* remoteCall(() => response.arrayBuffer()));
     },
     (operation) => this.#owned(operation),
   ).bind(this);
+
+  /**
+   * The WebRTC path of `fetch` answers a host error as a response, not a failure. A transfer must not
+   * read that error as a file or a preview.
+   */
+  #rejectHostError(response: Response, url: URL) {
+    return response.ok
+      ? Effect.void
+      : throwRemoteResponseError(response, "POST", url.pathname).pipe(
+          Effect.mapError((cause) => new RemoteWorkflowError({ cause })),
+        );
+  }
 
   readonly setAgentAvatar = Effect.fn("RemoteManager.setAgentAvatar")(
     function* (
