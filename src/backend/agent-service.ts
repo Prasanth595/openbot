@@ -560,7 +560,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           this.#attention.clearApprovals(client);
           this.#browser.clearControls();
           Effect.runFork(
-            this.#turn.abandonTurnsOf(client).pipe(Effect.forkIn(this.#scope, { startImmediately: true })),
+            this.#turn
+              .interruptTurnsOf(client, { keepRecoverable: true })
+              .pipe(Effect.forkIn(this.#scope, { startImmediately: true })),
           );
         },
         onClientStopped: (client) =>
@@ -576,7 +578,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             this.#attention.clearBrowserTakeovers(client);
             this.#attention.clearApprovals(client);
             this.#boot.orphanDeliveriesOfAgent(agentId);
-            yield* this.#turn.abandonTurnsOf(client);
+            yield* this.#turn.interruptTurnsOf(client, { keepRecoverable: true });
             // A teammate that asked this agent may hold the other answers until this work ends.
             const requesters = this.#mailbox
               .unresolvedDeliveries()

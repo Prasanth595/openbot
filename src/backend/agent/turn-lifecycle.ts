@@ -271,14 +271,27 @@ export class TurnLifecycle {
    * sign-out that an account refresh found, or a new client for the same provider. The stopped
    * process sends no `turn/completed` and `#handleExit` skips it, so without this its turns stay
    * active, and its deliveries running, until OpenBot restarts.
+   *
+   * `keepRecoverable` is for a client whose process exited. A turn with a message that is not settled
+   * then stays for the delivery recovery, which reads the provider's history for its result and ends
+   * the turn. A turn with no such message, such as one the CLI started by itself, has no other way
+   * to end.
    */
   readonly interruptTurnsOf = Effect.fn("TurnLifecycle.interruptTurnsOf")(function* (
     this: TurnLifecycle,
     client: AgentClient,
+    options: { keepRecoverable?: boolean } = {},
   ) {
     for (const [turnId, turn] of this.#runningTurns) {
       if (turn.client !== client) continue;
       this.#runningTurns.delete(turnId);
+      if (
+        options.keepRecoverable &&
+        this.#mailbox
+          .findDeliveriesByTurn(turn.agentId, turnId)
+          .some(({ delivery }) => delivery.status === "starting" || delivery.status === "running")
+      )
+        continue;
       this.#attention.clearForTurn(turn.threadId, turnId);
       if (this.#observedCompactions.get(turn.threadId) === turnId) this.#observedCompactions.delete(turn.threadId);
       this.#compaction.abandonCompaction(turn.threadId);
@@ -293,34 +306,6 @@ export class TurnLifecycle {
   hasEnded(turnId: string): boolean {
     return this.#endedTurns.has(turnId);
   }
-
-  /**
-   * Ends the turns of a client whose process exited. A turn with a message that is not settled stays
-   * for the delivery recovery, which reads the provider's history for its result and ends the turn.
-   * A turn with no such message, such as one the CLI started by itself, has no other way to end, and
-   * would hold the agent's queue until OpenBot restarts.
-   */
-  readonly abandonTurnsOf = Effect.fn("TurnLifecycle.abandonTurnsOf")(function* (
-    this: TurnLifecycle,
-    client: AgentClient,
-  ) {
-    for (const [turnId, turn] of this.#runningTurns) {
-      if (turn.client !== client) continue;
-      this.#runningTurns.delete(turnId);
-      const recoverable = this.#mailbox
-        .findDeliveriesByTurn(turn.agentId, turnId)
-        .some(({ delivery }) => delivery.status === "starting" || delivery.status === "running");
-      if (recoverable) continue;
-      this.#attention.clearForTurn(turn.threadId, turnId);
-      if (this.#observedCompactions.get(turn.threadId) === turnId) this.#observedCompactions.delete(turn.threadId);
-      this.#compaction.abandonCompaction(turn.threadId);
-      yield* this.#completeTurn(turn.agentId, turn.threadId, turnId, "interrupted").pipe(
-        Effect.catch((failure) =>
-          Effect.sync(() => this.#hooks.emitError("turn_completion_failed", failure.cause, turn.agentId)),
-        ),
-      );
-    }
-  }).bind(this);
 
   readonly handleNotification = Effect.fn("TurnLifecycle.handleNotification")(function* (
     this: TurnLifecycle,

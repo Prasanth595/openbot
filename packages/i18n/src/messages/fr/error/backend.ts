@@ -81,6 +81,7 @@ export const messages = {
   "error.backend.memoryOperationFailed": "L’opération sur le souvenir a échoué. Réessayez.",
   "error.backend.memoryGone": "Ce souvenir n’existe plus.",
   "error.backend.routineGone": "Cette routine n’existe plus.",
+  "error.backend.turnNotStarted": "Le fournisseur n’a pas démarré ce tour.",
   "error.backend.routineResultConnectionOff":
     "Cette connexion de messagerie est désactivée ou supprimée. Choisissez un autre emplacement.",
   "error.backend.routineResultNoDelivery": "Cette exécution n’a aucune réponse à renvoyer.",

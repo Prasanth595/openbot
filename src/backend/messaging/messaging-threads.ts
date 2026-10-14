@@ -518,10 +518,13 @@ export class MessagingThreads {
         if (!link) return false;
         const started = this.#turnOrigins.get(event.turnId) ?? { origin: null, followUp: false };
         this.#turnOrigins.delete(event.turnId);
-        this.#finishedTurns.add(event.turnId);
-        if (this.#finishedTurns.size > FINISHED_TURN_LIMIT) {
-          const [oldest] = this.#finishedTurns;
-          if (oldest !== undefined) this.#finishedTurns.delete(oldest);
+        // A turn with no known requester tells no conversation, so `deliverySettled` still must.
+        if (started.origin) {
+          this.#finishedTurns.add(event.turnId);
+          if (this.#finishedTurns.size > FINISHED_TURN_LIMIT) {
+            const [oldest] = this.#finishedTurns;
+            if (oldest !== undefined) this.#finishedTurns.delete(oldest);
+          }
         }
         this.store.touch(link.linkId);
         Effect.runFork(

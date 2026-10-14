@@ -79,6 +79,7 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Операция с памятью не удалась. Повторите попытку.",
   "error.backend.memoryGone": "Этой записи памяти больше нет.",
   "error.backend.routineGone": "Этой регулярной задачи больше нет.",
+  "error.backend.turnNotStarted": "Провайдер не начал этот ход.",
   "error.backend.routineResultConnectionOff":
     "Это подключение к мессенджеру выключено или удалено. Выберите другое место.",
   "error.backend.routineResultNoDelivery": "У этого запуска нет ответа для повторной отправки.",

@@ -164,6 +164,8 @@ const IDENTIFY_RETRY_MS = 30_000;
 const SETTLE_RETRY_MS = 60_000;
 /** How many times the last post of a request is sent before OpenBot gives up on it. */
 const FINAL_POST_ATTEMPTS = 5;
+/** How long a new message waits for the name of its author and its place. */
+const RECEIVE_NAME_DEADLINE_MS = 5_000;
 /** The marker `mention` uses. Text that did not come from the host has it taken out. */
 const MENTION_MARKERS = /[\uE000-\uE001]/g;
 
@@ -242,8 +244,9 @@ export class MessagingService {
     if (this.#started) return;
     this.#started = true;
     this.#scope = Scope.makeUnsafe();
-    // Before the connections start: each one settles the posts it finds when it is connected.
-    yield* this.#status.load();
+    // Before the connections start, which settle the posts they find when they are connected. It does
+    // not wait: an activity that comes before the listener below is there would be lost.
+    this.#status.load(new Set(this.#threads.store.connections().map((record) => record.connectionId)));
     this.#unsubscribe.push(
       this.#threads.onActivity((activity) => {
         this.#dispatch(this.#serial(activity.link.linkId, this.#activity(activity)));
@@ -1034,13 +1037,26 @@ export class MessagingService {
       }
     }
     const { adapter } = live;
+    // A slow lookup must not hold the message: past the deadline, the id stands for the name.
     const [authorName, mentioned, place] = yield* Effect.all(
       [
-        adapter.authorName(message.authorId).pipe(toMessagingOperationFailed),
+        adapter.authorName(message.authorId).pipe(
+          toMessagingOperationFailed,
+          Effect.timeoutOrElse({
+            duration: RECEIVE_NAME_DEADLINE_MS,
+            orElse: () => Effect.succeed(message.authorId),
+          }),
+        ),
         mentionNames(message.mentionedUserIds, (userId) => adapter.authorName(userId)),
         message.isDirect
           ? Effect.succeed(null)
-          : adapter.placeName(message.platformChannelId).pipe(toMessagingOperationFailed),
+          : adapter.placeName(message.platformChannelId).pipe(
+              toMessagingOperationFailed,
+              Effect.timeoutOrElse({
+                duration: RECEIVE_NAME_DEADLINE_MS,
+                orElse: () => Effect.succeed(message.platformChannelId),
+              }),
+            ),
       ],
       { concurrency: "unbounded" },
     );
@@ -1109,6 +1125,7 @@ export class MessagingService {
                   messageId,
                   stopToken: null,
                 });
+                this.#status.restored.delete(key);
                 yield* this.#status.save();
               }),
             );
@@ -1263,6 +1280,7 @@ export class MessagingService {
       // Before the call: when the post fails, or its answer is lost, the end still finds the Stop
       // button to remove.
       this.#posts.set(key, { connectionId: live.record.connectionId, target, messageId: existingMessageId, stopToken });
+      this.#status.restored.delete(key);
       const messageId = existingMessageId
         ? yield* live.adapter
             .edit(target, existingMessageId, body)
@@ -1283,8 +1301,11 @@ export class MessagingService {
       final,
     };
     this.#posts.set(key, ended);
+    this.#status.restored.delete(key);
+    // Saved before the send: a restart before a failed post is sent again still has the answer.
+    yield* this.#status.save();
     // A paused or reconnecting conversation gets the post when it is connected again.
-    if (!live) return yield* this.#status.save();
+    if (!live) return;
     yield* this.#deliverFinal(live, key, ended);
     if (activity.type === "finished" && activity.status === "completed" && activity.files.length) {
       const { adapter } = live;
@@ -1309,8 +1330,11 @@ export class MessagingService {
     post: StatusPost,
   ) {
     const final = post.final;
-    if (!final) return;
+    // A settle and a wait can each queue the same post. The first one that sends it forgets it.
+    if (!final || this.#posts.get(key) !== post) return;
     const { adapter } = live;
+    // The last attempt posts anew: an edit that keeps failing can mean that someone deleted the post.
+    const placeholder = (this.#finalFailures.get(key) ?? 0) + 1 >= FINAL_POST_ATTEMPTS ? null : post.messageId;
     yield* Effect.gen({ self: this }, function* () {
       if (final.reaction) {
         // `linkId` has no colon, so the rest of the key is the person's message.
@@ -1321,8 +1345,8 @@ export class MessagingService {
           .pipe(Effect.catch(() => Effect.void));
       }
       if (final.answer)
-        yield* adapter.postAnswer(post.target, final.text, post.messageId).pipe(toMessagingOperationFailed);
-      else yield* this.#say(adapter, post.target, post.messageId, final.text);
+        yield* adapter.postAnswer(post.target, final.text, placeholder).pipe(toMessagingOperationFailed);
+      else yield* this.#say(adapter, post.target, placeholder, final.text);
     }).pipe(
       Effect.tapError(() =>
         Effect.gen({ self: this }, function* () {
@@ -1364,7 +1388,11 @@ export class MessagingService {
       const linkId = key.slice(0, key.indexOf(":"));
       let post = stored;
       if (!post.final) {
+        // Only a post from before the restart: the end of a request in this run comes as an activity,
+        // which can still be on its way.
+        if (!this.#status.restored.has(key)) continue;
         if (this.#threads.isPending(linkId, key.slice(linkId.length + 1))) continue;
+        this.#status.restored.delete(key);
         post = { ...post, final: { answer: false, text: sourceText("status.messaging.stopped"), reaction: "stopped" } };
         this.#posts.set(key, post);
       }
@@ -1397,12 +1425,7 @@ export class MessagingService {
     placeholder: string | null,
     text: string,
   ) {
-    // An edit that fails, as of a post that someone deleted, gives a new post, as `postAnswer` does.
-    if (placeholder)
-      yield* adapter.edit(target, placeholder, { text }).pipe(
-        Effect.catch(() => adapter.post(target, { text }).pipe(Effect.asVoid)),
-        toMessagingOperationFailed,
-      );
+    if (placeholder) yield* adapter.edit(target, placeholder, { text }).pipe(toMessagingOperationFailed);
     else yield* adapter.post(target, { text }).pipe(toMessagingOperationFailed);
   });
 

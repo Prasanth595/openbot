@@ -700,7 +700,7 @@ export class DrainScheduler {
         const current = this.#mailbox.getDelivery(id)?.delivery;
         if (current?.status !== "starting" || current.turnId) continue;
         yield* this.#mailbox
-          .markTerminal(id, "interrupted", "The provider did not start this turn.")
+          .markTerminal(id, "interrupted", sourceText("error.backend.turnNotStarted"))
           .pipe(toDeliveryStartFailed);
         if (this.#channels?.store.assignmentForDelivery(id))
           yield* this.#channels.deliveryFailed(id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);

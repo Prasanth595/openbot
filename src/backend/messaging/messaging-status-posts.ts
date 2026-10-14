@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { createOpenBotLogger } from "@openbot/logging";
 import { Effect, Schema, Semaphore } from "effect";
 import { writeJsonFileAtomically } from "../atomic-json-file";
@@ -47,6 +47,11 @@ const decodeStatusPostsFile = Schema.decodeUnknownSync(StatusPostsFile);
 export class MessagingStatusPosts {
   readonly posts = new Map<string, StatusPost>();
   readonly stops = new Map<string, StopButton>();
+  /**
+   * The posts that came from the file and that this run has not changed. Only for these is a request
+   * that is not pending a request that ended while OpenBot was closed.
+   */
+  readonly restored = new Set<string>();
   readonly #path: string | null;
   readonly #writes = Semaphore.makeUnsafe(1);
 
@@ -54,22 +59,29 @@ export class MessagingStatusPosts {
     this.#path = path;
   }
 
-  /** A missing or unreadable file starts empty: the posts it named stay as they are on the platform. */
-  readonly load = Effect.fn("MessagingStatusPosts.load")(function* (this: MessagingStatusPosts) {
+  /**
+   * Reads the file at once, with no wait. A missing or unreadable file starts empty: the posts it
+   * named stay as they are on the platform. Posts of a connection that is gone are left out.
+   */
+  load(connectionIds: ReadonlySet<string>): void {
     const path = this.#path;
     if (!path) return;
-    const text = yield* Effect.tryPromise(() => readFile(path, "utf8")).pipe(Effect.catch(() => Effect.succeed(null)));
-    if (text === null) return;
     let file: typeof StatusPostsFile.Type;
     try {
-      file = decodeStatusPostsFile(JSON.parse(text));
-    } catch {
-      logger.warn("The status posts of messaging conversations could not be read.");
+      file = decodeStatusPostsFile(JSON.parse(readFileSync(path, "utf8")));
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT"))
+        logger.warn("The status posts of messaging conversations could not be read.");
       return;
     }
-    for (const [key, post] of Object.entries(file.posts)) this.posts.set(key, post);
-    for (const [token, stop] of Object.entries(file.stops)) this.stops.set(token, stop);
-  });
+    for (const [key, post] of Object.entries(file.posts)) {
+      if (!connectionIds.has(post.connectionId)) continue;
+      this.posts.set(key, post);
+      this.restored.add(key);
+    }
+    for (const [token, stop] of Object.entries(file.stops))
+      if (connectionIds.has(stop.connectionId)) this.stops.set(token, stop);
+  }
 
   /** Writes the current posts. A failed write is logged: the posts in memory still work. */
   readonly save = Effect.fn("MessagingStatusPosts.save")(function* (this: MessagingStatusPosts) {
