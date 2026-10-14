@@ -230,7 +230,7 @@ echo OPENBOT_BACKUP_DIR=/var/backups/openbot >>/opt/openbot-docker/instances/mai
 | Setting | Use |
 | --- | --- |
 | `OPENBOT_BACKUP_DIR` | The folder of the backups. Each instance has the folder `<name>` in it. It must not be in the data of an instance, because a backup has the keys of the instance. Use another disk, or copy the folder to another computer. |
-| `OPENBOT_BACKUP_KEEP` | The number of complete backups to keep. The default is 7. An older backup is deleted only after a new one is complete. |
+| `OPENBOT_BACKUP_KEEP` | The number of complete backups to keep. The default is 7. An older backup is deleted only after a new one is complete, and with `--verify` only after the new one is verified. |
 | `OPENBOT_BACKUP_MAX_AGE` | Hours. When the newest complete backup is older, `backups` shows it as overdue and exits with 1. |
 | `OPENBOT_BACKUP_WORK` | The folder where `verify` unpacks a backup. The default is `/var/tmp`. It needs free space for the data, and the user of the data must be able to reach it. |
 
@@ -288,7 +288,10 @@ openbot-instance up main
 
 `restore` checks the checksums, stops the container and unpacks the backup next to the data. Only
 when the archive is unpacked does it replace `/data`. When the instance has data, `restore` needs
-`--replace`, which deletes that data, so back it up first. `restore` does not start the instance:
+`--replace`, which deletes that data, so back it up first. Because the old data stays until the end,
+the disk of the instance needs free space for the data of the backup. When it has less, copy the old
+data to another disk, delete it from `/srv/openbot/<name>/data`, and restore into the empty folder.
+`restore` does not start the instance:
 
 - Start it only when the instance of the backup does not run anywhere else. Two copies would use the
   same server identity and the same account session.

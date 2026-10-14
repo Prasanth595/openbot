@@ -284,6 +284,26 @@ async function main(): Promise<void> {
       "no openbot-verify folder in /var/tmp",
     );
 
+    // A verification that fails keeps the older backups, also with OPENBOT_BACKUP_KEEP=1.
+    const beforeFailedVerify = completeBackups();
+    must(
+      "sed -i 's/^OPENBOT_BACKUP_KEEP=.*/OPENBOT_BACKUP_KEEP=1/' /opt/openbot-docker/instances/main.env && mv /usr/bin/sqlite3 /usr/bin/sqlite3.off",
+    );
+    result = instance("backup", "main", "--verify");
+    must(
+      "mv /usr/bin/sqlite3.off /usr/bin/sqlite3 && sed -i 's/^OPENBOT_BACKUP_KEEP=.*/OPENBOT_BACKUP_KEEP=2/' /opt/openbot-docker/instances/main.env",
+    );
+    const afterFailedVerify = completeBackups();
+    check(
+      "a failed verification keeps the older backups",
+      result.status !== 0 &&
+        /sqlite3/.test(result.stderr) &&
+        beforeFailedVerify.every((name) => afterFailedVerify.includes(name)) &&
+        afterFailedVerify.length === beforeFailedVerify.length + 1,
+      afterFailedVerify.join(", "),
+    );
+    must(`rm -rf /backups/main/${afterFailedVerify.find((name) => !beforeFailedVerify.includes(name))}`);
+
     // Retention: with OPENBOT_BACKUP_KEEP=2, the third backup removes the first.
     instance("backup", "main");
     result = instance("backup", "main");

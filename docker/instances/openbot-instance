@@ -492,7 +492,10 @@ backup() {
   final=$(cat "$made")
   rm -f "$errors" "$details" "$made"
   [ "$result" -eq 0 ] || exit "$result"
+  # Old backups go only after the new one is complete, and verified when --verify is given. When the
+  # verification fails, they all stay.
   [ "$verify_after" -eq 0 ] || verify_locked "$name" "$final"
+  prune_backups "$name" "$final"
 }
 
 # Removes the partial copy, and starts the instance again when the backup stopped it.
@@ -503,14 +506,14 @@ backup_cleanup() {
 
 # Runs in a subshell, so its globals end with it. Each failure ends it, and the trap cleans up.
 backup_steps() {
-  local name=$1 details_file=$2 made_file=$3 data=$DATA/$1/data root keep used available stamp final archive
+  local name=$1 details_file=$2 made_file=$3 data=$DATA/$1/data root used available stamp final archive
   local version image image_id was_running=false exit_code=null stopped_at downtime=0 archive_bytes
-  local archive_sha locations compressor=(gzip -1) existing
+  local archive_sha locations compressor=(gzip -1)
   CONTAINER=openbot-$1
   RESTART=0
   OWNER=$(data_owner)
   root=$(backup_root "$name")
-  keep=$(backup_keep "$name")
+  backup_keep "$name" >/dev/null
   mountpoint -q "$data" || fail "$data is not mounted."
   check_required_files "$data"
   install -d -m 0700 "$root"
@@ -584,10 +587,14 @@ backup_steps() {
   printf ',\n  "backup": %s,\n  "archiveBytes": %s,\n  "downtimeSeconds": %s' \
     "$(json_string "$final")" "$archive_bytes" "$downtime" >"$details_file"
   echo "Backup $final: $(human_bytes "$archive_bytes"), $downtime s offline."
+}
 
-  # Old backups go only after a new one is complete. The new one stays also when the clock went back
-  # and its name sorts before the others.
-  mapfile -t existing < <(complete_backups "$root" | grep -vxF -- "$final")
+# Deletes the oldest complete backups of instance $1 above OPENBOT_BACKUP_KEEP. The new backup $2 stays
+# also when the clock went back and its name sorts before the others.
+prune_backups() {
+  local keep existing
+  keep=$(backup_keep "$1")
+  mapfile -t existing < <(complete_backups "$(backup_root "$1")" | grep -vxF -- "$2")
   if [ "${#existing[@]}" -ge "$keep" ]; then
     rm -rf -- "${existing[@]:0:${#existing[@]}-keep+1}"
   fi
@@ -771,7 +778,7 @@ restore_steps() {
   ! container_running "$container" || fail "$container did not stop."
   available=$(df --block-size=1 --output=avail "$data" | tail -n 1 | tr -d ' ')
   [ "$available" -gt "$needed" ] ||
-    fail "The restore needs $(human_bytes "$needed") free in $data, which has $(human_bytes "$available")."
+    fail "The restore needs $(human_bytes "$needed") free in $data, which has $(human_bytes "$available"). The old data stays until the backup is unpacked. Copy the old data to another disk, delete it from $data, then restore again."
   # mktemp makes a new folder with a new name. It does not follow a link that an agent made in /data
   # before the container stopped.
   stage=$(mktemp -d "$data/.openbot-restore.XXXXXX")
