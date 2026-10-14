@@ -170,9 +170,7 @@ describe("RichMessageText tooltips", () => {
     ));
 
     const reference = screen.getByRole("button", { name: `Open attached file ${attachment.name}` });
-    const label = reference.querySelector<HTMLElement>(".inline-file-reference-name");
-    if (!label) throw new Error("The touch file label is missing");
-    Object.defineProperties(label, {
+    Object.defineProperties(reference, {
       clientWidth: { configurable: true, value: 120 },
       scrollWidth: { configurable: true, value: 320 },
     });

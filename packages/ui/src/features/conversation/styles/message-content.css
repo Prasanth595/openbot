@@ -1408,6 +1408,7 @@
   letter-spacing: -0.4px;
 }
 
+/* The page icon is on a 20-unit grid, so its stroke is scaled to match lucide's 24, as `.ui-glyph-20` does. */
 .attachment-reference-visual > svg {
   width: 12px;
   height: 12px;
@@ -1415,7 +1416,7 @@
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: var(--openbot-icon-stroke);
+  stroke-width: calc(var(--openbot-icon-stroke) * 20 / 24);
 }
 
 [data-slot="bubble"][data-author="user"] .message-file-reference {
