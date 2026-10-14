@@ -23,7 +23,11 @@ export type StoreDates = Partial<Record<MobileStore, string>>;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const STORE_DATE = /^(\d{4}-\d{2}-\d{2}) \(([^)]+)\)$/;
-const isDay = (text: string) => DAY.test(text) && !Number.isNaN(Date.parse(`${text}T00:00:00Z`));
+const isDay = (text: string) => {
+  if (!DAY.test(text)) return false;
+  const date = new Date(`${text}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text;
+};
 const storeNamed = (name: string) => MOBILE_STORES.find((store) => MOBILE_STORE_NAMES[store] === name);
 
 /**
