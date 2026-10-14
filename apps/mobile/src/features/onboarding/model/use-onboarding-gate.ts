@@ -1,11 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
-import {
-  finishOnboarding,
-  loadOnboardingProgress,
-  useOnboardingProgress,
-} from "@/features/onboarding/model/onboarding-progress";
+import { finishOnboarding, useOnboardingProgress } from "@/features/onboarding/model/onboarding-progress";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { devReplayOnboarding } from "@/shared/lib/dev-feature-overrides";
 
@@ -29,12 +25,6 @@ export function useOnboardingGate(): { active: boolean; finish: () => void } {
   const finished = useOnboardingProgress((state) => userId !== null && state.finished.includes(userId));
   const replay = devReplayOnboarding();
   const [decision, setDecision] = useState<Decision | null>(null);
-
-  // The app reads this at start. Reading it here as well keeps the gate correct if that read is
-  // late or did not run; a second read changes nothing.
-  useEffect(() => {
-    void loadOnboardingProgress().catch(() => undefined);
-  }, []);
 
   let next: Decision | null = null;
   if (decision === null && progressReady && userId !== null) {
