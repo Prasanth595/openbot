@@ -109,7 +109,7 @@ export class TeamWebRtcFileTransfer {
 
   /** Whether a transfer is moving right now, either direction. Completed files waiting for pickup do not count. */
   hasActiveTransfers(): boolean {
-    return this.#incoming.size > 0 || this.#outgoing.size > 0;
+    return this.#incoming.size > 0 || this.#outgoing.size > 0 || this.#writing.size > 0;
   }
 
   readonly send = Effect.fn("TeamFileTransfer.send")(function* (
@@ -157,7 +157,10 @@ export class TeamWebRtcFileTransfer {
         // streams cannot write more than the limit before the check.
         const pending = { peerId, size: 0 };
         return yield* Effect.acquireUseRelease(
-          Effect.sync(() => this.#writing.add(pending)),
+          Effect.sync(() => {
+            this.#writing.add(pending);
+            recordRestartActivity();
+          }),
           () =>
             Effect.gen({ self: this }, function* () {
               const hash = createHash("sha256");
