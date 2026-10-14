@@ -23,6 +23,8 @@ export interface RemoteHostSummary {
   role: "owner" | "admin" | "member";
   /** The active members that the host's plan allows. An account server from before plans sends none. */
   memberLimit?: number;
+  /** A hosted server: its owner and its admins can restart it. An older account server sends none. */
+  hosted?: boolean;
 }
 
 export interface RemoteInviteRecord {
@@ -160,6 +162,8 @@ export function decodeRemoteHosts(value: unknown): RemoteHostSummary[] {
       membershipId: requiredString(host, "membershipId"),
       role: host.role,
       ...(validLimit ? { memberLimit } : {}),
+      // A bad value drops only the flag, as for the limit.
+      ...(isBoolean(host.hosted) ? { hosted: host.hosted } : {}),
     };
   });
 }

@@ -73,7 +73,10 @@ export interface ServerActionCallbacks {
   onRemove?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
   canRemove?: ((serverId: string) => boolean) | undefined;
   canDelete?: ((serverId: string) => boolean) | undefined;
-  /** Asks to restart a hosted server. The menu shows it to the owner when `canRestart` accepts the server. */
+  /**
+   * Asks to restart a hosted server. The menu shows it to the owner and the admins of a server that the
+   * account server marks as hosted, or that `canRestart` accepts.
+   */
   onRestart?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
   canRestart?: ((serverId: string) => boolean) | undefined;
 }
@@ -101,8 +104,8 @@ export function ServerActionItems(
   const canRestart = () =>
     Boolean(props.onRestart) &&
     props.server.kind === "remote" &&
-    props.server.role === "owner" &&
-    Boolean(props.canRestart?.(props.server.id));
+    (props.server.role === "owner" || props.server.role === "admin") &&
+    (props.server.hosted === true || Boolean(props.canRestart?.(props.server.id)));
   // A component, so the JSX below can use it as a tag. The menu does not change after render.
   const Menu = props.menu;
   return (

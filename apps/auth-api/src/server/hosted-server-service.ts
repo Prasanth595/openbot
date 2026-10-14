@@ -766,7 +766,7 @@ export class HostedServerService {
   ).bind(this);
 
   /**
-   * The owner restarts a server that runs but does not answer. boat stops the sandbox and saves the disk,
+   * The owner or an admin restarts a server that runs but does not answer. boat stops the sandbox and saves the disk,
    * and the restart after the stop (`#observe`) resumes it, as after a resize. A server that does not run
    * starts as on a wake.
    */
@@ -780,9 +780,13 @@ export class HostedServerService {
       const row = yield* hostedCall(() =>
         dependencies.database
           .prepare(
-            `SELECT ${ROW_COLUMNS} FROM hosted_servers WHERE server_id = ? AND owner_user_id = ? AND desired_state != 'deleted'`,
+            `SELECT ${ROW_COLUMNS} FROM hosted_servers h
+           WHERE h.server_id = ? AND h.desired_state != 'deleted' AND (h.owner_user_id = ? OR EXISTS(
+             SELECT 1 FROM remote_memberships m
+             WHERE m.host_id = h.server_id AND m.user_id = ? AND m.status = 'active' AND m.role IN ('owner', 'admin')
+           ))`,
           )
-          .bind(serverId, user.id)
+          .bind(serverId, user.id, user.id)
           .first<HostedServerRow>(),
       );
       if (!row) return yield* notFound();

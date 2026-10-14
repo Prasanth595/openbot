@@ -607,7 +607,9 @@ export class RemoteControlPlane {
       const result = yield* remoteCall(() =>
         dependencies.database
           .prepare(
-            `SELECT h.host_id, h.name, h.logo_key, h.device_public_key, h.auth_epoch, m.membership_id, m.role
+            `SELECT h.host_id, h.name, h.logo_key, h.device_public_key, h.auth_epoch, m.membership_id, m.role,
+           EXISTS(SELECT 1 FROM hosted_servers s WHERE s.server_id = h.host_id AND s.desired_state != 'deleted')
+             AS hosted
          FROM remote_memberships m
          JOIN remote_hosts h ON h.host_id = m.host_id
          WHERE m.user_id = ? AND m.status = 'active'
@@ -622,6 +624,7 @@ export class RemoteControlPlane {
             auth_epoch: number;
             membership_id: string;
             role: RemoteMemberRole;
+            hosted: number;
           }>(),
       );
       return yield* Effect.forEach(
@@ -637,6 +640,7 @@ export class RemoteControlPlane {
               membershipId: row.membership_id,
               role: row.role,
               memberLimit: yield* this.#memberLimit(row.host_id),
+              hosted: row.hosted === 1,
             };
           }),
         { concurrency: "unbounded" },

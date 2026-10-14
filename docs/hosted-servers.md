@@ -165,8 +165,10 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    or that was not running at the plan change, gets the new machine at its next resume. When the data does not fit a smaller machine, boat refuses it
    (`409 type_too_small`); the server then starts on its old machine, and the Worker does not try
    again until the next plan change.
-9. **Restart.** The owner selects Restart server in the server menu, above Leave or Delete.
-   `POST /v2/hosting/servers/:id/restart` (owner only) moves a `running` row to `stopping` and stops
+9. **Restart.** The owner or an admin selects Restart server in the server menu, above Leave or
+   Delete. The account host list (`GET /v2/remote/hosts/`) marks each hosted server with
+   `hosted: true`, so the clients of an admin know which servers to show it for.
+   `POST /v2/hosting/servers/:id/restart` (the owner, or an active admin membership) moves a `running` row to `stopping` and stops
    the sandbox. The `archived` webhook (or the cron) then resumes it with the wake reason `restart`.
    A row in any other state gets a wake. boat answers `409` when the sandbox is busy; the Worker
    puts the row back to `running` and answers `409 hosted_server_restart_busy`. The Worker uses stop

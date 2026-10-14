@@ -40,10 +40,13 @@ export function ServerSettingsScreen() {
   const [restarted, setRestarted] = useState<string | null>(null);
   const { session } = useMobileSession();
   const owner = server?.role === "owner";
-  // Billing deletes a hosted server, so Remove and Restart show only after the hosted servers are known.
+  // Billing deletes a hosted server, so Remove shows only after the owner's hosted servers are known.
   const [hostedServerIds, setHostedServerIds] = useState<ReadonlySet<string> | null>(null);
   // The same rule as the Restart item of the desktop server menu.
-  const canRestart = server?.kind === "remote" && owner && Boolean(hostedServerIds?.has(serverId));
+  const canRestart =
+    server?.kind === "remote" &&
+    (owner || server.role === "admin") &&
+    (server.hosted === true || Boolean(hostedServerIds?.has(serverId)));
   useEffect(() => {
     if (!session || !owner) return;
     let current = true;
@@ -101,34 +104,7 @@ export function ServerSettingsScreen() {
             {busy && !restarting ? t("mobile.server.settings.refreshing") : t("mobile.server.settings.refresh")}
           </Typography.Paragraph>
         </SettingsRow>
-        {server.role !== "owner" ? (
-          <SettingsRow
-            disclosure={false}
-            disabled={busy}
-            onPress={() =>
-              Alert.alert(
-                t("mobile.server.settings.leaveTitle", { name: server.name }),
-                t("mobile.server.settings.leaveBody"),
-                [
-                  { text: t("common.cancel"), style: "cancel" },
-                  {
-                    text: t("mobile.server.settings.leave"),
-                    style: "destructive",
-                    onPress: () =>
-                      void perform(async () => {
-                        await leaveServer(serverId);
-                        router.dismiss();
-                      }),
-                  },
-                ],
-              )
-            }
-          >
-            <Typography.Paragraph type="body-sm" className="text-danger-text">
-              {t("mobile.server.settings.leave")}
-            </Typography.Paragraph>
-          </SettingsRow>
-        ) : canRestart ? (
+        {canRestart ? (
           // The account server stops the hosted server and starts it again. The app connects again after it.
           <SettingsRow
             disclosure={false}
@@ -168,6 +144,34 @@ export function ServerSettingsScreen() {
           >
             <Typography.Paragraph type="body-sm">
               {restarting ? t("mobile.server.settings.restarting") : t("mobile.server.settings.restart")}
+            </Typography.Paragraph>
+          </SettingsRow>
+        ) : null}
+        {server.role !== "owner" ? (
+          <SettingsRow
+            disclosure={false}
+            disabled={busy}
+            onPress={() =>
+              Alert.alert(
+                t("mobile.server.settings.leaveTitle", { name: server.name }),
+                t("mobile.server.settings.leaveBody"),
+                [
+                  { text: t("common.cancel"), style: "cancel" },
+                  {
+                    text: t("mobile.server.settings.leave"),
+                    style: "destructive",
+                    onPress: () =>
+                      void perform(async () => {
+                        await leaveServer(serverId);
+                        router.dismiss();
+                      }),
+                  },
+                ],
+              )
+            }
+          >
+            <Typography.Paragraph type="body-sm" className="text-danger-text">
+              {t("mobile.server.settings.leave")}
             </Typography.Paragraph>
           </SettingsRow>
         ) : hostedServerIds && !hostedServerIds.has(serverId) ? (

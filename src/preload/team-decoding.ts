@@ -42,7 +42,7 @@ import {
   requiredNumber,
   requiredString,
 } from "@openbot/contracts/ipc-decoding";
-import { type DynamicRecord, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
+import { type DynamicRecord, isBoolean, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 
 const HOST_PHASES = ["unconfigured", "idle", "starting", "online", "stopping", "error"] as const;
 const TEAM_ROLES = ["owner", "admin", "member"] as const;
@@ -270,6 +270,7 @@ function server(summary: DynamicRecord): ServerSummary {
     hostedSleep,
     hostedIssue,
     memberLimit,
+    hosted,
   } = summary;
   if (!isOneOf(SERVER_NOTIFICATION_LEVELS, notificationLevel)) throw new Error("Invalid notificationLevel.");
   if (!isOneOf(SERVER_KINDS, kind)) throw new Error("Invalid kind.");
@@ -278,6 +279,7 @@ function server(summary: DynamicRecord): ServerSummary {
   if (memberLimit !== undefined && !(isNumber(memberLimit) && Number.isSafeInteger(memberLimit) && memberLimit >= 1)) {
     throw new Error("Invalid memberLimit.");
   }
+  if (hosted !== undefined && !isBoolean(hosted)) throw new Error("Invalid hosted.");
   return {
     notificationsMuted: requiredBoolean(summary, "notificationsMuted"),
     notificationsMutedUntil: nullableNumber(summary, "notificationsMutedUntil"),
@@ -303,6 +305,7 @@ function server(summary: DynamicRecord): ServerSummary {
       : { hostedSleep: hostedSleep === "sleeping" || hostedSleep === "waking" ? hostedSleep : null }),
     ...(hostedIssue === undefined ? {} : { hostedIssue: decodeHostedIssue(hostedIssue) }),
     ...(memberLimit === undefined ? {} : { memberLimit }),
+    ...(hosted === undefined ? {} : { hosted }),
   };
 }
 

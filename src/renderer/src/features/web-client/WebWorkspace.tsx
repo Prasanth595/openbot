@@ -429,6 +429,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         notificationLevel: notice.level,
         remoteDesktopAvailable: false,
         ...(host.memberLimit === undefined ? {} : { memberLimit: host.memberLimit }),
+        ...(host.hosted === undefined ? {} : { hosted: host.hosted }),
         compatibility: {
           localAppVersion: "web",
           hostAppVersion: incompatibility?.hostAppVersion ?? null,

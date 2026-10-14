@@ -214,7 +214,7 @@ export class HostedServerDesktopService {
     (operation) => operation.pipe(Effect.provide(this.#platform)),
   ).bind(this);
 
-  /** The owner restarts the server. The connection drops when the server stops, and the client reconnects. */
+  /** The owner or an admin restarts the server. The connection drops when the server stops, and the client reconnects. */
   readonly restart = Effect.fn("HostedServer.restart")(
     function* (this: HostedServerDesktopService, serverId: string) {
       this.#statusCheck.forget(serverId);

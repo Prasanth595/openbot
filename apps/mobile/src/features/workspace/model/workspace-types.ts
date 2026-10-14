@@ -91,6 +91,8 @@ export interface MobileServer {
   role: "owner" | "admin" | "member";
   /** The active members that the host's plan allows. Absent when the account server gave none. */
   memberLimit?: number;
+  /** A hosted server, which its owner and its admins can restart. Absent when the account server did not say. */
+  hosted?: boolean;
 }
 
 export interface MobileAgent {

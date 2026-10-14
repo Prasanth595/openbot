@@ -13,7 +13,7 @@ export interface HostedServerCalls {
   list(): Promise<HostedServerList>;
   plans(): Promise<HostedServerCatalog>;
   wake(serverId: string): Promise<HostedServerSummary>;
-  /** The owner restarts the server. The account server stops it, then starts it again. */
+  /** The owner or an admin restarts the server. The account server stops it, then starts it again. */
   restart(serverId: string): Promise<HostedServerSummary>;
 }
 
