@@ -401,6 +401,10 @@ One-time setup:
    Play Console under **Test and release → Testing → Internal testing**. Until the app has a
    published release, Play accepts only draft releases: dispatch with `release_status` set to `draft`
    and roll out the release in Play Console.
+7. Commit `apps/mobile/google-services.json`, the Firebase file of the Android app
+   `run.openbot.mobile`. `app.config.js` adds it when it exists. Without it the build has no Firebase,
+   and Android gets no notifications. The file has public identifiers only. The account service has
+   the key that sends (`FCM_SERVICE_ACCOUNT` in [the account service](../auth-api/README.md)).
 
 After this workflow is merged into `main`, run from the repository root:
 

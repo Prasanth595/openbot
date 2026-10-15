@@ -269,3 +269,12 @@ sets `APNS_ORIGIN` and forwards the Worker's request to Apple from Node
 (`dev-apns-proxy.ts`). The Worker still checks the host and the limit, makes the payload and signs
 the token. Only a loopback caller can use the forwarder, and the Worker accepts only a loopback
 `APNS_ORIGIN`.
+
+`POST /v2/remote/hosts/:hostId/android-notification` forwards a sealed Android notification to
+Firebase Cloud Messaging in the same way, with the same limit and session check. The Worker sends a
+data message with the sealed bytes and the sound only; the app opens the seal. The relay is off until
+`FCM_SERVICE_ACCOUNT` is set: the service account key file (JSON) of the Firebase project of the app,
+from Firebase console > Project settings > Service accounts > Generate new private key. Put it into
+the encrypted environment as one line (`jq -c . <file>.json`) and into the `cloudflare-production`
+GitHub environment. A deployment stops before remote changes when the value is not a service account
+key file. The local Worker sends to Firebase directly.

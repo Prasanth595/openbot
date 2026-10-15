@@ -24,6 +24,7 @@ import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { ANDROID_PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-android-v1";
 import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
@@ -135,9 +136,9 @@ import type {
   MobileWorkspaceContextValue,
 } from "@/features/workspace/model/workspace-types";
 import * as LockedKeychain from "@/shared/lib/locked-keychain";
+import { isAndroid } from "@/shared/lib/platform";
 import { currentText } from "@/shared/lib/text";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
-import { useNotificationAnswers } from "./use-notification-answers";
 
 export type {
   MobileAgent,
@@ -284,7 +285,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const preferenceStore = useMemo(
     () =>
       createWorkspacePreferences(session.apiUrl, session.user.id, {
-        // A notification button connects while the phone is locked, and the connection reads them first.
+        // The keychain that a locked phone can read (`locked-keychain.ts`), with the session.
         get: (key) => LockedKeychain.getItem(key),
         set: (key, value) => LockedKeychain.setItem(key, value),
       }),
@@ -464,8 +465,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     loadAgentAvatar,
     supportsPush: supportsLiveActivityPush,
   });
+  // An iPhone and an Android phone register through capabilities of their own.
   const supportsPushNotifications = useCallback(
-    (serverId: string) => serverCapabilities.current.get(serverId)?.includes(PUSH_NOTIFICATIONS_CAPABILITY) === true,
+    (serverId: string) =>
+      serverCapabilities.current
+        .get(serverId)
+        ?.includes(isAndroid ? ANDROID_PUSH_NOTIFICATIONS_CAPABILITY : PUSH_NOTIFICATIONS_CAPABILITY) === true,
     [],
   );
   usePushNotifications({
@@ -682,14 +687,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     },
     [teamApi, liveState],
   );
-  const notificationAnswers = useNotificationAnswers({
-    connectedNow: (serverId) =>
-      foregroundRef.current && serversRef.current.find((server) => server.id === serverId)?.state === "online",
-    pendingApprovals: (serverId) => liveState.get().approvalRequests[serverId] ?? [],
-    send: sendApproval,
-  });
-  const { serverOnline: notificationServerOnline, teamEvent: notificationTeamEvent } = notificationAnswers;
-  const answeringServerIds = notificationAnswers.answeringServerIds;
   /**
    * Set on background entry with the selected server. Until it clears, the other servers stay
    * inactive. A new selection ends it, so the server that the user leaves keeps its attempt.
@@ -725,7 +722,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         ),
       );
       if (status.phase === "online" && hostId === activeServerIdRef.current) setHold(null);
-      if (status.phase === "online") notificationServerOnline(hostId);
       // The status repeats each second while it waits, so each failed attempt asks once.
       if (status.phase === "online") wakeAttempts.current.delete(hostId);
       if (status.phase !== "waiting" && status.phase !== "cooldown") return;
@@ -733,7 +729,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       wakeAttempts.current.set(hostId, status.attempt);
       wakeSelectedServer(hostId);
     },
-    [wakeSelectedServer, notificationServerOnline],
+    [wakeSelectedServer],
   );
   // The next retry of an offline server can be two minutes away, so a server starts when it is selected.
   useEffect(() => {
@@ -749,12 +745,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       conversationStore.cancelRequests();
       conversationStore.flush();
     }
-  }, [foreground, conversationStore]);
-  // A notification button needs the server list also in the background, after a start there.
-  const answering = answeringServerIds.length > 0;
-  useEffect(() => {
-    directoryRefresh.setActive(foreground || answering);
-  }, [foreground, answering, directoryRefresh]);
+    directoryRefresh.setActive(foreground);
+  }, [foreground, directoryRefresh, conversationStore]);
 
   // On a return to the app the selected server connects first; the others follow when it is online,
   // or after a short wait. The phone then sets up the connection the user waits for alone, and the
@@ -870,7 +862,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         const next = reducePendingApprovals(previous, event);
         return next === previous ? current : { ...current, [serverId]: next };
       });
-      notificationTeamEvent(serverId, event);
       if (event.type === "runtime-snapshot") {
         liveState.update("browserRequests", (current) => {
           const next = replaceEqualDeep(
@@ -1020,7 +1011,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       session.user.id,
       sessionScope,
       applyConversationReads,
-      notificationTeamEvent,
     ],
   );
 
@@ -1699,9 +1689,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
               key={server.id}
               hostId={server.id}
               publicKey={server.publicKey}
-              active={
-                (foreground && (!othersHeld || server.id === activeServerId)) || answeringServerIds.includes(server.id)
-              }
+              active={foreground && (!othersHeld || server.id === activeServerId)}
               directory={directory}
               register={registerConnection}
               load={loadServer}

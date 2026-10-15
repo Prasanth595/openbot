@@ -8,7 +8,8 @@ let handled: string | null = null;
 
 /**
  * Opens the chat of a notification that the user taps, also when the tap starts the app. The
- * Notification Service Extension puts the agent into the notification data when it opens the seal.
+ * Notification Service Extension on iOS, and `OpenBotMessagingService.kt` on Android, put the agent
+ * into the notification data when they open the seal.
  * While the app is on screen, a notification of the chat that shows is not shown again.
  */
 export function useNotificationTaps(open: (agentId: string) => void, openChat: () => string | null): void {

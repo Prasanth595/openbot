@@ -92,6 +92,11 @@ export interface WorkerBindings {
   APNS_TOPIC?: string;
   /** Local development only: the development server that forwards to Apple over HTTP/2. */
   APNS_ORIGIN?: string;
+  /**
+   * The Firebase service account key file (JSON) that sends Android notifications through Firebase
+   * Cloud Messaging. The Android notification relay is off without it.
+   */
+  FCM_SERVICE_ACCOUNT?: string;
 }
 
 function isWorkerBindings(value: unknown): value is WorkerBindings {

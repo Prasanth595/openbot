@@ -1,4 +1,8 @@
 import {
+  ANDROID_PUSH_NOTIFICATIONS_ROUTES,
+  type AndroidPushNotificationRegistration,
+} from "@openbot/contracts/team-protocol/push-notifications-android-v1";
+import {
   PUSH_NOTIFICATIONS_ROUTES,
   type PushNotificationRegistration,
 } from "@openbot/contracts/team-protocol/push-notifications-v1";
@@ -18,6 +22,7 @@ import {
   usePushNotificationPreference,
 } from "@/features/settings/model/push-notifications";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
+import { isAndroid } from "@/shared/lib/platform";
 import { pushEnvironment } from "@/shared/lib/push-environment";
 import { currentLocale } from "@/shared/lib/text";
 import { pushNotificationsNative as native } from "./push-notifications-native";
@@ -32,13 +37,16 @@ interface PushNotificationsInput {
 
 /** A request that failed is sent again after this time, or at the next change or connection. */
 const RETRY_MS = 30_000;
+/** An iPhone registers through `push-notifications-v1`, an Android phone through `push-notifications-android-v1`. */
+const ROUTES = isAndroid ? ANDROID_PUSH_NOTIFICATIONS_ROUTES : PUSH_NOTIFICATIONS_ROUTES;
 
 /**
- * Gives each connected server that supports `push-notifications-v1` the push token of the app, the
- * events that the user chose, and whether the app is on screen. With notifications off, the phone
- * still registers without a token when the Live Activity plays the sound, because the host decides
- * when it does. A host keeps the registration also when it restarts, so the phone tells each host
- * again after each connection, and removes it when the user turns both off for that host or signs out.
+ * Gives each connected server that supports the notifications of this platform the push token of the
+ * app, the events that the user chose, and whether the app is on screen. With notifications off, an
+ * iPhone still registers without a token when the Live Activity plays the sound, because the host
+ * decides when it does. A host keeps the registration also when it restarts, so the phone tells each
+ * host again after each connection, and removes it when the user turns both off for that host or
+ * signs out.
  */
 export function usePushNotifications({ servers, foreground, post, supportsPush }: PushNotificationsInput): void {
   const preference = usePushNotificationPreference();
@@ -83,7 +91,7 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
     if (native && foreground) void loadPushNotificationPreference().catch(() => undefined);
   }, [foreground]);
 
-  // iOS asks once. The answer can change in iOS Settings while the app is away, so it is read again.
+  // The phone asks once. The answer can change in the phone settings while the app is away, so it is read again.
   useEffect(() => {
     if (!native || !enabled || !foreground) return;
     let current = true;
@@ -109,7 +117,7 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
       native.writeKeys(
         servers.map(({ id, name }) => {
           const keys = pushNotificationKeys(liveActivityHostKeys(secret, id).secret);
-          // `NotificationService.swift` reads these field names.
+          // `NotificationService.swift` and `SealedNotification.kt` read these field names.
           return {
             serverId: id,
             name,
@@ -129,8 +137,9 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
     if (preference.enabled && preference.permission === null) return;
     const deliverable = preference.enabled && preference.permission === "granted";
     if (deliverable && !token) return;
-    // With notifications off, the Live Activity can still play the sound, which the host starts.
-    const activitySound = liveActivities.enabled && preference.playSound;
+    // With notifications off, the Live Activity of an iPhone can still play the sound, which the host
+    // starts. Android has no Live Activity.
+    const activitySound = !isAndroid && liveActivities.enabled && preference.playSound;
     const now = Date.now();
     for (const server of servers) {
       // A host forgets nothing when the phone goes offline, but the phone tells it again on reconnect.
@@ -141,25 +150,31 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
       if (!supportsPush(server.id)) continue;
       const setting = serverNotificationSetting(preference, server.id);
       const muted = mutedUntil(setting, now);
-      const registration: PushNotificationRegistration | null =
-        (deliverable || activitySound) && setting.level !== "nothing" && muted !== Number.POSITIVE_INFINITY
-          ? {
-              serverId: server.id,
-              token: deliverable ? token : null,
-              environment: pushEnvironment(),
-              secret: encodeLiveActivityBytes(liveActivityHostKeys(secret, server.id).secret),
-              locale: currentLocale(),
-              away: !foreground,
-              level: setting.level,
-              mutedUntil: muted === null ? null : Math.ceil(muted / 1_000),
-              preview: preference.preview,
-              sound: registeredSound(preference),
-              liveActivityStartedAt:
-                activityHost.serverId === server.id && activityHost.startedAt !== null
-                  ? Math.floor(activityHost.startedAt / 1_000)
-                  : null,
-            }
-          : null;
+      let registration: PushNotificationRegistration | AndroidPushNotificationRegistration | null = null;
+      if ((deliverable || activitySound) && setting.level !== "nothing" && muted !== Number.POSITIVE_INFINITY) {
+        const common = {
+          serverId: server.id,
+          secret: encodeLiveActivityBytes(liveActivityHostKeys(secret, server.id).secret),
+          locale: currentLocale(),
+          away: !foreground,
+          level: setting.level,
+          mutedUntil: muted === null ? null : Math.ceil(muted / 1_000),
+          preview: preference.preview,
+          sound: registeredSound(preference),
+        };
+        if (isAndroid) registration = token ? { ...common, token } : null;
+        else {
+          registration = {
+            ...common,
+            token: deliverable ? token : null,
+            environment: pushEnvironment(),
+            liveActivityStartedAt:
+              activityHost.serverId === server.id && activityHost.startedAt !== null
+                ? Math.floor(activityHost.startedAt / 1_000)
+                : null,
+          };
+        }
+      }
       // A retry after a failed request sends the state again.
       const key = `${attempt}:${JSON.stringify(registration)}`;
       if (registered.current.get(server.id)?.key === key) continue;
@@ -169,7 +184,7 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
         try {
           await postRef.current(
             serverId,
-            registration ? PUSH_NOTIFICATIONS_ROUTES.register : PUSH_NOTIFICATIONS_ROUTES.remove,
+            registration ? ROUTES.register : ROUTES.remove,
             registration ? { ...registration } : {},
           );
         } catch {
@@ -194,7 +209,7 @@ export function usePushNotifications({ servers, foreground, post, supportsPush }
       // cleanup. A host that does not get one learns it from the account service, which refuses the
       // ended session.
       for (const [serverId, { removed }] of sent) {
-        if (!removed) void postRef.current(serverId, PUSH_NOTIFICATIONS_ROUTES.remove, {}).catch(() => undefined);
+        if (!removed) void postRef.current(serverId, ROUTES.remove, {}).catch(() => undefined);
       }
       sent.clear();
       try {

@@ -25,7 +25,10 @@ interface StoredPreference {
   servers: Record<string, ServerNotificationSetting>;
 }
 
-/** iOS permission, read when the app starts and each time it comes back. `null` until it is read. */
+/**
+ * The notification permission of the phone, read when the app starts and each time it comes back.
+ * `null` until it is read.
+ */
 export type NotificationPermission = "granted" | "denied" | "undetermined";
 
 export const usePushNotificationPreference = create<
@@ -89,7 +92,10 @@ export function registeredSound(preference: Pick<StoredPreference, "playSound" |
   return preference.playSound ? preference.sound : "none";
 }
 
-/** Whether a host tells this phone anything: notifications, or the sound of the Live Activity. */
+/**
+ * Whether a host tells this phone anything: notifications, or the sound of the Live Activity.
+ * `liveActivities` is `false` on Android, which has no Live Activity.
+ */
 export function alertsOn(
   preference: Pick<StoredPreference, "enabled" | "playSound">,
   liveActivities: boolean,

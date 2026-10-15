@@ -34,7 +34,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
-import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
+import type { NotificationRelayRequest } from "@openbot/contracts/notification-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
@@ -149,7 +149,7 @@ interface HostServiceOptions {
   /** Sends one sealed notification through the account service. `gone` means the phone gets no more. */
   sendPushNotification?: (
     hostId: string,
-    push: NotificationRelayPush,
+    request: NotificationRelayRequest,
   ) => Effect.Effect<"sent" | "gone", RemoteWorkflowError>;
   /** The phones that get notifications, kept for the next start. */
   pushNotificationStore?: PushNotificationStore;
@@ -315,7 +315,7 @@ export class HostService extends EventEmitter<HostEvents> {
         ? new PushNotificationService({
             agents: options.agents,
             store: pushNotificationStore,
-            send: (push) => {
+            send: (request) => {
               const hostId = options.store.getIdentity()?.serverId;
               if (!hostId)
                 return Effect.fail(
@@ -323,7 +323,7 @@ export class HostService extends EventEmitter<HostEvents> {
                     cause: new Error(sourceText("error.auth.hostCredentialUnavailable")),
                   }),
                 );
-              return sendPushNotification(hostId, push).pipe(
+              return sendPushNotification(hostId, request).pipe(
                 Effect.mapError(({ cause }) => new PushNotificationSendFailure({ cause })),
               );
             },

@@ -1,10 +1,9 @@
 import * as SecureStore from "expo-secure-store";
 
 /**
- * Keychain items that the app reads while the phone is locked. A button of a notification, also on a
- * paired Apple Watch, starts the app in the background, and it answers with the session and the
- * server keys. iOS opens these items after the first unlock since the phone started, and they stay on
- * this device.
+ * Keychain items that the app can read while the phone is locked: the session, the server keys and
+ * the server choices. iOS opens these items after the first unlock since the phone started, and they
+ * stay on this device.
  *
  * iOS keeps the class of an item that already exists, and an earlier version saved these items for an
  * unlocked phone only. So they move to their own keychain service with the same key: the first read

@@ -19,7 +19,7 @@ import {
   isMobileConnectHostBinding,
   type MobileConnectHostBinding,
 } from "@openbot/contracts/mobile-connect";
-import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
+import type { NotificationRelayRequest } from "@openbot/contracts/notification-relay";
 import {
   decodeRemoteSession,
   decodeRemoteSessionTicket,
@@ -842,23 +842,25 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   ).bind(this);
 
   /**
-   * Sends one notification through the account service to Apple. The host sealed the agent name and
-   * the text with keys that only the phone has. Returns `gone` when the session of the phone ended
-   * or Apple refused the token.
+   * Sends one notification through the account service to Apple for an iPhone, or to Firebase Cloud
+   * Messaging for an Android phone. The host sealed the agent name and the text with keys that only
+   * the phone has. Returns `gone` when the session of the phone ended or Apple or Google refused the
+   * token.
    */
   readonly sendPushNotification = Effect.fn("CentralAuth.sendPushNotification")(
     function* (
       this: CentralAuthManager,
       hostId: string,
-      push: NotificationRelayPush,
+      request: NotificationRelayRequest,
     ): Effect.fn.Return<"sent" | "gone", CentralAuthOperationError, CentralAuthTransport> {
       const machineToken = yield* this.#hostMachineToken(hostId);
+      const route = request.platform === "android" ? "android-notification" : "notification";
       return yield* this.#requestEffect(
-        `/v2/remote/hosts/${encodeURIComponent(hostId)}/notification`,
+        `/v2/remote/hosts/${encodeURIComponent(hostId)}/${route}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ machineToken, ...push }),
+          body: JSON.stringify({ machineToken, ...request.push }),
         },
         () => undefined,
       ).pipe(

@@ -96,12 +96,18 @@ export const messages = {
   "mobile.settings.notifications.title": "Bildirimler",
   "mobile.settings.notifications.toggle": "Bildirimlere izin ver",
   "mobile.settings.notifications.footer":
-    "Ajanlar işi bitirdiğinde, bir hatayla durduğunda veya girdine, bir onaya ya da tarayıcıda bir adıma ihtiyaç duyduğunda sana haber verir. OpenBot’u kullanırken bildirim gelmez. Masaüstü uygulamasını kullanırken yalnızca sana ihtiyaç duyanlar gelir. Canlı Etkinlik gösterilirken olayı o gösterir.",
+    "Ajanlar işi bitirdiğinde, bir hatayla durduğunda veya girdine, bir onaya ya da tarayıcıda bir adıma ihtiyaç duyduğunda sana haber verir. OpenBot’u burada veya masaüstü uygulamasında kullanırken bildirim gelmez. Canlı Etkinlik gösterilirken olayı o gösterir.",
+  "mobile.settings.notifications.footerAndroid":
+    "Ajanlar işi bitirdiğinde, bir hatayla durduğunda veya girdine, bir onaya ya da tarayıcıda bir adıma ihtiyaç duyduğunda sana haber verir. OpenBot’u burada veya masaüstü uygulamasında kullanırken bildirim gelmez.",
   "mobile.settings.notifications.denied": "OpenBot bildirimleri iOS Ayarlar’da kapalı.",
+  "mobile.settings.notifications.deniedAndroid": "OpenBot bildirimleri Android ayarlarında kapalı.",
   "mobile.settings.notifications.openSettings": "iOS Ayarlar’ı aç",
+  "mobile.settings.notifications.openSettingsAndroid": "Android ayarlarını aç",
   "mobile.settings.notifications.preview": "Yanıt önizlemesini göster",
   "mobile.settings.notifications.previewFooter":
     "Bir yanıtın başını, bir soruyu veya onaylanacak işlemi gösterir. Apple ve OpenBot hesap hizmeti bunu okuyamaz.",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "Bir yanıtın başını, bir soruyu veya onaylanacak işlemi gösterir. Google ve OpenBot hesap hizmeti bunu okuyamaz.",
   "mobile.settings.notifications.sound": "Ses",
   "mobile.settings.notifications.playSound": "Ses çal",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -110,8 +116,11 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "Köpüklü",
   "mobile.settings.notifications.sound.press": "Tuşlu",
   "mobile.settings.notifications.sound.default": "iOS varsayılanı",
+  "mobile.settings.notifications.sound.defaultAndroid": "Android varsayılanı",
   "mobile.settings.notifications.soundFooter":
     "Bildirimler ve Canlı Etkinlik bu sesi çalar. Canlı Etkinlik ekranı da açar. OpenBot sesi, masaüstü uygulamasının bir görev bittiğinde çaldığı sestir. Sonraki dört ses, masaüstü uygulamasının ses temalarının sesleridir.",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "Bildirimler bu sesi çalar. OpenBot sesi, masaüstü uygulamasının bir görev bittiğinde çaldığı sestir. Sonraki dört ses, masaüstü uygulamasının ses temalarının sesleridir.",
   "mobile.settings.notifications.notifyAbout": "Şunun hakkında bildir",
   "mobile.settings.notifications.level.all": "Tüm etkinlikler",
   "mobile.settings.notifications.level.needsMe": "Yalnızca bana ihtiyaç duyduğunda",
@@ -129,6 +138,8 @@ export const messages = {
     "Bu sunucunun bu telefona bildirdiği olaylar. Masaüstü uygulamasının kendi ayarları vardır.",
   "mobile.settings.notifications.serverUnsupported":
     "Bu sunucu bildirim gönderemez. OpenBot’u sunucuyu çalıştıran bilgisayarda güncelle.",
+  "mobile.settings.notifications.channel": "Ajan bildirimleri ({sound})",
+  "mobile.settings.notifications.channelSilent": "Ajan bildirimleri (sessiz)",
   "mobile.settings.privacy.title": "Gizlilik",
   "mobile.settings.privacy.footer":
     "Bu telefondan özellik kullanımını ve bağlantı sonuçlarını paylaşın. Mesaj içerikleri ve dosyalar gönderilmez.",

@@ -411,8 +411,8 @@ recipient.
 
 Cloudflare processes account and configuration API requests. It does not carry Team API, file,
 message, command, Remote Desktop media, or Remote Desktop input traffic. It forwards sealed iPhone
-Live Activity updates and notifications that it cannot read; see [iPhone Live Activity](#iphone-live-activity)
-and [iPhone notifications](#iphone-notifications). For an
+Live Activity updates and phone notifications that it cannot read; see [iPhone Live Activity](#iphone-live-activity),
+[iPhone notifications](#iphone-notifications) and [Android notifications](#android-notifications). For an
 agent's Slack app, it exchanges the Slack sign-in and serves the install page; see
 [Slack connections](#slack-connections). It does the same for the Discord app; see
 [Discord connections](#discord-connections). For the OpenBot Telegram bot, it records which
@@ -506,10 +506,11 @@ is not included in analytics; provider output uses the application's secret reda
   `~/Library/Application Support/OpenBot/openbot-resource-summary-v1.json` holds the totals of
   today and of the previous day for the daily analytics summary and the diagnostics export.
 - `~/Library/Application Support/OpenBot/openbot-push-notifications-v1.json` holds, for each member
-  phone that gets notifications from this host, the session ID, the member ID, the Apple push token,
-  the secret that seals the notifications, the interface language, and the notification choices. Only
-  the user can read the file, and it is not in the diagnostics export or the data export. See
-  [iPhone notifications](#iphone-notifications).
+  phone that gets notifications from this host, the session ID, the member ID, the Apple or Firebase
+  push token, the secret that seals the notifications, the interface language, and the notification
+  choices. Only the user can read the file, and it is not in the diagnostics export or the data
+  export. See [iPhone notifications](#iphone-notifications) and
+  [Android notifications](#android-notifications).
 
 Attachments copied into OpenBot remain in managed storage after their original file is moved or
 deleted. All agents share the embedded browser profile, including cookies and website sessions.
@@ -1055,16 +1056,40 @@ of its own server. Signing out removes the keys from the phone, asks each connec
 the registration, and makes a new phone secret. A host that does not get the request sends nothing
 more, because the account service refuses the ended session.
 
-A notification of an approval also contains, in the sealed bytes, the ID of the request and of its
-turn, and whether the text shows the whole command or file change. The notification then shows Deny,
-and Allow when the text shows it all; a paired Apple Watch shows the same buttons. iOS asks to unlock the
-device first. The app sends the answer to the host over the encrypted host connection, as the
-approval card in the chat does, so the account service and Apple do not see it. To connect while the
-phone is locked, the app keeps its sign-in, the keys of the hosts and the server list choices in the
-iOS keychain with access after the first unlock since the phone started, on this device only.
+Notifications only inform: they have no buttons, also on a paired Apple Watch. The app keeps its
+sign-in, the keys of the hosts and the server list choices in the iOS keychain with access after the
+first unlock since the phone started, on this device only.
 
 Settings > Notifications turns this off, and sets the preview and the sound. The events and the mute
 of each server are in the same place and in the server settings.
+
+## Android notifications
+
+The Android app shows a notification for the same events, and in the same conditions, as the iPhone
+app. Android has no Live Activity. For this, the phone gives each connected host, over the encrypted
+host connection, the Firebase Cloud Messaging push token of the app, the 32-byte secret for that
+host, its interface language, and the choices of the user: the events of that server, a mute end,
+whether the notification shows a preview, and the sound, or none. To get the token, the Firebase
+library in the app connects to Google. The app has no Firebase analytics. The host keeps and removes
+these values as it does for an iPhone, in the same file, and removes them also when Google refuses
+the phone.
+
+The host seals each notification as it seals an iPhone notification, and sends it to the OpenBot
+account service with the account session of the phone. The account service checks the session as it
+does for an iPhone. Then it sends Google a data message that has only the sealed bytes and the sound
+name. The account service receives only the push token, the session ID, the sealed bytes, the sound
+name, and the time. Google receives the push token, the sealed bytes, and the sound name. They cannot
+read the agent name or the text. The account service stores nothing from these requests and does not
+log them. To send, it uses a Firebase service account key, which it keeps as an encrypted secret.
+Google can keep its own delivery logs under its own policy.
+
+On the phone, the app opens the notification with keys that it keeps in its private files folder,
+and Android shows the agent name and the text. A notification that the app cannot open shows the app
+name only. Signing out removes the keys from the phone and makes a new phone secret, as on an iPhone.
+Notifications only inform: they have no buttons.
+
+Settings > Notifications turns this off, and sets the preview and the sound. Android also lists one
+notification channel for each sound in the system settings of the app.
 
 ## Optional macOS Host Manager
 

@@ -98,12 +98,18 @@ export const messages = {
   "mobile.settings.notifications.title": "通知",
   "mobile.settings.notifications.toggle": "通知を許可",
   "mobile.settings.notifications.footer":
-    "エージェントが作業を終えたとき、エラーで止まったとき、または入力、承認、ブラウザーでの操作が必要なときに通知します。OpenBot を使っている間は通知しません。デスクトップアプリを使っている間は、あなたを必要とするものだけを通知します。ライブアクティビティの表示中は、代わりにライブアクティビティに表示します。",
+    "エージェントが作業を終えたとき、エラーで止まったとき、または入力、承認、ブラウザーでの操作が必要なときに通知します。このアプリまたはデスクトップアプリで OpenBot を使っている間は通知しません。ライブアクティビティの表示中は、代わりにライブアクティビティに表示します。",
+  "mobile.settings.notifications.footerAndroid":
+    "エージェントが作業を終えたとき、エラーで止まったとき、または入力、承認、ブラウザーでの操作が必要なときに通知します。このアプリまたはデスクトップアプリで OpenBot を使っている間は通知しません。",
   "mobile.settings.notifications.denied": "iOS の設定で OpenBot の通知がオフになっています。",
+  "mobile.settings.notifications.deniedAndroid": "Android の設定で OpenBot の通知がオフになっています。",
   "mobile.settings.notifications.openSettings": "iOS の設定を開く",
+  "mobile.settings.notifications.openSettingsAndroid": "Android の設定を開く",
   "mobile.settings.notifications.preview": "返信のプレビューを表示",
   "mobile.settings.notifications.previewFooter":
     "返信の冒頭、質問、または承認が必要な操作を表示します。Apple と OpenBot アカウントサービスはこの内容を読めません。",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "返信の冒頭、質問、または承認が必要な操作を表示します。Google と OpenBot アカウントサービスはこの内容を読めません。",
   "mobile.settings.notifications.sound": "サウンド",
   "mobile.settings.notifications.playSound": "サウンドを再生",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -112,8 +118,11 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "バブル",
   "mobile.settings.notifications.sound.press": "キー",
   "mobile.settings.notifications.sound.default": "iOS のデフォルト",
+  "mobile.settings.notifications.sound.defaultAndroid": "Android のデフォルト",
   "mobile.settings.notifications.soundFooter":
     "通知とライブアクティビティはこのサウンドを再生します。ライブアクティビティは画面も点灯します。 OpenBot のサウンドは、デスクトップアプリがタスク完了時に鳴らすサウンドです。 その次の 4 つは、デスクトップアプリのサウンドテーマのサウンドです。",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "通知はこのサウンドを再生します。 OpenBot のサウンドは、デスクトップアプリがタスク完了時に鳴らすサウンドです。 その次の 4 つは、デスクトップアプリのサウンドテーマのサウンドです。",
   "mobile.settings.notifications.notifyAbout": "通知する内容",
   "mobile.settings.notifications.level.all": "すべてのアクティビティ",
   "mobile.settings.notifications.level.needsMe": "自分が必要なときのみ",
@@ -131,6 +140,8 @@ export const messages = {
     "このサーバーのどのイベントをこのスマートフォンに通知するかを選びます。デスクトップアプリには別の設定があります。",
   "mobile.settings.notifications.serverUnsupported":
     "このサーバーは通知を送信できません。サーバーを実行しているコンピューターで OpenBot をアップデートしてください。",
+  "mobile.settings.notifications.channel": "エージェントの通知（{sound}）",
+  "mobile.settings.notifications.channelSilent": "エージェントの通知（サウンドなし）",
   "mobile.settings.privacy.title": "プライバシー",
   "mobile.settings.privacy.footer":
     "このスマートフォンの機能の使用状況と接続結果を共有します。メッセージの内容とファイルは送信されません。",

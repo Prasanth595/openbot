@@ -2,17 +2,12 @@ import { type AgentEvent, type AgentSummary, latestTurnAnswer } from "@openbot/c
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import {
   NOTIFICATION_SEALED_LIMIT,
-  type NotificationRelayPush,
+  type NotificationRelayRequest,
   type NotificationSound,
 } from "@openbot/contracts/notification-relay";
-import type { PushNotificationRegistration } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { type AppTranslate, resolveLocale, translateFor } from "@openbot/i18n";
 import { redactText, toLogValue } from "@openbot/logging";
-import {
-  type AgentNotificationContent,
-  approvalShownWhole,
-  notificationForAgentEvent,
-} from "@openbot/team-client/agent-notifications";
+import { type AgentNotificationContent, notificationForAgentEvent } from "@openbot/team-client/agent-notifications";
 import {
   decodeLiveActivityBytes,
   LIVE_ACTIVITY_NONCE_BYTES,
@@ -27,19 +22,18 @@ import {
 } from "@openbot/team-client/push-notification-seal";
 import { Effect, Exit, Fiber, Schema, Scope } from "effect";
 import { isNoUpdateAnswer } from "../backend/agent/routine-quiet-runs";
-import type { PushNotificationStore, StoredPushRegistration } from "./push-notification-store";
+import type { PushNotificationStore, PushTarget, StoredPushRegistration } from "./push-notification-store";
 import type { TeamApiAgents } from "./team-api/dependencies";
 
 /** The answer of a turn is among the last messages of the conversation. */
 const ANSWER_PAGE_SIZE = 20;
 /**
  * A member who did something in a desktop or web app this recently is at that app, which shows the
- * event itself, so the phone stays quiet. The computer of this host counts the same idle time. It is
- * short: a task can end at any time after the member leaves the computer.
+ * event itself, so the phone stays quiet. This includes the events that wait for the member: the
+ * desktop app asks for them. The computer of this host counts the same idle time. It is short: a task
+ * can end at any time after the member leaves the computer.
  */
 export const DESKTOP_USE_MS = 30 * 1000;
-/** Events that wait for the member. The phone gets them also while the member uses a desktop app. */
-const WAITS_FOR_MEMBER: ReadonlySet<PushNotificationKind> = new Set(["input", "approval", "browser"]);
 
 type PushNotificationAgents = Pick<TeamApiAgents, "on" | "off" | "listAgents" | "readConversationPageFor">;
 
@@ -47,7 +41,7 @@ interface PushNotificationOptions {
   agents: PushNotificationAgents;
   store: Pick<PushNotificationStore, "list" | "replace">;
   /** Sends one notification through the account service. `gone` means the phone gets no more. */
-  send(push: NotificationRelayPush): Effect.Effect<"sent" | "gone", PushNotificationSendFailure>;
+  send(request: NotificationRelayRequest): Effect.Effect<"sent" | "gone", PushNotificationSendFailure>;
   /** The agents that a phone with this protocol and these capabilities cannot see. */
   hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>): ReadonlySet<string>;
   /** Whether the member is still a member and not disabled. A removed member gets no more notifications. */
@@ -83,13 +77,13 @@ interface Registration {
 }
 
 /**
- * Sends a notification to a member's iPhone when an agent that the member can see finishes, fails,
- * or waits for input, an approval or a browser step, while the app is not on screen. It decides as
- * the desktop does (`notificationForAgentEvent`): the member's level, the agent's own switch, and no
- * notification for a quiet routine run. It sends nothing while the member uses a desktop app, and no
- * answer to a message while the phone shows the Live Activity, which shows the answer. The agent name
- * and the text are sealed for the phone, so the account service and Apple see the token, the time,
- * and sealed bytes only.
+ * Sends a notification to a member's iPhone or Android phone when an agent that the member can see
+ * finishes, fails, or waits for input, an approval or a browser step, while the app is not on screen.
+ * It decides as the desktop does (`notificationForAgentEvent`): the member's level, the agent's own
+ * switch, and no notification for a quiet routine run. It sends nothing while the member uses a
+ * desktop app, and no answer to a message while an iPhone shows the Live Activity, which shows the
+ * answer. The agent name and the text are sealed for the phone, so the account service, Apple and
+ * Google see the token, the time, and sealed bytes only.
  *
  * The phones are kept in a file, so they get notifications after this computer restarts, also when
  * they do not connect again. The account service sends nothing for a session that has ended.
@@ -122,17 +116,18 @@ export class PushNotificationService {
     this.#listen();
   }
 
-  register(sessionId: string, viewer: PushNotificationViewer, value: PushNotificationRegistration): void {
+  register(sessionId: string, viewer: PushNotificationViewer, target: PushTarget): void {
     // The phone registers again when it connects to the next runtime.
     if (!this.#running) return;
     const { memberId, protocol, capabilities } = viewer;
     // The request came over the connection of this session, so it is open.
-    if (!this.#add({ sessionId, memberId, protocol, capabilities: [...capabilities], value }, true)) {
+    if (!this.#add({ sessionId, memberId, protocol, capabilities: [...capabilities], ...target }, true)) {
       throw new Error("The notification secret is not valid.");
     }
     // A phone that signs in again gets a new session. The old one would notify it a second time.
+    const token = target.value.token;
     for (const [other, registration] of this.#registrations) {
-      if (other !== sessionId && value.token !== null && registration.stored.value.token === value.token) {
+      if (other !== sessionId && token !== null && registration.stored.value.token === token) {
         this.#registrations.delete(other);
       }
     }
@@ -188,18 +183,16 @@ export class PushNotificationService {
         return false;
       }
       if (this.#options.hiddenAgentIds(protocol, registration.capabilities).has(subject.agentId)) return false;
-      // A member at a desktop app sees a reply or a failure there, and the phone would only repeat it.
-      if (!WAITS_FOR_MEMBER.has(subject.kind)) {
-        const used = this.#options.lastUseElsewhere(memberId, sessionId);
-        if ((used !== null && now - used < DESKTOP_USE_MS) || this.#options.atHostComputer(memberId)) return false;
-      }
-      return true;
+      // A member at a desktop app sees the event there, and the phone would only repeat it.
+      const used = this.#options.lastUseElsewhere(memberId, sessionId);
+      return !((used !== null && now - used < DESKTOP_USE_MS) || this.#options.atHostComputer(memberId));
     });
     if (!targets.length) return;
     const agents = this.#options.agents.listAgents();
     let answer: string | null | undefined;
     for (const registration of targets) {
-      const { value, memberId, sessionId } = registration.stored;
+      const { stored } = registration;
+      const { value, memberId, sessionId } = stored;
       const translate = translateFor(resolveLocale("system", value.locale));
       // The fixed text, as the desktop shows it without a preview.
       const fixed =
@@ -207,14 +200,16 @@ export class PushNotificationService {
           ? browserStepNotice(event, agents, translate)
           : notificationForAgentEvent(event, agents, translate, value.level);
       if (!fixed) continue;
-      // The Live Activity shows the event, and a notification would repeat it.
-      // With a sound, the activity also lights up the screen and plays it; without one, it updates silently.
-      const sound = soundOf(value);
-      const startedAt = value.liveActivityStartedAt === null ? null : value.liveActivityStartedAt * 1_000;
-      if (this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt)) continue;
-      // A phone with notifications off registers for the sound of the Live Activity only.
-      const token = value.token;
-      if (token === null) continue;
+      // The Live Activity of an iPhone shows the event, and a notification would repeat it. With a
+      // sound, the activity also lights up the screen and plays it; without one, it updates silently.
+      if (stored.platform !== "android") {
+        const sound = soundOf(stored.value);
+        const startedAt =
+          stored.value.liveActivityStartedAt === null ? null : stored.value.liveActivityStartedAt * 1_000;
+        if (this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt)) continue;
+        // An iPhone with notifications off registers for the sound of the Live Activity only.
+        if (stored.value.token === null) continue;
+      }
       if (value.preview && subject.kind === "reply" && event.type === "turn-completed" && answer === undefined) {
         answer = yield* this.#answer(event, memberId, agents);
       }
@@ -233,18 +228,8 @@ export class PushNotificationService {
         kind: subject.kind,
         title: notice.title,
         body: notice.body,
-        // The phone answers this request from the buttons of the notification.
-        ...(event.type === "approval"
-          ? {
-              approval: {
-                requestId: event.approval.requestId,
-                turnId: event.approval.turnId,
-                approvable: value.preview && approvalShownWhole(event.approval, redactText),
-              },
-            }
-          : {}),
       };
-      yield* this.#send(registration, token, content, fixed.body);
+      yield* this.#send(registration, content, fixed.body);
     }
   });
 
@@ -267,35 +252,22 @@ export class PushNotificationService {
   #send = Effect.fn("PushNotifications.send")(function* (
     this: PushNotificationService,
     registration: Registration,
-    token: string,
     content: PushNotificationContent,
     shortBody: string,
   ) {
     const { stored, keys } = registration;
     let sealed = sealPushNotification(content, keys, this.#options.randomBytes(LIVE_ACTIVITY_NONCE_BYTES));
-    // A long agent name and a preview of wide characters can pass the Apple limit.
+    // A long agent name and a preview of wide characters can pass the 4 KB limit of Apple and Google.
     if (sealed.length > NOTIFICATION_SEALED_LIMIT) {
-      // The short text no longer shows the command, so it offers Deny only.
-      const short: PushNotificationContent = {
-        ...content,
-        title: content.title.slice(0, 64),
-        body: shortBody,
-        ...(content.approval ? { approval: { ...content.approval, approvable: false } } : {}),
-      };
+      const short = { ...content, title: content.title.slice(0, 64), body: shortBody };
       sealed = sealPushNotification(short, keys, this.#options.randomBytes(LIVE_ACTIVITY_NONCE_BYTES));
     }
-    const push: NotificationRelayPush = {
-      token,
-      environment: stored.value.environment,
-      sessionId: stored.sessionId,
-      sealed,
-      sound: soundOf(stored.value),
-      timestamp: Math.floor(this.#now() / 1_000),
-    };
-    yield* this.#options.send(push).pipe(
+    const request = relayRequest(stored, sealed, Math.floor(this.#now() / 1_000));
+    if (!request) return;
+    yield* this.#options.send(request).pipe(
       Effect.tap((result) =>
         Effect.sync(() => {
-          // The session ended, the app was removed, or Apple refused the token.
+          // The session ended, the app was removed, or Apple or Google refused the token.
           if (result === "gone" && this.#registrations.get(stored.sessionId) === registration) {
             this.remove(stored.sessionId);
           }
@@ -331,8 +303,23 @@ export class PushNotificationService {
   }
 }
 
-function soundOf(value: PushNotificationRegistration): NotificationSound | null {
+function soundOf(value: StoredPushRegistration["value"]): NotificationSound | null {
   return value.sound === "none" ? null : value.sound;
+}
+
+/** The relay request of the platform of the phone, or `null` for an iPhone without a token. */
+function relayRequest(
+  stored: StoredPushRegistration,
+  sealed: string,
+  timestamp: number,
+): NotificationRelayRequest | null {
+  const { sessionId, value } = stored;
+  const sound = soundOf(value);
+  if (stored.platform === "android") {
+    return { platform: "android", push: { token: stored.value.token, sessionId, sealed, sound, timestamp } };
+  }
+  const { token, environment } = stored.value;
+  return token === null ? null : { platform: "ios", push: { token, environment, sessionId, sealed, sound, timestamp } };
 }
 
 /** The agent and the kind of an event that can notify. `notificationForAgentEvent` decides the rest. */

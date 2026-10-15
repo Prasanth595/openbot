@@ -33,6 +33,7 @@ import {
   AGENT_INSTALL_CAPABILITY,
   AGENT_PUBLISH_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
+  ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
   EVENTS_CAPABILITY,
@@ -1598,7 +1599,8 @@ export class TeamApiServer {
         if (capability === INSTANCE_TRANSFER_CAPABILITY) return this.#options.instanceTransfer !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
         if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
-        if (capability === PUSH_NOTIFICATIONS_CAPABILITY) return this.#options.pushNotifications !== undefined;
+        if (capability === PUSH_NOTIFICATIONS_CAPABILITY || capability === ANDROID_PUSH_NOTIFICATIONS_CAPABILITY)
+          return this.#options.pushNotifications !== undefined;
         return true;
       }),
     };
