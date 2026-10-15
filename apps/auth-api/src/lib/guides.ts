@@ -25,7 +25,7 @@ export const GUIDES_COLLECTION: ContentCollection<"guides"> = {
       title: "Agentic AI Definition: How It Differs From Chatbots",
       description:
         "What is agentic AI? Compare OpenBot agents with a typical chatbot: ongoing tasks, saved files, source checking and handoffs between agents.",
-      publishedAt: "2026-10-15",
+      publishedAt: "2026-10-13",
       author: NEWS_AUTHOR,
     },
     {
