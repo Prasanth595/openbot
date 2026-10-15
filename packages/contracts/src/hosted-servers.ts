@@ -82,7 +82,7 @@ const HOSTED_SERVER_CONTACT_BODY = [
 
 /**
  * "Contact us" in the add server dialog, for a plan that the dialog does not have. The email opens
- * with a subject and a short form. The form is in English because the OpenBot team reads it.
+ * with a subject and a short message. The message is in English because the OpenBot team reads it.
  * `encodeURIComponent`, not `URLSearchParams`: mail clients show a `+` as a literal plus sign.
  */
 export const HOSTED_SERVER_CONTACT_URL = `mailto:hello@openbot.run?subject=${encodeURIComponent(
