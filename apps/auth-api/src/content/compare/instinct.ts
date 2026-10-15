@@ -10,7 +10,7 @@ import type { Comparison } from "./comparison";
 export const INSTINCT_COMPARISON: Comparison = {
   rival: { name: "Instinct", mark: "instinct" },
   answer:
-    "Choose OpenBot if you want a team of AI agents on your own computer, with your data in a database that you hold, the AI plans you already pay for, and nothing sent for you before you approve it: the app is free. Choose Instinct if you have an invite, and you want one assistant that you text or call, with no app to set up.",
+    "Choose OpenBot if you want a team of AI agents on your own computer, with your data in a database that you hold, the AI plans you already pay for, and agents that show you a draft before they send a message for you: the app is free. Choose Instinct if you have an invite, and you want one assistant that you text or call, with no app to set up.",
   chooseOpenBot: [
     "Your mail, files and chats must stay on your own computer, not on a service's servers in the US.",
     "You want to approve a message or a payment before an agent makes it.",
@@ -69,7 +69,7 @@ export const INSTINCT_COMPARISON: Comparison = {
       icon: "check",
       topic: "Who approves an action",
       openbot:
-        "You do. An agent shows a draft and waits for your approval before it sends a message for you, and it asks you to confirm the item, price and total before a payment.",
+        "You do. An agent shows a draft and waits for your approval before it sends a message for you, unless you or a routine that you set up tells it to send. It asks you to confirm the item, price and total before a payment.",
       rival:
         "Under its terms, you appoint Instinct as your agent to make agreements and transactions for you, and they bind you as if you had made them. One tester said that it sent an email for her without checking first.",
       better: "openbot",
@@ -136,7 +136,7 @@ export const INSTINCT_COMPARISON: Comparison = {
     {
       title: "Who approves what the agent does",
       openbot:
-        "OpenBot agents show a draft before they send a message for you, and they send it only after you approve it. Before a payment, an agent reads back the item, price and total and asks you to confirm. When an agent needs more access than you gave it, it asks first, and you answer in the chat or from a notification on your phone. Auto approve, for one agent, and Turbo mode, for every agent, are off until you turn them on.",
+        "OpenBot agents show a draft before they send a message for you. They send it after you approve it, or when you or a routine that you set up tells them to send. Before a payment, an agent reads back the item, price and total and asks you to confirm. Auto approve is on for a new agent: it accepts the agent's requests for more access, such as to run a command. Turn it off for an agent, and that agent asks you first; you answer in the chat or from a notification on your phone. Turbo mode, for every agent, is off until you turn it on.",
       rival:
         "Instinct's terms authorize it to take the actions that it decides answer your request, and appoint it as your agent to enter into agreements, commitments or transactions for you. Those bind you as if you had entered into them yourself. Testers told TechCrunch that Instinct sent an email for one of them without checking first, and found a sign-up code in another's inbox to complete a booking.",
       better: "openbot",
@@ -179,7 +179,7 @@ export const INSTINCT_COMPARISON: Comparison = {
     {
       question: "Can Instinct act for me without asking?",
       answer:
-        "Its terms authorize it to take actions for you and to enter into agreements and transactions that bind you as if you had made them. A tester said that it sent an email for her without checking first. OpenBot agents show a draft and wait for your approval before they send a message, and confirm before a payment.",
+        "Its terms authorize it to take actions for you and to enter into agreements and transactions that bind you as if you had made them. A tester said that it sent an email for her without checking first. OpenBot agents show a draft and wait for your approval before they send a message, unless you tell them to send, and confirm before a payment.",
     },
     {
       question: "How much does Instinct cost?",
