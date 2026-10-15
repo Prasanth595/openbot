@@ -67,7 +67,7 @@ export interface BillingSalesPayment {
  * Money that goes back after a paid invoice. A dispute that is opened moves no money by itself:
  * only a lost dispute does. A refund that fails after it succeeded gives the money back.
  */
-export type PaymentReversalType = "payment_refunded" | "refund_failed" | "payment_disputed" | "dispute_lost";
+type PaymentReversalType = "payment_refunded" | "refund_failed" | "payment_disputed" | "dispute_lost";
 
 export interface PaymentReversal {
   type: PaymentReversalType;
