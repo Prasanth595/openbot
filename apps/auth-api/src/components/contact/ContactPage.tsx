@@ -1,3 +1,4 @@
+import { normalizeEmailAddress } from "@openbot/contracts/validation";
 import type { JSX } from "@solidjs/web";
 import { createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
 import { landingAnalytics } from "../../lib/analytics";
@@ -8,8 +9,6 @@ import { LandingIcon } from "../landing/LandingIcon";
 import { SiteHeader } from "../landing/SiteHeader";
 
 export const CONTACT_ROUTE = "/contact";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const CONTACT_CHANNELS = [
   { label: "Discord", detail: "Community and help", href: OPENBOT_LINKS.discord },
@@ -44,7 +43,7 @@ function createContactForm() {
     const email = fieldText(data, "email");
     const message = fieldText(data, "message");
     const next: FieldErrors = {
-      email: EMAIL_PATTERN.test(email) ? undefined : "Enter a valid email",
+      email: normalizeEmailAddress(email) ? undefined : "Enter a valid email",
       message: message.length > 0 ? undefined : "Write a message",
     };
     setErrors(next);
@@ -181,8 +180,8 @@ function SubmitRow(props: { status: ContactStatus }) {
         }
       >
         <p class="contact-privacy contact-failed" role="alert">
-          {props.status === "limited" ? "Too many messages. Try again in a minute" : "Could not send. Try again"}, or
-          write to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          {props.status === "limited" ? "Too many messages. Try again later" : "Could not send. Try again"}, or write to{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </p>
       </Show>
     </div>

@@ -411,8 +411,8 @@ recipient.
 
 The contact form on `openbot.run/contact` sends your message to the OpenBot mailbox through the same
 SMTP provider. The message contains the email address, topic and text that you enter, and the name and
-company when you enter them. The account service uses your IP address only to limit how many
-messages one address can send, and stores none of these values. The OpenBot team receives the message
+company when you enter them. The account service stores none of these values. To limit how many
+messages one address can send, it keeps a hash of your IP address in its rate-limit records. The OpenBot team receives the message
 in its mailbox and uses your address only to answer you.
 
 Cloudflare processes account and configuration API requests. It does not carry Team API, file,

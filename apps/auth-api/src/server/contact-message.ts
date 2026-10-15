@@ -1,18 +1,13 @@
 import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { Effect, Schema } from "effect";
 import { CONTACT_LIMITS, contactTopicLabel } from "../lib/contact";
-import {
-  type AuthOperationError,
-  AuthServiceError,
-  emailDeliveryFailure,
-  isEmailDeliveryFailure,
-  normalizeEmail,
-} from "./auth-service";
-import type { ContactMessageDelivery } from "./types";
+import { AuthServiceError, emailDeliveryFailure, isEmailDeliveryFailure, normalizeEmail } from "./auth-service";
+import { sha256 } from "./crypto";
+import type { AuthRepository, ContactMessageDelivery } from "./types";
 
 export interface ContactMessageServices {
-  /** False when the limit for this key is spent. */
-  allow(key: string): Effect.Effect<boolean, AuthOperationError>;
+  repository: Pick<AuthRepository, "incrementRateLimit">;
+  now: () => number;
   delivery: () => ContactMessageDelivery | null;
 }
 
@@ -25,9 +20,11 @@ const ContactForm = Schema.Struct({
 });
 
 // Each message spends the hourly quota of the mailbox that also sends sign-in codes, so one total
-// limit stops a flood from different addresses before it blocks sign-in.
-const TOTAL_LIMIT_KEY = "all";
-const RATE_LIMIT_RETRY_SECONDS = 60;
+// limit stops a flood from different addresses before it blocks sign-in. The D1 counter of sign-in is
+// exact in all Cloudflare locations. Its retention deletes a window 15 minutes after it starts.
+const RATE_WINDOW_MS = 15 * 60_000;
+const SENDER_LIMIT = 3;
+const TOTAL_LIMIT = 15;
 
 export const sendContactMessage = Effect.fn("ContactMessage.send")(function* (
   services: ContactMessageServices,
@@ -47,13 +44,20 @@ export const sendContactMessage = Effect.fn("ContactMessage.send")(function* (
     catch: (error) => (error instanceof AuthServiceError ? error : invalid()),
   });
 
-  for (const key of [`ip:${sourceIp}`, TOTAL_LIMIT_KEY]) {
-    if (!(yield* services.allow(key))) {
+  const now = services.now();
+  const windowStart = Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS;
+  const limits = [
+    [`contact:ip:${sourceIp}`, SENDER_LIMIT],
+    ["contact:all", TOTAL_LIMIT],
+  ] as const;
+  for (const [key, limit] of limits) {
+    const result = yield* services.repository.incrementRateLimit(yield* sha256(key), windowStart, limit);
+    if (!result.allowed) {
       return yield* new AuthServiceError(
         429,
         "contact_rate_limited",
         "Too many messages were sent. Try again later.",
-        RATE_LIMIT_RETRY_SECONDS,
+        Math.max(1, Math.ceil((windowStart + RATE_WINDOW_MS - now) / 1_000)),
       );
     }
   }

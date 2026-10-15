@@ -17,10 +17,8 @@ export const Route = createFileRoute("/v1/contact")({
             if (!isSameOriginReportRequest(request)) {
               return apiError(403, "invalid_contact_origin", "Open the contact form on openbot.run.");
             }
-            const services = requestContactMessageServices();
-            if (!services) return apiError(503, "contact_unavailable", "The contact form is unavailable.");
             const body = yield* readJsonObject(request);
-            yield* sendContactMessage(services, body, requestSourceIp(request));
+            yield* sendContactMessage(requestContactMessageServices(), body, requestSourceIp(request));
             return new Response(null, { status: 204 });
           }),
           authErrorResponse,

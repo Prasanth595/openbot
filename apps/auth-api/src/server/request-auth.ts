@@ -283,11 +283,14 @@ export const requireServerClaimsAdmin = Effect.fn("Auth.requireServerClaimsAdmin
   return yield* adminTokenMatches(requireWorkerBindings(env).SERVER_CLAIMS_ADMIN_TOKEN, bearerToken(request));
 });
 
-/** The limits and delivery of the site's contact form. `null` when this Worker has no contact limiter. */
-export function requestContactMessageServices(): ContactMessageServices | null {
+/** The limits and delivery of the site's contact form. */
+export function requestContactMessageServices(): ContactMessageServices {
   const bindings = requireWorkerBindings(env);
-  if (!bindings.CONTACT_RATE_LIMITER) return null;
-  return { allow: relayLimit(bindings.CONTACT_RATE_LIMITER), delivery: () => createContactMessageDelivery(bindings) };
+  return {
+    repository: new D1AuthRepository(bindings.DB),
+    now: () => Date.now(),
+    delivery: () => createContactMessageDelivery(bindings),
+  };
 }
 
 export function requestTeamInviteEmailDelivery(): TeamInviteEmailDelivery | null {
