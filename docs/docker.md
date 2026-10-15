@@ -395,6 +395,6 @@ does not use systemd.
   Ubuntu 23.10 or newer. On such a host, the container can need an AppArmor profile that permits
   `userns`.
 - Not tested: a Codex agent with Workspace only access in a container. Codex runs its commands in
-  bubblewrap, which mounts its root in a user namespace. The seccomp profile allows `mount` and
-  `pivot_root` only with `CAP_SYS_ADMIN`, and the `docker-default` AppArmor profile refuses `mount`,
-  so these commands can fail. An agent with Full access does not use bubblewrap.
+  bubblewrap, which mounts its root in a user namespace. The seccomp profile allows `mount` only with
+  `CAP_SYS_ADMIN` and always refuses `pivot_root`, and the `docker-default` AppArmor profile refuses
+  `mount`, so these commands can fail. An agent with Full access does not use bubblewrap.
