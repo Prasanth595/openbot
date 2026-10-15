@@ -13,6 +13,8 @@ const native = requireOptionalNativeModule<QuickActionsModule>("OpenBotQuickActi
 let listening = false;
 let navigate: ((target: QuickActionTarget) => void) | null = null;
 let pending: QuickActionTarget | null = null;
+/** An Android shortcut that the user pinned stays without a session. Its action must not wait for the next account. */
+let signedOut = false;
 /** The items that the phone has. Android limits the updates of an app in the background. */
 let published: string | null = null;
 
@@ -22,7 +24,7 @@ export function installQuickActions(): void {
   listening = true;
   native.addListener("onQuickAction", ({ id }) => {
     const target = readQuickActionId(id);
-    if (!target) return;
+    if (!target || signedOut) return;
     if (navigate) navigate(target);
     else pending = target;
   });
@@ -30,6 +32,7 @@ export function installQuickActions(): void {
 
 /** Opens the chosen actions while the signed-in screens show. An action that came before opens now. */
 export function setQuickActionNavigator(open: (target: QuickActionTarget) => void): () => void {
+  signedOut = false;
   navigate = open;
   const waiting = pending;
   pending = null;
@@ -55,6 +58,7 @@ export async function publishQuickActions(items: readonly QuickActionItem[]): Pr
 
 /** Without a session the icon offers nothing, and an action chosen before does not open after sign-in. */
 export function resetQuickActions(): void {
+  signedOut = true;
   pending = null;
   void publishQuickActions([]);
 }
