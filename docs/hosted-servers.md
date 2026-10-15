@@ -377,8 +377,12 @@ one release and account-service origin; do not use that production prefix for ma
 
 The builder stops before creating an eleventh snapshot. This is our automation limit:
 [boat permits additional paid snapshots](https://docs.boat.dev/api/reference/snapshots/list-named-snapshots).
-No snapshot is deleted automatically. Before removing one, check both Workers and pending server
-creation records (`provider_template`); a pending retry still needs its original snapshot.
+Before each production build, the release job removes `openbot-server-production-` snapshots of
+older releases and keeps the 3 newest releases, including the new one
+([details](RELEASING.md#hosted-server-snapshots)). It never removes other names. Before removing a
+test snapshot by hand, check both Workers and pending server creation records
+(`provider_template`); a pending retry still needs its original snapshot. Servers already made
+from a removed snapshot keep running.
 
 ### Updates
 

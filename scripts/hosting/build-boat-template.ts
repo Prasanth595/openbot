@@ -9,6 +9,9 @@
  * saves the builder as `openbot-server-<version>`, and deletes the builder. The builder never starts
  * OpenBot, so the template holds no host identity and no session. The key needs sandbox, files,
  * commands, and named snapshot access; the Worker's key must not have that access.
+ *
+ * The release job adds `--keep-releases=<n> --in-use=<names>`: before the build, it removes the
+ * production snapshots of older releases except the newest n-1 and the names that pending creates use.
  */
 
 import { readFile } from "node:fs/promises";
@@ -36,6 +39,8 @@ const TEMPLATE_FILES = [
   "openbot-update-request.service",
 ];
 const REMOTE_DIRECTORY = "/tmp/openbot-template";
+const PRODUCTION_PREFIX = "openbot-server-production-";
+const SNAPSHOT_NAME = /^[a-z0-9][a-z0-9-]{0,62}$/u;
 const READY_STATES = new Set(["ready", "idle", "running"]);
 const FAILED_STATES = new Set(["error", "cancelled", "archived"]);
 const hostingRoot = dirname(fileURLToPath(import.meta.url));
@@ -46,7 +51,11 @@ interface TemplateOptions {
   appImageUrl: string;
   appImageSha256: string;
   authApiUrl: string;
+  keepReleases: number | null;
+  inUse: ReadonlySet<string>;
 }
+
+type Release = readonly [number, number, number];
 
 class BoatRequestError extends Error {
   readonly status: number;
@@ -72,6 +81,7 @@ async function main(): Promise<void> {
     logger.info("The release snapshot is ready.", { name: options.name });
     return;
   }
+  await removeOldReleases(boat, options);
   const listed = await boat("GET", "/named-snapshots", "Named snapshot list");
   if (!Array.isArray(listed.snapshots)) throw new Error("boat returned no named snapshot list.");
   const allowance = isDynamicRecord(listed.allowance) ? listed.allowance : null;
@@ -250,6 +260,55 @@ async function waitForNamedSnapshot(boat: BoatRequester, name: string, initial?:
   throw new Error("The named snapshot did not become ready in 30 minutes.");
 }
 
+/**
+ * Removes the production snapshots of releases before this one. It keeps the newest `keepReleases - 1`
+ * ready ones, so `keepReleases` remain with this release. The newest of them stays selected until this
+ * release replaces it. Sandboxes made from a removed snapshot keep running, but a pending create sends
+ * its first request again, so a name in `inUse` stays. A save in progress stays too.
+ */
+async function removeOldReleases(boat: BoatRequester, options: TemplateOptions): Promise<void> {
+  if (options.keepReleases === null) return;
+  const current = parseRelease(options.version, ".");
+  if (!current) throw new Error("--keep-releases needs a stable release version.");
+  const listed = await boat("GET", "/named-snapshots", "Named snapshot list");
+  if (!Array.isArray(listed.snapshots)) throw new Error("boat returned no named snapshot list.");
+  const older = listed.snapshots
+    .flatMap((snapshot) => {
+      if (!isDynamicRecord(snapshot) || !isString(snapshot.name) || !snapshot.name.startsWith(PRODUCTION_PREFIX)) {
+        return [];
+      }
+      const release = parseRelease(snapshot.name.slice(PRODUCTION_PREFIX.length), "-");
+      return release && compareReleases(release, current) < 0
+        ? [{ name: snapshot.name, status: snapshot.status, release }]
+        : [];
+    })
+    .sort((left, right) => compareReleases(right.release, left.release));
+  let kept = 0;
+  for (const snapshot of older) {
+    if (snapshot.status === "ready" && kept < options.keepReleases - 1) {
+      kept += 1;
+      continue;
+    }
+    if (snapshot.status === "saving" || options.inUse.has(snapshot.name)) continue;
+    try {
+      await boat("DELETE", `/named-snapshots/${encodeURIComponent(snapshot.name)}`, "Named snapshot deletion");
+    } catch (error) {
+      if (!(error instanceof BoatRequestError) || error.status !== 404) throw error;
+    }
+    logger.info("Removed the snapshot of an old release.", { name: snapshot.name });
+  }
+}
+
+function parseRelease(value: string, separator: "." | "-"): Release | null {
+  const parts = value.split(separator);
+  if (parts.length !== 3 || !parts.every((part) => /^\d+$/u.test(part))) return null;
+  return [Number(parts[0]), Number(parts[1]), Number(parts[2])];
+}
+
+function compareReleases(left: Release, right: Release): number {
+  return left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
+}
+
 async function retryWhileStarting(request: () => Promise<DynamicRecord>): Promise<DynamicRecord> {
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -292,13 +351,25 @@ function parseOptions(args: string[]): TemplateOptions {
   const name =
     args.find((argument) => argument.startsWith("--name="))?.slice(7) ??
     `openbot-server-${version.replaceAll(".", "-")}`;
-  if (!/^[a-z0-9][a-z0-9-]{0,62}$/u.test(name)) throw new Error("--name must be a boat snapshot name.");
+  if (!SNAPSHOT_NAME.test(name)) throw new Error("--name must be a boat snapshot name.");
+  const keepArgument = args.find((argument) => argument.startsWith("--keep-releases="))?.slice(16);
+  const keepReleases = keepArgument === undefined ? null : Number(keepArgument);
+  if (keepReleases !== null) {
+    if (!Number.isInteger(keepReleases) || keepReleases < 1) throw new Error("--keep-releases must be 1 or more.");
+    if (name !== `${PRODUCTION_PREFIX}${version.replaceAll(".", "-")}`) {
+      throw new Error("--keep-releases needs the production snapshot name of --version.");
+    }
+  }
+  const inUse = (args.find((argument) => argument.startsWith("--in-use="))?.slice(9) ?? "").split(",").filter(Boolean);
+  if (!inUse.every((entry) => SNAPSHOT_NAME.test(entry))) throw new Error("--in-use must list boat snapshot names.");
   return {
     name,
     version,
     appImageUrl,
     appImageSha256,
     authApiUrl: authApiUrl.origin,
+    keepReleases,
+    inUse: new Set(inUse),
   };
 }
 
