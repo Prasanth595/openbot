@@ -311,9 +311,11 @@ async function main(): Promise<void> {
     }
     const hidden = await open();
     await hidden.contents.executeJavaScript("document.querySelector('#f2').hidden = true", false);
+    const hiddenResult = (await fill(hidden)).result;
+    assert(!hiddenResult.success && recorded(hidden.id).length === 0, "Hidden field preflight sent input.");
     assert(
-      !(await fill(hidden)).result.success && recorded(hidden.id).length === 0,
-      "Hidden field preflight sent input.",
+      outcomeSchema.parse(json(hiddenResult)).reason === "invalid_target",
+      "Hidden field preflight reported the wrong reason.",
     );
     await close(hidden.tab.id);
     recordCases("preflight-hidden");

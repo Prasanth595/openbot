@@ -673,7 +673,12 @@ export class BrowserCdpEngine {
               const record = this.#targets.get(field.ref);
               if (!record || record.targetId) return yield* fillFieldsFailure("invalid_target");
               const target: BrowserTarget = { kind: "ref", ref: field.ref, revision };
-              const resolved = yield* this.#resolveElementEffect(send, target, deadline);
+              // A hidden or changed ref fails here before any input. Report a fixed reason code.
+              const resolved = yield* this.#resolveElementEffect(send, target, deadline).pipe(
+                Effect.catch(() =>
+                  Effect.fail(fillFieldsFailure(Date.now() >= deadline ? "deadline" : "invalid_target")),
+                ),
+              );
               const object = yield* send("DOM.resolveNode", {
                 backendNodeId: resolved.backendNodeId,
                 executionContextId: contextId,
@@ -687,7 +692,11 @@ export class BrowserCdpEngine {
               const verify = () =>
                 Effect.gen({ self: this }, function* () {
                   yield* checkDocument();
-                  const current = yield* this.#targetFingerprint(send, resolved.backendNodeId);
+                  const current = yield* this.#targetFingerprint(send, resolved.backendNodeId).pipe(
+                    Effect.catch(() =>
+                      Effect.fail(fillFieldsFailure(Date.now() >= deadline ? "deadline" : "target_changed")),
+                    ),
+                  );
                   if (
                     !current.visible ||
                     current.role !== record.element.role ||
