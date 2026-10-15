@@ -7,6 +7,7 @@ import { cx } from "./utils";
 export interface ErrorReferenceProps {
   /** The code `errorReference` built for the failure. Nothing renders without one. */
   reference: string | null | undefined;
+  receiptId?: string | undefined;
   class?: string;
 }
 
@@ -17,19 +18,35 @@ export interface ErrorReferenceProps {
 export function ErrorReference(props: ErrorReferenceProps): JSX.Element {
   const { t } = useText();
   return (
-    <Show when={props.reference}>
-      {(reference) => (
-        <span class={cx("ui-error-reference", props.class)}>
-          <span class="ui-error-reference-code">{t("error.reference.label", { code: reference() })}</span>
-          <CopyButton
-            value={reference()}
-            iconOnly
-            size="icon-xs"
-            label={t("error.reference.copy")}
-            copiedLabel={t("error.reference.copied")}
-          />
-        </span>
-      )}
-    </Show>
+    <>
+      <Show when={props.reference}>
+        {(reference) => (
+          <span class={cx("ui-error-reference", props.class)}>
+            <span class="ui-error-reference-code">{t("error.reference.label", { code: reference() })}</span>
+            <CopyButton
+              value={reference()}
+              iconOnly
+              size="icon-xs"
+              label={t("error.reference.copy")}
+              copiedLabel={t("error.reference.copied")}
+            />
+          </span>
+        )}
+      </Show>
+      <Show when={props.receiptId}>
+        {(id) => (
+          <span class={cx("ui-error-reference", props.class)}>
+            <span class="ui-error-reference-code">{t("error.reference.label", { code: id() })}</span>
+            <CopyButton
+              value={id()}
+              iconOnly
+              size="icon-xs"
+              label={t("error.reference.copy")}
+              copiedLabel={t("error.reference.copied")}
+            />
+          </span>
+        )}
+      </Show>
+    </>
   );
 }

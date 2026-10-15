@@ -102,6 +102,8 @@ import {
   decodeDetectedAcpAgents,
   decodeDetectedModelServers,
   decodeDiscoverModelsResult,
+  decodeErrorReceipt,
+  decodeErrorReceiptBatch,
   decodeExportResult,
   decodeGitHubConnectorRepositories,
   decodeGitHubConnectorStatus,
@@ -920,6 +922,8 @@ const openbotApi: OpenBotDesktopApi = {
     preference: decodeUpdatePreference,
   }),
   notifications: bridgeGroup(IPC_ENDPOINTS.notifications, {
+    recordErrorReceipt: decodeErrorReceipt,
+    readErrorReceipts: decodeErrorReceiptBatch,
     getPreference: decodeNotificationPreference,
     setPreference: decodeNotificationPreference,
     test: decodeVoid,

@@ -8,6 +8,7 @@ import {
   toast as sonnerToast,
   useSonner,
 } from "solid-sonner";
+import type { ErrorReceiptObserver } from "./alert";
 import { ErrorReference } from "./error-reference";
 import { CircleCheck, Info, LoaderCircle, OctagonX, TriangleAlert } from "./icons";
 import { currentText } from "./text";
@@ -15,6 +16,7 @@ import { cx } from "./utils";
 
 export type ToasterProps = ComponentProps<typeof Sonner> & {
   onToastShown?: (metadata: FailureProperties) => void;
+  onErrorShown?: ErrorReceiptObserver;
 };
 export type ExternalToast = SonnerExternalToast & {
   report?: NotificationMetadata;
@@ -97,11 +99,11 @@ export function Toaster(props: ToasterProps): JSX.Element {
   // The desktop app mounts the Toaster outside its text provider, so it follows the active locale.
   const { t } = currentText();
   const notifications = useSonner();
-  const sonnerProps = omit(props, "onToastShown");
+  const sonnerProps = omit(props, "onToastShown", "onErrorShown");
   createEffect(
     () => notifications.toasts(),
     (toasts) => {
-      if (!props.onToastShown) return;
+      if (!props.onToastShown && !props.onErrorShown) return;
       const current = new Set(sonnerToast.getToasts().map((item) => item.id));
       for (const id of shown)
         if (!current.has(id)) {
@@ -117,6 +119,28 @@ export function Toaster(props: ToasterProps): JSX.Element {
         if (count >= (props.visibleToasts ?? 6)) continue;
         if (item.delete || (item.type !== "error" && item.type !== "warning") || shown.has(item.id)) continue;
         shown.add(item.id);
+        if (item.type === "error" && props.onErrorShown) {
+          const metadata = reports.get(item.id);
+          const [receiptId, setReceiptId] = createSignal<string>();
+          const description = item.description;
+          sonnerToast.error(item.title, {
+            ...item,
+            description: () => (
+              <>
+                {typeof description === "function" ? description() : description}
+                <ErrorReference reference={undefined} receiptId={receiptId()} />
+              </>
+            ),
+          });
+          void props
+            .onErrorShown({
+              presentation: "toast",
+              operation: metadata?.operation ?? "other",
+              cause: metadata?.cause_code ?? "unknown",
+            })
+            .then(setReceiptId)
+            .catch(() => undefined);
+        }
         props.onToastShown?.({
           ...(reports.get(item.id) ?? { operation: "other", source: "system", cause_code: "unknown" }),
           severity: item.type,

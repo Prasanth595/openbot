@@ -38,6 +38,8 @@ import {
   type DetectedModelServer,
   type DiscoverModelsResult,
   decodeScheduledUpdateRestart,
+  type ErrorReceipt,
+  type ErrorReceiptBatch,
   type ExportResult,
   type GitHubConnectorRepositories,
   type GitHubConnectorStatus,
@@ -75,6 +77,11 @@ import {
   parseGitHubConnectorRepositories,
   parseGitHubConnectorStatus,
   parseOnePasswordConnectorStatus,
+  RECEIPT_CAUSES,
+  RECEIPT_CURSOR_PATTERN,
+  RECEIPT_ID_PATTERN,
+  RECEIPT_OPERATIONS,
+  RECEIPT_PRESENTATIONS,
   type RemoteDesktopSetupStatus,
   type RemoteDesktopTestStatus,
   type RemoteSessionReusePreference,
@@ -500,4 +507,35 @@ export function decodeBitwardenConnectorStatus(value: unknown): BitwardenConnect
   if (!value || typeof value !== "object" || !("connected" in value) || typeof value.connected !== "boolean")
     throw new Error("Invalid Bitwarden connector response.");
   return { connected: value.connected };
+}
+
+export function decodeErrorReceipt(value: unknown): ErrorReceipt {
+  const record = decodeRecord(value, "local error receipt");
+  const { presentation, operation, cause } = record;
+  const id = requiredString(record, "id");
+  const cursor = requiredString(record, "cursor");
+  const timestamp = requiredNumber(record, "timestamp");
+  if (
+    !isOneOf(RECEIPT_PRESENTATIONS, presentation) ||
+    !isOneOf(RECEIPT_OPERATIONS, operation) ||
+    !isOneOf(RECEIPT_CAUSES, cause) ||
+    !RECEIPT_ID_PATTERN.test(id) ||
+    !RECEIPT_CURSOR_PATTERN.test(cursor) ||
+    !Number.isFinite(timestamp)
+  )
+    throw new Error("Invalid local error receipt");
+  return { presentation, operation, cause, id, cursor, timestamp };
+}
+
+export function decodeErrorReceiptBatch(value: unknown): ErrorReceiptBatch {
+  const batch = decodeRecord(value, "local error receipt batch");
+  if (!Array.isArray(batch.records) || batch.records.length > 50) throw new Error("Invalid receipt batch size");
+  const cursor = requiredString(batch, "cursor");
+  if (!RECEIPT_CURSOR_PATTERN.test(cursor)) throw new Error("Invalid receipt cursor");
+  return {
+    records: batch.records.map(decodeErrorReceipt),
+    cursor,
+    gap: requiredBoolean(batch, "gap"),
+    hasMore: requiredBoolean(batch, "hasMore"),
+  };
 }

@@ -125,6 +125,7 @@ import {
 } from "./development-remote-bootstrap";
 import { performDynamicIslandCriticalAction } from "./dynamic-island-actions";
 import { DynamicIslandFailed, DynamicIslandWindowController, toDynamicIslandFailed } from "./dynamic-island-window";
+import { ErrorReceiptStore } from "./error-receipt-store";
 import { githubAppConfig } from "./github-connector-config";
 import { GitHubConnectorService } from "./github-connector-service";
 import { GitHubConnectorStore } from "./github-connector-store";
@@ -411,6 +412,7 @@ export interface ApplicationServices {
   language: LanguageService;
   logoColor: LogoColorService;
   notificationPreference: NotificationPreferenceStore;
+  errorReceipts: ErrorReceiptStore;
   busyMessageMode: BusyMessageModePreferenceStore;
   agentMemoryLimit: AgentMemoryLimitPreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
@@ -886,6 +888,7 @@ export async function createApplicationServices({
   await runCauseEffect(language.load());
   const logoColor = new LogoColorService({ path: join(app.getPath("userData"), LOGO_COLOR_PREFERENCE_FILE) });
   await runCauseEffect(logoColor.load());
+  const errorReceipts = new ErrorReceiptStore(join(app.getPath("userData"), "logs", "error-receipts.ndjson"));
   const notificationPreference = new NotificationPreferenceStore(
     join(app.getPath("userData"), NOTIFICATION_PREFERENCE_FILE),
   );
@@ -2325,6 +2328,7 @@ export async function createApplicationServices({
     language,
     logoColor,
     notificationPreference,
+    errorReceipts,
     busyMessageMode,
     agentMemoryLimit,
     remoteSessionReuse,

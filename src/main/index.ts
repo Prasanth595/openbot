@@ -37,6 +37,7 @@ import {
   readDevelopmentRemoteDebuggingPort,
   shouldAutoStartHost,
 } from "./development-profile";
+import { ErrorReceiptStore, showStartupErrorReceipt } from "./error-receipt-store";
 import { hostAllowsTenantLaunch } from "./host-update-coordinator";
 import { takeHostedServerEnvironment } from "./hosted-server-bootstrap";
 import { takeHostingDeveloperKey } from "./hosted-server-service";
@@ -449,6 +450,7 @@ function registerIpcHandlers({
   language,
   logoColor,
   notificationPreference,
+  errorReceipts,
   busyMessageMode,
   agentMemoryLimit,
   remoteSessionReuse,
@@ -554,6 +556,7 @@ function registerIpcHandlers({
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,
+      errorReceipts,
       translate: language.translate,
       requestPermission: () => requestDesktopNotificationPermission(notificationPreference, language.translate),
       openExternal: (url) => shell.openExternal(url),
@@ -1205,7 +1208,7 @@ if (!hasSingleInstanceLock) {
         reopenMainWindow();
       });
     })
-    .catch((error) => {
+    .catch(async (error) => {
       // A quit during the start, such as `docker stop`, closes the window that is still loading.
       // The quit is already running: an error box would block it, and the shutdown deadline with it.
       // Not `isQuitting`: a Windows session end that another app cancels also sets it, and then no quit runs.
@@ -1219,7 +1222,16 @@ if (!hasSingleInstanceLock) {
       if (!serverMode && !hostedServer) {
         // The services, and with them the saved language, may not exist yet. Then the system language applies.
         const translate = services?.language.translate ?? translateFor(resolveLocale("system", app.getLocale()));
-        dialog.showErrorBox(translate("startup.failedTitle"), translate("startup.failedBody", { message }));
+        await showStartupErrorReceipt(
+          services?.errorReceipts ??
+            new ErrorReceiptStore(join(app.getPath("userData"), "logs", "error-receipts.ndjson")),
+          (id) =>
+            dialog.showErrorBox(
+              translate("startup.failedTitle"),
+              translate("startup.failedBody", { message }) +
+                (id ? `\n\n${translate("error.reference.label", { code: id })}` : ""),
+            ),
+        );
       }
       app.quit();
     });

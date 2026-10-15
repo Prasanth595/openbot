@@ -272,7 +272,14 @@ import type {
   TelegramChatInput,
   TelegramOverview,
 } from "./ipc-messaging";
-import type { NotificationOpenedEvent, NotificationPreference } from "./ipc-notifications";
+import type {
+  ErrorReceipt,
+  ErrorReceiptBatch,
+  ErrorReceiptInput,
+  ErrorReceiptQuery,
+  NotificationOpenedEvent,
+  NotificationPreference,
+} from "./ipc-notifications";
 import type { OnePasswordConnectInput, OnePasswordConnectorStatus } from "./ipc-onepassword-connector";
 import type {
   DetectedModelServer,
@@ -927,6 +934,8 @@ export const IPC_ENDPOINTS = {
     preference: event<UpdatePreference>()("update:preference-event"),
   },
   notifications: {
+    recordErrorReceipt: request<ErrorReceiptInput, ErrorReceipt>()("notifications:record-error-receipt"),
+    readErrorReceipts: request<ErrorReceiptQuery, ErrorReceiptBatch>()("notifications:read-error-receipts"),
     getPreference: request<undefined, NotificationPreference>()("notifications:get-preference"),
     setPreference: request<NotificationPreference, NotificationPreference>()("notifications:set-preference"),
     // Shows one OS notification now, even when the window has focus, so the user can check that the

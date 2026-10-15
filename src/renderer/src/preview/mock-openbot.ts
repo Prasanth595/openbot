@@ -47,6 +47,7 @@ import {
   type DynamicIslandPreference,
   type DynamicIslandPresentation,
   defaultProviderModel,
+  type ErrorReceipt,
   type FilePreview,
   type HostedSiteSummary,
   type HostStatus,
@@ -239,6 +240,21 @@ function mockWorkspaceDirectory(path: string): WorkspaceDirectory {
 const MOCK_MCP_TOOL_COUNTS: Record<string, number> = { "Local SQLite": 12, Linear: 1, Figma: 6 };
 
 export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBotControls {
+  const receiptEpoch = crypto.randomUUID();
+  let receiptSequence = 0;
+  let receiptFloor = 0;
+  const receipts: ErrorReceipt[] = [];
+  function pruneReceipts(): void {
+    while (
+      receipts.length &&
+      (receipts.length > 1_000 ||
+        (receipts[0]?.timestamp ?? 0) < Date.now() - 7 * 86_400_000 ||
+        new TextEncoder().encode(JSON.stringify(receipts)).length > 512 * 1024)
+    ) {
+      const removed = receipts.shift();
+      if (removed) receiptFloor = Number(removed.cursor.split(":")[1]);
+    }
+  }
   const appInfo = clone(options.appInfo ?? STORY_APP_INFO);
   let setupState = clone<AppSetupState>(
     options.setupState ?? { completed: true, preferredProvider: "codex", preferredModel: null },
@@ -1978,6 +1994,39 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       onPreference: () => () => undefined,
     },
     notifications: {
+      recordErrorReceipt: async (input) => {
+        const receipt: ErrorReceipt = {
+          presentation: input.presentation,
+          operation: input.operation,
+          cause: input.cause,
+          id: `rcpt_${crypto.randomUUID()}`,
+          cursor: `${receiptEpoch}:${++receiptSequence}`,
+          timestamp: Date.now(),
+        };
+        receipts.push(receipt);
+        pruneReceipts();
+        return clone(receipt);
+      },
+      readErrorReceipts: async (query) => {
+        pruneReceipts();
+        const [epoch, raw] = query.after?.split(":") ?? [];
+        const sequence = Number(raw);
+        const gap =
+          query.after === undefined
+            ? receiptFloor > 0
+            : epoch !== receiptEpoch || sequence < receiptFloor || sequence > receiptSequence;
+        const remaining = receipts.filter(
+          (receipt) =>
+            Number(receipt.cursor.split(":")[1]) > (query.after === undefined || gap ? receiptFloor : sequence),
+        );
+        const records = remaining.slice(0, Math.max(1, Math.min(50, query.limit ?? 50)));
+        return {
+          records: clone(records),
+          cursor: records.at(-1)?.cursor ?? `${receiptEpoch}:${receiptSequence}`,
+          gap,
+          hasMore: remaining.length > records.length,
+        };
+      },
       getPreference: async () => ({ desktopNotifications: true, messagePreview: true }),
       setPreference: async (input) => ({ ...input }),
       test: async () => undefined,

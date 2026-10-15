@@ -1,4 +1,4 @@
-import type { AppInfo, CentralAuthUser } from "@openbot/contracts/ipc";
+import type { AppInfo, CentralAuthUser, ErrorReceiptInput } from "@openbot/contracts/ipc";
 import {
   classifyFailure,
   type FailureProperties,
@@ -109,4 +109,15 @@ if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.key === WEB_PREFERENCE) configureErrorReports(webReportsEnabled());
   });
+}
+
+/** Local display retention has no telemetry queue, preference, or account dependency. */
+export async function retainErrorReceipt(input: ErrorReceiptInput): Promise<string | undefined> {
+  if (typeof window === "undefined" || !window.openbot) return undefined;
+  try {
+    return (await window.openbot.notifications.recordErrorReceipt(input)).id;
+  } catch {
+    // A local I/O failure must not hide the original error or print the rejected payload.
+    return undefined;
+  }
 }

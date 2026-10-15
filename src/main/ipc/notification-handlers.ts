@@ -2,15 +2,19 @@
 
 import type { AppTranslate } from "@openbot/i18n";
 import { sourceText } from "@openbot/i18n/source";
+import { Effect } from "effect";
 import { Notification } from "electron";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import { notificationSettingsUrl, showRetainedNotification } from "../desktop-notifications";
+import type { ErrorReceiptStore } from "../error-receipt-store";
 import type { NotificationPreferenceStore } from "../notification-preference-store";
 import { parseNotificationPreference } from "./app-inputs";
 import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
+import { parseErrorReceiptInput, parseErrorReceiptQuery } from "./notification-inputs";
 
 export interface NotificationIpcDependencies {
   notificationPreference: NotificationPreferenceStore;
+  errorReceipts: ErrorReceiptStore;
   translate: AppTranslate;
   /** Asks the operating system for permission if OpenBot has not asked yet. */
   requestPermission: () => Promise<void>;
@@ -19,12 +23,19 @@ export interface NotificationIpcDependencies {
 
 export function notificationIpcHandlers({
   notificationPreference,
+  errorReceipts,
   translate,
   requestPermission,
   openExternal,
 }: NotificationIpcDependencies): Pick<IpcGroupHandlers, "notifications"> {
   return {
     notifications: {
+      recordErrorReceipt: payloadHandler(parseErrorReceiptInput, (input) =>
+        Effect.runPromise(errorReceipts.record(input)),
+      ),
+      readErrorReceipts: payloadHandler(parseErrorReceiptQuery, (query) =>
+        Effect.runPromise(errorReceipts.read(query)),
+      ),
       getPreference: handler(() => notificationPreference.get()),
       setPreference: payloadHandler(parseNotificationPreference, async (preference) => {
         const saved = await runCauseEffect(notificationPreference.set(preference));
