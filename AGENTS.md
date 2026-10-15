@@ -156,6 +156,12 @@ State which surfaces a change touches. Check all affected consumers and reverse 
 - The root `.env.keys` holds the only two keys: `DOTENV_PRIVATE_KEY_PRODUCTION` and
   `DOTENV_PRIVATE_KEY_DEV`. Every encrypted env file, `remote/.env.production` included, uses one of
   them. Never make a new key pair. Pass `-fk` with the root `.env.keys` so Dotenvx does not make one.
+- For direct Cloudflare changes, `apps/auth-api/.env.production` holds `CLOUDFLARE_API_TOKEN`
+  (write access to all resources in the OpenBot account) and `CLOUDFLARE_ACCOUNT_ID`. Load them
+  with `bunx dotenvx run -f apps/auth-api/.env.production -fk <root>/.env.keys -- <command>`. A worktree
+  has no `.env.keys`; use the one in the main checkout. Never print the token: do not use
+  `dotenvx get` or `echo`. Ask before a change that deletes data or affects production users.
+  Deploy scripts remove the token, so Wrangler deploys keep the developer's `wrangler login`.
 
 See [account service setup](apps/auth-api/README.md) for loading and deployment details.
 
