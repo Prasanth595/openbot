@@ -154,7 +154,7 @@ The user starts a task from the chat menu ("New task") or moves a queued message
 task"). The agent starts one with the `start_task` OpenBot tool, up to 8 open tasks. A message to a
 running task waits in the task, or steers the turn when the agent's busy-message mode is "steer"
 and the provider steers natively, as in the main chat. Stop interrupts the task turn; close moves
-the task to "Earlier tasks", and reopen moves it back. Boot recovery registers the task threads and
+the task to "Earlier tasks" when no message of it waits, starts or runs, and reopen moves it back. Boot recovery registers the task threads and
 starts queued tasks again. When a task's provider session ends, the next session gets a handoff of
 that task's own transcript, as the main chat does; channel threads still get none.
 

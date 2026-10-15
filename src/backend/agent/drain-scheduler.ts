@@ -333,10 +333,19 @@ export class DrainScheduler {
     }
   }
 
-  /** Schedules the agent's own chat, then each task with a queued message. */
+  /** Schedules the agent's own chat, then each task with a message that can start. */
   #scheduleDrain(agentId: string, followUsageLimit = true): void {
     if (this.#scheduleLane(mainLane(agentId), followUsageLimit)) return;
-    for (const taskId of this.#mailbox.queuedTaskIds(agentId)) this.#scheduleLane({ agentId, taskId }, false);
+    this.#scheduleTasks(agentId);
+  }
+
+  /**
+   * Schedules each task whose next message can start. A task with a start that is still "starting"
+   * has none, so its drain would find nothing and schedule the task again with no end.
+   */
+  #scheduleTasks(agentId: string): void {
+    for (const taskId of this.#mailbox.queuedTaskIds(agentId))
+      if (this.#mailbox.nextQueued(agentId, taskId)) this.#scheduleLane({ agentId, taskId }, false);
   }
 
   /** True when a move for a usage limit started: the move schedules the agent again when it ends. */
@@ -485,8 +494,7 @@ export class DrainScheduler {
           this.#drainingLanes.delete(key);
           if (this.#mailbox.nextQueued(agentId)) this.#scheduleLane(mainLane(agentId));
           // Every task too: this lane can have held another one for the task limit or the process.
-          for (const queued of this.#mailbox.queuedTaskIds(agentId))
-            this.#scheduleLane({ agentId, taskId: queued }, false);
+          this.#scheduleTasks(agentId);
           this.retrySlotWaiters();
         }),
       ),

@@ -3227,7 +3227,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     input: AgentTaskInput,
   ): Effect.fn.Return<void, AgentLifecycleFailed> {
     yield* this.stopTask(input);
-    const task = yield* lifecycleStep("find task", () => this.#tasks.require(input.agentId, input.taskId));
+    const task = yield* lifecycleStep("find task", () => {
+      const found = this.#tasks.require(input.agentId, input.taskId);
+      // A turn that starts or ends after the Stop still counts toward the limits of its open task.
+      if (this.#mailbox.taskBusy(found.agentId, found.taskId))
+        throw new Error(sourceText("error.backend.taskStillRunning"));
+      return found;
+    });
     this.#tasks.close(task);
     // A task lane that waited for a free task can start now.
     this.#drain.scheduleDrain(task.agentId);
@@ -3235,6 +3241,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   reopenTask(input: AgentTaskInput): void {
     this.#tasks.reopen(this.#tasks.require(input.agentId, input.taskId));
+    this.#drain.scheduleDrain(input.agentId);
   }
 
   acknowledgeFailedTurn(agentId: string, turnId: string): void {
@@ -3433,6 +3440,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         operation: "send message",
         cause: new Error(sourceText("error.agent.queuedMessageCreateFailed")),
       });
+    // The task can close while the message is stored, and a closed task shows no queue to cancel it.
+    if (task && this.#tasks.threadId(task.taskId) === null) {
+      yield* this.cancelQueuedMessage(agent.id, delivery.delivery.id);
+      return yield* new AgentLifecycleFailed({
+        operation: "send message",
+        cause: new Error(sourceText("error.backend.taskClosed")),
+      });
+    }
     if (timezone !== undefined) this.#routines.noteDeliveryTimezone(delivery.delivery.id, timezone);
     const snapshot = this.#conversation.ensureSnapshot(agent.id, task?.threadId ?? agent.threadId);
     // A task message shows in the task's row until its turn starts, not in the agent's own chat.

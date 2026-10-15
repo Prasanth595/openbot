@@ -165,6 +165,7 @@ export class AgentTasks implements TaskLanes {
   close(task: AgentTaskRecord): void {
     this.#store.close(task.taskId);
     this.#progress.delete(task.taskId);
+    this.#stoppedTurns.delete(task.taskId);
     this.changed(task.agentId);
   }
 
@@ -204,9 +205,9 @@ export class AgentTasks implements TaskLanes {
   }
 
   deleteForAgent(agentId: string): void {
-    for (const task of this.#store.list(agentId)) {
-      this.#progress.delete(task.taskId);
-      this.#stoppedTurns.delete(task.taskId);
+    for (const taskId of this.#store.taskIdsForAgent(agentId)) {
+      this.#progress.delete(taskId);
+      this.#stoppedTurns.delete(taskId);
     }
     this.#store.deleteForAgent(agentId);
   }

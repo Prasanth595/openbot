@@ -76,10 +76,7 @@ export interface AgentTask {
   activeTurnId: string | null;
   /** What the running turn does now, as the agent's own chat shows it. Null when no turn runs. */
   progress: string | null;
-  /**
-   * What the provider reported when the last turn failed. Null when it reported nothing, or when the
-   * app started again after the turn: the outcome stays, the text does not.
-   */
+  /** What the provider reported, redacted, when the last turn failed. Null when it reported nothing. */
   error: string | null;
   /** The messages that wait to start in this task, oldest first. */
   queuedMessages: AgentTaskQueuedMessage[];

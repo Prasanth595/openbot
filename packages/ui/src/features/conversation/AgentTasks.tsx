@@ -177,8 +177,8 @@ export function AgentTaskPanel(props: AgentTaskPanelProps) {
     const task = props.task;
     if (!task) return t("conversation.tasks.panel.newPlaceholder", { name: props.agent.name });
     return isAgentTaskActive(task)
-      ? t("conversation.tasks.panel.messagePlaceholder", { title: task.title })
-      : t("conversation.tasks.panel.continuePlaceholder", { title: task.title });
+      ? t("conversation.tasks.panel.messagePlaceholder")
+      : t("conversation.tasks.panel.continuePlaceholder");
   };
   const send = async () => {
     const text = draft().trim();

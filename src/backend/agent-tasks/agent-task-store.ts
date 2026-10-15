@@ -94,6 +94,12 @@ export class AgentTaskStore {
     ).map((row) => requiredStringColumn(row, "task_id"));
   }
 
+  taskIdsForAgent(agentId: string): string[] {
+    return databaseRows(
+      this.#database.connection.prepare("SELECT task_id FROM projection_agent_tasks WHERE agent_id = ?").all(agentId),
+    ).map((row) => requiredStringColumn(row, "task_id"));
+  }
+
   threadIdsForAgent(agentId: string): string[] {
     return databaseRows(
       this.#database.connection.prepare("SELECT thread_id FROM projection_agent_tasks WHERE agent_id = ?").all(agentId),

@@ -272,6 +272,7 @@ export const messages = defineMessages("error.backend", {
   "error.backend.taskMoveRefused": "Only a message that you sent to this agent alone can run as a task.",
   "error.backend.taskNotFound": "This task is not available.",
   "error.backend.taskClosed": "This task is closed. Open it again to send a message.",
+  "error.backend.taskStillRunning": "This task still runs. Wait until it stops, then close it.",
   "error.backend.taskTitleRequired": "Give the task a short title.",
   "error.backend.taskToolInvalid": "Give the task a title of at most 120 characters and a brief that says what to do.",
   "error.backend.taskOwnChatOnly":
