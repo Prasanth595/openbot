@@ -390,7 +390,8 @@ When you share text, a link, an image or a file from another app to OpenBot, the
 of each file in its app cache until the chat that you choose has read it, or until you close the
 share sheet. Nothing is sent until you send the message. To find out whether a shared link points to
 an image, the phone requests the link from its website and reads only the response headers. When the
-link is an image of at most 10 MB, the phone downloads it and attaches it in place of the link.
+link is an image, the phone downloads it and attaches it in place of the link. It stops a download
+after 10 MB, and a larger image stays a link.
 
 Mobile dictation uses the phone's speech recognition only after you press the microphone. It asks
 for on-device recognition. On iOS, this applies when the phone supports it for your language. On

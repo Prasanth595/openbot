@@ -160,7 +160,15 @@ async function linkedImages(payloads: SharePayload[]): Promise<LinkedImage[]> {
 }
 
 async function download(folder: Directory, image: LinkedImage): Promise<SharedFile> {
-  const file = await File.downloadFileAsync(image.uri, new File(folder, image.name), { idempotent: true });
+  // A response can have no size. The download stops after the attachment limit, and the link stays.
+  const controller = new AbortController();
+  const file = await File.downloadFileAsync(image.uri, new File(folder, image.name), {
+    idempotent: true,
+    signal: controller.signal,
+    onProgress: ({ bytesWritten }) => {
+      if (bytesWritten > MOBILE_ATTACHMENT_BYTES) controller.abort();
+    },
+  });
   return sharedFile(file, image.name, folder);
 }
 

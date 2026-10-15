@@ -284,7 +284,10 @@ export function useChatAttachments(
       }
       for (const file of files) {
         try {
-          await addFile(file.uri, file.name);
+          if (itemsRef.current.length >= INPUT_LIMITS.attachments) throw new Error(limitMessage());
+          // The caller deletes the copy after this read, so the item keeps the bytes, not the address.
+          const { name, mimeType, base64 } = await readFile(file.uri, file.name);
+          await add({ name, mimeType, base64 });
         } catch (error) {
           failures.push(error);
         }
