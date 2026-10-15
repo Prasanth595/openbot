@@ -33,6 +33,14 @@ expired handle cannot answer a later provider request. Pending details are not t
 snapshot budget. The HTTP boundary redacts outgoing values. Browser takeovers and secret questions
 are notices only and direct the person to OpenBot. Messages and routine runs share the rate limit.
 
+## Scheduled routine changes
+
+The agent scheduler reads the due list once per pass. It reads each routine again before it starts
+that occurrence, because queueing an earlier run can yield. A paused or deleted routine, a replaced
+trigger, or a moved due time leaves the old list without starting work. An edit that keeps the same
+trigger and due time uses the current instruction and policies. The run row still commits before
+the trigger advances or completes, so restart recovery keeps the same run and mailbox delivery.
+
 ## Quiet routine runs
 
 A scheduled, script or webhook run of an agent routine can end without news, in two ways. No person
