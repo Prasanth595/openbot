@@ -12,6 +12,7 @@ export const messages = {
   "mobile.app.route.about": "Hakkında",
   "mobile.app.route.support": "Destek",
   "mobile.app.route.hiddenChats": "Gizli sohbetler",
+  "mobile.app.route.share": "Paylaş",
   "mobile.app.route.cropPhoto": "Taşı ve Ölçeklendir",
   "mobile.app.route.queuedMessages": "Kuyruktaki mesajlar",
   "mobile.app.route.messageOptions": "Mesaj seçenekleri",

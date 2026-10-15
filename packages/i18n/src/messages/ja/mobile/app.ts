@@ -12,6 +12,7 @@ export const messages = {
   "mobile.app.route.about": "情報",
   "mobile.app.route.support": "サポート",
   "mobile.app.route.hiddenChats": "非表示のチャット",
+  "mobile.app.route.share": "共有",
   "mobile.app.route.cropPhoto": "移動と拡大縮小",
   "mobile.app.route.queuedMessages": "待機中のメッセージ",
   "mobile.app.route.messageOptions": "メッセージのオプション",

@@ -11,6 +11,7 @@ export const messages = defineMessages("mobile.app", {
   "mobile.app.route.about": "About",
   "mobile.app.route.support": "Support",
   "mobile.app.route.hiddenChats": "Hidden chats",
+  "mobile.app.route.share": "Share",
   "mobile.app.route.cropPhoto": "Move and Scale",
   "mobile.app.route.queuedMessages": "Queued messages",
   "mobile.app.route.messageOptions": "Message options",

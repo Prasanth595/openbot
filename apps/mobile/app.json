@@ -97,7 +97,27 @@
           }
         }
       ],
-      "expo-sharing",
+      [
+        "./plugins/with-share-target",
+        {
+          "ios": {
+            "enabled": true,
+            "appGroupId": "group.run.openbot.mobile",
+            "extensionBundleIdentifier": "run.openbot.mobile.ShareExtension",
+            "activationRule": {
+              "supportsText": true,
+              "supportsWebUrlWithMaxCount": 1,
+              "supportsImageWithMaxCount": 10,
+              "supportsFileWithMaxCount": 10
+            }
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["text/*", "image/*", "application/*"],
+            "multipleShareMimeTypes": ["*/*"]
+          }
+        }
+      ],
       "expo-font",
       "expo-image",
       [

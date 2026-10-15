@@ -40,6 +40,9 @@ export interface ChatAttachment extends RemoteFileUpload {
   dimensions?: ImageDimensions;
 }
 
+/** Longer pasted or shared text goes in as a text file, not into the composer. */
+const LARGE_TEXT_LENGTH = 4_000;
+
 function base64(bytes: Uint8Array) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -230,7 +233,7 @@ export function useChatAttachments(
         mimeType: "image/png",
         base64: data.data.slice(data.data.indexOf(",") + 1),
       });
-    else if (data.text.length > 4_000)
+    else if (data.text.length > LARGE_TEXT_LENGTH)
       return add({
         name: "pasted-text.txt",
         mimeType: "text/plain",
@@ -238,26 +241,66 @@ export function useChatAttachments(
       });
     else onText(data.text);
   }
+  function reportFailures(failures: unknown[]) {
+    mobileAnalytics.track("attachment_action", {
+      action: "select",
+      result: "failed",
+      failure_code: "operation_failed",
+    });
+    void haptics.notification("error");
+    showFailureAlert(
+      failures[0],
+      "turn",
+      t("mobile.chat.attachment.addFailed"),
+      // Each file over the limit gives the same message, so it shows once.
+      [...new Set(failures.map((error) => errorMessage(error, t("mobile.chat.tryAgain"))))].join("\n"),
+    );
+  }
+  /**
+   * Adds what another app shared. Long text becomes a file, as a paste does. Each file is read on its
+   * own, so a refused file does not stop the others, and one alert names each refused file.
+   */
+  async function addShared(
+    text: string,
+    files: readonly { uri: string; name: string }[],
+    onText: (text: string) => void,
+  ) {
+    const large = text.length > LARGE_TEXT_LENGTH;
+    if (text && !large) onText(text);
+    if (!large && files.length === 0) return;
+    const failures: unknown[] = [];
+    beginPreparing();
+    try {
+      if (large) {
+        try {
+          await add({
+            name: "shared-text.txt",
+            mimeType: "text/plain",
+            base64: base64(new TextEncoder().encode(text)),
+          });
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      for (const file of files) {
+        try {
+          await addFile(file.uri, file.name);
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+    } finally {
+      endPreparing();
+    }
+    if (failures.length > 0) reportFailures(failures);
+  }
   const busyRef = useRef(false);
   function report(operation: () => Promise<void>) {
     if (busyRef.current) return;
     busyRef.current = true;
     beginPreparing();
     return operation()
-      .catch((error) => {
-        mobileAnalytics.track("attachment_action", {
-          action: "select",
-          result: "failed",
-          failure_code: "operation_failed",
-        });
-        void haptics.notification("error");
-        showFailureAlert(
-          error,
-          "turn",
-          t("mobile.chat.attachment.addFailed"),
-          errorMessage(error, t("mobile.chat.tryAgain")),
-        );
-      })
+      .catch((error) => reportFailures([error]))
       .finally(() => {
         busyRef.current = false;
         endPreparing();
@@ -279,6 +322,7 @@ export function useChatAttachments(
     chooseFiles: () => report(chooseFiles),
     replace: (id: string) => report(() => replaceItem(id)),
     paste,
+    addShared,
     remove: (id: string) => {
       void report(() => persistItems(itemsRef.current.filter((item) => item.id !== id)));
       mobileAnalytics.track("attachment_action", { action: "remove", result: "succeeded", attachment_count: 1 });

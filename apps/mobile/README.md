@@ -320,9 +320,10 @@ One-time setup:
 3. Keep the iOS distribution certificate and provisioning profiles configured in EAS. CI downloads
    these existing credentials. If they expire or need repair, update them interactively through
    EAS before retrying; the upload API key is not passed to the build step. Each target has its own
-   profile: the app, `ExpoWidgetsTarget` (`run.openbot.mobile.ExpoWidgetsTarget`) and
+   profile: the app, `ExpoWidgetsTarget` (`run.openbot.mobile.ExpoWidgetsTarget`),
    `OpenBotNotificationService` (`run.openbot.mobile.NotificationService`, the Notification Service
-   Extension). Both extensions need the App Group `group.run.openbot.mobile`. When a release adds a
+   Extension) and `expo-sharing-extension` (`run.openbot.mobile.ShareExtension`, the share extension).
+   Each extension needs the App Group `group.run.openbot.mobile`. When a release adds a
    target, set up its profile interactively once (`bunx eas-cli credentials -p ios`) before CI builds
    it. Keep the saved push key; do not let EAS make a new one.
 4. Keep the OpenPanel variables in EAS `production` with `Plain text` or `Sensitive` visibility.
