@@ -104,6 +104,7 @@
     "./team-protocol/agent-publish-v1": "./src/team-protocol/agent-publish-v1.ts",
     "./team-protocol/agent-update-v1": "./src/team-protocol/agent-update-v1.ts",
     "./team-protocol/context-reset-v1": "./src/team-protocol/context-reset-v1.ts",
+    "./team-protocol/context-categories-v1": "./src/team-protocol/context-categories-v1.ts",
     "./team-protocol/events-v1": "./src/team-protocol/events-v1.ts",
     "./team-protocol/workspace-directory-v1": "./src/team-protocol/workspace-directory-v1.ts",
     "./team-protocol/conversation-file-search-v1": "./src/team-protocol/conversation-file-search-v1.ts",

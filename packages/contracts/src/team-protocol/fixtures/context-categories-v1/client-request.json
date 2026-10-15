@@ -1,0 +1,8 @@
+{
+  "method": "POST",
+  "path": "/v1/agent-context/categories",
+  "body": {
+    "agentId": "agent-context-fixture",
+    "threadId": "thread-context-fixture"
+  }
+}

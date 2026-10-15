@@ -156,6 +156,7 @@ import {
   decodeComputerUsePermissionApp,
   decodeComputerUseState,
 } from "./computer-use-decoding";
+import { decodeContextCategoriesFromMain } from "./context-categories-decoding";
 import {
   decodeAttachments,
   decodeConversation,
@@ -411,6 +412,7 @@ const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   getHostAnalytics: decodeHostAnalyticsFromMain,
   getAnalytics: decodeAgentAnalyticsFromMain,
   getUsage: decodeAccountUsageFromMain,
+  readContextCategories: decodeContextCategoriesFromMain,
   listModels: decodeAgentModels,
   listAgents: decodeAgents,
   readAgentSessionSettings: decodeAgentSessionSettingsFromMain,

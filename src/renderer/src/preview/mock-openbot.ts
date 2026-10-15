@@ -1218,6 +1218,22 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     },
     agent: {
       getStatus: async () => clone(agentStatus),
+      readContextCategories: async (input) => {
+        const agent = agents.find((candidate) => candidate.id === input.agentId);
+        return agent?.provider === "claude" && agent.threadId === input.threadId
+          ? {
+              ...input,
+              source: "summary",
+              usedTokens: 141_800,
+              windowTokens: 200_000,
+              truncated: false,
+              categories: [
+                { label: "system-prompt", tokens: 12_000, kind: null, isDeferred: null },
+                { label: "messages", tokens: 129_800, kind: null, isDeferred: null },
+              ],
+            }
+          : null;
+      },
       getHostAnalytics: async (input) => mockHostAnalytics(input, agents),
       getAnalytics: async (input) => {
         const agent = agents.find((entry) => entry.id === input.agentId);

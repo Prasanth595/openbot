@@ -1,3 +1,9 @@
+import {
+  type AgentContextCategoryUsage,
+  decodeContextCategoryUsage,
+  type ReadContextCategoriesInput,
+} from "@openbot/contracts/ipc";
+import { CONTEXT_CATEGORIES_ROUTE } from "@openbot/contracts/team-protocol/context-categories-v1";
 import { Effect, Schema } from "effect";
 // Team API requests that the web client and the mobile app send in the same way.
 //
@@ -434,4 +440,24 @@ export const setAgentMemoryInclusion = Effect.fn("TeamClient.setAgentMemoryInclu
   const state = yield* readAgentMemorySelection(request, input.agentId, true);
   if (state === null) throw new Error("The host returned no memory selection.");
   return state;
+});
+
+/** A current cached read. The caller gates this optional route with the host capability. */
+export const readContextCategories = Effect.fn("TeamClient.readContextCategories")(function* (
+  request: TeamApiRequest,
+  input: ReadContextCategoriesInput,
+): Effect.fn.Return<AgentContextCategoryUsage | null, TeamRequestError> {
+  return yield* teamCall(() =>
+    request(
+      "POST",
+      CONTEXT_CATEGORIES_ROUTE,
+      (value) => {
+        const decoded = decodeContextCategoryUsage(value);
+        if (decoded && (decoded.agentId !== input.agentId || decoded.threadId !== input.threadId))
+          throw new Error("Context categories do not match the requested conversation.");
+        return decoded;
+      },
+      { ...input },
+    ),
+  );
 });

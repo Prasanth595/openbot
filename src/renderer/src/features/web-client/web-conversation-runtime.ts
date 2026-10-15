@@ -24,6 +24,7 @@ import type { ConversationRuntime } from "../conversation/conversation-runtime";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import { createWebAttachmentMedia } from "./web-attachment-media";
 import { createWebAttachmentFiles, openWebLink } from "./web-attachments";
+import { createWebContextCategoryRead } from "./web-context-categories";
 import { webMessageLinks } from "./web-message-link-relay";
 import type { WebWorkspaceRuntime } from "./web-runtime";
 
@@ -109,6 +110,7 @@ export function createWebConversationRuntime(
   sessionSettingsEnabled?: () => boolean,
   signInRelayEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
+  contextCategories?: { request: () => TeamApiRequest; enabled: () => boolean },
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
@@ -138,6 +140,9 @@ export function createWebConversationRuntime(
   return {
     agent: {
       ...messageLinks,
+      readContextCategories: contextCategories
+        ? createWebContextCategoryRead({ ...contextCategories, hostId })
+        : async () => null,
       discardDraftAttachment: (id) => remote.discard(id),
       downloadAttachments: unavailable,
       editQueuedMessage: async (input, serverId) => {

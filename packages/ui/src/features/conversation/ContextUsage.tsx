@@ -1,3 +1,4 @@
+import type { ContextCategoryEstimate, ContextCategoryUsage } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Button,
@@ -11,7 +12,7 @@ import {
   TriangleAlert,
 } from "@openbot/ui";
 import { ContentExitMotion } from "@openbot/ui/menu-motion";
-import { createEffect, createSignal, Match, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
 import { useText } from "../../text";
 import { CloseIcon } from "./ConversationIcons";
 import { formatChatTimestamp } from "./chat-timestamp";
@@ -27,6 +28,7 @@ export interface ContextUsageView {
   nativeManaged?: boolean;
   estimated?: boolean;
   compacting: boolean;
+  categoryUsage?: ContextCategoryUsage | null;
   lastCompaction?: { beforeTokens: number; afterTokens: number } | undefined;
 }
 
@@ -50,7 +52,7 @@ function meterLevel(usage: ContextUsageView): "quiet" | "normal" | RadialProgres
  * The composer's context ring and the popover it opens. It shows how full the agent's provider
  * thread is and when it compacts.
  */
-export function ContextUsageMeter(props: { usage: ContextUsageView }) {
+export function ContextUsageMeter(props: { usage: ContextUsageView; onOpen?: () => void }) {
   const { t, format } = useText();
   const percent = () => format.percent(usedShare(props.usage), { maximumFractionDigits: 0 });
   const level = () => meterLevel(props.usage);
@@ -60,7 +62,13 @@ export function ContextUsageMeter(props: { usage: ContextUsageView }) {
   };
   let popover: HTMLElement | undefined;
   return (
-    <Popover.Root placement="top-end" gutter={8}>
+    <Popover.Root
+      placement="top-end"
+      gutter={8}
+      onOpenChange={(open) => {
+        if (open) props.onOpen?.();
+      }}
+    >
       <Popover.Trigger
         class="composer-button context-meter-trigger"
         aria-label={
@@ -96,6 +104,7 @@ export function ContextUsageMeter(props: { usage: ContextUsageView }) {
               total: format.compact(props.usage.windowTokens),
             })}
           </p>
+          <Show when={props.usage.categoryUsage}>{(usage) => <ContextCategoryRows usage={usage()} />}</Show>
           <Popover.Description class="context-meter-note">
             <Show
               when={props.usage.autoCompactAt}
@@ -120,6 +129,75 @@ export function ContextUsageMeter(props: { usage: ContextUsageView }) {
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
+  );
+}
+
+const CATEGORY_TEXT = {
+  "system-prompt": "composer.context.category.systemPrompt",
+  "system-tools": "composer.context.category.systemTools",
+  "mcp-tools": "composer.context.category.mcpTools",
+  memory: "composer.context.category.memory",
+  messages: "composer.context.category.messages",
+  agents: "composer.context.category.agents",
+  skills: "composer.context.category.skills",
+  free: "composer.context.category.free",
+  buffer: "composer.context.category.buffer",
+} as const satisfies Record<Exclude<ContextCategoryEstimate["label"], "other">, AppTextKey>;
+const KIND_TEXT = {
+  used: "composer.context.kind.used",
+  free: "composer.context.kind.free",
+  buffer: "composer.context.kind.buffer",
+  deferred: "composer.context.kind.deferred",
+} as const satisfies Record<NonNullable<ContextCategoryEstimate["kind"]>, AppTextKey>;
+
+/** Safe category rows, separate from the unchanged total bar and ring arithmetic. */
+function ContextCategoryRows(props: { usage: ContextCategoryUsage }) {
+  const { t, format } = useText();
+  return (
+    <section class="context-category-section" aria-label={t("composer.context.categoriesTitle")}>
+      <p class="context-meter-note">{t("composer.context.categoriesTitle")}</p>
+      <Show
+        when={props.usage.categories}
+        fallback={<p class="context-meter-note">{t("composer.context.categoriesMissing")}</p>}
+      >
+        {(rows) => (
+          <>
+            <Show
+              when={rows().length > 0}
+              fallback={<p class="context-meter-note">{t("composer.context.categoriesEmpty")}</p>}
+            >
+              <ul class="context-category-list">
+                <For each={rows()}>
+                  {(row, index) => (
+                    <li class="context-category-row">
+                      <span class="context-category-name">
+                        {row.label === "other"
+                          ? t("composer.context.category.other", { number: format.number(index() + 1) })
+                          : t(CATEGORY_TEXT[row.label])}
+                        <span class="context-category-kind">
+                          {t(
+                            row.kind
+                              ? KIND_TEXT[row.kind]
+                              : row.isDeferred === true
+                                ? "composer.context.kind.deferred"
+                                : "composer.context.kind.estimate",
+                          )}
+                        </span>
+                      </span>
+                      <span class="context-category-tokens">{format.number(row.tokens)}</span>
+                    </li>
+                  )}
+                </For>
+              </ul>
+            </Show>
+            <p class="context-meter-note">{t("composer.context.categoriesNote")}</p>
+            <Show when={props.usage.truncated}>
+              <p class="context-meter-note">{t("composer.context.categoriesTruncated", { count: rows().length })}</p>
+            </Show>
+          </>
+        )}
+      </Show>
+    </section>
   );
 }
 

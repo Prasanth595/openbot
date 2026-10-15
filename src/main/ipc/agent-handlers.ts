@@ -1,7 +1,13 @@
+import { parseReadContextCategoriesInput } from "@openbot/contracts/ipc";
 import {
   AGENT_SESSION_SETTINGS_CAPABILITY,
   AGENT_SESSION_SETTINGS_ROUTES,
 } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
+import {
+  CONTEXT_CATEGORIES_CAPABILITY,
+  CONTEXT_CATEGORIES_ROUTE,
+} from "@openbot/contracts/team-protocol/context-categories-v1";
+import { assertContextCategoryScope, decodeContextCategoriesFromHost } from "../remote-context-categories-decoding";
 // An agent's core surface: status, agents, conversations, the queue and the prompts
 // a turn can raise. Memories, routines and attachments are their own registrars.
 // Every one of these routes to the local service or to a remote server by the
@@ -177,6 +183,20 @@ export function agentIpcHandlers({
                 )
               : { limits: [] }
             : runCauseEffect(remoteServers.request(serverId, TEAM_API_ROUTES.agents.usage, decodeAccountUsageFromHost)),
+      }),
+      readContextCategories: scopedHandler(parseReadContextCategoriesInput, {
+        local: (input) => service.readContextCategories(input),
+        remote: (input, serverId) =>
+          remoteServers.supportsCapability(serverId, CONTEXT_CATEGORIES_CAPABILITY)
+            ? runCauseEffect(
+                remoteServers.request(
+                  serverId,
+                  CONTEXT_CATEGORIES_ROUTE,
+                  (value) => assertContextCategoryScope(decodeContextCategoriesFromHost(value), input),
+                  { method: "POST", body: { ...input } },
+                ),
+              )
+            : null,
       }),
       listModels: scopedQueryHandler({
         local: () => logRejectedModels(service.listModels(), "local"),

@@ -14,7 +14,7 @@ import {
   tool,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { defaultProviderModel } from "@openbot/contracts/ipc";
+import { type ContextCategoryUsage, defaultProviderModel } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -33,6 +33,7 @@ import { isBalanceDiagnostic, isPlanLimitDiagnostic } from "./agent/provider-dia
 import { claudeBridgedToolName, VISIBLE_TOOL_DEFINITIONS } from "./agent/tool-catalog";
 import { USAGE_LIMIT_METHOD } from "./agent/usage-limit-gate";
 import { type AgentProvider, ProviderTurnActiveError, RequestTimeoutError } from "./agent-client";
+import { claudeContextCategories } from "./claude-context-categories";
 import { type ClaudeHistoryOptions, claudeHistoryFromMessages, claudeHistoryReader } from "./claude-history";
 import {
   CLAUDE_WORKSPACE_MANAGED_SETTINGS,
@@ -148,6 +149,7 @@ interface ThreadRuntime {
   usageCounterId: string;
   usageCost: number;
   contextRequest: number;
+  contextCategories: ContextCategoryUsage | null;
   compacting: boolean;
   config: ThreadConfig;
   appliedEffort?: string;
@@ -329,6 +331,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     yield* Scope.close(this.#scope, Exit.void);
     this.#serverRequests.rejectAll("Claude session stopped.");
   });
+
+  readContextCategories(threadId: string): ContextCategoryUsage | null {
+    const value = this.#running ? this.#threads.get(threadId)?.contextCategories : null;
+    return value ? { ...value, categories: value.categories?.map((row) => ({ ...row })) ?? null } : null;
+  }
 
   releaseIdleThreads(): Effect.Effect<void, ProviderClientOperationError> {
     return this.#threads.releaseIdle();
@@ -790,6 +797,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       usageCounterId: randomUUID(),
       usageCost: 0,
       contextRequest: 0,
+      contextCategories: null,
       compacting: false,
       config,
       appliedEffort,
@@ -829,6 +837,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     const requestedModel = getString(params, "model");
     const modelChanged = Boolean(requestedModel && requestedModel !== runtime.config.model);
     if (requestedModel && modelChanged) {
+      runtime.contextCategories = null;
       yield* providerCall(() => runtime.query.setModel(this.#sdkModel(requestedModel)));
       runtime.config.model = requestedModel;
     }
@@ -1005,7 +1014,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
             : message.compact_result === "failed"
               ? "failed"
               : null;
-      if (status) runtime.compacting = status === "running";
+      if (status) {
+        runtime.compacting = status === "running";
+        runtime.contextRequest += 1;
+        runtime.contextCategories = null;
+      }
       if (status)
         this.emit("notification", { method: "openbot/context-compaction", params: { threadId: runtime.id, status } });
       return;
@@ -1024,6 +1037,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     }
     if (message.type === "system" && message.subtype === "compact_boundary") {
       runtime.compacting = false;
+      runtime.contextRequest += 1;
+      runtime.contextCategories = null;
       // The summary can leave the memory blocks out, so the next turn sends the full block again.
       const memory = this.#memoryContexts.get(runtime.id);
       if (memory) memory.delivered = null;
@@ -1037,8 +1052,14 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       });
       return;
     }
-    if (message.context_usage && !message.parent_tool_use_id && isRecord(message.context_usage)) {
-      this.#emitContextUsage(runtime, message.context_usage.total_tokens, message.context_usage.raw_max_tokens);
+    if (message.context_usage !== undefined && !message.parent_tool_use_id) {
+      if (isRecord(message.context_usage)) {
+        runtime.contextCategories =
+          runtime.compacting || (message.session_id !== undefined && message.session_id !== runtime.id)
+            ? null
+            : claudeContextCategories(message.context_usage, "native");
+        this.#emitContextUsage(runtime, message.context_usage.total_tokens, message.context_usage.raw_max_tokens);
+      } else runtime.contextCategories = null;
     }
     if (message.type === "rate_limit_event") {
       const info = message.rate_limit_info;
@@ -1205,9 +1226,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
                 this.#threads.get(runtime.id) !== runtime ||
                 runtime.contextRequest !== contextRequest ||
                 runtime.activeTurn ||
+                runtime.compacting ||
                 !isRecord(usage)
               )
                 return;
+              runtime.contextCategories = claudeContextCategories(usage, "summary");
               this.#emitContextUsage(runtime, usage.totalTokens, usage.rawMaxTokens);
             }),
           ),

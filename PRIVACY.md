@@ -78,6 +78,13 @@ Channel history keeps its existing membership and task checks. Messaging history
 current link. The full conversation stays in local SQLite storage. No history text is sent to the
 account service or analytics by these tools.
 
+The Claude context popover uses category token estimates from the current provider response and
+an existing local summary read. A joined desktop or web client can read the cached total, window
+and fixed category labels for a visible agent's Main conversation. This read starts no provider
+session or model turn. It contains no file paths, tool names, raw provider response or memory
+text. The category cache stays in process memory and is not sent to analytics or the account
+service. It clears when its provider runtime ends or compacts.
+
 ## Local scripts
 
 Local scripts is off by default for each agent. When enabled, scripts that run as the same OS user

@@ -133,10 +133,11 @@ type TeamApiAgentMethods = Pick<
   | "respondToBrowserTakeover"
 >;
 
-export type TeamApiAgents = TeamApiAgentMethods & {
-  on: (event: "event", listener: (event: AgentEvent) => void) => void;
-  off: (event: "event", listener: (event: AgentEvent) => void) => void;
-};
+export type TeamApiAgents = TeamApiAgentMethods &
+  Partial<Pick<AgentService, "readContextCategories">> & {
+    on: (event: "event", listener: (event: AgentEvent) => void) => void;
+    off: (event: "event", listener: (event: AgentEvent) => void) => void;
+  };
 
 /**
  * The MCP half of `AgentService`, kept as its own option rather than folded into `TeamApiAgents`:

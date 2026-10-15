@@ -230,6 +230,14 @@ Each protocol has a frozen codec and adapter in `packages/contracts/src/team-pro
 
 Capabilities describe additive behavior. The client sends its capability list when it sets the event scope. The host sends optional events only when the client declared the related capability. A missing capability disables only that feature. An unknown optional event is ignored. A malformed known event closes the connection as `protocol_error` because the client cannot safely apply it.
 
+The optional `context-categories-v1` capability adds `POST /v1/agent-context/categories` with
+`{ agentId, threadId }`. It reads one visible agent's exact Main conversation and returns a cached
+Claude total, window and at most 32 safe category rows within 8 KiB. A stale thread or unloaded session
+returns `null`. An unknown or hidden agent is refused. Native category kinds and summary deferred flags retain their separate meanings.
+The read starts no provider session or SDK request. It changes no released usage event or runtime
+snapshot. Protocol 6 bootstrap lists omit the new capability. An unsupported host disables this
+read only. See [context usage estimates](context-usage.md).
+
 The optional `agent-memories-v1` capability adds three POST routes. `/v1/agent-memories/page`
 returns up to 256 memories. `/v1/agent-memories/selection` returns up to 256 selection records,
 the agent ID, and essential-memory byte usage. Both use ascending memory IDs and an `after`

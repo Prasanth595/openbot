@@ -12,6 +12,7 @@ import { AGENT_PUBLISH_CODECS } from "./agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CODECS } from "./agent-session-settings-v1";
 import { AGENT_UPDATE_CODECS } from "./agent-update-v1";
 import { CONNECTORS_CODECS } from "./connectors-v1";
+import { CONTEXT_CATEGORIES_CODECS } from "./context-categories-v1";
 import { CONTEXT_RESET_CODECS } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CODECS } from "./conversation-file-search-v1";
 import { EVENTS_CODECS } from "./events-v1";
@@ -64,6 +65,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...HOST_RELEASE_CODECS,
   ...HOST_MEMBER_UPDATE_CODECS,
   ...CONTEXT_RESET_CODECS,
+  ...CONTEXT_CATEGORIES_CODECS,
   ...EVENTS_CODECS,
   ...AGENT_IMPORT_CODECS,
   ...INSTANCE_TRANSFER_CODECS,

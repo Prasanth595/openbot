@@ -133,6 +133,20 @@ jobs:
         if: env.CODE == 'true'
         run: bun run check:assets
 
+      - name: Check cached context category reads
+        if: env.CODE == 'true'
+        run: bun scripts/context-category-usage-e2e.ts
+
+      - name: Upload context category verification
+        if: always() && env.CODE == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: context-category-verification
+          path: |
+            .openbot-build/context-category-usage-e2e/report.json
+            .openbot-build/context-category-usage-e2e/fixture.log
+          if-no-files-found: ignore
+
       - name: Check Markdown links and anchors
         run: bun run check:doc-links
 

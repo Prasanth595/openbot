@@ -9,6 +9,7 @@ import type {
   ResetAgentSessionSettingInput,
   SetAgentSessionSettingInput,
 } from "./ipc-agent-session-settings";
+import type { AgentContextCategoryUsage, ReadContextCategoriesInput } from "./ipc-context-categories";
 // The one channel list. Each endpoint holds its wire value, the group it belongs to, and whether it
 // is a request the renderer invokes or an event the main process sends. That is what lets a
 // registrar bind its handlers as an object keyed by endpoint, so a channel with no handler, and a
@@ -1006,6 +1007,9 @@ export const IPC_ENDPOINTS = {
     getAnalytics: scopedRequest<AgentAnalyticsInput, AgentAnalytics | null, "required">()("agent:get-analytics"),
     getHostAnalytics: scopedRequest<HostAnalyticsInput, HostAnalytics | null, "required">()("host:get-analytics"),
     getUsage: scopedRequest<string | undefined, AccountUsage>()("agent:get-usage"),
+    readContextCategories: scopedRequest<ReadContextCategoriesInput, AgentContextCategoryUsage | null>()(
+      "agent:context-categories:read",
+    ),
     listModels: scopedQuery<AgentModelOption[]>()("agent:list-models"),
     listAgents: scopedQuery<AgentSummary[]>()("agent:list"),
     readAgentSessionSettings: scopedRequest<string, AgentSessionSettings>()("agent:session-settings:read"),
