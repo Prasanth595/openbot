@@ -332,7 +332,8 @@
     "@solidjs/signals@2.0.0-rc.0": "patches/@solidjs%2Fsignals@2.0.0-rc.0.patch",
     "@solidjs/web@2.0.0-rc.0": "patches/@solidjs%2Fweb@2.0.0-rc.0.patch",
     "expo@57.0.24": "patches/expo@57.0.24.patch",
-    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch"
+    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch",
+    "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch"
   },
   "trustedDependencies": [
     "electron-winstaller",
