@@ -116,6 +116,21 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    create and resume sends `ttlSeconds: 7200`, so boat stops a sandbox that the Worker loses. An
    activity report extends the time (`PATCH /sandboxes/:id`) when less than 1 hour is left
    (`lease_until`). When boat stops a server in use at the end of its lease, the Worker resumes it.
+
+   **Disk save at a stop.** boat saves the disk of a running server file by file, with no pause,
+   and a file that changes during its copy is restored torn. A SQLite checkpoint during the save
+   gave a damaged database ("OpenBot database failed its integrity check"). Thus a hosted server
+   stops OpenBot before the save. boat runs `/home/user/.boat/pre-stop` as `user` when a stop
+   starts, waits for it to end (at most 60 seconds), and then saves the disk. This is observed, not
+   documented by boat. `openbot-hosted-update` installs `scripts/hosting/openbot-boat-pre-stop` there
+   (`install_hosting`, and `trigger` at each start, so a server that an older release updated gets
+   it). The hook makes `/run/openbot-pre-stop` and runs `systemctl stop openbot.service`: OpenBot
+   gets `SIGTERM`, stops its services and closes `openbot.db` last. After 45 seconds the hook kills
+   the unit, which leaves a database that SQLite recovers. The file makes the unit condition
+   `ConditionPathExists=!/run/openbot-pre-stop` fail, so `Restart=` and the end of an update request
+   do not start OpenBot during the save. `/run` is empty at each boot. If boat does not complete the
+   stop after the hook, OpenBot stays stopped until the next stop and resume. A hook that OpenBot did
+   not write stays, and a self-hosted server gets no hook.
 6. **Start after a failure.** A client that cannot reach the host first calls
    `GET /v2/hosting/servers/:id/status` (owner or member; 404 for a host that is not a hosted
    server). It returns `{serverId, state, error, sleeping}` and writes nothing, so it does not count
@@ -660,6 +675,30 @@ A boat trial account refuses a sandbox with no auto-stop, or a TTL longer than 2
 `PATCH /sandboxes/:id {ttlSeconds}` sets `archiveAfter` to the current time plus the TTL. A trial
 allows only `small` and `default`, so a Pro server (`large`) needs a paid boat plan.
 
+A durability test on 2026-10-15 (`scripts/hosting/hosted-database-durability-e2e.ts`, one hosted
+sandbox) stopped the sandbox while a writer used SQLite in WAL mode in the home folder:
+
+- with automatic checkpoints, the database came back damaged after the second stop
+  (`btreeInitPage() returns error code 11`);
+- with an empty WAL and only small appends at the stop, 9 checks were healthy;
+- with no automatic checkpoint, the main file was not damaged, but in 3 of 6 restores the WAL
+  header was torn, and SQLite ignored the full WAL. The rows of that run were lost;
+- with `openbot-boat-pre-stop` for the writer unit (`--mode=pre-stop`), each of 4 stops during
+  writes gave a healthy database with every committed row, and no `/run` flag after the resume.
+
+A stop-order probe on the same day (a unit that records `SIGTERM` and writes each 200 ms) showed
+that boat saves the disk while the processes run, about 3 seconds after the stop call, and sends no
+`SIGTERM` before the save. A pre-stop hook that slept 20 seconds started at once after the stop
+call, and the last write that the restore kept was from after the hook ended. Thus boat waits for
+the hook before it saves the disk.
+
+An install test on the same sandbox put the new `openbot-hosted-update`, `openbot.service` and hook
+in place, as an older release does when it updates. At the next start, `trigger` installed the hook
+as `user` with mode 0755. It did not change a current hook, kept a hook that OpenBot did not write
+(a file or a link), and replaced a changed OpenBot hook. At a stop of the real OpenBot, the hook
+stopped `openbot.service` in 0.3 seconds and ended with 0. After the resume (a new boot ID), the
+flag was gone, OpenBot ran, and `openbot.db` passed `quick_check`.
+
 ## Not confirmed
 
 These were not tested on boat. Test them before a user gets access:
@@ -684,7 +723,10 @@ These were not tested on boat. Test them before a user gets access:
 - the [memory guards](#memory) with real agents: the held message, the turn slots and the release of
   idle provider threads on a server with a signed-in account;
 - whether boat stops a sandbox that runs for weeks. The Worker restarts it, but work in progress
-  at that time stops.
+  at that time stops;
+- whether boat runs the pre-stop hook for a stop that it starts by itself: maintenance (the
+  `updating` state) or the end of `ttlSeconds`. A crash of the machine restores the last periodic
+  save, which also copies files while they change.
 
 
 ### Billing and server deletion

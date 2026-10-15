@@ -3,6 +3,7 @@ import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
   "error.backend.eventsUnavailable": "Eventos não estão disponíveis neste host.",
+  "error.backend.databaseIntegrity": "O banco de dados do OpenBot falhou na verificação de integridade.",
   "error.backend.webhookRouteLimit": "Um host pode ter no máximo {limit} rotinas de webhook.",
   "error.backend.webhookSettingsInvalid": "Verifique as configurações do webhook e tente de novo.",
   "error.backend.webhookRouteUnavailable":

@@ -2,6 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { isGeneratedAgentId } from "@openbot/contracts/validation";
+import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { AGENT_MEMORY_SELECTION_SCHEMA_SQL, migrateAgentMemorySelection } from "./agent-memory-selection";
 import { AGENT_WAIT_SCHEMA_SQL } from "./agent-waits/agent-wait-schema";
@@ -888,9 +889,14 @@ function assertForeignKeys(db: DatabaseSync): void {
 }
 
 function assertQuickCheck(db: DatabaseSync): void {
-  const result = db.prepare("PRAGMA quick_check").get();
-  if (isDynamicRecord(result) && result.quick_check === "ok") return;
-  throw new Error("OpenBot database failed its integrity check.");
+  const problems = db
+    .prepare("PRAGMA quick_check(20)")
+    .all()
+    .map((row) => (isDynamicRecord(row) ? row.quick_check : row));
+  if (problems.length === 1 && problems[0] === "ok") return;
+  // The lines name the damaged pages and tables, which tell a page left by a disk save from a bad index.
+  logger.error("The OpenBot database failed its integrity check.", { problems });
+  throw new Error(sourceText("error.backend.databaseIntegrity"));
 }
 
 function migrateReactionsForActors(db: DatabaseSync): void {

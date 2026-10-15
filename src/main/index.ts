@@ -263,11 +263,14 @@ let deepLinkReceiverReady = false;
 
 const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
 
-if (!app.isPackaged) {
-  const quitAfterDevelopmentSignal = () => app.quit();
-  process.once("SIGINT", quitAfterDevelopmentSignal);
-  process.once("SIGTERM", quitAfterDevelopmentSignal);
-  process.once("SIGHUP", quitAfterDevelopmentSignal);
+// A server is stopped with SIGTERM (systemd, Docker). Without a handler, Electron ends at once and its
+// services do not stop. A hosted server's boat pre-stop hook stops it this way before the disk save
+// (`scripts/hosting/openbot-boat-pre-stop`), so teardown must close the database first.
+if (!app.isPackaged || hostedServer || serverMode) {
+  const quitAfterSignal = () => app.quit();
+  process.once("SIGINT", quitAfterSignal);
+  process.once("SIGTERM", quitAfterSignal);
+  process.once("SIGHUP", quitAfterSignal);
 }
 
 /**

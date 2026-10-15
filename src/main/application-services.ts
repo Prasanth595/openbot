@@ -370,6 +370,8 @@ const TEARDOWN_ORDER = {
   trace: 120,
   // After the service, so the lines its providers write while they stop are kept.
   providerLog: 121,
+  // Last: every step above can still write.
+  database: 130,
 } as const;
 
 export interface ApplicationServiceContext {
@@ -817,6 +819,8 @@ export async function createApplicationServices({
   });
   const store = new AgentStore(app.getPath("userData"), homedir());
   await runCauseEffect(store.initialize());
+  // Closing copies the write-ahead log into the database file and removes it.
+  teardown.push(TEARDOWN_ORDER.database, "the database", () => store.database.close());
   const managedSkills = new ManagedSkillService(
     app.isPackaged
       ? join(process.resourcesPath, "managed-skills", "openbot-site-hosting", "SKILL.md")

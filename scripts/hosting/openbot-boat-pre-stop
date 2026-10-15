@@ -1,0 +1,25 @@
+#!/bin/bash
+# openbot-boat-pre-stop: installed by openbot-hosted-update. Changes to this file are replaced.
+#
+# boat runs /home/user/.boat/pre-stop as the sandbox user when a stop starts, waits for it to end (at
+# most 60 seconds), and then saves the disk. Observed on boat, not documented by it. The save copies
+# files while they change, and a file that changed during the copy is restored torn. A database that
+# OpenBot wrote during the save was restored damaged. When OpenBot is stopped first, the save sees no
+# writes. A stop that boat does not complete leaves OpenBot stopped until the next boot.
+set -u
+
+# /run is empty at each boot, so the flag stops only the starts until boat saves the disk: the
+# Restart= of the unit, and the start at the end of an update request (openbot.service).
+sudo -n touch /run/openbot-pre-stop || exit 1
+# The unit stops OpenBot with SIGTERM, and OpenBot closes its database last. The 60 seconds of
+# TimeoutStopSec are too long for the limit of boat. A killed OpenBot leaves a database that SQLite
+# recovers, because no copy runs while it ends.
+if sudo -n timeout 45 systemctl stop openbot.service; then exit 0; fi
+sudo -n systemctl kill --signal=SIGKILL openbot.service
+for _ in $(seq 1 20); do
+  case $(systemctl show --property=ActiveState --value openbot.service) in
+    inactive | failed) exit 0 ;;
+  esac
+  sleep 0.5
+done
+exit 1

@@ -30,6 +30,7 @@ const TEMPLATE_FILES = [
   "openbot-hosted-env",
   "openbot-hosted-update",
   "openbot",
+  "openbot-boat-pre-stop",
   "openbot-hosted.apparmor",
   "openbot.service",
   "openbot-update.service",
