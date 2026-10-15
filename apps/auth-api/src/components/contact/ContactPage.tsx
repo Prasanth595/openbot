@@ -20,8 +20,8 @@ const CONTACT_CHANNELS = [
 type ContactStatus = "idle" | "sending" | "sent" | "failed" | "limited";
 
 interface FieldErrors {
-  readonly email?: string;
-  readonly message?: string;
+  readonly email?: string | undefined;
+  readonly message?: string | undefined;
 }
 
 function fieldText(data: FormData, name: string): string {
@@ -85,7 +85,7 @@ function createContactForm() {
  * The label row of a field. An error replaces "Optional" on the right of the label, so the field
  * does not move when the error shows.
  */
-function FieldHead(props: { for: string; label: string; optional?: boolean; error?: string }) {
+function FieldHead(props: { for: string; label: string; optional?: boolean | undefined; error?: string | undefined }) {
   return (
     <div class="contact-field-head">
       <label for={props.for}>{props.label}</label>
@@ -110,9 +110,9 @@ interface TextFieldProps {
   name: string;
   type: "text" | "email";
   autocomplete: string;
-  maxlength?: number;
-  optional?: boolean;
-  error?: string;
+  maxlength?: number | undefined;
+  optional?: boolean | undefined;
+  error?: string | undefined;
 }
 
 function TextField(props: TextFieldProps) {
@@ -133,7 +133,7 @@ function TextField(props: TextFieldProps) {
   );
 }
 
-function MessageField(props: { error?: string }) {
+function MessageField(props: { error?: string | undefined }) {
   const id = createUniqueId();
   const [length, setLength] = createSignal(0);
   return (
