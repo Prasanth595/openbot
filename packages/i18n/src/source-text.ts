@@ -51,6 +51,17 @@ export function matchingSourceKeys(text: string): readonly string[] {
   return localizer.matchingKeys(text);
 }
 
+/** A plural template is an object of forms, and it always has a placeholder. */
+const templates: Readonly<Record<string, string | Readonly<Record<string, string>>>> = en;
+
+/**
+ * True when `text` is the whole English of a source key with no placeholder. Such text holds nothing
+ * from a provider, a tool or a path, so a host can send it to every client.
+ */
+export function isFixedSourceText(text: string): boolean {
+  return matchingSourceKeys(text).some((key) => templates[key] === text);
+}
+
 const sourceTranslators = new Map<TranslatedLocale, Translate<SourceMessages>>();
 
 /** A typed translator over the source keys, for code that picks a key itself, such as an error kind. */
