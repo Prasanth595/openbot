@@ -40,7 +40,7 @@ export function prepareBloubIdleFrames(geometry: Geometry, onReady: Ready, sched
   return prepareSharedFrames(`idle:${geometry.key}`, idleFrames(geometry), onReady, schedule);
 }
 
-export function nativeFrame(frame: BotFrame) {
+function nativeFrame(frame: BotFrame) {
   return {
     body: { d: frame.bodyPath, opacity: frame.bodyAlpha },
     eyes: frame.eyes.map((eye) => ({

@@ -8,11 +8,11 @@ import { makeMutable } from "react-native-reanimated";
  */
 
 /** The desktop draws the rings at 30 frames per second (`AVATAR_FPS`). */
-export const ORBIT_FPS = 30;
+const ORBIT_FPS = 30;
 /** The `orbit` pose fades every ring out by 3.6 s. The desktop then plays it again from 0. */
 export const ORBIT_CYCLE = 3.6;
 /** The desktop starts at the pose's own start, 1.2 s, where every ring shows. */
-export const ORBIT_START = 1.2;
+const ORBIT_START = 1.2;
 const FRAME_TOTAL = Math.round(ORBIT_CYCLE * ORBIT_FPS);
 const BATCH = 6;
 

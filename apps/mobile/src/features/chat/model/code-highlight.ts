@@ -140,7 +140,8 @@ export function cachedHighlight(text: string, info?: string): CodeToken[] | unde
   return cached;
 }
 
-export async function highlightCode(text: string, info?: string): Promise<CodeToken[]> {
+/** `keep` stores the result for the app run. A block that still streams changes, so it does not keep it. */
+export async function highlightCode(text: string, info?: string, keep = false): Promise<CodeToken[]> {
   const cached = cachedHighlight(text, info);
   if (cached) return cached;
   const result: CodeToken[] = [];
@@ -152,6 +153,7 @@ export async function highlightCode(text: string, info?: string): Promise<CodeTo
   });
   // A tokenizer failure must never change or duplicate the source shown to the user.
   const tokens = result.map((token) => token.text).join("") === text ? result : [{ text, offset: 0 }];
+  if (!keep) return tokens;
   const oldest = highlights.keys().next().value;
   if (highlights.size >= MAX_CACHED_HIGHLIGHTS && oldest !== undefined) highlights.delete(oldest);
   highlights.set(highlightKey(text, info), tokens);

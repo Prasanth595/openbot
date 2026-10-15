@@ -98,7 +98,7 @@ function useAgentMenuActions(agent: MobileAgent) {
   };
 }
 
-export function useAgentContextMenu(agent: MobileAgent) {
+function useAgentContextMenu(agent: MobileAgent) {
   const { t } = useText();
   const {
     isPinned,

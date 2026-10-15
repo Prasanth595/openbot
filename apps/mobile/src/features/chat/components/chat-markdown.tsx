@@ -93,6 +93,8 @@ interface TextPresentation {
   animateTail: boolean;
   /** The reply still streams, so a preview card shows code until its block is complete. */
   streaming: boolean;
+  /** The text will not change, so a code block can keep its highlight for the app run. */
+  finished: boolean;
   agents: readonly MobileAgent[];
   mentionOffset: number;
   fontScale: number;
@@ -692,7 +694,14 @@ function MarkdownBlocks({
                 block
                 textSize={textSize(presentation)}
                 color={presentation.style.color}
-                fallback={<ChatCodeBlock selectable={presentation.selectable} text={token.text} language="latex" />}
+                fallback={
+                  <ChatCodeBlock
+                    selectable={presentation.selectable}
+                    text={token.text}
+                    language="latex"
+                    finished={presentation.finished}
+                  />
+                }
               />
             </StreamingBlock>
           );
@@ -709,7 +718,12 @@ function MarkdownBlocks({
                   streaming={presentation.streaming}
                 />
               ) : (
-                <ChatCodeBlock selectable={presentation.selectable} text={token.text} language={token.lang} />
+                <ChatCodeBlock
+                  selectable={presentation.selectable}
+                  text={token.text}
+                  language={token.lang}
+                  finished={presentation.finished}
+                />
               )}
             </StreamingBlock>
           );
@@ -880,6 +894,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
           fontScale,
           t,
           streaming,
+          finished,
           animateTail: (streaming || Boolean(playback?.enabled)) && animationEnabled && textReveal,
           nativeSelection: revealed ? nativeTarget : undefined,
         }}

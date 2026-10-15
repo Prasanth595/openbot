@@ -18,10 +18,13 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
   text,
   language,
   selectable = true,
+  finished = false,
 }: {
   text: string;
   language?: string;
   selectable?: boolean;
+  /** The text will not change, so its highlight is kept for the app run. */
+  finished?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const { t } = useText();
@@ -43,7 +46,7 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
     let active = true;
     const run = () => {
       lastHighlight.current = Date.now();
-      void highlightCode(text, language)
+      void highlightCode(text, language, finished)
         .then((tokens) => {
           if (active) setHighlight({ text, language, tokens });
         })
@@ -59,7 +62,7 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
       active = false;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [text, language]);
+  }, [text, language, finished]);
   const tokens =
     !highlight || highlight.language !== language || !text.startsWith(highlight.text)
       ? [{ text, offset: 0 }]
