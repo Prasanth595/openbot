@@ -114,6 +114,11 @@ type ProviderSignIn =
   /** The host opens an interactive terminal and refreshes the account when it closes. */
   | { kind: "terminal"; timeoutMs: number }
   /**
+   * OpenBot starts the `muse serve` device sign-in and opens its page, which holds the code.
+   * `muse login` with no terminal only prints that page and never opens it.
+   */
+  | { kind: "muse-device"; timeoutMs: number }
+  /**
    * OpenBot starts the ACP server and calls `authenticate` with this method, which opens a browser
    * from the server. Only the sign-in process calls it: in a status probe it would open a browser.
    */
@@ -384,10 +389,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
   },
   {
     id: "muse",
-    signIn: {
-      kind: "cli-command",
-      command: { argv: ["login"], env: () => ({ MUSE_NO_AUTO_UPDATE: "1" }), timeoutMs: CLI_LOGIN_TIMEOUT_MS },
-    },
+    signIn: { kind: "muse-device", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     // On this computer only: no Team API protocol carries a Muse code sign-in.
     codeSignIn: { kind: "muse-device", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     resolveCli: resolveMuseCli,
@@ -713,16 +715,16 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createClient: (_cli, timeout, context, confinement) =>
       new CustomAcpAgentsClient(
         () => savedCustomAgents(context),
-        (config, executable, folder, history) =>
-          customAgentChild(config, executable, folder, timeout, context, confinement, false, history),
+        (config, executable, folder, history, launchPath) =>
+          customAgentChild(config, executable, folder, timeout, context, confinement, false, history, launchPath),
         undefined,
         context.history?.("acp"),
       ),
     createProfileClient: (_cli, timeout, context) =>
       new CustomAcpAgentsClient(
         () => savedCustomAgents(context),
-        (config, executable, folder, history) =>
-          customAgentChild(config, executable, folder, timeout, context, undefined, true, history),
+        (config, executable, folder, history, launchPath) =>
+          customAgentChild(config, executable, folder, timeout, context, undefined, true, history, launchPath),
         undefined,
         context.history?.("acp"),
       ),
@@ -749,8 +751,13 @@ function customAgentChild(
   confinement: ProcessConfinement | undefined,
   profileGeneration: boolean,
   history?: AcpHistoryPersistence,
+  launchPath?: string | null,
 ): AgentClient {
-  const env = Object.fromEntries(config.env.map((entry) => [entry.name, entry.value]));
+  // A `PATH` the user saved on the agent wins over the login shell's.
+  const env = {
+    ...(launchPath ? { PATH: launchPath } : {}),
+    ...Object.fromEntries(config.env.map((entry) => [entry.name, entry.value])),
+  };
   const values = config.env.map((entry) => entry.value);
   return new AcpAgentClient({ executable, version: "", source: "system" }, timeout, {
     provider: "acp",

@@ -81,7 +81,7 @@ export function OpenBot101() {
         <a href={OPENBOT_LINKS.releases} target="_blank" rel={EXTERNAL_LINK_REL}>
           GitHub Releases
         </a>
-        . The Windows preview is not code-signed yet, so Windows may warn about an unknown publisher. Check the release
+        . The Windows installer is code-signed, but SmartScreen can still warn about a new release. Check the release
         checksum before you run it. On Ubuntu 23.10 or newer and on Debian 13, the AppImage needs an AppArmor profile
         first.{" "}
         <a href={OPENBOT_LINKS.documentation} target="_blank" rel={EXTERNAL_LINK_REL}>

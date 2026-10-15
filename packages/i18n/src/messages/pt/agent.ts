@@ -18,6 +18,8 @@ export const messages = {
   "agent.setup.creating": "Criando agente…",
   "agent.setup.create": "Criar agente",
   "agent.setup.suggestions": "Sugestões",
+  "agent.deleteUndo.title": "{name} excluído",
+  "agent.deleteUndo.action": "Desfazer",
   "agent.error.createFailed": "Não foi possível criar o agente.",
   "agent.error.duplicateTitle": "Não foi possível duplicar o agente",
   "agent.error.duplicateFailed": "Não foi possível duplicar este agente. Tente novamente.",

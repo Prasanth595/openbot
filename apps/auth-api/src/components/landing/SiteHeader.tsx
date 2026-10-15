@@ -20,15 +20,15 @@ export function SiteHeader(props: SiteHeaderProps) {
   const actions = () => (
     <>
       <Button
-        href={OPENBOT_LINKS.contact}
+        href={OPENBOT_LINKS.discord}
         target="_blank"
         rel={EXTERNAL_LINK_REL}
         variant="secondary"
         size="sm"
         icon="contact"
-        class="site-header-secondary site-header-contact"
+        class="site-header-secondary site-header-community"
       >
-        Contact
+        Community
       </Button>
       {/* A full page load: the /app route brings the desktop document styles, which stop the site page from
           scrolling. A preload on hover or a client-side visit would add them to this page. */}

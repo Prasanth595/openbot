@@ -653,7 +653,7 @@ function AppSettings(props: AccountProps) {
   const auth = useAuth();
   const updates = useUpdates();
   const whatsNew = useWhatsNew();
-  const { setAddServerOpen } = useServers();
+  const { servers, setAddServerOpen } = useServers();
   const {
     appSettingsOpen,
     setAppSettingsOpen,
@@ -676,6 +676,7 @@ function AppSettings(props: AccountProps) {
         onValueChange={updateGeneralSettings}
         appInfo={platform.appInfo()}
         builtInDisplayGeometry={builtInDisplayGeometry()}
+        servers={servers()}
         updateStatus={updates.status()}
         onUpdateAction={updates.runAction}
         onOpenWhatsNew={

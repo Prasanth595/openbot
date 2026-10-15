@@ -144,13 +144,15 @@ directly. Do not soften the verdict. Give:
 3. What the reporter can do: upgrade to a tag, change a setting, give the
    missing data, or open a feature request.
 4. An issue comment in ASD-STE100 Simplified Technical English. Write it
-   in English, also when the issue uses a different language.
+   in English, also when the issue uses a different language. The comment
+   posts from the user's account, so write it as the user: a maintainer,
+   in the first person ("I"). Do not refer to "the maintainers" as other
+   people, and do not mention an AI, an agent, or this skill.
 
 Post the comment yourself with `gh issue comment <n> --body-file <file>`
-only for `needs info`. Ask the reporter for the exact data that is
-missing, for example the version, the reproduction steps, or a redacted
-log. For each other verdict, show the comment to the user and post it
-only when the user agrees. Do not close the issue.
+for each verdict. Do not wait for the user. For `needs info`, ask the
+reporter for the exact data that is missing, for example the version, the
+reproduction steps, or a redacted log. Do not close the issue.
 
 When the user still wants the change after the push back, follow the user.
 

@@ -5,7 +5,7 @@ import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { EllipsisVertical, Layers3, Search, WifiOff } from "lucide-react-native";
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   cancelAnimation,
@@ -39,8 +39,12 @@ import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
 import { useUnreadAgentIds } from "@/features/workspace/components/use-live-workspace";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
-import { mobileSidebarItems, mobileWaitingItems } from "@/features/workspace/model/sidebar-layout";
+import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileSidebarItem,
+  mobileSidebarItems,
+  mobileWaitingItems,
+} from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
@@ -51,22 +55,24 @@ const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const ONBOARDING_EXIT = FadeOut.duration(220).easing(EASE_OUT);
 const ROW_ENTER = FadeIn.duration(180).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
 const LIST_REFLOW = LinearTransition.duration(240).easing(EASE_OUT).reduceMotion(ReduceMotion.System);
+// A row is about 80 pt high. The list keeps a few screens of rows mounted instead of the default 21,
+// so a server with many agents mounts fewer avatars, swipe handlers and menus.
+const LIST_WINDOW_SIZE = 7;
+const LIST_BATCH = 10;
 
-function TransitioningChatRow({
-  chatId,
-  children,
+const TransitioningChatRow = memo(function TransitioningChatRow({
+  agent,
   index,
   reveal,
   collapsed,
 }: {
-  chatId: string;
-  children: React.ReactNode;
+  agent: MobileAgent;
   index: number;
   reveal: AgentListRevealState;
   collapsed: boolean;
 }) {
   const { transition } = useAgentPinTransition();
-  const isTarget = transition?.chatId === chatId && transition.target === "row";
+  const isTarget = transition?.chatId === agent.id && transition.target === "row";
 
   const [initiallyExpanded] = useState(!collapsed);
   const [contentMounted, setContentMounted] = useState(!collapsed);
@@ -135,13 +141,17 @@ function TransitioningChatRow({
         >
           <Animated.View collapsable={false} entering={isTarget ? ROW_ENTER : undefined}>
             <AgentListRowReveal index={index} reveal={reveal} skip={isTarget}>
-              {children}
+              <AgentListRow agent={agent} leftInset={15} rightInset={24} />
             </AgentListRowReveal>
           </Animated.View>
         </Animated.View>
       ) : null}
     </Animated.View>
   );
+});
+
+function listItemKey(item: MobileSidebarItem) {
+  return `${item.kind}:${item.id}`;
 }
 
 function HeaderIconButton({
@@ -221,13 +231,17 @@ export function ConnectedScreen() {
       ? t(hasSelectedServer ? "mobile.agent.home.connecting" : "mobile.agent.home.loadingServers")
       : null,
   );
-  const pinnedAgents = pinnedAgentIds
-    .map((agentId) => activeAgents.find((agent) => agent.id === agentId))
-    .filter((agent): agent is (typeof activeAgents)[number] => Boolean(agent));
+  const pinnedAgents = useMemo(() => {
+    const byId = new Map(activeAgents.map((agent) => [agent.id, agent]));
+    return pinnedAgentIds.flatMap((agentId) => byId.get(agentId) ?? []);
+  }, [activeAgents, pinnedAgentIds]);
   const hasHiddenChats = hiddenAgents.length > 0;
   const hasPins = pinnedAgents.length > 0;
   const unreadAgentIds = useUnreadAgentIds();
-  const hasUnread = agents.some((agent) => agent.serverId === activeServer.id && unreadAgentIds.includes(agent.id));
+  const hasUnread = useMemo(() => {
+    const unread = new Set(unreadAgentIds);
+    return agents.some((agent) => agent.serverId === activeServer.id && unread.has(agent.id));
+  }, [agents, activeServer.id, unreadAgentIds]);
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const canMarkAllRead = hasUnread && !markingAllRead && activeServer.state === "online";
   const markAllChatsRead = () => {
@@ -245,10 +259,10 @@ export function ConnectedScreen() {
       )
       .finally(() => setMarkingAllRead(false));
   };
-  const unpinnedAgents = useMemo(
-    () => activeAgents.filter((agent) => !pinnedAgentIds.includes(agent.id)),
-    [activeAgents, pinnedAgentIds],
-  );
+  const unpinnedAgents = useMemo(() => {
+    const pinned = new Set(pinnedAgentIds);
+    return activeAgents.filter((agent) => !pinned.has(agent.id));
+  }, [activeAgents, pinnedAgentIds]);
   const sidebar = sidebarByServer[activeServer.id];
   // A waiting agent leaves its section for "Needs you". A pinned agent stays in its tile, which shows the same badge.
   const waitingAgentIds = useWaitingAgentIds();
@@ -267,7 +281,10 @@ export function ConnectedScreen() {
     ],
     [sidebar?.layout, unpinnedAgents, waitingAgentIds, t],
   );
-  const visibleSectionIds = items.filter((item) => item.kind === "section").map((item) => item.id);
+  const visibleSectionIds = useMemo(
+    () => items.filter((item) => item.kind === "section").map((item) => item.id),
+    [items],
+  );
   const headerHeight = useContext(HeaderHeightContext) ?? 0;
   const insets = useSafeAreaInsets();
   // With nothing in the list, the scene replaces it. In a list, the native header and safe-area
@@ -307,6 +324,50 @@ export function ConnectedScreen() {
     }
     return ids;
   }, [items, collapsedSectionIds]);
+  const sidebarLayout = sidebar?.layout ?? null;
+  const serverId = activeServer.id;
+  const toggleSection = useCallback(
+    (sectionId: string) => {
+      setCollapseLayout(sidebarLayout);
+      setCollapsedByServer((current) => {
+        const next = new Set(current[serverId]);
+        if (next.has(sectionId)) next.delete(sectionId);
+        else next.add(sectionId);
+        return { ...current, [serverId]: next };
+      });
+    },
+    [serverId, sidebarLayout],
+  );
+  // Rows are memoized, so a new message for one agent renders only that agent's row.
+  const rowOffset = hasPins ? 1 : 0;
+  const renderItem = useCallback(
+    ({ item, index }: { item: MobileSidebarItem; index: number }) =>
+      item.kind === "waiting" ? (
+        <AgentListRowReveal index={index + rowOffset} reveal={listReveal}>
+          <AgentWaitingGroupHeader count={item.count} />
+        </AgentListRowReveal>
+      ) : item.kind === "section" ? (
+        <AgentListRowReveal index={index + rowOffset} reveal={listReveal}>
+          <SidebarSectionHeader
+            key={`${activeServer.id}:${item.id}`}
+            id={item.id}
+            name={item.name}
+            empty={item.empty}
+            visibleSectionIds={visibleSectionIds}
+            collapsed={collapsedSectionIds?.has(item.id) ?? false}
+            onToggle={toggleSection}
+          />
+        </AgentListRowReveal>
+      ) : (
+        <TransitioningChatRow
+          agent={item.agent}
+          index={index + rowOffset}
+          reveal={listReveal}
+          collapsed={collapsedChatIds.has(item.id)}
+        />
+      ),
+    [activeServer.id, collapsedChatIds, collapsedSectionIds, listReveal, rowOffset, toggleSection, visibleSectionIds],
+  );
   // Add actions come first, then a divider and the actions on existing chats.
   const optionsActions = useMemo<MenuAction[]>(() => {
     const chatActions: MenuAction[] = [
@@ -360,43 +421,11 @@ export function ConnectedScreen() {
           // Keep the native header inset even when short content cannot scroll or bounce.
           contentInsetAdjustmentBehavior="always"
           data={items}
-          keyExtractor={(item) => `${item.kind}:${item.id}`}
-          renderItem={({ item, index }) =>
-            item.kind === "waiting" ? (
-              <AgentListRowReveal index={index + (hasPins ? 1 : 0)} reveal={listReveal}>
-                <AgentWaitingGroupHeader count={item.count} />
-              </AgentListRowReveal>
-            ) : item.kind === "section" ? (
-              <AgentListRowReveal index={index + (hasPins ? 1 : 0)} reveal={listReveal}>
-                <SidebarSectionHeader
-                  key={`${activeServer.id}:${item.id}`}
-                  id={item.id}
-                  name={item.name}
-                  empty={item.empty}
-                  visibleSectionIds={visibleSectionIds}
-                  collapsed={collapsedSectionIds?.has(item.id) ?? false}
-                  onToggle={() => {
-                    setCollapseLayout(sidebar?.layout ?? null);
-                    setCollapsedByServer((current) => {
-                      const next = new Set(current[activeServer.id]);
-                      if (next.has(item.id)) next.delete(item.id);
-                      else next.add(item.id);
-                      return { ...current, [activeServer.id]: next };
-                    });
-                  }}
-                />
-              </AgentListRowReveal>
-            ) : (
-              <TransitioningChatRow
-                chatId={item.agent.id}
-                index={index + (hasPins ? 1 : 0)}
-                reveal={listReveal}
-                collapsed={collapsedChatIds.has(item.id)}
-              >
-                <AgentListRow agent={item.agent} leftInset={15} rightInset={24} />
-              </TransitioningChatRow>
-            )
-          }
+          keyExtractor={listItemKey}
+          renderItem={renderItem}
+          initialNumToRender={LIST_BATCH}
+          maxToRenderPerBatch={LIST_BATCH}
+          windowSize={LIST_WINDOW_SIZE}
           ListHeaderComponent={
             <AgentListRowReveal index={0} reveal={listReveal}>
               {sidebar?.error ? (

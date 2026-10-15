@@ -97,6 +97,9 @@ export const messages = {
   "settings.notch.haptics.title": "Respuesta háptica",
   "settings.notch.haptics.description":
     "Usar el trackpad Force Touch para confirmar las interacciones con Dynamic Island.",
+  "settings.notch.servers.title": "Servidores",
+  "settings.notch.servers.description": "Elige los servidores cuyos elementos muestra la isla.",
+  "settings.notch.servers.later": "Mostrar los servidores que añadas más adelante",
   "settings.notch.size.title": "Tamaño",
   "settings.notch.size.description": "En una pantalla con muesca, la isla nunca es más pequeña que la muesca.",
   "settings.notch.size.reset": "Restablecer valores predeterminados",

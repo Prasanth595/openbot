@@ -18,6 +18,8 @@ export const messages = {
   "agent.setup.creating": "エージェントを作成しています…",
   "agent.setup.create": "エージェントを作成",
   "agent.setup.suggestions": "おすすめ",
+  "agent.deleteUndo.title": "{name} を削除しました",
+  "agent.deleteUndo.action": "元に戻す",
   "agent.error.createFailed": "エージェントを作成できませんでした。",
   "agent.error.duplicateTitle": "エージェントを複製できませんでした",
   "agent.error.duplicateFailed": "このエージェントを複製できませんでした。もう一度お試しください。",

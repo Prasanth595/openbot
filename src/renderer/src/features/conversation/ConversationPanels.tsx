@@ -360,7 +360,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               onCancelProviderDownload={props.onCancelProviderDownload}
               onConnectProvider={props.onConnectProvider}
               canConnectProvider={props.canConnectProvider}
-              onAddCustomProvider={props.onManageProviders}
+              onManageProviders={props.onManageProviders}
               modelOptions={props.modelOptions}
               working={agentActivity() === "Working"}
               maxWidth={settingsMaxWidth}

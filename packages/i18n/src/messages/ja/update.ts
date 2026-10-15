@@ -19,7 +19,7 @@ export const messages = {
   "update.provider.updating": "{name} をアップデートしています",
   "update.provider.failed": "{name} のアップデートに失敗しました",
   "update.provider.settingUp": "準備中",
-  "update.provider.interrupted": "アップデートが中断されました。もう一度お試しください。",
+  "update.provider.failedRetry": "アップデートに失敗しました。もう一度お試しください。",
   "update.provider.unknownVersion": "不明なバージョン",
   "update.provider.remoteHost": "プロバイダー CLI のアップデートは、それをホストするコンピュータで実行されます。",
   "update.provider.unavailable": "プロバイダーのアップデートは利用できません。",
