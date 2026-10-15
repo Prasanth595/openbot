@@ -2,16 +2,19 @@
 // A custom ACP agent whose interpreter is only on the user's login-shell PATH, with OpenBot started
 // the way Finder, the Dock or a login item starts it: PATH=/usr/bin:/bin:/usr/sbin:/sbin.
 // Most ACP adapters are `#!/usr/bin/env node` scripts and Node comes from Homebrew, nvm or mise, so
-// this is the normal macOS setup. `bun scripts/custom-acp-agent-login-path-e2e.ts`; exit 0 = the
-// agent listed its models, exit 1 = it did not. Writes .openbot-build/custom-acp-agent-login-path-e2e/report.json.
+// this is the normal macOS setup. Both ways the agent starts must work: Check agent, and the `acp`
+// provider driver that lists its models. `bun run test:custom-agents:login-path`; exit 0 = both
+// worked. Writes .openbot-build/custom-acp-agent-login-path-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { Effect } from "effect";
 import type { AgentClient } from "../src/backend/agent-client";
 import { runInLoginShell } from "../src/backend/cli";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { requireProviderDriver } from "../src/backend/provider-drivers";
+import { createCustomAgentChanges } from "../src/main/custom-agent-changes";
 import { CustomAgentStore } from "../src/main/custom-agent-store";
 import type { CustomProviderCipher } from "../src/main/custom-provider-store";
 
@@ -55,7 +58,7 @@ const cipher: CustomProviderCipher = {
 };
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/custom-acp-agent-login-path-e2e");
-const report: { passed: boolean; models?: unknown; error?: string } = { passed: false };
+const report: { passed: boolean; check?: unknown; models?: unknown; error?: string } = { passed: false };
 
 const root = await mkdtemp(join(tmpdir(), "openbot-login-path-e2e-"));
 const clients: AgentClient[] = [];
@@ -87,6 +90,16 @@ try {
   const store = new CustomAgentStore({ path: join(root, "custom-agents.json"), cipher });
   await runCauseEffect(store.load());
   await runCauseEffect(store.save({ id: "alpha", name: "Alpha", command: executable, args: [], env: [] }));
+
+  // Check agent, before the user saves an agent. Only the store's environment check is used.
+  const unused = () => Effect.die(new Error("Check agent changes no agent."));
+  const changes = createCustomAgentChanges({
+    service: { saveCustomAgent: unused, removeCustomAgent: unused, reloadCustomAgents: unused },
+    customAgents: store,
+  });
+  const check = await runCauseEffect(changes.check({ command: executable, args: [], env: [] }));
+  report.check = check;
+  assert.equal(check.agentName, "fake", "Check agent starts the agent.");
 
   const driver = requireProviderDriver("acp");
   const context = {

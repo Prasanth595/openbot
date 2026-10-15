@@ -30,7 +30,6 @@ export interface CustomAgentChangeDependencies {
   customAgents: Pick<CustomAgentStore, "list" | "save" | "remove" | "checkEnv" | "assertWritable">;
   resolve?: typeof resolveAgentCommand;
   check?: typeof checkAcpAgent;
-  launchPath?: typeof agentLaunchPath;
 }
 
 export interface CustomAgentChanges {
@@ -52,7 +51,6 @@ export function createCustomAgentChanges({
   customAgents,
   resolve = resolveAgentCommand,
   check = checkAcpAgent,
-  launchPath = agentLaunchPath,
 }: CustomAgentChangeDependencies): CustomAgentChanges {
   // One change at a time, from the first read to the last write, as for the endpoints.
   const gate = Semaphore.makeUnsafe(1);
@@ -148,11 +146,9 @@ export function createCustomAgentChanges({
             cause: new Error(sourceText("error.provider.customAgentNotFound", { command: input.command })),
           });
         yield* runtimeSync(() => assertWindowsScriptArgs(executable, input.args));
-        // The same `PATH` the agent starts with, and a `PATH` saved on the agent wins over it.
-        const path = yield* launchPath().pipe(toProviderRuntimeFailure);
-        return yield* check({ executable, args: input.args, env: { ...(path ? { PATH: path } : {}), ...env } }).pipe(
-          toProviderRuntimeFailure,
-        );
+        // The same `PATH` the agent starts with.
+        const path = yield* agentLaunchPath().pipe(toProviderRuntimeFailure);
+        return yield* check({ executable, args: input.args, env, path }).pipe(toProviderRuntimeFailure);
       })().pipe(Effect.uninterruptible),
   };
 }

@@ -133,7 +133,6 @@ export class CustomAcpAgentsClient extends EventEmitter<ClientEvents> implements
   readonly #source: CustomAgentSource;
   readonly #createChild: CustomAgentChildFactory;
   readonly #resolve: typeof resolveAgentCommand;
-  readonly #launchPath: typeof agentLaunchPath;
   readonly #history: AcpHistoryPersistence | undefined;
   readonly #children = new Map<string, Deferred.Deferred<AgentClient, ProviderClientOperationError>>();
   /** The process that opened or loaded each session, by the routed id that the caller knows. */
@@ -152,10 +151,8 @@ export class CustomAcpAgentsClient extends EventEmitter<ClientEvents> implements
     createChild: CustomAgentChildFactory,
     resolve = resolveAgentCommand,
     history?: AcpHistoryPersistence,
-    launchPath = agentLaunchPath,
   ) {
     super();
-    this.#launchPath = launchPath;
     this.#source = source;
     this.#createChild = createChild;
     this.#resolve = resolve;
@@ -513,7 +510,7 @@ export class CustomAcpAgentsClient extends EventEmitter<ClientEvents> implements
           cause: new Error(sourceText("error.provider.customAgentNotFound", { command: config.command })),
         });
       yield* customStep(() => assertWindowsScriptArgs(executable, config.args));
-      const launchPath = yield* this.#launchPath().pipe(toProviderClientOperationError);
+      const launchPath = yield* agentLaunchPath().pipe(toProviderClientOperationError);
       const prefix = folder === null ? agentId : `${agentId}:${folderTag(folder)}`;
       let child: AgentClient | null = null;
       const history =
