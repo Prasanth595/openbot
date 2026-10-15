@@ -2351,8 +2351,14 @@ export class ProviderRuntime implements ProviderPort {
       });
       const status = this.status().providers?.find((row) => row.id === provider);
       if (status?.version !== cli.version || !["available", "sign-in-required"].includes(status.state)) {
+        // The update reason keeps catalog text only, so other text would leave only "Try again.".
+        // The log keeps the start failure as the cause.
+        const message = status?.message;
         return yield* new ProviderOperationFailed({
-          cause: new Error(status?.message ?? sourceText("error.provider.cliActivateFailed")),
+          cause:
+            message && matchingSourceKeys(message).length > 0
+              ? new Error(message)
+              : new Error(sourceText("error.provider.cliActivateFailed"), { cause: message }),
         });
       }
       return;
