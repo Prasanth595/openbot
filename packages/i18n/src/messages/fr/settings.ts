@@ -103,6 +103,9 @@ export const messages = {
   "settings.notch.haptics.title": "Retour haptique",
   "settings.notch.haptics.description":
     "Utiliser le trackpad Force Touch pour confirmer les interactions avec l’îlot dynamique.",
+  "settings.notch.servers.title": "Serveurs",
+  "settings.notch.servers.description": "Choisissez les serveurs dont l’îlot affiche les éléments.",
+  "settings.notch.servers.later": "Afficher les serveurs ajoutés plus tard",
   "settings.notch.size.title": "Taille",
   "settings.notch.size.description": "Sur un écran avec encoche, l’îlot n’est jamais plus petit que l’encoche.",
   "settings.notch.size.reset": "Rétablir la valeur par défaut",

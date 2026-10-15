@@ -27,6 +27,10 @@ export interface GeneralSettingsValue {
   /** The compact Dynamic Island size, as percents of the default. */
   macBookNotchWidthPercent: number;
   macBookNotchHeightPercent: number;
+  /** The user's choice for each server, by server id. A server with no choice uses `macBookNotchNewServers`. */
+  macBookNotchServers: Record<string, boolean>;
+  /** Whether the island shows a server with no choice of its own, such as a server added later. */
+  macBookNotchNewServers: boolean;
   taskCompletionSound: boolean;
   /** How the user sends a message: plain Enter, or the platform modifier with Enter. */
   sendShortcut: SendShortcutMode;
@@ -65,6 +69,8 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
   macBookNotchAdditionalDisplays: true,
   macBookNotchWidthPercent: 100,
   macBookNotchHeightPercent: 100,
+  macBookNotchServers: {},
+  macBookNotchNewServers: true,
   taskCompletionSound: true,
   sendShortcut: "enter",
   busyMessageMode: "queue",

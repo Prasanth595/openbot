@@ -93,6 +93,9 @@ export const messages = {
   "settings.notch.haptics.title": "Dokunsal geri bildirim",
   "settings.notch.haptics.description":
     "Dinamik Ada etkileşimlerini onaylamak için Force Touch izleme dörtgenini kullanın.",
+  "settings.notch.servers.title": "Sunucular",
+  "settings.notch.servers.description": "Adanın öğelerini gösterdiği sunucuları seçin.",
+  "settings.notch.servers.later": "Daha sonra eklediğiniz sunucuları göster",
   "settings.notch.size.title": "Boyut",
   "settings.notch.size.description": "Çentikli bir ekranda ada hiçbir zaman çentikten daha küçük olmaz.",
   "settings.notch.size.reset": "Varsayılana sıfırla",
