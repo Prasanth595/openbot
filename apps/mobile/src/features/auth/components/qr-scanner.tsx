@@ -10,6 +10,7 @@ import { AppState, Linking, ScrollView, StyleSheet, useWindowDimensions, View } 
 
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
+import { preferredQrScannerLens } from "@/features/auth/model/qr-scanner-lens";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -93,6 +94,7 @@ function ScannerCamera({
   onCameraReady,
   onMountError,
 }: Pick<CameraViewProps, "onBarcodeScanned" | "onCameraReady" | "onMountError">) {
+  const [selectedLens] = useState(preferredQrScannerLens);
   const opacity = useSharedValue(0);
   const previewStyle = useAnimatedStyle(() => ({ opacity: opacity.get() }));
 
@@ -101,6 +103,7 @@ function ScannerCamera({
       <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
+        selectedLens={selectedLens}
         barcodeScannerSettings={QR_SCANNER_SETTINGS}
         onBarcodeScanned={onBarcodeScanned}
         onMountError={onMountError}
