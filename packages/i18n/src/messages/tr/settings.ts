@@ -48,10 +48,10 @@ export const messages = {
   "settings.permissions.title": "İzinler",
   "settings.turbo.title": "Turbo modu",
   "settings.turbo.description":
-    "Her ajanın sormadan komut çalıştırmasına, dosyaları değiştirmesine, kendi dosya sistemi ve ağ erişimini genişletmesine ve herkese açık siteleri yayınlamasına, güncellemesine veya silmesine izin verin.",
+    "Her ajanın sormadan komut ve MCP aracı çalıştırmasına, dosyaları değiştirmesine, kendi dosya sistemi ve ağ erişimini genişletmesine ve herkese açık siteleri yayınlamasına, güncellemesine veya silmesine izin verin.",
   "settings.turbo.confirmTitle": "Turbo modu açılsın mı?",
   "settings.turbo.confirmDescription":
-    "Ajanlar önce size sormadan komutlar çalıştıracak, dosyaları değiştirecek, bu bilgisayardaki erişimlerini genişletecek ve herkese açık siteler yayınlayacak, güncelleyecek veya silecektir. Bunu istediğiniz zaman buradan kapatabilirsiniz.",
+    "Ajanlar önce size sormadan komutlar ve MCP araçları çalıştıracak, dosyaları değiştirecek, bu bilgisayardaki erişimlerini genişletecek ve herkese açık siteler yayınlayacak, güncelleyecek veya silecektir. Bunu istediğiniz zaman buradan kapatabilirsiniz.",
   "settings.turbo.confirmAccept": "Aç",
   "settings.autoApprove.revokeFailed": "{name} için kalıcı onay iptal edilemedi. Hâlâ etkin. Tekrar deneyin.",
   "settings.notifications.title": "Bildirimler",

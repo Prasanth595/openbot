@@ -12,6 +12,7 @@ export const messages = {
   "mobile.app.route.about": "Sobre",
   "mobile.app.route.support": "Suporte",
   "mobile.app.route.hiddenChats": "Chats ocultos",
+  "mobile.app.route.share": "Compartilhar",
   "mobile.app.route.cropPhoto": "Mover e redimensionar",
   "mobile.app.route.queuedMessages": "Mensagens na fila",
   "mobile.app.route.messageOptions": "Opções da mensagem",

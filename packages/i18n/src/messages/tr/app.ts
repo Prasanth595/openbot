@@ -49,7 +49,7 @@ export const messages = {
   "app.standingApproval.title": "{name} için her zaman izin verilsin mi?",
   "app.standingApproval.titleUnnamed": "Bu ajan için her zaman izin verilsin mi?",
   "app.standingApproval.description":
-    "{name}, onu çalıştıran bilgisayarda tekrar sormadan komut çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
+    "{name}, onu çalıştıran bilgisayarda tekrar sormadan komut ve MCP aracı çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
   "app.standingApproval.descriptionUnnamed":
-    "Bu ajan, onu çalıştıran bilgisayarda tekrar sormadan komut çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
+    "Bu ajan, onu çalıştıran bilgisayarda tekrar sormadan komut ve MCP aracı çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
 } as const satisfies PartialTranslation<typeof source>;

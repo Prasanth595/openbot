@@ -49,7 +49,7 @@ export const messages = {
   "app.standingApproval.title": "Sempre permitir {name}?",
   "app.standingApproval.titleUnnamed": "Sempre permitir este agente?",
   "app.standingApproval.description":
-    "{name} executará comandos, alterará arquivos e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Publicar, substituir e excluir sites públicos ainda exige aprovação, exceto quando o modo Turbo está ativado. Você pode desativar a Aprovação automática no menu de modelos deste agente.",
+    "{name} executará comandos e ferramentas MCP, alterará arquivos e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Publicar, substituir e excluir sites públicos ainda exige aprovação, exceto quando o modo Turbo está ativado. Você pode desativar a Aprovação automática no menu de modelos deste agente.",
   "app.standingApproval.descriptionUnnamed":
-    "Este agente executará comandos, alterará arquivos e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Publicar, substituir e excluir sites públicos ainda exige aprovação, exceto quando o modo Turbo está ativado. Você pode desativar a Aprovação automática no menu de modelos deste agente.",
+    "Este agente executará comandos e ferramentas MCP, alterará arquivos e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Publicar, substituir e excluir sites públicos ainda exige aprovação, exceto quando o modo Turbo está ativado. Você pode desativar a Aprovação automática no menu de modelos deste agente.",
 } as const satisfies PartialTranslation<typeof source>;

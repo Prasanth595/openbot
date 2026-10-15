@@ -49,10 +49,10 @@ export const messages = {
   "settings.permissions.title": "Uprawnienia",
   "settings.turbo.title": "Tryb Turbo",
   "settings.turbo.description":
-    "Pozwól każdemu agentowi bez pytania uruchamiać polecenia, zmieniać pliki, poszerzać własny dostęp do systemu plików i sieci oraz publikować, aktualizować i usuwać publiczne witryny.",
+    "Pozwól każdemu agentowi bez pytania uruchamiać polecenia i narzędzia MCP, zmieniać pliki, poszerzać własny dostęp do systemu plików i sieci oraz publikować, aktualizować i usuwać publiczne witryny.",
   "settings.turbo.confirmTitle": "Włączyć tryb Turbo?",
   "settings.turbo.confirmDescription":
-    "Agenci będą bez pytania uruchamiać polecenia, zmieniać pliki, poszerzać własny dostęp na tym komputerze oraz publikować, aktualizować i usuwać publiczne witryny. Możesz to wyłączyć tutaj w każdej chwili.",
+    "Agenci będą bez pytania uruchamiać polecenia i narzędzia MCP, zmieniać pliki, poszerzać własny dostęp na tym komputerze oraz publikować, aktualizować i usuwać publiczne witryny. Możesz to wyłączyć tutaj w każdej chwili.",
   "settings.turbo.confirmAccept": "Włącz",
   "settings.autoApprove.revokeFailed":
     "Nie udało się cofnąć stałego zatwierdzenia dla {name}. Nadal jest aktywne. Spróbuj ponownie.",

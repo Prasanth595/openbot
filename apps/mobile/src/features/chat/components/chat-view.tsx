@@ -50,7 +50,12 @@ import { useAppForeground } from "@/shared/lib/use-app-foreground";
 import { useReducedTransparency } from "@/shared/lib/use-reduced-transparency";
 import { mentionDraft } from "../model/chat-mentions";
 import type { ChatTarget } from "../model/chat-target";
-import { takeComposerFocus, takeComposerRequest, useComposerRequest } from "../model/composer-requests";
+import {
+  deleteComposerFiles,
+  takeComposerFocus,
+  takeComposerRequest,
+  useComposerRequest,
+} from "../model/composer-requests";
 import { type OutboxMessage, outboxChatKey, outboxChatMessage, outboxRowId, outboxTargetKey } from "../model/outbox";
 import type { OutboxDraft, OutboxStore } from "../model/outbox-store";
 import { queueReceiptMessages } from "../model/queue-edit-draft";
@@ -371,15 +376,19 @@ export function ChatView({
   useEffect(() => {
     if (answersQuestion) setAnswerFocusVersion((version) => version + 1);
   }, [answersQuestion]);
-  // Another screen, such as Agent info > Skills, can put text in this composer and close itself.
-  // Only a chat in front takes it: a chat under that screen is not the one the user returns to.
+  // Another screen, such as Agent info > Skills or a share from another app, can put text and files
+  // in this composer and close itself. Only a chat in front takes it: a chat under that screen is not
+  // the one the user returns to.
   const composerRequest = useComposerRequest((state) => state.request);
   useEffect(() => {
     if (!isFocused || !composerRequest) return;
-    const text = takeComposerRequest(target.serverId, target.id);
-    if (!text) return;
-    setDraft((current) => (current ? `${current}\n${text}` : text));
-  }, [isFocused, composerRequest, target.serverId, target.id]);
+    const request = takeComposerRequest(target.serverId, target.id);
+    if (!request) return;
+    const files = request.files ?? [];
+    void composerAttachments
+      .addShared(request.text, files, (text) => setDraft((current) => (current ? `${current}\n${text}` : text)))
+      .finally(() => deleteComposerFiles(files));
+  }, [isFocused, composerRequest, target.serverId, target.id, composerAttachments.addShared]);
   const composerFocus = useComposerRequest((state) => state.focus);
   const [handoffFocusVersion, setHandoffFocusVersion] = useState(0);
   useEffect(() => {

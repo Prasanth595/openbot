@@ -49,7 +49,7 @@ export const messages = {
   "app.standingApproval.title": "Zawsze zezwalać agentowi {name}?",
   "app.standingApproval.titleUnnamed": "Zawsze zezwalać temu agentowi?",
   "app.standingApproval.description":
-    "{name} będzie uruchamiać polecenia, zmieniać pliki oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Publikowanie, zastępowanie i usuwanie publicznych witryn nadal wymaga zatwierdzenia, chyba że tryb Turbo jest włączony. Automatyczne zatwierdzanie możesz wyłączyć w menu modelu tego agenta.",
+    "{name} będzie uruchamiać polecenia i narzędzia MCP, zmieniać pliki oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Publikowanie, zastępowanie i usuwanie publicznych witryn nadal wymaga zatwierdzenia, chyba że tryb Turbo jest włączony. Automatyczne zatwierdzanie możesz wyłączyć w menu modelu tego agenta.",
   "app.standingApproval.descriptionUnnamed":
-    "Ten agent będzie uruchamiać polecenia, zmieniać pliki oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Publikowanie, zastępowanie i usuwanie publicznych witryn nadal wymaga zatwierdzenia, chyba że tryb Turbo jest włączony. Automatyczne zatwierdzanie możesz wyłączyć w menu modelu tego agenta.",
+    "Ten agent będzie uruchamiać polecenia i narzędzia MCP, zmieniać pliki oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Publikowanie, zastępowanie i usuwanie publicznych witryn nadal wymaga zatwierdzenia, chyba że tryb Turbo jest włączony. Automatyczne zatwierdzanie możesz wyłączyć w menu modelu tego agenta.",
 } as const satisfies PartialTranslation<typeof source>;

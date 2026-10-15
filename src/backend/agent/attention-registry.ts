@@ -13,7 +13,7 @@ import type {
   RespondToBrowserTakeoverInput,
   RespondToPromptInput,
 } from "@openbot/contracts/ipc";
-import { AGENT_RUNTIME_ATTENTION_LIMIT } from "@openbot/contracts/ipc";
+import { AGENT_RUNTIME_ATTENTION_LIMIT, COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
@@ -50,6 +50,7 @@ import {
   expiredPromptResult,
   mcpElicitationQuestions,
   mcpElicitationResult,
+  mcpToolCallConsent,
   promptQuestions,
   promptResolution,
   questionPromptText,
@@ -139,8 +140,14 @@ export interface AttentionBrowserHost {
   endTakeover(tabId: string): void;
 }
 
+/** What the registry reads of the conversation runtime, so a test can give it a small one. */
+type AttentionConversation = Pick<
+  ConversationRuntime,
+  "agentForThread" | "emitConversation" | "ensureSnapshot" | "publicThreadId"
+>;
+
 export interface AttentionRegistryOptions {
-  conversation: ConversationRuntime;
+  conversation: AttentionConversation;
   browser: AttentionBrowserHost;
   hostedSites: HostedSiteApprovals;
   routines: RoutineAttention;
@@ -189,7 +196,7 @@ export type LocalAttentionResponse =
 export class AttentionRegistry {
   // A handle belongs to one pending object, even when a provider reuses its request ID.
   readonly #localHandles = new WeakMap<PendingPrompt | PendingApproval | PendingBrowserTakeover, string>();
-  readonly #conversation: ConversationRuntime;
+  readonly #conversation: AttentionConversation;
   readonly #browser: AttentionBrowserHost;
   readonly #hostedSites: HostedSiteApprovals;
   readonly #routines: RoutineAttention;
@@ -820,6 +827,23 @@ export class AttentionRegistry {
     });
   }
 
+  /**
+   * Accepts Codex's consent to run one MCP tool, once, when the agent's grant covers it. Nothing is
+   * saved: "Always allow" stays the user's choice in the card, and Codex keeps it per server and tool.
+   *
+   * Only the consent that Codex marks gets this. A form, a hand-off, a sign-in and any request that
+   * OpenBot does not know still reach the user. A Workspace only agent and Computer Use keep their
+   * card: the first asks to go outside the limit the user chose, and the second has its own switch.
+   */
+  #answerMcpToolConsentWithoutAsking(client: AgentClient, request: AppServerRequest, agentId: string): boolean {
+    if (!mcpToolCallConsent(request.params)) return false;
+    if (getString(request.params, "serverName") === COMPUTER_USE_MCP_SERVER_NAME) return false;
+    if (this.#workspaceSandboxed(agentId)) return false;
+    if (!shouldAutoApprove(this.#approvalAutomation, { agentId })) return false;
+    client.respond(request.id, { action: "accept", content: {}, _meta: null });
+    return true;
+  }
+
   surfaceMcpElicitation(client: AgentClient, request: AppServerRequest): void {
     const threadId = getString(request.params, "threadId");
     const turnId = getString(request.params, "turnId");
@@ -835,6 +859,7 @@ export class AttentionRegistry {
       );
       return;
     }
+    if (this.#answerMcpToolConsentWithoutAsking(client, request, agentId)) return;
     if (this.#messagingThread(publicThreadId)) {
       client.respond(request.id, { action: "cancel", content: null, _meta: null });
       return;

@@ -386,6 +386,12 @@ Image attachment previews are downloaded from the desktop host through the same 
 Other attachments are downloaded when you choose Open or save. The phone creates a temporary file for
 the system share sheet and removes it when that sheet closes. The app you select can keep its own copy.
 Cloudflare account storage does not receive these files.
+When you share text, a link, an image or a file from another app to OpenBot, the phone keeps a copy
+of each file in its app cache until the chat that you choose has read it, or until you close the
+share sheet. Nothing is sent until you send the message. To find out whether a shared link points to
+an image, the phone requests the link from its website and reads only the response headers. When the
+link is an image, the phone downloads it and attaches it in place of the link. It stops a download
+after 10 MB, and a larger image stays a link.
 
 Mobile dictation uses the phone's speech recognition only after you press the microphone. It asks
 for on-device recognition. On iOS, this applies when the phone supports it for your language. On

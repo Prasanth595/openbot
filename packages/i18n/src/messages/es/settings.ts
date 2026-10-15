@@ -49,10 +49,10 @@ export const messages = {
   "settings.permissions.title": "Permisos",
   "settings.turbo.title": "Modo Turbo",
   "settings.turbo.description":
-    "Permitir que todos los agentes ejecuten comandos, cambien archivos, amplíen su acceso al sistema de archivos y a la red, y publiquen, actualicen o eliminen sitios públicos sin preguntar.",
+    "Permitir que todos los agentes ejecuten comandos y herramientas MCP, cambien archivos, amplíen su acceso al sistema de archivos y a la red, y publiquen, actualicen o eliminen sitios públicos sin preguntar.",
   "settings.turbo.confirmTitle": "¿Activar el modo Turbo?",
   "settings.turbo.confirmDescription":
-    "Los agentes ejecutarán comandos, cambiarán archivos, ampliarán su acceso en este equipo y publicarán, actualizarán o eliminarán sitios públicos sin preguntarte. Puedes desactivarlo aquí en cualquier momento.",
+    "Los agentes ejecutarán comandos y herramientas MCP, cambiarán archivos, ampliarán su acceso en este equipo y publicarán, actualizarán o eliminarán sitios públicos sin preguntarte. Puedes desactivarlo aquí en cualquier momento.",
   "settings.turbo.confirmAccept": "Activar",
   "settings.autoApprove.revokeFailed":
     "No se pudo revocar la aprobación permanente de {name}. Sigue activa. Vuelve a intentarlo.",

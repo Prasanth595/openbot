@@ -181,6 +181,7 @@ function RootNavigator() {
                     />
                   </Stack.Protected>
                   <Stack.Screen name="incoming-link" options={{ headerShown: false }} />
+                  <Stack.Screen name="incoming-share" options={{ headerShown: false }} />
                 </Stack>
               </View>
             ) : null}
