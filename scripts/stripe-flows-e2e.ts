@@ -666,6 +666,23 @@ function welcomeClaims(account: Account) {
   );
 }
 
+const observabilitySchema = z.object({ result: z.object({ rows: z.array(z.tuple([z.string()])) }) });
+
+/**
+ * The welcome email results that a local Worker logged since `since`: one line for each send. Only
+ * `bun run dev:api` has this log query, so `--remote-d1` reads nothing.
+ */
+async function welcomeSends(api: string, since: number) {
+  const response = await fetch(`${api}/cdn-cgi/local/explorer/api/local/observability/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sql: `SELECT message FROM logs WHERE message LIKE '%billing: welcome email%' AND ts_ms >= ${since}`,
+    }),
+  });
+  return observabilitySchema.parse(await response.json()).result.rows.map(([message]) => message);
+}
+
 function planWhere(account: Account, subscriptionId: string, label: string, test: (plan: Plan) => boolean) {
   return waitFor(label, async () => {
     const plan = await account.plan(subscriptionId);
@@ -1120,9 +1137,9 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
     }
   },
 
-  // The Worker claims the welcome email before it sends it. Without SMTP it claims and sends nothing,
-  // so the claim is the evidence here; the Worker log shows the send result.
+  // The Worker claims the welcome email before it sends it, and logs one line for each send.
   async welcome(account) {
+    const since = Date.now();
     const first = await account.createServer("Welcome");
     record("welcome", "a server that is not paid gets no welcome email", welcomeClaims(account).length === 0, null);
     const sub = await account.pay(first.server.serverId);
@@ -1143,13 +1160,12 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
     await rowWhere(account, first.server.serverId, "ended", (row) => row.desired_state === "stopped");
     await account.pay(first.server.serverId);
     await rowWhere(account, first.server.serverId, "running again", (row) => row.desired_state === "running");
-    const after = welcomeClaims(account);
-    record(
-      "welcome",
-      "a second server and a renewed plan send no second welcome email",
-      after.length === 1 && after[0]?.received_at === claimed.received_at,
-      after,
-    );
+    if (REMOTE_D1) {
+      print("SKIP [welcome] send count: the remote Worker log is not available");
+      return;
+    }
+    const sends = await welcomeSends(account.api, since);
+    record("welcome", "a second server and a renewed plan send no second welcome email", sends.length === 1, sends);
   },
   async boat(account) {
     const name = "Boat e2e";

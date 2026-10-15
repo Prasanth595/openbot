@@ -71,13 +71,20 @@ export function createHostedBilling(
   return { billing, hosting };
 }
 
-/** A deployment without SMTP sends no welcome email. A failed send is not sent again. */
+/**
+ * A deployment without SMTP sends no welcome email. A failed send is not sent again. Each result logs
+ * one line with no address.
+ */
 function sendWelcomeEmail(bindings: EmailDeliveryBindings, start: FirstPlanStart): Effect.Effect<void> {
   return Effect.try({
     try: () => createWelcomeEmailDelivery(bindings),
     catch: () => ({ message: "smtp_config_incomplete" }),
   }).pipe(
-    Effect.flatMap((delivery) => (delivery ? delivery.send(start) : Effect.void)),
+    Effect.flatMap((delivery) =>
+      delivery
+        ? delivery.send(start).pipe(Effect.andThen(Effect.sync(() => console.log("billing: welcome email sent"))))
+        : Effect.sync(() => console.log("billing: welcome email not sent: SMTP is not set")),
+    ),
     Effect.catch((error) => Effect.sync(() => console.warn("billing: welcome email failed", error.message))),
   );
 }
