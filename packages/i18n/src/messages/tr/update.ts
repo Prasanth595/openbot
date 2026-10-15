@@ -19,7 +19,7 @@ export const messages = {
   "update.provider.updating": "{name} güncelleniyor",
   "update.provider.failed": "{name} güncellemesi başarısız oldu",
   "update.provider.settingUp": "Ayarlanıyor",
-  "update.provider.interrupted": "Güncelleme kesintiye uğradı. Tekrar deneyin.",
+  "update.provider.failedRetry": "Güncelleme başarısız oldu. Tekrar deneyin.",
   "update.provider.unknownVersion": "bilinmeyen sürüm",
   "update.provider.remoteHost": "Sağlayıcı CLI güncellemeleri, onları barındıran bilgisayarda çalışır.",
   "update.provider.unavailable": "Sağlayıcı güncellemeleri kullanılamıyor.",
