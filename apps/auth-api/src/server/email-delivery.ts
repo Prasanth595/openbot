@@ -5,14 +5,21 @@ import {
   sendPrivateContactMessage,
   sendPrivateEmailCode,
   sendPrivateTeamInvite,
+  sendPrivateWelcomeEmail,
 } from "./smtp-email-delivery";
-import type { ContactMessageDelivery, EmailCodeDelivery, TeamInviteEmailDelivery, WorkerBindings } from "./types";
+import type {
+  ContactMessageDelivery,
+  EmailCodeDelivery,
+  TeamInviteEmailDelivery,
+  WelcomeEmailDelivery,
+  WorkerBindings,
+} from "./types";
 
 export class EmailDeliveryError extends Schema.TaggedError<EmailDeliveryError>()("EmailDeliveryError", {
   message: Schema.String,
 }) {}
 
-type EmailDeliveryBindings = Pick<
+export type EmailDeliveryBindings = Pick<
   WorkerBindings,
   | "EMAIL_SMTP_HOST"
   | "EMAIL_SMTP_PORT"
@@ -63,6 +70,11 @@ export function createTeamInviteEmailDelivery(bindings: EmailDeliveryBindings): 
 export function createContactMessageDelivery(bindings: EmailDeliveryBindings): ContactMessageDelivery | null {
   const smtp = readSmtpConfig(bindings);
   return smtp ? { send: (message) => sendPrivateContactMessage(smtp, message) } : null;
+}
+
+export function createWelcomeEmailDelivery(bindings: EmailDeliveryBindings): WelcomeEmailDelivery | null {
+  const smtp = readSmtpConfig(bindings);
+  return smtp ? { send: (message) => sendPrivateWelcomeEmail(smtp, message) } : null;
 }
 
 function readSmtpConfig(bindings: EmailDeliveryBindings): SmtpEmailConfig | null {

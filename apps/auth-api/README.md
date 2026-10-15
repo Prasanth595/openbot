@@ -53,7 +53,7 @@ also sets the allow list from `HOSTED_SERVERS_TEST_ALLOW_LIST` and the developer
 
 `scripts/stripe-flows-e2e.ts` checks the plan flows against the sandbox and a local Worker: renewal,
 failed renewal, cancel at the period end, plan change, renew, delete, another account's server, a
-deleted customer, a refund, and a dispute. Each scenario uses a Stripe test clock and deletes it at the end. Start the Worker
+deleted customer, a refund, a dispute, and the welcome email of a first plan. Each scenario uses a Stripe test clock and deletes it at the end. Start the Worker
 with `HOSTED_SERVERS_ENABLED=true`, `HOSTED_SERVERS_ALLOWED_USER_IDS` set to the output of
 `bun scripts/stripe-flows-e2e.ts --print-user-ids`, and `BOAT_API_KEY=e2e-invalid-key`, and forward
 the webhooks to it. A value in the shell overrides `.env.dev`; without the fake key, each paid

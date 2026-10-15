@@ -49,6 +49,8 @@ import {
 
 /** Stripe retries a webhook for up to 3 days, so older event ids are not needed to stop duplicates. */
 const WEBHOOK_EVENT_RETENTION_MS = 7 * 24 * 60 * 60_000;
+/** The key of an account's welcome email claim in `billing_webhook_events`. No Stripe event id has it. */
+export const WELCOME_EMAIL_CLAIM_PREFIX = "openbot_welcome_email:";
 const OPEN_STATUSES_SQL = "('active', 'trialing', 'past_due', 'unpaid', 'paused')";
 /** The Remote host id shape (`requiredIdentifier` in remote-control-plane.ts). Other values are stored as no server. */
 const SERVER_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/u;
@@ -139,6 +141,18 @@ export interface BillingServiceOptions {
   onSubscriptionSynced?: (sync: SubscriptionSync) => Effect.Effect<void, HostedFailure | RemoteFailure>;
   analytics?: AccountAnalytics;
   sales?: BillingSales;
+  /**
+   * Runs once for an account, when its first plan starts. It must not throw or wait: the welcome
+   * email goes after the webhook answers.
+   */
+  onFirstPlanStarted?: (start: FirstPlanStart) => void;
+}
+
+/** The first plan of an account, for its welcome email. */
+export interface FirstPlanStart {
+  email: string;
+  plan: BillingPlanId;
+  serverName: string;
 }
 
 /** The stored state of a subscription before a sync, to find the change that the sync made. */
@@ -186,6 +200,7 @@ export class BillingService {
   readonly #webhookSecret: string | null;
   readonly #analytics: AccountAnalytics;
   readonly #sales: BillingSales | null;
+  readonly #onFirstPlanStarted: ((start: FirstPlanStart) => void) | null;
 
   constructor(options: BillingServiceOptions) {
     const database = options.database;
@@ -196,6 +211,7 @@ export class BillingService {
     const onSubscriptionSynced = options.onSubscriptionSynced ?? null;
     this.#analytics = options.analytics ?? NO_ACCOUNT_ANALYTICS;
     this.#sales = options.sales ?? null;
+    this.#onFirstPlanStarted = options.onFirstPlanStarted ?? null;
     this.#layer = Layer.succeed(BillingDependencies, {
       database,
       stripe,
@@ -848,9 +864,9 @@ export class BillingService {
     if (stored.meta.changes !== 1) return synced;
     const current = { ...synced, amount, status: subscription.status, cancelAtPeriodEnd };
     const action = planChange(previous, current);
-    // A plan that starts after every earlier plan of the account ended. A failed read leaves it out:
-    // the subscription is already saved, so the event must not fail the sync.
-    const reactivated =
+    // The other plans of an account whose plan starts. A failed read leaves them out: the subscription
+    // is already saved, so the event must not fail the sync.
+    const others =
       action === "plan_started"
         ? yield* billingCall(() =>
             dependencies.database
@@ -858,17 +874,18 @@ export class BillingService {
               .bind(ownerId, subscription.id)
               .all<{ status: string }>(),
           ).pipe(
-            Effect.map(
-              ({ results }) =>
-                results.some((row) => row.status === "canceled") &&
-                !results.some(
-                  (row) => isOneOf(BILLING_SUBSCRIPTION_STATUSES, row.status) && isOpenBillingStatus(row.status),
-                ),
-            ),
-            Effect.catch(() => Effect.succeed(undefined)),
+            Effect.map(({ results }) => results),
+            Effect.catch(() => Effect.succeed(null)),
           )
-        : undefined;
+        : null;
+    // A plan that starts after every earlier plan of the account ended.
+    const reactivated = others
+      ? others.some((row) => row.status === "canceled") &&
+        !others.some((row) => isOneOf(BILLING_SUBSCRIPTION_STATUSES, row.status) && isOpenBillingStatus(row.status))
+      : undefined;
     if (action) this.#trackChange(action, previous, current, reactivated);
+    // A subscription starts once, so the first plan of an account starts once.
+    if (others?.length === 0 && serverId) yield* this.#firstPlanStarted(ownerId, serverId, key.plan);
     const onSubscriptionSynced = dependencies.onSubscriptionSynced;
     const status = subscription.status;
     if (serverId && onSubscriptionSynced) {
@@ -884,6 +901,46 @@ export class BillingService {
     }
     return synced;
   });
+
+  /**
+   * Claims the welcome of an account before it is sent. Stripe sends the events of a new subscription
+   * at the same time, and each one can see the start, so only the event that adds the claim sends it.
+   * The claim is kept as long as the webhook events. A failure skips the email, not the sync.
+   */
+  readonly #firstPlanStarted = Effect.fn("BillingService.firstPlanStarted")(
+    function* (
+      this: BillingService,
+      userId: string,
+      serverId: string,
+      plan: BillingPlanId,
+    ): Effect.fn.Return<void, BillingError | BillingOperationError, BillingDependencies> {
+      const send = this.#onFirstPlanStarted;
+      if (!send) return;
+      const dependencies = yield* BillingDependencies;
+      const claim = yield* billingCall(() =>
+        dependencies.database
+          .prepare("INSERT OR IGNORE INTO billing_webhook_events(event_id, type, received_at) VALUES (?, ?, ?)")
+          .bind(`${WELCOME_EMAIL_CLAIM_PREFIX}${userId}`, "welcome_email", dependencies.now())
+          .run(),
+      );
+      if (claim.meta.changes !== 1) return;
+      const account = yield* billingCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT u.email, s.name AS server_name FROM users u
+             JOIN hosted_servers s ON s.server_id = ? AND s.owner_user_id = u.id
+             WHERE u.id = ?`,
+          )
+          .bind(serverId, userId)
+          .first<{ email: string; server_name: string }>(),
+      );
+      if (account) send({ email: account.email, plan, serverName: account.server_name });
+    },
+    (operation) =>
+      operation.pipe(
+        Effect.catch(() => Effect.sync(() => console.warn("billing: welcome email skipped: the read failed"))),
+      ),
+  );
 
   /** Reports the change of a plan that one sync made. A sync that changes nothing reports nothing. */
   #trackChange(

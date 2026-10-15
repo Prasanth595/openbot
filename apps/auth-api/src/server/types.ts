@@ -3,7 +3,7 @@ import { isDynamicRecord, isFunction } from "@openbot/contracts/runtime-values";
 import type { Effect } from "effect";
 import type { AuthStoreError } from "./d1-auth-repository";
 import type { EmailDeliveryError } from "./email-delivery";
-import type { SmtpContactMessage, SmtpFailure } from "./smtp-email-delivery";
+import type { SmtpContactMessage, SmtpFailure, SmtpWelcomeMessage } from "./smtp-email-delivery";
 
 export interface WorkerBindings {
   DB: D1Database;
@@ -193,6 +193,10 @@ export interface TeamInviteEmailDelivery {
     inviteUrl: string;
     role: "admin" | "member";
   }): Effect.Effect<void, EmailDeliveryError | SmtpFailure>;
+}
+
+export interface WelcomeEmailDelivery {
+  send(message: SmtpWelcomeMessage): Effect.Effect<void, SmtpFailure>;
 }
 
 export interface ContactMessageDelivery {

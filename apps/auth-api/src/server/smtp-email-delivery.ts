@@ -8,6 +8,8 @@ import {
   renderContactMessageEmail,
   renderSignInCodeEmail,
   renderTeamInviteEmail,
+  renderWelcomeEmail,
+  type WelcomeEmailInput,
 } from "./email-templates";
 
 export interface SmtpEmailConfig {
@@ -33,6 +35,10 @@ export interface SmtpTeamInviteMessage {
 }
 
 export type SmtpContactMessage = ContactMessageEmailInput;
+
+export interface SmtpWelcomeMessage extends WelcomeEmailInput {
+  email: string;
+}
 
 interface PreparedEmailMessage {
   email: string;
@@ -155,6 +161,28 @@ export const sendPrivateTeamInvite = Effect.fn("Smtp.sendPrivateTeamInvite ")(fu
         role: message.role,
       }),
     },
+    connector,
+  );
+});
+
+/** Sends the welcome email of an account's first plan. A reply goes to the sending mailbox. */
+export const sendPrivateWelcomeEmail = Effect.fn("Smtp.sendPrivateWelcomeEmail")(function* (
+  config: SmtpEmailConfig,
+  message: SmtpWelcomeMessage,
+  connector?: SmtpConnector,
+) {
+  yield* smtpValidate(() => {
+    if (
+      !message.serverName.trim() ||
+      message.serverName.length > INPUT_LIMITS.serverName ||
+      hasHeaderBreak(message.serverName)
+    ) {
+      throw new Error("smtp_invalid_server_name");
+    }
+  });
+  return yield* sendPrivateEmail(
+    config,
+    { email: message.email, content: renderWelcomeEmail({ plan: message.plan, serverName: message.serverName }) },
     connector,
   );
 });
