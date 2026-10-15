@@ -689,6 +689,8 @@ export class BrowserCdpEngine {
               const fingerprint = yield* state(objectId, null).pipe(
                 Effect.catch(() => Effect.fail(fillFieldsFailure("invalid_target"))),
               );
+              // verify() requires the same value at dispatch, so this is the value that input replaces.
+              const preflightEmpty = JSON.parse(fingerprint)[1] === "";
               const verify = () =>
                 Effect.gen({ self: this }, function* () {
                   yield* checkDocument();
@@ -722,8 +724,9 @@ export class BrowserCdpEngine {
                     yield* browserSync(checkPolicy);
                     yield* Effect.gen({ self: this }, function* () {
                       onDispatch();
-                      if (field.text.length === 0) yield* dispatchShortcut(send, "Backspace");
-                      else yield* send("Input.insertText", { text: field.text });
+                      if (field.text.length > 0) yield* send("Input.insertText", { text: field.text });
+                      // An empty field needs no input. A Backspace there still runs page key handlers.
+                      else if (!preflightEmpty) yield* dispatchShortcut(send, "Backspace");
                       // An already dispatched command must drain before its queue slot can end.
                       // Acknowledgment alone does not prove which field kept the text.
                       // Closing or takeover can start inside the input acknowledgment callback.
