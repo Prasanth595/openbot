@@ -5,7 +5,7 @@ import { deleteAggregateHistory } from "../database/database-core";
 import { databaseRow, databaseRows, optionalStringColumn, requiredStringColumn } from "../database/database-rows";
 import type { OpenBotDatabase } from "../openbot-database";
 
-export const AGENT_TASK_ORIGINS = ["user", "agent"] as const;
+const AGENT_TASK_ORIGINS = ["user", "agent"] as const;
 export type AgentTaskOrigin = (typeof AGENT_TASK_ORIGINS)[number];
 
 /** A second conversation of one agent, with its own thread, next to the agent's own chat. */

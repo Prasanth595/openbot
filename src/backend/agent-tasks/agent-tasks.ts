@@ -372,7 +372,7 @@ function startedTaskResult(task: AgentTaskRecord): OpenBotToolResponse {
 }
 
 /** The first line of the text, cut to the title limit. */
-export function taskTitle(text: string): string {
+function taskTitle(text: string): string {
   const line =
     text
       .split("\n")

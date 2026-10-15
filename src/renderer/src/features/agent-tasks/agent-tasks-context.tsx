@@ -9,7 +9,7 @@ import { useAgents } from "../agents/agents-context";
 import { useServers } from "../servers/servers-context";
 import { agentTasksPort } from "./agent-tasks-port";
 
-export type AgentTaskEvent = Extract<
+type AgentTaskEvent = Extract<
   AgentEvent,
   { type: "agent-tasks-changed" | "agent-task-conversation" | "agent-task-conversation-delta" }
 >;
