@@ -158,25 +158,26 @@ function formatExcelNumber(value: string, format: string, date1904: boolean, num
   const hasDate = hasDateFormat(format);
   if (hasDate) return formatExcelDate(number, format, date1904);
   if (hasTimeFormat(format)) return number < 0 ? value : formatExcelTime(number, format);
+  const prefix = format.match(/^"([^"]*)"/u)?.[1] ?? "";
   const suffix = formatLiteralSuffix(format);
   const hasPercentScaling = unquotedFormat(format).includes("%");
   if (hasPercentScaling) {
     const minimumFractionDigits = (decimals.match(/0/gu) ?? []).length;
     const maximumFractionDigits = decimals.length;
-    return `${numbers.number(number * 100, { minimumFractionDigits, maximumFractionDigits })}%${suffix ? ` ${suffix}` : ""}`;
+    return `${prefix}${numbers.number(number * 100, { minimumFractionDigits, maximumFractionDigits })}%${suffix ? ` ${suffix}` : ""}`;
   }
   const minimumFractionDigits = (decimals.match(/0/gu) ?? []).length;
   const integerFormat = unquotedFormat(format).split(".")[0] ?? "";
   const minimumIntegerDigits = Math.max(1, (integerFormat.match(/0/gu) ?? []).length);
   if (minimumIntegerDigits > 21) return value;
-  const formatted = numbers.number(number, {
+  const formatted = `${prefix}${numbers.number(number, {
     minimumFractionDigits,
     maximumFractionDigits: decimals.length,
     minimumIntegerDigits,
     useGrouping: integerFormat.includes(","),
-  });
+  })}`;
   if (suffix) return suffix === "%" ? `${formatted}%` : `${formatted} ${suffix}`;
-  return /"[^"]*%[^"]*"|\\%/u.test(format) ? `${formatted}%` : formatted;
+  return /"[^"]*%[^"]*"|\\%/u.test(format.replace(/^"[^"]*"/u, "")) ? `${formatted}%` : formatted;
 }
 
 function cellValue(
