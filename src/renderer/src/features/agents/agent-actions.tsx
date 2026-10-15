@@ -3,7 +3,7 @@ import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-prot
 import { classifyFailure } from "@openbot/telemetry";
 import { toast } from "@openbot/ui";
 import type { AgentProfile } from "@openbot/ui/data";
-import { AgentDeleteUndoToast } from "@openbot/ui/features/agents/AgentDeleteUndoToast";
+import { AgentDeleteUndoToast, startUndoCountdown } from "@openbot/ui/features/agents/AgentDeleteUndoToast";
 import type { FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
 import { currentText } from "@openbot/ui/text";
 import { onCleanup } from "solid-js";
@@ -202,6 +202,7 @@ const AgentActions = createSimpleContext({
       function settle(): boolean {
         if (settled) return false;
         settled = true;
+        countdown.stop();
         pendingDeletes.delete(agentId);
         // A scope cleanup can call this, and a write to the Toaster from there stops the reactive system.
         queueMicrotask(() => toast.dismiss(toastId));
@@ -216,6 +217,9 @@ const AgentActions = createSimpleContext({
 
       async function commit(): Promise<void> {
         if (!settle()) return;
+        // Before the wait: a server switch reads the stored pins when the next scope starts. If the delete
+        // fails, the agent comes back without its pin.
+        removePinnedSidebarItemEverywhere({ kind: "agent", id: agentId });
         try {
           await agentsPort().agent.deleteAgent(agentId, serverId);
           analytics.track("agent_action", { action: "delete", result: "succeeded", ...(properties ?? {}) });
@@ -230,7 +234,6 @@ const AgentActions = createSimpleContext({
           setFailedTurns((current) => withoutAgent(current, agentId));
           setQueues((current) => withoutAgent(current, agentId));
           setPendingPrompts((current) => withoutAgent(current, agentId));
-          removePinnedSidebarItemEverywhere({ kind: "agent", id: agentId });
         } catch (error) {
           analytics.track("agent_action", {
             action: "delete",
@@ -255,9 +258,9 @@ const AgentActions = createSimpleContext({
         }
       }
 
+      const countdown = startUndoCountdown(() => void commit());
       pendingDeletes.set(agentId, () => void commit());
-      // A title function renders inside the Toaster, so the Toaster's owner disposes the countdown.
-      toast(() => <AgentDeleteUndoToast agent={agent} onUndo={undo} onExpire={() => void commit()} />, {
+      toast(() => <AgentDeleteUndoToast agent={agent} countdown={countdown} onUndo={undo} />, {
         id: toastId,
         duration: Number.POSITIVE_INFINITY,
         unstyled: true,

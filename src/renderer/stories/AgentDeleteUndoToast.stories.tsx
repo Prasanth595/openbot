@@ -1,15 +1,13 @@
 import { Button, Toaster, toast } from "@openbot/ui";
-import { AgentDeleteUndoToast } from "@openbot/ui/features/agents/AgentDeleteUndoToast";
+import { AgentDeleteUndoToast, startUndoCountdown } from "@openbot/ui/features/agents/AgentDeleteUndoToast";
 import { onCleanup } from "solid-js";
-import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { requireFixture, STORY_AGENTS } from "./fixtures";
 
 const meta = {
   title: "Agents/Agent delete undo toast",
-  component: AgentDeleteUndoToast,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
-} satisfies Meta<typeof AgentDeleteUndoToast>;
+} satisfies Meta;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -24,21 +22,22 @@ const agent = {
 
 function raise(): void {
   const id = `story-agent-delete-${agent.id}`;
-  toast(
-    () => <AgentDeleteUndoToast agent={agent} onUndo={() => toast.dismiss(id)} onExpire={() => toast.dismiss(id)} />,
-    {
-      id,
-      duration: Number.POSITIVE_INFINITY,
-      unstyled: true,
-      closeButton: false,
-      class: "agent-delete-undo-toast-host",
-    },
-  );
+  const close = () => {
+    countdown.stop();
+    queueMicrotask(() => toast.dismiss(id));
+  };
+  const countdown = startUndoCountdown(close);
+  toast(() => <AgentDeleteUndoToast agent={agent} countdown={countdown} onUndo={close} />, {
+    id,
+    duration: Number.POSITIVE_INFINITY,
+    unstyled: true,
+    closeButton: false,
+    class: "agent-delete-undo-toast-host",
+  });
 }
 
 /** The toast after a confirmed agent delete. The bar empties in 8 s, and stops while the pointer is on the toast. */
 export const AfterDelete: Story = {
-  args: { agent, onUndo: fn(), onExpire: fn() },
   render: () => {
     onCleanup(() => toast.dismiss());
     return (

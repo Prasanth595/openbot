@@ -1,66 +1,76 @@
 import { Button, Progress } from "@openbot/ui";
-import { createSignal, onSettled } from "solid-js";
+import { type Accessor, createSignal } from "solid-js";
 import type { AgentProfile } from "../../data";
-import { useText } from "../../text";
+import { currentText } from "../../text";
 import { AgentAvatar } from "./AgentAvatar";
 
 /** How long a deleted agent can be restored. */
 export const AGENT_DELETE_UNDO_MS = 8_000;
 const TICK_MS = 100;
 
-interface AgentDeleteUndoToastProps {
-  agent: Pick<AgentProfile, "name" | "title" | "avatarSeed" | "avatarHue" | "avatarUrl">;
-  durationMs?: number;
-  onUndo: () => void;
-  /** The time is over. The caller deletes the agent. */
-  onExpire: () => void;
+/** The time to undo. It stops while the pointer or the keyboard focus is on the toast, and while the window is hidden. */
+export interface UndoCountdown {
+  /** The part of the time that is left, from 1 to 0. */
+  readonly left: Accessor<number>;
+  hold(source: "pointer" | "focus", held: boolean): void;
+  stop(): void;
 }
 
 /**
- * The toast after an agent delete. The bar along the bottom edge shows the time left to undo.
+ * Starts the time to undo. The caller owns it and calls `stop()` when the toast settles.
  *
- * The toast counts its own time, so it can stop while the pointer or the keyboard focus is on it, and
- * while the window is hidden. Raise it with sonner's own timer off (`duration: Infinity`).
+ * The toast cannot count the time itself: sonner renders a toast's content more than once, for
+ * example to measure its height, and each copy would get its own timer that the pointer never holds.
+ */
+export function startUndoCountdown(onExpire: () => void, durationMs = AGENT_DELETE_UNDO_MS): UndoCountdown {
+  const [remaining, setRemaining] = createSignal(durationMs);
+  const holds = new Set<"pointer" | "focus">();
+  let last = performance.now();
+  const timer = window.setInterval(() => {
+    const now = performance.now();
+    const elapsed = now - last;
+    last = now;
+    if (holds.size > 0 || document.hidden) return;
+    const next = Math.max(0, remaining() - elapsed);
+    setRemaining(next);
+    if (next === 0) {
+      window.clearInterval(timer);
+      onExpire();
+    }
+  }, TICK_MS);
+  return {
+    left: () => remaining() / durationMs,
+    hold: (source, held) => {
+      if (held) holds.add(source);
+      else holds.delete(source);
+    },
+    stop: () => window.clearInterval(timer),
+  };
+}
+
+interface AgentDeleteUndoToastProps {
+  agent: Pick<AgentProfile, "name" | "title" | "avatarSeed" | "avatarHue" | "avatarUrl">;
+  countdown: UndoCountdown;
+  onUndo: () => void;
+}
+
+/**
+ * The toast after an agent delete. The bar along the bottom edge shows the time left to undo. Raise it
+ * with sonner's own timer off (`duration: Infinity`).
  */
 export function AgentDeleteUndoToast(props: AgentDeleteUndoToastProps) {
-  const { t } = useText();
-  const duration = () => props.durationMs ?? AGENT_DELETE_UNDO_MS;
-  const [remaining, setRemaining] = createSignal(duration());
-  let hovered = false;
-  let focused = false;
-
-  onSettled(() => {
-    let last = performance.now();
-    const timer = window.setInterval(() => {
-      const now = performance.now();
-      const elapsed = now - last;
-      last = now;
-      if (hovered || focused || document.hidden) return;
-      const next = Math.max(0, remaining() - elapsed);
-      setRemaining(next);
-      if (next === 0) {
-        window.clearInterval(timer);
-        props.onExpire();
-      }
-    }, TICK_MS);
-    return () => window.clearInterval(timer);
-  });
+  // The app's Toaster renders outside the text provider, so `useText()` would always give English.
+  const { t } = currentText();
 
   return (
     <div
       class="agent-delete-undo-toast"
-      onPointerEnter={() => {
-        hovered = true;
-      }}
-      onPointerLeave={() => {
-        hovered = false;
-      }}
-      onFocusIn={() => {
-        focused = true;
-      }}
+      onPointerEnter={() => props.countdown.hold("pointer", true)}
+      onPointerLeave={() => props.countdown.hold("pointer", false)}
+      onFocusIn={() => props.countdown.hold("focus", true)}
       onFocusOut={(event) => {
         if (!(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)))
-          focused = false;
+          props.countdown.hold("focus", false);
       }}
     >
       <AgentAvatar agent={props.agent} motion="idle" class="agent-delete-undo-toast-avatar" />
@@ -72,7 +82,7 @@ export function AgentDeleteUndoToast(props: AgentDeleteUndoToastProps) {
         {t("agent.deleteUndo.action")}
       </Button>
       <Progress
-        value={(remaining() / duration()) * 100}
+        value={props.countdown.left() * 100}
         minValue={0}
         maxValue={100}
         class="agent-delete-undo-toast-bar"
