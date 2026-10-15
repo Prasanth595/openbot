@@ -1121,6 +1121,16 @@ export class ProviderRuntime implements ProviderPort {
           .start(provider, (cli) => startProviderTerminalLogin(cli, signIn.timeoutMs))
           .pipe(toProviderOperationFailed);
         return this.status();
+      case "muse-device": {
+        const started = yield* this.#startProviderCode(provider, signIn);
+        if (started.kind !== "code") return this.status();
+        // A page that did not open cannot finish the sign-in, so its code stops working.
+        yield* Effect.tryPromise({
+          try: () => openExternal(started.verificationUrlComplete ?? started.verificationUrl),
+          catch: (cause) => new ProviderOperationFailed({ cause }),
+        }).pipe(Effect.tapError(() => this.#cancelCliLogin(provider).pipe(Effect.ignore)));
+        return this.status();
+      }
     }
   });
 

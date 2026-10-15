@@ -114,6 +114,11 @@ type ProviderSignIn =
   /** The host opens an interactive terminal and refreshes the account when it closes. */
   | { kind: "terminal"; timeoutMs: number }
   /**
+   * OpenBot starts the `muse serve` device sign-in and opens its page, which holds the code.
+   * `muse login` with no terminal only prints that page and never opens it.
+   */
+  | { kind: "muse-device"; timeoutMs: number }
+  /**
    * OpenBot starts the ACP server and calls `authenticate` with this method, which opens a browser
    * from the server. Only the sign-in process calls it: in a status probe it would open a browser.
    */
@@ -384,10 +389,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
   },
   {
     id: "muse",
-    signIn: {
-      kind: "cli-command",
-      command: { argv: ["login"], env: () => ({ MUSE_NO_AUTO_UPDATE: "1" }), timeoutMs: CLI_LOGIN_TIMEOUT_MS },
-    },
+    signIn: { kind: "muse-device", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     // On this computer only: no Team API protocol carries a Muse code sign-in.
     codeSignIn: { kind: "muse-device", timeoutMs: CLI_LOGIN_TIMEOUT_MS },
     resolveCli: resolveMuseCli,
