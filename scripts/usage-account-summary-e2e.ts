@@ -1,36 +1,63 @@
-#!/usr/bin/env -S node --import ./node_modules/tsx/dist/loader.mjs
+#!/usr/bin/env bun
+/**
+ * Run: bun scripts/usage-account-summary-e2e.ts
+ * Report: .openbot-build/usage-account-summary/report.json
+ */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { EventEmitter, once } from "node:events";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { DEFAULT_PROVIDER_ACCOUNT_ID } from "@openbot/contracts/ipc";
-import { Effect } from "effect";
+import { type AccountUsage, DEFAULT_PROVIDER_ACCOUNT_ID, type ProviderAccountStatus } from "@openbot/contracts/ipc";
+import { Effect, Schema } from "effect";
 import {
+  type AccountUsageProviderRow,
   accountUsageProviderRows,
   accountUsageSummary,
-} from "../packages/ui/src/features/account/account-usage-view.ts";
-import { ProviderAccountStore } from "../src/backend/agent/provider-account-store.ts";
-import { ProviderAccountFailed, ProviderAccounts } from "../src/backend/agent/provider-accounts.ts";
-import { ProviderSignInError } from "../src/backend/provider-client-effects.ts";
+} from "../packages/ui/src/features/account/account-usage-view";
+import { ProviderAccountStore } from "../src/backend/agent/provider-account-store";
+import {
+  ProviderAccountFailed,
+  ProviderAccounts,
+  type ProviderAccountsHost,
+} from "../src/backend/agent/provider-accounts";
+import { ProviderSignInError } from "../src/backend/provider-client-effects";
 
 const workspace = resolve(dirname(import.meta.filename), "..");
 const output = join(workspace, ".openbot-build", "usage-account-summary");
-const checks = [];
-const report = { status: "failed", checks, transitions: [] };
+interface CheckResult {
+  name: string;
+  passed: boolean;
+  error?: string;
+}
 
-function check(name, verify) {
+interface UsageReport {
+  status: "passed" | "failed";
+  checks: CheckResult[];
+  transitions: ProviderAccountStatus[][];
+  persisted?: Schema.JsonObject;
+  accounts?: ProviderAccountStatus[];
+  usage?: AccountUsage;
+  rows?: AccountUsageProviderRow[];
+  error?: string;
+  selectorSha256?: string;
+}
+
+const checks: CheckResult[] = [];
+const report: UsageReport = { status: "failed", checks, transitions: [] };
+
+function check(name: string, verify: () => void): void {
   try {
     verify();
     checks.push({ name, passed: true });
   } catch (error) {
-    checks.push({ name, passed: false, error: error.message });
+    checks.push({ name, passed: false, error: error instanceof Error ? error.message : String(error) });
   }
 }
 
 // Default readings enter at the external provider boundary. Secondary readings come from the service.
-const defaultUsage = {
+const defaultUsage: AccountUsage = {
   limits: [
     { id: "codex", primary: { usedPercent: 35, windowDurationMins: 300, resetsAt: null }, secondary: null },
     { id: "grok", primary: { usedPercent: 85, windowDurationMins: 10080, resetsAt: null }, secondary: null },
@@ -38,7 +65,7 @@ const defaultUsage = {
   ],
 };
 
-async function run() {
+async function run(): Promise<void> {
   const temporary = await mkdtemp(join(tmpdir(), "openbot-usage-account-summary-"));
   try {
     const path = join(temporary, "accounts.json");
@@ -47,7 +74,7 @@ async function run() {
     await Effect.runPromise(initial.load());
     const secondary = await Effect.runPromise(initial.create("codex"));
     assert.ok(secondary, "The real store must create a secondary account.");
-    const persisted = JSON.parse(await readFile(path, "utf8"));
+    const persisted = Schema.decodeUnknownSync(Schema.JsonObject)(JSON.parse(await readFile(path, "utf8")));
     assert.deepEqual(persisted.accounts, [secondary]);
     assert.ok((await stat(initial.home(secondary))).isDirectory());
 
@@ -56,27 +83,28 @@ async function run() {
     await Effect.runPromise(store.load());
     assert.deepEqual(store.list("codex"), [secondary]);
     const events = new EventEmitter();
-    const authEnvironments = [];
+    const authEnvironments: Readonly<Record<string, string>>[] = [];
     await Effect.runPromise(
       Effect.scoped(
         Effect.gen(function* () {
           const scope = yield* Effect.scope;
-          const host = {
+          const host: ProviderAccountsHost = {
             scope: () => scope,
-            cli: () => ({ executable: process.execPath, version: "e2e", source: "system" }),
-            defaultEmail: () => "default@example.com",
+            cli: (_provider) => ({ executable: process.execPath, version: "e2e", source: "system" }),
+            defaultEmail: (_provider) => "default@example.com",
             authenticate: (_provider, _cli, environment) => {
               authEnvironments.push(environment);
               return Effect.fail(
                 new ProviderAccountFailed({ cause: new ProviderSignInError({ message: "Signed out." }) }),
               );
             },
-            stopClient: () => Effect.void,
-            agentClient: () => null,
-            stopAgentClients: () => Effect.void,
-            readUsage: () => Effect.die(new Error("A signed-out account must not read usage.")),
+            stopClient: (_client) => Effect.void,
+            agentClient: (_provider, _accountId) => null,
+            stopAgentClients: (_provider, _accountId) => Effect.void,
+            readUsage: (_client, _model) => Effect.die(new Error("A signed-out account must not read usage.")),
             changed: () => {
               const rows = accounts.rows("codex", host.defaultEmail("codex"));
+              if (!rows) throw new Error("Codex account rows must be available.");
               report.transitions.push(rows);
               if (rows?.find((row) => row.id === secondary.id)?.state === "signed-out") events.emit("signed-out");
             },
@@ -87,6 +115,7 @@ async function run() {
           yield* accounts.checkAll("codex");
           yield* Effect.promise(() => signedOut);
           const accountRows = accounts.rows("codex", host.defaultEmail("codex"));
+          if (!accountRows) throw new Error("Codex account rows must be available.");
           const secondaryUsage = yield* accounts.usage("codex", "gpt-5.6-luna");
           const providers = [
             { id: "codex", state: "available", accounts: accountRows },
@@ -148,13 +177,14 @@ async function run() {
 try {
   await run();
 } catch (error) {
-  report.error = error.message;
+  report.status = "failed";
+  report.error = error instanceof Error ? error.message : String(error);
 } finally {
   report.selectorSha256 = createHash("sha256")
     .update(await readFile(join(workspace, "packages/ui/src/features/account/account-usage-view.ts")))
     .digest("hex");
   await mkdir(output, { recursive: true });
-  const path = join(output, `${report.status}.json`);
+  const path = join(output, "report.json");
   await writeFile(path, `${JSON.stringify(report, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify({ status: report.status, report: path, checks })}\n`);
   if (report.status !== "passed") process.exitCode = 1;
