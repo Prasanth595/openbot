@@ -32,7 +32,14 @@ import { DiagramStepIcon } from "./DiagramNodeCard";
 import { diagramRunStepStatus } from "./DiagramRoutineVisuals";
 import type { DiagramWebhookActions } from "./DiagramRoutineWebhookConfig";
 import { diagramLatestRun, diagramRoutineColor, diagramRunOf } from "./diagram-graph";
-import type { Diagram, DiagramChatMessage, DiagramNode, DiagramPoint, DiagramRunStatus } from "./diagram-model";
+import type {
+  Diagram,
+  DiagramChatMessage,
+  DiagramNode,
+  DiagramPoint,
+  DiagramRoutineHistory,
+  DiagramRunStatus,
+} from "./diagram-model";
 
 export interface DiagramViewProps {
   diagram: Diagram;
@@ -73,6 +80,7 @@ export interface DiagramViewProps {
   newAgentModels?: DiagramModelChoice | undefined;
   /** Sets the webhook of a routine that a webhook starts, from the panel. */
   webhooks?: DiagramWebhookActions | undefined;
+  history?: DiagramRoutineHistory | undefined;
   /** Saves what an agent does in one routine, from the panel. Without it, tasks are read-only. */
   onEditTask?: ((nodeId: string, routineId: string, task: string) => void) | undefined;
 }
@@ -273,6 +281,7 @@ export function DiagramView(props: DiagramViewProps) {
             onFocusRoutine={setPicked}
             onEditTask={props.onEditTask}
             webhooks={props.webhooks}
+            history={props.history}
           />
         </Show>
       </div>

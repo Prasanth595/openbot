@@ -77,6 +77,7 @@ import { providerDetectionIpcHandlers } from "./ipc/provider-detection-handlers"
 import { providerIpcHandlers } from "./ipc/provider-handlers";
 import { routineFeedIpcHandlers } from "./ipc/routine-feed-handlers";
 import { routineFlowIpcHandlers } from "./ipc/routine-flow-handlers";
+import { routineFlowHistoryIpcHandlers } from "./ipc/routine-flow-history-handlers";
 import { routineIpcHandlers } from "./ipc/routine-handlers";
 import { routineResultIpcHandlers } from "./ipc/routine-result-handlers";
 import { sharedTableIpcHandlers } from "./ipc/shared-table-handlers";
@@ -580,6 +581,7 @@ function registerIpcHandlers({
     ...sharedTableIpcHandlers({ service, remoteServers }),
     ...routineIpcHandlers({ service, remoteServers }),
     ...routineFlowIpcHandlers({ routineFlows, remoteServers }),
+    ...routineFlowHistoryIpcHandlers({ routineFlows, remoteServers }),
     ...routineResultIpcHandlers({ routineResults }),
     ...channelMemoryIpcHandlers({ service, remoteServers }),
     ...channelRoutineIpcHandlers({ service, remoteServers }),

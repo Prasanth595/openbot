@@ -119,4 +119,5 @@ export const messages = {
   "error.team.signInRelayUsed": "Questo accesso è già stato inviato.",
   "error.team.signInRelayMismatch": "Questo indirizzo non appartiene a questo accesso.",
   "error.team.signInRelayLinkUnknown": "Nessun agente su questo server ha mostrato questo link di accesso.",
+  "error.team.routineFlowHistoryUnsupported": "Questo host non supporta la cronologia salvata delle routine.",
 } as const satisfies PartialTranslation<typeof source>;

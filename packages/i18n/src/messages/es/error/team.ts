@@ -116,4 +116,5 @@ export const messages = {
   "error.team.signInRelayUsed": "Este inicio de sesión ya se envió.",
   "error.team.signInRelayMismatch": "Esta dirección no es de este inicio de sesión.",
   "error.team.signInRelayLinkUnknown": "Ningún agente de este servidor mostró este enlace de inicio de sesión.",
+  "error.team.routineFlowHistoryUnsupported": "Este host no admite el historial guardado de rutinas.",
 } as const satisfies PartialTranslation<typeof source>;

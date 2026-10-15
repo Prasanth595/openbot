@@ -5,6 +5,7 @@
  */
 
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { ROUTINE_FLOW_HISTORY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flow-history-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import type { DiagramModelChoice } from "@openbot/ui/features/diagrams/DiagramNewAgentCard";
 import { useText } from "@openbot/ui/text";
@@ -71,7 +72,9 @@ export function WorkspaceRoutineFlows() {
     >
       {(id) => (
         <RoutineFlowsCanvas
-          host={desktopRoutineFlowsHost(id, webhooks)}
+          host={desktopRoutineFlowsHost(id, webhooks, () =>
+            serverSupportsCapability(activeServer(), ROUTINE_FLOW_HISTORY_CAPABILITY),
+          )}
           agent={activeAgent()}
           agents={agentList()}
           newAgentModels={newAgentModels()}

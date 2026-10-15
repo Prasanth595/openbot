@@ -121,4 +121,5 @@ export const messages = {
   "error.team.signInRelayUsed": "Cette connexion a déjà été envoyée.",
   "error.team.signInRelayMismatch": "Cette adresse ne vient pas de cette connexion.",
   "error.team.signInRelayLinkUnknown": "Aucun agent de ce serveur n'a affiché ce lien de connexion.",
+  "error.team.routineFlowHistoryUnsupported": "Cet hôte ne prend pas en charge l’historique enregistré des routines.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -274,4 +274,6 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Сохраните этот MCP-сервер как URL-сервер, прежде чем добавлять приложение входа.",
   "error.backend.mcpSignInAppUnavailable": "Этот компьютер не может хранить приложение входа.",
+  "error.backend.routineFlowHistoryGone": "Этот запуск отсутствует или недоступен вам.",
+  "error.backend.routineFlowHistoryTooLarge": "Сохранённый запуск слишком велик для отображения.",
 } as const satisfies PartialTranslation<typeof source>;

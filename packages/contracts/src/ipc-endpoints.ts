@@ -9,6 +9,7 @@ import type {
   ResetAgentSessionSettingInput,
   SetAgentSessionSettingInput,
 } from "./ipc-agent-session-settings";
+
 // The one channel list. Each endpoint holds its wire value, the group it belongs to, and whether it
 // is a request the renderer invokes or an event the main process sends. That is what lets a
 // registrar bind its handlers as an object keyed by endpoint, so a channel with no handler, and a
@@ -318,6 +319,12 @@ import type {
   RemoteDesktopTestStatus,
 } from "./ipc-remote-desktop-setup";
 import type { RemoteSessionReusePreference } from "./ipc-remote-sessions";
+import type {
+  RoutineFlowHistoryInput,
+  RoutineFlowHistoryPage,
+  RoutineFlowHistoryRunInput,
+  RoutineFlowHistoryRunPage,
+} from "./ipc-routine-flow-history";
 import type {
   ConnectRoutineFlowInput,
   DisconnectRoutineFlowInput,
@@ -1118,6 +1125,10 @@ export const IPC_ENDPOINTS = {
    * it. A joined server answers through `routine-flows-v1` when it supports it. The agent event
    * `routine-flows-changed` says which canvas changed.
    */
+  routineFlowHistory: {
+    page: scopedRequest<RoutineFlowHistoryInput, RoutineFlowHistoryPage>()("routine-flow-history:page"),
+    run: scopedRequest<RoutineFlowHistoryRunInput, RoutineFlowHistoryRunPage>()("routine-flow-history:run"),
+  },
   routineFlows: {
     canvas: scopedRequest<string, RoutineFlowCanvas>()("routine-flows:canvas"),
     savePosition: scopedRequest<SaveRoutineFlowPositionInput, void>()("routine-flows:save-position"),
@@ -1410,6 +1421,7 @@ export const IPC_GROUP_PATHS = {
   hostedSites: "hostedSites",
   routineFeed: "routineFeed",
   routineFlows: "routineFlows",
+  routineFlowHistory: "routineFlowHistory",
   routineResults: "routineResults",
   billing: "billing",
   hostedServers: "hostedServers",

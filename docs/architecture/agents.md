@@ -98,6 +98,11 @@ client read and change them through the optional `routine-flows-v1` capability (
 The agent event `routine-flows-changed` names the agent whose canvas changed, on this computer and
 on a joined host.
 
+The inspector reads older runs and their stored steps through the optional
+`routine-flow-history-v1` capability. History reads do not start work. The canvas keeps the newest
+run, and an older host keeps its existing recent-run list. See
+[Stored routine-flow history](routine-flow-history.md) for cursors, visibility and response bounds.
+
 - `src/renderer/src/features/routine-flows/RoutineFlowsCanvas.tsx` is the canvas. It reads no
   application context: it takes a `RoutineFlowsHost` (`routine-flows-port.ts`), the open agent and
   the agent list. `WorkspaceRoutineFlows.tsx` gives it the active server through main, and
