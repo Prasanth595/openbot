@@ -21,7 +21,7 @@ import type { DiagramModelChoice, DiagramNewAgentDraft } from "@openbot/ui/featu
 import { DiagramView } from "@openbot/ui/features/diagrams/DiagramView";
 import type { DiagramPoint } from "@openbot/ui/features/diagrams/diagram-model";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createStore, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createStore, onSettled, Show, untrack } from "solid-js";
 import { createRoutineFlowAssistant } from "./routine-flow-assistant";
 import { agentIdOfNode, isRoutineStartEdge, routineFlowDiagram, routineIdOfNode } from "./routine-flow-diagram";
 import type { RoutineFlowsHost } from "./routine-flows-port";
@@ -84,12 +84,14 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
   };
 
   /** A load for an agent the user has left, such as one after a slow write, changes nothing. */
-  const load = async (id: string) => {
-    if (id !== agentId()) return;
+  const load = async (id: string, requestHost: RoutineFlowsHost = untrack(host)) => {
+    // A command reads its current target once. The effect passes its tracked host snapshot;
+    // event and write callbacks use the same narrow snapshot acquisition at this boundary.
+    if (id !== untrack(agentId)) return;
     const current = ++generation;
     const stale = () => current !== generation || id !== agentId();
     try {
-      const canvas = await host().flows.canvas(id);
+      const canvas = await requestHost.flows.canvas(id);
       if (stale()) return;
       setState((draft) => {
         draft.canvas = canvas;
@@ -115,16 +117,19 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
   };
   const failed = (fallback: string) => (error: unknown) => toast.error(errorMessage(error, fallback));
 
-  createEffect(agentId, (id) => {
-    generation += 1;
-    setState((draft) => {
-      draft.canvas = null;
-      draft.error = null;
-      draft.moved = {};
-      draft.pendingLinks = [];
-    });
-    if (id) void load(id);
-  });
+  createEffect(
+    () => ({ id: agentId(), requestHost: host() }),
+    ({ id, requestHost }) => {
+      generation += 1;
+      setState((draft) => {
+        draft.canvas = null;
+        draft.error = null;
+        draft.moved = {};
+        draft.pendingLinks = [];
+      });
+      if (id) void load(id, requestHost);
+    },
+  );
 
   onSettled(() => {
     host()

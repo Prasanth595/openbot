@@ -62,6 +62,8 @@ export interface VoiceLiveTranscript extends ConversationTarget {
 export interface ConversationProps {
   contextState?: AgentContextState | undefined;
   runtime?: ConversationRuntime;
+  /** False for a public demo that must not request browser microphone access. */
+  voiceInputEnabled?: boolean;
   notice?: JSX.Element;
   onOpenUsage?: (trigger: HTMLButtonElement) => void;
   onOpenMarketplace?: () => void;

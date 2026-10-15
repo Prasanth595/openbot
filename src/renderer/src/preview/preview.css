@@ -94,4 +94,92 @@
     grid-column: 1;
     grid-row: 2;
   }
+
+  /* The connection wrapper, rather than its nested conversation, is the frame's grid item. */
+  .marketing-demo-session .usage-workspace-content.server-connection-workspace {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* Current sidebar sections wrap their rows; keep the three demo agents inside the 68px strip. */
+  .marketing-demo-session .sidebar-section-body {
+    display: flex;
+    align-items: center;
+    gap: var(--openbot-space-1-5);
+  }
+
+  .marketing-demo-session .sidebar-agent-item {
+    flex: 0 0 auto;
+    margin-top: 0;
+  }
+
+  .marketing-demo-session .sidebar-list-context-trigger {
+    display: none;
+  }
+}
+
+.marketing-demo-session {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.marketing-demo-guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--openbot-space-2);
+  padding: var(--openbot-space-3);
+  border-bottom: 1px solid var(--openbot-border);
+  background: var(--openbot-bg-canvas);
+  min-width: 0;
+}
+
+.marketing-demo-heading,
+.marketing-demo-navigation,
+.marketing-demo-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--openbot-space-2);
+  min-width: 0;
+}
+
+.marketing-demo-heading {
+  justify-content: space-between;
+}
+
+/* The public site's anchor colour otherwise overrides the primitive's zero-specificity rule. */
+.marketing-demo-start.ui-button,
+.marketing-demo-start.ui-button:hover {
+  color: var(--openbot-text-on-light);
+}
+
+.marketing-demo-heading p,
+.marketing-demo-status {
+  margin: 0;
+  color: var(--openbot-text-muted);
+  font-size: var(--openbot-text-sm);
+}
+
+.marketing-demo-selected {
+  color: var(--openbot-text-muted);
+  font-size: var(--openbot-text-sm);
+}
+
+.marketing-demo-ended {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--openbot-space-3);
+  height: 100%;
+}
+
+/* Only the new action fieldset resets browser defaults. */
+.marketing-demo-actions {
+  margin: 0;
+  padding: 0;
+  border: 0;
 }

@@ -104,7 +104,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
   async function startVoiceRecording(): Promise<void> {
     const agentId = deps.props.agent?.id;
     const serverId = deps.props.server?.id ?? "local";
-    if (!agentId || deps.voicePhase() !== "idle") return;
+    if (deps.props.voiceInputEnabled === false || !agentId || deps.voicePhase() !== "idle") return;
     const target = { agentId, serverId };
     deps.clearConversationError(target);
     resources.voiceSubmitRequest = undefined;
