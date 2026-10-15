@@ -1,3 +1,6 @@
+// Run: bun scripts/routine-dst-order-e2e.ts
+// Report: .openbot-build/routine-dst-order-e2e.json
+
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -169,7 +172,6 @@ const results: {
   expected: string;
   created: string;
   persisted: string | null;
-  createMilliseconds: number;
   passed: boolean;
 }[] = [];
 let failure: string | null = null;
@@ -178,7 +180,6 @@ try {
   await Effect.runPromise(database.initialize());
   const store = new AgentRoutineStore(database);
   const saved = cases.map((fixture) => {
-    const started = performance.now();
     const routine = store.create(
       {
         agentId: fixture.name,
@@ -190,13 +191,13 @@ try {
       },
       new Date(fixture.after),
     );
-    return { fixture, routine, createMilliseconds: performance.now() - started };
+    return { fixture, routine };
   });
 
   database.close();
   await Effect.runPromise(database.initialize());
   const reopenedStore = new AgentRoutineStore(database);
-  for (const { fixture, routine, createMilliseconds } of saved) {
+  for (const { fixture, routine } of saved) {
     const persisted = reopenedStore.get(fixture.name, routine.id)?.trigger.nextRunAt ?? null;
     results.push({
       name: fixture.name,
@@ -205,7 +206,6 @@ try {
       expected: fixture.expected,
       created: routine.trigger.nextRunAt,
       persisted,
-      createMilliseconds,
       passed: routine.trigger.nextRunAt === fixture.expected && persisted === fixture.expected,
     });
   }
