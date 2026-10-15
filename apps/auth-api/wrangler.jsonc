@@ -32,6 +32,12 @@
     {
       "pattern": "api.openbot.run",
       "custom_domain": true
+    },
+    // A short address for the Discord invite. The Worker answers it only with a redirect, and the
+    // custom domain makes Cloudflare create its DNS record on deploy.
+    {
+      "pattern": "discord.openbot.run",
+      "custom_domain": true
     }
   ],
   "secrets": {

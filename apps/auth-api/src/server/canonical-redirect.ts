@@ -1,3 +1,4 @@
+import { OPENBOT_LINKS } from "../lib/landing-links";
 import { OPENBOT_SITE_URL } from "../lib/site-metadata";
 
 const SITE_ORIGIN = new URL(OPENBOT_SITE_URL).origin;
@@ -14,6 +15,16 @@ export function canonicalHostRedirect(request: Request): Response | null {
   const isWww = url.hostname === `www.${SITE_HOST}`;
   if (!isWww && !(url.hostname === SITE_HOST && url.protocol === "http:")) return null;
   return Response.redirect(`${SITE_ORIGIN}${url.pathname}${url.search}`, 308);
+}
+
+/**
+ * `discord.openbot.run` is a short address for the Discord community, with no page of its own.
+ * Every path goes to the invite. 302, not 308: a browser keeps a permanent redirect, and the
+ * invite can change.
+ */
+export function communityHostRedirect(request: Request): Response | null {
+  if (new URL(request.url).hostname !== `discord.${SITE_HOST}`) return null;
+  return Response.redirect(OPENBOT_LINKS.discord, 302);
 }
 
 /**
