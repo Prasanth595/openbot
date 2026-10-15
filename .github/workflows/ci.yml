@@ -178,6 +178,20 @@ jobs:
       - name: Run the browser smoke test
         run: xvfb-run -a bun run test:browser
 
+      - name: Install Chromium for member access checks
+        run: bun node_modules/playwright-core/cli.js install --with-deps chromium
+
+      - name: Check member access workflows
+        run: bun scripts/member-access-e2e.ts
+
+      - name: Save member-access-e2e report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: member-access-e2e
+          path: .openbot-build/member-access-e2e/report.json
+          if-no-files-found: warn
+
   tests-desktop:
     # ubuntu-latest gives 4 vCPUs, so vitest runs 3 workers and the job is
     # CPU-bound. The suite is split across shards that run as their own

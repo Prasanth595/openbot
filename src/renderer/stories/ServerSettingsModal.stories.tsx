@@ -4,9 +4,10 @@ import type {
   HostUpdateStatus,
   McpServerConfig,
   McpTestResult,
+  TeamPresenceMember,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
-import { createSignal, createStore, onSettled, snapshot } from "solid-js";
+import { createMemo, createSignal, createStore, onSettled, snapshot, untrack } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { McpPanelSignIn } from "../src/features/servers/ServerMcpPanel";
@@ -21,6 +22,7 @@ import {
 } from "../src/preview/fixtures";
 import { storyConnectorRegistry } from "./connector-fixtures";
 import { createSignInHost } from "./mcp-sign-in-host";
+import { MemberAccessControllerFixture } from "./member-access-controller-fixture";
 import { createMockOpenBot } from "./mock-openbot";
 
 const localServer = STORY_SERVERS.find((server) => server.kind === "local") ?? STORY_SERVERS[0];
@@ -149,6 +151,102 @@ export const LocalOnline: Story = {
       apiUrl: "https://eu-west-1.gateway.example.com/openbot/servers/team_7f3c19a2",
     },
   },
+};
+
+const ACCESS_MEMBERS: TeamPresenceMember[] = STORY_PRESENCE.members.map((member) =>
+  member.id === "member-maya"
+    ? {
+        ...member,
+        disabled: true,
+        online: false,
+        typingAgentId: null,
+      }
+    : member,
+);
+
+function MemberAccessStory(props: { settings: ServerSettingsModalProps; outcome?: "pending" | "restore-failure" }) {
+  const outcome = createMemo(() => props.outcome);
+  const [members, setMembers] = createSignal<TeamPresenceMember[]>(() =>
+    ACCESS_MEMBERS.filter((member) => outcome() === "restore-failure" || member.id !== "member-jon"),
+  );
+  let releasePending: (() => void) | undefined;
+  onSettled(() => () => releasePending?.());
+  const settings = createMemo<ServerSettingsModalProps>(() => ({
+    ...props.settings,
+    members: members(),
+    onUpdateMember: async (input) => {
+      const behavior = untrack(outcome);
+      if (behavior === "pending")
+        await new Promise<void>((resolve) => {
+          releasePending = resolve;
+        });
+      if (behavior === "restore-failure" && input.disabled === false) {
+        throw new Error(sourceText("error.team.memberLimit", { limit: 3 }));
+      }
+      setMembers((current) =>
+        current.map((member) =>
+          member.id === input.memberId
+            ? {
+                ...member,
+                role: input.role ?? member.role,
+                disabled: input.disabled ?? member.disabled,
+                online: input.disabled ? false : member.online,
+                typingAgentId: input.disabled ? null : member.typingAgentId,
+              }
+            : member,
+        ),
+      );
+    },
+  }));
+  return <RemoteSetupStory settings={settings()} />;
+}
+
+export const LocalOwnerMemberAccess: Story = {
+  args: { server: localServer, initialSection: "members", invites: [] },
+  render: (args) => <MemberAccessStory settings={args} />,
+};
+
+export const RemoteOwnerMemberAccess: Story = {
+  args: {
+    server: { ...remoteServer, role: "owner", apiUrl: null },
+    hostStatus: null,
+    initialSection: "members",
+    invites: [],
+  },
+  render: (args) => <MemberAccessStory settings={args} />,
+};
+
+export const HttpsOwnerMemberAccess: Story = {
+  args: {
+    ...RemoteOwnerMemberAccess.args,
+    server: { ...remoteServer, role: "owner", apiUrl: "https://host.example.test" },
+  },
+  render: (args) => <MemberAccessStory settings={args} />,
+};
+
+export const MemberAccessPending: Story = {
+  args: LocalOwnerMemberAccess.args,
+  render: (args) => <MemberAccessStory settings={args} outcome="pending" />,
+};
+
+export const MemberAccessRestoreFailure: Story = {
+  args: { ...RemoteOwnerMemberAccess.args, server: { ...remoteServer, role: "owner", apiUrl: null, memberLimit: 3 } },
+  render: (args) => <MemberAccessStory settings={args} outcome="restore-failure" />,
+};
+
+export const MemberAccessAdministrator: Story = {
+  args: { ...RemoteOwnerMemberAccess.args, server: { ...remoteServer, role: "admin", apiUrl: null } },
+  render: (args) => <MemberAccessStory settings={args} />,
+};
+
+export const MemberAccessMember: Story = {
+  args: { ...RemoteOwnerMemberAccess.args, server: { ...remoteServer, role: "member", apiUrl: null } },
+  render: (args) => <MemberAccessStory settings={args} />,
+};
+
+export const MemberAccessSmallViewport: Story = {
+  ...LocalOwnerMemberAccess,
+  parameters: { viewport: { defaultViewport: "serverNarrow" }, locale: "de" },
 };
 
 export const ActionError: Story = {
@@ -360,13 +458,19 @@ function RemoteSetupStory(props: {
   hostRelease?: HostReleaseStatus;
 }) {
   const previous = window.openbot;
-  // Storybook passes the args as a store, and the mock copies its options with `structuredClone`.
-  const hostStatus = props.settings.hostStatus;
-  const mock = createMockOpenBot({
-    ...(hostStatus ? { hostStatus: snapshot(hostStatus) } : {}),
-    ...(props.hostUpdate ? { hostUpdate: props.hostUpdate } : {}),
-    ...(props.hostRelease ? { hostRelease: props.hostRelease } : {}),
+  // Project reactive args before creating the mock's one-time structured-clone seed.
+  const mockOptions = createMemo(() => {
+    const hostStatus = props.settings.hostStatus;
+    const hostUpdate = props.hostUpdate;
+    const hostRelease = props.hostRelease;
+    return {
+      ...(hostStatus ? { hostStatus: snapshot(hostStatus) } : {}),
+      ...(hostUpdate ? { hostUpdate: snapshot(hostUpdate) } : {}),
+      ...(hostRelease ? { hostRelease: snapshot(hostRelease) } : {}),
+    };
   });
+  // Only the mock seed is fixed at mount. The modal below keeps the live settings props.
+  const mock = createMockOpenBot(untrack(mockOptions));
   window.openbot = mock.api;
   onSettled(() => () => {
     mock.dispose();
@@ -416,3 +520,7 @@ function ConnectorsStory(props: { settings: ServerSettingsModalProps }) {
   const connectors = storyConnectorRegistry(localServer);
   return <RemoteSetupStory settings={{ ...props.settings, connectors }} />;
 }
+
+export const MemberAccessControllers: Story = {
+  render: () => <MemberAccessControllerFixture />,
+};

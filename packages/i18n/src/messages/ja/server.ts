@@ -330,8 +330,17 @@ export const messages = {
   "server.members.search": "メンバーを検索",
   "server.members.noMatch": "この検索に一致するメンバーはいません。",
   "server.members.inactiveTitle": "非アクティブなメンバー",
-  "server.members.inactiveDescription": "非アクティブなメンバーを再度招待する前に、そのメンバーを削除してください。",
+  "server.members.inactiveDescription": "所有者は非アクティブなメンバーのアクセスを復元できます。",
   "server.members.actionsFor": "{name} の操作",
+  "server.members.disableAccess": "アクセスを無効にする",
+  "server.members.restoreAccess": "アクセスを復元する",
+  "server.members.disableTitle": "{name} のアクセスを無効にしますか？",
+  "server.members.restoreTitle": "{name} のアクセスを復元しますか？",
+  "server.members.disableDescription":
+    "サーバーへのアクセスを終了します。メンバーの記録、ファイル、チャットは保持されます。",
+  "server.members.disableCloudDescription":
+    "アクセスを終了し、このメンバーのデバイス一覧からサーバーを削除します。メンバーの記録、ファイル、チャットは保持されます。",
+  "server.members.restoreDescription": "このメンバーは再接続できます。以前のセッションは終了したままです。",
   "server.members.makeMember": "メンバーにする",
   "server.members.makeAdmin": "管理者にする",
   "server.members.makeAdminTitle": "{name} を管理者にしますか？",

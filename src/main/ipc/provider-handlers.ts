@@ -9,7 +9,6 @@ import {
   PROVIDER_ACCOUNT_LABEL_MAX_LENGTH,
   type RemoveProviderAccountInput,
   type RenameProviderAccountInput,
-  type SetProviderApiKeyInput,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
@@ -20,10 +19,10 @@ import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import { parseProviderId } from "./app-inputs";
 import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
+import { parseProviderApiKeyInput } from "./provider-inputs";
 import { optionalPayload, requireString } from "./validation";
 
-/** Long enough for any key a provider issues, short enough that nothing large reaches the cipher. */
-const MAX_API_KEY_LENGTH = 512;
+export { parseProviderApiKeyInput } from "./provider-inputs";
 
 export interface ProviderIpcDependencies {
   service: AgentService;
@@ -129,20 +128,6 @@ export function providerIpcHandlers({
       checkForUpdates: handler(() => runCauseEffect(providerRuntimes.checkForUpdates())),
     },
   };
-}
-
-/**
- * The decoder every provider key passes through before it reaches the operating system's cipher.
- *
- * Exported for the test that holds it to its limits: this is the one place a renderer-supplied
- * secret enters the main process, and each rule here decides what `safeStorage` is asked to keep.
- */
-export function parseProviderApiKeyInput(value: unknown): SetProviderApiKeyInput {
-  if (!isDynamicRecord(value)) throw new Error(sourceText("error.provider.keyRequired"));
-  const provider = parseProviderId(value.provider);
-  if (!isString(value.key) || !value.key.trim()) throw new Error(sourceText("error.provider.keyRequired"));
-  if (value.key.length > MAX_API_KEY_LENGTH) throw new Error(sourceText("error.provider.keyTooLong"));
-  return { provider, key: value.key.trim() };
 }
 
 export function parseManagedProviderId(value: unknown): ManagedProviderId {

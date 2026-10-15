@@ -25,6 +25,7 @@ import {
   ItemDescription,
   ItemGroup,
   ItemTitle,
+  Lock,
   QrCode,
   RefreshCw,
   ScanLine,
@@ -73,6 +74,7 @@ interface InvitePanel {
 
 interface MembersPanel {
   removeId: string | null;
+  accessChange: { memberId: string; disabled: boolean; error: string | null } | null;
   /** A role change waits for confirmation: it can end the member's sessions on the server. */
   roleChange: { memberId: string; role: InviteRole } | null;
   revokeInviteId: string | null;
@@ -99,7 +101,7 @@ interface ServerMembersSection {
 
 /** The Members section: the invite composer, the member list, and the pending invites. */
 export function createServerMembersSection(host: ServerSettingsSectionHost): ServerMembersSection {
-  const { t, format } = useText();
+  const { t, format, errorMessage } = useText();
   const { props, local, configured, published, actionsAvailable, busy, run } = host;
   const [panels, setPanels] = createStore<MembersPanels>({
     invite: {
@@ -111,7 +113,7 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
       showQr: false,
       role: "member",
     },
-    members: { removeId: null, roleChange: null, revokeInviteId: null, search: "" },
+    members: { removeId: null, accessChange: null, roleChange: null, revokeInviteId: null, search: "" },
   });
   /** A clock, not panel state: it retires an invite row as its `expiresAt` passes. */
   const [now, setNow] = createSignal(Date.now());
@@ -126,6 +128,7 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
    */
   const permanentSupported = () => local() || props.server.apiUrl === null;
   const canManage = () => configured() && serverRoleCanAdminister(props.server);
+  const canManageAccess = () => configured() && (local() || props.server.role === "owner");
   const activeInvites = createMemo(() =>
     props.invites.filter(
       (item) => (item.permanent || item.usedAt === null) && (item.permanent || Date.parse(item.expiresAt) > now()),
@@ -156,10 +159,8 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
     const limit = memberLimit();
     return limit === null ? t("server.members.count", { count }) : t("server.members.limitCount", { count, limit });
   };
-  const inactiveLegacyMembers = createMemo(() =>
-    props.server.kind === "remote" && /^https?:\/\//u.test(props.server.apiUrl ?? "")
-      ? props.members.filter((member) => member.disabled && member.role !== "owner")
-      : [],
+  const inactiveMembers = createMemo(() =>
+    props.members.filter((member) => member.disabled && member.role !== "owner"),
   );
   const filteredMembers = createMemo(() => {
     const query = panels.members.search.trim().toLowerCase();
@@ -169,6 +170,11 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
     );
   });
   const removeMember = createMemo(() => props.members.find((member) => member.id === panels.members.removeId) ?? null);
+  const accessChange = createMemo(() => {
+    const change = panels.members.accessChange;
+    const member = change && props.members.find((item) => item.id === change.memberId && item.role !== "owner");
+    return member && change && canManageAccess() ? { member, disabled: change.disabled, error: change.error } : null;
+  });
   const roleChange = createMemo(() => {
     const change = panels.members.roleChange;
     const member = change && props.members.find((item) => item.id === change.memberId);
@@ -271,6 +277,8 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
       state.invite.result = null;
       state.invite.showQr = false;
       state.members.search = "";
+      state.members.removeId = null;
+      state.members.accessChange = null;
       state.members.roleChange = null;
       state.members.revokeInviteId = null;
     });
@@ -353,13 +361,13 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
             </Show>
           </ItemGroup>
         </SettingsSection>
-        <Show when={canManage() && inactiveLegacyMembers().length > 0}>
+        <Show when={canManage() && inactiveMembers().length > 0}>
           <SettingsSection
             title={t("server.members.inactiveTitle")}
             description={t("server.members.inactiveDescription")}
           >
             <ItemGroup class="settings-modal-card server-settings-members-list">
-              <For each={inactiveLegacyMembers()}>{(member) => memberRow(member)}</For>
+              <For each={inactiveMembers()}>{(member) => memberRow(member)}</For>
             </ItemGroup>
           </SettingsSection>
         </Show>
@@ -600,6 +608,13 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
             <Show when={canManage() && actionsAvailable()}>
               <MemberActionsMenu
                 member={member}
+                canManageAccess={canManageAccess()}
+                onAccessChange={(disabled, trigger) => {
+                  trigger.focus({ preventScroll: true });
+                  setPanels((state) => {
+                    state.members.accessChange = { memberId: member.id, disabled, error: null };
+                  });
+                }}
                 mount={host.menuMount()}
                 onRoleChange={(role, trigger) => {
                   trigger.focus({ preventScroll: true });
@@ -694,8 +709,65 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
       <>
         <RemoveDialog />
         <RoleDialog />
+        <AccessDialog />
         <RevokeInviteDialog />
       </>
+    );
+  }
+
+  function AccessDialog() {
+    return (
+      <Show when={accessChange()}>
+        {(change) => (
+          <ConfirmDialog
+            open
+            tone="default"
+            initialFocus="cancel"
+            pending={busy() === `member:${change().member.id}`}
+            title={t(change().disabled ? "server.members.disableTitle" : "server.members.restoreTitle", {
+              name: teamMemberName(change().member),
+            })}
+            description={t(
+              change().disabled
+                ? local() || props.server.apiUrl !== null
+                  ? "server.members.disableDescription"
+                  : "server.members.disableCloudDescription"
+                : "server.members.restoreDescription",
+            )}
+            confirmLabel={t(change().disabled ? "server.members.disableAccess" : "server.members.restoreAccess")}
+            error={change().error}
+            onCancel={() =>
+              setPanels((state) => {
+                state.members.accessChange = null;
+              })
+            }
+            onConfirm={async () => {
+              const { member, disabled } = change();
+              if (!canManageAccess() || member.role === "owner") return;
+              await run(`member:${member.id}`, async () => {
+                setPanels((state) => {
+                  const pending = state.members.accessChange;
+                  if (pending?.memberId === member.id && pending.disabled === disabled) pending.error = null;
+                });
+                try {
+                  await props.onUpdateMember({ memberId: member.id, disabled });
+                  setPanels((state) => {
+                    const pending = state.members.accessChange;
+                    if (pending?.memberId === member.id && pending.disabled === disabled)
+                      state.members.accessChange = null;
+                  });
+                } catch (error) {
+                  const message = errorMessage(error, t("server.settings.actionFailed"));
+                  setPanels((state) => {
+                    const pending = state.members.accessChange;
+                    if (pending?.memberId === member.id && pending.disabled === disabled) pending.error = message;
+                  });
+                }
+              });
+            }}
+          />
+        )}
+      </Show>
     );
   }
 
@@ -802,6 +874,8 @@ export function createServerMembersSection(host: ServerSettingsSectionHost): Ser
 function MemberActionsMenu(props: {
   member: TeamPresenceMember;
   mount: HTMLElement | undefined;
+  canManageAccess: boolean;
+  onAccessChange: (disabled: boolean, trigger: HTMLElement) => void;
   onRoleChange: (role: InviteRole, trigger: HTMLElement) => void;
   onRemove: (trigger: HTMLElement) => void;
 }) {
@@ -828,6 +902,15 @@ function MemberActionsMenu(props: {
             >
               {props.member.role === "admin" ? <UserRound aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
               {props.member.role === "admin" ? t("server.members.makeMember") : t("server.members.makeAdmin")}
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator />
+          </Show>
+          <Show when={props.canManageAccess}>
+            <DropdownMenu.Item
+              onSelect={() => triggerElement && props.onAccessChange(!props.member.disabled, triggerElement)}
+            >
+              {props.member.disabled ? <ShieldCheck aria-hidden="true" /> : <Lock aria-hidden="true" />}
+              {t(props.member.disabled ? "server.members.restoreAccess" : "server.members.disableAccess")}
             </DropdownMenu.Item>
             <DropdownMenu.Separator />
           </Show>

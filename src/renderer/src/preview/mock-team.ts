@@ -220,8 +220,21 @@ export function createMockTeam(
     updateMember: async (input: UpdateTeamMemberInput) => {
       const member = teamMembers.find((candidate) => candidate.id === input.memberId);
       if (!member) throw new Error("Member not found");
-      const updated = { ...member, ...input };
+      const updated = { ...member, role: input.role ?? member.role, disabled: input.disabled ?? member.disabled };
       teamMembers = teamMembers.map((candidate) => (candidate.id === updated.id ? updated : candidate));
+      emitPresence({
+        ...presence,
+        members: presence.members.map((candidate) =>
+          candidate.id === updated.id
+            ? {
+                ...candidate,
+                ...updated,
+                online: updated.disabled ? false : candidate.online,
+                typingAgentId: updated.disabled ? null : candidate.typingAgentId,
+              }
+            : candidate,
+        ),
+      });
       return clone(updated);
     },
     removeMember: async (memberId) => {
@@ -381,8 +394,21 @@ export function createMockTeam(
     updateMember: async (input: UpdateTeamMemberInput) => {
       const member = teamMembers.find((candidate) => candidate.id === input.memberId);
       if (!member) throw new Error("Member not found");
-      const updated = { ...member, ...input };
+      const updated = { ...member, role: input.role ?? member.role, disabled: input.disabled ?? member.disabled };
       teamMembers = teamMembers.map((candidate) => (candidate.id === updated.id ? updated : candidate));
+      emitPresence({
+        ...presence,
+        members: presence.members.map((candidate) =>
+          candidate.id === updated.id
+            ? {
+                ...candidate,
+                ...updated,
+                online: updated.disabled ? false : candidate.online,
+                typingAgentId: updated.disabled ? null : candidate.typingAgentId,
+              }
+            : candidate,
+        ),
+      });
       return clone(updated);
     },
     removeMember: async (memberId) => {

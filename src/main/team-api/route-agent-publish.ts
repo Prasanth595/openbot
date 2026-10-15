@@ -5,7 +5,7 @@ import { AGENT_PUBLISH_CAPABILITY, AGENT_PUBLISH_ROUTES } from "@openbot/contrac
 import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
 import { runCauseEffect } from "../../backend/effect-boundary";
-import { parsePublishAgentTemplate } from "../ipc/agent-template-handlers";
+import { parsePublishAgentTemplate } from "../ipc/agent-template-inputs";
 import { requireString } from "../ipc/validation";
 import type { TeamApiAdmin } from "./dependencies";
 import { HttpError } from "./http-error";

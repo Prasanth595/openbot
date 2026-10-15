@@ -308,7 +308,22 @@ export function createWebServerSettings(options: {
     createInvite: (input: { role: "admin" | "member"; email?: string; permanent?: boolean }): Promise<InviteSummary> =>
       mutateTeam((admin) => admin.team.createInvite(input)),
     updateMember: async (input: UpdateTeamMemberInput): Promise<void> => {
-      await mutateTeam((admin) => admin.team.updateMember(input));
+      const { server, admin } = requireAdmin();
+      const saved = await admin.team.updateMember(input);
+      if (options.server()?.id !== server.id) return;
+      setState((draft) => {
+        draft.members = draft.members.map((member) =>
+          member.id === saved.id
+            ? {
+                ...member,
+                ...saved,
+                online: saved.disabled ? false : member.online,
+                typingAgentId: saved.disabled ? null : member.typingAgentId,
+              }
+            : member,
+        );
+      });
+      await refresh();
     },
     removeMember: (memberId: string): Promise<void> => mutateTeam((admin) => admin.team.removeMember(memberId)),
     revokeInvite: (inviteId: string): Promise<void> => mutateTeam((admin) => admin.team.revokeInvite(inviteId)),

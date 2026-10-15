@@ -196,7 +196,15 @@ export const messages = {
   "mobile.server.route.cropLogo": "Recortar logotipo",
   "mobile.server.members.makeMember": "Tornar membro",
   "mobile.server.members.makeAdmin": "Tornar administrador",
-  "mobile.server.members.remove": "Remover membro",
+  "mobile.server.members.disableAccess": "Desativar acesso",
+  "mobile.server.members.restoreAccess": "Restaurar acesso",
+  "mobile.server.members.disableTitle": "Desativar o acesso de {name}?",
+  "mobile.server.members.restoreTitle": "Restaurar o acesso de {name}?",
+  "mobile.server.members.disableDescription":
+    "Isso encerra o acesso e remove o servidor das listas de dispositivos deste membro. Seu registro, os arquivos e os chats permanecem.",
+  "mobile.server.members.restoreDescription":
+    "Este membro pode se conectar novamente. Suas sessões anteriores continuam encerradas.",
+  "mobile.server.members.inactiveTitle": "Membros inativos",
   "mobile.server.members.manage": "Gerencie o acesso a este servidor.",
   "mobile.server.members.invitePeople": "Convidar pessoas",
   "mobile.server.members.inviteLink": "Link de convite",

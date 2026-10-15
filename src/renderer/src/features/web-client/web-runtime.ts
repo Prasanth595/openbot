@@ -533,8 +533,8 @@ export function createWebWorkspaceRuntime(
           inviteUrl: invite.inviteUrl,
         };
       },
-      // The account service returns nothing useful, so the member is read back. The read before the
-      // change refuses an owner, as the desktop does.
+      // The account service returns no member row. Keep the known profile and its accepted fields;
+      // settings reads the roster separately. The read before the change refuses an owner.
       async updateMember(input) {
         const hostId = requireHost().hostId;
         const current = (await listMembers()).find((member) => member.id === input.memberId);
@@ -544,9 +544,11 @@ export function createWebWorkspaceRuntime(
           await runTeamEffect(
             directory.updateMember(hostId, input.memberId, input.role ?? current.role, input.disabled === false),
           );
-        const updated = (await listMembers()).find((member) => member.id === input.memberId);
-        if (!updated) throw new Error(currentText().t("webClient.error.memberNotFound"));
-        return updated;
+        return {
+          ...current,
+          role: input.disabled ? current.role : (input.role ?? current.role),
+          disabled: input.disabled ?? current.disabled,
+        };
       },
       removeMember: (memberId) => runTeamEffect(directory.leaveHost(requireHost().hostId, memberId)),
       revokeInvite: (inviteId) => runTeamEffect(directory.revokeInvite(inviteId)),

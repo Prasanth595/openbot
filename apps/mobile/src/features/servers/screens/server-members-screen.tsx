@@ -3,7 +3,7 @@ import { PERMANENT_INVITE_EXPIRES_AT_MS } from "@openbot/contracts/invite-links"
 import { normalizeEmailAddress } from "@openbot/contracts/validation";
 import type { RemoteTeamMember } from "@openbot/team-client";
 import { runTeamEffect } from "@openbot/team-client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams } from "expo-router";
 import { Typography } from "heroui-native";
@@ -47,8 +47,10 @@ export function ServerMembersScreen() {
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const locked = useRef(false);
+  const queryClient = useQueryClient();
+  const membersQueryKey = ["server-members", session?.apiUrl, session?.user.id, sessionScope, serverId] as const;
   const members = useQuery({
-    queryKey: ["server-members", session?.apiUrl, session?.user.id, sessionScope, serverId],
+    queryKey: membersQueryKey,
     enabled: Boolean(server),
     retry: false,
     gcTime: 0,
@@ -71,6 +73,10 @@ export function ServerMembersScreen() {
   const permanentCount = pendingInvites?.filter((invite) => invite.permanent).length ?? 0;
   const permanentLimitReached = inviteMode === "permanent" && permanentCount >= INPUT_LIMITS.maxPermanentInvites;
   const activeMembers = members.data?.filter((member) => member.status === "active");
+  const inactiveMembers =
+    server?.role === "owner"
+      ? members.data?.filter((member) => member.status === "revoked" && member.role !== "owner")
+      : [];
   const memberLimit = server?.memberLimit ?? DEFAULT_TEAM_MEMBER_LIMIT;
   const membersFull = (activeMembers?.length ?? 0) >= memberLimit;
   const createdPermanent = Boolean(created && created.expiresAt >= PERMANENT_INVITE_EXPIRES_AT_MS);
@@ -95,7 +101,7 @@ export function ServerMembersScreen() {
     action.mutate(operation);
   }
   function manage(member: RemoteTeamMember) {
-    if (member.role === "owner") return;
+    if (server?.role !== "owner" || member.role === "owner" || locked.current) return;
     const memberRole = member.role;
     const actions: AlertButton[] = [
       ...(member.status === "active"
@@ -117,15 +123,77 @@ export function ServerMembersScreen() {
           ]
         : []),
       {
-        text: t("mobile.server.members.remove"),
-        style: "destructive",
-        onPress: () => perform(() => runTeamEffect(teamDirectory.leaveHost(serverId, member.membershipId))),
+        text: t(
+          member.status === "active" ? "mobile.server.members.disableAccess" : "mobile.server.members.restoreAccess",
+        ),
+        style: member.status === "active" ? "destructive" : "default",
+        onPress: () => confirmAccess(member),
       },
     ];
     Alert.alert(member.name || member.email, t("mobile.server.members.manage"), [
       { text: t("common.cancel"), style: "cancel" },
       ...actions,
     ]);
+  }
+  function confirmAccess(member: RemoteTeamMember) {
+    if (server?.role !== "owner" || member.role === "owner" || locked.current) return;
+    const disabled = member.status === "active";
+    Alert.alert(
+      t(disabled ? "mobile.server.members.disableTitle" : "mobile.server.members.restoreTitle", {
+        name: member.name || member.email,
+      }),
+      t(disabled ? "mobile.server.members.disableDescription" : "mobile.server.members.restoreDescription"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t(disabled ? "mobile.server.members.disableAccess" : "mobile.server.members.restoreAccess"),
+          style: disabled ? "destructive" : "default",
+          onPress: () =>
+            perform(async () => {
+              if (disabled) await runTeamEffect(teamDirectory.leaveHost(serverId, member.membershipId));
+              else
+                await runTeamEffect(
+                  teamDirectory.updateMember(
+                    serverId,
+                    member.membershipId,
+                    member.role === "admin" ? "admin" : "member",
+                    true,
+                  ),
+                );
+              // The service accepted only the status change. Preserve the known profile until refresh.
+              queryClient.setQueryData<RemoteTeamMember[]>(membersQueryKey, (current) =>
+                current?.map((candidate) =>
+                  candidate.membershipId === member.membershipId
+                    ? { ...candidate, status: disabled ? "revoked" : "active" }
+                    : candidate,
+                ),
+              );
+            }),
+        },
+      ],
+    );
+  }
+  function memberRow(member: RemoteTeamMember) {
+    return (
+      <SettingsRow
+        key={member.membershipId}
+        disabled={action.isPending}
+        disclosure={false}
+        leading={<ProfileAvatar neutral name={member.name || member.email} size={36} />}
+        supportingText={[
+          member.name && member.name !== member.email ? member.email : null,
+          t(SERVER_ROLE_LABEL_KEYS[member.role]),
+          member.status === "revoked" ? t("mobile.server.members.accessRemoved") : null,
+        ]
+          .filter(Boolean)
+          .join(" / ")}
+        onPress={server?.role === "owner" && member.role !== "owner" ? () => manage(member) : undefined}
+      >
+        <Typography.Paragraph type="body-sm" numberOfLines={1}>
+          {member.name || member.email}
+        </Typography.Paragraph>
+      </SettingsRow>
+    );
   }
   if (!server)
     return (
@@ -317,26 +385,7 @@ export function ServerMembersScreen() {
             </Typography.Paragraph>
           </SettingsRow>
         ) : null}
-        {activeMembers?.map((member) => (
-          <SettingsRow
-            key={member.membershipId}
-            disabled={action.isPending}
-            disclosure={false}
-            leading={<ProfileAvatar neutral name={member.name || member.email} size={36} />}
-            supportingText={[
-              member.name && member.name !== member.email ? member.email : null,
-              t(SERVER_ROLE_LABEL_KEYS[member.role]),
-              member.status === "revoked" ? t("mobile.server.members.accessRemoved") : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-            onPress={server.role === "owner" && member.role !== "owner" ? () => manage(member) : undefined}
-          >
-            <Typography.Paragraph type="body-sm" numberOfLines={1}>
-              {member.name || member.email}
-            </Typography.Paragraph>
-          </SettingsRow>
-        ))}
+        {activeMembers?.map(memberRow)}
         {members.isSuccess && activeMembers?.length === 0 ? (
           <SettingsRow disclosure={false}>
             <Typography.Paragraph type="body-sm" className="text-grouped-secondary">
@@ -357,6 +406,11 @@ export function ServerMembersScreen() {
           </Typography.Paragraph>
         </SettingsRow>
       </SettingsSection>
+      {inactiveMembers && inactiveMembers.length > 0 ? (
+        <SettingsSection title={t("mobile.server.members.inactiveTitle")}>
+          {inactiveMembers.map(memberRow)}
+        </SettingsSection>
+      ) : null}
       {canInvite ? (
         <SettingsSection title={t("mobile.server.members.invitations")}>
           {invites.isError ? (
