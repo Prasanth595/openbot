@@ -2,14 +2,14 @@
 // the desktop controller. Only provider processes, synthetic actors and owned roots are injected.
 import assert from "node:assert/strict";
 import { type ChildProcess, execFile, spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { EventEmitter, once } from "node:events";
 import { type FSWatcher, watch } from "node:fs";
 import { appendFile, chmod, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
+import { isDeepStrictEqual, promisify } from "node:util";
 import { AGENT_PROVIDERS } from "@openbot/contracts/agent-providers";
 import {
   type AgentEvent,
@@ -19,6 +19,8 @@ import {
   type ConversationSearchPage,
   type ConversationSnapshot,
   DEFAULT_PROVIDER_ACCOUNT_ID,
+  isAgentEvent,
+  latestTurnAnswer,
   type QueuedMessageReceipt,
   type VoiceTranscriptionResult,
 } from "@openbot/contracts/ipc";
@@ -30,8 +32,10 @@ import type {
   AgentConversationRead,
   AgentConversationTarget,
 } from "@openbot/contracts/ipc-agent-conversations";
+import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import { PUSH_NOTIFICATIONS_CAPABILITY } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import {
   TEAM_APP_VERSION_HEADER,
   TEAM_CAPABILITIES_HEADER,
@@ -75,9 +79,12 @@ import {
   encodeTeamProtocolV7CurrentHttpResponse,
 } from "@openbot/contracts/team-protocol/v7-adapter";
 import { redactText, registerSecretValue } from "@openbot/logging";
+import { encodeLiveActivityBytes } from "@openbot/team-client/live-activity-seal";
+import { type PushNotificationContent, pushNotificationKeys } from "@openbot/team-client/push-notification-seal";
 import { Deferred, Effect } from "effect";
 import { type Browser, chromium } from "playwright-core";
 import { WebSocket } from "ws";
+import { openSealedLiveActivity } from "../apps/mobile/src/features/live-activity/model/live-activity-open";
 import { ConversationRuntime } from "../src/backend/agent/conversation-runtime";
 import { ProviderAccountStore } from "../src/backend/agent/provider-account-store";
 import type { AgentBrowserHost } from "../src/backend/agent/turn-lifecycle";
@@ -101,6 +108,8 @@ import {
   parseConversationSend,
   parseConversationUpdate,
 } from "../src/main/ipc/agent-conversation-inputs";
+import { PushNotificationStore, type StoredPushRegistration } from "../src/main/push-notification-store";
+import { PushNotificationService } from "../src/main/push-notifications";
 import type { TeamApiBrowser } from "../src/main/team-api/dependencies";
 import { TeamApiServer } from "../src/main/team-api-server";
 import { TeamStore } from "../src/main/team-store";
@@ -173,6 +182,21 @@ const sourcePaths = [
   "src/backend/conversation-read-store.ts",
   "src/main/team-api-server.ts",
   "src/main/team-api/dependencies.ts",
+  "src/main/push-notifications.ts",
+  "src/main/push-notification-store.ts",
+  "src/main/preference-file.ts",
+  "src/backend/atomic-json-file.ts",
+  "src/backend/file-errors.ts",
+  "packages/contracts/src/notification-relay.ts",
+  "packages/contracts/src/live-activity-relay.ts",
+  "packages/contracts/src/team-protocol/push-notifications-v1.ts",
+  "packages/contracts/src/team-protocol/admin-wire.ts",
+  "packages/team-client/src/agent-notifications.ts",
+  "packages/team-client/src/agent-message-text.ts",
+  "packages/contracts/src/markdown-preview-text.ts",
+  "packages/team-client/src/push-notification-seal.ts",
+  "packages/team-client/src/live-activity-seal.ts",
+  "apps/mobile/src/features/live-activity/model/live-activity-open.ts",
   "src/main/ipc/agent-conversation-handlers.ts",
   "src/main/ipc/agent-conversation-inputs.ts",
   "src/preload/agent-conversation-decoding.ts",
@@ -589,7 +613,7 @@ const cases: CaseResult[] = [
   "provider account handoff and runtime refresh",
   "shared messaging main and owned execution threads",
   "routine teammate and usage holds",
-  "released Team routes and events",
+  "released Team routes, events and push privacy",
   "real renderer controller and captured state",
   "duplicate and ordered deletion",
 ].map((name, index) => ({ id: index + 1, name, status: "pending", receipts: [], error: null }));
@@ -627,7 +651,8 @@ const report: ConversationE2EReport = {
   limitations: [
     "This fixture checks host routing and native adapter protocol behavior. It does not check live Codex or Grok model quality or real accounts.",
     "The Team probes use the real loopback Team server with synthetic local members. They do not establish public account, Signal or WebRTC sessions.",
-    "Local controller receipts check real application stores and service calls. Microphone and speech recognition hardware are not used. Shared UI screenshots are local review artifacts and are not test assertions.",
+    "Local controller receipts check real application stores and service calls. Microphone and speech recognition hardware are not used. Dialog geometry is checked at 900 pixels in English and 320 pixels in German.",
+    "Push privacy uses typed synthetic notification input events on the real AgentService emitter. The real subscription, settings store, preview reader and sealing run. An owned sender captures envelopes; no account relay, Apple service or device is contacted.",
   ],
 };
 const temporary = await mkdtemp(join(tmpdir(), "openbot-conversations-e2e-"));
@@ -643,6 +668,7 @@ let mailbox: MailboxStore | undefined;
 let database: OpenBotDatabase | undefined;
 let accounts: ProviderAccountStore | undefined;
 let host: TeamApiServer | undefined;
+let pushNotifications: PushNotificationService | undefined;
 let bridge: Server | undefined;
 let storybook: ChildProcess | undefined;
 let browser: Browser | undefined;
@@ -657,6 +683,7 @@ let transferCalls = 0;
 let transferBarrier: FixtureTransferBarrier | null = null;
 let currentCase: CaseResult | undefined;
 let retainedChannel: { id: string; threadId: string; messageId: string } | null = null;
+let retainedMessagingMain: AgentConversationTarget | null = null;
 let unrelatedAgent: AgentSummary | null = null;
 let fixtureAgentSequence = 0;
 
@@ -668,6 +695,43 @@ function safe(error: unknown): string {
     .replaceAll(temporary, "[fixture-root]")
     .replaceAll(ROOT, "[worktree]")
     .slice(0, 8192);
+}
+function ownedPushContent(value: unknown): PushNotificationContent {
+  if (
+    !isDynamicRecord(value) ||
+    !isString(value.serverId) ||
+    !isString(value.agentId) ||
+    (value.threadId !== null && !isString(value.threadId)) ||
+    !isString(value.title) ||
+    !isString(value.body) ||
+    (value.kind !== "reply" &&
+      value.kind !== "failed" &&
+      value.kind !== "input" &&
+      value.kind !== "approval" &&
+      value.kind !== "browser")
+  )
+    throw new Error("The owned push envelope content is invalid.");
+  let approval: PushNotificationContent["approval"];
+  if (value.approval !== undefined) {
+    const input = value.approval;
+    if (
+      !isDynamicRecord(input) ||
+      (!isString(input.requestId) && !(typeof input.requestId === "number" && Number.isSafeInteger(input.requestId))) ||
+      !isString(input.turnId) ||
+      typeof input.approvable !== "boolean"
+    )
+      throw new Error("The owned push approval handle is invalid.");
+    approval = { requestId: input.requestId, turnId: input.turnId, approvable: input.approvable };
+  }
+  return {
+    serverId: value.serverId,
+    agentId: value.agentId,
+    threadId: value.threadId,
+    kind: value.kind,
+    title: value.title,
+    body: value.body,
+    ...(approval ? { approval } : {}),
+  };
 }
 function receipt(name: string, data: Receipt["data"]): void {
   currentCase?.receipts.push({ name, data });
@@ -2247,6 +2311,9 @@ try {
     });
   const remainingBridge = bridge;
   if (remainingBridge) await finalize("controller bridge", () => closeHttp(remainingBridge));
+  const remainingPush = pushNotifications;
+  if (remainingPush)
+    await finalize("owned push notification subscription", () => runCauseEffect(remainingPush.dispose()));
   if (host) await finalize("Team API host", () => runCauseEffect(host?.stop() ?? Effect.void));
   if (service) await finalize("real AgentService", stopHost);
   for (const client of clients) await finalize("provider adapter", () => runCauseEffect(client.stop()));
@@ -2408,6 +2475,7 @@ async function executionAndDefaultCases(
       "shared old rows survive",
     );
     check(!JSON.stringify(sharedSnapshot).includes("shared-added"), "added subject stays outside shared main");
+    retainedMessagingMain = { agentId: loaded.id, threadId: shared.threadId };
     const runtime = new ConversationRuntime(
       requireHost().store,
       () => {},
@@ -2920,6 +2988,7 @@ async function releasedTeamCases(
     const wire = encodeTeamProtocolV1CurrentEvent(event);
     check(wire !== null, "v1 conversation event is accepted");
     check(decodeTeamProtocolV1CurrentEvent(JSON.parse(wire)).kind === "known", "v1 event round trip remains valid");
+    await proveLegacyPushPrivacy(team, owner.member.id, main, a, b, protocolCapabilities(7));
     const stoppedHost = host;
     host = undefined;
     await runCauseEffect(stoppedHost.stop());
@@ -2931,6 +3000,315 @@ async function releasedTeamCases(
     }
   });
 }
+/** The raw notification input is synthetic. Routing, settings, preview reads and sealing are real. */
+async function proveLegacyPushPrivacy(
+  team: TeamStore,
+  memberId: string,
+  main: AgentConversationTarget,
+  a: AgentConversationTarget,
+  b: AgentConversationTarget,
+  capabilities: readonly string[],
+): Promise<void> {
+  const live = requireHost();
+  const apiHost = host;
+  const shared = retainedMessagingMain;
+  check(apiHost !== undefined && shared !== null, "real Team host and retained messaging Main exist for push");
+  const serverId = team.getIdentity()?.serverId;
+  check(isString(serverId), "the real host owns the push server identity");
+  const secret = new Uint8Array(randomBytes(32));
+  const encodedSecret = encodeLiveActivityBytes(secret);
+  const keys = pushNotificationKeys(secret);
+  const sealKey = encodeLiveActivityBytes(keys.seal);
+  const tagKey = encodeLiveActivityBytes(keys.tag);
+  const token = randomBytes(32).toString("hex");
+  for (const value of [encodedSecret, sealKey, tagKey, token]) registerSecretValue(value);
+  const sessionId = `fixture-phone-${randomUUID()}`;
+  const now = Date.parse("2026-10-15T09:00:00.000Z");
+  const registration: StoredPushRegistration = {
+    sessionId,
+    memberId,
+    protocol: 7,
+    capabilities: [...capabilities, PUSH_NOTIFICATIONS_CAPABILITY],
+    value: {
+      serverId,
+      token,
+      environment: "development",
+      secret: encodedSecret,
+      locale: "en",
+      away: true,
+      level: "all",
+      mutedUntil: null,
+      preview: true,
+      sound: "none",
+      liveActivityStartedAt: null,
+    },
+  };
+  const path = join(stateRoot, "push-notifications.json");
+  const saved = new PushNotificationStore(path);
+  await within(runCauseEffect(saved.load()), "owned push settings initial load");
+  await within(runCauseEffect(saved.replace([registration])), "owned push settings save");
+  const settings = new PushNotificationStore(path);
+  await within(runCauseEffect(settings.load()), "owned push settings reload");
+  check(isDeepStrictEqual(settings.list(), [registration]), "real push settings round trip exactly");
+  check(((await stat(path)).mode & 0o777) === 0o600, "owned push registration file stays private");
+  const envelopes: NotificationRelayPush[] = [];
+  const contents: PushNotificationContent[] = [];
+  const decodeErrors: string[] = [];
+  const warnings: string[] = [];
+  const previewReads: Array<{ agentId: string; memberId: string; threadId: string | null }> = [];
+  const agents = {
+    on: live.service.on.bind(live.service),
+    off: live.service.off.bind(live.service),
+    listAgents: live.service.listAgents.bind(live.service),
+    legacyConversationEvent: live.service.legacyConversationEvent.bind(live.service),
+    readConversationPageFor: (...input: Parameters<AgentService["readConversationPageFor"]>) => {
+      previewReads.push({
+        agentId: input[0],
+        memberId: input[1],
+        threadId: live.store.list().find((row) => row.id === input[0])?.threadId ?? null,
+      });
+      return live.service.readConversationPageFor(...input);
+    },
+  };
+  const listenerCount = live.service.listenerCount("event");
+  const subscription = new PushNotificationService({
+    agents,
+    store: settings,
+    send: (envelope) =>
+      Effect.sync((): "sent" => {
+        envelopes.push(envelope);
+        try {
+          const opened = openSealedLiveActivity(envelope.sealed, sealKey, tagKey);
+          check(opened !== null, "the owned phone opens the real push seal");
+          contents.push(ownedPushContent(JSON.parse(opened)));
+        } catch (error) {
+          decodeErrors.push(safe(error));
+        }
+        changed.emit("changed");
+        return "sent";
+      }),
+    hiddenAgentIds: (protocol, advertised) => apiHost.hiddenAgentIds(protocol, advertised),
+    memberActive: (id) => {
+      const member = team.getMember(id);
+      return member !== null && !member.disabled;
+    },
+    lastUseElsewhere: () => null,
+    atHostComputer: () => false,
+    liveActivityShows: () => false,
+    randomBytes: (size) => new Uint8Array(randomBytes(size)),
+    now: () => now,
+    logger: {
+      warn: (message) => {
+        warnings.push(safe(message));
+      },
+    },
+  });
+  pushNotifications = subscription;
+  subscription.start();
+  check(live.service.listenerCount("event") === listenerCount + 1, "real push subscription listens on AgentService");
+  const packet = (scope: AgentConversationTarget, label: string) => {
+    const state = snapshot(scope);
+    const completed = state.messages.findLast(
+      (row) => row.author === "assistant" && isString(row.turnId) && row.status === "completed",
+    );
+    check(completed !== undefined && isString(completed.turnId), "push input uses a persisted owned completed turn");
+    const turnId = completed.turnId;
+    const answer = latestTurnAnswer(state.messages, turnId)?.text;
+    check(isString(answer) && answer.startsWith("fixture-answer:"), "push Main preview comes from real native history");
+    const promptId = `fixture-push-prompt-${label}-${report.runNonce}`;
+    const approvalId = `fixture-push-approval-${label}-${report.runNonce}`;
+    const browserId = `fixture-push-browser-${label}-${report.runNonce}`;
+    const question = `Synthetic push question ${label}`;
+    const reason = `Synthetic push approval ${label}`;
+    const notify: AgentEvent[] = [
+      { type: "turn-completed", ...scope, turnId, status: "completed" },
+      { type: "turn-completed", ...scope, turnId, status: "failed" },
+      {
+        type: "prompt",
+        ...scope,
+        turnId,
+        requestId: promptId,
+        questions: [{ id: "fixture-push-choice", header: "Fixture", question, isSecret: false, options: null }],
+      },
+      {
+        type: "approval",
+        approval: {
+          ...scope,
+          turnId,
+          requestId: approvalId,
+          kind: "file-change",
+          command: null,
+          cwd: null,
+          reason,
+          grantRoot: null,
+          permissions: null,
+        },
+      },
+      {
+        type: "browser-takeover-requested",
+        request: { ...scope, turnId, requestId: browserId, tabId: "fixture-notification-tab" },
+      },
+    ];
+    const followups: AgentEvent[] = [
+      { type: "agent-input-resolved", agentId: scope.agentId, kind: "prompt", requestId: promptId },
+      { type: "agent-input-resolved", agentId: scope.agentId, kind: "approval", requestId: approvalId },
+      { type: "browser-takeover-resolved", agentId: scope.agentId, requestId: browserId },
+      { type: "turn-completed", ...scope, turnId, status: "interrupted" },
+    ];
+    return { scope, turnId, answer, promptId, approvalId, browserId, question, reason, notify, followups };
+  };
+  const primary = packet(main, "main");
+  const first = packet(a, "private-a");
+  const second = packet(b, "private-b");
+  const messaging = packet(shared, "messaging-main");
+  check(
+    live.store.list().find((row) => row.id === main.agentId)?.threadId === main.threadId,
+    "push primary target is canonical Main",
+  );
+  check(
+    live.database.listAgents().find((row) => row.id === shared.agentId)?.threadId === shared.threadId,
+    "push shared messaging target remains canonical Main in SQLite",
+  );
+  check(
+    live.database.userConversations.threads(a.agentId).includes(a.threadId) &&
+      live.database.userConversations.threads(b.agentId).includes(b.threadId),
+    "push private targets remain registered A and B",
+  );
+  for (const scope of [main, shared])
+    check(
+      live.store.list().find((row) => row.id === scope.agentId)?.notifications === true,
+      "real agent notification setting permits Main positives",
+    );
+  const rawInputs: string[] = [];
+  const emit = (event: AgentEvent, owner: string) => {
+    check(isAgentEvent(event), "owned notification input satisfies the real event contract");
+    rawInputs.push(`${owner}:${event.type}${event.type === "turn-completed" ? `:${event.status}` : ""}`);
+    live.service.emit("event", event);
+  };
+  for (const privatePacket of [first, second]) {
+    for (const event of privatePacket.notify) emit(event, privatePacket.scope.threadId);
+    for (const event of privatePacket.followups) emit(event, privatePacket.scope.threadId);
+  }
+  for (const event of primary.notify) emit(event, main.threadId);
+  const sharedReply = messaging.notify.find((event) => event.type === "turn-completed" && event.status === "completed");
+  check(sharedReply !== undefined, "retained messaging Main has a completion input");
+  emit(sharedReply, shared.threadId);
+  for (const event of primary.followups) emit(event, main.threadId);
+  emit({ type: "agents-changed", agents: live.service.listAgents() }, "control");
+  emit({ type: "runtime-snapshot", snapshot: live.service.getRuntimeSnapshot() }, "control");
+  const observe = () =>
+    receipt("real push privacy observation", {
+      syntheticNotificationInput: true,
+      rawInputs: [...rawInputs],
+      envelopes: envelopes.length,
+      opened: contents.length,
+      targets: contents.map((value) => `${value.agentId}:${value.threadId}:${value.kind}`),
+      bodyDigests: contents.map((value) => createHash("sha256").update(value.body).digest("hex")),
+      previewReadTargets: previewReads.map((value) => `${value.agentId}:${value.threadId}`),
+      decodeErrors: [...decodeErrors],
+      warnings: [...warnings],
+    });
+  try {
+    await waitState(
+      () =>
+        ["reply", "failed", "input", "approval", "browser"].every((kind) =>
+          contents.some((value) => value.threadId === main.threadId && value.kind === kind),
+        ) && contents.some((value) => value.threadId === shared.threadId && value.kind === "reply"),
+      "all allowed Main push kinds and shared messaging Main barrier",
+    );
+  } catch (error) {
+    observe();
+    throw error;
+  }
+  observe();
+  check(
+    decodeErrors.length === 0 && warnings.length === 0 && envelopes.length === contents.length,
+    "all captured real push envelopes open without warnings",
+  );
+  check(
+    envelopes.length === 6 &&
+      contents.every(
+        (value) =>
+          (value.agentId === main.agentId && value.threadId === main.threadId) ||
+          (value.agentId === shared.agentId && value.threadId === shared.threadId),
+      ),
+    "private A and B events and followups send zero push envelopes",
+  );
+  check(
+    contents.every((value) => value.serverId === serverId && value.title.length > 0 && value.body.length > 0),
+    "Main push content keeps the real host and nonempty text",
+  );
+  check(
+    envelopes.every(
+      (value) =>
+        value.token === token &&
+        value.sessionId === sessionId &&
+        value.environment === "development" &&
+        value.sound === null &&
+        value.timestamp === now / 1000,
+    ),
+    "owned push registration settings reach the real relay envelope",
+  );
+  check(
+    contents.find((value) => value.threadId === main.threadId && value.kind === "reply")?.body === primary.answer,
+    "canonical Main completion preview is its exact persisted answer",
+  );
+  check(
+    contents.find((value) => value.threadId === shared.threadId && value.kind === "reply")?.body === messaging.answer,
+    "legacy shared messaging Main retains its completion push and answer",
+  );
+  check(
+    contents.find((value) => value.threadId === main.threadId && value.kind === "input")?.body === primary.question,
+    "Main prompt preview remains enabled",
+  );
+  const approval = contents.find((value) => value.threadId === main.threadId && value.kind === "approval");
+  check(approval !== undefined, "canonical Main approval envelope exists");
+  check(
+    approval.body.includes(primary.reason) &&
+      approval.approval !== undefined &&
+      approval.approval.requestId === primary.approvalId &&
+      approval.approval.turnId === primary.turnId &&
+      approval.approval.approvable,
+    "Main approval push keeps only its exact owned request and turn handle",
+  );
+  check(
+    !JSON.stringify(contents).includes("private-a") && !JSON.stringify(contents).includes("private-b"),
+    "private question, approval and request markers never enter opened pushes",
+  );
+  check(
+    previewReads.length === 2 &&
+      previewReads.every(
+        (value) =>
+          value.memberId === memberId &&
+          ((value.agentId === main.agentId && value.threadId === main.threadId) ||
+            (value.agentId === shared.agentId && value.threadId === shared.threadId)),
+      ),
+    "private events cause zero preview reads and Main reads keep exact ownership",
+  );
+  await within(runCauseEffect(subscription.dispose()), "owned push subscription disposal");
+  pushNotifications = undefined;
+  check(live.service.listenerCount("event") === listenerCount, "push disposal removes its real AgentService listener");
+  const disposedInput = primary.notify[0];
+  check(disposedInput !== undefined, "the disposed subscription control has a valid Main input");
+  emit(disposedInput, "disposed");
+  check(
+    envelopes.length === 6 && previewReads.length === 2,
+    "disposed push subscription sends and reads nothing further",
+  );
+  receipt("real push privacy complete", {
+    mainKinds: 5,
+    sharedMessagingMainPushes: 1,
+    privateKinds: 10,
+    privateFollowups: 8,
+    privatePushes: 0,
+    privatePreviewReads: 0,
+    mainPreviewReads: 2,
+    ownedApprovalRequestId: primary.approvalId,
+    ownedApprovalTurnId: primary.turnId,
+    disposed: true,
+  });
+}
+
 async function rendererCase(
   agent: AgentSummary,
   main: AgentConversationTarget,

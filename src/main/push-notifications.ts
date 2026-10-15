@@ -41,7 +41,10 @@ export const DESKTOP_USE_MS = 30 * 1000;
 /** Events that wait for the member. The phone gets them also while the member uses a desktop app. */
 const WAITS_FOR_MEMBER: ReadonlySet<PushNotificationKind> = new Set(["input", "approval", "browser"]);
 
-type PushNotificationAgents = Pick<TeamApiAgents, "on" | "off" | "listAgents" | "readConversationPageFor">;
+type PushNotificationAgents = Pick<
+  TeamApiAgents,
+  "on" | "off" | "listAgents" | "readConversationPageFor" | "legacyConversationEvent"
+>;
 
 interface PushNotificationOptions {
   agents: PushNotificationAgents;
@@ -99,6 +102,8 @@ export class PushNotificationService {
   readonly #now: () => number;
   readonly #registrations = new Map<string, Registration>();
   readonly #listener = (event: AgentEvent) => {
+    // Released mobile clients can open Main only. Keep local subjects out of all push work.
+    if (!this.#options.agents.legacyConversationEvent(event)) return;
     Effect.runFork(this.#deliver(event).pipe(Effect.forkIn(this.#scope, { startImmediately: true })));
   };
   #scope = Scope.makeUnsafe();
