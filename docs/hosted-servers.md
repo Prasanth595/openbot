@@ -334,7 +334,8 @@ The OpenPanel **Revenue and Customers** dashboard shows purchases and checkout o
 Revenue comes from verified `invoice.paid` events. It includes collected tax and discounts,
 before refunds and fees. Refunds and lost disputes are separate `billing_action` events with
 `amount_usd` (see [ANALYTICS.md](../ANALYTICS.md)); subtract them for net revenue. Amounts use USD cents. EUR and PLN amounts use the latest available
-ECB rate on or before the payment date in UTC. The original currency and amount stay on the event.
+ECB rate on or before the payment date in UTC; a refund or a dispute uses the rate of its own date, so a
+full refund can leave a small USD difference. The original currency and amount stay on the event.
 
 Daily `billing_snapshot` events show MRR and ARR. MRR includes active and overdue subscriptions,
 after discounts and before tax. Annual prices are divided by 12. Overdue MRR is separate.

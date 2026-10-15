@@ -58,6 +58,7 @@ because the account service sends them and not your computer.
 
 The account service also records a return from Checkout without payment and later payment
 recovery. Verified paid invoices produce a revenue event in USD, with the original amount,
+currency, and dated exchange rate. Refunds and disputes produce an event with the same USD amount,
 currency, and dated exchange rate. Daily totals contain recurring revenue, overdue recurring
 revenue, paid accounts, paid servers, and scheduled cancellations. These totals have no account ID.
 The service stores payment facts and a delivery ledger in D1 to prevent duplicate revenue events.

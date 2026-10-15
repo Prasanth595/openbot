@@ -560,8 +560,9 @@ export class BillingSales {
       dispute_lost: "lost",
     }[reversal.type];
     const sourceKey = `${prefix}:${reversal.objectId}:${suffix}`;
-    // A failed refund gives money back only when the same refund was counted as succeeded.
-    const counted = reversal.type === "refund_failed" ? `refund:${reversal.objectId}:succeeded` : null;
+    // Stripe does not keep the event order. A refund that already failed does not count when its
+    // success arrives later; the failed fact is sent only when the success was counted.
+    const failed = reversal.type === "payment_refunded" ? `refund:${reversal.objectId}:failed` : null;
     yield* d1(this.#database, () =>
       this.#database
         .prepare(
@@ -570,7 +571,7 @@ export class BillingSales {
                event_timestamp, attributes_json, delivery_enqueued_at, created_at
              )
              SELECT ?, ?, ?, ?, NULL, (SELECT id FROM users WHERE id = ?), ?, ?, ?, NULL, ?
-              WHERE ? IS NULL OR EXISTS (SELECT 1 FROM billing_sales_facts WHERE source_key = ?)`,
+              WHERE ? IS NULL OR NOT EXISTS (SELECT 1 FROM billing_sales_facts WHERE source_key = ?)`,
         )
         .bind(
           sourceKey,
@@ -582,8 +583,8 @@ export class BillingSales {
           eventTimestamp,
           JSON.stringify(attributes),
           this.#now(),
-          counted,
-          counted,
+          failed,
+          failed,
         )
         .run(),
     );
@@ -621,8 +622,12 @@ export class BillingSales {
     const eventTimestamp = row.event_timestamp;
     // Checkout completion only links the Stripe session to its subscription. Stripe can emit it
     // before payment, and the delivery contract has no checkout_completed action. The durable
-    // fact remains available for conversion queries; paid is emitted from invoice.paid only.
-    if (row.fact_type === "checkout_completed") {
+    // fact remains available for conversion queries; paid is emitted from invoice.paid only. A failed
+    // refund that was never counted as succeeded moves no money, so it sends nothing.
+    if (
+      row.fact_type === "checkout_completed" ||
+      (row.fact_type === "refund_failed" && !(yield* this.#refundCounted(row)))
+    ) {
       yield* d1(this.#database, () =>
         this.#database
           .prepare(
@@ -684,9 +689,10 @@ export class BillingSales {
     } else if (isReversalFact(row.fact_type)) {
       // Revenue counts each paid invoice once and is never negative, so money that goes back is a
       // separate action with its own USD amount. Net revenue subtracts it.
+      // A small partial refund can round to 0 USD. It is sent with no USD amount.
       const converted =
         attributes.amount !== undefined && attributes.amount > 0 && attributes.currency
-          ? yield* this.#usd(attributes.amount, attributes.currency, eventTimestamp)
+          ? yield* this.#convert(attributes.amount, attributes.currency, eventTimestamp)
           : null;
       yield* this.#enqueue(
         `billing:${row.source_key}`,
@@ -695,7 +701,7 @@ export class BillingSales {
         {
           ...actionProperties,
           action: row.fact_type,
-          ...(converted
+          ...(converted && converted.amountUsd > 0
             ? { amount_usd: converted.amountUsd, fx_rate: converted.fxRate, fx_date: converted.fxDate }
             : {}),
         },
@@ -734,6 +740,17 @@ export class BillingSales {
     currency: BillingCurrency,
     eventTimestamp: number,
   ): Effect.fn.Return<{ amountUsd: number; fxRate: number; fxDate: string }, BillingSalesError> {
+    const converted = yield* this.#convert(amount, currency, eventTimestamp);
+    if (converted.amountUsd <= 0) return yield* new BillingSalesError({ code: "currency" });
+    return converted;
+  }).bind(this);
+
+  readonly #convert = Effect.fn("BillingSales.convert")(function* (
+    this: BillingSales,
+    amount: number,
+    currency: BillingCurrency,
+    eventTimestamp: number,
+  ): Effect.fn.Return<{ amountUsd: number; fxRate: number; fxDate: string }, BillingSalesError> {
     const converted = yield* new BillingUsd({ database: this.#database, fetch: this.#fetch })
       .convert(amount, currency, eventTimestamp)
       .pipe(
@@ -743,9 +760,23 @@ export class BillingSales {
             : new BillingSalesError({ code: "currency" }),
         ),
       );
-    if (!Number.isSafeInteger(converted.amountUsd) || converted.amountUsd <= 0)
+    if (!Number.isSafeInteger(converted.amountUsd) || converted.amountUsd < 0)
       return yield* new BillingSalesError({ code: "currency" });
     return converted;
+  }).bind(this);
+
+  /** True when the refund of a `refund_failed` fact was counted as succeeded. */
+  readonly #refundCounted = Effect.fn("BillingSales.refundCounted")(function* (
+    this: BillingSales,
+    row: FactRow,
+  ): Effect.fn.Return<boolean, BillingSalesError> {
+    const counted = yield* d1(this.#database, () =>
+      this.#database
+        .prepare("SELECT 1 AS seen FROM billing_sales_facts WHERE source_key = ?")
+        .bind(row.source_key.replace(/:failed$/u, ":succeeded"))
+        .first<{ seen: number }>(),
+    );
+    return Boolean(counted);
   }).bind(this);
 
   readonly #recovery = Effect.fn("BillingSales.recovery")(function* (
