@@ -147,10 +147,9 @@ directly. Do not soften the verdict. Give:
    in English, also when the issue uses a different language.
 
 Post the comment yourself with `gh issue comment <n> --body-file <file>`
-only for `needs info`. Ask the reporter for the exact data that is
-missing, for example the version, the reproduction steps, or a redacted
-log. For each other verdict, show the comment to the user and post it
-only when the user agrees. Do not close the issue.
+for each verdict. Do not wait for the user. For `needs info`, ask the
+reporter for the exact data that is missing, for example the version, the
+reproduction steps, or a redacted log. Do not close the issue.
 
 When the user still wants the change after the push back, follow the user.
 
