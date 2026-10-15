@@ -46,9 +46,9 @@ import type { BrowserViewGateway } from "../browser-view-gateway";
 import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
 import type { InstanceTransferService } from "../instance-transfer-service";
-import type { McpToolRuntimePreparation } from "../ipc/mcp-server-handlers";
 import type { LiveActivityPushService } from "../live-activity-push";
 import type { McpHostSignIns } from "../mcp-host-sign-ins";
+import type { McpToolRuntimePreparation } from "../mcp-tool-runtime-preparation";
 import type { OnePasswordConnectorService } from "../onepassword-connector-service";
 import type { ProviderAccountsHost } from "../provider-accounts-host";
 import type { ProviderHostSignIns } from "../provider-host-sign-ins";
@@ -237,6 +237,7 @@ export interface TeamApiAdmin {
     AgentService,
     "readAgentSessionSettings" | "setAgentSessionSetting" | "resetAgentSessionSetting"
   >;
+  agentMcp?: Pick<AgentService, "readAgentMcpSettings" | "setAgentMcpGrants" | "listAgentMcpTools">;
   /** `skills-admin-v1`: list, install, remove and enable the skills of one agent. */
   skills?: Pick<SkillMarketplaceService, "listInstalled" | "install" | "uninstall" | "setEnabled">;
   /** `shared-tables-v1`: list and delete the tables the agents share. */

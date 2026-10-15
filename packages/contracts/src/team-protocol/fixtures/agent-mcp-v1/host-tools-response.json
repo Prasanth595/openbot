@@ -1,0 +1,1 @@
+[{ "name": "read_inbox", "description": "Read the inbox." }, { "name": "send_mail", "description": "Send mail." }]

@@ -23,6 +23,7 @@ import {
   type McpDropReporter,
   type McpServerSource,
   type McpToolRuntimeSource,
+  mcpServersParam,
   usableMcpServers,
 } from "./mcp-provider-shapes";
 import { mcpSecretValues, redactMcpValues } from "./mcp-redaction";
@@ -483,7 +484,7 @@ export class MuseAgentClient extends EventEmitter<ClientEvents> implements Agent
     const setup = Effect.gen({ self: this }, function* () {
       const resolved = yield* usableMcpServers(
         agentMcpServers(
-          this.#options.profileGeneration ? [] : (this.#options.mcpServers?.() ?? []),
+          this.#options.profileGeneration ? [] : mcpServersParam(params, this.#options.mcpServers ?? (() => [])),
           computerUseParam(params),
         ),
         this.#options.mcpToolRuntimes?.(),

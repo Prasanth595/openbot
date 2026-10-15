@@ -1,0 +1,8 @@
+{
+  "agentId": "agent-assistant",
+  "grants": [
+    { "mcpServerId": "mail", "tools": ["read_inbox"] },
+    { "mcpServerId": "wiki", "tools": null },
+    { "mcpServerId": "saved-disabled", "tools": [] }
+  ]
+}

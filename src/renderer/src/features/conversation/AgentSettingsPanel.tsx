@@ -2,6 +2,7 @@ import { agentAutomationAllowed, type MarketplaceSkillDetail } from "@openbot/co
 import { BookMarked, CalendarClock, Folder, Gauge, Puzzle, Table2, Upload } from "@openbot/ui";
 import { SettingsLinkGroup, SettingsLinkRow } from "@openbot/ui/components/SettingsPanel";
 import type { AgentProfile } from "@openbot/ui/data";
+import { AgentMcpSettings, type AgentMcpSettingsApi } from "@openbot/ui/features/conversation/AgentMcpSettings";
 import {
   AgentSessionSettings,
   type AgentSessionSettingsApi,
@@ -35,6 +36,7 @@ interface AgentSettingsPanelProps
   /** Routines can copy local run commands only on the computer that runs the agent. */
   localHost?: boolean;
   sessionSettingsEditable?: boolean;
+  mcpEditable?: boolean;
   /** The memory cap of an agent on this computer. Absent for a remote agent: its host enforces its own. */
   memoryLimit?: number;
   /** The web client's host calls for the settings that its server supports. */
@@ -67,6 +69,21 @@ export type { AgentSkillsMode };
 
 export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const { t } = useText();
+  const agentMcp = createMemo((): AgentMcpSettingsApi | undefined => {
+    if (!props.mcpEditable) return undefined;
+    if (props.remoteClient) return props.adminCalls?.agentMcp;
+    const serverId = props.skillsServerId;
+    const api = conversationPort().agent;
+    return {
+      read: (agentId) => api.readAgentMcpSettings(agentId, serverId),
+      set: (input) => api.setAgentMcpGrants(input, serverId),
+      tools: (input) => api.listAgentMcpTools(input, serverId),
+      subscribe: (_agentId, listener) =>
+        api.onScopedEvent((scoped) => {
+          if (scoped.serverId === serverId && scoped.event.type === "agents-changed") listener();
+        }),
+    };
+  });
   const sessionSettings = createMemo((): AgentSessionSettingsApi | undefined => {
     if (!props.sessionSettingsEditable) return undefined;
     if (props.remoteClient) return props.adminCalls?.sessionSettings;
@@ -245,6 +262,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
       detailOpen={draft.routines.open || draft.files.open}
       links={
         <>
+          <Show when={agentMcp()}>{(api) => <AgentMcpSettings agentId={props.agent.id} api={api()} />}</Show>
           <Show when={sessionSettings()}>
             {(api) => (
               <AgentSessionSettings

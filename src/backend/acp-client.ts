@@ -47,6 +47,7 @@ import {
   type McpDropReporter,
   type McpServerSource,
   type McpToolRuntimeSource,
+  mcpServersParam,
   usableMcpServers,
 } from "./mcp-provider-shapes";
 import { PendingServerRequests } from "./pending-server-requests";
@@ -634,7 +635,12 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   readonly releaseThread = Effect.fn("AcpAgentClient.releaseThread")(function* (
     this: AcpAgentClient,
     sessionId: string,
+    options?: { strict?: boolean },
   ): Effect.fn.Return<void, ProviderClientOperationError> {
+    if (options?.strict && this.#transport.connection) {
+      const connection = this.#transport.connection;
+      yield* providerCall(() => connection.closeSession({ sessionId }));
+    }
     this.#threads.forget(sessionId);
     const thread = this.#threads.get(sessionId);
     if (!thread) return;
@@ -1085,7 +1091,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
               providerResult(
                 yield* Effect.result(
                   usableMcpServers(
-                    agentMcpServers(this.options.mcpServers?.() ?? [], computerUse),
+                    agentMcpServers(mcpServersParam(params, this.options.mcpServers ?? (() => [])), computerUse),
                     this.options.mcpToolRuntimes?.(),
                     this.options.mcpAuthorization,
                   ).pipe(toProviderClientOperationError),

@@ -140,8 +140,9 @@ the user can ask for a detailed coordination report.
 An agent does not refuse a task, or say that it has no access to a service, before it tries each
 path. When the task is outside its profile, or names a service that a teammate may own, it calls
 `openbot.list_agents` first and delegates to a teammate whose name, title or description covers
-the work. In a channel task it delegates only to a channel member. MCP servers are host-global, so
-a specialist teammate differs only by its profile, skills and memories. Otherwise the agent uses its
+the work. In a channel task it delegates only to a channel member. MCP connections belong to the
+host, and owners or admins can restrict their servers and tools per agent. A specialist teammate
+can have another profile, skills, memories and MCP scope. Otherwise the agent uses its
 connected MCP servers, its skills, the embedded browser and Computer Use.
 
 A sign-in page does not stop it: it calls `openbot_browser.request_takeover`. The request shows in
@@ -234,7 +235,7 @@ When the caller's provider no longer lists its model, the new agent starts on th
 Creation stays this small. The calling agent then configures the new agent, or any other local
 agent, with the same tools that act on itself. `openbot.read_agent` returns one agent's setup:
 profile, runtime, access, Computer Use, notifications, auto-approve, installed skills, routines,
-and the names and transports of the MCP servers it gets. It does not return MCP commands,
+and the names, transports and tool grants of the MCP servers it gets. It does not return MCP commands,
 environment values, URLs, or headers, because they can hold secrets. `install_local_skill`,
 `set_skill_enabled`, `uninstall_skill`, and the routine tools take an optional `agentId`; without
 it they act on the caller. `uninstall_skill` never removes skill files that the user changed.

@@ -542,6 +542,12 @@ asks. The provider's CLI on the host receives the login; no token travels to the
 
 ## Other network connections
 
+Per-agent MCP permissions stay in the host's SQLite database. Owners and admins can read or change
+server IDs and tool names over the encrypted team connection. An agent with an explicit MCP scope
+uses a local relay. That relay connects to the same configured MCP service and retains its
+credentials on the host; the provider receives an agent-scoped loopback bearer. Existing agents
+that follow server settings keep the existing native MCP connection path.
+
 Network traffic can also occur when:
 
 - the local Codex App Server connects to OpenAI;

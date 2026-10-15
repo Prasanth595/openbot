@@ -4,13 +4,16 @@ import { runTeamEffect } from "@openbot/team-client";
 import {
   deleteSharedTable,
   installAgentSkill,
+  listAgentMcpTools,
   listAgentSkills,
   listMcpServers,
   listSharedTables,
   previewAgentTemplate,
   publishAgentTemplate,
+  readAgentMcpSettings,
   readAgentSessionSettings,
   resetAgentSessionSetting,
+  setAgentMcpGrants,
   setAgentSessionSetting,
   setAgentSkillEnabled,
   uninstallAgentSkill,
@@ -37,6 +40,7 @@ function webHostAdmin(
   eventsEnabled?: () => boolean,
   sessionSettingsEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
+  agentMcpEnabled?: () => boolean,
 ): NonNullable<ConversationRuntime["admin"]> {
   // `request()` names the connected host at call time, so a host switch reaches the new host.
   const eventRoutines = webEventRoutinesApi(
@@ -44,6 +48,25 @@ function webHostAdmin(
     () => routineRecoveryEnabled?.() === true,
   );
   return {
+    get agentMcp() {
+      if (agentMcpEnabled?.() !== true) return undefined;
+      return {
+        read: (agentId: string) =>
+          runTeamEffect(readAgentMcpSettings(request(), agentId).pipe(Effect.mapError((error) => error.cause))),
+        set: (input: import("@openbot/contracts/ipc").SetAgentMcpGrantsInput) =>
+          runTeamEffect(setAgentMcpGrants(request(), input).pipe(Effect.mapError((error) => error.cause))),
+        tools: (input: import("@openbot/contracts/ipc").ListAgentMcpToolsInput) =>
+          runTeamEffect(listAgentMcpTools(request(), input).pipe(Effect.mapError((error) => error.cause))),
+        ...(onHostEvent
+          ? {
+              subscribe: (_agentId: string, listener: () => void) =>
+                onHostEvent((event) => {
+                  if (event.type === "agents-changed") listener();
+                }),
+            }
+          : {}),
+      };
+    },
     get sessionSettings() {
       if (sessionSettingsEnabled?.() !== true) return undefined;
       return {
@@ -109,6 +132,7 @@ export function createWebConversationRuntime(
   sessionSettingsEnabled?: () => boolean,
   signInRelayEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
+  agentMcpEnabled?: () => boolean,
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
@@ -242,7 +266,14 @@ export function createWebConversationRuntime(
     },
     cancelImportFiles,
     admin: adminRequest
-      ? webHostAdmin(adminRequest, onHostEvent, eventsEnabled, sessionSettingsEnabled, routineRecoveryEnabled)
+      ? webHostAdmin(
+          adminRequest,
+          onHostEvent,
+          eventsEnabled,
+          sessionSettingsEnabled,
+          routineRecoveryEnabled,
+          agentMcpEnabled,
+        )
       : undefined,
   };
 }

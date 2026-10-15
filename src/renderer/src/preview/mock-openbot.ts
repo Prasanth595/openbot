@@ -325,6 +325,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     return value;
   }
   let mcpServers = clone(STORY_MCP_SERVERS);
+  const agentMcpGrants = new Map<string, import("@openbot/contracts/ipc").AgentMcpGrants>();
+  const previewAgentMcpSettings = (agentId: string) => ({
+    agentId,
+    grants: agentMcpGrants.get(agentId) ?? null,
+    servers: mcpServers.map(({ id, name, enabled }) => ({ id, name, enabled })),
+  });
   let mcpSignedIn = new Set<string>();
   let cancelPendingMcpSignIn: (() => void) | null = null;
   const mcpSignInStates = () =>
@@ -1241,6 +1247,19 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         ),
       listAgents: async () => clone(agents),
       readAgentSessionSettings: async (agentId) => clone(previewSessionSettings(agentId)),
+      readAgentMcpSettings: async (agentId) => clone(previewAgentMcpSettings(agentId)),
+      setAgentMcpGrants: async ({ agentId, grants }) => {
+        agentMcpGrants.set(agentId, clone(grants));
+        emitAgentEvent({ type: "agents-changed", agents: clone(agents) });
+        return clone(previewAgentMcpSettings(agentId));
+      },
+      listAgentMcpTools: async ({ mcpServerId, query = "" }) =>
+        mcpServers.some((server) => server.id === mcpServerId && server.enabled)
+          ? [
+              { name: "search", description: "Search the connected service." },
+              { name: "create", description: "Create a record in the connected service." },
+            ].filter((tool) => tool.name.toLowerCase().includes(query.toLowerCase()))
+          : [],
       setAgentSessionSetting: async ({ agentId, settingId, value }) => {
         const settings = previewSessionSettings(agentId);
         const option = settings.options.find((entry) => entry.id === settingId);

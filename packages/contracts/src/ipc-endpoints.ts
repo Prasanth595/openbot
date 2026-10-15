@@ -4,6 +4,7 @@ import type {
   AcpRegistryInstallInput,
   AcpRegistryOperation,
 } from "./ipc-acp-registry";
+import type { AgentMcpSettings, AgentMcpTool, ListAgentMcpToolsInput, SetAgentMcpGrantsInput } from "./ipc-agent-mcp";
 import type {
   AgentSessionSettings,
   ResetAgentSessionSettingInput,
@@ -1009,6 +1010,9 @@ export const IPC_ENDPOINTS = {
     listModels: scopedQuery<AgentModelOption[]>()("agent:list-models"),
     listAgents: scopedQuery<AgentSummary[]>()("agent:list"),
     readAgentSessionSettings: scopedRequest<string, AgentSessionSettings>()("agent:session-settings:read"),
+    readAgentMcpSettings: scopedRequest<string, AgentMcpSettings>()("agent:mcp:read"),
+    setAgentMcpGrants: scopedRequest<SetAgentMcpGrantsInput, AgentMcpSettings>()("agent:mcp:set"),
+    listAgentMcpTools: scopedRequest<ListAgentMcpToolsInput, AgentMcpTool[]>()("agent:mcp:tools"),
     setAgentSessionSetting: scopedRequest<SetAgentSessionSettingInput, AgentSessionSettings>()(
       "agent:session-settings:set",
     ),

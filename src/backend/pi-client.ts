@@ -19,6 +19,7 @@ import {
   type McpDropReporter,
   type McpServerSource,
   type McpToolRuntimeSource,
+  mcpServersParam,
   usableMcpServers,
 } from "./mcp-provider-shapes";
 import { mcpSecretValues, redactMcpValues } from "./mcp-redaction";
@@ -376,7 +377,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     return yield* Effect.gen({ self: this }, function* () {
       const handoff = claudeMcpServers(
         yield* usableMcpServers(
-          agentMcpServers(this.options.mcpServers?.() ?? [], computerUseParam(params)),
+          agentMcpServers(mcpServersParam(params, this.options.mcpServers ?? (() => [])), computerUseParam(params)),
           this.options.mcpToolRuntimes?.(),
           this.options.mcpAuthorization,
         ).pipe(toProviderClientOperationError),

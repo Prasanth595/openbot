@@ -584,6 +584,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
       (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
     routineRecoveryEnabled,
+    () =>
+      workspace.state.capabilities.includes("agent-mcp-v1") &&
+      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {

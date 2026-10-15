@@ -14,7 +14,7 @@ import {
   tool,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { defaultProviderModel } from "@openbot/contracts/ipc";
+import { defaultProviderModel, type McpServerConfig } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -58,6 +58,7 @@ import {
   type McpDropReporter,
   type McpServerSource,
   type McpToolRuntimeSource,
+  mcpServersParam,
   usableMcpServers,
 } from "./mcp-provider-shapes";
 import { PendingServerRequests } from "./pending-server-requests";
@@ -108,6 +109,7 @@ interface ThreadConfig {
   profileGeneration: boolean;
   /** Part of the config so that a change restarts the query with the new servers. */
   computerUse: boolean;
+  mcpServers?: readonly McpServerConfig[];
   /**
    * Workspace only: Bash runs in the Claude sandbox, a file write outside the roots asks the user, and
    * the project settings do not load. See `claude-workspace-sandbox.ts`.
@@ -713,7 +715,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       ? null
       : claudeMcpServers(
           yield* usableMcpServers(
-            agentMcpServers(this.#mcpServers(), config.computerUse),
+            agentMcpServers(config.mcpServers ?? this.#mcpServers(), config.computerUse),
             this.#mcpToolRuntimes?.(),
             this.#mcpAuthorization,
           ).pipe(toProviderClientOperationError),
@@ -1789,6 +1791,9 @@ function readThreadConfig(params: unknown): ThreadConfig {
     persistSession: !isRecord(params) || params.persistSession !== false,
     profileGeneration: isRecord(params) && params.profileGeneration === true,
     computerUse: computerUseParam(params),
+    ...(isRecord(params) && Object.hasOwn(params, "openbotMcpServers")
+      ? { mcpServers: mcpServersParam(params, () => []) }
+      : {}),
     workspaceOnly: isRecord(params) && params.workspaceOnly === true,
   };
 }

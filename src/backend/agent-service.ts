@@ -6,6 +6,8 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentAnalyticsInput,
   AgentEvent,
+  AgentMcpSettings,
+  AgentMcpTool,
   AgentMemory,
   AgentMemorySelectionState,
   AgentModelId,
@@ -46,6 +48,7 @@ import type {
   DuplicateAgentResult,
   GenerateAgentProfileInput,
   HostAnalyticsInput,
+  ListAgentMcpToolsInput,
   ListChannelRoutineRunsInput,
   ListRoutineRunsInput,
   McpServerConfig,
@@ -70,6 +73,7 @@ import type {
   SaveMcpServerInput,
   SaveMcpSignInAppInput,
   SendMessageInput,
+  SetAgentMcpGrantsInput,
   SetAgentMemoryInclusionInput,
   SetAgentSessionSettingInput,
   SetMcpServerEnabledInput,
@@ -173,7 +177,11 @@ import { type AgentBrowserHost, TurnLifecycle } from "./agent/turn-lifecycle";
 import { toUsageReadFailed, UsageLimitGate, type UsageLimitKey } from "./agent/usage-limit-gate";
 import type { AgentProvider } from "./agent-client";
 import type { AgentTables } from "./agent-data/agent-tables";
-import type { AgentStore } from "./agent-store";
+import { AgentMcpAccess } from "./agent-mcp-access";
+import { agentMcpCreationInitializer } from "./agent-mcp-creation";
+import { AgentMcpGrantStore } from "./agent-mcp-grant-store";
+import { AgentMcpRelay } from "./agent-mcp-relay";
+import type { AgentCreationInitializer, AgentStore } from "./agent-store";
 import { AgentWaitStore } from "./agent-waits/agent-wait-store";
 import { AgentWaits } from "./agent-waits/agent-waits";
 import { automationRunCommand } from "./automation-command";
@@ -187,7 +195,7 @@ import type { HostMemory } from "./host-memory";
 import type { MailboxStore } from "./mailbox-store";
 import { toMcpOperationError } from "./mcp-effects";
 import type { McpSignInOpener } from "./mcp-oauth-provider";
-import { McpServerStore } from "./mcp-server-store";
+import { McpServerError, McpServerStore } from "./mcp-server-store";
 import { MessagingThreads, toMessagingThreadFailed } from "./messaging/messaging-threads";
 import type { PasswordVault } from "./password-vault";
 import { decodeRecordResponse, getString } from "./protocol";
@@ -343,6 +351,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   /** Agent and channel routines of every trigger kind, with their webhook routes. */
   readonly routineRecords: RoutineRecords;
   readonly #mcp: McpGateway;
+  readonly #mcpGrants: AgentMcpGrantStore;
+  readonly #mcpRelay: AgentMcpRelay;
+  readonly #mcpAccess: AgentMcpAccess;
   readonly #providers: ProviderRuntime;
   readonly #providerUseChanges = Semaphore.makeUnsafe(1);
   readonly #endpoints: CustomEndpoints;
@@ -418,9 +429,59 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       logger,
       hooks: {
         emitError: (code, error) => this.#emitError(code, error),
+        serversChanged: () => this.notifyAgentsChanged(),
         // Read late: the threads are built further down this constructor.
         refreshAllAgentRuntimes: () => this.#threads.refreshAllAgentRuntimes(),
       },
+    });
+    this.#mcpGrants = new AgentMcpGrantStore(store.database);
+    this.#mcpRelay = new AgentMcpRelay({
+      agentExists: (agentId) => this.listAgents().some((agent) => agent.id === agentId),
+      grants: (agentId) => this.#mcpGrants.read(agentId),
+      servers: () => this.#mcp.enabled(),
+      runtimes: () => this.#mcp.toolRuntimes(),
+      authorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
+      redact: (text) => this.#mcp.redact(text),
+      registerSecret: (value) => this.#mcp.handoffLog().recordSecret(value),
+    });
+    this.#mcpAccess = new AgentMcpAccess({
+      grants: this.#mcpGrants,
+      relay: this.#mcpRelay,
+      agentExists: (agentId) => this.listAgents().some((agent) => agent.id === agentId),
+      servers: () => {
+        const rows = this.#mcp.list();
+        return [...rows, ...this.#mcp.enabled().filter((server) => !rows.some((row) => row.id === server.id))];
+      },
+      changed: (agentId) =>
+        Effect.gen({ self: this }, function* () {
+          this.notifyAgentsChanged();
+          yield* this.#threads.refreshAgentRuntime(agentId).pipe(toMcpOperationError);
+        }),
+      edit: (agentId, operation) =>
+        Effect.acquireUseRelease(
+          Effect.sync(() => this.#drain.holdSessionSettings(agentId)),
+          () =>
+            Effect.gen({ self: this }, function* () {
+              yield* this.#drain.taskFor(agentId)?.pipe(Effect.ignore) ?? Effect.void;
+              return yield* this.#endpoints.runExclusive(() =>
+                Effect.gen({ self: this }, function* () {
+                  if (this.#runsTurn(agentId))
+                    return yield* toMcpOperationError(
+                      Effect.fail(
+                        new AgentLifecycleFailed({
+                          operation: "setAgentMcpGrants",
+                          cause: new McpServerError(sourceText("error.backend.agentMcpBusy")),
+                        }),
+                      ),
+                    );
+                  yield* this.#threads.retireAgentMcpSessions(agentId).pipe(toMcpOperationError);
+                  yield* this.#mcpRelay.clearAgent(agentId);
+                  return yield* operation;
+                }),
+              );
+            }),
+          (release) => Effect.sync(release),
+        ),
     });
     this.#sidebarLayout = sidebarLayout;
     this.#profileSave = new ProfileSave(store, {
@@ -691,6 +752,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         emit: (event) => this.#emit(event),
         listAgents: () => this.listAgents(),
         deleteAgentData: (agent) => this.#removal.deleteData(agent).pipe(toAgentDuplicationFailed),
+        copyMcpGrants: (sourceAgentId, agentId) => this.#mcpGrants.write(agentId, this.#mcpGrants.read(sourceAgentId)),
         hasAttentionFor: (agentId) => this.#attention.hasAttentionFor(agentId),
         scheduleDrain: (agentId) => this.#drain.scheduleDrain(agentId),
       },
@@ -761,6 +823,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       memories: this.#memories,
       compaction: this.#compaction,
       mcpServers: () => this.#mcp.enabled(),
+      scopedMcpServers: (agentId, servers) => this.#mcpRelay.configs(agentId, servers),
       mcpToolRuntimes: () => this.#mcp.toolRuntimes(),
       mcpAuthorization: (config) => this.#mcp.authorization(config).pipe(toMcpOperationError),
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
@@ -1134,7 +1197,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         listAgents: () => this.listAgents(),
         listModels: () => this.listModels(),
         preferredProvider: () => this.preferredProvider(),
-        createAgent: (input, configure) =>
+        createAgent: (input, configure, sourceAgentId) =>
           this.createAgent(
             input,
             configure
@@ -1146,11 +1209,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
                     ),
                   )
               : undefined,
+            undefined,
+            undefined,
+            sourceAgentId === undefined ? undefined : agentMcpCreationInitializer(this.#mcpGrants, sourceAgentId),
           ).pipe(toToolOperationFailed),
         updateAgent: (input, initiatingAgentId) =>
           this.updateAgent(input, initiatingAgentId).pipe(toToolOperationFailed),
         setAvatar: (agentId, image) => this.setAvatar(agentId, image).pipe(toToolOperationFailed),
         enabledMcpServers: () => this.enabledMcpServers(),
+        agentMcpGrants: (agentId) => this.#mcpGrants.read(agentId),
         emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
         redactMcp: (text) => this.#mcp.redact(text),
         runsTurn: (agentId) => this.#runsTurn(agentId),
@@ -1642,6 +1709,30 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return this.#mcp.enabled();
   }
 
+  readAgentMcpSettings(agentId: string): AgentMcpSettings {
+    return this.#mcpAccess.read(agentId);
+  }
+
+  setAgentMcpGrants(input: SetAgentMcpGrantsInput): Effect.Effect<AgentMcpSettings, AgentLifecycleFailed> {
+    return this.#mcpAccess
+      .set(input)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "setAgentMcpGrants", cause: failure.cause }),
+        ),
+      );
+  }
+
+  listAgentMcpTools(input: ListAgentMcpToolsInput): Effect.Effect<AgentMcpTool[], AgentLifecycleFailed> {
+    return this.#mcpAccess
+      .tools(input)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "listAgentMcpTools", cause: failure.cause }),
+        ),
+      );
+  }
+
   /**
    * The Computer Use capability, as the main process alone can know it.
    *
@@ -1790,6 +1881,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     configure?: (agent: AgentSummary) => Effect.Effect<AgentSummary, AgentLifecycleFailed>,
     profileOperationId?: string,
     sender?: ConversationMessageSender,
+    initialize?: AgentCreationInitializer,
   ) {
     const initialMessage = yield* lifecycleStep("validate initial message", () => {
       const text = input.initialMessage.trim();
@@ -1799,7 +1891,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       return text;
     });
     let agent = yield* this.#store
-      .createAgent(input, profileOperationId)
+      .createAgent(input, profileOperationId, initialize)
       .pipe(
         Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "create agent", cause: failure.cause })),
       );
@@ -2500,6 +2592,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     options: { heldRoutines?: RoutineHoldWindow | undefined } = {},
   ) {
     this.#stopping = false;
+    this.#mcpRelay.open();
     yield* this.#store
       .initialize()
       .pipe(
@@ -2928,6 +3021,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
     yield* Fiber.join(channelStop);
     yield* settleLifecycleTasks("finish drain", this.#drain.pendingTasks());
+    yield* this.#mcpRelay
+      .close()
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "stop agent MCP relay", cause: failure.cause }),
+        ),
+      );
     yield* settleLifecycleTasks("finish image requests", this.#images.pendingOperations());
     yield* this.#images.dispose();
     yield* settleLifecycleTasks("finish attachment commands", this.#attachments.pendingCommands());

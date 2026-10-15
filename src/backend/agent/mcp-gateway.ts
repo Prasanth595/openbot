@@ -50,6 +50,8 @@ export interface TestMcpServerOptions {
 
 export interface McpGatewayHooks {
   emitError(code: string, error: unknown): void;
+  /** The server list has changed, even if refreshing provider sessions subsequently fails. */
+  serversChanged(): void;
   /** Marks every agent's provider session for refresh. Read late: the threads are built after this. */
   refreshAllAgentRuntimes(): Effect.Effect<void, McpGatewayFailed>;
 }
@@ -223,6 +225,9 @@ export class McpGateway {
     // A user who edits a server and does not fix it has to be told again. Without this the first
     // report of a run would be the only one, and an edit that changed nothing would look like a fix.
     this.#reportedDrops.clear();
+    // Saved rows already committed, or a built-in entry changed outside this gateway. Readers must
+    // see that list even when a later provider refresh fails. A rejected store write never gets here.
+    this.#hooks.serversChanged();
     yield* this.#hooks.refreshAllAgentRuntimes();
     return this.list();
   });
