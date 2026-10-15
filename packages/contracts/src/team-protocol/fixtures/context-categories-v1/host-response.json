@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "body": {
+    "agentId": "agent-context-fixture",
+    "threadId": "thread-context-fixture",
+    "source": "native",
+    "usedTokens": 1200,
+    "windowTokens": 2000,
+    "categories": [
+      {
+        "label": "messages",
+        "tokens": 1000,
+        "kind": "used",
+        "isDeferred": null
+      },
+      {
+        "label": "mcp-tools",
+        "tokens": 5000,
+        "kind": "deferred",
+        "isDeferred": null
+      }
+    ],
+    "truncated": false
+  }
+}

@@ -56,6 +56,7 @@ import type {
   ProviderCodeLoginStart,
   QueuedMessageReceipt,
   QueueSnapshot,
+  ReadContextCategoriesInput,
   RemoveMcpServerInput,
   ReorderQueueInput,
   ResetAgentSessionSettingInput,
@@ -117,6 +118,7 @@ import { AttentionRegistry, type LocalAttentionResponse } from "./agent/attentio
 import { BootRecovery } from "./agent/boot-recovery";
 import { BrowserUploads } from "./agent/browser-uploads";
 import type { ChatVisualPreviewHost } from "./agent/chat-visual-preview";
+import { ContextCategories } from "./agent/context-categories";
 import { ContextCompaction } from "./agent/context-compaction";
 import { ConversationReader } from "./agent/conversation-reader";
 import { ConversationRuntime } from "./agent/conversation-runtime";
@@ -364,6 +366,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #deltas: DeltaBuffer;
   readonly #turn: TurnLifecycle;
   readonly #compaction: ContextCompaction;
+  readonly #contextCategories: ContextCategories;
   readonly #duplication: DuplicationGate;
   readonly #removal: AgentRemoval;
   readonly #tools: OpenBotToolRouter;
@@ -657,6 +660,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         providerAvailable: (provider) => this.#providerAvailable(provider),
         preference: () => this.#preference(),
       },
+    });
+    this.#contextCategories = new ContextCategories({
+      store: this.#store,
+      conversation: this.#conversation,
+      providers: this.#providers,
     });
     this.#compaction = new ContextCompaction({
       changed: () => this.#emitRuntimeSnapshot(),
@@ -1240,6 +1248,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     const ids = new Set(this.listAgents().map((agent) => agent.id));
     for (const channelId of this.channels.store.ids()) ids.add(channelId);
     return ids;
+  }
+
+  readContextCategories(input: ReadContextCategoriesInput) {
+    return this.#contextCategories.read(input);
   }
 
   getRuntimeSnapshot(): AgentRuntimeSnapshot {

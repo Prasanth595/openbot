@@ -1608,6 +1608,16 @@ export class ProviderRuntime implements ProviderPort {
     return this.#ownProcessFor(agent) ? null : this.clientFor(providerForAgent(agent));
   }
 
+  /** A cached display read must not extend the idle lifetime or start a provider process. */
+  peekClientForAgent(agent: AgentSummary): AgentClient | null {
+    const confined = this.#confined.get(agent.id);
+    return confined
+      ? confined.client
+      : this.#ownProcessFor(agent)
+        ? null
+        : (this.#clients.get(providerForAgent(agent)) ?? null);
+  }
+
   /** True while this agent has a process of its own, or one starts. An exit of the shared process leaves it. */
   runsOnOwnProcess(agentId: string): boolean {
     return this.#confined.has(agentId) || this.#confinedStarts.has(agentId);

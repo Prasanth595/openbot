@@ -61,6 +61,10 @@ export interface VoiceLiveTranscript extends ConversationTarget {
 
 export interface ConversationProps {
   contextState?: AgentContextState | undefined;
+  /** Local invalidation of the existing host runtime snapshot. It is not a wire field. */
+  contextCategoryRevision?: number;
+  /** Captured exact read target. A future local subject must never use a Main fallback. */
+  contextCategoryTarget?: import("@openbot/contracts/ipc").ReadContextCategoriesInput;
   runtime?: ConversationRuntime;
   notice?: JSX.Element;
   onOpenUsage?: (trigger: HTMLButtonElement) => void;

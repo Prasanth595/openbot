@@ -1,3 +1,5 @@
+import type { ContextCategoryEstimate, ContextCategoryUsage, ServerSummary } from "@openbot/contracts/ipc";
+import { CONTEXT_CATEGORIES_ROUTE } from "@openbot/contracts/team-protocol/context-categories-v1";
 import { ArrowUp, Button, Mic, Plus } from "@openbot/ui";
 import type { AgentMessage } from "@openbot/ui/data";
 import { ChatMessageRow } from "@openbot/ui/features/conversation/ChatMessageRow";
@@ -10,10 +12,14 @@ import {
   type ContextUsageView,
 } from "@openbot/ui/features/conversation/ContextUsage";
 import type { JSX } from "@solidjs/web";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, onCleanup, Show } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { STORY_AGENT, STORY_AGENTS } from "./fixtures";
+import { createContextCategoryState } from "../src/features/conversation/context-category-state";
+import { createWebContextCategoryRead } from "../src/features/web-client/web-context-categories";
+import { CONVERSATION_STORY_ARGS } from "./conversation-story-support";
+import { requireFixture, STORY_AGENT, STORY_AGENTS } from "./fixtures";
+import { createMockOpenBot } from "./mock-openbot";
 
 /*
  * Context usage for an agent's provider thread. The data differs by provider:
@@ -352,3 +358,128 @@ export const InConversation: Story = {
     </main>
   ),
 };
+
+const NATIVE_CATEGORIES: ContextCategoryUsage = {
+  source: "native",
+  usedTokens: CLAUDE.usedTokens,
+  windowTokens: CLAUDE.windowTokens,
+  truncated: false,
+  categories: [
+    { label: "system-prompt", tokens: 12_000, kind: "used", isDeferred: null },
+    { label: "system-tools", tokens: 14_000, kind: "used", isDeferred: null },
+    { label: "mcp-tools", tokens: 5_000, kind: "used", isDeferred: null },
+    { label: "memory", tokens: 8_000, kind: "used", isDeferred: null },
+    { label: "messages", tokens: 102_800, kind: "used", isDeferred: null },
+    { label: "free", tokens: 42_200, kind: "free", isDeferred: null },
+    { label: "buffer", tokens: 16_000, kind: "buffer", isDeferred: null },
+    { label: "mcp-tools", tokens: 30_000, kind: "deferred", isDeferred: null },
+  ],
+};
+const SUMMARY_CATEGORIES: ContextCategoryUsage = {
+  ...NATIVE_CATEGORIES,
+  source: "summary",
+  categories:
+    NATIVE_CATEGORIES.categories?.map((row) => ({ ...row, kind: null, isDeferred: row.kind === "deferred" })) ?? null,
+};
+
+export const NativeCategories: Story = {
+  args: { usage: { ...CLAUDE, categoryUsage: NATIVE_CATEGORIES } },
+  render: (args) => <Composer usage={args.usage} />,
+};
+export const SummaryCategories: Story = {
+  args: { usage: { ...CLAUDE, categoryUsage: SUMMARY_CATEGORIES } },
+  render: (args) => <Composer usage={args.usage} />,
+};
+export const MissingCategories: Story = {
+  args: { usage: { ...CLAUDE, categoryUsage: { ...NATIVE_CATEGORIES, categories: null } } },
+  render: (args) => <Composer usage={args.usage} />,
+};
+export const EmptyCategories: Story = {
+  args: { usage: { ...CLAUDE, usedTokens: 0, categoryUsage: { ...NATIVE_CATEGORIES, usedTokens: 0, categories: [] } } },
+  render: (args) => <Composer usage={args.usage} />,
+};
+export const MaximumCategories: Story = {
+  args: {
+    usage: {
+      ...CLAUDE,
+      categoryUsage: {
+        ...NATIVE_CATEGORIES,
+        truncated: true,
+        categories: Array.from(
+          { length: 32 },
+          (): ContextCategoryEstimate => ({
+            label: "other",
+            tokens: Number.MAX_SAFE_INTEGER,
+            kind: "used",
+            isDeferred: null,
+          }),
+        ),
+      },
+    },
+  },
+  render: (args) => <Composer usage={args.usage} width="320px" />,
+};
+export const OverWindowCategories: Story = {
+  args: { usage: { ...CLAUDE, usedTokens: 250_000, categoryUsage: { ...NATIVE_CATEGORIES, usedTokens: 250_000 } } },
+  render: (args) => <Composer usage={args.usage} />,
+};
+
+/** The actual joined adapter uses a synthetic current request. The two controls test its reverse states. */
+function JoinedCategories() {
+  const [enabled, setEnabled] = createSignal(true);
+  const [host, setHost] = createSignal("first-host");
+  const [calls, setCalls] = createSignal(0);
+  const target = { agentId: "agent-context-story", threadId: "thread-context-story" };
+  const read = createWebContextCategoryRead({
+    enabled,
+    hostId: host,
+    request: () => async (method, path, decode, input) => {
+      if (method !== "POST" || path !== CONTEXT_CATEGORIES_ROUTE || !input)
+        throw new Error("Unexpected story request.");
+      setCalls((value) => value + 1);
+      return decode({ ...target, ...(host() === "first-host" ? NATIVE_CATEGORIES : SUMMARY_CATEGORIES) });
+    },
+  });
+  const mock = createMockOpenBot();
+  onCleanup(() => mock.dispose());
+  const server = requireFixture(CONVERSATION_STORY_ARGS.server, "Context story host");
+  const state = createContextCategoryState({
+    ...CONVERSATION_STORY_ARGS,
+    agent: { ...STORY_AGENT, id: target.agentId, threadId: target.threadId, provider: "claude" },
+    contextCategoryTarget: target,
+    get server(): ServerSummary {
+      return { ...server, id: host(), kind: "remote" };
+    },
+    get contextCategoryRevision() {
+      return enabled() ? 1 : 0;
+    },
+    runtime: { ...mock.api, agent: { ...mock.api.agent, readContextCategories: read } },
+  });
+  const usage = state.usage;
+  return (
+    <div style={{ display: "grid", gap: "var(--openbot-space-3)" }}>
+      <div style={{ display: "flex", gap: "var(--openbot-space-2)" }}>
+        <Button onClick={() => setEnabled(!enabled())}>{enabled() ? "Use older host" : "Use current host"}</Button>
+        <Button onClick={() => setHost(host() === "first-host" ? "second-host" : "first-host")}>Switch host</Button>
+      </div>
+      <span>Cached read calls: {calls()}</span>
+      <Show when={usage()} fallback={<span>This host has no current context meter.</span>}>
+        {(value) => (
+          <ContextUsageMeter
+            onOpen={state.refresh}
+            usage={{
+              usedTokens: value().usedTokens,
+              windowTokens: value().windowTokens,
+              nativeManaged: true,
+              estimated: true,
+              autoCompactAt: null,
+              compacting: false,
+              categoryUsage: value(),
+            }}
+          />
+        )}
+      </Show>
+    </div>
+  );
+}
+export const JoinedHostCategories: Story = { render: () => <JoinedCategories /> };

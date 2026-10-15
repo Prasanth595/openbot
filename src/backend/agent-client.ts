@@ -1,4 +1,9 @@
-import type { AgentProviderId, AgentSessionSettingsSnapshot, AgentSessionSettingValue } from "@openbot/contracts/ipc";
+import type {
+  AgentProviderId,
+  AgentSessionSettingsSnapshot,
+  AgentSessionSettingValue,
+  ContextCategoryUsage,
+} from "@openbot/contracts/ipc";
 import type { Effect } from "effect";
 import type { AppServerNotification, AppServerRequest, RequestId, ResponseDecoder, RpcError } from "./protocol";
 import type { ProviderClientOperationError } from "./provider-client-effects";
@@ -17,6 +22,8 @@ export interface AgentClient {
   readonly contextCompaction?: "events" | "request" | "native" | "unsupported";
   readonly running: boolean;
   readonly readHistory?: ReadProviderHistory;
+  /** Last safe category estimate of this exact live runtime. This read sends no provider request. */
+  readContextCategories?(externalThreadId: string): ContextCategoryUsage | null;
   /** False when stopping this client would lose a live provider session with no recovery path. */
   readonly canReleaseProcess?: () => boolean;
   start(): void;

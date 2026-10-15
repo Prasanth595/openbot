@@ -21,6 +21,7 @@ import {
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
 } from "./browser-view-v1";
 import { CONNECTORS_CAPABILITY } from "./connectors-v1";
+import { CONTEXT_CATEGORIES_CAPABILITY } from "./context-categories-v1";
 import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CAPABILITY } from "./conversation-file-search-v1";
 import { EVENTS_CAPABILITY } from "./events-v1";
@@ -88,6 +89,7 @@ export {
   AGENT_UPDATE_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
+  CONTEXT_CATEGORIES_CAPABILITY,
   CONTEXT_RESET_CAPABILITY,
   CONVERSATION_FILE_SEARCH_CAPABILITY,
   EVENTS_CAPABILITY,
@@ -174,6 +176,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   AGENT_UPDATE_CAPABILITY,
   TEAM_MEMBER_LEAVE_CAPABILITY,
   CONTEXT_RESET_CAPABILITY,
+  CONTEXT_CATEGORIES_CAPABILITY,
   EVENTS_CAPABILITY,
   HOST_UPDATE_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
@@ -285,7 +288,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
     capability !== HOST_TIMEZONE_CAPABILITY &&
     capability !== ROUTINE_RECOVERY_CAPABILITY &&
-    capability !== INSTANCE_TRANSFER_CAPABILITY,
+    capability !== INSTANCE_TRANSFER_CAPABILITY &&
+    capability !== CONTEXT_CATEGORIES_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -312,6 +316,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
       capability !== HOST_TIMEZONE_CAPABILITY &&
       capability !== ROUTINE_RECOVERY_CAPABILITY &&
-      capability !== INSTANCE_TRANSFER_CAPABILITY,
+      capability !== INSTANCE_TRANSFER_CAPABILITY &&
+      capability !== CONTEXT_CATEGORIES_CAPABILITY,
   );
 }

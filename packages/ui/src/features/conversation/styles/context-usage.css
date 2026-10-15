@@ -47,6 +47,9 @@
   z-index: var(--openbot-layer-popover);
   display: flex;
   width: 280px;
+  max-width: calc(100vw - var(--openbot-space-8));
+  max-height: min(calc(100dvh - var(--openbot-space-8)), var(--kb-popper-content-available-height, 100dvh));
+  overflow-y: auto;
   flex-direction: column;
   gap: var(--openbot-space-3);
   padding: var(--openbot-space-3) var(--openbot-space-4) var(--openbot-space-4);
@@ -272,4 +275,40 @@
 
 .context-compaction-detail {
   white-space: normal;
+}
+
+/* The provider estimate rows do not change total usage math or the existing bar. */
+.context-category-section,
+.context-category-list {
+  display: grid;
+  gap: var(--openbot-space-2);
+}
+
+.context-category-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.context-category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--openbot-space-3);
+  align-items: start;
+}
+
+.context-category-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.context-category-kind {
+  display: block;
+  color: var(--openbot-text-muted);
+  font-size: var(--openbot-text-sm);
+}
+
+.context-category-tokens {
+  color: var(--openbot-text-secondary);
+  font-variant-numeric: tabular-nums;
 }

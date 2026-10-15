@@ -42,6 +42,7 @@ import { useText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal, createStore, For, Loading, lazy, Show } from "solid-js";
 import { reportErrorBanner, reportNotification } from "../../error-reports";
 import { deviceSendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "../../send-shortcut-preference";
+import { createContextCategoryState } from "./context-category-state";
 import { useConversationViewScope } from "./conversation-scope";
 import { voiceButtonLabel, voiceSupported } from "./voice-status";
 
@@ -123,10 +124,32 @@ export function ConversationComposer() {
   const waitsVisible = () => waitItems().length > 0 && Boolean(props.onCancelWait) && !pickerOpen();
   const slotOpen = () => queueVisible() || awaitingVisible() || waitsVisible();
   const voiceAvailable = () => !props.runtime && voiceSupported(props.platform);
+  const categoryState = createContextCategoryState(props);
   const context = () =>
     props.contextState?.agentId === props.agent?.id && props.contextState?.threadId === props.agent?.threadId
       ? props.contextState
       : undefined;
+  const meterUsage = () => {
+    const local = context()?.usage;
+    if (local) return local;
+    const cached = categoryState.usage();
+    return cached
+      ? {
+          usedTokens: cached.usedTokens,
+          windowTokens: cached.windowTokens,
+          nativeManaged: true,
+          autoCompactAt: null,
+          estimated: true,
+        }
+      : null;
+  };
+  const categoryUsage = () => {
+    const value = categoryState.usage();
+    const usage = meterUsage();
+    return value && usage && value.usedTokens === usage.usedTokens && value.windowTokens === usage.windowTokens
+      ? value
+      : null;
+  };
   const compaction = () => {
     const value = context()?.compaction;
     return value && value.id !== dismissedCompactions()[currentChatConversationKey() ?? ""] ? value : null;
@@ -636,10 +659,12 @@ export function ConversationComposer() {
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
           <div class="composer-primary-actions">
-            <Show when={context()?.usage}>
+            <Show when={meterUsage()}>
               {(usage) => (
                 <ContextUsageMeter
+                  onOpen={categoryState.refresh}
                   usage={{
+                    categoryUsage: categoryUsage(),
                     ...usage(),
                     compacting: context()?.compaction?.status === "running",
                     ...(context()?.compaction?.status === "completed" &&

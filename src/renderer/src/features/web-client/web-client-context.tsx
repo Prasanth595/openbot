@@ -94,6 +94,7 @@ interface WebWorkspaceState {
   panelsFailed: boolean;
   panelsLoading: boolean;
   agentStatus: AgentStatus | null;
+  contextCategoryRevision: number;
   models: AgentModelOption[];
   /** The opened host said it restarts into an update (`host-update-v1`). Cleared when it is online again. */
   hostRestart: { state: "waiting" | "restarting"; version: string | null } | null;
@@ -169,6 +170,7 @@ export function createWebWorkspace(
     panelsFailed: false,
     panelsLoading: false,
     agentStatus: null,
+    contextCategoryRevision: 0,
     models: [],
     hostRestart: null,
     hostStates: {},
@@ -385,6 +387,9 @@ export function createWebWorkspace(
           });
         if (event.type === "status") hooks.onStatus?.(event.status);
         if (event.type === "runtime-snapshot") {
+          setState((draft) => {
+            draft.contextCategoryRevision += 1;
+          });
           const { attentionComplete } = event.snapshot;
           setState((draft) => {
             draft.approvals = reconcilePendingRequests(

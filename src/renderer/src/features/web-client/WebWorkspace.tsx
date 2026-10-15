@@ -584,6 +584,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
       (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
     routineRecoveryEnabled,
+    { request: () => hostRequest(), enabled: () => workspace.state.capabilities.includes("context-categories-v1") },
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {
@@ -1753,6 +1754,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           </Show>
           <Show when={agentChatOpen()}>
             <Conversation
+              contextCategoryRevision={workspace.state.contextCategoryRevision}
               runtime={runtime}
               onOpenMarketplace={() => setMarketplaceOpen(true)}
               connectors={connectors}
