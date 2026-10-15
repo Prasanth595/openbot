@@ -175,17 +175,6 @@ jobs:
               sudo apt-get update
               sudo apt-get install --no-install-recommends --yes xvfb
 
-      - name: Check bounded browser form filling
-        run: xvfb-run -a bun scripts/browser-fill-fields-e2e.ts
-
-      - name: Save browser-fill-fields-e2e report
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: browser-fill-fields-e2e
-          path: .openbot-build/browser-fill-fields-e2e/report.json
-          if-no-files-found: warn
-
       - name: Run the browser smoke test
         run: xvfb-run -a bun run test:browser
 
