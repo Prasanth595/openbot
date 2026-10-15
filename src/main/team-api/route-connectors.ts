@@ -1,6 +1,7 @@
 import { MESSAGING_PLATFORMS, type MessagingConnectPage } from "@openbot/contracts/ipc";
 import { CONNECTORS_CAPABILITY, CONNECTORS_ROUTES } from "@openbot/contracts/team-protocol/connectors-v1";
-import { sourceText } from "@openbot/i18n/source";
+import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
+import type { Effect } from "effect";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { TeamApiConnectors } from "./dependencies";
 import { HttpError } from "./http-error";
@@ -10,6 +11,19 @@ import { readJson, requireAdmin, stringField } from "./request-helpers";
 const ROUTES: ReadonlySet<string> = new Set(Object.values(CONNECTORS_ROUTES));
 
 const page = (opened: MessagingConnectPage | null) => ({ url: opened?.url ?? null, nonce: opened?.nonce ?? null });
+
+/**
+ * Runs a connector operation. A failure with catalog text is one the user can act on, so the client
+ * gets that text. Any other failure stays private and answers the generic 500.
+ */
+async function run<A>(operation: Effect.Effect<A, { readonly cause: unknown }>): Promise<A> {
+  try {
+    return await runCauseEffect(operation);
+  } catch (error) {
+    if (error instanceof Error && matchingSourceKeys(error.message).length > 0) throw new HttpError(400, error.message);
+    throw error;
+  }
+}
 
 /**
  * The connections of this host that an administrator manages from their own computer. Frozen by
@@ -39,13 +53,13 @@ export async function routeConnectors(
     case CONNECTORS_ROUTES.githubStatus:
       return json(200, status(github.status()));
     case CONNECTORS_ROUTES.githubConnect:
-      return json(200, status(await runCauseEffect(github.connect(false))));
+      return json(200, status(await run(github.connect(false))));
     case CONNECTORS_ROUTES.githubCancel:
       return json(200, status(github.cancel()));
     case CONNECTORS_ROUTES.githubDisconnect:
-      return json(200, status(await runCauseEffect(github.disconnect(false))));
+      return json(200, status(await run(github.disconnect(false))));
     case CONNECTORS_ROUTES.githubRepositories:
-      return json(200, await runCauseEffect(github.repositories()));
+      return json(200, await run(github.repositories()));
     case CONNECTORS_ROUTES.messagingOverview:
       return json(
         200,
@@ -62,12 +76,12 @@ export async function routeConnectors(
           : platform === "discord"
             ? messaging.connectDiscordGuild(false)
             : messaging.connectTelegramChat(body.place === "direct" ? "direct" : "group", false);
-      return json(200, page(await runCauseEffect(opened)));
+      return json(200, page(await run(opened)));
     }
     case CONNECTORS_ROUTES.messagingComplete: {
       const nonce = stringField(body, "nonce", false, 128);
       const grant = stringField(body, "grant", false, 16_384);
-      const accepted = await runCauseEffect(
+      const accepted = await run(
         platform === "slack"
           ? messaging.completeSlackWorkspace(nonce, grant)
           : messaging.completeDiscordGuild(nonce, grant),
@@ -75,7 +89,7 @@ export async function routeConnectors(
       return json(200, { accepted });
     }
     case CONNECTORS_ROUTES.messagingDisconnect:
-      await runCauseEffect(
+      await run(
         platform === "slack"
           ? messaging.disconnectSlackWorkspace(workspaceId())
           : platform === "discord"
@@ -84,9 +98,9 @@ export async function routeConnectors(
       );
       return json(200, {});
     case CONNECTORS_ROUTES.messagingReconnect:
-      return json(200, page(await runCauseEffect(messaging.reconnect(platform, workspaceId(), false))));
+      return json(200, page(await run(messaging.reconnect(platform, workspaceId(), false))));
     case CONNECTORS_ROUTES.messagingEnabled:
-      await runCauseEffect(messaging.setEnabled(platform, workspaceId(), body.enabled === true));
+      await run(messaging.setEnabled(platform, workspaceId(), body.enabled === true));
       return json(200, {});
     default: {
       // The orchestrator starts on a new agent's default provider and model, as the host picks it.
@@ -94,7 +108,7 @@ export async function routeConnectors(
         platform === "telegram" || body.workspaceId === null
           ? messaging.addTelegramOrchestrator({})
           : messaging.addOrchestrator(platform, { workspaceId: workspaceId() });
-      return json(200, await runCauseEffect(added));
+      return json(200, await run(added));
     }
   }
 }

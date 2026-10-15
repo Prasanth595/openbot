@@ -56,7 +56,8 @@ export interface TelegramIntegrationPanelProps {
   /** True while an action runs. Every button waits for it. */
   busy: boolean;
   models?: TelegramOrchestratorModels | undefined;
-  onConnectChat: (place: TelegramChatPlace) => void;
+  /** Resolves `false` when the link did not open, so nothing waits for Telegram. */
+  onConnectChat: (place: TelegramChatPlace) => Promise<boolean>;
   onDisconnectChat: (workspaceId: string) => void;
   onReconnect: (workspaceId: string) => void;
   onSetEnabled: (workspaceId: string, enabled: boolean) => void;
@@ -140,7 +141,9 @@ export function TelegramIntegrationPanel(props: TelegramIntegrationPanelProps) {
   };
   const link = (place: TelegramChatPlace) => {
     setLinking(new Set(props.connections.map((connection) => connection.workspaceId)));
-    props.onConnectChat(place);
+    void props.onConnectChat(place).then((opened) => {
+      if (!opened) setLinking(null);
+    });
   };
 
   return (
@@ -372,7 +375,7 @@ export function TelegramConnectDialog(props: {
   agents: readonly { id: string }[];
   busy: boolean;
   models?: TelegramOrchestratorModels | undefined;
-  onConnectChat: (place: TelegramChatPlace) => void;
+  onConnectChat: (place: TelegramChatPlace) => Promise<boolean>;
   onAddOrchestrator: (choice: TelegramOrchestratorChoice | null) => void;
   onClose: () => void;
 }) {
@@ -413,7 +416,9 @@ export function TelegramConnectDialog(props: {
   const steps = () => [t("connector.telegram.stepChat"), t("connector.telegram.stepAgent")];
   const connect = (place: TelegramChatPlace) => {
     setWaiting(true);
-    props.onConnectChat(place);
+    void props.onConnectChat(place).then((opened) => {
+      if (!opened) setWaiting(false);
+    });
   };
   return (
     <WizardDialog

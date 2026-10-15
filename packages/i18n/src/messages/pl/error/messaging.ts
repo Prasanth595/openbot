@@ -14,6 +14,7 @@ export const messages = {
   "error.messaging.telegramUnsupported": "Ten komputer nie może połączyć się z Telegramem.",
   "error.messaging.telegramRelayUnavailable":
     "OpenBot nie może połączyć się z Telegramem na tym komputerze. Zaloguj się, nadaj temu komputerowi nazwę i spróbuj ponownie.",
+  "error.messaging.telegramServiceUnavailable": "OpenBot nie może teraz połączyć Telegrama. Spróbuj ponownie później.",
   "error.messaging.memoryLimit":
     "Połączona przestrzeń robocza może mieć maksymalnie {limit} wspomnień. Najpierw usuń jedno.",
 } as const satisfies PartialTranslation<typeof source>;

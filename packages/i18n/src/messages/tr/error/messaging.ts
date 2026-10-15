@@ -16,5 +16,6 @@ export const messages = {
   "error.messaging.telegramUnsupported": "Bu bilgisayar Telegram'a bağlanamıyor.",
   "error.messaging.telegramRelayUnavailable":
     "OpenBot bu bilgisayarda Telegram'a ulaşamıyor. Oturum açın, bu bilgisayara bir ad verin ve tekrar deneyin.",
+  "error.messaging.telegramServiceUnavailable": "OpenBot şu anda Telegram'ı bağlayamıyor. Daha sonra tekrar deneyin.",
   "error.messaging.memoryLimit": "Bağlı bir çalışma alanı en fazla {limit} belleğe sahip olabilir. Önce birini silin.",
 } as const satisfies PartialTranslation<typeof source>;

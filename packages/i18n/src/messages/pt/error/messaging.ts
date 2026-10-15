@@ -14,5 +14,7 @@ export const messages = {
   "error.messaging.telegramUnsupported": "Este computador não pode se conectar ao Telegram.",
   "error.messaging.telegramRelayUnavailable":
     "O OpenBot não consegue acessar o Telegram neste computador. Entre na conta, dê um nome a este computador e tente novamente.",
+  "error.messaging.telegramServiceUnavailable":
+    "O OpenBot não consegue conectar o Telegram agora. Tente novamente mais tarde.",
   "error.messaging.memoryLimit": "Um espaço de trabalho conectado pode ter até {limit} memórias. Exclua uma primeiro.",
 } as const satisfies PartialTranslation<typeof source>;

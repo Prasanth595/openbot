@@ -29,7 +29,7 @@ export const STORY_CONNECTOR_DETAILS: readonly ConnectorDetail[] = [
       agents: [],
       connections: [],
       busy: false,
-      onConnectChat: fn(),
+      onConnectChat: fn(async () => true),
       onDisconnectChat: fn(),
       onReconnect: fn(),
       onSetEnabled: fn(),

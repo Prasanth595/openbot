@@ -666,9 +666,17 @@ async function createMessagingServices({
                 cause: new Error(sourceText("error.messaging.telegramRelayUnavailable")),
               }),
             );
-          return centralAuth
-            .createTelegramLink(hostId)
-            .pipe(Effect.mapError((error) => new MessagingOperationFailed({ cause: error.cause })));
+          return centralAuth.createTelegramLink(hostId).pipe(
+            Effect.mapError(({ cause }) => {
+              // The account service has no Telegram bot. The user can only wait, so they get catalog
+              // text, which a joined server can show to its client.
+              const notConfigured =
+                cause instanceof Error && "code" in cause && cause.code === "telegram_not_configured";
+              return new MessagingOperationFailed({
+                cause: notConfigured ? new Error(sourceText("error.messaging.telegramServiceUnavailable")) : cause,
+              });
+            }),
+          );
         }),
       unlink: (chatId) =>
         Effect.suspend(() => {
