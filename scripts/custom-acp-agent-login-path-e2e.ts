@@ -120,7 +120,7 @@ try {
 } catch (error) {
   report.error = error instanceof Error ? error.message : String(error);
 } finally {
-  for (const client of clients) client.stop?.();
+  await Promise.all(clients.map((client) => runCauseEffect(client.stop()).catch(() => undefined)));
   await rm(root, { recursive: true, force: true });
 }
 

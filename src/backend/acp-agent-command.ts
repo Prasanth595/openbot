@@ -137,7 +137,8 @@ export const agentLaunchPath = Effect.fn("AcpAgentCommand.launchPath")(function*
   platform: NodeJS.Platform = process.platform,
 ) {
   if (platform === "win32") return null;
-  const folders = yield* searchPath();
+  // A relative folder such as `.` would be read in the agent's working folder, which is a workspace.
+  const folders = (yield* searchPath()).filter((folder) => isAbsolute(folder));
   return folders.length > 0 ? folders.join(delimiter) : null;
 });
 
