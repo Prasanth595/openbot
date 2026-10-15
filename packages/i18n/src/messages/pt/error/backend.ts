@@ -286,4 +286,6 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Salve este servidor MCP como servidor de URL antes de adicionar um app de autenticação.",
   "error.backend.mcpSignInAppUnavailable": "Este computador não consegue guardar um app de autenticação.",
+  "error.backend.routineFlowHistoryGone": "Esta execução não existe ou não está disponível para você.",
+  "error.backend.routineFlowHistoryTooLarge": "A execução salva é grande demais para ser exibida.",
 } as const satisfies PartialTranslation<typeof source>;

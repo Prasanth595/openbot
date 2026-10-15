@@ -80,6 +80,7 @@ import {
 } from "@openbot/contracts/team-protocol/host-update-v1";
 import { teamHttpCodec } from "@openbot/contracts/team-protocol/http-codecs";
 import { optionalTeamEvent } from "@openbot/contracts/team-protocol/optional-events";
+import { ROUTINE_FLOW_HISTORY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flow-history-v1";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
 import {
   TEAM_APP_VERSION_HEADER,
@@ -166,6 +167,7 @@ import { routeProviderHostSignIn } from "./team-api/route-provider-host-sign-in"
 import { routeProviders } from "./team-api/route-providers";
 import { routePushNotifications } from "./team-api/route-push-notifications";
 import { routeRemoteScreen } from "./team-api/route-remote-screen";
+import { routeRoutineFlowHistory } from "./team-api/route-routine-flow-history";
 import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
 import { routeSignInRelay } from "./team-api/route-sign-in-relay";
@@ -781,6 +783,10 @@ export class TeamApiServer {
       if ((await routeAgentMemoryPage(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeWorkspaceDirectory(context, this.#options.agents, hidden)) === "handled") return;
       if ((await routeConversationFiles(context, this.#options.agents)) === "handled") return;
+      if (
+        (await routeRoutineFlowHistory(context, this.#options.routineFlows, this.#options.agents, hidden)) === "handled"
+      )
+        return;
       if ((await routeRoutineFlows(context, this.#options.routineFlows, this.#options.agents, hidden)) === "handled")
         return;
       if ((await this.#routeEvents(context)) === "handled") return;
@@ -1598,6 +1604,7 @@ export class TeamApiServer {
         if (capability === AGENT_IMPORT_CAPABILITY) return this.#options.agentImport !== undefined;
         if (capability === INSTANCE_TRANSFER_CAPABILITY) return this.#options.instanceTransfer !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
+        if (capability === ROUTINE_FLOW_HISTORY_CAPABILITY) return this.#options.routineFlows !== undefined;
         if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
         if (capability === PUSH_NOTIFICATIONS_CAPABILITY || capability === ANDROID_PUSH_NOTIFICATIONS_CAPABILITY)
           return this.#options.pushNotifications !== undefined;

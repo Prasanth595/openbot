@@ -114,4 +114,5 @@ export const messages = {
   "error.team.signInRelayUsed": "Этот вход уже отправлен.",
   "error.team.signInRelayMismatch": "Этот адрес не относится к этому входу.",
   "error.team.signInRelayLinkUnknown": "Ни один агент на этом сервере не показывал эту ссылку для входа.",
+  "error.team.routineFlowHistoryUnsupported": "Этот хост не поддерживает сохранённую историю процедур.",
 } as const satisfies PartialTranslation<typeof source>;

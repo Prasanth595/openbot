@@ -114,4 +114,5 @@ export const messages = {
   "error.team.signInRelayUsed": "To logowanie zostało już wysłane.",
   "error.team.signInRelayMismatch": "Ten adres nie pochodzi z tego logowania.",
   "error.team.signInRelayLinkUnknown": "Żaden agent na tym serwerze nie pokazał tego linku logowania.",
+  "error.team.routineFlowHistoryUnsupported": "Ten host nie obsługuje zapisanej historii rutyn.",
 } as const satisfies PartialTranslation<typeof source>;

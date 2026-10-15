@@ -7,6 +7,46 @@
 
 import type { RoutineSchedule } from "@openbot/contracts/ipc";
 import type { EventFilter } from "@openbot/contracts/ipc-events";
+import type {
+  RoutineFlowHistoryCursor,
+  RoutineFlowHistoryRun,
+  RoutineFlowHistoryStep,
+} from "@openbot/contracts/ipc-routine-flow-history";
+
+export interface DiagramRoutineHistoryState {
+  routineNodeId: string | null;
+  page:
+    | { kind: "idle" | "loading" | "unavailable" }
+    | { kind: "error"; error: string }
+    | {
+        kind: "ready";
+        runs: RoutineFlowHistoryRun[];
+        nextCursor: RoutineFlowHistoryCursor | null;
+        loadingMore: boolean;
+        error: string | null;
+      };
+  selected:
+    | { kind: "idle" }
+    | { kind: "loading"; runId: string }
+    | { kind: "error"; runId: string; error: string }
+    | {
+        kind: "ready";
+        run: RoutineFlowHistoryRun;
+        steps: RoutineFlowHistoryStep[];
+        nextCursor: RoutineFlowHistoryCursor | null;
+        loadingMore: boolean;
+        error: string | null;
+      };
+}
+
+export interface DiagramRoutineHistory {
+  state: DiagramRoutineHistoryState;
+  onOpen(routineNodeId: string): void;
+  onClose(routineNodeId: string): void;
+  onSelect(run: RoutineFlowHistoryRun): void;
+  onMoreRuns(): void;
+  onMoreSteps(): void;
+}
 
 /** A webhook that starts a routine: where requests go, and which of them start a run. */
 export interface DiagramRoutineWebhook {

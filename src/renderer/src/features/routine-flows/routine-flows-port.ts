@@ -7,6 +7,7 @@ import type {
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import { desktopEventRoutinesApi, type EventRoutinesApi } from "../conversation/routine-webhooks-api";
+import type { RoutineFlowHistoryHost } from "./routine-flow-history-controller";
 
 /**
  * What the routine canvas reaches on one host: the flows, the routines it runs and edits, the
@@ -17,6 +18,7 @@ import { desktopEventRoutinesApi, type EventRoutinesApi } from "../conversation/
 export interface RoutineFlowsHost {
   /** Called without a server: the host already names one. */
   flows: OpenBotDesktopApi["routineFlows"];
+  history: RoutineFlowHistoryHost;
   routines: {
     update(input: UpdateRoutineInput): Promise<unknown>;
     test(input: TestRoutineInput): Promise<unknown>;
@@ -41,10 +43,21 @@ export interface RoutineFlowsHost {
  * The desktop adapter for one server. `window.openbot` is read on each call: tests and stories
  * replace it per case. `webhooks` is read when the canvas asks, so a role change reaches it.
  */
-export function desktopRoutineFlowsHost(serverId: string, webhooks: () => boolean): RoutineFlowsHost {
+export function desktopRoutineFlowsHost(
+  serverId: string,
+  webhooks: () => boolean,
+  historyAvailable: () => boolean = () => true,
+): RoutineFlowsHost {
   const flows = () => window.openbot.routineFlows;
   const agent = () => window.openbot.agent;
   return {
+    history: {
+      available: historyAvailable,
+      api: {
+        page: (input) => window.openbot.routineFlowHistory.page(input, serverId),
+        run: (input) => window.openbot.routineFlowHistory.run(input, serverId),
+      },
+    },
     flows: {
       canvas: (agentId) => flows().canvas(agentId, serverId),
       savePosition: (input) => flows().savePosition(input, serverId),

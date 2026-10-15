@@ -1009,6 +1009,7 @@
   bottom: 0;
   display: flex;
   width: var(--diagram-inspector-width);
+  max-width: 100%;
   min-height: 0;
   flex-direction: column;
   border-left: 1px solid var(--openbot-border);
@@ -1431,4 +1432,16 @@
   .diagram-edge-remove.ui-button {
     transition: none;
   }
+}
+
+.diagram-inspector-history-select li {
+  display: block;
+}
+
+.diagram-inspector-history-select .diagram-inspector-step {
+  flex-wrap: wrap;
+}
+
+.diagram-inspector-history-step .diagram-inspector-section-title {
+  overflow-wrap: anywhere;
 }

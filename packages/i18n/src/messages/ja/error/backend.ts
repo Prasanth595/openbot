@@ -287,4 +287,6 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "サインインアプリを追加する前に、この MCP サーバーを URL サーバーとして保存してください。",
   "error.backend.mcpSignInAppUnavailable": "このコンピューターではサインインアプリを保存できません。",
+  "error.backend.routineFlowHistoryGone": "このルーチンの実行は存在しないか、アクセスできません。",
+  "error.backend.routineFlowHistoryTooLarge": "保存されたルーチンの実行は大きすぎるため表示できません。",
 } as const satisfies PartialTranslation<typeof source>;

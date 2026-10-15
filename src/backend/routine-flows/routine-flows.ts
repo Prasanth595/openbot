@@ -32,6 +32,17 @@ import type {
   SaveRoutineFlowPositionInput,
   UpdateRoutineFlowLinkInput,
 } from "@openbot/contracts/ipc";
+import {
+  ROUTINE_FLOW_HISTORY_RESPONSE_BYTES,
+  ROUTINE_FLOW_HISTORY_RUNS_LIMIT,
+  ROUTINE_FLOW_HISTORY_STEPS_LIMIT,
+  type RoutineFlowHistoryCursor,
+  type RoutineFlowHistoryInput,
+  type RoutineFlowHistoryPage,
+  type RoutineFlowHistoryRun,
+  type RoutineFlowHistoryRunInput,
+  type RoutineFlowHistoryRunPage,
+} from "@openbot/contracts/ipc-routine-flow-history";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { nextValidRoutineOccurrence, routineOnceInstant } from "@openbot/team-client/routine-schedule";
@@ -66,6 +77,12 @@ export interface RoutineFlowsDependencies {
     list(agentId: string): RoutineFlowRoutineInfo[];
     get(agentId: string, routineId: string): RoutineFlowRoutineInfo | null;
     listRuns(agentId: string, routineId: string, limit?: number): RoutineRun[];
+    historyRuns(
+      agentId: string,
+      routineId: string,
+      limit: number,
+      cursor?: RoutineFlowHistoryCursor,
+    ): RoutineFlowHistoryRun[];
   };
   delivery(deliveryId: string): RoutineFlowDelivery | null;
   /** The answer an agent gave in one turn, or null when it gave none. */
@@ -84,6 +101,14 @@ export interface RoutineFlowsDependencies {
 
 export interface RoutineFlowsShape {
   canvas(agentId: string): Effect.Effect<RoutineFlowCanvas, RoutineFlowFailed>;
+  historyPage(
+    input: RoutineFlowHistoryInput,
+    visibleAgentIds?: ReadonlySet<string>,
+  ): Effect.Effect<RoutineFlowHistoryPage, RoutineFlowFailed>;
+  historyRun(
+    input: RoutineFlowHistoryRunInput,
+    visibleAgentIds?: ReadonlySet<string>,
+  ): Effect.Effect<RoutineFlowHistoryRunPage, RoutineFlowFailed>;
   savePosition(input: SaveRoutineFlowPositionInput): Effect.Effect<void, RoutineFlowFailed>;
   removePosition(input: RemoveRoutineFlowPositionInput): Effect.Effect<void, RoutineFlowFailed>;
   connect(input: ConnectRoutineFlowInput): Effect.Effect<RoutineFlowLink, RoutineFlowFailed>;
@@ -165,6 +190,75 @@ class RoutineFlows extends Context.Service<RoutineFlows, RoutineFlowsShape>()("o
                 position.nodeKey.startsWith("agent:") ? [position.nodeKey.slice("agent:".length)] : [],
               ),
             };
+          });
+        });
+
+        const requireHistoryRoutine = (input: RoutineFlowHistoryInput, visible?: ReadonlySet<string>) => {
+          const routine = ownerOf(input.routineId);
+          if (
+            !routine ||
+            routine.agentId !== input.agentId ||
+            (visible && !agentsOfRoutine(input.routineId).every((id) => visible.has(id)))
+          )
+            throw new RoutineFlowError(sourceText("error.backend.routineFlowHistoryGone"));
+        };
+        const requireHistoryRun = (run: RoutineFlowHistoryRun, visible?: ReadonlySet<string>) => {
+          if (visible && (!visible.has(run.agentId) || !store.historyVisible(run.id, visible)))
+            throw new RoutineFlowError(sourceText("error.backend.routineFlowHistoryGone"));
+        };
+        const historyPage = Effect.fn("RoutineFlows.historyPage")(function* (
+          input: RoutineFlowHistoryInput,
+          visible?: ReadonlySet<string>,
+        ) {
+          return yield* attempt((): RoutineFlowHistoryPage => {
+            requireHistoryRoutine(input, visible);
+            const rows = dependencies.routines.historyRuns(
+              input.agentId,
+              input.routineId,
+              ROUTINE_FLOW_HISTORY_RUNS_LIMIT + 1,
+              input.cursor,
+            );
+            for (const row of rows) requireHistoryRun(row, visible);
+            const runs = rows.slice(0, ROUTINE_FLOW_HISTORY_RUNS_LIMIT);
+            const last = runs.at(-1);
+            return {
+              agentId: input.agentId,
+              routineId: input.routineId,
+              runs,
+              nextCursor: rows.length > runs.length && last ? { createdAt: last.createdAt, id: last.id } : null,
+            };
+          });
+        });
+        const historyRun = Effect.fn("RoutineFlows.historyRun")(function* (
+          input: RoutineFlowHistoryRunInput,
+          visible?: ReadonlySet<string>,
+        ) {
+          return yield* attempt((): RoutineFlowHistoryRunPage => {
+            requireHistoryRoutine(input, visible);
+            const run = store.historyRun(input.agentId, input.routineId, input.runId);
+            if (!run) throw new RoutineFlowError(sourceText("error.backend.routineFlowHistoryGone"));
+            requireHistoryRun(run, visible);
+            const rows = store.historySteps(run.id, ROUTINE_FLOW_HISTORY_STEPS_LIMIT + 1, input.cursor);
+            const steps = rows.slice(0, ROUTINE_FLOW_HISTORY_STEPS_LIMIT);
+            const last = steps.at(-1);
+            const result: RoutineFlowHistoryRunPage = {
+              run,
+              steps,
+              nextCursor: rows.length > steps.length && last ? { createdAt: last.createdAt, id: last.id } : null,
+            };
+            // Escaped JSON can exceed the UTF-8 text bounds. Omit marked text until the response fits.
+            for (const step of steps) {
+              if (Buffer.byteLength(JSON.stringify(result)) <= ROUTINE_FLOW_HISTORY_RESPONSE_BYTES) break;
+              step.truncated.input ||= step.input.length > 0;
+              step.truncated.output ||= step.output !== null && step.output.length > 0;
+              step.truncated.error ||= step.error !== null && step.error.length > 0;
+              step.input = "";
+              step.output = null;
+              step.error = null;
+            }
+            if (Buffer.byteLength(JSON.stringify(result)) > ROUTINE_FLOW_HISTORY_RESPONSE_BYTES)
+              throw new RoutineFlowError(sourceText("error.backend.routineFlowHistoryTooLarge"));
+            return result;
           });
         });
 
@@ -395,6 +489,8 @@ class RoutineFlows extends Context.Service<RoutineFlows, RoutineFlowsShape>()("o
 
         return RoutineFlows.of({
           canvas,
+          historyPage,
+          historyRun,
           savePosition,
           removePosition,
           connect,

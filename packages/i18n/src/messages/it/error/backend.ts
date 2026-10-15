@@ -287,4 +287,6 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Salva questo server MCP come server con URL prima di aggiungere un'app di accesso.",
   "error.backend.mcpSignInAppUnavailable": "Questo computer non può conservare un'app di accesso.",
+  "error.backend.routineFlowHistoryGone": "Questa esecuzione non è presente o non è disponibile per te.",
+  "error.backend.routineFlowHistoryTooLarge": "L’esecuzione salvata è troppo grande per essere visualizzata.",
 } as const satisfies PartialTranslation<typeof source>;

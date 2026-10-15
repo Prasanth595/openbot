@@ -287,4 +287,6 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Guarda este servidor MCP como servidor de URL antes de añadir una app de inicio de sesión.",
   "error.backend.mcpSignInAppUnavailable": "Este ordenador no puede guardar una app de inicio de sesión.",
+  "error.backend.routineFlowHistoryGone": "Esta ejecución no existe o no está disponible para ti.",
+  "error.backend.routineFlowHistoryTooLarge": "La ejecución guardada es demasiado grande para mostrarla.",
 } as const satisfies PartialTranslation<typeof source>;

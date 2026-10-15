@@ -19,11 +19,16 @@ import { toast } from "@openbot/ui";
 import type { AgentProfile } from "@openbot/ui/data";
 import type { DiagramModelChoice, DiagramNewAgentDraft } from "@openbot/ui/features/diagrams/DiagramNewAgentCard";
 import { DiagramView } from "@openbot/ui/features/diagrams/DiagramView";
-import type { DiagramPoint } from "@openbot/ui/features/diagrams/diagram-model";
+import type {
+  DiagramPoint,
+  DiagramRoutineHistory,
+  DiagramRoutineHistoryState,
+} from "@openbot/ui/features/diagrams/diagram-model";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createStore, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createStore, onSettled, Show, untrack } from "solid-js";
 import { createRoutineFlowAssistant } from "./routine-flow-assistant";
 import { agentIdOfNode, isRoutineStartEdge, routineFlowDiagram, routineIdOfNode } from "./routine-flow-diagram";
+import { RoutineFlowHistoryController } from "./routine-flow-history-controller";
 import type { RoutineFlowsHost } from "./routine-flows-port";
 
 /** Coalesces the bursts of events one run sends: a turn ends, a queue moves, a routine changes. */
@@ -68,6 +73,45 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
     webhookConnected: null,
   });
   const assistant = createRoutineFlowAssistant(host, agentId);
+  const [historyState, setHistoryState] = createStore<DiagramRoutineHistoryState>({
+    routineNodeId: null,
+    page: { kind: "idle" },
+    selected: { kind: "idle" },
+  });
+  const historyController = new RoutineFlowHistoryController(
+    () => untrack(() => host().history),
+    (next) =>
+      setHistoryState((draft) => {
+        draft.routineNodeId = next.routineNodeId;
+        draft.page = next.page;
+        draft.selected = next.selected;
+      }),
+    (error) => errorMessage(error, t("diagram.history.loadFailed")),
+  );
+  const history: DiagramRoutineHistory = {
+    state: historyState,
+    onOpen: (nodeId) => {
+      const routineId = routineIdOfNode(nodeId);
+      // Opening history reads the current routine owner once. It does not subscribe this action.
+      const routine = untrack(() => {
+        const current = state.canvas?.routines.find((entry) => entry.routine.id === routineId)?.routine;
+        return current ? { agentId: current.agentId, id: current.id } : null;
+      });
+      if (routine) void historyController.open(nodeId, routine.agentId, routine.id);
+    },
+    onClose: (nodeId) => {
+      if (historyController.state.routineNodeId === nodeId) historyController.reset();
+    },
+    onSelect: (run) => {
+      void historyController.select(run);
+    },
+    onMoreRuns: () => {
+      void historyController.moreRuns();
+    },
+    onMoreSteps: () => {
+      void historyController.moreSteps();
+    },
+  };
   let generation = 0;
   let reloadTimer: number | undefined;
   /** Moves waiting to be saved, by node: the timer, and the save it runs. */
@@ -117,6 +161,7 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
 
   createEffect(agentId, (id) => {
     generation += 1;
+    historyController.reset();
     setState((draft) => {
       draft.canvas = null;
       draft.error = null;
@@ -142,6 +187,7 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
         reloadSoon();
     });
     return () => {
+      historyController.reset();
       stopEvents();
       window.clearTimeout(reloadTimer);
       // A move the user made just before leaving the canvas is saved now, not dropped.
@@ -401,6 +447,7 @@ export function RoutineFlowsCanvas(props: RoutineFlowsCanvasProps) {
                 } else started = host().routines.test({ agentId: routine.agentId, routineId: routine.id });
                 started.then(() => load(canvasAgentId)).catch(failed(t("diagram.flows.runFailed")));
               }}
+              history={history}
               webhooks={
                 host().webhooks
                   ? {

@@ -5,6 +5,7 @@ import type {
   RoutineRunStatus,
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
+import type { RoutineFlowHistoryCursor, RoutineFlowHistoryRun } from "@openbot/contracts/ipc-routine-flow-history";
 import type { OpenBotDatabase } from "./openbot-database";
 import {
   type DueRoutine,
@@ -78,6 +79,18 @@ export class AgentRoutineStore extends RoutineStore {
 
   listRuns(agentId: string, routineId: string, limit = 50, withSkipped = false): RoutineRun[] {
     return this.listRunRows(agentId, routineId, limit, withSkipped).map(toRun);
+  }
+
+  historyRuns(
+    agentId: string,
+    routineId: string,
+    limit: number,
+    cursor?: RoutineFlowHistoryCursor,
+  ): RoutineFlowHistoryRun[] {
+    return this.historyRunRows(agentId, routineId, limit, cursor).map(({ ownerId, ...fields }) => ({
+      ...fields,
+      agentId: ownerId,
+    }));
   }
 
   pendingRuns(): RoutineRun[] {

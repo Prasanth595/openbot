@@ -268,4 +268,6 @@ export const messages = defineMessages("error.backend", {
     "The sign-in server of this MCP server changed, so OpenBot did not send it the sign-in app. If the change is correct, remove the sign-in app and add it again.",
   "error.backend.mcpSignInAppNoServer": "Save this MCP server as a URL server before you add a sign-in app.",
   "error.backend.mcpSignInAppUnavailable": "This computer cannot keep a sign-in app.",
+  "error.backend.routineFlowHistoryGone": "This routine run is missing or is not available to you.",
+  "error.backend.routineFlowHistoryTooLarge": "The stored routine run is too large to display.",
 });

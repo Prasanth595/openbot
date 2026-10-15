@@ -1,4 +1,5 @@
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import type { EventRoutinesApi } from "../conversation/routine-webhooks-api";
 import type { RoutineFlowsHost } from "../routine-flows/routine-flows-port";
 import { openWebLink } from "./web-attachments";
@@ -10,7 +11,16 @@ import type { WebWorkspaceRuntime } from "./web-runtime";
  * is read when the canvas asks: only an owner or admin manages webhook routines.
  */
 export function webRoutineFlowsHost(
-  remote: WebWorkspaceRuntime,
+  remote: Pick<
+    WebWorkspaceRuntime,
+    | "routineFlows"
+    | "routineFlowHistory"
+    | "updateRoutine"
+    | "testRoutine"
+    | "conversationAround"
+    | "conversation"
+    | "send"
+  >,
   onHostEvent: (listener: (event: AgentEvent | TeamRealtimeEvent) => void) => () => void,
   webhooks: () => EventRoutinesApi | undefined,
 ): RoutineFlowsHost | null {
@@ -18,6 +28,17 @@ export function webRoutineFlowsHost(
   if (!routineFlows || !updateRoutine || !testRoutine) return null;
   return {
     flows: routineFlows,
+    history: remote.routineFlowHistory ?? {
+      available: () => false,
+      api: {
+        page: async () => {
+          throw new Error(sourceText("error.team.routineFlowHistoryUnsupported"));
+        },
+        run: async () => {
+          throw new Error(sourceText("error.team.routineFlowHistoryUnsupported"));
+        },
+      },
+    },
     routines: { update: updateRoutine, test: testRoutine },
     get webhooks() {
       return webhooks();

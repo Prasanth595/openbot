@@ -14,8 +14,15 @@ import {
   type RoutineFlowStepStatus,
   type RoutineRunStatus,
 } from "@openbot/contracts/ipc";
+import {
+  ROUTINE_FLOW_HISTORY_TEXT_BYTES,
+  type RoutineFlowHistoryCursor,
+  type RoutineFlowHistoryRun,
+  type RoutineFlowHistoryStep,
+} from "@openbot/contracts/ipc-routine-flow-history";
 import { type DynamicRecord, isOneOf } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
+import { redactText } from "@openbot/logging";
 import { databaseRow, databaseRows } from "../database/database-rows";
 import type { OpenBotDatabase } from "../openbot-database";
 import { routineFlowConnectProblem, routineFlowDepths } from "./routine-flow-graph";
@@ -210,6 +217,84 @@ export class RoutineFlowStore {
     ).map(toStep);
   }
 
+  /** All stored participants, including agents whose links have since been removed. No text is read. */
+  historyVisible(runId: string, visible: ReadonlySet<string>): boolean {
+    let count = 0;
+    for (const value of this.#database.connection
+      .prepare("SELECT DISTINCT agent_id FROM routine_flow_steps WHERE run_id = ? LIMIT 1001")
+      .iterate(runId)) {
+      const row = databaseRow(value);
+      count += 1;
+      if (!row || count > 1000 || !visible.has(String(row.agent_id))) return false;
+    }
+    return true;
+  }
+
+  historyRun(agentId: string, routineId: string, runId: string): RoutineFlowHistoryRun | null {
+    const row = databaseRow(
+      this.#database.connection
+        .prepare(
+          `SELECT run_id, agent_id, routine_id, run_kind AS kind, status, scheduled_for, created_at, updated_at
+       FROM projection_routine_runs WHERE run_id = ? AND routine_id = ? AND agent_id = ? AND missed_count IS NULL`,
+        )
+        .get(runId, routineId, agentId),
+    );
+    return row
+      ? {
+          id: String(row.run_id),
+          agentId: String(row.agent_id),
+          routineId: String(row.routine_id),
+          kind: row.kind === "scheduled" ? "scheduled" : "manual",
+          status: isOneOf(RUN_STATUSES, row.status) ? row.status : "failed",
+          scheduledFor: String(row.scheduled_for),
+          createdAt: String(row.created_at),
+          updatedAt: String(row.updated_at),
+        }
+      : null;
+  }
+
+  /** Large values stay in SQLite. A field above the scan bound is omitted and marked, not exposed as an unscanned prefix. */
+  historySteps(runId: string, limit: number, cursor?: RoutineFlowHistoryCursor): RoutineFlowHistoryStep[] {
+    const textColumn = (column: "input" | "output" | "error") =>
+      `CASE WHEN length(${column}) <= ${ROUTINE_FLOW_HISTORY_TEXT_BYTES} THEN ${column} ELSE NULL END AS ${column},
+       CASE WHEN length(${column}) > ${ROUTINE_FLOW_HISTORY_TEXT_BYTES} THEN 1 ELSE 0 END AS ${column}_truncated`;
+    return databaseRows(
+      this.#database.connection
+        .prepare(
+          `SELECT step_id, run_id, agent_id, status, created_at, updated_at,
+              ${textColumn("input")}, ${textColumn("output")}, ${textColumn("error")}
+       FROM routine_flow_steps WHERE run_id = ?
+         ${cursor ? "AND (created_at > ? OR (created_at = ? AND step_id > ?))" : ""}
+       ORDER BY created_at, step_id LIMIT ?`,
+        )
+        .all(
+          runId,
+          ...(cursor ? [cursor.createdAt, cursor.createdAt, cursor.id] : []),
+          Math.max(1, Math.min(11, limit)),
+        ),
+    ).map((row) => {
+      const input = historyText(nullableString(row.input) ?? "");
+      const output = row.output === null ? null : historyText(String(row.output));
+      const error = row.error === null ? null : historyText(String(row.error));
+      return {
+        id: String(row.step_id),
+        runId: String(row.run_id),
+        agentId: String(row.agent_id),
+        status: isOneOf(ROUTINE_FLOW_STEP_STATUSES, row.status) ? row.status : "failed",
+        input: input.text,
+        output: output?.text ?? null,
+        error: error?.text ?? null,
+        createdAt: String(row.created_at),
+        updatedAt: String(row.updated_at),
+        truncated: {
+          input: row.input_truncated === 1 || input.truncated,
+          output: row.output_truncated === 1 || output?.truncated === true,
+          error: row.error_truncated === 1 || error?.truncated === true,
+        },
+      };
+    });
+  }
+
   stepForDelivery(deliveryId: string): RoutineFlowStep | null {
     const row = databaseRow(
       this.#database.connection.prepare("SELECT * FROM routine_flow_steps WHERE delivery_id = ?").get(deliveryId),
@@ -330,6 +415,15 @@ export class RoutineFlowStore {
       throw error;
     }
   }
+}
+
+function historyText(value: string): { text: string; truncated: boolean } {
+  const safe = redactText(value);
+  const bytes = Buffer.from(safe);
+  if (bytes.length <= ROUTINE_FLOW_HISTORY_TEXT_BYTES) return { text: safe, truncated: false };
+  let end = ROUTINE_FLOW_HISTORY_TEXT_BYTES;
+  while (end > 0 && (bytes[end] ?? 0) >= 0x80 && (bytes[end] ?? 0) < 0xc0) end -= 1;
+  return { text: bytes.subarray(0, end).toString("utf8"), truncated: true };
 }
 
 /** The links whose sending agent the flow no longer reaches. Without an owner, there is no flow to keep. */

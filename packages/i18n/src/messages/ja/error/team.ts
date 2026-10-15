@@ -115,4 +115,5 @@ export const messages = {
   "error.team.signInRelayUsed": "このサインインはすでに送信されています。",
   "error.team.signInRelayMismatch": "このアドレスはこのサインインのものではありません。",
   "error.team.signInRelayLinkUnknown": "このサーバーのエージェントはこのサインインリンクを表示していません。",
+  "error.team.routineFlowHistoryUnsupported": "このホストは保存されたルーチンの実行履歴に対応していません。",
 } as const satisfies PartialTranslation<typeof source>;

@@ -114,4 +114,5 @@ export const messages = defineMessages("error.team", {
   "error.team.signInRelayUsed": "This sign-in was already sent.",
   "error.team.signInRelayMismatch": "This address is not from this sign-in.",
   "error.team.signInRelayLinkUnknown": "No agent on this server showed this sign-in link.",
+  "error.team.routineFlowHistoryUnsupported": "This host does not support stored routine run history.",
 });

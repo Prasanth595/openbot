@@ -273,4 +273,6 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Oturum açma uygulaması eklemeden önce bu MCP sunucusunu URL sunucusu olarak kaydedin.",
   "error.backend.mcpSignInAppUnavailable": "Bu bilgisayar oturum açma uygulaması saklayamaz.",
+  "error.backend.routineFlowHistoryGone": "Bu rutin çalıştırması bulunamadı veya sizin için kullanılamıyor.",
+  "error.backend.routineFlowHistoryTooLarge": "Kayıtlı rutin çalıştırması görüntülenemeyecek kadar büyük.",
 } as const satisfies PartialTranslation<typeof source>;

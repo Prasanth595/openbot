@@ -5,6 +5,7 @@
  * selected routine shows what it asks for, which agents it starts, when it fires and how it went.
  */
 
+import type { RoutineFlowHistoryRun, RoutineFlowHistoryStep } from "@openbot/contracts/ipc-routine-flow-history";
 import { Badge, Button, ChevronLeft, CopyButton, Textarea } from "@openbot/ui";
 import { createEffect, createMemo, createSignal, For, flush, Show } from "solid-js";
 import type { AgentProfile } from "../../data";
@@ -23,7 +24,7 @@ import {
   diagramRoutinesReaching,
   diagramRunOf,
 } from "./diagram-graph";
-import type { Diagram, DiagramNode, DiagramStepRun } from "./diagram-model";
+import type { Diagram, DiagramNode, DiagramRoutineHistory, DiagramRunStatus, DiagramStepRun } from "./diagram-model";
 import {
   DIAGRAM_RUN_STATUS_KEY,
   DIAGRAM_STEP_STATUS_KEY,
@@ -45,6 +46,7 @@ export interface DiagramInspectorProps {
   onEditTask?: ((nodeId: string, routineId: string, task: string) => void) | undefined;
   /** Sets the webhook of a routine that a webhook starts. Without it, the webhook is not shown. */
   webhooks?: DiagramWebhookActions | undefined;
+  history?: DiagramRoutineHistory | undefined;
 }
 
 export function DiagramInspector(props: DiagramInspectorProps) {
@@ -199,6 +201,7 @@ export function DiagramInspector(props: DiagramInspectorProps) {
                   now={props.now}
                   onSelectNode={props.onSelectNode}
                   webhooks={props.webhooks}
+                  history={props.history}
                 />
               )}
             </Show>
@@ -394,8 +397,16 @@ function RoutineDetail(props: {
   now: Date;
   onSelectNode: (nodeId: string | null) => void;
   webhooks?: DiagramWebhookActions | undefined;
+  history?: DiagramRoutineHistory | undefined;
 }) {
   const { t, format } = useText();
+  createEffect(
+    () => ({ id: props.routine.id, history: props.history }),
+    ({ id, history }) => {
+      history?.onOpen(id);
+      return () => history?.onClose(id);
+    },
+  );
   const reach = createMemo(() => diagramRoutineReach(props.diagram.edges, props.routine.id));
   const started = () =>
     reach().direct.flatMap((id) => {
@@ -500,42 +511,247 @@ function RoutineDetail(props: {
       <section class="diagram-inspector-section">
         <h3 class="diagram-inspector-section-title">{t("diagram.routine.history")}</h3>
         <Show
-          when={props.routine.recentRuns.length > 0}
-          fallback={<p class="diagram-inspector-empty">{t("diagram.routine.noHistory")}</p>}
+          when={props.history?.state.page.kind === "unavailable" ? undefined : props.history}
+          fallback={
+            <>
+              <Show
+                when={props.routine.recentRuns.length > 0}
+                fallback={<p class="diagram-inspector-empty">{t("diagram.routine.noHistory")}</p>}
+              >
+                <ol class="diagram-inspector-history">
+                  <For each={props.routine.recentRuns.slice(0, HISTORY_LIMIT)}>
+                    {(run) => {
+                      const seconds = () =>
+                        run.finishedAt
+                          ? Math.max(0, Math.round((Date.parse(run.finishedAt) - Date.parse(run.startedAt)) / 1000))
+                          : null;
+                      return (
+                        <li>
+                          <span class="diagram-inspector-step-status" data-status={run.status}>
+                            <DiagramStepIcon status={diagramRunStepStatus(run.status)} />
+                            {t(DIAGRAM_RUN_STATUS_KEY[run.status])}
+                          </span>
+                          <span class="diagram-inspector-history-time">
+                            {when(run.startedAt)}
+                            <Show when={run.kind === "manual"}>
+                              <span class="diagram-inspector-history-kind">{t("diagram.routine.manual")}</span>
+                            </Show>
+                          </span>
+                          <Show when={seconds()}>
+                            {(value) => (
+                              <span class="diagram-inspector-muted">
+                                {t("diagram.inspector.seconds", { seconds: format.number(value()) })}
+                              </span>
+                            )}
+                          </Show>
+                        </li>
+                      );
+                    }}
+                  </For>
+                </ol>
+              </Show>
+              <Show when={props.history?.state.page.kind === "unavailable"}>
+                <p class="diagram-inspector-empty">{t("diagram.history.unsupported")}</p>
+              </Show>
+            </>
+          }
         >
-          <ol class="diagram-inspector-history">
-            <For each={props.routine.recentRuns.slice(0, HISTORY_LIMIT)}>
-              {(run) => {
-                const seconds = () =>
-                  run.finishedAt
-                    ? Math.max(0, Math.round((Date.parse(run.finishedAt) - Date.parse(run.startedAt)) / 1000))
-                    : null;
-                return (
-                  <li>
-                    <span class="diagram-inspector-step-status" data-status={run.status}>
-                      <DiagramStepIcon status={diagramRunStepStatus(run.status)} />
-                      {t(DIAGRAM_RUN_STATUS_KEY[run.status])}
-                    </span>
-                    <span class="diagram-inspector-history-time">
-                      {when(run.startedAt)}
-                      <Show when={run.kind === "manual"}>
-                        <span class="diagram-inspector-history-kind">{t("diagram.routine.manual")}</span>
-                      </Show>
-                    </span>
-                    <Show when={seconds()}>
-                      {(value) => (
-                        <span class="diagram-inspector-muted">
-                          {t("diagram.inspector.seconds", { seconds: format.number(value()) })}
-                        </span>
-                      )}
-                    </Show>
-                  </li>
-                );
-              }}
-            </For>
-          </ol>
+          {(history) => (
+            <RoutineHistory history={history()} routineNodeId={props.routine.id} agents={props.agents} when={when} />
+          )}
         </Show>
       </section>
     </>
+  );
+}
+
+function historyRunStatus(run: RoutineFlowHistoryRun): DiagramRunStatus {
+  if (run.status === "succeeded") return "succeeded";
+  if (run.status === "cancelled") return "cancelled";
+  if (run.status === "failed" || run.status === "interrupted") return "failed";
+  return "running";
+}
+
+function RoutineHistory(props: {
+  history: DiagramRoutineHistory;
+  routineNodeId: string;
+  agents: AgentProfile[];
+  when: (value: string) => string;
+}) {
+  const { t } = useText();
+  const state = () => (props.history.state.routineNodeId === props.routineNodeId ? props.history.state : null);
+  const page = () => {
+    const current = state()?.page;
+    return current?.kind === "ready" ? current : null;
+  };
+  const selected = () => {
+    const current = state()?.selected;
+    return current?.kind === "ready" ? current : null;
+  };
+  const selectedId = () => {
+    const current = state()?.selected;
+    return current?.kind === "ready" ? current.run.id : current && "runId" in current ? current.runId : null;
+  };
+  const pageError = () => {
+    const current = state()?.page;
+    return current && "error" in current ? current.error : null;
+  };
+  const selectedError = () => {
+    const current = state()?.selected;
+    return current && "error" in current ? current.error : null;
+  };
+  return (
+    <>
+      <Show when={state()?.page.kind === "unavailable"}>
+        <p class="diagram-inspector-empty">{t("diagram.history.unsupported")}</p>
+      </Show>
+      <Show when={state()?.page.kind === "loading"}>
+        <p class="diagram-inspector-muted" role="status">
+          {t("diagram.history.loading")}
+        </p>
+      </Show>
+      <Show when={pageError()}>
+        {(error) => (
+          <p role="alert" class="diagram-inspector-empty">
+            {error()}
+          </p>
+        )}
+      </Show>
+      <Show when={page()}>
+        {(current) => (
+          <>
+            <Show
+              when={current().runs.length > 0}
+              fallback={<p class="diagram-inspector-empty">{t("diagram.routine.noHistory")}</p>}
+            >
+              <ol class="diagram-inspector-history diagram-inspector-history-select">
+                <For each={current().runs}>
+                  {(run) => (
+                    <li>
+                      <Button
+                        variant="ghost"
+                        class="diagram-inspector-step"
+                        aria-pressed={selectedId() === run.id ? "true" : "false"}
+                        onClick={() => props.history.onSelect(run)}
+                      >
+                        <span class="diagram-inspector-step-status" data-status={historyRunStatus(run)}>
+                          <DiagramStepIcon status={diagramRunStepStatus(historyRunStatus(run))} />
+                          {t(DIAGRAM_RUN_STATUS_KEY[historyRunStatus(run)])}
+                        </span>
+                        <span class="diagram-inspector-history-time">
+                          {props.when(run.createdAt)}
+                          <Show when={run.kind === "manual"}>
+                            <span class="diagram-inspector-history-kind">{t("diagram.routine.manual")}</span>
+                          </Show>
+                        </span>
+                      </Button>
+                    </li>
+                  )}
+                </For>
+              </ol>
+            </Show>
+            <Show when={current().nextCursor}>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={current().loadingMore}
+                onClick={() => props.history.onMoreRuns()}
+              >
+                {t("diagram.history.moreRuns")}
+              </Button>
+            </Show>
+          </>
+        )}
+      </Show>
+      <Show when={state()?.page.kind !== "unavailable" && state()?.page.kind !== "loading"}>
+        <Button size="sm" variant="ghost" onClick={() => props.history.onOpen(props.routineNodeId)}>
+          {t("diagram.history.reload")}
+        </Button>
+      </Show>
+      <Show when={state()?.selected.kind === "loading"}>
+        <p class="diagram-inspector-muted" role="status">
+          {t("diagram.history.loadingSteps")}
+        </p>
+      </Show>
+      <Show when={selectedError()}>
+        {(error) => (
+          <p role="alert" class="diagram-inspector-empty">
+            {error()}
+          </p>
+        )}
+      </Show>
+      <Show when={selected()}>
+        {(current) => (
+          <section class="diagram-inspector-section">
+            <h3 class="diagram-inspector-section-title">
+              {t("diagram.history.selectedRun", { time: props.when(current().run.createdAt) })}
+            </h3>
+            <p class="diagram-inspector-muted">{t("diagram.history.readOnly")}</p>
+            <Show
+              when={current().steps.length > 0}
+              fallback={<p class="diagram-inspector-empty">{t("diagram.history.noStoredSteps")}</p>}
+            >
+              <For each={current().steps}>
+                {(step) => (
+                  <HistoryStep
+                    step={step}
+                    name={props.agents.find((agent) => agent.id === step.agentId)?.name ?? step.agentId}
+                  />
+                )}
+              </For>
+            </Show>
+            <Show when={current().nextCursor}>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={current().loadingMore}
+                onClick={() => props.history.onMoreSteps()}
+              >
+                {t("diagram.history.moreSteps")}
+              </Button>
+            </Show>
+          </section>
+        )}
+      </Show>
+    </>
+  );
+}
+
+function HistoryStep(props: { step: RoutineFlowHistoryStep; name: string }) {
+  const { t } = useText();
+  return (
+    <section class="diagram-inspector-section diagram-inspector-history-step">
+      <h3 class="diagram-inspector-section-title">{props.name}</h3>
+      <p class="diagram-inspector-muted">
+        {props.step.status === "cancelled" ? t("diagram.run.cancelled") : t(DIAGRAM_STEP_STATUS_KEY[props.step.status])}
+      </p>
+      <TextBlock
+        title={t("diagram.inspector.input")}
+        text={props.step.input}
+        empty={props.step.truncated.input ? t("diagram.history.truncated") : t("diagram.inspector.noInput")}
+      />
+      <Show when={props.step.truncated.input && props.step.input}>
+        <p class="diagram-inspector-muted">{t("diagram.history.truncated")}</p>
+      </Show>
+      <Show when={props.step.error || props.step.truncated.error}>
+        <TextBlock
+          title={t("diagram.inspector.error")}
+          text={props.step.error}
+          empty={props.step.truncated.error ? t("diagram.history.truncated") : ""}
+          tone="danger"
+        />
+      </Show>
+      <Show when={props.step.truncated.error && props.step.error}>
+        <p class="diagram-inspector-muted">{t("diagram.history.truncated")}</p>
+      </Show>
+      <TextBlock
+        title={t("diagram.inspector.output")}
+        text={props.step.output}
+        empty={props.step.truncated.output ? t("diagram.history.truncated") : t("diagram.inspector.noOutput")}
+      />
+      <Show when={props.step.truncated.output && props.step.output}>
+        <p class="diagram-inspector-muted">{t("diagram.history.truncated")}</p>
+      </Show>
+    </section>
   );
 }

@@ -69,6 +69,7 @@ import {
 } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_BROWSER_NAVIGATION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { ROUTINE_FLOW_HISTORY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flow-history-v1";
 import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-flows-v1";
 import { type TeamProtocolSupportV1, teamProtocolUpdateDirection } from "@openbot/contracts/team-protocol/v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
@@ -94,6 +95,7 @@ import {
   type RemoteTeamConnectionUpdate,
 } from "@openbot/team-client/remote-peer";
 import { remoteWorkspaceReadTimeout } from "@openbot/team-client/remote-recovery";
+import { type TeamRoutineFlowHistoryApi, teamRoutineFlowHistoryApi } from "@openbot/team-client/routine-flow-history";
 import { setAgentProviderAccount } from "@openbot/team-client/team-admin-requests";
 import {
   cancelQueuedMessage,
@@ -216,6 +218,7 @@ export interface WebWorkspaceRuntime {
   workspaceDirectory(agentId: string, path: string): Promise<WorkspaceDirectory>;
   /** The routine canvas routes. Each call refuses while the host does not serve `routine-flows-v1`. */
   routineFlows?: TeamRoutineFlowsApi;
+  routineFlowHistory?: { available(): boolean; api: TeamRoutineFlowHistoryApi };
   /** Changes an agent routine, such as its instruction. */
   updateRoutine?: (input: UpdateRoutineInput) => Promise<Routine>;
   /** Runs an agent routine now. */
@@ -565,6 +568,14 @@ export function createWebWorkspaceRuntime(
     return teamApi(method, path, decode, body);
   }
   const routineFlows = teamRoutineFlowsApi(routineFlowsRequest);
+  const routineFlowHistory = {
+    available: () => capabilities.includes(ROUTINE_FLOW_HISTORY_CAPABILITY),
+    api: teamRoutineFlowHistoryApi(async (method, path, decode, body) => {
+      if (!capabilities.includes(ROUTINE_FLOW_HISTORY_CAPABILITY))
+        throw new Error(currentText().t("error.team.routineFlowHistoryUnsupported"));
+      return teamApi(method, path, decode, body);
+    }),
+  };
   const browserView = createRemoteBrowserView(
     (data) => peer.sendHostStreamData(data),
     request,
@@ -966,6 +977,7 @@ export function createWebWorkspaceRuntime(
       return decodeWorkspaceDirectory(await request("POST", WORKSPACE_DIRECTORY_ROUTES.list, { agentId, path }));
     },
     routineFlows,
+    routineFlowHistory,
     updateRoutine: (input) =>
       runTeamEffect(updateAgentRoutine(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
     testRoutine: (input) =>

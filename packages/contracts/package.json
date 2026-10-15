@@ -134,7 +134,9 @@
     "./team-protocol/v7": "./src/team-protocol/v7.ts",
     "./team-protocol/v7-adapter": "./src/team-protocol/v7-adapter.ts",
     "./team-protocol/v7-base-adapter": "./src/team-protocol/v7-base-adapter.ts",
-    "./team-protocol/v7-webrtc-adapter": "./src/team-protocol/v7-webrtc-adapter.ts"
+    "./team-protocol/v7-webrtc-adapter": "./src/team-protocol/v7-webrtc-adapter.ts",
+    "./ipc-routine-flow-history": "./src/ipc-routine-flow-history.ts",
+    "./team-protocol/routine-flow-history-v1": "./src/team-protocol/routine-flow-history-v1.ts"
   },
   "scripts": {
     "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json"

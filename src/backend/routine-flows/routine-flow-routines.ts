@@ -25,5 +25,6 @@ export function routineFlowRoutines(routines: AgentRoutineStore): RoutineFlowsDe
       return record ? flowRoutine(record) : null;
     },
     listRuns: (agentId, routineId, limit) => routines.listRuns(agentId, routineId, limit),
+    historyRuns: (agentId, routineId, limit, cursor) => routines.historyRuns(agentId, routineId, limit, cursor),
   };
 }

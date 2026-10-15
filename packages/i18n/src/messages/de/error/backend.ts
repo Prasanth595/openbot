@@ -300,4 +300,6 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Speichere diesen MCP-Server als URL-Server, bevor du eine Anmelde-App hinzufügst.",
   "error.backend.mcpSignInAppUnavailable": "Dieser Computer kann keine Anmelde-App speichern.",
+  "error.backend.routineFlowHistoryGone": "Diese Routine-Ausführung fehlt oder ist für Sie nicht verfügbar.",
+  "error.backend.routineFlowHistoryTooLarge": "Die gespeicherte Routine-Ausführung ist zu groß für die Anzeige.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -17,6 +17,7 @@ import {
   ROUTINE_RUN_SOURCES,
 } from "@openbot/contracts/ipc";
 import type { EventFilter, EventJsonValue, EventRoutineOwner } from "@openbot/contracts/ipc-events";
+import type { RoutineFlowHistoryCursor, RoutineFlowHistoryRun } from "@openbot/contracts/ipc-routine-flow-history";
 import { type DynamicRecord, isDynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import {
@@ -76,6 +77,10 @@ export type RoutineRunStart = "scheduled" | RoutineRunSource;
 export interface OwnedRoutineRun extends RoutineRunFields {
   ownerId: string;
   handleId: string | null;
+}
+
+export interface OwnedRoutineHistoryRun extends Omit<RoutineFlowHistoryRun, "agentId"> {
+  ownerId: string;
 }
 
 export interface DueRoutine {
@@ -574,6 +579,45 @@ export class RoutineStore {
         )
         .all(routineId, ownerId, safeLimit),
     ).map((row) => this.#run(row));
+  }
+
+  /** A cursor does not depend on the row still being present. This read does not load stored instructions. */
+  protected historyRunRows(
+    ownerId: string,
+    routineId: string,
+    limit: number,
+    cursor?: RoutineFlowHistoryCursor,
+  ): OwnedRoutineHistoryRun[] {
+    const rows = this.database.connection
+      .prepare(
+        `SELECT run_id, routine_id, ${this.tables.ownerColumn} AS owner_id, run_kind AS kind, status,
+              scheduled_for, created_at, updated_at
+       FROM ${this.tables.runTable}
+       WHERE routine_id = ? AND ${this.tables.ownerColumn} = ? AND missed_count IS NULL
+         ${cursor ? "AND (created_at < ? OR (created_at = ? AND run_id < ?))" : ""}
+       ORDER BY created_at DESC, run_id DESC LIMIT ?`,
+      )
+      .all(
+        routineId,
+        ownerId,
+        ...(cursor ? [cursor.createdAt, cursor.createdAt, cursor.id] : []),
+        Math.max(1, Math.min(21, limit)),
+      );
+    return databaseRows(rows).map((row) => ({
+      id: requiredStringColumn(row, "run_id"),
+      routineId: requiredStringColumn(row, "routine_id"),
+      ownerId: requiredStringColumn(row, "owner_id"),
+      kind: row.kind === "scheduled" ? "scheduled" : "manual",
+      status: isOneOf(
+        ["queued", "running", "needs-attention", "succeeded", "failed", "interrupted", "cancelled"] as const,
+        row.status,
+      )
+        ? row.status
+        : "failed",
+      scheduledFor: requiredStringColumn(row, "scheduled_for"),
+      createdAt: requiredStringColumn(row, "created_at"),
+      updatedAt: requiredStringColumn(row, "updated_at"),
+    }));
   }
 
   /** Runs that were created but never got a handle - the crash window between the two writes. */

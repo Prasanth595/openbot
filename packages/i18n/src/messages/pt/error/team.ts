@@ -117,4 +117,5 @@ export const messages = {
   "error.team.signInRelayUsed": "Esta autenticação já foi enviada.",
   "error.team.signInRelayMismatch": "Este endereço não é desta autenticação.",
   "error.team.signInRelayLinkUnknown": "Nenhum agente deste servidor mostrou este link de entrada.",
+  "error.team.routineFlowHistoryUnsupported": "Este host não oferece suporte ao histórico salvo de rotinas.",
 } as const satisfies PartialTranslation<typeof source>;
