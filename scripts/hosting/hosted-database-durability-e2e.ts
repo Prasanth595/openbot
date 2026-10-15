@@ -47,8 +47,11 @@ interface CycleReport {
   check: DynamicRecord | null;
   writer?: DynamicRecord | null;
   pathView?: DynamicRecord | null;
-  /** False when the sandbox did not start again after the last stop: the check proves nothing. */
-  restored?: boolean;
+  /**
+   * False when the sandbox did not start again after the last stop: the check proves nothing. No
+   * value in the first cycle, which has no last stop.
+   */
+  restored: boolean | undefined;
   writeSeconds?: number;
   stoppedBy: "script" | "other";
 }
