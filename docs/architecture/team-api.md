@@ -245,6 +245,33 @@ client connected to an older host keeps text editing and hides selection control
 client can edit text on a new host without changing inclusion. Storage choices remain 64, 128,
 256, and 512. Lowering the setting never deletes existing entries.
 
+The optional `memory-directory-v1` capability adds two separate POST routes:
+`/v1/agent-memory-directory/metadata` reads one current annotation and
+`/v1/agent-memory-directory/set` saves a title and aliases with expected fact and annotation
+revisions. Editor metadata includes `annotationRevision` for the newest annotation event, also
+when a text correction made the hint stale or the owner removed it. A save checks that token as
+`expectedAnnotationRevision`. A stale editor therefore cannot replace a later removal. Both routes
+require an authenticated member and a visible agent, with the same mutation access
+as existing memory text controls. They return explicit public fields. A private text digest stays
+on the host. The new capability is advertised only to protocol 7 peers. An old host returns no
+metadata through the current client adapter; only the new label controls are hidden. Released
+memory codecs and routes keep their original shape and meaning.
+
+Conversation tools run on the host. `list_memory_directory` scans up to 25 current searchable
+records without a query, or up to 512 with a nonempty normalized query. One limited SQL iterator
+reads current records in ascending ID order. Both calls return at most 4,096 UTF-8 bytes. The
+reply stops before an entry exceeds that budget. `scanned` includes that inspected entry, but the
+cursor stays before its ID so the next page can return it. The cursor binds the caller agent and
+normalized query. A page with no matches and a continuation is an unfinished scan. A completed
+filtered scan returns no continuation, including when it finds no matches. Preserved profiles
+above 512 records use further pages. Existing count and continuation queries remain separate;
+the scan limit does not bound all internal SQLite work.
+The query matches normalized literal title or alias substrings, with Unicode NFKC, whitespace and
+case normalization. It does not translate or infer meaning. Pages read current data, without a
+snapshot promise. `read_memory` checks the current owner and both selected revisions, within
+8,192 bytes. Stale and missing results contain no previous fact or hint. A successful result has
+the current fact and its save-turn locator; that locator is not original supporting evidence.
+
 Only essential memories enter startup instructions, in a block limited to 8,192 UTF-8 bytes.
 Claude gets that block with a user turn instead: the full block in the first turn and after a
 compaction, and only the change after a memory edit. A memory change then keeps the cached

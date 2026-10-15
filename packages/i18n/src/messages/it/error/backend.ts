@@ -287,4 +287,12 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Salva questo server MCP come server con URL prima di aggiungere un'app di accesso.",
   "error.backend.mcpSignInAppUnavailable": "Questo computer non può conservare un'app di accesso.",
+  "error.backend.memoryDirectoryCursor":
+    "Il cursore della directory non è valido per questo agente o questa ricerca. Avvia una nuova ricerca.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Usa un titolo breve e fino a quattro alias letterali entro il limite delle etichette.",
+  "error.backend.memoryDirectoryUserControlled":
+    "Queste etichette sono controllate dall’utente. Salva il testo senza cambiare le etichette.",
+  "error.backend.memoryDirectoryConflict":
+    "La memoria o le sue etichette sono cambiate. Ricarica le etichette attuali prima di salvare.",
 } as const satisfies PartialTranslation<typeof source>;

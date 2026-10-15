@@ -25,6 +25,7 @@ import { INSTANCE_TRANSFER_CODECS } from "./instance-transfer-v1";
 import { LIVE_ACTIVITY_PUSH_CODECS } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_APP_CODECS } from "./mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_CODECS } from "./mcp-sign-in-v1";
+import { MEMORY_DIRECTORY_CODECS } from "./memory-directory-v1";
 import { ONEPASSWORD_CONNECTOR_CODECS } from "./onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_CODECS } from "./provider-accounts-v1";
 import { PROVIDER_HOST_SIGN_IN_CODECS } from "./provider-host-sign-in-v1";
@@ -47,6 +48,7 @@ export type { OptionalRouteCodec } from "./admin-wire";
 const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...AGENT_ADMIN_CODECS,
   ...AGENT_MEMORIES_CODECS,
+  ...MEMORY_DIRECTORY_CODECS,
   ...SKILLS_ADMIN_CODECS,
   ...SHARED_TABLES_CODECS,
   ...AGENT_INSTALL_CODECS,

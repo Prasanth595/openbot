@@ -287,4 +287,12 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "サインインアプリを追加する前に、この MCP サーバーを URL サーバーとして保存してください。",
   "error.backend.mcpSignInAppUnavailable": "このコンピューターではサインインアプリを保存できません。",
+  "error.backend.memoryDirectoryCursor":
+    "このエージェントまたは検索条件ではメモリーディレクトリのカーソルが無効です。検索をやり直してください。",
+  "error.backend.memoryDirectoryAnnotation":
+    "ラベルの上限内で、短いタイトルと最大4つの文字どおりの別名を使ってください。",
+  "error.backend.memoryDirectoryUserControlled":
+    "このラベルはユーザーが管理しています。ラベルを変更せずに本文を保存してください。",
+  "error.backend.memoryDirectoryConflict":
+    "メモリーまたはラベルが変更されました。保存する前に現在のラベルを再読み込みしてください。",
 } as const satisfies PartialTranslation<typeof source>;

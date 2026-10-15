@@ -1,4 +1,10 @@
 import { AGENT_MEMORY_CONTEXT_BUDGET_BYTES, essentialMemoryBytes } from "@openbot/contracts/agent-memory-context";
+import {
+  type AgentMemoryDirectoryMetadata,
+  isMemoryDirectoryAnnotation,
+  type MemoryDirectoryAnnotation,
+  normalizeMemoryDirectoryQuery,
+} from "@openbot/contracts/agent-memory-directory";
 import type { AcpRegistryEntry, AgentSessionSettings, McpSignInApp, McpSignInAppState } from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
@@ -161,6 +167,12 @@ export interface MockOpenBotOptions
   queues?: Record<string, QueueDelivery[]>;
   updateStatus?: UpdateStatus;
   memories?: Record<string, AgentMemory[]>;
+  memoryDirectoryAvailable?: boolean;
+  memoryDirectoryAnnotations?: Record<
+    string,
+    MemoryDirectoryAnnotation & { actor: "user" | "agent"; current?: boolean }
+  >;
+  memoryDirectoryConflict?: boolean;
   tables?: SharedTable[];
   routines?: Record<string, Routine[]>;
   /** Runs keyed by routine id, newest first. */
@@ -418,6 +430,48 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   );
   const memories = new Map<string, AgentMemory[]>(Object.entries(clone(options.memories ?? {})));
   const memorySelections = new Map<string, AgentMemorySelection>();
+  const memoryDirectoryAnnotations = new Map<
+    string,
+    MemoryDirectoryAnnotation & {
+      actor: "user" | "agent";
+      text: string;
+      updatedAt: string;
+      revision: number;
+    }
+  >();
+  let nextDirectoryRevision = 0;
+  for (const entries of memories.values())
+    for (const memory of entries) {
+      const annotation = options.memoryDirectoryAnnotations?.[memory.id];
+      if (annotation)
+        memoryDirectoryAnnotations.set(memory.id, {
+          title: annotation.title,
+          aliases: [...annotation.aliases],
+          actor: annotation.actor,
+          text: annotation.current === false ? "stale fixture" : memory.text,
+          updatedAt: memory.updatedAt,
+          revision: ++nextDirectoryRevision,
+        });
+    }
+  function getMemoryDirectoryMetadata(agentId: string, memoryId: string): AgentMemoryDirectoryMetadata | null {
+    if (options.memoryDirectoryAvailable === false) return null;
+    const memory = memories.get(agentId)?.find((entry) => entry.id === memoryId);
+    const selection = memorySelections.get(memoryId);
+    if (!memory || !selection) return null;
+    const annotation = memoryDirectoryAnnotations.get(memoryId);
+    const current = annotation?.title && annotation.text === memory.text && annotation.updatedAt === memory.updatedAt;
+    return {
+      memoryId,
+      memoryRevision: selection.revision,
+      directoryRevision: current ? annotation.revision : null,
+      annotationRevision: annotation?.revision ?? null,
+      title: current ? (annotation.title ?? "") : [...memory.text].slice(0, 48).join(""),
+      titleKind: current ? "explicit" : "current-text-excerpt",
+      aliases: current ? [...annotation.aliases] : [],
+      actor: annotation?.title ? annotation.actor : null,
+      annotationUserControlled: annotation?.actor === "user" && annotation.title !== null,
+    };
+  }
   for (const entries of memories.values()) {
     const selected: AgentMemory[] = [];
     for (const entry of [...entries].sort((left, right) => {
@@ -1473,6 +1527,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             const id = crypto.randomUUID();
             const selection = memorySelections.get(memory.id);
             if (selection) memorySelections.set(id, { ...selection, memoryId: id });
+            const annotation = memoryDirectoryAnnotations.get(memory.id);
+            if (annotation?.title && annotation.text === memory.text && annotation.updatedAt === memory.updatedAt)
+              memoryDirectoryAnnotations.set(id, {
+                ...annotation,
+                aliases: [...annotation.aliases],
+                revision: ++nextDirectoryRevision,
+              });
             return { ...memory, id, agentId: agent.id, sourceTurnId: null };
           }),
         );
@@ -1544,6 +1605,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       deleteAgent: async (agentId) => {
         agents = agents.filter((agent) => agent.id !== agentId);
         queues.delete(agentId);
+        for (const memory of memories.get(agentId) ?? []) memoryDirectoryAnnotations.delete(memory.id);
         memories.delete(agentId);
         routines.delete(agentId);
         // The host takes a deleted agent out of every channel it was a member of.
@@ -1566,6 +1628,36 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           });
         }
         emitAgentEvent({ type: "agents-changed", agents });
+      },
+      getMemoryDirectoryMetadata: async ({ agentId, memoryId }) => clone(getMemoryDirectoryMetadata(agentId, memoryId)),
+      setMemoryDirectoryMetadata: async (input) => {
+        const metadata = getMemoryDirectoryMetadata(input.agentId, input.memoryId);
+        const memory = memories.get(input.agentId)?.find((entry) => entry.id === input.memoryId);
+        if (!metadata || !memory) throw new Error(sourceText("error.backend.memoryGone"));
+        if (
+          options.memoryDirectoryConflict ||
+          metadata.memoryRevision !== input.expectedMemoryRevision ||
+          metadata.annotationRevision !== input.expectedAnnotationRevision
+        )
+          throw new Error(sourceText("error.backend.memoryDirectoryConflict"));
+        const title = input.title?.trim() || null;
+        const aliases = [...new Map(input.aliases.map((alias) => [normalizeMemoryDirectoryQuery(alias), alias.trim()]))]
+          .filter(([key]) => key.length > 0)
+          .map(([, alias]) => alias);
+        const annotation = { title, aliases };
+        if (!isMemoryDirectoryAnnotation(annotation))
+          throw new Error(sourceText("error.backend.memoryDirectoryAnnotation"));
+        memoryDirectoryAnnotations.set(input.memoryId, {
+          ...annotation,
+          actor: "user",
+          text: memory.text,
+          updatedAt: memory.updatedAt,
+          revision: ++nextDirectoryRevision,
+        });
+        emitAgentEvent({ type: "memories-changed", agentId: input.agentId });
+        const saved = getMemoryDirectoryMetadata(input.agentId, input.memoryId);
+        if (!saved) throw new Error(sourceText("error.backend.memoryGone"));
+        return clone(saved);
       },
       getMemorySelection: async (agentId) => clone(getMemorySelection(agentId)),
       setMemoryInclusion: async ({ agentId, changes }) => {
@@ -1631,6 +1723,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       deleteMemory: async (input) => {
         memorySelections.delete(input.memoryId);
+        memoryDirectoryAnnotations.delete(input.memoryId);
         memories.set(
           input.agentId,
           (memories.get(input.agentId) ?? []).filter((memory) => memory.id !== input.memoryId),
@@ -1638,7 +1731,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         emitAgentEvent({ type: "memories-changed", agentId: input.agentId });
       },
       clearMemories: async (agentId) => {
-        for (const entry of memories.get(agentId) ?? []) memorySelections.delete(entry.id);
+        for (const entry of memories.get(agentId) ?? []) {
+          memorySelections.delete(entry.id);
+          memoryDirectoryAnnotations.delete(entry.id);
+        }
         memories.delete(agentId);
         emitAgentEvent({ type: "memories-changed", agentId });
       },

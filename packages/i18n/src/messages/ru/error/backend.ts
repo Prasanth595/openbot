@@ -274,4 +274,12 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Сохраните этот MCP-сервер как URL-сервер, прежде чем добавлять приложение входа.",
   "error.backend.mcpSignInAppUnavailable": "Этот компьютер не может хранить приложение входа.",
+  "error.backend.memoryDirectoryCursor":
+    "Курсор каталога недействителен для этого агента или запроса. Начните новый поиск.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Используйте краткий заголовок и до четырёх буквальных псевдонимов в пределах лимита меток.",
+  "error.backend.memoryDirectoryUserControlled":
+    "Этими метками управляет пользователь. Сохраните текст без изменения меток.",
+  "error.backend.memoryDirectoryConflict":
+    "Память или её метки изменились. Перезагрузите текущие метки перед сохранением.",
 } as const satisfies PartialTranslation<typeof source>;

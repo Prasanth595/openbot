@@ -1,10 +1,12 @@
 import type { AgentMemory } from "@openbot/contracts/ipc";
-import { onCleanup } from "solid-js";
+import { onCleanup, onSettled, untrack } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { AgentMemoriesModal } from "../src/features/conversation/AgentMemoriesModal";
 import AgentSettingsPanel from "../src/features/conversation/AgentSettingsPanel";
+import { agentMemoriesPort } from "../src/features/conversation/memories-port";
 import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS } from "./fixtures";
-import { createMockOpenBot } from "./mock-openbot";
+import { createMockOpenBot, type MockOpenBotOptions } from "./mock-openbot";
 
 const storyAgent = STORY_AGENT;
 
@@ -125,4 +127,62 @@ export const FullList: Story = {
 
 export const EmptyState: Story = {
   render: () => <AgentMemoriesStory memories={[]} />,
+};
+
+function DirectoryModalStory(props: { options: MockOpenBotOptions }) {
+  const previousApi = window.openbot;
+  const mock = untrack(() => createMockOpenBot(props.options));
+  window.openbot = mock.api;
+  onSettled(() => () => {
+    mock.dispose();
+    window.openbot = previousApi;
+  });
+  return (
+    <AgentMemoriesModal
+      open={true}
+      onOpenChange={fn()}
+      onCountChange={fn()}
+      port={agentMemoriesPort("chief", "Chief", 64)}
+    />
+  );
+}
+
+export const CurrentLabels: Story = {
+  render: () => (
+    <DirectoryModalStory
+      options={{
+        memories: { chief: chiefMemories },
+        memoryDirectoryAnnotations: {
+          "memory-automatic": { title: "Progress reports", aliases: ["short updates"], actor: "user" },
+        },
+      }}
+    />
+  ),
+};
+
+export const StaleLabels: Story = {
+  render: () => (
+    <DirectoryModalStory
+      options={{
+        memories: { chief: chiefMemories },
+        memoryDirectoryAnnotations: {
+          "memory-automatic": { title: "Earlier reports", aliases: ["old hints"], actor: "user", current: false },
+        },
+      }}
+    />
+  ),
+};
+
+export const LabelConflict: Story = {
+  render: () => <DirectoryModalStory options={{ memories: { chief: chiefMemories }, memoryDirectoryConflict: true }} />,
+};
+
+export const OldHost: Story = {
+  render: () => (
+    <DirectoryModalStory options={{ memories: { chief: chiefMemories }, memoryDirectoryAvailable: false }} />
+  ),
+};
+
+export const EmptyDirectory: Story = {
+  render: () => <DirectoryModalStory options={{ memories: { chief: [] } }} />,
 };

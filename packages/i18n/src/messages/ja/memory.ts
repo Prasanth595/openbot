@@ -41,4 +41,20 @@ export const messages = {
   "memory.inclusion.explanation":
     "すべてのメモリーは保存されたままです。毎回のプロンプトに含まれるのは必須メモリーだけです。エージェントはそれ以外を検索できます。",
   "memory.inclusion.capacity": "必須メモリーの容量: {used} / {total}",
+  "memory.directory.label": "検索ラベル",
+  "memory.directory.explanation": "ラベルはエージェントの検索に役立ちます。毎回のプロンプトには入りません。",
+  "memory.directory.title": "短いタイトル",
+  "memory.directory.aliases": "別名",
+  "memory.directory.aliasHelp": "文字どおりの別名を1行に1つ、最大4つ。翻訳や意味の推測はしません。",
+  "memory.directory.fallback": "現在の本文を手がかりとして使います。この版のラベルを保存してください。",
+  "memory.directory.userLabels": "ユーザーが保存したラベルです。自動変更では置き換えられません。",
+  "memory.directory.agentLabels": "エージェントが保存したラベルです。",
+  "memory.directory.save": "ラベルを保存",
+  "memory.directory.remove": "カスタムラベルを削除",
+  "memory.directory.reload": "ラベルを再読み込み",
+  "memory.directory.loading": "ラベルを読み込み中…",
+  "memory.directory.loadFailed": "ラベルを読み込めませんでした。",
+  "memory.directory.saveFailed": "ラベルを保存できませんでした。",
+  "memory.directory.invalid":
+    "タイトルは96文字以内、別名は各64文字以内で最大4つです。合計512バイト以内にしてください。",
 } as const satisfies PartialTranslation<typeof source>;

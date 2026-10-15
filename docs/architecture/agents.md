@@ -1,5 +1,40 @@
 # Agents
 
+## On-demand memory discovery
+
+Saved short facts can have an explicit recall title and up to four literal aliases. The desktop
+memory editor shows these optional fields when the selected host supports `memory-directory-v1`.
+Save labels separately from a text correction. Removing custom labels returns to a marked excerpt
+of current text. Labels saved by the user are protected from automatic replacement, also after a
+text-only correction makes them stale. The fact text, origin and dates do not change on a label save.
+
+The two directory tools are deferred tools in the normal catalog. The agent searches for them,
+describes them, then lists current hints and reads a selected current ID. Hints are untrusted data.
+They do not automatically enter provider instructions or Claude's cached system prefix. A label
+edit refreshes the memory editor and keeps the provider session. Essential selections and their
+8,192-byte prompt budget retain their existing behavior.
+
+A directory call without a query inspects at most 25 current searchable records. A nonempty
+normalized query inspects at most 512, so a sparse label near the end of a configured profile can
+appear in one filtered lookup. Both calls return at most 4,096 UTF-8 bytes. A limited SQLite
+iterator reads records in ID order and stops when the reply budget is full. `scanned` includes
+an inspected row whose matching entry did not fit. The cursor stays before that row, so the next
+page inspects it again. Larger preserved profiles still need a continuation after 512 records.
+This bounds records examined by the tool, not total SQLite work for ordering, counting or disk
+access. The scripted fixture checks the host path and byte limits, not model recall quality.
+
+Annotations use private events in the existing memory aggregate. They are bound to the stored
+text and update time. Fact and annotation changes from `remember` commit in the same transaction
+after a successful turn. A conflict leaves both unchanged. Deduplication uses the actual surviving
+ID. Forget and clear purge earlier aggregate events and receipts. A local clone copies only current
+labels to fresh IDs with no source-owner save-turn locator.
+
+This feature uses the current short records and count choices. It adds no longer notes, semantic
+search, source capture, external session scan or correction history. Existing text-only exports,
+imports and instance transfers do not carry the labels. The public web editor remains unavailable;
+a web or mobile conversation can use the host tools. No VPS speed or real model recall claim is
+made by the scripted provider fixture.
+
 ## Local scripts API
 
 `src/main/automation-server.ts` is a loopback HTTP listener through which a local script sends

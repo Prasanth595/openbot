@@ -40,4 +40,22 @@ export const messages = defineMessages("memory", {
   "memory.inclusion.explanation":
     "All memories stay saved. Only essential memories enter every prompt. The agent can search the others.",
   "memory.inclusion.capacity": "Essential memory capacity: {used} of {total}",
+  "memory.directory.label": "Recall labels",
+  "memory.directory.explanation":
+    "Labels help this agent find a saved fact when needed. They do not enter every prompt.",
+  "memory.directory.title": "Short title",
+  "memory.directory.aliases": "Aliases",
+  "memory.directory.aliasHelp":
+    "Up to four literal aliases, one per line. Matching does not translate or infer meaning.",
+  "memory.directory.fallback": "Current text is used as a hint. Save labels to describe this version.",
+  "memory.directory.userLabels": "Labels saved by you. Automatic changes cannot replace them.",
+  "memory.directory.agentLabels": "Labels saved by the agent.",
+  "memory.directory.save": "Save labels",
+  "memory.directory.remove": "Remove custom labels",
+  "memory.directory.reload": "Reload labels",
+  "memory.directory.loading": "Loading labels…",
+  "memory.directory.loadFailed": "Could not load recall labels.",
+  "memory.directory.saveFailed": "Could not save recall labels.",
+  "memory.directory.invalid":
+    "Use a title of up to 96 characters and four aliases of up to 64 characters. Keep the labels within 512 bytes.",
 });

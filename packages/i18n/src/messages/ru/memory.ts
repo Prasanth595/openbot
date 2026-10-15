@@ -40,4 +40,20 @@ export const messages = {
   "memory.inclusion.explanation":
     "Все записи памяти сохраняются. В каждый промпт попадают только важные записи. Остальные агент может найти поиском.",
   "memory.inclusion.capacity": "Объём важной памяти: {used} из {total}",
+  "memory.directory.label": "Метки поиска",
+  "memory.directory.explanation": "Эти метки помогают агенту искать. Они не входят в каждый запрос.",
+  "memory.directory.title": "Краткий заголовок",
+  "memory.directory.aliases": "Псевдонимы",
+  "memory.directory.aliasHelp": "До четырёх буквальных псевдонимов, по одному в строке. Без перевода и вывода смысла.",
+  "memory.directory.fallback": "Текущий текст служит подсказкой. Сохраните метки для этой версии.",
+  "memory.directory.userLabels": "Сохранены вами. Автоматические изменения не могут заменить эти метки.",
+  "memory.directory.agentLabels": "Сохранены агентом.",
+  "memory.directory.save": "Сохранить метки",
+  "memory.directory.remove": "Удалить свои метки",
+  "memory.directory.reload": "Перезагрузить метки",
+  "memory.directory.loading": "Загрузка меток…",
+  "memory.directory.loadFailed": "Не удалось загрузить метки.",
+  "memory.directory.saveFailed": "Не удалось сохранить метки.",
+  "memory.directory.invalid":
+    "До 96 символов в заголовке и четырёх псевдонимов по 64 символа. Всего не более 512 байт.",
 } as const satisfies PartialTranslation<typeof source>;

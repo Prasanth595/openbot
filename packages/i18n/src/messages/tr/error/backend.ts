@@ -273,4 +273,11 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "Oturum açma uygulaması eklemeden önce bu MCP sunucusunu URL sunucusu olarak kaydedin.",
   "error.backend.mcpSignInAppUnavailable": "Bu bilgisayar oturum açma uygulaması saklayamaz.",
+  "error.backend.memoryDirectoryCursor": "Dizin imleci bu ajan veya sorgu için geçersiz. Yeni bir arama başlatın.",
+  "error.backend.memoryDirectoryAnnotation":
+    "Etiket sınırı içinde kısa bir başlık ve en fazla dört birebir diğer ad kullanın.",
+  "error.backend.memoryDirectoryUserControlled":
+    "Bu etiketleri kullanıcı yönetiyor. Etiketleri değiştirmeden metni kaydedin.",
+  "error.backend.memoryDirectoryConflict":
+    "Bellek veya etiketleri değişti. Kaydetmeden önce güncel etiketleri yeniden yükleyin.",
 } as const satisfies PartialTranslation<typeof source>;

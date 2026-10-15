@@ -78,6 +78,8 @@ type TeamApiAgentMethods = Pick<
   | "commitAgentDuplication"
   | "updateAgent"
   | "deleteAgent"
+  | "getMemoryDirectoryMetadata"
+  | "setMemoryDirectoryMetadata"
   | "getMemorySelection"
   | "setMemoryInclusion"
   | "listMemories"

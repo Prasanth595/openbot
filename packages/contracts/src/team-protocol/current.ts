@@ -35,6 +35,7 @@ import { INSTANCE_TRANSFER_CAPABILITY } from "./instance-transfer-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "./live-activity-push-v1";
 import { MCP_SIGN_IN_APP_CAPABILITY } from "./mcp-sign-in-app-v1";
 import { MCP_SIGN_IN_CAPABILITY } from "./mcp-sign-in-v1";
+import { MEMORY_DIRECTORY_CAPABILITY } from "./memory-directory-v1";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "./message-client-id-v1";
 import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "./onepassword-connector-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "./provider-accounts-v1";
@@ -104,6 +105,7 @@ export {
   MCP_SERVERS_CAPABILITY,
   MCP_SIGN_IN_APP_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
+  MEMORY_DIRECTORY_CAPABILITY,
   ONEPASSWORD_CONNECTOR_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
@@ -161,6 +163,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   STORAGE_CAPABILITY,
   AGENT_ADMIN_CAPABILITY,
   AGENT_MEMORIES_CAPABILITY,
+  MEMORY_DIRECTORY_CAPABILITY,
   AGENT_SESSION_SETTINGS_CAPABILITY,
   ACP_REGISTRY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
@@ -273,6 +276,7 @@ export function isAgentMessageRoute(method: string, path: string): boolean {
 export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
   (capability) =>
     capability !== AGENT_MEMORIES_CAPABILITY &&
+    capability !== MEMORY_DIRECTORY_CAPABILITY &&
     capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
     capability !== ACP_REGISTRY_CAPABILITY &&
     capability !== PROVIDERS_V5_CAPABILITY &&
@@ -301,6 +305,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
     (capability) =>
       capability !== "local-providers-v3" &&
       capability !== AGENT_MEMORIES_CAPABILITY &&
+      capability !== MEMORY_DIRECTORY_CAPABILITY &&
       capability !== AGENT_SESSION_SETTINGS_CAPABILITY &&
       capability !== ACP_REGISTRY_CAPABILITY &&
       capability !== PROVIDERS_V5_CAPABILITY &&

@@ -1,3 +1,10 @@
+import { MEMORY_DIRECTORY_CAPABILITY } from "@openbot/contracts/team-protocol/memory-directory-v1";
+import {
+  readAgentMemoryDirectoryMetadata,
+  setAgentMemoryDirectoryMetadata,
+} from "@openbot/team-client/memory-directory-requests";
+import { decodeMemoryDirectoryMetadataFromHost } from "../remote-memory-directory-decoding";
+import { parseGetAgentMemoryDirectory, parseSetAgentMemoryDirectory } from "./memory-directory-inputs";
 // An agent's long-lived memories: the notes it carries between threads.
 
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
@@ -33,6 +40,29 @@ export function memoryIpcHandlers({
 }: MemoryIpcDependencies): Pick<IpcGroupHandlers, "agentMemories"> {
   return {
     agentMemories: {
+      getMemoryDirectoryMetadata: scopedHandler(parseGetAgentMemoryDirectory, {
+        local: (input) => service.getMemoryDirectoryMetadata(input),
+        remote: (input, serverId) =>
+          runCauseEffect(
+            readAgentMemoryDirectoryMetadata(
+              (method, path, decode, body) => remoteServers.request(serverId, path, decode, { method, body }),
+              input,
+              remoteServers.supportsCapability(serverId, MEMORY_DIRECTORY_CAPABILITY),
+              decodeMemoryDirectoryMetadataFromHost,
+            ),
+          ),
+      }),
+      setMemoryDirectoryMetadata: scopedHandler(parseSetAgentMemoryDirectory, {
+        local: (input) => service.setMemoryDirectoryMetadata(input),
+        remote: (input, serverId) =>
+          runCauseEffect(
+            setAgentMemoryDirectoryMetadata(
+              (method, path, decode, body) => remoteServers.request(serverId, path, decode, { method, body }),
+              input,
+              decodeMemoryDirectoryMetadataFromHost,
+            ),
+          ),
+      }),
       getMemorySelection: scopedHandler(parseAgentId, {
         local: (agentId) => service.getMemorySelection(agentId),
         remote: (agentId, serverId) =>

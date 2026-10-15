@@ -40,4 +40,21 @@ export const messages = {
   "memory.inclusion.explanation":
     "Tüm bellekler kayıtlı kalır. Yalnızca temel bellekler her isteme girer. Ajan diğerlerinde arama yapabilir.",
   "memory.inclusion.capacity": "Temel bellek kapasitesi: {used} / {total}",
+  "memory.directory.label": "Hatırlama etiketleri",
+  "memory.directory.explanation": "Bu etiketler ajanın aramasına yardımcı olur. Her isteme eklenmezler.",
+  "memory.directory.title": "Kısa başlık",
+  "memory.directory.aliases": "Diğer adlar",
+  "memory.directory.aliasHelp":
+    "Satır başına bir tane, en fazla dört birebir diğer ad. Çeviri veya anlam çıkarımı yapılmaz.",
+  "memory.directory.fallback": "Güncel metin ipucu olarak kullanılır. Bu sürüm için etiketleri kaydedin.",
+  "memory.directory.userLabels": "Sizin kaydettiğiniz etiketler. Otomatik değişiklikler bunları değiştiremez.",
+  "memory.directory.agentLabels": "Ajanın kaydettiği etiketler.",
+  "memory.directory.save": "Etiketleri kaydet",
+  "memory.directory.remove": "Özel etiketleri kaldır",
+  "memory.directory.reload": "Etiketleri yeniden yükle",
+  "memory.directory.loading": "Etiketler yükleniyor…",
+  "memory.directory.loadFailed": "Etiketler yüklenemedi.",
+  "memory.directory.saveFailed": "Etiketler kaydedilemedi.",
+  "memory.directory.invalid":
+    "Başlık en fazla 96 karakter, dört diğer adın her biri en fazla 64 karakter olabilir. Toplam en fazla 512 bayt.",
 } as const satisfies PartialTranslation<typeof source>;

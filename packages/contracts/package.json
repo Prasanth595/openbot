@@ -33,6 +33,8 @@
     "./markdown-preview-text": "./src/markdown-preview-text.ts",
     "./selection-instruction": "./src/selection-instruction.ts",
     "./agent-memory-context": "./src/agent-memory-context.ts",
+    "./agent-memory-directory": "./src/agent-memory-directory.ts",
+    "./team-protocol/memory-directory-v1": "./src/team-protocol/memory-directory-v1.ts",
     "./ipc": "./src/ipc.ts",
     "./ipc-events": "./src/ipc-events.ts",
     "./ipc-skills": "./src/ipc-skills.ts",

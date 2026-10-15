@@ -40,4 +40,21 @@ export const messages = {
   "memory.inclusion.explanation":
     "Todos los recuerdos se conservan. Solo los recuerdos esenciales entran en cada prompt. El agente puede buscar los demás.",
   "memory.inclusion.capacity": "Capacidad de memoria esencial: {used} de {total}",
+  "memory.directory.label": "Etiquetas de consulta",
+  "memory.directory.explanation": "Estas etiquetas ayudan al agente a buscar. No se incluyen en cada petición.",
+  "memory.directory.title": "Título corto",
+  "memory.directory.aliases": "Alias",
+  "memory.directory.aliasHelp":
+    "Hasta cuatro alias literales, uno por línea. No hay traducción ni deducción de significado.",
+  "memory.directory.fallback": "El texto actual sirve de pista. Guarda etiquetas para esta versión.",
+  "memory.directory.userLabels": "Guardadas por ti. Los cambios automáticos no pueden sustituir estas etiquetas.",
+  "memory.directory.agentLabels": "Guardadas por el agente.",
+  "memory.directory.save": "Guardar etiquetas",
+  "memory.directory.remove": "Quitar etiquetas personalizadas",
+  "memory.directory.reload": "Recargar etiquetas",
+  "memory.directory.loading": "Cargando etiquetas…",
+  "memory.directory.loadFailed": "No se pudieron cargar las etiquetas.",
+  "memory.directory.saveFailed": "No se pudieron guardar las etiquetas.",
+  "memory.directory.invalid":
+    "Hasta 96 caracteres para el título y cuatro alias de 64 caracteres cada uno. Máximo 512 bytes en total.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -10,6 +10,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Schema } from "effect";
+import { AgentMemoryDirectory } from "./agent-memory-directory";
 import { initializeAgentMemorySelection } from "./agent-memory-selection";
 import { databaseRows, requiredNumberColumn, requiredStringColumn } from "./database/database-rows";
 import { MemoryStore, type MemoryTables, type SaveMemoryInput } from "./memory-store";
@@ -60,8 +61,11 @@ function agentMemoryTables(limit: () => number): MemoryTables {
 
 /** Owns saved agent memories, their selection, and local recall. Channel memories remain separate. */
 export class AgentMemoryStore extends MemoryStore {
+  readonly directory: AgentMemoryDirectory;
+
   constructor(database: OpenBotDatabase, limit: () => number = () => INPUT_LIMITS.agentMemories) {
     super(database, agentMemoryTables(limit));
+    this.directory = new AgentMemoryDirectory(database);
   }
 
   override list(agentId: string): AgentMemory[] {
@@ -88,6 +92,8 @@ export class AgentMemoryStore extends MemoryStore {
           this.database.connection
             .prepare("UPDATE agent_memory_selections SET inclusion = ?, user_controlled = ? WHERE memory_id = ?")
             .run(selection.inclusion, Number(selection.userControlled), memory.id);
+        const original = originals[index];
+        if (original) this.directory.copyCurrent(sourceAgentId, original.id, targetAgentId, memory.id);
       }
       this.#assertBudget(targetAgentId);
       return copied.map((memory) => ({ ...memory, agentId: targetAgentId }));

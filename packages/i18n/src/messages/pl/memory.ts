@@ -40,4 +40,21 @@ export const messages = {
   "memory.inclusion.explanation":
     "Wszystkie wspomnienia pozostają zapisane. Tylko kluczowe wspomnienia trafiają do każdego promptu. Pozostałe agent może przeszukiwać.",
   "memory.inclusion.capacity": "Pojemność kluczowej pamięci: {used} z {total}",
+  "memory.directory.label": "Etykiety wyszukiwania",
+  "memory.directory.explanation": "Te etykiety pomagają agentowi w wyszukiwaniu. Nie są dodawane do każdego polecenia.",
+  "memory.directory.title": "Krótki tytuł",
+  "memory.directory.aliases": "Aliasy",
+  "memory.directory.aliasHelp":
+    "Do czterech dosłownych aliasów, po jednym w wierszu. Bez tłumaczenia i wnioskowania znaczenia.",
+  "memory.directory.fallback": "Bieżący tekst służy jako wskazówka. Zapisz etykiety dla tej wersji.",
+  "memory.directory.userLabels": "Zapisane przez Ciebie. Automatyczne zmiany nie mogą zastąpić tych etykiet.",
+  "memory.directory.agentLabels": "Zapisane przez agenta.",
+  "memory.directory.save": "Zapisz etykiety",
+  "memory.directory.remove": "Usuń własne etykiety",
+  "memory.directory.reload": "Wczytaj etykiety ponownie",
+  "memory.directory.loading": "Wczytywanie etykiet…",
+  "memory.directory.loadFailed": "Nie można wczytać etykiet.",
+  "memory.directory.saveFailed": "Nie można zapisać etykiet.",
+  "memory.directory.invalid":
+    "Do 96 znaków w tytule i czterech aliasów po 64 znaki każdy. Łącznie maksymalnie 512 bajtów.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -1,4 +1,10 @@
 import { AGENT_MEMORY_CONTEXT_BUDGET_BYTES, essentialMemoryBytes } from "@openbot/contracts/agent-memory-context";
+import type {
+  AgentMemoryDirectoryMetadata,
+  GetAgentMemoryDirectoryInput,
+  MemoryDirectoryAnnotation,
+  SetAgentMemoryDirectoryInput,
+} from "@openbot/contracts/agent-memory-directory";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentEvent,
@@ -12,6 +18,7 @@ import type {
 import { isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
+import { AgentMemoryDirectoryError, parseMemoryDirectoryAnnotation } from "../agent-memory-directory";
 import {
   type AgentMemoryListPage,
   type AgentMemorySearchResult,
@@ -22,7 +29,15 @@ import type { AgentStore } from "../agent-store";
 import { normalizeMemoryText } from "../memory-store";
 import { type DynamicToolCallParams, isRecord } from "../protocol";
 import type { ConversationRuntime } from "./conversation-runtime";
-import { listMemoriesInput, searchMemoriesInput, setMemoryInclusionInput } from "./memory-tool-inputs";
+import {
+  listMemoriesInput,
+  listMemoryDirectoryInput,
+  MEMORY_SEARCH_EMPTY_GUIDANCE,
+  memoryDirectoryAnnotationInput,
+  readMemoryInput,
+  searchMemoriesInput,
+  setMemoryInclusionInput,
+} from "./memory-tool-inputs";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "./routine-tools";
 
 type PendingMemoryMutation =
@@ -46,6 +61,9 @@ type PendingMemoryMutation =
       expectedSelectionRevision?: number;
       duplicate?: { memoryId: string; expectedRevision: number };
       inclusion: "essential" | "searchable";
+      directory?: MemoryDirectoryAnnotation;
+      expectedDirectoryRevision?: number | null;
+      expectedDuplicateDirectoryRevision?: number | null;
     }
   | {
       callId: string;
@@ -56,6 +74,13 @@ type PendingMemoryMutation =
       expectedUpdatedAt: string;
       expectedSelectionRevision: number;
     };
+
+interface CommittedRemember {
+  memoryId: string;
+  annotated: boolean;
+  annotationBefore: number | null;
+  annotationAfter: number | null;
+}
 
 export interface AgentMemoriesOptions {
   store: AgentStore;
@@ -127,6 +152,22 @@ export class AgentMemories {
     return result;
   }
 
+  getDirectoryMetadata(input: GetAgentMemoryDirectoryInput): AgentMemoryDirectoryMetadata | null {
+    this.#conversation.requireKnownAgent(input.agentId);
+    return this.#memories.directory.metadata(input.agentId, input.memoryId);
+  }
+
+  setDirectoryMetadata(input: SetAgentMemoryDirectoryInput): AgentMemoryDirectoryMetadata {
+    this.#conversation.requireKnownAgent(input.agentId);
+    const annotation = parseMemoryDirectoryAnnotation(input);
+    const result = this.#memories.withMemoryTransaction(() =>
+      this.#memories.directory.set({ ...input, ...annotation }, "user", null),
+    );
+    // On-demand hints do not change essential context or the provider session configuration.
+    this.#emit({ type: "memories-changed", agentId: input.agentId });
+    return result;
+  }
+
   initializeSelection(agentId: string): void {
     this.#conversation.requireKnownAgent(agentId);
     this.#memories.initializeSelection(agentId);
@@ -175,7 +216,9 @@ export class AgentMemories {
       return this.#handleTool(params, senderAgentId, redact);
     } catch (error) {
       const message =
-        error instanceof AgentMemorySelectionError ? error.message : sourceText("error.backend.memoryOperationFailed");
+        error instanceof AgentMemorySelectionError || error instanceof AgentMemoryDirectoryError
+          ? error.message
+          : sourceText("error.backend.memoryOperationFailed");
       return openBotToolFailure(message);
     }
   }
@@ -188,12 +231,41 @@ export class AgentMemories {
     if (params.tool === "search_memories") {
       const parsed = searchMemoriesInput.safeParse(params.arguments);
       if (!parsed.success) return openBotToolFailure(sourceText("error.backend.memorySearchQuery"));
-      return memoryRecallResult(this.#memories.search(senderAgentId, parsed.data.query, parsed.data.limit), redact);
+      return memoryRecallResult(
+        this.#memories.search(senderAgentId, parsed.data.query, parsed.data.limit),
+        redact,
+        true,
+      );
     }
     if (params.tool === "list_memories") {
       const parsed = listMemoriesInput.safeParse(params.arguments);
       if (!parsed.success) return openBotToolFailure("after must be a memory ID or null.");
       return memoryRecallResult(this.#memories.listPage(senderAgentId, parsed.data.after ?? null), redact);
+    }
+    if (params.tool === "list_memory_directory") {
+      const parsed = listMemoryDirectoryInput.safeParse(params.arguments);
+      if (!parsed.success) return openBotToolFailure(sourceText("error.backend.memoryDirectoryCursor"));
+      const result = this.#memories.directory.list(
+        senderAgentId,
+        parsed.data.query ?? "",
+        parsed.data.cursor ?? null,
+        redact,
+      );
+      return { success: true, contentItems: [{ type: "inputText", text: redact(JSON.stringify(result)) }] };
+    }
+    if (params.tool === "read_memory") {
+      const parsed = readMemoryInput.safeParse(params.arguments);
+      if (!parsed.success) return openBotToolFailure("Provide the memory ID and both revisions from the directory.");
+      const result = this.#memories.directory.read(
+        senderAgentId,
+        parsed.data.memoryId,
+        parsed.data.expectedMemoryRevision,
+        parsed.data.expectedDirectoryRevision,
+      );
+      const text = redact(JSON.stringify(result));
+      if (Buffer.byteLength(text, "utf8") > AGENT_MEMORY_CONTEXT_BUDGET_BYTES)
+        return openBotToolFailure(sourceText("error.backend.memoryOperationFailed"));
+      return { success: true, contentItems: [{ type: "inputText", text }] };
     }
     if (params.tool === "set_memory_inclusion") {
       const parsed = setMemoryInclusionInput.safeParse(params.arguments);
@@ -233,6 +305,11 @@ export class AgentMemories {
         return openBotToolFailure(sourceText("error.backend.memoryTextTooLong"));
       if (args.inclusion !== undefined && args.inclusion !== "essential" && args.inclusion !== "searchable")
         return openBotToolFailure("inclusion must be essential or searchable.");
+      const parsedDirectory =
+        args.directory === undefined ? undefined : memoryDirectoryAnnotationInput.safeParse(args.directory);
+      if (parsedDirectory && !parsedDirectory.success)
+        return openBotToolFailure(sourceText("error.backend.memoryDirectoryAnnotation"));
+      const directory = parsedDirectory?.success ? parseMemoryDirectoryAnnotation(parsedDirectory.data) : undefined;
       const memoryId = args.memoryId;
       if (
         memoryId !== undefined &&
@@ -242,11 +319,28 @@ export class AgentMemories {
       }
       const current = memoryId ? this.#memories.get(senderAgentId, memoryId) : null;
       if (memoryId && !current) return openBotToolFailure("This memory does not belong to the current agent.");
+      if (directory && current)
+        this.#memories.directory.checkAutomatic(
+          senderAgentId,
+          current.id,
+          this.#memories.directory.annotationRevision(senderAgentId, current.id),
+          directory,
+          false,
+        );
       const planned = this.#plannedContext(senderAgentId, params.turnId, params.callId);
       const duplicateEntry = [...planned.all].find(([key, memory]) => key !== memoryId && memory.text === text);
       const duplicate = duplicateEntry?.[1];
       const sourceSelection = current ? this.#memories.getSelection(senderAgentId, current.id) : null;
       const duplicateSelection = duplicate ? this.#memories.getSelection(senderAgentId, duplicate.id) : null;
+      if (duplicate && current) this.#memories.directory.checkMerge(senderAgentId, current.id, duplicate.id);
+      if (directory && duplicate && duplicateSelection)
+        this.#memories.directory.checkAutomatic(
+          senderAgentId,
+          duplicate.id,
+          this.#memories.directory.annotationRevision(senderAgentId, duplicate.id),
+          directory,
+          true,
+        );
       const selectedId = duplicate?.id ?? current?.id;
       const selectedKey = duplicateEntry?.[0] ?? current?.id;
       const selection = duplicateSelection ?? sourceSelection;
@@ -308,6 +402,17 @@ export class AgentMemories {
           ? { duplicate: { memoryId: duplicate.id, expectedRevision: duplicateSelection.revision } }
           : {}),
         inclusion,
+        ...(directory
+          ? {
+              directory,
+              expectedDirectoryRevision: current
+                ? this.#memories.directory.annotationRevision(senderAgentId, current.id)
+                : null,
+              expectedDuplicateDirectoryRevision: duplicate
+                ? this.#memories.directory.annotationRevision(senderAgentId, duplicate.id)
+                : null,
+            }
+          : {}),
       });
       return openBotToolResult({
         status: "staged",
@@ -354,17 +459,26 @@ export class AgentMemories {
     if (status !== "completed" || pending.length === 0) return;
 
     const affectedAgents = new Set<string>();
+    const directoryAgents = new Set<string>();
     const createdMemories = new Set<string>();
     const ownRevisions = new Map<string, Map<number, number>>();
+    const ownAnnotationRevisions = new Map<string, Map<number | null, number | null>>();
     const revisionAfterOwnChanges = (agentId: string, memoryId: string, revision: number): number => {
       const changes = ownRevisions.get(`${agentId}:${memoryId}`);
       let next = revision;
       while (changes?.has(next)) next = changes.get(next) ?? next;
       return next;
     };
+    const annotationAfterOwnChanges = (agentId: string, memoryId: string, revision: number | null): number | null => {
+      const changes = ownAnnotationRevisions.get(`${agentId}:${memoryId}`);
+      let next = revision;
+      while (changes?.has(next)) next = changes.get(next) ?? null;
+      return next;
+    };
     for (const mutation of pending) {
       if (mutation.epoch !== this.#epoch(mutation.agentId)) continue;
       const before = this.#storedState(mutation.agentId);
+      let directoryChanged = false;
       const previousSelections = this.#memories.listSelections(mutation.agentId);
       try {
         if (mutation.type === "selection")
@@ -376,8 +490,8 @@ export class AgentMemories {
             })),
             "agent",
           );
-        else if (mutation.type === "remember")
-          this.#commitRemember(
+        else if (mutation.type === "remember") {
+          const committed = this.#commitRemember(
             {
               ...mutation,
               ...(mutation.duplicate
@@ -403,8 +517,16 @@ export class AgentMemories {
                 : {}),
             },
             createdMemories,
+            (memoryId, revision) => annotationAfterOwnChanges(mutation.agentId, memoryId, revision),
           );
-        else if (
+          if (committed?.annotated) {
+            directoryChanged = true;
+            const key = `${mutation.agentId}:${committed.memoryId}`;
+            const changes = ownAnnotationRevisions.get(key) ?? new Map<number | null, number | null>();
+            changes.set(committed.annotationBefore, committed.annotationAfter);
+            ownAnnotationRevisions.set(key, changes);
+          }
+        } else if (
           !this.#memories.getSelection(mutation.agentId, mutation.memoryId)?.userControlled &&
           this.#memories.getSelection(mutation.agentId, mutation.memoryId)?.revision ===
             revisionAfterOwnChanges(mutation.agentId, mutation.memoryId, mutation.expectedSelectionRevision)
@@ -427,8 +549,11 @@ export class AgentMemories {
         ownRevisions.set(key, revisions);
       }
       if (this.#storedState(mutation.agentId) !== before) affectedAgents.add(mutation.agentId);
+      else if (directoryChanged) directoryAgents.add(mutation.agentId);
     }
     for (const agentId of affectedAgents) this.stateChanged(agentId);
+    for (const agentId of directoryAgents)
+      if (!affectedAgents.has(agentId)) this.#emit({ type: "memories-changed", agentId });
   }
 
   /** Reserve prompt space for this turn's staged changes, without making them visible to search. */
@@ -478,8 +603,12 @@ export class AgentMemories {
     });
   }
 
-  #commitRemember(mutation: Extract<PendingMemoryMutation, { type: "remember" }>, createdMemories: Set<string>): void {
-    this.#memories.withMemoryTransaction(() => {
+  #commitRemember(
+    mutation: Extract<PendingMemoryMutation, { type: "remember" }>,
+    createdMemories: Set<string>,
+    annotationAfterOwnChanges: (memoryId: string, revision: number | null) => number | null,
+  ): CommittedRemember | null {
+    return this.#memories.withMemoryTransaction(() => {
       const duplicate = this.#memories
         .list(mutation.agentId)
         .find((memory) => memory.id !== mutation.memoryId && memory.text === mutation.text);
@@ -489,9 +618,29 @@ export class AgentMemories {
           duplicate?.id !== mutation.duplicate.memoryId ||
           duplicateSelection?.revision !== mutation.duplicate.expectedRevision
         )
-          return;
-      } else if (duplicate && !createdMemories.has(duplicate.id)) return;
-      if (duplicateSelection?.userControlled && duplicateSelection.inclusion !== mutation.inclusion) return;
+          return null;
+      } else if (duplicate && !createdMemories.has(duplicate.id)) return null;
+      if (duplicateSelection?.userControlled && duplicateSelection.inclusion !== mutation.inclusion) return null;
+      if (duplicate && mutation.memoryId)
+        this.#memories.directory.checkMerge(mutation.agentId, mutation.memoryId, duplicate.id);
+      if (mutation.directory) {
+        if (mutation.memoryId)
+          this.#memories.directory.checkAutomatic(
+            mutation.agentId,
+            mutation.memoryId,
+            annotationAfterOwnChanges(mutation.memoryId, mutation.expectedDirectoryRevision ?? null),
+            mutation.directory,
+            false,
+          );
+        if (duplicate)
+          this.#memories.directory.checkAutomatic(
+            mutation.agentId,
+            duplicate.id,
+            annotationAfterOwnChanges(duplicate.id, mutation.expectedDuplicateDirectoryRevision ?? null),
+            mutation.directory,
+            true,
+          );
+      }
       if (mutation.memoryId) {
         const current = this.#memories.get(mutation.agentId, mutation.memoryId);
         const selection = this.#memories.getSelection(mutation.agentId, mutation.memoryId);
@@ -501,7 +650,7 @@ export class AgentMemories {
           selection.revision !== mutation.expectedSelectionRevision ||
           (duplicate && selection.userControlled)
         )
-          return;
+          return null;
         // An explicit move to searchable can make room for a longer corrected text.
         if (mutation.inclusion === "searchable" && selection.inclusion === "essential") {
           this.#memories.setInclusions(
@@ -517,17 +666,34 @@ export class AgentMemories {
         text: mutation.text,
         sourceTurnId: mutation.sourceTurnId,
       });
-      if (!memory) return;
+      if (!memory) return null;
+      const annotated = mutation.directory !== undefined;
+      const annotationBefore = this.#memories.directory.annotationRevision(mutation.agentId, memory.id);
+      if (mutation.directory)
+        this.#memories.directory.annotateAutomatic(
+          mutation.agentId,
+          memory.id,
+          mutation.directory,
+          mutation.sourceTurnId,
+        );
+      const committed: CommittedRemember = {
+        memoryId: memory.id,
+        annotated,
+        annotationBefore,
+        annotationAfter: this.#memories.directory.annotationRevision(mutation.agentId, memory.id),
+      };
       const selection = this.#memories.getSelection(mutation.agentId, memory.id);
-      if (!selection || selection.inclusion === mutation.inclusion || selection.userControlled) return;
+      if (!selection || selection.inclusion === mutation.inclusion || selection.userControlled) return committed;
       const next = [...this.essentialFor(mutation.agentId), memory];
       // Another turn may have used the remaining budget. Keep the saved text searchable.
-      if (mutation.inclusion === "essential" && essentialMemoryBytes(next) > AGENT_MEMORY_CONTEXT_BUDGET_BYTES) return;
+      if (mutation.inclusion === "essential" && essentialMemoryBytes(next) > AGENT_MEMORY_CONTEXT_BUDGET_BYTES)
+        return committed;
       this.#memories.setInclusions(
         mutation.agentId,
         [{ memoryId: memory.id, inclusion: mutation.inclusion, expectedRevision: selection.revision }],
         "agent",
       );
+      return committed;
     });
   }
 
@@ -625,14 +791,22 @@ export class AgentMemories {
 function memoryRecallResult(
   result: AgentMemorySearchResult | AgentMemoryListPage,
   redact: (value: string) => string,
+  emptySearchGuidance = false,
 ): OpenBotToolResponse {
+  const payload =
+    emptySearchGuidance && result.memories.length === 0 && !result.hasMore
+      ? { ...result, guidance: MEMORY_SEARCH_EMPTY_GUIDANCE }
+      : result;
   while (
-    Buffer.byteLength(redact(JSON.stringify(result)), "utf8") > AGENT_MEMORY_CONTEXT_BUDGET_BYTES &&
+    Buffer.byteLength(redact(JSON.stringify(payload)), "utf8") > AGENT_MEMORY_CONTEXT_BUDGET_BYTES &&
     result.memories.length > 0
   ) {
     result.memories.pop();
     result.hasMore = true;
     if ("nextCursor" in result) result.nextCursor = result.memories.at(-1)?.id ?? null;
   }
-  return { success: true, contentItems: [{ type: "inputText", text: redact(JSON.stringify(result)) }] };
+  const text = redact(JSON.stringify(payload));
+  if (Buffer.byteLength(text, "utf8") > AGENT_MEMORY_CONTEXT_BUDGET_BYTES)
+    return openBotToolFailure(sourceText("error.backend.memoryOperationFailed"));
+  return { success: true, contentItems: [{ type: "inputText", text }] };
 }
