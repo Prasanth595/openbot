@@ -336,16 +336,23 @@ Automation can poll that metadata and download an image. Installation needs thes
 1. Read the release notes and check that the candidate is newer than the running version. Stop on
    an API error or an unexpected tag. Do not substitute `latest` for a failed version lookup.
 2. Compare your deployment files with the files at the candidate release tag. Check
-   `docker/compose.yaml` and `docker/seccomp.json`. For managed instances, check the
-   `docker/instances/` files too. These files can change between releases; there is no promise that
-   an old copy remains sufficient. Stop for operator review when they change. Keep local settings.
+   `docker/compose.yaml` and `docker/seccomp.json`. For an instance of `docker/instances`, check
+   the `docker/instances/` files too. These files can change between releases; there is no promise
+   that an old copy remains sufficient. Stop for operator review when they change. Keep local
+   settings.
 3. Pull the exact image tag and check its release version and architecture before replacing the
    container. The release workflow publishes the GitHub release before the image tags, so a new
    release can appear while its image is not available yet. A failed pull leaves installation pending.
-4. Stop the container, confirm that it stopped, and back up the complete `/data` recovery unit,
-   including the keyring and password file. See [Data](#data). Keep the previous complete backup.
-5. Replace the container with the chosen image and the same volume and runtime options. Check
-   `openbot status` and the container log before the upgrade is reported as complete.
+4. Back up the complete `/data` recovery unit, including the keyring and password file. For an
+   instance of `docker/instances`, run `openbot-instance backup <name> --verify`, see
+   [Backups](#backups). For a container from `docker/compose.yaml` or `docker run`, stop the
+   container, confirm that it stopped, and copy the volume, see [Data](#data). Keep the previous
+   complete backup.
+5. Replace the container with the chosen image and the same volume and runtime options. For an
+   instance of `docker/instances`, set `OPENBOT_TAG` in its env file and run
+   `openbot-instance upgrade <name>`. This command takes the lock of the instance, so no backup,
+   restore or update from the app runs at the same time. A manual replacement does not take the
+   lock. Check `openbot status` and the container log before the upgrade is reported as complete.
 
 An unattended image watcher does not perform these checks or make a consistent backup. Keep the
 installation step under operator control unless your own job implements them. A failed upgrade
