@@ -1,36 +1,86 @@
+// Run: bun scripts/stream-restart-e2e.ts
+// Report: .openbot-build/stream-restart-e2e.json
+
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { watch } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 import { Effect, Result } from "effect";
-import { restartActivityGeneration } from "../src/backend/restart-activity.ts";
-import { TeamWebRtcFileTransfer } from "../src/main/team-webrtc-file-transfer.ts";
+import { restartActivityGeneration } from "../src/backend/restart-activity";
+import type { TeamWebRtcBridge } from "../src/main/team-webrtc-bridge";
+import { TeamWebRtcFileTransfer } from "../src/main/team-webrtc-file-transfer";
+
+type BridgeEvents = TeamWebRtcBridge extends EventEmitter<infer Events> ? Events : never;
 
 // No peer traffic is expected before the input stream ends.
-class InertBridge extends EventEmitter {
+class InertBridge extends EventEmitter<BridgeEvents> {
   sends = 0;
 
-  send() {
+  readonly send: TeamWebRtcBridge["send"] = (..._input) => {
     this.sends += 1;
     return Effect.die(new Error("Unexpected peer traffic during disk spooling."));
-  }
+  };
+
+  readonly disconnectPeer: TeamWebRtcBridge["disconnectPeer"] = (..._input) =>
+    Effect.die(new Error("Unexpected peer disconnect during disk spooling."));
 }
 
-async function waitForDiskBytes(directory, bytes, signal) {
-  while (!signal.aborted) {
-    for (const filename of await readdir(directory)) {
-      if (!filename.endsWith(".outgoing")) continue;
-      const path = join(directory, filename);
-      const written = await readFile(path);
-      if (written.equals(bytes)) return path;
-    }
-  }
+async function waitForDiskBytes(directory: string, bytes: Buffer, signal: AbortSignal): Promise<string> {
   signal.throwIfAborted();
+  let wake = () => {};
+  let watcherError: Error | undefined;
+  const watcher = watch(directory, () => wake());
+  watcher.on("error", (error) => {
+    watcherError = error;
+    wake();
+  });
+  const onAbort = () => wake();
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    while (true) {
+      // Register the next wake before reading, so a write during the read is not lost.
+      const changed = new Promise<void>((resolve) => {
+        wake = resolve;
+      });
+      signal.throwIfAborted();
+      if (watcherError) throw watcherError;
+      for (const filename of await readdir(directory)) {
+        if (!filename.endsWith(".outgoing")) continue;
+        const path = join(directory, filename);
+        const written = await readFile(path);
+        if (written.equals(bytes)) return path;
+      }
+      await changed;
+    }
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+    watcher.close();
+  }
 }
 
-async function checkWriting(directory, action) {
+type StreamAction = "failure" | "stop";
+
+interface ScenarioReport {
+  action: StreamAction;
+  bytesOnDisk: number;
+  activeWhileWriting: boolean;
+  generationBefore: number;
+  generationDuring: number;
+  inactiveAfterCleanup: boolean;
+  temporaryFileRemoved: boolean;
+  peerFrames: number;
+}
+
+interface StreamRestartReport {
+  status: "failed" | "passed";
+  scenarios: ScenarioReport[];
+  error?: string;
+}
+
+async function checkWriting(directory: string, action: StreamAction): Promise<ScenarioReport> {
   await mkdir(directory);
   const bridge = new InertBridge();
   const service = new TeamWebRtcFileTransfer(bridge, directory);
@@ -68,7 +118,10 @@ async function checkWriting(directory, action) {
     const result = await sending;
     assert.ok(Result.isFailure(result), "The unfinished stream must fail.");
     if (action === "failure") assert.equal(result.failure.cause, failure);
-    else assert.equal(result.failure.cause.name, "AbortError", "Stop must cancel the disk pipeline.");
+    else {
+      assert.ok(result.failure.cause instanceof Error, "Stop must report a pipeline error.");
+      assert.equal(result.failure.cause.name, "AbortError", "Stop must cancel the disk pipeline.");
+    }
     assert.equal(service.hasActiveTransfers(), false, "Cleanup must leave no active transfer.");
     assert.deepEqual(await readdir(directory), [], "Cleanup must remove the temporary outgoing file.");
     assert.equal(bridge.sends, 0);
@@ -96,7 +149,7 @@ async function checkWriting(directory, action) {
 }
 
 const artifactDirectory = new URL("../.openbot-build/", import.meta.url);
-const report = { status: "failed", scenarios: [] };
+const report: StreamRestartReport = { status: "failed", scenarios: [] };
 const directory = await mkdtemp(join(tmpdir(), "openbot-stream-restart-"));
 try {
   report.scenarios.push(await checkWriting(join(directory, "failure"), "failure"));
