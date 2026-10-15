@@ -4086,8 +4086,8 @@ a {
   right: clamp(26px, 3vw, 40px);
   width: clamp(130px, 15vw, 200px);
   height: clamp(130px, 15vw, 200px);
-  /* About 3 px at this size; the icon stroke of 2 is for 24 px. */
-  stroke-width: 0.4;
+  /* About 6 px at this size; the icon stroke of 2 is for 24 px. */
+  stroke-width: 0.75;
   opacity: 0.85;
 }
 
@@ -4155,7 +4155,7 @@ a {
   .landing-teams-card-icon {
     width: 110px;
     height: 110px;
-    stroke-width: 0.5;
+    stroke-width: 0.9;
   }
 }
 
