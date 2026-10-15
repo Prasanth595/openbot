@@ -18,7 +18,7 @@ export const messages = {
   "update.provider.updating": "{name} wird aktualisiert",
   "update.provider.failed": "Update für {name} fehlgeschlagen",
   "update.provider.settingUp": "Wird eingerichtet",
-  "update.provider.interrupted": "Das Update wurde unterbrochen. Versuche es erneut.",
+  "update.provider.failedRetry": "Das Update ist fehlgeschlagen. Versuche es erneut.",
   "update.provider.unknownVersion": "unbekannte Version",
   "update.provider.remoteHost": "Updates der Anbieter-CLIs laufen auf dem Computer, der sie hostet.",
   "update.provider.unavailable": "Anbieter-Updates sind nicht verfügbar.",

@@ -16,7 +16,12 @@ import type {
 import { isNewCustomAgentId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { checkAcpAgent } from "../backend/acp-agent-check";
-import { assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "../backend/acp-agent-command";
+import {
+  agentLaunchPath,
+  assertAgentArgs,
+  assertWindowsScriptArgs,
+  resolveAgentCommand,
+} from "../backend/acp-agent-command";
 import { AgentLifecycleFailed, type AgentService } from "../backend/agent-service";
 import type { CustomAgentStore } from "./custom-agent-store";
 
@@ -141,7 +146,9 @@ export function createCustomAgentChanges({
             cause: new Error(sourceText("error.provider.customAgentNotFound", { command: input.command })),
           });
         yield* runtimeSync(() => assertWindowsScriptArgs(executable, input.args));
-        return yield* check({ executable, args: input.args, env }).pipe(toProviderRuntimeFailure);
+        // The same `PATH` the agent starts with.
+        const path = yield* agentLaunchPath().pipe(toProviderRuntimeFailure);
+        return yield* check({ executable, args: input.args, env, path }).pipe(toProviderRuntimeFailure);
       })().pipe(Effect.uninterruptible),
   };
 }

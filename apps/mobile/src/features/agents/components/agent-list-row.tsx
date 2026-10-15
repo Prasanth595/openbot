@@ -1,12 +1,11 @@
-import type { MenuComponentRef } from "@expo/ui/community/menu";
 import { markdownPreviewText } from "@openbot/contracts/markdown-preview-text";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { BlurView } from "expo-blur";
 import { Link } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { type PropsWithChildren, useEffect, useId, useMemo, useRef } from "react";
-import { Platform, StyleSheet, useWindowDimensions, View } from "react-native";
+import { memo, type PropsWithChildren, useEffect, useId, useMemo, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   interpolate,
@@ -19,7 +18,7 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { useAgentChatPreview } from "@/features/agents/components/agent-chat-preview";
-import { AgentAndroidMenu, useAgentContextMenu } from "@/features/agents/components/agent-context-menu";
+import { AgentAndroidMenu, AgentContextMenuLink } from "@/features/agents/components/agent-context-menu";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { AgentPinSwipeRow } from "@/features/agents/components/agent-pin-swipe-row";
 import { useAgentPinTransition } from "@/features/agents/components/agent-pin-transition";
@@ -29,8 +28,9 @@ import { ChatLinkPressable } from "@/features/agents/components/chat-link-pressa
 import { ChatZoomSource } from "@/features/agents/components/chat-zoom-source";
 import { useAgentWaitReason } from "@/features/workspace/components/use-agent-activity";
 import { useAgentUnread } from "@/features/workspace/components/use-live-workspace";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { type MobileAgent, useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -93,14 +93,17 @@ interface AgentListRowProps {
   rightInset?: number;
 }
 
-export function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentListRowProps) {
+/**
+ * A chat of the home list. It renders again only when its agent, its own live state or a pin
+ * transition changes, so a long list stays quiet while other agents work.
+ */
+export const AgentListRow = memo(function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentListRowProps) {
   const { t } = useText();
   const [background] = useThemeColor(["background"]);
-  const { width: windowWidth } = useWindowDimensions();
-  const { pinnedAgentIds } = useMobileWorkspace();
+  const pinBlocked = useMobileWorkspaceSelector(({ pinnedAgentIds }) => !canToggleAgentPin(pinnedAgentIds, agent.id));
   const { toggleAgentPinAnimated, transition } = useAgentPinTransition();
-  const editMenu = useRef<MenuComponentRef>(null);
-  const agentContextMenu = useAgentContextMenu(agent);
+  // Each long press mounts the Android menu again, so it opens even if an earlier one did not close.
+  const [menuKey, setMenuKey] = useState(0);
   const agentChatPreview = useAgentChatPreview(agent);
   const previewLine = useMemo(() => markdownPreviewText(agent.preview), [agent.preview]);
   const isUnread = useAgentUnread(agent.id);
@@ -114,6 +117,7 @@ export function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentLi
       seed={agent.avatarSeed}
       size={54}
       animateIdle={false}
+      rings
     />
   );
   const waitBadge = waitReason ? <AgentWaitBadge reason={waitReason} /> : null;
@@ -144,7 +148,7 @@ export function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentLi
       }}
       className="w-full"
       onPressIn={agentChatPreview.onPressIn}
-      onLongPress={Platform.OS === "android" ? () => editMenu.current?.show() : undefined}
+      onLongPress={isAndroid ? () => setMenuKey((key) => key + 1) : undefined}
     >
       {({ pressed }) => (
         <View
@@ -189,29 +193,24 @@ export function AgentListRow({ agent, leftInset = 20, rightInset = 20 }: AgentLi
       )}
     </ChatLinkPressable>
   );
-  const href = { pathname: "/chat/[agentId]" as const, params: { agentId: agent.id } };
-  const agentLink = (
-    <Link href={href} asChild>
-      <Link.Trigger>{row}</Link.Trigger>
-      {agentChatPreview.preview}
-      {agentContextMenu}
-    </Link>
-  );
-
   return (
     <AgentPinSwipeRow
       agentName={agent.name}
-      pinBlocked={!canToggleAgentPin(pinnedAgentIds, agent.id)}
+      pinBlocked={pinBlocked}
       onPin={(withHaptic) => toggleAgentPinAnimated(agent.id, { haptic: withHaptic })}
     >
-      {Platform.OS === "android" ? (
-        // The menu measures its child without a width limit; the home list row fills the window.
-        <AgentAndroidMenu agent={agent} menuRef={editMenu} style={{ width: "100%" }}>
-          <View style={{ width: windowWidth }}>{agentLink}</View>
-        </AgentAndroidMenu>
+      {isAndroid ? (
+        <View>
+          <Link href={{ pathname: "/chat/[agentId]", params: { agentId: agent.id } }} asChild>
+            <Link.Trigger>{row}</Link.Trigger>
+          </Link>
+          {menuKey > 0 ? <AgentAndroidMenu key={menuKey} agent={agent} onClose={() => setMenuKey(0)} /> : null}
+        </View>
       ) : (
-        agentLink
+        <AgentContextMenuLink agent={agent} preview={agentChatPreview.preview}>
+          {row}
+        </AgentContextMenuLink>
       )}
     </AgentPinSwipeRow>
   );
-}
+});

@@ -86,6 +86,11 @@ interface ProviderModelPickerProps {
   /** Receives the picker trigger, so focus returns to it when the opened settings close. */
   onAddCustomProvider?: (trigger: HTMLElement) => void;
   /**
+   * Opens the provider settings. With it, the rail leaves out the providers that cannot run, and a
+   * plus button after them opens the settings to connect one. Receives the picker trigger.
+   */
+  onManageProviders?: (trigger: HTMLElement) => void;
+  /**
    * This agent's standing approval, below Effort. Without the callback the row is absent, which is
    * how a remote agent and the setup screen show the picker they always showed: the grant belongs
    * to the computer that runs the agent.
@@ -119,8 +124,14 @@ const PROVIDERS: readonly RailId[] = [...PICKER_PROVIDERS, CUSTOM_RAIL];
  */
 type RailKey = RailId | `${AgentProviderId}:${string}`;
 
-/** Long enough that sweeping the rail does not flash a name per mark. */
-const RAIL_TOOLTIP_OPEN_DELAY = 150;
+/** The rail tooltips. The open delay is long enough that sweeping the rail does not flash a name per mark. */
+const RAIL_TOOLTIP = {
+  placement: "left",
+  gutter: 8,
+  openDelay: 150,
+  closeDelay: 0,
+  skipDelayDuration: 300,
+} as const;
 
 /** The part of the interface text that the provider helpers below read. */
 type PickerText = Pick<TextValue, "t" | "sourceText">;
@@ -183,7 +194,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     const accounts = props.agentStatus?.providers?.find((status) => status.id === rail)?.accounts ?? [];
     return accounts.length > 1 ? accounts : [];
   };
-  const visibleKeys = createMemo<RailKey[]>(() =>
+  const railKeys = createMemo<RailKey[]>(() =>
     visibleProviders().flatMap((rail): RailKey[] => {
       const accounts = railAccounts(rail);
       if (!accounts.length || rail === CUSTOM_RAIL) return [rail];
@@ -294,6 +305,42 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
     const entry = entryAccount(key);
     return entry ? `${railName(railOf(key), t)} · ${entry.name}` : railName(railOf(key), t);
   };
+  /** A rail entry the user can choose a model from now, or soon: the agent's own entry always. */
+  const entryUsable = (key: RailKey): boolean => {
+    if (key === activeKey()) return true;
+    if (
+      railOf(key) === CUSTOM_RAIL &&
+      !props.customProviders?.length &&
+      agentCount() === 0 &&
+      !railModelOptions(CUSTOM_RAIL).length
+    ) {
+      return false;
+    }
+    const status = entryStatus(key);
+    const phase = props.runtimeStatuses?.[status.id]?.phase;
+    return (
+      status.state === "available" ||
+      status.state === "checking" ||
+      status.connectionState === "connecting" ||
+      phase === "downloading" ||
+      phase === "finishing"
+    );
+  };
+  /** The entries listed when the picker opened. An open rail does not drop a tab under the pointer. */
+  const [openedKeys, setOpenedKeys] = createSignal<readonly RailKey[]>([]);
+  /**
+   * Where the settings can connect a provider, the rail lists only the usable ones. When none is,
+   * it lists all of them, so the panel always has a tab to show.
+   */
+  const visibleKeys = createMemo<RailKey[]>(
+    () => {
+      if (!props.onManageProviders) return railKeys();
+      const listed = open() ? openedKeys() : [];
+      const usable = railKeys().filter((key) => entryUsable(key) || listed.includes(key));
+      return usable.length ? usable : railKeys();
+    },
+    { equals: (previous, next) => previous.length === next.length && previous.every((key, i) => key === next[i]) },
+  );
   const modelAvailable = (model: PickerModel): boolean =>
     providerAvailability(props.agentStatus, props.modelOptions, model.provider, t).state === "available";
   const railSummary = (rail: RailId, status: AgentProviderStatus): string =>
@@ -337,6 +384,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   function setPickerOpen(next: boolean): void {
     if (props.disabled) return;
     if (next) {
+      setOpenedKeys(untrack(() => railKeys().filter(entryUsable)));
       const key = activeKey();
       setRailProvider(visibleKeys().includes(key) ? key : (visibleKeys()[0] ?? CUSTOM_RAIL));
       setSearch("");
@@ -462,78 +510,102 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
             activationMode="automatic"
             class="provider-model-layout"
           >
-            <Tabs.List class="provider-model-rail" aria-label={t("provider.picker.providers")}>
-              <For each={visibleKeys()}>
-                {(key) => {
-                  const provider = railOf(key);
-                  const account = () => entryAccount(key);
-                  const status = () => entryStatus(key);
-                  const name = () => entryName(key);
-                  return (
-                    // The rail shows a mark alone, so hovering one names it. Focus needs no tooltip:
-                    // tabs activate on focus, and the panel heading beside them names the tab.
-                    // The name sits to the left, off the panel, and only flips right when the
-                    // window edge leaves no room there.
-                    <Tooltip.Root
-                      placement="left"
-                      gutter={8}
-                      openDelay={RAIL_TOOLTIP_OPEN_DELAY}
-                      closeDelay={0}
-                      skipDelayDuration={300}
-                    >
-                      <Tooltip.Trigger as="div" class="provider-model-rail-tooltip-trigger">
-                        <Tabs.Trigger
-                          ref={(element) => providerButtons.set(key, element)}
-                          value={key}
-                          class={[
-                            "provider-model-rail-button",
-                            {
-                              "provider-model-rail-button-selected": railProvider() === key,
-                              "provider-model-rail-button-unavailable": status().state !== "available",
-                            },
-                          ]}
-                          data-state={status().state}
-                          aria-label={`${name()}: ${railSummary(provider, status())}`}
-                          onClick={(event) => {
-                            const target = event.currentTarget;
-                            selectRailProvider(key);
-                            queueMicrotask(() => target.focus({ preventScroll: true }));
-                          }}
-                          onKeyDown={(event) => {
-                            const delta =
-                              event.key === "ArrowDown" || event.key === "ArrowRight"
-                                ? 1
-                                : event.key === "ArrowUp" || event.key === "ArrowLeft"
-                                  ? -1
-                                  : 0;
-                            if (!delta) return;
-                            const providers = visibleKeys();
-                            const current = providers.indexOf(key);
-                            const next = providers[(current + delta + providers.length) % providers.length];
-                            if (next) providerButtons.get(next)?.focus();
-                          }}
-                        >
-                          <ProviderMark provider={provider} large />
-                          <Show when={account()}>
-                            {(entry) => (
-                              <span class="provider-model-rail-account" aria-hidden="true">
-                                {entry().number}
-                              </span>
-                            )}
-                          </Show>
-                        </Tabs.Trigger>
-                      </Tooltip.Trigger>
-                      <Tooltip.Portal>
-                        <Tooltip.Content class="provider-model-rail-tooltip">
-                          <strong>{name()}</strong>
-                          <small>{railSummary(provider, status())}</small>
-                        </Tooltip.Content>
-                      </Tooltip.Portal>
-                    </Tooltip.Root>
-                  );
-                }}
-              </For>
-            </Tabs.List>
+            <div class="provider-model-rail">
+              <Tabs.List class="provider-model-rail-tabs" aria-label={t("provider.picker.providers")}>
+                <For each={visibleKeys()}>
+                  {(key) => {
+                    const provider = railOf(key);
+                    const account = () => entryAccount(key);
+                    const status = () => entryStatus(key);
+                    const name = () => entryName(key);
+                    return (
+                      // The rail shows a mark alone, so hovering one names it. Focus needs no tooltip:
+                      // tabs activate on focus, and the panel heading beside them names the tab.
+                      // The name sits to the left, off the panel, and only flips right when the
+                      // window edge leaves no room there.
+                      <Tooltip.Root {...RAIL_TOOLTIP}>
+                        <Tooltip.Trigger as="div" class="provider-model-rail-tooltip-trigger">
+                          <Tabs.Trigger
+                            ref={(element) => providerButtons.set(key, element)}
+                            value={key}
+                            class={[
+                              "provider-model-rail-button",
+                              {
+                                "provider-model-rail-button-selected": railProvider() === key,
+                                "provider-model-rail-button-unavailable": status().state !== "available",
+                              },
+                            ]}
+                            data-state={status().state}
+                            aria-label={`${name()}: ${railSummary(provider, status())}`}
+                            onClick={(event) => {
+                              const target = event.currentTarget;
+                              selectRailProvider(key);
+                              queueMicrotask(() => target.focus({ preventScroll: true }));
+                            }}
+                            onKeyDown={(event) => {
+                              const delta =
+                                event.key === "ArrowDown" || event.key === "ArrowRight"
+                                  ? 1
+                                  : event.key === "ArrowUp" || event.key === "ArrowLeft"
+                                    ? -1
+                                    : 0;
+                              if (!delta) return;
+                              const providers = visibleKeys();
+                              const current = providers.indexOf(key);
+                              const next = providers[(current + delta + providers.length) % providers.length];
+                              if (next) providerButtons.get(next)?.focus();
+                            }}
+                          >
+                            <ProviderMark provider={provider} large />
+                            <Show when={account()}>
+                              {(entry) => (
+                                <span class="provider-model-rail-account" aria-hidden="true">
+                                  {entry().number}
+                                </span>
+                              )}
+                            </Show>
+                          </Tabs.Trigger>
+                        </Tooltip.Trigger>
+                        <Tooltip.Portal>
+                          <Tooltip.Content class="provider-model-rail-tooltip">
+                            <strong>{name()}</strong>
+                            <small>{railSummary(provider, status())}</small>
+                          </Tooltip.Content>
+                        </Tooltip.Portal>
+                      </Tooltip.Root>
+                    );
+                  }}
+                </For>
+              </Tabs.List>
+              <Show when={props.onManageProviders}>
+                {(manageProviders) => (
+                  <Tooltip.Root {...RAIL_TOOLTIP}>
+                    <Tooltip.Trigger as="div" class="provider-model-rail-tooltip-trigger">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="provider-model-rail-button provider-model-rail-add"
+                        aria-label={t("provider.picker.addProvider")}
+                        onClick={() => {
+                          // Focus leaves the panel before it is hidden from assistive technology.
+                          trigger?.focus({ preventScroll: true });
+                          setOpen(false);
+                          if (trigger) manageProviders()(trigger);
+                        }}
+                      >
+                        <Plus />
+                      </Button>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content class="provider-model-rail-tooltip">
+                        <strong>{t("provider.picker.addProvider")}</strong>
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
+                )}
+              </Show>
+            </div>
 
             <For each={visibleKeys()}>
               {(key) => {
@@ -662,7 +734,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                             : railHeadingSummary(provider, status())}
                         </span>
                       </div>
-                      <Show when={provider === CUSTOM_RAIL && props.onAddCustomProvider}>
+                      <Show when={provider === CUSTOM_RAIL && !props.onManageProviders && props.onAddCustomProvider}>
                         <Button
                           type="button"
                           size="xs"

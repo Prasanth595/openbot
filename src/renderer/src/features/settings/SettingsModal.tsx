@@ -9,6 +9,7 @@ import type {
   MobileConnectedDevice,
   MobileConnectLink,
   MobileConnectTicket,
+  ServerSummary,
   UpdateStatus,
 } from "@openbot/contracts/ipc";
 import { Tabs } from "@openbot/ui";
@@ -43,6 +44,8 @@ export interface SettingsModalProps {
   appInfo: AppInfo | null;
   /** The built-in display's notch, null when it has none, or undefined before main answers. */
   builtInDisplayGeometry?: DynamicIslandGeometry | undefined;
+  /** The servers that the Dynamic Island tab lists. */
+  servers?: readonly ServerSummary[];
   updateStatus: UpdateStatus;
   onUpdateAction: () => Promise<void>;
   onOpenWhatsNew?: (() => void) | undefined;
@@ -237,6 +240,7 @@ export function SettingsModal(props: SettingsModalProps) {
               value={props.value}
               variant={props.appInfo?.variant ?? "production"}
               builtInDisplayGeometry={props.builtInDisplayGeometry}
+              servers={props.servers ?? []}
               onUpdateSetting={updateSetting}
               onUpdateSettings={updateSettings}
             />
