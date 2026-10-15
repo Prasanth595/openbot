@@ -9,7 +9,7 @@ import { useCSSVariable } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
-import { type CodeToken, codeLanguageLabel, highlightCode } from "../model/code-highlight";
+import { type CodeToken, cachedHighlight, codeLanguageLabel, highlightCode } from "../model/code-highlight";
 
 /** A streaming block grows each frame. Highlight it at most this often; the new tail stays plain until then. */
 const STREAMING_HIGHLIGHT_INTERVAL_MS = 250;
@@ -26,10 +26,20 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
   const { fontScale } = useWindowDimensions();
   const { t } = useText();
   const { foreground, muted, colors } = useCodeTokenColors();
-  const [highlight, setHighlight] = useState<{ text: string; language?: string; tokens: CodeToken[] } | null>(null);
+  const [highlight, setHighlight] = useState<{ text: string; language?: string; tokens: CodeToken[] } | null>(() => {
+    const tokens = cachedHighlight(text, language);
+    return tokens ? { text, language, tokens } : null;
+  });
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const lastHighlight = useRef<number | null>(null);
   useEffect(() => {
+    const cached = cachedHighlight(text, language);
+    if (cached) {
+      setHighlight((current) =>
+        current?.text === text && current.language === language ? current : { text, language, tokens: cached },
+      );
+      return;
+    }
     let active = true;
     const run = () => {
       lastHighlight.current = Date.now();

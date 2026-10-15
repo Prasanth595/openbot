@@ -112,6 +112,7 @@ const RowLayoutContext = createContext<{
 } | null>(null);
 /** Rows above a message from search, so the reader sees what led to it. */
 const FOCUS_CONTEXT_ROWS = 2;
+const NO_ROWS: VisibleMessage[] = [];
 
 function MessageCell({ children, item, onLayout, onFocusCapture, style }: CellRendererProps<VisibleMessage>) {
   const rows = useContext(RowLayoutContext);
@@ -228,6 +229,8 @@ function ChatBubble({
 
 interface ChatMessageListProps {
   target: ChatTarget;
+  /** False while the chat opens on Android: the list has no rows until the chat is in place. */
+  rowsShown: boolean;
   /** Something covers the list, such as the voice mode, so screen readers skip it. */
   accessibilityHidden?: boolean;
   activity?: MobileAgentActivity;
@@ -610,6 +613,7 @@ const MessageRow = memo(function MessageRow({
                 <ChatMarkdown
                   agents={agents}
                   body={message.body}
+                  finished={!isStreamingReply(message)}
                   selectable={message.author === "user"}
                   color={textColor}
                   playback={playback}
@@ -733,6 +737,7 @@ export function ChatMessageList({
   upload,
   outboxStatuses,
   target,
+  rowsShown,
   accessibilityHidden = false,
   activity,
   agents,
@@ -953,6 +958,11 @@ export function ChatMessageList({
     });
   };
   const animationActive = animateMessages && motion.responseVisible;
+  // The parent passes new handler functions on each render. The rows call them through
+  // `actionHandlers`, so only their presence keeps `shared`, and every row, from rendering again.
+  const canReply = Boolean(onReply);
+  const canReact = Boolean(onReact);
+  const canSelectText = Boolean(onSelectText);
   const shared = useMemo<MessageRowShared>(
     () => ({
       agents,
@@ -974,9 +984,9 @@ export function ChatMessageList({
       revealedCount,
       markRevealed,
       replyHaptics,
-      canReply: Boolean(onReply),
-      canReact: Boolean(onReact),
-      canSelectText: Boolean(onSelectText),
+      canReply,
+      canReact,
+      canSelectText,
       actions,
     }),
     [
@@ -1000,9 +1010,9 @@ export function ChatMessageList({
       revealedCount,
       markRevealed,
       replyHaptics,
-      onReply,
-      onReact,
-      onSelectText,
+      canReply,
+      canReact,
+      canSelectText,
       actions,
     ],
   );
@@ -1025,6 +1035,9 @@ export function ChatMessageList({
   const pendingReveal = visibleMessages.some((message) => awaitingFirstWord(message, shared));
   const { responseStyle, responseVisible } = motion;
   const firstRowIsHead = !hasOlder && !hasCachedOlder;
+  // The prompt controller is a new object on each render. Without a prompt it is left out, so the
+  // list does not render every row again.
+  const promptController = questionForm?.messageId ? questionForm : undefined;
   const renderItem = useCallback(
     ({ item, index }: { item: VisibleMessage; index: number }) => {
       const response = index + windowStart > tailIndex;
@@ -1041,7 +1054,7 @@ export function ChatMessageList({
             source={
               item.kind === "message" && item.replyToMessageId ? messagesById.get(item.replyToMessageId) : undefined
             }
-            questionForm={item.id === questionForm?.messageId ? questionForm : undefined}
+            questionForm={item.id === promptController?.messageId ? promptController : undefined}
             upload={upload?.messageId === item.id ? upload : undefined}
             outbox={outboxStatuses?.get(item.id)}
             selecting={item.id === selectingMessageId}
@@ -1057,7 +1070,7 @@ export function ChatMessageList({
       responseVisible,
       firstRowIsHead,
       messagesById,
-      questionForm,
+      promptController,
       upload,
       outboxStatuses,
       selectingMessageId,
@@ -1135,7 +1148,7 @@ export function ChatMessageList({
       <RowLayoutContext.Provider value={rowLayout}>
         <FlatList
           ref={listRef}
-          data={windowMessages}
+          data={rowsShown ? windowMessages : NO_ROWS}
           keyExtractor={(message) => message.id}
           CellRendererComponent={MessageCell}
           initialNumToRender={CHAT_HISTORY_BATCH}

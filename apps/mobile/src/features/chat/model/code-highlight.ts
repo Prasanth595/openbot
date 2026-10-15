@@ -123,7 +123,26 @@ export function codeLanguageLabel(info: string | undefined, t: MobileTranslate):
   return key && label === LANGUAGE_LABELS[language] ? t(key) : label;
 }
 
+const MAX_CACHED_HIGHLIGHTS = 100;
+const highlights = new Map<string, CodeToken[]>();
+
+function highlightKey(text: string, info: string | undefined): string {
+  return `${codeLanguage(info).language}\u0000${text}`;
+}
+
+/** The tokens of a block highlighted before in this app run, so a chat that opens again shows them at once. */
+export function cachedHighlight(text: string, info?: string): CodeToken[] | undefined {
+  const key = highlightKey(text, info);
+  const cached = highlights.get(key);
+  if (!cached) return undefined;
+  highlights.delete(key);
+  highlights.set(key, cached);
+  return cached;
+}
+
 export async function highlightCode(text: string, info?: string): Promise<CodeToken[]> {
+  const cached = cachedHighlight(text, info);
+  if (cached) return cached;
   const result: CodeToken[] = [];
   let offset = 0;
   await tokenize(text, codeLanguage(info).language, (value, type) => {
@@ -132,5 +151,9 @@ export async function highlightCode(text: string, info?: string): Promise<CodeTo
     offset += value.length;
   });
   // A tokenizer failure must never change or duplicate the source shown to the user.
-  return result.map((token) => token.text).join("") === text ? result : [{ text, offset: 0 }];
+  const tokens = result.map((token) => token.text).join("") === text ? result : [{ text, offset: 0 }];
+  const oldest = highlights.keys().next().value;
+  if (highlights.size >= MAX_CACHED_HIGHLIGHTS && oldest !== undefined) highlights.delete(oldest);
+  highlights.set(highlightKey(text, info), tokens);
+  return tokens;
 }

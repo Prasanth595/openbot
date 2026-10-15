@@ -40,3 +40,25 @@ const markdown = new Marked({
 export function parseChatMarkdown(body: string) {
   return markdown.lexer(body);
 }
+
+const MAX_CACHED_BODIES = 300;
+const parsedBodies = new Map<string, ReturnType<typeof parseChatMarkdown>>();
+
+/**
+ * The tokens of a finished message, parsed once for the app run rather than each time its chat
+ * opens. The renderers only read the tokens. A streaming reply changes on each chunk, so it uses
+ * `parseChatMarkdown` and does not fill the cache.
+ */
+export function parseFinishedChatMarkdown(body: string) {
+  const cached = parsedBodies.get(body);
+  if (cached) {
+    parsedBodies.delete(body);
+    parsedBodies.set(body, cached);
+    return cached;
+  }
+  const tokens = parseChatMarkdown(body);
+  const oldest = parsedBodies.keys().next().value;
+  if (parsedBodies.size >= MAX_CACHED_BODIES && oldest !== undefined) parsedBodies.delete(oldest);
+  parsedBodies.set(body, tokens);
+  return tokens;
+}

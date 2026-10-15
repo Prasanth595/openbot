@@ -31,7 +31,7 @@ import { graphemes } from "@/shared/lib/graphemes";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
-import { parseChatMarkdown } from "../model/chat-markdown-parser";
+import { parseChatMarkdown, parseFinishedChatMarkdown } from "../model/chat-markdown-parser";
 import { plainMentionParts } from "../model/chat-mentions";
 import { createReplyReveal } from "../model/reply-reveal";
 import { ChatCodeBlock } from "./chat-code-block";
@@ -808,11 +808,14 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   selectable = true,
   agents = [],
   nativeSelection,
+  finished = false,
 }: {
   body: string;
   color: ColorValue | undefined;
   compact?: boolean;
   streaming?: boolean;
+  /** The text will not change, so its parse is shared across mounts. */
+  finished?: boolean;
   animationEnabled?: boolean;
   playback?: ReplyPlayback;
   selectable?: boolean;
@@ -825,7 +828,10 @@ export const ChatMarkdown = memo(function ChatMarkdown({
 }) {
   const textReveal = useMotionPreference("textReveal");
   const { fontScale } = useWindowDimensions();
-  const tokens = useMemo(() => parseChatMarkdown(body), [body]);
+  const tokens = useMemo(
+    () => (finished ? parseFinishedChatMarkdown(body) : parseChatMarkdown(body)),
+    [body, finished],
+  );
   const reveal = useMemo(() => createReplyReveal(tokens), [tokens]);
   const visibleTokens = useReplyPlayback(reveal, playback);
   const codeColor = useThemeColor("foreground");
