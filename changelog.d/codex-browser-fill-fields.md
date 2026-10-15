@@ -1,3 +1,3 @@
 ### Added
 
-- Agents can fill up to 16 inspected ordinary browser text fields in one call, then read one final page snapshot. A partial fill reports which fields completed and which input is uncertain.
+- Agents fill forms in the built-in browser faster. They can fill up to 16 text fields in one step. They do not use this step for password, verification code, or card fields.

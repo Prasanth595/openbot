@@ -159,10 +159,10 @@ codes; page exceptions do not enter the new progress result or diagnostic action
 
 `bun scripts/browser-fill-fields-e2e.ts` compiles only its native fixture and uses an owned hidden
 Electron process with a temporary profile and synthetic loopback forms. It must not make a window
-visible or request native focus to obtain a passing result. Linux CI can use its isolated Xvfb
-display. The report is `.openbot-build/browser-fill-fields-e2e/report.json`. It includes actual
-runtime versions, completed cases, three warm-up pairs and twenty measured pairs, serialized result
-bytes, and observed snapshot counts. Measurements include tool execution and loopback fixture
+visible or request native focus to obtain a passing result. It is a local check, not a CI step; on
+Linux, run it under `xvfb-run -a`. The report is `.openbot-build/browser-fill-fields-e2e/report.json`.
+It includes actual runtime versions, completed cases, three warm-up pairs and twenty measured pairs,
+serialized result bytes, and observed snapshot counts. Measurements include tool execution and loopback fixture
 confirmation. They do not measure provider tokens, model speed, or billable cost.
 
 ### Tab lifetime

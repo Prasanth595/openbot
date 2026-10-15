@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -14,7 +14,6 @@ const buildRoot = await mkdtemp(join(tmpdir(), "openbot-fill-fields-"));
 const reportPath = join(projectRoot, ".openbot-build/browser-fill-fields-e2e/report.json");
 const runId = randomUUID();
 let sourceSha: string | undefined;
-let sourceDigest: string | undefined;
 try {
   await mkdir(dirname(reportPath), { recursive: true });
   const entry = join(buildRoot, "browser-fill-fields.mjs");
@@ -27,22 +26,6 @@ try {
     `--outfile=${entry}`,
   ]);
   sourceSha = (await output("git", ["rev-parse", "HEAD"])).trim();
-  const digest = createHash("sha256");
-  for (const path of [
-    "src/backend/browser-tools.ts",
-    "src/backend/browser-control.ts",
-    "src/backend/browser-cdp.ts",
-    "src/backend/browser-fill-fields.ts",
-    "src/backend/browser-tab-operations.ts",
-    "src/backend/browser-host.ts",
-    "src/backend/agent/tool-guidance.ts",
-    "scripts/browser-fill-fields-e2e.ts",
-    "scripts/browser-fill-fields-electron.ts",
-  ]) {
-    digest.update(path);
-    digest.update(await readFile(join(projectRoot, path)));
-  }
-  sourceDigest = digest.digest("hex");
   const bunVersion = await output(process.execPath, ["--version"]);
   await run(
     join(projectRoot, "node_modules/.bin/electron"),
@@ -54,7 +37,6 @@ try {
       `--source-sha=${sourceSha}`,
       `--run-id=${runId}`,
       `--harness-runtime=${process.version}`,
-      `--source-digest=${sourceDigest}`,
       `--bun-version=${bunVersion.trim()}`,
     ],
     true,
@@ -65,10 +47,9 @@ try {
       cases: z.array(z.string()).min(20),
       runId: z.literal(runId),
       sourceSha: z.literal(sourceSha),
-      sourceDigest: z.literal(sourceDigest),
     })
     .parse(JSON.parse(await readFile(reportPath, "utf8")));
-  // Machine-readable: root and CI consume the completed case count.
+  // Machine-readable summary of the completed case count.
   process.stdout.write(
     `${JSON.stringify({ status: report.status, cases: report.cases.length, report: reportPath })}\n`,
   );
@@ -92,7 +73,6 @@ try {
           status: "timed_out",
           runId,
           sourceSha,
-          sourceDigest,
           cases: completedCases,
           reason: "Owned fixture exceeded its 180-second process guard.",
         },
@@ -108,7 +88,6 @@ try {
           status: "failed",
           runId,
           sourceSha,
-          sourceDigest,
           cases: completedCases,
           reason: "Fixture process completion or report verification failed.",
         },

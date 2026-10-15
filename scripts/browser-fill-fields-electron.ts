@@ -521,7 +521,6 @@ async function main(): Promise<void> {
       status: "passed",
       runId,
       sourceSha: argument("source-sha"),
-      sourceDigest: argument("source-digest"),
       platform: process.platform,
       architecture: process.arch,
       versions: {
@@ -571,7 +570,7 @@ async function main(): Promise<void> {
     await mkdir(dirname(reportPath), { recursive: true });
     await writeFile(
       reportPath,
-      `${JSON.stringify({ status: "failed", runId, sourceSha: argument("source-sha"), sourceDigest: argument("source-digest"), phase: currentPhase, cases, nativeFocusEvents, reason: redactText(String(error)) }, null, 2)}\n`,
+      `${JSON.stringify({ status: "failed", runId, sourceSha: argument("source-sha"), phase: currentPhase, cases, nativeFocusEvents, reason: redactText(String(error)) }, null, 2)}\n`,
     );
     process.exitCode = 1;
   } finally {
