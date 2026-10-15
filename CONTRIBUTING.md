@@ -42,7 +42,7 @@ A maintainer who reopens a closed pull request starts a new 7-day period.
 ## Before opening an issue
 
 - Use an issue form. The workflow closes an issue from outside the organization that does not
-  come from a form or that has an empty or very short required answer.
+  come from a form or that has an empty required answer.
 - Search existing issues first.
 - Use Discussions for questions and for ideas that are not yet a specific request.
 - Use the security process in `SECURITY.md` for vulnerabilities.

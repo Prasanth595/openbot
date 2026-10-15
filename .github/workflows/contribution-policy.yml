@@ -23,19 +23,22 @@ permissions:
   pull-requests: write
   statuses: write
 
-concurrency:
-  group: contribution-policy-${{ github.event.pull_request.number || github.event.issue.number || 'sweep' }}
-  cancel-in-progress: false
-
 jobs:
   policy:
-    name: Contribution policy
+    # Not "Contribution policy": that is the name of the commit status that the script sets.
+    name: Apply contribution policy
     # A new `approved` label sweeps at once, so a pull request that links the issue passes without
     # waiting for the daily run. Other issue labels do nothing.
     if: >-
       github.event_name != 'issues' ||
       github.event.action == 'opened' ||
       github.event.label.name == 'approved'
+    # On the job, not the workflow: a run that the `if` skips, such as the `bug` label that a new
+    # issue gets, must not take the group and cancel the pending `opened` run. An `approved` label
+    # runs the sweep, so it shares the group of the daily sweep.
+    concurrency:
+      group: contribution-policy-${{ github.event.pull_request.number || (github.event.action == 'opened' && github.event.issue.number) || 'sweep' }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

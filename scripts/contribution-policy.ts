@@ -32,7 +32,6 @@ const STATUS_CONTEXT = "Contribution policy";
 const COMMENT_MARKER = "<!-- contribution-policy -->";
 const COMMENT_AUTHOR = "github-actions[bot]";
 const CLOSE_AFTER_DAYS = 7;
-const MIN_TEXTAREA_LENGTH = 15;
 const FORM_DIR = ".github/ISSUE_TEMPLATE";
 const REPORT_PATH = ".openbot-build/contribution-policy/report.json";
 
@@ -129,15 +128,6 @@ function addLabel(number: number, label: string, labels: readonly string[]): voi
   ]);
 }
 
-function removeLabel(number: number, label: string): void {
-  write(`remove label ${label} from #${number}`, [
-    "api",
-    "-X",
-    "DELETE",
-    `repos/${repository}/issues/${number}/labels/${encodeURIComponent(label)}`,
-  ]);
-}
-
 function comment(number: number, body: string): void {
   write(
     `comment on #${number}:\n${body}`,
@@ -183,7 +173,7 @@ function setStatus(sha: string, state: "success" | "failure", description: strin
 
 /**
  * The issues that the pull request closes: `Closes #n` in its body, or a link set in the sidebar.
- * A plain `#n` mention does not count, so a pull request cannot borrow an unrelated approval.
+ * A plain `#n` mention does not count. A maintainer still checks that the closed issue matches.
  */
 function linkedIssues(number: number): number[] {
   const query =
@@ -292,8 +282,8 @@ function checkPullRequest(number: number): Decision {
 
   const issues = linkedIssues(number);
   const approved = approvedIssue(issues);
+  // The label stays: if the author removes the link later, the check fails again.
   if (approved !== undefined) {
-    removeLabel(number, LABEL_NEEDS_ISSUE);
     setStatus(pr.sha, "success", `Linked to approved issue #${approved}.`);
     upsertStickyComment(
       number,
@@ -420,8 +410,8 @@ function missingAnswers(form: Form, sections: ReadonlyMap<string, string>): stri
         const checked = new Set([...answer.matchAll(/^- \[[xX]\] (.+)$/gm)].map((match) => column(match, 1).trim()));
         return field.requiredOptions.some((option) => !checked.has(option));
       }
-      if (field.type === "textarea") return answer.replace(/\s+/g, " ").length < MIN_TEXTAREA_LENGTH;
-      return false;
+      // "None" and "n/a" are valid answers. Only punctuation, such as "." or "-", counts as empty.
+      return !/[\p{L}\p{N}].*[\p{L}\p{N}]/su.test(answer);
     })
     .map((field) => field.label);
 }
@@ -460,7 +450,7 @@ function checkIssue(number: number): void {
   const reason =
     best === undefined || best.present === 0
       ? "This issue was not created from an issue form."
-      : `These required answers are missing or too short: ${best.missing.map((label) => `**${label}**`).join(", ")}.`;
+      : `These required answers are missing or empty: ${best.missing.map((label) => `**${label}**`).join(", ")}.`;
   comment(
     number,
     [
