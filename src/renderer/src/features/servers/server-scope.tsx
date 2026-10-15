@@ -272,7 +272,9 @@ const ServerScope = createSimpleContext({
       () => ({ ready: bootstrapReady() && serversLoaded() && transportReady(), id: activeServerId() }),
       ({ ready }) => {
         if (!ready) loadGeneration += 1;
-        recovery.setActive(ready);
+        // Recovery starts an imperative workspace load. Its synchronous reads are the current
+        // request snapshot; the existing generation checks still read fresh state after awaits.
+        untrack(() => recovery.setActive(ready));
       },
     );
 

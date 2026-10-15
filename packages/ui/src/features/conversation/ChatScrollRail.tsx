@@ -214,132 +214,141 @@ export function ChatScrollRail(props: ChatScrollRailProps) {
     });
   };
 
-  createEffect(props.scrollElement, (element) => {
-    // A pointer over the rail of the previous chat left with it.
-    setHeld(false);
-    opened = undefined;
-    drawn = undefined;
-    jump = undefined;
-    relayout = true;
-    if (!element) return;
-
-    // Where each section starts and ends, read again only when the layout or the sections change.
-    let geometry: { starts: number[]; ends: number[]; lastScroll: number; height: number } | undefined;
-    const layout = () => {
-      const height = element.clientHeight;
-      const content = element.scrollHeight;
-      const lastScroll = Math.max(0, content - height);
-      const sections = props.sections();
-      const days = sections.reduce((total, section) => total + (section.days ?? 1), 0);
-      if (lastScroll === 0 || days < MIN_DAYS) {
-        geometry = undefined;
-        setHeld(false);
-        setRail((state) => {
-          state.shown = false;
-        });
-        return;
-      }
-      // Each start is at least the one before it: an unknown start ends the section above it at once.
-      const starts: number[] = [];
-      for (const section of sections) {
-        const previous = starts.at(-1);
-        starts.push(Math.max(section.start ?? previous ?? 0, previous ?? Number.NEGATIVE_INFINITY));
-      }
-      const ends = [...starts.slice(1), content];
-      geometry = { starts, ends, lastScroll, height };
-      setRail((state) => {
-        state.shown = true;
-        state.height = height;
-        state.inset = Number.parseFloat(getComputedStyle(element).paddingRight) || 0;
-        state.lengths = starts.map((start, index) => Math.max(1, (ends[index] ?? content) - start));
-      });
-    };
-
-    update = () => {
-      if (relayout) {
-        relayout = false;
-        layout();
-      }
-      if (!geometry) return;
-      const { starts, ends, lastScroll, height } = geometry;
-      // The reader's place moves from the top of the viewport to its bottom over the whole scroll, so
-      // the first section is empty at the top and the last one is full at the bottom.
-      const reading = element.scrollTop + height * (element.scrollTop / Math.max(1, lastScroll));
-      const openedIndex = opened === undefined ? -1 : props.sections().findIndex((section) => section.label === opened);
-      // An opened section shows the place at the top of the viewport, kept inside the section: near the
-      // end of the chat the place above is past the section, and the jump opens the section at its start.
-      const target =
-        openedIndex >= 0
-          ? Math.min(Math.max(element.scrollTop, starts[openedIndex] ?? 0), ends[openedIndex] ?? reading)
-          : reading;
-      // A jump eases the place to the target, so one fill runs through the days between in order and
-      // the head and the count go with it. After it, the rail follows the scroll directly again.
-      let position = target;
-      if (jump) {
-        const progress = Math.min(1, (performance.now() - jump.startedAt) / JUMP_MS);
-        if (progress < 1) {
-          position = jump.from + (target - jump.from) * easeInOut(progress);
-          schedule(false);
-        } else jump = undefined;
-      }
-      drawn = position;
-      setRail((state) => {
-        state.fills = starts.map((start, index) => clamp((position - start) / Math.max(1, (ends[index] ?? 0) - start)));
-        state.active =
-          openedIndex >= 0 && position === target
-            ? openedIndex
-            : Math.max(
-                0,
-                starts.findLastIndex((start) => position >= start),
-              );
-      });
-    };
-
-    // Only what the reader does brings the rail in. A scroll after it, such as momentum, keeps it.
-    const reveal = () => {
-      setScrolling(true);
-      if (idle) clearTimeout(idle);
-      idle = setTimeout(() => setScrolling(false), IDLE_MS);
-      schedule(false);
-    };
-    // The reader scrolls on their own again, so their place decides the current section.
-    const onInput = () => {
+  createEffect(
+    () => props.scrollElement(),
+    (element) => {
+      // A pointer over the rail of the previous chat left with it.
+      setHeld(false);
       opened = undefined;
+      drawn = undefined;
       jump = undefined;
-      reveal();
-    };
-    // Every scroll moves the current day, also one the app makes: focus can open the rail at any time.
-    // A scroll that does not come from the rail, such as Show latest or a search match, ends the
-    // opened section. The jump itself runs while the pointer or the focus is still on the rail.
-    const onScroll = () => {
-      if (opened !== undefined && !held() && !nav?.contains(document.activeElement)) opened = undefined;
-      if (scrolling()) reveal();
-      else schedule(false);
-    };
-    // Keys typed into a field in the transcript, such as an answer to a question, scroll nothing.
-    const onKey = (event: KeyboardEvent) => {
-      if (SCROLL_KEYS.has(event.key) && !editable(event.target)) onInput();
-    };
+      relayout = true;
+      if (!element) return;
 
-    element.addEventListener("scroll", onScroll, { passive: true });
-    element.addEventListener("wheel", onInput, { passive: true });
-    element.addEventListener("touchmove", onInput, { passive: true });
-    element.addEventListener("keydown", onKey);
-    const resizes = new ResizeObserver(() => schedule(true));
-    resizes.observe(element);
-    schedule(true);
+      // Where each section starts and ends, read again only when the layout or the sections change.
+      let geometry: { starts: number[]; ends: number[]; lastScroll: number; height: number } | undefined;
+      const layout = () => {
+        const height = element.clientHeight;
+        const content = element.scrollHeight;
+        const lastScroll = Math.max(0, content - height);
+        const sections = props.sections();
+        const days = sections.reduce((total, section) => total + (section.days ?? 1), 0);
+        if (lastScroll === 0 || days < MIN_DAYS) {
+          geometry = undefined;
+          setHeld(false);
+          setRail((state) => {
+            state.shown = false;
+          });
+          return;
+        }
+        // Each start is at least the one before it: an unknown start ends the section above it at once.
+        const starts: number[] = [];
+        for (const section of sections) {
+          const previous = starts.at(-1);
+          starts.push(Math.max(section.start ?? previous ?? 0, previous ?? Number.NEGATIVE_INFINITY));
+        }
+        const ends = [...starts.slice(1), content];
+        geometry = { starts, ends, lastScroll, height };
+        setRail((state) => {
+          state.shown = true;
+          state.height = height;
+          state.inset = Number.parseFloat(getComputedStyle(element).paddingRight) || 0;
+          state.lengths = starts.map((start, index) => Math.max(1, (ends[index] ?? content) - start));
+        });
+      };
 
-    return () => {
-      element.removeEventListener("scroll", onScroll);
-      element.removeEventListener("wheel", onInput);
-      element.removeEventListener("touchmove", onInput);
-      element.removeEventListener("keydown", onKey);
-      resizes.disconnect();
-    };
-  });
+      update = () => {
+        if (relayout) {
+          relayout = false;
+          layout();
+        }
+        if (!geometry) return;
+        const { starts, ends, lastScroll, height } = geometry;
+        // The reader's place moves from the top of the viewport to its bottom over the whole scroll, so
+        // the first section is empty at the top and the last one is full at the bottom.
+        const reading = element.scrollTop + height * (element.scrollTop / Math.max(1, lastScroll));
+        const openedIndex =
+          opened === undefined ? -1 : props.sections().findIndex((section) => section.label === opened);
+        // An opened section shows the place at the top of the viewport, kept inside the section: near the
+        // end of the chat the place above is past the section, and the jump opens the section at its start.
+        const target =
+          openedIndex >= 0
+            ? Math.min(Math.max(element.scrollTop, starts[openedIndex] ?? 0), ends[openedIndex] ?? reading)
+            : reading;
+        // A jump eases the place to the target, so one fill runs through the days between in order and
+        // the head and the count go with it. After it, the rail follows the scroll directly again.
+        let position = target;
+        if (jump) {
+          const progress = Math.min(1, (performance.now() - jump.startedAt) / JUMP_MS);
+          if (progress < 1) {
+            position = jump.from + (target - jump.from) * easeInOut(progress);
+            schedule(false);
+          } else jump = undefined;
+        }
+        drawn = position;
+        setRail((state) => {
+          state.fills = starts.map((start, index) =>
+            clamp((position - start) / Math.max(1, (ends[index] ?? 0) - start)),
+          );
+          state.active =
+            openedIndex >= 0 && position === target
+              ? openedIndex
+              : Math.max(
+                  0,
+                  starts.findLastIndex((start) => position >= start),
+                );
+        });
+      };
+
+      // Only what the reader does brings the rail in. A scroll after it, such as momentum, keeps it.
+      const reveal = () => {
+        setScrolling(true);
+        if (idle) clearTimeout(idle);
+        idle = setTimeout(() => setScrolling(false), IDLE_MS);
+        schedule(false);
+      };
+      // The reader scrolls on their own again, so their place decides the current section.
+      const onInput = () => {
+        opened = undefined;
+        jump = undefined;
+        reveal();
+      };
+      // Every scroll moves the current day, also one the app makes: focus can open the rail at any time.
+      // A scroll that does not come from the rail, such as Show latest or a search match, ends the
+      // opened section. The jump itself runs while the pointer or the focus is still on the rail.
+      const onScroll = () => {
+        if (opened !== undefined && !held() && !nav?.contains(document.activeElement)) opened = undefined;
+        if (scrolling()) reveal();
+        else schedule(false);
+      };
+      // Keys typed into a field in the transcript, such as an answer to a question, scroll nothing.
+      const onKey = (event: KeyboardEvent) => {
+        if (SCROLL_KEYS.has(event.key) && !editable(event.target)) onInput();
+      };
+
+      element.addEventListener("scroll", onScroll, { passive: true });
+      element.addEventListener("wheel", onInput, { passive: true });
+      element.addEventListener("touchmove", onInput, { passive: true });
+      element.addEventListener("keydown", onKey);
+      const resizes = new ResizeObserver(() => schedule(true));
+      resizes.observe(element);
+      schedule(true);
+
+      return () => {
+        element.removeEventListener("scroll", onScroll);
+        element.removeEventListener("wheel", onInput);
+        element.removeEventListener("touchmove", onInput);
+        element.removeEventListener("keydown", onKey);
+        resizes.disconnect();
+      };
+    },
+  );
 
   // New rows and new measurements move the sections.
-  createEffect(props.sections, () => schedule(true));
+  createEffect(
+    () => props.sections(),
+    () => schedule(true),
+  );
 
   // A list taller than the rail scrolls itself, not the transcript, to keep the current day in view.
   // The reading head goes to the bar of the current day, which moves when the lengths change.

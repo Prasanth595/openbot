@@ -64,6 +64,7 @@ const Platform = createSimpleContext({
       appInfoLoadedFromHost: () => infoFromHost,
       landingPreview: props.landingPreview === true,
       peopleEnabled: props.peopleEnabled === true,
+      voiceInputEnabled: props.voiceInputEnabled !== false,
       /** The element the remote-desktop workspace makes inert while it is up. */
       appFrame: () => appFrame,
       setAppFrameElement: (element: HTMLDivElement) => {

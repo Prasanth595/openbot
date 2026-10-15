@@ -6,7 +6,12 @@ import { reportNotification } from "./error-reports";
 export function App(props: AppProps = {}) {
   return (
     <NotificationObserver onShown={reportNotification}>
-      <AppProviders landingPreview={props.landingPreview} peopleEnabled={props.peopleEnabled}>
+      <AppProviders
+        landingPreview={props.landingPreview}
+        peopleEnabled={props.peopleEnabled}
+        voiceInputEnabled={props.voiceInputEnabled}
+      >
+        {props.previewControls?.()}
         <AppAccessGate />
       </AppProviders>
       <Toaster onToastShown={reportNotification} />

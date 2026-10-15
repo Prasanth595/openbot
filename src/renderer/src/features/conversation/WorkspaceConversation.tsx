@@ -340,6 +340,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
       <Conversation
         contextState={contextStates()[activeAgent()?.id ?? ""]}
         platform={platform.appInfo()?.platform}
+        voiceInputEnabled={platform.voiceInputEnabled}
         onOpenMarketplace={() => setSkillsMarketplaceOpen(true)}
         connectors={connectors.active}
         onOpenMarketplaceApp={(request) => {

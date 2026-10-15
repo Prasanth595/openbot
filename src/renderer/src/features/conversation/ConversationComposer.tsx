@@ -122,7 +122,7 @@ export function ConversationComposer() {
   const waitItems = createMemo(() => openWaitItems(props.waits ?? [], props.queue));
   const waitsVisible = () => waitItems().length > 0 && Boolean(props.onCancelWait) && !pickerOpen();
   const slotOpen = () => queueVisible() || awaitingVisible() || waitsVisible();
-  const voiceAvailable = () => !props.runtime && voiceSupported(props.platform);
+  const voiceAvailable = () => props.voiceInputEnabled !== false && !props.runtime && voiceSupported(props.platform);
   const context = () =>
     props.contextState?.agentId === props.agent?.id && props.contextState?.threadId === props.agent?.threadId
       ? props.contextState

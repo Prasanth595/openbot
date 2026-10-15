@@ -52,6 +52,10 @@ import { UiErrorsProvider } from "./ui-errors";
 export interface AppProps {
   landingPreview?: boolean;
   peopleEnabled?: boolean;
+  /** A standalone public demo disables browser microphone capture. */
+  voiceInputEnabled?: boolean;
+  /** Preview-only controls, mounted under the existing domain providers. */
+  previewControls?: () => JSX.Element;
 }
 
 /**
@@ -88,7 +92,11 @@ export function AppProviders(props: ParentProps<AppProps>): JSX.Element {
     readStoredComposerDrafts(),
   );
   return (
-    <PlatformProvider landingPreview={props.landingPreview} peopleEnabled={props.peopleEnabled}>
+    <PlatformProvider
+      landingPreview={props.landingPreview}
+      peopleEnabled={props.peopleEnabled}
+      voiceInputEnabled={props.voiceInputEnabled}
+    >
       <I18nProvider>
         <AuthProvider>
           <SetupProvider>

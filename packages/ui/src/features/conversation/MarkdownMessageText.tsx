@@ -576,182 +576,187 @@ function MarkdownInline(props: {
       {(item, index) => {
         const token = item.token;
         const after = () => tailAfter()[index()];
-        switch (token.type) {
-          case "strong":
-            if (!tokenIs(token, "strong")) return token.raw;
-            return (
-              <strong>
-                <MarkdownInline
-                  tokens={token.tokens}
-                  content={props.content}
-                  streamingTailAfter={tailInside(token, token.tokens, after())}
-                />
-              </strong>
-            );
-          case "em":
-            if (!tokenIs(token, "em")) return token.raw;
-            return (
-              <em>
-                <MarkdownInline
-                  tokens={token.tokens}
-                  content={props.content}
-                  streamingTailAfter={tailInside(token, token.tokens, after())}
-                />
-              </em>
-            );
-          case "del":
-            if (!tokenIs(token, "del")) return token.raw;
-            return (
-              <del>
-                <MarkdownInline
-                  tokens={token.tokens}
-                  content={props.content}
-                  streamingTailAfter={tailInside(token, token.tokens, after())}
-                />
-              </del>
-            );
-          case "codespan": {
-            if (!tokenIs(token, "codespan")) return token.raw;
-            const file = mentionedFileTarget(token.text, props.content.fileDirectory);
-            return file && file.kind === "shared" && props.content.onOpenSharedFile ? (
-              <LocalFileLink
-                path={file.path}
-                label={token.text}
-                kind="shared"
-                onOpen={props.content.onOpenSharedFile}
-              />
-            ) : file && file.kind === "workspace" && props.content.onOpenWorkspaceFile ? (
-              <LocalFileLink
-                path={file.path}
-                label={token.text}
-                kind="workspace"
-                onOpen={props.content.onOpenWorkspaceFile}
-              />
-            ) : (
-              <code>{token.text}</code>
-            );
-          }
-          case "br":
-            return <br />;
-          case "inlineMath":
-            if (!tokenIs(token, "inlineMath")) return token.raw;
-            return <MathFormula tex={token.text} raw={token.raw} display={token.display} />;
-          case "link": {
-            if (!tokenIs(token, "link")) return token.raw;
-            if (item.semanticTag) {
-              return <RichText body={item.semanticTag} content={props.content} streamingTailAfter={after()} />;
-            }
-            const url = safeBrowserUrl(token.href);
-            const fileUrl = fileUrlPath(token.href);
-            // The shared-file resolver does not decode, and the workspace resolver does.
-            const sharedPath = sharedFileTarget(fileUrl === null ? token.href : decodedFileUrlPath(fileUrl));
-            const workspacePath = workspaceFileTarget(fileUrl ?? token.href);
-            return url ? (
-              <MessageLink
-                url={url}
-                title={token.title || linkTitle(token.text, url)}
-                onOpenLink={props.content.onOpenLink}
-              >
-                {token.text === token.href ? (
-                  token.text
-                ) : (
+        // Link, file, and image branch choices depend on live content props. Track those
+        // choices per token instead of taking a stale snapshot in the For row callback.
+        const rendered = createMemo(() => {
+          switch (token.type) {
+            case "strong":
+              if (!tokenIs(token, "strong")) return token.raw;
+              return (
+                <strong>
                   <MarkdownInline
                     tokens={token.tokens}
-                    content={{ ...props.content, onOpenImage: undefined }}
+                    content={props.content}
                     streamingTailAfter={tailInside(token, token.tokens, after())}
                   />
-                )}
-              </MessageLink>
-            ) : sharedPath && props.content.onOpenSharedFile ? (
-              <LocalFileLink
-                path={sharedPath}
-                label={markdownInlinePlainText(token.tokens) || token.text}
-                kind="shared"
-                onOpen={props.content.onOpenSharedFile}
-              />
-            ) : workspacePath && props.content.onOpenWorkspaceFile ? (
-              <LocalFileLink
-                path={workspacePath}
-                label={markdownInlinePlainText(token.tokens) || token.text}
-                kind="workspace"
-                onOpen={props.content.onOpenWorkspaceFile}
-              />
-            ) : (
-              <RichText body={token.text} content={props.content} streamingTailAfter={after()} />
-            );
-          }
-          case "image": {
-            if (!tokenIs(token, "image")) return token.raw;
-            const url = safeBrowserUrl(token.href);
-            if (url && props.content.imagesAsLinks) {
+                </strong>
+              );
+            case "em":
+              if (!tokenIs(token, "em")) return token.raw;
               return (
-                <MessageLink url={url} title={url} onOpenLink={props.content.onOpenLink}>
-                  {token.text || t("chat.image.view")}
-                </MessageLink>
+                <em>
+                  <MarkdownInline
+                    tokens={token.tokens}
+                    content={props.content}
+                    streamingTailAfter={tailInside(token, token.tokens, after())}
+                  />
+                </em>
+              );
+            case "del":
+              if (!tokenIs(token, "del")) return token.raw;
+              return (
+                <del>
+                  <MarkdownInline
+                    tokens={token.tokens}
+                    content={props.content}
+                    streamingTailAfter={tailInside(token, token.tokens, after())}
+                  />
+                </del>
+              );
+            case "codespan": {
+              if (!tokenIs(token, "codespan")) return token.raw;
+              const file = mentionedFileTarget(token.text, props.content.fileDirectory);
+              return file && file.kind === "shared" && props.content.onOpenSharedFile ? (
+                <LocalFileLink
+                  path={file.path}
+                  label={token.text}
+                  kind="shared"
+                  onOpen={props.content.onOpenSharedFile}
+                />
+              ) : file && file.kind === "workspace" && props.content.onOpenWorkspaceFile ? (
+                <LocalFileLink
+                  path={file.path}
+                  label={token.text}
+                  kind="workspace"
+                  onOpen={props.content.onOpenWorkspaceFile}
+                />
+              ) : (
+                <code>{token.text}</code>
               );
             }
-            if (!url) {
-              return <RichText body={token.text || token.raw} content={props.content} streamingTailAfter={after()} />;
+            case "br":
+              return <br />;
+            case "inlineMath":
+              if (!tokenIs(token, "inlineMath")) return token.raw;
+              return <MathFormula tex={token.text} raw={token.raw} display={token.display} />;
+            case "link": {
+              if (!tokenIs(token, "link")) return token.raw;
+              if (item.semanticTag) {
+                return <RichText body={item.semanticTag} content={props.content} streamingTailAfter={after()} />;
+              }
+              const url = safeBrowserUrl(token.href);
+              const fileUrl = fileUrlPath(token.href);
+              // The shared-file resolver does not decode, and the workspace resolver does.
+              const sharedPath = sharedFileTarget(fileUrl === null ? token.href : decodedFileUrlPath(fileUrl));
+              const workspacePath = workspaceFileTarget(fileUrl ?? token.href);
+              return url ? (
+                <MessageLink
+                  url={url}
+                  title={token.title || linkTitle(token.text, url)}
+                  onOpenLink={props.content.onOpenLink}
+                >
+                  {token.text === token.href ? (
+                    token.text
+                  ) : (
+                    <MarkdownInline
+                      tokens={token.tokens}
+                      content={{ ...props.content, onOpenImage: undefined }}
+                      streamingTailAfter={tailInside(token, token.tokens, after())}
+                    />
+                  )}
+                </MessageLink>
+              ) : sharedPath && props.content.onOpenSharedFile ? (
+                <LocalFileLink
+                  path={sharedPath}
+                  label={markdownInlinePlainText(token.tokens) || token.text}
+                  kind="shared"
+                  onOpen={props.content.onOpenSharedFile}
+                />
+              ) : workspacePath && props.content.onOpenWorkspaceFile ? (
+                <LocalFileLink
+                  path={workspacePath}
+                  label={markdownInlinePlainText(token.tokens) || token.text}
+                  kind="workspace"
+                  onOpen={props.content.onOpenWorkspaceFile}
+                />
+              ) : (
+                <RichText body={token.text} content={props.content} streamingTailAfter={after()} />
+              );
             }
-            const image = (
-              <img
-                class="message-markdown-image"
-                src={url}
-                alt={token.text}
-                title={token.title ?? undefined}
-                loading="lazy"
-                decoding="async"
-                referrerpolicy="no-referrer"
-              />
-            );
-            const onOpenImage = props.content.onOpenImage;
-            return onOpenImage ? (
-              <Button
-                variant="ghost"
-                type="button"
-                class="message-markdown-image-button"
-                aria-label={t("chat.image.preview", { name: markdownImageName(token.text, url) })}
-                data-cuelume-tap="open"
-                onClick={(event) => {
-                  const picture = event.currentTarget.querySelector("img");
-                  if (picture) onOpenImage(picture);
-                }}
-              >
-                {image}
-              </Button>
-            ) : (
-              image
-            );
+            case "image": {
+              if (!tokenIs(token, "image")) return token.raw;
+              const url = safeBrowserUrl(token.href);
+              if (url && props.content.imagesAsLinks) {
+                return (
+                  <MessageLink url={url} title={url} onOpenLink={props.content.onOpenLink}>
+                    {token.text || t("chat.image.view")}
+                  </MessageLink>
+                );
+              }
+              if (!url) {
+                return <RichText body={token.text || token.raw} content={props.content} streamingTailAfter={after()} />;
+              }
+              const image = (
+                <img
+                  class="message-markdown-image"
+                  src={url}
+                  alt={token.text}
+                  title={token.title ?? undefined}
+                  loading="lazy"
+                  decoding="async"
+                  referrerpolicy="no-referrer"
+                />
+              );
+              const onOpenImage = props.content.onOpenImage;
+              return onOpenImage ? (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  class="message-markdown-image-button"
+                  aria-label={t("chat.image.preview", { name: markdownImageName(token.text, url) })}
+                  data-cuelume-tap="open"
+                  onClick={(event) => {
+                    const picture = event.currentTarget.querySelector("img");
+                    if (picture) onOpenImage(picture);
+                  }}
+                >
+                  {image}
+                </Button>
+              ) : (
+                image
+              );
+            }
+            case "html":
+              return token.raw;
+            case "escape": {
+              if (!tokenIs(token, "escape")) return token.raw;
+              return <RichText body={token.text} content={props.content} streamingTailAfter={after()} />;
+            }
+            case "text": {
+              if (!tokenIs(token, "text")) return token.raw;
+              return token.tokens ? (
+                <MarkdownInline
+                  tokens={token.tokens}
+                  content={props.content}
+                  streaming={item.streaming}
+                  streamingTailAfter={tailInside(token, token.tokens, after())}
+                />
+              ) : (
+                <RichText
+                  body={item.precedesSemanticTag ? token.text.slice(0, -1) : token.text}
+                  content={props.content}
+                  streaming={item.streaming}
+                  streamingTailAfter={after()}
+                />
+              );
+            }
+            case "checkbox":
+              return null;
+            default:
+              return <RichText body={token.raw} content={props.content} streamingTailAfter={after()} />;
           }
-          case "html":
-            return token.raw;
-          case "escape": {
-            if (!tokenIs(token, "escape")) return token.raw;
-            return <RichText body={token.text} content={props.content} streamingTailAfter={after()} />;
-          }
-          case "text": {
-            if (!tokenIs(token, "text")) return token.raw;
-            return token.tokens ? (
-              <MarkdownInline
-                tokens={token.tokens}
-                content={props.content}
-                streaming={item.streaming}
-                streamingTailAfter={tailInside(token, token.tokens, after())}
-              />
-            ) : (
-              <RichText
-                body={item.precedesSemanticTag ? token.text.slice(0, -1) : token.text}
-                content={props.content}
-                streaming={item.streaming}
-                streamingTailAfter={after()}
-              />
-            );
-          }
-          case "checkbox":
-            return null;
-          default:
-            return <RichText body={token.raw} content={props.content} streamingTailAfter={after()} />;
-        }
+        });
+        return <>{rendered()}</>;
       }}
     </For>
   );

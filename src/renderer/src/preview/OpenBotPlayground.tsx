@@ -91,7 +91,7 @@ export function OpenBotPlayground(props: OpenBotPlaygroundProps) {
     disposed = true;
     landingController?.dispose();
     mock.dispose();
-    window.openbot = previousApi;
+    if (window.openbot === mock.api) window.openbot = previousApi;
   });
 
   return dependencies.renderApp();

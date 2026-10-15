@@ -168,6 +168,12 @@ export interface MockOpenBotOptions
   routineFlowLinks?: RoutineFlowLink[];
   routineFlowSteps?: RoutineFlowStep[];
   customProviders?: CustomProviderSummary[];
+  /** A use-case preview can supply fixed replies. This callback never invokes a provider. */
+  replyForMessage?: (input: SendMessageInput) => string;
+  /** A use-case preview can keep the simulated turn visible without changing ordinary stories. */
+  replyDelayMs?: number;
+  /** In-memory files for one preview. Missing paths do not fall back to story data. */
+  workspaceFiles?: Record<string, { content: string; mimeType: string }>;
 }
 
 /** Custom models compose as `<provider>/<model>`; preview builds `listModels()` from these. */
@@ -398,14 +404,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   const attachmentListeners = new Set<Listener<AttachmentImportEvent>>();
   const latestConversationListeners = new Set<Listener<string>>();
   const timers = new Set<ReturnType<typeof setTimeout>>();
+  let disposed = false;
 
   const emit = <T>(listeners: Set<Listener<T>>, value: T) => {
     for (const listener of listeners) listener(clone(value));
   };
   const schedule = (callback: () => void, delay = 24) => {
+    if (disposed) return;
     const timer = setTimeout(() => {
       timers.delete(timer);
-      callback();
+      if (!disposed) callback();
     }, delay);
     timers.add(timer);
   };
@@ -1712,6 +1720,20 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         };
         routineRuns.set(routine.id, [run, ...(routineRuns.get(routine.id) ?? [])]);
         emitAgentEvent({ type: "routines-changed", agentId: input.agentId });
+        if (options.replyForMessage) {
+          const receipt = await api.agent.sendMessage({
+            agentId: input.agentId,
+            text: routine.instruction,
+            attachmentDraftIds: [],
+          });
+          run.deliveryId = receipt.deliveries[0]?.id ?? run.deliveryId;
+          run.status = "running";
+          schedule(() => {
+            run.status = "succeeded";
+            run.updatedAt = new Date().toISOString();
+            emitAgentEvent({ type: "routines-changed", agentId: input.agentId });
+          }, options.replyDelayMs ?? 80);
+        }
         return clone(run);
       },
       listRoutineRuns: async (input) => clone((routineRuns.get(input.routineId) ?? []).slice(0, input.limit)),
@@ -1790,10 +1812,43 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       previewWorkspaceFile: async (input: OpenWorkspaceFileInput) => {
         // A path with no extension is a folder here, so a folder chip reaches the listing as on desktop.
         if (!/\.[^/]+$/u.test(input.path)) throw new Error("Workspace path is not a file.");
+        if (options.workspaceFiles) {
+          const file = options.workspaceFiles[input.path];
+          if (!file) throw new Error(sourceText("error.attachment.unavailable"));
+          const bytes = new TextEncoder().encode(file.content);
+          return {
+            name: input.path.split("/").at(-1) ?? input.path,
+            size: bytes.byteLength,
+            mimeType: file.mimeType,
+            previewKind: "text",
+            bytes,
+          };
+        }
         return mockFilePreview(input.path, "workspace-file");
       },
-      listWorkspaceDirectory: async (input: OpenWorkspaceFileInput) => mockWorkspaceDirectory(input.path),
+      listWorkspaceDirectory: async (input: OpenWorkspaceFileInput) => {
+        if (!options.workspaceFiles) return mockWorkspaceDirectory(input.path);
+        const folder = input.path.replace(/\/+$/u, "") || ".";
+        const prefix = folder === "." ? "" : `${folder}/`;
+        return {
+          name: folder.split("/").at(-1) ?? folder,
+          path: folder,
+          root: `/mock/OpenBot/Agents/${input.agentId}`,
+          parentPath: folder === "." ? null : ".",
+          entries: Object.entries(options.workspaceFiles)
+            .filter(([path]) => path.startsWith(prefix))
+            .map(([path, file]) => ({
+              name: path.slice(prefix.length),
+              path,
+              kind: "file" as const,
+              size: new TextEncoder().encode(file.content).byteLength,
+              modifiedAt: Date.UTC(2026, 9, 1, 9, 30),
+            })),
+          truncated: false,
+        };
+      },
       sendMessage: async (input: SendMessageInput) => {
+        if (disposed) throw new Error("The preview is closed.");
         // As on a host, a repeated client id answers with the first receipt and stores nothing.
         const repeated = input.clientMessageId ? sentReceipts.get(input.clientMessageId) : undefined;
         if (repeated) return repeated;
@@ -1855,7 +1910,9 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             turnId,
             author: "assistant",
             source: "assistant",
-            text: `Mock reply from ${agents.find((agent) => agent.id === input.agentId)?.name ?? "agent"}: I received “${input.text}” and added it to the working context.`,
+            text:
+              options.replyForMessage?.(input) ??
+              `Mock reply from ${agents.find((agent) => agent.id === input.agentId)?.name ?? "agent"}: I received “${input.text}” and added it to the working context.`,
             createdAt: new Date().toISOString(),
             status: "completed",
           };
@@ -1878,7 +1935,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             turnId,
             status: "completed",
           });
-        }, 80);
+        }, options.replyDelayMs ?? 80);
 
         const receipt: QueuedMessageReceipt = {
           messageId,
@@ -2217,6 +2274,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     emitHostStatus: mockTeam.emitHostStatus,
     emitRemoteDesktopSessions: mockTeam.emitRemoteDesktopSessions,
     dispose: () => {
+      disposed = true;
       for (const timer of timers) clearTimeout(timer);
       timers.clear();
       mockProviderRuntimes.dispose();

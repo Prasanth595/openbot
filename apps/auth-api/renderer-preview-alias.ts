@@ -7,3 +7,7 @@ export const rendererPreviewAlias = fileURLToPath(
 export const rendererWebAlias = fileURLToPath(
   new URL("../../src/renderer/src/features/web-client/WebApp.tsx", import.meta.url),
 );
+
+export const rendererMarketingDemoAlias = fileURLToPath(
+  new URL("../../src/renderer/src/preview/MarketingDemo.tsx", import.meta.url),
+);

@@ -52,9 +52,9 @@ export function AppAccessGate() {
   const languageStepShown = () => auth.centralAuth().status === "signed_out" && !languageStep.done();
   // A computer signed in before the wheel existed has its language already, so a later sign-out skips the wheel.
   createEffect(
-    () => auth.centralAuth().status === "signed_in",
-    (signedIn) => {
-      if (signedIn && !languageStep.done()) languageStep.complete();
+    () => auth.centralAuth().status === "signed_in" && !languageStep.done(),
+    (shouldComplete) => {
+      if (shouldComplete) languageStep.complete();
     },
   );
   // A startup mark for `dev:bench`: the first moment the app can leave the splash.

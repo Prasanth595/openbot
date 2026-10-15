@@ -6,7 +6,7 @@ import { defineConfig, type Plugin } from "vite";
 import { contentImages } from "./content-images";
 import { DEVELOPMENT_APNS_PATH, developmentApnsProxy } from "./dev-apns-proxy";
 import { developmentNetworkRequestAllowed } from "./dev-network-access";
-import { rendererPreviewAlias, rendererWebAlias } from "./renderer-preview-alias";
+import { rendererMarketingDemoAlias, rendererPreviewAlias, rendererWebAlias } from "./renderer-preview-alias";
 import { readLocalRuntimeVars } from "./src/server/runtime-env";
 
 export default defineConfig(({ command }) => {
@@ -21,6 +21,7 @@ export default defineConfig(({ command }) => {
       dedupe: ["solid-js", "@solidjs/web", "@solidjs/signals"],
       alias: {
         "@openbot/renderer-preview": rendererPreviewAlias,
+        "@openbot/renderer-marketing-demo": rendererMarketingDemoAlias,
         "@openbot/renderer-web": rendererWebAlias,
       },
     },
