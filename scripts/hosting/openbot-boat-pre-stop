@@ -2,10 +2,11 @@
 # openbot-boat-pre-stop: installed by openbot-hosted-update. Changes to this file are replaced.
 #
 # boat runs /home/user/.boat/pre-stop as the sandbox user when a stop starts, waits for it to end (at
-# most 60 seconds), and then saves the disk. Observed on boat, not documented by it. The save copies
-# files while they change, and a file that changed during the copy is restored torn. A database that
-# OpenBot wrote during the save was restored damaged. When OpenBot is stopped first, the save sees no
-# writes. A stop that boat does not complete leaves OpenBot stopped until the next boot.
+# most 60 seconds), and then saves the disk. boat supports this hook, but its documentation does not
+# show it yet. The save copies files while they change, and a file that changed during the copy is
+# restored torn. A database that OpenBot wrote during the save was restored damaged. When OpenBot is
+# stopped first, the save sees no writes. A stop that boat does not complete leaves OpenBot stopped
+# until the next boot.
 set -u
 
 # /run is empty at each boot, so the flag stops only the starts until boat saves the disk: the

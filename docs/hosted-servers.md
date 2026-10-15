@@ -121,8 +121,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    and a file that changes during its copy is restored torn. A SQLite checkpoint during the save
    gave a damaged database ("OpenBot database failed its integrity check"). Thus a hosted server
    stops OpenBot before the save. boat runs `/home/user/.boat/pre-stop` as `user` when a stop
-   starts, waits for it to end (at most 60 seconds), and then saves the disk. This is observed, not
-   documented by boat. `openbot-hosted-update` installs `scripts/hosting/openbot-boat-pre-stop` there
+   starts, waits for it to end (at most 60 seconds), and then saves the disk. boat supports this
+   hook, but its documentation does not show it yet. `openbot-hosted-update` installs `scripts/hosting/openbot-boat-pre-stop` there
    (`install_hosting`, and `trigger` at each start, so a server that an older release updated gets
    it). The hook makes `/run/openbot-pre-stop` and runs `systemctl stop openbot.service`: OpenBot
    gets `SIGTERM`, stops its services and closes `openbot.db` last. After 40 seconds the hook kills
