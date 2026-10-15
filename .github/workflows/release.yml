@@ -904,9 +904,6 @@ jobs:
           echo "$status"
           grep -Fxq "OpenBot $RELEASE_VERSION" <<<"$status"
           grep -Fxq "Account: signed out. Sign in with: openbot login" <<<"$status"
-          # The Codex sandbox (bubblewrap) is on PATH, and the seccomp profile lets it mount its root.
-          docker exec openbot bwrap --unshare-all --share-net --die-with-parent \
-            --ro-bind / / --proc /proc --dev /dev true
           docker stop --time 60 openbot
           test "$(docker inspect openbot --format '{{.State.ExitCode}}')" = 0
 

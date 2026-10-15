@@ -346,12 +346,10 @@ environment of OpenBot, so they can read these values.
 
 - **The Electron sandbox stays on.** `seccomp.json` is the default profile of Docker
   ([moby/profiles](https://github.com/moby/profiles/blob/6fe7deb1b9fb7c0397a4593480d7d22b9ee8caef/seccomp/default.json))
-  with one more rule: `clone` and `unshare` without limits on their flags, and `mount`, `umount2` and
-  `pivot_root`. This lets the container make user namespaces, and lets the Codex sandbox (bubblewrap)
-  mount its root in its own user namespace. It gives processes in the container more of the kernel to
-  call. The kernel still refuses other namespaces and mounts to a process that is not in its own user
-  namespace. Do not use `seccomp=unconfined`, `--privileged` or `--no-sandbox` instead. After an
-  update from a release before this rule, download `seccomp.json` again and recreate the container.
+  with one more rule: `clone` and `unshare` without limits on their flags. This lets the container
+  make user namespaces, which gives processes in the container more of the kernel to call. The kernel
+  still refuses other namespaces to a process that is not in its own user namespace. Do not use
+  `seccomp=unconfined`, `--privileged` or `--no-sandbox` instead.
 - **Not root.** The image runs as UID 1000. Root owns the release, so agents cannot change it. The
   release has no SUID file. `no-new-privileges` keeps it that way.
 - **Agents have full access in the container.** They run commands, change all of `/data` and use the
@@ -396,3 +394,7 @@ does not use systemd.
   Podman, Kubernetes, rootless Docker, and hosts that restrict user namespaces with AppArmor, such as
   Ubuntu 23.10 or newer. On such a host, the container can need an AppArmor profile that permits
   `userns`.
+- Not tested: a Codex agent with Workspace only access in a container. Codex runs its commands in
+  bubblewrap, which mounts its root in a user namespace. The seccomp profile allows `mount` and
+  `pivot_root` only with `CAP_SYS_ADMIN`, and the `docker-default` AppArmor profile refuses `mount`,
+  so these commands can fail. An agent with Full access does not use bubblewrap.
