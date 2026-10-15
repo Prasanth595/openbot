@@ -1583,7 +1583,8 @@ export class ProviderRuntime implements ProviderPort {
               }),
               { cause },
             );
-            this.#setProviderConnectionFailure(provider, failure, previousVersion, installed);
+            // Before the install, the old CLI is untouched: a provider that the idle timer released keeps its account.
+            this.#setProviderConnectionFailure(provider, failure, previousVersion, installed, !installed);
             return new ProviderOperationFailed({ cause: failure });
           }),
         ),
@@ -2287,15 +2288,17 @@ export class ProviderRuntime implements ProviderPort {
   /**
    * `cliFailed` is for a failure of the CLI itself, such as an update that installed a CLI which does
    * not start. A CLI that stopped before it answered is one as well. Such a provider needs the CLI
-   * fixed, not a sign-in, so its status says so.
+   * fixed, not a sign-in, so its status says so. `keepsReleased` counts a provider that the idle timer
+   * released as connected, as when its old CLI is still in use.
    */
   #setProviderConnectionFailure(
     provider: AgentProvider,
     error: unknown,
     version?: string | null,
     cliFailed = error instanceof AgentProcessExitError,
+    keepsReleased = false,
   ): void {
-    const hasActiveClient = this.#clients.has(provider);
+    const hasActiveClient = this.#clients.has(provider) || (keepsReleased && this.#released.has(provider));
     const fallbackMessage = `OpenBot could not connect ${providerLabel(provider)}. Try again.`;
     const rawMessage = error instanceof Error ? error.message : String(error);
     const message =
