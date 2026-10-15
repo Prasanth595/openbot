@@ -50,7 +50,7 @@ import {
 /** Stripe retries a webhook for up to 3 days, so older event ids are not needed to stop duplicates. */
 const WEBHOOK_EVENT_RETENTION_MS = 7 * 24 * 60 * 60_000;
 /** The key of an account's welcome email claim in `billing_webhook_events`. No Stripe event id has it. */
-export const WELCOME_EMAIL_CLAIM_PREFIX = "openbot_welcome_email:";
+const WELCOME_EMAIL_CLAIM_PREFIX = "openbot_welcome_email:";
 const OPEN_STATUSES_SQL = "('active', 'trialing', 'past_due', 'unpaid', 'paused')";
 /** The Remote host id shape (`requiredIdentifier` in remote-control-plane.ts). Other values are stored as no server. */
 const SERVER_ID_PATTERN = /^[A-Za-z0-9:_-]{1,128}$/u;
