@@ -71,7 +71,7 @@ All notable changes to OpenBot will be documented here. The project follows
 - On Windows, Gemini does not start when the disk has less than 1 GB free, and says so.
 - After 3 failed starts in a row, OpenBot stops starting a provider by itself and shows why on the
   provider row. Refresh the providers to try again.
-- **On Windows, to get back the disk space that Gemini used in earlier versions, quit OpenBot and delete the `_MEI` folders in `%TEMP%`.**
+- On Windows, to get back the disk space that Gemini used in earlier versions, quit OpenBot and delete the `_MEI` folders in `%TEMP%`.
 - On Linux, the invitation page now offers the Linux installer. Before, Download OpenBot gave the macOS installer.
 - A self-hosted server now starts again when `sudo openbot update` fails or is stopped. Before, the
   server stayed stopped until an operator started it.
