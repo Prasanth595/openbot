@@ -1416,6 +1416,10 @@ export class HostService extends EventEmitter<HostEvents> {
    * sender is the reader's own, and the signed-out id would name this person as someone else to the
    * members of a team they host later.
    */
+  conversationReaderId(): string {
+    return this.#currentAgentReaderId();
+  }
+
   conversationSender(): ConversationMessageSender | undefined {
     let user: CentralAuthUser;
     try {

@@ -459,6 +459,13 @@ export function ConversationComposer() {
             reference={currentChatErrorReference()}
             onShown={() => reportErrorBanner(message(), "turn")}
             conversationKey={currentChatConversationKey()}
+            action={
+              props.conversationError && props.onRetryConversationError ? (
+                <Button type="button" variant="ghost" size="xs" onClick={() => void props.onRetryConversationError?.()}>
+                  {t("common.retry")}
+                </Button>
+              ) : undefined
+            }
             onDismiss={() => {
               dismissCurrentChatErrors();
               setComposerFocusRequest((current) => current + 1);

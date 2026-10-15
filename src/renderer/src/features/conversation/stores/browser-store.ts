@@ -153,7 +153,7 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
         return;
       }
 
-      const requestKey = String(request.requestId);
+      const requestKey = `${request.agentId}:${request.threadId}:${request.turnId ?? ""}:${String(request.requestId)}`;
       if (!tab) {
         if (browserTakeoverPreviewKey !== requestKey) {
           setBrowserTakeoverPreview({ status: "loading", preview: null });
@@ -179,17 +179,23 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
   );
   const latestMessageMarker = createMemo(() => {
     const message = deps.props.messages.at(-1);
+    const owner = `${deps.props.server?.id ?? "local"}:${deps.props.agent?.id ?? ""}:${deps.props.conversationThreadId ?? ""}`;
     return message
-      ? `${message.id}:${message.body.length}:${message.streaming === true ? "streaming" : "settled"}`
-      : null;
+      ? `${owner}:${message.id}:${message.body.length}:${message.streaming === true ? "streaming" : "settled"}`
+      : owner;
   });
   const [browserTakeoverResolution, setBrowserTakeoverResolution] = createSignal<BrowserTakeoverResolutionState | null>(
     null,
   );
   createEffect(
-    () => deps.props.browserTakeover?.requestId,
-    (requestId) => {
-      if (requestId !== undefined) setBrowserTakeoverResolution(null);
+    () => ({
+      requestId: deps.props.browserTakeover?.requestId,
+      threadId: deps.props.conversationThreadId,
+      agentId: deps.props.agent?.id,
+      serverId: deps.props.server?.id,
+    }),
+    () => {
+      setBrowserTakeoverResolution(null);
     },
   );
   createEffect(latestMessageMarker, (messageMarker) => {

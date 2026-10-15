@@ -2,6 +2,17 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.conversationUnavailable": "この会話はもう利用できません。",
+  "error.agent.conversationArchived": "メッセージを送信する前に、この会話を復元してください。",
+  "error.agent.conversationBusy":
+    "この会話をアーカイブする前に、実行中の作業と待機中のメッセージを完了するかキャンセルしてください。",
+  "error.agent.mainConversationFixed": "メインの会話はアーカイブできません。",
+  "error.agent.conversationTurnChanged":
+    "実行中の会話が変更されました。現在の状態を読み取ってから、もう一度お試しください。",
+  "error.agent.conversationDeliveryChanged":
+    "メッセージの送信先が変更されました。現在の状態を読み取ってから、もう一度お試しください。",
+  "error.agent.conversationInputChanged":
+    "入力リクエストが変更されました。現在の状態を読み取ってから、もう一度お試しください。",
   "error.agent.historyUnavailable": "このリクエストでは履歴を利用できません。最近の履歴をもう一度読み取ってください。",
   "error.agent.toolRequestInvalid":
     "ツール検出の引数が無効です。宣言されたスキーマと、元の修飾されたツール名を使用してください。",

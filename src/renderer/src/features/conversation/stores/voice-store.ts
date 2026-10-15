@@ -1,6 +1,6 @@
 import { VOICE_AUDIO_LIMITS, VOICE_MODELS, VOICE_STREAM_LIMITS, type VoiceModelId } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
-import { onCleanup } from "solid-js";
+import { onCleanup, untrack } from "solid-js";
 import { desktopAnalytics } from "../../../analytics";
 import { appendVoiceTranscript, encodePcm16, recordingToSamples, recordingToWav } from "../../../voice-recording";
 import { EMPTY_DRAFT } from "../composer-draft";
@@ -62,9 +62,11 @@ export interface VoiceStoreDeps {
       | {
           agentId: string;
           serverId: string;
+          threadId?: string;
           draft: ComposerDraft;
           queuedEdit: { deliveryId: string; originalAttachmentIds: string[] } | undefined;
         };
+    forgottenAgentTargets: Set<string>;
     voiceDisposed: boolean;
     voiceRequestGeneration: number;
     voiceRecorder: Pick<MediaRecorder, "state" | "stop"> | undefined;
@@ -77,6 +79,7 @@ export interface VoiceStoreDeps {
     voiceMeterStop: (() => void) | undefined;
     voiceAgentId: string | undefined;
     voiceServerId: string | undefined;
+    voiceThreadId: string | undefined;
   };
   voicePhase: () => "idle" | "preparing" | "requesting" | "recording" | "transcribing";
   setVoicePhase: (phase: "idle" | "preparing" | "requesting" | "recording" | "transcribing") => void;
@@ -105,7 +108,11 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     const agentId = deps.props.agent?.id;
     const serverId = deps.props.server?.id ?? "local";
     if (!agentId || deps.voicePhase() !== "idle") return;
-    const target = { agentId, serverId };
+    const target = {
+      agentId,
+      serverId,
+      ...(deps.props.conversationThreadId ? { threadId: deps.props.conversationThreadId } : {}),
+    };
     deps.clearConversationError(target);
     resources.voiceSubmitRequest = undefined;
     deps.setComposerError(null);
@@ -161,6 +168,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
       resources.voiceRecorder = recorder;
       resources.voiceAgentId = agentId;
       resources.voiceServerId = serverId;
+      resources.voiceThreadId = target.threadId;
       resources.voiceChunks = [];
       deps.setVoiceLiveTranscript(null);
       recorder.addEventListener("dataavailable", (event) => {
@@ -270,7 +278,9 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
       .catch(() => {});
   }
 
-  const removeVoiceModelListener = conversationRuntime(deps.props).voice.onModelStatus((status) => {
+  // This listener belongs to this store's lifetime, not to the selected conversation.
+  const modelStatusVoice = untrack(() => conversationRuntime(deps.props).voice);
+  const removeVoiceModelListener = modelStatusVoice.onModelStatus((status) => {
     // Settings can download another model at the same time.
     if (deps.voicePhase() !== "preparing" || status.modelId !== preparingModelId) return;
     deps.setVoiceModelProgress(status.progress);
@@ -297,6 +307,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     resources.voiceRecorder = undefined;
     resources.voiceAgentId = undefined;
     resources.voiceServerId = undefined;
+    resources.voiceThreadId = undefined;
     resources.voiceChunks = [];
     resources.voiceSubmitRequest = undefined;
     recorder.stop();
@@ -379,6 +390,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
   async function finishVoiceRecording(mimeType: string): Promise<void> {
     const targetAgentId = resources.voiceAgentId;
     const targetServerId = resources.voiceServerId;
+    const targetThreadId = resources.voiceThreadId;
     const chunks = resources.voiceChunks;
     const submitRequest = resources.voiceSubmitRequest;
     const cloud = resources.voiceCloudStream;
@@ -386,6 +398,7 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
     resources.voiceRecorder = undefined;
     resources.voiceAgentId = undefined;
     resources.voiceServerId = undefined;
+    resources.voiceThreadId = undefined;
     resources.voiceChunks = [];
     resources.voiceSubmitRequest = undefined;
     // The recorder also stops by itself, for example when the microphone is disconnected.
@@ -429,13 +442,25 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         audio_duration_seconds: audioDurationSeconds,
         duration_ms: Math.max(0, Math.round(performance.now() - startedAt)),
       });
-      if (resources.voiceDisposed) return;
-      const recordingTarget = { agentId: targetAgentId, serverId: targetServerId };
+      if (
+        resources.voiceDisposed ||
+        resources.forgottenAgentTargets.has(composerDraftKey({ agentId: targetAgentId, serverId: targetServerId }))
+      )
+        return;
+      const recordingTarget = {
+        agentId: targetAgentId,
+        serverId: targetServerId,
+        ...(targetThreadId ? { threadId: targetThreadId } : {}),
+      };
       deps.clearConversationError(recordingTarget);
       const draft = submitRequest?.draft ?? deps.drafts()[composerDraftKey(recordingTarget)] ?? EMPTY_DRAFT;
       const transcribedDraft = { ...draft, text: appendVoiceTranscript(draft.text, result.text) };
       if (submitRequest) {
-        const target = { agentId: submitRequest.agentId, serverId: submitRequest.serverId };
+        const target = {
+          agentId: submitRequest.agentId,
+          serverId: submitRequest.serverId,
+          ...(submitRequest.threadId ? { threadId: submitRequest.threadId } : {}),
+        };
         let delivered: boolean;
         if (submitRequest.queuedEdit) {
           delivered = await deps.hooks.saveEdit(
@@ -453,7 +478,11 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
       } else {
         const key = composerDraftKey(recordingTarget);
         deps.setDrafts((current) => ({ ...current, [key]: transcribedDraft }));
-        if (deps.props.agent?.id === targetAgentId && (deps.props.server?.id ?? "local") === targetServerId) {
+        if (
+          deps.props.agent?.id === targetAgentId &&
+          (deps.props.server?.id ?? "local") === targetServerId &&
+          deps.props.conversationThreadId === targetThreadId
+        ) {
           deps.setComposerFocusRequest((current) => current + 1);
         }
       }
@@ -464,8 +493,15 @@ export function createVoiceStore(deps: VoiceStoreDeps) {
         duration_ms: Math.max(0, Math.round(performance.now() - startedAt)),
         failure_code: "transcription_failed",
       });
-      if (!resources.voiceDisposed) {
-        const target = { agentId: targetAgentId, serverId: targetServerId };
+      if (
+        !resources.voiceDisposed &&
+        !resources.forgottenAgentTargets.has(composerDraftKey({ agentId: targetAgentId, serverId: targetServerId }))
+      ) {
+        const target = {
+          agentId: targetAgentId,
+          serverId: targetServerId,
+          ...(targetThreadId ? { threadId: targetThreadId } : {}),
+        };
         deps.setConversationErrors((current) => ({
           ...current,
           [composerDraftKey(target)]: voiceTranscriptionError(error),

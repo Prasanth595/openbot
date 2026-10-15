@@ -16,6 +16,7 @@ import { createOpenBotLogger } from "@openbot/logging";
 import { Effect, Result, Schema } from "effect";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
+import { isMissingCodexResumeThreadError } from "../app-server-client";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
 import type { MailboxStore } from "../mailbox-store";
@@ -247,6 +248,17 @@ export class ThreadLifecycle {
     );
   }, Effect.uninterruptible).bind(this);
 
+  /** Await ordinary adapter release before a provider/account switch saves the new identity. */
+  readonly releaseIdleAgentSessions = Effect.fn("ThreadLifecycle.releaseIdleAgentSessions")(function* (
+    this: ThreadLifecycle,
+    agentId: string,
+  ) {
+    for (const [externalThreadId, client] of this.#conversation.loadedAgentThreads(agentId)) {
+      if (client.releaseThread) yield* client.releaseThread(externalThreadId).pipe(toThreadOperationFailed);
+      this.#conversation.unloadThread(externalThreadId);
+    }
+  }, Effect.uninterruptible).bind(this);
+
   readonly deleteProviderSessionFiles = Effect.fn("ThreadLifecycle.deleteProviderSessionFiles")(function* (
     this: ThreadLifecycle,
     sessionId: string,
@@ -337,7 +349,11 @@ export class ThreadLifecycle {
       if (this.#conversation.loadedClientFor(session.externalSessionId) !== client) {
         const resumed = yield* Effect.result(this.resumeThread(currentAgent, client, session.externalSessionId));
         if (Result.isFailure(resumed)) {
-          if (!isMissingProviderSessionError(resumed.failure.cause, client.provider)) return yield* resumed.failure;
+          const missing =
+            client.provider === "codex"
+              ? isMissingCodexResumeThreadError(resumed.failure.cause, session.externalSessionId)
+              : isMissingProviderSessionError(resumed.failure.cause, client.provider);
+          if (!missing) return yield* resumed.failure;
           yield* threadStep(() => this.retireProviderSession(currentAgent, session.externalSessionId));
           const replacement = yield* this.startProviderThread(currentAgent, client, publicThreadId, "missing-session");
           this.#hooks.logRecovery(currentAgent.id, client.provider, "replaced");
@@ -840,8 +856,8 @@ export class ThreadLifecycle {
   retireProviderSession(agent: AgentSummary, externalThreadId: string): void {
     const publicThreadId = this.#conversation.publicThreadId(agent.id, externalThreadId);
     const session = this.#store.database.activeProviderSession(publicThreadId, agent.provider);
-    if (session?.externalSessionId !== externalThreadId) return;
-    this.#store.database.deactivateProviderSessions(publicThreadId);
+    if (session?.externalSessionId === externalThreadId)
+      this.#store.database.deactivateProviderSessions(publicThreadId);
     this.#conversation.unbindThread(externalThreadId);
     this.#conversation.unloadThread(externalThreadId);
     this.#compaction.forgetThread(externalThreadId);
@@ -927,7 +943,10 @@ export class ThreadLifecycle {
   providerContextBusy(agent: AgentSummary): boolean {
     if (!this.#compaction.mayDrain(agent.id) || this.#pendingStarts.has(agent.id)) return true;
     if (this.#mailbox.startingDeliveriesForAgent(agent.id).length > 0) return true;
-    return agent.threadId !== null && this.#activeTurnOf(agent.id, agent.threadId) !== null;
+    return [
+      ...(agent.threadId ? [agent.threadId] : []),
+      ...this.#store.database.userConversations.threads(agent.id),
+    ].some((threadId) => this.#activeTurnOf(agent.id, threadId) !== null);
   }
 
   /**
@@ -958,12 +977,17 @@ export class ThreadLifecycle {
     threadId: string,
   ) {
     const sessions = this.#store.database.listProviderSessions(threadId).filter((one) => one.state === "active");
+    for (const session of sessions) {
+      const client = this.#conversation.loadedClientFor(session.externalSessionId);
+      if (client?.releaseThread) yield* client.releaseThread(session.externalSessionId).pipe(toThreadOperationFailed);
+      this.#conversation.unloadThread(session.externalSessionId);
+    }
+    // A failed close keeps every durable session and its public history available for retry.
     this.#store.database.deactivateProviderSessions(threadId);
     for (const session of sessions) {
       // The client first, while the routing entry below still names it. Dropping the entry alone
       // would leave the old session open inside the client with the MCP servers it spawned, so each
       // further change would add a set of processes the user can no longer reach.
-      yield* this.#releaseProviderSession(session.externalSessionId);
       this.#conversation.unbindThread(session.externalSessionId);
       this.#conversation.unloadThread(session.externalSessionId);
       this.#compaction.forgetThread(session.externalSessionId);

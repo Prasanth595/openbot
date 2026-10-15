@@ -2,6 +2,16 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.conversationUnavailable": "Ta rozmowa nie jest już dostępna.",
+  "error.agent.conversationArchived": "Przywróć tę rozmowę przed wysłaniem wiadomości.",
+  "error.agent.conversationBusy":
+    "Zakończ lub anuluj bieżącą pracę i wiadomości w kolejce tej rozmowy przed jej zarchiwizowaniem.",
+  "error.agent.mainConversationFixed": "Nie można zarchiwizować głównej rozmowy.",
+  "error.agent.conversationTurnChanged": "Aktywna rozmowa się zmieniła. Odczytaj jej bieżący stan i spróbuj ponownie.",
+  "error.agent.conversationDeliveryChanged":
+    "Miejsce docelowe wiadomości się zmieniło. Odczytaj jego bieżący stan i spróbuj ponownie.",
+  "error.agent.conversationInputChanged":
+    "Prośba o odpowiedź się zmieniła. Odczytaj jej bieżący stan i spróbuj ponownie.",
   "error.agent.historyUnavailable": "Historia jest niedostępna dla tego żądania. Odczytaj ponownie najnowszą historię.",
   "error.agent.toolRequestInvalid":
     "Nieprawidłowe argumenty wyszukiwania narzędzi. Użyj zadeklarowanego schematu i oryginalnej kwalifikowanej nazwy narzędzia.",

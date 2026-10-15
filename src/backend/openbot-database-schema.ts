@@ -3,6 +3,7 @@ import { COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { isGeneratedAgentId } from "@openbot/contracts/validation";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
+import { AGENT_CONVERSATION_SCHEMA_SQL } from "./agent-conversations/agent-conversation-schema";
 import { AGENT_MEMORY_SELECTION_SCHEMA_SQL, migrateAgentMemorySelection } from "./agent-memory-selection";
 import { AGENT_WAIT_SCHEMA_SQL } from "./agent-waits/agent-wait-schema";
 import { CHANNEL_SCHEMA_SQL, CHANNEL_SETTINGS_SCHEMA_SQL } from "./channel-schema";
@@ -505,7 +506,8 @@ const LATEST_SCHEMA_SQL =
   AGENT_MEMORY_SELECTION_SCHEMA_SQL +
   AGENT_WAIT_SCHEMA_SQL +
   MESSAGING_MEMORY_SCHEMA_SQL +
-  ROUTINE_RESULT_SCHEMA_SQL;
+  ROUTINE_RESULT_SCHEMA_SQL +
+  AGENT_CONVERSATION_SCHEMA_SQL;
 
 /** The end of a routine table with the migration 27 and 33 columns after its last one. */
 function withRoutinePolicies(tableEnd: string): string {
@@ -705,6 +707,11 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
     // Only creates tables, so no foreign-key pause and no vacuum. No routine has a destination yet, so every
     // routine keeps its answers in OpenBot, which is what it did before.
     up: (db) => db.exec(ROUTINE_RESULT_SCHEMA_SQL),
+  },
+  {
+    version: 38,
+    // Add private metadata and immutable destinations without changing an existing row.
+    up: (db) => db.exec(AGENT_CONVERSATION_SCHEMA_SQL),
   },
 ];
 

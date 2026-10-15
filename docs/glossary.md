@@ -36,7 +36,8 @@ table, IPC channel or product string, or when a term in the code disagrees with 
   (`HostStatus`, `host:*`, `src/main/team-api-server.ts`), the account API (`apps/auth-api`,
   `auth:*`), or an MCP server (`createSdkMcpServer`).
 - **thread**: durable `projection_threads` record. **conversation**: its read projection, with no
-  separate table. **provider session**: private CLI resume state (`projection_provider_sessions`).
+  separate history table. A **user conversation** is an added local thread with display and archive
+  metadata in `agent_conversations`. Main remains the agent's original thread. **provider session**: private CLI resume state (`projection_provider_sessions`).
   **team session**: authenticated remote connection. **turn**: one exchange in a thread.
 - **routine**: a saved instruction for an agent or channel, with one schedule or webhook trigger
   (`EventRoutineTrigger`). Agent routines use `projection_agent_routines`. This is not Claude Code

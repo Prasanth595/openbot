@@ -5,6 +5,7 @@ import { ConversationComposer } from "./ConversationComposer";
 import { ConversationHeader } from "./ConversationHeader";
 import { ConversationPanels } from "./ConversationPanels";
 import { ConversationTimeline } from "./ConversationTimeline";
+import { agentConversationKey } from "./conversation-keys";
 import { ConversationViewScopeContext, createConversationViewScope } from "./conversation-scope";
 import type { ConversationProps } from "./conversation-types";
 
@@ -67,7 +68,11 @@ export function ConversationView(props: ConversationProps) {
         }}
       >
         <MessageSelectionActions
-          contextKey={props.agent?.id}
+          contextKey={
+            props.agent
+              ? agentConversationKey(props.server?.id ?? "local", props.agent.id, props.conversationThreadId)
+              : undefined
+          }
           disabled={!props.agent || !agentReady() || submitting()}
           onSend={sendSelectionInstruction}
         />

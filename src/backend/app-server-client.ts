@@ -28,6 +28,7 @@ import { createDiagnosticStream } from "./stderr-diagnostics";
 import { endProcessTree } from "./windows-process-tree";
 
 interface PendingRequest {
+  method: string;
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
 }
@@ -44,10 +45,27 @@ export class AppServerError extends Error {
     message: string,
     readonly code: number,
     readonly data?: unknown,
+    readonly method?: string,
   ) {
     super(message);
     this.name = "AppServerError";
   }
+}
+
+/**
+ * Matches Codex's confirmed missing-thread response to thread/resume before a new turn starts.
+ * rust-v0.162.1 maps ThreadNotFound to this exact message, code -32600 and no error data:
+ * https://github.com/openai/codex/blob/rust-v0.162.1/codex-rs/app-server/src/request_processors/thread_processor.rs#L5662
+ * This guard must not classify turn/start failures or uncertain transport outcomes.
+ */
+export function isMissingCodexResumeThreadError(error: unknown, externalThreadId: string): boolean {
+  return (
+    error instanceof AppServerError &&
+    error.method === "thread/resume" &&
+    error.code === -32600 &&
+    (error.data === undefined || error.data === null) &&
+    error.message === `no rollout found for thread id ${externalThreadId}`
+  );
 }
 
 export class CodexAppServerClient extends EventEmitter<ClientEvents> {
@@ -250,6 +268,7 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     const id = this.#nextId++;
     return yield* Effect.callback<T, ProviderClientOperationError>((resume) => {
       this.#pending.set(id, {
+        method,
         resolve: (value) =>
           resume(
             Effect.try({
@@ -352,7 +371,7 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     if (message.error && isRecord(message.error)) {
       const code = isNumber(message.error.code) ? message.error.code : -1;
       const text = isString(message.error.message) ? message.error.message : "Unknown error";
-      pending.reject(new AppServerError(text, code, message.error.data));
+      pending.reject(new AppServerError(text, code, message.error.data, pending.method));
       return;
     }
 

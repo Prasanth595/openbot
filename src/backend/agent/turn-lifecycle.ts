@@ -772,10 +772,20 @@ export class TurnLifecycle {
       latestAssistant !== undefined &&
       deliveries.some(({ delivery }) => delivery.sender.kind === "routine") &&
       isNoUpdateAnswer(latestAssistant.text);
-    if (latestAssistant && !markerAnswer && !this.#conversation.isExecutionThread(snapshot.threadId)) {
+    if (
+      latestAssistant &&
+      !markerAnswer &&
+      !this.#conversation.isExecutionThread(snapshot.threadId) &&
+      !this.#conversation.isUserThread(snapshot.threadId)
+    ) {
       yield* this.#store.updatePreview(agentId, latestAssistant.text).pipe(toTurnOperationFailed);
       this.#hooks.emit({ type: "agents-changed", agents: this.#hooks.listAgents() });
-    } else if (quiet || (markerAnswer && !this.#conversation.isExecutionThread(snapshot.threadId))) {
+    } else if (
+      quiet ||
+      (markerAnswer &&
+        !this.#conversation.isExecutionThread(snapshot.threadId) &&
+        !this.#conversation.isUserThread(snapshot.threadId))
+    ) {
       const saved = savedPreviews[0];
       const current = this.#store.list().find((entry) => entry.id === agentId)?.preview;
       if (saved && current === savedPreviews.at(-1)?.shown) {

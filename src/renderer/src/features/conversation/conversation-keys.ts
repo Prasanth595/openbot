@@ -5,8 +5,8 @@
  */
 
 /** Identifies one agent conversation, which is an agent *on a server*. */
-export function agentConversationKey(serverId: string, agentId: string): string {
-  return `${serverId}\0${agentId}`;
+export function agentConversationKey(serverId: string, agentId: string, threadId?: string): string {
+  return `${serverId}\0${agentId}${threadId ? `\0${threadId}` : ""}`;
 }
 
 /** Identifies one message within an agent's conversation. */
@@ -15,8 +15,9 @@ export function agentMessageKey(agentId: string, messageId: string): string {
 }
 
 /** Identifies one composer draft, which is an agent *on a server*. */
-export function composerDraftKey(target: { agentId: string; serverId: string }): string {
-  return target.serverId === "local" ? target.agentId : `${target.serverId}:${target.agentId}`;
+export function composerDraftKey(target: { agentId: string; serverId: string; threadId?: string }): string {
+  const key = target.serverId === "local" ? target.agentId : `${target.serverId}:${target.agentId}`;
+  return target.threadId ? `${key}\0${target.threadId}` : key;
 }
 
 /** Drops every cached body belonging to one agent. */

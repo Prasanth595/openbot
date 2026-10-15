@@ -15,6 +15,7 @@ export interface ComposerStoreDeps {
   setComposerErrors: (update: (current: Record<string, string>) => Record<string, string>) => void;
   editingAgentId: () => string | null;
   editingServerId: () => string | null;
+  editingThreadId: () => string | null;
   editingDeliveryId: () => string | null;
   editingPendingSave: () => StoredQueueEdit["pendingSave"] | null;
   seenMessageIds: Set<string>;
@@ -22,14 +23,23 @@ export interface ComposerStoreDeps {
 
 export function currentConversationTarget(props: ConversationProps): ConversationTarget | undefined {
   const agentId = props.agent?.id;
-  return agentId ? { agentId, serverId: props.server?.id ?? "local" } : undefined;
+  return agentId
+    ? {
+        agentId,
+        serverId: props.server?.id ?? "local",
+        ...(props.conversationThreadId ? { threadId: props.conversationThreadId } : {}),
+      }
+    : undefined;
 }
 
 export function createComposerStore(deps: ComposerStoreDeps) {
   const currentTarget = (): ConversationTarget | undefined => currentConversationTarget(deps.props);
   const currentEditingDeliveryId = createMemo(() => {
     const target = currentTarget();
-    return target && deps.editingAgentId() === target.agentId && deps.editingServerId() === target.serverId
+    return target &&
+      deps.editingAgentId() === target.agentId &&
+      deps.editingServerId() === target.serverId &&
+      (deps.editingThreadId() ?? undefined) === target.threadId
       ? deps.editingDeliveryId()
       : null;
   });
@@ -45,7 +55,9 @@ export function createComposerStore(deps: ComposerStoreDeps) {
     const target = currentTarget();
     return target ? (deps.composerErrors()[composerDraftKey(target)] ?? null) : null;
   });
-  const currentChatError = createMemo(() => currentComposerError() ?? currentConversationError());
+  const currentChatError = createMemo(
+    () => currentComposerError() ?? currentConversationError() ?? deps.props.conversationError ?? null,
+  );
   const unreferencedDraftAttachments = createMemo(() => {
     const referencedIds = attachmentReferenceIds(currentDraft().text);
     return currentDraft().attachments.filter((attachment) => !referencedIds.has(attachment.id));
@@ -59,7 +71,8 @@ export function createComposerStore(deps: ComposerStoreDeps) {
   });
 
   const markMessageSeen = (messageId: string): boolean => {
-    const key = `${deps.props.agent?.id ?? "none"}:${messageId}`;
+    const target = currentTarget();
+    const key = `${target ? composerDraftKey(target) : "none"}\0${messageId}`;
     if (deps.seenMessageIds.has(key)) return false;
     deps.seenMessageIds.add(key);
     return true;
@@ -101,6 +114,7 @@ export function createComposerStore(deps: ComposerStoreDeps) {
       deps.editingPendingSave() &&
       deps.editingAgentId() === target.agentId &&
       deps.editingServerId() === target.serverId &&
+      (deps.editingThreadId() ?? undefined) === target.threadId &&
       deps.editingDeliveryId()
     )
       return;
@@ -138,6 +152,7 @@ export function createComposerStore(deps: ComposerStoreDeps) {
       deps.editingPendingSave() &&
       deps.editingAgentId() === target.agentId &&
       deps.editingServerId() === target.serverId &&
+      (deps.editingThreadId() ?? undefined) === target.threadId &&
       deps.editingDeliveryId()
     )
       return;

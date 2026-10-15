@@ -99,6 +99,7 @@ export class MailboxProjection {
     eventType: string,
     fileDeletions: string[] = [],
     _rebaseHistory = false,
+    destinations: readonly { deliveryId: string; threadId: string }[] = [],
   ): void {
     this.#core.dispatch(
       commandId,
@@ -211,6 +212,12 @@ export class MailboxProjection {
             sequence,
           );
         }
+        // Accepted mailbox rows and their private destination commit in the same dispatch.
+        // Later mailbox projections leave these immutable rows in place; delivery deletion cascades.
+        const bindDestination = db.prepare(
+          "INSERT INTO agent_conversation_deliveries(delivery_id, thread_id) VALUES (?, ?)",
+        );
+        for (const destination of destinations) bindDestination.run(destination.deliveryId, destination.threadId);
         const queueUpsert = db.prepare(`
           INSERT INTO projection_queue_state
             (agent_id, paused, metadata_json, last_event_sequence) VALUES (?, ?, ?, ?)

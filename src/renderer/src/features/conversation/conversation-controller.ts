@@ -24,6 +24,7 @@ import { composerDraftKey } from "./conversation-keys";
 import type {
   ComposerDraft,
   ConversationProps,
+  ConversationTarget,
   RightPanelMode,
   SidebarFilePreview,
   VoiceLiveTranscript,
@@ -55,8 +56,11 @@ interface ConversationResources {
       existingTabIds: Set<string>;
     }
   >;
-  importTargetAgents: Map<string, { agentId: string; serverId: string }>;
+  importTargetAgents: Map<string, { agentId: string; serverId: string; threadId?: string }>;
   seenMessageIds: Set<string>;
+  conversationScrollStates: Map<string, { top: number; stickToLatest: boolean }>;
+  selectedAgentThreads: Map<string, string>;
+  forgottenAgentTargets: Set<string>;
   typingIdleTimer: ReturnType<typeof setTimeout> | undefined;
   typingAgentId: string | null;
   voiceRecorder: Pick<MediaRecorder, "state" | "stop"> | undefined;
@@ -72,10 +76,12 @@ interface ConversationResources {
   voiceMeterStop: (() => void) | undefined;
   voiceAgentId: string | undefined;
   voiceServerId: string | undefined;
+  voiceThreadId: string | undefined;
   voiceSubmitRequest:
     | {
         agentId: string;
         serverId: string;
+        threadId?: string;
         draft: ComposerDraft;
         queuedEdit: { deliveryId: string; originalAttachmentIds: string[] } | undefined;
       }
@@ -125,6 +131,7 @@ export function createStableConversationState(
   /** Keyed by channel id. A channel id is a UUID, so it does not need its server in the key. */
   const [channelDrafts, setChannelDrafts] = createSignal<Record<string, ComposerDraft>>(storedDrafts?.channels ?? {});
   const [editingAgentId, setEditingAgentId] = createSignal<string | null>(restoredEdit?.agentId ?? null);
+  const [editingThreadId, setEditingThreadId] = createSignal<string | null>(restoredEdit?.threadId ?? null);
   const [editingServerId, setEditingServerId] = createSignal<string | null>(restoredEdit?.serverId ?? null);
   const [editingEditId, setEditingEditId] = createSignal<string | null>(restoredEdit?.editId ?? null);
   const [editingDeliveryId, setEditingDeliveryId] = createSignal<string | null>(restoredEdit?.deliveryId ?? null);
@@ -143,17 +150,19 @@ export function createStableConversationState(
     () => {
       const agentId = editingAgentId();
       const serverId = editingServerId();
+      const threadId = editingThreadId() ?? undefined;
       const deliveryId = editingDeliveryId();
       const editId = editingEditId();
       return agentId && serverId && deliveryId && editId
         ? {
             agentId,
             serverId,
+            ...(threadId ? { threadId } : {}),
             deliveryId,
             editId,
             originalAttachmentIds: editingOriginalAttachmentIds(),
             backup: editingDraftBackup() ?? EMPTY_DRAFT,
-            draft: drafts()[composerDraftKey({ agentId, serverId })] ?? EMPTY_DRAFT,
+            draft: drafts()[composerDraftKey({ agentId, serverId, ...(threadId ? { threadId } : {}) })] ?? EMPTY_DRAFT,
             pendingSave: editingPendingSave() ?? undefined,
           }
         : null;
@@ -165,17 +174,19 @@ export function createStableConversationState(
         // overwritten by the previous snapshot without it.
         const agentId = editingAgentId();
         const serverId = editingServerId();
+        const threadId = editingThreadId() ?? undefined;
         const deliveryId = editingDeliveryId();
         const editId = editingEditId();
         if (!agentId || !serverId || !deliveryId || !editId || editId !== edit.editId) return;
         const current = {
           agentId,
           serverId,
+          ...(threadId ? { threadId } : {}),
           deliveryId,
           editId,
           originalAttachmentIds: editingOriginalAttachmentIds(),
           backup: editingDraftBackup() ?? EMPTY_DRAFT,
-          draft: drafts()[composerDraftKey({ agentId, serverId })] ?? EMPTY_DRAFT,
+          draft: drafts()[composerDraftKey({ agentId, serverId, ...(threadId ? { threadId } : {}) })] ?? EMPTY_DRAFT,
           pendingSave: editingPendingSave() ?? undefined,
         };
         try {
@@ -200,6 +211,7 @@ export function createStableConversationState(
       channelDrafts,
       editingAgentId,
       editingServerId,
+      editingThreadId,
       editingDraftBackup,
       unsentTexts: pendingSends.unsentTexts,
     });
@@ -221,6 +233,9 @@ export function createStableConversationState(
     browserOpenRequests: new Map(),
     importTargetAgents: new Map<string, { agentId: string; serverId: string }>(),
     seenMessageIds: new Set<string>(),
+    conversationScrollStates: new Map(),
+    selectedAgentThreads: new Map(),
+    forgottenAgentTargets: new Set(),
     typingIdleTimer: undefined,
     typingAgentId: null,
     voiceRecorder: undefined,
@@ -233,6 +248,7 @@ export function createStableConversationState(
     voiceMeterStop: undefined,
     voiceAgentId: undefined,
     voiceServerId: undefined,
+    voiceThreadId: undefined,
     voiceSubmitRequest: undefined,
     voiceDisposed: false,
     voiceRequestGeneration: 0,
@@ -269,18 +285,60 @@ export function createStableConversationState(
     stopComposerTyping();
   });
 
+  function forgetAgentConversationState(agentId: string, serverId: string): void {
+    const key = composerDraftKey({ agentId, serverId });
+    const belongs = (value: string) => value === key || value.startsWith(`${key}\0`);
+    resources.selectedAgentThreads.delete(key);
+    resources.forgottenAgentTargets.add(key);
+    for (const seen of resources.seenMessageIds) if (seen.startsWith(`${key}\0`)) resources.seenMessageIds.delete(seen);
+    for (const [id, target] of resources.importTargetAgents)
+      if (target.agentId === agentId && target.serverId === serverId) resources.importTargetAgents.delete(id);
+    setDrafts((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !belongs(id))));
+    setComposerErrors((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !belongs(id))));
+    setComposerErrorReferences((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !belongs(id))));
+    setConversationErrors((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !belongs(id))));
+    pendingSends.forgetAgent(agentId, serverId);
+    if (editingAgentId() === agentId && editingServerId() === serverId) {
+      setEditingAgentId(null);
+      setEditingServerId(null);
+      setEditingThreadId(null);
+      setEditingDeliveryId(null);
+      setEditingEditId(null);
+      setEditingDraftBackup(null);
+      setEditingOriginalAttachmentIds([]);
+      setEditingPendingSave(null);
+      window.localStorage.removeItem(QUEUE_EDIT_STORAGE_KEY);
+    }
+    for (const id of resources.conversationScrollStates.keys())
+      if (id.startsWith(`${serverId}:${agentId}:`)) resources.conversationScrollStates.delete(id);
+  }
+
+  function selectedAgentTarget(target: ConversationTarget): ConversationTarget {
+    const threadId = target.threadId ?? resources.selectedAgentThreads.get(composerDraftKey(target));
+    return threadId ? { ...target, threadId } : target;
+  }
+
   return {
-    startSkillCreation(target: { serverId: string; agentId: string }) {
+    forgetAgentConversationState,
+    setAgentConversationSelection(target: ConversationTarget) {
+      const key = composerDraftKey({ agentId: target.agentId, serverId: target.serverId });
+      if (target.threadId) resources.selectedAgentThreads.set(key, target.threadId);
+      else resources.selectedAgentThreads.delete(key);
+    },
+    startSkillCreation(target: ConversationTarget) {
+      target = selectedAgentTarget(target);
       const key = composerDraftKey(target);
       setDrafts((current) => ({ ...current, [key]: appendSkillCreationRequest(current[key] ?? EMPTY_DRAFT) }));
       setComposerFocusRequest((value) => value + 1);
     },
-    appendSkillExample(target: { serverId: string; agentId: string }, skill: MarketplaceSkillDetail) {
+    appendSkillExample(target: ConversationTarget, skill: MarketplaceSkillDetail) {
+      target = selectedAgentTarget(target);
       const key = composerDraftKey(target);
       setDrafts((current) => ({ ...current, [key]: appendSkillExample(current[key] ?? EMPTY_DRAFT, skill) }));
       setComposerFocusRequest((value) => value + 1);
     },
-    appendPluginPrompt(target: { serverId: string; agentId: string }, prompt: string) {
+    appendPluginPrompt(target: ConversationTarget, prompt: string) {
+      target = selectedAgentTarget(target);
       const key = composerDraftKey(target);
       setDrafts((current) => ({ ...current, [key]: appendPluginPrompt(current[key] ?? EMPTY_DRAFT, prompt) }));
       setComposerFocusRequest((value) => value + 1);
@@ -294,6 +352,8 @@ export function createStableConversationState(
     setEditingAgentId,
     editingServerId,
     setEditingServerId,
+    editingThreadId,
+    setEditingThreadId,
     editingEditId,
     setEditingEditId,
     editingDeliveryId,

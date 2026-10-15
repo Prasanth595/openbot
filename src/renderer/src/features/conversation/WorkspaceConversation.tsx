@@ -5,7 +5,8 @@ import {
   sameAgentModelChoice,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
-import { hasVisibleToasts } from "@openbot/ui";
+import { Button, hasVisibleToasts } from "@openbot/ui";
+import { AgentConversationsDialog } from "@openbot/ui/features/conversation/AgentConversationsDialog";
 import {
   type BackupModelSource,
   rememberedBackupModels,
@@ -13,7 +14,8 @@ import {
   usageLimitAskOptions,
 } from "@openbot/ui/features/conversation/BackupModels";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import { createMemo } from "solid-js";
+import { useText } from "@openbot/ui/text";
+import { createEffect, createMemo, Show } from "solid-js";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { useNavigation } from "../../navigation";
 import { usePlatform } from "../../platform";
@@ -38,8 +40,14 @@ import { useSettings } from "../settings/settings-context";
 import { isReaderAuthor } from "../team/reader-identity";
 import { usePresence } from "../team/team-context";
 import { useUsage } from "../usage/usage-context";
+import { agentConversationRuntime } from "./agent-conversation-runtime";
+import { createAgentConversationsController } from "./agent-conversations-controller";
+import { agentConversationsPort } from "./agent-conversations-port";
 import { Conversation } from "./Conversation";
 import { useConversation } from "./conversation-context";
+import { useConversationController } from "./conversation-controller-context";
+import { desktopConversationRuntime } from "./conversation-runtime";
+import type { ConversationProps, ConversationTarget } from "./conversation-types";
 
 /**
  * The transcript of the active Agent, with everything the composer needs to send
@@ -154,6 +162,60 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const { teamPresence, currentTeamMember } = usePresence();
   const { selectAgent, openAgentMessage, messageFocusRequest, globalSearchOpen } = useNavigation();
 
+  const { t } = useText();
+  const localSubjects = createAgentConversationsController(agentConversationsPort(), () =>
+    activeServer()?.kind === "local" ? (activeAgent()?.id ?? null) : null,
+  );
+  createEffect(
+    () => agentList().map((agent) => agent.id),
+    (ids) => {
+      if (activeServer()?.kind === "local") localSubjects.reconcileAgents(ids);
+    },
+  );
+  createEffect(
+    () => ({ id: activeServer()?.kind === "local" ? activeAgent()?.id : undefined }),
+    ({ id }) => {
+      if (id) void localSubjects.list(id);
+    },
+  );
+  const addedSubject = () => (activeServer()?.kind === "local" ? localSubjects.addedTarget() : null);
+  const composerController = useConversationController();
+  createEffect(
+    () => ({ agentId: activeAgent()?.id, serverId: activeServer()?.id, threadId: addedSubject()?.threadId }),
+    (target) => {
+      if (target.agentId && target.serverId)
+        composerController.setAgentConversationSelection({
+          agentId: target.agentId,
+          serverId: target.serverId,
+          ...(target.threadId ? { threadId: target.threadId } : {}),
+        });
+    },
+  );
+  const subjectView = () => (addedSubject() ? localSubjects.view() : undefined);
+  const subjectAction = (action: Parameters<typeof localSubjects.run>[0]) =>
+    localSubjects.run(action).catch(() => false);
+  const subjectRuntime = (target: ConversationTarget) =>
+    target.threadId && target.serverId === "local"
+      ? agentConversationRuntime(desktopConversationRuntime(), agentConversationsPort(), localSubjects, {
+          agentId: target.agentId,
+          threadId: target.threadId,
+        })
+      : desktopConversationRuntime();
+  const conversationSelector = () =>
+    activeServer()?.kind === "local" ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        aria-label={t("conversation.conversations.open")}
+        title={localSubjects.currentSummary()?.label ?? t("conversation.conversations.main")}
+        class="conversation-subject-trigger"
+        onClick={() => localSubjects.setDialog(true)}
+      >
+        {localSubjects.currentSummary()?.label ?? t("conversation.conversations.main")}
+      </Button>
+    ) : undefined;
+
   const activePrompt = createMemo(() => {
     const agent = activeAgent();
     const event = agent ? pendingPrompts()[agent.id] : undefined;
@@ -231,10 +293,12 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const conversationAgent = createMemo(() => {
     const agent = activeAgent();
     const settings = remoteAgentSettings();
+    const subject = addedSubject();
     const automation = remoteAgentAdmin.automation();
     return agent
       ? {
           ...agent,
+          ...(subject ? { threadId: subject.threadId } : {}),
           ...(settings ? { access: settings.access } : {}),
           ...(activeServer()?.kind === "remote" && automation !== undefined ? { allowAutomation: automation } : {}),
         }
@@ -335,9 +399,148 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     };
   });
 
+  const conversationActions = createMemo(() => {
+    const target = addedSubject();
+    const agentId = activeAgent()?.id;
+    const serverId = activeServer()?.id;
+    const prompt = target ? localSubjects.prompt() : undefined;
+    const approval = target ? localSubjects.approval() : undefined;
+    const takeover = target ? localSubjects.takeover() : undefined;
+    const turnId = target ? subjectView()?.activeTurnId : null;
+    const throughMessageId = target ? (subjectView()?.messages.at(-1)?.id ?? null) : undefined;
+    const legacyCurrent = () => activeAgent()?.id === agentId && activeServer()?.id === serverId && !addedSubject();
+    const actions: Pick<
+      ConversationProps,
+      | "onMarkRead"
+      | "onLoadOlder"
+      | "onLoadLatest"
+      | "onSearchMessages"
+      | "onOpenSearchMessage"
+      | "onAnswerPrompt"
+      | "onRespondToApproval"
+      | "onRespondToBrowserTakeover"
+      | "onCancelQueuedMessage"
+      | "onSteerQueuedMessage"
+      | "onReorderQueue"
+      | "onStop"
+      | "onDismissConversationError"
+      | "onRetryConversationError"
+    > = {
+      onMarkRead: () =>
+        target
+          ? localSubjects
+              .run({ ...target, action: "mark-read", throughMessageId: throughMessageId ?? null })
+              .then(() => localSubjects.load(target))
+          : agentId && serverId && legacyCurrent()
+            ? markAgentMessagesRead(agentId, undefined, serverId)
+            : Promise.resolve(),
+      onLoadOlder: () => {
+        if (target) void localSubjects.loadOlder(target);
+        else if (agentId && legacyCurrent()) void loadOlderAgentMessages(agentId);
+      },
+      onLoadLatest: () =>
+        target
+          ? localSubjects.load(target)
+          : agentId && legacyCurrent()
+            ? loadLatestAgentMessages(agentId)
+            : Promise.resolve(),
+      onSearchMessages: (query) =>
+        target
+          ? localSubjects.search(target, query)
+          : agentId && legacyCurrent()
+            ? searchAgentMessages(agentId, query)
+            : Promise.resolve({ messageIds: [], total: 0 }),
+      onOpenSearchMessage: (messageId) =>
+        target
+          ? localSubjects.load(target, { type: "around", messageId })
+          : agentId && legacyCurrent()
+            ? openAgentMessage(agentId, messageId)
+            : Promise.resolve(),
+      onAnswerPrompt: (answers) =>
+        target
+          ? prompt
+            ? subjectAction({
+                ...target,
+                action: "prompt",
+                turnId: prompt.turnId,
+                requestId: prompt.requestId,
+                answers,
+              }).then((result) => result !== false)
+            : Promise.resolve(false)
+          : legacyCurrent()
+            ? answerPrompt(answers)
+            : Promise.resolve(false),
+      onRespondToApproval: (decision) =>
+        target
+          ? approval?.turnId
+            ? subjectAction({
+                ...target,
+                action: "approval",
+                turnId: approval.turnId,
+                requestId: approval.requestId,
+                decision,
+              }).then((result) => result !== false)
+            : Promise.resolve(false)
+          : legacyCurrent()
+            ? respondToApproval(decision)
+            : Promise.resolve(false),
+      onRespondToBrowserTakeover: (decision) =>
+        target
+          ? takeover?.turnId
+            ? subjectAction({
+                ...target,
+                action: "takeover",
+                turnId: takeover.turnId,
+                requestId: takeover.requestId,
+                decision,
+              }).then((result) => result !== false)
+            : Promise.resolve(false)
+          : legacyCurrent()
+            ? respondToBrowserTakeover(decision)
+            : Promise.resolve(false),
+      onCancelQueuedMessage: (deliveryId) => {
+        if (target) void subjectAction({ ...target, action: "cancel", deliveryId });
+        else if (legacyCurrent()) cancelQueuedMessage(deliveryId);
+      },
+      onSteerQueuedMessage: (deliveryId) => {
+        if (target && turnId) void subjectAction({ ...target, action: "steer", deliveryId, expectedTurnId: turnId });
+        else if (!target && legacyCurrent()) steerQueuedMessage(deliveryId);
+      },
+      onReorderQueue: (deliveryIds) => {
+        if (target) void subjectAction({ ...target, action: "reorder", deliveryIds });
+        else if (legacyCurrent()) reorderQueue(deliveryIds);
+      },
+      onStop: () => {
+        if (target && turnId) void subjectAction({ ...target, action: "stop", turnId });
+        else if (!target && legacyCurrent()) stopActiveTurn();
+      },
+      onDismissConversationError: target ? () => localSubjects.clearError(target) : undefined,
+      onRetryConversationError: target ? () => localSubjects.load(target) : undefined,
+    };
+    return actions;
+  });
+
   return (
     <>
       <Conversation
+        conversationThreadId={addedSubject()?.threadId}
+        conversationArchived={Boolean(addedSubject() && localSubjects.currentSummary()?.archivedAt)}
+        conversationError={subjectView()?.error}
+        onDismissConversationError={conversationActions().onDismissConversationError}
+        onRetryConversationError={conversationActions().onRetryConversationError}
+        conversationSelector={conversationSelector()}
+        runtimeForTarget={subjectRuntime}
+        notice={
+          addedSubject() ? (
+            <p class="agent-conversation-notice" role="note">
+              {t(
+                localSubjects.currentSummary()?.archivedAt
+                  ? "conversation.conversations.archivedNotice"
+                  : "conversation.conversations.serialNotice",
+              )}
+            </p>
+          ) : undefined
+        }
         contextState={contextStates()[activeAgent()?.id ?? ""]}
         platform={platform.appInfo()?.platform}
         onOpenMarketplace={() => setSkillsMarketplaceOpen(true)}
@@ -372,23 +575,71 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         availableRoutineIds={activeRoutineIds()}
         routines={activeRoutines()}
         modelOptions={modelOptions()}
-        messages={activeMessages()}
-        messageReferences={activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.references ?? {}) : {}}
-        unreadCount={activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.read?.unreadCount ?? 0) : 0}
+        messages={addedSubject() ? localSubjects.messages() : activeMessages()}
+        messageReferences={
+          addedSubject()
+            ? localSubjects.references()
+            : activeAgent()
+              ? (conversations[activeAgent()?.id ?? ""]?.references ?? {})
+              : {}
+        }
+        unreadCount={
+          addedSubject()
+            ? (subjectView()?.page?.readState?.unreadCount ?? 0)
+            : activeAgent()
+              ? (conversations[activeAgent()?.id ?? ""]?.read?.unreadCount ?? 0)
+              : 0
+        }
         firstUnreadMessageId={
-          activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.read?.firstUnreadMessageId ?? null) : null
+          addedSubject()
+            ? (subjectView()?.page?.readState?.firstUnreadMessageId ?? null)
+            : activeAgent()
+              ? (conversations[activeAgent()?.id ?? ""]?.read?.firstUnreadMessageId ?? null)
+              : null
         }
-        loaded={activeAgent() ? conversations[activeAgent()?.id ?? ""]?.loaded === true : false}
+        loaded={
+          addedSubject()
+            ? subjectView()?.loaded === true
+            : activeAgent()
+              ? conversations[activeAgent()?.id ?? ""]?.loaded === true
+              : false
+        }
         hasOlder={
-          activeServerSupportsCapability("conversation-pagination") && activeAgent()
-            ? (conversations[activeAgent()?.id ?? ""]?.page?.hasOlder ?? false)
-            : false
+          addedSubject()
+            ? (subjectView()?.page?.pageInfo.hasOlder ?? false)
+            : activeServerSupportsCapability("conversation-pagination") && activeAgent()
+              ? (conversations[activeAgent()?.id ?? ""]?.page?.hasOlder ?? false)
+              : false
         }
-        unloadedHistory={activeAgent() ? unloadedHistory(conversations[activeAgent()?.id ?? ""]?.page) : undefined}
-        discontinuous={activeAgent() ? conversations[activeAgent()?.id ?? ""]?.windowMode === "around" : false}
-        loadingOlder={activeAgent() ? conversations[activeAgent()?.id ?? ""]?.olderLoading === true : false}
-        olderError={activeAgent() ? (conversations[activeAgent()?.id ?? ""]?.olderError ?? null) : null}
-        queue={activeQueue()}
+        unloadedHistory={
+          addedSubject()
+            ? unloadedHistory(subjectView()?.page?.pageInfo)
+            : activeAgent()
+              ? unloadedHistory(conversations[activeAgent()?.id ?? ""]?.page)
+              : undefined
+        }
+        discontinuous={
+          addedSubject()
+            ? subjectView()?.mode === "around"
+            : activeAgent()
+              ? conversations[activeAgent()?.id ?? ""]?.windowMode === "around"
+              : false
+        }
+        loadingOlder={
+          addedSubject()
+            ? subjectView()?.olderLoading === true
+            : activeAgent()
+              ? conversations[activeAgent()?.id ?? ""]?.olderLoading === true
+              : false
+        }
+        olderError={
+          addedSubject()
+            ? (subjectView()?.olderError ?? null)
+            : activeAgent()
+              ? (conversations[activeAgent()?.id ?? ""]?.olderError ?? null)
+              : null
+        }
+        queue={addedSubject() ? subjectView()?.queue : activeQueue()}
         browserTabs={browserTabs()}
         activeBrowserTabId={activeBrowserTabId()}
         browserVisibilitySuspended={browserVisibilitySuspended()}
@@ -409,13 +660,21 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         remoteDesktopSessionActive={Boolean(activeRemoteDesktopSession())}
         remoteDesktopVisible={remoteDesktopWorkspaceVisible()}
         remoteDesktopEnabled={!platform.landingPreview && activeServerSupportsCapability("remote-desktop")}
-        prompt={activePrompt()}
-        approval={activeApproval()}
+        prompt={addedSubject() ? localSubjects.prompt() : activePrompt()}
+        approval={addedSubject() ? localSubjects.approval() : activeApproval()}
         usageLimitAsk={usageLimitAsk()}
         usageLimited={activeServer()?.kind === "local" ? usageLimited : undefined}
-        browserTakeover={activeBrowserTakeover()}
-        activeTurnId={activeAgent() ? activeTurns()[activeAgent()?.id ?? ""] : null}
-        activityDetail={activeAgent() ? turnProgress()[activeAgent()?.id ?? ""]?.detail : undefined}
+        browserTakeover={addedSubject() ? localSubjects.takeover() : activeBrowserTakeover()}
+        activeTurnId={
+          addedSubject() ? subjectView()?.activeTurnId : activeAgent() ? activeTurns()[activeAgent()?.id ?? ""] : null
+        }
+        activityDetail={
+          addedSubject()
+            ? subjectView()?.detail
+            : activeAgent()
+              ? turnProgress()[activeAgent()?.id ?? ""]?.detail
+              : undefined
+        }
         skillsMarketplaceOpen={skillsMarketplaceOpen()}
         mcpSettingsOpen={serverSettingsOpen() || skillsMarketplaceOpen()}
         globalOverlayOpen={
@@ -424,6 +683,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
           serverSettingsOpen() ||
           appSettingsOpen() ||
           skillsMarketplaceOpen() ||
+          localSubjects.state.dialog.open ||
           hasVisibleToasts()
         }
         settingsRequest={settingsRequest()}
@@ -431,23 +691,23 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onSelectAgent={selectAgent}
         onUpdateAgent={updateConversationAgent}
         onSetAgentAvatar={setAgentAvatar}
-        onSendMessage={sendMessage}
-        onMarkRead={() => markAgentMessagesRead()}
-        onLoadOlder={() => void loadOlderAgentMessages()}
-        onLoadLatest={() => (activeAgent() ? loadLatestAgentMessages(activeAgent()?.id ?? "") : Promise.resolve())}
-        onSearchMessages={(query) =>
-          activeAgent()
-            ? searchAgentMessages(activeAgent()?.id ?? "", query)
-            : Promise.resolve({ messageIds: [], total: 0 })
+        onSendMessage={(body, drafts, reply, target, clientMessageId) =>
+          target?.threadId
+            ? localSubjects.send(body, drafts, reply, target, clientMessageId)
+            : sendMessage(body, drafts, reply, target, clientMessageId)
         }
-        onOpenSearchMessage={(messageId) =>
-          activeAgent() ? openAgentMessage(activeAgent()?.id ?? "", messageId) : Promise.resolve()
-        }
-        onTypingChange={setTeamTyping}
-        onAnswerPrompt={answerPrompt}
+        onMarkRead={conversationActions().onMarkRead}
+        onLoadOlder={conversationActions().onLoadOlder}
+        onLoadLatest={conversationActions().onLoadLatest}
+        onSearchMessages={conversationActions().onSearchMessages}
+        onOpenSearchMessage={conversationActions().onOpenSearchMessage}
+        onTypingChange={(agentId, typing) => {
+          if (!typing || !addedSubject()) setTeamTyping(agentId, typing);
+        }}
+        onAnswerPrompt={conversationActions().onAnswerPrompt}
         onPromptResolutionPresented={presentPromptResolution}
-        onRespondToApproval={respondToApproval}
-        onAlwaysAllowApproval={alwaysAllowApproval()}
+        onRespondToApproval={conversationActions().onRespondToApproval}
+        onAlwaysAllowApproval={addedSubject() ? undefined : alwaysAllowApproval()}
         agentAutoApproves={
           activeServer()?.kind === "local"
             ? agentAutoApproves(activeAgent()?.id ?? "")
@@ -461,19 +721,44 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onSetAgentAutoApprove={setAgentAutoApproveForActiveAgent()}
         defaultBusyMessageMode={generalSettings().busyMessageMode}
         agentMemoryLimit={generalSettings().agentMemoryLimit}
-        onClearAgentContext={clearActiveAgentContext()}
-        onRespondToBrowserTakeover={respondToBrowserTakeover}
-        onCancelQueuedMessage={cancelQueuedMessage}
+        onClearAgentContext={addedSubject() ? undefined : clearActiveAgentContext()}
+        onRespondToBrowserTakeover={conversationActions().onRespondToBrowserTakeover}
+        onCancelQueuedMessage={conversationActions().onCancelQueuedMessage}
         waits={activeWaits()}
         onCancelWait={cancelWait}
-        onSteerQueuedMessage={steerQueuedMessage}
-        onUpdateQueuedMessage={updateQueuedMessage}
-        onReorderQueue={reorderQueue}
+        onSteerQueuedMessage={conversationActions().onSteerQueuedMessage}
+        onUpdateQueuedMessage={(deliveryId, text, keep, drafts, target) =>
+          target?.threadId ? Promise.resolve(false) : updateQueuedMessage(deliveryId, text, keep, drafts, target)
+        }
+        onReorderQueue={conversationActions().onReorderQueue}
         onActivateBrowserTab={activateBrowserTab}
         onCloseBrowserTab={closeBrowserTab}
         onOpenRemoteDesktop={openRemoteDesktopWorkspace}
-        onStop={stopActiveTurn}
+        onStop={conversationActions().onStop}
       />
+      <Show when={activeServer()?.kind === "local" && activeAgent()?.id}>
+        {(id) => (
+          <AgentConversationsDialog
+            open={localSubjects.state.dialog.open}
+            onOpenChange={localSubjects.setDialog}
+            conversations={localSubjects.state.lists[id()]?.conversations ?? []}
+            selectedThreadId={localSubjects.selected()}
+            query={localSubjects.state.dialog.query}
+            archived={localSubjects.state.dialog.archived}
+            loading={localSubjects.state.lists[id()]?.loading ?? false}
+            pending={localSubjects.state.dialog.pending}
+            error={localSubjects.state.dialog.error ?? localSubjects.state.lists[id()]?.error ?? null}
+            hasMore={Boolean(localSubjects.state.lists[id()]?.cursor)}
+            onQueryChange={localSubjects.setQuery}
+            onArchivedChange={localSubjects.setArchived}
+            onSelect={(threadId) => localSubjects.select({ agentId: id(), threadId })}
+            onCreate={(label) => localSubjects.create(id(), label)}
+            onRename={(threadId, label) => localSubjects.rename({ agentId: id(), threadId }, label)}
+            onArchive={(threadId, archived) => localSubjects.archive({ agentId: id(), threadId }, archived)}
+            onLoadMore={localSubjects.loadMore}
+          />
+        )}
+      </Show>
       <ProviderSignInDialogs api={connection} opener="composer" />
     </>
   );

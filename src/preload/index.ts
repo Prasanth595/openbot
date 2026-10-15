@@ -59,6 +59,13 @@ import {
 } from "@openbot/contracts/ipc-events";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import {
+  decodeLocalAgentConversationEvent,
+  decodeLocalAgentConversationList,
+  decodeLocalAgentConversationQueue,
+  decodeLocalAgentConversationRead,
+  decodeLocalAgentConversationTarget,
+} from "./agent-conversation-decoding";
+import {
   decodeAccountUsageFromMain,
   decodeAgent,
   decodeAgentAnalyticsFromMain,
@@ -543,6 +550,17 @@ const openbotApi: OpenBotDesktopApi = {
     connectProviderAccount: decodeAgentStatusFromMain,
     renameProviderAccount: decodeAgentStatusFromMain,
     removeProviderAccount: decodeAgentStatusFromMain,
+  }),
+  agentConversations: bridgeGroup(IPC_ENDPOINTS.agentConversations, {
+    list: decodeLocalAgentConversationList,
+    create: decodeLocalAgentConversationTarget,
+    update: decodeVoid,
+    read: decodeLocalAgentConversationRead,
+    queue: decodeLocalAgentConversationQueue,
+    search: decodeConversationSearchPageFromMain,
+    send: decodeReceipt,
+    action: decodeVoid,
+    changed: decodeLocalAgentConversationEvent,
   }),
   dynamicIsland: bridgeGroup(IPC_ENDPOINTS.dynamicIsland, {
     getPreference: decodeDynamicIslandPreference,

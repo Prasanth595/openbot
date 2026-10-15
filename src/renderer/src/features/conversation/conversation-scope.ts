@@ -38,7 +38,7 @@ function followConversationBottom(element: HTMLDivElement): void {
 
 export function createConversationViewScope(props: ConversationProps) {
   const controller = useConversationController();
-  const agentReady = () => props.agentStatus.phase === "ready";
+  const agentReady = () => props.agentStatus.phase === "ready" && !props.conversationArchived;
   const providerUpdateRequired = () =>
     props.agentStatus.providers?.find(
       (provider) => provider.id === props.agent?.provider && provider.state === "outdated",
@@ -50,6 +50,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setEditingAgentId,
     editingServerId,
     setEditingServerId,
+    editingThreadId,
+    setEditingThreadId,
     editingDeliveryId,
     setEditingDeliveryId,
     editingEditId,
@@ -230,6 +232,7 @@ export function createConversationViewScope(props: ConversationProps) {
     setComposerErrors,
     editingAgentId,
     editingServerId,
+    editingThreadId,
     editingDeliveryId,
     editingPendingSave,
     seenMessageIds: resources.seenMessageIds,
@@ -430,7 +433,12 @@ export function createConversationViewScope(props: ConversationProps) {
   // Live text belongs to the conversation it is dictated into, not to whichever one is open.
   const voiceLiveText = () => {
     const live = voiceLiveTranscript();
-    return live && live.agentId === props.agent?.id && live.serverId === (props.server?.id ?? "local") ? live.text : "";
+    return live &&
+      live.agentId === props.agent?.id &&
+      live.serverId === (props.server?.id ?? "local") &&
+      live.threadId === props.conversationThreadId
+      ? live.text
+      : "";
   };
   const actions = createComposerActions({
     props,
@@ -441,7 +449,9 @@ export function createConversationViewScope(props: ConversationProps) {
     editingAgentId,
     setEditingAgentId,
     editingServerId,
+    editingThreadId,
     setEditingServerId,
+    setEditingThreadId,
     editingDeliveryId,
     setEditingDeliveryId,
     editingEditId,
@@ -481,6 +491,9 @@ export function createConversationViewScope(props: ConversationProps) {
       get serverId() {
         return resources.voiceServerId;
       },
+      get threadId() {
+        return resources.voiceThreadId;
+      },
       get submitRequest() {
         return resources.voiceSubmitRequest;
       },
@@ -488,6 +501,7 @@ export function createConversationViewScope(props: ConversationProps) {
         | {
             agentId: string;
             serverId: string;
+            threadId?: string;
             draft: ComposerDraft;
             queuedEdit: { deliveryId: string; originalAttachmentIds: string[] } | undefined;
           }
@@ -545,6 +559,7 @@ export function createConversationViewScope(props: ConversationProps) {
     currentTarget,
     editingAgentId,
     editingServerId,
+    editingThreadId,
     editingDeliveryId,
     editingPendingSave,
     setOpenReactionMessageId,
@@ -791,6 +806,7 @@ export function createConversationViewScope(props: ConversationProps) {
       return {
         agentId: props.agent?.id,
         serverId: props.server?.id ?? "local",
+        threadId: props.conversationThreadId,
         activeTurnId: props.activeTurnId,
         queueSignature: props.queue?.deliveries.map((delivery) => `${delivery.id}:${delivery.status}`).join("|"),
         lastMessageBody: lastMessage?.body,
@@ -803,13 +819,13 @@ export function createConversationViewScope(props: ConversationProps) {
         unreadCount: props.unreadCount,
       };
     },
-    ({ agentId, serverId, unreadCount }) => {
+    ({ agentId, serverId, threadId, unreadCount }) => {
       currentUnreadCount = unreadCount;
-      const conversationIdentity = `${serverId}:${agentId ?? ""}`;
+      const conversationIdentity = `${serverId}:${agentId ?? ""}:${threadId ?? ""}`;
       if (conversationIdentity !== lastConversationIdentity) {
         if (lastConversationIdentity !== undefined) closeChatSearch(false);
         lastConversationIdentity = conversationIdentity;
-        stickToLatest = true;
+        stickToLatest = resources.conversationScrollStates.get(conversationIdentity)?.stickToLatest ?? true;
         setAgentActivitySpaceReserved(false);
       }
       if (latestScrollFrame !== undefined) cancelAnimationFrame(latestScrollFrame);
@@ -820,6 +836,10 @@ export function createConversationViewScope(props: ConversationProps) {
         if (!scrollElement) return;
         updateVirtualScrollMargin();
         if (followLatest) followConversationBottom(scrollElement);
+        else {
+          const saved = resources.conversationScrollStates.get(conversationIdentity);
+          if (saved) scrollElement.scrollTop = saved.top;
+        }
         updateScrollFade(scrollElement);
         updateUnreadDividerVisibility();
         latestScrollSettleFrame = requestAnimationFrame(() => {
@@ -1030,7 +1050,9 @@ export function createConversationViewScope(props: ConversationProps) {
     },
   );
 
-  const removeBrowserPictureInPictureListener = conversationRuntime(props).browser.onPictureInPictureEvent((event) => {
+  // Register once with the browser runtime owned by this view's lifetime.
+  const pictureInPictureBrowser = untrack(() => conversationRuntime(props).browser);
+  const removeBrowserPictureInPictureListener = pictureInPictureBrowser.onPictureInPictureEvent((event) => {
     if (event.type === "bounds-changed") {
       saveBrowserPipBounds(event.bounds);
       return;
@@ -1098,6 +1120,7 @@ export function createConversationViewScope(props: ConversationProps) {
     const target = currentTarget();
     if (!target) return;
     clearChatErrors(target);
+    props.onDismissConversationError?.();
   }
 
   const currentChatConversationKey = createMemo(() => {
@@ -1116,6 +1139,11 @@ export function createConversationViewScope(props: ConversationProps) {
   };
   const setStickToLatest = (value: boolean) => {
     stickToLatest = value;
+    if (lastConversationIdentity && scrollElement)
+      resources.conversationScrollStates.set(lastConversationIdentity, {
+        top: scrollElement.scrollTop,
+        stickToLatest: value,
+      });
   };
   const setVirtualRootElement = (element: HTMLDivElement) => {
     virtualRoot = element;

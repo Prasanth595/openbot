@@ -2,6 +2,17 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.conversationUnavailable": "Этот диалог больше недоступен.",
+  "error.agent.conversationArchived": "Восстановите этот диалог перед отправкой сообщения.",
+  "error.agent.conversationBusy":
+    "Завершите или отмените текущую работу и сообщения в очереди этого диалога перед его архивацией.",
+  "error.agent.mainConversationFixed": "Основной диалог нельзя архивировать.",
+  "error.agent.conversationTurnChanged":
+    "Активный диалог изменился. Прочитайте его текущее состояние и повторите попытку.",
+  "error.agent.conversationDeliveryChanged":
+    "Место назначения сообщения изменилось. Прочитайте его текущее состояние и повторите попытку.",
+  "error.agent.conversationInputChanged":
+    "Запрос ответа изменился. Прочитайте его текущее состояние и повторите попытку.",
   "error.agent.historyUnavailable": "История недоступна для этого запроса. Прочитайте недавнюю историю ещё раз.",
   "error.agent.toolRequestInvalid":
     "Некорректные аргументы поиска инструментов. Используйте объявленную схему и исходное полное имя инструмента.",

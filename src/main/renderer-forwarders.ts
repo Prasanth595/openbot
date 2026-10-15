@@ -41,7 +41,7 @@ import { sendToRenderer } from "./renderer-ipc";
 
 export interface RendererForwarderDependencies {
   getMainWindow: () => BrowserWindow | null;
-  getAgentService: () => Pick<AgentService, "listAgents"> | null;
+  getAgentService: () => Pick<AgentService, "listAgents" | "legacyConversationEvent"> | null;
   getHostService: () => HostService | null;
   getHostAnalytics: () => HostAnalytics | null;
   getRemoteServerManager: () => Pick<RemoteServerManager, "list" | "request" | "readAgentConversationPage"> | null;
@@ -77,6 +77,7 @@ export function createRendererForwarders({
 }: RendererForwarderDependencies) {
   function forwardAgentEvent(serverId: string, event: AgentEvent, bufferedLive = false): void {
     if (serverId === LOCAL_SERVER_ID) getHostAnalytics()?.handleAgentEvent(event);
+    if (serverId === LOCAL_SERVER_ID && getAgentService()?.legacyConversationEvent(event) === false) return;
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
     sendToRenderer(

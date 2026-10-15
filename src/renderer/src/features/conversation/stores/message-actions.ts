@@ -21,9 +21,10 @@ export interface MessageActionsDeps {
   installedSkills: () => InstalledSkill[];
   currentDraft: () => ComposerDraft;
   updateCurrentDraft: (patch: Partial<ComposerDraft>) => void;
-  currentTarget: () => { agentId: string; serverId: string } | undefined;
+  currentTarget: () => ConversationTarget | undefined;
   editingAgentId: () => string | null;
   editingServerId: () => string | null;
+  editingThreadId: () => string | null;
   editingDeliveryId: () => string | null;
   editingPendingSave: () => StoredQueueEdit["pendingSave"] | null;
   setOpenReactionMessageId: (id: string | null) => void;
@@ -35,19 +36,21 @@ export interface MessageActionsDeps {
 
 export function createMessageActions(deps: MessageActionsDeps) {
   function replyToMessage(message: AgentMessage) {
+    if (deps.props.conversationArchived) return;
     deps.updateCurrentDraft({ replyToMessageId: message.id });
     deps.setOpenReactionMessageId(null);
   }
 
   async function reactToMessage(message: AgentMessage, emoji: MessageReaction | null) {
+    if (deps.props.conversationArchived) return;
     const agentId = deps.props.agent?.id;
     if (!agentId) return;
-    const target = { agentId, serverId: deps.props.server?.id ?? "local" };
+    const target = deps.currentTarget();
     const analytics = desktopAnalytics.scope();
     deps.setOpenReactionMessageId(null);
     deps.setExpandedEmojiMessageId(null);
     try {
-      await conversationRuntime(deps.props).agent.setMessageReaction({
+      await conversationRuntime(deps.props, target).agent.setMessageReaction({
         agentId,
         messageId: message.id,
         emoji,
@@ -80,7 +83,7 @@ export function createMessageActions(deps: MessageActionsDeps) {
     );
     if (!text) return;
     const agentId = deps.props.agent?.id;
-    const target = agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined;
+    const target = agentId ? deps.currentTarget() : undefined;
     try {
       await writeClipboardText(text);
       deps.setCopiedMessageId(message.id);
@@ -101,6 +104,7 @@ export function createMessageActions(deps: MessageActionsDeps) {
       deps.editingPendingSave() &&
       deps.editingAgentId() === target.agentId &&
       deps.editingServerId() === target.serverId &&
+      (deps.editingThreadId() ?? undefined) === target.threadId &&
       deps.editingDeliveryId()
     )
       return;
@@ -109,7 +113,7 @@ export function createMessageActions(deps: MessageActionsDeps) {
       attachments: deps.currentDraft().attachments.filter((attachment) => attachment.id !== id),
       text: removeAttachmentReferences(deps.currentDraft().text, id),
     });
-    void conversationRuntime(deps.props).agent.discardDraftAttachment(id, serverId);
+    void conversationRuntime(deps.props, target).agent.discardDraftAttachment(id, serverId);
   }
 
   function draftAttachmentIds(): Set<string> {

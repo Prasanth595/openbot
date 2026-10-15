@@ -75,7 +75,10 @@ export class MailboxSync {
     const fromCreatedAt = snapshot.messages[0]?.createdAt;
     const incomingMailboxMessages =
       mailboxMessages ??
-      this.#mailbox.conversationMessages(snapshot.agentId, fromCreatedAt === undefined ? {} : { fromCreatedAt });
+      this.#mailbox.conversationMessages(snapshot.agentId, {
+        ...(fromCreatedAt === undefined ? {} : { fromCreatedAt }),
+        ...(this.#conversation.isUserThread(snapshot.threadId) ? { threadId: snapshot.threadId ?? undefined } : {}),
+      });
     const incomingMessages = new Map(
       incomingMailboxMessages.flatMap((message) =>
         message.exchange?.direction === "incoming" ? [[message.exchange.messageId, message] as const] : [],
@@ -163,6 +166,12 @@ export class MailboxSync {
     }
     this.#hooks.emit({ type: "queue-changed", snapshot: queue });
     if (routinesChanged) this.#routines.stateChanged(agentId);
+    for (const [ownerId, subject] of this.#conversation.activeSnapshots()) {
+      if (ownerId !== agentId || !this.#conversation.isUserThread(subject.threadId)) continue;
+      const before = conversationContentSignature(subject);
+      this.syncMailboxMessages(subject);
+      if (conversationContentSignature(subject) !== before) this.#conversation.emitConversation(subject);
+    }
     const affectedAgents = new Set([agentId, ...this.#mailbox.senderAgentIdsForRecipient(agentId)]);
     for (const affectedAgentId of affectedAgents) {
       const snapshot = this.#conversation.snapshotToUpdate(affectedAgentId);

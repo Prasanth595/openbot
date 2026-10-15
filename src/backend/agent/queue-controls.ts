@@ -69,11 +69,23 @@ export class QueueControls {
     this.#hooks = options.hooks;
   }
 
+  #requireScope(agentId: string, deliveryId: string, threadId?: string): void {
+    const delivery = this.#mailbox.getDelivery(deliveryId)?.delivery;
+    if (
+      !delivery ||
+      delivery.recipientAgentId !== agentId ||
+      !this.#mailbox.deliveryMatchesThread(deliveryId, threadId)
+    )
+      throw new Error(sourceText("error.agent.conversationDeliveryChanged"));
+  }
+
   readonly cancel = Effect.fn("QueueControls.cancel")(function* (
     this: QueueControls,
     agentId: string,
     deliveryId: string,
+    threadId?: string,
   ): Effect.fn.Return<void, QueueOperationFailed> {
+    yield* queueStep(() => this.#requireScope(agentId, deliveryId, threadId));
     if (this.#hooks.channelAssignment(deliveryId))
       return yield* new QueueOperationFailed({ cause: new Error(sourceText("error.backend.useChannelTaskControls")) });
     const sender = this.#mailbox.getDelivery(deliveryId)?.delivery.sender;
@@ -89,7 +101,9 @@ export class QueueControls {
     agentId: string,
     input: QueueEditRequest,
     sender?: ConversationMessageSender,
+    threadId?: string,
   ): Effect.fn.Return<QueueSnapshot, QueueOperationFailed> {
+    yield* queueStep(() => this.#requireScope(agentId, input.deliveryId, threadId));
     const finished = yield* queueStep(() =>
       this.#mailbox.finishedQueueEditAction(agentId, input.deliveryId, input.editId),
     );
@@ -132,7 +146,7 @@ export class QueueControls {
         });
       this.#drain.scheduleDrain(agentId);
       this.#mailboxSync.emitQueue(agentId);
-      return this.#mailboxSync.queueSnapshot(agentId);
+      return this.#mailbox.listQueue(agentId, threadId);
     }
     if (this.#hooks.channelAssignment(input.deliveryId))
       return yield* new QueueOperationFailed({ cause: new Error(sourceText("error.backend.useChannelTaskControls")) });
@@ -166,14 +180,16 @@ export class QueueControls {
       this.#drain.scheduleDrain(agentId);
     }
     this.#mailboxSync.emitQueue(agentId);
-    return this.#mailbox.listQueue(agentId);
+    return this.#mailbox.listQueue(agentId, threadId);
   }, Effect.uninterruptible);
 
   readonly update = Effect.fn("QueueControls.update")(function* (
     this: QueueControls,
     input: UpdateQueuedMessageInput,
     sender?: ConversationMessageSender,
+    threadId?: string,
   ): Effect.fn.Return<void, QueueOperationFailed> {
+    yield* queueStep(() => this.#requireScope(input.agentId, input.deliveryId, threadId));
     if (this.#hooks.channelAssignment(input.deliveryId))
       return yield* new QueueOperationFailed({ cause: new Error(sourceText("error.backend.useChannelTaskControls")) });
     yield* this.#mailbox
@@ -197,7 +213,11 @@ export class QueueControls {
   readonly reorder = Effect.fn("QueueControls.reorder")(function* (
     this: QueueControls,
     input: ReorderQueueInput,
+    threadId?: string,
   ): Effect.fn.Return<void, QueueOperationFailed> {
+    yield* queueStep(() => {
+      for (const id of input.deliveryIds) this.#requireScope(input.agentId, id, threadId);
+    });
     if (input.deliveryIds.some((id) => this.#hooks.channelAssignment(id)))
       return yield* new QueueOperationFailed({
         cause: new Error(sourceText("error.backend.useChannelTaskControlsWork")),
@@ -205,19 +225,27 @@ export class QueueControls {
     // The queue the user reads holds no channel or messaging work, so the order it sends names the
     // normal messages alone, and the mailbox reads the whole queued order. That work stays at the
     // head: it reserved the agent before these messages arrived.
-    const executionDeliveryIds = this.#mailbox.queuedExecutionDeliveryIds(input.agentId);
+    const executionDeliveryIds = this.#mailbox
+      .queuedDeliveryIds(input.agentId)
+      .filter((id) => !input.deliveryIds.includes(id));
     yield* this.#mailbox
       .reorderQueue(input.agentId, [...executionDeliveryIds, ...input.deliveryIds])
       .pipe(toQueueOperationFailed);
     this.#mailboxSync.emitQueue(input.agentId);
   }, Effect.uninterruptible);
 
-  readonly steer = Effect.fn("QueueControls.steer")(function* (this: QueueControls, input: SteerQueuedMessageInput) {
+  readonly steer = Effect.fn("QueueControls.steer")(function* (
+    this: QueueControls,
+    input: SteerQueuedMessageInput,
+    threadId?: string,
+  ) {
+    yield* queueStep(() => this.#requireScope(input.agentId, input.deliveryId, threadId));
     const agent = yield* this.#store.existing(input.agentId).pipe(toQueueOperationFailed);
     const { client, session, snapshot, context, turnId } = yield* queueStep(() => {
       const client = this.#providers.requireReadyClientForAgent(agent);
-      const session = this.#store.activeProviderSession(agent.id);
-      const snapshot = this.#conversation.ensureSnapshot(agent.id, agent.threadId);
+      const destination = threadId ?? agent.threadId;
+      const session = destination ? this.#store.database.activeProviderSession(destination, agent.provider) : null;
+      const snapshot = this.#conversation.ensureSnapshot(agent.id, destination);
       if (!session || !snapshot.activeTurnId || snapshot.activeTurnId !== input.expectedTurnId)
         throw new Error(sourceText("error.backend.steerTurnChanged"));
       if (this.#hooks.channelAssignment(input.deliveryId))

@@ -71,6 +71,7 @@ export class AgentRoster {
            WHERE thread_id NOT IN (SELECT thread_id FROM projection_agents WHERE thread_id IS NOT NULL)
              AND thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)
              AND thread_id NOT IN (SELECT thread_id FROM projection_messaging_threads)
+             AND thread_id NOT IN (SELECT thread_id FROM agent_conversations WHERE kind = 'user')
            ORDER BY thread_id`,
         )
         .all(),
@@ -213,6 +214,7 @@ export class AgentRoster {
              AND event_type = 'hosted-site.terminal-pending'
              AND COALESCE(json_extract(payload_json, '$.agentId'), json_extract(payload_json, '$.botId')) = ?`,
         ).run(agentId);
+        if (threadId) db.prepare("DELETE FROM agent_conversations WHERE thread_id = ? AND kind = 'main'").run(threadId);
         const sensitiveFilter = threadId
           ? `(aggregate_id = ? OR aggregate_id = ? OR
               (aggregate_type = 'agents' AND aggregate_id = 'agents' AND sequence < ?))`
@@ -243,6 +245,22 @@ export class AgentRoster {
         db.prepare("DELETE FROM projection_reactions WHERE agent_id = ?").run(agentId);
         db.prepare("DELETE FROM projection_deliveries WHERE recipient_agent_id = ?").run(agentId);
         db.prepare("DELETE FROM projection_queue_state WHERE agent_id = ?").run(agentId);
+        const userThreads = databaseRows(
+          db
+            .prepare(
+              `SELECT t.thread_id FROM agent_conversations c JOIN projection_threads t USING(thread_id) WHERE t.agent_id = ? AND c.kind = 'user'`,
+            )
+            .all(agentId),
+        );
+        for (const row of userThreads) {
+          const userThreadId = requiredStringColumn(row, "thread_id");
+          db.prepare(
+            "DELETE FROM orchestration_command_receipts WHERE command_id IN (SELECT command_id FROM orchestration_events WHERE aggregate_id = ?)",
+          ).run(userThreadId);
+          db.prepare("DELETE FROM agent_conversations WHERE thread_id = ?").run(userThreadId);
+          db.prepare("DELETE FROM orchestration_events WHERE aggregate_id = ?").run(userThreadId);
+          db.prepare("DELETE FROM projection_threads WHERE thread_id = ?").run(userThreadId);
+        }
         if (threadId) {
           db.prepare("DELETE FROM projection_threads WHERE thread_id = ?").run(threadId);
         }

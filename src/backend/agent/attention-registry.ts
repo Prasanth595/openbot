@@ -218,6 +218,68 @@ export class AttentionRegistry {
     this.#passwordVault = options.passwordVault ?? null;
   }
 
+  eventsForThread(agentId: string, threadId: string): AgentEvent[] {
+    return [
+      ...[...this.#prompts.values()]
+        .filter((pending) => pending.agentId === agentId && pending.publicThreadId === threadId)
+        .map(
+          (pending): AgentEvent => ({
+            type: "prompt",
+            requestId: pending.id,
+            agentId,
+            threadId,
+            turnId: pending.turnId,
+            questions: structuredClone(pending.questions),
+          }),
+        ),
+      ...[...this.#approvals.values()]
+        .filter((pending) => pending.approval.agentId === agentId && pending.approval.threadId === threadId)
+        .map((pending): AgentEvent => ({ type: "approval", approval: structuredClone(pending.approval) })),
+      ...[...this.#takeovers.values()]
+        .filter((pending) => pending.request.agentId === agentId && pending.request.threadId === threadId)
+        .map(
+          (pending): AgentEvent => ({ type: "browser-takeover-requested", request: structuredClone(pending.request) }),
+        ),
+    ];
+  }
+
+  inputThread(kind: "prompt" | "approval" | "takeover", requestId: string | number): string | null {
+    if (kind === "prompt") return this.#prompts.get(requestId)?.publicThreadId ?? null;
+    if (kind === "approval") return this.#approvals.get(requestId)?.approval.threadId ?? null;
+    return this.#takeovers.get(requestId)?.request.threadId ?? null;
+  }
+
+  hasAttentionForThread(agentId: string, threadId: string): boolean {
+    return (
+      [...this.#prompts.values()].some(
+        (pending) => pending.agentId === agentId && pending.publicThreadId === threadId,
+      ) ||
+      [...this.#approvals.values()].some(
+        (pending) => pending.approval.agentId === agentId && pending.approval.threadId === threadId,
+      ) ||
+      [...this.#takeovers.values()].some(
+        (pending) => pending.request.agentId === agentId && pending.request.threadId === threadId,
+      )
+    );
+  }
+
+  requireInputThread(
+    agentId: string,
+    threadId: string,
+    turnId: string,
+    kind: "prompt" | "approval" | "takeover",
+    requestId: string | number,
+  ): void {
+    const prompt = kind === "prompt" ? this.#prompts.get(requestId) : undefined;
+    const approval = kind === "approval" ? this.#approvals.get(requestId)?.approval : undefined;
+    const takeover = kind === "takeover" ? this.#takeovers.get(requestId)?.request : undefined;
+    const owner = prompt
+      ? { agentId: prompt.agentId, threadId: prompt.publicThreadId, turnId: prompt.turnId }
+      : (approval ?? takeover);
+    if (!owner || owner.agentId !== agentId || owner.threadId !== threadId || owner.turnId !== turnId)
+      throw new InactiveAttentionRequest(sourceText("error.agent.conversationInputChanged"));
+  }
+
   hasAttentionFor(agentId: string): boolean {
     return (
       [...this.#prompts.values()].some((pending) => pending.agentId === agentId) ||
@@ -230,17 +292,23 @@ export class AttentionRegistry {
   localAttention(agentId: string) {
     return {
       prompts: [...this.#prompts.values()]
-        .filter((pending) => pending.agentId === agentId)
+        .filter((pending) => pending.agentId === agentId && !this.#conversation.isUserThread(pending.publicThreadId))
         .map((pending) => ({
           requestId: this.#localHandle(pending),
           questions: structuredClone(pending.questions),
           requiresOpenBot: pending.questions.some(localQuestionNeedsOpenBot),
         })),
       approvals: [...this.#approvals.values()]
-        .filter((pending) => pending.approval.agentId === agentId)
+        .filter(
+          (pending) =>
+            pending.approval.agentId === agentId && !this.#conversation.isUserThread(pending.approval.threadId),
+        )
         .map((pending) => ({ ...structuredClone(pending.approval), requestId: this.#localHandle(pending) })),
       browserTakeovers: [...this.#takeovers.values()]
-        .filter((pending) => pending.request.agentId === agentId)
+        .filter(
+          (pending) =>
+            pending.request.agentId === agentId && !this.#conversation.isUserThread(pending.request.threadId),
+        )
         .map((pending) => ({ requestId: this.#localHandle(pending), requiresOpenBot: true })),
     };
   }
@@ -282,10 +350,19 @@ export class AttentionRegistry {
 
   /** The attention section of the runtime snapshot, budgeted prompts first and takeovers last. */
   runtimeAttention(): RuntimeAttention {
+    const mainPrompts = [...this.#prompts.values()].filter(
+      (pending) => !this.#conversation.isUserThread(pending.publicThreadId),
+    );
+    const mainApprovals = [...this.#approvals.values()].filter(
+      (pending) => !this.#conversation.isUserThread(pending.approval.threadId),
+    );
+    const mainTakeovers = [...this.#takeovers.values()].filter(
+      (pending) => !this.#conversation.isUserThread(pending.request.threadId),
+    );
     const attentionComplete =
-      this.#prompts.size + this.#approvals.size + this.#takeovers.size <= AGENT_RUNTIME_ATTENTION_LIMIT;
+      mainPrompts.length + mainApprovals.length + mainTakeovers.length <= AGENT_RUNTIME_ATTENTION_LIMIT;
     let remainingAttention = AGENT_RUNTIME_ATTENTION_LIMIT;
-    const pendingPrompts = [...this.#prompts.values()].slice(0, remainingAttention).map((pending) => ({
+    const pendingPrompts = mainPrompts.slice(0, remainingAttention).map((pending) => ({
       requestId: pending.id,
       agentId: pending.agentId,
       threadId: pending.publicThreadId,
@@ -293,11 +370,11 @@ export class AttentionRegistry {
       questions: pending.questions.map(compactRuntimeQuestion),
     }));
     remainingAttention -= pendingPrompts.length;
-    const pendingApprovals = [...this.#approvals.values()]
+    const pendingApprovals = mainApprovals
       .slice(0, remainingAttention)
       .map((pending) => compactRuntimeApproval(pending.approval));
     remainingAttention -= pendingApprovals.length;
-    const pendingBrowserTakeovers = [...this.#takeovers.values()]
+    const pendingBrowserTakeovers = mainTakeovers
       .slice(0, remainingAttention)
       .map((pending) => structuredClone(pending.request));
     return { attentionComplete, pendingPrompts, pendingApprovals, pendingBrowserTakeovers };

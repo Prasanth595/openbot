@@ -10,7 +10,7 @@ import type { AttachmentMediaSource } from "@openbot/ui/features/conversation/At
 import type { AgentSkillCalls } from "../../skills-port";
 import type { AgentTemplatePublishCalls } from "../agent-templates/agent-templates-port";
 import type { SharedTableCalls } from "./conversation-port";
-import type { ConversationProps } from "./conversation-types";
+import type { ConversationProps, ConversationTarget } from "./conversation-types";
 import type { EventRoutinesApi } from "./routine-webhooks-api";
 
 export interface ConversationRuntime {
@@ -86,6 +86,12 @@ export interface ConversationRuntime {
     | undefined;
 }
 
-export function conversationRuntime(props: ConversationProps): ConversationRuntime {
+export function conversationRuntime(props: ConversationProps, target?: ConversationTarget): ConversationRuntime {
+  if (target && props.runtimeForTarget) return props.runtimeForTarget(target);
   return props.runtime ?? window.openbot;
+}
+
+/** The desktop adapter used for captured local subject operations. */
+export function desktopConversationRuntime(): ConversationRuntime {
+  return window.openbot;
 }

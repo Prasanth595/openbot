@@ -114,7 +114,7 @@ describe("OpenBot webhook routine migration", () => {
     expect(migratedRoutines.getRecord("chief", routine.id)?.trigger).toMatchObject({ kind: "webhook", url: null });
     expect(migratedRoutines.listRuns("chief", routine.id, 10)).toEqual([expect.objectContaining({ id: run.id })]);
     expect(migrated.connection.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({
-      version: 37,
+      version: 38,
     });
     expect(migrated.connection.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     expect(migrated.connection.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
@@ -164,7 +164,7 @@ describe("OpenBot webhook routine migration", () => {
       instruction: routine.instruction,
     });
     expect(retried.connection.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({
-      version: 37,
+      version: 38,
     });
     expect(retried.connection.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
     expect(retried.connection.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
@@ -183,6 +183,10 @@ async function createDatabase(): Promise<{ database: OpenBotDatabase; routineSto
 
 function removeWebhookSchema(database: DatabaseSync): void {
   database.exec(`
+    DROP TRIGGER agent_conversation_thread_owner_update;
+    DROP TRIGGER agent_conversation_recipient_update;
+    DROP TABLE agent_conversation_deliveries;
+    DROP TABLE agent_conversations;
     DROP TABLE projection_routine_webhooks;
     DROP TABLE projection_channel_routine_webhooks;
     DROP TABLE projection_webhook_route_revocations;
@@ -192,7 +196,7 @@ function removeWebhookSchema(database: DatabaseSync): void {
     DROP TRIGGER agent_memory_delete;
     DROP TABLE agent_memory_search;
     DROP TABLE agent_memory_selections;
-    DELETE FROM schema_migrations WHERE version IN (30, 31, 32, 33, 34, 35, 36, 37);
+    DELETE FROM schema_migrations WHERE version IN (30, 31, 32, 33, 34, 35, 36, 37, 38);
   `);
 }
 

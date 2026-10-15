@@ -133,7 +133,7 @@ export function createActivityStore(deps: ActivityStoreDeps) {
           label,
         };
         const current = untrack(renderedAgentActivity);
-        if (current?.agent?.id === agent?.id) {
+        if (current?.agent?.id === agent?.id && current?.agent?.threadId === agent?.threadId) {
           setAgentActivitySpaceReserved(true);
           setRenderedAgentActivity(nextActivity);
           return;
@@ -151,7 +151,7 @@ export function createActivityStore(deps: ActivityStoreDeps) {
 
       const current = untrack(renderedAgentActivity);
       if (!current) return;
-      if (current.agent?.id !== agent?.id) {
+      if (current.agent?.id !== agent?.id || current.agent?.threadId !== agent?.threadId) {
         setRenderedAgentActivity(null);
         return;
       }

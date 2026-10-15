@@ -418,3 +418,47 @@ like a plugin link, the link itself installs nothing. The page's fallback line a
 page links `/app` with the four invitation fields, and a plugin page links `/app?plugin=<slug>`. The
 browser client removes these fields after it reads them and opens the join dialog or the marketplace
 listing. It never joins or installs without a press.
+
+
+## Local user conversations
+
+The local desktop can keep several named conversations for one agent. The original main thread ID
+and its history stay in place. Each added conversation has its own `projection_threads` row,
+messages, read cursor and private provider sessions. The agent ID, workspace, profile, tools and
+memory remain shared. A conversation is not another agent and does not provide process or file
+isolation.
+
+`AgentConversationStore` owns the local registry. `agent_conversations` stores a display label and
+archive state. Its `kind` distinguishes added conversations from optional Main label metadata.
+`AgentConversations` owns local reads and actions. It validates the agent and exact destination
+before a send. `MailboxStore` validates the destination again after the managed file transfer.
+Its existing mailbox transaction also writes an immutable `agent_conversation_deliveries` binding.
+A failed transaction restores the in-memory mailbox and attachment drafts, and removes the new
+transfer files. A retry key includes the sender, agent, conversation and client message ID.
+
+Admission remains one active turn per agent. A message for another conversation waits in the
+agent's queue. Only a message for the active conversation can steer its turn. A queue action,
+Stop, or input response names the exact conversation and current delivery, turn or input handle.
+Archived conversations can be read. Archive refuses active work, queued messages and pending input.
+Restore retains the same thread ID, history and provider context. Main can have a display label and
+cannot be archived.
+
+`ConversationRuntime` distinguishes added user conversations from channel execution threads.
+Their histories can take a provider handoff. Drain and boot recovery read the saved destination,
+and retain the existing refusal to repeat an uncertain provider start. A thread that is already
+shared by Main and an external messaging conversation still has one snapshot and keeps all its
+existing history.
+
+The new `agentConversations` IPC group is local only. Its preload decoders bound list and page
+allocations and check event owners. Added conversation events have a separate local channel.
+The internal service event stream remains complete for routine and resource consumers. The
+released default renderer and Team API projections keep Main history, queue and input cards.
+No v1 through v7 codec, optional remote capability, public web conversation list or native mobile
+conversation list changes.
+
+The desktop controller captures destinations before async actions. Thread keys keep drafts,
+pending sends, queue edits, read state and scroll positions separate. Agent deletion removes the
+added histories and their private session files before their registry rows. The confirmed desktop
+delete also clears the agent's saved composer text. Duplication, agent export and instance transfer
+retain their existing behavior: they copy no conversation history or labels. A full local database
+backup retains the registry, bindings and history.

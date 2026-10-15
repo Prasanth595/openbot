@@ -170,7 +170,19 @@ export function createPendingSendStore() {
     );
   }
 
+  function forgetAgent(agentId: string, serverId: string): void {
+    const prefix = composerDraftKey({ agentId, serverId });
+    for (const key of queues.keys()) {
+      if (key !== prefix && !key.startsWith(`${prefix}\0`)) continue;
+      for (const send of queues.get(key) ?? []) deliverers.delete(send.clientMessageId);
+      queues.delete(key);
+      setSends((current) => {
+        delete current[key];
+      });
+    }
+  }
   return {
+    forgetAgent,
     list: (target: ConversationTarget | undefined): readonly PendingSend[] =>
       target ? (sends[composerDraftKey(target)] ?? []) : [],
     unsentTexts,

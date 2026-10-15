@@ -11,6 +11,7 @@ import type {
   ConversationSnapshot,
   HostedSiteConversationEventStatus,
 } from "@openbot/contracts/ipc";
+import { AgentConversationStore } from "./agent-conversations/agent-conversation-store";
 import { AgentHistoryQueries, type AgentHistorySelection } from "./database/agent-history-queries";
 import { type AgentModelChange, AgentRoster } from "./database/agent-roster";
 import { AgentUsage } from "./database/agent-usage";
@@ -64,6 +65,7 @@ export type { StoredThreadSummary } from "./database/thread-summaries";
 export class OpenBotDatabase {
   readonly #core: DatabaseCore;
   readonly usage: AgentUsage;
+  readonly userConversations: AgentConversationStore;
   readonly #conversations: ConversationQueries;
   readonly #roster: AgentRoster;
   readonly #conversationWrites: ConversationWriter;
@@ -78,6 +80,7 @@ export class OpenBotDatabase {
   constructor(readonly userDataPath: string) {
     this.#core = new DatabaseCore({ userDataPath });
     this.usage = new AgentUsage(this.#core);
+    this.userConversations = new AgentConversationStore(this.#core);
     this.#conversations = new ConversationQueries({ core: this.#core });
     this.#roster = new AgentRoster({ core: this.#core });
     this.#conversationWrites = new ConversationWriter({ core: this.#core, roster: this.#roster });
@@ -240,8 +243,9 @@ export class OpenBotDatabase {
     agentId?: string,
     cursor?: string,
     requestedLimit = 100,
+    threadId?: string,
   ): ConversationSearchPage {
-    return this.#conversations.searchConversationMessages(query, agentId, cursor, requestedLimit);
+    return this.#conversations.searchConversationMessages(query, agentId, cursor, requestedLimit, threadId);
   }
 
   searchConversationFiles(query: string, cursor?: string, requestedLimit = 50): ConversationFileSearchPage {
@@ -509,8 +513,9 @@ export class OpenBotDatabase {
     eventType: string,
     fileDeletions: string[] = [],
     rebaseHistory = false,
+    destinations: readonly { deliveryId: string; threadId: string }[] = [],
   ): void {
-    this.#mailbox.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory);
+    this.#mailbox.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory, destinations);
   }
 
   pendingFileDeletions(): Array<{ id: string; path: string }> {

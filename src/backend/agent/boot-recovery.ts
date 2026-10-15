@@ -89,7 +89,12 @@ export class BootRecovery {
     const agents = this.#store.list();
     return [
       ...agents,
-      ...(this.#hooks.executionThreads?.() ?? []).flatMap((context) => {
+      ...[
+        ...agents.flatMap((agent) =>
+          this.#store.database.userConversations.threads(agent.id).map((threadId) => ({ id: agent.id, threadId })),
+        ),
+        ...(this.#hooks.executionThreads?.() ?? []),
+      ].flatMap((context) => {
         const agent = agents.find((item) => item.id === context.id);
         // A thread that is also the agent's own chat is in the list already.
         if (!agent || agent.threadId === context.threadId) return [];
@@ -148,7 +153,10 @@ export class BootRecovery {
         const { agent, client, session } = yield* recoveryStep(() => {
           const agent = this.#store.list().find((candidate) => candidate.id === delivery.recipientAgentId);
           const client = agent ? this.#providers.clientForAgent(agent) : null;
-          const threadId = this.#hooks.deliveryThreadId?.(delivery.id) ?? agent?.threadId;
+          const threadId =
+            this.#hooks.deliveryThreadId?.(delivery.id) ??
+            this.#mailbox.deliveryThreadId(delivery.id) ??
+            agent?.threadId;
           const session =
             agent && threadId ? this.#store.database.activeProviderSession(threadId, agent.provider) : null;
           return { agent, client, session };
@@ -209,7 +217,8 @@ export class BootRecovery {
       yield* this.#mailbox.markTerminal(delivery.id, terminal, reason).pipe(toBootRecoveryFailed);
       yield* recoveryStep(() => {
         const agent = this.#store.list().find((candidate) => candidate.id === delivery.recipientAgentId);
-        const threadId = this.#hooks.deliveryThreadId?.(delivery.id) ?? agent?.threadId;
+        const threadId =
+          this.#hooks.deliveryThreadId?.(delivery.id) ?? this.#mailbox.deliveryThreadId(delivery.id) ?? agent?.threadId;
         if (agent && threadId) {
           const recoveryTurnId =
             delivery.turnId ?? this.#store.database.readConversationRuntime(agent.id, threadId).activeTurnId;

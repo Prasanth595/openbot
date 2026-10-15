@@ -115,6 +115,7 @@ import {
   STORY_USAGE,
 } from "./fixtures";
 import { mockAgentAnalytics, mockHostAnalytics } from "./mock-agent-analytics";
+import { mockAgentConversations } from "./mock-agent-conversations";
 import { createMockAuth, type MockAuthOptions } from "./mock-auth";
 import { createMockBilling, previewBillingServers } from "./mock-billing";
 import { createMockBitwardenConnector } from "./mock-bitwarden-connector";
@@ -591,6 +592,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   );
   const billingPlans = previewBillingServers();
 
+  const mockSubjects = mockAgentConversations(
+    () => agents,
+    () => api.agent,
+  );
   const api: OpenBotDesktopApi = {
     getAppInfo: async () => clone(appInfo),
     getSetupState: async () => clone(setupState),
@@ -792,6 +797,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     providerRuntimes: mockProviderRuntimes.providerRuntimes,
     openUrl: async () => undefined,
     voice: mockVoice.voice,
+    agentConversations: mockSubjects.api,
     routineFlows: mockRoutineFlows(
       { routines, routineRuns, links: options.routineFlowLinks, steps: options.routineFlowSteps },
       (agentId) => emitAgentEvent({ type: "routine-flows-changed", agentId }),
@@ -2223,6 +2229,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       mockAuth.dispose();
       mockBrowser.dispose();
       mockTeam.dispose();
+      mockSubjects.dispose();
       agentListeners.clear();
       updateListeners.clear();
       attachmentListeners.clear();

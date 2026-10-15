@@ -2,6 +2,16 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.conversationUnavailable": "Esta conversación ya no está disponible.",
+  "error.agent.conversationArchived": "Restaura esta conversación antes de enviar un mensaje.",
+  "error.agent.conversationBusy":
+    "Finaliza o cancela el trabajo actual y los mensajes en cola de esta conversación antes de archivarla.",
+  "error.agent.mainConversationFixed": "La conversación principal no se puede archivar.",
+  "error.agent.conversationTurnChanged": "La conversación activa cambió. Lee su estado actual e inténtalo de nuevo.",
+  "error.agent.conversationDeliveryChanged":
+    "El destino del mensaje cambió. Lee su estado actual e inténtalo de nuevo.",
+  "error.agent.conversationInputChanged":
+    "La solicitud de respuesta cambió. Lee su estado actual e inténtalo de nuevo.",
   "error.agent.historyUnavailable":
     "El historial no está disponible para esta solicitud. Vuelve a leer el historial reciente.",
   "error.agent.toolRequestInvalid":

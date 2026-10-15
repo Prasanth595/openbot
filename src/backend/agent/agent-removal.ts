@@ -148,7 +148,10 @@ export class AgentRemoval {
     agent: Pick<AgentSummary, "id" | "threadId">,
   ) {
     const providerSessions = yield* removalStep(() =>
-      agent.threadId ? this.#store.database.listProviderSessions(agent.threadId) : [],
+      [
+        ...(agent.threadId ? [agent.threadId] : []),
+        ...this.#store.database.userConversations.threads(agent.id),
+      ].flatMap((threadId) => this.#store.database.listProviderSessions(threadId)),
     );
     // Keep provider session records until their private files have been removed.
     yield* this.#threads.releaseAgentSessions(agent.id);

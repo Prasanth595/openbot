@@ -30,23 +30,26 @@ export function createMcpServersStore(deps: McpServersStoreDeps) {
     const supported = server?.kind !== "remote" || serverCanAdminister(server, MCP_SERVERS_CAPABILITY);
     return `${server?.id ?? ""}\0${server?.connectionSequence ?? 0}\0${supported ? "supported" : "unsupported"}\0${deps.props.mcpSettingsOpen === true}`;
   });
-  createEffect(source, (key) => {
-    const current = ++request;
-    const [serverId, , support] = key.split("\0");
-    if (!serverId || support === "unsupported") {
-      setMcpServers([]);
-      return;
-    }
-    void conversationRuntime(deps.props)
-      .agent.listMcpServers(serverId)
-      .then((servers) => {
-        if (current === request) setMcpServers(servers);
-      })
-      .catch(() => {
-        // Nothing waits for this list: the picker offers the skills it has, and without the servers
-        // a `$` tag is one option short rather than an error over the composer.
-      });
-  });
+  createEffect(
+    () => ({ key: source(), runtime: conversationRuntime(deps.props) }),
+    ({ key, runtime }) => {
+      const current = ++request;
+      const [serverId, , support] = key.split("\0");
+      if (!serverId || support === "unsupported") {
+        setMcpServers([]);
+        return;
+      }
+      void runtime.agent
+        .listMcpServers(serverId)
+        .then((servers) => {
+          if (current === request) setMcpServers(servers);
+        })
+        .catch(() => {
+          // Nothing waits for this list: the picker offers the skills it has, and without the servers
+          // a `$` tag is one option short rather than an error over the composer.
+        });
+    },
+  );
 
   return { mcpServers };
 }

@@ -159,6 +159,17 @@ export function ConversationTimeline() {
   );
 
   const runtime = conversationRuntime(props);
+  const browserSecret = createMemo(() => {
+    const target = props.agent
+      ? {
+          agentId: props.agent.id,
+          serverId: props.server?.id ?? "local",
+          ...(props.conversationThreadId ? { threadId: props.conversationThreadId } : {}),
+        }
+      : undefined;
+    const scopedRuntime = conversationRuntime(props, target);
+    return { loadPreview: scopedRuntime.browser.capturePreview, onRespond: scopedRuntime.agent.respondToBrowserSecret };
+  });
   /**
    * The other person who wrote a message. The reader's own message, an agent message, and a message
    * from before senders were kept have none, so a chat with one person looks as it always did.
@@ -690,10 +701,14 @@ export function ConversationTimeline() {
                             referencedAuthorName={referencedAuthorName()}
                             reactions={displayedReactions()}
                             reactionOverflowCount={message()?.reactionSummary?.overflowCount}
-                            onRemoveReaction={() => {
-                              const currentMessage = message();
-                              if (currentMessage) void reactToMessage(currentMessage, null);
-                            }}
+                            onRemoveReaction={
+                              props.conversationArchived
+                                ? undefined
+                                : () => {
+                                    const currentMessage = message();
+                                    if (currentMessage) void reactToMessage(currentMessage, null);
+                                  }
+                            }
                             data-chat-search-message={message()?.id}
                             onSelectAgent={props.onSelectAgent}
                             onOpenLink={(url) => void openExternalMessageUrl(url)}
@@ -731,7 +746,8 @@ export function ConversationTimeline() {
                               <Show when={!hostless()}>
                                 <MessageActions
                                   message={message() ?? initialMessage}
-                                  pickerOpen={openReactionMessageId() === message()?.id}
+                                  reactions={!props.conversationArchived}
+                                  pickerOpen={!props.conversationArchived && openReactionMessageId() === message()?.id}
                                   expandedEmoji={expandedEmojiMessageId() === message()?.id}
                                   copied={copiedMessageId() === message()?.id}
                                   onTogglePicker={() => {
@@ -749,10 +765,14 @@ export function ConversationTimeline() {
                                     const currentMessage = message();
                                     if (currentMessage) void reactToMessage(currentMessage, emoji);
                                   }}
-                                  onReply={() => {
-                                    const currentMessage = message();
-                                    if (currentMessage) replyToMessage(currentMessage);
-                                  }}
+                                  onReply={
+                                    props.conversationArchived
+                                      ? undefined
+                                      : () => {
+                                          const currentMessage = message();
+                                          if (currentMessage) replyToMessage(currentMessage);
+                                        }
+                                  }
                                   onCopy={() => {
                                     const currentMessage = message();
                                     if (currentMessage) void copyMessage(currentMessage);
@@ -857,10 +877,7 @@ export function ConversationTimeline() {
                 onOpen={openBrowserTakeoverTab}
                 onComplete={() => respondToBrowserTakeover("complete")}
                 onCancel={() => respondToBrowserTakeover("cancel")}
-                browserSecret={{
-                  loadPreview: runtime.browser.capturePreview,
-                  onRespond: runtime.agent.respondToBrowserSecret,
-                }}
+                browserSecret={browserSecret()}
               />
             </Loading>
           </Show>

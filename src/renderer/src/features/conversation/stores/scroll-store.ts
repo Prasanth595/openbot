@@ -138,7 +138,7 @@ export function createScrollStore(deps: ScrollStoreDeps) {
     () => {
       const rows = timelineRows();
       return {
-        identity: `${deps.props.server?.id ?? "local"}:${deps.props.agent?.id ?? ""}`,
+        identity: `${deps.props.server?.id ?? "local"}:${deps.props.agent?.id ?? ""}:${deps.props.conversationThreadId ?? ""}`,
         rows,
         length: rows.length,
         lastId: rows.at(-1)?.id,
@@ -157,14 +157,17 @@ export function createScrollStore(deps: ScrollStoreDeps) {
   );
 
   createEffect(
-    () =>
-      deps.props.loaded &&
-      (timelineMessages().length === 0 || atHistoryBoundary()) &&
-      deps.props.hasOlder &&
-      !deps.props.loadingOlder &&
-      !deps.props.olderError,
-    (needsOlderPage) => {
-      if (needsOlderPage) deps.props.onLoadOlder?.();
+    () => {
+      const needsOlderPage =
+        deps.props.loaded &&
+        (timelineMessages().length === 0 || atHistoryBoundary()) &&
+        deps.props.hasOlder &&
+        !deps.props.loadingOlder &&
+        !deps.props.olderError;
+      return needsOlderPage ? deps.props.onLoadOlder : undefined;
+    },
+    (loadOlder) => {
+      loadOlder?.();
     },
   );
 

@@ -7,7 +7,7 @@ import type { Effect } from "effect";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { AgentMarketplaceFailure } from "../agent-marketplace-service";
 import type { AgentTemplateFailure } from "../agent-template-service";
-import { parseInstallAgentTemplate } from "../ipc/agent-template-handlers";
+import { parseInstallAgentTemplate } from "../ipc/agent-template-inputs";
 import { parseInstallMarketplaceAgent } from "../ipc/app-inputs";
 import type { TeamApiAdmin } from "./dependencies";
 import { HttpError } from "./http-error";

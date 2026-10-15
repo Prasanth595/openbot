@@ -1,6 +1,14 @@
 import { defineMessages } from "../../../message";
 
 export const messages = defineMessages("error.agent", {
+  "error.agent.conversationUnavailable": "This conversation is no longer available.",
+  "error.agent.conversationArchived": "Restore this conversation before sending a message.",
+  "error.agent.conversationBusy":
+    "Finish or cancel this conversation's current work and queued messages before archiving it.",
+  "error.agent.mainConversationFixed": "The main conversation cannot be archived.",
+  "error.agent.conversationTurnChanged": "The active conversation changed. Read its current state and try again.",
+  "error.agent.conversationDeliveryChanged": "The message destination changed. Read its current state and try again.",
+  "error.agent.conversationInputChanged": "The input request changed. Read its current state and try again.",
   "error.agent.historyUnavailable": "History is unavailable for this request. Read recent history again.",
   "error.agent.toolRequestInvalid":
     "Invalid tool discovery arguments. Use the declared schema and an original qualified tool name.",

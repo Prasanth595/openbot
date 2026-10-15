@@ -141,6 +141,8 @@ interface StoredReaction {
 }
 
 interface EnqueueInput {
+  /** Private host-selected destination. It never enters a released message or delivery shape. */
+  conversationThreadId?: string;
   channelId?: string;
   messaging?: MessagingOrigin;
   messagingReturn?: MessagingOrigin;
@@ -196,18 +198,31 @@ export interface CommittedChannelAttachments {
   revert: Effect.Effect<void, StoredStateFailure>;
 }
 
+export interface MailboxStoreOptions {
+  /** Optional file-transfer adapter. The default is the real managed AttachmentFiles operation. */
+  commitMessageTransfer?: AttachmentFiles["commitMessageTransfer"];
+}
+
 export class MailboxStore {
   readonly #statePath: string;
   readonly #files: AttachmentFiles;
+  readonly #commitMessageTransfer: AttachmentFiles["commitMessageTransfer"];
   readonly #database: OpenBotDatabase;
+  readonly #conversationDestinations = new Map<string, { threadId: string; user: boolean }>();
   readonly #queueUpdates = new Set<string>();
   readonly #deliveryGate = new MailboxDeliveryGate();
   readonly #stagedGeneratedAttachments = new Map<string, StoredGeneratedAttachment>();
   #state: StoredState = structuredClone(EMPTY_STATE);
 
-  constructor(userDataPath: string, sharedRoot: string, database = new OpenBotDatabase(userDataPath)) {
+  constructor(
+    userDataPath: string,
+    sharedRoot: string,
+    database = new OpenBotDatabase(userDataPath),
+    options: MailboxStoreOptions = {},
+  ) {
     this.#statePath = join(userDataPath, "mailbox.json");
     this.#files = new AttachmentFiles({ userDataPath, sharedRoot });
+    this.#commitMessageTransfer = options.commitMessageTransfer ?? this.#files.commitMessageTransfer;
     this.#database = database;
   }
 
@@ -233,6 +248,11 @@ export class MailboxStore {
         yield* this.#database.backupLegacyFile(this.#statePath);
         this.#persist("mailbox.legacy-imported", "legacy-import:mailbox:v1");
       }
+      for (const [id, threadId] of this.#database.userConversations.deliveryThreads())
+        this.#conversationDestinations.set(id, {
+          threadId,
+          user: this.#database.userConversations.isUserThread(threadId),
+        });
       const activeEdits = new Set(
         this.#state.deliveries
           .filter((delivery) => delivery.status === "queued" && delivery.editId)
@@ -419,6 +439,15 @@ export class MailboxStore {
 
       const recipients = [...new Set(input.recipientAgentIds)];
       const validateRecipients = this.prepareDelivery(recipients);
+      const validateDestination = () => {
+        if (!input.conversationThreadId) return;
+        if (recipients.length !== 1 || input.channelId || input.messaging)
+          throw new Error("A conversation destination requires one ordinary recipient.");
+        const recipient = recipients[0];
+        if (!recipient) throw new Error("A conversation recipient is missing.");
+        this.#database.userConversations.requireTarget(recipient, input.conversationThreadId);
+      };
+      validateDestination();
       if (recipients.length === 0) throw new Error(sourceText("error.backend.recipientRequired"));
       if (recipients.length > INPUT_LIMITS.messageRecipients) {
         throw new Error(sourceText("error.backend.recipientLimit", { limit: INPUT_LIMITS.messageRecipients }));
@@ -450,11 +479,17 @@ export class MailboxStore {
 
       const createdAt = new Date().toISOString();
       const messageId = randomUUID();
-      const attachments = yield* this.#files
-        .commitMessageTransfer(messageId, input.sender, recipients, messageId, createdAt, sourcePaths)
-        .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+      const attachments = yield* this.#commitMessageTransfer(
+        messageId,
+        input.sender,
+        recipients,
+        messageId,
+        createdAt,
+        sourcePaths,
+      ).pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       try {
         validateRecipients();
+        validateDestination();
       } catch (error) {
         yield* this.#files
           .remove(this.#files.transferRoot(messageId))
@@ -496,7 +531,15 @@ export class MailboxStore {
       if (input.idempotencyKey) this.#state.idempotency[input.idempotencyKey] = messageId;
       this.#state.drafts = this.#state.drafts.filter((draft) => !(input.draftIds ?? []).includes(draft.id));
       try {
-        this.#persist();
+        this.#persist(
+          "mailbox.updated",
+          `mailbox:enqueue:${messageId}`,
+          [],
+          false,
+          input.conversationThreadId
+            ? deliveries.map((delivery) => ({ deliveryId: delivery.id, threadId: input.conversationThreadId ?? "" }))
+            : [],
+        );
       } catch (error) {
         const deliveryIds = new Set(deliveries.map((delivery) => delivery.id));
         this.#state.messages = this.#state.messages.filter((candidate) => candidate.id !== messageId);
@@ -638,7 +681,7 @@ export class MailboxStore {
    * removed the row on every other device and renumbered the rest for as long as the edit ran,
    * which reads as lost messages.
    */
-  listQueue(agentId: string): QueueSnapshot {
+  listQueue(agentId: string, threadId?: string): QueueSnapshot {
     const executionMessageIds = this.#executionMessageIds();
     const positions = this.#queuedPositions();
     return {
@@ -646,7 +689,12 @@ export class MailboxStore {
       // Queue order, not storage order: a restart reads the deliveries back sorted by their
       // creation time and identity, which would otherwise reorder rows a client already saw.
       deliveries: [...this.#state.deliveries]
-        .filter((delivery) => delivery.recipientAgentId === agentId && !executionMessageIds.has(delivery.messageId))
+        .filter(
+          (delivery) =>
+            delivery.recipientAgentId === agentId &&
+            !executionMessageIds.has(delivery.messageId) &&
+            this.deliveryMatchesThread(delivery.id, threadId),
+        )
         .sort(compareQueueOrder)
         .map((delivery) => this.#publicDelivery(delivery, positions)),
     };
@@ -684,7 +732,7 @@ export class MailboxStore {
     const workingAgentIds = new Set<string>();
     const failedAgentIds = new Set<string>();
     for (const delivery of this.#state.deliveries) {
-      if (!targetAgentIds.has(delivery.recipientAgentId)) continue;
+      if (!targetAgentIds.has(delivery.recipientAgentId) || !this.deliveryMatchesThread(delivery.id)) continue;
       const isWorking = delivery.status === "starting" || delivery.status === "running";
       const isCurrentFailure =
         delivery.status === "failed" && delivery.turnId === failedTurns.get(delivery.recipientAgentId);
@@ -721,7 +769,7 @@ export class MailboxStore {
 
   conversationMessages(
     agentId: string,
-    options: { fromCreatedAt?: string; limit?: number } = {},
+    options: { fromCreatedAt?: string; limit?: number; threadId?: string } = {},
   ): ConversationMessage[] {
     const limit = Math.max(1, Math.min(options.limit ?? 100, 100));
     const deliveriesByMessage = new Map<string, StoredDelivery[]>();
@@ -739,11 +787,15 @@ export class MailboxStore {
       // The teammate it went to still sees it.
       if (message.messagingReturn && message.sender.kind === "agent" && message.sender.agentId === agentId) continue;
       const deliveries = deliveriesByMessage.get(message.id) ?? [];
-      const ownMessage = message.sender.kind === "agent" && message.sender.agentId === agentId;
+      const ownMessage = message.sender.kind === "agent" && message.sender.agentId === agentId && !options.threadId;
       let relevant = ownMessage;
       let active = false;
       for (const delivery of deliveries) {
-        if (!ownMessage && delivery.recipientAgentId !== agentId) continue;
+        if (
+          !ownMessage &&
+          (delivery.recipientAgentId !== agentId || !this.deliveryMatchesThread(delivery.id, options.threadId))
+        )
+          continue;
         relevant = true;
         if (isActiveDelivery(delivery)) active = true;
       }
@@ -948,6 +1000,16 @@ export class MailboxStore {
     return [...result];
   }
 
+  /** The immutable public thread selected at enqueue, or null for a released default delivery. */
+  deliveryThreadId(deliveryId: string): string | null {
+    return this.#conversationDestinations.get(deliveryId)?.threadId ?? null;
+  }
+
+  deliveryMatchesThread(deliveryId: string, threadId?: string): boolean {
+    const destination = this.#conversationDestinations.get(deliveryId);
+    return threadId ? destination?.threadId === threadId : !destination?.user;
+  }
+
   nextQueued(agentId: string): DeliveryContext | null {
     if (
       this.#state.deliveries.some(
@@ -974,7 +1036,12 @@ export class MailboxStore {
     if (message.sender.kind !== "user" && !requestId) return [];
     return this.#queuedFor(next.recipientAgentId)
       .filter((candidate) => {
-        if (candidate.id === next.id || !this.#mayStart(candidate)) return false;
+        if (
+          candidate.id === next.id ||
+          !this.#mayStart(candidate) ||
+          this.deliveryThreadId(candidate.id) !== this.deliveryThreadId(next.id)
+        )
+          return false;
         if (!requestId) return this.#isHeldReply(candidate);
         const reply = this.#requireMessage(candidate.messageId);
         return isAnswer(reply) && reply.replyToMessageId === requestId;
@@ -2201,8 +2268,21 @@ export class MailboxStore {
     commandId = `mailbox:${eventType}:${randomUUID()}`,
     fileDeletions: string[] = [],
     rebaseHistory = false,
+    destinations: readonly { deliveryId: string; threadId: string }[] = [],
   ): void {
-    this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, rebaseHistory);
+    const acceptedDestinations = destinations.map((destination) => ({
+      ...destination,
+      user: this.#database.userConversations.isUserThread(destination.threadId),
+    }));
+    this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, rebaseHistory, destinations);
+    const retained = new Set(this.#state.deliveries.map((delivery) => delivery.id));
+    for (const id of this.#conversationDestinations.keys())
+      if (!retained.has(id)) this.#conversationDestinations.delete(id);
+    for (const destination of acceptedDestinations)
+      this.#conversationDestinations.set(destination.deliveryId, {
+        threadId: destination.threadId,
+        user: destination.user,
+      });
   }
 
   #drainFileDeletionOutboxEffect = Effect.fn("MailboxStore.drainFileDeletionOutbox")(function* (this: MailboxStore) {

@@ -5,6 +5,20 @@ import type {
   AcpRegistryOperation,
 } from "./ipc-acp-registry";
 import type {
+  AgentConversationActionInput,
+  AgentConversationEvent,
+  AgentConversationList,
+  AgentConversationListInput,
+  AgentConversationQueue,
+  AgentConversationRead,
+  AgentConversationTarget,
+  CreateAgentConversationInput,
+  ReadAgentConversationInput,
+  SearchAgentConversationInput,
+  SendAgentConversationInput,
+  UpdateAgentConversationInput,
+} from "./ipc-agent-conversations";
+import type {
   AgentSessionSettings,
   ResetAgentSessionSettingInput,
   SetAgentSessionSettingInput,
@@ -505,6 +519,17 @@ function untypedRequest<Channel extends string>(channel: Channel): RequestEndpoi
 }
 
 export const IPC_ENDPOINTS = {
+  agentConversations: {
+    list: request<AgentConversationListInput, AgentConversationList>()("agent-conversations:list"),
+    create: request<CreateAgentConversationInput, AgentConversationTarget>()("agent-conversations:create"),
+    update: request<UpdateAgentConversationInput, void>()("agent-conversations:update"),
+    read: request<ReadAgentConversationInput, AgentConversationRead>()("agent-conversations:read"),
+    queue: request<ReadAgentConversationInput, AgentConversationQueue>()("agent-conversations:queue"),
+    search: request<SearchAgentConversationInput, ConversationSearchPage>()("agent-conversations:search"),
+    send: request<SendAgentConversationInput, QueuedMessageReceipt>()("agent-conversations:send"),
+    action: request<AgentConversationActionInput, void>()("agent-conversations:action"),
+    changed: event<AgentConversationEvent>()("agent-conversations:changed"),
+  },
   app: {
     getAppInfo: request<undefined, AppInfo>()("app:get-info"),
     getSetupState: request<undefined, AppSetupState>()("app:get-setup-state"),
@@ -1389,6 +1414,7 @@ export type IpcEndpoints = typeof IPC_ENDPOINTS;
  * read this table; the preload and the preview mock are checked against it through the type.
  */
 export const IPC_GROUP_PATHS = {
+  agentConversations: "agentConversations",
   app: "",
   maintenance: "maintenance",
   providers: "",

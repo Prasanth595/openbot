@@ -48,7 +48,8 @@ export interface ConversationMarkerExclusions {
  * conversation of that agent, where a channel message does not exist. The thread stays out of the
  * search until a result can name the channel it belongs to.
  */
-const CHANNEL_THREAD_EXCLUSION = "AND message.thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)";
+const CHANNEL_THREAD_EXCLUSION =
+  "AND message.thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts) AND message.thread_id NOT IN (SELECT thread_id FROM agent_conversations WHERE kind = 'user')";
 
 /**
  * Every read of a thread's messages: the whole snapshot, one anchored page, a page's supported
@@ -330,6 +331,7 @@ export class ConversationQueries {
     agentId?: string,
     cursor?: string,
     requestedLimit = 100,
+    threadId?: string,
   ): ConversationSearchPage {
     const normalized = query.trim().replace(/\s+/g, " ").toLocaleLowerCase();
     if (!normalized) return { results: [], total: 0, nextCursor: null };
@@ -347,8 +349,9 @@ export class ConversationQueries {
         ? `${textMatch} AND LOWER(${COLLAPSE_WHITESPACE_FUNCTION}(${storedText})) LIKE ? ESCAPE '\\'`
         : textMatch;
     const textParameters = terms.length > 1 ? [`%${escapeLike(longestTerm)}%`, pattern] : [pattern];
-    const filter = agentId ? "AND thread.agent_id = ?" : "";
-    const parameters = agentId ? [...textParameters, agentId] : textParameters;
+    const filter = `${agentId ? "AND thread.agent_id = ?" : ""} ${threadId ? "AND message.thread_id = ?" : ""}`;
+    const parameters = [...textParameters, ...(agentId ? [agentId] : []), ...(threadId ? [threadId] : [])];
+    const excludedThreads = threadId ? "" : CHANNEL_THREAD_EXCLUSION;
     const countRow = databaseRow(
       this.#core.connection
         .prepare(
@@ -363,7 +366,7 @@ export class ConversationQueries {
              AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
              AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
              AND json_extract(message.message_json, '$.routine') IS NULL
-             ${CHANNEL_THREAD_EXCLUSION}
+             ${excludedThreads}
              ${filter}`,
         )
         .get(...parameters),
@@ -383,7 +386,7 @@ export class ConversationQueries {
              AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
              AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
              AND json_extract(message.message_json, '$.routine') IS NULL
-             ${CHANNEL_THREAD_EXCLUSION}
+             ${excludedThreads}
              ${filter}
            ORDER BY message.created_at DESC, message.ordinal DESC, message.message_id DESC
            LIMIT ? OFFSET ?`,

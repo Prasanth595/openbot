@@ -103,6 +103,7 @@ import {
   sameAgentModelChoice,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
+import type { AgentConversationEvent, SendAgentConversationInput } from "@openbot/contracts/ipc-agent-conversations";
 import { ContextResetBusyError } from "@openbot/contracts/team-protocol/context-reset-v1";
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { sourceText } from "@openbot/i18n/source";
@@ -130,7 +131,12 @@ import type { FailureContext, FailureSignal } from "./agent/failure-signal";
 import { type AgentHostedSites, HostedSiteCoordinator } from "./agent/hosted-site-coordinator";
 import { ImageGenRuntime } from "./agent/image-gen-runtime";
 import { MailboxSync } from "./agent/mailbox-sync";
-import { type GitHubConnectorSource, McpGateway, type TestMcpServerOptions } from "./agent/mcp-gateway";
+import {
+  type GitHubConnectorSource,
+  McpGateway,
+  type TestMcpServerOptions,
+  toMcpGatewayFailed,
+} from "./agent/mcp-gateway";
 import { MemoryHold } from "./agent/memory-hold";
 import {
   creationModel,
@@ -172,6 +178,7 @@ import { toToolOperationFailed } from "./agent/tool-operation";
 import { type AgentBrowserHost, TurnLifecycle } from "./agent/turn-lifecycle";
 import { toUsageReadFailed, UsageLimitGate, type UsageLimitKey } from "./agent/usage-limit-gate";
 import type { AgentProvider } from "./agent-client";
+import { AgentConversations } from "./agent-conversations/agent-conversations";
 import type { AgentTables } from "./agent-data/agent-tables";
 import type { AgentStore } from "./agent-store";
 import { AgentWaitStore } from "./agent-waits/agent-wait-store";
@@ -222,6 +229,7 @@ export type { ResolvedSharedFile } from "./workspace-paths";
 interface AgentServiceEvents {
   failure: [failure: FailureSignal];
   event: [event: AgentEvent];
+  conversationEvent: [event: AgentConversationEvent];
   /** Finished tool steps for the local host's product analytics. Never forwarded to a client. */
   toolUsage: [usage: ToolUsageSignal];
 }
@@ -324,6 +332,7 @@ const MAX_SECTION_TEAMMATES = 32;
 
 export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly channels: ChannelService;
+  readonly userConversations: AgentConversations;
   readonly messaging: MessagingThreads;
   readonly #profileSave: ProfileSave;
   readonly #profileClients = new ProfileClients();
@@ -374,6 +383,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #busyMessageMode: () => BusyMessageMode;
   /** The last turn of each agent's chat that the user stopped. One per agent, so it needs no clean-up. */
   readonly #stoppedTurns = new Map<string, string>();
+  readonly #eventDestinations = new WeakMap<AgentEvent, string>();
+  readonly #inputConversationThreads = new Map<string, string>();
   #initialized = false;
   #stopping = false;
   readonly #retireChannels: boolean;
@@ -419,7 +430,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       hooks: {
         emitError: (code, error) => this.#emitError(code, error),
         // Read late: the threads are built further down this constructor.
-        refreshAllAgentRuntimes: () => this.#threads.refreshAllAgentRuntimes(),
+        refreshAllAgentRuntimes: () => this.#threads.refreshAllAgentRuntimes().pipe(toMcpGatewayFailed),
       },
     });
     this.#sidebarLayout = sidebarLayout;
@@ -1002,7 +1013,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       memory: this.#memoryHold,
       usageLimits: this.#usageLimits,
       hooks: {
-        emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
+        emitError: (code, error, agentId, threadId) =>
+          this.#emitError(code, error, agentId, threadId ? { threadId } : undefined),
         redactMcp: (text) => this.#mcp.redact(text),
         isStopping: () => this.#stopping,
         servesModel: (model) => this.#endpoints.serves(model),
@@ -1163,6 +1175,17 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         requestNoUpdate: (agentId, threadId, turnId) => this.#turn.requestNoUpdate(agentId, threadId, turnId),
       },
     });
+    this.userConversations = new AgentConversations({
+      store,
+      mailbox,
+      conversation: this.#conversation,
+      mailboxSync: this.#mailboxSync,
+      queue: this.#queue,
+      attention: this.#attention,
+      emit: (event) => this.emit("conversationEvent", event),
+      send: (input, sender) => this.#sendConversationMessage(input, sender),
+      stop: (agentId, turnId, threadId) => this.interrupt(agentId, turnId, threadId),
+    });
   }
 
   getStatus(): AgentStatus {
@@ -1249,7 +1272,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       conversation: this.#conversation,
       database: this.#store.database,
       mailbox: this.#mailbox,
-      turn: this.#turn,
+      turn: {
+        failedTurns: () =>
+          new Map(
+            [...this.#turn.failedTurns()].filter(
+              ([agentId, turnId]) => !this.#conversation.isUserTurn(agentId, turnId),
+            ),
+          ),
+      },
       attention: this.#attention,
       usageLimits: this.#usageLimits,
     });
@@ -1575,7 +1605,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    * sessions keep the mark until the turn ends, and the public threads and their histories stay.
    */
   refreshAllAgentRuntimes(): Effect.Effect<void, AgentLifecycleFailed> {
-    return this.#threads.refreshAllAgentRuntimes();
+    return this.#threads
+      .refreshAllAgentRuntimes()
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "refreshAllAgentRuntimes", cause: failure.cause }),
+        ),
+      );
   }
 
   testMcpServer(
@@ -2025,7 +2061,20 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /** `returning` is set for the move back to the model a usage limit made the agent leave. */
-  readonly #applyAgentUpdate = Effect.fn("AgentService.updateAgent")(function* (
+  readonly #applyAgentUpdate = Effect.fn("AgentService.holdAgentUpdate")(function* (
+    this: AgentService,
+    input: UpdateAgentInput,
+    initiatingAgentId?: string,
+    returning = false,
+  ) {
+    return yield* Effect.acquireUseRelease(
+      Effect.sync(() => this.#drain.holdSessionSettings(input.agentId)),
+      () => this.#applyAgentUpdateInner(input, initiatingAgentId, returning),
+      (release) => Effect.sync(release),
+    );
+  }).bind(this);
+
+  readonly #applyAgentUpdateInner = Effect.fn("AgentService.updateAgent")(function* (
     this: AgentService,
     input: UpdateAgentInput,
     initiatingAgentId?: string,
@@ -2112,13 +2161,26 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       // Before the sessions are retired below, while the previous provider still holds them. The
       // steps are saved only once the switch is stored: a switch that fails keeps the session.
       const sessions = yield* lifecycleStep("read provider sessions", () =>
-        previous.threadId ? this.#store.database.listProviderSessions(previous.threadId) : [],
+        [
+          ...(previous.threadId ? [previous.threadId] : []),
+          ...this.#store.database.userConversations.threads(previous.id),
+        ].flatMap((threadId) => this.#store.database.listProviderSessions(threadId)),
       );
       for (const session of sessions.filter((one) => one.state === "active")) {
         const steps = yield* this.#threads.readWorkSteps(session);
         if (steps !== null) captures.push([session, steps]);
       }
-      // The reads and the provider start take time, and a message sent in it can start a turn.
+      // The agent admission hold prevents a turn during the switch. A new queued send still
+      // makes the normal idle check refuse a user-requested provider change.
+      yield* lifecycleStep("validate agent update", () => requireIdle(previous));
+      for (const [session, steps] of captures) yield* this.#threads.saveWorkSteps(session, steps);
+      yield* this.#threads
+        .releaseIdleAgentSessions(previous.id)
+        .pipe(
+          Effect.mapError(
+            (failure) => new AgentLifecycleFailed({ operation: "close provider sessions", cause: failure.cause }),
+          ),
+        );
       yield* lifecycleStep("validate agent update", () => requireIdle(previous));
     }
     if (requestedProvider && (input.provider || input.model))
@@ -2162,8 +2224,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     if (previous?.threadId && providerChanged) {
       // Retire first, with no wait after the update: a turn that starts while a file is written
       // binds a session of the new provider, and a later retirement would close that one too.
-      this.#store.database.deactivateProviderSessions(previous.threadId);
-      for (const [session, steps] of captures) yield* this.#threads.saveWorkSteps(session, steps);
+      for (const threadId of [previous.threadId, ...this.#store.database.userConversations.threads(previous.id)])
+        this.#store.database.deactivateProviderSessions(threadId);
     } else if (activeSession && (input.model || input.reasoningEffort)) {
       this.#store.database.updateProviderSessionConfig(
         activeSession.id,
@@ -2354,7 +2416,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }).bind(this);
 
   refreshAgentRuntime(agentId: string): Effect.Effect<void, AgentLifecycleFailed> {
-    return this.#threads.refreshAgentRuntime(agentId);
+    return this.#threads
+      .refreshAgentRuntime(agentId)
+      .pipe(
+        Effect.mapError(
+          (failure) => new AgentLifecycleFailed({ operation: "refreshAgentRuntime", cause: failure.cause }),
+        ),
+      );
   }
 
   /**
@@ -3213,12 +3281,42 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     );
   }).bind(this);
 
+  readonly #sendConversationMessage = Effect.fn("AgentService.sendConversationMessage")(function* (
+    this: AgentService,
+    input: SendAgentConversationInput,
+    sender?: ConversationMessageSender,
+  ): Effect.fn.Return<QueuedMessageReceipt, AgentLifecycleFailed> {
+    const key = input.clientMessageId
+      ? `user-send:${createHash("sha256")
+          .update(JSON.stringify([sender?.id ?? null, input.agentId, input.threadId, input.clientMessageId]))
+          .digest("hex")}`
+      : undefined;
+    if (key) {
+      this.#mailbox.forgetIdempotencyKeys("user-send:", new Date(Date.now() - USER_SEND_RETRY_WINDOW_MS));
+      const stored = this.#mailbox.receiptForKey(key);
+      if (stored) return stored;
+      const pending = this.#pendingUserSends.get(key);
+      if (pending) return yield* Deferred.await(pending);
+    }
+    const pending = Deferred.makeUnsafe<QueuedMessageReceipt, AgentLifecycleFailed>();
+    if (key) this.#pendingUserSends.set(key, pending);
+    return yield* this.#sendUserMessage(input, sender, undefined, key, input.threadId).pipe(
+      Effect.onExit((exit) => Deferred.done(pending, exit)),
+      Effect.ensuring(
+        Effect.sync(() => {
+          if (key) this.#pendingUserSends.delete(key);
+        }),
+      ),
+    );
+  }).bind(this);
+
   readonly #sendUserMessage = Effect.fn("AgentService.sendUserMessage")(function* (
     this: AgentService,
     input: SendMessageInput,
     sender: ConversationMessageSender | undefined,
     timezone: string | undefined,
     idempotencyKey?: string,
+    conversationThreadId?: string,
   ) {
     const validateRecipient = yield* lifecycleStep("prepare message delivery", () =>
       this.#mailbox.prepareDelivery([input.agentId]),
@@ -3248,6 +3346,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         sender: { kind: "user" },
         ...(sender ? { senderMember: sender } : {}),
         recipientAgentIds: [agent.id],
+        ...(conversationThreadId ? { conversationThreadId } : {}),
         text: input.text,
         draftIds: input.attachmentDraftIds ?? [],
         replyToMessageId: input.replyToMessageId ?? null,
@@ -3264,24 +3363,25 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         cause: new Error(sourceText("error.agent.queuedMessageCreateFailed")),
       });
     if (timezone !== undefined) this.#routines.noteDeliveryTimezone(delivery.delivery.id, timezone);
-    const snapshot = this.#conversation.ensureSnapshot(agent.id, agent.threadId);
+    const snapshot = this.#conversation.ensureSnapshot(agent.id, conversationThreadId ?? agent.threadId);
     this.#mailboxSync.syncMailboxMessages(snapshot);
-    yield* this.#store
-      .updatePreview(
-        agent.id,
-        displayMessageReferences(
-          delivery.delivery.text,
-          delivery.delivery.attachments,
-          agentNamesById(this.#store.list()),
-        ) || delivery.delivery.attachments.map((item) => item.name).join(", "),
-      )
-      .pipe(
-        // The message is already queued: a failed preview write must not leave it without a drain,
-        // and a retry with the same id returns the stored receipt without one.
-        Effect.catch((failure) =>
-          Effect.sync(() => this.#emitError("message_preview_failed", failure.cause, agent.id)),
-        ),
-      );
+    if (!this.#conversation.isUserThread(snapshot.threadId))
+      yield* this.#store
+        .updatePreview(
+          agent.id,
+          displayMessageReferences(
+            delivery.delivery.text,
+            delivery.delivery.attachments,
+            agentNamesById(this.#store.list()),
+          ) || delivery.delivery.attachments.map((item) => item.name).join(", "),
+        )
+        .pipe(
+          // The message is already queued: a failed preview write must not leave it without a drain,
+          // and a retry with the same id returns the stored receipt without one.
+          Effect.catch((failure) =>
+            Effect.sync(() => this.#emitError("message_preview_failed", failure.cause, agent.id)),
+          ),
+        );
     // A turn the user stopped is ending, and a message steered into it would end with it.
     const steerTurnId =
       snapshot.activeTurnId &&
@@ -3297,7 +3397,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     // Not awaited: the message is already queued, and the sender is answered without the wait for
     // the provider.
     if (steerTurnId && steers)
-      yield* this.#steerSentMessage(agent, delivery.delivery.id, steerTurnId).pipe(Effect.forkIn(this.#scope));
+      yield* this.#steerSentMessage(agent, delivery.delivery.id, steerTurnId, conversationThreadId).pipe(
+        Effect.forkIn(this.#scope),
+      );
     this.#drain.scheduleDrain(agent.id);
     return receipt;
   }, Effect.uninterruptible).bind(this);
@@ -3313,22 +3415,28 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     agent: AgentSummary,
     deliveryId: string,
     turnId: string,
+    threadId?: string,
   ) {
-    yield* this.#queue.steer({ agentId: agent.id, deliveryId, expectedTurnId: turnId }).pipe(
-      Effect.catch((failure) =>
-        Effect.gen({ self: this }, function* () {
-          logger.warn("A message sent to steer the running turn waits in the queue.", {
-            agentId: agent.id,
-            error: failure.cause,
-          });
-          // When the turn ended in between, the message starts as the next turn or waits behind it
-          // like any other, which is no fallback worth naming.
-          if (this.#conversation.ensureSnapshot(agent.id, agent.threadId).activeTurnId !== turnId) return;
-          yield* this.#markSteerFallback(agent.id, deliveryId, "steer-failed");
-          this.#mailboxSync.emitQueue(agent.id);
-        }),
-      ),
-    );
+    yield* this.#queue
+      .steer(
+        { agentId: agent.id, deliveryId, expectedTurnId: turnId },
+        this.#conversation.isUserThread(threadId ?? null) ? threadId : undefined,
+      )
+      .pipe(
+        Effect.catch((failure) =>
+          Effect.gen({ self: this }, function* () {
+            logger.warn("A message sent to steer the running turn waits in the queue.", {
+              agentId: agent.id,
+              error: failure.cause,
+            });
+            // When the turn ended in between, the message starts as the next turn or waits behind it
+            // like any other, which is no fallback worth naming.
+            if (this.#conversation.ensureSnapshot(agent.id, threadId ?? agent.threadId).activeTurnId !== turnId) return;
+            yield* this.#markSteerFallback(agent.id, deliveryId, "steer-failed");
+            this.#mailboxSync.emitQueue(agent.id);
+          }),
+        ),
+      );
   });
 
   /** The reason is a label on the queue row, so a failed write leaves the message queued without it. */
@@ -3379,6 +3487,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   interrupt(agentId: string, turnId: string, executionThreadId?: string): Effect.Effect<void, AgentLifecycleFailed> {
     return Effect.suspend(() => {
+      const main = this.#store.list().find((agent) => agent.id === agentId)?.threadId;
+      if (!executionThreadId && this.#conversation.workingSnapshot(agentId)?.threadId !== main) return Effect.void;
       if (!executionThreadId) this.#stoppedTurns.set(agentId, turnId);
       return this.#interruptTurn(agentId, turnId, executionThreadId);
     }).pipe(Effect.asVoid);
@@ -3416,6 +3526,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     // A Stop for a turn that already ended must not reach the next turn: ACP and Claude stop the
     // running turn, whatever `turnId` says. A channel thread is not in these snapshots.
     if (!executionThreadId && !snapshot) return false;
+    if (executionThreadId && snapshot?.threadId !== executionThreadId) return false;
     const targetThreadId = executionThreadId ?? snapshot?.threadId;
     const session = targetThreadId
       ? this.#store.database.activeProviderSession(targetThreadId, agent.provider)
@@ -3465,6 +3576,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }, Effect.uninterruptible).bind(this);
 
   respondToPrompt(input: RespondToPromptInput): Effect.Effect<void, AgentLifecycleFailed> {
+    if (this.#conversation.isUserThread(this.#attention.inputThread("prompt", input.requestId)))
+      return Effect.fail(
+        new AgentLifecycleFailed({
+          operation: "respond to input",
+          cause: new Error(sourceText("error.agent.conversationInputChanged")),
+        }),
+      );
     return this.#attention
       .respondToPrompt(input)
       .pipe(
@@ -3473,6 +3591,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   respondToApproval(input: RespondToApprovalInput): Effect.Effect<void, AgentLifecycleFailed> {
+    if (this.#conversation.isUserThread(this.#attention.inputThread("approval", input.requestId)))
+      return Effect.fail(
+        new AgentLifecycleFailed({
+          operation: "respond to input",
+          cause: new Error(sourceText("error.agent.conversationInputChanged")),
+        }),
+      );
     return this.#attention
       .respondToApproval(input)
       .pipe(
@@ -3483,6 +3608,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   respondToBrowserSecret(input: RespondToBrowserSecretInput): Effect.Effect<void, AgentLifecycleFailed> {
+    if (this.#conversation.isUserThread(this.#attention.inputThread("takeover", input.requestId)))
+      return Effect.fail(
+        new AgentLifecycleFailed({
+          operation: "respond to input",
+          cause: new Error(sourceText("error.agent.conversationInputChanged")),
+        }),
+      );
     return this.#attention
       .respondToBrowserSecret(input)
       .pipe(
@@ -3493,6 +3625,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   respondToBrowserTakeover(input: RespondToBrowserTakeoverInput): Effect.Effect<void, AgentLifecycleFailed> {
+    if (this.#conversation.isUserThread(this.#attention.inputThread("takeover", input.requestId)))
+      return Effect.fail(
+        new AgentLifecycleFailed({
+          operation: "respond to input",
+          cause: new Error(sourceText("error.agent.conversationInputChanged")),
+        }),
+      );
     return this.#attention
       .respondToBrowserTakeover(input)
       .pipe(
@@ -3509,7 +3648,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       ...(agentId !== undefined ? { agentId } : {}),
       causeCode: context?.causeCode ?? classifyFailure(error),
     });
-    this.#emit({
+    const errorEvent: AgentEvent = {
       type: "error",
       agentId,
       code,
@@ -3517,16 +3656,105 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       // and the log, and a CLI quotes what it was given: a failure against a custom endpoint can
       // carry that endpoint's API key or a header value.
       message: this.#mcp.redact(error instanceof Error ? error.message : String(error)),
-    });
+    };
+    const working = agentId ? this.#conversation.workingSnapshot(agentId) : undefined;
+    const destination =
+      context?.threadId ??
+      (agentId && context?.turnId ? this.#conversation.userThreadForTurn(agentId, context.turnId) : null) ??
+      working?.threadId;
+    if (destination && this.#conversation.isUserThread(destination))
+      this.#eventDestinations.set(errorEvent, destination);
+    this.#emit(errorEvent);
   }
 
   #emitRuntimeSnapshot(): void {
     this.#emit({ type: "runtime-snapshot", snapshot: this.getRuntimeSnapshot() });
   }
 
+  /** Added subjects never enter released client caches, default input cards or remote events. */
+  legacyConversationEvent(event: AgentEvent): boolean {
+    const threadId = this.#eventThreadId(event);
+    return !threadId || !this.#conversation.isUserThread(threadId);
+  }
+
+  #eventThreadId(event: AgentEvent): string | null {
+    const privateDestination = this.#eventDestinations.get(event);
+    if (privateDestination) return privateDestination;
+    if (event.type === "conversation") return event.snapshot.threadId;
+    if (event.type === "conversation-page") return event.page.threadId;
+    if (event.type === "approval") return event.approval.threadId;
+    if (event.type === "browser-takeover-requested") return event.request.threadId;
+    if ("threadId" in event) return event.threadId;
+    if (event.type === "agent-input-resolved" || event.type === "browser-takeover-resolved")
+      return (
+        this.#inputConversationThreads.get(
+          JSON.stringify([
+            event.agentId,
+            event.type === "agent-input-resolved" ? event.kind : "takeover",
+            event.requestId,
+          ]),
+        ) ?? null
+      );
+    return null;
+  }
+
   #emit(event: AgentEvent): void {
     recordAgentRestartActivity(event);
     if (this.channels?.event(event) || this.messaging?.event(event, this.#scope)) return;
+    const threadId = this.#eventThreadId(event);
+    if (event.type === "prompt" || event.type === "approval" || event.type === "browser-takeover-requested") {
+      const agentId =
+        event.type === "approval"
+          ? event.approval.agentId
+          : event.type === "prompt"
+            ? event.agentId
+            : event.request.agentId;
+      const requestId =
+        event.type === "approval"
+          ? event.approval.requestId
+          : event.type === "prompt"
+            ? event.requestId
+            : event.request.requestId;
+      const kind = event.type === "browser-takeover-requested" ? "takeover" : event.type;
+      if (threadId) this.#inputConversationThreads.set(JSON.stringify([agentId, kind, requestId]), threadId);
+    }
+    if (threadId && this.#conversation.isUserThread(threadId)) {
+      const agentId =
+        event.type === "conversation"
+          ? event.snapshot.agentId
+          : event.type === "conversation-page"
+            ? event.page.agentId
+            : event.type === "approval"
+              ? event.approval.agentId
+              : event.type === "browser-takeover-requested"
+                ? event.request.agentId
+                : "agentId" in event
+                  ? event.agentId
+                  : undefined;
+      if (agentId) this.emit("conversationEvent", { type: "conversation-event", agentId, threadId, event });
+    }
+    if (event.type === "queue-changed")
+      for (const threadId of this.#store.database.userConversations.threads(event.snapshot.agentId)) {
+        this.emit("conversationEvent", {
+          type: "conversation-event",
+          agentId: event.snapshot.agentId,
+          threadId,
+          event: {
+            type: "queue-changed",
+            snapshot: this.userConversations.queueSnapshot({ agentId: event.snapshot.agentId, threadId }),
+          },
+        });
+      }
+    if (event.type === "agent-input-resolved" || event.type === "browser-takeover-resolved") {
+      if (threadId) this.#eventDestinations.set(event, threadId);
+      this.#inputConversationThreads.delete(
+        JSON.stringify([
+          event.agentId,
+          event.type === "agent-input-resolved" ? event.kind : "takeover",
+          event.requestId,
+        ]),
+      );
+    }
     this.emit("event", event);
   }
 

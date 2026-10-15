@@ -37,46 +37,49 @@ export function createSkillsStore(deps: SkillsStoreDeps) {
     () =>
       `${installedSkillsSource()}\0${installedSkillsRetry()}\0${deps.props.activeTurnId ?? ""}\0${deps.settingsOpen()}`,
   );
-  createEffect(refreshKey, (source) => {
-    const request = ++installedSkillsRequest;
-    const [serverId = "", agentId, support, visibility] = source.split("\0");
-    if (!agentId) {
-      installedSkillsSourceId = undefined;
-      failedInstalledSkillsAttempt = undefined;
-      setInstalledSkills([]);
-      setInstalledSkillsLoadFailed(false);
-      return;
-    }
-    if (visibility === "hidden") return;
-    const sourceId = `${serverId}\0${agentId}`;
-    if (installedSkillsSourceId !== sourceId) {
-      installedSkillsSourceId = sourceId;
-      setInstalledSkills([]);
-      setInstalledSkillsLoadFailed(false);
-    }
-    if (support === "unsupported") {
-      failedInstalledSkillsAttempt = undefined;
-      setInstalledSkills([]);
-      setInstalledSkillsLoadFailed(false);
-      return;
-    }
-    const connectionSequence = untrack(() => deps.props.server?.connectionSequence) ?? 0;
-    failedInstalledSkillsAttempt = undefined;
-    void conversationRuntime(deps.props)
-      .agent.listInstalledSkills(agentId)
-      .then((skills) => {
-        if (request !== installedSkillsRequest) return;
+  createEffect(
+    () => ({ source: refreshKey(), runtime: conversationRuntime(deps.props) }),
+    ({ source, runtime }) => {
+      const request = ++installedSkillsRequest;
+      const [serverId = "", agentId, support, visibility] = source.split("\0");
+      if (!agentId) {
+        installedSkillsSourceId = undefined;
         failedInstalledSkillsAttempt = undefined;
-        setInstalledSkills(skills);
+        setInstalledSkills([]);
         setInstalledSkillsLoadFailed(false);
-      })
-      .catch(() => {
-        if (request !== installedSkillsRequest) return;
-        failedInstalledSkillsAttempt = { serverId, sourceId, connectionSequence };
-        setInstalledSkillsLoadFailed(true);
-        // Preserve an already loaded same-agent catalog when a refresh fails.
-      });
-  });
+        return;
+      }
+      if (visibility === "hidden") return;
+      const sourceId = `${serverId}\0${agentId}`;
+      if (installedSkillsSourceId !== sourceId) {
+        installedSkillsSourceId = sourceId;
+        setInstalledSkills([]);
+        setInstalledSkillsLoadFailed(false);
+      }
+      if (support === "unsupported") {
+        failedInstalledSkillsAttempt = undefined;
+        setInstalledSkills([]);
+        setInstalledSkillsLoadFailed(false);
+        return;
+      }
+      const connectionSequence = untrack(() => deps.props.server?.connectionSequence) ?? 0;
+      failedInstalledSkillsAttempt = undefined;
+      void runtime.agent
+        .listInstalledSkills(agentId)
+        .then((skills) => {
+          if (request !== installedSkillsRequest) return;
+          failedInstalledSkillsAttempt = undefined;
+          setInstalledSkills(skills);
+          setInstalledSkillsLoadFailed(false);
+        })
+        .catch(() => {
+          if (request !== installedSkillsRequest) return;
+          failedInstalledSkillsAttempt = { serverId, sourceId, connectionSequence };
+          setInstalledSkillsLoadFailed(true);
+          // Preserve an already loaded same-agent catalog when a refresh fails.
+        });
+    },
+  );
 
   return {
     installedSkills,

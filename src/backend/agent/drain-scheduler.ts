@@ -40,7 +40,7 @@ const CHANNEL_START_FAILED = "The provider could not start this assignment. Resu
 const TURN_START_GRACE_MS = 5 * 60_000;
 
 export interface DrainHooks {
-  emitError(code: string, error: unknown, agentId?: string): void;
+  emitError(code: string, error: unknown, agentId?: string, threadId?: string): void;
   isStopping(): boolean;
   /**
    * Whether the catalogue still serves this model. A removed endpoint's models stay in the running
@@ -338,7 +338,9 @@ export class DrainScheduler {
       const assignment = this.#channels?.store.assignmentForDelivery(context.delivery.id);
       const publicThreadId = assignment
         ? this.#channels?.store.context(assignment.channelId, assignment.agentId).threadId
-        : (this.#messaging?.threadForDelivery(context.delivery.id) ?? agent?.threadId);
+        : (this.#messaging?.threadForDelivery(context.delivery.id) ??
+          this.#mailbox.deliveryThreadId(context.delivery.id) ??
+          agent?.threadId);
       const session =
         agent && publicThreadId ? this.#store.database.activeProviderSession(publicThreadId, agent.provider) : null;
       if (session && this.#compaction.reserve(agentId, session.externalSessionId)) {
@@ -446,7 +448,9 @@ export class DrainScheduler {
         this.#mailboxSync.emitQueue(agent.id);
         return;
       }
-      let threadId = yield* this.#threads.ensureThread(agent, client, execution?.threadId).pipe(toDeliveryStartFailed);
+      let threadId = yield* this.#threads
+        .ensureThread(agent, client, execution?.threadId ?? this.#mailbox.deliveryThreadId(delivery.id) ?? undefined)
+        .pipe(toDeliveryStartFailed);
       const snapshot = this.#conversation.ensureSnapshot(agent.id, threadId);
       // A turn started on this thread while the provider and the thread were prepared. The user
       // cannot see that race, so the delivery goes back to the head of the queue rather than
@@ -547,7 +551,9 @@ export class DrainScheduler {
         if (this.#conversation.loadedClientFor(unavailableThreadId) === client) {
           this.#conversation.unloadThread(unavailableThreadId);
         }
-        threadId = yield* this.#threads.ensureThread(agent, client, execution?.threadId).pipe(toDeliveryStartFailed);
+        threadId = yield* this.#threads
+          .ensureThread(agent, client, execution?.threadId ?? this.#mailbox.deliveryThreadId(delivery.id) ?? undefined)
+          .pipe(toDeliveryStartFailed);
         response = yield* startTurn(threadId);
         if (threadId === unavailableThreadId) {
           this.#threads.logRecovery(agent.id, client.provider, "resumed");
@@ -595,7 +601,12 @@ export class DrainScheduler {
       yield* this.#threads.deletePendingHandoff(threadId).pipe(
         Effect.catch((failure) =>
           Effect.sync(() => {
-            this.#hooks.emitError("history_handoff_cleanup_failed", failure.cause, agent.id);
+            this.#hooks.emitError(
+              "history_handoff_cleanup_failed",
+              failure.cause,
+              agent.id,
+              this.#mailbox.deliveryThreadId(delivery.id) ?? undefined,
+            );
           }),
         ),
       );
@@ -609,7 +620,12 @@ export class DrainScheduler {
           // failed: restoring or replaying any delivery could submit the same provider turn twice.
           // The lifecycle association and the targeted mailbox retry finish rows left in starting.
           if (confirmedTurnId) {
-            this.#hooks.emitError("delivery_reconciliation_pending", error, delivery.recipientAgentId);
+            this.#hooks.emitError(
+              "delivery_reconciliation_pending",
+              error,
+              delivery.recipientAgentId,
+              this.#mailbox.deliveryThreadId(delivery.id) ?? undefined,
+            );
             this.#mailboxSync.retryDeliveryReconciliation(
               delivery.recipientAgentId,
               confirmedTurnId,
@@ -631,6 +647,7 @@ export class DrainScheduler {
               "delivery_start_unconfirmed",
               `${error.providerName} did not confirm the turn start in time. OpenBot will wait for lifecycle events instead of retrying potentially duplicated work.`,
               delivery.recipientAgentId,
+              this.#mailbox.deliveryThreadId(delivery.id) ?? undefined,
             );
             // The wait has a limit: a turn that never starts would keep these messages starting, and
             // the agent's queue would stop with no notice.
@@ -672,7 +689,12 @@ export class DrainScheduler {
           if (this.#channels)
             yield* this.#channels.deliveryFailed(delivery.id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
           this.#messaging?.deliveryFailed(delivery.id);
-          this.#hooks.emitError("delivery_start_failed", error, delivery.recipientAgentId);
+          this.#hooks.emitError(
+            "delivery_start_failed",
+            error,
+            delivery.recipientAgentId,
+            this.#mailbox.deliveryThreadId(delivery.id) ?? undefined,
+          );
           this.scheduleDrain(delivery.recipientAgentId);
           // The requester may hold the other answers until this request ends.
           if (delivery.sender.kind === "agent") this.scheduleDrain(delivery.sender.agentId);

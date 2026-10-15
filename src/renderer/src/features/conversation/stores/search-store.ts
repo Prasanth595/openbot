@@ -58,9 +58,11 @@ export function createSearchStore(deps: SearchStoreDeps) {
       if (deps.props.onSearchMessages) {
         if (queryChanged) {
           const request = ++chatSearchRequest;
+          const search = deps.props.onSearchMessages;
+          const openMessage = deps.props.onOpenSearchMessage;
           chatSearchTimer = setTimeout(() => {
-            void deps.props
-              .onSearchMessages?.(query)
+            if (request !== chatSearchRequest) return;
+            void search(query)
               .then((result) => {
                 if (request !== chatSearchRequest) return;
                 deps.setChatSearchMessageIds(result.messageIds);
@@ -68,7 +70,7 @@ export function createSearchStore(deps: SearchStoreDeps) {
                 const index = result.messageIds.length > 0 ? 0 : -1;
                 deps.setActiveChatSearchIndex(index);
                 const messageId = result.messageIds[index];
-                if (messageId) void deps.props.onOpenSearchMessage?.(messageId);
+                if (messageId) void openMessage?.(messageId);
               })
               .catch(() => {
                 if (request !== chatSearchRequest) return;

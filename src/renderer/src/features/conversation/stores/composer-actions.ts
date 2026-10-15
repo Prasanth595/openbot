@@ -23,7 +23,9 @@ export interface ComposerActionsDeps {
   editingAgentId: () => string | null;
   setEditingAgentId: (id: string | null) => void;
   editingServerId: () => string | null;
+  editingThreadId: () => string | null;
   setEditingServerId: (id: string | null) => void;
+  setEditingThreadId: (id: string | null) => void;
   editingEditId: () => string | null;
   setEditingEditId: (id: string | null) => void;
   editingDeliveryId: () => string | null;
@@ -50,10 +52,12 @@ export interface ComposerActionsDeps {
   voice: {
     agentId: string | undefined;
     serverId: string | undefined;
+    threadId: string | undefined;
     submitRequest:
       | {
           agentId: string;
           serverId: string;
+          threadId?: string;
           draft: ComposerDraft;
           queuedEdit: { deliveryId: string; originalAttachmentIds: string[] } | undefined;
         }
@@ -97,11 +101,12 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       pendingSave &&
       deps.editingAgentId() === target.agentId &&
       deps.editingServerId() === target.serverId &&
+      (deps.editingThreadId() ?? undefined) === target.threadId &&
       pendingSave.deliveryId === deps.editingDeliveryId() &&
       pendingSave.editId === deps.editingEditId()
     ) {
       for (const attachment of selected)
-        void conversationRuntime(deps.props).agent.discardDraftAttachment(attachment.id, target.serverId);
+        void conversationRuntime(deps.props, target).agent.discardDraftAttachment(attachment.id, target.serverId);
       deps.setComposerError(t("composer.error.saveUnconfirmed"), target);
       return;
     }
@@ -111,7 +116,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     const available = Math.max(0, INPUT_LIMITS.attachments - draft.attachments.length);
     const accepted = selected.slice(0, available);
     for (const attachment of selected.slice(available)) {
-      void conversationRuntime(deps.props).agent.discardDraftAttachment(attachment.id, target.serverId);
+      void conversationRuntime(deps.props, target).agent.discardDraftAttachment(attachment.id, target.serverId);
     }
     const editId = deps.editingEditId();
     const deliveryId = deps.editingDeliveryId();
@@ -120,10 +125,11 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       deliveryId &&
       deps.editingAgentId() === target.agentId &&
       deps.editingServerId() === target.serverId &&
+      (deps.editingThreadId() ?? undefined) === target.threadId &&
       accepted.length
     ) {
       try {
-        await conversationRuntime(deps.props).agent.editQueuedMessage(
+        await conversationRuntime(deps.props, target).agent.editQueuedMessage(
           {
             agentId: target.agentId,
             deliveryId,
@@ -136,7 +142,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         if (deps.editingEditId() !== editId) throw new Error(t("composer.error.editEnded"));
       } catch (error) {
         for (const item of accepted)
-          void conversationRuntime(deps.props).agent.discardDraftAttachment(item.id, target.serverId);
+          void conversationRuntime(deps.props, target).agent.discardDraftAttachment(item.id, target.serverId);
         deps.setConversationError(target, errorMessage(error, t("composer.error.keepAttachments")));
         return;
       }
@@ -144,7 +150,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     const currentDraft = deps.drafts()[key] ?? EMPTY_DRAFT;
     const remaining = Math.max(0, INPUT_LIMITS.attachments - currentDraft.attachments.length);
     for (const item of accepted.splice(remaining))
-      void conversationRuntime(deps.props).agent.discardDraftAttachment(item.id, target.serverId);
+      void conversationRuntime(deps.props, target).agent.discardDraftAttachment(item.id, target.serverId);
     deps.setDrafts((current) => ({
       ...current,
       [key]: {
@@ -173,11 +179,18 @@ export function createComposerActions(deps: ComposerActionsDeps) {
   async function editQueuedMessage(delivery: QueueDelivery) {
     const agentId = deps.props.agent?.id;
     const serverId = deps.props.server?.id ?? "local";
+    const threadId = deps.props.conversationThreadId;
+    const target = { agentId: agentId ?? "", serverId, ...(threadId ? { threadId } : {}) };
     if (!agentId || delivery.status !== "queued" || deps.submitting()) return;
     // A pending Save owns the outcome: keep it for retry instead of replacing it.
     if (deps.editingPendingSave()) return;
     if (deps.editingDeliveryId() && !(await cancelQueuedMessageEdit())) return;
-    if (deps.props.agent?.id !== agentId || (deps.props.server?.id ?? "local") !== serverId) return;
+    if (
+      deps.props.agent?.id !== agentId ||
+      (deps.props.server?.id ?? "local") !== serverId ||
+      deps.props.conversationThreadId !== threadId
+    )
+      return;
     const backup = copyComposerDraft(deps.currentDraft());
     const supportsHold =
       deps.props.server?.kind !== "remote" ||
@@ -186,6 +199,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     const setEditingDraft = (original: QueueDelivery) => {
       deps.setEditingAgentId(agentId);
       deps.setEditingServerId(serverId);
+      deps.setEditingThreadId(threadId ?? null);
       deps.setEditingDraftBackup(backup);
       deps.setEditingOriginalAttachmentIds(original.attachments.map((attachment) => attachment.id));
       deps.setEditingDeliveryId(original.id);
@@ -193,7 +207,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       deps.setEditingPendingSave(null);
       deps.setDrafts((current) => ({
         ...current,
-        [composerDraftKey({ agentId, serverId })]: {
+        [composerDraftKey(target)]: {
           text: original.text,
           attachments: [...original.attachments],
           replyToMessageId: original.replyToMessageId,
@@ -208,6 +222,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
           JSON.stringify({
             agentId,
             serverId,
+            ...(threadId ? { threadId } : {}),
             deliveryId: delivery.id,
             editId,
             originalAttachmentIds: delivery.attachments.map((item) => item.id),
@@ -222,7 +237,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       // Record ownership before the request: a lost response must not free this editor slot.
       setEditingDraft(delivery);
       if (editId) {
-        const held = await conversationRuntime(deps.props).agent.editQueuedMessage(
+        const held = await conversationRuntime(deps.props, target).agent.editQueuedMessage(
           { agentId, action: "begin", deliveryId: delivery.id, editId },
           serverId,
         );
@@ -231,7 +246,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         if (backup.attachments.length) {
           // Keep the same recovery identity if retention fails. Save retries retention;
           // Cancel uses the normal confirmed-release path.
-          await conversationRuntime(deps.props).agent.editQueuedMessage(
+          await conversationRuntime(deps.props, target).agent.editQueuedMessage(
             {
               agentId,
               action: "retain-attachments",
@@ -245,29 +260,27 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         setEditingDraft(original);
       }
     } catch (error) {
-      deps.setComposerError(
-        errorMessage(error, t("composer.error.holdQueued")),
-        {
-          agentId,
-          serverId,
-        },
-        error,
-      );
+      deps.setComposerError(errorMessage(error, t("composer.error.holdQueued")), target, error);
       return;
     } finally {
       deps.setSubmitting(false);
     }
-    deps.clearConversationError({ agentId, serverId });
-    deps.setComposerFocusRequest((current) => current + 1);
-    deps.setShowComposerActions(false);
-    deps.setComposerError(null, { agentId, serverId });
+    deps.clearConversationError(target);
+    const shown = deps.currentTarget();
+    if (shown?.agentId === target.agentId && shown.serverId === target.serverId && shown.threadId === target.threadId) {
+      deps.setComposerFocusRequest((current) => current + 1);
+      deps.setShowComposerActions(false);
+    }
+    deps.setComposerError(null, target);
   }
 
   async function cancelQueuedMessageEdit() {
     if (deps.submitting()) return false;
     const agentId = deps.editingAgentId() ?? deps.props.agent?.id;
     const serverId = deps.editingServerId() ?? deps.props.server?.id ?? "local";
-    const target = agentId ? { agentId, serverId } : undefined;
+    const target = agentId
+      ? { agentId, serverId, ...(deps.editingThreadId() ? { threadId: deps.editingThreadId() ?? undefined } : {}) }
+      : undefined;
     const editId = deps.editingEditId();
     const deliveryId = deps.editingDeliveryId();
     const queue = deps.props.queue;
@@ -279,7 +292,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     if (target && editId && deliveryId && !unavailable) {
       deps.setSubmitting(true);
       try {
-        await conversationRuntime(deps.props).agent.editQueuedMessage(
+        await conversationRuntime(deps.props, target).agent.editQueuedMessage(
           { agentId: target.agentId, action: "cancel", deliveryId, editId },
           serverId,
         );
@@ -300,7 +313,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     ]);
     for (const attachment of draft.attachments) {
       if (!preservedAttachmentIds.has(attachment.id)) {
-        void conversationRuntime(deps.props).agent.discardDraftAttachment(attachment.id, serverId);
+        void conversationRuntime(deps.props, target).agent.discardDraftAttachment(attachment.id, serverId);
       }
     }
     if (target) {
@@ -309,6 +322,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     }
     deps.setEditingAgentId(null);
     deps.setEditingServerId(null);
+    deps.setEditingThreadId(null);
     deps.setEditingDeliveryId(null);
     deps.setEditingEditId(null);
     deps.setEditingPendingSave(null);
@@ -325,6 +339,8 @@ export function createComposerActions(deps: ComposerActionsDeps) {
   ): Promise<boolean> {
     const agentId = target?.agentId ?? deps.editingAgentId() ?? deps.props.agent?.id;
     const serverId = target?.serverId ?? deps.editingServerId() ?? deps.props.server?.id ?? "local";
+    const threadId = target?.threadId ?? deps.editingThreadId() ?? undefined;
+    const operationTarget = { agentId: agentId ?? "", serverId, ...(threadId ? { threadId } : {}) };
     const deliveryId = target?.deliveryId ?? deps.editingDeliveryId();
     const draft = draftOverride ?? deps.currentDraft();
     if (!agentId || !deliveryId || deps.submitting() || deps.attachmentBusy()) return false;
@@ -334,7 +350,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       !target &&
       deps.props.queue?.deliveries.find((item) => item.id === deliveryId)?.status !== "queued"
     ) {
-      deps.setComposerError(t("composer.error.queuedUnavailable"), { agentId, serverId });
+      deps.setComposerError(t("composer.error.queuedUnavailable"), operationTarget);
       return false;
     }
     // A lost Save response leaves the exact request durable. Retry it instead of
@@ -346,7 +362,8 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       storedPending.deliveryId === deliveryId &&
       storedPending.editId === editId &&
       deps.editingAgentId() === agentId &&
-      deps.editingServerId() === serverId;
+      deps.editingServerId() === serverId &&
+      (deps.editingThreadId() ?? undefined) === threadId;
     let text: string;
     let keepAttachmentIds: string[];
     let attachmentDraftIds: string[];
@@ -368,14 +385,14 @@ export function createComposerActions(deps: ComposerActionsDeps) {
 
     stopTeamTyping();
     deps.setSubmitting(true);
-    deps.setComposerError(null, { agentId, serverId });
+    deps.setComposerError(null, operationTarget);
     // A Begin that never reached the host leaves an identity with no hold. Saving it
     // would be rejected and then lock the editor behind pendingSave with no recovery,
     // so confirm the hold with the same identity first. Retries skip this: the host
     // answers the stored request from its finished-save record without needing Begin.
     if (editId && !hasPending) {
       try {
-        const held = await conversationRuntime(deps.props).agent.editQueuedMessage(
+        const held = await conversationRuntime(deps.props, operationTarget).agent.editQueuedMessage(
           { agentId, action: "begin", deliveryId, editId },
           serverId,
         );
@@ -383,21 +400,14 @@ export function createComposerActions(deps: ComposerActionsDeps) {
           throw new Error(t("composer.error.queuedUnavailable"));
         const backupAttachments = (deps.editingDraftBackup()?.attachments ?? []).map((attachment) => attachment.id);
         if (backupAttachments.length) {
-          await conversationRuntime(deps.props).agent.editQueuedMessage(
+          await conversationRuntime(deps.props, operationTarget).agent.editQueuedMessage(
             { agentId, action: "retain-attachments", deliveryId, editId, attachmentDraftIds: backupAttachments },
             serverId,
           );
         }
       } catch (error) {
         deps.setSubmitting(false);
-        deps.setComposerError(
-          errorMessage(error, t("composer.error.holdQueued")),
-          {
-            agentId,
-            serverId,
-          },
-          error,
-        );
+        deps.setComposerError(errorMessage(error, t("composer.error.holdQueued")), operationTarget, error);
         return false;
       }
       const pendingSave = {
@@ -416,6 +426,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
           JSON.stringify({
             agentId,
             serverId,
+            ...(threadId ? { threadId } : {}),
             deliveryId,
             editId,
             originalAttachmentIds: target?.originalAttachmentIds ?? deps.editingOriginalAttachmentIds(),
@@ -427,7 +438,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       } catch (error) {
         deps.setEditingPendingSave(null);
         deps.setSubmitting(false);
-        deps.setComposerError(t("composer.error.saveEditTryAgain"), { agentId, serverId }, error);
+        deps.setComposerError(t("composer.error.saveEditTryAgain"), operationTarget, error);
         return false;
       }
     }
@@ -435,46 +446,44 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     let saved = false;
     try {
       if (editId) {
-        await conversationRuntime(deps.props).agent.editQueuedMessage(
+        await conversationRuntime(deps.props, operationTarget).agent.editQueuedMessage(
           { agentId, action: "save", deliveryId, editId, text, keepAttachmentIds, attachmentDraftIds },
           serverId,
         );
         saved = true;
       } else {
-        saved = await deps.props.onUpdateQueuedMessage(deliveryId, text, keepAttachmentIds, attachmentDraftIds, {
-          agentId,
-          serverId,
-        });
+        saved = await deps.props.onUpdateQueuedMessage(
+          deliveryId,
+          text,
+          keepAttachmentIds,
+          attachmentDraftIds,
+          operationTarget,
+        );
       }
     } catch (error) {
-      deps.setComposerError(
-        errorMessage(error, t("composer.error.updateQueued")),
-        {
-          agentId,
-          serverId,
-        },
-        error,
-      );
+      deps.setComposerError(errorMessage(error, t("composer.error.updateQueued")), operationTarget, error);
     } finally {
       deps.setSubmitting(false);
     }
     if (!saved) return false;
-    const savedTarget = { agentId, serverId };
+    const savedTarget = operationTarget;
     deps.clearConversationError(savedTarget);
     if (submittedSnapshot) deps.clearSubmittedDraft(savedTarget, submittedSnapshot);
     else deps.setDrafts((current) => ({ ...current, [composerDraftKey(savedTarget)]: EMPTY_DRAFT }));
     if (
       deps.editingAgentId() === agentId &&
       deps.editingServerId() === serverId &&
+      (deps.editingThreadId() ?? undefined) === threadId &&
       deps.editingDeliveryId() === deliveryId
     ) {
       // Save consumes the edited draft and abandons its composer backup. Explicitly
       // discard those files: a backup restored by an earlier Cancel survives restart.
       for (const attachment of deps.editingDraftBackup()?.attachments ?? []) {
-        void conversationRuntime(deps.props).agent.discardDraftAttachment(attachment.id, serverId);
+        void conversationRuntime(deps.props, operationTarget).agent.discardDraftAttachment(attachment.id, serverId);
       }
       deps.setEditingAgentId(null);
       deps.setEditingServerId(null);
+      deps.setEditingThreadId(null);
       deps.setEditingDeliveryId(null);
       deps.setEditingEditId(null);
       deps.setEditingPendingSave(null);
@@ -515,7 +524,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       return saveQueuedMessageEdit();
     }
     const agentId = targetOverride?.agentId ?? deps.props.agent?.id;
-    const target = targetOverride ?? (agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined);
+    const target = targetOverride ?? deps.currentTarget();
     const draft = copyComposerDraft(draftOverride ?? deps.currentDraft());
     const text = expandComposerMentions(draft.text);
     if (!agentId || !target || deps.submitting() || (!text.trim() && draft.attachments.length === 0)) return false;
@@ -542,7 +551,12 @@ export function createComposerActions(deps: ComposerActionsDeps) {
    */
   function queueSend(target: ConversationTarget, draft: ComposerDraft, text: string): void {
     const activeTarget = deps.currentTarget();
-    if (activeTarget && activeTarget.agentId === target.agentId && activeTarget.serverId === target.serverId) {
+    if (
+      activeTarget &&
+      activeTarget.agentId === target.agentId &&
+      activeTarget.serverId === target.serverId &&
+      activeTarget.threadId === target.threadId
+    ) {
       deps.setStickToLatest(true);
     }
     // Read the send function now: the send outlives this view when the user switches server.
@@ -591,7 +605,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     const removed = deps.pendingSends.remove(target, clientMessageId);
     // A send whose answer was lost may have stored the files already; the host ignores those ids.
     for (const attachment of removed?.draft.attachments ?? [])
-      void conversationRuntime(deps.props).agent.discardDraftAttachment(attachment.id, target.serverId);
+      void conversationRuntime(deps.props, target).agent.discardDraftAttachment(attachment.id, target.serverId);
   }
 
   function submitComposer(): void {
@@ -601,12 +615,20 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       const agentId = deps.voice.agentId;
       const serverId = deps.voice.serverId;
       if (!agentId || !serverId) return;
-      const target = { agentId, serverId };
+      const threadId = deps.voice.threadId;
+      const target = { agentId, serverId, ...(threadId ? { threadId } : {}) };
       const draft = copyComposerDraft(deps.drafts()[composerDraftKey(target)] ?? EMPTY_DRAFT);
       const deliveryId =
-        deps.editingAgentId() === agentId && deps.editingServerId() === serverId ? deps.editingDeliveryId() : null;
+        deps.editingAgentId() === agentId &&
+        deps.editingServerId() === serverId &&
+        (deps.editingThreadId() ?? undefined) === target.threadId
+          ? deps.editingDeliveryId()
+          : null;
       const activeTarget = deps.currentTarget();
-      const targetIsActive = activeTarget?.agentId === target.agentId && activeTarget.serverId === target.serverId;
+      const targetIsActive =
+        activeTarget?.agentId === target.agentId &&
+        activeTarget.serverId === target.serverId &&
+        activeTarget.threadId === target.threadId;
       const delivery =
         deliveryId && targetIsActive ? deps.props.queue?.deliveries.find((item) => item.id === deliveryId) : undefined;
       if (deliveryId && targetIsActive && !deps.editingEditId() && delivery?.status !== "queued") {
@@ -617,6 +639,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       deps.voice.submitRequest = {
         agentId,
         serverId,
+        ...(threadId ? { threadId } : {}),
         draft,
         queuedEdit: deliveryId
           ? {

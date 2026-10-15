@@ -13,6 +13,7 @@ import { createScopeGuard } from "../../scope-lifetime";
 import { createSimpleContext } from "../../simple-context";
 import { useTurns } from "../../turns";
 import { useConversation } from "../conversation/conversation-context";
+import { useConversationController } from "../conversation/conversation-controller-context";
 import { agentConversationKey } from "../conversation/conversation-keys";
 import { useDirectMessages } from "../conversation/direct-messages-context";
 import { useServers } from "../servers/servers-context";
@@ -60,6 +61,7 @@ const AgentActions = createSimpleContext({
       analyticsAgentProperties,
     } = useAgents();
     const { initializeConversation, removeConversation } = useConversation();
+    const conversationController = useConversationController();
     const { setActiveTurns, setFailedTurns, setQueues, setPendingPrompts } = useTurns();
     const { setSidebarLayout, removePinnedSidebarItemEverywhere } = useSidebar();
     const { clearDirectSelection } = useDirectMessages();
@@ -173,6 +175,7 @@ const AgentActions = createSimpleContext({
         setActiveAgentId((current) => (current === agentId ? (remaining[0]?.id ?? "") : current));
         setSettingsRequest((current) => (current?.agentId === agentId ? null : current));
         removeConversation(agentId);
+        conversationController.forgetAgentConversationState(agentId, serverId);
         setUiErrors((current) => withoutAgent(current, agentConversationKey(activeServerId(), agentId)));
         setActiveTurns((current) => withoutAgent(current, agentId));
         setFailedTurns((current) => withoutAgent(current, agentId));

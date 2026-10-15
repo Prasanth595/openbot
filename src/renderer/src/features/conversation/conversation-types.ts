@@ -50,6 +50,7 @@ export interface AgentSettingsRequest {
 }
 
 export interface ConversationTarget {
+  threadId?: string;
   agentId: string;
   serverId: string;
 }
@@ -60,6 +61,13 @@ export interface VoiceLiveTranscript extends ConversationTarget {
 }
 
 export interface ConversationProps {
+  conversationThreadId?: string;
+  conversationArchived?: boolean;
+  conversationError?: string | null;
+  onDismissConversationError?: () => void;
+  onRetryConversationError?: () => Promise<void>;
+  conversationSelector?: JSX.Element;
+  runtimeForTarget?: (target: ConversationTarget) => ConversationRuntime;
   contextState?: AgentContextState | undefined;
   runtime?: ConversationRuntime;
   notice?: JSX.Element;

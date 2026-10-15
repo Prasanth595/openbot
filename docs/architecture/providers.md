@@ -600,3 +600,21 @@ in this process. It never proves completion. Terminal provider events control su
 The latest marker and timing are runtime state, not new saved conversation messages. A provider
 summary is not copied into this state. The UI can render a breakdown or manual action, but this
 connection supplies neither: it adds no manual-compaction endpoint and makes no extra model turn.
+
+
+## Provider sessions of local user conversations
+
+Each local user conversation has a separate public thread and provider session history. Session
+start, resume, replacement and missing-session recovery retain that public thread ID. A handoff
+reads only that conversation's history. The same agent still uses one workspace and one saved
+provider, account, tool set and profile in all its conversations.
+
+An agent admission hold covers provider and account updates. The update captures the active
+sessions of Main and each added conversation. It awaits ordinary adapter release for loaded idle
+sessions and checks pending work again before the saved provider changes. An exposed release
+failure keeps the saved provider identity and durable session records available for retry.
+Completed releases cannot be rolled back. ACP ordinary cleanup does not require remote close
+acknowledgement. Runtime refresh also awaits ordinary release before deactivation. Public thread
+IDs and history stay available throughout these operations.
+The fixture adapters prove host routing and protocol behavior. They do not prove live-model
+quality or every provider's concurrent execution behavior.

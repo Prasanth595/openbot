@@ -175,6 +175,22 @@ jobs:
               sudo apt-get update
               sudo apt-get install --no-install-recommends --yes xvfb
 
+      - name: Install Chromium for conversation checks
+        run: bun node_modules/playwright-core/cli.js install --with-deps chromium
+
+      - name: Check local agent conversations
+        run: bun scripts/agent-conversations-e2e.ts
+
+      - name: Save local agent conversation report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-conversations-e2e
+          path: |
+            .openbot-build/agent-conversations-e2e/report.json
+            .openbot-build/agent-conversations-e2e/storybook-safe.log
+          if-no-files-found: warn
+
       - name: Run the browser smoke test
         run: xvfb-run -a bun run test:browser
 

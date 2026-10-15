@@ -1,0 +1,92 @@
+/* Use the existing dialog frame and Item controls. Only the subject list layout differs. */
+.agent-conversations-dialog .ui-item-group {
+  /* Keep full row heights; the existing parent list owns scrolling. */
+  flex-shrink: 0;
+}
+
+.agent-conversations-dialog .agent-conversations-row {
+  flex-wrap: wrap;
+}
+
+.agent-conversations-dialog .agent-conversations-row > .ui-item-content {
+  flex-basis: 100%;
+}
+
+.agent-conversations-dialog .agent-conversations-title,
+.agent-conversations-dialog .agent-conversations-select {
+  height: auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  white-space: normal;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.agent-conversations-dialog .agent-conversations-select {
+  display: block;
+  color: var(--openbot-text-primary);
+}
+
+.agent-conversations-filters,
+.agent-conversations-status,
+.agent-conversations-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--openbot-space-2);
+}
+
+.agent-conversations-filters {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.agent-conversations-status:empty {
+  display: none;
+}
+
+.agent-conversations-row-actions {
+  flex: 1 1 100%;
+}
+
+.agent-conversations-create > .ui-field {
+  width: 100%;
+}
+
+.agent-conversations-rename {
+  display: grid;
+  gap: var(--openbot-space-2);
+}
+
+/* Match the account label's existing header width. A block clips the button's text itself. */
+.conversation-subject-trigger {
+  display: block;
+  min-width: 0;
+  max-width: 160px;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-conversation-notice {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: var(--openbot-space-2) var(--openbot-space-3);
+  color: var(--openbot-text-muted);
+  font-size: var(--openbot-text-sm);
+  line-height: var(--openbot-leading-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Keep the notice in the same column as the header when an agent settings panel is open. */
+.conversation-panel:has(.settings-panel) .agent-conversation-notice {
+  width: calc(100% - var(--settings-panel-width, 296px));
+}
+
+.conversation-panel:has(#browser-side-panel) .agent-conversation-notice,
+.conversation-panel:has(#file-preview-panel) .agent-conversation-notice {
+  width: 100%;
+}

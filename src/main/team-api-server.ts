@@ -926,6 +926,7 @@ export class TeamApiServer {
   }
 
   #broadcastAgentEvent(event: AgentEvent): void {
+    if (!this.#options.agents.legacyConversationEvent(event)) return;
     if (event.type !== "conversation") {
       this.#broadcastAgentEventToClients(event);
       return;

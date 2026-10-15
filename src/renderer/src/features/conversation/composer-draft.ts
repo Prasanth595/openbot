@@ -53,6 +53,7 @@ function appendDraftLine(draft: ComposerDraft, line: string): ComposerDraft {
 export const QUEUE_EDIT_STORAGE_KEY = "openbot:queue-edit";
 type StoredQueueSave = Extract<QueueEditRequest, { action: "save" }>;
 export interface StoredQueueEdit {
+  threadId?: string;
   agentId: string;
   serverId: string;
   deliveryId: string;
@@ -91,6 +92,7 @@ function decodeStoredQueueEdit(value: unknown): StoredQueueEdit | null {
     !isDynamicRecord(value) ||
     !isString(value.agentId) ||
     !isString(value.serverId) ||
+    (value.threadId !== undefined && (!isString(value.threadId) || !value.threadId || value.threadId.length > 128)) ||
     !isString(value.deliveryId) ||
     !isString(value.editId) ||
     !Array.isArray(value.originalAttachmentIds) ||
@@ -113,6 +115,7 @@ function decodeStoredQueueEdit(value: unknown): StoredQueueEdit | null {
   return {
     agentId: value.agentId,
     serverId: value.serverId,
+    ...(value.threadId === undefined ? {} : { threadId: value.threadId }),
     deliveryId: value.deliveryId,
     editId: value.editId,
     originalAttachmentIds: value.originalAttachmentIds,

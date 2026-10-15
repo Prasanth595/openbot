@@ -2,6 +2,14 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.conversationUnavailable": "Bu konuşma artık kullanılamıyor.",
+  "error.agent.conversationArchived": "Mesaj göndermeden önce bu konuşmayı geri yükleyin.",
+  "error.agent.conversationBusy":
+    "Bu konuşmayı arşivlemeden önce mevcut çalışmasını ve sıradaki mesajlarını tamamlayın veya iptal edin.",
+  "error.agent.mainConversationFixed": "Ana konuşma arşivlenemez.",
+  "error.agent.conversationTurnChanged": "Etkin konuşma değişti. Güncel durumunu okuyup yeniden deneyin.",
+  "error.agent.conversationDeliveryChanged": "Mesajın hedefi değişti. Güncel durumunu okuyup yeniden deneyin.",
+  "error.agent.conversationInputChanged": "Yanıt isteği değişti. Güncel durumunu okuyup yeniden deneyin.",
   "error.agent.historyUnavailable": "Bu istek için geçmiş kullanılamıyor. Son geçmişi tekrar okuyun.",
   "error.agent.toolRequestInvalid":
     "Geçersiz araç keşfi bağımsız değişkenleri. Bildirilen şemayı ve özgün nitelikli araç adını kullanın.",

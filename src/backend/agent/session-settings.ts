@@ -131,7 +131,10 @@ export class SessionSettings {
       this.options.store.setSessionSettingOverrides(agentId, overrides, value === undefined ? identity : undefined);
       this.options.changed(agentId);
     });
-    if (value === undefined) yield* this.options.threads.refreshAgentRuntime(agentId);
+    if (value === undefined)
+      yield* this.options.threads
+        .refreshAgentRuntime(agentId)
+        .pipe(Effect.mapError((failure) => new SessionSettingsFailed({ cause: failure.cause })));
   });
 
   readonly #read = Effect.fn("SessionSettings.snapshot")(function* (
@@ -150,7 +153,9 @@ export class SessionSettings {
         ? this.options.store.database.activeProviderSession(agent.threadId, agent.provider)?.externalSessionId
         : undefined;
     } else {
-      yield* this.options.threads.applyPendingRuntimeRefresh(agent);
+      yield* this.options.threads
+        .applyPendingRuntimeRefresh(agent)
+        .pipe(Effect.mapError((failure) => new SessionSettingsFailed({ cause: failure.cause })));
       client = yield* settingsStep(() => this.options.providers.requireReadyClientForAgent(agent));
       if (client.readSessionSettings)
         threadId = yield* this.options.threads

@@ -44,6 +44,7 @@ import { takeHostingDeveloperKey } from "./hosted-server-service";
 import { accountIpcHandlers } from "./ipc/account-handlers";
 import { acpRegistryIpcHandlers } from "./ipc/acp-registry-handlers";
 import { agentAdminIpcHandlers } from "./ipc/agent-admin-handlers";
+import { agentConversationIpcHandlers } from "./ipc/agent-conversation-handlers";
 import { agentIpcHandlers } from "./ipc/agent-handlers";
 import { agentImportIpcHandlers } from "./ipc/agent-import-handlers";
 import { agentTemplateIpcHandlers } from "./ipc/agent-template-handlers";
@@ -626,6 +627,7 @@ function registerIpcHandlers({
       agents: () => service.listAgents(),
       openPath: (path) => shell.openPath(path),
     }),
+    ...agentConversationIpcHandlers({ service, host }),
     ...agentIpcHandlers({
       service,
       sidebarLayout,
@@ -984,6 +986,10 @@ if (!hasSingleInstanceLock) {
       setIpcCallObserver((call) => trace.record({ kind: "ipc", ...call }));
       service.on("event", (event) => trace.observeAgentEvent(event));
       service.on("event", (event) => forwardAgentEvent("local", event));
+      service.on("conversationEvent", (event) => {
+        const window = windowHolder.current;
+        if (window) sendToRenderer(window, IPC_ENDPOINTS.agentConversations.changed, event);
+      });
       // A routine or its owner can be deleted outside the events API. Its route is then revoked here.
       // Turns and channel messages also send these events, so only a deleted owner starts a sync.
       let webhookAgentIds = new Set(service.listAgents().map((agent) => agent.id));

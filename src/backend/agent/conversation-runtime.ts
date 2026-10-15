@@ -4,6 +4,7 @@ import type { AgentEvent, AgentSummary, ConversationMessage, ConversationSnapsho
 import { sourceText } from "@openbot/i18n/source";
 import type { AgentClient } from "../agent-client";
 import type { AgentStore } from "../agent-store";
+import { databaseRow, requiredStringColumn } from "../database/database-rows";
 import type { OpenBotDatabase } from "../openbot-database";
 import { conversationContentSignature } from "./delivery-content";
 
@@ -466,6 +467,21 @@ export class ConversationRuntime {
     ].values();
   }
 
+  userThreadForTurn(agentId: string, turnId: string): string | null {
+    const row = databaseRow(
+      this.#store.database.connection
+        .prepare(`SELECT m.thread_id FROM projection_thread_messages m
+      JOIN projection_threads t USING(thread_id) JOIN agent_conversations c USING(thread_id)
+      WHERE t.agent_id = ? AND m.turn_id = ? AND c.kind = 'user' LIMIT 1`)
+        .get(agentId, turnId),
+    );
+    return row ? requiredStringColumn(row, "thread_id") : null;
+  }
+
+  isUserTurn(agentId: string, turnId: string): boolean {
+    return this.userThreadForTurn(agentId, turnId) !== null;
+  }
+
   workingSnapshot(agentId: string): ConversationSnapshot | undefined {
     return [...this.activeSnapshots()].find(([id, snapshot]) => id === agentId && snapshot.activeTurnId)?.[1];
   }
@@ -494,12 +510,22 @@ export class ConversationRuntime {
     return this.#executionSnapshots.get(threadId);
   }
 
+  isUserThread(threadId: string | null): boolean {
+    return threadId !== null && this.#store.database.userConversations.isUserThread(threadId);
+  }
+
+  registerUserThread(agentId: string, threadId: string): void {
+    this.#store.database.userConversations.requireTarget(agentId, threadId, true);
+    this.registerExecutionThread(agentId, threadId);
+  }
+
   isExecutionThread(threadId: string | null): boolean {
-    return threadId !== null && this.#executionSnapshots.has(threadId);
+    return threadId !== null && this.#executionSnapshots.has(threadId) && !this.isUserThread(threadId);
   }
 
   ensureSnapshot(agentId: string, threadId: string | null): ConversationSnapshot {
     const publicId = threadId ? (this.#publicThreads.get(threadId) ?? threadId) : null;
+    if (publicId && this.isUserThread(publicId)) this.registerUserThread(agentId, publicId);
     const execution = publicId ? this.#executionSnapshots.get(publicId) : undefined;
     if (execution && publicId) {
       if (execution.agentId !== agentId) throw new Error("Execution thread belongs to another agent.");
@@ -539,7 +565,7 @@ export class ConversationRuntime {
   publicThreadId(agentId: string, fallback: string): string {
     return (
       this.#publicThreads.get(fallback) ??
-      (this.#executionSnapshots.has(fallback)
+      (this.#executionSnapshots.has(fallback) || this.isUserThread(fallback)
         ? fallback
         : (this.#store.list().find((candidate) => candidate.id === agentId)?.threadId ?? fallback))
     );

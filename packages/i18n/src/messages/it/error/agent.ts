@@ -2,6 +2,15 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
+  "error.agent.conversationUnavailable": "Questa conversazione non è più disponibile.",
+  "error.agent.conversationArchived": "Ripristina questa conversazione prima di inviare un messaggio.",
+  "error.agent.conversationBusy":
+    "Completa o annulla il lavoro corrente e i messaggi in coda di questa conversazione prima di archiviarla.",
+  "error.agent.mainConversationFixed": "La conversazione principale non può essere archiviata.",
+  "error.agent.conversationTurnChanged": "La conversazione attiva è cambiata. Leggi il suo stato attuale e riprova.",
+  "error.agent.conversationDeliveryChanged":
+    "La destinazione del messaggio è cambiata. Leggi il suo stato attuale e riprova.",
+  "error.agent.conversationInputChanged": "La richiesta di risposta è cambiata. Leggi il suo stato attuale e riprova.",
   "error.agent.historyUnavailable":
     "La cronologia non è disponibile per questa richiesta. Rileggi la cronologia recente.",
   "error.agent.toolRequestInvalid":
