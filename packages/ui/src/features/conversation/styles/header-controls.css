@@ -298,6 +298,22 @@
   padding: 9px 7px;
 }
 
+.provider-model-rail-tabs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--openbot-space-1);
+}
+
+/* Opens the provider settings, to connect a provider that the rail leaves out. */
+.provider-model-rail-add {
+  color: var(--openbot-text-muted);
+}
+
+.provider-model-rail-add:hover {
+  color: var(--openbot-text-primary);
+}
+
 .provider-model-rail-tooltip-trigger {
   display: flex;
 }

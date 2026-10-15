@@ -63,6 +63,7 @@ export function ConversationHeader() {
         onConnectProvider: props.onConnectProvider,
         canConnectProvider: props.canConnectProvider,
         onAddCustomProvider: props.onManageProviders,
+        onManageProviders: props.onManageProviders,
         modelChangesDisabled: agentActivity() === "Working",
         disabledReason:
           agentActivity() === "Working"
