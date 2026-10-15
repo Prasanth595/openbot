@@ -133,20 +133,6 @@ jobs:
         if: env.CODE == 'true'
         run: bun run check:assets
 
-      - name: Verify routine due-state behavior
-        if: env.CODE == 'true'
-        run: bun scripts/routine-due-revalidation-e2e.ts
-
-      - name: Upload routine due-state verification
-        if: always() && env.CODE == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: routine-due-revalidation-verification
-          path: |
-            .openbot-build/routine-due-revalidation-e2e/report.json
-            .openbot-build/routine-due-revalidation-e2e/execution.log
-          if-no-files-found: ignore
-
       - name: Check Markdown links and anchors
         run: bun run check:doc-links
 

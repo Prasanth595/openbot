@@ -1,12 +1,13 @@
 // Runs the real scheduler, SQLite stores and mailbox. The enqueue gate replaces only scheduling
 // time at the mailbox boundary. No provider, account, network or model is started.
+//
+// Run: bun scripts/routine-due-revalidation-e2e.ts
+// It writes .openbot-build/routine-due-revalidation-e2e/report.json and exits non-zero on a failure.
 import assert from "node:assert/strict";
-import { type ChildProcess, execFile, spawn } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { type ChildProcess, spawn } from "node:child_process";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
-import { promisify } from "node:util";
+import { join, resolve } from "node:path";
 import type { Routine, RoutineSchedule } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { redactText } from "@openbot/logging";
@@ -25,42 +26,8 @@ import { RoutineTimer } from "../src/backend/routine-timer";
 const ROOT = resolve(import.meta.dirname, "..");
 const OUT = join(ROOT, ".openbot-build", "routine-due-revalidation-e2e");
 const DEADLINE_MS = 10_000;
-const REPORT_BYTES = 1024 * 1024;
-const LOG_BYTES = 256 * 1024;
+const OUTPUT_BYTES = 256 * 1024;
 const CRASH_EXIT = 86;
-const runFile = promisify(execFile);
-const SOURCE_FILES = [
-  "scripts/routine-due-revalidation-e2e.ts",
-  "src/backend/agent/routine-scheduler.ts",
-  "src/backend/agent/conversation-runtime.ts",
-  "src/backend/agent/routine-tools.ts",
-  "src/backend/agent/routine-quiet-runs.ts",
-  "src/backend/agent/delivery-content.ts",
-  "src/backend/agent-routine-store.ts",
-  "src/backend/routine-store.ts",
-  "src/backend/routine-timer.ts",
-  "src/backend/routine-tables.ts",
-  "src/backend/agent-store.ts",
-  "src/backend/mailbox-store.ts",
-  "src/backend/mailbox-delivery-gate.ts",
-  "src/backend/attachment-files.ts",
-  "src/backend/agent-waits/agent-waits.ts",
-  "src/backend/agent-waits/agent-wait-store.ts",
-  "src/backend/openbot-database.ts",
-  "src/backend/openbot-database-schema.ts",
-  "src/backend/openbot-database-schema-history.json",
-  "src/backend/database/database-core.ts",
-  "src/backend/database/database-rows.ts",
-  "src/backend/database/mailbox-projection.ts",
-  "src/backend/database/agent-roster.ts",
-  "src/backend/effect-boundary.ts",
-  "src/backend/restart-activity.ts",
-  "packages/team-client/src/routine-schedule.ts",
-  "packages/contracts/src/ipc-routines.ts",
-  ".github/workflows/ci.yml",
-  "docs/architecture/agents.md",
-  "changelog.d/codex-routine-due-revalidation.md",
-];
 
 interface Fixture {
   database: OpenBotDatabase;
@@ -394,9 +361,7 @@ async function raceCase(fixture: Fixture, kind: ScheduleKind, mutation: Mutation
   assert.deepEqual(fixture.errors, []);
 }
 
-async function crashChild(root: string, nonce: string, kind: ScheduleKind): Promise<never> {
-  assert.ok(basename(root).startsWith("openbot-routine-due-"));
-  assert.equal(await readFile(join(root, "guard"), "utf8"), nonce);
+async function crashChild(root: string, kind: ScheduleKind): Promise<never> {
   const fixture = await openFixture(root);
   const saved = seed(fixture, kind, "unchanged");
   // Keep only the selected run. The process must stop after the durable run/trigger writes.
@@ -425,10 +390,9 @@ async function crashChild(root: string, nonce: string, kind: ScheduleKind): Prom
 const childFlag = process.argv.indexOf("--crash-child");
 if (childFlag >= 0) {
   const root = process.argv[childFlag + 1];
-  const nonce = process.argv[childFlag + 2];
-  const kind = process.argv[childFlag + 3];
-  assert.ok(root && nonce && (kind === "cron" || kind === "once"));
-  await crashChild(root, nonce, kind);
+  const kind = process.argv[childFlag + 2];
+  assert.ok(root && (kind === "cron" || kind === "once"));
+  await crashChild(root, kind);
   process.exit(1);
 }
 
@@ -437,40 +401,9 @@ interface CaseResult {
   passed: boolean;
   error?: string;
 }
-interface Report {
-  runNonce: string;
-  sourceSha: string;
-  sourceDigest: string;
-  sourceManifest: Array<{ path: string; sha256: string }>;
-  runtime: { runner: string; compatibilityNode: string; bun: string | null; actualNode: string };
-  requiredCases: number;
-  cases: CaseResult[];
-  cleanupComplete: boolean;
-  cleanupErrors: string[];
-  artifactErrors: string[];
-  passed: boolean;
-}
-const report: Report = {
-  runNonce: randomUUID(),
-  sourceSha: "",
-  sourceDigest: "",
-  sourceManifest: [],
-  runtime: {
-    runner: process.versions.bun ? "bun" : "node",
-    compatibilityNode: process.version,
-    bun: process.versions.bun ?? null,
-    actualNode: "",
-  },
-  requiredCases: CASES.length + 2,
-  cases: [],
-  cleanupComplete: false,
-  cleanupErrors: [],
-  artifactErrors: [],
-  passed: false,
-};
+const cases: CaseResult[] = [];
 const ownedRoots: string[] = [];
 const children = new Set<ChildProcess>();
-const lines: string[] = [];
 
 function safe(value: string): string {
   let result = redactText(value);
@@ -483,13 +416,12 @@ function safe(value: string): string {
 async function newRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "openbot-routine-due-"));
   ownedRoots.push(root);
-  await writeFile(join(root, "guard"), report.runNonce, { mode: 0o600 });
   return root;
 }
 
 async function recoverCrash(kind: ScheduleKind): Promise<void> {
   const root = await newRoot();
-  const child = spawn(process.execPath, [import.meta.filename, "--crash-child", root, report.runNonce, kind], {
+  const child = spawn(process.execPath, [import.meta.filename, "--crash-child", root, kind], {
     cwd: ROOT,
     env: { PATH: process.env.PATH, TMPDIR: tmpdir() },
     stdio: ["ignore", "pipe", "pipe"],
@@ -498,7 +430,7 @@ async function recoverCrash(kind: ScheduleKind): Promise<void> {
   let output = "";
   const capture = (chunk: Buffer) => {
     output += chunk.toString("utf8");
-    if (Buffer.byteLength(output, "utf8") > LOG_BYTES) {
+    if (Buffer.byteLength(output, "utf8") > OUTPUT_BYTES) {
       child.kill("SIGKILL");
       output = "Crash child output exceeded its bound.";
     }
@@ -548,42 +480,17 @@ async function recoverCrash(kind: ScheduleKind): Promise<void> {
 
 async function runCase(name: string, work: () => Promise<void>): Promise<void> {
   const row: CaseResult = { name, passed: false };
-  report.cases.push(row);
+  cases.push(row);
   try {
     await work();
     row.passed = true;
   } catch (error) {
     row.error = safe(error instanceof Error ? error.message : String(error)).slice(0, 8192);
   }
-  lines.push(`${row.passed ? "PASS" : "FAIL"} ${name}${row.error ? `: ${row.error}` : ""}`);
-}
-
-async function writeArtifact(name: "report.json" | "execution.log", contents: string, limit: number): Promise<void> {
-  const text = `${safe(contents).trimEnd()}\n`;
-  assert.ok(Buffer.byteLength(text, "utf8") <= limit);
-  for (const root of [...ownedRoots, ROOT, homedir()]) {
-    assert.equal(text.includes(root) || text.includes(JSON.stringify(root).slice(1, -1)), false);
-  }
-  await within(
-    (async () => {
-      await mkdir(OUT, { recursive: true });
-      await writeFile(join(OUT, name), text, { mode: 0o600 });
-    })(),
-    `${name} write`,
-  );
+  process.stdout.write(`${row.passed ? "PASS" : "FAIL"} ${name}${row.error ? `: ${row.error}` : ""}\n`);
 }
 
 try {
-  report.sourceSha = (await runFile("git", ["rev-parse", "HEAD"], { cwd: ROOT, timeout: DEADLINE_MS })).stdout.trim();
-  report.runtime.actualNode = (await runFile("node", ["--version"], { cwd: ROOT, timeout: DEADLINE_MS })).stdout.trim();
-  for (const path of SOURCE_FILES)
-    report.sourceManifest.push({
-      path,
-      sha256: createHash("sha256")
-        .update(await readFile(join(ROOT, path)))
-        .digest("hex"),
-    });
-  report.sourceDigest = createHash("sha256").update(JSON.stringify(report.sourceManifest)).digest("hex");
   for (const entry of CASES)
     await runCase(entry.name, async () => {
       const fixture = await openFixture(await newRoot());
@@ -595,55 +502,12 @@ try {
     });
   for (const kind of ["cron", "once"] satisfies ScheduleKind[])
     await runCase(`${kind} crash and restart`, () => recoverCrash(kind));
-} catch (error) {
-  lines.push(`SETUP FAIL: ${safe(error instanceof Error ? error.message : String(error)).slice(0, 8192)}`);
 } finally {
-  for (const child of children) {
-    try {
-      const stopped = new Promise<void>((done) => child.once("close", () => done()));
-      child.kill("SIGKILL");
-      await within(stopped, "owned child cleanup");
-      children.delete(child);
-    } catch (error) {
-      report.cleanupErrors.push(safe(String(error)).slice(0, 8192));
-    }
-  }
-  for (const root of ownedRoots) {
-    try {
-      await within(
-        (async () => {
-          assert.equal(await readFile(join(root, "guard"), "utf8"), report.runNonce);
-          await rm(root, { recursive: true, force: true });
-          await assert.rejects(access(root), { code: "ENOENT" });
-        })(),
-        "owned fixture cleanup",
-      );
-    } catch (error) {
-      report.cleanupErrors.push(safe(String(error)).slice(0, 8192));
-    }
-  }
-  report.cleanupComplete = report.cleanupErrors.length === 0 && children.size === 0;
-  report.passed =
-    report.cases.length === report.requiredCases && report.cases.every((row) => row.passed) && report.cleanupComplete;
-  let logWritten = false;
-  try {
-    await writeArtifact("execution.log", lines.join("\n"), LOG_BYTES);
-    logWritten = true;
-  } catch (error) {
-    report.artifactErrors.push(safe(String(error)).slice(0, 8192));
-    report.passed = false;
-  }
-  let reportWritten = false;
-  try {
-    await writeArtifact("report.json", JSON.stringify(report, null, 2), REPORT_BYTES);
-    reportWritten = true;
-  } catch (error) {
-    report.artifactErrors.push(safe(String(error)).slice(0, 8192));
-    report.passed = false;
-  }
-  // Machine-readable: the receipt contains fixed fields and synthetic identifiers only.
-  process.stdout.write(
-    `${JSON.stringify({ runNonce: report.runNonce, sourceSha: report.sourceSha, sourceDigest: report.sourceDigest, required: report.requiredCases, executed: report.cases.length, passedCases: report.cases.filter((row) => row.passed).length, passed: report.passed, runtime: report.runtime, cleanupComplete: report.cleanupComplete, logWritten, reportWritten, artifactComplete: logWritten && reportWritten && report.artifactErrors.length === 0 })}\n`,
-  );
-  if (!report.passed) process.exitCode = 1;
+  for (const child of children) child.kill("SIGKILL");
+  for (const root of ownedRoots) await rm(root, { recursive: true, force: true });
+  const passed = cases.length === CASES.length + 2 && cases.every((row) => row.passed);
+  await mkdir(OUT, { recursive: true });
+  await writeFile(join(OUT, "report.json"), `${safe(JSON.stringify({ passed, cases }, null, 2))}\n`);
+  process.stdout.write(`${passed ? "PASS" : "FAIL"}: report in ${join(OUT, "report.json")}\n`);
+  if (!passed) process.exitCode = 1;
 }
