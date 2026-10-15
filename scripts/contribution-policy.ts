@@ -273,10 +273,20 @@ function checkPullRequest(number: number): Decision {
   addLabel(number, LABEL_EXTERNAL, pr.labels);
   if (pr.labels.includes(LABEL_EXEMPT)) {
     setStatus(pr.sha, "success", "A maintainer exempted this pull request.");
+    upsertStickyComment(
+      number,
+      "A maintainer exempted this pull request. The contribution policy check passes.",
+      false,
+    );
     return record(false, "pass", LABEL_EXEMPT);
   }
   if (!pr.labels.includes(LABEL_NEEDS_ISSUE)) {
     setStatus(pr.sha, "success", "No approved issue is necessary.");
+    upsertStickyComment(
+      number,
+      "This pull request does not need an approved issue. The contribution policy check passes.",
+      false,
+    );
     return record(false, "pass", `no ${LABEL_NEEDS_ISSUE} label`);
   }
 
