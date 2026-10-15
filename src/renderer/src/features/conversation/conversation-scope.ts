@@ -195,6 +195,9 @@ export function createConversationViewScope(props: ConversationProps) {
     profileOpen,
     filesOpen,
     toggleFilesPanel,
+    taskPanelOpen,
+    taskPanelTaskId,
+    openTaskPanel,
     filePreviewOpen,
     setActiveRightPanel,
     openRoutineSettings,
@@ -891,7 +894,7 @@ export function createConversationViewScope(props: ConversationProps) {
     if (
       !previousAgentId ||
       !agentId ||
-      (panel !== "settings" && panel !== "profile" && panel !== "file-preview" && panel !== "files")
+      (panel !== "settings" && panel !== "profile" && panel !== "file-preview" && panel !== "files" && panel !== "task")
     )
       return;
     setRightPanels((current) => ({ ...current, [agentId]: "none" }));
@@ -1212,6 +1215,9 @@ export function createConversationViewScope(props: ConversationProps) {
     scrollFades,
     filesOpen,
     toggleFilesPanel,
+    taskPanelOpen,
+    taskPanelTaskId,
+    openTaskPanel,
     filePreviewOpen,
     handleChatSearchShortcut,
     hideBrowserPanel,

@@ -183,8 +183,7 @@ export class MailboxSync {
           // still-starting row with the confirmed turn before publishing the retry. This is safe:
           // the turn id came from the provider, and it prevents a second drain from replaying it.
           // Check the active marker again so a delayed retry cannot claim a new turn's rows.
-          const activeTurn = this.#conversation.workingSnapshot(agentId)?.activeTurnId;
-          if (turnId && activeTurn === turnId) {
+          if (turnId && this.#conversation.snapshotWithTurn(agentId, turnId)) {
             const accepted = new Set(deliveryIds);
             for (const deliveryId of accepted) {
               const current = this.#mailbox.getDelivery(deliveryId)?.delivery;

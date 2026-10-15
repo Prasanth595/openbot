@@ -17,6 +17,8 @@ import type { ThreadLifecycle } from "./thread-lifecycle";
 
 export interface BootRecoveryHooks {
   executionThreads?(): Array<{ id: string; threadId: string }>;
+  /** The threads of the agents' tasks. Each runs in its own lane, beside the agent's own chat. */
+  taskThreads?(): Array<{ id: string; threadId: string }>;
   deliveryThreadId?(deliveryId: string): string | null;
   /** Tells the external conversation of a delivery that the recovery settled it. */
   deliverySettled?(deliveryId: string, terminal: "completed" | "failed" | "interrupted"): void;
@@ -96,6 +98,12 @@ export class BootRecovery {
         this.#conversation.registerExecutionThread(agent.id, context.threadId);
         return [{ ...agent, threadId: context.threadId }];
       }),
+      ...(this.#hooks.taskThreads?.() ?? []).flatMap((context) => {
+        const agent = agents.find((item) => item.id === context.id);
+        if (!agent || agent.threadId === context.threadId) return [];
+        this.#conversation.registerTaskThread(agent.id, context.threadId);
+        return [{ ...agent, threadId: context.threadId }];
+      }),
     ];
   }
 
@@ -129,13 +137,16 @@ export class BootRecovery {
     for (const id of this.#orphanedDeliveryIds) {
       if (!unresolvedIds.has(id)) this.#orphanedDeliveryIds.delete(id);
     }
-    // An agent starts one turn at a time, so its unconfirmed deliveries are one batch. The turn names
-    // only the first of them as its client id, and the others ran in that same turn.
+    // Each lane of an agent (its own chat, or one task) starts one turn at a time, so the unconfirmed
+    // deliveries of a lane are one batch. The turn names only the first of them as its client id, and
+    // the others ran in that same turn.
+    const laneOf = (delivery: { id: string; recipientAgentId: string }) =>
+      `${delivery.recipientAgentId}\u0000${this.#mailbox.taskIdForDelivery(delivery.id) ?? ""}`;
     const unconfirmedStarts = new Map<string, Set<string>>();
     for (const { delivery } of unresolved) {
       if (delivery.status !== "starting" || delivery.turnId) continue;
-      const ids = unconfirmedStarts.get(delivery.recipientAgentId) ?? new Set<string>();
-      unconfirmedStarts.set(delivery.recipientAgentId, ids.add(delivery.id));
+      const ids = unconfirmedStarts.get(laneOf(delivery)) ?? new Set<string>();
+      unconfirmedStarts.set(laneOf(delivery), ids.add(delivery.id));
     }
     for (const context of unresolved) {
       const { delivery } = context;
@@ -157,7 +168,7 @@ export class BootRecovery {
           const historyKey = `${session.provider}:${session.externalSessionId}`;
           if (this.#oversizedHistory.has(historyKey)) return interrupted;
           if (!client.readHistory) return interrupted;
-          const batchIds = delivery.turnId ? null : unconfirmedStarts.get(delivery.recipientAgentId);
+          const batchIds = delivery.turnId ? null : unconfirmedStarts.get(laneOf(delivery));
           let recovered: { turnId: string; status?: string } | undefined;
           yield* client
             .readHistory(

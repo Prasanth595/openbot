@@ -42,6 +42,8 @@ export const messages = defineMessages("error.agent", {
   "error.agent.noStartingModel":
     "{provider} has no model available, and no other signed-in provider has one. Sign in to a provider, or change the default provider in Providers & permissions.",
   "error.agent.waitBeforeProviderChange": "Wait for the active turn and queue to finish before changing provider.",
+  "error.agent.waitForTasksBeforeProviderChange":
+    "Tasks of this agent are running. Wait for them to finish, or stop them, before changing provider.",
   "error.agent.waitBeforeClearContext": "Wait for the active turn and queue to finish before starting a new chat.",
   "error.agent.unknown": "Unknown agent: {id}",
   "error.agent.onlyUserWidensSettings":
@@ -85,6 +87,7 @@ export const messages = defineMessages("error.agent", {
   "error.agent.busyMessageModeLocalOnly":
     "What messages do while the agent works can only be set on the computer that runs the agent.",
   "error.agent.backupModelsLocalOnly": "Backup models can only be set on the computer that runs the agent.",
+  "error.agent.taskLimitLocalOnly": "The task limit can only be set on the computer that runs the agent.",
   "error.agent.localScriptsOff": "This agent does not allow local scripts.",
   "error.agent.localScriptsRateLimited":
     "Local scripts sent this agent {limit} message or routine requests in the last hour. Try again later.",

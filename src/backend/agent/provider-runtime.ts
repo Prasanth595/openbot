@@ -1644,6 +1644,17 @@ export class ProviderRuntime implements ProviderPort {
   }
 
   /**
+   * False when `ensureAgentClient` would stop this agent's own process to start another one. A task
+   * of the agent waits then while another of its turns runs on that process.
+   */
+  agentClientCurrent(agent: AgentSummary): boolean {
+    const current = this.#confined.get(agent.id);
+    if (!current) return true;
+    const own = this.#ownProcessFor(agent);
+    return own !== null && current.key === this.#confinedKey(providerForAgent(agent), own);
+  }
+
+  /**
    * The process for this agent's next turn, started when it is needed. Call it only while the agent
    * runs no turn: it stops the agent's own process when that process no longer matches the agent.
    */

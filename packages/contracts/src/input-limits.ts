@@ -40,6 +40,11 @@ export const INPUT_LIMITS = {
   // at once is a loop that opens waits, not work.
   agentWaits: 20,
   agentWaitNote: 500,
+  // Tasks of one agent in one list: the open ones, then the newest closed ones.
+  agentTasks: 50,
+  agentTaskTitle: 120,
+  agentTaskProgress: 500,
+  agentTaskError: 2_000,
   // The text a local script adds to a routine run through the automation server.
   automationPayload: 4_000,
   // Six weeks: the longest range the routine calendar reads, with room for a month view.

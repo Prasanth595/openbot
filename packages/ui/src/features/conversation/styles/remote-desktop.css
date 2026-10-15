@@ -201,15 +201,6 @@
   padding: 0 13px;
 }
 
-.remote-desktop-button {
-  position: relative;
-}
-
-.remote-desktop-button[aria-expanded="true"] {
-  background: var(--openbot-border);
-  color: var(--openbot-text-primary);
-}
-
 .remote-desktop-button-dot {
   position: absolute;
   right: 4px;

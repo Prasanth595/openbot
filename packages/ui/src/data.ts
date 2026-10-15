@@ -205,6 +205,8 @@ export interface AgentProfile {
   allowAutomation?: boolean;
   /** Absent means the app default. Absent for an agent on a remote host too, which does not share it. */
   busyMessageMode?: AgentSummary["busyMessageMode"];
+  /** Absent means the default task limit. Absent for an agent on a remote host too, which runs no tasks. */
+  taskLimit?: AgentSummary["taskLimit"];
   /** Absent means ask before a switch at a usage limit. Absent for an agent on a remote host too. */
   backupModels?: AgentSummary["backupModels"];
   /** Set while the agent works on a backup model for a usage limit: the model it goes back to. */

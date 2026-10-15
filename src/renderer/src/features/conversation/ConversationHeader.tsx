@@ -28,6 +28,7 @@ export function ConversationHeader() {
     showBrowserPanel,
     filesOpen,
     toggleFilesPanel,
+    openTaskPanel,
   } = useConversationViewScope();
   const changeAutoApprove = createMemo(() => {
     const save = props.onSetAgentAutoApprove;
@@ -93,6 +94,15 @@ export function ConversationHeader() {
         // The web client has no conversation Files panel, and a chat without a thread has no files to list.
         !props.runtime && props.agent?.threadId && serverHasStorage(props.server)
           ? { open: filesOpen(), onToggle: toggleFilesPanel }
+          : undefined
+      }
+      tasks={
+        props.tasks
+          ? {
+              tasks: props.tasks.snapshot?.tasks ?? [],
+              onNew: () => openTaskPanel(null),
+              onOpen: openTaskPanel,
+            }
           : undefined
       }
       browser={

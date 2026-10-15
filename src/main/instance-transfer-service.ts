@@ -326,6 +326,7 @@ export class InstanceTransferService {
         reasoningEffort: agent.reasoningEffort,
         notifications: agent.notifications,
         ...(agent.busyMessageMode ? { busyMessageMode: agent.busyMessageMode } : {}),
+        ...(agent.taskLimit === undefined ? {} : { taskLimit: agent.taskLimit }),
         skills,
         files,
         routines: routines.filter((routine) => routine.schedule.kind !== "once"),
@@ -918,6 +919,7 @@ export class InstanceTransferService {
               agentId: agent.id,
               notifications: source.notifications,
               ...(source.busyMessageMode ? { busyMessageMode: source.busyMessageMode } : {}),
+              ...(source.taskLimit === undefined ? {} : { taskLimit: source.taskLimit }),
             })
             .pipe(Effect.mapError(failure));
           completed = true;

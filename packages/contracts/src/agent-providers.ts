@@ -98,6 +98,12 @@ export interface AgentProviderDescriptor {
    */
   readonly steer: "native" | "deferred";
   /**
+   * Whether the CLI runs turns of two sessions of one agent at the same time. `false`: the agent runs
+   * one turn at a time, so its tasks and its own chat wait for each other. A custom ACP agent is
+   * `false`, because OpenBot cannot know what the command does with a second prompt.
+   */
+  readonly concurrentTurns: boolean;
+  /**
    * Whether OpenBot can read the plan's remaining usage. `false`: the CLI exposes no usage reading,
    * so the dock says the provider does not report usage instead of waiting for a reading. Declared
    * here because the renderer cannot see the drivers; set it to `true` with a driver's usage read
@@ -127,6 +133,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "command-sandbox",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: true,
   },
   claude: {
@@ -145,6 +152,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".claude/skills"],
     workspaceEnforcement: "tool-sandbox",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: true,
   },
   grok: {
@@ -163,6 +171,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: true,
   },
   opencode: {
@@ -183,6 +192,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".opencode/skills", ".agents/skills", ".claude/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: true,
   },
   // Google moved Google AI Pro and Ultra accounts from Gemini CLI to Antigravity on 18 June 2026,
@@ -203,6 +213,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".gemini/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: false,
   },
   // The Cursor CLI (`cursor-agent acp`) with the user's Cursor plan. Sign-in is the ACP
@@ -223,6 +234,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".cursor/skills", ".claude/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: false,
   },
   // The Cline CLI (`cline --acp`). Sign-in is the ACP `cline` method, which opens a browser. A Cline
@@ -243,6 +255,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".cline/skills", ".clinerules/skills", ".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: true,
     reportsUsage: false,
   },
   pi: {
@@ -261,6 +274,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: false,
   },
   muse: {
@@ -279,6 +293,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "native",
+    concurrentTurns: true,
     reportsUsage: true,
   },
   // One provider for every Agent Client Protocol agent the user adds by command. The model id names
@@ -300,6 +315,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
     steer: "deferred",
+    concurrentTurns: false,
     reportsUsage: false,
   },
 } as const satisfies Record<AgentProviderId, AgentProviderDescriptor>;

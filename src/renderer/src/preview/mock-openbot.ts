@@ -12,6 +12,8 @@ import {
   type AgentStatus,
   type AgentSubmission,
   type AgentSummary,
+  type AgentTask,
+  type AgentTasksSnapshot,
   type AgentTemplatePublication,
   type AnalyticsPreference,
   type AppInfo,
@@ -23,6 +25,7 @@ import {
   agentAutoApprovalEnabled,
   agentAutomationAllowed,
   agentComputerUseEnabled,
+  agentTaskLimit,
   type BusyMessageModePreference,
   type CentralAuthState,
   CONTEXT_RESET_ITEM_TYPE,
@@ -159,6 +162,10 @@ export interface MockOpenBotOptions
   snapshots?: Record<string, ConversationSnapshot>;
   /** Deliveries that wait in each agent's queue when the preview starts. */
   queues?: Record<string, QueueDelivery[]>;
+  /** The tasks of each agent, keyed by agent id. */
+  tasks?: Record<string, AgentTask[]>;
+  /** The conversation of each task, keyed by task id. */
+  taskConversations?: Record<string, ConversationSnapshot>;
   updateStatus?: UpdateStatus;
   memories?: Record<string, AgentMemory[]>;
   tables?: SharedTable[];
@@ -463,6 +470,133 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
 
   function emitAgentEvent(event: AgentEvent): void {
     emit(agentListeners, event);
+  }
+
+  const tasks = new Map<string, AgentTask[]>(Object.entries(clone(options.tasks ?? {})));
+  const taskConversations = new Map<string, ConversationSnapshot>(
+    Object.entries(clone(options.taskConversations ?? {})),
+  );
+
+  function taskList(agentId: string): AgentTasksSnapshot {
+    const list = tasks.get(agentId) ?? [];
+    return {
+      agentId,
+      tasks: clone([...list.filter((task) => !task.closedAt), ...list.filter((task) => task.closedAt)]),
+      limit: agentTaskLimitOf(agentId),
+    };
+  }
+
+  function agentTaskLimitOf(agentId: string): number {
+    const agent = agents.find((candidate) => candidate.id === agentId);
+    return agent ? agentTaskLimit(agent) : 1;
+  }
+
+  function emitTasks(agentId: string): void {
+    emitAgentEvent({ type: "agent-tasks-changed", snapshot: taskList(agentId) });
+  }
+
+  function findTask(agentId: string, taskId: string): AgentTask {
+    const task = tasks.get(agentId)?.find((candidate) => candidate.id === taskId);
+    if (!task) throw new Error(sourceText("error.backend.taskNotFound"));
+    return task;
+  }
+
+  function taskConversation(task: AgentTask): ConversationSnapshot {
+    const existing = taskConversations.get(task.id);
+    if (existing) return existing;
+    const created: ConversationSnapshot = {
+      agentId: task.agentId,
+      threadId: task.threadId,
+      activeTurnId: null,
+      revision: 0,
+      messages: [],
+    };
+    taskConversations.set(task.id, created);
+    return created;
+  }
+
+  function createTask(agentId: string, text: string): AgentTask {
+    const now = new Date().toISOString();
+    const title =
+      text
+        .split("\n")
+        .find((line) => line.trim())
+        ?.trim()
+        .slice(0, 120) ?? "";
+    if (!title) throw new Error(sourceText("error.backend.taskTitleRequired"));
+    const task: AgentTask = {
+      id: `mock-task-${messageCounter++}`,
+      agentId,
+      threadId: `mock-task-thread-${messageCounter++}`,
+      origin: "user",
+      title,
+      state: "idle",
+      outcome: null,
+      hold: null,
+      activeTurnId: null,
+      progress: null,
+      error: null,
+      queuedMessages: [],
+      createdAt: now,
+      updatedAt: now,
+      closedAt: null,
+    };
+    tasks.set(agentId, [task, ...(tasks.get(agentId) ?? [])]);
+    return task;
+  }
+
+  /** Runs one mock turn in a task: the user message, a progress line, then a short answer. */
+  function runTaskTurn(task: AgentTask, text: string): QueuedMessageReceipt {
+    if (task.closedAt) throw new Error(sourceText("error.backend.taskClosed"));
+    const deliveryId = `mock-delivery-${messageCounter++}`;
+    const turnId = `mock-turn-${messageCounter++}`;
+    const conversation = taskConversation(task);
+    conversation.messages = [
+      ...conversation.messages,
+      {
+        id: deliveryId,
+        turnId,
+        author: "user",
+        source: "user",
+        text,
+        createdAt: new Date().toISOString(),
+        status: "completed",
+      },
+    ];
+    conversation.activeTurnId = turnId;
+    conversation.revision += 1;
+    Object.assign(task, {
+      state: "running",
+      activeTurnId: turnId,
+      progress: "Reviewing the task…",
+      updatedAt: new Date().toISOString(),
+    });
+    emitAgentEvent({ type: "agent-task-conversation", taskId: task.id, snapshot: clone(conversation) });
+    emitTasks(task.agentId);
+    schedule(() => {
+      if (task.activeTurnId !== turnId) return;
+      conversation.messages = [
+        ...conversation.messages,
+        {
+          id: `mock-reply-${messageCounter++}`,
+          turnId,
+          author: "assistant",
+          source: "assistant",
+          text: `Mock task result: I finished “${text}”.`,
+          createdAt: new Date().toISOString(),
+          status: "completed",
+        },
+      ];
+      conversation.activeTurnId = null;
+      conversation.revision += 1;
+      Object.assign(task, { state: "idle", activeTurnId: null, progress: null, outcome: "completed" });
+      emitAgentEvent({ type: "agent-task-conversation", taskId: task.id, snapshot: clone(conversation) });
+      emitTasks(task.agentId);
+    }, 600);
+    return {
+      messageId: `mock-message-${messageCounter++}`,
+      deliveries: [{ id: deliveryId, recipientAgentId: task.agentId, status: "running", position: null }],
+    };
   }
 
   function getSnapshot(agentId: string): ConversationSnapshot {
@@ -1513,6 +1647,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         const {
           agentId: _agentId,
           busyMessageMode,
+          taskLimit,
           providerAccountId,
           backupModels,
           leaveUsageLimit: _leaveUsageLimit,
@@ -1526,8 +1661,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         // `null` returns the agent to the app default, which an agent records by having no value.
         if (busyMessageMode === null) delete updated.busyMessageMode;
         else if (busyMessageMode) updated.busyMessageMode = busyMessageMode;
+        if (taskLimit === null) delete updated.taskLimit;
+        else if (taskLimit) updated.taskLimit = taskLimit;
         agents = agents.map((agent) => (agent.id === updated.id ? updated : agent));
         emitAgentEvent({ type: "agents-changed", agents });
+        emitTasks(updated.id);
         return clone(updated);
       },
       setAvatar: async (input: SetAgentAvatarInput) => {
@@ -1794,6 +1932,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       listWorkspaceDirectory: async (input: OpenWorkspaceFileInput) => mockWorkspaceDirectory(input.path),
       sendMessage: async (input: SendMessageInput) => {
+        if (input.taskId) return runTaskTurn(findTask(input.agentId, input.taskId), input.text);
         // As on a host, a repeated client id answers with the first receipt and stores nothing.
         const repeated = input.clientMessageId ? sentReceipts.get(input.clientMessageId) : undefined;
         if (repeated) return repeated;
@@ -1902,6 +2041,58 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       listQueue: async (agentId) => clone(queues.get(agentId) ?? emptyQueue(agentId)),
       listWaits: async (agentId) => ({ agentId, waits: [] }),
       cancelWait: async () => undefined,
+      listTasks: async (agentId) => taskList(agentId),
+      readTask: async (input) => clone(taskConversation(findTask(input.agentId, input.taskId))),
+      startTask: async (input) => {
+        const task = createTask(input.agentId, input.text);
+        runTaskTurn(task, input.text);
+        return clone(task);
+      },
+      runQueuedMessageAsTask: async (input) => {
+        const queue = queues.get(input.agentId) ?? emptyQueue(input.agentId);
+        const delivery = queue.deliveries.find(
+          (candidate) => candidate.id === input.deliveryId && candidate.status === "queued",
+        );
+        if (!delivery) throw new Error(sourceText("error.backend.queuedMessageUnavailable"));
+        queue.deliveries = queue.deliveries.filter((candidate) => candidate.id !== input.deliveryId);
+        queues.set(input.agentId, queue);
+        emitAgentEvent({ type: "queue-changed", snapshot: clone(queue) });
+        const task = createTask(input.agentId, delivery.text);
+        runTaskTurn(task, delivery.text);
+        return clone(task);
+      },
+      stopTask: async (input) => {
+        const task = findTask(input.agentId, input.taskId);
+        const conversation = taskConversation(task);
+        conversation.activeTurnId = null;
+        Object.assign(task, {
+          state: "idle",
+          activeTurnId: null,
+          progress: null,
+          queuedMessages: [],
+          outcome: task.activeTurnId ? "interrupted" : task.outcome,
+        });
+        emitTasks(input.agentId);
+      },
+      closeTask: async (input) => {
+        const task = findTask(input.agentId, input.taskId);
+        const now = new Date().toISOString();
+        Object.assign(task, {
+          state: "closed",
+          activeTurnId: null,
+          progress: null,
+          queuedMessages: [],
+          hold: null,
+          closedAt: now,
+          updatedAt: now,
+        });
+        emitTasks(input.agentId);
+      },
+      reopenTask: async (input) => {
+        const task = findTask(input.agentId, input.taskId);
+        Object.assign(task, { state: "idle", closedAt: null, updatedAt: new Date().toISOString() });
+        emitTasks(input.agentId);
+      },
       acknowledgeFailedTurn: async () => undefined,
       cancelQueuedMessage: async (input) => {
         const queue = queues.get(input.agentId) ?? emptyQueue(input.agentId);

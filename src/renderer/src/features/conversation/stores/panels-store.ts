@@ -57,6 +57,13 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   const settingsOpen = () => activeRightPanel() === "settings";
   const profileOpen = () => activeRightPanel() === "profile";
   const filesOpen = () => activeRightPanel() === "files";
+  // The task in each agent's task panel. Null is a new task, until its first message starts it.
+  const [taskPanels, setTaskPanels] = createSignal<Record<string, string | null>>({});
+  const taskPanelOpen = () => activeRightPanel() === "task" && deps.props.tasks !== undefined;
+  const taskPanelTaskId = (): string | null => {
+    const agentId = deps.props.agent?.id;
+    return agentId ? (taskPanels()[agentId] ?? null) : null;
+  };
   const filePreviewOpen = () =>
     activeRightPanel() === "file-preview" && deps.sidebarFilePreview()?.ownerAgentId === deps.props.agent?.id;
 
@@ -71,6 +78,15 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
 
   function toggleFilesPanel(): void {
     setActiveRightPanel(filesOpen() ? "none" : "files");
+  }
+
+  /** Opens a task in the side panel, or a new task when `taskId` is null. */
+  function openTaskPanel(taskId: string | null): void {
+    const agentId = deps.props.agent?.id;
+    if (!agentId) return;
+    setTaskPanels((current) => ({ ...current, [agentId]: taskId }));
+    if (taskId) deps.props.tasks?.onOpen(taskId);
+    setActiveRightPanel("task", agentId);
   }
 
   function openRoutineSettings(routine: { routineId: string; name: string }): void {
@@ -301,6 +317,9 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     profileOpen,
     filesOpen,
     toggleFilesPanel,
+    taskPanelOpen,
+    taskPanelTaskId,
+    openTaskPanel,
     filePreviewOpen,
     setActiveRightPanel,
     openRoutineSettings,

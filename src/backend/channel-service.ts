@@ -1237,6 +1237,11 @@ export class ChannelService {
     return !this.store.hasAssignmentInState(ACTIVE_ASSIGNMENT_STATES);
   }
 
+  /** `mayDrain` for a task of an agent. A task is never channel work, so an active assignment holds it. */
+  mayDrainTask(): boolean {
+    return !this.store.hasAssignmentInState(ACTIVE_ASSIGNMENT_STATES);
+  }
+
   /**
    * Whether any channel holds the host: an assignment still starting, running or queued, or a
    * task queued or running. Paused, waiting and failed tasks do not hold anything; they resume

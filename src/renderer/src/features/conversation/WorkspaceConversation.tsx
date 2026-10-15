@@ -22,6 +22,7 @@ import { createScopeGuard } from "../../scope-lifetime";
 import { useTurns } from "../../turns";
 import { turnsPort } from "../../turns-port";
 import { useAuth } from "../account/account-context";
+import { useAgentTasks } from "../agent-tasks/agent-tasks-context";
 import { useAgents } from "../agents/agents-context";
 import { withHostAccountUsage } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
@@ -40,6 +41,7 @@ import { usePresence } from "../team/team-context";
 import { useUsage } from "../usage/usage-context";
 import { Conversation } from "./Conversation";
 import { useConversation } from "./conversation-context";
+import type { ConversationTasks } from "./conversation-types";
 
 /**
  * The transcript of the active Agent, with everything the composer needs to send
@@ -283,6 +285,23 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
   const usageLimited = (choice: AgentModelChoice) =>
     usageLimitedModels().some((limited) => sameAgentModelChoice(limited, choice));
 
+  const agentTasks = useAgentTasks();
+  /** The active agent's tasks. Only this computer keeps tasks. */
+  const conversationTasks = createMemo((): ConversationTasks | undefined => {
+    const agentId = activeAgent()?.id;
+    if (!agentId || activeServer()?.kind !== "local" || !agentTasks.available()) return undefined;
+    return {
+      snapshot: agentTasks.snapshot(agentId),
+      conversation: agentTasks.conversation,
+      onOpen: (taskId) => agentTasks.openTask(agentId, taskId),
+      onStart: (text) => agentTasks.startTask(agentId, text),
+      onRunQueuedMessage: (deliveryId) => void agentTasks.runQueuedMessageAsTask(agentId, deliveryId),
+      onSend: (taskId, text) => agentTasks.sendToTask(agentId, taskId, text),
+      onStop: (taskId) => agentTasks.stopTask(agentId, taskId),
+      onClose: (taskId) => agentTasks.closeTask(agentId, taskId),
+      onReopen: (taskId) => agentTasks.reopenTask(agentId, taskId),
+    };
+  });
   /**
    * A usage limit holds the active agent's queued message on this computer. The chat asks where to
    * send it, unless the agent switches by itself to a saved backup model that is ready.
@@ -465,6 +484,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         onRespondToBrowserTakeover={respondToBrowserTakeover}
         onCancelQueuedMessage={cancelQueuedMessage}
         waits={activeWaits()}
+        tasks={conversationTasks()}
         onCancelWait={cancelWait}
         onSteerQueuedMessage={steerQueuedMessage}
         onUpdateQueuedMessage={updateQueuedMessage}

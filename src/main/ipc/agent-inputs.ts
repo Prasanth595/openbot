@@ -3,6 +3,7 @@ import {
   type AcknowledgeFailedTurnInput,
   type AgentIpcRequest,
   type AgentMemorySelectionChange,
+  type AgentTaskInput,
   type CancelAgentWaitInput,
   type CancelMessageLinkInput,
   type CancelQueuedMessageInput,
@@ -25,6 +26,7 @@ import {
   isAgentBackupModels,
   isAgentModel,
   isAgentProvider,
+  isAgentTaskLimit,
   isAvatarHue,
   isAvatarSeed,
   isBusyMessageMode,
@@ -50,6 +52,7 @@ import {
   type RoutineCalendarInput,
   type RoutineLimitPolicy,
   type RoutineMissedPolicy,
+  type RunQueuedMessageAsTaskInput,
   type SearchConversationFilesInput,
   type SearchConversationMessagesInput,
   type SendMessageInput,
@@ -57,6 +60,7 @@ import {
   type SetAgentMemoryInclusionInput,
   type SetMessageReactionInput,
   type SidebarLayoutAction,
+  type StartAgentTaskInput,
   type SteerQueuedMessageInput,
   type TestChannelRoutineInput,
   type TestRoutineInput,
@@ -504,12 +508,43 @@ export function parseSendMessage(value: unknown): SendMessageInput {
   ) {
     throw new Error("Invalid client message id.");
   }
+  const taskId = value.taskId;
+  if (taskId !== undefined && (!isString(taskId) || !taskId || taskId.length > INPUT_LIMITS.identifier)) {
+    throw new Error("Invalid task id.");
+  }
   return {
     agentId: requireString(value.agentId, "agentId"),
     text: value.text,
     attachmentDraftIds,
     replyToMessageId: replyToMessageId?.trim() || null,
     ...(clientMessageId === undefined ? {} : { clientMessageId }),
+    ...(taskId === undefined ? {} : { taskId }),
+  };
+}
+
+export function parseStartAgentTask(value: unknown): StartAgentTaskInput {
+  const { agentId, text, attachmentDraftIds, clientMessageId } = parseSendMessage(value);
+  return {
+    agentId,
+    text,
+    ...(attachmentDraftIds ? { attachmentDraftIds } : {}),
+    ...(clientMessageId ? { clientMessageId } : {}),
+  };
+}
+
+export function parseRunQueuedMessageAsTask(value: unknown): RunQueuedMessageAsTaskInput {
+  if (!isObject(value)) throw new Error("Invalid task request.");
+  return {
+    agentId: requireString(value.agentId, "agentId"),
+    deliveryId: requireString(value.deliveryId, "deliveryId"),
+  };
+}
+
+export function parseAgentTask(value: unknown): AgentTaskInput {
+  if (!isObject(value)) throw new Error("Invalid task request.");
+  return {
+    agentId: requireString(value.agentId, "agentId"),
+    taskId: requireString(value.taskId, "taskId"),
   };
 }
 
@@ -597,6 +632,10 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
       throw new Error("Invalid busy message mode.");
     }
     result.busyMessageMode = value.busyMessageMode;
+  }
+  if (value.taskLimit !== undefined) {
+    if (value.taskLimit !== null && !isAgentTaskLimit(value.taskLimit)) throw new Error("Invalid task limit.");
+    result.taskLimit = value.taskLimit;
   }
   if (value.backupModels !== undefined) {
     if (value.backupModels !== null && !isAgentBackupModels(value.backupModels))

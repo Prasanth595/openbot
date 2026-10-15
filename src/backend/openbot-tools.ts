@@ -25,6 +25,7 @@ import {
   renameSectionToolSchema,
 } from "./agent/sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS } from "./agent/skill-tools";
+import { START_TASK_TOOL, startTaskToolSchema } from "./agent-tasks/agent-tasks";
 import {
   AWAIT_EVENT_TOOL,
   awaitEventToolSchema,
@@ -294,6 +295,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     description:
       "Close an open wait when its request is done, or when it can no longer be done. Leave it open to wait for the next run again.",
     shape: closeWaitToolSchema.shape,
+  },
+  {
+    name: START_TASK_TOOL,
+    description:
+      "Start a task: a separate conversation of yours that runs beside this chat, with its own context, progress and stop. Use it only for long, independent work that the user asked for and that need not block this chat. The brief is the task's first message: write everything the task needs, because it does not see this chat. The task result stays in the task; you do not receive it. Only your own chat can start a task.",
+    shape: startTaskToolSchema.shape,
   },
   ...MEMORY_RECALL_TOOL_DEFINITIONS,
   {

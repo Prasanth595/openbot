@@ -28,6 +28,7 @@ import { z } from "zod";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentTables } from "../agent-data/agent-tables";
 import type { AgentStore } from "../agent-store";
+import type { AgentTasks } from "../agent-tasks/agent-tasks";
 import type { AgentWaits } from "../agent-waits/agent-waits";
 import { OPENBOT_BROWSER_NAMESPACE } from "../browser-tools";
 import type { ChannelService } from "../channel-service";
@@ -138,6 +139,7 @@ export interface OpenBotToolRouterOptions {
   routines: RoutineScheduler;
   memories: AgentMemories;
   waits: AgentWaits;
+  tasks: AgentTasks;
   drain: DrainScheduler;
   tables: AgentTables | null;
   sidebarLayout: AgentSidebar | null;
@@ -174,6 +176,7 @@ export class OpenBotToolRouter {
   readonly #routines: RoutineScheduler;
   readonly #memories: AgentMemories;
   readonly #waits: AgentWaits;
+  readonly #tasks: AgentTasks;
   readonly #drain: DrainScheduler;
   readonly #tables: AgentTables | null;
   readonly #sidebarLayout: AgentSidebar | null;
@@ -205,6 +208,7 @@ export class OpenBotToolRouter {
     this.#routines = options.routines;
     this.#memories = options.memories;
     this.#waits = options.waits;
+    this.#tasks = options.tasks;
     this.#drain = options.drain;
     this.#tables = options.tables;
     this.#sidebarLayout = options.sidebarLayout;
@@ -734,13 +738,17 @@ export class OpenBotToolRouter {
     const memoryResult = this.#memories.handleTool(params, senderAgentId, this.#hooks.redactMcp);
     if (memoryResult) return memoryResult;
 
-    const waitResult = this.#waits.handleTool(params, {
+    const caller = {
       agentId: senderAgentId,
       inExecutionThread: this.#conversation.isExecutionThread(
         this.#conversation.publicThreadId(senderAgentId, params.threadId),
       ),
-    });
+    };
+    const waitResult = this.#waits.handleTool(params, caller);
     if (waitResult) return waitResult;
+
+    const taskResult = yield* this.#tasks.handleTool(params, caller);
+    if (taskResult) return taskResult;
 
     const tableResult = yield* handleDataTool(params.tool, params.arguments, senderAgentId, this.#tables);
     if (tableResult) return tableResult;

@@ -1,9 +1,11 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
+import { AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
+import { toAgentMessages } from "../../app-message-projection";
 import { createSettingsPanelWidth, saveSettingsPanelWidth } from "../../components/settings-panel-width";
 import { agentTemplatesPort } from "../agent-templates/agent-templates-port";
 import { createPublishAgent } from "../agent-templates/PublishAgent";
@@ -23,7 +25,7 @@ const CONVERSATION_PANEL_MIN = 96;
 const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
 
 import { Portal } from "@solidjs/web";
-import { createEffect, Loading, lazy, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, Loading, lazy, onSettled, Show } from "solid-js";
 import { conversationPort } from "./conversation-port";
 
 /** @internal Stable HMR boundary for conversation panels. */
@@ -84,6 +86,10 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     openMessageLinkRelay,
     pasteMessageLinkRelay,
     cancelMessageLinkRelay,
+    attachmentAction,
+    taskPanelOpen,
+    taskPanelTaskId,
+    openTaskPanel,
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
@@ -96,6 +102,26 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
       ? props.runtime.admin !== undefined && serverCanAdminister(props.server, "agent-publish-v1")
       : props.server?.kind === "local";
   let browserPreviewTrigger: HTMLButtonElement | undefined;
+  const panelTask = createMemo(() => {
+    const taskId = taskPanelTaskId();
+    return taskId ? (props.tasks?.snapshot?.tasks.find((task) => task.id === taskId) ?? null) : null;
+  });
+  const panelTaskMessages = createMemo(() => {
+    const taskId = taskPanelTaskId();
+    const conversation = taskId ? props.tasks?.conversation(taskId) : undefined;
+    return conversation ? toAgentMessages(conversation.messages, props.agent?.id) : [];
+  });
+  /** A message in a task steers or continues it. In a new task, the first message starts it. */
+  async function sendToTaskPanel(text: string): Promise<boolean> {
+    const tasks = props.tasks;
+    if (!tasks) return false;
+    const task = panelTask();
+    if (task) return tasks.onSend(task.id, text);
+    const created = await tasks.onStart(text);
+    if (!created) return false;
+    if (taskPanelOpen() && taskPanelTaskId() === null) openTaskPanel(created.id);
+    return true;
+  }
   const settingsMaxWidth = () =>
     Math.min(
       SETTINGS_PANEL_MAX,
@@ -214,6 +240,35 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
         )}
       </Show>
 
+      <Show when={taskPanelOpen() && props.tasks && props.agent}>
+        {(agent) => (
+          <AgentTaskPanel
+            task={panelTask()}
+            limit={props.tasks?.snapshot?.limit ?? 1}
+            agent={agent()}
+            agents={props.agents}
+            messages={panelTaskMessages()}
+            onSend={sendToTaskPanel}
+            onStop={() => {
+              const task = panelTask();
+              if (task) props.tasks?.onStop(task.id);
+            }}
+            onCloseTask={() => {
+              const task = panelTask();
+              if (task) props.tasks?.onClose(task.id);
+            }}
+            onReopen={() => {
+              const task = panelTask();
+              if (task) props.tasks?.onReopen(task.id);
+            }}
+            onClosePanel={() => setActiveRightPanel("none")}
+            onOpenLink={(url) => void openExternalMessageUrl(url)}
+            onPreview={(attachment) => void previewAttachment(attachment)}
+            onAttachmentAction={attachmentAction}
+          />
+        )}
+      </Show>
+
       <Show when={browserSidebarOpen() || browserExpandedOpen()}>
         <BrowserPreviewSidebar
           tabs={browserTabs()}
@@ -312,6 +367,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
                 (serverCanAdminister(props.server, "agent-host-settings-v1") && agent().allowAutomation !== undefined)
               }
               busyMessageModeEditable={props.server?.kind === "local"}
+              taskLimitEditable={props.server?.kind === "local"}
               backupModelsEditable={props.server?.kind === "local"}
               usageLimited={props.usageLimited}
               defaultBusyMessageMode={props.defaultBusyMessageMode}

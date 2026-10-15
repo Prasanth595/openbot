@@ -4,6 +4,7 @@ import { type DynamicRecord, isDynamicRecord, isNumber, isString } from "@openbo
 import { isGeneratedAgentId } from "@openbot/contracts/validation";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { AGENT_MEMORY_SELECTION_SCHEMA_SQL, migrateAgentMemorySelection } from "./agent-memory-selection";
+import { AGENT_TASK_SCHEMA_SQL } from "./agent-tasks/agent-task-schema";
 import { AGENT_WAIT_SCHEMA_SQL } from "./agent-waits/agent-wait-schema";
 import { CHANNEL_SCHEMA_SQL, CHANNEL_SETTINGS_SCHEMA_SQL } from "./channel-schema";
 import { PROVIDER_HISTORY_SCHEMA_SQL } from "./database/provider-history-schema";
@@ -505,7 +506,8 @@ const LATEST_SCHEMA_SQL =
   AGENT_MEMORY_SELECTION_SCHEMA_SQL +
   AGENT_WAIT_SCHEMA_SQL +
   MESSAGING_MEMORY_SCHEMA_SQL +
-  ROUTINE_RESULT_SCHEMA_SQL;
+  ROUTINE_RESULT_SCHEMA_SQL +
+  AGENT_TASK_SCHEMA_SQL;
 
 /** The end of a routine table with the migration 27 and 33 columns after its last one. */
 function withRoutinePolicies(tableEnd: string): string {
@@ -705,6 +707,12 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
     // Only creates tables, so no foreign-key pause and no vacuum. No routine has a destination yet, so every
     // routine keeps its answers in OpenBot, which is what it did before.
     up: (db) => db.exec(ROUTINE_RESULT_SCHEMA_SQL),
+  },
+  {
+    version: 38,
+    // Only creates tables, so no foreign-key pause and no vacuum. No agent has a task yet, so every
+    // delivery keeps running in its agent's own chat, which is what it did before.
+    up: (db) => db.exec(AGENT_TASK_SCHEMA_SQL),
   },
 ];
 

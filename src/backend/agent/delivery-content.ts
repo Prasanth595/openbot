@@ -183,7 +183,15 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
       displayText || "(The reply contains attachments only.)",
     ].join("\n");
   }
-  if (delivery.sender.kind === "agent") {
+  // Only `start_task` sends an agent's message to itself: it is the brief of a task.
+  if (delivery.sender.kind === "agent" && delivery.sender.agentId === delivery.recipientAgentId) {
+    text = [
+      "You started this task with openbot.start_task from your own chat. It is a separate conversation beside that chat, with this brief as its first message.",
+      "Do the work in the brief here, and end with the result for the user: the user reads it in this task. Do not send it with openbot.send_message.",
+      COLLABORATOR_SEPARATOR,
+      displayText,
+    ].join("\n");
+  } else if (delivery.sender.kind === "agent") {
     const senderAgentId = delivery.sender.agentId;
     const senderName = agentNames.get(senderAgentId) ?? senderAgentId;
     const replyProtocol = delivery.replyToMessageId
