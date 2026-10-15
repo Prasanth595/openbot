@@ -24,7 +24,9 @@ export const OPENBOT_DOWNLOAD_PAGE_LINKS = {
 } as const;
 
 export const OPENBOT_LINKS = {
-  contact: "https://x.com/OpenBot_",
+  /** The contact form page. */
+  contact: "/contact",
+  x: "https://x.com/OpenBot_",
   /** A Redirect Rule in the openbot.run Cloudflare zone sends this to the current Discord invite. */
   discord: "https://discord.openbot.run",
   download: "#download",

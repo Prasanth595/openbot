@@ -3,7 +3,7 @@ import { isDynamicRecord, isFunction } from "@openbot/contracts/runtime-values";
 import type { Effect } from "effect";
 import type { AuthStoreError } from "./d1-auth-repository";
 import type { EmailDeliveryError } from "./email-delivery";
-import type { SmtpFailure } from "./smtp-email-delivery";
+import type { SmtpContactMessage, SmtpFailure } from "./smtp-email-delivery";
 
 export interface WorkerBindings {
   DB: D1Database;
@@ -17,6 +17,8 @@ export interface WorkerBindings {
   GITHUB_TOKEN_RATE_LIMITER: RateLimit;
   /** Checked by the Live Activity relay only, so a Worker without it keeps its other routes. */
   LIVE_ACTIVITY_RATE_LIMITER?: RateLimit;
+  /** Checked by the contact form only, so a Worker without it keeps its other routes. */
+  CONTACT_RATE_LIMITER?: RateLimit;
   AUTH_EXPOSE_DEVELOPMENT_CODE?: string;
   EMAIL_SMTP_HOST?: string;
   EMAIL_SMTP_PORT?: string;
@@ -193,6 +195,10 @@ export interface TeamInviteEmailDelivery {
     inviteUrl: string;
     role: "admin" | "member";
   }): Effect.Effect<void, EmailDeliveryError | SmtpFailure>;
+}
+
+export interface ContactMessageDelivery {
+  send(message: SmtpContactMessage): Effect.Effect<void, SmtpFailure>;
 }
 
 export type EmailVerificationResult =

@@ -2,10 +2,11 @@ import { Effect, Schema } from "effect";
 import {
   RATE_LIMITED_DELIVERY_ERROR,
   type SmtpEmailConfig,
+  sendPrivateContactMessage,
   sendPrivateEmailCode,
   sendPrivateTeamInvite,
 } from "./smtp-email-delivery";
-import type { EmailCodeDelivery, TeamInviteEmailDelivery, WorkerBindings } from "./types";
+import type { ContactMessageDelivery, EmailCodeDelivery, TeamInviteEmailDelivery, WorkerBindings } from "./types";
 
 export class EmailDeliveryError extends Schema.TaggedError<EmailDeliveryError>()("EmailDeliveryError", {
   message: Schema.String,
@@ -57,6 +58,11 @@ export function createEmailCodeDelivery(bindings: EmailDeliveryBindings): EmailC
 export function createTeamInviteEmailDelivery(bindings: EmailDeliveryBindings): TeamInviteEmailDelivery | null {
   const smtp = readSmtpConfig(bindings);
   return smtp ? { send: (message) => sendPrivateTeamInvite(smtp, message) } : null;
+}
+
+export function createContactMessageDelivery(bindings: EmailDeliveryBindings): ContactMessageDelivery | null {
+  const smtp = readSmtpConfig(bindings);
+  return smtp ? { send: (message) => sendPrivateContactMessage(smtp, message) } : null;
 }
 
 function readSmtpConfig(bindings: EmailDeliveryBindings): SmtpEmailConfig | null {

@@ -119,6 +119,11 @@
       "name": "LIVE_ACTIVITY_RATE_LIMITER",
       "namespace_id": "2026092901",
       "simple": { "limit": 300, "period": 60 }
+    },
+    {
+      "name": "CONTACT_RATE_LIMITER",
+      "namespace_id": "2026101501",
+      "simple": { "limit": 2, "period": 60 }
     }
   ],
   "env": {
@@ -197,6 +202,11 @@
           "name": "LIVE_ACTIVITY_RATE_LIMITER",
           "namespace_id": "2026092902",
           "simple": { "limit": 300, "period": 60 }
+        },
+        {
+          "name": "CONTACT_RATE_LIMITER",
+          "namespace_id": "2026101502",
+          "simple": { "limit": 2, "period": 60 }
         }
       ]
     },
@@ -292,6 +302,11 @@
           "name": "LIVE_ACTIVITY_RATE_LIMITER",
           "namespace_id": "2026092903",
           "simple": { "limit": 300, "period": 60 }
+        },
+        {
+          "name": "CONTACT_RATE_LIMITER",
+          "namespace_id": "2026101503",
+          "simple": { "limit": 2, "period": 60 }
         }
       ]
     }

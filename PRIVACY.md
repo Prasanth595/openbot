@@ -409,6 +409,12 @@ role, and invite URL. The HTML version of a message loads the OpenBot logo from 
 the mail client shows images. The image address is the same in every message and identifies no
 recipient.
 
+The contact form on `openbot.run/contact` sends your message to the OpenBot mailbox through the same
+SMTP provider. The message contains the email address, topic and text that you enter, and the name and
+company when you enter them. The account service uses your IP address only to limit how many
+messages one address can send, and stores none of these values. The OpenBot team receives the message
+in its mailbox and uses your address only to answer you.
+
 Cloudflare processes account and configuration API requests. It does not carry Team API, file,
 message, command, Remote Desktop media, or Remote Desktop input traffic. It forwards sealed iPhone
 Live Activity updates and phone notifications that it cannot read; see [iPhone Live Activity](#iphone-live-activity),

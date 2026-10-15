@@ -79,6 +79,7 @@ type LandingDestination =
   | "news"
   | "guides"
   | "contact"
+  | "x"
   | "discord"
   | "repository"
   | "releases"
@@ -100,6 +101,7 @@ type DownloadPagePath = (typeof OPENBOT_DOWNLOAD_PAGE_LINKS)[keyof typeof OPENBO
 export type LandingScreenPath =
   | "/"
   | "/join"
+  | "/contact"
   | DownloadPagePath
   | CollectionIndexRoute
   | `${CollectionIndexRoute}/${string}`;
@@ -107,6 +109,7 @@ export type LandingScreenPath =
 const FIXED_SCREEN_PATHS = [
   "/",
   "/join",
+  "/contact",
   ...Object.values(OPENBOT_DOWNLOAD_PAGE_LINKS),
   "/news",
   "/guides",
@@ -184,6 +187,7 @@ const LINK_DESTINATIONS = new Map<string, LandingDestination>([
   [OPENBOT_LINKS.news, "news"],
   [OPENBOT_LINKS.guides, "guides"],
   [OPENBOT_LINKS.contact, "contact"],
+  [OPENBOT_LINKS.x, "x"],
   [OPENBOT_LINKS.discord, "discord"],
   [OPENBOT_LINKS.repository, "repository"],
   [OPENBOT_LINKS.releases, "releases"],

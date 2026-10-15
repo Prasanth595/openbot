@@ -1867,7 +1867,7 @@ a {
   max-width: 720px;
 }
 
-.landing-section-heading h2 {
+.landing-section-heading :is(h1, h2) {
   margin: 0;
   font-size: clamp(38px, 5vw, 64px);
   font-weight: 500;
@@ -9372,4 +9372,286 @@ a {
   text-decoration: underline;
   text-decoration-color: var(--openbot-border-strong);
   text-underline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+   Contact page: the form beside the other ways to reach the team. An error
+   replaces text on its own line, so a field never moves when one shows.
+   --------------------------------------------------------------------------- */
+
+.contact-section {
+  --contact-fill: color-mix(in srgb, var(--openbot-text-primary) 5%, transparent);
+  --contact-border: color-mix(in srgb, var(--openbot-text-primary) 8%, transparent);
+  --contact-border-hover: color-mix(in srgb, var(--openbot-text-primary) 48%, transparent);
+}
+
+.contact-card {
+  border: 1px solid var(--contact-border);
+  border-radius: 28px;
+  background: var(--contact-fill);
+  padding: clamp(20px, 3vw, 36px);
+}
+
+.contact-form {
+  display: grid;
+  gap: 20px;
+}
+
+.contact-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.contact-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* One line high in each state: the label on the left, then "Optional" or the error on the right. */
+.contact-field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  line-height: 20px;
+}
+
+.contact-field-head label {
+  flex: 0 0 auto;
+  color: var(--openbot-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.contact-optional,
+.contact-error {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-optional {
+  color: var(--openbot-text-muted);
+}
+
+.contact-error {
+  color: var(--openbot-danger-text);
+}
+
+.contact-field :is(input, textarea, select) {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--openbot-border-strong);
+  border-radius: var(--openbot-radius-card);
+  background: var(--openbot-bg-canvas);
+  padding: 12px 14px;
+  color: var(--openbot-text-primary);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  transition:
+    border-color var(--openbot-duration-normal) ease,
+    box-shadow var(--openbot-duration-normal) ease;
+}
+
+.contact-field textarea {
+  resize: vertical;
+}
+
+.contact-field textarea::placeholder {
+  color: var(--openbot-text-placeholder);
+}
+
+.contact-field :is(input, textarea, select):hover {
+  border-color: var(--contact-border-hover);
+}
+
+.contact-field :is(input, textarea, select):focus-visible {
+  outline: 0;
+  border-color: var(--openbot-border-focus);
+  box-shadow: 0 0 0 3px var(--openbot-accent-strong);
+}
+
+.contact-field [aria-invalid="true"] {
+  border-color: var(--openbot-danger-border);
+}
+
+.contact-field [aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px var(--openbot-danger-focus);
+}
+
+.contact-select {
+  position: relative;
+}
+
+.contact-select select {
+  appearance: none;
+  padding-right: 40px;
+}
+
+.contact-select-icon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 16px;
+  height: 16px;
+  color: var(--openbot-text-secondary);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.contact-count {
+  justify-self: end;
+  color: var(--openbot-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.contact-submit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.contact-submit button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.contact-privacy {
+  flex: 1 1 240px;
+  margin: 0;
+  color: var(--openbot-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.contact-privacy a {
+  color: var(--openbot-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.contact-privacy.contact-failed {
+  color: var(--openbot-danger-text);
+}
+
+.contact-sent {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: clamp(24px, 4vw, 48px) 0;
+  text-align: center;
+}
+
+.contact-sent-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--openbot-success-soft);
+  color: var(--openbot-success-text);
+}
+
+.contact-sent-mark svg {
+  width: 22px;
+  height: 22px;
+}
+
+.contact-sent h2 {
+  margin: 8px 0 0;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.contact-sent p {
+  margin: 0;
+  color: var(--openbot-text-secondary);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.contact-sent strong {
+  color: var(--openbot-text-primary);
+  font-weight: 500;
+}
+
+.contact-text-button {
+  margin-top: 8px;
+  border: 0;
+  background: none;
+  padding: 6px 0;
+  color: var(--openbot-text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.contact-text-button:hover,
+.contact-text-button:focus-visible {
+  color: var(--openbot-logo-production);
+}
+
+/* The other channels under the heading. */
+.contact-channels {
+  display: grid;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--openbot-border);
+}
+
+.contact-channels li {
+  border-bottom: 1px solid var(--openbot-border);
+}
+
+.contact-channels a {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  font-size: 15px;
+}
+
+.contact-channel-label {
+  font-weight: 500;
+}
+
+.contact-channel-detail {
+  overflow: hidden;
+  color: var(--openbot-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-channel-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--openbot-text-muted);
+  transition:
+    color var(--openbot-duration-normal) ease,
+    transform var(--openbot-duration-fast) ease;
+}
+
+.contact-channels a:hover .contact-channel-icon,
+.contact-channels a:focus-visible .contact-channel-icon {
+  color: var(--openbot-text-primary);
+  transform: translate(2px, -2px);
+}
+
+@media (max-width: 640px) {
+  .contact-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

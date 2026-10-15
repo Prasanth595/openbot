@@ -32,11 +32,19 @@ export interface TeamInviteEmailInput {
   role: "admin" | "member";
 }
 
+export interface ContactMessageEmailInput {
+  name: string | null;
+  email: string;
+  company: string | null;
+  topic: string;
+  message: string;
+}
+
 const SITE_URL = "https://openbot.run";
 const LOGO_URL = `${SITE_URL}/icon-192x192.png`;
 const FOOTER_LINKS = [
   { label: "openbot.run", href: SITE_URL },
-  { label: "X", href: OPENBOT_LINKS.contact },
+  { label: "X", href: OPENBOT_LINKS.x },
   { label: "GitHub", href: OPENBOT_LINKS.repository },
 ] as const;
 const FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, Helvetica, Arial, sans-serif";
@@ -119,6 +127,41 @@ export function renderTeamInviteEmail(input: TeamInviteEmailInput): RenderedEmai
           muted: true,
         }),
         linkFallback(input.inviteUrl),
+      ].join(""),
+      footer,
+    }),
+  };
+}
+
+// A message from the contact form on the site, to the team's own mailbox. The visitor wrote every
+// field, so the HTML escapes each one, and a reply goes to the visitor through `Reply-To`.
+export function renderContactMessageEmail(input: ContactMessageEmailInput): RenderedEmail {
+  const sender = input.name ? `${input.name} <${input.email}>` : input.email;
+  const fullSubject = `${input.topic} from ${input.name ?? input.email}`;
+  const subject = fullSubject.length > 150 ? `${fullSubject.slice(0, 149)}…` : fullSubject;
+  const preheader = input.message.slice(0, 120);
+  const footer = `Sent from the contact form on openbot.run. Reply to this email to answer ${input.email}.`;
+  return {
+    subject,
+    preheader,
+    text: textBody(
+      [
+        `From: ${sender}`,
+        ...(input.company ? [`Company: ${input.company}`] : []),
+        `Topic: ${input.topic}`,
+        "",
+        input.message,
+      ],
+      footer,
+    ),
+    html: renderLayout({
+      title: subject,
+      preheader,
+      body: [
+        heading(escapeHtml(input.topic)),
+        detailRow("From", sender),
+        ...(input.company ? [detailRow("Company", input.company)] : []),
+        paragraph(escapeHtml(input.message).replace(/\r?\n/gu, "<br>"), { last: true }),
       ].join(""),
       footer,
     }),
