@@ -34,7 +34,10 @@ export interface NotificationRelayPush {
  * without the keys of the phone, cannot make a phone show text.
  */
 export interface AndroidNotificationRelayPush {
-  /** The Firebase Cloud Messaging registration token of the app (`ANDROID_PUSH_TOKEN_PATTERN`). */
+  /**
+   * The Firebase Cloud Messaging registration token of the app (`ANDROID_PUSH_TOKEN_PATTERN` of
+   * `push-notifications-android-v1`).
+   */
   token: string;
   /** The account session of the phone on this host, as for `NotificationRelayPush`. */
   sessionId: string;
@@ -46,19 +49,12 @@ export interface AndroidNotificationRelayPush {
   timestamp: number;
 }
 
-/** One notification for the relay route of its platform. */
-export type NotificationRelayRequest =
-  | { platform: "ios"; push: NotificationRelayPush }
-  | { platform: "android"; push: AndroidNotificationRelayPush };
-
 /**
  * A sealed notification above this size would not fit the 4 KB Apple payload with its envelope.
  * Firebase Cloud Messaging data messages have the same 4 KB limit.
  */
 export const NOTIFICATION_SEALED_LIMIT = 3_600;
 export const NOTIFICATION_TOKEN_PATTERN = /^(?:[0-9a-f]{2}){8,256}$/u;
-/** The token pattern of `push-notifications-android-v1`. */
-export const ANDROID_NOTIFICATION_TOKEN_PATTERN = /^[A-Za-z0-9_:-]{32,4096}$/u;
 /**
  * The sound files in the app bundle, at the level of an alert. `openbot` is the sound of the desktop
  * app when a task finishes (`completion-sound.ts`), with the same sweep and envelope. The others are

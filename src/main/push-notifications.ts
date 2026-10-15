@@ -1,8 +1,9 @@
 import { type AgentEvent, type AgentSummary, latestTurnAnswer } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import {
+  type AndroidNotificationRelayPush,
   NOTIFICATION_SEALED_LIMIT,
-  type NotificationRelayRequest,
+  type NotificationRelayPush,
   type NotificationSound,
 } from "@openbot/contracts/notification-relay";
 import { type AppTranslate, resolveLocale, translateFor } from "@openbot/i18n";
@@ -34,6 +35,11 @@ const ANSWER_PAGE_SIZE = 20;
  * can end at any time after the member leaves the computer.
  */
 export const DESKTOP_USE_MS = 30 * 1000;
+
+/** One notification for the relay route of its platform. */
+export type NotificationRelayRequest =
+  | { platform: "ios"; push: NotificationRelayPush }
+  | { platform: "android"; push: AndroidNotificationRelayPush };
 
 type PushNotificationAgents = Pick<TeamApiAgents, "on" | "off" | "listAgents" | "readConversationPageFor">;
 

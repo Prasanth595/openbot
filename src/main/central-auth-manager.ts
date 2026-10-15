@@ -19,7 +19,6 @@ import {
   isMobileConnectHostBinding,
   type MobileConnectHostBinding,
 } from "@openbot/contracts/mobile-connect";
-import type { NotificationRelayRequest } from "@openbot/contracts/notification-relay";
 import {
   decodeRemoteSession,
   decodeRemoteSessionTicket,
@@ -62,6 +61,7 @@ import {
   type RemoteInviteRecord,
   type RemoteMemberRecord,
 } from "./central-auth-records";
+import type { NotificationRelayRequest } from "./push-notifications";
 
 interface CentralAuthEvents {
   changed: [state: CentralAuthState];

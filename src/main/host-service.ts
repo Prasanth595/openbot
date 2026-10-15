@@ -34,7 +34,6 @@ import type {
 } from "@openbot/contracts/ipc";
 import { conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
-import type { NotificationRelayRequest } from "@openbot/contracts/notification-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
@@ -46,7 +45,11 @@ import { BrowserViewGateway } from "./browser-view-gateway";
 import type { VerifiedRemoteSessionTicket } from "./central-auth-manager";
 import { LiveActivityPushService, LiveActivitySendFailure } from "./live-activity-push";
 import type { PushNotificationStore } from "./push-notification-store";
-import { PushNotificationSendFailure, PushNotificationService } from "./push-notifications";
+import {
+  type NotificationRelayRequest,
+  PushNotificationSendFailure,
+  PushNotificationService,
+} from "./push-notifications";
 import type { RemoteDesktopRuntimePaths } from "./remote-desktop-runtime-artifact";
 import { appendRemoteDiagnosticLog } from "./remote-diagnostics";
 import { RemoteScreenGateway, type RemoteScreenGatewayCreateRuntime } from "./remote-screen-gateway";

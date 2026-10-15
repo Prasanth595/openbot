@@ -1,11 +1,11 @@
 import {
-  ANDROID_NOTIFICATION_TOKEN_PATTERN,
   type AndroidNotificationRelayPush,
   NOTIFICATION_SEALED_LIMIT,
   NOTIFICATION_SOUNDS,
   type NotificationSound,
 } from "@openbot/contracts/notification-relay";
 import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
+import { ANDROID_PUSH_TOKEN_PATTERN } from "@openbot/contracts/team-protocol/push-notifications-android-v1";
 import { Effect, Schema } from "effect";
 import { importPKCS8, SignJWT } from "jose";
 
@@ -173,7 +173,7 @@ function notificationMessage(push: AndroidNotificationRelayPush) {
 /** Reads one notification from a host request body, or returns `null` when it is not valid. */
 export function readAndroidNotificationRelayPush(body: DynamicRecord): AndroidNotificationRelayPush | null {
   const { token, sessionId, sealed, sound, timestamp } = body;
-  if (!isString(token) || !ANDROID_NOTIFICATION_TOKEN_PATTERN.test(token)) return null;
+  if (!isString(token) || !ANDROID_PUSH_TOKEN_PATTERN.test(token)) return null;
   if (!isString(sessionId) || !sessionId || sessionId.length > 128) return null;
   if (!isString(sealed) || !sealed || sealed.length > NOTIFICATION_SEALED_LIMIT || !/^[A-Za-z0-9_-]+$/u.test(sealed)) {
     return null;
