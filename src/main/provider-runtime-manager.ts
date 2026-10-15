@@ -17,7 +17,7 @@ import {
   type ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
-import { sourceText } from "@openbot/i18n/source";
+import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, type LogValue, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Result, Scope, Stream } from "effect";
 import lockValue from "../../native-runtime.lock.json";
@@ -1022,9 +1022,10 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
           stage: this.#stages.get(runtime) ?? "prepare",
           cause: logCause(error),
         });
+      // The row shows catalog text only. A system error names private paths; the log line keeps it.
       const message = isAbortError(error)
         ? sourceText("status.provider.downloadStopped")
-        : error instanceof Error
+        : error instanceof Error && matchingSourceKeys(error.message).length > 0
           ? redactText(error.message)
           : sourceText("status.provider.downloadFailed");
       this.#setStatus(runtime, {

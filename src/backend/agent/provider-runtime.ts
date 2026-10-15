@@ -18,7 +18,7 @@ import {
   isAgentProvider,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
-import { sourceText } from "@openbot/i18n/source";
+import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { classifyUserError } from "@openbot/user-errors";
 import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect";
@@ -1579,7 +1579,11 @@ export class ProviderRuntime implements ProviderPort {
             const failure = new Error(
               sourceText("error.provider.cliUpdateFailed", {
                 provider: providerLabel(provider),
-                reason: cause instanceof Error ? redactText(cause.message) : sourceText("error.provider.tryAgain"),
+                // Catalog text only: a system error names private paths, and team admins read this status.
+                reason:
+                  cause instanceof Error && matchingSourceKeys(cause.message).length > 0
+                    ? redactText(cause.message)
+                    : sourceText("error.provider.tryAgain"),
               }),
               { cause },
             );
