@@ -264,7 +264,8 @@ async function waitForNamedSnapshot(boat: BoatRequester, name: string, initial?:
  * Removes the production snapshots of releases before this one. It keeps the newest `keepReleases - 1`
  * ready ones, so `keepReleases` remain with this release. The newest of them stays selected until this
  * release replaces it. Sandboxes made from a removed snapshot keep running, but a pending create sends
- * its first request again, so a name in `inUse` stays. A save in progress stays too.
+ * its first request again, so a name in `inUse` stays. A failed snapshot of an older release goes;
+ * a save in progress or an unknown status stays.
  */
 async function removeOldReleases(boat: BoatRequester, options: TemplateOptions): Promise<void> {
   if (options.keepReleases === null) return;
@@ -289,7 +290,7 @@ async function removeOldReleases(boat: BoatRequester, options: TemplateOptions):
       kept += 1;
       continue;
     }
-    if (snapshot.status === "saving" || options.inUse.has(snapshot.name)) continue;
+    if ((snapshot.status !== "ready" && snapshot.status !== "failed") || options.inUse.has(snapshot.name)) continue;
     try {
       await boat("DELETE", `/named-snapshots/${encodeURIComponent(snapshot.name)}`, "Named snapshot deletion");
     } catch (error) {
@@ -355,13 +356,14 @@ function parseOptions(args: string[]): TemplateOptions {
   const keepArgument = args.find((argument) => argument.startsWith("--keep-releases="))?.slice(16);
   const keepReleases = keepArgument === undefined ? null : Number(keepArgument);
   if (keepReleases !== null) {
-    if (!Number.isInteger(keepReleases) || keepReleases < 1) throw new Error("--keep-releases must be 1 or more.");
+    // With 1, the template that is selected now would go before this release replaces it.
+    if (!Number.isInteger(keepReleases) || keepReleases < 2) throw new Error("--keep-releases must be 2 or more.");
     if (name !== `${PRODUCTION_PREFIX}${version.replaceAll(".", "-")}`) {
       throw new Error("--keep-releases needs the production snapshot name of --version.");
     }
   }
+  // Only compared with snapshot names, so a template value that boat refused cannot stop a release.
   const inUse = (args.find((argument) => argument.startsWith("--in-use="))?.slice(9) ?? "").split(",").filter(Boolean);
-  if (!inUse.every((entry) => SNAPSHOT_NAME.test(entry))) throw new Error("--in-use must list boat snapshot names.");
   return {
     name,
     version,
