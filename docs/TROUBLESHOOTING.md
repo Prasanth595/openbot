@@ -220,7 +220,10 @@ are independent and are not removed with OpenBot.
 
 ## Report a problem
 
-Use [GitHub Issues](https://github.com/nightly-labs/openbot/issues) for reproducible bugs. Include
-the OpenBot version, the operating system and its version, the hardware, the provider and CLI
-version, and minimal reproduction steps. Never publish tokens, `~/.codex`, `~/.claude`, conversations, private files,
-Electron user data, or full unreviewed diagnostics.
+Use the [bug report form](https://github.com/nightly-labs/openbot/issues/new?template=bug_report.yml)
+for reproducible bugs. It asks for the platform, the OpenBot version (Settings → Updates on the
+desktop, Settings → About on the phone), the operating system and hardware, the provider and its CLI
+version, the steps, and the expected and actual results. When a provider row shows an error, select
+**Copy diagnostics** in its menu and paste the result into the form. On the phone, Settings →
+Support → **Save log file** makes a log that you can attach. Never publish tokens, `~/.codex`,
+`~/.claude`, conversations, private files, Electron user data, or full unreviewed diagnostics.
