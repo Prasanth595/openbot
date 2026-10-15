@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { createReadStream, createWriteStream } from "node:fs";
 import { access, mkdir, readdir, readFile, rename, rm, stat, statfs, utimes, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { finished } from "node:stream/promises";
 import { promisify } from "node:util";
@@ -16,8 +17,8 @@ import {
   type ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
-import { sourceText } from "@openbot/i18n/source";
-import { createOpenBotLogger, redactText, toLogValue } from "@openbot/logging";
+import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
+import { createOpenBotLogger, type LogValue, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Fiber, Result, Scope, Stream } from "effect";
 import lockValue from "../../native-runtime.lock.json";
 import { type AgentRuntimeLock, parseAgentRuntimeLock } from "../../scripts/agent-runtime-lock";
@@ -106,6 +107,12 @@ const RELEASE_CHECK_WAIT_MS = 10_000;
 
 type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 type PartialMetadata = { url: string; etag: string | null; expectedBytes: number };
+/**
+ * Where a download task was when it failed, for the log line. A failed update removes what it
+ * installed, so this line is the only record of how far it got. `activate` is the swap into the
+ * running provider, after the install verified.
+ */
+type RuntimeTaskStage = "prepare" | "download" | "verify" | "install" | "activate";
 interface ProviderRuntimeManagerEvents {
   status: [snapshot: ProviderRuntimeSnapshot];
   ready: [runtime: ManagedRuntimeId];
@@ -179,6 +186,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   readonly #latest = new Map<ManagedProviderId, RuntimeSpec>();
   /** What each running download installs, so a cancel removes the right partial file. */
   readonly #transfers = new Map<ManagedRuntimeId, RuntimeSpec>();
+  readonly #stages = new Map<ManagedRuntimeId, RuntimeTaskStage>();
   readonly #updateRuntime: (
     runtime: ManagedRuntimeId,
     install: () => Effect.Effect<string, ProviderRuntimeFailure>,
@@ -434,6 +442,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       const controller = new AbortController();
       this.#controllers.set(runtime, controller);
       this.#transfers.set(runtime, spec);
+      this.#stages.set(runtime, "prepare");
       this.#cancelled.delete(runtime);
       this.#setStatus(runtime, {
         phase: "downloading",
@@ -448,13 +457,14 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
           Effect.catch((error) => {
             this.#controllers.delete(runtime);
             this.#tasks.delete(runtime);
-            return this.#handleDownloadFailure(runtime, error.cause);
+            return this.#handleDownloadFailure(spec, error.cause);
           }),
           Effect.ensuring(
             Effect.sync(() => {
               this.#controllers.delete(runtime);
               this.#tasks.delete(runtime);
               this.#transfers.delete(runtime);
+              this.#stages.delete(runtime);
               this.#cancelled.delete(runtime);
             }),
           ),
@@ -649,6 +659,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
               installed = yield* this.#runDownloadEffect(spec, signal);
               yield* this.#removePartialEffect(spec);
             }
+            this.#stages.set(spec.runtime, "activate");
             return join(this.#installRoot(spec), "bin", spec.executableName);
           }),
         ),
@@ -666,6 +677,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
 
   #runDownloadEffect(spec: RuntimeSpec, signal: AbortSignal): Effect.Effect<boolean, ProviderRuntimeFailure> {
     return Effect.gen({ self: this }, function* (): Effect.fn.Return<boolean, ProviderRuntimeFailure, Scope.Scope> {
+      this.#stages.set(spec.runtime, "download");
       yield* runtimeIO(async () => await mkdir(this.#downloadRoot(), { recursive: true }));
       yield* this.#requireDiskSpaceEffect(spec);
       const partialPath = this.#partialPath(spec);
@@ -675,9 +687,13 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       const digest = spec.archiveDigest;
       // An earlier attempt can get every byte and then fail while it stages them. A Retry installs
       // those bytes when they still verify, instead of downloading them again.
-      if (previous.complete && digest && (yield* digestMatches(partialPath, digest))) {
-        this.#setFinishing(spec.runtime);
-        return yield* this.#installEffect(spec, partialPath);
+      if (previous.complete && digest) {
+        this.#stages.set(spec.runtime, "verify");
+        if (yield* digestMatches(partialPath, digest)) {
+          this.#setFinishing(spec.runtime);
+          return yield* this.#installEffect(spec, partialPath);
+        }
+        this.#stages.set(spec.runtime, "download");
       }
       let offset = previous.offset;
       let response = yield* Effect.acquireRelease(
@@ -726,6 +742,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       });
 
       this.#setFinishing(spec.runtime);
+      this.#stages.set(spec.runtime, "verify");
       const downloaded = yield* runtimeIO(async () => await stat(partialPath));
       if (downloaded.size !== spec.downloadBytes) {
         return yield* new ProviderRuntimeFailure({ cause: new Error(sourceText("error.provider.downloadSize")) });
@@ -743,6 +760,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
 
   #installEffect(spec: RuntimeSpec, downloadedPath: string): Effect.Effect<boolean, ProviderRuntimeFailure> {
     return Effect.gen({ self: this }, function* () {
+      this.#stages.set(spec.runtime, "install");
       const staging = join(
         this.#runtimeRoot(spec.runtime),
         `.staging-${spec.target}-${spec.version}-${process.pid}-${randomBytes(4).toString("hex")}`,
@@ -989,15 +1007,25 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
         return yield* new ProviderRuntimeFailure({ cause: new Error(sourceText("error.provider.diskSpace")) });
     });
   }
-  #handleDownloadFailure(runtime: ManagedRuntimeId, error: unknown): Effect.Effect<void, ProviderRuntimeFailure> {
+  #handleDownloadFailure(spec: RuntimeSpec, error: unknown): Effect.Effect<void, ProviderRuntimeFailure> {
+    const runtime = spec.runtime;
     return Effect.sync(() => {
       if (this.#cancelled.has(runtime)) return;
       if (this.#stopping && isAbortError(error)) return;
-      // The screen shows the reason only in the row. A support report then has the log alone.
-      if (!isAbortError(error)) logger.warn(`OpenBot could not install the ${runtime} runtime.`, toLogValue(error));
+      // The screen shows the reason only in the row, and a failed update removes what it installed.
+      // A support report then has this line alone, in `logs/providers/providers.log`.
+      if (!isAbortError(error))
+        logger.warn("Provider runtime update failed.", {
+          runtime,
+          version: spec.version,
+          installedVersion: this.#statuses[runtime].version,
+          stage: this.#stages.get(runtime) ?? "prepare",
+          cause: logCause(error),
+        });
+      // The row shows catalog text only. A system error names private paths; the log line keeps it.
       const message = isAbortError(error)
         ? sourceText("status.provider.downloadStopped")
-        : error instanceof Error
+        : error instanceof Error && matchingSourceKeys(error.message).length > 0
           ? redactText(error.message)
           : sourceText("status.provider.downloadFailed");
       this.#setStatus(runtime, {
@@ -1432,6 +1460,25 @@ function abortError(): Error {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
+}
+
+/**
+ * A failure as the log may keep it: the name, code and message of each cause, without a stack, and
+ * with the home directory written as `~`. The logger redacts secrets again when it writes the line.
+ */
+function logCause(error: unknown, depth = 0): LogValue {
+  if (!(error instanceof Error)) return withoutHome(JSON.stringify(toLogValue(error)) ?? "");
+  return {
+    name: error.name,
+    code: errorCode(error),
+    message: withoutHome(redactText(error.message)),
+    ...(error.cause !== undefined && depth < 3 ? { cause: logCause(error.cause, depth + 1) } : {}),
+  };
+}
+
+function withoutHome(text: string): string {
+  const home = homedir();
+  return home.length > 1 ? text.replaceAll(home, "~") : text;
 }
 
 /**

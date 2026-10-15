@@ -90,6 +90,20 @@ const subscriptionSchema = Schema.Struct({
   }),
 });
 export type StripeSubscription = typeof subscriptionSchema.Type;
+const expandable = Schema.Union([Schema.String, Schema.Struct({ id: Schema.String })]);
+const invoicePaymentListSchema = Schema.Struct({ data: Schema.Array(Schema.Struct({ invoice: expandable })) });
+const invoiceSchema = Schema.Struct({
+  id: Schema.String,
+  parent: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        subscription_details: Schema.optional(
+          Schema.NullOr(Schema.Struct({ subscription: Schema.optional(Schema.NullOr(expandable)) })),
+        ),
+      }),
+    ),
+  ),
+});
 const eventSchema = Schema.Struct({
   id: Schema.String,
   type: Schema.String,
@@ -275,6 +289,31 @@ export class StripeClient {
       null,
       subscriptionSchema,
     );
+  }).bind(this);
+
+  /**
+   * The invoice that a PaymentIntent paid, and the subscription of that invoice. Null for a payment of no
+   * subscription invoice. From API version 2025-03-31 a charge does not name its invoice.
+   */
+
+  readonly getPaymentInvoice = Effect.fn("StripeClient.getPaymentInvoice")(function* (
+    this: StripeClient,
+    paymentIntentId: string,
+  ): Effect.fn.Return<{ invoiceId: string; subscriptionId: string } | null, StripeRequestError | StripeTransportError> {
+    const query = new URLSearchParams({
+      "payment[type]": "payment_intent",
+      "payment[payment_intent]": paymentIntentId,
+      limit: "1",
+    });
+    const payments = yield* this.#requestEffect("GET", `/v1/invoice_payments?${query}`, null, invoicePaymentListSchema);
+    const invoice = payments.data[0]?.invoice;
+    if (!invoice) return null;
+    const invoiceId = typeof invoice === "string" ? invoice : invoice.id;
+    const path = `/v1/invoices/${encodeURIComponent(invoiceId)}`;
+    const subscription = (yield* this.#requestEffect("GET", path, null, invoiceSchema)).parent?.subscription_details
+      ?.subscription;
+    if (!subscription) return null;
+    return { invoiceId, subscriptionId: typeof subscription === "string" ? subscription : subscription.id };
   }).bind(this);
 
   readonly #requestEffect = Effect.fn("StripeClient.request")(function* <T>(

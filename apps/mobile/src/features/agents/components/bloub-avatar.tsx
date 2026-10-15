@@ -1,19 +1,20 @@
-import { BotEngine } from "@norbert_bodziony/bloub";
-import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
+import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/bloub-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
-import { memo, useId, useMemo } from "react";
+import { memo, useCallback, useId, useMemo, useState } from "react";
 import Animated, {
   type DerivedValue,
   type SharedValue,
   useAnimatedProps,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import Svg, { Circle, Defs, FeColorMatrix, Filter, G, Mask, Path, Rect } from "react-native-svg";
+import Svg, { Circle, Defs, FeColorMatrix, Filter, G, Path } from "react-native-svg";
 import { useAgentColorTransition } from "@/features/agents/components/agent-color-glow";
+import { AgentOrbitRings } from "@/features/agents/components/agent-orbit-rings";
 import { useBloubActivityFrame } from "@/features/agents/components/use-bloub-activity-frame";
 import {
   type BloubActivityFrame,
   bloubActivityGeometry,
+  bloubRestEngineFrame,
   getBloubAvatarColor,
 } from "@/features/agents/model/bloub-activity";
 import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
@@ -21,7 +22,7 @@ import {
   DISCONNECTED_APPEARANCE,
   useConnectionAppearance,
 } from "@/features/workspace/components/use-connection-appearance";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { agentActivityMood } from "@/features/workspace/model/agent-activity";
 import { AgentPhoto, type AgentPhotoProps } from "./agent-photo";
 
@@ -31,17 +32,18 @@ interface BloubAvatarProps extends AgentPhotoProps {
   seed: string;
   size?: number;
   animateIdle?: boolean;
+  /** Turns the desktop's orbit rings around the avatar while the agent works. */
+  rings?: boolean;
 }
 
 const AVATAR_PAPER = "#f9f9f9";
 const AnimatedColorMatrix = Animated.createAnimatedComponent(FeColorMatrix);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 function AvatarEye({ frame, index }: { frame: DerivedValue<BloubActivityFrame>; index: number }) {
   const props = useAnimatedProps(() => frame.get().eyes[index] ?? { d: "", opacity: 0, matrix: [1, 0, 0, 1, 0, 0] });
-  return <AnimatedPath fill="#000000" animatedProps={props} />;
+  return <AnimatedPath fill={AVATAR_PAPER} animatedProps={props} />;
 }
 
 function AvatarDot({ frame, index, color }: { frame: DerivedValue<BloubActivityFrame>; index: number; color: string }) {
@@ -49,10 +51,21 @@ function AvatarDot({ frame, index, color }: { frame: DerivedValue<BloubActivityF
   return <AnimatedCircle fill={color} animatedProps={props} />;
 }
 
-export function BloubAvatar({ agentId, serverId: hostId, hue, seed, size = 54, animateIdle = true }: BloubAvatarProps) {
-  const { agents, servers } = useMobileWorkspace();
-  const serverId = hostId ?? agents.find((agent) => agent.id === agentId)?.serverId;
-  const disconnected = !servers.some((server) => server.id === serverId && server.state === "online");
+export function BloubAvatar({
+  agentId,
+  serverId: hostId,
+  hue,
+  seed,
+  size = 54,
+  animateIdle = true,
+  rings = false,
+}: BloubAvatarProps) {
+  const serverId = useMobileWorkspaceSelector(
+    (workspace) => hostId ?? workspace.agents.find((agent) => agent.id === agentId)?.serverId,
+  );
+  const disconnected = useMobileWorkspaceSelector(
+    (workspace) => !workspace.servers.some((server) => server.id === serverId && server.state === "online"),
+  );
   const activity = useAgentActivity(agentId);
   return (
     <BloubAvatarPreview
@@ -62,6 +75,7 @@ export function BloubAvatar({ agentId, serverId: hostId, hue, seed, size = 54, a
       seed={seed}
       size={size}
       animateIdle={animateIdle}
+      rings={rings}
       disconnected={disconnected}
       mood={disconnected ? "idle" : agentActivityMood(activity)}
     />
@@ -78,10 +92,18 @@ interface AvatarPreviewOptions {
 export const BloubAvatarPreview = memo(function BloubAvatarPreview(
   props: Omit<BloubAvatarProps, "agentId"> & AgentPhotoProps & AvatarPreviewOptions,
 ) {
-  return (
-    <AgentPhoto {...props} size={props.size ?? 54}>
+  const size = props.size ?? 54;
+  const avatar = (
+    <AgentPhoto {...props} size={size}>
       <AnimatedAvatarPreview {...props} />
     </AgentPhoto>
+  );
+  if (!props.rings) return avatar;
+  // The ring wrapper stays mounted when work starts and stops, so the face keeps its glide.
+  return (
+    <AgentOrbitRings active={!props.disconnected && avatarMoodPresentation(props.mood ?? "idle").rings} size={size}>
+      {avatar}
+    </AgentOrbitRings>
   );
 });
 
@@ -94,12 +116,18 @@ const AnimatedAvatarPreview = memo(function AnimatedAvatarPreview({
   animateIdle = true,
   animatedColor,
 }: Omit<BloubAvatarProps, "agentId"> & AvatarPreviewOptions) {
-  const appearance = useConnectionAppearance(disconnected);
+  // Android draws a filtered group off screen on every redraw. The gray filter applies only while
+  // the avatar is offline or returns to its colour, where saturation is not 1.
+  const [filtered, setFiltered] = useState(disconnected);
+  if (disconnected && !filtered) setFiltered(true);
+  const releaseFilter = useCallback((settledDisconnected: boolean) => {
+    if (!settledDisconnected) setFiltered(false);
+  }, []);
+  const appearance = useConnectionAppearance(disconnected, filtered ? releaseFilter : undefined);
   const colorProps = useAnimatedProps(() => ({ values: [appearance.get().saturation] }));
   const appearanceStyle = useAnimatedStyle(() => ({ opacity: appearance.get().opacity }));
   const frame = useBloubActivityFrame(seed, mood, animateIdle && !disconnected);
-  const bodyProps = useAnimatedProps(() => frame.get().body);
-  const maskId = `bloub-${useId().replaceAll(":", "")}`;
+  const filterId = `bloub-${useId().replaceAll(":", "")}-offline`;
   const color = getBloubAvatarColor(seed, hue);
 
   // The opacity stays on the native view: react-native-svg on Android crashes with
@@ -114,24 +142,20 @@ const AnimatedAvatarPreview = memo(function AnimatedAvatarPreview({
         viewBox="-158 -158 316 316"
         width={size}
       >
-        <Defs>
-          <Filter id={`${maskId}-offline`}>
-            <AnimatedColorMatrix type="saturate" animatedProps={colorProps} />
-          </Filter>
-          <Mask id={maskId} x={-158} y={-158} width={316} height={316} maskUnits="userSpaceOnUse">
-            <AnimatedPath fill="#ffffff" animatedProps={bodyProps} />
-            <AvatarEye frame={frame} index={0} />
-            <AvatarEye frame={frame} index={1} />
-          </Mask>
-        </Defs>
+        {filtered ? (
+          <Defs>
+            <Filter id={filterId}>
+              <AnimatedColorMatrix type="saturate" animatedProps={colorProps} />
+            </Filter>
+          </Defs>
+        ) : null}
         {/* Mobile-only feedback: keep the synced avatar profile and color untouched. */}
-        <G filter={`url(#${maskId}-offline)`}>
-          <AnimatedPath fill={AVATAR_PAPER} animatedProps={bodyProps} />
-          {animatedColor ? (
-            <AnimatedBodyColor color={animatedColor} maskId={maskId} />
-          ) : (
-            <Rect fill={color} height={316} mask={`url(#${maskId})`} width={316} x={-158} y={-158} />
-          )}
+        <G filter={filtered ? `url(#${filterId})` : undefined}>
+          {/* The body and eyes are opaque in every pose the phone plays, so paper eyes on the coloured
+              body draw what a body mask with cut-out eyes drew, without a mask layer on each redraw. */}
+          <AvatarBody frame={frame} color={animatedColor ?? color} />
+          <AvatarEye frame={frame} index={0} />
+          <AvatarEye frame={frame} index={1} />
           <AvatarDot frame={frame} index={0} color={color} />
           <AvatarDot frame={frame} index={1} color={color} />
           <AvatarDot frame={frame} index={2} color={color} />
@@ -141,9 +165,18 @@ const AnimatedAvatarPreview = memo(function AnimatedAvatarPreview({
   );
 });
 
-function AnimatedBodyColor({ color, maskId }: { color: SharedValue<string>; maskId: string }) {
-  const props = useAnimatedProps(() => ({ fill: color.get() }));
-  return <AnimatedRect animatedProps={props} height={316} mask={`url(#${maskId})`} width={316} x={-158} y={-158} />;
+function AvatarBody({
+  frame,
+  color,
+}: {
+  frame: DerivedValue<BloubActivityFrame>;
+  color: string | SharedValue<string>;
+}) {
+  const props = useAnimatedProps(() => ({
+    ...frame.get().body,
+    fill: typeof color === "string" ? color : color.get(),
+  }));
+  return <AnimatedPath animatedProps={props} />;
 }
 
 // Choices show the same idle pose without mounting animation clocks, worklets,
@@ -170,10 +203,7 @@ export const AvatarThumbnail = memo(function AvatarThumbnail({
   /** Eases the body to a new colour, for a picker where the colour changes in place. */
   animateColor?: boolean;
 }) {
-  const frame = useMemo(() => {
-    const geometry = bloubActivityGeometry(seed);
-    return new BotEngine(100, "idle", geometry.radii, geometry.expression).sample(0);
-  }, [seed]);
+  const frame = useMemo(() => bloubRestEngineFrame(bloubActivityGeometry(seed)), [seed]);
   return (
     <Svg
       accessibilityElementsHidden

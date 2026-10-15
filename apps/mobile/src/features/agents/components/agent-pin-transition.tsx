@@ -13,7 +13,7 @@ import { View } from "react-native";
 import { Easing, ReduceMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
 import { AgentPinTransitionOverlay } from "@/features/agents/components/agent-pin-transition-overlay";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspaceReader } from "@/features/workspace/context/mobile-workspace-context";
 import { canToggleAgentPin } from "@/features/workspace/model/agent-pins";
 import { haptics } from "@/shared/lib/haptics";
 
@@ -47,7 +47,8 @@ const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
 const TRANSITION_DURATION = 320;
 
 export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
-  const { agents, pinnedAgentIds, toggleAgentPin } = useMobileWorkspace();
+  // Read when a pin changes, so the rows that use this context do not render for every workspace update.
+  const workspace = useMobileWorkspaceReader();
   const containerRef = useRef<View>(null);
   const avatarRefs = useRef(new Map<string, Partial<Record<AgentAvatarLocation, View>>>()).current;
   const avatarRects = useRef(new Map<string, Partial<Record<AgentAvatarLocation, AvatarRect>>>()).current;
@@ -147,7 +148,7 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
       commit: () => string,
       options?: { haptic: boolean },
     ) => {
-      if (transitionRef.current || !canToggleAgentPin(pinnedAgentIds, chatId)) return;
+      if (transitionRef.current || !canToggleAgentPin(workspace().pinnedAgentIds, chatId)) return;
       const source: AgentAvatarLocation = isPinned ? "pinned" : "row";
       const target: AgentAvatarLocation = isPinned ? "row" : "pinned";
       const sourceNode = avatarRefs.get(chatId)?.[source];
@@ -190,22 +191,23 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
         });
       });
     },
-    [avatarRefs, finishTransition, pinnedAgentIds, progress],
+    [avatarRefs, finishTransition, progress, workspace],
   );
 
   const toggleAgentPinAnimated = useCallback(
     (agentId: string, options?: { haptic: boolean }) => {
+      const { agents, pinnedAgentIds } = workspace();
       const agent = agents.find((item) => item.id === agentId);
       if (!agent) return;
       togglePinAnimated(
         agentId,
         { hue: agent.avatarHue, seed: agent.avatarSeed },
         pinnedAgentIds.includes(agentId),
-        () => toggleAgentPin(agentId),
+        () => workspace().toggleAgentPin(agentId),
         options,
       );
     },
-    [agents, pinnedAgentIds, toggleAgentPin, togglePinAnimated],
+    [togglePinAnimated, workspace],
   );
 
   useEffect(
@@ -237,7 +239,7 @@ export function AgentPinTransitionProvider({ children }: PropsWithChildren) {
 
 export function useAgentPinTransition(): AgentPinTransitionContextValue {
   const context = useContext(AgentPinTransitionContext);
-  const { toggleAgentPin } = useMobileWorkspace();
+  const workspace = useMobileWorkspaceReader();
 
   return useMemo(
     () =>
@@ -245,10 +247,10 @@ export function useAgentPinTransition(): AgentPinTransitionContextValue {
         notifyAvatarLayout: () => undefined,
         registerAvatar: () => undefined,
         toggleAgentPinAnimated: (agentId: string) => {
-          toggleAgentPin(agentId);
+          workspace().toggleAgentPin(agentId);
         },
         transition: null,
       },
-    [context, toggleAgentPin],
+    [context, workspace],
   );
 }

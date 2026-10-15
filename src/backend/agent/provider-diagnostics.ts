@@ -160,6 +160,21 @@ export function isBackgroundRefreshDiagnostic(message: string): boolean {
 }
 
 /**
+ * Whether a provider diagnostic is Codex's notice that it uses its bundled bubblewrap.
+ *
+ * On Linux, Codex looks for `bwrap` on PATH for its sandbox. When it is not there, it writes "Codex
+ * could not find bubblewrap on PATH" at `ERROR` level, and then "Codex will use the bundled bubblewrap
+ * in the meantime". Codex starts and works. The user of a Docker server met the line as a "Provider
+ * error" toast on each connect, with no way to know if the provider worked (#2177). The release
+ * installs `bubblewrap` now; a server with an older package list still writes the notice.
+ *
+ * Only the notice with the fallback counts. A bubblewrap failure that has no fallback stays visible.
+ */
+export function isBundledSandboxFallbackDiagnostic(message: string): boolean {
+  return /\bcould not find bubblewrap on PATH\b[\s\S]*\bwill use the bundled bubblewrap\b/i.test(message);
+}
+
+/**
  * Whether a provider diagnostic is the ACP SDK's own copy of an error that the agent also answered.
  *
  * The TypeScript ACP SDK that a Node agent is built on writes `Error handling request`, the whole

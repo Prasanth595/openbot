@@ -273,7 +273,9 @@ const Settings = createSimpleContext({
         previous.macBookNotchIdle !== value.macBookNotchIdle ||
         previous.macBookNotchAdditionalDisplays !== value.macBookNotchAdditionalDisplays ||
         previous.macBookNotchWidthPercent !== value.macBookNotchWidthPercent ||
-        previous.macBookNotchHeightPercent !== value.macBookNotchHeightPercent
+        previous.macBookNotchHeightPercent !== value.macBookNotchHeightPercent ||
+        previous.macBookNotchServers !== value.macBookNotchServers ||
+        previous.macBookNotchNewServers !== value.macBookNotchNewServers
       ) {
         // A slider drag sends one save per step. Only the reply to the newest save may change the
         // form, or an older reply would move the slider back while the user drags.
@@ -286,6 +288,8 @@ const Settings = createSimpleContext({
             additionalDisplaysEnabled: value.macBookNotchAdditionalDisplays,
             widthPercent: value.macBookNotchWidthPercent,
             heightPercent: value.macBookNotchHeightPercent,
+            serverVisibility: value.macBookNotchServers,
+            newServersVisible: value.macBookNotchNewServers,
           })
           .then((preference) => {
             if (save !== dynamicIslandSaveCount) return;
@@ -297,6 +301,8 @@ const Settings = createSimpleContext({
               macBookNotchAdditionalDisplays: preference.additionalDisplaysEnabled,
               macBookNotchWidthPercent: preference.widthPercent,
               macBookNotchHeightPercent: preference.heightPercent,
+              macBookNotchServers: preference.serverVisibility,
+              macBookNotchNewServers: preference.newServersVisible,
             }));
           })
           .catch(() => {
@@ -309,6 +315,8 @@ const Settings = createSimpleContext({
               macBookNotchAdditionalDisplays: previous.macBookNotchAdditionalDisplays,
               macBookNotchWidthPercent: previous.macBookNotchWidthPercent,
               macBookNotchHeightPercent: previous.macBookNotchHeightPercent,
+              macBookNotchServers: previous.macBookNotchServers,
+              macBookNotchNewServers: previous.macBookNotchNewServers,
             }));
           });
       }
@@ -454,6 +462,8 @@ const Settings = createSimpleContext({
             macBookNotchAdditionalDisplays: preference.additionalDisplaysEnabled,
             macBookNotchWidthPercent: preference.widthPercent,
             macBookNotchHeightPercent: preference.heightPercent,
+            macBookNotchServers: preference.serverVisibility,
+            macBookNotchNewServers: preference.newServersVisible,
           })),
         )
         .catch(() => undefined);

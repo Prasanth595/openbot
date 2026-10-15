@@ -19,7 +19,7 @@ export const messages = {
   "update.provider.updating": "Обновление {name}",
   "update.provider.failed": "Не удалось обновить {name}",
   "update.provider.settingUp": "Настройка",
-  "update.provider.interrupted": "Обновление прервано. Повторите попытку.",
+  "update.provider.failedRetry": "Не удалось обновить. Повторите попытку.",
   "update.provider.unknownVersion": "неизвестная версия",
   "update.provider.remoteHost": "Обновления CLI провайдеров выполняются на компьютере, где они размещены.",
   "update.provider.unavailable": "Обновления провайдеров недоступны.",

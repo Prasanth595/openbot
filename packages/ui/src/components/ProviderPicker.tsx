@@ -1157,7 +1157,10 @@ function providerStatusLabel(
   if (connecting && state !== "available") return translate("provider.status.connecting");
   // Update offers outrank "Connected"/"Ready": a hidden offer is never taken.
   if (updatable) return translate("provider.status.updateAvailable");
-  if (runtimeStatus?.phase === "download-error") return translate("provider.status.downloadFailed");
+  // The failure can come after the download: a new CLI that does not start also ends here. A failed
+  // update keeps the installed version, so the version tells an update from a first setup.
+  if (runtimeStatus?.phase === "download-error")
+    return translate(runtimeStatus.version ? "provider.status.updateFailed" : "provider.status.setupFailed");
   if (state === "available") return translate("provider.status.connected");
   if (runtimeStatus?.phase === "not-downloaded") return translate("provider.status.notDownloaded");
   if (state === "sign-in-required") return translate("provider.status.notConnected");

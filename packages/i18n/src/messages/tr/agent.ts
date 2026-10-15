@@ -19,6 +19,8 @@ export const messages = {
   "agent.setup.creating": "Ajan oluşturuluyor…",
   "agent.setup.create": "Ajan oluştur",
   "agent.setup.suggestions": "Öneriler",
+  "agent.deleteUndo.title": "{name} silindi",
+  "agent.deleteUndo.action": "Geri al",
   "agent.error.createFailed": "Ajan oluşturulamadı.",
   "agent.error.duplicateTitle": "Ajan çoğaltılamadı",
   "agent.error.duplicateFailed": "Bu ajan çoğaltılamadı. Tekrar deneyin.",

@@ -115,7 +115,7 @@ function updateDetail(update: ProviderUpdate, updatable: boolean, text: UpdateTe
   if (updatable || runtime.phase === "downloading") return versionTransition(runtime.version, availableVersion, text);
   if (runtime.phase === "finishing") return text.t("update.provider.settingUp");
   if (runtime.phase === "download-error")
-    return text.errorMessage(runtime.message, text.t("update.provider.interrupted"));
+    return text.errorMessage(runtime.message, text.t("update.provider.failedRetry"));
   return formatVersion(runtime.version ?? availableVersion, text);
 }
 

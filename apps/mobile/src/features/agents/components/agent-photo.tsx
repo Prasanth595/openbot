@@ -5,7 +5,10 @@ import { View } from "react-native";
 import Svg, { Defs, FeColorMatrix, Filter, Image as SvgImage } from "react-native-svg";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { DISCONNECTED_APPEARANCE } from "@/features/workspace/components/use-connection-appearance";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 
 export interface AgentPhotoProps {
   agentId?: string;
@@ -22,23 +25,22 @@ export function AgentPhoto({
   size,
   children,
 }: AgentPhotoProps & { size: number; children: ReactNode }) {
-  const { agents, servers, loadAgentAvatar } = useMobileWorkspace();
+  const workspace = useMobileWorkspaceReader();
   const { session, sessionScope } = useMobileSession();
-  const agent = agents.find((candidate) => candidate.id === agentId && candidate.serverId === serverId);
-  const avatarUrl = agent?.avatarUrl;
+  const avatarUrl = useMobileWorkspaceSelector((current) =>
+    imageUrl === undefined
+      ? current.agents.find((candidate) => candidate.id === agentId && candidate.serverId === serverId)?.avatarUrl
+      : undefined,
+  );
+  const online = useMobileWorkspaceSelector((current) =>
+    current.servers.some((server) => server.id === serverId && server.state === "online"),
+  );
   const photo = useQuery({
     queryKey: ["agent-avatar", session?.apiUrl, session?.user.id, sessionScope, serverId, agentId, avatarUrl],
-    enabled:
-      imageUrl === undefined &&
-      Boolean(
-        avatarUrl &&
-          agentId &&
-          serverId &&
-          servers.some((server) => server.id === serverId && server.state === "online"),
-      ),
+    enabled: imageUrl === undefined && Boolean(avatarUrl && agentId && serverId && online),
     queryFn: () => {
       if (!agentId || !serverId || !avatarUrl) throw new Error("The agent avatar is unavailable.");
-      return loadAgentAvatar(agentId, avatarUrl, serverId);
+      return workspace().loadAgentAvatar(agentId, avatarUrl, serverId);
     },
     staleTime: Infinity,
   });

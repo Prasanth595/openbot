@@ -25,6 +25,8 @@ export const OPENBOT_DOWNLOAD_PAGE_LINKS = {
 
 export const OPENBOT_LINKS = {
   contact: "https://x.com/OpenBot_",
+  /** A Redirect Rule in the openbot.run Cloudflare zone sends this to the current Discord invite. */
+  discord: "https://discord.openbot.run",
   download: "#download",
   /** The same anchor from a page that is not the landing page. */
   downloadFromOtherPage: "/#download",
@@ -96,6 +98,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
       { label: "Contributing", external: true, href: OPENBOT_LINKS.contributing },
       { label: "Codex", external: true, href: OPENBOT_LINKS.codex },
       { label: "Claude Code", external: true, href: OPENBOT_LINKS.claude },
+      { label: "Discord", external: true, href: OPENBOT_LINKS.discord },
     ],
   },
   {

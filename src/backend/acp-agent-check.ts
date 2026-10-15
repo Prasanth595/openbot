@@ -36,6 +36,11 @@ export interface AgentCheckTarget {
   executable: string;
   args: readonly string[];
   env: Readonly<Record<string, string>>;
+  /**
+   * The `PATH` the agent starts with, from `agentLaunchPath`. Apart from `env`, because it is not a
+   * secret to mask. A `PATH` in `env`, which the user saved on the agent, wins over it.
+   */
+  path?: string | null;
   timeoutMs?: number;
 }
 
@@ -59,7 +64,7 @@ export const checkAcpAgent = Effect.fn("AcpAgent.check")((target: AgentCheckTarg
             spawn(spawnTarget.command, spawnTarget.args, {
               cwd: folder,
               stdio: ["pipe", "pipe", "pipe"],
-              env: { ...process.env, ...target.env },
+              env: { ...process.env, ...(target.path ? { PATH: target.path } : {}), ...target.env },
               detached: process.platform !== "win32",
               windowsVerbatimArguments: spawnTarget.windowsVerbatimArguments,
               windowsHide: true,

@@ -168,7 +168,9 @@ sudo systemctl enable --now openbot-remote-nginx-reload.path
 ```
 
 Production secrets are stored in the tracked `.env.production` file as encrypted Dotenvx values.
-The private decryption key lives only in the ignored `remote/.env.keys` file. Do not pass the encrypted
+They use the same key pair as `apps/auth-api/.env.production`: `DOTENV_PRIVATE_KEY_PRODUCTION` in the
+root `.env.keys`. Do not make a new key pair. On the server, the ignored `remote/.env.keys` holds only a
+copy of that key. On a development computer, decrypt with `-fk .env.keys`. Do not pass the encrypted
 file straight to `docker compose --env-file`, because Compose will not decrypt the values.
 The `remote:*` scripts run Compose through Dotenvx and decrypt the values only in process memory.
 The `--overload` option keeps empty host environment variables from overriding the decrypted values.

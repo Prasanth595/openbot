@@ -145,6 +145,8 @@ const Agents = createSimpleContext({
     const agentStatus = createMemo(() => withHostAccounts(providerStatus(), hostAccounts.host()));
     createEffect(providerStatus, hostAccounts.schedule);
     let openedAgentChatId: string | null = null;
+    /** Agents whose delete can still be undone. Main still has them, so each roster read leaves them out. */
+    const hiddenAgentIds = new Set<string>();
 
     const activeAgent = createMemo(() => {
       if (activeDirectMember()) return undefined;
@@ -183,12 +185,13 @@ const Agents = createSimpleContext({
     function applyStoredAgents(storedAgents: AgentSummary[]): void {
       const currentById = new Map(agentList().map((agent) => [agent.id, agent]));
       const host = untrack(hostAccounts.host);
-      const profiles = storedAgents.map((stored) => {
+      const profiles = storedAgents.flatMap((stored) => {
+        if (hiddenAgentIds.has(stored.id)) return [];
         const next = toAgentProfile(withHostAgentAccount(stored, host));
         const existing = currentById.get(next.id);
-        if (!existing) return createStoredProfile(next);
+        if (!existing) return [createStoredProfile(next)];
         if (!agentProfilesEqual(existing, next)) updateStored(existing, next);
-        return existing;
+        return [existing];
       });
       setAgentList(profiles);
       setAgentListSettled(true);
@@ -204,6 +207,31 @@ const Agents = createSimpleContext({
       }
       // An agent event can be a provider or an account change made elsewhere.
       hostAccounts.schedule();
+    }
+
+    /**
+     * Takes the agent off the roster while its delete can still be undone. Returns the function that
+     * puts it back at the same place, or null when the roster has no such agent.
+     */
+    function hideAgent(agentId: string): (() => void) | null {
+      const index = agentList().findIndex((agent) => agent.id === agentId);
+      const agent = agentList()[index];
+      if (!agent) return null;
+      hiddenAgentIds.add(agentId);
+      setAgentList((current) => current.filter((candidate) => candidate.id !== agentId));
+      return () => {
+        if (!hiddenAgentIds.delete(agentId)) return;
+        setAgentList((current) =>
+          current.some((candidate) => candidate.id === agentId)
+            ? current
+            : [...current.slice(0, index), agent, ...current.slice(index)],
+        );
+      };
+    }
+
+    /** The delete is done: main no longer has the agent, so the roster has nothing to leave out. */
+    function forgetHiddenAgent(agentId: string): void {
+      hiddenAgentIds.delete(agentId);
     }
 
     function openBotSetup(): void {
@@ -339,6 +367,8 @@ const Agents = createSimpleContext({
       setExplicitlyOpenedAgentChatId,
       analyticsAgentProperties,
       applyStoredAgents,
+      hideAgent,
+      forgetHiddenAgent,
       openBotSetup,
       cancelAgentSetup,
       updateAgent,

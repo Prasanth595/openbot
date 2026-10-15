@@ -79,6 +79,7 @@ type LandingDestination =
   | "news"
   | "guides"
   | "contact"
+  | "discord"
   | "repository"
   | "releases"
   | "license"
@@ -183,6 +184,7 @@ const LINK_DESTINATIONS = new Map<string, LandingDestination>([
   [OPENBOT_LINKS.news, "news"],
   [OPENBOT_LINKS.guides, "guides"],
   [OPENBOT_LINKS.contact, "contact"],
+  [OPENBOT_LINKS.discord, "discord"],
   [OPENBOT_LINKS.repository, "repository"],
   [OPENBOT_LINKS.releases, "releases"],
   // The same destination on this site: the release notes, reported under the name they had.
