@@ -3,7 +3,7 @@ import { routeRequest as routeHostedSiteRequest } from "../../../site-router/src
 import { type AuthRetentionResult, pruneExpiredAuthData } from "./auth-data-retention";
 import { BillingSales } from "./billing-sales";
 import { captureBillingSnapshot } from "./billing-snapshots";
-import { canonicalHostRedirect, communityHostRedirect, permanentTrailingSlashRedirect } from "./canonical-redirect";
+import { canonicalHostRedirect, permanentTrailingSlashRedirect } from "./canonical-redirect";
 import { runApiEffect } from "./effect-runtime";
 import { createHostedBilling } from "./hosted-billing";
 import type { HostedServerBindings } from "./hosted-server-service";
@@ -35,7 +35,7 @@ export function createWorkerHandler(
         >,
       context?: WorkerExecutionContext,
     ) {
-      const hostRedirect = canonicalHostRedirect(request) ?? communityHostRedirect(request);
+      const hostRedirect = canonicalHostRedirect(request);
       if (hostRedirect) return hostRedirect;
       if (request.method === "GET" && new URL(request.url).pathname === "/billing/checkout-return") {
         return runApiEffect(checkoutReturnResponse(request, bindings));
