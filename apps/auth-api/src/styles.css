@@ -3908,6 +3908,248 @@ a {
   }
 }
 
+/* OpenBot for Teams --------------------------------------------------------
+   The heading and the button stay on the left. One colour card for each offer
+   sticks one step below the previous card, so the label row of each card stays
+   visible. `TeamsSection` sets `--landing-teams-covered` from 0 to 1 while the
+   next card moves on top; the card then becomes a little smaller and darker. */
+
+.landing-teams {
+  /* The top edge of the stuck heading and of the first stuck card. */
+  --landing-teams-top: 96px;
+  /* The distance between two stuck cards: the height of the label row of a card. */
+  --landing-teams-step: 64px;
+}
+
+/* Each offer has one colour, from the build colours of the logo and the iOS download card. */
+.landing-teams [data-offer="servers"] {
+  --landing-teams-color: var(--openbot-logo-production);
+}
+
+.landing-teams [data-offer="environments"] {
+  --landing-teams-color: var(--openbot-logo-preview);
+}
+
+.landing-teams [data-offer="integrations"] {
+  --landing-teams-color: var(--openbot-logo-dev);
+}
+
+.landing-teams [data-offer="support"] {
+  --landing-teams-color: var(--download-ios-color);
+}
+
+.landing-teams-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(40px, 6vw, 96px);
+}
+
+.landing-teams-aside {
+  position: sticky;
+  top: var(--landing-teams-top);
+  align-self: start;
+}
+
+.landing-teams-title {
+  text-wrap: balance;
+}
+
+.landing-section-heading .landing-teams-statement {
+  margin-top: 20px;
+  color: var(--openbot-text-primary);
+  font-size: clamp(19px, 1.8vw, 22px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.landing-section-heading .landing-teams-description {
+  max-width: 36ch;
+  margin-top: 10px;
+}
+
+.landing-teams-action {
+  margin-top: 28px;
+}
+
+/* The offers in order. The card on top of the stack has a coloured bar. */
+.landing-teams-progress {
+  display: grid;
+  margin: 48px 0 0;
+  padding: 0;
+  border-left: 1px solid var(--landing-card-border);
+  list-style: none;
+}
+
+.landing-teams-progress-item {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 10px 0 10px 20px;
+  color: var(--openbot-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color var(--openbot-duration-normal) ease;
+}
+
+.landing-teams-progress-item::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: -1px;
+  width: 2px;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--landing-teams-color);
+  scale: 1 0;
+  transition: scale var(--openbot-duration-normal) var(--openbot-ease-out);
+}
+
+.landing-teams-progress-item[data-active] {
+  color: var(--openbot-text-primary);
+}
+
+.landing-teams-progress-item[data-active]::before {
+  scale: 1 1;
+}
+
+.landing-teams-progress-number {
+  font-family: var(--openbot-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.landing-teams-stack {
+  display: grid;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-teams-card {
+  position: sticky;
+  top: calc(var(--landing-teams-top) + var(--landing-teams-card) * var(--landing-teams-step));
+  isolation: isolate;
+  min-height: 380px;
+  display: grid;
+  grid-template-rows: var(--landing-teams-step) 1fr auto;
+  overflow: hidden;
+  padding: 0 clamp(26px, 3vw, 40px) clamp(26px, 3vw, 40px);
+  border: 1px solid var(--openbot-download-card-border);
+  border-radius: 28px;
+  background: var(--landing-teams-color);
+  box-shadow: 0 -20px 40px -28px rgb(0 0 0 / 70%);
+  color: var(--openbot-text-on-light);
+  transform-origin: top center;
+  scale: calc(1 - var(--landing-teams-covered, 0) * 0.05);
+  filter: brightness(calc(1 - var(--landing-teams-covered, 0) * 0.22));
+}
+
+/* A faint grid in the lower right corner, like the hero grid. */
+.landing-teams-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--openbot-text-on-light) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--openbot-text-on-light) 8%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(90% 90% at 100% 100%, var(--openbot-mask-solid), var(--openbot-transparent) 75%);
+  pointer-events: none;
+}
+
+.landing-teams-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-teams-card-number {
+  font-family: var(--openbot-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+
+.landing-teams-card-icon {
+  position: absolute;
+  z-index: -1;
+  top: calc(var(--landing-teams-step) + 4px);
+  right: -28px;
+  width: clamp(150px, 17vw, 230px);
+  height: clamp(150px, 17vw, 230px);
+  stroke-width: 1.1;
+  opacity: 0.85;
+}
+
+.landing-teams-card-copy {
+  grid-row: 3;
+}
+
+.landing-teams-card-title {
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(34px, 4vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.landing-teams-card-description {
+  max-width: 34ch;
+  margin: 16px 0 0;
+  color: var(--openbot-download-card-muted);
+  font-size: 16px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-teams-card {
+    scale: none;
+  }
+
+  .landing-teams-progress-item,
+  .landing-teams-progress-item::before {
+    transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .landing-teams {
+    --landing-teams-top: 16px;
+    --landing-teams-step: 52px;
+  }
+
+  .landing-teams-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-teams-aside {
+    position: static;
+  }
+
+  .landing-teams-progress {
+    display: none;
+  }
+
+  .landing-teams-stack {
+    gap: 16px;
+  }
+
+  .landing-teams-card {
+    min-height: 320px;
+    border-radius: 24px;
+  }
+
+  .landing-teams-card-icon {
+    right: -20px;
+  }
+}
+
 /* Articles -----------------------------------------------------------------
    The index and article pages of every collection: /news, /guides, and whatever
    is added next. They reuse .landing-header and .landing-footer, so only the

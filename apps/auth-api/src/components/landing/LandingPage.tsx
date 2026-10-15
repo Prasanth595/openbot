@@ -11,6 +11,7 @@ import { LandingFooter } from "./LandingFooter";
 import { LandingGlow } from "./LandingGlow";
 import { PricingSection } from "./PricingSection";
 import { SiteHeader } from "./SiteHeader";
+import { TeamsSection } from "./TeamsSection";
 
 export function LandingPage() {
   onSettled(() => landingAnalytics.start(document, window.location.hostname));
@@ -105,6 +106,7 @@ export function LandingPage() {
         </section>
         <FeaturesSection />
         <PricingSection />
+        <TeamsSection />
         <FaqSection />
         <DownloadSection />
       </main>

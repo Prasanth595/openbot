@@ -53,6 +53,7 @@ type LandingPlacement =
   | "header"
   | "hero"
   | "download_section"
+  | "teams_section"
   | "download_page"
   | "footer"
   | "content_index"
@@ -64,6 +65,7 @@ const LANDING_PLACEMENTS = [
   "header",
   "hero",
   "download_section",
+  "teams_section",
   "download_page",
   "footer",
   "content_index",
@@ -580,6 +582,7 @@ function landingPlacement(link: HTMLAnchorElement): LandingPlacement {
   if (link.closest(".post-more")) return "content_related";
   if (link.closest(".landing-hero")) return "hero";
   if (link.closest(".landing-download")) return "download_section";
+  if (link.closest(".landing-teams")) return "teams_section";
   if (link.closest(".landing-footer")) return "footer";
   if (link.closest(".download-page")) return "download_page";
   // Without these, every link inside an article body reports "other", which makes
