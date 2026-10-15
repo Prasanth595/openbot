@@ -16,8 +16,6 @@ export interface AgentTaskRecord {
   threadId: string;
   origin: AgentTaskOrigin;
   title: string;
-  /** The message of the agent's own chat that shows the task. Null for a task started from the menu. */
-  sourceMessageId: string | null;
   /** The end of the last turn. Null before the first turn ends. */
   outcome: AgentTaskOutcome | null;
   /** The redacted provider error of the last failed turn. A new turn clears it. */
@@ -32,7 +30,6 @@ export interface AgentTaskInput {
   agentId: string;
   origin: AgentTaskOrigin;
   title: string;
-  sourceMessageId?: string | null;
 }
 
 /**
@@ -131,20 +128,10 @@ export class AgentTaskStore {
         );
         db.prepare(
           `INSERT INTO projection_agent_tasks
-             (task_id, agent_id, thread_id, origin, title, source_message_id, outcome, created_at, updated_at,
-              closed_at, last_event_sequence)
-           VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, NULL, ?)`,
-        ).run(
-          taskId,
-          input.agentId,
-          threadId,
-          input.origin,
-          input.title,
-          input.sourceMessageId ?? null,
-          now,
-          now,
-          sequence,
-        );
+             (task_id, agent_id, thread_id, origin, title, outcome, created_at, updated_at, closed_at,
+              last_event_sequence)
+           VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, ?)`,
+        ).run(taskId, input.agentId, threadId, input.origin, input.title, now, now, sequence);
         return null;
       },
     );
@@ -172,14 +159,6 @@ export class AgentTaskStore {
     this.#database.connection
       .prepare("UPDATE projection_agent_tasks SET updated_at = ? WHERE task_id = ?")
       .run(new Date().toISOString(), taskId);
-  }
-
-  setSourceMessage(taskId: string, messageId: string): void {
-    this.#database.connection
-      .prepare(
-        "UPDATE projection_agent_tasks SET source_message_id = ? WHERE task_id = ? AND source_message_id IS NULL",
-      )
-      .run(messageId, taskId);
   }
 
   close(taskId: string): void {
@@ -278,7 +257,6 @@ function decodeTask(row: DynamicRecord): AgentTaskRecord {
     threadId: requiredStringColumn(row, "thread_id"),
     origin,
     title: requiredStringColumn(row, "title"),
-    sourceMessageId: optionalStringColumn(row, "source_message_id"),
     outcome,
     error: optionalStringColumn(row, "error"),
     createdAt: requiredStringColumn(row, "created_at"),

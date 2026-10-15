@@ -63,9 +63,8 @@ function insertTask(
   values: { taskId?: string; threadId?: string; origin?: string; outcome?: string | null } = {},
 ): void {
   db.prepare(`INSERT INTO projection_agent_tasks
-    (task_id, agent_id, thread_id, origin, title, source_message_id, outcome, created_at, updated_at, closed_at,
-     last_event_sequence)
-    VALUES (?, 'chief', ?, ?, 'Billing export', NULL, ?, '2026-10-01', '2026-10-01', NULL, 2)`).run(
+    (task_id, agent_id, thread_id, origin, title, outcome, created_at, updated_at, closed_at, last_event_sequence)
+    VALUES (?, 'chief', ?, ?, 'Billing export', ?, '2026-10-01', '2026-10-01', NULL, 2)`).run(
     values.taskId ?? "task-1",
     values.threadId ?? "openbot-thread-task",
     values.origin ?? "user",

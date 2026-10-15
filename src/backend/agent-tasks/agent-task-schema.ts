@@ -6,9 +6,7 @@
 //
 // `projection_agent_tasks`: one row for each task. `thread_id` is the task's conversation; deleting
 // the thread deletes the task. `origin` says who started it: the person, or the agent with its
-// `start_task` tool. `source_message_id` is the message of the agent's own chat that shows the task,
-// null when the task was started from the chat menu. `outcome` is the end of the task's last turn,
-// null before its first turn ends. `error` is the redacted provider error of the last failed turn; a new
+// `start_task` tool. `outcome` is the end of the task's last turn, null before its first turn ends. `error` is the redacted provider error of the last failed turn; a new
 // turn clears it. `closed_at` is set when the person or the agent closes the task;
 // a closed task takes no more messages.
 //
@@ -21,7 +19,6 @@ export const AGENT_TASK_SCHEMA_SQL = `
     thread_id TEXT NOT NULL UNIQUE REFERENCES projection_threads(thread_id) ON DELETE CASCADE,
     origin TEXT NOT NULL CHECK(origin IN ('user', 'agent')),
     title TEXT NOT NULL,
-    source_message_id TEXT,
     outcome TEXT CHECK(outcome IS NULL OR outcome IN ('completed', 'failed', 'interrupted')),
     error TEXT,
     created_at TEXT NOT NULL,
