@@ -245,18 +245,17 @@ self_hosted() {
   [ -r "$INSTALL/hosted/mode" ] && [ "$(<"$INSTALL/hosted/mode")" = self ]
 }
 
-# Installs the boat pre-stop hook of $1 on a hosted server. The user writes it, so root does not
-# follow a link in a directory of the user. A hook that OpenBot did not write stays.
+# Installs the boat pre-stop hook of $1 on a hosted server. The user reads and writes it, so root
+# does not open a link or a FIFO in a directory of the user. A hook that OpenBot did not write stays.
 install_pre_stop() {
   local source=$1/openbot-boat-pre-stop
   if self_hosted || [ ! -f "$source" ] || ! id "$BOAT_USER" >/dev/null 2>&1; then return 0; fi
-  if [ -e "$BOAT_PRE_STOP" ] || [ -L "$BOAT_PRE_STOP" ]; then
-    cmp -s "$source" "$BOAT_PRE_STOP" && return 0
-    if ! grep -q '^# openbot-boat-pre-stop:' "$BOAT_PRE_STOP"; then
-      echo "$BOAT_PRE_STOP is not from OpenBot. It stays, and OpenBot is not stopped before a disk save." >&2
-      return 0
-    fi
+  if [ -L "$BOAT_PRE_STOP" ] || { [ -e "$BOAT_PRE_STOP" ] && [ ! -f "$BOAT_PRE_STOP" ]; } ||
+    { [ -f "$BOAT_PRE_STOP" ] && ! runuser -u "$BOAT_USER" -- grep -q '^# openbot-boat-pre-stop:' "$BOAT_PRE_STOP"; }; then
+    echo "$BOAT_PRE_STOP is not from OpenBot. It stays, and OpenBot is not stopped before a disk save." >&2
+    return 0
   fi
+  runuser -u "$BOAT_USER" -- cmp -s "$source" "$BOAT_PRE_STOP" 2>/dev/null && return 0
   runuser -u "$BOAT_USER" -- install -D -m 0755 "$source" "${BOAT_PRE_STOP%/*}/.pre-stop.new"
   runuser -u "$BOAT_USER" -- mv -f "${BOAT_PRE_STOP%/*}/.pre-stop.new" "$BOAT_PRE_STOP"
 }

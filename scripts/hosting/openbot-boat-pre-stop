@@ -11,12 +11,12 @@ set -u
 # /run is empty at each boot, so the flag stops only the starts until boat saves the disk: the
 # Restart= of the unit, and the start at the end of an update request (openbot.service).
 sudo -n touch /run/openbot-pre-stop || exit 1
-# The unit stops OpenBot with SIGTERM, and OpenBot closes its database last. The 60 seconds of
-# TimeoutStopSec are too long for the limit of boat. A killed OpenBot leaves a database that SQLite
-# recovers, because no copy runs while it ends.
-if sudo -n timeout 45 systemctl stop openbot.service; then exit 0; fi
+# The unit stops OpenBot with SIGTERM, and OpenBot closes its database last. OpenBot exits after 30
+# seconds by itself. The 60 seconds of TimeoutStopSec are too long for the limit of boat. A killed
+# OpenBot leaves a database that SQLite recovers, because no copy runs while it ends.
+if sudo -n timeout 40 systemctl stop openbot.service; then exit 0; fi
 sudo -n systemctl kill --signal=SIGKILL openbot.service
-for _ in $(seq 1 20); do
+for _ in $(seq 1 10); do
   case $(systemctl show --property=ActiveState --value openbot.service) in
     inactive | failed) exit 0 ;;
   esac

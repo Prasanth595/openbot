@@ -366,7 +366,7 @@ const TEARDOWN_ORDER = {
   analytics: 112,
   // After all account consumers have stopped.
   centralAuth: 115,
-  // Last, so the turns that end while the services stop are still written.
+  // After the service, so the turns that end while the services stop are still written.
   trace: 120,
   // After the service, so the lines its providers write while they stop are kept.
   providerLog: 121,

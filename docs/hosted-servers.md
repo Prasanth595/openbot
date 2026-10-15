@@ -125,7 +125,7 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    documented by boat. `openbot-hosted-update` installs `scripts/hosting/openbot-boat-pre-stop` there
    (`install_hosting`, and `trigger` at each start, so a server that an older release updated gets
    it). The hook makes `/run/openbot-pre-stop` and runs `systemctl stop openbot.service`: OpenBot
-   gets `SIGTERM`, stops its services and closes `openbot.db` last. After 45 seconds the hook kills
+   gets `SIGTERM`, stops its services and closes `openbot.db` last. After 40 seconds the hook kills
    the unit, which leaves a database that SQLite recovers. The file makes the unit condition
    `ConditionPathExists=!/run/openbot-pre-stop` fail, so `Restart=` and the end of an update request
    do not start OpenBot during the save. `/run` is empty at each boot. If boat does not complete the
@@ -695,7 +695,7 @@ the hook before it saves the disk.
 An install test on the same sandbox put the new `openbot-hosted-update`, `openbot.service` and hook
 in place, as an older release does when it updates. At the next start, `trigger` installed the hook
 as `user` with mode 0755. It did not change a current hook, kept a hook that OpenBot did not write
-(a file or a link), and replaced a changed OpenBot hook. At a stop of the real OpenBot, the hook
+(a file, a link or a FIFO, with no wait), and replaced a changed OpenBot hook. At a stop of the real OpenBot, the hook
 stopped `openbot.service` in 0.3 seconds and ended with 0. After the resume (a new boot ID), the
 flag was gone, OpenBot ran, and `openbot.db` passed `quick_check`.
 
@@ -726,7 +726,11 @@ These were not tested on boat. Test them before a user gets access:
   at that time stops;
 - whether boat runs the pre-stop hook for a stop that it starts by itself: maintenance (the
   `updating` state) or the end of `ttlSeconds`. A crash of the machine restores the last periodic
-  save, which also copies files while they change.
+  save, which also copies files while they change;
+- that OpenBot closes `openbot.db` at a `systemctl stop` on a server. The install test used a release
+  without the `SIGTERM` handler. The unit sends `SIGTERM` to all of its processes at the same time,
+  so on the virtual display Xvfb can stop first and end OpenBot before it closes the database. The
+  database is then as after a crash, which SQLite recovers, because the save starts after the stop.
 
 
 ### Billing and server deletion

@@ -8,6 +8,7 @@ import {
   IPC_ENDPOINTS,
 } from "@openbot/contracts/ipc";
 import { createFormat, resolveLocale, translateFor } from "@openbot/i18n";
+import { localizeSourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { createRemoteDirectoryRefresh } from "@openbot/team-client/remote-directory";
 import { Effect, Semaphore } from "effect";
@@ -265,7 +266,7 @@ const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
 
 // A server is stopped with SIGTERM (systemd, Docker). Without a handler, Electron ends at once and its
 // services do not stop. A hosted server's boat pre-stop hook stops it this way before the disk save
-// (`scripts/hosting/openbot-boat-pre-stop`), so teardown must close the database first.
+// (`scripts/hosting/openbot-boat-pre-stop`).
 if (!app.isPackaged || hostedServer || serverMode) {
   const quitAfterSignal = () => app.quit();
   process.once("SIGINT", quitAfterSignal);
@@ -1214,8 +1215,12 @@ if (!hasSingleInstanceLock) {
       // A server has nobody at its virtual display to close the box, and the box blocks the quit.
       if (!serverMode && !hostedServer) {
         // The services, and with them the saved language, may not exist yet. Then the system language applies.
-        const translate = services?.language.translate ?? translateFor(resolveLocale("system", app.getLocale()));
-        dialog.showErrorBox(translate("startup.failedTitle"), translate("startup.failedBody", { message }));
+        const locale = services?.language.locale ?? resolveLocale("system", app.getLocale());
+        const translate = services?.language.translate ?? translateFor(locale);
+        dialog.showErrorBox(
+          translate("startup.failedTitle"),
+          translate("startup.failedBody", { message: localizeSourceText(message, locale) }),
+        );
       }
       app.quit();
     });
