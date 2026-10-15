@@ -43,12 +43,13 @@ export interface ConversationMarkerExclusions {
 }
 
 /**
- * A channel gives each of its members a thread of its own, under the same agent id as the normal
- * chat. A search result carries an agent id and a message, and opening one shows the normal
- * conversation of that agent, where a channel message does not exist. The thread stays out of the
- * search until a result can name the channel it belongs to.
+ * A channel gives each of its members a thread of its own, and a task has one too, under the same
+ * agent id as the normal chat. A search result carries an agent id and a message, and opening one
+ * shows the normal conversation of that agent, where a channel or task message does not exist. These
+ * threads stay out of the search until a result can name the channel or task it belongs to.
  */
-const CHANNEL_THREAD_EXCLUSION = "AND message.thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)";
+const SIDE_THREAD_EXCLUSION = `AND message.thread_id NOT IN (SELECT thread_id FROM projection_channel_contexts)
+             AND message.thread_id NOT IN (SELECT thread_id FROM projection_agent_tasks)`;
 
 /**
  * Every read of a thread's messages: the whole snapshot, one anchored page, a page's supported
@@ -363,7 +364,7 @@ export class ConversationQueries {
              AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
              AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
              AND json_extract(message.message_json, '$.routine') IS NULL
-             ${CHANNEL_THREAD_EXCLUSION}
+             ${SIDE_THREAD_EXCLUSION}
              ${filter}`,
         )
         .get(...parameters),
@@ -383,7 +384,7 @@ export class ConversationQueries {
              AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
              AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
              AND json_extract(message.message_json, '$.routine') IS NULL
-             ${CHANNEL_THREAD_EXCLUSION}
+             ${SIDE_THREAD_EXCLUSION}
              ${filter}
            ORDER BY message.created_at DESC, message.ordinal DESC, message.message_id DESC
            LIMIT ? OFFSET ?`,
@@ -429,7 +430,7 @@ export class ConversationQueries {
              AND instr(attachment.owner_id, ':') > 1
              AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
              ${nameFilter}
-             ${CHANNEL_THREAD_EXCLUSION}
+             ${SIDE_THREAD_EXCLUSION}
            ORDER BY attachment.created_at DESC, attachment.attachment_id DESC
            LIMIT ? OFFSET ?`,
         )
