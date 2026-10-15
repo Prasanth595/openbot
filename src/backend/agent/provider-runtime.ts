@@ -67,6 +67,7 @@ import {
   ignoredCodexSettings,
   isAcpHandlerDiagnostic,
   isBackgroundRefreshDiagnostic,
+  isBundledSandboxFallbackDiagnostic,
   isGlogBelowErrorDiagnostic,
   isIgnoredConfigDiagnostic,
   isMcpSubsystemDiagnostic,
@@ -2782,6 +2783,10 @@ export class ProviderRuntime implements ProviderPort {
       }
       if (isIgnoredConfigDiagnostic(message)) {
         stderrLogger.warn("A provider ignored settings in its configuration.", { provider: client.provider, message });
+        return;
+      }
+      if (isBundledSandboxFallbackDiagnostic(message)) {
+        stderrLogger.warn("A provider uses its bundled bubblewrap.", { provider: client.provider, message });
         return;
       }
       // The usage notice reports the limit only for a provider with a usage reading. Another
