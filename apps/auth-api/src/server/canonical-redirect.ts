@@ -3,6 +3,9 @@ import { OPENBOT_SITE_URL } from "../lib/site-metadata";
 
 const SITE_ORIGIN = new URL(OPENBOT_SITE_URL).origin;
 const SITE_HOST = new URL(OPENBOT_SITE_URL).hostname;
+const COMMUNITY_HOST = new URL(OPENBOT_LINKS.discord).hostname;
+/** The site links to `OPENBOT_LINKS.discord`, so this invite is the one place to change it. */
+const DISCORD_INVITE_URL = "https://discord.com/invite/DHfm86WFQw";
 
 /**
  * Sends `http://openbot.run` and `www.openbot.run` to `https://openbot.run`, so
@@ -23,8 +26,8 @@ export function canonicalHostRedirect(request: Request): Response | null {
  * invite can change.
  */
 export function communityHostRedirect(request: Request): Response | null {
-  if (new URL(request.url).hostname !== `discord.${SITE_HOST}`) return null;
-  return Response.redirect(OPENBOT_LINKS.discord, 302);
+  if (new URL(request.url).hostname !== COMMUNITY_HOST) return null;
+  return Response.redirect(DISCORD_INVITE_URL, 302);
 }
 
 /**

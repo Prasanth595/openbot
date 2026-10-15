@@ -25,7 +25,8 @@ export const OPENBOT_DOWNLOAD_PAGE_LINKS = {
 
 export const OPENBOT_LINKS = {
   contact: "https://x.com/OpenBot_",
-  discord: "https://discord.com/invite/DHfm86WFQw",
+  /** The account Worker redirects this address to the current Discord invite. */
+  discord: "https://discord.openbot.run",
   download: "#download",
   /** The same anchor from a page that is not the landing page. */
   downloadFromOtherPage: "/#download",
