@@ -71,18 +71,13 @@ export function parseHostedServerName(value: string): string | null {
   return slugifyTeamServerName(name).length >= INPUT_LIMITS.serverNameMin ? name : null;
 }
 
-const HOSTED_SERVER_CONTACT_SUBJECT = "OpenBot: dedicated Mac or custom setup";
+const HOSTED_SERVER_CONTACT_SUBJECT = "Custom OpenBot setup";
 const HOSTED_SERVER_CONTACT_BODY = [
-  "Hi OpenBot team,",
+  "I’d like to discuss a custom OpenBot setup for my needs. Please get in touch so we can explore the available options.",
   "",
-  "Setup I need (dedicated Mac mini / company plan / other):",
-  "Company or team name:",
-  "Number of people:",
-  "Number of agents:",
-  "What we want to use OpenBot for:",
-  "When we want to start:",
+  "Here’s some additional context:",
   "",
-  "Thanks,",
+  "[Tell us what you need]",
 ].join("\r\n");
 
 /**
