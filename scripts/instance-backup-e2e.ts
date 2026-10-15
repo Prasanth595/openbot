@@ -11,7 +11,7 @@
 // `.openbot-build/instance-backup-e2e/report.json`.
 
 import { spawnSync } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -79,34 +79,40 @@ async function writeFixture(root: string): Promise<void> {
   await mkdir(join(root, ".config/openbot-container"), { recursive: true });
   await mkdir(join(root, "OpenBot/Agents/E2E"), { recursive: true });
 
-  const db = new DatabaseSync(join(config, "openbot.db"));
-  migrateOpenBotDatabase(db);
   const now = new Date().toISOString();
-  db.prepare(
-    "INSERT INTO projection_agents (agent_id, thread_id, model, updated_at, sort_order, agent_json, last_event_sequence) VALUES (?, ?, 'test', ?, 0, ?, 1)",
-  ).run(agentId, "thread-e2e-1", now, JSON.stringify({ id: agentId, name: "E2E" }));
-  db.prepare(
-    "INSERT INTO projection_threads (thread_id, agent_id, title, created_at, updated_at, last_event_sequence) VALUES ('thread-e2e-1', ?, 'E2E', ?, ?, 1)",
-  ).run(agentId, now, now);
-  db.prepare(
-    "INSERT INTO projection_thread_messages (thread_id, message_id, author, status, created_at, ordinal, message_json, last_event_sequence) VALUES ('thread-e2e-1', 'message-1', 'user', 'complete', ?, 0, '{}', 1)",
-  ).run(now);
-  db.prepare(
-    "INSERT INTO projection_agent_memories (memory_id, agent_id, text, normalized_text, origin, created_at, updated_at, last_event_sequence) VALUES ('memory-1', ?, 'The user likes tea.', 'the user likes tea.', 'manual', ?, ?, 1)",
-  ).run(agentId, now, now);
-  db.close();
+  const db = new DatabaseSync(join(config, "openbot.db"));
+  try {
+    migrateOpenBotDatabase(db);
+    db.prepare(
+      "INSERT INTO projection_agents (agent_id, thread_id, model, updated_at, sort_order, agent_json, last_event_sequence) VALUES (?, ?, 'test', ?, 0, ?, 1)",
+    ).run(agentId, "thread-e2e-1", now, JSON.stringify({ id: agentId, name: "E2E" }));
+    db.prepare(
+      "INSERT INTO projection_threads (thread_id, agent_id, title, created_at, updated_at, last_event_sequence) VALUES ('thread-e2e-1', ?, 'E2E', ?, ?, 1)",
+    ).run(agentId, now, now);
+    db.prepare(
+      "INSERT INTO projection_thread_messages (thread_id, message_id, author, status, created_at, ordinal, message_json, last_event_sequence) VALUES ('thread-e2e-1', 'message-1', 'user', 'complete', ?, 0, '{}', 1)",
+    ).run(now);
+    db.prepare(
+      "INSERT INTO projection_agent_memories (memory_id, agent_id, text, normalized_text, origin, created_at, updated_at, last_event_sequence) VALUES ('memory-1', ?, 'The user likes tea.', 'the user likes tea.', 'manual', ?, ?, 1)",
+    ).run(agentId, now, now);
+  } finally {
+    db.close();
+  }
 
   const tables = new DatabaseSync(join(shared, "agent-data.db"));
-  tables.exec(
-    "CREATE TABLE openbot_metadata (table_name TEXT PRIMARY KEY, owner_agent_id TEXT NOT NULL, created_at TEXT NOT NULL)",
-  );
-  tables.exec("CREATE TABLE contacts (name TEXT, email TEXT)");
-  tables.exec("INSERT INTO contacts VALUES ('Ada', 'ada@example.com')");
-  tables.exec("CREATE TABLE tasks (title TEXT)");
-  tables.prepare("INSERT INTO openbot_metadata VALUES ('contacts', ?, ?)").run(agentId, now);
-  // An owner that is not an agent: verification reports it as a warning.
-  tables.prepare("INSERT INTO openbot_metadata VALUES ('tasks', 'agent-removed', ?)").run(now);
-  tables.close();
+  try {
+    tables.exec(
+      "CREATE TABLE openbot_metadata (table_name TEXT PRIMARY KEY, owner_agent_id TEXT NOT NULL, created_at TEXT NOT NULL)",
+    );
+    tables.exec("CREATE TABLE contacts (name TEXT, email TEXT)");
+    tables.exec("INSERT INTO contacts VALUES ('Ada', 'ada@example.com')");
+    tables.exec("CREATE TABLE tasks (title TEXT)");
+    tables.prepare("INSERT INTO openbot_metadata VALUES ('contacts', ?, ?)").run(agentId, now);
+    // An owner that is not an agent: verification reports it as a warning.
+    tables.prepare("INSERT INTO openbot_metadata VALUES ('tasks', 'agent-removed', ?)").run(now);
+  } finally {
+    tables.close();
+  }
 
   await writeFile(join(root, ".local/share/keyrings/login.keyring"), randomBytes(512));
   await writeFile(join(root, ".config/openbot-container/keyring-password"), randomBytes(32).toString("hex"), {
@@ -159,8 +165,10 @@ async function main(): Promise<void> {
       "gzip",
     ]);
     if (packages.status !== 0) throw new Error(`The packages did not install: ${packages.stderr}`);
-    run("docker", ["cp", resolve("docker"), `${dind}:/opt/openbot-docker`]);
-    run("docker", ["cp", `${fixture}/.`, `${dind}:/fixture`]);
+    const scriptsCopied = run("docker", ["cp", resolve("docker"), `${dind}:/opt/openbot-docker`]);
+    if (scriptsCopied.status !== 0) throw new Error(`The instance scripts did not copy: ${scriptsCopied.stderr}`);
+    const fixtureCopied = run("docker", ["cp", `${fixture}/.`, `${dind}:/fixture`]);
+    if (fixtureCopied.status !== 0) throw new Error(`The instance fixture did not copy: ${fixtureCopied.stderr}`);
     must(`mkdir -p /stand-in && cat >/stand-in/Dockerfile <<'EOF'\n${standIn}EOF`);
     must("docker build --quiet --tag ghcr.io/nightly-labs/openbot:latest /stand-in >/dev/null");
 
@@ -229,6 +237,86 @@ async function main(): Promise<void> {
         status["verify-success"]?.result === "ok",
       summary(result),
     );
+
+    // A real backup without --verify can have consistent checksums and invalid SQLite bytes.
+    // Keep both database paths covered by the existing verifier. Reference warnings stay warnings.
+    const invalidSources = [
+      {
+        name: "main database",
+        path: ".config/OpenBot/openbot.db",
+        error: /OpenBot cannot open openbot\.db|openbot\.db is damaged/,
+      },
+      {
+        name: "shared database",
+        path: "OpenBot/Shared/Data/agent-data.db",
+        error: /shared tables cannot open|shared tables are damaged/,
+      },
+    ];
+    for (const source of invalidSources) {
+      const beforeInvalid = completeBackups();
+      const successHash = must("sha256sum /srv/openbot/main/backup-status/verify-success.json | cut -d ' ' -f 1");
+      must(
+        `cp -a ${data}/${source.path} /root/e2e-healthy-database && printf 'not a SQLite database\n' > ${data}/${source.path}`,
+      );
+      const invalidResult = instance("backup", "main");
+      must(`mv /root/e2e-healthy-database ${data}/${source.path}`);
+      const invalidBackup = completeBackups().find((name) => !beforeInvalid.includes(name)) ?? "";
+      if (!invalidBackup) throw new Error(`The invalid ${source.name} backup was not created.`);
+      check(
+        `an unverified backup saves invalid ${source.name} bytes with valid checksums`,
+        invalidResult.status === 0 &&
+          completeBackups().length === beforeInvalid.length + 1 &&
+          shell(
+            `cd /backups/main/${invalidBackup} && sha256sum --check --quiet --strict SHA256SUMS && test ! -e verified.json`,
+          ).status === 0,
+        summary(invalidResult),
+      );
+      const targetHashes = must(
+        `cd ${data} && sha256sum .config/OpenBot/openbot.db OpenBot/Shared/Data/agent-data.db OpenBot/Agents/E2E/notes.md OpenBot/Agents/E2E/attachment.bin .local/share/keyrings/login.keyring .config/openbot-container/keyring-password .e2e-starts .e2e-clean-stop`,
+      );
+      const targetRunningBefore = running();
+      const refused = instance("restore", "main", invalidBackup, "--replace");
+      check(
+        `restore refuses an invalid ${source.name} before it stops the target`,
+        refused.status > 0 && source.error.test(refused.stderr) && !/Stopping openbot-main/.test(refused.stdout),
+        summary(refused),
+      );
+      const targetRunningAfter = running();
+      const afterHashes = must(
+        `cd ${data} && sha256sum .config/OpenBot/openbot.db OpenBot/Shared/Data/agent-data.db OpenBot/Agents/E2E/notes.md OpenBot/Agents/E2E/attachment.bin .local/share/keyrings/login.keyring .config/openbot-container/keyring-password .e2e-starts .e2e-clean-stop`,
+      );
+      check(
+        `a refused ${source.name} restore keeps target bytes and running state`,
+        targetRunningBefore && targetRunningAfter && targetHashes === afterHashes,
+        JSON.stringify({
+          before: createHash("sha256").update(targetHashes).digest("hex"),
+          after: createHash("sha256").update(afterHashes).digest("hex"),
+          targetRunningBefore,
+          targetRunningAfter,
+        }),
+      );
+      check(
+        `a refused ${source.name} restore removes verification work without staging or replacement`,
+        must(`find ${data} -maxdepth 1 \\( -name '.openbot-restore*' -o -name '.openbot-replaced*' \\) | wc -l`) ===
+          "0" &&
+          must("find /var/tmp -maxdepth 1 -name 'openbot-verify.*' | wc -l") === "0" &&
+          completeBackups().length === beforeInvalid.length + 1,
+        "no restore, replacement or verification folder stays; the source backup stays",
+      );
+      const failedStatus = instance("backups", "main", "--json");
+      const failedVerify = JSON.parse(failedStatus.stdout);
+      check(
+        `a refused ${source.name} restore records failure and keeps the last verification success`,
+        failedStatus.status === 1 &&
+          failedVerify.lastVerify === "failed" &&
+          failedVerify["verify-attempt"]?.result === "failed" &&
+          source.error.test(failedVerify["verify-attempt"]?.error ?? "") &&
+          failedVerify["verify-success"]?.result === "ok" &&
+          successHash === must("sha256sum /srv/openbot/main/backup-status/verify-success.json | cut -d ' ' -f 1"),
+        `lastVerify=${failedVerify.lastVerify}; prior success hash matches`,
+      );
+      must(`rm -rf /backups/main/${invalidBackup}`);
+    }
 
     // Missing key material: the backup fails, the instance runs again, the earlier backup stays.
     must(`mv ${data}/.config/openbot-container/keyring-password /root/keyring-password`);

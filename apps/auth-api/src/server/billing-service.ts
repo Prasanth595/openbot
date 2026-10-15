@@ -27,7 +27,7 @@ import {
   NO_ACCOUNT_ANALYTICS,
   type PlanEndReason,
 } from "./account-analytics";
-import type { BillingSales } from "./billing-sales";
+import { type BillingSales, paymentReversal } from "./billing-sales";
 import type { HostedFailure } from "./hosted-server-service";
 import type { RemoteFailure } from "./remote-control-plane";
 import type { StripeTransportError } from "./stripe-client";
@@ -685,10 +685,21 @@ export class BillingService {
           .first<{ seen: number }>(),
       );
       if (seen) return;
-      const subscriptionId = eventSubscriptionId(event);
+      // A refund or a dispute names only its payment. The invoice of that payment names the plan.
+      const reversal = paymentReversal(event);
+      const payment = reversal
+        ? yield* this.#stripeCall(() => dependencies.stripe.getPaymentInvoice(reversal.paymentIntentId))
+        : null;
+      const subscriptionId = eventSubscriptionId(event) ?? payment?.subscriptionId ?? null;
       const synced = subscriptionId ? yield* this.#syncSubscription(subscriptionId) : null;
+      // A refund keeps the plan: to end it, cancel the plan in Stripe. A dispute ends the plan now, so
+      // Stripe does not charge the disputed card again. The server stops and keeps its disk.
+      if (reversal?.type === "payment_disputed" && payment && synced) {
+        yield* this.cancelSubscription(payment.subscriptionId);
+        yield* this.#syncSubscription(payment.subscriptionId);
+      }
       if (this.#sales) {
-        yield* this.#sales.webhook(event, synced).pipe(Effect.mapError(() => new BillingOperationError({})));
+        yield* this.#sales.webhook(event, synced, payment).pipe(Effect.mapError(() => new BillingOperationError({})));
       }
       // The event is recorded only after it is applied, so a failed event is applied again on retry.
       yield* billingCall(() =>

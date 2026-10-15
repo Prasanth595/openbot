@@ -17,7 +17,7 @@ import {
 import { OPENBOT_SOFTWARE_APPLICATION } from "./software-application";
 
 /** The sitemap date of the pages. Change it when their text changes. */
-export const DOWNLOAD_PAGES_UPDATED_AT = "2026-10-09";
+export const DOWNLOAD_PAGES_UPDATED_AT = "2026-10-15";
 
 /** A system with its own page: a desktop installer or a phone app. */
 export type DownloadPagePlatform = DownloadPlatform | MobilePlatform;
@@ -194,7 +194,7 @@ export const DOWNLOAD_PAGES: Record<DownloadPagePlatform, DownloadPageContent> =
     installSteps: [
       { text: "Download the installer." },
       {
-        text: "Run the installer. It is not code-signed yet, so Windows can show “Windows protected your PC” or “Unknown publisher”. Select More info, then Run anyway.",
+        text: "Run the installer. For a new release, Windows can show “Windows protected your PC”. Select More info, make sure that the publisher is SYNTHETIFY LABS, then select Run anyway.",
       },
       { text: "The installer installs OpenBot for your user and opens it. Later, open it from the Start menu." },
       CONNECT_STEP,
@@ -211,7 +211,7 @@ export const DOWNLOAD_PAGES: Record<DownloadPagePlatform, DownloadPageContent> =
       {
         question: "Why does Windows warn about the installer?",
         answer:
-          "The Windows installer is not code-signed yet, so SmartScreen does not know the publisher. The source code and every release build are public on GitHub, where you can check the checksum and the build attestation.",
+          "The installer is code-signed by SYNTHETIFY LABS, but SmartScreen can warn about a new release until enough people download it. Select More info, make sure that the publisher is SYNTHETIFY LABS, then select Run anyway. The source code and every release build are public on GitHub, where you can check the checksum and the build attestation.",
       },
       providersQuestion("Windows"),
     ],

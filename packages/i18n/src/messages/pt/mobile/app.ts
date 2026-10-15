@@ -23,4 +23,6 @@ export const messages = {
   "mobile.app.route.routines": "Rotinas",
   "mobile.app.route.routine": "Rotina",
   "mobile.app.route.usage": "Uso",
+  "mobile.app.quickAction.routines": "Rotinas",
+  "mobile.app.quickAction.search": "Buscar",
 } as const satisfies PartialTranslation<typeof source>;

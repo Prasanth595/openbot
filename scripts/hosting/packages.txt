@@ -12,6 +12,8 @@ openssl
 x11-utils
 xauth
 xvfb
+# The Codex sandbox. Without it on PATH, Codex uses its bundled copy and reports an error.
+bubblewrap
 # Electron.
 libasound2t64
 libgbm1

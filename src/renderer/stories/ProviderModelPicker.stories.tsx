@@ -72,6 +72,21 @@ export const UnavailableProvidersOpen: Story = {
   },
 };
 
+/** The conversation picker: signed-out providers stay off the rail, and the plus opens the settings. */
+export const ConnectedProvidersOnly: Story = {
+  args: {
+    onManageProviders: fn(),
+    agentStatus: {
+      ...STORY_AGENT_STATUS,
+      providers: STORY_AGENT_STATUS.providers?.map((provider) =>
+        provider.id === "codex" || provider.id === "claude"
+          ? provider
+          : { ...provider, state: "sign-in-required" as const },
+      ),
+    },
+  },
+};
+
 export const ProviderDownloadsOpen: Story = {
   args: {
     modelOptions: STORY_MODELS.filter((model) => model.provider === "codex"),

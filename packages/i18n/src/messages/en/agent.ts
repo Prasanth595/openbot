@@ -17,6 +17,8 @@ export const messages = defineMessages("agent", {
   "agent.setup.creating": "Creating agent…",
   "agent.setup.create": "Create agent",
   "agent.setup.suggestions": "Suggestions",
+  "agent.deleteUndo.title": "{name} deleted",
+  "agent.deleteUndo.action": "Undo",
   "agent.error.createFailed": "The agent could not be created.",
   "agent.error.duplicateTitle": "Could not duplicate agent",
   "agent.error.duplicateFailed": "Could not duplicate this agent. Try again.",

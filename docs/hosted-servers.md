@@ -156,6 +156,13 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    "leave the subscription past-due", Stripe moves the period end at each renewal and the server
    runs with no payment. A cancel at the period end (`cancel_at_period_end` or `cancel_at`)
    shows the end date and keeps the server running until then.
+
+   Refunds and disputes. A refund (`refund.*`) keeps the plan and the server: to end the plan,
+   cancel the subscription in the Stripe Dashboard and select a refund there. A dispute
+   (`charge.dispute.created`, an inquiry too) cancels the plan of the disputed invoice now, so
+   Stripe does not charge that card again; the server stops with `plan_ended` and keeps its disk.
+   The Worker finds the plan through the invoice of the PaymentIntent (`GET /v1/invoice_payments`).
+   A refund or dispute of a payment that is not an OpenBot plan invoice changes nothing.
 8. **Plan change.** In the Customer Portal an upgrade is charged at once, and a downgrade or a
    shorter interval starts at the next period. The Worker copies the new plan, interval and currency
    to the server. boat changes the machine of a sandbox only on a resume (`type`), so the Worker
@@ -289,6 +296,9 @@ servers, their webhooks and the cron continue.
    It makes the six Prices, the Customer Portal settings, the Stripe webhook endpoint and the boat
    webhook. It writes the two keys and the two webhook signing secrets to the `cloudflare-production` GitHub Environment. Run it again at any time: it keeps
    a secret that the Environment has. `--replace-webhooks` makes new signing secrets.
+   Run it again after a deploy that adds an event to `BILLING_WEBHOOK_EVENTS`
+   (`scripts/stripe-bootstrap.ts`), not before: an older Worker records an event that it does not
+   know as received, and Stripe does not send it again.
 4. **Stripe Dashboard.** In live mode, in the failed-payment settings for subscriptions (Revenue
    recovery → Retries), set "If all retries for a payment fail" to cancel the subscription or to
    mark it unpaid. Both stop the server.
@@ -322,8 +332,10 @@ use, and the checks that repair a missed webhook run at most 5 minutes late.
 
 The OpenPanel **Revenue and Customers** dashboard shows purchases and checkout outcomes.
 Revenue comes from verified `invoice.paid` events. It includes collected tax and discounts,
-before refunds and fees. Amounts use USD cents. EUR and PLN amounts use the latest available
-ECB rate on or before the payment date in UTC. The original currency and amount stay on the event.
+before refunds and fees. Refunds and lost disputes are separate `billing_action` events with
+`amount_usd` (see [ANALYTICS.md](../ANALYTICS.md)); subtract them for net revenue. Amounts use USD cents. EUR and PLN amounts use the latest available
+ECB rate on or before the payment date in UTC; a refund or a dispute uses the rate of its own date, so a
+full refund can leave a small USD difference. The original currency and amount stay on the event.
 
 Daily `billing_snapshot` events show MRR and ARR. MRR includes active and overdue subscriptions,
 after discounts and before tax. Annual prices are divided by 12. Overdue MRR is separate.
@@ -365,8 +377,12 @@ one release and account-service origin; do not use that production prefix for ma
 
 The builder stops before creating an eleventh snapshot. This is our automation limit:
 [boat permits additional paid snapshots](https://docs.boat.dev/api/reference/snapshots/list-named-snapshots).
-No snapshot is deleted automatically. Before removing one, check both Workers and pending server
-creation records (`provider_template`); a pending retry still needs its original snapshot.
+Before each production build, the release job removes `openbot-server-production-` snapshots of
+older releases and keeps the 3 newest releases, including the new one
+([details](RELEASING.md#hosted-server-snapshots)). It never removes other names. Before removing a
+test snapshot by hand, check both Workers and pending server creation records
+(`provider_template`); a pending retry still needs its original snapshot. Servers already made
+from a removed snapshot keep running.
 
 ### Updates
 

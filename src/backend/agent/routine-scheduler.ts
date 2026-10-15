@@ -733,30 +733,40 @@ export class RoutineScheduler implements RoutineDueSource {
         if (!active()) break;
         if (this.#hooks.excludedAgents().has(due.routine.agentId)) continue;
         const run = yield* routineStep(() => {
+          // Enqueueing an earlier run can yield. A pause, edit or delete in that time must
+          // apply before this occurrence starts, rather than firing the saved due list.
+          const current = this.#routines.get(due.routine.agentId, due.routine.id);
+          if (!current?.active || current.trigger.id !== due.triggerId || current.trigger.nextRunAt !== due.nextRunAt)
+            return null;
           // A one-time trigger has no later run to make up for a dropped one, so it always queues.
           // A crash before it completes leaves the run, and `skipMissed` completes it on start.
-          if (due.schedule.kind === "once") {
-            const queued = this.#routines.createRun(due.routine, due.triggerId, "scheduled", due.nextRunAt);
-            this.#routines.completeTrigger(due.routine.id, due.triggerId, now);
-            changedAgents.add(due.routine.agentId);
+          if (current.trigger.schedule.kind === "once") {
+            const queued = this.#routines.createRun(
+              current,
+              current.trigger.id,
+              "scheduled",
+              current.trigger.nextRunAt,
+            );
+            this.#routines.completeTrigger(current.id, current.trigger.id, now);
+            changedAgents.add(current.agentId);
             return queued;
           }
           const { scheduledFor, nextRunAt } = collapseMissedOccurrences(
-            due.schedule,
-            due.routine.timezone,
-            new Date(due.nextRunAt),
+            current.trigger.schedule,
+            current.timezone,
+            new Date(current.trigger.nextRunAt),
             now,
           );
           // A run that has not finished already does this routine's work. Another one would only
           // queue behind it, and after a sleep the queue drains as a burst of identical runs. A routine
           // set to skip drops the occurrence while a spent plan would only make it wait.
           const queued =
-            this.#hasLiveRun(due.routine.agentId, due.routine.id) ||
-            (due.routine.limitPolicy === "skip" && this.#hooks.usageLimited(due.routine.agentId))
+            this.#hasLiveRun(current.agentId, current.id) ||
+            (current.limitPolicy === "skip" && this.#hooks.usageLimited(current.agentId))
               ? null
-              : this.#routines.createRun(due.routine, due.triggerId, "scheduled", scheduledFor.toISOString());
-          this.#routines.advanceTrigger(due.routine.id, due.triggerId, nextRunAt.toISOString());
-          changedAgents.add(due.routine.agentId);
+              : this.#routines.createRun(current, current.trigger.id, "scheduled", scheduledFor.toISOString());
+          this.#routines.advanceTrigger(current.id, current.trigger.id, nextRunAt.toISOString());
+          changedAgents.add(current.agentId);
           return queued;
         });
         if (run && !run.deliveryId)
