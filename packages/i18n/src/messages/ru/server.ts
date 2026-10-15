@@ -90,9 +90,9 @@ export const messages = {
   "server.add.yearlySaving": "Экономия {amount}",
   "server.add.regularPrice": "Обычная цена {price}",
   "server.add.choosePlan": "Выбрать {plan}",
-  "server.add.custom.title": "Нужен Mac или особая конфигурация?",
+  "server.add.custom.title": "Нужно больше мощности или индивидуальное решение?",
   "server.add.custom.description":
-    "Мы можем запустить OpenBot на выделенном Mac mini или составить тариф для вашей компании.",
+    "Получите выделенную инфраструктуру, дополнительное хранилище или функции под ваш рабочий процесс.",
   "server.add.custom.action": "Связаться с нами",
   "server.add.join.title": "Есть приглашение?",
   "server.add.join.action": "Присоединиться к серверу",

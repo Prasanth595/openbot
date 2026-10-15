@@ -93,9 +93,9 @@ export const messages = {
   "server.add.regularPrice": "Normal fiyat {price}",
   "server.add.choosePlan": "{plan} planını seçin",
   // Planların altındaki alt bilgi; planların karşılamadığı gereksinimler içindir.
-  "server.add.custom.title": "Bir Mac'e veya özel bir kuruluma mı ihtiyacınız var?",
+  "server.add.custom.title": "Daha fazla güce veya özel bir çözüme mi ihtiyacınız var?",
   "server.add.custom.description":
-    "OpenBot'u özel bir Mac mini üzerinde çalıştırabilir veya şirketiniz için özel bir plan hazırlayabiliriz.",
+    "Özel altyapı, ek depolama alanı veya iş akışınıza göre uyarlanmış özellikler edinin.",
   "server.add.custom.action": "Bize ulaşın",
   "server.add.join.title": "Davetiniz var mı?",
   "server.add.join.action": "Bir sunucuya katılın",
