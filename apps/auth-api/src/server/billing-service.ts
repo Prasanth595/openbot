@@ -27,7 +27,7 @@ import {
   NO_ACCOUNT_ANALYTICS,
   type PlanEndReason,
 } from "./account-analytics";
-import { type BillingSales, paymentReversal } from "./billing-sales";
+import { type BillingSales, type PaymentReversal, paymentReversal } from "./billing-sales";
 import type { HostedFailure } from "./hosted-server-service";
 import type { RemoteFailure } from "./remote-control-plane";
 import type { StripeTransportError } from "./stripe-client";
@@ -42,6 +42,7 @@ import {
   type StripeSubscription,
   subscriptionAmount,
   subscriptionCustomerId,
+  subscriptionLatestInvoiceId,
   subscriptionPeriodEnd,
   verifyStripeSignature,
 } from "./stripe-client";
@@ -154,6 +155,7 @@ interface SyncedSubscription {
   plan: BillingPlanId;
   interval: BillingInterval;
   currency: BillingCurrency;
+  latestInvoiceId: string | null;
 }
 
 export interface CheckoutRequest {
@@ -692,9 +694,8 @@ export class BillingService {
         : null;
       const subscriptionId = eventSubscriptionId(event) ?? payment?.subscriptionId ?? null;
       const synced = subscriptionId ? yield* this.#syncSubscription(subscriptionId) : null;
-      // A refund keeps the plan: to end it, cancel the plan in Stripe. A dispute ends the plan now, so
-      // Stripe does not charge the disputed card again. The server stops and keeps its disk.
-      if (reversal?.type === "payment_disputed" && payment && synced) {
+      // The server of an ended plan stops and keeps its disk.
+      if (reversal && payment && synced && (yield* this.#reversalEndsPlan(reversal, payment, synced))) {
         yield* this.cancelSubscription(payment.subscriptionId);
         yield* this.#syncSubscription(payment.subscriptionId);
       }
@@ -716,6 +717,25 @@ export class BillingService {
     },
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
+
+  /**
+   * A dispute ends the plan now, so Stripe does not charge the disputed card again. A full refund of the
+   * invoice that paid the current period ends it too, because the account paid nothing for that period.
+   * A partial refund, or a refund of an earlier invoice or of a plan change, keeps the plan.
+   */
+  readonly #reversalEndsPlan = Effect.fn("BillingService.reversalEndsPlan")(function* (
+    this: BillingService,
+    reversal: PaymentReversal,
+    payment: { invoiceId: string; billingReason: string | null },
+    synced: SyncedSubscription,
+  ): Effect.fn.Return<boolean, BillingError | BillingOperationError, BillingDependencies> {
+    if (reversal.type === "payment_disputed") return true;
+    if (reversal.type !== "payment_refunded") return false;
+    if (payment.invoiceId !== synced.latestInvoiceId) return false;
+    if (payment.billingReason !== "subscription_create" && payment.billingReason !== "subscription_cycle") return false;
+    const dependencies = yield* BillingDependencies;
+    return yield* this.#stripeCall(() => dependencies.stripe.isPaymentRefunded(reversal.paymentIntentId));
+  });
 
   /** Reports a payment or an expired Checkout. A change of the plan itself is reported by the sync. */
   readonly #trackEvent = Effect.fn("BillingService.trackEvent")(function* (
@@ -818,7 +838,13 @@ export class BillingService {
         )
         .run(),
     );
-    const synced: SyncedSubscription = { userId: ownerId, plan: key.plan, interval: key.interval, currency };
+    const synced: SyncedSubscription = {
+      userId: ownerId,
+      plan: key.plan,
+      interval: key.interval,
+      currency,
+      latestInvoiceId: subscriptionLatestInvoiceId(subscription),
+    };
     if (stored.meta.changes !== 1) return synced;
     const current = { ...synced, amount, status: subscription.status, cancelAtPeriodEnd };
     const action = planChange(previous, current);

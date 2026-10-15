@@ -575,12 +575,17 @@ async function paymentIntent(subscriptionId: string) {
   return { invoice, intent };
 }
 
-/** Waits until the Worker applied the Stripe event of this type about this object. */
+/** Waits until Stripe sent the event of this type about this object and the Worker applied it. */
 async function applied(type: string, objectId: string, timeoutMs = 120_000) {
-  const event = await waitFor(`${type} ${objectId}`, async () => {
-    const list = await stripe("GET", "/v1/events", eventListSchema, { type, limit: "20" });
-    return list.data.find((entry) => entry.data.object.id === objectId) ?? null;
-  });
+  // A test refund fails about two minutes after Stripe accepts it.
+  const event = await waitFor(
+    `${type} ${objectId}`,
+    async () => {
+      const list = await stripe("GET", "/v1/events", eventListSchema, { type, limit: "20" });
+      return list.data.find((entry) => entry.data.object.id === objectId) ?? null;
+    },
+    timeoutMs,
+  );
   await waitFor(
     `Worker applied ${event.id}`,
     async () =>
@@ -992,39 +997,54 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
     );
   },
   async refund(account) {
+    // A partial refund keeps the plan. The second refund makes the payment refunded in full and ends it.
     const { server } = await account.createServer("Refund");
     const sub = await account.pay(server.serverId);
     await provisioned(account, server.serverId);
     const paid = await paymentIntent(sub);
     const sales = await recordsSales(paid.invoice);
-    const refund = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: paid.intent });
-    await applied("refund.created", refund.id);
+    const partial = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: paid.intent, amount: "100" });
+    await applied("refund.created", partial.id);
     const plan = await account.plan(sub);
     const row = account.row(server.serverId);
     record(
       "refund",
-      "a refund in the Dashboard keeps the plan and the server",
+      "a partial refund keeps the plan and the server",
       plan?.status === "active" && row?.desired_state === "running" && row.observed_error !== "plan_ended",
-      { refund: refund.status, plan, row },
+      { refund: partial.status, plan, row },
+    );
+    const rest = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: paid.intent });
+    await applied("refund.created", rest.id);
+    const ended = await rowWhere(account, server.serverId, "plan ended", (row) => row.desired_state === "stopped");
+    const stripeSub = await subscription(sub);
+    record(
+      "refund",
+      "a full refund of the current invoice cancels the plan now; the server stops with plan_ended and is kept",
+      stripeSub.status === "canceled" && ended.observed_error === "plan_ended" && ended.deleted_at === null,
+      { refund: rest.status, stripeStatus: stripeSub.status, row: ended },
     );
     if (sales) {
       const recorded = facts(paid.invoice);
       record(
         "refund",
-        "the refund is a payment_refunded sales fact",
-        recorded.some((fact) => fact.source_key === `refund:${refund.id}:succeeded`),
+        "each refund is a payment_refunded sales fact",
+        recorded.some((fact) => fact.source_key === `refund:${partial.id}:succeeded`) &&
+          recorded.some((fact) => fact.source_key === `refund:${rest.id}:succeeded`),
         recorded,
       );
     } else {
       print("SKIP [refund] sales facts: the Worker has no OpenPanel client");
     }
-    // This test card makes the refund fail after Stripe accepts it.
+    // This test card makes the refund fail after Stripe accepts it. The refund is partial, so the plan stays.
     const second = await account.createServer("Refund fails");
     await account.useCard("pm_card_refundFail");
     const secondSub = await account.pay(second.server.serverId);
     await provisioned(account, second.server.serverId);
     const secondPaid = await paymentIntent(secondSub);
-    const failing = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: secondPaid.intent });
+    const failing = await stripe("POST", "/v1/refunds", refundSchema, {
+      payment_intent: secondPaid.intent,
+      amount: "100",
+    });
     await applied("refund.failed", failing.id, 180_000);
     const failedRow = account.row(second.server.serverId);
     record(

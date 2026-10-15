@@ -157,12 +157,18 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    runs with no payment. A cancel at the period end (`cancel_at_period_end` or `cancel_at`)
    shows the end date and keeps the server running until then.
 
-   Refunds and disputes. A refund (`refund.*`) keeps the plan and the server: to end the plan,
-   cancel the subscription in the Stripe Dashboard and select a refund there. A dispute
-   (`charge.dispute.created`, an inquiry too) cancels the plan of the disputed invoice now, so
-   Stripe does not charge that card again; the server stops with `plan_ended` and keeps its disk.
-   The Worker finds the plan through the invoice of the PaymentIntent (`GET /v1/invoice_payments`).
-   A refund or dispute of a payment that is not an OpenBot plan invoice changes nothing.
+   Refunds and disputes. A full refund (`refund.created` or `refund.updated` with `succeeded`) of
+   the invoice that paid the current period cancels the plan now: the account paid nothing for that
+   period. That invoice is the subscription's `latest_invoice`, made for a new plan or a renewal
+   (`billing_reason` `subscription_create` or `subscription_cycle`). Partial refunds that add up to
+   the full amount count as a full refund (the charge is `refunded`). A partial refund, or a refund of
+   an earlier invoice or of a plan change, keeps the plan and the server: to end the plan, cancel the
+   subscription in the Stripe Dashboard. A dispute (`charge.dispute.created`, an inquiry too) cancels
+   the plan of the disputed invoice now, so Stripe does not charge that card again. In both cases
+   the server stops with `plan_ended` and keeps its disk. The Worker finds the plan through the
+   invoice of the PaymentIntent (`GET /v1/invoice_payments`). A refund or dispute of a payment that
+   is not an OpenBot plan invoice changes nothing. A refund that fails after it succeeded does not
+   start the plan again.
 8. **Plan change.** In the Customer Portal an upgrade is charged at once, and a downgrade or a
    shorter interval starts at the next period. The Worker copies the new plan, interval and currency
    to the server. boat changes the machine of a sandbox only on a resume (`type`), so the Worker
