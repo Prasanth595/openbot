@@ -10,8 +10,6 @@ export const CONTACT_TOPICS = [
   { id: "other", label: "Something else" },
 ] as const;
 
-export type ContactTopic = (typeof CONTACT_TOPICS)[number]["id"];
-
 export const CONTACT_LIMITS = {
   name: 120,
   company: 120,
