@@ -13,7 +13,7 @@ import {
 import { isAndroid } from "@/shared/lib/platform";
 
 /** A file that another app shared. It is a copy in this app's cache, which the receiver deletes. */
-export interface SharedFile {
+interface SharedFile {
   uri: string;
   name: string;
   /** Null when the system does not tell the size. */
