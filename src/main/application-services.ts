@@ -669,11 +669,13 @@ async function createMessagingServices({
           return centralAuth.createTelegramLink(hostId).pipe(
             Effect.mapError(({ cause }) => {
               // The account service has no Telegram bot. The user can only wait, so they get catalog
-              // text, which a joined server can show to its client.
+              // text, which a joined server can show to its client. The log keeps the original.
               const notConfigured =
                 cause instanceof Error && "code" in cause && cause.code === "telegram_not_configured";
               return new MessagingOperationFailed({
-                cause: notConfigured ? new Error(sourceText("error.messaging.telegramServiceUnavailable")) : cause,
+                cause: notConfigured
+                  ? new Error(sourceText("error.messaging.telegramServiceUnavailable"), { cause })
+                  : cause,
               });
             }),
           );

@@ -100,7 +100,7 @@ import { TEAM_CURSOR_CLINE_CAPABILITY } from "@openbot/contracts/team-protocol/v
 import { encodeTeamProtocolV6BaseCurrentEvent } from "@openbot/contracts/team-protocol/v6-base-adapter";
 import { TEAM_PI_MUSE_CAPABILITY, TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
 import { encodeTeamProtocolV7BaseCurrentEvent } from "@openbot/contracts/team-protocol/v7-base-adapter";
-import { sourceText } from "@openbot/i18n/source";
+import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Scope } from "effect";
 import type * as Ws from "ws";
@@ -809,7 +809,11 @@ export class TeamApiServer {
         error instanceof AgentMemorySelectionError;
       const status =
         error instanceof HttpError || error instanceof RemoteScreenError ? error.status : expected ? 400 : 500;
-      const message = expected ? error.message : sourceText("error.team.requestFailed");
+      // Catalog text is safe to show, and the user can act on it. Any other unexpected text stays private.
+      const message =
+        expected || (error instanceof Error && matchingSourceKeys(error.message).length > 0)
+          ? error.message
+          : sourceText("error.team.requestFailed");
       const code = error instanceof RemoteScreenError ? error.code : undefined;
       if (!expected) (this.#options.logger ?? logger).error("Team API request failed:", toLogValue(error));
       // A streamed file can fail after its head is on the wire. A second head is not possible, so
