@@ -9,7 +9,7 @@ const MarketingDemoSession = lazy(() =>
 );
 
 export interface MarketingDemoProps {
-  onExit?: () => void;
+  onExit?: (() => void) | undefined;
 }
 
 /** A full remount owns renderer state as well as the host mock. Reset does not edit saved data. */

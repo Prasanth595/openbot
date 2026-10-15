@@ -10,7 +10,7 @@ import { createUseCaseOptions, MARKETING_DEMO_MANIFEST, type PreviewUseCaseActio
 import { createMockOpenBot, type MockOpenBotControls } from "./mock-openbot";
 import { OpenBotPlayground } from "./OpenBotPlayground";
 
-export function MarketingDemoSession(props: { onReset: () => void; onExit?: () => void }) {
+export function MarketingDemoSession(props: { onReset: () => void; onExit?: (() => void) | undefined }) {
   const mock = createMockOpenBot(createUseCaseOptions(MARKETING_DEMO_MANIFEST));
   return (
     <OpenBotPlayground
@@ -28,7 +28,11 @@ export function MarketingDemoSession(props: { onReset: () => void; onExit?: () =
   );
 }
 
-function MarketingDemoGuide(props: { mock: MockOpenBotControls; onReset: () => void; onExit?: () => void }) {
+function MarketingDemoGuide(props: {
+  mock: MockOpenBotControls;
+  onReset: () => void;
+  onExit?: (() => void) | undefined;
+}) {
   const { t } = useText();
   const { activeAgentId } = useAgents();
   const { selectAgent } = useNavigation();

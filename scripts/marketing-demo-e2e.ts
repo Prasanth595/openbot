@@ -964,7 +964,7 @@ async function openDemo(page: Page, origin: string): Promise<string> {
     assert.equal(actual.snapshot.messages.length, 1);
     assert.equal(
       actual.snapshot.messages[0]?.text,
-      `${t("preview.demo.simulatedResult")}\n\n${agent.description}\n\nThe fictional Cedar Studio brief is ready. Choose a guided example above.`,
+      `${t("preview.demo.simulatedResult")}\n\n${agent.description}\n\n${t("preview.demo.welcome")}`,
     );
     assert.deepEqual(actual.queue.deliveries, []);
     assert.deepEqual(actual.memories, []);
@@ -1082,7 +1082,7 @@ try {
     await check(`guided ${id} action`, async () => {
       const action = manifest.actions.find((item) => item.id === id);
       assert.ok(action);
-      const labels: Record<string, string> = {
+      const labels: Record<typeof id, string> = {
         plan: t("preview.demo.plan"),
         research: t("preview.demo.research"),
         content: t("preview.demo.content"),

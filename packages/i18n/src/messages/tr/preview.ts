@@ -41,5 +41,8 @@ export const messages = {
   "preview.demo.unsupported":
     "Simüle demo: bu istek desteklenmiyor. Rehberli bir örnek seç. Hiçbir model çağrılmadı ve hiçbir şey gönderilmedi.",
   "preview.demo.failed": "Bu örnek çalıştırılamadı. Demoyu sıfırla ve tekrar dene.",
+  "preview.demo.welcome": "Kurgusal Cedar Studio özeti hazır. Yukarıdan rehberli bir örnek seç.",
+  "preview.demo.modelName": "Simüle demo",
+  "preview.demo.modelDescription": "Gerçek bir model bağlı değil.",
   "preview.demo.selected": "Seçili ajan: {name}",
 } as const satisfies PartialTranslation<typeof source>;

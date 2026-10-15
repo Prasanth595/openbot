@@ -100,6 +100,7 @@ Its main jobs are:
 | Signal E2E | `ubuntu-latest` | `bun run test:signal`, when `remote/` or `scripts/` changes |
 | Surfaces | `ubuntu-latest` | Parallel groups described below, then `bun run remote:check:compose` |
 | API | `ubuntu-latest` | `bun run check:api`, then, for a pull request from this repository, upload `apps/auth-api/dist` |
+| Public marketing demo | `ubuntu-latest` | `bun scripts/marketing-demo-e2e.ts`, when the `api` lane runs or the script changes |
 | Storybook build | `ubuntu-latest` | `bun run build-storybook` |
 
 CI uses native GitHub Actions `parallel` groups. Each group waits for all its steps and fails
@@ -147,6 +148,7 @@ renderer bundles it. Then it selects the lanes:
 | `api` | API | in `apps/auth-api`, `apps/site-router`, `src/renderer` or `resources`, or a `CHANGELOG.md` |
 | `storybook` | Storybook build | in `src`, `apps/auth-api`, `.storybook`, `resources`, `marketplace` or `build` |
 | `surfaces` | Surfaces | in `apps/mobile`, `apps/site-router`, `remote` or `scripts` |
+| `marketing_demo` | Public marketing demo, also when `api` runs | `scripts/marketing-demo-e2e.ts` |
 
 A path every workspace reads (`package.json`, `bun.lock`, `tsconfig*.json`, `biome.json`,
 `.github/`, `packages/`, `tools/`, `patches/`, `vendor/`) runs every lane. `code` runs for a

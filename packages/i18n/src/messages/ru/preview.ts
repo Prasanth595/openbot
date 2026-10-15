@@ -41,5 +41,8 @@ export const messages = {
   "preview.demo.unsupported":
     "Запрос не поддерживается в демо. Выберите пример с подсказкой. Модель не вызывалась и ничего не отправлено.",
   "preview.demo.failed": "Не удалось выполнить пример. Сбросьте демо и попробуйте снова.",
+  "preview.demo.welcome": "Вымышленный бриф Cedar Studio готов. Выберите пример с подсказкой выше.",
+  "preview.demo.modelName": "Симулированное демо",
+  "preview.demo.modelDescription": "Реальная модель не подключена.",
   "preview.demo.selected": "Выбранный агент: {name}",
 } as const satisfies PartialTranslation<typeof source>;

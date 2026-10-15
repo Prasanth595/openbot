@@ -42,5 +42,8 @@ export const messages = {
     "Simulierte Demo: Diese Anfrage wird nicht unterstützt. Wähle ein geführtes Beispiel. Kein Modell wurde aufgerufen und nichts wurde gesendet.",
   "preview.demo.failed":
     "Das Demo-Beispiel konnte nicht ausgeführt werden. Setze die Demo zurück und versuche es erneut.",
+  "preview.demo.welcome": "Das fiktive Briefing von Cedar Studio ist bereit. Wähle oben ein geführtes Beispiel.",
+  "preview.demo.modelName": "Simulierte Demo",
+  "preview.demo.modelDescription": "Kein echtes Modell ist verbunden.",
   "preview.demo.selected": "Ausgewählter Agent: {name}",
 } as const satisfies PartialTranslation<typeof source>;

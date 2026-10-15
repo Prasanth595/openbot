@@ -40,5 +40,8 @@ export const messages = defineMessages("preview", {
   "preview.demo.unsupported":
     "Simulated demo: this request is unsupported. Choose a guided example. No model was called and nothing was sent.",
   "preview.demo.failed": "Could not run this demo example. Reset the demo and try again.",
+  "preview.demo.welcome": "The fictional Cedar Studio brief is ready. Choose a guided example above.",
+  "preview.demo.modelName": "Simulated demo",
+  "preview.demo.modelDescription": "No live model is connected.",
   "preview.demo.selected": "Selected agent: {name}",
 });

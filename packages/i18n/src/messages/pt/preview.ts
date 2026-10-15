@@ -41,5 +41,8 @@ export const messages = {
   "preview.demo.unsupported":
     "Demo simulada: solicitação não disponível. Escolha um exemplo guiado. Nenhum modelo foi chamado e nada foi enviado.",
   "preview.demo.failed": "Não foi possível executar este exemplo. Redefina a demo e tente de novo.",
+  "preview.demo.welcome": "O briefing fictício da Cedar Studio está pronto. Escolha um exemplo guiado acima.",
+  "preview.demo.modelName": "Demo simulada",
+  "preview.demo.modelDescription": "Nenhum modelo real está conectado.",
   "preview.demo.selected": "Agente selecionado: {name}",
 } as const satisfies PartialTranslation<typeof source>;

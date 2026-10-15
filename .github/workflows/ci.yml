@@ -183,7 +183,7 @@ jobs:
   marketing-demo:
     name: Public marketing demo
     needs: detect
-    if: needs.detect.outputs.api == 'true' || needs.detect.outputs.storybook == 'true' || needs.detect.outputs.marketing_demo == 'true'
+    if: needs.detect.outputs.api == 'true' || needs.detect.outputs.marketing_demo == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -386,7 +386,7 @@ jobs:
     # fails this one.
     name: All required checks pass
     if: always()
-    needs: [detect, check, browser, tests-desktop, signal-e2e, surfaces, api, storybook]
+    needs: [detect, check, browser, tests-desktop, signal-e2e, surfaces, api, storybook, marketing-demo]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

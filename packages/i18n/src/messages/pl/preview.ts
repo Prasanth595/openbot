@@ -41,5 +41,8 @@ export const messages = {
   "preview.demo.unsupported":
     "Demo symulowane: to żądanie nie jest obsługiwane. Wybierz przykład z przewodnikiem. Nie wywołano modelu i nic nie wysłano.",
   "preview.demo.failed": "Nie udało się uruchomić przykładu. Zresetuj demo i spróbuj ponownie.",
+  "preview.demo.welcome": "Fikcyjny brief Cedar Studio jest gotowy. Wybierz powyżej przykład z przewodnikiem.",
+  "preview.demo.modelName": "Demo symulowane",
+  "preview.demo.modelDescription": "Nie podłączono żadnego prawdziwego modelu.",
   "preview.demo.selected": "Wybrany agent: {name}",
 } as const satisfies PartialTranslation<typeof source>;

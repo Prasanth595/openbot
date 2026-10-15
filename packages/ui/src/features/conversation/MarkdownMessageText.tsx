@@ -4,7 +4,7 @@ import { chatPreviewKind } from "@openbot/contracts/chat-preview";
 import { Button, Checkbox } from "@openbot/ui";
 import { Dynamic } from "@solidjs/web";
 import { Marked, type Token, type Tokens, type TokensList } from "marked";
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, For, Show, untrack } from "solid-js";
 import { useText } from "../../text";
 import { AttachmentReferenceVisual, attachmentReferenceTone } from "./AttachmentReference";
 import { CodeBlock } from "./CodeBlock";
@@ -576,9 +576,8 @@ function MarkdownInline(props: {
       {(item, index) => {
         const token = item.token;
         const after = () => tailAfter()[index()];
-        // Link, file, and image branch choices depend on live content props. Track those
-        // choices per token instead of taking a stale snapshot in the For row callback.
-        const rendered = createMemo(() => {
+        // Each row builds its nodes once. Child props stay reactive through their own getters.
+        return untrack(() => {
           switch (token.type) {
             case "strong":
               if (!tokenIs(token, "strong")) return token.raw;
@@ -756,7 +755,6 @@ function MarkdownInline(props: {
               return <RichText body={token.raw} content={props.content} streamingTailAfter={after()} />;
           }
         });
-        return <>{rendered()}</>;
       }}
     </For>
   );

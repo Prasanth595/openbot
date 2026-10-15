@@ -6,7 +6,7 @@ The fictional Cedar Studio workspace has three agents. The guided examples show 
 
 Every response is simulated. A guided request selects a fixed sample result. Other text receives an unsupported-request notice. The demo does not call a model. It does not send mail, publish content, visit websites, or run commands. Account and provider controls use the existing in-memory preview API. No real account, credential, integration, or file is available to that API. Microphone capture is disabled for this demo.
 
-**Reset demo** disposes the current renderer and mock, then creates them again from the manifest. It discards drafts, queues, selected panels, routines changed during the session, and pending mock work. **Exit demo** ends that mount. **Open a fresh demo** starts a new one. Display preferences use private memory storage for this mount. Saved product data is not copied or erased. The prior storage descriptor and preview bridge are restored only while the demo still owns them.
+**Reset demo** disposes the current renderer and mock, then creates them again from the manifest. It discards drafts, queues, selected panels, routines changed during the session, and pending mock work. **Exit demo** ends that mount. **Open a fresh demo** starts a new one. Display preferences use private memory storage for this mount. Reset clears that storage, but a preference that a renderer module read when it loaded keeps its value until the page reloads. Saved product data is not copied or erased. The prior storage descriptor and preview bridge are restored only while the demo still owns them.
 
 **Start using OpenBot** opens the existing `/app` entry with a full document navigation. Account setup is outside the demo.
 

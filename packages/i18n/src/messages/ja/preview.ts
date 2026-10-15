@@ -41,5 +41,8 @@ export const messages = {
   "preview.demo.unsupported":
     "このデモでは対応していないリクエストです。ガイド付きサンプルを選んでください。モデルの呼び出しや送信は行っていません。",
   "preview.demo.failed": "サンプルを実行できませんでした。デモをリセットして再試行してください。",
+  "preview.demo.welcome": "架空の Cedar Studio のブリーフが準備できました。上のガイド付きサンプルを選んでください。",
+  "preview.demo.modelName": "シミュレーションデモ",
+  "preview.demo.modelDescription": "実際のモデルには接続していません。",
   "preview.demo.selected": "選択中のエージェント: {name}",
 } as const satisfies PartialTranslation<typeof source>;
