@@ -53,15 +53,26 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_KEY }}
+          ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
         run: |
           missing=()
-          for name in EXPO_TOKEN GOOGLE_PLAY_SERVICE_ACCOUNT_KEY; do
+          for name in EXPO_TOKEN GOOGLE_PLAY_SERVICE_ACCOUNT_KEY ANDROID_GOOGLE_SERVICES_JSON; do
             if [[ -z "${!name}" ]]; then missing+=("$name"); fi
           done
           if (( ${#missing[@]} > 0 )); then
             echo "Missing release-android secrets: ${missing[*]}" >&2
             exit 1
           fi
+
+      - name: Prepare Android Firebase app configuration
+        shell: bash
+        env:
+          ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+        run: |
+          file="$RUNNER_TEMP/openbot-google-services.json"
+          umask 077
+          printf '%s' "$ANDROID_GOOGLE_SERVICES_JSON" > "$file"
+          echo "OPENBOT_ANDROID_GOOGLE_SERVICES_FILE=$file" >> "$GITHUB_ENV"
 
       # A React Native release build needs more disk than the runner leaves free.
       - name: Free runner disk

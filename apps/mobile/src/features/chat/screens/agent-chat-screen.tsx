@@ -15,12 +15,19 @@ export function AgentChatScreen() {
     unstable_dismissalBoundsRect: { minX: 0, maxX: 24 },
   });
 
-  const { agentId, messageId } = useLocalSearchParams<{ agentId: string; messageId?: string }>();
+  const { agentId, messageId, serverId } = useLocalSearchParams<{
+    agentId: string;
+    messageId?: string;
+    serverId?: string;
+  }>();
   const { agents } = useMobileWorkspace();
   const foreground = useThemeColor("foreground");
   const resolvedAgentId = Array.isArray(agentId) ? agentId[0] : agentId;
   const resolvedMessageId = Array.isArray(messageId) ? messageId[0] : messageId;
-  const agent = agents.find((candidate) => candidate.id === resolvedAgentId);
+  const resolvedServerId = Array.isArray(serverId) ? serverId[0] : serverId;
+  const agent = agents.find(
+    (candidate) => candidate.id === resolvedAgentId && (!resolvedServerId || candidate.serverId === resolvedServerId),
+  );
 
   if (agent) {
     return (

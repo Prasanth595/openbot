@@ -94,6 +94,10 @@ export const messages = defineMessages("mobile.settings", {
   "mobile.settings.liveActivities.retry": "Retry saving Live Activities setting",
   "mobile.settings.notifications.title": "Notifications",
   "mobile.settings.notifications.toggle": "Allow notifications",
+  "mobile.settings.notifications.androidFooter":
+    "Get an alert when an agent finishes, fails or needs you. Android shows the OpenBot name only. Tap an alert to open its chat.",
+  "mobile.settings.notifications.androidSoundFooter":
+    "Android controls notification sounds for each channel. Changes in Android Settings take priority over this choice.",
   "mobile.settings.notifications.footer":
     "Agents tell you when they finish, stop with an error, or need your input, an approval, or a step in the browser. Nothing comes while OpenBot is in use. While the desktop app is in use, only the events that need you come. While the Live Activity shows, it shows the event instead.",
   "mobile.settings.notifications.denied": "Notifications for OpenBot are off in iOS Settings.",

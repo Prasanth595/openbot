@@ -1,5 +1,11 @@
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import {
+  ANDROID_PUSH_NOTIFICATIONS_CODECS,
+  ANDROID_PUSH_NOTIFICATIONS_ROUTES,
+  type AndroidPushNotificationRegistration,
+  readAndroidPushRegistration,
+} from "@openbot/contracts/team-protocol/android-push-notifications-v1";
+import {
   PUSH_NOTIFICATION_SOUNDS,
   PUSH_NOTIFICATIONS_CODECS,
   PUSH_NOTIFICATIONS_ROUTES,
@@ -16,7 +22,7 @@ export interface StoredPushRegistration {
   /** The Team API protocol and capabilities of the phone, which decide the agents it can see. */
   protocol: number;
   capabilities: string[];
-  value: PushNotificationRegistration;
+  value: PushNotificationRegistration | AndroidPushNotificationRegistration;
 }
 
 /** More phones than members can have sessions is a fault. The oldest go first. */
@@ -88,9 +94,14 @@ function decodeFile(parsed: unknown): StoredPushRegistration[] {
       !entry.capabilities.every(isString)
     )
       return [];
-    let value: PushNotificationRegistration | null;
+    let value: PushNotificationRegistration | AndroidPushNotificationRegistration | null;
     try {
-      value = readPushRegistration(decodeRegistration?.(entry.value));
+      value =
+        isDynamicRecord(entry.value) && entry.value.transport === "fcm"
+          ? readAndroidPushRegistration(
+              ANDROID_PUSH_NOTIFICATIONS_CODECS.get(ANDROID_PUSH_NOTIFICATIONS_ROUTES.register)?.request(entry.value),
+            )
+          : readPushRegistration(decodeRegistration?.(entry.value));
     } catch {
       return [];
     }

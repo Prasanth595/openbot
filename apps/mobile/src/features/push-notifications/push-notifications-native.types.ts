@@ -1,16 +1,16 @@
 import type { NotificationSound } from "@openbot/contracts/notification-relay";
-import type { NotificationPermission } from "@/features/settings/model/push-notifications";
+export type NotificationPermission = "granted" | "denied" | "undetermined";
 
 /** The data key of a sound preview. The notification handler plays it and shows nothing. */
 export const SOUND_PREVIEW_KEY = "openbotSoundPreview";
 
-/** The iOS side of notifications: permission, the push token, and the keys of the extension. */
+/** The native notification adapter. iOS also writes keys for its extension. */
 export interface PushNotificationsNative {
-  /** Reads the permission, and asks once when iOS has not asked yet. */
+  /** Reads permission and asks when the platform can ask. */
   permission(): Promise<NotificationPermission>;
-  /** The APNs token of the app as lowercase hex, or `null` when iOS gives none. */
+  /** The native push token, or `null` when the platform gives none. */
   deviceToken(): Promise<string | null>;
-  /** iOS can give the app a new token. Returns the function that stops listening. */
+  /** The platform can give the app a new token. Returns the function that stops listening. */
   onDeviceToken(listener: (token: string | null) => void): () => void;
   /**
    * Writes the notification keys of each server where the Notification Service Extension reads them,

@@ -133,6 +133,20 @@ jobs:
         if: env.CODE == 'true'
         run: bun run check:assets
 
+      - name: Verify android push behavior
+        if: env.CODE == 'true'
+        run: bun scripts/android-push-e2e.ts
+
+      - name: Upload android push verification
+        if: always() && env.CODE == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-push-verification
+          path: |
+            .openbot-build/android-push-e2e/report.json
+            .openbot-build/android-push-e2e/execution.log
+          if-no-files-found: ignore
+
       - name: Check Markdown links and anchors
         run: bun run check:doc-links
 
@@ -425,6 +439,9 @@ jobs:
           OPENBOT_GITHUB_APP_PRIVATE_KEY: ${{ secrets.OPENBOT_GITHUB_APP_PRIVATE_KEY }}
           APNS_PRIVATE_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          FCM_PROJECT_ID: ${{ secrets.FCM_PROJECT_ID }}
+          FCM_CLIENT_EMAIL: ${{ secrets.FCM_CLIENT_EMAIL }}
+          FCM_PRIVATE_KEY: ${{ secrets.FCM_PRIVATE_KEY }}
         run: |
           secrets_path="$RUNNER_TEMP/openbot-worker-secrets.json"
           umask 077
@@ -462,6 +479,8 @@ jobs:
               ["BOAT_API_KEY", "BOAT_WEBHOOK_SECRET"],
               // The Live Activity relay stays off until both are set.
               ["APNS_PRIVATE_KEY", "APNS_KEY_ID"],
+              // Android push stays off until all service-account settings are set.
+              ["FCM_PROJECT_ID", "FCM_CLIENT_EMAIL", "FCM_PRIVATE_KEY"],
             ]) {
               const present = names.filter((name) => process.env[name]?.trim());
               if (present.length === 0) continue;

@@ -499,7 +499,7 @@ is not included in analytics; provider output uses the application's secret reda
   `~/Library/Application Support/OpenBot/openbot-resource-summary-v1.json` holds the totals of
   today and of the previous day for the daily analytics summary and the diagnostics export.
 - `~/Library/Application Support/OpenBot/openbot-push-notifications-v1.json` holds, for each member
-  phone that gets notifications from this host, the session ID, the member ID, the Apple push token,
+  phone that gets notifications from this host, the session ID, the member ID, the native push token,
   the secret that seals the notifications, the interface language, and the notification choices. Only
   the user can read the file, and it is not in the diagnostics export or the data export. See
   [iPhone notifications](#iphone-notifications).
@@ -1058,6 +1058,33 @@ iOS keychain with access after the first unlock since the phone started, on this
 
 Settings > Notifications turns this off, and sets the preview and the sound. The events and the mute
 of each server are in the same place and in the server settings.
+
+## Android notifications
+
+Android background alerts use Firebase Cloud Messaging (FCM). The phone gives each supporting
+host its native FCM token, a separate secret for that host and the notification choices over
+the encrypted host connection. The host keeps these values with the session and member IDs
+in its existing private notification registration file so alerts can work after host restart.
+The same member access, agent visibility, mute and quiet-run rules apply. Android has no
+Live Activity. Turning notifications off or signing out removes the registration; the account
+service refuses an ended device session even if a disconnected host did not get the removal.
+
+The host seals the server, agent, thread and event record with notification keys from the
+phone's host secret. The account service receives the device token, device session ID, sound,
+time and sealed bytes, authenticated by the host credential. It checks the current account
+session and membership for every send. It stores and logs no notification request.
+
+Google receives only the destination push token, fixed OpenBot title and body, selected
+notification channel, expiry and sealed data. It receives no plaintext agent name, chat,
+server ID, thread ID or device session ID. Google can keep delivery records under its own
+privacy policy. Android shows the OpenBot name only. A tap opens the seal on the phone,
+checks the current server and its keys, and opens that server's chat. Plain routing values
+from push data are not trusted. Android notification reply and approval actions are not
+included. Signing out changes the phone secret and stops pending notification navigation.
+
+Settings > Notifications controls alerts, per-server mute and sound. Android system channel
+settings take priority. OS force-stop and battery restrictions can prevent delivery. Native
+Firebase app configuration and a configured account-service FCM sender are required.
 
 ## Optional macOS Host Manager
 

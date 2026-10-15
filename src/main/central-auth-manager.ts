@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { MobileNotificationRelayPush } from "@openbot/contracts/android-notification-relay";
 import { parseHostedServerClaim } from "@openbot/contracts/hosted-servers";
 import type {
   AvatarImageInput,
@@ -19,7 +20,6 @@ import {
   isMobileConnectHostBinding,
   type MobileConnectHostBinding,
 } from "@openbot/contracts/mobile-connect";
-import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import {
   decodeRemoteSession,
   decodeRemoteSessionTicket,
@@ -842,19 +842,19 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   ).bind(this);
 
   /**
-   * Sends one notification through the account service to Apple. The host sealed the agent name and
+   * Sends one notification through the account service to the native push service. The host sealed the agent name and
    * the text with keys that only the phone has. Returns `gone` when the session of the phone ended
-   * or Apple refused the token.
+   * or the push service refused the token.
    */
   readonly sendPushNotification = Effect.fn("CentralAuth.sendPushNotification")(
     function* (
       this: CentralAuthManager,
       hostId: string,
-      push: NotificationRelayPush,
+      push: MobileNotificationRelayPush,
     ): Effect.fn.Return<"sent" | "gone", CentralAuthOperationError, CentralAuthTransport> {
       const machineToken = yield* this.#hostMachineToken(hostId);
       return yield* this.#requestEffect(
-        `/v2/remote/hosts/${encodeURIComponent(hostId)}/notification`,
+        `/v2/remote/hosts/${encodeURIComponent(hostId)}/${"transport" in push ? "android-notification" : "notification"}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

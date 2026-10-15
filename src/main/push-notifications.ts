@@ -1,10 +1,11 @@
+import {
+  ANDROID_NOTIFICATION_SEALED_LIMIT,
+  type MobileNotificationRelayPush,
+} from "@openbot/contracts/android-notification-relay";
 import { type AgentEvent, type AgentSummary, latestTurnAnswer } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
-import {
-  NOTIFICATION_SEALED_LIMIT,
-  type NotificationRelayPush,
-  type NotificationSound,
-} from "@openbot/contracts/notification-relay";
+import { NOTIFICATION_SEALED_LIMIT, type NotificationSound } from "@openbot/contracts/notification-relay";
+import type { AndroidPushNotificationRegistration } from "@openbot/contracts/team-protocol/android-push-notifications-v1";
 import type { PushNotificationRegistration } from "@openbot/contracts/team-protocol/push-notifications-v1";
 import { type AppTranslate, resolveLocale, translateFor } from "@openbot/i18n";
 import { redactText, toLogValue } from "@openbot/logging";
@@ -47,7 +48,7 @@ interface PushNotificationOptions {
   agents: PushNotificationAgents;
   store: Pick<PushNotificationStore, "list" | "replace">;
   /** Sends one notification through the account service. `gone` means the phone gets no more. */
-  send(push: NotificationRelayPush): Effect.Effect<"sent" | "gone", PushNotificationSendFailure>;
+  send(push: MobileNotificationRelayPush): Effect.Effect<"sent" | "gone", PushNotificationSendFailure>;
   /** The agents that a phone with this protocol and these capabilities cannot see. */
   hiddenAgentIds(protocol: number, capabilities: ReadonlySet<string>): ReadonlySet<string>;
   /** Whether the member is still a member and not disabled. A removed member gets no more notifications. */
@@ -83,13 +84,13 @@ interface Registration {
 }
 
 /**
- * Sends a notification to a member's iPhone when an agent that the member can see finishes, fails,
+ * Sends a notification to a member's phone when an agent that the member can see finishes, fails,
  * or waits for input, an approval or a browser step, while the app is not on screen. It decides as
  * the desktop does (`notificationForAgentEvent`): the member's level, the agent's own switch, and no
  * notification for a quiet routine run. It sends nothing while the member uses a desktop app, and no
  * answer to a message while the phone shows the Live Activity, which shows the answer. The agent name
  * and the text are sealed for the phone, so the account service and Apple see the token, the time,
- * and sealed bytes only.
+ * and sealed bytes only. Android uses the same policy with a separate optional registration.
  *
  * The phones are kept in a file, so they get notifications after this computer restarts, also when
  * they do not connect again. The account service sends nothing for a session that has ended.
@@ -122,7 +123,11 @@ export class PushNotificationService {
     this.#listen();
   }
 
-  register(sessionId: string, viewer: PushNotificationViewer, value: PushNotificationRegistration): void {
+  register(
+    sessionId: string,
+    viewer: PushNotificationViewer,
+    value: PushNotificationRegistration | AndroidPushNotificationRegistration,
+  ): void {
     // The phone registers again when it connects to the next runtime.
     if (!this.#running) return;
     const { memberId, protocol, capabilities } = viewer;
@@ -132,7 +137,12 @@ export class PushNotificationService {
     }
     // A phone that signs in again gets a new session. The old one would notify it a second time.
     for (const [other, registration] of this.#registrations) {
-      if (other !== sessionId && value.token !== null && registration.stored.value.token === value.token) {
+      if (
+        other !== sessionId &&
+        value.token !== null &&
+        "transport" in value === "transport" in registration.stored.value &&
+        registration.stored.value.token === value.token
+      ) {
         this.#registrations.delete(other);
       }
     }
@@ -211,7 +221,8 @@ export class PushNotificationService {
       // With a sound, the activity also lights up the screen and plays it; without one, it updates silently.
       const sound = soundOf(value);
       const startedAt = value.liveActivityStartedAt === null ? null : value.liveActivityStartedAt * 1_000;
-      if (this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt)) continue;
+      if (!("transport" in value) && this.#options.liveActivityShows(sessionId, sound ? { sound } : null, startedAt))
+        continue;
       // A phone with notifications off registers for the sound of the Live Activity only.
       const token = value.token;
       if (token === null) continue;
@@ -274,7 +285,8 @@ export class PushNotificationService {
     const { stored, keys } = registration;
     let sealed = sealPushNotification(content, keys, this.#options.randomBytes(LIVE_ACTIVITY_NONCE_BYTES));
     // A long agent name and a preview of wide characters can pass the Apple limit.
-    if (sealed.length > NOTIFICATION_SEALED_LIMIT) {
+    const limit = "transport" in stored.value ? ANDROID_NOTIFICATION_SEALED_LIMIT : NOTIFICATION_SEALED_LIMIT;
+    if (sealed.length > limit) {
       // The short text no longer shows the command, so it offers Deny only.
       const short: PushNotificationContent = {
         ...content,
@@ -284,14 +296,15 @@ export class PushNotificationService {
       };
       sealed = sealPushNotification(short, keys, this.#options.randomBytes(LIVE_ACTIVITY_NONCE_BYTES));
     }
-    const push: NotificationRelayPush = {
+    const push: MobileNotificationRelayPush = {
       token,
-      environment: stored.value.environment,
+      ...("transport" in stored.value ? { transport: "fcm" as const } : { environment: stored.value.environment }),
       sessionId: stored.sessionId,
       sealed,
       sound: soundOf(stored.value),
       timestamp: Math.floor(this.#now() / 1_000),
     };
+    if (sealed.length > limit) return;
     yield* this.#options.send(push).pipe(
       Effect.tap((result) =>
         Effect.sync(() => {

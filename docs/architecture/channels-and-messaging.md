@@ -26,6 +26,46 @@ library, so the phone composes its layout with the two widget keys and the App G
 state carry an HMAC signature, which the app checks with the key of the host that the action goes
 to, so one host cannot sign an action for another.
 
+## Android notifications
+
+Android registers a native FCM token through the optional `android-push-notifications-v1`
+capability. The released APNs registration stays unchanged. An older host has no Android
+capability, so the phone sends it no Android registration. Automatic registration is passive
+and does not keep a hosted server awake.
+
+`AndroidPushRegistration` owns foreground permission reads, token replacement and a separate
+request queue for each host. It removes registrations on opt-out and sign-out. A permission
+revoked in Android Settings is read on return to the foreground. The host keeps Android and
+APNs registrations in the existing private preference file and can notify after restart.
+An older host release can still read its APNs entries; Android registers again when it reconnects
+to a host that supports it. There is no schema migration.
+
+The host uses `PushNotificationService` for the existing member, agent visibility, quiet-run,
+mute and desktop-use rules. Android has no Live Activity. The host seals the same notification
+record with notification keys from the phone's per-host secret. Android requests no text preview.
+
+`POST /v2/remote/hosts/:hostId/android-notification` checks the machine credential, its host
+rate limit and the current device session before sending to FCM HTTP v1. FCM receives only
+the destination token, fixed OpenBot title and body, selected channel, expiry and ciphertext.
+The account service does not persist or log these requests. Its separate FCM service account
+uses short-lived OAuth tokens. Only resolved tokens are cached across Worker invocations.
+Network calls and response bodies have explicit bounds. Only FCM's explicit `UNREGISTERED`
+result removes a token; malformed-envelope and transient failures do not.
+
+An FCM notification message provides Android system-tray presentation without a JS task or
+an open host connection. Expo 57 reads custom content from JSON in `data.body`. When a tap
+starts or resumes the app, `AndroidNotificationTaps` opens the seal with the signed-in
+workspace secret and current server list. It checks the sealed server against the key owner,
+then opens the exact server and agent once. Plain routing fields from FCM are not trusted.
+Sign-out invalidates the phone secret and disposes pending tap operations. No Android inline
+reply, approval action or background text preview is included.
+
+A new native build needs the Firebase app configuration. The account Worker also needs a
+separate configured FCM sender. See [mobile setup](../../apps/mobile/README.md#android-push-configuration)
+and [account setup](../../apps/auth-api/README.md#android-notification-relay). Device delivery,
+process-death behavior and platform battery limits need device checks; the local E2E uses
+owned HTTP and synthetic native boundaries only.
+
 ## iPhone notifications
 
 A host sends an iOS notification when an agent finishes a turn, stops with an error, or waits for

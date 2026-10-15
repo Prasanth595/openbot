@@ -14,7 +14,7 @@ import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
-import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
+import { MobileWorkspaceProvider, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 
@@ -24,21 +24,26 @@ export const unstable_settings = {
 
 function AuthenticatedStack() {
   const segments = useSegments();
+  const { selectServer } = useMobileWorkspace();
   // Reduced motion, from the device or from Settings, replaces the full-screen slide with a cross-fade.
   const pushAnimation = useReducedMotion() ? "fade" : "slide_from_right";
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
   const [navigationGate] = useState(createChatNavigationGate);
-  const { agentId: openAgentId } = useGlobalSearchParams<{ agentId?: string }>();
+  const { agentId: openAgentId, serverId: openServerId } = useGlobalSearchParams<{
+    agentId?: string;
+    serverId?: string;
+  }>();
   const openChat = useRef<string | null>(null);
   openChat.current = segments.at(-2) === "chat" && typeof openAgentId === "string" ? openAgentId : null;
   const onChatList = useRef(false);
   onChatList.current = segments.at(-1) === "connected";
   /** Opens a chat, or the chat list for `null`, from a Live Activity or a notification. */
   const openFromOutside = useCallback(
-    (agentId: string | null) => {
+    (agentId: string | null, serverId?: string) => {
       // Opening the chat that shows already would mount it again and load it again.
-      if (agentId !== null && openChat.current === agentId) return;
+      if (agentId !== null && openChat.current === agentId && (!serverId || openServerId === serverId)) return;
+      if (serverId) selectServer(serverId);
       // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
       if (router.canDismiss()) router.dismissAll();
       if (agentId === null) return;
@@ -46,12 +51,13 @@ function AuthenticatedStack() {
       // and back. The gate waits until the list shows. A chat without a row opens without zoom.
       navigationGate.request(
         () => {
-          if (!navigationGate.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId } });
+          if (serverId || !navigationGate.openFromHome(agentId))
+            router.push({ pathname: "/chat/[agentId]", params: { agentId, ...(serverId ? { serverId } : {}) } });
         },
         () => onChatList.current,
       );
     },
-    [navigationGate],
+    [navigationGate, selectServer, openServerId],
   );
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
   useNotificationTaps(openFromOutside, () => openChat.current);

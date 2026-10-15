@@ -1,3 +1,7 @@
+import type { NotificationPermission } from "@/features/push-notifications/push-notifications-native.types";
+
+export type { NotificationPermission } from "@/features/push-notifications/push-notifications-native.types";
+
 import type { ServerNotificationLevel } from "@openbot/contracts/ipc";
 import { NOTIFICATION_SOUNDS, type NotificationSound } from "@openbot/contracts/notification-relay";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
@@ -26,7 +30,6 @@ interface StoredPreference {
 }
 
 /** iOS permission, read when the app starts and each time it comes back. `null` until it is read. */
-export type NotificationPermission = "granted" | "denied" | "undetermined";
 
 export const usePushNotificationPreference = create<
   StoredPreference & { ready: boolean; saving: boolean; permission: NotificationPermission | null }

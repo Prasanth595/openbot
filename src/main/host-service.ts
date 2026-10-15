@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { dirname, join } from "node:path";
+import type { MobileNotificationRelayPush } from "@openbot/contracts/android-notification-relay";
 import { createInviteUrl, selfHostedApiOrigin } from "@openbot/contracts/invite-links";
 import type {
   AvatarImageInput,
@@ -34,7 +35,6 @@ import type {
 } from "@openbot/contracts/ipc";
 import { conversationMessageSender, SIGNED_OUT_CHANNEL_MEMBER_ID } from "@openbot/contracts/ipc";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
-import type { NotificationRelayPush } from "@openbot/contracts/notification-relay";
 import type { HostRestartState } from "@openbot/contracts/team-protocol/host-update-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
@@ -149,7 +149,7 @@ interface HostServiceOptions {
   /** Sends one sealed notification through the account service. `gone` means the phone gets no more. */
   sendPushNotification?: (
     hostId: string,
-    push: NotificationRelayPush,
+    push: MobileNotificationRelayPush,
   ) => Effect.Effect<"sent" | "gone", RemoteWorkflowError>;
   /** The phones that get notifications, kept for the next start. */
   pushNotificationStore?: PushNotificationStore;
