@@ -1046,7 +1046,6 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   onCancelProviderDownload={props.onCancelProviderDownload}
                   onConnectProvider={props.onConnectProvider}
                   canConnectProvider={props.canConnectProvider}
-                  onAddCustomProvider={props.onManageProviders}
                   onManageProviders={props.onManageProviders}
                   disabled={props.working}
                   disabledReason={

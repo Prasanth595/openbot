@@ -124,8 +124,14 @@ const PROVIDERS: readonly RailId[] = [...PICKER_PROVIDERS, CUSTOM_RAIL];
  */
 type RailKey = RailId | `${AgentProviderId}:${string}`;
 
-/** Long enough that sweeping the rail does not flash a name per mark. */
-const RAIL_TOOLTIP_OPEN_DELAY = 150;
+/** The rail tooltips. The open delay is long enough that sweeping the rail does not flash a name per mark. */
+const RAIL_TOOLTIP = {
+  placement: "left",
+  gutter: 8,
+  openDelay: 150,
+  closeDelay: 0,
+  skipDelayDuration: 300,
+} as const;
 
 /** The part of the interface text that the provider helpers below read. */
 type PickerText = Pick<TextValue, "t" | "sourceText">;
@@ -302,18 +308,38 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   /** A rail entry the user can choose a model from now, or soon: the agent's own entry always. */
   const entryUsable = (key: RailKey): boolean => {
     if (key === activeKey()) return true;
-    if (railOf(key) === CUSTOM_RAIL && !props.customProviders?.length && agentCount() === 0) return false;
+    if (
+      railOf(key) === CUSTOM_RAIL &&
+      !props.customProviders?.length &&
+      agentCount() === 0 &&
+      !railModelOptions(CUSTOM_RAIL).length
+    ) {
+      return false;
+    }
     const status = entryStatus(key);
+    const phase = props.runtimeStatuses?.[status.id]?.phase;
     return (
       status.state === "available" ||
       status.state === "checking" ||
       status.connectionState === "connecting" ||
-      props.runtimeStatuses?.[status.id]?.phase === "downloading"
+      phase === "downloading" ||
+      phase === "finishing"
     );
   };
-  /** Where the settings can connect a provider, the rail lists only the usable ones. */
-  const visibleKeys = createMemo<RailKey[]>(() =>
-    props.onManageProviders ? railKeys().filter(entryUsable) : railKeys(),
+  /** The entries listed when the picker opened. An open rail does not drop a tab under the pointer. */
+  const [openedKeys, setOpenedKeys] = createSignal<readonly RailKey[]>([]);
+  /**
+   * Where the settings can connect a provider, the rail lists only the usable ones. When none is,
+   * it lists all of them, so the panel always has a tab to show.
+   */
+  const visibleKeys = createMemo<RailKey[]>(
+    () => {
+      if (!props.onManageProviders) return railKeys();
+      const listed = open() ? openedKeys() : [];
+      const usable = railKeys().filter((key) => entryUsable(key) || listed.includes(key));
+      return usable.length ? usable : railKeys();
+    },
+    { equals: (previous, next) => previous.length === next.length && previous.every((key, i) => key === next[i]) },
   );
   const modelAvailable = (model: PickerModel): boolean =>
     providerAvailability(props.agentStatus, props.modelOptions, model.provider, t).state === "available";
@@ -358,6 +384,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   function setPickerOpen(next: boolean): void {
     if (props.disabled) return;
     if (next) {
+      setOpenedKeys(untrack(() => railKeys().filter(entryUsable)));
       const key = activeKey();
       setRailProvider(visibleKeys().includes(key) ? key : (visibleKeys()[0] ?? CUSTOM_RAIL));
       setSearch("");
@@ -496,13 +523,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                       // tabs activate on focus, and the panel heading beside them names the tab.
                       // The name sits to the left, off the panel, and only flips right when the
                       // window edge leaves no room there.
-                      <Tooltip.Root
-                        placement="left"
-                        gutter={8}
-                        openDelay={RAIL_TOOLTIP_OPEN_DELAY}
-                        closeDelay={0}
-                        skipDelayDuration={300}
-                      >
+                      <Tooltip.Root {...RAIL_TOOLTIP}>
                         <Tooltip.Trigger as="div" class="provider-model-rail-tooltip-trigger">
                           <Tabs.Trigger
                             ref={(element) => providerButtons.set(key, element)}
@@ -558,13 +579,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
               </Tabs.List>
               <Show when={props.onManageProviders}>
                 {(manageProviders) => (
-                  <Tooltip.Root
-                    placement="left"
-                    gutter={8}
-                    openDelay={RAIL_TOOLTIP_OPEN_DELAY}
-                    closeDelay={0}
-                    skipDelayDuration={300}
-                  >
+                  <Tooltip.Root {...RAIL_TOOLTIP}>
                     <Tooltip.Trigger as="div" class="provider-model-rail-tooltip-trigger">
                       <Button
                         type="button"
@@ -719,7 +734,7 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
                             : railHeadingSummary(provider, status())}
                         </span>
                       </div>
-                      <Show when={provider === CUSTOM_RAIL && props.onAddCustomProvider}>
+                      <Show when={provider === CUSTOM_RAIL && !props.onManageProviders && props.onAddCustomProvider}>
                         <Button
                           type="button"
                           size="xs"
