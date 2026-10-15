@@ -21,6 +21,14 @@ export const GUIDES_COLLECTION: ContentCollection<"guides"> = {
   imageEyebrow: "OPENBOT · GUIDES",
   articles: publishedFirst([
     {
+      slug: "agentic-ai-definition",
+      title: "Agentic AI Definition: How It Differs From Chatbots",
+      description:
+        "What is agentic AI? Compare OpenBot agents with a typical chatbot: ongoing tasks, saved files, source checking and handoffs between agents.",
+      publishedAt: "2026-10-15",
+      author: NEWS_AUTHOR,
+    },
+    {
       slug: "openbot-hosted-servers",
       title: "OpenBot Hosted Servers: Plans, Pricing, and How They Work",
       description:
