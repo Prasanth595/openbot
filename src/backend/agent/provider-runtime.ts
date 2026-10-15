@@ -1554,6 +1554,8 @@ export class ProviderRuntime implements ProviderPort {
     });
     const previousVersion = this.#cli.get(provider)?.version ?? null;
     const previousExecutable = this.#bundledExecutables[provider];
+    // A reprobe that finds no account leaves the provider released, so only an available row keeps it.
+    const wasAvailable = this.#status.providers?.find((row) => row.id === provider)?.state === "available";
     let installed = false;
     yield* Effect.acquireUseRelease(
       providerStep(() => {
@@ -1584,7 +1586,13 @@ export class ProviderRuntime implements ProviderPort {
               { cause },
             );
             // Before the install, the old CLI is untouched: a provider that the idle timer released keeps its account.
-            this.#setProviderConnectionFailure(provider, failure, previousVersion, installed, !installed);
+            this.#setProviderConnectionFailure(
+              provider,
+              failure,
+              previousVersion,
+              installed,
+              !installed && wasAvailable,
+            );
             return new ProviderOperationFailed({ cause: failure });
           }),
         ),
