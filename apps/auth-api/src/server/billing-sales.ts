@@ -22,6 +22,7 @@ const SESSION_ID_PATTERN = /^[A-Za-z0-9_:-]{1,250}$/u;
 const INVOICE_ID_PATTERN = /^[A-Za-z0-9_:-]{1,250}$/u;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const SAFE_VALUE_PATTERN = /^[A-Za-z0-9_.:/+-]{1,128}$/u;
+const STRIPE_ID_PATTERN = /^[A-Za-z0-9_]{1,250}$/u;
 
 export class BillingSalesError extends Schema.TaggedError<BillingSalesError>()("BillingSalesError", {
   code: Schema.Literals(["database", "invalid_input", "delivery", "currency"]),
@@ -56,6 +57,27 @@ export interface BillingSalesSyncedSubscription {
   currency: BillingCurrency;
 }
 
+/** The invoice and the subscription that a refunded or disputed payment paid. */
+export interface BillingSalesPayment {
+  invoiceId: string;
+  subscriptionId: string;
+}
+
+/**
+ * Money that goes back after a paid invoice. A dispute that is opened moves no money by itself:
+ * only a lost dispute does. A refund that fails after it succeeded gives the money back.
+ */
+export type PaymentReversalType = "payment_refunded" | "refund_failed" | "payment_disputed" | "dispute_lost";
+
+export interface PaymentReversal {
+  type: PaymentReversalType;
+  /** The Stripe refund or dispute. */
+  objectId: string;
+  paymentIntentId: string;
+  amount: number;
+  currency: BillingCurrency | null;
+}
+
 /** Used by the historical importer when payment action events already exist in OpenPanel. */
 export interface BillingSalesWebhookOptions {
   suppressBillingAction?: boolean;
@@ -67,7 +89,8 @@ type FactType =
   | "checkout_expired"
   | "checkout_returned"
   | "payment_failed"
-  | "payment_succeeded";
+  | "payment_succeeded"
+  | PaymentReversalType;
 
 interface FactRow {
   source_key: string;
@@ -192,10 +215,16 @@ export class BillingSales {
     this: BillingSales,
     event: StripeEvent,
     synced: BillingSalesSyncedSubscription | null,
+    payment: BillingSalesPayment | null = null,
     options: BillingSalesWebhookOptions = {},
   ): Effect.fn.Return<void, BillingSalesError> {
     const eventTimestamp = stripeEventTimestamp(event, this.#now());
     if (!eventTimestamp) return yield* new BillingSalesError({ code: "invalid_input" });
+    const reversal = paymentReversal(event);
+    if (reversal) {
+      if (payment) yield* this.#reversal(reversal, payment, synced, event.id, eventTimestamp);
+      return;
+    }
     if (event.type === "checkout.session.completed") {
       yield* this.#checkoutCompleted(event, eventTimestamp);
       return;
@@ -496,6 +525,70 @@ export class BillingSales {
     );
   }).bind(this);
 
+  readonly #reversal = Effect.fn("BillingSales.reversal")(function* (
+    this: BillingSales,
+    reversal: PaymentReversal,
+    payment: BillingSalesPayment,
+    synced: BillingSalesSyncedSubscription | null,
+    eventId: string,
+    eventTimestamp: number,
+  ): Effect.fn.Return<void, BillingSalesError> {
+    if (!INVOICE_ID_PATTERN.test(payment.invoiceId)) return yield* new BillingSalesError({ code: "invalid_input" });
+    const stored = yield* d1(this.#database, () =>
+      this.#database
+        .prepare(
+          `SELECT user_id, server_id, plan, interval FROM billing_subscriptions WHERE stripe_subscription_id = ?`,
+        )
+        .bind(payment.subscriptionId)
+        .first<{ user_id: string; server_id: string | null; plan: BillingPlanId; interval: BillingInterval }>(),
+    );
+    // A payment of a subscription that is not an OpenBot plan is not an OpenBot sale.
+    if (!stored) return;
+    const plan = synced?.plan ?? stored.plan;
+    const interval = synced?.interval ?? stored.interval;
+    const attributes: FactAttributes = {
+      plan,
+      interval,
+      ...(reversal.currency ? { currency: reversal.currency } : {}),
+      amount: reversal.amount,
+    };
+    const prefix = reversal.type === "payment_refunded" || reversal.type === "refund_failed" ? "refund" : "dispute";
+    const suffix = {
+      payment_refunded: "succeeded",
+      refund_failed: "failed",
+      payment_disputed: "created",
+      dispute_lost: "lost",
+    }[reversal.type];
+    const sourceKey = `${prefix}:${reversal.objectId}:${suffix}`;
+    // A failed refund gives money back only when the same refund was counted as succeeded.
+    const counted = reversal.type === "refund_failed" ? `refund:${reversal.objectId}:succeeded` : null;
+    yield* d1(this.#database, () =>
+      this.#database
+        .prepare(
+          `INSERT OR IGNORE INTO billing_sales_facts(
+               source_key, fact_type, source_id, invoice_id, session_id, user_id, server_id,
+               event_timestamp, attributes_json, delivery_enqueued_at, created_at
+             )
+             SELECT ?, ?, ?, ?, NULL, (SELECT id FROM users WHERE id = ?), ?, ?, ?, NULL, ?
+              WHERE ? IS NULL OR EXISTS (SELECT 1 FROM billing_sales_facts WHERE source_key = ?)`,
+        )
+        .bind(
+          sourceKey,
+          reversal.type,
+          eventId,
+          payment.invoiceId,
+          synced?.userId ?? stored.user_id,
+          stored.server_id,
+          eventTimestamp,
+          JSON.stringify(attributes),
+          this.#now(),
+          counted,
+          counted,
+        )
+        .run(),
+    );
+  }).bind(this);
+
   readonly #paymentKind = Effect.fn("BillingSales.paymentKind")(function* (
     this: BillingSales,
     billingReason: unknown,
@@ -566,17 +659,7 @@ export class BillingSales {
           eventTimestamp,
         );
       if (attributes.amount !== undefined && attributes.amount > 0 && attributes.currency) {
-        const converted = yield* new BillingUsd({ database: this.#database, fetch: this.#fetch })
-          .convert(attributes.amount, attributes.currency, eventTimestamp)
-          .pipe(
-            Effect.mapError((error) =>
-              error instanceof BillingUsdError
-                ? new BillingSalesError({ code: "currency" })
-                : new BillingSalesError({ code: "currency" }),
-            ),
-          );
-        if (!Number.isSafeInteger(converted.amountUsd) || converted.amountUsd <= 0)
-          return yield* new BillingSalesError({ code: "currency" });
+        const converted = yield* this.#usd(attributes.amount, attributes.currency, eventTimestamp);
         yield* this.#enqueue(
           `revenue:${row.source_key}`,
           profileId,
@@ -598,6 +681,26 @@ export class BillingSales {
           eventTimestamp,
         );
       }
+    } else if (isReversalFact(row.fact_type)) {
+      // Revenue counts each paid invoice once and is never negative, so money that goes back is a
+      // separate action with its own USD amount. Net revenue subtracts it.
+      const converted =
+        attributes.amount !== undefined && attributes.amount > 0 && attributes.currency
+          ? yield* this.#usd(attributes.amount, attributes.currency, eventTimestamp)
+          : null;
+      yield* this.#enqueue(
+        `billing:${row.source_key}`,
+        profileId,
+        "billing_action",
+        {
+          ...actionProperties,
+          action: row.fact_type,
+          ...(converted
+            ? { amount_usd: converted.amountUsd, fx_rate: converted.fxRate, fx_date: converted.fxDate }
+            : {}),
+        },
+        eventTimestamp,
+      );
     } else {
       const eventName = "billing_action" as const;
       const eventProperties =
@@ -623,6 +726,26 @@ export class BillingSales {
         .bind(this.#now(), row.source_key)
         .run(),
     );
+  }).bind(this);
+
+  readonly #usd = Effect.fn("BillingSales.usd")(function* (
+    this: BillingSales,
+    amount: number,
+    currency: BillingCurrency,
+    eventTimestamp: number,
+  ): Effect.fn.Return<{ amountUsd: number; fxRate: number; fxDate: string }, BillingSalesError> {
+    const converted = yield* new BillingUsd({ database: this.#database, fetch: this.#fetch })
+      .convert(amount, currency, eventTimestamp)
+      .pipe(
+        Effect.mapError((error) =>
+          error instanceof BillingUsdError
+            ? new BillingSalesError({ code: "currency" })
+            : new BillingSalesError({ code: "currency" }),
+        ),
+      );
+    if (!Number.isSafeInteger(converted.amountUsd) || converted.amountUsd <= 0)
+      return yield* new BillingSalesError({ code: "currency" });
+    return converted;
   }).bind(this);
 
   readonly #recovery = Effect.fn("BillingSales.recovery")(function* (
@@ -678,6 +801,45 @@ export class BillingSales {
         ),
       );
   }).bind(this);
+}
+
+/**
+ * The refund or dispute that an event reports, or null for an event that moves no money back. A refund
+ * counts when it succeeded; a pending refund counts with the `refund.updated` that ends it.
+ */
+export function paymentReversal(event: StripeEvent): PaymentReversal | null {
+  const object = event.data.object;
+  const status = stringValue(object.status);
+  const type: PaymentReversalType | null =
+    (event.type === "refund.created" || event.type === "refund.updated") && status === "succeeded"
+      ? "payment_refunded"
+      : event.type === "refund.failed"
+        ? "refund_failed"
+        : event.type === "charge.dispute.created"
+          ? "payment_disputed"
+          : event.type === "charge.dispute.closed" && status === "lost"
+            ? "dispute_lost"
+            : null;
+  if (!type) return null;
+  const objectId = stringValue(object.id);
+  const intent = recordValue(object.payment_intent);
+  const paymentIntentId = stringValue(object.payment_intent) ?? stringValue(intent?.id);
+  if (!objectId || !STRIPE_ID_PATTERN.test(objectId) || !paymentIntentId || !STRIPE_ID_PATTERN.test(paymentIntentId))
+    return null;
+  if (!isBillingAmount(object.amount)) return null;
+  return {
+    type,
+    objectId,
+    paymentIntentId,
+    amount: object.amount,
+    currency: billingCurrency(stringValue(object.currency)),
+  };
+}
+
+function isReversalFact(type: FactType): type is PaymentReversalType {
+  return (
+    type === "payment_refunded" || type === "refund_failed" || type === "payment_disputed" || type === "dispute_lost"
+  );
 }
 
 function d1<A>(_database: D1Database, operation: () => Promise<A>): Effect.Effect<A, BillingSalesError> {

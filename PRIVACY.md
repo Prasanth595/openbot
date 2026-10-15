@@ -49,7 +49,7 @@ analytics. Development builds, previews, tests, and Storybook do not send analyt
 
 The production account service also sends OpenPanel an event when a paid plan or a hosted server
 changes: a Checkout starts or expires, a plan starts, changes, is cancelled or ends, a payment
-succeeds or fails, the Customer Portal opens, or a hosted server is set up, fails to set up, stops
+succeeds or fails, a payment is refunded or disputed, the Customer Portal opens, or a hosted server is set up, fails to set up, stops
 after no use, starts, changes its machine, stops at the end of its plan, is renewed or is deleted.
 Each event has your account ID and only fixed values: the action, the plan, the billing period, the
 currency, the amount that Stripe reports, the server size, the start reason and an error code. It has

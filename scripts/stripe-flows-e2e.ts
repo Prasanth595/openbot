@@ -42,6 +42,8 @@ const SCENARIOS = [
   "delete",
   "foreign",
   "customer-deleted",
+  "refund",
+  "dispute",
   "portal",
   "boat",
 ] as const;
@@ -116,6 +118,15 @@ const hostSchema = z.object({
 const commandSchema = z.object({ exitCode: z.number().nullable().optional(), stdout: z.string().optional() });
 const sandboxSchema = z.object({ sandbox: z.object({ state: z.string(), type: z.string().optional() }) });
 const portalSchema = z.object({ url: z.string() });
+const invoicePaymentsSchema = z.object({
+  data: z.array(z.object({ payment: z.object({ payment_intent: z.string().nullable().optional() }) })),
+});
+const refundSchema = z.object({ id: z.string(), status: z.string() });
+const disputeListSchema = z.object({ data: z.array(z.object({ id: z.string(), status: z.string() })) });
+const eventListSchema = z.object({
+  data: z.array(z.object({ id: z.string(), data: z.object({ object: z.object({ id: z.string() }) }) })),
+});
+const factSchema = z.object({ source_key: z.string(), fact_type: z.string(), attributes_json: z.string() });
 
 /** The request bodies of the browser API routes that this check calls. */
 type BrowserApiBody =
@@ -554,6 +565,49 @@ async function invoices(subscriptionId: string) {
   }));
 }
 
+/** The PaymentIntent that paid the latest invoice of the plan. */
+async function paymentIntent(subscriptionId: string) {
+  const invoice = (await subscription(subscriptionId)).latest_invoice;
+  if (!invoice) throw new Error("No invoice");
+  const payments = await stripe("GET", "/v1/invoice_payments", invoicePaymentsSchema, { invoice });
+  const intent = payments.data[0]?.payment.payment_intent;
+  if (!intent) throw new Error("The invoice has no PaymentIntent");
+  return { invoice, intent };
+}
+
+/** Waits until the Worker applied the Stripe event of this type about this object. */
+async function applied(type: string, objectId: string, timeoutMs = 120_000) {
+  const event = await waitFor(`${type} ${objectId}`, async () => {
+    const list = await stripe("GET", "/v1/events", eventListSchema, { type, limit: "20" });
+    return list.data.find((entry) => entry.data.object.id === objectId) ?? null;
+  });
+  await waitFor(
+    `Worker applied ${event.id}`,
+    async () =>
+      d1(`SELECT 1 AS seen FROM billing_webhook_events WHERE event_id = ${quote(event.id)}`, z.unknown()).length > 0,
+    timeoutMs,
+  );
+  return event.id;
+}
+
+/** The sales facts of an invoice. The Worker records them only when OpenPanel is set. */
+function facts(invoiceId: string) {
+  return d1(
+    `SELECT source_key, fact_type, attributes_json FROM billing_sales_facts
+     WHERE invoice_id = ${quote(invoiceId)} ORDER BY event_timestamp, source_key`,
+    factSchema,
+  );
+}
+
+/** True when the Worker records sales facts: the paid invoice gets its fact soon after the payment. */
+async function recordsSales(invoiceId: string) {
+  return waitFor(
+    "payment fact",
+    async () => facts(invoiceId).some((fact) => fact.fact_type === "payment_succeeded"),
+    20_000,
+  ).catch(() => false);
+}
+
 async function waitFor<T>(label: string, check: () => Promise<T | null | undefined | false>, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   let last = "";
@@ -936,6 +990,100 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
         page.customer === stored?.stripe_customer_id,
       { oldReplaced: stored?.stripe_customer_id !== old },
     );
+  },
+  async refund(account) {
+    const { server } = await account.createServer("Refund");
+    const sub = await account.pay(server.serverId);
+    await provisioned(account, server.serverId);
+    const paid = await paymentIntent(sub);
+    const sales = await recordsSales(paid.invoice);
+    const refund = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: paid.intent });
+    await applied("refund.created", refund.id);
+    const plan = await account.plan(sub);
+    const row = account.row(server.serverId);
+    record(
+      "refund",
+      "a refund in the Dashboard keeps the plan and the server",
+      plan?.status === "active" && row?.desired_state === "running" && row.observed_error !== "plan_ended",
+      { refund: refund.status, plan, row },
+    );
+    if (sales) {
+      const recorded = facts(paid.invoice);
+      record(
+        "refund",
+        "the refund is a payment_refunded sales fact",
+        recorded.some((fact) => fact.source_key === `refund:${refund.id}:succeeded`),
+        recorded,
+      );
+    } else {
+      print("SKIP [refund] sales facts: the Worker has no OpenPanel client");
+    }
+    // This test card makes the refund fail after Stripe accepts it.
+    const second = await account.createServer("Refund fails");
+    await account.useCard("pm_card_refundFail");
+    const secondSub = await account.pay(second.server.serverId);
+    await provisioned(account, second.server.serverId);
+    const secondPaid = await paymentIntent(secondSub);
+    const failing = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: secondPaid.intent });
+    await applied("refund.failed", failing.id, 180_000);
+    const failedRow = account.row(second.server.serverId);
+    record(
+      "refund",
+      "a failed refund keeps the plan and the server",
+      (await account.plan(secondSub))?.status === "active" && failedRow?.desired_state === "running",
+      { row: failedRow },
+    );
+    if (sales) {
+      const recorded = facts(secondPaid.invoice);
+      const counted = recorded.some((fact) => fact.source_key === `refund:${failing.id}:succeeded`);
+      const failed = recorded.some((fact) => fact.source_key === `refund:${failing.id}:failed`);
+      record(
+        "refund",
+        "a failed refund is a refund_failed fact only after a counted refund",
+        counted === failed,
+        recorded,
+      );
+    }
+  },
+
+  async dispute(account) {
+    const { server } = await account.createServer("Dispute");
+    // This test card makes the issuer open a dispute soon after the payment.
+    await account.useCard("pm_card_createDispute");
+    const sub = await account.pay(server.serverId);
+    const paid = await paymentIntent(sub);
+    const sales = await recordsSales(paid.invoice);
+    const disputed = await waitFor("dispute", async () => {
+      const list = await stripe("GET", "/v1/disputes", disputeListSchema, { payment_intent: paid.intent });
+      return list.data[0] ?? null;
+    });
+    await applied("charge.dispute.created", disputed.id);
+    const ended = await rowWhere(account, server.serverId, "plan ended", (row) => row.desired_state === "stopped");
+    const stripeSub = await subscription(sub);
+    record(
+      "dispute",
+      "a dispute cancels the plan now; the server stops with plan_ended and is kept",
+      stripeSub.status === "canceled" && ended.observed_error === "plan_ended" && ended.deleted_at === null,
+      { dispute: disputed.status, stripeStatus: stripeSub.status, row: ended },
+    );
+    // This evidence text makes the test dispute close as lost.
+    await stripe("POST", `/v1/disputes/${disputed.id}`, idSchema, {
+      "evidence[uncategorized_text]": "losing_evidence",
+      submit: "true",
+    });
+    await applied("charge.dispute.closed", disputed.id, 180_000);
+    if (sales) {
+      const recorded = facts(paid.invoice);
+      record(
+        "dispute",
+        "the dispute and its loss are payment_disputed and dispute_lost facts",
+        recorded.some((fact) => fact.source_key === `dispute:${disputed.id}:created`) &&
+          recorded.some((fact) => fact.source_key === `dispute:${disputed.id}:lost`),
+        recorded,
+      );
+    } else {
+      print("SKIP [dispute] sales facts: the Worker has no OpenPanel client");
+    }
   },
   async boat(account) {
     const name = "Boat e2e";
