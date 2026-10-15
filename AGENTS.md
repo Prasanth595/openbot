@@ -153,6 +153,9 @@ State which surfaces a change touches. Check all affected consumers and reverse 
   New manual overrides use shell variables. Do not add `.env.local` or `.env.generated`.
 - `.env.keys` stores decryption keys, not service settings. Keep it ignored. Preserve existing
   production key handling and CI/GitHub secrets unless the developer requests a change.
+- The root `.env.keys` holds the only two keys: `DOTENV_PRIVATE_KEY_PRODUCTION` and
+  `DOTENV_PRIVATE_KEY_DEV`. Every encrypted env file, `remote/.env.production` included, uses one of
+  them. Never make a new key pair. Pass `-fk` with the root `.env.keys` so Dotenvx does not make one.
 
 See [account service setup](apps/auth-api/README.md) for loading and deployment details.
 
