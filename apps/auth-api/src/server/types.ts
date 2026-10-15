@@ -86,6 +86,10 @@ export interface WorkerBindings {
   GITHUB_APP_PRIVATE_KEY?: string;
   /** The Apple Push Notification service key (`.p8`, PEM text). The Live Activity relay is off without it. */
   APNS_PRIVATE_KEY?: string;
+  /** Optional Android FCM HTTP v1 sender, configured independently from APNs and Play publishing. */
+  FCM_PROJECT_ID?: string;
+  FCM_CLIENT_EMAIL?: string;
+  FCM_PRIVATE_KEY?: string;
   APNS_KEY_ID?: string;
   APNS_TEAM_ID?: string;
   /** The iOS app bundle ID. */

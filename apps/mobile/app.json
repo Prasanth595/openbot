@@ -72,7 +72,24 @@
           "granularPermissions": ["photo"]
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "openbot-events-v1-default"
+        }
+      ],
+      [
+        "./plugins/with-android-push",
+        {
+          "sounds": [
+            "./assets/sounds/openbot-task.wav",
+            "./assets/sounds/openbot-warm.wav",
+            "./assets/sounds/openbot-mech.wav",
+            "./assets/sounds/openbot-bubble.wav",
+            "./assets/sounds/openbot-press.wav"
+          ]
+        }
+      ],
       [
         "./plugins/with-ios-notification-sounds",
         {

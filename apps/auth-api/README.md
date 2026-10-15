@@ -269,3 +269,27 @@ sets `APNS_ORIGIN` and forwards the Worker's request to Apple from Node
 (`dev-apns-proxy.ts`). The Worker still checks the host and the limit, makes the payload and signs
 the token. Only a loopback caller can use the forwarder, and the Worker accepts only a loopback
 `APNS_ORIGIN`.
+
+### Android notification relay
+
+`POST /v2/remote/hosts/:hostId/android-notification` forwards an authenticated sealed Android
+notification through FCM HTTP v1. It checks the host machine credential and current device
+session, and uses a separate host key in `LIVE_ACTIVITY_RATE_LIMITER`. It sends fixed OpenBot
+text and a sealed `data.body` value. The request contains no plaintext chat or agent data.
+
+Set the optional all-or-none `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL` and `FCM_PRIVATE_KEY` values
+for the Firebase project that owns the Android app. The private key is the service account's
+PKCS #8 PEM key, with real newlines or escaped `\n`. The account needs permission to send
+FCM messages for that project. These settings are separate from the Play publishing account
+and APNs. Without them, the Android relay is off. No real values are supplied by this change.
+
+Use the existing encrypted `.env.dev` and `.env.production` workflow for local deployment
+settings. Do not create an unencrypted environment file. The manual deploy script sends the
+set together; production CI reads the same three optional secret names from its existing
+Cloudflare environment. Do not use production credentials for local checks. The E2E generates
+throwaway signing keys and uses owned loopback OAuth/FCM HTTP only.
+
+Google receives the push token, fixed OpenBot text, chosen channel, expiry and sealed bytes.
+The Worker receives those values plus the host credential and device session ID. The relay
+does not store or log requests. A successful local synthetic transport is not proof of deployed
+FCM or device delivery. See [mobile configuration](../mobile/README.md#android-push-configuration).

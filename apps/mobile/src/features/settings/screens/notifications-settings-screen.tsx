@@ -13,14 +13,10 @@ import {
 } from "@/features/settings/model/push-notifications";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
+import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
-/**
- * Notifications reach the phone through Apple, and Live Activities exist only on iOS, so Settings
- * links here only on iOS. The screen goes from the two ways the phone tells the user, to the one
- * sound that both play, to the choices for each server, which the desktop app has in its server
- * settings. The sound is there while either way is on.
- */
+/** Existing notification choices on both platforms, with iOS-only previews and Live Activities. */
 export function NotificationsSettingsScreen() {
   const { t } = useText();
   const { theme } = useUniwind();
@@ -32,7 +28,7 @@ export function NotificationsSettingsScreen() {
   const dark = theme === "dark";
   const busy = !preference.ready || preference.saving;
   const denied = preference.enabled && preference.permission === "denied";
-  const soundAvailable = !busy && (preference.enabled || liveActivities.enabled);
+  const soundAvailable = !busy && (preference.enabled || (isIOS && liveActivities.enabled));
 
   function save(change: Parameters<typeof savePushNotificationPreference>[0]) {
     setError(null);
@@ -55,7 +51,9 @@ export function NotificationsSettingsScreen() {
           error ??
           (denied
             ? t("mobile.settings.notifications.denied")
-            : `${t("mobile.settings.notifications.footer")}\n\n${t("mobile.settings.notifications.previewFooter")}`)
+            : isIOS
+              ? `${t("mobile.settings.notifications.footer")}\n\n${t("mobile.settings.notifications.previewFooter")}`
+              : t("mobile.settings.notifications.androidFooter"))
         }
       >
         <SettingsRow>
@@ -72,42 +70,48 @@ export function NotificationsSettingsScreen() {
             <Typography.Paragraph>{t("mobile.settings.notifications.openSettings")}</Typography.Paragraph>
           </SettingsRow>
         ) : null}
-        <SettingsRow>
-          <SettingsSwitch
-            value={preference.preview}
-            disabled={busy || !preference.enabled}
-            label={t("mobile.settings.notifications.preview")}
-            dark={dark}
-            onValueChange={(preview) => save({ preview })}
-          />
-        </SettingsRow>
-      </SettingsSection>
-      <SettingsSection
-        title={t("mobile.settings.liveActivities.title")}
-        footer={liveActivitiesError ?? t("mobile.settings.liveActivities.footer")}
-      >
-        <SettingsRow>
-          <SettingsSwitch
-            value={liveActivities.enabled}
-            disabled={!liveActivities.ready || liveActivities.saving}
-            label={t("mobile.settings.liveActivities.toggle")}
-            dark={dark}
-            onValueChange={saveLiveActivities}
-          />
-        </SettingsRow>
-        {liveActivitiesError ? (
-          <SettingsRow
-            disabled={liveActivities.saving}
-            disclosure={false}
-            onPress={() => saveLiveActivities(liveActivities.enabled)}
-          >
-            <Typography.Paragraph>{t("mobile.settings.liveActivities.retry")}</Typography.Paragraph>
+        {isIOS ? (
+          <SettingsRow>
+            <SettingsSwitch
+              value={preference.preview}
+              disabled={busy || !preference.enabled}
+              label={t("mobile.settings.notifications.preview")}
+              dark={dark}
+              onValueChange={(preview) => save({ preview })}
+            />
           </SettingsRow>
         ) : null}
       </SettingsSection>
+      {isIOS ? (
+        <SettingsSection
+          title={t("mobile.settings.liveActivities.title")}
+          footer={liveActivitiesError ?? t("mobile.settings.liveActivities.footer")}
+        >
+          <SettingsRow>
+            <SettingsSwitch
+              value={liveActivities.enabled}
+              disabled={!liveActivities.ready || liveActivities.saving}
+              label={t("mobile.settings.liveActivities.toggle")}
+              dark={dark}
+              onValueChange={saveLiveActivities}
+            />
+          </SettingsRow>
+          {liveActivitiesError ? (
+            <SettingsRow
+              disabled={liveActivities.saving}
+              disclosure={false}
+              onPress={() => saveLiveActivities(liveActivities.enabled)}
+            >
+              <Typography.Paragraph>{t("mobile.settings.liveActivities.retry")}</Typography.Paragraph>
+            </SettingsRow>
+          ) : null}
+        </SettingsSection>
+      ) : null}
       <SettingsSection
         title={t("mobile.settings.notifications.sound")}
-        footer={t("mobile.settings.notifications.soundFooter")}
+        footer={
+          isIOS ? t("mobile.settings.notifications.soundFooter") : t("mobile.settings.notifications.androidSoundFooter")
+        }
       >
         {/* The hosts get the sound with the notification choices, also with notifications off. */}
         <SettingsRow>

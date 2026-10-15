@@ -534,3 +534,33 @@ Only fixed cause, source, operation, and provider/model fields are sent. No aler
 The file queue holds at most 1,000 reports, 1 MiB, and seven days, and sends only after a local
 write succeeds. Foreground and host reconnection trigger retries. Opt-out and account changes
 clear this queue. See [the analytics contract](../../ANALYTICS.md#reliable-error-reports).
+
+## Android push configuration
+
+Android background alerts use the native FCM token from Expo Notifications. Expo Go does not
+provide this app's remote push configuration. A new native binary is required; an OTA update
+cannot add Firebase app configuration.
+
+The build owner supplies a Firebase Android app file for package `run.openbot.mobile` through
+`OPENBOT_ANDROID_GOOGLE_SERVICES_FILE`. The config plugin sets `android.googleServicesFile`
+from that path. Do not put a sender service-account key in the app. The Play release workflow
+requires the `ANDROID_GOOGLE_SERVICES_JSON` secret in its existing `release-android`
+environment and writes it only to the runner temporary directory. Google Play publishing
+credentials do not configure FCM.
+
+The account Worker needs the corresponding FCM sender settings described in the
+[account setup](../auth-api/README.md#android-notification-relay). An unconfigured Worker
+returns `notification_unavailable`. An older host has no Android notification capability.
+
+Settings > Notifications controls events, mute and sound with the existing controls. Android
+shows the OpenBot name only; a tap opens the authenticated server chat. Previews and notification
+reply or approval buttons are not included. Android channel settings take priority over an
+app sound choice. The plugin copies existing sound assets with valid Android resource names
+without changing the released iOS names.
+
+The local `bun scripts/android-push-e2e.ts` check uses real host services, file persistence,
+account request handling and D1 session policy. Native callbacks and OAuth/FCM HTTP are owned
+synthetic boundaries. It does not prove device delivery. Before release, check permission denial
+and grant, foreground and background behavior, process death, tap cold start, token rotation,
+host restart, opt-out, sign-out, mute and sound on supported Android versions. Force-stop and
+battery restrictions can prevent delivery.

@@ -3,8 +3,8 @@ const { setNotificationSounds } = require("expo-notifications/plugin/build/withN
 
 // Adds the notification sounds to the iOS app only. The `expo-notifications` plugin also copies its
 // `sounds` into the Android resources, which reject the `-` in the names. The names stay, because the
-// account service sends them to released iPhone builds (`NOTIFICATION_SOUND_FILES`), and the app gets
-// notifications only on iOS.
+// account service sends them to released iPhone builds (`NOTIFICATION_SOUND_FILES`). Android copies
+// the same source sounds with valid resource names in `with-android-push`.
 
 /** @type {import('expo/config-plugins').ConfigPlugin<{ sounds: string[] }>} */
 module.exports = (config, { sounds }) =>

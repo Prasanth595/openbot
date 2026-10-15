@@ -7,6 +7,7 @@ import { AccountAttribution } from "./account-attribution";
 import { adminTokenMatches } from "./admin-token";
 import { AgentMarketplace, AgentMarketplaceError } from "./agent-marketplace";
 import { AgentTemplates } from "./agent-templates";
+import { sharedFcmSender } from "./android-notification-relay";
 import { AuthOperationError, AuthService, AuthServiceError } from "./auth-service";
 import { BillingError, type BillingService } from "./billing-service";
 import { D1AuthRepository } from "./d1-auth-repository";
@@ -210,6 +211,32 @@ export function requestApnsRelay(): {
     }),
     allow: (hostId) => limit(`host:${hostId}`),
     allowNotification: (hostId) => limit(`notification:host:${hostId}`),
+  };
+}
+
+/** Android uses its own project and sender. Apple configuration does not enable this relay. */
+export function requestFcmRelay() {
+  const { FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY, LIVE_ACTIVITY_RATE_LIMITER } = requireWorkerBindings(env);
+  if (
+    !FCM_PROJECT_ID ||
+    !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/u.test(FCM_PROJECT_ID) ||
+    !FCM_CLIENT_EMAIL ||
+    !/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com$/u.test(FCM_CLIENT_EMAIL) ||
+    !FCM_PRIVATE_KEY ||
+    !LIVE_ACTIVITY_RATE_LIMITER
+  )
+    return null;
+  return {
+    sender: sharedFcmSender({
+      projectId: FCM_PROJECT_ID,
+      clientEmail: FCM_CLIENT_EMAIL,
+      privateKey: FCM_PRIVATE_KEY.replaceAll("\\n", "\n"),
+    }),
+    allow: (hostId: string) =>
+      Effect.tryPromise({
+        try: () => LIVE_ACTIVITY_RATE_LIMITER.limit({ key: `android-notification:host:${hostId}` }),
+        catch: () => new AuthOperationError({ message: "Account operation failed." }),
+      }).pipe(Effect.map((result) => result.success)),
   };
 }
 

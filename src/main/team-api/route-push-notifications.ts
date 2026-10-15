@@ -1,4 +1,9 @@
 import {
+  ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
+  ANDROID_PUSH_NOTIFICATIONS_ROUTES,
+  readAndroidPushRegistration,
+} from "@openbot/contracts/team-protocol/android-push-notifications-v1";
+import {
   PUSH_NOTIFICATIONS_CAPABILITY,
   PUSH_NOTIFICATIONS_ROUTES,
 } from "@openbot/contracts/team-protocol/push-notifications-v1";
@@ -18,22 +23,26 @@ export async function routePushNotifications(
   notifications: PushNotificationService | undefined,
 ): Promise<RouteOutcome> {
   const { method, url, capabilities, request, json, member, sessionId, protocol } = context;
-  if (
-    method !== "POST" ||
-    (url.pathname !== PUSH_NOTIFICATIONS_ROUTES.register && url.pathname !== PUSH_NOTIFICATIONS_ROUTES.remove)
-  ) {
+  const android =
+    url.pathname === ANDROID_PUSH_NOTIFICATIONS_ROUTES.register ||
+    url.pathname === ANDROID_PUSH_NOTIFICATIONS_ROUTES.remove;
+  const routes = android ? ANDROID_PUSH_NOTIFICATIONS_ROUTES : PUSH_NOTIFICATIONS_ROUTES;
+  if (method !== "POST" || (url.pathname !== routes.register && url.pathname !== routes.remove)) {
     return "unmatched";
   }
-  if (!notifications || !capabilities.has(PUSH_NOTIFICATIONS_CAPABILITY)) {
+  if (
+    !notifications ||
+    !capabilities.has(android ? ANDROID_PUSH_NOTIFICATIONS_CAPABILITY : PUSH_NOTIFICATIONS_CAPABILITY)
+  ) {
     throw new HttpError(400, sourceText("error.team.pushNotificationsUnsupported"));
   }
   // `readJson` has already run the body through the push-notifications wire codec.
   const body = await readJson(request);
-  if (url.pathname === PUSH_NOTIFICATIONS_ROUTES.remove) {
+  if (url.pathname === routes.remove) {
     notifications.remove(sessionId);
     return json(200, {});
   }
-  const registration = readPushRegistration(body);
+  const registration = android ? readAndroidPushRegistration(body) : readPushRegistration(body);
   if (!registration) throw new HttpError(400, sourceText("error.team.pushNotificationsUnsupported"));
   notifications.register(sessionId, { memberId: member.id, protocol, capabilities }, registration);
   return json(200, {});
