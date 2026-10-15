@@ -298,14 +298,18 @@ async function verifySecondInstanceExits(executable: string, userDataPath: strin
   second.stderr.on("data", (chunk: string) => {
     stderr = `${stderr}${chunk}`.slice(-4_000);
   });
+  let exitTimer: ReturnType<typeof setTimeout> | undefined;
   const result = await Promise.race([
     new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolveExit) => {
       second.once("exit", (code, signal) => resolveExit({ code, signal }));
     }),
     // The second instance exits only after the first one accepts its arguments. On the Intel release
     // runner the first one can still be busy with its start after 10 seconds (v0.38.2, v0.39.1, v0.40.0).
-    new Promise<null>((resolveDelay) => setTimeout(() => resolveDelay(null), 30_000)),
+    new Promise<null>((resolveDelay) => {
+      exitTimer = setTimeout(() => resolveDelay(null), 30_000);
+    }),
   ]);
+  clearTimeout(exitTimer);
   if (!result) {
     second.kill("SIGKILL");
     throw new Error(`A second OpenBot instance did not exit in 30 seconds: ${stderr.trim()}`);
