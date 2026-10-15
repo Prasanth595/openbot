@@ -279,6 +279,8 @@ export const messages = defineMessages("error.backend", {
     "Start a task only from your own chat. A channel, a messaging conversation or another task cannot start one.",
   "error.backend.taskOpenLimit":
     "This agent already has {count} open tasks. Wait until the user closes one before you start another task.",
+  "error.backend.taskOpenLimitReached":
+    "This agent has {count} open tasks. Close a task, then start or open another one.",
   "error.backend.taskRemoteUnsupported": "Tasks are only available for agents on this computer.",
   "error.backend.taskStartFailed": "OpenBot could not start the task. Do the work in this turn instead.",
 });

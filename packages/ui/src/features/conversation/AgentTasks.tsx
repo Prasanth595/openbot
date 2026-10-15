@@ -8,7 +8,7 @@ import { ComposerEditor } from "@openbot/ui/features/conversation/ComposerEditor
 import { ComposerNotice } from "@openbot/ui/features/conversation/ComposerNotice";
 import { TaskMark, type TaskMarkState } from "@openbot/ui/features/conversation/TaskList";
 import { type TextValue, useText } from "@openbot/ui/text";
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 
 const HOLD_TEXT = {
   "agent-restarting": "conversation.tasks.hold.agentRestarting",
@@ -170,6 +170,13 @@ export function AgentTaskPanel(props: AgentTaskPanelProps) {
   const { t } = useText();
   const [draft, setDraft] = createSignal("");
   const [sending, setSending] = createSignal(false);
+  // The panel stays mounted when the user opens another task, so text typed for one task must not go to the next.
+  createEffect(
+    () => props.task?.id,
+    () => {
+      setDraft("");
+    },
+  );
   const activityLabel = nextAgentActivityLabel();
   const closed = () => props.task?.state === "closed";
   const title = () => props.task?.title ?? t("conversation.tasks.new");

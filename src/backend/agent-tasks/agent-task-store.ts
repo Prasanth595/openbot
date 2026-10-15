@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { AGENT_TASK_OUTCOMES, type AgentTaskOutcome } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isOneOf } from "@openbot/contracts/runtime-values";
 import { deleteAggregateHistory } from "../database/database-core";
@@ -34,9 +35,6 @@ export interface AgentTaskInput {
   sourceMessageId?: string | null;
 }
 
-/** The most tasks one list returns: the open ones first, then the newest closed ones. */
-const TASK_LIST_LIMIT = 50;
-
 /**
  * Owns `projection_agent_tasks`. It never imports the database facade's callers.
  *
@@ -64,7 +62,7 @@ export class AgentTaskStore {
     return row ? decodeTask(row) : null;
   }
 
-  /** The open tasks of this agent first, then the newest closed ones. */
+  /** The open tasks of this agent first, then the newest closed ones, up to `INPUT_LIMITS.agentTasks`. */
   list(agentId: string): AgentTaskRecord[] {
     return databaseRows(
       this.#database.connection
@@ -72,7 +70,7 @@ export class AgentTaskStore {
           `SELECT * FROM projection_agent_tasks WHERE agent_id = ?
            ORDER BY closed_at IS NOT NULL, updated_at DESC, task_id LIMIT ?`,
         )
-        .all(agentId, TASK_LIST_LIMIT),
+        .all(agentId, INPUT_LIMITS.agentTasks),
     ).map(decodeTask);
   }
 

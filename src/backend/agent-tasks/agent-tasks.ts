@@ -24,7 +24,7 @@ import type { AgentTaskOrigin, AgentTaskRecord, AgentTaskStore } from "./agent-t
 
 const logger = createOpenBotLogger("agent-tasks");
 
-/** The most open tasks that an agent can have when it starts one more itself. The user has no limit. */
+/** The most open tasks that an agent can have when it starts one more itself. The user can have up to `INPUT_LIMITS.agentTasks`. */
 const AGENT_STARTED_OPEN_TASKS = 8;
 
 export const START_TASK_TOOL = "start_task";
@@ -146,9 +146,16 @@ export class AgentTasks implements TaskLanes {
   create(agentId: string, text: string, origin: AgentTaskOrigin): AgentTaskRecord {
     const title = taskTitle(text);
     if (!title) throw new Error(sourceText("error.backend.taskTitleRequired"));
+    this.#requireRoom(agentId);
     const task = this.#store.create({ agentId, origin, title });
     this.#conversation.registerTaskThread(agentId, task.threadId);
     return task;
+  }
+
+  /** The task list holds `INPUT_LIMITS.agentTasks` tasks, open ones first, so more open tasks could not be seen or stopped. */
+  #requireRoom(agentId: string): void {
+    if (this.#store.openTaskIds(agentId).length >= INPUT_LIMITS.agentTasks)
+      throw new Error(sourceText("error.backend.taskOpenLimitReached", { count: INPUT_LIMITS.agentTasks }));
   }
 
   /** Removes a new task that took no message, because the move into it was refused. */
@@ -170,6 +177,7 @@ export class AgentTasks implements TaskLanes {
   }
 
   reopen(task: AgentTaskRecord): void {
+    if (task.closedAt !== null) this.#requireRoom(task.agentId);
     this.#store.reopen(task.taskId);
     this.#conversation.registerTaskThread(task.agentId, task.threadId);
     this.changed(task.agentId);
