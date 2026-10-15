@@ -1215,15 +1215,7 @@ export class ProviderRuntime implements ProviderPort {
     provider: AgentProvider,
     openPage: (url: string) => Promise<void>,
   ) {
-    const codeSignIn = requireProviderDriver(provider).codeSignIn;
-    if (codeSignIn?.kind === "muse-device") {
-      // `muse login` with no terminal waits on a device page it never opens; the page is the sign-in.
-      const started = yield* this.startProviderCodeLogin(provider);
-      if (started.kind === "code")
-        yield* Effect.promise(() => openPage(started.verificationUrlComplete ?? started.verificationUrl));
-    } else {
-      yield* this.#connectProvider(provider, openPage, true);
-    }
+    yield* this.#connectProvider(provider, openPage, true);
     // A sign-in that ended before this read leaves no task; the clients then tell how it ended.
     const pending =
       requireProviderDriver(provider).signIn.kind === "browser"
