@@ -267,6 +267,12 @@ export class ChannelRoutineScheduler implements RoutineDueSource {
         if (!active()) break;
         if (this.#excluded().has(due.routine.channelId)) continue;
         const scheduledFor = yield* channelRoutineStep(() => {
+          // A one-time trigger completes in the place of an advance, with the same at-most-once order.
+          if (due.schedule.kind === "once") {
+            this.#routines.completeTrigger(due.routine.id, due.triggerId, now);
+            changed.add(due.routine.channelId);
+            return due.nextRunAt;
+          }
           const occurrence = collapseMissedOccurrences(
             due.schedule,
             due.routine.timezone,

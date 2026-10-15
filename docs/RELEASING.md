@@ -107,8 +107,17 @@ up billing and webhooks only and no longer accepts `--template`.
 A failed hosted job leaves the GitHub Release published and the previous template selected.
 Run the failed job again after correcting the cause. A ready snapshot is reused; a save in progress
 is polled; a failed snapshot requires operator inspection. The builder never replaces an existing
-snapshot or deletes old snapshots. It stops at 10 snapshots even if boat permits paid storage above
-that count. Confirm that neither Worker nor any pending create needs a snapshot before removing it.
+snapshot. It stops at 10 snapshots even if boat permits paid storage above that count.
+
+Before the build, the job removes production snapshots of older releases. It keeps the 2 newest
+ready ones, so 3 releases remain with the new one; the newest of them stays selected until the new
+release replaces it. A failed snapshot of an older release is removed too. It keeps a snapshot that
+is saving or has an unknown status, any snapshot newer than the release, and each
+`provider_template` of a production server that is not deleted and has no sandbox yet, because a
+create retry sends its first request again. The job reads these from the production D1
+database and stops if it cannot. Servers already made from a removed snapshot keep running. Names
+without the `openbot-server-production-` prefix are never removed; confirm that neither Worker nor
+any pending create needs one before removing it by hand.
 
 A successful job reports the selected version in its Actions summary. Verify the first rollout by
 creating a temporary production server and checking its initial installed version. Record the

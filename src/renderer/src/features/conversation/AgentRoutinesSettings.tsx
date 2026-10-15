@@ -20,6 +20,7 @@ import type { EventRoutine, RoutineWebhookTriggerInput } from "@openbot/contract
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Button,
+  CircleCheck,
   CirclePause,
   Clock3,
   ConfirmDialog,
@@ -53,8 +54,11 @@ import {
   switchDraftKind,
 } from "@openbot/ui/features/conversation/routine-schedule-draft";
 import {
+  ROUTINE_LOCAL_DRAFT_KINDS,
   ROUTINE_SAVED_DRAFT_KINDS,
   routineDraftProblem,
+  routineOnceCompleted,
+  routineOncePassed,
   routineScheduleFromDraft,
   routineScheduleToDraft,
 } from "@openbot/ui/features/conversation/routine-schedule-saved";
@@ -437,6 +441,13 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
     if (target) performExit(target);
   }
 
+  /** A done one-time routine that gets a later time is active again, so it runs at that time. */
+  function reopened(value: RoutineDraft): RoutineDraft {
+    const base = draftBase;
+    if (value.active || value.schedule.kind !== "once" || !base || !routineCompleted(base)) return value;
+    return routineOncePassed(value.schedule, base.timezone) ? value : { ...value, active: true };
+  }
+
   function changeDraft(change: (current: RoutineDraft) => RoutineDraft): void {
     setDraft((current) => (current ? change(current) : current));
     draftRevision += 1;
@@ -576,21 +587,19 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
     return (
       <RoutineTriggerMenu
         value={current().triggerKind === "webhook" ? "webhook" : current().scheduleDraft.kind}
-        kinds={ROUTINE_SAVED_DRAFT_KINDS}
+        kinds={scheduleKinds()}
         onSelect={(choice) =>
           changeDraft((value) => {
             if (choice === "webhook") return { ...value, triggerKind: "webhook" };
-            const scheduleDraft = switchDraftKind(value.scheduleDraft, choice, new Date());
-            return {
-              ...value,
-              triggerKind: "schedule",
-              schedule: routineScheduleFromDraft(scheduleDraft),
-              scheduleDraft,
-            };
+            return reopened(withSchedule(value, switchDraftKind(value.scheduleDraft, choice, new Date())));
           })
         }
       />
     );
+  }
+
+  function scheduleKinds() {
+    return props.port.onceSchedule ? ROUTINE_LOCAL_DRAFT_KINDS : ROUTINE_SAVED_DRAFT_KINDS;
   }
 
   async function regenerateSecret(): Promise<void> {
@@ -699,7 +708,14 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                               routine.active ? "agent-routine-status-icon-active" : "agent-routine-status-icon-paused"
                             }
                           >
-                            <Show when={routine.active} fallback={<CirclePause aria-hidden="true" />}>
+                            <Show
+                              when={routine.active}
+                              fallback={
+                                <Show when={routineCompleted(routine)} fallback={<CirclePause aria-hidden="true" />}>
+                                  <CircleCheck aria-hidden="true" />
+                                </Show>
+                              }
+                            >
                               <Show
                                 when={routineTriggerKind(routine) === "webhook"}
                                 fallback={<Clock3 aria-hidden="true" />}
@@ -711,7 +727,11 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                           <span>
                             <strong>{routine.name}</strong>
                             <small>
-                              {routine.active ? routineListSummary(routine, text) : t("routine.settings.paused")}
+                              {routine.active
+                                ? routineListSummary(routine, text)
+                                : routineCompleted(routine)
+                                  ? t("routine.settings.completed", { schedule: routineListSummary(routine, text) })
+                                  : t("routine.settings.paused")}
                             </small>
                           </span>
                         </Button>
@@ -823,15 +843,9 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                 >
                   <RoutineSchedulePicker
                     schedule={current().scheduleDraft}
-                    kinds={ROUTINE_SAVED_DRAFT_KINDS}
+                    kinds={scheduleKinds()}
                     action={triggerMenu(current)}
-                    onChange={(scheduleDraft) =>
-                      changeDraft((value) => ({
-                        ...value,
-                        schedule: routineScheduleFromDraft(scheduleDraft),
-                        scheduleDraft,
-                      }))
-                    }
+                    onChange={(scheduleDraft) => changeDraft((value) => reopened(withSchedule(value, scheduleDraft)))}
                   />
                 </Show>
               </section>
@@ -856,7 +870,13 @@ export function AgentRoutinesSettings(props: AgentRoutinesSettingsProps) {
                   </Text>
                 </Show>
               </div>
-              <Show when={props.port.limitPolicy}>
+              {/* The host does not skip a one-time run at a spent plan: it waits, so the reminder is not lost. */}
+              <Show
+                when={
+                  props.port.limitPolicy &&
+                  !(current().triggerKind === "schedule" && current().scheduleDraft.kind === "once")
+                }
+              >
                 <div class="settings-field">
                   <span id="agent-routine-limit-policy-label">{t("routine.settings.limitPolicy")}</span>
                   <Select<RoutineLimitPolicy>
@@ -956,6 +976,32 @@ function routineListSummary(routine: RoutineEditorRecord, text: RoutineText): st
   const draft = routineScheduleToDraft(schedule);
   if (draft.kind === "custom") return routineScheduleSummary(schedule, false, text);
   return routineDraftSummary(draft, text);
+}
+
+function routineCompleted(routine: RoutineEditorRecord): boolean {
+  if (routineTriggerKind(routine) === "webhook") return false;
+  return routineOnceCompleted({
+    active: routine.active,
+    timezone: routine.timezone,
+    schedule: routineScheduleOf(routine),
+    updatedAt: routine.updatedAt,
+  });
+}
+
+/**
+ * The draft with a new schedule. A switch to a one-time run also runs it when OpenBot opens after
+ * its time, so a reminder is not lost; the person can still choose to skip it.
+ */
+function withSchedule(value: RoutineDraft, scheduleDraft: RoutineScheduleDraft): RoutineDraft {
+  const missedPolicy =
+    scheduleDraft.kind === "once" && value.scheduleDraft.kind !== "once" ? "run-once" : value.missedPolicy;
+  return {
+    ...value,
+    triggerKind: "schedule",
+    schedule: routineScheduleFromDraft(scheduleDraft),
+    scheduleDraft,
+    missedPolicy,
+  };
 }
 
 function isEventRoutine(routine: RoutineEditorRecord): routine is EventRoutine {

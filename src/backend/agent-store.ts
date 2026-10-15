@@ -1223,6 +1223,10 @@ export class AgentStore {
    * hide the first -- the same trade `#reconcileWorkspaceDirectory` makes for an ambiguous pair. That
    * also settles two threads naming one agent: the first in the ordering wins and the rest are reported.
    *
+   * The thread of a channel context or an external conversation is never adopted: it is not the agent's
+   * own chat. An agent that an earlier build gave one keeps it, because its chat history is there now;
+   * `ConversationRuntime` keeps one snapshot for such a thread.
+   *
    * The repair is one `#persist`, because `replaceAgents` runs `ensureThreadProjection` for every agent
    * that holds a thread, which is what rewrites the row's `agent_id` to the spelling the roster uses.
    * Nothing here may stop the app, so a thread this cannot place is counted and left alone.
@@ -1340,6 +1344,11 @@ export class AgentStore {
     const agent = this.#requireAgent(id);
     agent.threadId = threadId;
     agent.updatedAt = updatedAt;
+  }
+
+  /** Whether this thread is an agent's own chat. It copies no agent, so a hot path can ask it. */
+  ownsThread(threadId: string): boolean {
+    return this.#state.agents.some((agent) => agent.threadId === threadId);
   }
 
   activeProviderSession(id: string): ProviderSession | null {

@@ -236,6 +236,10 @@ export class DynamicIslandCoordinator {
         if (event.quiet && serverId !== activeServerId) this.#takeBackTurnReplies(runtime, event.agentId, event.turnId);
         runtime.turnReplies.delete(event.agentId);
         runtime.activeTurns[event.agentId] = null;
+        // A host sends a phone `queue-invalidated` instead of the queue, and no snapshot after the turn.
+        // The queue of the last runtime snapshot can still list the finished turn as running, which
+        // kept the Live Activity on "Working" after the reply. The end of the turn ends its delivery.
+        this.#endTurnDeliveries(runtime, event.agentId, event.turnId);
         if (runtime.turnProgress[event.agentId]?.turnId === event.turnId) delete runtime.turnProgress[event.agentId];
         runtime.pendingPrompts[event.agentId] = undefined;
         runtime.pendingApprovals[event.agentId] = undefined;
@@ -370,6 +374,20 @@ export class DynamicIslandCoordinator {
     }
     delete runtime.unreadReplies[agentId];
     if (runtime.unreadMessageIds) delete runtime.unreadMessageIds[agentId];
+  }
+
+  /**
+   * Removes the started or running deliveries of a finished turn. A starting delivery without a turn
+   * is also stale: its turn either is this one or has not started, and a new turn sends its own event.
+   */
+  #endTurnDeliveries(runtime: ServerRuntime, agentId: string, turnId: string): void {
+    const queue = runtime.queues[agentId];
+    if (!queue) return;
+    const ended = (delivery: QueueSnapshot["deliveries"][number]) =>
+      (delivery.status === "starting" || delivery.status === "running") &&
+      (delivery.turnId === null || delivery.turnId === turnId);
+    if (!queue.deliveries.some(ended)) return;
+    runtime.queues[agentId] = { ...queue, deliveries: queue.deliveries.filter((delivery) => !ended(delivery)) };
   }
 
   #retainAgentMessages(runtime: ServerRuntime, agentIds: ReadonlySet<string>): void {

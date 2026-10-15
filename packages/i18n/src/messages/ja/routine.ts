@@ -72,7 +72,6 @@ export const messages = {
   "routine.hours.endTime": "終了時刻",
   "routine.hours.repeat": "繰り返し",
 
-  "routine.problem.once": "1回のみのルーティンはまだ保存できません。",
   "routine.problem.endBeforeStart": "終了時刻は開始時刻より後にしてください。",
   "routine.problem.invalidDate": "存在する日付を選択してください。",
   "routine.problem.cronRequired": "cron 式を入力してください。",
@@ -201,6 +200,7 @@ export const messages = {
   "routine.settings.loading": "ルーティンを読み込んでいます…",
   "routine.settings.empty": "まだルーティンはありません。",
   "routine.settings.paused": "一時停止中",
+  "routine.settings.completed": "完了 · {schedule}",
   "routine.settings.active": "有効",
   "routine.settings.activeToggle": "ルーティンを有効にする",
   "routine.settings.deleteNow": "今すぐ削除",

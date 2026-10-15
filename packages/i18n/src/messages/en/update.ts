@@ -20,7 +20,7 @@ export const messages = defineMessages("update", {
   "update.provider.updating": "Updating {name}",
   "update.provider.failed": "{name} update failed",
   "update.provider.settingUp": "Setting up",
-  "update.provider.interrupted": "The update was interrupted. Try again.",
+  "update.provider.failedRetry": "The update failed. Try again.",
   "update.provider.unknownVersion": "unknown version",
   "update.provider.remoteHost": "Provider CLI updates run on the computer that hosts them.",
   "update.provider.unavailable": "Provider updates are unavailable.",

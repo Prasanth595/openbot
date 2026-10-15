@@ -351,46 +351,55 @@ class SlackAdapter implements MessagingAdapter {
     if (cached) return yield* Deferred.await(cached);
     const name = Deferred.makeUnsafe<string>();
     this.#names.set(userId, name);
-    const result = yield* this.#api.call("users.info", { user: userId }).pipe(
-      Effect.map((response) => {
-        const user = isDynamicRecord(response.user) ? response.user : {};
-        const profile = isDynamicRecord(user.profile) ? user.profile : {};
-        for (const candidate of [profile.display_name, profile.real_name, user.real_name, user.name])
-          if (isString(candidate) && candidate.trim()) return candidate.trim();
-        return userId;
-      }),
-      Effect.catch((failure) =>
-        Effect.sync(() => {
-          if (isTemporaryLookupFailure(failure)) this.#names.delete(userId);
+    // Detached, so a caller with a deadline stops waiting at it. The lookup still completes the cache
+    // entry, which a later caller then reads.
+    yield* Effect.forkDetach(
+      this.#api.call("users.info", { user: userId }).pipe(
+        Effect.map((response) => {
+          const user = isDynamicRecord(response.user) ? response.user : {};
+          const profile = isDynamicRecord(user.profile) ? user.profile : {};
+          for (const candidate of [profile.display_name, profile.real_name, user.real_name, user.name])
+            if (isString(candidate) && candidate.trim()) return candidate.trim();
           return userId;
         }),
+        Effect.catch((failure) =>
+          Effect.sync(() => {
+            if (isTemporaryLookupFailure(failure)) this.#names.delete(userId);
+            return userId;
+          }),
+        ),
+        Effect.flatMap((result) => Deferred.succeed(name, result)),
+        Effect.uninterruptible,
       ),
     );
-    yield* Deferred.succeed(name, result);
-    return result;
-  }, Effect.uninterruptible);
+    return yield* Deferred.await(name);
+  });
 
   readonly placeName = Effect.fnUntraced(function* (this: SlackAdapter, platformChannelId: string) {
     const cached = this.#places.get(platformChannelId);
     if (cached) return yield* Deferred.await(cached);
     const name = Deferred.makeUnsafe<string>();
     this.#places.set(platformChannelId, name);
-    const result = yield* this.#api.call("conversations.info", { channel: platformChannelId }).pipe(
-      Effect.map((response) =>
-        isDynamicRecord(response.channel) && isString(response.channel.name)
-          ? `#${response.channel.name}`
-          : platformChannelId,
-      ),
-      Effect.catch((failure) =>
-        Effect.sync(() => {
-          if (isTemporaryLookupFailure(failure)) this.#places.delete(platformChannelId);
-          return platformChannelId;
-        }),
+    // Detached for the same reason as `authorName`.
+    yield* Effect.forkDetach(
+      this.#api.call("conversations.info", { channel: platformChannelId }).pipe(
+        Effect.map((response) =>
+          isDynamicRecord(response.channel) && isString(response.channel.name)
+            ? `#${response.channel.name}`
+            : platformChannelId,
+        ),
+        Effect.catch((failure) =>
+          Effect.sync(() => {
+            if (isTemporaryLookupFailure(failure)) this.#places.delete(platformChannelId);
+            return platformChannelId;
+          }),
+        ),
+        Effect.flatMap((result) => Deferred.succeed(name, result)),
+        Effect.uninterruptible,
       ),
     );
-    yield* Deferred.succeed(name, result);
-    return result;
-  }, Effect.uninterruptible);
+    return yield* Deferred.await(name);
+  });
 
   /** The public and private channels that OpenBot is a member of: `chat:write` posts only there. */
   readonly places = Effect.fnUntraced(function* (

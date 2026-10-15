@@ -6,6 +6,7 @@ import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { SettingsModal } from "../src/features/settings/SettingsModal";
 import type { SettingsTab } from "../src/features/settings/settings-tabs";
+import { STORY_SERVERS } from "../src/preview/fixtures";
 import { createMockBilling } from "../src/preview/mock-billing";
 import type { MockVoiceOptions } from "../src/preview/mock-voice";
 import { createMockOpenBot } from "./mock-openbot";
@@ -128,6 +129,7 @@ function SettingsModalStory(props: {
             setValue(next);
           }}
           appInfo={storyAppInfo}
+          servers={STORY_SERVERS}
           updateStatus={updateStatus()}
           onCancelScheduledRestart={async () => {
             const { scheduledRestart: _cancelled, ...rest } = updateStatus();

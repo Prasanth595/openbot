@@ -72,7 +72,6 @@ export const messages = {
   "routine.hours.endTime": "Bitiş zamanı",
   "routine.hours.repeat": "Tekrarla",
 
-  "routine.problem.once": "Tek seferlik bir rutin henüz kaydedilemez.",
   "routine.problem.endBeforeStart": "Bitiş zamanı başlangıç zamanından sonra olmalıdır.",
   "routine.problem.invalidDate": "Mevcut olan bir tarih seçin.",
   "routine.problem.cronRequired": "Bir cron ifadesi girin.",
@@ -208,6 +207,7 @@ export const messages = {
   "routine.settings.loading": "Rutinler yükleniyor…",
   "routine.settings.empty": "Henüz rutin yok.",
   "routine.settings.paused": "Duraklatıldı",
+  "routine.settings.completed": "Tamamlandı · {schedule}",
   "routine.settings.active": "Etkin",
   "routine.settings.activeToggle": "Rutin etkin",
   "routine.settings.deleteNow": "Şimdi sil",

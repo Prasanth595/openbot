@@ -159,9 +159,36 @@ export class IngressQueue {
     if (!this.#waker) return "unavailable";
     const wake = yield* this.#check(route, routeKey, wakes);
     if (!wakes) return wake.state === "sleeping" || wake.state === "starting" ? "hosted" : "unavailable";
-    const queueKey = wake.hostId ? this.#keys.get(wake.hostId) : undefined;
-    if (wake.state !== "starting" || !wake.hostId || !queueKey) return "unavailable";
-    const hostId = wake.hostId;
+    if (wake.state !== "starting" || !wake.hostId) return "unavailable";
+    return yield* this.#add(order, wake.hostId, route, routeKey, message, telegramCallback);
+  }, Effect.uninterruptible);
+
+  /**
+   * One event for a host that Signal already knows, such as the `/start` update of a chat that the
+   * account service just linked to it. It starts no host. It is kept as `offline` keeps an event, so
+   * a socket that closes before the host acknowledges it loses nothing.
+   */
+  readonly keep = Effect.fn("IngressQueue.keep")(function* (
+    this: IngressQueue,
+    hostId: string,
+    route: IngressRoute,
+    routeKey: string,
+    message: QueuedSignalMessage,
+  ): Effect.fn.Return<Exclude<OfflineOutcome, "hosted">> {
+    return yield* this.#add(++this.#order, hostId, route, routeKey, message, null);
+  }, Effect.uninterruptible);
+
+  readonly #add = Effect.fn("IngressQueue.add")(function* (
+    this: IngressQueue,
+    order: number,
+    hostId: string,
+    route: IngressRoute,
+    routeKey: string,
+    message: QueuedSignalMessage,
+    telegramCallback: QueuedFrame["telegramCallback"],
+  ): Effect.fn.Return<Exclude<OfflineOutcome, "hosted">> {
+    const queueKey = this.#keys.get(hostId);
+    if (!queueKey) return "unavailable";
     this.#prune(hostId);
     const queue = this.#queues.get(hostId) ?? [];
     if (queue.length >= this.#limits.maximumPerHost) return "unavailable";

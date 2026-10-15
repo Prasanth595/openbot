@@ -81,6 +81,7 @@ export const messages = {
   "error.backend.memoryOperationFailed": "L’opération sur le souvenir a échoué. Réessayez.",
   "error.backend.memoryGone": "Ce souvenir n’existe plus.",
   "error.backend.routineGone": "Cette routine n’existe plus.",
+  "error.backend.turnNotStarted": "Le fournisseur n’a pas démarré ce tour.",
   "error.backend.routineResultConnectionOff":
     "Cette connexion de messagerie est désactivée ou supprimée. Choisissez un autre emplacement.",
   "error.backend.routineResultNoDelivery": "Cette exécution n’a aucune réponse à renvoyer.",
@@ -142,6 +143,8 @@ export const messages = {
     "Les planifications personnalisées ne doivent pas s’exécuter plus souvent que toutes les {minutes} minutes.",
   "error.backend.routineAnchorInvalid": "Le point de départ de l’intervalle de la routine n’est pas valide.",
   "error.backend.routineNoOccurrence": "La planification n’a aucune occurrence dans les cinq prochaines années.",
+  "error.backend.routineOncePassed":
+    "L’heure de cette routine unique est passée. Choisissez une date ou une heure ultérieure.",
   "error.backend.routineTimezoneInvalid": "Le fuseau horaire de la routine n’est pas valide.",
   "error.backend.routineCronFields": "Les planifications personnalisées doivent utiliser cinq champs cron.",
   "error.backend.routineCronValueInvalid": "La valeur cron {field} n’est pas valide.",

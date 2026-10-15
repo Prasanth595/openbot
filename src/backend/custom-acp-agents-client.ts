@@ -22,7 +22,7 @@ import { type AgentSessionSettingsSnapshot, type AgentSessionSettingValue, isAge
 import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit } from "effect";
-import { assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "./acp-agent-command";
+import { agentLaunchPath, assertAgentArgs, assertWindowsScriptArgs, resolveAgentCommand } from "./acp-agent-command";
 import type { AcpHistoryPersistence } from "./acp-client";
 import type { AgentClient, DiagnosticOrigin } from "./agent-client";
 import { causeHelpers } from "./effect-boundary";
@@ -58,13 +58,15 @@ export type CustomAgentSource = () => readonly CustomAgentConfig[];
 
 /**
  * Builds the ACP client of one agent, on the file its command resolved to, for the sessions of one
- * working folder. `null` is the process that lists the agent's models.
+ * working folder. `null` is the process that lists the agent's models. `launchPath` is the `PATH`
+ * the process starts with, or null to leave the `PATH` of OpenBot unchanged.
  */
 export type CustomAgentChildFactory = (
   config: CustomAgentConfig,
   executable: string,
   folder: string | null,
   history?: AcpHistoryPersistence,
+  launchPath?: string | null,
 ) => AgentClient;
 
 const MODEL_LIST_TIMEOUT_MS = 5_000;
@@ -508,6 +510,7 @@ export class CustomAcpAgentsClient extends EventEmitter<ClientEvents> implements
           cause: new Error(sourceText("error.provider.customAgentNotFound", { command: config.command })),
         });
       yield* customStep(() => assertWindowsScriptArgs(executable, config.args));
+      const launchPath = yield* agentLaunchPath().pipe(toProviderClientOperationError);
       const prefix = folder === null ? agentId : `${agentId}:${folderTag(folder)}`;
       let child: AgentClient | null = null;
       const history =
@@ -530,7 +533,7 @@ export class CustomAcpAgentsClient extends EventEmitter<ClientEvents> implements
                   fragment,
                 ) ?? Effect.void,
             };
-      const created = yield* customStep(() => this.#createChild(config, executable, folder, history));
+      const created = yield* customStep(() => this.#createChild(config, executable, folder, history, launchPath));
       child = created;
       const route = (sessionId: string) => this.#routedSessionId(created, prefix, sessionId);
       created.on("notification", (notification) => {

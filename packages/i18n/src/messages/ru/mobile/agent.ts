@@ -260,7 +260,6 @@ export const messages = {
   "mobile.agent.record.lateMonthDay": "Месяцы без {day}-го числа пропускаются.",
   "mobile.agent.record.cronHint":
     "Пять полей: минута, час, день месяца, месяц и день недели. Например, 0 9 * * 1-5 запускает задачу в 9:00 по будням.",
-  "mobile.agent.record.problem.once": "Одноразовую регулярную задачу пока нельзя сохранить.",
   "mobile.agent.record.problem.endBeforeStart": "Время окончания должно быть позже времени начала.",
   "mobile.agent.record.problem.invalidDate": "В этом месяце нет такого дня.",
   "mobile.agent.record.problem.cronRequired": "Введите выражение cron.",

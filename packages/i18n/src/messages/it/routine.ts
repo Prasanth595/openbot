@@ -72,7 +72,6 @@ export const messages = {
   "routine.hours.endTime": "Ora di fine",
   "routine.hours.repeat": "Ripeti",
 
-  "routine.problem.once": "Una routine singola non si può ancora salvare.",
   "routine.problem.endBeforeStart": "L'ora di fine deve essere dopo quella di inizio.",
   "routine.problem.invalidDate": "Scegli una data che esiste.",
   "routine.problem.cronRequired": "Inserisci un'espressione cron.",
@@ -208,6 +207,7 @@ export const messages = {
   "routine.settings.loading": "Caricamento delle routine…",
   "routine.settings.empty": "Ancora nessuna routine.",
   "routine.settings.paused": "In pausa",
+  "routine.settings.completed": "Completata · {schedule}",
   "routine.settings.active": "Attiva",
   "routine.settings.activeToggle": "Routine attiva",
   "routine.settings.deleteNow": "Elimina ora",

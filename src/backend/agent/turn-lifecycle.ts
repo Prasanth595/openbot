@@ -58,6 +58,7 @@ import { collectProviderUsage } from "./usage-collection";
 import { USAGE_LIMIT_METHOD, type UsageLimitGate } from "./usage-limit-gate";
 
 const logger = createOpenBotLogger("turn-lifecycle");
+const ENDED_TURN_LIMIT = 256;
 
 export interface AgentBrowserHost extends AttentionBrowserHost, BrowserUploadTarget {
   onChanged(listener: (tabs: BrowserTab[], activeTabId: string | null) => void): () => void;
@@ -182,6 +183,11 @@ export class TurnLifecycle {
   /** Running turns whose agent called the no-update tool. The completion of the turn takes the entry. */
   readonly #noUpdateTurns = new Set<string>();
   /**
+   * The newest turns that ended. A provider can end a turn before the drain reads its `turn/start`
+   * answer, and the drain must not then mark the turn active again. Past the cap, the oldest goes.
+   */
+  readonly #endedTurns = new Set<string>();
+  /**
    * The time of the last provider notification for each agent: a delta, a tool item, a usage
    * update. It is the only clock that moves while a turn works, and it is lost on restart.
    */
@@ -253,6 +259,7 @@ export class TurnLifecycle {
     this.#limitedTurns.clear();
     this.#runningTurns.clear();
     this.#noUpdateTurns.clear();
+    this.#endedTurns.clear();
     this.#refusedRetries.clear();
     this.#lastEventAt.clear();
     this.#itemTurns.clear();
@@ -264,14 +271,27 @@ export class TurnLifecycle {
    * sign-out that an account refresh found, or a new client for the same provider. The stopped
    * process sends no `turn/completed` and `#handleExit` skips it, so without this its turns stay
    * active, and its deliveries running, until OpenBot restarts.
+   *
+   * `keepRecoverable` is for a client whose process exited. A turn with a message that is not settled
+   * then stays for the delivery recovery, which reads the provider's history for its result and ends
+   * the turn. A turn with no such message, such as one the CLI started by itself, has no other way
+   * to end.
    */
   readonly interruptTurnsOf = Effect.fn("TurnLifecycle.interruptTurnsOf")(function* (
     this: TurnLifecycle,
     client: AgentClient,
+    options: { keepRecoverable?: boolean } = {},
   ) {
     for (const [turnId, turn] of this.#runningTurns) {
       if (turn.client !== client) continue;
       this.#runningTurns.delete(turnId);
+      if (
+        options.keepRecoverable &&
+        this.#mailbox
+          .findDeliveriesByTurn(turn.agentId, turnId)
+          .some(({ delivery }) => delivery.status === "starting" || delivery.status === "running")
+      )
+        continue;
       this.#attention.clearForTurn(turn.threadId, turnId);
       if (this.#observedCompactions.get(turn.threadId) === turnId) this.#observedCompactions.delete(turn.threadId);
       this.#compaction.abandonCompaction(turn.threadId);
@@ -282,6 +302,10 @@ export class TurnLifecycle {
       );
     }
   }).bind(this);
+
+  hasEnded(turnId: string): boolean {
+    return this.#endedTurns.has(turnId);
+  }
 
   readonly handleNotification = Effect.fn("TurnLifecycle.handleNotification")(function* (
     this: TurnLifecycle,
@@ -612,6 +636,11 @@ export class TurnLifecycle {
   ) {
     const running = this.#runningTurns.get(turnId);
     this.#runningTurns.delete(turnId);
+    this.#endedTurns.add(turnId);
+    if (this.#endedTurns.size > ENDED_TURN_LIMIT) {
+      const [oldest] = this.#endedTurns;
+      if (oldest !== undefined) this.#endedTurns.delete(oldest);
+    }
     const noUpdateCalled = this.#noUpdateTurns.delete(turnId);
     if (running) {
       // `waitMs` is OpenBot's part of a slow reply: the queue (a usage-limit hold included), the

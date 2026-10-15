@@ -79,6 +79,7 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Операция с памятью не удалась. Повторите попытку.",
   "error.backend.memoryGone": "Этой записи памяти больше нет.",
   "error.backend.routineGone": "Этой регулярной задачи больше нет.",
+  "error.backend.turnNotStarted": "Провайдер не начал этот ход.",
   "error.backend.routineResultConnectionOff":
     "Это подключение к мессенджеру выключено или удалено. Выберите другое место.",
   "error.backend.routineResultNoDelivery": "У этого запуска нет ответа для повторной отправки.",
@@ -135,6 +136,7 @@ export const messages = {
   "error.backend.routineCronTooOften": "Свои расписания должны срабатывать не чаще чем раз в {minutes} мин.",
   "error.backend.routineAnchorInvalid": "Точка отсчёта интервала регулярной задачи некорректна.",
   "error.backend.routineNoOccurrence": "У расписания нет срабатываний в ближайшие пять лет.",
+  "error.backend.routineOncePassed": "Время этой однократной задачи уже прошло. Выберите более позднюю дату или время.",
   "error.backend.routineTimezoneInvalid": "Часовой пояс регулярной задачи некорректен.",
   "error.backend.routineCronFields": "Свои расписания должны использовать пять полей cron.",
   "error.backend.routineCronValueInvalid": "Значение {field} в cron некорректно.",

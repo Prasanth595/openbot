@@ -69,6 +69,11 @@ const Agent = Schema.Struct({
   skills: Schema.Array(text(512)).check(Schema.isMaxLength(INPUT_LIMITS.agentSkills)),
   files: Schema.NullOr(text(512)),
   routines: Schema.Array(Routine).check(Schema.isMaxLength(INPUT_LIMITS.agentRoutines)),
+  /**
+   * Routines with a `once` schedule. They are not in `routines`: an app with no one-time schedule
+   * refuses an agent with one there, but it ignores this field and keeps the agent.
+   */
+  oneTimeRoutines: Schema.optionalKey(Schema.Array(Routine).check(Schema.isMaxLength(INPUT_LIMITS.agentRoutines))),
   memories: Schema.Array(Memory).check(Schema.isMaxLength(512)),
 });
 

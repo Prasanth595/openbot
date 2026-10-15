@@ -733,6 +733,14 @@ export class RoutineScheduler implements RoutineDueSource {
         if (!active()) break;
         if (this.#hooks.excludedAgents().has(due.routine.agentId)) continue;
         const run = yield* routineStep(() => {
+          // A one-time trigger has no later run to make up for a dropped one, so it always queues.
+          // A crash before it completes leaves the run, and `skipMissed` completes it on start.
+          if (due.schedule.kind === "once") {
+            const queued = this.#routines.createRun(due.routine, due.triggerId, "scheduled", due.nextRunAt);
+            this.#routines.completeTrigger(due.routine.id, due.triggerId, now);
+            changedAgents.add(due.routine.agentId);
+            return queued;
+          }
           const { scheduledFor, nextRunAt } = collapseMissedOccurrences(
             due.schedule,
             due.routine.timezone,

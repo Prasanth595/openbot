@@ -358,7 +358,8 @@ offered; invalid settings are left out the same way.
 
 Each agent carries its profile (name, title, instructions, avatar seed and image), provider, model
 and reasoning effort, notifications and busy-message mode, its routines (schedule, limit and missed
-policies), its memories (with the essential or searchable choice the user made) and the skill folders
+policies; one-time routines are in the optional `oneTimeRoutines` field, so an older app skips them and
+keeps the agent), its memories (with the essential or searchable choice the user made) and the skill folders
 in `.agents/skills` and `.claude/skills` that OpenBot does not manage. Workspace files are optional
 and leave out `.openbot/`, the skill folders, links, and every path `isUnsafeArchivePath` refuses
 (`.git`, `node_modules`, `.env*`, private keys, nested archives). Server settings are optional: MCP servers,

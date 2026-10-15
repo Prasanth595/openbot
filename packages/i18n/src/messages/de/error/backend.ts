@@ -81,6 +81,7 @@ export const messages = {
   "error.backend.memoryOperationFailed": "Der Vorgang für die Erinnerung ist fehlgeschlagen. Versuche es erneut.",
   "error.backend.memoryGone": "Diese Erinnerung existiert nicht mehr.",
   "error.backend.routineGone": "Diese Routine existiert nicht mehr.",
+  "error.backend.turnNotStarted": "Der Anbieter hat diesen Durchgang nicht gestartet.",
   "error.backend.routineResultConnectionOff":
     "Diese Messaging-Verbindung ist aus oder entfernt. Wähle einen anderen Ort.",
   "error.backend.routineResultNoDelivery": "Dieser Lauf hat keine Antwort, die erneut gesendet werden kann.",
@@ -143,6 +144,8 @@ export const messages = {
     "Benutzerdefinierte Zeitpläne dürfen höchstens alle {minutes} Minuten ausgeführt werden.",
   "error.backend.routineAnchorInvalid": "Der Startpunkt des Routinenintervalls ist ungültig.",
   "error.backend.routineNoOccurrence": "Der Zeitplan enthält in den nächsten fünf Jahren keine Ausführung.",
+  "error.backend.routineOncePassed":
+    "Der Zeitpunkt dieser einmaligen Routine liegt in der Vergangenheit. Wähle ein späteres Datum oder eine spätere Uhrzeit.",
   "error.backend.routineTimezoneInvalid": "Die Zeitzone der Routine ist ungültig.",
   "error.backend.routineCronFields": "Benutzerdefinierte Zeitpläne müssen fünf cron-Felder verwenden.",
   "error.backend.routineCronValueInvalid": "Der cron-Wert {field} ist ungültig.",

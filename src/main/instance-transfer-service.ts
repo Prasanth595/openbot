@@ -293,6 +293,20 @@ export class InstanceTransferService {
         }
       }
 
+      const routines: TransferAgent["routines"][number][] = this.options.agents
+        .listRoutines(agent.id)
+        .map((routine) => ({
+          key: routine.id,
+          name: routine.name,
+          instruction: routine.instruction,
+          active: routine.active,
+          timezone: routine.timezone,
+          schedule: routine.trigger.schedule,
+          ...(routine.limitPolicy ? { limitPolicy: routine.limitPolicy } : {}),
+          ...(routine.missedPolicy ? { missedPolicy: routine.missedPolicy } : {}),
+        }));
+      const oneTimeRoutines = routines.filter((routine) => routine.schedule.kind === "once");
+
       const selections = new Map(
         this.options.agents
           .getMemorySelection(agent.id)
@@ -314,16 +328,8 @@ export class InstanceTransferService {
         ...(agent.busyMessageMode ? { busyMessageMode: agent.busyMessageMode } : {}),
         skills,
         files,
-        routines: this.options.agents.listRoutines(agent.id).map((routine) => ({
-          key: routine.id,
-          name: routine.name,
-          instruction: routine.instruction,
-          active: routine.active,
-          timezone: routine.timezone,
-          schedule: routine.trigger.schedule,
-          ...(routine.limitPolicy ? { limitPolicy: routine.limitPolicy } : {}),
-          ...(routine.missedPolicy ? { missedPolicy: routine.missedPolicy } : {}),
-        })),
+        routines: routines.filter((routine) => routine.schedule.kind !== "once"),
+        ...(oneTimeRoutines.length > 0 ? { oneTimeRoutines } : {}),
         memories: this.options.agents.listMemories(agent.id).map((memory) => {
           const inclusion = selections.get(memory.id);
           return { text: memory.text, ...(inclusion ? { inclusion } : {}) };
@@ -391,7 +397,7 @@ export class InstanceTransferService {
   ): Effect.fn.Return<TransferSettings, ArchiveOperationError> {
     const settings = this.options.settings;
     const layout = settings.sidebar();
-    const routineKeys = new Set(agents.flatMap((agent) => agent.routines.map((routine) => routine.key)));
+    const routineKeys = new Set(agents.flatMap((agent) => transferRoutines(agent).map((routine) => routine.key)));
     const links = new Map<string, RoutineFlowLink>();
     for (const agentId of keys.keys())
       for (const link of yield* settings.routineFlowLinks(agentId).pipe(Effect.mapError(failure)))
@@ -532,7 +538,7 @@ export class InstanceTransferService {
           description: agent.description,
           avatarUrl: avatar ? `data:${avatar.mimeType};base64,${Buffer.from(avatar.bytes).toString("base64")}` : null,
           skillCount: agent.skills.length,
-          routineCount: agent.routines.length,
+          routineCount: transferRoutines(agent).length,
           memoryCount: agent.memories.length,
           fileCount: files.length,
           fileBytes: files.reduce((total, [, entry]) => total + entry.size, 0),
@@ -853,7 +859,7 @@ export class InstanceTransferService {
             );
           }
 
-          for (const routine of source.routines) {
+          for (const routine of transferRoutines(source)) {
             const created = yield* archiveSync(() =>
               this.options.agents.createRoutine(
                 {
@@ -1073,6 +1079,11 @@ function createRedaction() {
 /** The warning for an item of the settings that is not imported. */
 function named(name: string): (reason: string) => string {
   return (reason) => sourceText("error.import.transferSettingSkipped", { name, reason });
+}
+
+/** The routines of an agent in a file, with the one-time routines that older apps skip. */
+function transferRoutines(agent: TransferAgent): TransferAgent["routines"] {
+  return [...agent.routines, ...(agent.oneTimeRoutines ?? [])];
 }
 
 function isSharedData(name: string): boolean {

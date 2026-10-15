@@ -32,6 +32,7 @@ import {
   type InstallAgentTemplateResult,
   isAgentTemplateCardPng,
   isAgentTemplateSnapshot,
+  isReleasedRoutineSchedule,
   type PublishAgentTemplateInput,
   type RoutineSchedule,
   toAgentTemplateSnapshot,
@@ -364,12 +365,10 @@ export class AgentTemplateService {
       avatarSeed: agent.avatarSeed,
       avatarHue: agent.avatarHue,
       skills,
-      routines: this.agents.listRoutines(agent.id).map(({ name, instruction, active, trigger }) => ({
-        name,
-        instruction,
-        active,
-        schedule: trigger.schedule,
-      })),
+      routines: this.agents.listRoutines(agent.id).flatMap(({ name, instruction, active, trigger }) =>
+        // A `once` routine names one date, so it is not part of a template.
+        isReleasedRoutineSchedule(trigger.schedule) ? [{ name, instruction, active, schedule: trigger.schedule }] : [],
+      ),
     });
   }
 

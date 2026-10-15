@@ -1,3 +1,4 @@
+import { isReleasedRoutineSchedule } from "@openbot/contracts/ipc";
 import { EVENTS_CAPABILITY, EVENTS_ROUTES } from "@openbot/contracts/team-protocol/events-v1";
 import {
   ROUTINE_RECOVERY_CAPABILITY,
@@ -15,7 +16,7 @@ import {
 } from "../host-events-inputs";
 import { HttpError } from "./http-error";
 import type { RouteOutcome, TeamApiRequestContext } from "./request-context";
-import { readJson, requireAdmin } from "./request-helpers";
+import { readJson, requireAdmin, requireReleasedSchedule } from "./request-helpers";
 
 const EVENT_ROUTE_PATHS = new Set<string>(Object.values(EVENTS_ROUTES));
 const RECOVERY_ROUTE_PATHS = new Set<string>(Object.values(ROUTINE_RECOVERY_ROUTES));
@@ -63,10 +64,28 @@ export async function routeEvents(
     // The recovery routes answer as the events routes do; only their wire codecs keep `missedPolicy`.
     case EVENTS_ROUTES.listRoutines:
     case ROUTINE_RECOVERY_ROUTES.listRoutines:
-      return json(200, await runEventsEffect(events.listRoutines(input(parseListEventRoutines))));
+      // A `once` routine stays on this computer: the events codecs reject its schedule.
+      return json(
+        200,
+        (await runEventsEffect(events.listRoutines(input(parseListEventRoutines)))).filter(
+          ({ trigger }) => trigger.kind !== "schedule" || isReleasedRoutineSchedule(trigger.schedule),
+        ),
+      );
     case EVENTS_ROUTES.saveRoutine:
-    case ROUTINE_RECOVERY_ROUTES.saveRoutine:
-      return json(200, await runEventsEffect(events.saveRoutine(input(parseSaveEventRoutine))));
+    case ROUTINE_RECOVERY_ROUTES.saveRoutine: {
+      const routine = input(parseSaveEventRoutine);
+      if (routine.trigger.kind === "schedule") requireReleasedSchedule(routine.trigger.schedule);
+      // A `once` routine is not in these lists, so a save cannot change it either.
+      if (routine.id !== undefined) {
+        const saved = await runEventsEffect(events.listRoutines({ owner: routine.owner }));
+        const hidden = saved.some(
+          ({ id, trigger }) =>
+            id === routine.id && trigger.kind === "schedule" && !isReleasedRoutineSchedule(trigger.schedule),
+        );
+        if (hidden) throw new HttpError(404, sourceText("error.backend.routineGone"));
+      }
+      return json(200, await runEventsEffect(events.saveRoutine(routine)));
+    }
     case ROUTINE_RECOVERY_ROUTES.listRuns:
       return json(200, await runEventsEffect(events.listRoutineRuns(input(parseListEventRoutineRuns))));
     case EVENTS_ROUTES.deleteRoutine:

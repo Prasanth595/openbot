@@ -45,17 +45,30 @@ export const routineScheduleZodSchema = z
       })
       .strict(),
     z.object({ kind: z.literal("custom"), expression: z.string().min(1).max(INPUT_LIMITS.routineCron) }).strict(),
+    z
+      .object({
+        kind: z.literal("once"),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .describe("Local date in YYYY-MM-DD format."),
+        time: routineTimeSchema,
+      })
+      .strict()
+      .describe(
+        "One run at this local date and time, such as a reminder. The routine then pauses and does not repeat.",
+      ),
   ])
   .describe("Routine schedule. Weekdays use 0 for Sunday through 6 for Saturday; clock values use HH:mm local time.");
 
 export const routineLimitPolicyZodSchema = z
   .enum(ROUTINE_LIMIT_POLICIES)
   .describe(
-    "What a run does while the agent's provider account is at its usage limit: wait runs it after the reset, skip drops it. New routines use wait.",
+    "What a run does while the agent's provider account is at its usage limit: wait runs it after the reset, skip drops it. New routines use wait. A one-time schedule always uses wait.",
   );
 
 export const routineMissedPolicyZodSchema = z
   .enum(ROUTINE_MISSED_POLICIES)
   .describe(
-    "What the routine does with occurrences that came due while OpenBot or its server was off: skip records and drops them, run-once runs the newest one when OpenBot starts and records the others. New routines use skip.",
+    "What the routine does with occurrences that came due while OpenBot or its server was off: skip records and drops them, run-once runs the newest one when OpenBot starts and records the others. When a routine is created with no value, a one-time schedule uses run-once and other schedules use skip. An update with no value keeps the saved policy.",
   );

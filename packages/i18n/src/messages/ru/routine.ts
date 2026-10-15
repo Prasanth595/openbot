@@ -92,7 +92,6 @@ export const messages = {
   "routine.hours.endTime": "Время окончания",
   "routine.hours.repeat": "Повтор",
 
-  "routine.problem.once": "Однократную регулярную задачу пока нельзя сохранить.",
   "routine.problem.endBeforeStart": "Время окончания должно быть позже времени начала.",
   "routine.problem.invalidDate": "Выберите существующую дату.",
   "routine.problem.cronRequired": "Введите выражение cron.",
@@ -242,6 +241,7 @@ export const messages = {
   "routine.settings.loading": "Загрузка регулярных задач…",
   "routine.settings.empty": "Регулярных задач пока нет.",
   "routine.settings.paused": "Приостановлена",
+  "routine.settings.completed": "Завершена · {schedule}",
   "routine.settings.active": "Активна",
   "routine.settings.activeToggle": "Регулярная задача активна",
   "routine.settings.deleteNow": "Удалить сейчас",

@@ -64,7 +64,7 @@ Keep the private JWK secret. With it, a person can open each host that uses your
    ```
 
 2. Edit the top level of `apps/auth-api/wrangler.jsonc`. Do not change the `env` section.
-   - `routes`: replace both entries with `{ "pattern": "api.example.com", "custom_domain": true }`.
+   - `routes`: replace all entries with `{ "pattern": "api.example.com", "custom_domain": true }`.
    - `d1_databases`: set `database_id` to the ID that `d1 create` printed.
    - `r2_buckets`: set the bucket names, if you used other names.
    - `vars`:

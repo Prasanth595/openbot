@@ -111,6 +111,11 @@ export interface MessagingThreadsHooks {
   interrupt(agentId: string, turnId: string, threadId: string): Effect.Effect<void, MessagingThreadFailed>;
   /** Removes live provider state for an execution thread before its rows are deleted. */
   forgetThread(threadId: string): Effect.Effect<void, MessagingThreadFailed>;
+  /**
+   * Whether this thread is also an agent's own chat, as an earlier build could make it. Its turns
+   * still go to the platform, but its events stay in the app, where the chat shows them.
+   */
+  ownChat(threadId: string): boolean;
 }
 
 /**
@@ -121,6 +126,7 @@ const AGENT_QUEUE_LIMIT = 20;
 const AUTHOR_QUEUE_LIMIT = 2;
 const CONTEXT_TIMEOUT_MS = 5_000;
 const HISTORY_TIMEOUT_MS = 15_000;
+const FINISHED_TURN_LIMIT = 256;
 /** What a messaging tool answers when its connection does not run. */
 export const MESSAGING_NOT_RUNNING = "This connection does not run now.";
 const PLATFORM_NAMES: Record<MessagingPlatform, string> = { slack: "Slack", discord: "Discord", telegram: "Telegram" };
@@ -143,6 +149,11 @@ export class MessagingThreads {
   readonly #admissions = new Map<string, Deferred.Deferred<void>>();
   /** The external message each running turn answers, by turn id. */
   readonly #turnOrigins = new Map<string, { origin: MessagingOrigin | null; followUp: boolean }>();
+  /**
+   * The newest turns whose end the conversation was told of, so `deliverySettled` does not tell it a
+   * second time. Past the cap, the oldest goes.
+   */
+  readonly #finishedTurns = new Set<string>();
   #contextSource:
     | ((
         link: MessagingLink,
@@ -486,15 +497,16 @@ export class MessagingThreads {
   /**
    * Takes the conversation events of a messaging thread, so the agent's public chat and the Team
    * API never see them, and reports turn starts and ends. Approvals are not taken: the host still
-   * shows them.
+   * shows them. A thread that is also an agent's own chat (`ownChat`) keeps its events: the app and
+   * the Team API show that chat, with the messages of the external conversation in it.
    */
   event(event: AgentEvent, scope: Scope.Scope): boolean {
     switch (event.type) {
       case "conversation":
-        return event.snapshot.threadId !== null && this.store.linkForThread(event.snapshot.threadId) !== null;
+        return event.snapshot.threadId !== null && this.#takes(event.snapshot.threadId);
       case "conversation-delta":
       case "turn-progress":
-        return this.store.linkForThread(event.threadId) !== null;
+        return this.#takes(event.threadId);
       case "turn-started": {
         const link = this.store.linkForThread(event.threadId);
         if (!link) return false;
@@ -505,13 +517,21 @@ export class MessagingThreads {
         const followUp = running?.delivery.sender.kind === "agent";
         this.#turnOrigins.set(event.turnId, { origin, followUp });
         this.#publish({ type: "started", link, turnId: event.turnId, origin, followUp });
-        return true;
+        return !this.#hooks.ownChat(event.threadId);
       }
       case "turn-completed": {
         const link = this.store.linkForThread(event.threadId);
         if (!link) return false;
         const started = this.#turnOrigins.get(event.turnId) ?? { origin: null, followUp: false };
         this.#turnOrigins.delete(event.turnId);
+        // A turn with no known requester tells no conversation, so `deliverySettled` still must.
+        if (started.origin) {
+          this.#finishedTurns.add(event.turnId);
+          if (this.#finishedTurns.size > FINISHED_TURN_LIMIT) {
+            const [oldest] = this.#finishedTurns;
+            if (oldest !== undefined) this.#finishedTurns.delete(oldest);
+          }
+        }
         this.store.touch(link.linkId);
         Effect.runFork(
           this.#finished(link, event.turnId, event.status, started.origin, started.followUp).pipe(
@@ -519,29 +539,58 @@ export class MessagingThreads {
             Effect.forkIn(scope, { startImmediately: true }),
           ),
         );
-        return true;
+        return !this.#hooks.ownChat(event.threadId);
       }
       default:
         return false;
     }
   }
 
+  /** Whether an event of this thread is kept out of the app: a conversation thread that is no agent's own chat. */
+  #takes(threadId: string): boolean {
+    return this.store.linkForThread(threadId) !== null && !this.#hooks.ownChat(threadId);
+  }
+
   /** A messaging delivery that failed before its turn started ends like a failed turn. */
   deliveryFailed(deliveryId: string): void {
+    this.deliverySettled(deliveryId, "failed");
+  }
+
+  /**
+   * A messaging delivery that a path other than its turn's end settled: a failed start, a turn that
+   * ended before its start was read, or the recovery after a provider exit or a restart. Without
+   * this, the conversation keeps the "working" status and its Stop button, and gets no answer. A
+   * turn that the recovery found complete posts its answer, without its files.
+   */
+  deliverySettled(deliveryId: string, status: "completed" | "failed" | "interrupted"): void {
     const origin = this.#mailbox.messagingOrigin(deliveryId);
     const link = origin ? this.store.link(origin.linkId) : null;
     if (!origin || !link) return;
-    const followUp = this.#mailbox.getDelivery(deliveryId)?.delivery.sender.kind === "agent";
+    const delivery = this.#mailbox.getDelivery(deliveryId)?.delivery;
+    const turnId = delivery?.turnId ?? null;
+    if (turnId && this.#finishedTurns.has(turnId)) return;
+    if (turnId) this.#turnOrigins.delete(turnId);
+    const answer =
+      status === "completed" && turnId
+        ? ([...this.#turnMessages(link, turnId)].reverse().find(isAnswer)?.text ?? null)
+        : null;
     this.#publish({
       type: "finished",
       link,
-      turnId: null,
-      status: "failed",
+      turnId,
+      status,
       origin,
-      followUp,
-      answer: null,
+      followUp: delivery?.sender.kind === "agent",
+      answer,
       files: [],
     });
+  }
+
+  /** Whether a request from this external message still waits or runs. */
+  isPending(linkId: string, platformMessageId: string): boolean {
+    return this.#mailbox
+      .unresolvedMessagingDeliveries(linkId)
+      .some(({ delivery }) => this.#mailbox.messagingOrigin(delivery.id)?.platformMessageId === platformMessageId);
   }
 
   /** The requester of the turn that runs now in this link, if one runs. */

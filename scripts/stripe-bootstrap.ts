@@ -48,6 +48,11 @@ export const BILLING_WEBHOOK_EVENTS = [
   "invoice.paid",
   "invoice.payment_failed",
   "checkout.session.expired",
+  "refund.created",
+  "refund.updated",
+  "refund.failed",
+  "charge.dispute.created",
+  "charge.dispute.closed",
 ] as const;
 
 export interface PriceAmounts {

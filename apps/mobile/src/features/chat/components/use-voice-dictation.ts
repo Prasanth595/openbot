@@ -1,6 +1,6 @@
 import { referenceFrom } from "@openbot/user-errors";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Linking } from "react-native";
+import { AppState, Linking } from "react-native";
 import { type SharedValue, useSharedValue, withTiming } from "react-native-reanimated";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { AUTOMATIC_DICTATION_LANGUAGE, useDictationLanguage } from "@/features/settings/model/dictation-language";
@@ -54,6 +54,8 @@ let owner: symbol | null = null;
 // already has the last partial result, so nothing is lost.
 const STOP_TIMEOUT_MS = 3000;
 
+let cachedAvailable: boolean | null = null;
+
 /**
  * iOS answers for the phone's default locale and the network state at the time
  * of the call, which can change or differ from the dictation language. So iOS
@@ -63,15 +65,35 @@ const STOP_TIMEOUT_MS = 3000;
 function recognitionAvailable(): boolean {
   if (!speechRecognition) return false;
   if (isIOS) return true;
+  // Each chat asked again when it opened: on Android a synchronous package manager query.
+  if (cachedAvailable !== null) return cachedAvailable;
   try {
-    return speechRecognition.isRecognitionAvailable();
+    cachedAvailable = speechRecognition.isRecognitionAvailable();
   } catch {
     return false;
   }
+  return cachedAvailable;
 }
 
+// On Android the service makes a recognizer on the main thread to list its languages, which each
+// chat did during its open animation. The list stays for one visit to the app: the user can install
+// a language in the meantime.
+let cachedLocales: Promise<SupportedLocales> | null = null;
+let forgetsLocalesOnReturn = false;
+
 function supportedLocales(module: Recognizer): Promise<SupportedLocales> {
-  return module.getSupportedLocales({}).catch((): SupportedLocales => ({ locales: [], installedLocales: [] }));
+  if (!forgetsLocalesOnReturn) {
+    forgetsLocalesOnReturn = true;
+    AppState.addEventListener("change", (state) => {
+      if (state === "active") cachedLocales = null;
+    });
+  }
+  cachedLocales ??= module.getSupportedLocales({}).catch((): SupportedLocales => {
+    // The next chat asks again.
+    cachedLocales = null;
+    return { locales: [], installedLocales: [] };
+  });
+  return cachedLocales;
 }
 
 async function recognitionOptions(module: Recognizer, supported: Promise<SupportedLocales>) {
@@ -145,10 +167,16 @@ export function useVoiceDictation({
   const session = useRef<DictationSession | null>(null);
   const finished = useRef<(() => void)[]>([]);
   const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Read when the chat opens, so a mic press does not wait for the service.
+  // Read after the chat opens, so a mic press does not wait for the service. A press before then
+  // asks the service itself.
   const locales = useRef<Promise<SupportedLocales> | null>(null);
   useEffect(() => {
-    if (speechRecognition && available) locales.current = supportedLocales(speechRecognition);
+    const module = speechRecognition;
+    if (!module || !available) return;
+    const idle = requestIdleCallback(() => {
+      locales.current ??= supportedLocales(module);
+    });
+    return () => cancelIdleCallback(idle);
   }, [available]);
   const onDraftRef = useRef(onDraft);
   useEffect(() => {

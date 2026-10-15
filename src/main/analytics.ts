@@ -76,6 +76,7 @@ const ROUTINE_TRIGGER_TYPES = [
   "interval",
   "advanced",
   "custom",
+  "once",
 ] as const;
 
 type AnalyticsIdentity = Pick<CentralAuthUser, "id" | "email">;

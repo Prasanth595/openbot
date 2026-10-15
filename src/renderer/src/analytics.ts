@@ -373,6 +373,7 @@ const ROUTINE_TRIGGER_TYPES = new Set([
   "interval",
   "advanced",
   "custom",
+  "once",
   "webhook",
 ]);
 

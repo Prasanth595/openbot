@@ -22,6 +22,7 @@ import {
   isAvatarHue,
   isAvatarSeed,
   isReasoningEffort,
+  isReleasedRoutineSchedule,
   MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX,
   type RespondToApprovalInput,
   type RespondToBrowserTakeoverInput,
@@ -159,6 +160,13 @@ export function firstHeaderValue(value: string | string[] | undefined): string |
 /** The member who made this request, as the sender the host stamps on the message they write. */
 export function memberSender(member: TeamMemberSummary): ConversationMessageSender | undefined {
   return conversationMessageSender(member.id, member.name?.trim() || member.email || member.username);
+}
+
+/** The released routine codecs reject a `once` schedule, so a Team API request cannot save one. */
+export function requireReleasedSchedule(schedule: unknown): void {
+  if (schedule !== undefined && !isReleasedRoutineSchedule(schedule)) {
+    throw new HttpError(400, sourceText("error.backend.routineScheduleInvalid"));
+  }
 }
 
 export function requireAdmin(member: TeamMemberSummary): void {

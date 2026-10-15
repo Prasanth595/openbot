@@ -49,7 +49,7 @@ analytics. Development builds, previews, tests, and Storybook do not send analyt
 
 The production account service also sends OpenPanel an event when a paid plan or a hosted server
 changes: a Checkout starts or expires, a plan starts, changes, is cancelled or ends, a payment
-succeeds or fails, the Customer Portal opens, or a hosted server is set up, fails to set up, stops
+succeeds or fails, a payment is refunded or disputed, the Customer Portal opens, or a hosted server is set up, fails to set up, stops
 after no use, starts, changes its machine, stops at the end of its plan, is renewed or is deleted.
 Each event has your account ID and only fixed values: the action, the plan, the billing period, the
 currency, the amount that Stripe reports, the server size, the start reason and an error code. It has
@@ -58,6 +58,7 @@ because the account service sends them and not your computer.
 
 The account service also records a return from Checkout without payment and later payment
 recovery. Verified paid invoices produce a revenue event in USD, with the original amount,
+currency, and dated exchange rate. Refunds and disputes produce an event with the same USD amount,
 currency, and dated exchange rate. Daily totals contain recurring revenue, overdue recurring
 revenue, paid accounts, paid servers, and scheduled cancellations. These totals have no account ID.
 The service stores payment facts and a delivery ledger in D1 to prevent duplicate revenue events.

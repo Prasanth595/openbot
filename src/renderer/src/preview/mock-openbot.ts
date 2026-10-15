@@ -51,6 +51,7 @@ import {
   type FilePreview,
   type HostedSiteSummary,
   type HostStatus,
+  isReleasedRoutineSchedule,
   type MacPermissionId,
   normalizeMcpConfig,
   type OpenAttachmentInput,
@@ -1106,12 +1107,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             name: skill.name,
             version: skill.installedVersion,
           })),
-          routines: (routines.get(agent.id) ?? []).map((routine) => ({
-            name: routine.name,
-            instruction: routine.instruction,
-            active: routine.active,
-            schedule: routine.trigger.schedule,
-          })),
+          // As on the host: a `once` routine names one date, so it is not part of a template.
+          routines: (routines.get(agent.id) ?? []).flatMap(({ name, instruction, active, trigger }) =>
+            isReleasedRoutineSchedule(trigger.schedule)
+              ? [{ name, instruction, active, schedule: trigger.schedule }]
+              : [],
+          ),
         });
       },
       submit: async (input) => {
