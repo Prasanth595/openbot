@@ -162,9 +162,11 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    period. That invoice is the subscription's `latest_invoice`, made for a new plan or a renewal
    (`billing_reason` `subscription_create` or `subscription_cycle`). Partial refunds that add up to
    the full amount count as a full refund (the charge is `refunded`). A partial refund, or a refund of
-   an earlier invoice or of a plan change, keeps the plan and the server: to end the plan, cancel the
-   subscription in the Stripe Dashboard. A dispute (`charge.dispute.created`, an inquiry too) cancels
-   the plan of the disputed invoice now, so Stripe does not charge that card again. In both cases
+   an earlier invoice or of a plan change, keeps the plan and the server. After a plan change in the
+   period, `latest_invoice` is the plan change invoice, so a refund of the renewal keeps the plan too.
+   To end the plan in these cases, cancel the subscription in the Stripe Dashboard. A dispute
+   (`charge.dispute.created`, an inquiry too) cancels the plan of the disputed invoice now, so Stripe
+   does not charge that card again. In both cases
    the server stops with `plan_ended` and keeps its disk. The Worker finds the plan through the
    invoice of the PaymentIntent (`GET /v1/invoice_payments`). A refund or dispute of a payment that
    is not an OpenBot plan invoice changes nothing. A refund that fails after it succeeded does not
