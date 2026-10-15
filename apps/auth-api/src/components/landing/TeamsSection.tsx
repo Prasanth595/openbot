@@ -92,9 +92,7 @@ export function TeamsSection() {
                     {pad(index() + 1)} / {pad(LANDING_TEAMS_OFFERS.length)}
                   </span>
                 </span>
-                <span class="landing-teams-card-mark">
-                  <LandingIcon name={OFFER_ICONS[offer.id]} class="landing-teams-card-icon" />
-                </span>
+                <LandingIcon name={OFFER_ICONS[offer.id]} class="landing-teams-card-icon" />
                 <div class="landing-teams-card-copy">
                   <h3 class="landing-teams-card-title">{offer.title}</h3>
                   <p class="landing-teams-card-description">{offer.description}</p>

@@ -4073,22 +4073,15 @@ a {
   opacity: 0.6;
 }
 
-/* A dark tile with the icon in the colour of the card, like an app icon. */
-.landing-teams-card-mark {
-  display: grid;
-  place-items: center;
-  align-self: start;
-  width: 60px;
-  height: 60px;
-  margin-top: 8px;
-  border-radius: 18px;
-  background: var(--openbot-text-on-light);
-  color: var(--landing-teams-color);
-}
-
 .landing-teams-card-icon {
-  width: 30px;
-  height: 30px;
+  position: absolute;
+  z-index: -1;
+  top: calc(var(--landing-teams-step) + 4px);
+  right: -28px;
+  width: clamp(150px, 17vw, 230px);
+  height: clamp(150px, 17vw, 230px);
+  stroke-width: 1.1;
+  opacity: 0.85;
 }
 
 .landing-teams-card-copy {
@@ -4152,15 +4145,8 @@ a {
     border-radius: 24px;
   }
 
-  .landing-teams-card-mark {
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-  }
-
   .landing-teams-card-icon {
-    width: 26px;
-    height: 26px;
+    right: -20px;
   }
 }
 
