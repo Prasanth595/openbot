@@ -165,10 +165,6 @@ export const sendPrivateContactMessage = Effect.fn("Smtp.sendPrivateContactMessa
   message: SmtpContactMessage,
   connector?: SmtpConnector,
 ) {
-  yield* smtpValidate(() => {
-    validateEmail(message.email, "reply_to");
-    if (message.name !== null && hasHeaderBreak(message.name)) throw new Error("smtp_invalid_name");
-  });
   return yield* sendPrivateEmail(
     config,
     { email: config.from, replyTo: message.email, content: renderContactMessageEmail(message) },
