@@ -72,6 +72,14 @@ export function createMockMessaging(orchestrator: () => string): MessagingDeskto
   };
   const api: Omit<MessagingDesktopApi, `host${string}`> = {
     getSlackOverview: slack.overview,
+    getSlackAccessOverview: async () => ({
+      connections: (await slack.overview()).connections.map(({ workspaceId }) => ({
+        workspaceId,
+        grantedScopes: null,
+        verifiedAt: null,
+        current: false,
+      })),
+    }),
     connectSlackWorkspace: slack.connect,
     disconnectSlackWorkspace: slack.disconnect,
     reconnectSlackWorkspace: slack.reconnect,
@@ -123,6 +131,7 @@ export function createMockMessaging(orchestrator: () => string): MessagingDeskto
   const overview = { slack: api.getSlackOverview, discord: api.getDiscordOverview, telegram: api.getTelegramOverview };
   return {
     ...api,
+    hostSlackAccessOverview: () => api.getSlackAccessOverview(),
     hostOverview: ({ platform }) => overview[platform](),
     hostConnect: ({ platform, place }) =>
       platform === "slack"

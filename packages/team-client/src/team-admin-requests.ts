@@ -9,6 +9,7 @@ import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_ROUTES } from "@openbot/contracts/team-protocol/host-timezone-v1";
 import type { PROVIDERS_V5_ROUTES } from "@openbot/contracts/team-protocol/providers-v5";
+import { SLACK_ACCESS_ROUTES } from "@openbot/contracts/team-protocol/slack-access-v1";
 // Admin requests to one host: agent settings and skills, shared tables, agent share links, the server name and logo,
 // the server timezone, the app update, MCP servers, storage, hosted sites and providers.
 //
@@ -48,6 +49,7 @@ import {
   decodeHostProviderAccounts,
   decodeHostProviderAccountUsage,
   decodeHostReleaseStatus,
+  decodeHostSlackAccessOverview,
   decodeHostTimezoneSettings,
   decodeHostUpdateStatus,
   decodeInstalledSkills,
@@ -110,6 +112,7 @@ import {
   type SharedTable,
   type SignInRelayStatus,
   type SignOutMcpServerInput,
+  type SlackAccessOverview,
   type SubmitProviderCodeLoginInput,
   type TestMcpServerInput,
   type UninstallSkillInput,
@@ -961,6 +964,14 @@ export function onePasswordConnectorRequest(
 }
 
 /** The host's Slack workspaces, Discord servers or Telegram chats (`connectors-v1`). */
+export function slackAccessOverview(
+  request: TeamApiRequest,
+  supported: boolean,
+): Effect.Effect<SlackAccessOverview | null, TeamAdminRequestError> {
+  if (!supported) return Effect.succeed(null);
+  return adminCall(() => request("POST", SLACK_ACCESS_ROUTES.overview, decodeHostSlackAccessOverview, {}));
+}
+
 export function messagingConnectorOverview(
   request: TeamApiRequest,
   input: HostMessagingPlatformInput,

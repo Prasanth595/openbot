@@ -81,6 +81,7 @@ import {
 import { teamHttpCodec } from "@openbot/contracts/team-protocol/http-codecs";
 import { optionalTeamEvent } from "@openbot/contracts/team-protocol/optional-events";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
+import { SLACK_ACCESS_CAPABILITY } from "@openbot/contracts/team-protocol/slack-access-v1";
 import {
   TEAM_APP_VERSION_HEADER,
   TEAM_PROTOCOL_V1,
@@ -170,6 +171,7 @@ import { routeRoutineFlows } from "./team-api/route-routine-flows";
 import { routeSharedTables } from "./team-api/route-shared-tables";
 import { routeSignInRelay } from "./team-api/route-sign-in-relay";
 import { routeSkillsAdmin } from "./team-api/route-skills-admin";
+import { routeSlackAccess } from "./team-api/route-slack-access";
 import { routeStorage } from "./team-api/route-storage";
 import { routeTeam } from "./team-api/route-team";
 import { routeWorkspaceDirectory } from "./team-api/route-workspace-directory";
@@ -759,6 +761,7 @@ export class TeamApiServer {
         return;
       if ((await routeSignInRelay(context, this.#options.mcpServers && this.#options.signInRelay)) === "handled")
         return;
+      if ((await routeSlackAccess(context, this.#options.connectors?.messaging)) === "handled") return;
       if ((await routeConnectors(context, this.#options.connectors)) === "handled") return;
       if ((await routeOnePasswordConnector(context, this.#options.onePasswordConnector)) === "handled") return;
       if ((await routeProviderHostSignIn(context, this.#options.providerHostSignIns)) === "handled") return;
@@ -1561,6 +1564,8 @@ export class TeamApiServer {
           return this.#options.mcpServers !== undefined && this.#options.mcpSignIns !== undefined;
         if (capability === SIGN_IN_RELAY_CAPABILITY)
           return this.#options.mcpServers !== undefined && this.#options.signInRelay !== undefined;
+        if (capability === SLACK_ACCESS_CAPABILITY)
+          return this.#options.connectors?.messaging.slackAccessOverview !== undefined;
         if (capability === CONNECTORS_CAPABILITY) return this.#options.connectors !== undefined;
         if (capability === ONEPASSWORD_CONNECTOR_CAPABILITY) return this.#options.onePasswordConnector !== undefined;
         if (capability === PROVIDER_HOST_SIGN_IN_CAPABILITY) return this.#options.providerHostSignIns !== undefined;

@@ -1,4 +1,5 @@
 import { open, rm } from "node:fs/promises";
+import { isSlackGrantedScopes, SLACK_ACCESS_LIMITS } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { Effect, Schema } from "effect";
 import { causeHelpers } from "../../effect-boundary";
@@ -96,11 +97,19 @@ export class SlackWebApi {
 
   readonly authTest = Effect.fnUntraced(function* (this: SlackWebApi) {
     const { payload, response } = yield* this.#send("auth.test", new URLSearchParams(), RATE_LIMIT_RETRIES);
-    const scopes = (response.headers.get("x-oauth-scopes") ?? "")
+    const header = response.headers.get("x-oauth-scopes");
+    const scopes = (header ?? "")
       .split(",")
       .map((scope) => scope.trim())
       .filter(Boolean);
-    return { payload, scopes };
+    // Do not treat requested permissions or a missing header as granted scope evidence.
+    const grantedScopes =
+      header === null ||
+      new TextEncoder().encode(header).byteLength > SLACK_ACCESS_LIMITS.headerBytes ||
+      !isSlackGrantedScopes(scopes)
+        ? null
+        : [...new Set(scopes)];
+    return { payload, scopes, grantedScopes, verifiedAt: grantedScopes === null ? null : new Date().toISOString() };
   });
 
   readonly #send = Effect.fnUntraced(function* (

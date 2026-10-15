@@ -54,6 +54,7 @@ import { SHARED_TABLES_CAPABILITY } from "./shared-tables-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "./skills-admin-v1";
 import { SKILLS_EVENTS_CAPABILITY } from "./skills-events-v1";
+import { SLACK_ACCESS_CAPABILITY } from "./slack-access-v1";
 import { TEAM_PROTOCOL_V7_CAPABILITIES } from "./v7";
 import { WORKSPACE_DIRECTORY_CAPABILITY } from "./workspace-directory-v1";
 
@@ -120,6 +121,7 @@ export {
   SIGN_IN_RELAY_CAPABILITY,
   SKILLS_ADMIN_CAPABILITY,
   SKILLS_EVENTS_CAPABILITY,
+  SLACK_ACCESS_CAPABILITY,
   STORAGE_CAPABILITY,
   TEAM_BROWSER_NAVIGATION_CAPABILITY,
   TEAM_BROWSER_VIEW_CAPABILITY,
@@ -194,6 +196,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   MCP_SIGN_IN_APP_CAPABILITY,
   SIGN_IN_RELAY_CAPABILITY,
   CONNECTORS_CAPABILITY,
+  SLACK_ACCESS_CAPABILITY,
   CONVERSATION_FILE_SEARCH_CAPABILITY,
   ROUTINE_FLOWS_CAPABILITY,
   TEAM_HISTORY_EXTENT_CAPABILITY,
@@ -280,6 +283,7 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== MCP_SIGN_IN_APP_CAPABILITY &&
     capability !== SIGN_IN_RELAY_CAPABILITY &&
     capability !== CONNECTORS_CAPABILITY &&
+    capability !== SLACK_ACCESS_CAPABILITY &&
     capability !== CONVERSATION_FILE_SEARCH_CAPABILITY &&
     capability !== ROUTINE_FLOWS_CAPABILITY &&
     capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&
@@ -308,6 +312,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== MCP_SIGN_IN_APP_CAPABILITY &&
       capability !== SIGN_IN_RELAY_CAPABILITY &&
       capability !== CONNECTORS_CAPABILITY &&
+      capability !== SLACK_ACCESS_CAPABILITY &&
       capability !== CONVERSATION_FILE_SEARCH_CAPABILITY &&
       capability !== ROUTINE_FLOWS_CAPABILITY &&
       capability !== TEAM_HISTORY_EXTENT_CAPABILITY &&

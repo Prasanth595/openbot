@@ -8,6 +8,8 @@ import type {
   CustomProviderSummary,
   MessagingConnection,
   MessagingPlatform,
+  SlackAccessConnection,
+  SlackAccessOverview,
 } from "@openbot/contracts/ipc";
 import { SLACK_ORCHESTRATOR_AVATAR } from "@openbot/contracts/slack-app";
 import type { AppMessages, AppTextKey } from "@openbot/i18n";
@@ -73,6 +75,8 @@ export interface SlackIntegrationPanelProps {
   agents: SlackIntegrationAgent[];
   /** The connected workspaces: Slack workspaces or Discord servers. */
   connections: MessagingConnection[];
+  /** Null or absent when an older host has no scope metadata. */
+  slackAccess?: SlackAccessOverview | null;
   /** True while an action runs. Every button waits for it. */
   busy: boolean;
   models?: SlackOrchestratorModels | undefined;
@@ -323,14 +327,24 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
           <ItemGroup class="settings-modal-card">
             <For each={props.connections}>
               {(connection) => (
-                <WorkspaceRow
-                  platform={props.platform}
-                  connection={connection}
-                  busy={props.busy}
-                  onReconnect={() => props.onReconnect(connection.workspaceId)}
-                  onSetEnabled={(enabled) => props.onSetEnabled(connection.workspaceId, enabled)}
-                  onDisconnect={() => setDisconnecting(connection)}
-                />
+                <>
+                  <WorkspaceRow
+                    platform={props.platform}
+                    connection={connection}
+                    busy={props.busy}
+                    onReconnect={() => props.onReconnect(connection.workspaceId)}
+                    onSetEnabled={(enabled) => props.onSetEnabled(connection.workspaceId, enabled)}
+                    onDisconnect={() => setDisconnecting(connection)}
+                  />
+                  <Show when={props.platform !== "discord"}>
+                    <SlackScopesRow
+                      connection={connection}
+                      observation={props.slackAccess?.connections.find(
+                        (entry) => entry.workspaceId === connection.workspaceId,
+                      )}
+                    />
+                  </Show>
+                </>
               )}
             </For>
           </ItemGroup>
@@ -404,6 +418,48 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
         onClose={() => setDisconnecting(null)}
       />
     </div>
+  );
+}
+
+function SlackScopesRow(props: { connection: MessagingConnection; observation: SlackAccessConnection | undefined }) {
+  const { t, format } = useText();
+  const observation = () =>
+    props.connection.enabled &&
+    (props.connection.state === "connected" ||
+      props.connection.state === "rate_limited" ||
+      props.connection.state === "missing_scope") &&
+    props.observation?.current
+      ? props.observation
+      : null;
+  return (
+    <Item class="settings-modal-row">
+      <ItemContent>
+        <ItemTitle>{t("connector.slack.grantedScopes")}</ItemTitle>
+        <Show
+          when={observation()}
+          fallback={
+            <Text tone="muted" style={{ "overflow-wrap": "anywhere" }}>
+              {t("connector.slack.scopesUnknown")}
+            </Text>
+          }
+        >
+          {(verified) => (
+            <>
+              <Text tone="muted" style={{ "overflow-wrap": "anywhere" }}>
+                {verified().grantedScopes?.length
+                  ? format.list(verified().grantedScopes ?? [])
+                  : t("connector.slack.scopesNone")}
+              </Text>
+              <Text tone="muted" style={{ "overflow-wrap": "anywhere" }}>
+                {t("connector.slack.scopesVerifiedAt", {
+                  time: format.date(new Date(verified().verifiedAt ?? ""), { dateStyle: "medium", timeStyle: "short" }),
+                })}
+              </Text>
+            </>
+          )}
+        </Show>
+      </ItemContent>
+    </Item>
   );
 }
 

@@ -179,6 +179,7 @@ import { decodeHostReleaseStatusFromMain } from "./host-release-decoding";
 import {
   decodeAddOrchestratorReply,
   decodeMessagingOverviewReply,
+  decodeSlackAccessOverviewReply,
   decodeTelegramOverviewReply,
 } from "./messaging-decoding";
 import { decodeProviderRuntimeSnapshot } from "./provider-runtime";
@@ -763,6 +764,8 @@ const openbotApi: OpenBotDesktopApi = {
   }),
   messaging: bridgeGroup(IPC_ENDPOINTS.messaging, {
     getSlackOverview: decodeMessagingOverviewReply,
+    getSlackAccessOverview: decodeSlackAccessOverviewReply,
+    hostSlackAccessOverview: (value) => (value === null ? null : decodeSlackAccessOverviewReply(value)),
     connectSlackWorkspace: decodeVoid,
     disconnectSlackWorkspace: decodeVoid,
     reconnectSlackWorkspace: decodeVoid,

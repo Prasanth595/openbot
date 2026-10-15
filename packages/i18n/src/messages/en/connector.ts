@@ -114,6 +114,10 @@ export const messages = defineMessages("connector", {
   "connector.slack.disconnectWorkspace": "Disconnect",
   "connector.slack.missingScopes":
     "OpenBot does not have these permissions in Slack: {scopes}. Disconnect the workspace, then connect it again.",
+  "connector.slack.grantedScopes": "Granted permissions",
+  "connector.slack.scopesUnknown": "Slack permissions have not been verified for this connection.",
+  "connector.slack.scopesNone": "Slack reported no granted permissions.",
+  "connector.slack.scopesVerifiedAt": "Verified by Slack at {time}.",
   "connector.slack.retryAt": "Slack asked OpenBot to wait. It tries again at {time}.",
   "connector.slack.reconnect": "Reconnect",
   "connector.slack.resume": "Resume",

@@ -97,6 +97,10 @@ export const messages = {
   "connector.slack.disconnectWorkspace": "Disconnetti",
   "connector.slack.missingScopes":
     "OpenBot non ha questi permessi in Slack: {scopes}. Disconnetti il workspace, poi connettilo di nuovo.",
+  "connector.slack.grantedScopes": "Permessi concessi",
+  "connector.slack.scopesUnknown": "I permessi Slack non sono stati verificati per questa connessione.",
+  "connector.slack.scopesNone": "Slack non ha segnalato alcun permesso concesso.",
+  "connector.slack.scopesVerifiedAt": "Verificato da Slack il {time}.",
   "connector.slack.retryAt": "Slack ha chiesto a OpenBot di aspettare. Riprova alle {time}.",
   "connector.slack.reconnect": "Riconnetti",
   "connector.slack.resume": "Riprendi",

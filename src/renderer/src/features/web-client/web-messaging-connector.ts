@@ -26,6 +26,7 @@ import {
   messagingConnectorOverview,
   messagingConnectorReconnect,
   messagingConnectorSetEnabled,
+  slackAccessOverview,
   type TeamAdminRequestError,
 } from "@openbot/team-client/team-admin-requests";
 import type { TeamApiRequest } from "@openbot/team-client/team-api-requests";
@@ -46,7 +47,10 @@ function withStorage(action: (storage: Storage) => void): boolean {
 }
 
 /** `request` throws for a server that is not connected. Call `dispose` when the client closes. */
-export function webHostMessaging(request: (serverId: string) => TeamApiRequest): {
+export function webHostMessaging(
+  request: (serverId: string) => TeamApiRequest,
+  supportsSlackAccess: (serverId: string) => boolean,
+): {
   api: HostMessagingApi;
   dispose: () => void;
 } {
@@ -142,6 +146,8 @@ export function webHostMessaging(request: (serverId: string) => TeamApiRequest):
 
   return {
     api: {
+      hostSlackAccessOverview: (serverId) =>
+        run(serverId, (target) => slackAccessOverview(target, supportsSlackAccess(serverId))),
       hostOverview: (input, serverId) => run(serverId, (target) => messagingConnectorOverview(target, input)),
       hostConnect: (input, serverId) =>
         withTab(serverId, input.platform, (target) => messagingConnectorConnect(target, input)),

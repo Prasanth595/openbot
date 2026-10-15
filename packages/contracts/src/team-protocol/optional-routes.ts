@@ -40,6 +40,7 @@ import { ROUTINE_RECOVERY_CODECS } from "./routine-recovery-v1";
 import { SHARED_TABLES_CODECS } from "./shared-tables-v1";
 import { SIGN_IN_RELAY_CODECS } from "./sign-in-relay-v1";
 import { SKILLS_ADMIN_CODECS } from "./skills-admin-v1";
+import { SLACK_ACCESS_CODECS } from "./slack-access-v1";
 import { WORKSPACE_DIRECTORY_CODECS } from "./workspace-directory-v1";
 
 export type { OptionalRouteCodec } from "./admin-wire";
@@ -79,6 +80,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...MCP_SIGN_IN_APP_CODECS,
   ...SIGN_IN_RELAY_CODECS,
   ...CONNECTORS_CODECS,
+  ...SLACK_ACCESS_CODECS,
   ...CONVERSATION_FILE_SEARCH_CODECS,
   ...ROUTINE_FLOWS_CODECS,
   ...ROUTINE_RECOVERY_CODECS,

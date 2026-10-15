@@ -5,7 +5,13 @@ import type { MessagingApi } from "./messaging-connector";
 /** The `connectors-v1` messaging requests to a joined server: main's, or the browser client's. */
 export type HostMessagingApi = Pick<
   MessagingDesktopApi,
-  "hostOverview" | "hostConnect" | "hostDisconnect" | "hostReconnect" | "hostSetEnabled" | "hostAddOrchestrator"
+  | "hostSlackAccessOverview"
+  | "hostOverview"
+  | "hostConnect"
+  | "hostDisconnect"
+  | "hostReconnect"
+  | "hostSetEnabled"
+  | "hostAddOrchestrator"
 >;
 
 /**
@@ -23,6 +29,7 @@ export function hostMessagingApi(
     return method(host(), id);
   };
   return {
+    slackAccessOverview: () => call((api, id) => api.hostSlackAccessOverview(id)),
     overview: (platform) => call((api, id) => api.hostOverview({ platform }, id)),
     connect: (target) =>
       call((api, id) =>

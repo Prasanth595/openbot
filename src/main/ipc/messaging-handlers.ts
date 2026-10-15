@@ -5,6 +5,7 @@
 import {
   type AddMessagingOrchestratorResult,
   decodeHostMessagingOverview,
+  decodeHostSlackAccessOverview,
   isAddMessagingOrchestratorResult,
   type MessagingPlatform,
   messagingPage,
@@ -12,6 +13,7 @@ import {
 import { decodeRecord, nullableString } from "@openbot/contracts/ipc-decoding";
 import { CONNECTORS_CAPABILITY, CONNECTORS_ROUTES } from "@openbot/contracts/team-protocol/connectors-v1";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
+import { SLACK_ACCESS_CAPABILITY, SLACK_ACCESS_ROUTES } from "@openbot/contracts/team-protocol/slack-access-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
@@ -34,12 +36,13 @@ import {
   parseMessagingWorkspaceInput,
   parseSetMessagingEnabledInput,
 } from "./messaging-inputs";
-import { scopedHandler } from "./scoped-handler";
+import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
 
 interface MessagingIpcDependencies {
   messaging: Pick<
     MessagingService,
     | "slackOverview"
+    | "slackAccessOverview"
     | "connectSlackWorkspace"
     | "disconnectSlackWorkspace"
     | "discordOverview"
@@ -115,6 +118,19 @@ export function messagingIpcHandlers({
 
   return {
     messaging: {
+      getSlackAccessOverview: handler(() => messaging.slackAccessOverview()),
+      hostSlackAccessOverview: scopedQueryHandler({
+        local: () => messaging.slackAccessOverview(),
+        remote: (serverId) =>
+          remoteServers.supportsCapability(serverId, SLACK_ACCESS_CAPABILITY)
+            ? runCauseEffect(
+                remoteServers.request(serverId, SLACK_ACCESS_ROUTES.overview, decodeHostSlackAccessOverview, {
+                  method: "POST",
+                  body: {},
+                }),
+              )
+            : null,
+      }),
       getSlackOverview: handler(() => messaging.slackOverview()),
       connectSlackWorkspace: handler(() => runCauseEffect(Effect.asVoid(messaging.connectSlackWorkspace(true)))),
       disconnectSlackWorkspace: payloadHandler(parseMessagingWorkspaceInput, ({ workspaceId }) =>
