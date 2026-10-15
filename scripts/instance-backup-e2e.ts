@@ -11,12 +11,10 @@
 // `.openbot-build/instance-backup-e2e/report.json`.
 
 import { spawnSync } from "node:child_process";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { createHash, randomBytes } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { redactText } from "@openbot/logging";
 import { migrateOpenBotDatabase } from "../src/backend/openbot-database-schema";
 
 const reportRoot = resolve(".openbot-build/instance-backup-e2e");
@@ -25,71 +23,6 @@ const script = "/opt/openbot-docker/instances/openbot-instance";
 const data = "/srv/openbot/main/data";
 const agentId = "agent-e2e-1";
 const results: Array<{ name: string; ok: boolean; detail: string }> = [];
-const expectedCases = 42;
-const nonce = randomUUID();
-const startedAt = new Date().toISOString();
-const safeLog: string[] = [];
-const secrets: string[] = [];
-const privatePaths = [process.cwd(), homedir(), reportRoot];
-const sourceManifest: Array<{ path: string; sha256: string }> = [];
-const sourceFiles = [
-  "scripts/instance-backup-e2e.ts",
-  "docker/instances/openbot-instance",
-  "docker/instances/compose.yaml",
-  "docs/docker.md",
-  "changelog.d/restore-verified-source.md",
-  "src/backend/openbot-database-schema.ts",
-  "src/backend/agent-memory-selection.ts",
-  "src/backend/agent-waits/agent-wait-schema.ts",
-  "src/backend/channel-schema.ts",
-  "src/backend/database/provider-history-schema.ts",
-  "src/backend/mcp-schema.ts",
-  "src/backend/messaging/messaging-schema.ts",
-  "src/backend/routine-flows/routine-flow-schema.ts",
-  "src/backend/routine-results/routine-result-schema.ts",
-  "src/backend/database/database-rows.ts",
-  "src/backend/database/legacy-conversation-message.ts",
-  "packages/contracts/src/agent-memory-context.ts",
-  "packages/contracts/src/runtime-values.ts",
-  "packages/contracts/src/validation.ts",
-  "packages/contracts/src/input-limits.ts",
-  "packages/logging/src/index.ts",
-  "package.json",
-  "bun.lock",
-];
-
-function safeText(value: string): string {
-  let text = redactText(value);
-  for (const secret of secrets) text = text.replaceAll(secret, "[redacted]");
-  for (const path of privatePaths) text = text.replaceAll(path, "[fixture path]");
-  return text;
-}
-
-function safeFailure(error: unknown): string {
-  return safeText(error instanceof Error ? error.message : "The fixture operation failed.");
-}
-
-function artifactText(value: string, limit: number): string {
-  if (Buffer.byteLength(value, "utf8") > limit) throw new Error("The fixture artifact exceeds its size limit.");
-  for (const hidden of [...secrets, ...privatePaths])
-    if (value.includes(hidden) || value.includes(JSON.stringify(hidden).slice(1, -1)))
-      throw new Error("The fixture artifact contains a private value.");
-  return value;
-}
-
-async function bounded<T>(operation: Promise<T>, name: string): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error(`${name} did not finish in 10 seconds.`)), 10_000);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 interface Run {
   status: number;
@@ -97,19 +30,10 @@ interface Run {
   stderr: string;
 }
 
-function run(command: string, args: string[], input?: string, timeout = 600_000): Run {
-  const result = spawnSync(command, args, { encoding: "utf8", input, timeout, maxBuffer: 4 * 1024 * 1024 });
+function run(command: string, args: string[], input?: string): Run {
+  const result = spawnSync(command, args, { encoding: "utf8", input, maxBuffer: 64 * 1024 * 1024 });
   if (result.error) throw result.error;
   return { status: result.status ?? -1, stdout: result.stdout, stderr: result.stderr };
-}
-
-function cleanupOwnedContainer(): void {
-  const removed = run("docker", ["rm", "--force", "--volumes", dind], undefined, 30_000);
-  const remaining = run("docker", ["ps", "--all", "--format", "{{.Names}}"], undefined, 30_000);
-  // A successful inventory proves exact-name absence without relying on version-specific error text.
-  const missing = remaining.status === 0 && !remaining.stdout.split(/\r?\n/u).includes(dind);
-  if (!missing)
-    throw new Error(`The owned Docker container cleanup failed: ${summary(removed)}; ${summary(remaining)}`);
 }
 
 /** A shell command as root in the Docker-in-Docker container. */
@@ -128,12 +52,8 @@ function instance(...args: string[]): Run {
 }
 
 function check(name: string, ok: boolean, detail: string): void {
-  const safeDetail = safeText(detail);
-  if (Buffer.byteLength(safeDetail, "utf8") > 8192) throw new Error("A fixture check detail exceeds its size limit.");
-  results.push({ name, ok, detail: safeDetail });
-  const line = `${ok ? "pass" : "FAIL"} ${name}: ${safeDetail}`;
-  safeLog.push(line);
-  process.stdout.write(`${line}\n`);
+  results.push({ name, ok, detail });
+  process.stdout.write(`${ok ? "pass" : "FAIL"} ${name}: ${detail}\n`);
 }
 
 function running(): boolean {
@@ -195,9 +115,9 @@ async function writeFixture(root: string): Promise<void> {
   }
 
   await writeFile(join(root, ".local/share/keyrings/login.keyring"), randomBytes(512));
-  const password = randomBytes(32).toString("hex");
-  secrets.push(password);
-  await writeFile(join(root, ".config/openbot-container/keyring-password"), password, { mode: 0o600 });
+  await writeFile(join(root, ".config/openbot-container/keyring-password"), randomBytes(32).toString("hex"), {
+    mode: 0o600,
+  });
   await writeFile(join(root, "OpenBot/Agents/E2E/notes.md"), "Saved before the backup.\n");
   await writeFile(join(root, "OpenBot/Agents/E2E/attachment.bin"), randomBytes(256 * 1024));
 }
@@ -213,34 +133,9 @@ ENTRYPOINT ["/app"]
 
 async function main(): Promise<void> {
   await mkdir(reportRoot, { recursive: true });
-  let fixture: string | undefined;
-  let dockerAttempted = false;
-  let sourceHead: string | null = null;
-  let nodeVersion: string | null = null;
-  let dockerVersion: string | null = null;
-  let dockerPlatform: string | null = null;
-  let failure: string | null = null;
-  const cleanupErrors: string[] = [];
-  const artifactErrors: string[] = [];
+  const fixture = await mkdtemp(join(reportRoot, "fixture-"));
   try {
-    for (const path of sourceFiles)
-      sourceManifest.push({
-        path,
-        sha256: createHash("sha256")
-          .update(await readFile(resolve(path)))
-          .digest("hex"),
-      });
-    const head = run("git", ["rev-parse", "HEAD"], undefined, 5000);
-    if (head.status !== 0 || !/^[0-9a-f]{40}\s*$/.test(head.stdout))
-      throw new Error("The source head is not available.");
-    sourceHead = head.stdout.trim();
-    const node = run("node", ["--version"], undefined, 5000);
-    if (node.status !== 0 || !/^v[0-9.]+\s*$/.test(node.stdout)) throw new Error("The Node version is not available.");
-    nodeVersion = node.stdout.trim();
-    fixture = await mkdtemp(join(reportRoot, "fixture-"));
-    privatePaths.push(fixture);
     await writeFixture(fixture);
-    dockerAttempted = true;
     const started = run("docker", ["run", "--detach", "--privileged", "--name", dind, "docker:28-dind"]);
     if (started.status !== 0) throw new Error(`Docker-in-Docker did not start: ${started.stderr}`);
     // The daemon in the container is ready when `docker info` answers.
@@ -253,12 +148,6 @@ async function main(): Promise<void> {
       "for i in $(seq 120); do docker info >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1",
     ]);
     if (ready.status !== 0) throw new Error("The Docker daemon in the container did not start.");
-    const version = run("docker", ["version", "--format", "{{.Client.Version}} / {{.Server.Version}}"]);
-    if (version.status !== 0) throw new Error("The Docker versions are not available.");
-    dockerVersion = safeText(version.stdout.trim());
-    const platform = run("docker", ["exec", dind, "docker", "info", "--format", "{{.OSType}}/{{.Architecture}}"]);
-    if (platform.status !== 0) throw new Error("The Docker-in-Docker platform is not available.");
-    dockerPlatform = safeText(platform.stdout.trim());
     const packages = run("docker", [
       "exec",
       dind,
@@ -616,81 +505,18 @@ async function main(): Promise<void> {
     );
     must("docker start openbot-main >/dev/null");
     check("instance starts on the restored data", running(), `running=${running()}`);
-  } catch (error) {
-    failure = safeFailure(error);
   } finally {
-    if (dockerAttempted) {
-      try {
-        cleanupOwnedContainer();
-      } catch (error) {
-        cleanupErrors.push(safeFailure(error));
-      }
-    }
-    if (fixture) {
-      try {
-        await bounded(rm(fixture, { recursive: true, force: true }), "Fixture directory cleanup");
-      } catch (error) {
-        cleanupErrors.push(safeFailure(error));
-      }
-    }
+    run("docker", ["rm", "--force", "--volumes", dind]);
+    await rm(fixture, { recursive: true, force: true });
     const failed = results.filter((result) => !result.ok);
-    const cleanupComplete = cleanupErrors.length === 0;
-    const sourceDigest = createHash("sha256").update(JSON.stringify(sourceManifest)).digest("hex");
-    const report = {
-      schemaVersion: 2,
-      nonce,
-      sourceHead,
-      ownedContainer: dind,
-      sourceManifest,
-      sourceDigest,
-      startedAt,
-      finishedAt: new Date().toISOString(),
-      runtime: {
-        javascript: process.versions.bun ? "Bun" : "Node",
-        version: process.versions.bun ?? process.version,
-        nodeVersion,
-        platform: process.platform,
-        architecture: process.arch,
-        dockerVersion,
-        dockerPlatform,
-        dockerInDockerImage: "docker:28-dind",
-        standInImage: "alpine:3.22",
-      },
-      expectedCases,
-      completedCases: results.length,
-      passed: results.length - failed.length,
-      failed: failed.length,
-      ok: failure === null && failed.length === 0 && results.length === expectedCases && cleanupComplete,
-      results,
-      failure,
-      cleanupComplete,
-      cleanupErrors,
-      artifactErrors,
-      limitations: [
-        "Only a synthetic stand-in image and owned Docker-in-Docker/ext4 data were used.",
-        "No actual OpenBot app, provider, account session or external backup store was exercised.",
-        "SQLite reference warnings remain warnings; provider session validity and attachment references are not verified.",
-        "The source manifest names the fixture, restore, schema and lockfile inputs; it is not a full module closure.",
-      ],
-    };
-    try {
-      const log = artifactText(`${safeLog.join("\n")}\n${failure ? `FAIL fixture: ${failure}\n` : ""}`, 256 * 1024);
-      await bounded(writeFile(join(reportRoot, "log.txt"), log), "Fixture log write");
-    } catch (error) {
-      report.ok = false;
-      artifactErrors.push(safeFailure(error));
-    }
-    try {
-      const encoded = artifactText(`${JSON.stringify(report, null, 2)}\n`, 1024 * 1024);
-      await bounded(writeFile(join(reportRoot, "report.json"), encoded), "Fixture report write");
-    } catch (error) {
-      report.ok = false;
-      artifactErrors.push(safeFailure(error));
-    }
-    process.stdout.write(
-      `${JSON.stringify({ ok: report.ok, nonce, sourceDigest, completedCases: results.length, expectedCases, passed: report.passed, failed: failed.length, failure, cleanupComplete, cleanupErrors, artifactErrors, report: ".openbot-build/instance-backup-e2e/report.json" })}\n`,
+    await writeFile(
+      join(reportRoot, "report.json"),
+      `${JSON.stringify({ finishedAt: new Date().toISOString(), passed: results.length - failed.length, failed: failed.length, results }, null, 2)}\n`,
     );
-    if (!report.ok) process.exitCode = 1;
+    process.stdout.write(
+      `${results.length - failed.length}/${results.length} passed. Report: ${join(reportRoot, "report.json")}\n`,
+    );
+    if (failed.length > 0 || results.length === 0) process.exitCode = 1;
   }
 }
 

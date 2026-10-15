@@ -290,13 +290,14 @@ openbot-instance up main
 
 `restore` checks the checksums and verifies the backup in a temporary folder before it stops the
 container. It uses the same checks and temporary space as `verify`, even if the backup was verified
-before. A failed verification keeps the target in its current state and its data unchanged. The
-verification status records the failure and keeps the last successful result. After verification, `restore`
-stops the container and unpacks the backup next to the data. Only when the archive is unpacked does
-it replace `/data`. When the instance has data, `restore` needs
-`--replace`, which deletes that data, so back it up first. Because the old data stays until the end,
-the disk of the instance needs free space for the data of the backup. When it has less, copy the old
-data to another disk, delete it from `/srv/openbot/<name>/data`, and restore into the empty folder.
+before. Thus `restore` also needs `sqlite3` 3.37 or later on the host. A failed verification keeps
+the target in its current state and its data unchanged. The verification status records the failure
+and keeps the last successful result. After verification, `restore` stops the container and unpacks
+the backup next to the data. Only when the archive is unpacked does it replace `/data`. When the
+instance has data, `restore` needs `--replace`, which deletes that data, so back it up first.
+Because the old data stays until the end, the disk of the instance needs free space for the data of
+the backup. When it has less, copy the old data to another disk, delete it from
+`/srv/openbot/<name>/data`, and restore into the empty folder.
 `restore` does not start the instance:
 
 - Start it only when the instance of the backup does not run anywhere else. Two copies would use the
