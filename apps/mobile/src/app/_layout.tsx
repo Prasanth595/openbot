@@ -18,6 +18,7 @@ import { MobileAnalyticsLifecycle } from "@/features/analytics/lifecycle";
 import { DevelopmentConnectLinkHandler } from "@/features/auth/components/development-connect-link-handler";
 import { MobileSessionProvider, useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { loadOnboardingProgress } from "@/features/onboarding/model/onboarding-progress";
+import { installQuickActions, resetQuickActions } from "@/features/quick-actions/quick-actions-native";
 import { loadAppLanguage } from "@/features/settings/model/app-language";
 import { loadAppearance, useAppearance } from "@/features/settings/model/appearance";
 import { loadDictationLanguage } from "@/features/settings/model/dictation-language";
@@ -56,6 +57,7 @@ export const unstable_settings = {
 const SESSION_FADE_MS = 300;
 
 installSupportLog();
+installQuickActions();
 
 const UniwindGestureHandlerRootView = withUniwind(GestureHandlerRootView);
 
@@ -121,6 +123,11 @@ function RootNavigator() {
     splashHandOff.current = true;
     holdLoader(false);
   }, [covered, handOff, holdLoader, isLoaderRequested, motion.complete, session]);
+
+  // A quick action stays on the app icon after the session ends, such as one that another device revoked.
+  useEffect(() => {
+    if (!loading && !session) resetQuickActions();
+  }, [loading, session]);
 
   useLayoutEffect(() => {
     if (loading || !session || (pathname !== "/" && pathname !== "/connected")) setLoadingLabel(null);

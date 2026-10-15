@@ -87,6 +87,7 @@ import {
 import { BROWSER_VIEW_PAGE_SIZE } from "@/features/browser/model/browser-view-bridge";
 import { useLiveActivity } from "@/features/live-activity/use-live-activity";
 import { usePushNotifications } from "@/features/push-notifications/use-push-notifications";
+import { QuickActionsSync } from "@/features/quick-actions/quick-actions-sync";
 import { fetch } from "@/features/support/model/logged-fetch";
 import { supportLog } from "@/features/support/model/support-log";
 import type { RemoteTeamTransportRef } from "@/features/workspace/components/remote-team-transport";
@@ -1684,6 +1685,15 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       <MobileWorkspaceStoreContext.Provider value={valueStore}>
         <View className="flex-1">
           {children}
+          <QuickActionsSync
+            apiUrl={session.apiUrl}
+            userId={session.user.id}
+            servers={servers}
+            serversReady={serverDirectoryState === "ready"}
+            activeServerId={activeServerId}
+            agents={agents}
+            preferences={preferences}
+          />
           {servers.map((server) => (
             <ServerConnection
               key={server.id}
