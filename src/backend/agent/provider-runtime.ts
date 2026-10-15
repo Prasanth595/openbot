@@ -1024,9 +1024,9 @@ export class ProviderRuntime implements ProviderPort {
 
   /**
    * Signs the user in to one provider, in the way that provider's driver declares. `openExternal`
-   * is only reached by a `browser` sign-in, whose login hands back a URL; a `cli-command` sign-in
-   * opens its own browser window from the CLI OpenBot spawns, and an `external` sign-in happens
-   * outside OpenBot, so Connect only asks the provider again.
+   * is only reached by a `browser` or `muse-device` sign-in, whose login hands back a URL; a
+   * `cli-command` sign-in opens its own browser window from the CLI OpenBot spawns, and an
+   * `external` sign-in happens outside OpenBot, so Connect only asks the provider again.
    */
   readonly connectProvider = Effect.fn("ProviderRuntime.connectProvider")(function* (
     this: ProviderRuntime,

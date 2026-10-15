@@ -549,8 +549,9 @@ Remote clients must complete sign-in on the host. There is no separate Pi accoun
 Muse uses the official `@muse-code/sdk` to run `muse serve` over MSP. The SDK is pinned to `1.4.2`;
 newer SDK versions must meet the three-day dependency rule before adoption. The native integration
 supplies `sessionMcp`, preserves native session identity, and reads durable items to recover missed
-events before completion. A cached model list does not prove authentication. Setup can run CLI
-login; an explicit Meta API key uses OpenBot's encrypted credential store.
+events before completion. A cached model list does not prove authentication. Connect starts the
+`muse serve` device sign-in and opens its page, because `muse login` with no terminal never opens
+it; an explicit Meta API key uses OpenBot's encrypted credential store.
 
 Muse profile generation fails before the CLI starts. The pinned native host still starts inherited
 MCP servers with `--disable-shell`, `--disable-write`, empty hooks, and session `mcpServers: {}`.
