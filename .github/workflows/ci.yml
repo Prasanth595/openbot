@@ -140,6 +140,18 @@ jobs:
         if: env.CODE == 'true'
         run: bun run check:desktop:static
 
+      - name: Measure the local memory baseline
+        if: env.CODE == 'true'
+        run: bun scripts/agent-memory-baseline-e2e.ts
+
+      - name: Upload the local memory baseline report
+        if: always() && env.CODE == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agent-memory-baseline-e2e
+          path: .openbot-build/agent-memory-baseline-e2e/
+          if-no-files-found: ignore
+
       - parallel:
           - name: Check translation catalogs
             if: env.CODE == 'true'
