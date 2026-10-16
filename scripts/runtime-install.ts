@@ -35,6 +35,7 @@ export async function download(fetchImpl: typeof fetch, url: string, label: stri
     if (response && !response.ok) {
       failure = new Error(`${label} download failed with HTTP ${response.status}.`);
       if (response.status !== 429 && response.status < 500) throw failure;
+      await response.body?.cancel();
     }
     if (attempt === attempts) throw failure;
     logger.warn(`${label} download failed (attempt ${attempt} of ${attempts}): ${String(failure)}`);

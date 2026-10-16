@@ -358,7 +358,7 @@ jobs:
             if grep -Eq 'hdiutil: create failed - (Device not configured|Resource busy)' "$log"; then
               echo "::warning::hdiutil could not create the DMG (attempt $attempt of 3)."
               hdiutil info || true
-            elif grep -Eq 'The network connection was lost|getaddrinfo ENOTFOUND|ECONNRESET|ETIMEDOUT' "$log"; then
+            elif grep -Eq 'The network connection was lost|getaddrinfo ENOTFOUND' "$log"; then
               echo "::warning::A network connection failed during the build (attempt $attempt of 3)."
             else
               exit 1
