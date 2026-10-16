@@ -22,6 +22,9 @@ import type { WebRuntimeFactory } from "./web-client-context";
 import { takeHostingReturn } from "./web-hosted-servers";
 import { createWebLanguagePreference } from "./web-language-preference";
 
+// The site loads this before it mounts `WebApp` (`apps/auth-api/src/routes/app.lazy.tsx`).
+export { loadSavedLanguage } from "./web-language-preference";
+
 /** A sign-in refusal that the login form already shows. */
 class SignInIssueShown extends Error {}
 

@@ -70,7 +70,7 @@ export function TeamsSection() {
               Contact us
             </ButtonLink>
             <ButtonLink to={TEAMS_ROUTE} variant="secondary" size="lg" icon="arrow-right">
-              Learn more
+              Learn about Teams
             </ButtonLink>
           </div>
           <ol class="landing-teams-progress" aria-hidden="true">
