@@ -135,7 +135,6 @@ export const messages = {
   "settings.save.region": "Kaydedilmemiş değişiklikler",
   "settings.save.notSaved": "Değişiklikler kaydedilmedi",
   "settings.save.reset": "Sıfırla",
-  "settings.dialog.close": "Ayarları kapat",
   "settings.panel.resize": "Sağ paneli yeniden boyutlandır",
   "settings.turbo.turnOffFailed": "Turbo modu kapatılamadı. Hâlâ etkin. Tekrar deneyin.",
   "settings.turbo.turnOnFailed": "Turbo modu açılamadı. Tekrar deneyin.",

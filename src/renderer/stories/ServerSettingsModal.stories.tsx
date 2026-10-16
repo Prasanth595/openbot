@@ -22,6 +22,7 @@ import {
 import { storyConnectorRegistry } from "./connector-fixtures";
 import { createSignInHost } from "./mcp-sign-in-host";
 import { createMockOpenBot } from "./mock-openbot";
+import { SettingsPageStory } from "./settings-page-story";
 
 const localServer = STORY_SERVERS.find((server) => server.kind === "local") ?? STORY_SERVERS[0];
 const remoteServer = STORY_SERVERS.find((server) => server.kind === "remote") ?? STORY_SERVERS[1];
@@ -33,7 +34,6 @@ const meta = {
   render: (args) => <RemoteSetupStory settings={args} />,
   args: {
     open: true,
-    onOpenChange: fn(),
     platform: "darwin",
     server: localServer,
     hostStatus: STORY_HOST_STATUS,
@@ -372,7 +372,11 @@ function RemoteSetupStory(props: {
     mock.dispose();
     window.openbot = previous;
   });
-  return <ServerSettingsModal {...props.settings} />;
+  return (
+    <SettingsPageStory title="Server settings">
+      {(page) => <ServerSettingsModal {...props.settings} page={page()} />}
+    </SettingsPageStory>
+  );
 }
 
 export const SmallViewport: Story = {

@@ -136,7 +136,6 @@ export const messages = {
   "settings.save.region": "Niezapisane zmiany",
   "settings.save.notSaved": "Nie zapisano zmian",
   "settings.save.reset": "Resetuj",
-  "settings.dialog.close": "Zamknij ustawienia",
   "settings.panel.resize": "Zmień rozmiar prawego panelu",
   "settings.turbo.turnOffFailed": "Nie udało się wyłączyć trybu Turbo. Nadal jest aktywny. Spróbuj ponownie.",
   "settings.turbo.turnOnFailed": "Nie udało się włączyć trybu Turbo. Spróbuj ponownie.",

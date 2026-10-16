@@ -749,6 +749,7 @@
   width: 100%;
   height: 100%;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -770,4 +771,28 @@
 .settings-page-content [data-search-match] {
   border-radius: var(--openbot-radius-md);
   background: var(--openbot-bg-control-active);
+}
+
+/* A narrow window stacks the page: the heading and the sections above the panel. */
+@media (max-width: 720px) {
+  .settings-page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-page-nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--openbot-border);
+    padding: var(--openbot-space-3) var(--openbot-space-3) 0;
+  }
+
+  .settings-page-title {
+    margin-bottom: var(--openbot-space-2);
+  }
+
+  .settings-page-sections,
+  .settings-page-results {
+    max-height: 40dvh;
+    padding-bottom: var(--openbot-space-2);
+  }
 }

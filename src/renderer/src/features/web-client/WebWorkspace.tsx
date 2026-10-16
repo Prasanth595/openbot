@@ -62,11 +62,11 @@ import {
   ServerPanelLoadNotice,
 } from "@openbot/ui/features/servers/ServerConnectionNotice";
 import { ServerRail } from "@openbot/ui/features/servers/ServerRail";
+import type { SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { createSettingsHostedServersStore } from "@openbot/ui/features/settings/stores/hosted-servers-store";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
-import { HelpMenu } from "@openbot/ui/features/updates/HelpMenu";
 import { useText } from "@openbot/ui/text";
 import { Effect } from "effect";
 import { createEffect, createMemo, createSignal, Loading, lazy, onCleanup, onSettled, Show, untrack } from "solid-js";
@@ -102,11 +102,13 @@ import { Conversation, createConversationController } from "../conversation/Conv
 import { clearStoredQueueEdit } from "../conversation/composer-draft";
 import { ConversationControllerProvider } from "../conversation/conversation-controller-context";
 import { composerDraftKey } from "../conversation/conversation-keys";
+import type { AgentSettingsRequest } from "../conversation/conversation-types";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
 import { ServerOnboarding } from "../onboarding/ServerOnboarding";
 import { RoutineFlowsCanvas } from "../routine-flows/RoutineFlowsCanvas";
+import { type ScheduleRoutine, ScheduleView } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
@@ -120,7 +122,10 @@ import {
   showServerUpdate,
 } from "../servers/server-update-flow";
 import { isReaderAuthor } from "../team/reader-identity";
-import { PageRail } from "../window/PageRail";
+import { PageRail, type PageRailPage } from "../window/PageRail";
+import { RailHelpMenu } from "../window/RailHelpMenu";
+import { ServerSettingsPageTitle, SettingsPageFrame } from "../window/SettingsPageFrame";
+import type { SettingsKind, WindowPage } from "../window/window-page-context";
 import { WebAgentSettings } from "./WebAgentSettings";
 import { WebConnectComputer } from "./WebConnectComputer";
 import { WebMobileNavigation, type WebMobilePane } from "./WebMobileNavigation";
@@ -144,6 +149,7 @@ import { requestWebNotificationPermission } from "./web-notifications";
 import { webOnePasswordConnectorPort } from "./web-onepassword-connector";
 import { createWebProviderSettings, openWebDestination } from "./web-provider-admin";
 import { webRoutineFlowsHost } from "./web-routine-flows";
+import { webScheduleSource } from "./web-schedule";
 import { createWebServerSettings } from "./web-server-settings";
 import { createWebUsagePort } from "./web-usage-port";
 
@@ -391,7 +397,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   /** The new agent form's avatar. The first-agent row in an empty sidebar shows it. */
   const [agentAvatar, setAgentAvatar] = createSignal(newAgentAvatar());
   const [mobilePane, setMobilePane] = createSignal<WebMobilePane>("conversation");
-  const [settingsRequest, setSettingsRequest] = createSignal<{ agentId: string; nonce: number } | null>(null);
+  const [settingsRequest, setSettingsRequest] = createSignal<AgentSettingsRequest | null>(null);
   const account = createMemo(() => ({
     id: props.accountId,
     email: props.accountEmail ?? "",
@@ -468,12 +474,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     return () => phoneQuery?.removeEventListener("change", update);
   });
   const compact = () => !phone() && layout.leftPanelCompact();
-  /** The usage report of the connected host. As on desktop, it follows a host switch. */
-  const [usage, setUsage] = createSignal<{ trigger: HTMLElement | null } | null>(null);
-  // The compatibility screen wins over the report, so its Retry stays in reach.
-  const usageOpen = () => usage() !== null && server() !== undefined && !blockedServer();
+  /** The Usage or Schedule page of the connected host. As on desktop, it follows a host switch. */
+  const [hostPage, setHostPage] = createSignal<{ view: "usage" | "schedule"; trigger: HTMLElement | null } | null>(
+    null,
+  );
   /** Only the connected host answers, so another host is connected first, as for its settings. */
-  async function openUsage(serverId: string, trigger: HTMLElement | null): Promise<void> {
+  async function openHostPage(serverId: string, view: "usage" | "schedule", trigger: HTMLElement | null) {
     if (server()?.id !== serverId) {
       const host = workspace.state.hosts.find((item) => item.hostId === serverId);
       if (!host) return;
@@ -481,11 +487,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       if (server()?.id !== serverId) return;
     }
     setMobilePane("conversation");
-    setUsage({ trigger });
+    setAccountSettingsOpen(false);
+    serverSettings.setOpen(false);
+    setHostPage({ view, trigger });
   }
-  function closeUsage() {
-    const trigger = usage()?.trigger;
-    setUsage(null);
+  function closeHostPage() {
+    const trigger = hostPage()?.trigger;
+    setHostPage(null);
     queueMicrotask(() => {
       if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     });
@@ -664,6 +672,37 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     refreshHosts: () => workspace.refreshHosts(),
     relaySupported: () => workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY),
   });
+  /** The page in the card, as on desktop. The compatibility screen wins over the host pages, so its Retry stays in reach. */
+  const page = createMemo<WindowPage>(() => {
+    if (serverSettings.state.open && server()) return "server-settings";
+    if (accountSettingsOpen()) return "settings";
+    const host = hostPage();
+    return host && server() && !blockedServer() ? host.view : "agents";
+  });
+  /** Whether a page other than the agents covers the conversation. A message there is not seen. */
+  const pageCovered = () => page() !== "agents";
+  /** Shows the agents and closes the other pages. */
+  function showAgents() {
+    setAccountSettingsOpen(false);
+    serverSettings.setOpen(false);
+    setHostPage(null);
+  }
+  function openAccountSettings() {
+    // On a phone the page shows in the conversation pane.
+    setMobilePane("conversation");
+    setHostPage(null);
+    serverSettings.setOpen(false);
+    setAccountSettingsOpen(true);
+  }
+  /** The elements of the settings page that the settings panel shows in. The page sets them. */
+  const [settingsMounts, setSettingsMounts] = createSignal<SettingsPagePlacement | undefined>();
+  /** Where the panel of a settings page shows, or nothing while that page is not on screen. */
+  function settingsPlacement(kind: SettingsKind): SettingsPagePlacement | undefined {
+    const mounts = settingsMounts();
+    if (!mounts || page() !== (kind === "personal" ? "settings" : "server-settings")) return undefined;
+    return mounts;
+  }
+  const scheduleSource = webScheduleSource(workspace, hostRequest);
   const marketplaceCalls = createWebMarketplaceCalls(props.accountFetch, hostRequest);
   // The host's connectors, for an owner or admin. The web client has no computer of its own.
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
@@ -857,6 +896,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       if (server()?.id !== serverId || workspace.state.status !== "online") return;
     }
     setServerSettingsSection(section);
+    setMobilePane("conversation");
+    setHostPage(null);
+    setAccountSettingsOpen(false);
     serverSettings.open(trigger);
   }
   // Each time the user enters a host that has a new version, the update dialog opens. A reconnect does not offer again.
@@ -908,7 +950,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   };
   // On a small screen the sidebar pane covers the chat, and so does the usage report. A covered
   // message was not seen.
-  const canMarkRead = () => document.hasFocus() && mobilePane() === "conversation" && !usageOpen() && !routinesView();
+  const canMarkRead = () => document.hasFocus() && mobilePane() === "conversation" && !pageCovered() && !routinesView();
   const channels = createChannelsController({
     port: () => channelsPort,
     agents: workspace.profiles,
@@ -924,7 +966,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     deletionSupported: () => workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin",
     beforeOpen: () => {
       setCreating(false);
-      setUsage(null);
+      // Not `showAgents`: the list restores the saved channel after a host connects, and that must
+      // not close the settings of the host that the user opened.
+      setHostPage(null);
       setMessageFocusRequest(null);
     },
     canMarkRead,
@@ -1135,7 +1179,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   );
   async function select(id: string) {
     setCreating(false);
-    setUsage(null);
+    showAgents();
     // A remounted conversation must not scroll again to a message that was picked before.
     setMessageFocusRequest(null);
     channels.close();
@@ -1165,7 +1209,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   };
   /** As on desktop: Agents and Routines show the same page; they set the list of the sidebar. */
   function showSidebarView(view: SidebarView) {
-    setUsage(null);
+    showAgents();
     setMobilePane("workspace");
     // An open channel would stay in the middle with no row in the list.
     if (view === "routines") channels.close();
@@ -1207,8 +1251,31 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   function startCreate() {
     setMobilePane("conversation");
     channels.close();
-    setUsage(null);
+    showAgents();
     setCreating(true);
+  }
+  /** The rail button of the page. The server settings open from the server menu, so no button is current. */
+  const railPage = (): PageRailPage | null => {
+    const current = page();
+    if (current === "agents") return layout.sidebarView();
+    return current === "server-settings" ? null : current;
+  };
+  /** The settings page on screen, if any. */
+  const settingsKind = (): SettingsKind | null =>
+    page() === "settings" ? "personal" : page() === "server-settings" ? "server" : null;
+  /** As on desktop: a routine of the schedule opens in the settings of its agent or channel. */
+  function openRoutine(routine: ScheduleRoutine): void {
+    setMobilePane("conversation");
+    if (routine.owner.kind === "channel") {
+      // An open channel does not open again, so its settings would stay under the page.
+      showAgents();
+      // The channel settings hold its routines one step down.
+      void channels.editChannel(routine.owner.channelId);
+      return;
+    }
+    const agentId = routine.owner.agentId;
+    void select(agentId);
+    setSettingsRequest({ agentId, nonce: Date.now(), routine: { routineId: routine.id, name: routine.name } });
   }
   const unavailable = async (): Promise<never> => {
     throw new Error(t("webClient.error.desktopOnly"));
@@ -1220,25 +1287,25 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         <div class="app-window web-app-window">
           <PageRail
             hidden={false}
-            current={usageOpen() ? "usage" : accountSettingsOpen() ? "settings" : layout.sidebarView()}
+            current={railPage()}
             usageRows={usageRows()}
             onAgents={() => showSidebarView("agents")}
             onRoutines={routinesSupported() ? () => showSidebarView("routines") : undefined}
+            onSchedule={(button) => {
+              const id = server()?.id;
+              if (id) void openHostPage(id, "schedule", button);
+            }}
             onUsage={(button) => {
               const id = server()?.id;
-              if (id) void openUsage(id, button);
+              if (id) void openHostPage(id, "usage", button);
             }}
             onMarketplace={workspace.state.status === "online" ? () => setMarketplaceOpen(true) : undefined}
-            onSettings={() => setAccountSettingsOpen(true)}
+            onSettings={openAccountSettings}
             help={
-              <HelpMenu
-                news={[]}
-                triggerClass="window-rail-button"
+              <RailHelpMenu
+                version={null}
                 onOpenWhatsNew={() => void openWebDestination("changelog")}
-                onOpenChangelog={() => void openWebDestination("changelog")}
-                onOpenGuides={() => void openWebDestination("guides")}
-                onOpenDiscord={() => void openWebDestination("discord")}
-                onSendFeedback={() => void openWebDestination("feedback")}
+                onOpenLink={(destination) => void openWebDestination(destination)}
               />
             }
           />
@@ -1314,18 +1381,57 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 if (host) await workspace.connect(host);
               })
             }
-            usageOpen={usageOpen()}
+            usageOpen={pageCovered()}
+            data-window-page={page()}
             usage={
-              <Show when={server()}>
+              <Show
+                when={page() === "usage" || page() === "schedule" ? server() : undefined}
+                fallback={
+                  <Show when={settingsKind()} keyed>
+                    {(kind) => (
+                      <SettingsPageFrame
+                        heading={
+                          kind === "personal" ? (
+                            <h1 class="settings-page-title">{t("app.settingsPage.title")}</h1>
+                          ) : (
+                            <Show when={server()}>{(target) => <ServerSettingsPageTitle server={target()} />}</Show>
+                          )
+                        }
+                        onMounts={setSettingsMounts}
+                        onEscape={showAgents}
+                      />
+                    )}
+                  </Show>
+                }
+              >
                 {(target) => (
-                  <Loading>
-                    <AgentUsagePanel
-                      port={usageCalls}
+                  <Show
+                    when={page() === "schedule"}
+                    fallback={
+                      <Loading>
+                        <AgentUsagePanel
+                          port={usageCalls}
+                          serverId={target().id}
+                          hostName={target().name}
+                          onBack={closeHostPage}
+                        />
+                      </Loading>
+                    }
+                  >
+                    <ScheduleView
                       serverId={target().id}
                       hostName={target().name}
-                      onBack={closeUsage}
+                      onBack={closeHostPage}
+                      source={scheduleSource}
+                      agents={workspace.profiles()}
+                      channels={channels.state.channels}
+                      onOpenAgent={(agentId) => {
+                        setMobilePane("conversation");
+                        void select(agentId);
+                      }}
+                      onOpenRoutine={openRoutine}
                     />
-                  </Loading>
+                  </Show>
                 )}
               </Show>
             }
@@ -1520,7 +1626,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     else {
                       // The agent is already loaded; only what covers its conversation closes.
                       setCreating(false);
-                      setUsage(null);
+                      showAgents();
                       channels.close();
                     }
                   }}
@@ -1538,7 +1644,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 <Show when={accountSettingsOpen()}>
                   <Loading>
                     <WebAccountSettings
-                      open={accountSettingsOpen()}
+                      open={accountSettingsOpen() && settingsPlacement("personal") !== undefined}
+                      page={settingsPlacement("personal")}
                       onOpenChange={setAccountSettingsOpen}
                       account={account()}
                       calls={accountCalls}
@@ -1559,8 +1666,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 <Show when={serverSettings.state.open && server()}>
                   {(target) => (
                     <ServerSettingsOverlay
-                      open={serverSettings.state.open}
-                      onOpenChange={serverSettings.setOpen}
+                      open={serverSettings.state.open && settingsPlacement("server") !== undefined}
+                      page={settingsPlacement("server")}
                       restoreFocusTarget={serverSettings.restoreTarget()}
                       initialSection={serverSettingsSection()}
                       platform="darwin"
@@ -1858,8 +1965,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 browserRuntime={workspace.runtime.browser}
                 browserTabs={workspace.state.browserTabs}
                 activeBrowserTabId={workspace.state.activeBrowserTabId}
-                browserVisibilitySuspended={workspace.state.status !== "online" || usageOpen()}
-                workspaceCovered={usageOpen() || hostOffline()}
+                browserVisibilitySuspended={workspace.state.status !== "online" || pageCovered()}
+                workspaceCovered={pageCovered() || hostOffline()}
                 browserControlState={workspace.state.browserControlState}
                 server={server()}
                 presence={workspace.state.presence ?? { serverId: server()?.id ?? null, members: [], updatedAt: "" }}

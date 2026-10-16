@@ -139,7 +139,6 @@ export const messages = defineMessages("settings", {
   "settings.save.region": "Unsaved changes",
   "settings.save.notSaved": "Changes not saved",
   "settings.save.reset": "Reset",
-  "settings.dialog.close": "Close settings",
   "settings.panel.resize": "Resize right panel",
   "settings.turbo.turnOffFailed": "Could not turn off Turbo mode. It is still active. Try again.",
   "settings.turbo.turnOnFailed": "Could not turn on Turbo mode. Try again.",

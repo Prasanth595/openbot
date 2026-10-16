@@ -245,7 +245,6 @@ export const messages = defineMessages("server", {
   "server.settings.imageReadFailed": "OpenBot could not read this image.",
   "server.settings.copyFailedTitle": "Copy failed",
   "server.settings.copyFailed": "OpenBot could not copy this value.",
-  "server.settings.close": "Close server settings",
   "server.settings.unavailableTitle": "Server settings unavailable",
   "server.settings.unsavedMcpChanges": "Unsaved MCP changes",
   "server.settings.reset": "Reset",

@@ -53,6 +53,7 @@ import { SettingsDialogShell } from "@openbot/ui/features/settings/SettingsDialo
 import type { JSX } from "@solidjs/web";
 import { createSignal, For, Show } from "solid-js";
 import { STORY_AGENT_SUMMARIES, STORY_MARKETPLACE_PLUGINS } from "./fixtures";
+import { SettingsPageStory } from "./settings-page-story";
 
 // Concept only. The copy is literal on purpose: a direction is chosen first, and the real
 // components then get catalog keys. Brand marks stay here until they move to @openbot/brand.
@@ -213,65 +214,68 @@ export function ServerSettingsFrame(props: {
 }) {
   const [tab, setTab] = createSignal("integrations");
   return (
-    <Tabs.Root value={tab()} onChange={setTab} orientation="vertical" class="settings-modal-tabs-root">
-      <SettingsDialogShell
-        class="server-settings-modal-shell"
-        open
-        onOpenChange={() => undefined}
-        title={
-          <Show when={props.parent} fallback={props.title}>
-            {(parent) => (
-              <span class="settings-modal-crumbs">
-                <Button type="button" variant="ghost" class="settings-modal-crumb-parent">
-                  {parent()}
-                </Button>
-                <ChevronRight class="settings-modal-crumb-separator" aria-hidden="true" />
-                <span class="settings-modal-crumb-current">{props.title}</span>
-              </span>
-            )}
-          </Show>
-        }
-        description={props.description}
-        contentKey={tab()}
-        closeLabel="Close server settings"
-        sidebar={
-          <Tabs.List class="settings-modal-nav" aria-label="Server settings sections">
-            <For each={NAV}>
-              {(item) => {
-                const NavIcon = item.icon;
-                return (
-                  <Tabs.Trigger class="settings-modal-nav-item" value={item.value}>
-                    <NavIcon aria-hidden="true" />
-                    <span>{item.label}</span>
-                  </Tabs.Trigger>
-                );
-              }}
-            </For>
-          </Tabs.List>
-        }
-      >
-        <For each={NAV}>
-          {(item) => (
-            <Tabs.Content
-              value={item.value}
-              class="settings-modal-tab-panel server-settings-panel"
-              data-tab={item.value}
-            >
-              <Show
-                when={item.value === "integrations"}
-                fallback={
-                  <Text tone="muted" variant="caption">
-                    Not part of this concept.
-                  </Text>
-                }
-              >
-                {props.children}
+    <SettingsPageStory title="Server settings">
+      {(page) => (
+        <Tabs.Root value={tab()} onChange={setTab} orientation="vertical" class="settings-modal-tabs-root">
+          <SettingsDialogShell
+            class="server-settings-modal-shell"
+            open
+            page={page()}
+            title={
+              <Show when={props.parent} fallback={props.title}>
+                {(parent) => (
+                  <span class="settings-modal-crumbs">
+                    <Button type="button" variant="ghost" class="settings-modal-crumb-parent">
+                      {parent()}
+                    </Button>
+                    <ChevronRight class="settings-modal-crumb-separator" aria-hidden="true" />
+                    <span class="settings-modal-crumb-current">{props.title}</span>
+                  </span>
+                )}
               </Show>
-            </Tabs.Content>
-          )}
-        </For>
-      </SettingsDialogShell>
-    </Tabs.Root>
+            }
+            description={props.description}
+            contentKey={tab()}
+            sidebar={
+              <Tabs.List class="settings-modal-nav" aria-label="Server settings sections">
+                <For each={NAV}>
+                  {(item) => {
+                    const NavIcon = item.icon;
+                    return (
+                      <Tabs.Trigger class="settings-modal-nav-item" value={item.value}>
+                        <NavIcon aria-hidden="true" />
+                        <span>{item.label}</span>
+                      </Tabs.Trigger>
+                    );
+                  }}
+                </For>
+              </Tabs.List>
+            }
+          >
+            <For each={NAV}>
+              {(item) => (
+                <Tabs.Content
+                  value={item.value}
+                  class="settings-modal-tab-panel server-settings-panel"
+                  data-tab={item.value}
+                >
+                  <Show
+                    when={item.value === "integrations"}
+                    fallback={
+                      <Text tone="muted" variant="caption">
+                        Not part of this concept.
+                      </Text>
+                    }
+                  >
+                    {props.children}
+                  </Show>
+                </Tabs.Content>
+              )}
+            </For>
+          </SettingsDialogShell>
+        </Tabs.Root>
+      )}
+    </SettingsPageStory>
   );
 }
 

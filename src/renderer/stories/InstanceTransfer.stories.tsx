@@ -11,6 +11,7 @@ import {
   INSTANCE_TRANSFER_SUMMARY,
   INSTANCE_TRANSFER_WARNINGS,
 } from "./instance-transfer-fixtures";
+import { SettingsPageStory } from "./settings-page-story";
 
 const meta = {
   title: "Settings/Transfer",
@@ -49,29 +50,32 @@ const viewArgs = (overrides: Partial<ViewArgs> = {}): ViewArgs => ({
 function Stage(props: { args: ViewArgs }) {
   const [screen, setScreen] = createSignal(props.args.screen);
   return (
-    <Tabs.Root value="transfer" orientation="vertical" class="settings-modal-tabs-root">
-      <SettingsDialogShell
-        class="app-settings-modal-shell"
-        open
-        onOpenChange={() => undefined}
-        title="Transfer"
-        description="Move your agents and settings to another computer."
-        contentKey="transfer"
-        closeLabel="Close settings"
-        sidebar={
-          <Tabs.List class="settings-modal-nav" aria-label="Settings sections">
-            <Tabs.Trigger class="settings-modal-nav-item" value="transfer">
-              <Settings aria-hidden="true" />
-              <span>Transfer</span>
-            </Tabs.Trigger>
-          </Tabs.List>
-        }
-      >
-        <Tabs.Content value="transfer" class="settings-modal-tab-panel" data-tab="transfer">
-          <InstanceTransferView {...props.args} screen={screen()} onScreenChange={setScreen} />
-        </Tabs.Content>
-      </SettingsDialogShell>
-    </Tabs.Root>
+    <SettingsPageStory title="Settings">
+      {(page) => (
+        <Tabs.Root value="transfer" orientation="vertical" class="settings-modal-tabs-root">
+          <SettingsDialogShell
+            class="app-settings-modal-shell"
+            open
+            page={page()}
+            title="Transfer"
+            description="Move your agents and settings to another computer."
+            contentKey="transfer"
+            sidebar={
+              <Tabs.List class="settings-modal-nav" aria-label="Settings sections">
+                <Tabs.Trigger class="settings-modal-nav-item" value="transfer">
+                  <Settings aria-hidden="true" />
+                  <span>Transfer</span>
+                </Tabs.Trigger>
+              </Tabs.List>
+            }
+          >
+            <Tabs.Content value="transfer" class="settings-modal-tab-panel" data-tab="transfer">
+              <InstanceTransferView {...props.args} screen={screen()} onScreenChange={setScreen} />
+            </Tabs.Content>
+          </SettingsDialogShell>
+        </Tabs.Root>
+      )}
+    </SettingsPageStory>
   );
 }
 

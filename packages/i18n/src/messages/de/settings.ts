@@ -139,7 +139,6 @@ export const messages = {
   "settings.save.region": "Ungespeicherte Änderungen",
   "settings.save.notSaved": "Änderungen nicht gespeichert",
   "settings.save.reset": "Zurücksetzen",
-  "settings.dialog.close": "Einstellungen schließen",
   "settings.panel.resize": "Größe des rechten Bereichs ändern",
   "settings.turbo.turnOffFailed":
     "Der Turbo-Modus konnte nicht deaktiviert werden. Er ist noch aktiv. Versuche es erneut.",

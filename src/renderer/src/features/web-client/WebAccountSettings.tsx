@@ -19,7 +19,7 @@ import {
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
 import { ProfileNameSaveBar } from "@openbot/ui/features/settings/ProfileNameSaveBar";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
-import { SettingsDialogShell } from "@openbot/ui/features/settings/SettingsDialogShell";
+import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsProfileTab } from "@openbot/ui/features/settings/SettingsProfileTab";
 import { SoundThemePicker } from "@openbot/ui/features/settings/SoundThemePicker";
 import { createSettingsProfileStore } from "@openbot/ui/features/settings/stores/profile-store";
@@ -53,6 +53,8 @@ const TAB_ITEMS = {
 export interface WebAccountSettingsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Where the settings page shows, or nothing while the page is not on screen. */
+  page: SettingsPagePlacement | undefined;
   account: CentralAuthUser;
   calls: WebAccountCalls;
   language: AppLanguage;
@@ -114,7 +116,7 @@ export default function WebAccountSettings(props: WebAccountSettingsProps) {
       <SettingsDialogShell
         class="app-settings-modal-shell"
         open={props.open}
-        onOpenChange={props.onOpenChange}
+        page={props.page}
         title={t(navItem().titleKey)}
         description={t(navItem().descriptionKey)}
         contentKey={activeTab()}

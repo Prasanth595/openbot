@@ -135,7 +135,6 @@ export const messages = {
   "settings.save.region": "未保存の変更",
   "settings.save.notSaved": "変更は保存されていません",
   "settings.save.reset": "元に戻す",
-  "settings.dialog.close": "設定を閉じる",
   "settings.panel.resize": "右パネルのサイズを変更",
   "settings.turbo.turnOffFailed": "ターボモードを無効にできませんでした。まだ有効です。もう一度お試しください。",
   "settings.turbo.turnOnFailed": "ターボモードを有効にできませんでした。もう一度お試しください。",

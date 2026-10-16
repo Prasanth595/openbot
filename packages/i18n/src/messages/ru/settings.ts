@@ -136,7 +136,6 @@ export const messages = {
   "settings.save.region": "Несохранённые изменения",
   "settings.save.notSaved": "Изменения не сохранены",
   "settings.save.reset": "Сбросить",
-  "settings.dialog.close": "Закрыть настройки",
   "settings.panel.resize": "Изменить размер правой панели",
   "settings.turbo.turnOffFailed": "Не удалось выключить режим Turbo. Он по-прежнему включён. Повторите.",
   "settings.turbo.turnOnFailed": "Не удалось включить режим Turbo. Повторите.",

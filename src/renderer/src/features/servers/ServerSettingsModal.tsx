@@ -68,7 +68,6 @@ import type { ServerSettingsSectionHost } from "./server-settings-section";
 
 export interface ServerSettingsModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   platform: "darwin" | "win32" | "linux";
   /** False where no remote desktop can start, such as the browser client. The section is then absent. */
   remoteDesktopSupported?: boolean;
@@ -180,8 +179,8 @@ export interface ServerSettingsModalProps {
   routineFeed?: ServerRoutineFeedOptions | undefined;
   /** The section to show when the dialog opens. Updates shows General when the server has no Updates section. */
   initialSection?: ServerSettingsSection | null;
-  /** Shows the settings as a page of the window, not as a dialog. */
-  page?: SettingsPagePlacement | undefined;
+  /** Where the settings page shows, or nothing while the page is not on screen. */
+  page: SettingsPagePlacement | undefined;
 }
 
 export interface ServerHostedSitesOptions {
@@ -408,7 +407,6 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         class="server-settings-modal-shell"
         page={props.page}
         open={props.open}
-        onOpenChange={props.onOpenChange}
         title={
           <Show when={crumbDetail()} fallback={t(sections[section()].title)}>
             {(detail) => (
@@ -424,7 +422,6 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
         }
         description={t(sections[section()].description)}
         contentKey={`${props.server.id}:${section()}`}
-        closeLabel={t("server.settings.close")}
         restoreFocusTarget={props.restoreFocusTarget}
         onContentElement={(element) => setModalElement(element)}
         floatingContent={

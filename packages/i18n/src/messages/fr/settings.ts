@@ -147,7 +147,6 @@ export const messages = {
   "settings.save.region": "Modifications non enregistrées",
   "settings.save.notSaved": "Modifications non enregistrées",
   "settings.save.reset": "Réinitialiser",
-  "settings.dialog.close": "Fermer les réglages",
   "settings.panel.resize": "Redimensionner le panneau de droite",
   "settings.turbo.turnOffFailed": "Impossible de désactiver le mode Turbo. Il est toujours actif. Réessayez.",
   "settings.turbo.turnOnFailed": "Impossible d’activer le mode Turbo. Réessayez.",

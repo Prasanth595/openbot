@@ -5,6 +5,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   RoutineCalendar,
+  type RoutineCalendarAgent,
   type RoutineCalendarRoutine,
   type RoutineCalendarStatus,
 } from "@openbot/ui/features/conversation/RoutineCalendar";
@@ -13,7 +14,7 @@ import { useNavigation } from "../../navigation";
 import { useAgents } from "../agents/agents-context";
 import { useChannels } from "../channels/channels-context";
 import { useUsage } from "../usage/usage-context";
-import { type SchedulePort, schedulePort } from "./schedule-port";
+import { desktopScheduleSource, type ScheduleSource } from "./schedule-port";
 
 const DAY = 86_400_000;
 
@@ -21,7 +22,17 @@ interface SchedulePanelProps {
   serverId: string;
   hostName: string;
   onBack: () => void;
-  port?: SchedulePort;
+}
+
+export type ScheduleRoutine = HostCalendar["routines"][number];
+
+interface ScheduleViewProps extends SchedulePanelProps {
+  source: ScheduleSource;
+  agents: RoutineCalendarAgent[];
+  /** The channels of the server. A channel routine shows on the agents of its channel. */
+  channels: readonly { id: string; members: readonly { agentId: string }[] }[];
+  onOpenAgent: (agentId: string) => void;
+  onOpenRoutine: (routine: ScheduleRoutine) => void;
 }
 
 /**
@@ -50,12 +61,42 @@ function calendarStatus(status: RoutineCalendarRunStatus, routineActive: boolean
   }
 }
 
+/** The schedule page on desktop: the calendar of a server, read through main. */
 export function SchedulePanel(props: SchedulePanelProps) {
-  const port = () => props.port ?? schedulePort();
   const { agentList, agentSetupOpen, creatingAgent, setSettingsRequest } = useAgents();
   const { selectAgent } = useNavigation();
   const channels = useChannels();
   const { dismissUsage } = useUsage();
+
+  function openRoutine(routine: ScheduleRoutine): void {
+    if (routine.owner.kind === "channel") {
+      // An open channel does not open again, so its settings would stay under the pane.
+      dismissUsage();
+      // The channel settings hold its routines one step down.
+      void channels.editChannel(routine.owner.channelId);
+      return;
+    }
+    const agentId = routine.owner.agentId;
+    // As in the global search: the agent cannot change while a new agent is being created.
+    if (agentSetupOpen() && creatingAgent()) return;
+    selectAgent(agentId);
+    setSettingsRequest({ agentId, nonce: Date.now(), routine: { routineId: routine.id, name: routine.name } });
+  }
+
+  return (
+    <ScheduleView
+      {...props}
+      source={desktopScheduleSource()}
+      agents={agentList()}
+      channels={channels.state.channels}
+      onOpenAgent={selectAgent}
+      onOpenRoutine={openRoutine}
+    />
+  );
+}
+
+/** The calendar of the routines of a server. The desktop and the web client give its source and actions. */
+export function ScheduleView(props: ScheduleViewProps) {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const [now, setNow] = createSignal(new Date());
   const [state, setState] = createStore<{ phase: "loading" | "ready" | "error"; calendar: HostCalendar | null }>({
@@ -75,7 +116,7 @@ export function SchedulePanel(props: SchedulePanelProps) {
         draft.phase = "loading";
       });
     try {
-      const calendar = await port().agent.routineCalendar({ ...range }, serverId);
+      const calendar = await props.source.calendar({ ...range }, serverId);
       if (request !== generation || props.serverId !== serverId) return;
       setNow(new Date());
       setState((draft) => {
@@ -93,7 +134,7 @@ export function SchedulePanel(props: SchedulePanelProps) {
 
   const routines = createMemo<RoutineCalendarRoutine[]>(() => {
     const members = new Map(
-      channels.state.channels.map((channel) => [channel.id, channel.members.map((member) => member.agentId)]),
+      props.channels.map((channel) => [channel.id, channel.members.map((member) => member.agentId)]),
     );
     return (state.calendar?.routines ?? []).map((routine) => ({
       id: routine.id,
@@ -115,43 +156,17 @@ export function SchedulePanel(props: SchedulePanelProps) {
 
   function openRoutine(routineId: string): void {
     const routine = state.calendar?.routines.find((candidate) => candidate.id === routineId);
-    if (!routine) return;
-    if (routine.owner.kind === "channel") {
-      // An open channel does not open again, so its settings would stay under the pane.
-      dismissUsage();
-      // The channel settings hold its routines one step down.
-      void channels.editChannel(routine.owner.channelId);
-      return;
-    }
-    const agentId = routine.owner.agentId;
-    // As in the global search: the agent cannot change while a new agent is being created.
-    if (agentSetupOpen() && creatingAgent()) return;
-    selectAgent(agentId);
-    setSettingsRequest({ agentId, nonce: Date.now(), routine: { routineId, name: routine.name } });
+    if (routine) props.onOpenRoutine(routine);
   }
 
   onSettled(() => {
     void load();
-    const unsubscribe = port().agent.onScopedEvent(({ serverId, event }) => {
-      if (serverId !== props.serverId) return;
-      if (
-        event.type === "routines-changed" ||
-        event.type === "channel-routines-changed" ||
-        event.type === "agents-changed" ||
-        // A routine run ends as a turn: its slot changes from planned to its outcome.
-        (event.type === "turn-completed" && event.origin === "routine")
-      )
-        void load(true);
-    });
-    const reconnect = port().servers.onEvent((servers) => {
-      if (servers.some((server) => server.id === props.serverId && server.state === "online")) void load(true);
-    });
+    const unsubscribe = props.source.onStale(props.serverId, () => void load(true));
     // A planned run that passes without a result keeps its place; the clock only moves "now".
     const clock = window.setInterval(() => setNow(new Date()), 60_000);
     return () => {
       generation++;
       unsubscribe();
-      reconnect();
       window.clearInterval(clock);
     };
   });
@@ -161,7 +176,7 @@ export function SchedulePanel(props: SchedulePanelProps) {
       <RoutineCalendar
         routines={routines()}
         runs={runs()}
-        agents={agentList()}
+        agents={props.agents}
         now={now()}
         timeZone={timeZone}
         hostName={props.hostName}
@@ -171,7 +186,7 @@ export function SchedulePanel(props: SchedulePanelProps) {
           void load();
         }}
         onOpenRoutine={openRoutine}
-        onOpenAgent={selectAgent}
+        onOpenAgent={props.onOpenAgent}
         onRetry={() => void load()}
         onBack={props.onBack}
       />

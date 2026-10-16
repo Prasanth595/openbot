@@ -239,7 +239,6 @@ export const messages = {
   "server.settings.imageReadFailed": "OpenBot non ha potuto leggere questa immagine.",
   "server.settings.copyFailedTitle": "Copia non riuscita",
   "server.settings.copyFailed": "OpenBot non ha potuto copiare questo valore.",
-  "server.settings.close": "Chiudi le impostazioni del server",
   "server.settings.unavailableTitle": "Impostazioni del server non disponibili",
   "server.settings.unsavedMcpChanges": "Modifiche MCP non salvate",
   "server.settings.reset": "Ripristina",

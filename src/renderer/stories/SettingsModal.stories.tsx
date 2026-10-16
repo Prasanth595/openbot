@@ -1,5 +1,5 @@
 import type { AvatarImageInput, CentralAuthUser, MobileConnectedDevice, UpdateStatus } from "@openbot/contracts/ipc";
-import { Button, Heading, Text, Toaster, toast } from "@openbot/ui";
+import { Button, Toaster, toast } from "@openbot/ui";
 import { DEFAULT_GENERAL_SETTINGS } from "@openbot/ui/features/settings/app-settings";
 import { createSignal, onCleanup } from "solid-js";
 import { fn } from "storybook/test";
@@ -10,6 +10,7 @@ import { STORY_SERVERS } from "../src/preview/fixtures";
 import { createMockBilling } from "../src/preview/mock-billing";
 import type { MockVoiceOptions } from "../src/preview/mock-voice";
 import { createMockOpenBot } from "./mock-openbot";
+import { SettingsPageStory } from "./settings-page-story";
 import { previewStorySoundSettings } from "./sound-feedback-fixture";
 
 const storyAppInfo = { name: "OpenBot", version: "0.2.1", platform: "darwin", variant: "dev" } as const;
@@ -110,51 +111,54 @@ function SettingsModalStory(props: {
 
   return (
     <>
-      <main class="foundation-story foundation-interaction-stage">
-        <Heading as="h1" size="lg">
-          Workspace settings
-        </Heading>
-        <Text tone="secondary">Preview the global settings surface with session-scoped preferences.</Text>
-        <Button variant="outline" type="button" onClick={() => setOpen(true)}>
-          Open settings
-        </Button>
-        <SettingsModal
-          initialTab={props.initialTab}
-          openTab={props.openTab}
-          open={open()}
-          onOpenChange={setOpen}
-          value={value()}
-          onValueChange={(next) => {
-            previewStorySoundSettings(value(), next);
-            setValue(next);
-          }}
-          appInfo={storyAppInfo}
-          servers={STORY_SERVERS}
-          updateStatus={updateStatus()}
-          onCancelScheduledRestart={async () => {
-            const { scheduledRestart: _cancelled, ...rest } = updateStatus();
-            setUpdateStatus(rest);
-          }}
-          account={account()}
-          onUpdateAccountName={updateAccountName}
-          onUpdateAccountAvatar={updateAccountAvatar}
-          onCreateMobileConnect={createMobileConnect}
-          onCancelMobileConnect={mock.api.auth.cancelMobileConnect}
-          onGetMobileConnectLink={mock.api.auth.getMobileConnectLink}
-          onCreateMobileConnectLink={mock.api.auth.createMobileConnectLink}
-          onRevokeMobileConnectLink={mock.api.auth.revokeMobileConnectLink}
-          onListMobileConnectedDevices={async () => mobileDevices()}
-          onListAccountSessions={mock.api.auth.listAccountSessions}
-          onRevokeAccountSession={mock.api.auth.revokeAccountSession}
-          onRevokeMobileConnectedDevice={async (sessionId) => {
-            setMobileDevices((current) => current.filter((device) => device.sessionId !== sessionId));
-          }}
-          onUpdateAction={runUpdateAction}
-          billingApi={billingApi}
-          hostedServersApi={props.hostedServers ? hostedServersApi : undefined}
-          onAddHostedServer={props.hostedServers ? fn() : undefined}
-        />
-      </main>
+      <SettingsPageStory
+        title="Settings"
+        controls={
+          <Button variant="outline" type="button" onClick={() => setOpen(true)}>
+            Open settings
+          </Button>
+        }
+        onEscape={() => setOpen(false)}
+      >
+        {(page) => (
+          <SettingsModal
+            page={page()}
+            initialTab={props.initialTab}
+            openTab={props.openTab}
+            open={open()}
+            value={value()}
+            onValueChange={(next) => {
+              previewStorySoundSettings(value(), next);
+              setValue(next);
+            }}
+            appInfo={storyAppInfo}
+            servers={STORY_SERVERS}
+            updateStatus={updateStatus()}
+            onCancelScheduledRestart={async () => {
+              const { scheduledRestart: _cancelled, ...rest } = updateStatus();
+              setUpdateStatus(rest);
+            }}
+            account={account()}
+            onUpdateAccountName={updateAccountName}
+            onUpdateAccountAvatar={updateAccountAvatar}
+            onCreateMobileConnect={createMobileConnect}
+            onCancelMobileConnect={mock.api.auth.cancelMobileConnect}
+            onGetMobileConnectLink={mock.api.auth.getMobileConnectLink}
+            onCreateMobileConnectLink={mock.api.auth.createMobileConnectLink}
+            onRevokeMobileConnectLink={mock.api.auth.revokeMobileConnectLink}
+            onListMobileConnectedDevices={async () => mobileDevices()}
+            onListAccountSessions={mock.api.auth.listAccountSessions}
+            onRevokeAccountSession={mock.api.auth.revokeAccountSession}
+            onRevokeMobileConnectedDevice={async (sessionId) => {
+              setMobileDevices((current) => current.filter((device) => device.sessionId !== sessionId));
+            }}
+            onUpdateAction={runUpdateAction}
+            billingApi={billingApi}
+            hostedServersApi={props.hostedServers ? hostedServersApi : undefined}
+            onAddHostedServer={props.hostedServers ? fn() : undefined}
+          />
+        )}
+      </SettingsPageStory>
       <Toaster />
     </>
   );
@@ -165,7 +169,6 @@ const meta = {
   component: SettingsModal,
   args: {
     open: false,
-    onOpenChange: fn(),
     value: DEFAULT_GENERAL_SETTINGS,
     onValueChange: fn(),
     appInfo: storyAppInfo,

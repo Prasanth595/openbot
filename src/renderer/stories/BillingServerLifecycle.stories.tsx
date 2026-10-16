@@ -14,6 +14,7 @@ import { createStore, For, untrack } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { createMockHostedServers } from "../src/preview/mock-hosted-servers";
 import "./billing-server-lifecycle-story.css";
+import { SettingsPageStory } from "./settings-page-story";
 
 interface PreviewServer {
   id: string;
@@ -146,122 +147,126 @@ function LifecycleStory(props: LifecycleStoryProps) {
   }
 
   return (
-    <div class="billing-lifecycle-story">
-      <Button
-        variant="outline"
-        onClick={() =>
-          setState((draft) => {
-            draft.open = true;
-          })
-        }
-      >
-        {t("billing.lifecycle.open")}
-      </Button>
-      <SettingsDialogShell
-        class={
-          props.narrow
-            ? "app-settings-modal-shell billing-lifecycle-story-shell billing-lifecycle-story-narrow"
-            : "app-settings-modal-shell billing-lifecycle-story-shell"
-        }
-        open={state.open}
-        onOpenChange={(open) => {
-          if (!state.action)
+    <SettingsPageStory
+      title={t("app.settingsPage.title")}
+      class={props.narrow ? "billing-lifecycle-story-narrow" : undefined}
+      controls={
+        <Button
+          variant="outline"
+          onClick={() =>
             setState((draft) => {
-              draft.open = open;
-            });
-        }}
-        title={t("settings.tab.billing.title")}
-        description={t("settings.tab.billing.description")}
-        contentKey="billing"
-        sidebar={
-          <div class="settings-modal-nav">
-            <div class="settings-modal-nav-item" aria-hidden="true">
-              <Settings />
-              {t("settings.tab.general.title")}
+              draft.open = true;
+            })
+          }
+        >
+          {t("billing.lifecycle.open")}
+        </Button>
+      }
+      onEscape={() => {
+        if (!state.action)
+          setState((draft) => {
+            draft.open = false;
+          });
+      }}
+    >
+      {(page) => (
+        <SettingsDialogShell
+          class="app-settings-modal-shell billing-lifecycle-story-shell"
+          page={page()}
+          open={state.open}
+          title={t("settings.tab.billing.title")}
+          description={t("settings.tab.billing.description")}
+          contentKey="billing"
+          sidebar={
+            <div class="settings-modal-nav">
+              <div class="settings-modal-nav-item" aria-hidden="true">
+                <Settings />
+                {t("settings.tab.general.title")}
+              </div>
+              <div class="settings-modal-nav-item" aria-hidden="true">
+                <UserRound />
+                {t("settings.tab.profile.title")}
+              </div>
+              <div class="settings-modal-nav-item" aria-current="page">
+                <CreditCard />
+                {t("settings.tab.billing.title")}
+              </div>
             </div>
-            <div class="settings-modal-nav-item" aria-hidden="true">
-              <UserRound />
-              {t("settings.tab.profile.title")}
+          }
+          footer={
+            <div class="billing-lifecycle-story-footer">
+              <Text variant="caption" tone="muted">
+                {t("billing.lifecycle.label")}
+              </Text>
+              <Button variant="ghost" size="sm" onClick={() => setState(() => initial())}>
+                {t("billing.lifecycle.reset")}
+              </Button>
             </div>
-            <div class="settings-modal-nav-item" aria-current="page">
-              <CreditCard />
-              {t("settings.tab.billing.title")}
-            </div>
-          </div>
-        }
-        footer={
-          <div class="billing-lifecycle-story-footer">
-            <Text variant="caption" tone="muted">
-              {t("billing.lifecycle.label")}
-            </Text>
-            <Button variant="ghost" size="sm" onClick={() => setState(() => initial())}>
-              {t("billing.lifecycle.reset")}
-            </Button>
-          </div>
-        }
-      >
-        <SettingsSection title={t("billing.servers.title")} description={t("billing.lifecycle.plansDescription")}>
-          <div class="billing-lifecycle-list">
-            <For each={state.servers}>
-              {(server) => (
-                <BillingServerLifecycle
-                  name={server.name}
-                  planDescription={t("billing.server.summary", {
-                    plan: t(PLAN_LABELS[server.plan]),
-                    size: format.number(server.storage),
-                  })}
-                  price={t("billing.server.price.month", {
-                    amount: format.number(server.amount, {
-                      style: "currency",
-                      currency: "EUR",
-                      maximumFractionDigits: 0,
-                    }),
-                  })}
-                  paidThrough={server.paidThrough}
-                  running={server.running}
-                  scheduled={server.scheduled}
-                  cancelAtPeriodEnd={server.cancelAtPeriodEnd}
-                  deleted={server.deleted}
-                  action={state.activeServerId === server.id ? state.action : null}
-                  deletionTiming={state.timing}
-                  confirmName={state.confirmName}
-                  pending={props.pending ?? false}
-                  error={state.activeServerId === server.id ? state.error : null}
-                  onAction={(action) =>
-                    setState((draft) => {
-                      draft.activeServerId = server.id;
-                      draft.action = action;
-                      draft.timing = "period-end";
-                      draft.confirmName = "";
-                      draft.error = null;
-                    })
-                  }
-                  onTimingChange={(timing) =>
-                    setState((draft) => {
-                      draft.timing = timing;
-                      draft.error = null;
-                    })
-                  }
-                  onNameChange={(name) =>
-                    setState((draft) => {
-                      draft.confirmName = name;
-                      draft.error = null;
-                    })
-                  }
-                  onCancel={() => {
-                    if (!props.pending)
+          }
+        >
+          <SettingsSection title={t("billing.servers.title")} description={t("billing.lifecycle.plansDescription")}>
+            <div class="billing-lifecycle-list">
+              <For each={state.servers}>
+                {(server) => (
+                  <BillingServerLifecycle
+                    name={server.name}
+                    planDescription={t("billing.server.summary", {
+                      plan: t(PLAN_LABELS[server.plan]),
+                      size: format.number(server.storage),
+                    })}
+                    price={t("billing.server.price.month", {
+                      amount: format.number(server.amount, {
+                        style: "currency",
+                        currency: "EUR",
+                        maximumFractionDigits: 0,
+                      }),
+                    })}
+                    paidThrough={server.paidThrough}
+                    running={server.running}
+                    scheduled={server.scheduled}
+                    cancelAtPeriodEnd={server.cancelAtPeriodEnd}
+                    deleted={server.deleted}
+                    action={state.activeServerId === server.id ? state.action : null}
+                    deletionTiming={state.timing}
+                    confirmName={state.confirmName}
+                    pending={props.pending ?? false}
+                    error={state.activeServerId === server.id ? state.error : null}
+                    onAction={(action) =>
                       setState((draft) => {
-                        draft.action = null;
-                      });
-                  }}
-                  onConfirm={confirm}
-                />
-              )}
-            </For>
-          </div>
-        </SettingsSection>
-      </SettingsDialogShell>
-    </div>
+                        draft.activeServerId = server.id;
+                        draft.action = action;
+                        draft.timing = "period-end";
+                        draft.confirmName = "";
+                        draft.error = null;
+                      })
+                    }
+                    onTimingChange={(timing) =>
+                      setState((draft) => {
+                        draft.timing = timing;
+                        draft.error = null;
+                      })
+                    }
+                    onNameChange={(name) =>
+                      setState((draft) => {
+                        draft.confirmName = name;
+                        draft.error = null;
+                      })
+                    }
+                    onCancel={() => {
+                      if (!props.pending)
+                        setState((draft) => {
+                          draft.action = null;
+                        });
+                    }}
+                    onConfirm={confirm}
+                  />
+                )}
+              </For>
+            </div>
+          </SettingsSection>
+        </SettingsDialogShell>
+      )}
+    </SettingsPageStory>
   );
 }
 

@@ -8,6 +8,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { AGENT_IMPORT_PREVIEW, AGENT_IMPORT_SKILL, AGENT_IMPORT_WARNINGS } from "./agent-import-fixtures";
 import { FILES_NOW } from "./files-fixtures";
 import { STORY_AGENT_SUMMARIES } from "./fixtures";
+import { SettingsPageStory } from "./settings-page-story";
 
 const meta = {
   title: "Settings/AgentImport",
@@ -145,34 +146,37 @@ const SERVER_SETTINGS_NAV = [
 function ServerSettingsStage(props: { args: ViewArgs }) {
   const [tab, setTab] = createSignal("import");
   return (
-    <Tabs.Root value={tab()} onChange={setTab} orientation="vertical" class="settings-modal-tabs-root">
-      <SettingsDialogShell
-        class="server-settings-modal-shell"
-        open
-        onOpenChange={() => undefined}
-        title="Import"
-        description="Move your agents from Grok Bot to this computer."
-        contentKey={tab()}
-        closeLabel="Close server settings"
-        sidebar={
-          <Tabs.List class="settings-modal-nav" aria-label="Server settings sections">
-            {SERVER_SETTINGS_NAV.map((item) => {
-              const NavIcon = item.icon;
-              return (
-                <Tabs.Trigger class="settings-modal-nav-item" value={item.value}>
-                  <NavIcon aria-hidden="true" />
-                  <span>{item.label}</span>
-                </Tabs.Trigger>
-              );
-            })}
-          </Tabs.List>
-        }
-      >
-        <Tabs.Content value="import" class="settings-modal-tab-panel server-settings-panel" data-tab="import">
-          <AgentImportView {...props.args} />
-        </Tabs.Content>
-      </SettingsDialogShell>
-    </Tabs.Root>
+    <SettingsPageStory title="Server settings">
+      {(page) => (
+        <Tabs.Root value={tab()} onChange={setTab} orientation="vertical" class="settings-modal-tabs-root">
+          <SettingsDialogShell
+            class="server-settings-modal-shell"
+            open
+            page={page()}
+            title="Import"
+            description="Move your agents from Grok Bot to this computer."
+            contentKey={tab()}
+            sidebar={
+              <Tabs.List class="settings-modal-nav" aria-label="Server settings sections">
+                {SERVER_SETTINGS_NAV.map((item) => {
+                  const NavIcon = item.icon;
+                  return (
+                    <Tabs.Trigger class="settings-modal-nav-item" value={item.value}>
+                      <NavIcon aria-hidden="true" />
+                      <span>{item.label}</span>
+                    </Tabs.Trigger>
+                  );
+                })}
+              </Tabs.List>
+            }
+          >
+            <Tabs.Content value="import" class="settings-modal-tab-panel server-settings-panel" data-tab="import">
+              <AgentImportView {...props.args} />
+            </Tabs.Content>
+          </SettingsDialogShell>
+        </Tabs.Root>
+      )}
+    </SettingsPageStory>
   );
 }
 

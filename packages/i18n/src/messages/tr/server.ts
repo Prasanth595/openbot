@@ -247,7 +247,6 @@ export const messages = {
   "server.settings.imageReadFailed": "OpenBot bu görseli okuyamadı.",
   "server.settings.copyFailedTitle": "Kopyalama başarısız oldu",
   "server.settings.copyFailed": "OpenBot bu değeri kopyalayamadı.",
-  "server.settings.close": "Sunucu ayarlarını kapat",
   "server.settings.unavailableTitle": "Sunucu ayarları kullanılamıyor",
   "server.settings.unsavedMcpChanges": "Kaydedilmemiş MCP değişiklikleri",
   "server.settings.reset": "Sıfırla",

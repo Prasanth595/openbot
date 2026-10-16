@@ -519,7 +519,6 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
           // The settings show only as a page of the window, so they wait for the page.
           open={serverSettingsOpen() && windowPage.settingsPlacement("server") !== undefined}
           page={windowPage.settingsPlacement("server")}
-          onOpenChange={setServerSettingsOpen}
           restoreFocusTarget={serverSettingsRestoreTarget()}
           platform={platform.appInfo()?.platform ?? "darwin"}
           server={server()}
@@ -677,7 +676,6 @@ function AppSettings(props: AccountProps) {
         // The settings show only as a page of the window, so they wait for the page.
         open={appSettingsOpen() && windowPage.settingsPlacement("personal") !== undefined}
         page={windowPage.settingsPlacement("personal")}
-        onOpenChange={setAppSettingsOpen}
         value={generalSettings()}
         onValueChange={updateGeneralSettings}
         appInfo={platform.appInfo()}

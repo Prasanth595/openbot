@@ -7,7 +7,7 @@ import { useSettings } from "../settings/settings-context";
 import { useUsage } from "../usage/usage-context";
 
 /** The pages of the window rail. Each one fills the card below the top row. */
-type WindowPage = "agents" | "schedule" | "usage" | "settings" | "server-settings";
+export type WindowPage = "agents" | "schedule" | "usage" | "settings" | "server-settings";
 
 /** The settings pages: the settings of the user, or the settings of one server. */
 export type SettingsKind = "personal" | "server";

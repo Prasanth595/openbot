@@ -1,11 +1,11 @@
 import type { AppTextKey } from "@openbot/i18n";
 import { Button, Input, Search } from "@openbot/ui";
-import { ServerMark } from "@openbot/ui/features/servers/ServerRail";
-import { createSignal, For, flush, onSettled, Show } from "solid-js";
+import { createSignal, For, flush, Show } from "solid-js";
 import { useI18n } from "../../i18n-context";
 import { useServerSettings } from "../servers/server-settings";
 import { useSettings } from "../settings/settings-context";
 import { navItem, type SettingsTab } from "../settings/settings-tabs";
+import { ServerSettingsPageTitle, SettingsPageFrame } from "./SettingsPageFrame";
 import { type SettingsKind, useWindowPage } from "./window-page-context";
 
 /** The row titles of each personal tab, in page order, with the description that the search also reads. */
@@ -90,31 +90,7 @@ export function SettingsPage(props: { kind: SettingsKind }) {
   const serverSettings = useServerSettings();
   const [query, setQuery] = createSignal("");
   const results = () => (query().trim() ? rankRows(query().trim(), (key) => i18n.t(key)) : null);
-  let nav!: HTMLDivElement;
-  let content!: HTMLDivElement;
-  let root!: HTMLDivElement;
-
-  onSettled(() => {
-    windowPage.setSettingsMounts({ nav, content });
-    // Escape clears the search, or else closes the page, as it closed the settings dialog. On the
-    // document and after the delegated handlers, so a control that handles Escape keeps it. The focus
-    // can stay on the rail button or the server menu that opened the page, so a target outside the
-    // page also counts, except an open popup or a text field.
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest("[role=dialog], [role=alertdialog], [role=menu], [role=listbox]")) return;
-      if (target && !root.contains(target) && target.closest("input, textarea, select, [contenteditable]")) return;
-      event.preventDefault();
-      if (query()) setQuery("");
-      else windowPage.showAgents();
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("keydown", closeOnEscape);
-      windowPage.setSettingsMounts(undefined);
-    };
-  });
+  let content: HTMLElement | undefined;
 
   /** Opens the tab of the row, then scrolls to the row, marks it and puts the focus on its control. */
   const openResult = (row: SearchRow) => {
@@ -124,6 +100,7 @@ export function SettingsPage(props: { kind: SettingsKind }) {
     flush();
     settings.openAppSettings(null, row.tab);
     flush();
+    if (!content) return;
     const title = i18n.t(row.titleKey);
     for (const marked of content.querySelectorAll("[data-search-match]")) marked.removeAttribute("data-search-match");
     const label = [...content.querySelectorAll(".settings-modal-page .settings-modal-tab-panel *")].find(
@@ -137,79 +114,83 @@ export function SettingsPage(props: { kind: SettingsKind }) {
   };
 
   return (
-    <div class="settings-page" ref={root}>
-      <div class="settings-page-nav">
+    <SettingsPageFrame
+      heading={
         <Show
           when={props.kind === "personal"}
           fallback={
             <Show when={serverSettings.serverSettingsTarget()}>
-              {(server) => (
-                <h1 class="settings-page-title settings-page-server">
-                  <span class="server-menu-mark" aria-hidden="true">
-                    <ServerMark server={server()} />
-                  </span>
-                  <span class="server-menu-name">{server().name}</span>
-                </h1>
-              )}
+              {(server) => <ServerSettingsPageTitle server={server()} />}
             </Show>
           }
         >
           <h1 class="settings-page-title">{i18n.t("app.settingsPage.title")}</h1>
-          <label class="search-field settings-page-search">
-            <Search aria-hidden="true" />
-            <Input
-              type="search"
-              aria-label={i18n.t("app.settingsPage.search")}
-              placeholder={i18n.t("app.settingsPage.searchPlaceholder")}
-              spellcheck={false}
-              value={query()}
-              onInput={(event) => setQuery(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                const top = results()?.[0];
-                if (event.key === "Enter" && top) {
-                  event.preventDefault();
-                  openResult(top);
-                }
-              }}
-            />
-          </label>
-          <Show when={results()}>
-            {(rows) => (
-              <Show
-                when={rows().length > 0}
-                fallback={<p class="settings-page-empty">{i18n.t("app.settingsPage.noResults")}</p>}
-              >
-                <ul class="settings-page-results" aria-label={i18n.t("app.settingsPage.results")}>
-                  <For each={rows()}>
-                    {(row) => {
-                      const tab = navItem(row.tab);
-                      const TabIcon = tab.icon;
-                      return (
-                        <li>
-                          <Button
-                            variant="ghost"
-                            type="button"
-                            class="settings-page-result"
-                            onClick={() => openResult(row)}
-                          >
-                            <span class="settings-page-result-section">
-                              <TabIcon aria-hidden="true" />
-                              {i18n.t(tab.titleKey)}
-                            </span>
-                            <span class="settings-page-result-title">{i18n.t(row.titleKey)}</span>
-                          </Button>
-                        </li>
-                      );
-                    }}
-                  </For>
-                </ul>
-              </Show>
-            )}
-          </Show>
         </Show>
-        <div class="settings-page-sections" ref={nav} hidden={results() !== null} />
-      </div>
-      <div class="settings-page-content" ref={content} />
-    </div>
+      }
+      sectionsHidden={results() !== null}
+      onMounts={(mounts) => {
+        content = mounts?.content;
+        windowPage.setSettingsMounts(mounts);
+      }}
+      // Escape clears the search, or else closes the page.
+      onEscape={() => {
+        if (query()) setQuery("");
+        else windowPage.showAgents();
+      }}
+    >
+      <Show when={props.kind === "personal"}>
+        <label class="search-field settings-page-search">
+          <Search aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label={i18n.t("app.settingsPage.search")}
+            placeholder={i18n.t("app.settingsPage.searchPlaceholder")}
+            spellcheck={false}
+            value={query()}
+            onInput={(event) => setQuery(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              const top = results()?.[0];
+              if (event.key === "Enter" && top) {
+                event.preventDefault();
+                openResult(top);
+              }
+            }}
+          />
+        </label>
+        <Show when={results()}>
+          {(rows) => (
+            <Show
+              when={rows().length > 0}
+              fallback={<p class="settings-page-empty">{i18n.t("app.settingsPage.noResults")}</p>}
+            >
+              <ul class="settings-page-results" aria-label={i18n.t("app.settingsPage.results")}>
+                <For each={rows()}>
+                  {(row) => {
+                    const tab = navItem(row.tab);
+                    const TabIcon = tab.icon;
+                    return (
+                      <li>
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          class="settings-page-result"
+                          onClick={() => openResult(row)}
+                        >
+                          <span class="settings-page-result-section">
+                            <TabIcon aria-hidden="true" />
+                            {i18n.t(tab.titleKey)}
+                          </span>
+                          <span class="settings-page-result-title">{i18n.t(row.titleKey)}</span>
+                        </Button>
+                      </li>
+                    );
+                  }}
+                </For>
+              </ul>
+            </Show>
+          )}
+        </Show>
+      </Show>
+    </SettingsPageFrame>
   );
 }

@@ -38,7 +38,6 @@ import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
   value: GeneralSettingsValue;
   onValueChange: (value: GeneralSettingsValue) => void;
   appInfo: AppInfo | null;
@@ -83,8 +82,8 @@ export interface SettingsModalProps {
   initialTab?: SettingsTab;
   /** The tab shown each time the modal opens. Without it, the modal shows the tab that was open last. */
   openTab?: SettingsTab | undefined;
-  /** Shows the settings as a page of the window, not as a dialog. */
-  page?: SettingsPagePlacement | undefined;
+  /** Where the settings page shows, or nothing while the page is not on screen. */
+  page: SettingsPagePlacement | undefined;
 }
 
 /**
@@ -181,7 +180,6 @@ export function SettingsModal(props: SettingsModalProps) {
         class="app-settings-modal-shell"
         page={props.page}
         open={props.open}
-        onOpenChange={props.onOpenChange}
         title={title()}
         description={description()}
         contentKey={activeTab()}
