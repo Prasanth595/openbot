@@ -1,7 +1,7 @@
 import { ProviderLogo } from "@openbot/brand";
 import { Bot, Button, CalendarClock, ChartArea, Settings, Store, Tooltip, Workflow } from "@openbot/ui";
 import { AccountUsageDetails } from "@openbot/ui/features/account/AccountUsageDetails";
-import type { AccountUsageProviderRow } from "@openbot/ui/features/account/account-usage-view";
+import { type AccountUsageProviderRow, accountUsageRowKey } from "@openbot/ui/features/account/account-usage-view";
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
@@ -80,27 +80,27 @@ function RailButtonRings(props: {
   return (
     <RailButton label={props.label} card current={props.current} class="window-rail-usage" onClick={props.onOpen}>
       <svg class="window-rail-usage-ring" viewBox={`0 0 ${RING.size} ${RING.size}`} fill="none" aria-hidden="true">
-        <For each={windows()}>
+        <For each={windows()} keyed={false}>
           {(window, index) => (
             <g>
               <circle
                 class="window-rail-usage-track"
                 cx={RING.size / 2}
                 cy={RING.size / 2}
-                r={outerRadius - index() * RING.spacing}
+                r={outerRadius - index * RING.spacing}
                 stroke-width={RING.stroke}
               />
-              <Show when={window.remainingPercent > 0}>
+              <Show when={window().remainingPercent > 0}>
                 <circle
                   class="window-rail-usage-arc"
-                  data-usage-tone={window.tone}
+                  data-usage-tone={window().tone}
                   cx={RING.size / 2}
                   cy={RING.size / 2}
-                  r={outerRadius - index() * RING.spacing}
+                  r={outerRadius - index * RING.spacing}
                   stroke-width={RING.stroke}
                   stroke-linecap="round"
                   pathLength={100}
-                  stroke-dasharray={`${window.remainingPercent} 100`}
+                  stroke-dasharray={`${window().remainingPercent} 100`}
                 />
               </Show>
             </g>
@@ -175,7 +175,10 @@ export function PageRail(props: PageRailProps) {
         </RailButton>
       </div>
       <div class="window-rail-group">
-        <For each={props.usageRows}>{(row) => <UsageRings row={row} current={false} onOpen={props.onUsage} />}</For>
+        {/* A status update builds new rows. The key keeps each ring, and its open hover card, mounted. */}
+        <For each={props.usageRows} keyed={accountUsageRowKey}>
+          {(row) => <UsageRings row={row()} current={false} onOpen={props.onUsage} />}
+        </For>
         <Show when={props.onMarketplace}>
           {(onMarketplace) => (
             <RailButton label={t("app.rail.marketplace")} onClick={() => onMarketplace()()}>
