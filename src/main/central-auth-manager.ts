@@ -1658,12 +1658,19 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     decoder: (value: unknown) => T,
     sessionToken?: string,
   ): Effect.fn.Return<T, CentralAuthOperationError, CentralAuthTransport> {
-    const deadline = Date.now() + this.#options.startupRetryWindowMs;
+    let deadline = Date.now() + this.#options.startupRetryWindowMs;
+    // A timer that fires late means a blocked event loop, such as a slow database check at start,
+    // not a slow server. The window counts only the time the loop ran.
+    const excludeBlockedTime = (startedAt: number, expectedMs: number) => {
+      deadline += Math.max(0, Date.now() - startedAt - expectedMs);
+    };
     let retryIndex = 0;
     while (true) {
       const remainingMs = deadline - Date.now();
       if (remainingMs <= 0)
         return yield* new CentralAuthOperationError({ cause: new Error(sourceText("error.auth.serviceUnavailable")) });
+      const timeoutMs = Math.max(1, Math.min(this.#options.startupRequestTimeoutMs, remainingMs));
+      const startedAt = Date.now();
       const result = yield* this.#requestEffect(
         path,
         {
@@ -1671,9 +1678,10 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
           headers: sessionToken ? { ...init.headers, Authorization: `Bearer ${sessionToken}` } : init.headers,
         },
         decoder,
-        Math.max(1, Math.min(this.#options.startupRequestTimeoutMs, remainingMs)),
+        timeoutMs,
       ).pipe(Effect.result);
       if (Result.isSuccess(result)) return result.success;
+      excludeBlockedTime(startedAt, timeoutMs);
       const error = result.failure.cause;
       if (!isTransientStartupError(error)) return yield* result.failure;
       const delayMs = Math.min(
@@ -1681,7 +1689,9 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         Math.max(0, deadline - Date.now()),
       );
       if (delayMs <= 0) return yield* result.failure;
+      const sleptAt = Date.now();
       yield* Effect.sleep(delayMs);
+      excludeBlockedTime(sleptAt, delayMs);
       retryIndex += 1;
     }
   });
