@@ -1,5 +1,5 @@
 import type { MobileTextKey, MobileTranslate } from "@openbot/i18n/mobile";
-import { type ShjLanguage, type ShjToken, tokenize } from "@speed-highlight/core";
+import type { ShjLanguage, ShjToken } from "@speed-highlight/core";
 
 export interface CodeToken {
   text: string;
@@ -144,6 +144,7 @@ export function cachedHighlight(text: string, info?: string): CodeToken[] | unde
 export async function highlightCode(text: string, info?: string, keep = false): Promise<CodeToken[]> {
   const cached = cachedHighlight(text, info);
   if (cached) return cached;
+  const { tokenize } = await import("@speed-highlight/core");
   const result: CodeToken[] = [];
   let offset = 0;
   await tokenize(text, codeLanguage(info).language, (value, type) => {

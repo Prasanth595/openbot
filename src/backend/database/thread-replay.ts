@@ -7,6 +7,7 @@ import type { DatabaseCore } from "./database-core";
 import { databaseRows, decodeThreadAgentRow, objectValue, requiredEventRow } from "./database-rows";
 import { currentConversationMessage } from "./legacy-conversation-message";
 import type { ProviderSession } from "./provider-sessions";
+import { refreshThreadOrder } from "./thread-message-order";
 import type { StoredThreadSummary } from "./thread-summaries";
 
 export interface ThreadReplayOptions {
@@ -228,6 +229,7 @@ export class ThreadReplay {
           );
         }
       });
+      refreshThreadOrder(db, threadId);
       const messagesByTurn = new Map<string, ConversationMessage[]>();
       for (const message of latest.messages) {
         if (!message.turnId) continue;

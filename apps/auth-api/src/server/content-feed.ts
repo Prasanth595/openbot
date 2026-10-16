@@ -16,6 +16,7 @@ import {
 import { DOWNLOAD_PAGE_ORDER, DOWNLOAD_PAGES_UPDATED_AT, downloadPageUrl } from "../lib/download-pages";
 import { PLUGINS_UPDATED_AT, pluginIndexUrl, pluginUrl, SITE_PLUGINS } from "../lib/plugins";
 import { OPENBOT_SITE_TITLE, OPENBOT_SITE_URL } from "../lib/site-metadata";
+import { TEAMS_PAGE_UPDATED_AT, TEAMS_ROUTE } from "../lib/teams-page";
 
 /**
  * The five characters XML reserves. `>` is only special after `]]`, but escaping
@@ -70,6 +71,7 @@ function contentSitemapXml(): string {
     { loc: pluginIndexUrl(), lastmod: PLUGINS_UPDATED_AT },
     ...SITE_PLUGINS.map((plugin) => ({ loc: pluginUrl(plugin.slug), lastmod: PLUGINS_UPDATED_AT })),
     { loc: changelogUrl(), lastmod: CHANGELOG_UPDATED_AT },
+    { loc: new URL(TEAMS_ROUTE, OPENBOT_SITE_URL).toString(), lastmod: TEAMS_PAGE_UPDATED_AT },
   ];
 
   const urls = entries

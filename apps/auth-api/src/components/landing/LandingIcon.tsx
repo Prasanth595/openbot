@@ -6,6 +6,7 @@ export type LandingIconName =
   | "blocks"
   | "check"
   | "chevron-down"
+  | "clock"
   | "cloud"
   | "code"
   | "contact"
@@ -83,6 +84,10 @@ export function LandingIcon(props: LandingIconProps) {
         <Match when={props.name === "laptop"}>
           <rect width="18" height="12" x="3" y="4" rx="2" />
           <path d="M2 20h20" />
+        </Match>
+        <Match when={props.name === "clock"}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
         </Match>
         <Match when={props.name === "cloud"}>
           <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />

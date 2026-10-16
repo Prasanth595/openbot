@@ -13,6 +13,7 @@ import type {
   ConversationPage,
   HostedServerIssue,
   HostedServerSleep,
+  HostedServerStart,
   QueueSnapshot,
   RespondToApprovalInput,
   RespondToPromptInput,
@@ -21,7 +22,9 @@ import type {
   TeamPresenceSnapshot,
   TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
+import { FOCUS_USE_CAPABILITY } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
+import { createFocusUsePing } from "@openbot/team-client/focus-use";
 import { WAKE_RECONNECT_DELAY_MS } from "@openbot/team-client/hosted-server-wake";
 import type { RemoteTeamHost } from "@openbot/team-client/remote-directory";
 import {
@@ -87,6 +90,8 @@ interface WebWorkspaceState {
    */
   hostedSleep: HostedServerSleep | null;
   hostedIssue: HostedServerIssue | null;
+  /** The step of a hosted start, while `hostedSleep` is `waking`. */
+  hostedStart: HostedServerStart | null;
   /** The last connection failure, with its code. Shown while the workspace reconnects. */
   connectionError: UserErrorDetails | null;
   recovery: RemoteRecoveryStatus | null;
@@ -163,6 +168,7 @@ export function createWebWorkspace(
     status: "offline",
     hostedSleep: null,
     hostedIssue: null,
+    hostedStart: null,
     connectionError: null,
     recovery: null,
     workspaceLoaded: false,
@@ -261,6 +267,10 @@ export function createWebWorkspace(
     setIssue: (issue) =>
       setState((draft) => {
         draft.hostedIssue = issue;
+      }),
+    setStart: (start) =>
+      setState((draft) => {
+        draft.hostedStart = start;
       }),
     suspend: () => {
       recoveryBlocked = true;
@@ -504,6 +514,16 @@ export function createWebWorkspace(
     ({ id, status }) => {
       if (id) runtime.hosts?.reportSelected(id, status);
     },
+  );
+  // A hosted server keeps running while this tab is visible and has focus (`focus-use-v1`).
+  const [pageFocused, setPageFocused] = createSignal(!document.hidden && document.hasFocus());
+  const focusUse = createFocusUsePing(() => void runtime.focusUse().catch(() => undefined));
+  createEffect(
+    () =>
+      pageFocused() && state.status === "online" && state.capabilities.includes(FOCUS_USE_CAPABILITY)
+        ? (state.host?.hostId ?? null)
+        : null,
+    (id) => focusUse.setTarget(id),
   );
   const [serverOrder, setServerOrder] = createSignal(readWebServerOrder(props.accountId));
   const orderedHosts = createMemo(() => orderWebHosts(state.hosts, serverOrder()));
@@ -1268,7 +1288,9 @@ export function createWebWorkspace(
   createHostRestartToasts(() => hostViews().filter((host) => !followsServerUpdate(host.id)));
   onSettled(() => {
     void refreshHosts().catch(report);
+    const pageFocus = () => setPageFocused(!document.hidden && document.hasFocus());
     const focus = () => {
+      pageFocus();
       runtime.hosts?.refresh();
       void props
         .onSessionCheck()
@@ -1280,6 +1302,7 @@ export function createWebWorkspace(
         .catch(report);
     };
     const visibility = () => {
+      pageFocus();
       if (document.hidden) {
         hostLifecycle.cancelPending();
         if (hostId && state.status !== "online") generation += 1;
@@ -1295,15 +1318,18 @@ export function createWebWorkspace(
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("online", network);
     window.addEventListener("focus", focus);
+    window.addEventListener("blur", pageFocus);
     return () => {
       disposed = true;
       generation += 1;
       recovery.dispose();
       hostLifecycle.dispose();
+      focusUse.dispose();
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("online", network);
       acceptedInvite = null;
       window.removeEventListener("focus", focus);
+      window.removeEventListener("blur", pageFocus);
       void runtime.dispose({ sessionsEnded: props.accountSessionEnded?.() ?? false }).catch(() => undefined);
     };
   });

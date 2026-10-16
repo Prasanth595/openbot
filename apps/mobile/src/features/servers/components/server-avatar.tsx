@@ -2,7 +2,7 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Typography } from "heroui-native";
-import { Monitor } from "lucide-react-native";
+import Monitor from "lucide-react-native/icons/monitor";
 import { useState } from "react";
 import { View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -12,6 +12,7 @@ import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { loadServerLogo } from "@/features/servers/model/server-logo";
 import { DISCONNECTED_APPEARANCE } from "@/features/workspace/components/use-connection-appearance";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 
 const INK = "rgba(0, 0, 0, 0.72)";
@@ -72,15 +73,15 @@ export function ServerAvatar({
   const warning = String(useCSSVariable("--openbot-warning"));
   const danger = String(useCSSVariable("--openbot-danger"));
   const offline = String(useCSSVariable("--openbot-text-dim"));
-  const dot =
-    server.state === "online"
-      ? success
-      : server.state === "error"
-        ? danger
-        : server.state === "connecting" && server.initialConnectionPending
-          ? warning
-          : offline;
-  const muted = showStatus && server.state !== "online";
+  const online = showsOnline(server);
+  const dot = online
+    ? success
+    : server.state === "error"
+      ? danger
+      : server.state === "connecting" && server.initialConnectionPending
+        ? warning
+        : offline;
+  const muted = showStatus && !online;
   const tile = (
     <View
       className="items-center justify-center"

@@ -868,7 +868,7 @@ export async function createApplicationServices({
       if (!remoteServers.list().some((server) => server.id === serverId))
         void Effect.runPromise(remoteServers.invalidateDirectory());
     },
-    (serverId) => remoteServers.hostedServerStarting(serverId),
+    (serverId, server) => remoteServers.hostedServerStarting(serverId, server),
   );
   const sidebarLayout = new SidebarLayoutStore(join(app.getPath("userData"), SIDEBAR_LAYOUT_FILE));
   await runCauseEffect(sidebarLayout.initialize());
@@ -1843,6 +1843,8 @@ export async function createApplicationServices({
     instanceTransfer,
     // Present, so the host advertises `routine-flows-v1`. Any member who can see the agents.
     routineFlows: routineFlowRuntime,
+    // True on a hosted server, so the host advertises `focus-use-v1`. Any member can send it.
+    focusUse: hostedServer !== null,
     // Each member present advertises its admin capability. Every admin route requires an owner or admin.
     admin: {
       agents: agentAdminSettings,
@@ -2099,6 +2101,7 @@ export async function createApplicationServices({
       hostedServers: {
         unavailable: (serverId, wake) => hostedServers.unavailableHost(serverId, wake),
         wake: (serverId) => hostedServers.wake(serverId),
+        status: (serverId) => hostedServers.status(serverId),
       },
       webrtcTransport: new TeamWebRtcClientTransport({
         bridge: teamWebRtcBridge,

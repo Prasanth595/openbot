@@ -318,6 +318,26 @@
           }
         }
       }
+    },
+    {
+      "includes": ["apps/mobile/src/**/*.ts", "apps/mobile/src/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "lucide-react-native": {
+                    "allowImportNames": ["LucideIcon", "LucideProps"],
+                    "message": "Metro does not remove unused exports, so this index adds every icon to the mobile bundle. Import one icon from \"lucide-react-native/icons/<name>\"."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "javascript": {

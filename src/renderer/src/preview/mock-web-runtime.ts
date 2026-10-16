@@ -68,6 +68,8 @@ export const createMockWebRuntime: WebRuntimeFactory = (_accountId, events) => {
       agent.readConversationPage({ agentId, limit: 50, anchor: { type: "around", messageId } }),
     markRead: (agentId, throughMessageId) => agent.markConversationRead({ agentId, throughMessageId }),
     conversationReads: () => agent.listConversationReads(),
+    // The preview host is not a hosted server.
+    focusUse: async () => undefined,
     send: async (agentId, text, attachmentDraftIds, replyToMessageId, clientMessageId) => {
       const receipt = await agent.sendMessage({
         agentId,

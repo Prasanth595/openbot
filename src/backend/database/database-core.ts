@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { appendFileSync, existsSync } from "node:fs";
 import { chmod, copyFile, mkdir, readFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -60,6 +61,8 @@ export class DatabaseCore {
   initialize = Effect.fn("DatabaseCore.initialize")(function* (this: DatabaseCore) {
     if (this.#db) return;
     yield* storedIO(() => mkdir(dirname(this.path), { recursive: true, mode: 0o700 }));
+    // Read before the open: the first statement makes a new write-ahead log.
+    const closedCleanly = yield* storedSync(() => !existsSync(`${this.path}-wal`));
     const db = yield* storedSync(() => new DatabaseSync(this.path));
     const configured = yield* Effect.result(
       Effect.gen({ self: this }, function* () {
@@ -75,7 +78,7 @@ export class DatabaseCore {
             typeof value === "string" ? value.toLocaleLowerCase() : value,
           );
           this.#db = db;
-          this.#migrate();
+          this.#migrate(closedCleanly);
         });
         yield* storedIO(() => chmod(this.path, 0o600));
       }),
@@ -85,6 +88,9 @@ export class DatabaseCore {
         db.close();
         this.#db = null;
       });
+      // The close removed the write-ahead log. An empty one makes the next start run the check again,
+      // so a database that failed it does not open at the next start.
+      yield* storedSync(() => appendFileSync(`${this.path}-wal`, "", { mode: 0o600 })).pipe(Effect.ignore);
       return yield* configured.failure;
     }
   }, Effect.uninterruptible);
@@ -198,8 +204,8 @@ export class DatabaseCore {
     );
   }
 
-  #migrate(): void {
-    migrateOpenBotDatabase(this.connection);
+  #migrate(closedCleanly: boolean): void {
+    migrateOpenBotDatabase(this.connection, { closedCleanly });
   }
 }
 

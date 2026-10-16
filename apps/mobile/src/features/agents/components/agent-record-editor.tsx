@@ -24,7 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { router, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
-import { Check } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
 import { useEffect, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";

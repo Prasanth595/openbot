@@ -7,7 +7,11 @@ import {
 import type { EventFilter } from "@openbot/contracts/ipc-events";
 import * as Clipboard from "expo-clipboard";
 import { Button, Typography } from "heroui-native";
-import { Check, ChevronDown, ChevronRight, Copy, RefreshCw } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Copy from "lucide-react-native/icons/copy";
+import RefreshCw from "lucide-react-native/icons/refresh-cw";
 import { type ReactNode, useState } from "react";
 import { Alert, View } from "react-native";
 import { useCSSVariable } from "uniwind";

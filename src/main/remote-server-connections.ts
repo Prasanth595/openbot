@@ -38,6 +38,7 @@ interface MutableStatus {
   hostRestart: ServerSummary["hostRestart"];
   hostedSleep: HostedSleep;
   hostedIssue: ServerSummary["hostedIssue"];
+  hostedStart: ServerSummary["hostedStart"];
 }
 
 type HostedSleep = NonNullable<ServerSummary["hostedSleep"]> | null;
@@ -66,11 +67,20 @@ export class RemoteServerConnections {
       hostRestart: status?.hostRestart ?? null,
       hostedSleep: status?.hostedSleep ?? null,
       hostedIssue: status?.hostedIssue ?? null,
+      hostedStart: status?.hostedStart ?? null,
     };
   }
 
   setHostedIssue(serverId: string, issue: ServerSummary["hostedIssue"]): void {
     this.#mutable(serverId).hostedIssue = issue;
+  }
+
+  /** The step of a hosted start in progress. Answers whether it changed. */
+  setHostedStart(serverId: string, start: ServerSummary["hostedStart"]): boolean {
+    const status = this.#mutable(serverId);
+    if (status.hostedStart?.step === start?.step && status.hostedStart?.startedAt === start?.startedAt) return false;
+    status.hostedStart = start;
+    return true;
   }
 
   hostedSleepFor(serverId: string): HostedSleep {
@@ -157,6 +167,7 @@ export class RemoteServerConnections {
     status.hostRestart = null;
     status.hostedSleep = null;
     status.hostedIssue = null;
+    status.hostedStart = null;
     status.connectionSequence += 1;
   }
 
@@ -231,6 +242,7 @@ export class RemoteServerConnections {
       hostRestart: null,
       hostedSleep: null,
       hostedIssue: null,
+      hostedStart: null,
     };
     this.#statuses.set(serverId, status);
     return status;

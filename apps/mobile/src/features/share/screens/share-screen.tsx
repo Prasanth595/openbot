@@ -2,7 +2,8 @@ import { attachmentMimeTypeForName } from "@openbot/contracts/attachment-files";
 import { router, Stack, useNavigation } from "expo-router";
 import { StackActions } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
-import { Check, X } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import X from "lucide-react-native/icons/x";
 import { useEffect, useRef, useState } from "react";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
@@ -11,7 +12,7 @@ import { AttachmentThumbnail } from "@/features/chat/components/attachment-previ
 import { requestComposerFocus, requestComposerText } from "@/features/chat/model/composer-requests";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
-import { serverStatusLabel } from "@/features/workspace/model/server-status";
+import { serverStatusLabel, showsOnline } from "@/features/workspace/model/server-status";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
@@ -177,7 +178,7 @@ export function ShareScreen() {
               <SettingsSection
                 key={server.id}
                 title={server.name}
-                footer={server.state === "online" ? undefined : serverStatusLabel(server, t)}
+                footer={showsOnline(server) ? undefined : serverStatusLabel(server, t)}
               >
                 {serverAgents.length > 0 ? (
                   serverAgents.map((agent) => (

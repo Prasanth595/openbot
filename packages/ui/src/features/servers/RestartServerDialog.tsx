@@ -14,8 +14,11 @@ const STEPS = [
   { label: "server.settings.restartStepStart", detail: "server.settings.restartStepStartDetail" },
 ] as const;
 
-/** The start limit of desktop and web. A server that is not back by then did not start. */
-const RESTART_LIMIT_SECONDS = 5 * 60;
+/**
+ * The end of a restart that no client waits for, such as a server that the web client did not open. The
+ * client that waits sets a hosted issue much sooner. A hosted machine restored its disk in 18 minutes.
+ */
+const RESTART_LIMIT_SECONDS = 30 * 60;
 
 /**
  * Asks before the owner or an admin restarts a hosted server, then shows the restart until the server
@@ -106,8 +109,8 @@ export function RestartServerDialog(props: {
   }
 
   /**
-   * The server goes offline when it stops, and comes back online when it starts again. A server that
-   * sends no result fails at the start limit.
+   * The server goes offline when it stops, and comes back online when it starts again. The client that
+   * waits for the start sets a hosted issue when the start fails or takes too long.
    */
   function follow(server: Pick<RestartServer, "state" | "hostedIssue"> | null): void {
     if (!requestDone || !restarting() || !server) return;

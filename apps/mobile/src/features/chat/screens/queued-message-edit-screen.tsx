@@ -4,7 +4,9 @@ import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ImagePlus, Paperclip, X } from "lucide-react-native";
+import ImagePlus from "lucide-react-native/icons/image-plus";
+import Paperclip from "lucide-react-native/icons/paperclip";
+import X from "lucide-react-native/icons/x";
 import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import {

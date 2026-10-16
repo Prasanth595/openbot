@@ -90,6 +90,7 @@ export const messages = defineMessages("error.remote", {
   "error.remote.fileTransportStopped": "The WebRTC file transport stopped.",
   "error.remote.fileResumeExpired": "The WebRTC file transfer resume deadline expired.",
   "error.remote.hostRequestFailed": "The host could not complete the request.",
+  "error.remote.responseTooLarge": "The reply from the host is too large to send to this device.",
   "error.remote.sessionNotReady": "The remote session is not ready.",
   "error.remote.peerDisconnected": "The WebRTC peer disconnected.",
   "error.remote.tooManyStreams": "Too many host streams are open.",

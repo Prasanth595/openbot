@@ -1,13 +1,15 @@
 import { GlassView } from "expo-glass-effect";
 import { Link, router } from "expo-router";
 import { Typography } from "heroui-native";
-import { ArrowLeft, Globe } from "lucide-react-native";
+import ArrowLeft from "lucide-react-native/icons/arrow-left";
+import Globe from "lucide-react-native/icons/globe";
 import { Pressable, View, type ViewStyle } from "react-native";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { BlurReveal } from "@/shared/components/blur-reveal";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
@@ -36,7 +38,7 @@ export function ChatHeader({
 }: ChatHeaderProps) {
   const { t } = useText();
   const { servers, browserViewSupport } = useMobileWorkspace();
-  const disconnected = !servers.some((server) => server.id === target.serverId && server.state === "online");
+  const disconnected = !servers.some((server) => server.id === target.serverId && showsOnline(server));
   const browserAllowed = useBrowserFeature();
   // The agent's browser on the host, live. The button shows when the agent has no tab yet too: the
   // browser screen opens a new one. A host that cannot stream a tab, or an app version the account

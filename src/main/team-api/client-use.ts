@@ -7,6 +7,7 @@ import {
 } from "@openbot/contracts/team-protocol/agent-memories-v1";
 import { AGENT_PUBLISH_ROUTES } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
+import { FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { HOST_MEMBER_UPDATE_ROUTES } from "@openbot/contracts/team-protocol/host-member-update-v1";
 import { HOST_RELEASE_ROUTES } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOST_TIMEZONE_ROUTES } from "@openbot/contracts/team-protocol/host-timezone-v1";
@@ -58,6 +59,8 @@ const PASSIVE_ROUTES: ReadonlySet<string> = new Set([
   PROVIDERS_ADMIN_ROUTES.customList,
   PROVIDERS_ADMIN_ROUTES.runtimesStatus,
   PROVIDERS_RUNTIMES_V2_ROUTES.runtimesStatus,
+  // A focused app counts as use only for a limited time: `TeamApiServer` records it on its own.
+  FOCUS_USE_ROUTES.ping,
 ]);
 
 /** A client opens a conversation and the app marks it read, or a member marks it unread. */

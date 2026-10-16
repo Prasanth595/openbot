@@ -24,6 +24,7 @@ import { CONNECTORS_CAPABILITY } from "./connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CAPABILITY } from "./conversation-file-search-v1";
 import { EVENTS_CAPABILITY } from "./events-v1";
+import { FOCUS_USE_CAPABILITY } from "./focus-use-v1";
 import { TEAM_HISTORY_EXTENT_CAPABILITY } from "./history-extent-v1";
 import { HOST_ADMIN_CAPABILITY } from "./host-admin-v1";
 import { HOST_MEMBER_UPDATE_CAPABILITY } from "./host-member-update-v1";
@@ -93,6 +94,7 @@ export {
   CONTEXT_RESET_CAPABILITY,
   CONVERSATION_FILE_SEARCH_CAPABILITY,
   EVENTS_CAPABILITY,
+  FOCUS_USE_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
@@ -203,6 +205,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   ONEPASSWORD_CONNECTOR_CAPABILITY,
   HOST_TIMEZONE_CAPABILITY,
   ROUTINE_RECOVERY_CAPABILITY,
+  FOCUS_USE_CAPABILITY,
 ] as const;
 
 export type TeamCurrentCapability = (typeof TEAM_CURRENT_CAPABILITIES)[number];
@@ -289,7 +292,8 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
     capability !== HOST_TIMEZONE_CAPABILITY &&
     capability !== ROUTINE_RECOVERY_CAPABILITY &&
-    capability !== INSTANCE_TRANSFER_CAPABILITY,
+    capability !== INSTANCE_TRANSFER_CAPABILITY &&
+    capability !== FOCUS_USE_CAPABILITY,
 );
 export function teamCapabilitiesForProtocol(protocol: number | null | undefined): readonly TeamCurrentCapability[] {
   return protocol !== null && protocol !== undefined && protocol >= 7
@@ -317,6 +321,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== ONEPASSWORD_CONNECTOR_CAPABILITY &&
       capability !== HOST_TIMEZONE_CAPABILITY &&
       capability !== ROUTINE_RECOVERY_CAPABILITY &&
-      capability !== INSTANCE_TRANSFER_CAPABILITY,
+      capability !== INSTANCE_TRANSFER_CAPABILITY &&
+      capability !== FOCUS_USE_CAPABILITY,
   );
 }

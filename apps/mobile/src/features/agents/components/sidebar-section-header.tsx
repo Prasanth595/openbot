@@ -3,7 +3,8 @@ import type { SidebarLayoutAction } from "@openbot/contracts/ipc";
 import { router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ChevronRight, Ellipsis } from "lucide-react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Ellipsis from "lucide-react-native/icons/ellipsis";
 import { memo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
@@ -12,6 +13,7 @@ import {
   useMobileWorkspaceReader,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
@@ -34,7 +36,7 @@ export const SidebarSectionHeader = memo(function SidebarSectionHeader({
   const { t } = useText();
   const workspace = useMobileWorkspaceReader();
   const serverId = useMobileWorkspaceSelector(({ activeServer }) => activeServer.id);
-  const online = useMobileWorkspaceSelector(({ activeServer }) => activeServer.state === "online");
+  const online = useMobileWorkspaceSelector(({ activeServer }) => showsOnline(activeServer));
   const layout = useMobileWorkspaceSelector(
     ({ activeServer, sidebarByServer }) => sidebarByServer[activeServer.id]?.layout,
   );

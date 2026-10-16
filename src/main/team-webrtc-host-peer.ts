@@ -116,8 +116,9 @@ export class TeamWebRtcHostPeer {
   readonly #verifyClientTicket:
     | ((ticket: string) => Effect.Effect<VerifiedRemoteSessionTicket, RemoteWorkflowError>)
     | null;
-  readonly #responses = new Map<string, TeamProtocolV2RpcFrame>();
-  readonly #responsesInFlight = new Map<string, Fiber.Fiber<TeamProtocolV2RpcFrame, RemoteWorkflowError>>();
+  /** Encoded response frames, so a retry sends the same bytes and an oversized result is not kept. */
+  readonly #responses = new Map<string, string>();
+  readonly #responsesInFlight = new Map<string, Fiber.Fiber<string, RemoteWorkflowError>>();
   readonly #events = new Map<number, string>();
   #peerCapabilities = new Set<string>();
   #peerId: string | null = null;
@@ -483,7 +484,7 @@ export class TeamWebRtcHostPeer {
     });
     const cached = this.#responses.get(request.requestId);
     if (cached) {
-      yield* HostPeerTransport.use((transport) => transport.send(peerId, "rpc", encodeTeamProtocolV2Frame(cached)));
+      yield* HostPeerTransport.use((transport) => transport.send(peerId, "rpc", cached));
       return;
     }
     const sessionId = this.#localSessionId;
@@ -492,6 +493,7 @@ export class TeamWebRtcHostPeer {
     if (!responseOperation) {
       responseOperation = yield* Effect.forkIn(
         this.#createRpcResponse(request).pipe(
+          Effect.map(encodeRpcResponse),
           Effect.tap((response) =>
             Effect.sync(() => {
               if (this.#localSessionId === sessionId) {
@@ -512,7 +514,7 @@ export class TeamWebRtcHostPeer {
     }
     const response = yield* Fiber.join(responseOperation);
     if (this.#peerId !== peerId || this.#localSessionId !== sessionId) return;
-    yield* HostPeerTransport.use((transport) => transport.send(peerId, "rpc", encodeTeamProtocolV2Frame(response)));
+    yield* HostPeerTransport.use((transport) => transport.send(peerId, "rpc", response));
   });
 
   readonly #createRpcResponse = Effect.fn("TeamHostPeer.createRpcResponse")(function* (
@@ -1043,6 +1045,28 @@ function isHttpRequest(value: TeamProtocolV2Json): value is TeamProtocolV2Json &
     (value.bodyTransferId === undefined || isString(value.bodyTransferId)) &&
     (value.contentType === undefined || isString(value.contentType))
   );
+}
+
+/**
+ * A response larger than one JSON frame cannot be sent. The client gets an error for its request and
+ * the connection stays open: a dropped connection makes the client reconnect and ask again.
+ */
+function encodeRpcResponse(response: TeamProtocolV2RpcFrame): string {
+  try {
+    return encodeTeamProtocolV2Frame(response);
+  } catch {
+    return encodeTeamProtocolV2Frame({
+      version: 2,
+      type: "response",
+      requestId: response.requestId,
+      error: {
+        code: "response_too_large",
+        message: sourceText("error.remote.responseTooLarge"),
+        retryable: false,
+        status: 413,
+      },
+    });
+  }
 }
 
 function deleteOldest<Key, Value>(values: Map<Key, Value>): void {

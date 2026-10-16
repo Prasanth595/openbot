@@ -6,6 +6,8 @@ export const messages = defineMessages("server", {
   "server.connection.startTimeout": "{name} did not start in time",
   "server.connection.sleeping": "{name} is asleep",
   "server.connection.waking": "Starting {name}",
+  "server.connection.startProgress": "{step} · {time}",
+  "server.connection.providerLimit": "The cloud provider limits new starts now. OpenBot tries again soon.",
   "server.connection.updating": "Updating {name}",
   "server.connection.loading": "Loading {name}",
   "server.connection.connecting": "Connecting to {name}",

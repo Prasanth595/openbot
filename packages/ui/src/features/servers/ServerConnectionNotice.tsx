@@ -1,4 +1,4 @@
-import type { HostedServerIssue } from "@openbot/contracts/ipc";
+import type { HostedServerIssue, HostedServerStart } from "@openbot/contracts/ipc";
 import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { Button } from "../../button";
 import { ErrorReference } from "../../error-reference";
@@ -21,6 +21,8 @@ export interface ServerConnectionNoticeProps {
   phase: ServerWorkspacePhase;
   initial: boolean;
   issue?: HostedServerIssue | null;
+  /** The step of a hosted start, shown with its time while the phase is `waking`. */
+  start?: HostedServerStart | null;
   remainingSeconds?: number;
   busy?: boolean;
   detail?: string | null;
@@ -65,7 +67,28 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
         return t("server.connection.reconnecting", { name: props.name });
     }
   };
+  const [now, setNow] = createSignal(Date.now());
+  createEffect(
+    () => props.phase === "waking" && !props.issue && Boolean(props.start),
+    (counting) => {
+      if (!counting) return;
+      setNow(Date.now());
+      const clock = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(clock);
+    },
+  );
+  const startProgress = () => {
+    const start = props.start;
+    if (props.phase !== "waking" || props.issue || !start) return null;
+    const step =
+      start.step === "provider_limit"
+        ? t("server.connection.providerLimit")
+        : t(start.step === "openbot" ? "server.hosted.detail.start.app" : "server.hosted.detail.start.boot");
+    const seconds = Math.max(0, Math.floor((now() - start.startedAt) / 1000));
+    return t("server.connection.startProgress", { step, time: formatElapsed(seconds) });
+  };
   const detail = () =>
+    startProgress() ??
     props.detail ??
     (props.remainingSeconds
       ? t("server.connection.nextRetry", { seconds: props.remainingSeconds })
@@ -130,6 +153,10 @@ export function ServerConnectionNotice(props: ServerConnectionNoticeProps) {
       />
     </Show>
   );
+}
+
+function formatElapsed(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 // A history that loads faster than this does not cover the chat, so a fast switch does not flash.

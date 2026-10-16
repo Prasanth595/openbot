@@ -7,6 +7,9 @@ export const messages = {
   "server.connection.startTimeout": "{name} が時間内に起動しませんでした",
   "server.connection.sleeping": "{name} はスリープ中です",
   "server.connection.waking": "{name} を起動しています",
+  "server.connection.startProgress": "{step} · {time}",
+  "server.connection.providerLimit":
+    "クラウドプロバイダーが現在新しい起動を制限しています。OpenBot はまもなく再試行します。",
   "server.connection.updating": "{name} を更新しています",
   "server.connection.loading": "{name} を読み込んでいます",
   "server.connection.connecting": "{name} に接続しています",

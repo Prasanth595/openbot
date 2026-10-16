@@ -68,6 +68,8 @@ export const messages = {
     "このサーバーはルーティンフローに対応していません。サーバーを実行しているコンピュータの OpenBot を更新してください。",
   "error.team.routineCanvasTooLarge":
     "このルーティンキャンバスは大きすぎるため、このデバイスに送信できません。サーバーを実行しているコンピュータでルーティンの指示を短くしてください。",
+  "error.team.conversationPageTooLarge":
+    "この会話のメッセージは大きすぎるため、このデバイスに送信できません。サーバーを実行しているコンピュータで会話を開いてください。",
   "error.team.agentImportUnsupported": "この接続ではエージェントをインポートできません。",
   "error.team.liveActivityUnsupported": "このホストはスマートフォンのライブアクティビティを更新できません。",
   "error.team.pushNotificationsUnsupported": "このホストはスマートフォンに通知を送信できません。",

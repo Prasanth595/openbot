@@ -1,6 +1,6 @@
 import { blockChatMath, chatMathBlockStart, chatMathStart, inlineChatMath } from "@openbot/contracts/chat-math";
 import { chatTagReferences } from "@openbot/contracts/chat-tag-references";
-import { Marked } from "marked";
+import { Marked, type Token, type TokensList } from "marked";
 
 const markdown = new Marked({
   gfm: true,
@@ -37,8 +37,76 @@ const markdown = new Marked({
   ],
 });
 
-export function parseChatMarkdown(body: string) {
+function parseChatMarkdown(body: string): TokensList {
   return markdown.lexer(body);
+}
+
+const MAX_STREAMING_BODIES = 8;
+const REPARSED_BLOCKS = 2;
+const ENDED_BY_BLANK_LINE = new Set(["paragraph", "heading", "hr", "table", "blockquote", "html", "code", "blockMath"]);
+const LINK_DEFINITION = /^ {0,3}\[[^\]\n]+\]:/m;
+const INLINE_STATE_TAG = /<\/?(?:a|pre|code|kbd|script)[\s>]/i;
+const streamingBodies: { body: string; tokens: TokensList }[] = [];
+
+function rawLength(tokens: readonly Token[]): number {
+  return tokens.reduce((length, token) => length + token.raw.length, 0);
+}
+
+/**
+ * The tokens that text added at the end cannot change: those before a blank line that ends its
+ * block, with at least the last two blocks after it. A list or indented code goes on after a blank line.
+ */
+function settledLength(tokens: readonly Token[]): number {
+  let blocks = 0;
+  for (let index = tokens.length - 1; index > 0; index -= 1) {
+    if (tokens[index]?.type !== "space") {
+      blocks += 1;
+      continue;
+    }
+    const before = tokens[index - 1];
+    if (
+      blocks >= REPARSED_BLOCKS &&
+      before &&
+      ENDED_BY_BLANK_LINE.has(before.type) &&
+      !(before.type === "code" && before.codeBlockStyle === "indented")
+    )
+      return index + 1;
+  }
+  return 0;
+}
+
+/**
+ * The tokens of a reply that still streams. A chunk adds text at the end, so the settled blocks
+ * keep their tokens and only the rest is parsed again. The lexer reads link definitions
+ * and the start of a math block in the whole body, and an inline link or raw HTML tag sets state
+ * that the next blocks read, so a body with one of them is parsed in full.
+ */
+export function parseStreamingChatMarkdown(body: string): TokensList {
+  let index = -1;
+  for (const [candidate, entry] of streamingBodies.entries()) {
+    if (body.startsWith(entry.body) && (index < 0 || entry.body.length > (streamingBodies[index]?.body.length ?? 0)))
+      index = candidate;
+  }
+  const previous = index >= 0 ? streamingBodies.splice(index, 1)[0] : undefined;
+  const tokens = previous ? continueParse(body, previous) : parseChatMarkdown(body);
+  if (streamingBodies.length >= MAX_STREAMING_BODIES) streamingBodies.shift();
+  streamingBodies.push({ body, tokens });
+  return tokens;
+}
+
+function continueParse(body: string, previous: { body: string; tokens: TokensList }): TokensList {
+  if (body === previous.body) return previous.tokens;
+  if (
+    body.includes("\r") ||
+    LINK_DEFINITION.test(body) ||
+    chatMathBlockStart(body) !== undefined ||
+    rawLength(previous.tokens) !== previous.body.length
+  )
+    return parseChatMarkdown(body);
+  const stable = previous.tokens.slice(0, settledLength(previous.tokens));
+  if (stable.some((token) => INLINE_STATE_TAG.test(token.raw))) return parseChatMarkdown(body);
+  const rest = parseChatMarkdown(body.slice(rawLength(stable)));
+  return Object.assign([...stable, ...rest], { links: rest.links });
 }
 
 const MAX_CACHED_BODIES = 300;
@@ -47,7 +115,7 @@ const parsedBodies = new Map<string, ReturnType<typeof parseChatMarkdown>>();
 /**
  * The tokens of a finished message, parsed once for the app run rather than each time its chat
  * opens. The renderers only read the tokens. A streaming reply changes on each chunk, so it uses
- * `parseChatMarkdown` and does not fill the cache.
+ * `parseStreamingChatMarkdown` and does not fill the cache.
  */
 export function parseFinishedChatMarkdown(body: string) {
   const cached = parsedBodies.get(body);

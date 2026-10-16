@@ -84,6 +84,11 @@ export interface MobileServer {
   /** The last failed connection step and its code, until the server is online again. */
   connectionFailure?: RemoteConnectionFailure | null;
   recoveryStatus?: RemoteRecoveryStatus;
+  /**
+   * The server was online when the app left, and the first attempt after the return still runs in
+   * its quiet time. The app shows the server as online, and a request waits for the connection.
+   */
+  resuming?: boolean;
   address: string | null;
   accent: string;
   publicKey: string;
@@ -300,6 +305,11 @@ export interface MobileWorkspaceContextValue {
   setAgentProviderAccount: (input: SetAgentProviderAccountInput, serverId: string) => Promise<void>;
   /** True when the host advertises `context-reset-v1`. Any member can start a new chat. */
   canStartNewChat: (serverId: string) => boolean;
+  /**
+   * True when the host advertises `agent-create-model`: a new agent can start on a chosen provider
+   * and model. Without it, the host drops the choice and starts its own default.
+   */
+  canChooseNewAgentModel: (serverId: string) => boolean;
   /** The agent forgets the messages before it. The host refuses while the agent works. */
   loadAgentSessionSettings: (agentId: string, serverId: string) => Promise<AgentSessionSettings | null>;
   setAgentSessionSetting: (input: SetAgentSessionSettingInput, serverId: string) => Promise<AgentSessionSettings>;

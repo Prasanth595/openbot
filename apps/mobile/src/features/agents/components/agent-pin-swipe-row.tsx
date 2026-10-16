@@ -1,6 +1,7 @@
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Pin, PinOff } from "lucide-react-native";
+import Pin from "lucide-react-native/icons/pin";
+import PinOff from "lucide-react-native/icons/pin-off";
 import type { PropsWithChildren } from "react";
 import { Pressable, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";

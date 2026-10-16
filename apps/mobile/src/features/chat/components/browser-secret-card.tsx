@@ -2,7 +2,10 @@ import type { BrowserTakeoverRequest, RespondToBrowserSecretInput } from "@openb
 import { GlassView } from "expo-glass-effect";
 import { Button, Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ArrowUp, Globe, KeyRound, X } from "lucide-react-native";
+import ArrowUp from "lucide-react-native/icons/arrow-up";
+import Globe from "lucide-react-native/icons/globe";
+import KeyRound from "lucide-react-native/icons/key-round";
+import X from "lucide-react-native/icons/x";
 import { type ReactNode, useState } from "react";
 import { Pressable, TextInput, View, type ViewStyle } from "react-native";
 import { haptics } from "@/shared/lib/haptics";

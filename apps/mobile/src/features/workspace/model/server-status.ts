@@ -10,10 +10,20 @@ const LABELS = {
   error: "mobile.workspace.status.error",
 } as const satisfies Record<MobileServerState, MobileTextKey>;
 
+/**
+ * What the screens show: online, also while a return to the app connects again quietly. Actions
+ * can use it too, because a request then waits for the connection. Code that needs the live
+ * connection itself, such as the outbox or the browser view, reads `state`.
+ */
+export function showsOnline(server: Pick<MobileServer, "state" | "resuming"> | undefined): boolean {
+  return server?.state === "online" || server?.resuming === true;
+}
+
 export function serverStatusLabel(
-  server: Pick<MobileServer, "state" | "initialConnectionPending">,
+  server: Pick<MobileServer, "state" | "initialConnectionPending" | "resuming">,
   t: MobileTranslate,
 ): string {
+  if (showsOnline(server)) return t(LABELS.online);
   if (server.state === "connecting" && !server.initialConnectionPending) return t(LABELS.offline);
   return t(LABELS[server.state]);
 }
@@ -23,6 +33,7 @@ export function applyServerRecovery(
   status: RemoteRecoveryStatus,
   failure: string | null,
   details: RemoteConnectionFailure | null = null,
+  resuming = false,
 ): MobileServer {
   const state: MobileServerState =
     status.phase === "online"
@@ -38,8 +49,24 @@ export function applyServerRecovery(
     connectionMessage: remoteRecoveryMessage(status, failure),
     connectionFailure: status.phase === "online" ? null : details,
     recoveryStatus: status,
+    resuming: resuming && state !== "online",
     initialConnectionPending: server.initialConnectionPending && state === "connecting",
   };
+}
+
+/** True when `next` differs from `server` only in the recovery countdown. */
+export function sameServerRecovery(server: MobileServer, next: MobileServer): boolean {
+  const previous = server.recoveryStatus;
+  const status = next.recoveryStatus;
+  return (
+    previous?.phase === status?.phase &&
+    previous?.attempt === status?.attempt &&
+    server.state === next.state &&
+    server.resuming === next.resuming &&
+    server.initialConnectionPending === next.initialConnectionPending &&
+    server.connectionFailure?.message === next.connectionFailure?.message &&
+    server.connectionFailure?.reference === next.connectionFailure?.reference
+  );
 }
 
 /** A lost connection reports attempt 0 while its first attempt is due; show that attempt. */

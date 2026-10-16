@@ -2,7 +2,7 @@ import type { StorageCategory, StorageUsage, StoredFileRow } from "@openbot/cont
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Trash2 } from "lucide-react-native";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import { useState } from "react";
 import { Alert, Pressable } from "react-native";
 import { showFailureAlert } from "@/features/analytics/failure-reports";

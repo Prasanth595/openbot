@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Typography } from "heroui-native";
-import { Reply } from "lucide-react-native";
+import Reply from "lucide-react-native/icons/reply";
 import { memo, useEffect, useId, useRef, useState } from "react";
 import { type ColorValue, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, {

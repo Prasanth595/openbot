@@ -175,6 +175,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
                   name={activeServer()?.name ?? ""}
                   initial={!scope.connection.hasContent}
                   issue={activeServer()?.hostedIssue ?? null}
+                  start={activeServer()?.hostedStart ?? null}
                   detail={connectionFailure()?.message ?? null}
                   reference={connectionFailure()?.reference ?? null}
                   updateVersion={activeServer()?.hostRestart?.version ?? null}

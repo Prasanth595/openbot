@@ -12,7 +12,7 @@ import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Pencil } from "lucide-react-native";
+import Pencil from "lucide-react-native/icons/pencil";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { AgentAccessFields, useAgentAdminSettings } from "@/features/agents/components/agent-access-fields";
@@ -32,6 +32,7 @@ import {
   type MobileServer,
   useMobileWorkspace,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
@@ -76,9 +77,7 @@ export function EditAgentScreen({ page = "info" }: { page?: AgentPage }) {
   if (agent) lastAgent.current = agent;
   const displayed = agent ?? lastAgent.current;
   if (displayed) {
-    return (
-      <AgentForm agent={displayed} host={host} available={Boolean(agent && host?.state === "online")} page={page} />
-    );
+    return <AgentForm agent={displayed} host={host} available={Boolean(agent && showsOnline(host))} page={page} />;
   }
   return (
     <SheetScrollView className="bg-sheet" contentContainerClassName="p-5 pb-safe-offset-5">
@@ -344,7 +343,7 @@ function AgentForm({
       ) : null}
       {page === "runtime" ? (
         <AgentRuntimeFields
-          agent={agent}
+          serverId={agent.serverId}
           available={available}
           saving={saving}
           provider={provider}

@@ -15,7 +15,7 @@ import { setLiveActivityNavigator } from "@/features/live-activity/model/live-ac
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
 import type { QuickActionTarget } from "@/features/quick-actions/model/quick-action-items";
 import { setQuickActionNavigator } from "@/features/quick-actions/quick-actions-native";
-import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
+import { AppDrawerShell, useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -31,6 +31,7 @@ function AuthenticatedStack() {
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
   const [navigationGate] = useState(createChatNavigationGate);
+  const { closeDrawer } = useAppDrawer();
   const { agentId: openAgentId } = useGlobalSearchParams<{ agentId?: string }>();
   const openChat = useRef<string | null>(null);
   openChat.current = segments.at(-2) === "chat" && typeof openAgentId === "string" ? openAgentId : null;
@@ -39,6 +40,7 @@ function AuthenticatedStack() {
   /** Opens a chat, or the chat list for `null`, from a Live Activity or a notification. */
   const openFromOutside = useCallback(
     (agentId: string | null) => {
+      closeDrawer();
       // Opening the chat that shows already would mount it again and load it again.
       if (agentId !== null && openChat.current === agentId) return;
       // The chat opens on top of the main screen, so Back returns there and not to an earlier chat.
@@ -53,7 +55,7 @@ function AuthenticatedStack() {
         () => onChatList.current,
       );
     },
-    [navigationGate],
+    [closeDrawer, navigationGate],
   );
   /** Opens the screen of a quick action of the app icon, on top of the main screen. */
   const openQuickAction = useCallback(
@@ -62,6 +64,7 @@ function AuthenticatedStack() {
         openFromOutside(target.agentId);
         return;
       }
+      closeDrawer();
       if (router.canDismiss()) router.dismissAll();
       navigationGate.request(
         () =>
@@ -71,7 +74,7 @@ function AuthenticatedStack() {
         () => onChatList.current,
       );
     },
-    [navigationGate, openFromOutside],
+    [closeDrawer, navigationGate, openFromOutside],
   );
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
   useEffect(() => setQuickActionNavigator(openQuickAction), [openQuickAction]);

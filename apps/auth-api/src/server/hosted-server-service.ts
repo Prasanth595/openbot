@@ -50,6 +50,12 @@ const CLAIM_TTL_MS = 60 * 60_000;
 const CLAIM_REDEEM_RETRY_MS = 10 * 60_000;
 /** The cron asks the provider about a server that has been in a transition state this long. */
 const STUCK_AFTER_MS = 2 * 60_000;
+/**
+ * A start that boat refused with a rate limit is sent again after a delay. The delay is the time from the
+ * wake to the last refusal, within these limits, so it doubles with each refusal.
+ */
+const RATE_LIMIT_RETRY_MIN_MS = 30_000;
+const RATE_LIMIT_RETRY_MAX_MS = 5 * 60_000;
 /** boat retries a delivery for hours, so a delivery ID is kept longer than the 5 minute replay window. */
 const DELIVERY_RETENTION_MS = 7 * 24 * 60 * 60_000;
 const MAX_SERVERS_PER_ACCOUNT = 50;
@@ -1217,12 +1223,27 @@ export class HostedServerService {
           .all<HostedServerRow>(),
       );
       result.restarted = yield* run(stopped.results, (row) => this.#wake(row, "restart"));
+      // A start that boat refused with a rate limit, when no client wake sent it again and its delay ended
+      // (`rateLimitRetryAt`). A provider refresh would see the stopped sandbox and mark the server `stopped`.
+      const rateLimited = yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT ${ROW_COLUMNS} FROM hosted_servers
+         WHERE desired_state = 'running' AND provider_sandbox_id IS NOT NULL AND observed_state = 'waking'
+           AND observed_error = 'provider_limit'
+           AND updated_at + MIN(?, MAX(?, updated_at - COALESCE(provider_event_at, updated_at))) <= ? LIMIT ?`,
+          )
+          .bind(RATE_LIMIT_RETRY_MAX_MS, RATE_LIMIT_RETRY_MIN_MS, now, TICK_BATCH_SIZE)
+          .all<HostedServerRow>(),
+      );
+      result.restarted += yield* run(rateLimited.results, (row) => this.#wake(row, "restart"));
       const stuck = yield* hostedCall(() =>
         dependencies.database
           .prepare(
             `SELECT ${ROW_COLUMNS} FROM hosted_servers
          WHERE desired_state != 'deleted' AND provider_sandbox_id IS NOT NULL
-           AND observed_state IN ('starting', 'stopping', 'waking') AND updated_at <= ? LIMIT ?`,
+           AND observed_state IN ('starting', 'stopping', 'waking')
+           AND NOT (observed_state = 'waking' AND observed_error IS 'provider_limit') AND updated_at <= ? LIMIT ?`,
           )
           .bind(now - STUCK_AFTER_MS, TICK_BATCH_SIZE)
           .all<HostedServerRow>(),
@@ -2002,8 +2023,15 @@ export class HostedServerService {
   ): Effect.fn.Return<void, HostedFailure, HostedServerDependencies> {
     const dependencies = yield* HostedServerDependencies;
     const now = dependencies.now();
+    const rateLimited = isRateLimitedStart(row);
+    if (rateLimited && now < rateLimitRetryAt(row)) return;
     // A stopping server starts again when the provider reports that it stopped.
-    if (row.observed_state !== "stopped" && !(row.observed_state === "error" && row.provider_sandbox_id)) return;
+    if (
+      !rateLimited &&
+      row.observed_state !== "stopped" &&
+      !(row.observed_state === "error" && row.provider_sandbox_id)
+    )
+      return;
     // A VM that never signed in, or whose session the owner revoked, has its claim in its env file. The
     // claim works again for this start.
     const secret = yield* this.#claimKey();
@@ -2012,16 +2040,21 @@ export class HostedServerService {
     const waking = yield* hostedCall(() =>
       dependencies.database
         .prepare(
-          `UPDATE hosted_servers SET observed_state = 'waking', observed_error = NULL,
-           last_wake_reason = ?, provider_event_at = ?, last_active_at = ?, lease_until = ?,
+          // A retry after a rate limit keeps the error, so clients still show it, and the reason and time of
+          // the wake, which set the next delay. Its `updated_at` check lets only one caller send the retry.
+          `UPDATE hosted_servers SET observed_state = 'waking', observed_error = ?,
+           last_wake_reason = CASE WHEN ? = 1 THEN last_wake_reason ELSE ? END, provider_event_at = ?,
+           last_active_at = ?, lease_until = ?,
            claim_token_hash = CASE WHEN ${CLAIM_OPEN_SQL} THEN ? ELSE claim_token_hash END,
            claim_expires_at = CASE WHEN ${CLAIM_OPEN_SQL} THEN ? ELSE claim_expires_at END,
            updated_at = ?
-         WHERE server_id = ? AND observed_state = ? AND desired_state = 'running'`,
+         WHERE server_id = ? AND observed_state = ? AND desired_state = 'running' AND (? = 0 OR updated_at = ?)`,
         )
         .bind(
+          rateLimited ? row.observed_error : null,
+          rateLimited ? 1 : 0,
           reason,
-          now,
+          rateLimited ? row.provider_event_at : now,
           now,
           now + LEASE_TTL_SECONDS * 1000,
           claimHash,
@@ -2029,11 +2062,13 @@ export class HostedServerService {
           now,
           row.server_id,
           row.observed_state,
+          rateLimited ? 1 : 0,
+          row.updated_at,
         )
         .run(),
     );
     if (waking.meta.changes !== 1) return;
-    if (reason !== "create") {
+    if (reason !== "create" && !rateLimited) {
       this.#track(row, { name: "hosted_server_action", action: "woken", plan: row.plan, size: row.size, reason });
     }
     yield* this.#resume(row);
@@ -2067,12 +2102,33 @@ export class HostedServerService {
         return yield* this.#resume({ ...row, pending_size: null });
       }
       // 409: the provider already resumes or runs it; the webhook or the cron reports the result. boat
-      // kept its old stop time, so the next activity sets a new one.
+      // kept its old stop time, so the next activity sets a new one. A rate limit no longer applies, so the
+      // cron reads the provider when the webhook does not come.
       if (error instanceof BoatApiError && error.status === 409) {
         yield* hostedCall(() =>
           dependencies.database
-            .prepare("UPDATE hosted_servers SET lease_until = NULL WHERE server_id = ?")
+            .prepare(
+              `UPDATE hosted_servers SET lease_until = NULL,
+               observed_error = CASE WHEN observed_state = 'waking' AND observed_error = 'provider_limit'
+                 THEN NULL ELSE observed_error END
+             WHERE server_id = ?`,
+            )
             .bind(row.server_id)
+            .run(),
+        );
+        return;
+      }
+      // 429: boat refuses starts for a short time. The server stays `waking`, so clients keep waiting, and
+      // the next client wake or the cron sends the start again after a delay (`rateLimitRetryAt`).
+      if (error instanceof BoatApiError && error.status === 429) {
+        console.warn("Hosted server start rate limited.", { serverId: row.server_id, error: safeErrorCode(error) });
+        yield* hostedCall(() =>
+          dependencies.database
+            .prepare(
+              `UPDATE hosted_servers SET observed_error = 'provider_limit', lease_until = NULL, updated_at = ?
+             WHERE server_id = ? AND observed_state = 'waking'`,
+            )
+            .bind(dependencies.now(), row.server_id)
             .run(),
         );
         return;
@@ -2087,6 +2143,17 @@ export class HostedServerService {
           .run(),
       );
       return yield* error;
+    }
+    if (row.observed_error === "provider_limit") {
+      yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `UPDATE hosted_servers SET observed_error = NULL, updated_at = ?
+           WHERE server_id = ? AND observed_state = 'waking' AND observed_error = 'provider_limit'`,
+          )
+          .bind(dependencies.now(), row.server_id)
+          .run(),
+      );
     }
     if (size) {
       yield* hostedCall(() =>
@@ -2402,6 +2469,16 @@ function providerError(error: unknown): HostedServerError {
   }
   if (error.status === 429 || error.code === "trial_machine_class_not_allowed") return "provider_limit";
   return "provider_error";
+}
+
+/** A start that boat refused with a rate limit (`#resume`). It waits for a retry. */
+function isRateLimitedStart(row: HostedServerRow): boolean {
+  return row.observed_state === "waking" && row.observed_error === "provider_limit";
+}
+
+function rateLimitRetryAt(row: HostedServerRow): number {
+  const waited = row.updated_at - (row.provider_event_at ?? row.updated_at);
+  return row.updated_at + Math.min(RATE_LIMIT_RETRY_MAX_MS, Math.max(RATE_LIMIT_RETRY_MIN_MS, waited));
 }
 
 function safeErrorCode(error: unknown): string {

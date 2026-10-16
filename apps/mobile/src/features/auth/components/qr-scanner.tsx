@@ -4,7 +4,8 @@ import { useIsFocused } from "expo-router/react-navigation";
 import { StatusBar } from "expo-status-bar";
 import { Alert, Button, Card, Spinner, Surface } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Camera, ScanLine } from "lucide-react-native";
+import Camera from "lucide-react-native/icons/camera";
+import ScanLine from "lucide-react-native/icons/scan-line";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { AppState, Linking, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 
