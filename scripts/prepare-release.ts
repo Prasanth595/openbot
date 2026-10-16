@@ -40,7 +40,7 @@ const DESKTOP: ReleaseTarget = {
   fragmentDir: FRAGMENT_DIR,
   versionFiles: ["package.json"],
   inReview: false,
-  next: "commit package.json, CHANGELOG.md and changelog.d, push, run preflight, then tag it",
+  next: "write the Discord highlights in .github/release-announcement.json (docs/RELEASING.md#discord-announcement), commit package.json, CHANGELOG.md, changelog.d and the announcement, push, run preflight, then tag it",
 };
 
 const MOBILE: ReleaseTarget = {

@@ -80,6 +80,7 @@ jobs:
             exit 1
           fi
           bun scripts/check-release-notes.ts
+          bun scripts/discord-release-announcement.ts check "$package_version"
           echo "version=$package_version" >> "$GITHUB_OUTPUT"
           echo "tag=v$package_version" >> "$GITHUB_OUTPUT"
 
@@ -1032,6 +1033,35 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "OpenBot $RELEASE_TAG"
           fi
+
+  # Posts the highlights of `.github/release-announcement.json`, which the `validate` job checked, as
+  # OpenBot through a channel webhook (docs/RELEASING.md#discord-announcement). A failure here does
+  # not undo the release: re-run this job. A re-run after a success posts the message again.
+  discord-announce:
+    name: Announce the release on Discord
+    needs: [validate, publish]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          install: none
+
+      - name: Post the announcement
+        env:
+          DISCORD_RELEASE_WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.release_version }}
+        run: bun scripts/discord-release-announcement.ts send "$RELEASE_VERSION"
 
   hosted-release:
     name: Publish boat server snapshot

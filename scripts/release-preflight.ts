@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { createOpenBotLogger } from "@openbot/logging";
+import { ANNOUNCEMENT_FILE, announcementProblems } from "./discord-release-announcement";
 import { releaseNotesProblems } from "./release-notes";
 
 const logger = createOpenBotLogger("release-preflight");
@@ -15,6 +16,7 @@ const failures: string[] = [];
 
 if (!/^\d+\.\d+\.\d+$/.test(packageJson.version)) failures.push("package version is not semver");
 failures.push(...releaseNotesProblems(changelog, packageJson.version));
+failures.push(...announcementProblems(await readFile(ANNOUNCEMENT_FILE, "utf8"), packageJson.version));
 if (run("git", ["status", "--porcelain"])) failures.push("working tree is not clean");
 if (run("git", ["rev-list", "--left-right", "--count", "origin/main...HEAD"]) !== "0\t0") {
   failures.push("main is not synchronized with origin/main");
@@ -38,6 +40,7 @@ for (const name of [
   "APPLE_APP_SPECIFIC_PASSWORD",
   "APPLE_TEAM_ID",
   "MAC_PROVISIONING_PROFILE",
+  "DISCORD_RELEASE_WEBHOOK_URL",
 ]) {
   if (!releaseSecrets.split("\n").some((line) => line.startsWith(`${name}\t`))) {
     failures.push(`GitHub release secret ${name} is missing`);
