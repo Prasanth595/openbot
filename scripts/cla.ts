@@ -5,7 +5,9 @@
 //
 // The author of the pull request and each commit author must sign. Bots, organization members and
 // users with write access skip the check, as in `contribution-policy.ts`. The author of the pull
-// request signs with the agreement box that TEMPLATE_PATH puts in the description. Each author can
+// request signs with the agreement box that TEMPLATE_PATH puts in the description. When the
+// description has no box, for example because an agent wrote it, the script adds the unticked box
+// of TEMPLATE_PATH to the end, so that the author signs with one click. Each author can
 // also sign with a comment that contains the signing line of CLA.md. A box or a comment counts only
 // when its last editor is the author: a user with write access can edit the text of other people.
 //
@@ -109,18 +111,18 @@ function parseNumber(value: string | undefined): number {
  * The version of CLA.md and the line that signs it. The script fails when CLA.md does not contain
  * the line, or when the pull request template has no empty box with it.
  */
-function loadAgreement(): { readonly version: string; readonly signingLine: string } {
+function loadAgreement(): { readonly version: string; readonly signingLine: string; readonly box: string } {
   const text = readFileSync(AGREEMENT_PATH, "utf8");
   const version = /^Version: (\S+)$/m.exec(text)?.[1];
   if (version === undefined) fail(`${AGREEMENT_PATH} has no "Version:" line.`);
   const signingLine = `I have read the OpenBot Contributor Assignment Agreement ${version} and I agree to it.`;
   if (!text.includes(signingLine)) fail(`${AGREEMENT_PATH} does not contain the signing line "${signingLine}".`);
   const expected = normalize(signingLine);
-  const hasBox = readFileSync(TEMPLATE_PATH, "utf8")
+  const box = readFileSync(TEMPLATE_PATH, "utf8")
     .split("\n")
-    .some((line) => line.startsWith("- [ ] ") && normalize(line.slice(6)) === expected);
-  if (!hasBox) fail(`${TEMPLATE_PATH} has no "- [ ]" box with the signing line "${signingLine}".`);
-  return { version, signingLine };
+    .find((line) => line.startsWith("- [ ] ") && normalize(line.slice(6)) === expected);
+  if (box === undefined) fail(`${TEMPLATE_PATH} has no "- [ ]" box with the signing line "${signingLine}".`);
+  return { version, signingLine, box };
 }
 
 /** Compares lines without links, case, extra spaces or the final full stop. */
@@ -133,16 +135,32 @@ function normalize(line: string): string {
     .toLowerCase();
 }
 
+/** The label of a box line (`- [ ] label`), and whether the box is ticked. */
+function parseBox(line: string): { readonly label: string; readonly ticked: boolean } | undefined {
+  const [, mark, label] = /^\s*[-*] \[([ xX])\] (.+)$/.exec(line) ?? [];
+  if (mark === undefined || label === undefined) return undefined;
+  return { label, ticked: mark !== " " };
+}
+
 /** The ticked box with the signing line in a pull request description, if there is one. */
 function tickedBox(body: string, signingLine: string): string | undefined {
   const expected = normalize(signingLine);
   return body
     .split(/\r?\n/)
     .find((line) => {
-      const label = /^\s*[-*] \[[xX]\] (.+)$/.exec(line)?.[1];
-      return label !== undefined && normalize(label) === expected;
+      const box = parseBox(line);
+      return box?.ticked === true && normalize(box.label) === expected;
     })
     ?.trim();
+}
+
+/** True when a pull request description has the box with the signing line, ticked or not. */
+function hasBox(body: string, signingLine: string): boolean {
+  const expected = normalize(signingLine);
+  return body.split(/\r?\n/).some((line) => {
+    const box = parseBox(line);
+    return box !== undefined && normalize(box.label) === expected;
+  });
 }
 
 /** The line of a comment that signs, if there is one. */
@@ -345,8 +363,17 @@ function signingComments(
   return [...found.values()];
 }
 
-/** The signature of the pull request author from the box in the description, if the author ticked it. */
-function checkboxSignature(pr: PullRequest, version: string, signingLine: string): Signature | undefined {
+interface Description {
+  readonly body: string;
+  readonly createdAt: string;
+  /** Empty when nobody edited the description. */
+  readonly lastEditedAt: string;
+  readonly url: string;
+  /** The login of the last editor, or empty when nobody edited the description. */
+  readonly editor: string;
+}
+
+function loadDescription(number: number): Description {
   const [owner, name] = repository.split("/");
   const query =
     "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){body createdAt lastEditedAt url editor{login}}}}";
@@ -360,24 +387,52 @@ function checkboxSignature(pr: PullRequest, version: string, signingLine: string
     "-F",
     `name=${name}`,
     "-F",
-    `number=${pr.number}`,
+    `number=${number}`,
     "--jq",
     '.data.repository.pullRequest | [(.body // "" | @base64), .createdAt, (.lastEditedAt // ""), .url, (.editor.login // "")] | @tsv',
   ]).split("\t");
-  const editor = column(row, 4);
-  if (editor !== "" && editor !== pr.author.login) return undefined;
-  const text = tickedBox(Buffer.from(column(row, 0), "base64").toString("utf8"), signingLine);
+  return {
+    body: Buffer.from(column(row, 0), "base64").toString("utf8"),
+    createdAt: column(row, 1),
+    lastEditedAt: column(row, 2),
+    url: column(row, 3),
+    editor: column(row, 4),
+  };
+}
+
+/** The signature of the pull request author from the box in the description, if the author ticked it. */
+function checkboxSignature(
+  pr: PullRequest,
+  description: Description,
+  version: string,
+  signingLine: string,
+): Signature | undefined {
+  if (description.editor !== "" && description.editor !== pr.author.login) return undefined;
+  const text = tickedBox(description.body, signingLine);
   if (text === undefined) return undefined;
   return {
     login: pr.author.login,
     userId: pr.author.id,
     version,
-    signedAt: column(row, 2) || column(row, 1),
+    signedAt: description.lastEditedAt || description.createdAt,
     pullRequest: pr.number,
     method: "checkbox",
-    url: column(row, 3),
+    url: description.url,
     text,
   };
+}
+
+/**
+ * Adds the unticked box of the template to the end of the description. The author then signs with
+ * one click on the box. GitHub starts no workflow for this edit, because the job token makes it.
+ */
+function addBox(number: number, body: string, box: string): void {
+  const before = body.trimEnd() === "" ? "" : `${body.trimEnd()}\n\n`;
+  write(
+    `add the agreement box to the description of #${number}`,
+    ["api", "-X", "PATCH", `repos/${repository}/pulls/${number}`, "-F", "body=@-"],
+    `${before}## Contributor Assignment Agreement\n\n${box}\n`,
+  );
 }
 
 /** Keeps one CLA comment per pull request and edits it in place. */
@@ -436,11 +491,7 @@ function requestComment(
     );
     if (authorUnsigned) {
       lines.push(
-        `@${pr.author.login}, to sign, read the agreement. Then tick the agreement box in the description of this pull request. If the description has no box, add this line to it:`,
-        "",
-        "```markdown",
-        `- [x] ${signingLine}`,
-        "```",
+        `@${pr.author.login}, to sign, read the agreement. Then tick the agreement box in the description of this pull request, under "Contributor Assignment Agreement".`,
         "",
       );
     }
@@ -479,7 +530,7 @@ interface Decision {
 }
 
 function checkPullRequest(number: number): Decision {
-  const { version, signingLine } = loadAgreement();
+  const { version, signingLine, box: templateBox } = loadAgreement();
   const pr = loadPullRequest(number);
   if (pr.state !== "open") {
     return {
@@ -496,9 +547,8 @@ function checkPullRequest(number: number): Decision {
   const { signers, unlinked } = requiredSigners(pr);
   const store = loadStore();
   const missing = signers.filter((person) => !hasSigned(store.signatures, person.id, version));
-  const box = missing.some((person) => person.id === pr.author.id)
-    ? checkboxSignature(pr, version, signingLine)
-    : undefined;
+  const description = missing.some((person) => person.id === pr.author.id) ? loadDescription(number) : undefined;
+  const box = description === undefined ? undefined : checkboxSignature(pr, description, version, signingLine);
   const rest = missing.filter((person) => person.id !== box?.userId);
   const added = [
     ...(box === undefined ? [] : [box]),
@@ -507,6 +557,13 @@ function checkPullRequest(number: number): Decision {
   if (added.length > 0) recordSignatures(added, version);
   const addedIds = new Set(added.map((signature) => signature.userId));
   const unsigned = missing.filter((person) => !addedIds.has(person.id));
+  if (
+    description !== undefined &&
+    unsigned.some((person) => person.id === pr.author.id) &&
+    !hasBox(description.body, signingLine)
+  ) {
+    addBox(number, description.body, templateBox);
+  }
 
   const tooManyCommits = pr.commits > MAX_COMMITS;
   const passed = unsigned.length === 0 && unlinked.length === 0 && !tooManyCommits;
