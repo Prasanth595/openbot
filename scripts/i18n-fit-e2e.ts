@@ -40,8 +40,16 @@ assert.ok(storybook, "Pass --storybook=<url> with the URL that `bun run storyboo
 const browserExecutable = option("browser-executable");
 const storyFilters = option("stories")?.split(",") ?? [];
 const workers = Number(option("workers") ?? "2");
-const locales: readonly TranslatedLocale[] = option("locales")
-  ? TRANSLATED_LOCALES.filter((locale) => option("locales")?.split(",").includes(locale))
+assert.ok(Number.isInteger(workers) && workers >= 1, "--workers takes a whole number, 1 or more.");
+const requestedLocales = option("locales")?.split(",");
+for (const locale of requestedLocales ?? []) {
+  assert.ok(
+    TRANSLATED_LOCALES.some((known) => known === locale),
+    `--locales: "${locale}" is not one of ${TRANSLATED_LOCALES.join(", ")}.`,
+  );
+}
+const locales: readonly TranslatedLocale[] = requestedLocales
+  ? TRANSLATED_LOCALES.filter((locale) => requestedLocales.includes(locale))
   : TRANSLATED_LOCALES;
 // English runs first and always: it is the baseline that marks a failure as not caused by a translation.
 const order: TranslatedLocale[] = ["en", ...locales.filter((locale) => locale !== "en")];
@@ -118,11 +126,12 @@ interface Measured {
 
 /**
  * Measures the story, then opens each distinct menu trigger in turn and measures what opens.
- * `opened` says that a popup changed the story, so the next language must reload it.
+ * `record` runs while a popup is open, so its screenshots show the popup. The result says that a
+ * popup changed the story, so the next language must reload it.
  */
-async function measureStory(page: Page): Promise<{ results: Measured[]; opened: boolean }> {
+async function measureStory(page: Page, record: (measured: Measured) => Promise<void>): Promise<boolean> {
   // Dialogs and toasts render outside the story root, so measure the whole frame.
-  const results: Measured[] = [{ scope: "story", problems: await page.evaluate(measureFit, "body") }];
+  await record({ scope: "story", problems: await page.evaluate(measureFit, "body") });
   const labels = await page
     .locator(TRIGGERS)
     .evaluateAll((elements) =>
@@ -153,7 +162,7 @@ async function measureStory(page: Page): Promise<{ results: Measured[]; opened: 
     if (!shown) continue;
     opened = true;
     await settle(page);
-    results.push({ scope: `popup:${index}`, problems: await page.evaluate(measureFit, POPUPS) });
+    await record({ scope: `popup:${index}`, problems: await page.evaluate(measureFit, POPUPS) });
     await page.keyboard.press("Escape");
     const closed = await page
       .locator(POPUPS)
@@ -166,7 +175,7 @@ async function measureStory(page: Page): Promise<{ results: Measured[]; opened: 
     // A popup that does not close covers the next trigger.
     if (!closed) break;
   }
-  return { results, opened };
+  return opened;
 }
 
 async function openStory(page: Page, id: string, attempt = 1): Promise<string | null> {
@@ -199,7 +208,8 @@ const failures: Failure[] = [];
 const skipped: { story: string; reason: string }[] = [];
 let shotCount = 0;
 
-async function runStory(page: Page, entry: StoryEntry): Promise<void> {
+/** A story past its deadline keeps running. `stopped` keeps its late results out of the report. */
+async function runStory(page: Page, entry: StoryEntry, run: { stopped: boolean }): Promise<void> {
   const problem = await openStory(page, entry.id);
   if (problem) {
     skipped.push({ story: entry.id, reason: problem });
@@ -209,8 +219,7 @@ async function runStory(page: Page, entry: StoryEntry): Promise<void> {
   for (const locale of order) {
     try {
       await setLocale(page, locale);
-      const { results, opened } = await measureStory(page);
-      for (const { scope, problems } of results) {
+      const opened = await measureStory(page, async ({ scope, problems }) => {
         for (const found of problems) {
           const id = `${scope}|${found.path}|${found.reason}`;
           if (locale === "en") english.add(id);
@@ -240,15 +249,18 @@ async function runStory(page: Page, entry: StoryEntry): Promise<void> {
               );
             }
           }
+          if (run.stopped) return;
           failures.push(failure);
         }
-      }
+      });
+      if (run.stopped) return;
       // A popup can leave the story in a state the next language should not start from.
       if (opened && locale !== order.at(-1)) {
         const reopened = await openStory(page, entry.id);
         if (reopened) throw new Error(reopened);
       }
     } catch (error) {
+      if (run.stopped) return;
       skipped.push({
         story: `${entry.id} (${locale})`,
         reason: error instanceof Error ? error.message : String(error),
@@ -284,17 +296,19 @@ const queue = [...stories];
 let done = 0;
 try {
   await Promise.all(
-    Array.from({ length: Math.max(1, workers) }, async () => {
+    Array.from({ length: workers }, async () => {
       let page = await newPage();
       for (let entry = queue.shift(); entry; entry = queue.shift()) {
         let timer: ReturnType<typeof setTimeout> | undefined;
+        const run = { stopped: false };
         const finished = await Promise.race([
-          runStory(page, entry).then(() => true),
+          runStory(page, entry, run).then(() => true),
           new Promise<false>((resolve) => {
             timer = setTimeout(() => resolve(false), STORY_DEADLINE_MS);
           }),
         ]);
         clearTimeout(timer);
+        run.stopped = !finished;
         if (!finished) skipped.push({ story: entry.id, reason: `No result in ${STORY_DEADLINE_MS / 1000} s.` });
         if (!finished || page.isClosed()) {
           void page.close().catch(() => undefined);

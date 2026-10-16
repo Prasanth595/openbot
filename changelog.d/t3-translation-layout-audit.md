@@ -9,5 +9,5 @@
 
 - Fix translations with the wrong meaning, a mixed term or a mixed form of address. Before, the
   Polish mobile app showed some Russian text.
-- Show an ellipsis at the end of a long badge or menu item label. Before, the text stopped at the
+- Show an ellipsis at the end of a long label in most badges and menu items. Before, the text stopped at the
   edge with no mark. Tab labels no longer go onto a second line.

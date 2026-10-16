@@ -123,8 +123,10 @@ try {
   await page.waitForFunction(() => document.documentElement.lang === "en");
   await openSettings(page, "en");
   const englishSettings = await page.evaluate(measureFit, "body");
+  // A focused settings tab keeps Escape for itself, so Escape goes from the title.
+  await settingsTitle(page, "en").focus();
   await page.keyboard.press("Escape");
-  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await settingsTitle(page, "en").waitFor({ state: "hidden" });
   const englishWorkspace = await page.evaluate(measureFit, "body");
   for (const locale of LOCALES) {
     await chooseLanguage(page, shown, locale);

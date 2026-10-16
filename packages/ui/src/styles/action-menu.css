@@ -92,7 +92,7 @@
 /* A long translated label ends with an ellipsis instead of a hard cut. */
 .ui-action-menu:not([data-menu-layout="grid"])
   :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"])
-  > span:not(:has(svg)) {
+  > span:not(:has(svg), .ui-menu-trailing) {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
