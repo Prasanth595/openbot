@@ -43,10 +43,13 @@ async function calendarReady(page: Page): Promise<void> {
   assert.equal(await schedule.getByText(t("routine.calendar.loadFailed")).count(), 0, "The calendar shows its error.");
 }
 
-/** The routine names in the calendar's open view, from the run labels. */
+/** The routine names in the calendar's open view, from the run buttons ("<name>, <time>, <status>"). */
 async function visibleRoutines(page: Page): Promise<string[]> {
-  const text = await page.getByRole("region", { name: t("routine.calendar.title") }).innerText();
-  return [...new Set(text.match(/\S+@[\w-]+/g) ?? [])];
+  const runs = page
+    .getByRole("region", { name: t("routine.calendar.title") })
+    .getByRole("button", { name: /^Routine@/ });
+  const labels = await runs.evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") ?? ""));
+  return [...new Set(labels.map((label) => label.split(",")[0] ?? ""))];
 }
 
 mkdirSync(OUT, { recursive: true });
@@ -92,15 +95,11 @@ try {
   report.routinesBeforeSwitch = await visibleRoutines(page);
   assert.deepEqual(report.routinesBeforeSwitch, [`Routine@${from.id}`], "The first server's calendar is wrong.");
 
-  await page
-    .getByRole("button", { name: new RegExp(from.name) })
-    .first()
-    .click();
+  await page.getByRole("button", { name: t("server.menu.open", { name: from.name }), exact: true }).click();
   await page.getByRole("menuitem", { name: to.name, exact: true }).click();
-  await page
-    .getByRole("button", { name: new RegExp(to.name) })
-    .first()
-    .waitFor();
+  await page.getByRole("button", { name: t("server.menu.open", { name: to.name }), exact: true }).waitFor();
+  // The server name changes before the open pane follows it, so wait for the request to the new server.
+  await page.waitForFunction((serverId) => window.scheduleCalendarRequests?.includes(serverId), to.id);
   await calendarReady(page);
 
   report.requests = await page.evaluate(() => window.scheduleCalendarRequests ?? []);
