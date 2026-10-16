@@ -9,6 +9,7 @@ import {
   type AppInfo,
   type BrowserTakeoverRequest,
   CHANNEL_CHATS_CAPABILITY,
+  canAdministerServer,
   decodeAgentHostSettings,
   type ServerConnectionState,
   type ServerSummary,
@@ -523,8 +524,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   }
   // The events routes answer only an owner or admin. A member keeps the released routine routes.
   const eventsEnabled = () =>
-    workspace.state.capabilities.includes(EVENTS_CAPABILITY) &&
-    (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
+    workspace.state.capabilities.includes(EVENTS_CAPABILITY) && canAdministerServer(workspace.state.host?.role);
   // The same owner or admin reads and saves `missedPolicy` and the missed-run history on such a host.
   const routineRecoveryEnabled = () =>
     eventsEnabled() && workspace.state.capabilities.includes(ROUTINE_RECOVERY_CAPABILITY);
@@ -566,10 +566,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     eventsEnabled,
     () =>
       workspace.state.capabilities.includes("agent-session-settings-v1") &&
-      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+      canAdministerServer(workspace.state.host?.role),
     () =>
       workspace.state.capabilities.includes(SIGN_IN_RELAY_CAPABILITY) &&
-      (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin"),
+      canAdministerServer(workspace.state.host?.role),
     routineRecoveryEnabled,
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
@@ -916,7 +916,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       if (hostId) writeChannelSelection(props.accountId, hostId, channelId);
     },
     supported: channelsSupported,
-    deletionSupported: () => workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin",
+    deletionSupported: () => canAdministerServer(workspace.state.host?.role),
     beforeOpen: () => {
       setCreating(false);
       // Not `showAgents`: the list restores the saved channel after a host connects, and that must
@@ -1209,7 +1209,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const hideSupported = () =>
     workspace.state.status === "online" &&
     workspace.state.capabilities.includes(AGENT_HIDDEN_CAPABILITY) &&
-    (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
+    canAdministerServer(workspace.state.host?.role);
   function startCreate() {
     setMobilePane("conversation");
     channels.close();
@@ -1486,9 +1486,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   duplicatingAgentIds={new Set(workspace.state.duplicatingAgentIds)}
                   onDuplicateAgent={workspace.duplicateAgent}
                   deleteSupported={
-                    workspace.state.status === "online" &&
-                    Boolean(workspace.state.host) &&
-                    workspace.state.host?.role !== "member"
+                    workspace.state.status === "online" && canAdministerServer(workspace.state.host?.role)
                   }
                   marketplaceSupported={workspace.state.status === "online"}
                   onDeleteAgent={workspace.deleteAgent}

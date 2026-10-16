@@ -1100,7 +1100,7 @@ export class RemoteControlPlane {
         return yield* new RemoteControlPlaneError(404, "membership_not_found", "The membership does not exist.");
       }
       const leavingOwnMembership = input.revoke === true && membership.user_id === actorUserId;
-      if (!leavingOwnMembership) yield* this.#requireRole(input.hostId, actorUserId, ["owner"]);
+      if (!leavingOwnMembership) yield* this.#requireRole(input.hostId, actorUserId, ["owner", "admin"]);
       if (membership.role === "owner") {
         return yield* new RemoteControlPlaneError(
           409,
@@ -1321,7 +1321,26 @@ export class RemoteControlPlane {
           "session_inactive",
           "The remote session does not belong to this browser session.",
         );
-      if (session.user_id !== userId) yield* this.#requireRole(session.host_id, userId, ["owner"]);
+      if (session.user_id !== userId) {
+        const actor = yield* this.#requireRole(session.host_id, userId, ["owner", "admin"]);
+        // Admins manage members, not the owner: only the owner ends the owner's sessions.
+        const target =
+          actor.role === "owner"
+            ? null
+            : yield* remoteCall(() =>
+                dependencies.database
+                  .prepare("SELECT role FROM remote_memberships WHERE host_id = ? AND user_id = ? LIMIT 1")
+                  .bind(session.host_id, session.user_id)
+                  .first<{ role: string }>(),
+              );
+        if (target?.role === "owner") {
+          return yield* new RemoteControlPlaneError(
+            409,
+            "owner_membership_protected",
+            "The owner membership cannot be changed.",
+          );
+        }
+      }
       const now = dependencies.now();
       const event = { type: "remote-session-ended" as const, hostId: session.host_id, sessionId };
       yield* remoteCall(() =>

@@ -1,4 +1,4 @@
-import { type HiddenAgentsSnapshot, parseSetAgentHiddenInput } from "@openbot/contracts/ipc";
+import { canAdministerServer, type HiddenAgentsSnapshot, parseSetAgentHiddenInput } from "@openbot/contracts/ipc";
 import { AGENT_HIDDEN_CAPABILITY, AGENT_HIDDEN_ROUTES } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
@@ -25,7 +25,8 @@ export async function routeAgentHidden(
   const body = await readJson(request);
   if (url.pathname === AGENT_HIDDEN_ROUTES.read)
     return json(200, visibleSnapshot(hiddenAgents.listHiddenAgents(), hiddenAgentIds));
-  if (context.member.role === "member") throw new HttpError(403, sourceText("error.team.membersCannotHideAgents"));
+  if (!canAdministerServer(context.member.role))
+    throw new HttpError(403, sourceText("error.team.membersCannotHideAgents"));
   requireVisibleBodyAgent(body, hiddenAgentIds);
   const snapshot = await runCauseEffect(hiddenAgents.setAgentHidden(parseSetAgentHiddenInput(body)));
   return json(200, visibleSnapshot(snapshot, hiddenAgentIds));

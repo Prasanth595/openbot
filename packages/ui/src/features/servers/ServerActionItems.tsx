@@ -1,4 +1,4 @@
-import type { ServerNotificationLevel, ServerSummary } from "@openbot/contracts/ipc";
+import { canAdministerServer, type ServerNotificationLevel, type ServerSummary } from "@openbot/contracts/ipc";
 import type { AppFormat, AppTextKey, AppTranslate } from "@openbot/i18n";
 import { Bell, BellOff, Check, ChevronRight, type ContextMenu, LogOut, RotateCcw, Trash2 } from "@openbot/ui";
 import { For, Show } from "solid-js";
@@ -93,7 +93,7 @@ export function ServerActionItems(
   const canRestart = () =>
     Boolean(props.onRestart) &&
     props.server.kind === "remote" &&
-    (props.server.role === "owner" || props.server.role === "admin") &&
+    canAdministerServer(props.server.role) &&
     !(props.server.hostedSleep === "waking" && props.server.hostedStart?.step !== "openbot") &&
     (props.server.hosted === true || Boolean(props.canRestart?.(props.server.id)));
   // A component, so the JSX below can use it as a tag. The menu does not change after render.

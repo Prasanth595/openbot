@@ -1,5 +1,10 @@
 import { Host, Switch } from "@expo/ui";
-import type { AgentAccess, AgentAdminSettings, UpdateAgentAdminSettingsInput } from "@openbot/contracts/ipc";
+import {
+  type AgentAccess,
+  type AgentAdminSettings,
+  canAdministerServer,
+  type UpdateAgentAdminSettingsInput,
+} from "@openbot/contracts/ipc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Typography } from "heroui-native";
 import { useState } from "react";
@@ -24,7 +29,7 @@ import { useText } from "@/shared/lib/text";
 export function useAgentAdminSettings(agent: MobileAgent, server: MobileServer | undefined, available: boolean) {
   const workspace = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
-  const canAdminister = server?.role === "owner" || server?.role === "admin";
+  const canAdminister = canAdministerServer(server?.role);
   // Under "agent-info", so the host's agent events refresh it with the other agent records.
   const queryKey = queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "admin");
   const settings = useQuery({

@@ -8,7 +8,7 @@ import type { TeamApiOptions } from "./dependencies";
 
 import { readFile } from "node:fs/promises";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { TeamPresenceSnapshot } from "@openbot/contracts/ipc";
+import type { TeamPresenceSnapshot, UpdateTeamMemberInput } from "@openbot/contracts/ipc";
 import { isBoolean } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { sourceText } from "@openbot/i18n/source";
@@ -26,6 +26,7 @@ export interface TeamRouteDependencies {
     | "changePassword"
     | "resolveLogo"
     | "listMembers"
+    | "getMember"
     | "updateMember"
     | "removeMember"
     | "listInvites"
@@ -35,6 +36,8 @@ export interface TeamRouteDependencies {
   >;
   remoteScreen?: Pick<TeamApiRemoteScreen, "revokeTeamSession" | "revokeMember">;
   createInvite?: TeamApiOptions["createInvite"];
+  updateMember?: TeamApiOptions["updateMember"];
+  removeMember?: TeamApiOptions["removeMember"];
   onSessionRevoked?: TeamApiOptions["onSessionRevoked"];
   getPresence: () => TeamPresenceSnapshot;
   refreshPresence: () => void;
@@ -42,13 +45,28 @@ export interface TeamRouteDependencies {
 
 export async function routeTeam(
   context: TeamApiRequestContext,
-  { store, remoteScreen, createInvite, onSessionRevoked, getPresence, refreshPresence }: TeamRouteDependencies,
+  {
+    store,
+    remoteScreen,
+    createInvite,
+    updateMember,
+    removeMember: removeFromDirectory,
+    onSessionRevoked,
+    getPresence,
+    refreshPresence,
+  }: TeamRouteDependencies,
 ): Promise<RouteOutcome> {
   const { method, url, request, response, member, token, sessionId, json, empty } = context;
 
-  /** What removing a member does, whether an admin removes them or they leave. */
+  /**
+   * What removing a member does, whether an admin removes them or they leave. The directory, when
+   * there is one, is where the membership lives: a write only to the local copy would come back
+   * on the next directory sync.
+   */
   async function removeMember(memberId: string): Promise<void> {
-    await runCauseEffect(store.removeMember(memberId));
+    if (store.getMember(memberId)?.role === "owner")
+      throw new HttpError(400, sourceText("error.team.ownerCannotRemove"));
+    await runCauseEffect(removeFromDirectory ? removeFromDirectory(memberId) : store.removeMember(memberId));
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(memberId)) : undefined);
     refreshPresence();
   }
@@ -126,11 +144,15 @@ export async function routeTeam(
     if (disabled !== undefined && !isBoolean(disabled)) {
       throw new HttpError(400, "disabled must be a boolean.");
     }
+    const memberId = pathIdentifier(memberMatch[1], "memberId");
+    if (store.getMember(memberId)?.role === "owner")
+      throw new HttpError(400, sourceText("error.team.ownerCannotChange"));
+    const patch: Omit<UpdateTeamMemberInput, "memberId"> = {
+      ...(role ? { role } : {}),
+      ...(disabled === undefined ? {} : { disabled }),
+    };
     const updated = await runCauseEffect(
-      store.updateMember(pathIdentifier(memberMatch[1], "memberId"), {
-        ...(role ? { role } : {}),
-        ...(disabled === undefined ? {} : { disabled }),
-      }),
+      updateMember ? updateMember({ memberId, ...patch }) : store.updateMember(memberId, patch),
     );
     if (updated.disabled) await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(updated.id)) : undefined);
     refreshPresence();

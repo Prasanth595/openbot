@@ -781,6 +781,10 @@ export class TeamStore {
    * `serverId` names the host the caller loaded this directory for. Signing into another
    * account swaps the active host, so a directory that was already in flight would
    * otherwise rewrite the new account's owner membership and disable its members.
+   *
+   * The directory is the authority for live sessions too: a session whose membership is gone,
+   * disabled or has another role closes here, and the ids come back so the caller can close the
+   * connections. The account service has already ended those sessions.
    */
 
   readonly syncRemoteDirectory = Effect.fn("TeamStore.syncRemoteDirectory")(
@@ -788,7 +792,7 @@ export class TeamStore {
       this: TeamStore,
       serverId: string,
       remoteMembers: RemoteDirectoryMember[],
-    ): Effect.fn.Return<void, RemoteWorkflowError, TeamStoreFiles> {
+    ): Effect.fn.Return<string[], RemoteWorkflowError, TeamStoreFiles> {
       const state = yield* remoteDecode(() => this.#requireState());
       if (state.serverId !== serverId) {
         return yield* new RemoteWorkflowError({ cause: new TeamStoreError(sourceText("error.team.serverNotActive")) });
@@ -837,7 +841,19 @@ export class TeamStore {
       for (const member of state.members) {
         if (member.role !== "owner" && !remoteIds.has(member.id)) member.disabled = true;
       }
+      const activeRoles = new Map(
+        remoteMembers
+          .filter((member) => member.status === "active")
+          .map((member) => [member.membershipId, member.role]),
+      );
+      const closed: string[] = [];
+      for (const [tokenHash, session] of this.#remoteSessions) {
+        if (activeRoles.get(session.member.id) === session.member.role) continue;
+        this.#remoteSessions.delete(tokenHash);
+        closed.push(session.sessionId);
+      }
       yield* this.#persistEffect();
+      return closed;
     },
     Effect.provide(TeamStoreFiles.layer),
     Effect.uninterruptible,

@@ -10,6 +10,14 @@ export const LOCAL_SERVER_ID = "local";
 export type ServerConnectionState = "online" | "connecting" | "offline" | "error" | "incompatible";
 export type TeamRole = "owner" | "admin" | "member";
 
+/**
+ * The owner and admins manage the server, its members and its invitations. The owner is an admin
+ * that nobody can change or remove. A missing role manages nothing.
+ */
+export function canAdministerServer(role: TeamRole | null | undefined): boolean {
+  return role === "owner" || role === "admin";
+}
+
 export type ServerConnectionIssueCode =
   | "client_update_required"
   | "host_update_required"

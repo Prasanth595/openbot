@@ -377,6 +377,9 @@ export interface TeamApiOptions {
   onDirectMessage?: (event: DirectMessageRealtimeEvent) => void;
   onDirectTyping?: (event: DirectTypingRealtimeEvent) => void;
   createInvite?: OmitThisParameter<HostService["createInvite"]>;
+  /** Member writes that reach the account directory when the host has one. */
+  updateMember?: OmitThisParameter<HostService["updateMember"]>;
+  removeMember?: OmitThisParameter<HostService["removeMember"]>;
   onSessionRevoked?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
   /** Sends Live Activity updates to members' phones. Absent when this host has no account credential. */
   liveActivityPush?: LiveActivityPushService;

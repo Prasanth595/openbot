@@ -387,6 +387,8 @@ export class HostService extends EventEmitter<HostEvents> {
       onDirectMessage: (event) => this.emit("directMessage", event),
       onDirectTyping: (event) => this.emit("directTyping", event),
       createInvite: (input) => this.createInvite(input),
+      updateMember: (input) => this.updateMember(input),
+      removeMember: (memberId) => this.removeMember(memberId),
       onSessionRevoked: (sessionId) => this.#revokeWebRtcSession(sessionId),
       liveActivityPush: this.#liveActivityPush,
       pushNotifications: this.#pushNotifications,
@@ -789,7 +791,7 @@ export class HostService extends EventEmitter<HostEvents> {
       if (yield* this.#cancelSupersededStartEffect(generation)) return this.getStatus();
       if (this.#usesAccountDirectory() && optionalListRemoteMembers) {
         const members = yield* optionalListRemoteMembers(identity.serverId);
-        yield* this.#options.store.syncRemoteDirectory(identity.serverId, members);
+        yield* this.#syncRemoteDirectory(identity.serverId, members);
         if (yield* this.#cancelSupersededStartEffect(generation)) return this.getStatus();
       }
       const bootstrap = yield* optionalIssueRemoteHostTicket(identity.serverId);
@@ -945,7 +947,7 @@ export class HostService extends EventEmitter<HostEvents> {
         // account's. Answer with the now-active host's own members rather than failing a
         // read with the store's cross-account guard.
         if (!this.#isActiveHost(hostId)) return this.#options.store.listMembers();
-        yield* this.#options.store.syncRemoteDirectory(hostId, members);
+        yield* this.#syncRemoteDirectory(hostId, members);
         // Recording the directory is a write, and the switch can land during it. The names,
         // addresses and roles below are the previous account's if it did.
         if (!this.#isActiveHost(hostId)) return this.#options.store.listMembers();
@@ -1116,7 +1118,7 @@ export class HostService extends EventEmitter<HostEvents> {
         const updated = members.find((member) => member.membershipId === input.memberId);
         if (!updated)
           return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.host.memberNotFound")) });
-        yield* this.#options.store.syncRemoteDirectory(hostId, members);
+        yield* this.#syncRemoteDirectory(hostId, members);
         // Recording the directory is a write too, so the switch can land inside it and the
         // member below would be the previous account's.
         yield* remoteDecode(() => this.#assertStillActiveHost(hostId));
@@ -1151,7 +1153,7 @@ export class HostService extends EventEmitter<HostEvents> {
         yield* optionalRemoveRemoteMember(hostId, memberId);
         if (optionalListRemoteMembers) {
           const members = yield* optionalListRemoteMembers(hostId);
-          yield* this.#options.store.syncRemoteDirectory(hostId, members);
+          yield* this.#syncRemoteDirectory(hostId, members);
         }
         return;
       }
@@ -1172,6 +1174,23 @@ export class HostService extends EventEmitter<HostEvents> {
     },
     (operation) => this.#provide(operation),
   ).bind(this);
+
+  /** Records the directory, and closes the connections of sessions it no longer allows. */
+  readonly #syncRemoteDirectory = Effect.fn("HostService.syncRemoteDirectory")(function* (
+    this: HostService,
+    hostId: string,
+    members: RemoteDirectoryMember[],
+  ): Effect.fn.Return<void, RemoteWorkflowError> {
+    const closed = yield* this.#options.store.syncRemoteDirectory(hostId, members);
+    if (closed.length === 0) return;
+    for (const sessionId of closed) {
+      this.#liveActivityPush?.remove(sessionId);
+      this.#pushNotifications?.remove(sessionId);
+    }
+    const gateway = this.#webrtcGateway;
+    if (gateway) yield* Effect.forEach(closed, (sessionId) => gateway.revokeSession(sessionId), { discard: true });
+    this.#api.refreshPresence();
+  });
 
   readonly #revokeWebRtcSession = Effect.fn("HostService.revokeWebRtcSession")(function* (
     this: HostService,
