@@ -14,7 +14,7 @@ import {
   tool,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { defaultProviderModel } from "@openbot/contracts/ipc";
+import { type AgentContextCategoryUsage, defaultProviderModel } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -33,6 +33,7 @@ import { isBalanceDiagnostic, isPlanLimitDiagnostic } from "./agent/provider-dia
 import { claudeBridgedToolName, VISIBLE_TOOL_DEFINITIONS } from "./agent/tool-catalog";
 import { USAGE_LIMIT_METHOD } from "./agent/usage-limit-gate";
 import { type AgentProvider, ProviderTurnActiveError, RequestTimeoutError } from "./agent-client";
+import { claudeContextCategories } from "./claude-context-categories";
 import { type ClaudeHistoryOptions, claudeHistoryFromMessages, claudeHistoryReader } from "./claude-history";
 import {
   CLAUDE_WORKSPACE_MANAGED_SETTINGS,
@@ -1208,7 +1209,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
                 !isRecord(usage)
               )
                 return;
-              this.#emitContextUsage(runtime, usage.totalTokens, usage.rawMaxTokens);
+              this.#emitContextUsage(runtime, usage.totalTokens, usage.rawMaxTokens, claudeContextCategories(usage));
             }),
           ),
           Effect.ignore,
@@ -1217,7 +1218,12 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       );
   });
 
-  #emitContextUsage(runtime: ThreadRuntime, used: unknown, window: unknown): void {
+  #emitContextUsage(
+    runtime: ThreadRuntime,
+    used: unknown,
+    window: unknown,
+    categories?: AgentContextCategoryUsage[],
+  ): void {
     if (
       typeof used !== "number" ||
       !Number.isFinite(used) ||
@@ -1231,7 +1237,12 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       method: "thread/tokenUsage/updated",
       params: {
         threadId: runtime.id,
-        tokenUsage: { last: { totalTokens: used }, modelContextWindow: window, estimated: true },
+        tokenUsage: {
+          last: { totalTokens: used },
+          modelContextWindow: window,
+          estimated: true,
+          ...(categories ? { categories } : {}),
+        },
       },
     });
   }
