@@ -685,3 +685,23 @@
     padding-bottom: var(--openbot-space-2);
   }
 }
+
+/* The header at the right end of the top row keeps its controls clear of the Windows window buttons.
+ * A chat header with an open side panel is not at that end: the side panel's tab row is. */
+.conversation-panel:not(:has(> .side-panel-header)) > .conversation-header,
+:is(
+  .direct-conversation-header,
+  .diagram-view-header,
+  .remote-desktop-header,
+  .first-agent-setup-header,
+  .agent-usage-header,
+  .routine-planner-title,
+  .skills-marketplace-topbar
+) {
+  margin-right: var(--window-controls-inset);
+}
+
+/* The tab row is placed at the right edge, so it keeps its width and moves its contents. */
+.side-panel-header {
+  padding-right: calc(var(--openbot-space-2) + var(--window-controls-inset));
+}
