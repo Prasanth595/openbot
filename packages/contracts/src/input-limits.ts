@@ -47,8 +47,9 @@ export const INPUT_LIMITS = {
   agentTaskError: 2_000,
   // The text a local script adds to a routine run through the automation server.
   automationPayload: 4_000,
-  // Six weeks: the longest range the routine calendar reads, with room for a month view.
-  routineCalendarDays: 42,
+  // The longest range the routine calendar reads: a six-week month view, with one day before it and
+  // two after it for the viewer's time zone.
+  routineCalendarDays: 44,
   routineCron: 255,
   messageText: 100_000,
   directMessageText: 20_000,
