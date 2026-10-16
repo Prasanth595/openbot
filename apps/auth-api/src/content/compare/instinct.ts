@@ -136,7 +136,7 @@ export const INSTINCT_COMPARISON: Comparison = {
     {
       title: "Who approves what the agent does",
       openbot:
-        "OpenBot agents show a draft before they send a message for you. They send it after you approve it, or when you or a routine that you set up tells them to send. Before a payment, an agent reads back the item, price and total and asks you to confirm. Auto approve is on for a new agent: it accepts the agent's requests for more access, such as to run a command. Turn it off for an agent, and that agent asks you first; you answer in the chat or from a notification on your phone. Turbo mode, for every agent, is off until you turn it on.",
+        "OpenBot agents show a draft before they send a message for you. They send it after you approve it, or when you or a routine that you set up tells them to send. Before a payment, an agent reads back the item, price and total and asks you to confirm. A new agent has Full access: it does not ask before it runs a command. Set an agent to Ask first, and that agent asks you first; you answer in the chat or from a notification on your phone.",
       rival:
         "Instinct's terms authorize it to take the actions that it decides answer your request, and appoint it as your agent to enter into agreements, commitments or transactions for you. Those bind you as if you had entered into them yourself. Testers told TechCrunch that Instinct sent an email for one of them without checking first, and found a sign-up code in another's inbox to complete a booking.",
       better: "openbot",
