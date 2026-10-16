@@ -377,6 +377,12 @@ export interface TeamApiOptions {
   onDirectMessage?: (event: DirectMessageRealtimeEvent) => void;
   onDirectTyping?: (event: DirectTypingRealtimeEvent) => void;
   createInvite?: OmitThisParameter<HostService["createInvite"]>;
+  /**
+   * Changes and removes members as the desktop app does. With an OpenBot account, the account
+   * directory holds the membership; a change only in the team file has no effect there.
+   */
+  updateMember?: OmitThisParameter<HostService["updateMember"]>;
+  removeMember?: OmitThisParameter<HostService["removeMember"]>;
   onSessionRevoked?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
   /** Sends Live Activity updates to members' phones. Absent when this host has no account credential. */
   liveActivityPush?: LiveActivityPushService;

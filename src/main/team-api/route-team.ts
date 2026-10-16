@@ -35,6 +35,8 @@ export interface TeamRouteDependencies {
   >;
   remoteScreen?: Pick<TeamApiRemoteScreen, "revokeTeamSession" | "revokeMember">;
   createInvite?: TeamApiOptions["createInvite"];
+  updateMember?: TeamApiOptions["updateMember"];
+  removeMember?: TeamApiOptions["removeMember"];
   onSessionRevoked?: TeamApiOptions["onSessionRevoked"];
   getPresence: () => TeamPresenceSnapshot;
   refreshPresence: () => void;
@@ -42,12 +44,23 @@ export interface TeamRouteDependencies {
 
 export async function routeTeam(
   context: TeamApiRequestContext,
-  { store, remoteScreen, createInvite, onSessionRevoked, getPresence, refreshPresence }: TeamRouteDependencies,
+  {
+    store,
+    remoteScreen,
+    createInvite,
+    updateMember,
+    removeMember: removeHostMember,
+    onSessionRevoked,
+    getPresence,
+    refreshPresence,
+  }: TeamRouteDependencies,
 ): Promise<RouteOutcome> {
   const { method, url, request, response, member, token, sessionId, json, empty } = context;
 
   /** What removing a member does, whether an admin removes them or they leave. */
   async function removeMember(memberId: string): Promise<void> {
+    // The host service also removes the membership from the account directory.
+    if (removeHostMember) return runCauseEffect(removeHostMember(memberId));
     await runCauseEffect(store.removeMember(memberId));
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(memberId)) : undefined);
     refreshPresence();
@@ -126,12 +139,14 @@ export async function routeTeam(
     if (disabled !== undefined && !isBoolean(disabled)) {
       throw new HttpError(400, "disabled must be a boolean.");
     }
-    const updated = await runCauseEffect(
-      store.updateMember(pathIdentifier(memberMatch[1], "memberId"), {
-        ...(role ? { role } : {}),
-        ...(disabled === undefined ? {} : { disabled }),
-      }),
-    );
+    const memberId = pathIdentifier(memberMatch[1], "memberId");
+    const patch: { role?: "admin" | "member"; disabled?: boolean } = {
+      ...(role ? { role } : {}),
+      ...(disabled === undefined ? {} : { disabled }),
+    };
+    // The host service also changes the membership in the account directory.
+    if (updateMember) return json(200, await runCauseEffect(updateMember({ memberId, ...patch })));
+    const updated = await runCauseEffect(store.updateMember(memberId, patch));
     if (updated.disabled) await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(updated.id)) : undefined);
     refreshPresence();
     return json(200, updated);
