@@ -74,15 +74,15 @@ changing provider sessions.
 ### Agent display on a server
 
 A self-hosted server and the container start two Xvfb displays, and name the agent display in
-`OPENBOT_AGENT_DISPLAY`. Electron keeps its own `DISPLAY`: the built-in browser draws its tabs in
+`OPENBOT_AGENT_DISPLAY`. A boat hosted server names its desktop `:0`, and OpenBot runs on an Xvfb
+display. Electron keeps its own `DISPLAY`: the built-in browser draws its tabs in
 the OpenBot window, and under Xvfb a hidden view gives no capture and no clicks, so OpenBot cannot
 only hide its window. On Linux, `agent-display.ts` sets `DISPLAY` to the agent display for the
 driver daemon, for Sunshine, and in `agentEnvironment` for every agent process. The driver and
 Sunshine open the display that `DISPLAY` names, so a screenshot, an input event and the remote
 desktop stream all use the agent display, and a program that an agent starts opens there. The
 per-display overlays are OpenBot windows, so with an agent display they are not started: nothing
-draws the agent cursor or the rim there. A boat hosted server does not set the variable, and its
-desktop on `:0` shows OpenBot and the agents together.
+draws the agent cursor or the rim there.
 
 Because the driver draws no cursor, its motion styles do not apply. The renderer plays the driver's
 `adaptive` style itself (`agent-cursor-motion.ts`, a port of the driver's `trajectory.rs`): a Fitts

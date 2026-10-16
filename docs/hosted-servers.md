@@ -530,13 +530,17 @@ folder and in `/srv` stays.
 
 On a server, `openbot-hosted-server` starts a D-Bus session, unlocks a gnome-keyring with a
 random password for each server (so `safeStorage` can keep the account session), and runs OpenBot
-with `--password-store=gnome-libsecret`. OpenBot uses the boat desktop: the lightdm session of the
+with `--password-store=gnome-libsecret`. The agents use the boat desktop: the lightdm session of the
 sandbox user on `:0`, with openbox. So boat's desktop viewer and OpenBot remote desktop show the same
 screen, and a click moves the keyboard focus to another window. After a resume, the script waits up
-to 2 minutes for that session. With no session, OpenBot runs under `xvfb-run`. A hosted server keeps
-one display for OpenBot and the agents, because its desktop is there to show OpenBot. Only a
-[self-hosted server](self-hosted-server.md#how-it-works) and the container give the agents a
-display of their own. The keyring files are in `/srv/openbot-hosted/keyrings`:
+to 2 minutes for that session. OpenBot shows its own windows on a 1280x800 Xvfb display that
+`xvfb-run` starts. `xvfb-run` adds the key of that display to `~/.Xauthority`, which has the key of
+`:0`, and lightdm keeps the other keys when it writes the file. The script names `:0` in
+`OPENBOT_AGENT_DISPLAY`, so an agent's screenshot and remote desktop do not show the OpenBot window
+(see [Computer Use and remote desktop](architecture/computer-use.md#agent-display-on-a-server)). With
+no desktop session, the server starts two Xvfb displays, as a
+[self-hosted server](self-hosted-server.md#how-it-works) does. The keyring files are in
+`/srv/openbot-hosted/keyrings`:
 
 - not in `~/.local/share/keyrings`: the boat image has a locked `default` keyring there, and a
   snapshot restore resets that folder after the service starts;
@@ -780,7 +784,13 @@ These were not tested on boat. Test them before a user gets access:
 - that OpenBot closes `openbot.db` at a `systemctl stop` on a server. The install test used a release
   without the `SIGTERM` handler. The unit sends `SIGTERM` to all of its processes at the same time,
   so on the virtual display Xvfb can stop first and end OpenBot before it closes the database. The
-  database is then as after a crash, which SQLite recovers, because the save starts after the stop.
+  database is then as after a crash, which SQLite recovers, because the save starts after the stop;
+- the agent display on boat with a release build. On 2026-10-16 one boat server ran a 0.42.0 build
+  with this change, from `openbot.service`: OpenBot was on Xvfb `:99` at 1280x800, and `:0` had no
+  OpenBot window. In an agent turn, the agent shell and `cua-driver` had `DISPLAY=:0`, and Computer
+  Use saw a 1920x1080 screen with only the panel and the dock. A local remote desktop session
+  captured `:0`. The session reported the size of the OpenBot display, 1280x800. The first start
+  after a resume, with this script in `/opt`, was not tested.
 
 
 ### Billing and server deletion

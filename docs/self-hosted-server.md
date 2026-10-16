@@ -110,7 +110,7 @@ one warning.
 
 A self-hosted server gives the agents a virtual display (Xvfb), and computer use reads that display.
 The default size is 1280x800. A [Docker](docker.md#environment) container uses the same setting
-and the same default. A hosted server shows OpenBot on its boat desktop, and this setting does not
+and the same default. A hosted server gives the agents its boat desktop, and this setting does not
 change that desktop.
 
 The display size does not change the OpenBot browser (`openbot_browser`). Its pages have their own
