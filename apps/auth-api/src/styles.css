@@ -4274,7 +4274,17 @@ a {
 
 /* Hero, setups and benefits --------------------------------------------- */
 
+/* Registered, so the light on the pill border can turn. */
+@property --teams-pill-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* A light in the three setup colours runs around the border, the dots hop in turn, and a sheen
+   crosses the label. `::before` is the sharp light and `::after` is its blurred glow. */
 .teams-page .teams-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -4288,6 +4298,36 @@ a {
   font-weight: 500;
 }
 
+.teams-page .teams-pill::before,
+.teams-page .teams-pill::after {
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--teams-pill-angle),
+    transparent 0deg 190deg,
+    var(--openbot-logo-production) 250deg,
+    var(--openbot-logo-preview) 295deg,
+    var(--openbot-logo-dev) 340deg,
+    transparent 360deg
+  );
+  content: "";
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: teams-pill-turn 5s linear infinite;
+}
+
+.teams-page .teams-pill::after {
+  inset: -3px;
+  padding: 3px;
+  filter: blur(6px);
+  opacity: 0.7;
+}
+
 .teams-page .teams-pill-dots {
   display: inline-flex;
 }
@@ -4298,10 +4338,63 @@ a {
   border: 2px solid var(--openbot-bg-sidebar);
   border-radius: var(--openbot-radius-pill);
   background: var(--teams-color);
+  animation: teams-pill-hop 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
 }
 
 .teams-page .teams-pill-dots span + span {
   margin-left: -6px;
+}
+
+.teams-page .teams-pill-dots span:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.teams-page .teams-pill-dots span:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+.teams-page .teams-pill-label {
+  background:
+    linear-gradient(
+      100deg,
+      var(--openbot-text-secondary) 42%,
+      var(--openbot-text-primary) 50%,
+      var(--openbot-text-secondary) 58%
+    )
+    0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: teams-pill-sheen 5s ease-in-out infinite;
+}
+
+@keyframes teams-pill-turn {
+  to {
+    --teams-pill-angle: 360deg;
+  }
+}
+
+@keyframes teams-pill-hop {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+
+  12% {
+    transform: translateY(-4px) scale(1.12);
+  }
+}
+
+@keyframes teams-pill-sheen {
+  0% {
+    background-position: 100% 0;
+  }
+
+  45%,
+  100% {
+    background-position: 0 0;
+  }
 }
 
 .teams-page .teams-hero {
@@ -5088,6 +5181,10 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .teams-page .teams-pill::before,
+  .teams-page .teams-pill::after,
+  .teams-page .teams-pill-dots span,
+  .teams-page .teams-pill-label,
   .teams-page .teams-section[data-revealed="true"] > *,
   .teams-page .teams-timeline *,
   .teams-page .teams-timeline *::after {

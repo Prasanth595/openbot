@@ -164,7 +164,7 @@ function TeamsHero() {
           <span class="teams-pill-dots" aria-hidden="true">
             <For each={TEAMS_SETUPS}>{(setup) => <span data-setup={setup.id} />}</For>
           </span>
-          OpenBot for Teams
+          <span class="teams-pill-label">OpenBot for Teams</span>
         </p>
         <h1 id="teams-title" class="teams-title landing-hero-line" style={{ "--landing-hero-line": 1 }}>
           <span>{titleLead}</span>{" "}
