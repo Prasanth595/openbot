@@ -329,7 +329,20 @@ describe("OpenBotDatabase", () => {
         .get(),
     ).toEqual({ aggregate_type: "hosted-site-terminal", aggregate_id: pending.agentId });
 
-    database.dispatch(pending.markerCommandId, [], () => ({ recorded: true }));
+    // The real marker command appends the outcome message to the thread. A command with no event keeps
+    // no receipt.
+    database.dispatch(
+      pending.markerCommandId,
+      [
+        {
+          aggregateType: "thread",
+          aggregateId: pending.threadId,
+          eventType: "hosted-site.publish-succeeded",
+          payload: {},
+        },
+      ],
+      () => ({ recorded: true }),
+    );
     expect(database.pendingHostedSiteTerminalEvents()).toEqual([]);
     database.deletePendingHostedSiteTerminalEvent(pending.agentId, pending.operationId, pending.status);
     expect(

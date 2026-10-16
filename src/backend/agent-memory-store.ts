@@ -111,7 +111,8 @@ export class AgentMemoryStore extends MemoryStore {
 
   /** Dispatch reuses an existing transaction and otherwise owns commit and rollback. */
   withMemoryTransaction<T>(operation: () => T): T {
-    // The wrapper receipt must not retain text after forget/clear removes the memory's own receipts.
+    // The wrapper writes no event, so dispatch keeps no receipt of it, and no memory text stays after
+    // forget/clear removes the memory's own receipts.
     const output: { value?: { result: T } } = {};
     this.database.dispatch(`agent-memory:batch:${randomUUID()}`, [], () => {
       output.value = { result: operation() };

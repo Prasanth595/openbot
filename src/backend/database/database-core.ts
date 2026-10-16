@@ -140,17 +140,23 @@ export class DatabaseCore {
         sequences.push(Number(result.lastInsertRowid));
       }
       const result = project(db, sequences);
-      db.prepare(
-        `INSERT INTO orchestration_command_receipts
-          (command_id, accepted_at, first_sequence, last_sequence, result_json)
-         VALUES (?, ?, ?, ?, ?)`,
-      ).run(
-        commandId,
-        new Date().toISOString(),
-        sequences[0] ?? 0,
-        sequences.at(-1) ?? 0,
-        JSON.stringify(result ?? null),
-      );
+      // A receipt is deleted with its command's events. A command that keeps no event, such as the
+      // memory transaction wrapper or a channel delete that removes its own event, gets no receipt,
+      // because nothing would delete it.
+      const keepsEvent = db.prepare("SELECT 1 FROM orchestration_events WHERE command_id = ? LIMIT 1").get(commandId);
+      if (keepsEvent) {
+        db.prepare(
+          `INSERT INTO orchestration_command_receipts
+            (command_id, accepted_at, first_sequence, last_sequence, result_json)
+           VALUES (?, ?, ?, ?, ?)`,
+        ).run(
+          commandId,
+          new Date().toISOString(),
+          sequences[0] ?? 0,
+          sequences.at(-1) ?? 0,
+          JSON.stringify(result ?? null),
+        );
+      }
       if (ownsTransaction) db.exec("COMMIT");
       return result;
     } catch (error) {
