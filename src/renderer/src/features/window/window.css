@@ -687,8 +687,12 @@
 }
 
 /* The header at the right end of the top row keeps its controls clear of the Windows window buttons.
- * A chat header with an open side panel is not at that end: the side panel's tab row is. */
-.conversation-panel:not(:has(> .side-panel-header)) > .conversation-header,
+ * A chat header with an open side panel or right panel is not at that end: the panel's header is. */
+.conversation-panel:not(:has(> :is(.side-panel-header, .settings-panel, .browser-panel:not(.browser-panel-expanded))))
+> .conversation-header,
+.conversation-panel
+  > :is(.settings-panel, .browser-panel:not(.browser-panel-expanded))
+  > :is(.settings-panel-header, .file-preview-header, .browser-preview-header, .browser-panel-header),
 :is(
   .direct-conversation-header,
   .diagram-view-header,
@@ -704,4 +708,17 @@
 /* The tab row is placed at the right edge, so it keeps its width and moves its contents. */
 .side-panel-header {
   padding-right: calc(var(--openbot-space-2) + var(--window-controls-inset));
+}
+
+/* The controls that are fixed to the top right corner of the window. */
+.browser-panel-expanded .browser-panel-header {
+  padding-inline-end: calc(var(--openbot-space-8) + var(--openbot-space-2) + var(--window-controls-inset));
+}
+
+.browser-hide {
+  right: calc(5px + var(--window-controls-inset));
+}
+
+.server-onboarding-close {
+  right: calc(12px + var(--window-controls-inset));
 }
