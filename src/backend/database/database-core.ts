@@ -140,17 +140,23 @@ export class DatabaseCore {
         sequences.push(Number(result.lastInsertRowid));
       }
       const result = project(db, sequences);
-      db.prepare(
-        `INSERT INTO orchestration_command_receipts
-          (command_id, accepted_at, first_sequence, last_sequence, result_json)
-         VALUES (?, ?, ?, ?, ?)`,
-      ).run(
-        commandId,
-        new Date().toISOString(),
-        sequences[0] ?? 0,
-        sequences.at(-1) ?? 0,
-        JSON.stringify(result ?? null),
-      );
+      // A receipt is deleted with its command's events. A command that keeps no event, such as the
+      // memory transaction wrapper or a channel delete that removes its own event, gets no receipt,
+      // because nothing would delete it.
+      const keepsEvent = db.prepare("SELECT 1 FROM orchestration_events WHERE command_id = ? LIMIT 1").get(commandId);
+      if (keepsEvent) {
+        db.prepare(
+          `INSERT INTO orchestration_command_receipts
+            (command_id, accepted_at, first_sequence, last_sequence, result_json)
+           VALUES (?, ?, ?, ?, ?)`,
+        ).run(
+          commandId,
+          new Date().toISOString(),
+          sequences[0] ?? 0,
+          sequences.at(-1) ?? 0,
+          JSON.stringify(result ?? null),
+        );
+      }
       if (ownsTransaction) db.exec("COMMIT");
       return result;
     } catch (error) {
@@ -218,12 +224,19 @@ function decodeReceiptRow(value: unknown): ReceiptRow | null {
   };
 }
 
-export function deleteOrphanReceipts(db: DatabaseSync): void {
-  db.exec(`DELETE FROM orchestration_command_receipts
-    WHERE NOT EXISTS (
-      SELECT 1 FROM orchestration_events
-      WHERE orchestration_events.command_id = orchestration_command_receipts.command_id
-    )`);
+/**
+ * Deletes the receipts of commands whose events were just dropped. Each receipt is deleted by key,
+ * because a sweep for every orphan scans the whole receipts table, which grows without limit. The
+ * `NOT EXISTS` guard keeps a receipt whose command still has an event.
+ */
+export function deleteReceiptsOf(db: DatabaseSync, commandIds: readonly string[]): void {
+  if (commandIds.length === 0) return;
+  const deleteReceipt = db.prepare(
+    `DELETE FROM orchestration_command_receipts
+     WHERE command_id = ?
+       AND NOT EXISTS (SELECT 1 FROM orchestration_events WHERE command_id = ?)`,
+  );
+  for (const commandId of commandIds) deleteReceipt.run(commandId, commandId);
 }
 
 export function deleteAggregateHistory(db: DatabaseSync, aggregateType: string, aggregateIds: readonly string[]): void {

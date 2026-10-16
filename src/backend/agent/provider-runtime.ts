@@ -74,6 +74,7 @@ import {
   isTelemetryExportDiagnostic,
   isToolCallDiagnostic,
   isUsageLimitDiagnostic,
+  isUsageReadDiagnostic,
   LOG_TIMESTAMP_PREFIX,
 } from "./provider-diagnostics";
 import {
@@ -2787,6 +2788,10 @@ export class ProviderRuntime implements ProviderPort {
       }
       if (isBackgroundRefreshDiagnostic(message)) {
         stderrLogger.warn("A provider reported a failed background refresh.", { provider: client.provider, message });
+        return;
+      }
+      if (client.provider === "grok" && isUsageReadDiagnostic(message)) {
+        stderrLogger.warn("A provider reported a failed usage reading.", { provider: client.provider, message });
         return;
       }
       if (isAcpHandlerDiagnostic(message)) {

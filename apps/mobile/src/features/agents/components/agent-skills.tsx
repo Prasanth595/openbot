@@ -11,7 +11,7 @@ import { Alert } from "react-native";
 import { useUniwind } from "uniwind";
 import { requestComposerFocus, requestComposerText } from "@/features/chat/model/composer-requests";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { type MobileAgent, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -92,7 +92,7 @@ export function AgentSkills({
   queryKey: QueryKey;
 }) {
   const { t } = useText();
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());

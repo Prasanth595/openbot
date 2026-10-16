@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync, StatementSync } from "node:sqlite";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
-import { type DatabaseCore, deleteOrphanReceipts } from "./database-core";
+import { type DatabaseCore, deleteReceiptsOf } from "./database-core";
 import { databaseRow, databaseRows, requiredStringColumn } from "./database-rows";
 
 interface MailboxProjectionAttachment {
@@ -227,8 +227,10 @@ export class MailboxProjection {
       (db, sequences) => {
         const sequence = sequences[0] ?? 0;
         const statements = this.#statementsFor(db);
-        statements.olderEventsDelete.run(sequence);
-        deleteOrphanReceipts(db);
+        const olderCommandIds = databaseRows(statements.olderEventsDelete.all(sequence)).map((row) =>
+          requiredStringColumn(row, "command_id"),
+        );
+        deleteReceiptsOf(db, olderCommandIds);
         // Each upsert writes a row only when its content changed. An unchanged row keeps the
         // sequence of the write that last changed it.
         writeRows(db, statements, sequence);
@@ -404,7 +406,8 @@ function prepareMailboxStatements(db: DatabaseSync): MailboxStatements {
     db,
     olderEventsDelete: db.prepare(
       `DELETE FROM orchestration_events
-       WHERE aggregate_type = 'mailbox' AND aggregate_id = 'mailbox' AND sequence < ?`,
+       WHERE aggregate_type = 'mailbox' AND aggregate_id = 'mailbox' AND sequence < ?
+       RETURNING command_id`,
     ),
     messageUpsert: db.prepare(`
       INSERT INTO projection_mailbox_messages

@@ -83,7 +83,9 @@ const withNotificationServiceFiles = (config, props) =>
 const withNotificationServiceTarget = (config, { targetName, bundleIdentifier }) =>
   withXcodeProject(config, (mod) => {
     const project = mod.modResults;
-    if (project.pbxTargetByName(targetName)) return mod;
+    // `addTarget` writes the name in quotes, and a project read again keeps them. Without both forms,
+    // each `prebuild --no-clean` adds one more target, and `pod install` fails on the shared source.
+    if (project.pbxTargetByName(targetName) || project.pbxTargetByName(`"${targetName}"`)) return mod;
     // `addTarget` adds a dependency, and the `xcode` package fails when these sections are missing.
     const objects = project.hash.project.objects;
     objects.PBXTargetDependency ??= {};

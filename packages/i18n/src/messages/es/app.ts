@@ -57,6 +57,7 @@ export const messages = {
   "app.help.whatsNew": "Novedades",
   "app.help.changelog": "Registro de cambios completo",
   "app.help.guides": "Guías",
+  "app.help.discord": "Únete a Discord",
   "app.rail.usageRings": "Uso de {name}: {windows}. Abrir uso",
   "app.settingsPage.title": "Ajustes",
   "app.settingsPage.search": "Buscar ajustes",

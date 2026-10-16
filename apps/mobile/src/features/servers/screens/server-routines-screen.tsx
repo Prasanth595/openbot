@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { DAY_STRIP_LENGTH, DayStrip } from "@/features/servers/components/day-strip";
 import {
   SettingsContent,
@@ -29,6 +29,7 @@ import {
   SettingsSection,
 } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
@@ -95,7 +96,7 @@ export function ServerRoutinesScreen() {
   const { theme } = useUniwind();
   const foreground = String(useCSSVariable("--openbot-text-primary"));
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
-  const { session, sessionScope } = useMobileSession();
+  const queryScope = useQueryScope();
   const { servers, agents, loadRoutineCalendar } = useMobileWorkspace();
   const server = servers.find((item) => item.id === serverId);
   const online = server?.state === "online";
@@ -120,7 +121,7 @@ export function ServerRoutinesScreen() {
     queries: loadedWeeks.map((weekStart) => {
       const range = rangeAround(weekStart, addCalendarDays(weekStart, 6));
       return {
-        queryKey: ["server-routines", session?.apiUrl, session?.user.id, sessionScope, serverId, range.from, range.to],
+        queryKey: queryKeys.serverRoutines(queryScope, serverId, range.from, range.to),
         enabled: online,
         retry: false,
         // Host events refresh a week; a swipe back to a loaded week does not ask the host again.

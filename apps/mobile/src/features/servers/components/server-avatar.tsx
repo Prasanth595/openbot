@@ -9,9 +9,10 @@ import Svg, { Path } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 import { thumbnailColor } from "@/features/agents/components/bloub-avatar";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { loadServerLogo } from "@/features/servers/model/server-logo";
 import { DISCONNECTED_APPEARANCE } from "@/features/workspace/components/use-connection-appearance";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 
@@ -53,10 +54,11 @@ export function ServerAvatar({
   logoUri?: string | null;
   showStatus?: boolean;
 }) {
-  const { session, sessionScope } = useMobileSession();
+  const { session } = useMobileSession();
+  const queryScope = useQueryScope();
   const { logoKey } = server;
   const saved = useQuery({
-    queryKey: ["server-logo", session?.apiUrl, session?.user.id, sessionScope, server.id, logoKey],
+    queryKey: queryKeys.serverLogo(queryScope, server.id, logoKey),
     enabled: logoUri === undefined && Boolean(session && logoKey),
     queryFn: () => {
       if (!session || !logoKey) throw new Error("The server logo is unavailable.");

@@ -1,6 +1,7 @@
 import { AppLogo, PlatformLogo, ProviderLogo } from "@openbot/brand";
 import { onSettled } from "solid-js";
 import { landingAnalytics } from "../../lib/analytics";
+import { ContentCallToAction } from "../content/ContentCallToAction";
 import { ButtonLink } from "../ui/button";
 import { AgentNetworkSection } from "./AgentNetworkSection";
 import { DownloadSection } from "./DownloadSection";
@@ -111,6 +112,7 @@ export function LandingPage() {
         <TeamsSection />
         <FaqSection />
         <DownloadSection />
+        <ContentCallToAction />
       </main>
       <LandingFooter />
       <LandingGlow />

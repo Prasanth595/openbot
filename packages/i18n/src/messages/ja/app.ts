@@ -59,6 +59,7 @@ export const messages = {
   "app.help.whatsNew": "新機能",
   "app.help.changelog": "すべての変更履歴",
   "app.help.guides": "ガイド",
+  "app.help.discord": "Discordに参加",
   "app.rail.usageRings": "{name} の使用量: {windows}。使用量を開く",
   "app.settingsPage.title": "設定",
   "app.settingsPage.search": "設定を検索",

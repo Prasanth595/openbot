@@ -62,6 +62,7 @@ function RailHelpMenu() {
       onOpenWhatsNew={whatsNew.reopen}
       onOpenChangelog={() => void appPort().openExternal("changelog")}
       onOpenGuides={() => void appPort().openExternal("guides")}
+      onOpenDiscord={() => void appPort().openExternal("discord")}
       onSendFeedback={() => void appPort().openExternal("feedback")}
     />
   );

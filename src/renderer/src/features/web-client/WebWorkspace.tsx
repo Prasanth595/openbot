@@ -1234,6 +1234,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 onOpenWhatsNew={() => void openWebDestination("changelog")}
                 onOpenChangelog={() => void openWebDestination("changelog")}
                 onOpenGuides={() => void openWebDestination("guides")}
+                onOpenDiscord={() => void openWebDestination("discord")}
                 onSendFeedback={() => void openWebDestination("feedback")}
               />
             }

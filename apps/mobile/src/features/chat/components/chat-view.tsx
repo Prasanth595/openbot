@@ -46,6 +46,7 @@ import {
 } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgentActivity } from "@/features/workspace/model/agent-activity";
 import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -352,7 +353,7 @@ export function ChatView({
           message.messageId,
           [...outbox.filesInMemory(message.clientMessageId)],
           (id, file) => {
-            queryClient.setQueryData(["chat-attachment", target.serverId, id], file);
+            queryClient.setQueryData(queryKeys.chatAttachment(target.serverId, id), file);
           },
         ),
     );
