@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,6 +7,8 @@ import type { BrowserBounds } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { Effect } from "effect";
 import { app, BrowserWindow, clipboard, type WebContents, webContents } from "electron";
+import { BrowserUploads } from "../src/backend/agent/browser-uploads";
+import { attachmentCall } from "../src/backend/attachment-effects";
 import { BrowserHost } from "../src/backend/browser-host";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { type DynamicToolResult, getString } from "../src/backend/protocol";
@@ -1314,6 +1317,7 @@ async function main(): Promise<void> {
     if (frameUploadInputIds.length !== 2 || frameUploadInputIds[0] !== frameUploadInputIds[1]) {
       throw new Error("V2 frame upload input identity changed between CDP sessions.");
     }
+    await runStagedUploadScenario(browser, v2Tab.id, uploadPath, join(temporaryRoot, "missing-upload.txt"));
     await runCauseEffect(browser.setVisible({ visible: true, bounds: { x: 0, y: 0, width: 220, height: 560 } }));
     const narrowFillEnvironment = await callBrowserTool(browser, "set_environment", {
       tabId: v2Tab.id,
@@ -2759,6 +2763,58 @@ async function runCanvasGridScenario(browser: BrowserHost, origin: string): Prom
     }
   } finally {
     await runCauseEffect(browser.close(gridTab.id));
+  }
+}
+
+/**
+ * `upload_files` as an agent calls it: staged by `BrowserUploads` before `BrowserHost` sets the input.
+ * Every failure must come back as a failed tool result. A rejected call becomes a JSON-RPC error,
+ * which Codex hides from the agent and logs as a "Provider error".
+ */
+async function runStagedUploadScenario(
+  browser: BrowserHost,
+  tabId: string,
+  uploadPath: string,
+  missingPath: string,
+): Promise<void> {
+  const uploads = new BrowserUploads({
+    browser,
+    attachments: {
+      openSources: (_agentId, paths) =>
+        attachmentCall(() =>
+          Promise.all(paths.map(async (path) => ({ path, handle: await open(path, constants.O_RDONLY) }))),
+        ),
+    },
+    isStopping: () => false,
+    hasTakeover: () => false,
+  });
+  const upload = (target: unknown, paths: string[]) => {
+    browserToolCall += 1;
+    return runCauseEffect(
+      uploads.uploadFiles("smoke-bot", {
+        threadId: "smoke-thread",
+        turnId: `browser-v2-${browserToolCall}`,
+        callId: `browser-v2-call-${browserToolCall}`,
+        ownerAgentId: "smoke-bot",
+        namespace: "openbot_browser",
+        tool: "upload_files",
+        arguments: { tabId, target, paths },
+      }),
+    );
+  };
+  try {
+    const ambiguous = await upload({ kind: "css", selector: "input[type='file']" }, [uploadPath]);
+    if (ambiguous.success || !toolError(ambiguous).includes("CSS selector is ambiguous")) {
+      throw new Error(`V2 staged upload did not return the ambiguous selector: ${toolError(ambiguous)}`);
+    }
+    const missing = await upload({ kind: "css", selector: 'input[aria-label="Files"]' }, [missingPath]);
+    if (missing.success || !toolError(missing).includes("missing-upload.txt")) {
+      throw new Error(`V2 staged upload did not return the missing file: ${toolError(missing)}`);
+    }
+    const staged = await upload({ kind: "css", selector: 'input[aria-label="Files"]' }, [uploadPath]);
+    if (!staged.success) throw new Error(`V2 staged upload failed: ${toolError(staged)}`);
+  } finally {
+    await runCauseEffect(uploads.dispose());
   }
 }
 

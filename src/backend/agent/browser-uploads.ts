@@ -129,12 +129,20 @@ export class BrowserUploads {
     this: BrowserUploads,
     agentId: string,
     params: DynamicToolCallParams,
-  ): Effect.fn.Return<DynamicToolResult, AttachmentOperationError> {
+  ): Effect.fn.Return<DynamicToolResult> {
+    // A failed tool result, as every other browser tool returns: Codex replaces a JSON-RPC error with
+    // "dynamic tool request failed", so the agent could not correct an ambiguous selector or a bad path.
     return yield* this.#stageAndAssign(agentId, params).pipe(
-      Effect.mapError((error) =>
-        attachmentFailure(
-          new Error(redactText(error.cause instanceof Error ? error.cause.message : String(error.cause))),
-        ),
+      Effect.catch((error) =>
+        Effect.succeed<DynamicToolResult>({
+          success: false,
+          contentItems: [
+            {
+              type: "inputText",
+              text: redactText(error.cause instanceof Error ? error.cause.message : String(error.cause)),
+            },
+          ],
+        }),
       ),
     );
   });
