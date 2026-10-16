@@ -6,8 +6,10 @@ import {
   type WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
-import { createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, createStore } from "solid-js";
+import { createScopeGuard } from "../../../scope-lifetime";
 import { attachmentFilePreview } from "../attachment-preview";
+import { releaseFilePreviewPage } from "../conversation-port";
 import { conversationRuntime } from "../conversation-runtime";
 import type {
   ConversationProps,
@@ -45,19 +47,16 @@ export const SIDE_PANEL_MODES = {
   settings: "settings",
 } as const satisfies Record<SidePanelPane, RightPanelMode>;
 
+function isSidePanelPane(value: string): value is SidePanelPane {
+  return value in SIDE_PANEL_MODES;
+}
+
+/** The pane that shows a panel mode, or null for a mode outside the side panel. */
 function paneOfMode(mode: RightPanelMode): SidePanelPane | null {
-  switch (mode) {
-    case "browser":
-      return "browser";
-    case "files":
-      return "files";
-    case "task":
-      return "tasks";
-    case "settings":
-      return "settings";
-    default:
-      return null;
+  for (const [pane, paneMode] of Object.entries(SIDE_PANEL_MODES)) {
+    if (paneMode === mode && isSidePanelPane(pane)) return pane;
   }
+  return null;
 }
 
 export interface PanelsStoreDeps {
@@ -77,6 +76,7 @@ export interface PanelsStoreDeps {
 }
 
 export function createPanelsStore(deps: PanelsStoreDeps) {
+  const scopeActive = createScopeGuard();
   const [skillSettingsRequest, setSkillSettingsRequest] = createSignal<{ agentId: string; skillId: string } | null>(
     null,
   );
@@ -93,14 +93,23 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     const agentId = deps.props.agent?.id;
     return agentId ? (deps.rightPanels()[agentId] ?? "none") : "none";
   });
-  const [sidePanels, setSidePanels] = createSignal<Record<string, SidePanelState>>({});
+  /**
+   * The side panel of each agent, and the task in its Tasks pane. A task of null is a new task, until its
+   * first message starts it; an agent with no task entry shows the task list.
+   */
+  const [panels, setPanels] = createStore<{
+    side: Record<string, SidePanelState>;
+    tasks: Record<string, string | null>;
+  }>({ side: {}, tasks: {} });
   const sidePanel = (): SidePanelState => {
     const agentId = deps.props.agent?.id;
-    return (agentId && sidePanels()[agentId]) || SIDE_PANEL_EMPTY;
+    return (agentId && panels.side[agentId]) || SIDE_PANEL_EMPTY;
   };
   const sidePanelOpen = () => activeRightPanel() === "side-panel" || paneOfMode(activeRightPanel()) !== null;
   function updateSidePanel(agentId: string, update: (state: SidePanelState) => SidePanelState) {
-    setSidePanels((current) => ({ ...current, [agentId]: update(current[agentId] ?? SIDE_PANEL_EMPTY) }));
+    setPanels((draft) => {
+      draft.side[agentId] = update(draft.side[agentId] ?? SIDE_PANEL_EMPTY);
+    });
   }
   function setSidePanelMaximized(maximized: boolean) {
     const agentId = deps.props.agent?.id;
@@ -110,7 +119,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   function removeSidePanelPane(pane: SidePanelPane): SidePanelPane | null {
     const agentId = deps.props.agent?.id;
     if (!agentId) return null;
-    const state = sidePanels()[agentId] ?? SIDE_PANEL_EMPTY;
+    const state = panels.side[agentId] ?? SIDE_PANEL_EMPTY;
     const index = state.panes.indexOf(pane);
     const panes = state.panes.filter((item) => item !== pane);
     const selected =
@@ -120,17 +129,15 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   }
   const settingsOpen = () => activeRightPanel() === "settings";
   const filesOpen = () => activeRightPanel() === "files";
-  // The task in each agent's task panel. Null is a new task, until its first message starts it.
-  const [taskPanels, setTaskPanels] = createSignal<Record<string, string | null>>({});
   const taskPanelOpen = () => activeRightPanel() === "task" && deps.props.tasks !== undefined;
   const taskPanelTaskId = (): string | null => {
     const agentId = deps.props.agent?.id;
-    return agentId ? (taskPanels()[agentId] ?? null) : null;
+    return agentId ? (panels.tasks[agentId] ?? null) : null;
   };
   /** The Tasks pane lists the tasks until the user opens one or starts a new one. */
   const taskListOpen = () => {
     const agentId = deps.props.agent?.id;
-    return taskPanelOpen() && agentId !== undefined && !(agentId in taskPanels());
+    return taskPanelOpen() && agentId !== undefined && !(agentId in panels.tasks);
   };
   const filePreviewOpen = () =>
     activeRightPanel() === "file-preview" && deps.sidebarFilePreview()?.ownerAgentId === deps.props.agent?.id;
@@ -150,7 +157,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
         selected: pane,
       }));
     else if (mode === "side-panel") updateSidePanel(agentId, (state) => ({ ...state, selected: null }));
-    else if (mode === "none" && sidePanels()[agentId]?.maximized) {
+    else if (mode === "none" && panels.side[agentId]?.maximized) {
       updateSidePanel(agentId, (state) => ({ ...state, maximized: false }));
     }
   }
@@ -159,7 +166,9 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   function openTaskPanel(taskId: string | null): void {
     const agentId = deps.props.agent?.id;
     if (!agentId) return;
-    setTaskPanels((current) => ({ ...current, [agentId]: taskId }));
+    setPanels((draft) => {
+      draft.tasks[agentId] = taskId;
+    });
     if (taskId) deps.props.tasks?.onOpen(taskId);
     setActiveRightPanel("task", agentId);
   }
@@ -168,10 +177,8 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   function showTaskList(): void {
     const agentId = deps.props.agent?.id;
     if (!agentId) return;
-    setTaskPanels((current) => {
-      if (!(agentId in current)) return current;
-      const { [agentId]: _removed, ...next } = current;
-      return next;
+    setPanels((draft) => {
+      delete draft.tasks[agentId];
     });
     setActiveRightPanel("task", agentId);
   }
@@ -266,12 +273,19 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
       .agent.previewSharedFile({ path })
       .then(
         (preview) => {
-          if (generation !== deps.currentFilePreviewGeneration() || deps.props.agent?.id !== ownerAgentId) return;
+          if (
+            !scopeActive() ||
+            generation !== deps.currentFilePreviewGeneration() ||
+            deps.props.agent?.id !== ownerAgentId
+          ) {
+            releaseFilePreviewPage(preview.pageUrl);
+            return;
+          }
           deps.setSidebarFilePreview({ ownerAgentId, source: { kind: "shared", path }, preview });
           setActiveRightPanel("file-preview", ownerAgentId);
         },
         (error) => {
-          if (generation !== deps.currentFilePreviewGeneration()) return;
+          if (!scopeActive() || generation !== deps.currentFilePreviewGeneration()) return;
           deps.setComposerError(filePreviewError(error, path), target);
         },
       );
@@ -287,12 +301,16 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     const serverId = deps.props.server?.id ?? "local";
     const target = { agentId, serverId };
     const generation = deps.nextFilePreviewGeneration();
-    const current = () => generation === deps.currentFilePreviewGeneration() && deps.props.agent?.id === agentId;
+    const current = () =>
+      scopeActive() && generation === deps.currentFilePreviewGeneration() && deps.props.agent?.id === agentId;
     const agent = conversationRuntime(deps.props).agent;
     deps.setComposerError(null, target);
     void agent.previewWorkspaceFile({ agentId, path }).then(
       (preview) => {
-        if (!current()) return;
+        if (!current()) {
+          releaseFilePreviewPage(preview.pageUrl);
+          return;
+        }
         deps.setSidebarFilePreview({ ownerAgentId: agentId, source: { kind: "workspace", path, folder }, preview });
         setActiveRightPanel("file-preview", agentId);
       },
@@ -303,7 +321,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
             showWorkspaceFolder(agentId, path, directory);
           },
           () => {
-            if (generation !== deps.currentFilePreviewGeneration()) return;
+            if (!scopeActive() || generation !== deps.currentFilePreviewGeneration()) return;
             deps.setComposerError(filePreviewError(error, path), target);
           },
         ),

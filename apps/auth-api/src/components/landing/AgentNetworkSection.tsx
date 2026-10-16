@@ -9,7 +9,18 @@ import {
   LANDING_PROVIDERS,
   LANDING_TEAM_MESSAGES,
 } from "../../lib/landing-content";
-import { buildAgentNetwork, drawAgentNetwork, type NetworkAssets, type NetworkView } from "./agent-network-scene";
+import {
+  agentNetworkHubAt,
+  agentNetworkNodeAt,
+  buildAgentNetwork,
+  drawAgentNetwork,
+  HUB_SIGNAL_STYLES,
+  type HubSignal,
+  type NetworkAssets,
+  type NetworkView,
+  regrowAgentNetwork,
+  startHubSignal,
+} from "./agent-network-scene";
 
 /** The grown network chooses from this many avatars. The three named agents come after them. */
 const GROWN_AVATARS = 24;
@@ -108,8 +119,10 @@ function standaloneMark(mark: SVGSVGElement): SVGSVGElement {
 
 /**
  * "Your agents talk to each other": Ada, Linus and Grace pass the Safari task
- * through OpenBot, then the network grows until it fills the frame. The picture
- * is decorative; the heading and the sentence carry the message.
+ * through OpenBot, then the network grows until it fills the frame. When it is
+ * complete, a click on an agent grows a new network from that agent. At any time,
+ * a click on the hub sends a signal, in one of the styles at random, through the
+ * network. The picture is decorative; the heading and the sentence carry the message.
  */
 export function AgentNetworkSection() {
   const [playing, setPlaying] = createSignal(false);
@@ -149,8 +162,9 @@ export function AgentNetworkSection() {
 
     const reduced = prefersReducedMotion();
     // A new network at each visit. The scene builds only in the browser, so the page markup does not change.
-    const seed = Math.floor(Math.random() * 2 ** 32);
-    const network = buildAgentNetwork({
+    const newSeed = () => Math.floor(Math.random() * 2 ** 32);
+    const seed = newSeed();
+    let network = buildAgentNetwork({
       agents: [first, second, third],
       messages: [firstMessage.text, secondMessage.text, thirdMessage.text],
       hubLabel: LANDING_NETWORK_HUB,
@@ -183,16 +197,19 @@ export function AgentNetworkSection() {
     const view: NetworkView = { width: 0, height: 0, top: 0, narrow: false };
     let ratio = 1;
     let time = 0;
+    let signals: HubSignal[] = [];
     let started = false;
     let visible = false;
     let frame = 0;
     let last = 0;
     let disposed = false;
 
+    const now = () => (reduced ? network.end : time);
     const draw = () => {
       if (!view.width) return;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      drawAgentNetwork(context, network, assets, view, reduced ? network.end : time, !reduced);
+      if (signals.some((signal) => signal.end <= now())) signals = signals.filter((signal) => signal.end > now());
+      drawAgentNetwork(context, network, assets, view, now(), !reduced, signals);
     };
     const tick = (now: number) => {
       frame = 0;
@@ -221,6 +238,52 @@ export function AgentNetworkSection() {
       canvas.height = Math.round(box.height * ratio);
       draw();
     };
+    // True where the mask of `.landing-network-canvas` shows at least half of the network:
+    // below the middle of the fade under the heading, and inside the middle of the fade of the
+    // ellipse (72% × 78% at 50% 55%, solid to 60%).
+    const unmasked = (x: number, y: number) =>
+      y >= view.top + 48 &&
+      Math.hypot((x - view.width * 0.5) / (view.width * 0.72), (y - view.height * 0.55) / (view.height * 0.78)) <= 0.8;
+    // When the network is complete, a click on a visible agent grows a new network from it.
+    const agentAt = (event: MouseEvent) => {
+      if (now() < network.end) return -1;
+      const box = canvas.getBoundingClientRect();
+      const x = event.clientX - box.left;
+      const y = event.clientY - box.top;
+      return unmasked(x, y) ? agentNetworkNodeAt(network, view, now(), x, y) : -1;
+    };
+    // Reduced motion has no signal.
+    const onHub = (event: MouseEvent) => {
+      if (reduced) return false;
+      const box = canvas.getBoundingClientRect();
+      return agentNetworkHubAt(network, view, now(), event.clientX - box.left, event.clientY - box.top);
+    };
+    const click = (event: MouseEvent) => {
+      if (onHub(event)) {
+        const style = HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple";
+        const signal = startHubSignal(network, style, now());
+        if (signal) signals = [...signals, signal];
+        return;
+      }
+      const root = agentAt(event);
+      if (root < 0) return;
+      signals = [];
+      network = regrowAgentNetwork(network, root, now(), {
+        seed: newSeed(),
+        avatarCount: GROWN_AVATARS,
+        markCount: MARKS.length,
+      });
+      time = 0;
+      canvas.style.cursor = "";
+      draw();
+      play();
+    };
+    const point = (event: PointerEvent) => {
+      canvas.style.cursor = event.pointerType === "mouse" && (onHub(event) || agentAt(event) >= 0) ? "pointer" : "";
+    };
+    canvas.addEventListener("click", click);
+    canvas.addEventListener("pointermove", point);
+
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(stage);
 
@@ -280,6 +343,8 @@ export function AgentNetworkSection() {
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       document.removeEventListener("visibilitychange", play);
+      canvas.removeEventListener("click", click);
+      canvas.removeEventListener("pointermove", point);
       cancelAnimationFrame(frame);
     };
   });

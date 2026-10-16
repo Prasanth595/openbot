@@ -8,6 +8,7 @@ import {
   type ConversationPlan,
   type ConversationSnapshot,
   conversationPlanText,
+  isAgentContextCategories,
   latestTurnAnswer,
 } from "@openbot/contracts/ipc";
 import { isString } from "@openbot/contracts/runtime-values";
@@ -529,6 +530,7 @@ export class TurnLifecycle {
             source.contextCompaction === "native",
             source.contextCompaction === "events" || source.contextCompaction === "request" ? 0.8 : null,
             usage.estimated === true,
+            isAgentContextCategories(usage.categories) ? usage.categories : undefined,
           );
         return;
       }

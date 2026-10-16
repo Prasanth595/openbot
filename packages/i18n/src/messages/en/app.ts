@@ -55,6 +55,8 @@ export const messages = defineMessages("app", {
   "app.rail.usage": "Usage",
   "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Settings",
+  "app.rail.settingsNotice": "Settings. {notice}",
+  "app.page.serverFallback": "Server",
   "app.help.label": "Help",
   "app.help.whatsNew": "What’s new",
   "app.help.changelog": "Full changelog",
@@ -66,6 +68,10 @@ export const messages = defineMessages("app", {
   "app.settingsPage.searchPlaceholder": "Search settings…",
   "app.settingsPage.results": "Settings search results",
   "app.settingsPage.noResults": "No matching settings.",
+  "app.settingsPage.resultCount": {
+    one: "{count} matching setting.",
+    other: "{count} matching settings.",
+  },
   "app.standingApproval.description":
     "{name} will run commands and MCP tools, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
   "app.standingApproval.descriptionUnnamed":

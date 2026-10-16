@@ -10,12 +10,13 @@ import {
   PanelRight,
   Plus,
   Settings,
+  Tabs,
   X,
 } from "@openbot/ui";
 import { ComputerIcon } from "@openbot/ui/features/conversation/ConversationIcons";
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
-import { For, Show } from "solid-js";
+import { For, flush, onSettled, Show } from "solid-js";
 
 /** A pane of the side panel. Each open pane has a tab at the top of the panel. */
 export type SidePanelPane = "browser" | "files" | "tasks" | "settings";
@@ -71,7 +72,7 @@ export function SidePanelToggle(props: SidePanelToggleProps) {
       ]}
       aria-label={label()}
       title={label()}
-      aria-pressed={props.open ? "true" : "false"}
+      aria-expanded={props.open ? "true" : "false"}
       onClick={() => props.onToggle()}
     >
       <PanelRight aria-hidden="true" class="size-[14px]" />
@@ -102,24 +103,39 @@ export interface SidePanelHeaderProps {
  * The top row of the side panel: a tab for each open pane, then Add and Maximize. The tab icon is
  * also the close button of the tab; hover or focus shows its X. Add lists only the panes that are not
  * open, and goes away when all of them are.
+ *
+ * The tabs are one tab stop. The arrow keys, Home and End select a tab; Delete closes it. The close
+ * button is for the pointer only, so the tab list holds only tabs. The panes are labeled regions of
+ * their own, so no tab panel is registered.
  */
 export function SidePanelHeader(props: SidePanelHeaderProps) {
   const { t } = useText();
+  let tabList: HTMLDivElement | undefined;
   const closedPanes = () => props.available.filter((pane) => !props.panes.includes(pane));
+  /** Delete closes the tab. The closed tab leaves the list, so focus moves to the tab that takes its place. */
+  const onTabKeyDown = (event: KeyboardEvent, pane: SidePanelPane) => {
+    if (event.key !== "Delete" && event.key !== "Backspace") return;
+    event.preventDefault();
+    const index = props.panes.indexOf(pane);
+    flush(() => props.onClose(pane));
+    const next = props.panes[Math.min(index, props.panes.length - 1)];
+    if (next) tabList?.querySelector<HTMLElement>(`[data-key="${next}"]`)?.focus();
+  };
   return (
-    <div class="window-drag side-panel-header">
-      <div class="side-panel-tabs">
+    <Tabs.Root class="window-drag side-panel-header" value={props.selected ?? "__none"} activationMode="automatic">
+      <Tabs.List ref={tabList} class="side-panel-tabs" aria-label={t("conversation.sidePanel.label")}>
         <For each={props.panes}>
           {(pane) => {
             const label = () => t(PANE_LABELS[pane]);
             const selected = () => props.selected === pane;
             return (
-              <div class="side-panel-tab no-drag" data-selected={selected() ? "true" : undefined}>
+              <div role="presentation" class="side-panel-tab no-drag" data-selected={selected() ? "true" : undefined}>
                 <Button
                   variant="ghost"
                   type="button"
                   class="side-panel-tab-close"
-                  aria-label={t("conversation.sidePanel.closePane", { name: label() })}
+                  tabindex={-1}
+                  aria-hidden="true"
                   title={t("conversation.sidePanel.closePane", { name: label() })}
                   onClick={() => props.onClose(pane)}
                 >
@@ -128,21 +144,28 @@ export function SidePanelHeader(props: SidePanelHeaderProps) {
                   </span>
                   <X class="side-panel-tab-x" aria-hidden="true" />
                 </Button>
-                <Button
-                  variant="ghost"
+                <Tabs.Trigger
+                  as="button"
                   type="button"
-                  class="side-panel-tab-select"
-                  aria-pressed={selected() ? "true" : "false"}
+                  value={pane}
+                  class={buttonVariants({ variant: "ghost", class: "side-panel-tab-select" })}
+                  aria-keyshortcuts="Delete"
                   title={label()}
+                  // As in the browser panel, only the user selects a pane: while the tabs register,
+                  // the controlled selection can be absent and suggest the first tab.
                   onClick={() => props.onSelect(pane)}
+                  // The arrow keys, Home and End move the focus. Focus that comes back from another
+                  // window has no related target and keeps the selected pane.
+                  onFocus={(event) => event.relatedTarget !== null && !selected() && props.onSelect(pane)}
+                  onKeyDown={(event) => onTabKeyDown(event, pane)}
                 >
                   <span class="side-panel-tab-label">{label()}</span>
-                </Button>
+                </Tabs.Trigger>
               </div>
             );
           }}
         </For>
-      </div>
+      </Tabs.List>
       <div class="side-panel-actions no-drag">
         <Show when={props.panes.length > 0 && closedPanes().length > 0}>
           <DropdownMenu.Root placement="bottom-end" gutter={4}>
@@ -194,18 +217,26 @@ export function SidePanelHeader(props: SidePanelHeaderProps) {
           </Button>
         </Show>
       </div>
-    </div>
+    </Tabs.Root>
   );
 }
 
-/** With no open pane, the side panel lists the panes it can open. */
+/**
+ * With no open pane, the side panel lists the panes it can open. When the last tab closes, the focus
+ * goes with it, so the first pane button takes the focus.
+ */
 export function SidePanelLauncher(props: {
   available: readonly SidePanelPane[];
   onOpen: (pane: SidePanelPane) => void;
 }) {
   const { t } = useText();
+  let launcher: HTMLElement | undefined;
+  onSettled(() => {
+    if (document.activeElement === null || document.activeElement === document.body)
+      launcher?.querySelector<HTMLElement>("button")?.focus();
+  });
   return (
-    <nav class="side-panel-launcher" aria-label={t("conversation.sidePanel.launcher")}>
+    <nav ref={launcher} class="side-panel-launcher" aria-label={t("conversation.sidePanel.launcher")}>
       <For each={props.available}>
         {(pane) => (
           <Button variant="secondary" class="side-panel-launch" onClick={() => props.onOpen(pane)}>

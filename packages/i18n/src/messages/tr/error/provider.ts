@@ -147,6 +147,10 @@ export const messages = {
     "{provider} zamanında yanıt vermedi. Bilgisayar meşgul olabilir. OpenBot tekrar deneyecek.",
   "error.provider.cliTimedOutRefresh":
     "{provider} zamanında yanıt vermedi. Bilgisayar meşgul olabilir. Tekrar denemek için sağlayıcıları yenileyin.",
+  "error.provider.acpStartTimedOut":
+    "{provider} {seconds} sn içinde başlatmayı tamamlamadı. Bilgisayar meşgul olabilir.",
+  "error.provider.acpModelsTimedOut":
+    "{provider} {seconds} sn içinde modellerini listelemedi. Bilgisayar meşgul olabilir.",
   "error.provider.startStopped":
     "{provider} art arda birkaç kez başlamadı, bu yüzden OpenBot denemeyi bıraktı. Tekrar denemek için sağlayıcıları yenileyin.",
   "error.provider.tempDiskSpace":

@@ -183,6 +183,9 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const scrimTouchStyle = useAnimatedStyle(() => ({
     pointerEvents: drawerOpenOnUI.get() ? "auto" : "none",
   }));
+  const contentTouchStyle = useAnimatedStyle(() => ({
+    pointerEvents: drawerOpenOnUI.get() || drawerProgress.get() > 0 ? "none" : "auto",
+  }));
 
   const navigateAfterClosing = useCallback(
     (href: Href) => {
@@ -255,7 +258,9 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
                 surfaceStyle,
               ]}
             >
-              {children}
+              <Animated.View collapsable={false} className="flex-1" style={contentTouchStyle}>
+                {children}
+              </Animated.View>
               <Animated.View className="absolute inset-0" style={scrimTouchStyle}>
                 <Animated.View className="absolute inset-0" pointerEvents="none" style={blurStyle}>
                   <BlurView intensity={5} style={{ flex: 1 }} tint="systemThickMaterial" />

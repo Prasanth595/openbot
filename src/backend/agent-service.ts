@@ -2597,6 +2597,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return agent;
   }
 
+  ensureAgentDeletable(agentId: string): Effect.Effect<void, AgentLifecycleFailed> {
+    return this.#removal
+      .ensureDeletable(agentId)
+      .pipe(Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "deleteAgent", cause: failure.cause })));
+  }
+
   deleteAgent(agentId: string): Effect.Effect<void, AgentLifecycleFailed> {
     return this.#removal
       .delete(agentId)

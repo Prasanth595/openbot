@@ -150,6 +150,7 @@ export const messages = {
   "connector.slack.disconnectEffect":
     "Las personas de {workspace} ya no podrán contactar con tus agentes a través de @OpenBot.",
   "connector.slack.removeEffectKept": "Las conversaciones y el Orquestador de Slack permanecen en OpenBot.",
+  "connector.slack.removeEffectDeleted": "El Orquestador de Slack y sus conversaciones se eliminan de OpenBot.",
   "connector.slack.keep": "Mantener la conexión",
   "connector.slack.close": "Cerrar",
   "connector.discord.title": "Discord",
@@ -212,6 +213,7 @@ export const messages = {
   "connector.discord.disconnectEffect":
     "Las personas de {workspace} ya no podrán contactar con tus agentes a través de @OpenBot.",
   "connector.discord.removeEffectKept": "Las conversaciones y el Orquestador de Discord permanecen en OpenBot.",
+  "connector.discord.removeEffectDeleted": "El Orquestador de Discord y sus conversaciones se eliminan de OpenBot.",
   "connector.discord.keep": "Mantener la conexión",
   "connector.discord.close": "Cerrar",
   "connector.telegram.title": "Telegram",
@@ -286,11 +288,12 @@ export const messages = {
   "connector.telegram.doneTitle": "OpenBot está en {chat}",
   "connector.telegram.done": "Listo",
   "connector.telegram.disconnectTitle": "¿Desconectar {chat}?",
-  "connector.telegram.disconnectDescription":
-    "El bot de OpenBot sale de {chat} y OpenBot deja de responder allí. Las conversaciones permanecen en OpenBot.",
+  "connector.telegram.leaveDescription": "El bot de OpenBot sale de {chat} y OpenBot deja de responder allí.",
   "connector.telegram.disconnectEffect":
     "Las personas de {chat} ya no podrán comunicarse con tus agentes a través del bot de OpenBot.",
   "connector.telegram.removeEffectKept": "Las conversaciones y el Orquestador de Telegram permanecen en OpenBot.",
+  "connector.telegram.removeEffectDeleted":
+    "Es el último chat, así que el Orquestador de Telegram y sus conversaciones se eliminan de OpenBot.",
   "connector.telegram.keep": "Mantener la conexión",
   "connector.telegram.close": "Cerrar",
   "connector.onePassword.title": "1Password",

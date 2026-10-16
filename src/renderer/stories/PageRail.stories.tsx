@@ -1,10 +1,10 @@
 import { accountUsageProviderRows } from "@openbot/ui/features/account/account-usage-view";
 import { HelpMenu } from "@openbot/ui/features/updates/HelpMenu";
+import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRail";
 import { useText } from "@openbot/ui/text";
 import { createSignal } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { PageRail, type PageRailPage } from "../src/features/window/PageRail";
 
 const nowSeconds = Math.floor(Date.now() / 1_000);
 

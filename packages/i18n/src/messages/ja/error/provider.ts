@@ -150,6 +150,10 @@ export const messages = {
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。OpenBot が再試行します。",
   "error.provider.cliTimedOutRefresh":
     "{provider} が時間内に応答しませんでした。コンピューターの負荷が高い可能性があります。プロバイダーを更新して再試行してください。",
+  "error.provider.acpStartTimedOut":
+    "{provider} の起動が {seconds} 秒以内に完了しませんでした。コンピューターの負荷が高い可能性があります。",
+  "error.provider.acpModelsTimedOut":
+    "{provider} が {seconds} 秒以内にモデルを一覧表示しませんでした。コンピューターの負荷が高い可能性があります。",
   "error.provider.startStopped":
     "{provider} の起動に続けて何度も失敗したため、OpenBot は再試行を停止しました。プロバイダーを更新して再試行してください。",
   "error.provider.tempDiskSpace":

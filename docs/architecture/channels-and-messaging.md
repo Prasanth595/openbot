@@ -261,7 +261,10 @@ transport for its events. `messaging-types.ts` is the seam; the core never reads
   teammate's answer runs as a follow-up turn in the same Slack thread. A turn that only asked a
   teammate posts "A teammate is working on it" (`MessagingThreads.awaitsTeammate`). It goes in the
   sidebar's Integrations section, which `MessagingService` creates the first time; the renderer shows
-  that section collapsed.
+  that section collapsed. A disconnect deletes the orchestrator that no other connected place uses
+  (`AgentService.deleteAgent`, which also removes its links), and then the section when no agent is
+  assigned to it. It checks first that the agent can be deleted, so a busy orchestrator stops the
+  disconnect before the token is revoked or the place unlinked.
 - **Execution threads.** Each Slack thread is a link with its own execution thread in
   `projection_threads`, as a channel-agent pair is. A direct message is answered in a thread under
   it, so each one is its own conversation. `MessagingThreads.event` takes that thread's conversation

@@ -55,6 +55,8 @@ export const messages = {
   "app.rail.usage": "Utilizzo",
   "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Impostazioni",
+  "app.rail.settingsNotice": "Impostazioni. {notice}",
+  "app.page.serverFallback": "Server",
   "app.help.label": "Aiuto",
   "app.help.whatsNew": "Novità",
   "app.help.changelog": "Registro delle modifiche completo",
@@ -66,6 +68,10 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Cerca nelle impostazioni…",
   "app.settingsPage.results": "Risultati della ricerca nelle impostazioni",
   "app.settingsPage.noResults": "Nessuna impostazione corrispondente.",
+  "app.settingsPage.resultCount": {
+    one: "{count} impostazione corrispondente.",
+    other: "{count} impostazioni corrispondenti.",
+  },
   "app.standingApproval.description":
     "{name} eseguirà comandi e tool MCP, modificherà file e amplierà il proprio accesso al file system e alla rete sul computer che lo esegue, senza chiedere di nuovo. La pubblicazione, la sostituzione e l'eliminazione di siti pubblici richiedono comunque l'approvazione, a meno che la modalità Turbo non sia attiva. Puoi disattivare l'approvazione automatica nel menu del modello di questo agente.",
   "app.standingApproval.descriptionUnnamed":

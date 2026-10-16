@@ -191,6 +191,7 @@
     "test:browser:canva-live": "bun scripts/browser-smoke.ts --canva-live",
     "test:browser:framer-live": "bun scripts/browser-smoke.ts --framer-live",
     "test:codex": "bun scripts/codex-doctor.ts --strict",
+    "test:acp-directories": "bun scripts/acp-additional-directories-e2e.ts",
     "test:custom-agents": "bun scripts/custom-acp-agent-e2e.ts",
     "test:custom-agents:login-path": "bun scripts/custom-acp-agent-login-path-e2e.ts",
     "test:mcp-tool-consent": "bun scripts/mcp-tool-consent-e2e.ts",
@@ -332,7 +333,8 @@
     "@solidjs/signals@2.0.0-rc.0": "patches/@solidjs%2Fsignals@2.0.0-rc.0.patch",
     "@solidjs/web@2.0.0-rc.0": "patches/@solidjs%2Fweb@2.0.0-rc.0.patch",
     "expo@57.0.24": "patches/expo@57.0.24.patch",
-    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch"
+    "react-native-screens@4.26.2": "patches/react-native-screens@4.26.2.patch",
+    "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch"
   },
   "trustedDependencies": [
     "electron-winstaller",

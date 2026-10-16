@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AgentContextState } from "@openbot/contracts/ipc";
+import type { AgentContextCategoryUsage, AgentContextState } from "@openbot/contracts/ipc";
 import { Effect, Schema } from "effect";
 import type { AgentStore } from "../agent-store";
 import { causeHelpers } from "../effect-boundary";
@@ -79,11 +79,19 @@ export class ContextCompaction {
     nativeManaged: boolean,
     autoCompactAt: number | null,
     estimated = false,
+    categories?: AgentContextCategoryUsage[],
   ): void {
     if (!Number.isFinite(usedTokens) || usedTokens < 0 || !Number.isFinite(windowTokens) || windowTokens <= 0) return;
     const display = this.#display.get(threadId) ?? { usage: null, compaction: null };
     const previous = display.usage;
-    display.usage = { usedTokens, windowTokens, nativeManaged, autoCompactAt, estimated };
+    display.usage = {
+      usedTokens,
+      windowTokens,
+      nativeManaged,
+      autoCompactAt,
+      estimated,
+      ...(categories ? { categories } : {}),
+    };
     const after = display.compaction?.status === "completed" && this.#awaitingPostCompaction.delete(threadId);
     if (after && display.compaction) display.compaction.afterTokens = usedTokens;
     this.#display.set(threadId, display);

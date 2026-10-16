@@ -54,6 +54,8 @@ export const messages = {
   "app.rail.usage": "Uso",
   "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Ajustes",
+  "app.rail.settingsNotice": "Ajustes. {notice}",
+  "app.page.serverFallback": "Servidor",
   "app.help.label": "Ayuda",
   "app.help.whatsNew": "Novedades",
   "app.help.changelog": "Registro de cambios completo",
@@ -65,6 +67,10 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Buscar ajustes…",
   "app.settingsPage.results": "Resultados de búsqueda de ajustes",
   "app.settingsPage.noResults": "No hay ajustes que coincidan.",
+  "app.settingsPage.resultCount": {
+    one: "{count} ajuste coincidente.",
+    other: "{count} ajustes coincidentes.",
+  },
   "app.standingApproval.description":
     "{name} ejecutará comandos y herramientas MCP, cambiará archivos y ampliará su acceso al sistema de archivos y a la red del equipo donde se ejecuta sin volver a preguntar. Publicar, reemplazar y eliminar sitios públicos seguirá requiriendo aprobación, salvo que el modo Turbo esté activado. Puedes desactivar la aprobación automática en el menú de modelos de este agente.",
   "app.standingApproval.descriptionUnnamed":

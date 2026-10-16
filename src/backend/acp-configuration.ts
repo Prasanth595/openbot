@@ -108,7 +108,16 @@ export class AcpConfiguration {
       Effect.timeoutOrElse({
         duration: requestTimeoutMs,
         orElse: () =>
-          Effect.fail(providerFailure(new TimeoutError(`${this.options.label()} request timed out: model/list`))),
+          Effect.fail(
+            providerFailure(
+              new TimeoutError(
+                sourceText("error.provider.acpModelsTimedOut", {
+                  provider: this.options.label(),
+                  seconds: String(Math.round(requestTimeoutMs / 1_000)),
+                }),
+              ),
+            ),
+          ),
       }),
     );
   });

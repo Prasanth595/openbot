@@ -53,7 +53,7 @@ const RING = { size: 34, stroke: 2.25, spacing: 4.5 };
  * ring the shortest. Each arc shows how much is left, in the tone of that window. The hover card
  * shows the windows with their reset times.
  */
-function UsageRings(props: { row: AccountUsageProviderRow; current: boolean; onOpen: (button: HTMLElement) => void }) {
+function UsageRings(props: { row: AccountUsageProviderRow; onOpen: (button: HTMLElement) => void }) {
   const { t } = useText();
   const label = () =>
     t("app.rail.usageRings", {
@@ -78,7 +78,6 @@ function UsageRings(props: { row: AccountUsageProviderRow; current: boolean; onO
           title={<h2 class="account-usage-popover-title">{t("account.usage.title")}</h2>}
         />
       )}
-      current={props.current}
       class="window-rail-usage"
       onClick={props.onOpen}
     >
@@ -122,7 +121,7 @@ export interface PageRailProps {
   hidden: boolean;
   /** The page in the card, or `null` while a page that the rail does not open shows. */
   current: PageRailPage | null;
-  /** The providers that report plan limits. Each one shows as rings. */
+  /** The plan limits of each provider account. Each one with a reported window shows as rings. */
   usageRows: readonly AccountUsageProviderRow[];
   onAgents: () => void;
   /** Absent when the server has no routines. */
@@ -179,8 +178,11 @@ export function PageRail(props: PageRailProps) {
       </div>
       <div class="window-rail-group">
         {/* A status update builds new rows. The key keeps each ring, and its open hover card, mounted. */}
-        <For each={props.usageRows} keyed={accountUsageRowKey}>
-          {(row) => <UsageRings row={row()} current={false} onOpen={props.onUsage} />}
+        <For
+          each={props.usageRows.filter((row) => row.reportsUsage && row.windows.length > 0)}
+          keyed={accountUsageRowKey}
+        >
+          {(row) => <UsageRings row={row()} onOpen={props.onUsage} />}
         </For>
         <Show when={props.onMarketplace}>
           {(onMarketplace) => (
@@ -195,7 +197,11 @@ export function PageRail(props: PageRailProps) {
         </Show>
         {props.help}
         <RailButton
-          label={props.settingsNotice ? `${t("app.rail.settings")}. ${props.settingsNotice}` : t("app.rail.settings")}
+          label={
+            props.settingsNotice
+              ? t("app.rail.settingsNotice", { notice: props.settingsNotice })
+              : t("app.rail.settings")
+          }
           current={props.current === "settings"}
           onClick={props.onSettings}
         >

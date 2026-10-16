@@ -260,6 +260,8 @@ They describe the enforced syntax, fixture behavior, and reasons for removed rul
 ## Pull requests
 
 - Open a PR only when asked.
+- Write the PR body from `.github/PULL_REQUEST_TEMPLATE.md`. Keep the Contributor Assignment
+  Agreement box unticked: only the human author can sign it. Organization members can remove it.
 - For UI changes, show before and after. State the model and harness in the PR body.
   Do not commit screenshots or other PR review image assets to the repository.
 - Do not run wider checks locally before a PR. Report focused checks and leave broad checks to CI.

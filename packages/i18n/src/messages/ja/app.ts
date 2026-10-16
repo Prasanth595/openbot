@@ -55,6 +55,8 @@ export const messages = {
   "app.rail.usage": "使用量",
   "app.rail.marketplace": "マーケットプレイス",
   "app.rail.settings": "設定",
+  "app.rail.settingsNotice": "設定。{notice}",
+  "app.page.serverFallback": "サーバー",
   "app.help.label": "ヘルプ",
   "app.help.whatsNew": "新機能",
   "app.help.changelog": "すべての変更履歴",
@@ -66,6 +68,9 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "設定を検索…",
   "app.settingsPage.results": "設定の検索結果",
   "app.settingsPage.noResults": "一致する設定はありません。",
+  "app.settingsPage.resultCount": {
+    other: "一致する設定：{count} 件。",
+  },
   "app.standingApproval.description":
     "{name} は、実行しているコンピューター上で、確認なしにコマンドやMCP ツールを実行し、ファイルを変更し、自身のファイルシステムとネットワークへのアクセスを広げます。ターボモードがオンでない限り、公開サイトの公開、置き換え、削除には引き続き承認が必要です。自動承認は、このエージェントのモデルメニューでオフにできます。",
   "app.standingApproval.descriptionUnnamed":

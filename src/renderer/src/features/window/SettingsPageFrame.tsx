@@ -24,10 +24,13 @@ export function SettingsPageFrame(props: {
 
   onSettled(() => {
     props.onMounts({ nav, content });
+    // As on the usage and schedule pages, the heading takes the focus, so a screen reader reads the
+    // page that opened. The settings shell puts the focus back on the opener when the page closes.
+    root.querySelector<HTMLElement>(".settings-page-title")?.focus({ preventScroll: true });
     // Escape closes the page, as it closed the settings dialog. On the document and after the
-    // delegated handlers, so a control that handles Escape keeps it. The focus can stay on the rail
-    // button or the server menu that opened the page, so a target outside the page also counts,
-    // except an open popup or a text field.
+    // delegated handlers, so a control that handles Escape keeps it. A click can put the focus back on
+    // the rail or the server menu, so a target outside the page also counts, except an open popup or a
+    // text field.
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       const target = event.target instanceof Element ? event.target : null;
@@ -58,7 +61,7 @@ export function SettingsPageFrame(props: {
 /** The heading of a server settings page: the server mark and name, as the server menu shows them. */
 export function ServerSettingsPageTitle(props: { server: ServerSummary }) {
   return (
-    <h1 class="settings-page-title settings-page-server">
+    <h1 class="settings-page-title settings-page-server" tabindex={-1}>
       <span class="server-menu-mark" aria-hidden="true">
         <ServerMark server={props.server} />
       </span>

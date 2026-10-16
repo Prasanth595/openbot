@@ -16,6 +16,7 @@ import { useNotificationTaps } from "@/features/push-notifications/use-notificat
 import type { QuickActionTarget } from "@/features/quick-actions/model/quick-action-items";
 import { setQuickActionNavigator } from "@/features/quick-actions/quick-actions-native";
 import { AppDrawerShell, useAppDrawer } from "@/features/servers/components/app-drawer-shell";
+import { setShareSheetOpener } from "@/features/share/model/share-sheet-opener";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
@@ -78,6 +79,7 @@ function AuthenticatedStack() {
   );
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
   useEffect(() => setQuickActionNavigator(openQuickAction), [openQuickAction]);
+  useEffect(() => setShareSheetOpener(() => router.push("/share")), []);
   useNotificationTaps(openFromOutside, () => openChat.current);
 
   return (

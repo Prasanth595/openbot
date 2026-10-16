@@ -598,12 +598,17 @@ SDK `getContextUsage({ detail: "summary" })` result after a turn. This uses the 
 and local estimates; it avoids full per-category token-count requests. The read runs outside the
 stream consumer, has a two-second deadline, and cannot block the next turn. Old or unsupported
 reports stay absent. Claude counts carry an estimate flag, which the context ring and popover
-display. Native `status` and `compact_boundary` events drive Claude's compaction notice. Claude's
+display. The same result also gives the category rows. `claude-context-categories.ts` maps the row
+names to the fixed `AGENT_CONTEXT_CATEGORIES` ids, moves tool calls and results out of the messages
+row with `messageBreakdown`, and puts the rest of the total in `other`. Deferred tool rows, the
+free space and the compaction buffer are not in the total, so they are left out. Only the ids and
+counts leave the adapter: no row name, file path, tool or server name. Other providers give a
+total only, so the popover shows no breakdown for them. Native `status` and `compact_boundary` events drive Claude's compaction notice. Claude's
 `post_tokens` counts messages without the system prompt and tools, so its compaction marker omits
 the token comparison. Later local estimates do not restore that comparison.
 
 The progress percentage is an estimate based on elapsed time and the preceding compaction duration
 in this process. It never proves completion. Terminal provider events control success and failure.
 The latest marker and timing are runtime state, not new saved conversation messages. A provider
-summary is not copied into this state. The UI can render a breakdown or manual action, but this
-connection supplies neither: it adds no manual-compaction endpoint and makes no extra model turn.
+summary is not copied into this state. This connection adds no manual-compaction endpoint and
+makes no extra model turn.

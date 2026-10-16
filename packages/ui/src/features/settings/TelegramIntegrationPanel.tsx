@@ -21,6 +21,7 @@ import {
   SettingsSection,
   Spinner,
   Text,
+  Trash2,
   TriangleAlert,
 } from "@openbot/ui";
 import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
@@ -272,6 +273,7 @@ export function TelegramIntegrationPanel(props: TelegramIntegrationPanelProps) {
       />
       <DisconnectDialog
         connection={disconnecting()}
+        deletesOrchestrator={props.connections.length === 1 && orchestrator() !== null}
         onConfirm={(workspaceId) => {
           setDisconnecting(null);
           props.onDisconnectChat(workspaceId);
@@ -543,6 +545,8 @@ export function TelegramConnectDialog(props: {
 
 function DisconnectDialog(props: {
   connection: MessagingConnection | null;
+  /** The last linked chat: its disconnect deletes the Telegram Orchestrator. */
+  deletesOrchestrator: boolean;
   onConfirm: (workspaceId: string) => void;
   onClose: () => void;
 }) {
@@ -556,7 +560,7 @@ function DisconnectDialog(props: {
       logo={<TelegramMark />}
       link="broken"
       title={t("connector.telegram.disconnectTitle", { chat: chat() })}
-      description={t("connector.telegram.disconnectDescription", { chat: chat() })}
+      description={t("connector.telegram.leaveDescription", { chat: chat() })}
       footer={
         <>
           <Button type="button" variant="ghost" onClick={props.onClose}>
@@ -586,12 +590,24 @@ function DisconnectDialog(props: {
           </span>
           {t("connector.telegram.disconnectEffect", { chat: chat() })}
         </li>
-        <li data-tone="success">
-          <span class="slack-effect-icon" aria-hidden="true">
-            <Check />
-          </span>
-          {t("connector.telegram.removeEffectKept")}
-        </li>
+        <Show
+          when={props.deletesOrchestrator}
+          fallback={
+            <li data-tone="success">
+              <span class="slack-effect-icon" aria-hidden="true">
+                <Check />
+              </span>
+              {t("connector.telegram.removeEffectKept")}
+            </li>
+          }
+        >
+          <li data-tone="danger">
+            <span class="slack-effect-icon" aria-hidden="true">
+              <Trash2 />
+            </span>
+            {t("connector.telegram.removeEffectDeleted")}
+          </li>
+        </Show>
       </ul>
     </WizardDialog>
   );

@@ -164,6 +164,7 @@ export const messages = {
     "OpenBot {workspace} içinde yanıt vermeyi durdurur ve Slack belirtecini {host} sunucusundan kaldırır.",
   "connector.slack.disconnectEffect": "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.slack.removeEffectKept": "Konuşmalar ve Slack Düzenleyicisi OpenBot'ta kalır.",
+  "connector.slack.removeEffectDeleted": "Slack Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.slack.keep": "Bağlı tut",
   "connector.slack.close": "Kapat",
 
@@ -234,6 +235,7 @@ export const messages = {
   "connector.discord.disconnectEffect":
     "{workspace} içindeki kişiler artık @OpenBot aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.discord.removeEffectKept": "Konuşmalar ve Discord Düzenleyicisi OpenBot'ta kalır.",
+  "connector.discord.removeEffectDeleted": "Discord Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.discord.keep": "Bağlı tut",
   "connector.discord.close": "Kapat",
   // Sunucu ayarları > Bağlayıcılar > Telegram: her sohbet tek OpenBot botunu ekler ve Telegram
@@ -314,11 +316,13 @@ export const messages = {
   "connector.telegram.doneTitle": "OpenBot {chat} içinde",
   "connector.telegram.done": "Bitti",
   "connector.telegram.disconnectTitle": "{chat} bağlantısı kesilsin mi?",
-  "connector.telegram.disconnectDescription":
-    "OpenBot botu {chat} sohbetinden ayrılır ve OpenBot orada yanıt vermeyi bırakır. Konuşmalar OpenBot'ta kalır.",
+  "connector.telegram.leaveDescription":
+    "OpenBot botu {chat} sohbetinden ayrılır ve OpenBot orada yanıt vermeyi bırakır.",
   "connector.telegram.disconnectEffect":
     "{chat} içindeki kişiler artık OpenBot botu aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.telegram.removeEffectKept": "Konuşmalar ve Telegram Düzenleyicisi OpenBot'ta kalır.",
+  "connector.telegram.removeEffectDeleted":
+    "Bu son sohbet olduğundan Telegram Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.telegram.keep": "Bağlı tut",
   "connector.telegram.close": "Kapat",
   "connector.onePassword.title": "1Password",

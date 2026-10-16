@@ -27,8 +27,9 @@ created later. Slack shows "joined #channel" in each one. A private channel need
 
 A workspace answers to one OpenBot server. Another account cannot connect a workspace that your
 server answers until you disconnect it. **Disconnect** revokes the token, removes it from this
-computer and unlinks the workspace; the conversations stay in OpenBot, and a later **Connect Slack**
-gives them back their agents.
+computer and unlinks the workspace. It also deletes the Slack Orchestrator with its conversations, and
+the **Integrations** section when no agent is left in it. While the orchestrator works on a turn,
+Disconnect stops with an error and changes nothing: stop the agent first.
 
 Only the computer that runs the agents can connect Slack, because Slack returns to that computer's
 browser. A joined server shows no Slack page.
@@ -78,7 +79,8 @@ permission of its role there.
 
 A Discord server answers to one OpenBot server. Another account cannot connect a Discord server that
 your server answers until you disconnect it. **Disconnect** unlinks the Discord server and removes it
-from this computer; the conversations stay in OpenBot. OpenBot stays a member of the Discord server
+from this computer. It also deletes the Discord Orchestrator with its conversations, as for Slack.
+OpenBot stays a member of the Discord server
 until a Discord admin removes it. When a Discord admin removes OpenBot, Signal unlinks the server, also
 when this computer is off, and the row says that the token is not accepted (for a computer that was
 off, when it connects again). **Reconnect** then starts
@@ -118,8 +120,10 @@ this computer never has it.
 4. In the group, mention the bot (`@<bot> …`), or reply to one of its messages.
 
 A chat answers to one OpenBot server. Another account cannot link a chat that your server answers
-until you disconnect it. **Disconnect** makes the bot leave the chat and unlinks it; the
-conversations stay in OpenBot, and a later link of the same chat gives them back their agents.
+until you disconnect it. **Disconnect** makes the bot leave the chat and unlinks it. When it is the
+last linked chat, it also deletes the Telegram Orchestrator with its conversations, as for Slack.
+Otherwise the conversations stay in OpenBot, and a later link of the same chat gives them back their
+agents.
 
 ## What happens in Telegram
 

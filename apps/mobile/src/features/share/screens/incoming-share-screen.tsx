@@ -5,6 +5,7 @@ import { useMobileSession } from "@/features/auth/context/mobile-session-context
 import { SignInScreen } from "@/features/auth/screens/sign-in-screen";
 import { useText } from "@/shared/lib/text";
 import { discardWaitingShare, hasIncomingShare } from "../model/incoming-share";
+import { openShareSheet } from "../model/share-sheet-opener";
 
 /**
  * The route that a share from another app opens, at launch or while the app runs. It is outside the
@@ -22,9 +23,10 @@ export function IncomingShareScreen() {
     opened.current = true;
     // Return to the running workspace, then open the sheet in its stack. A replace from this root
     // screen would mount a second workspace, which opens a second connection to each host. With no
-    // workspace under this screen, `dismissTo` replaces this screen with one.
+    // workspace under this screen, `dismissTo` replaces this screen with one, and the sheet opens
+    // after that workspace mounts.
     router.dismissTo("/connected");
-    if (waiting) router.push("/share");
+    if (waiting) openShareSheet();
   }, [signedIn, waiting]);
 
   if (session) return null;

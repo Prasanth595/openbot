@@ -891,17 +891,12 @@ textarea {
   padding: 2px 3px 0 10px;
 }
 
-/* The frame edge. The server rail, when it shows, and the whole top row - the sidebar, chat and side
- * panel headers - share one darker surface, and the chat list sits inside it as an inset panel with a rounded
- * corner. The panel's top line runs on under the chat header, and its right edge is the divider,
- * so the sidebar's own edge stays out of the top row. The theme layer at the end of this file also
- * sets these backgrounds, so the selectors carry the frame class to win. */
+/* The frame edge. The top row of the sidebar, the chat and the side panel has no line of its own: the
+ * window card in `window.css` draws the lines, the surfaces and the rounded corners. The theme layer at
+ * the end of this file also sets the server rail background, so the selector carries the frame class
+ * to win. */
 @media (min-width: 721px) {
-  .app-frame-edge > .server-rail,
-  .app-frame-edge > .sidebar,
-  .app-frame-edge .conversation-panel,
-  .app-frame-edge .direct-conversation,
-  .app-frame-edge .diagram-view {
+  .app-frame-edge > .server-rail {
     background: var(--openbot-bg-native-sidebar);
   }
 
@@ -919,13 +914,6 @@ textarea {
   .app-frame-edge > .sidebar::before {
     position: absolute;
     z-index: -1;
-    inset: calc(var(--left-header-height) - 1px) 0 0 0;
-    border: 1px solid var(--openbot-border-strong);
-    border-bottom: 0;
-    border-top-left-radius: var(--openbot-radius-lg);
-    /* The border is translucent. Over the edge, not the fill, it is the same shade as the chat
-     * header's line it meets. */
-    background: var(--openbot-bg-sidebar) padding-box;
     content: "";
     pointer-events: none;
   }
@@ -944,58 +932,19 @@ textarea {
     top: 11px;
   }
 
-  /* The chat area is an inset panel too, with its rounded corner at the window edge. An open side
-   * panel covers that edge, so the panel's right side moves to the side panel's divider and its corner
-   * goes square. It moves with the chat's own width, so a side panel that closes shows the corner
-   * slide back to the window edge. */
   .app-frame-edge .conversation-panel,
   .app-frame-edge .direct-conversation {
     isolation: isolate;
   }
 
-  .app-frame-edge .conversation-panel::before,
-  .app-frame-edge .direct-conversation::before {
-    position: absolute;
-    z-index: -1;
-    inset: calc(var(--left-header-height) - 1px) 0 0 0;
-    border-top: 1px solid var(--openbot-border-strong);
-    border-right: 1px solid var(--openbot-border-strong);
-    border-top-right-radius: var(--openbot-radius-lg);
-    background: var(--openbot-bg-canvas) padding-box;
-    content: "";
-    pointer-events: none;
-    transition:
-      right var(--panel-resize-duration, var(--openbot-duration-overlay)) cubic-bezier(0.22, 1, 0.36, 1),
-      border-top-right-radius var(--panel-resize-duration, var(--openbot-duration-overlay))
-      cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  /* The right line sits under the side panel's divider, so the two show as one line. */
-  .app-frame-edge .conversation-panel.browser-panel-active::before {
-    right: calc(var(--browser-panel-width, 380px) - 1px);
-    border-top-right-radius: 0;
-  }
-
-  .app-frame-edge .conversation-panel:not(.browser-panel-active):has(.settings-panel)::before {
-    right: calc(var(--settings-panel-width, 296px) - 1px);
-    border-top-right-radius: 0;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .app-frame-edge .conversation-panel::before {
-      transition: none;
-    }
-  }
-
-  /* The inset panel draws the top line, so that it can follow the rounded corner. */
+  /* The window card draws the top line. */
   .app-frame-edge .conversation-header,
   .app-frame-edge .first-agent-setup-header {
     border-bottom: 0;
     background: transparent;
   }
 
-  /* The routine canvas is the same inset panel under the same top row. Its board paints its own
-   * background, so the body draws the line and the corner instead of a pseudo-element behind it. */
+  /* The routine canvas is in the same card under the same top row. Its board paints its own background. */
   .app-frame-edge .diagram-view-header {
     border-bottom: 0;
     background: transparent;
@@ -1003,15 +952,13 @@ textarea {
 
   .app-frame-edge .diagram-view-body {
     overflow: hidden;
-    border-top: 1px solid var(--openbot-border-strong);
-    border-right: 1px solid var(--openbot-border-strong);
-    border-top-right-radius: var(--openbot-radius-lg);
     background: var(--openbot-bg-canvas);
   }
 
   /* An open panel's toggle. The faint fill it has elsewhere disappears on the edge, so it takes the
-   * ghost button's open fill. An agent at the controls keeps its accent. */
-  .app-frame-edge .header-panel-toggle[aria-expanded="true"]:not(.computer-button-agent-active) {
+   * ghost button's open fill. An agent at the controls keeps its accent. The side panel toggle has no
+   * fill: the panel shows next to it. */
+  .app-frame-edge .header-panel-toggle[aria-expanded="true"]:not(.computer-button-agent-active, .side-panel-toggle) {
     border-color: var(--openbot-border-strong);
     background: var(--openbot-bg-control-hover);
     color: var(--openbot-text-primary);
@@ -1038,31 +985,23 @@ textarea {
       var(--left-header-height) no-repeat;
   }
 
-  /* A side panel mirrors the chat list: an inset panel under the top row, with its rounded corner at
-   * the window edge. Its left border is the divider and starts at the line, as the sidebar's does.
-   * The tabbed browser covers the whole window, so it stays as it is. */
+  /* A side panel is the right part of the window card. Its pseudo-element is the line to the chat. The
+   * tabbed browser covers the whole window, so it stays as it is. */
   .app-frame-edge .settings-panel,
   .app-frame-edge .browser-panel:not(.browser-panel-expanded) {
     isolation: isolate;
-    border-left: 0;
-    background: var(--openbot-bg-native-sidebar);
   }
 
   .app-frame-edge .settings-panel::before,
   .app-frame-edge .browser-panel:not(.browser-panel-expanded)::before {
     position: absolute;
     z-index: -1;
-    inset: calc(var(--left-header-height) - 1px) 0 0 0;
-    border: 1px solid var(--openbot-border-strong);
-    border-bottom: 0;
-    border-top-right-radius: var(--openbot-radius-lg);
-    background: var(--openbot-bg-canvas) padding-box;
     content: "";
     pointer-events: none;
   }
 
   /* A side panel's header continues the top row at the chat header's height, so the lines meet. The
-   * inset panel draws the line, so that it can follow the rounded corner. */
+   * window card draws the line. */
   .app-frame-edge .settings-panel-header,
   .app-frame-edge .file-preview-header,
   .app-frame-edge .browser-preview-header {
@@ -3185,7 +3124,7 @@ textarea {
   transition: transform var(--openbot-duration-normal) var(--openbot-ease-out);
 }
 
-.account-usage-refresh > svg.account-menu-icon-spinning {
+.account-usage-refresh > svg.icon-spinning {
   animation-duration: 600ms;
 }
 
@@ -3293,7 +3232,7 @@ textarea {
   transform: translateX(-8px);
 }
 
-.account-menu-row {
+.agent-tasks-row {
   display: grid;
   width: 100%;
   height: var(--openbot-control-md);
@@ -3311,30 +3250,30 @@ textarea {
   transition: background-color var(--openbot-duration-hover) ease;
 }
 
-.account-menu-row:hover:not(:disabled) {
+.agent-tasks-row:hover:not(:disabled) {
   background: var(--openbot-bg-control-hover);
   color: var(--openbot-text-primary);
 }
 
-.account-menu-row:disabled {
+.agent-tasks-row:disabled {
   cursor: default;
   opacity: 0.45;
 }
 
-.account-menu-row:focus-visible {
+.agent-tasks-row:focus-visible {
   outline: 0;
   background: var(--openbot-bg-control-hover);
   box-shadow: inset 0 0 0 1px var(--openbot-border-strong);
 }
 
-.account-menu-row small {
+.agent-tasks-row small {
   color: var(--openbot-text-muted);
   font-size: var(--openbot-text-sm);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.account-menu-icon {
+.agent-tasks-icon {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
@@ -3346,7 +3285,7 @@ textarea {
   color: var(--openbot-text-primary);
 }
 
-.account-menu-icon-spinning {
+.icon-spinning {
   animation: account-update-spin 800ms linear infinite;
 }
 
@@ -3390,7 +3329,7 @@ textarea {
     transform: none;
   }
 
-  .account-menu-icon-spinning {
+  .icon-spinning {
     animation-duration: 1.6s;
   }
 }
@@ -3424,7 +3363,7 @@ textarea {
 .reaction-picker-row button[aria-checked="true"],
 .composer-button:hover,
 .composer-attachment > button:hover,
-.account-menu-row:hover,
+.agent-tasks-row:hover,
 .agent-context-menu button:hover,
 .agent-context-menu button:focus-visible {
   background: var(--openbot-bg-control-hover);

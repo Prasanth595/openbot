@@ -146,6 +146,7 @@ export const messages = {
   "connector.slack.disconnectEffect":
     "{workspace} のメンバーは、@OpenBot からあなたのエージェントに連絡できなくなります。",
   "connector.slack.removeEffectKept": "会話と Slack Orchestrator は OpenBot に残ります。",
+  "connector.slack.removeEffectDeleted": "Slack Orchestrator とその会話は OpenBot から削除されます。",
   "connector.slack.keep": "接続を維持",
   "connector.slack.close": "閉じる",
 
@@ -213,6 +214,7 @@ export const messages = {
   "connector.discord.disconnectEffect":
     "{workspace} のメンバーは、@OpenBot からあなたのエージェントに連絡できなくなります。",
   "connector.discord.removeEffectKept": "会話と Discord Orchestrator は OpenBot に残ります。",
+  "connector.discord.removeEffectDeleted": "Discord Orchestrator とその会話は OpenBot から削除されます。",
   "connector.discord.keep": "接続を維持",
   "connector.discord.close": "閉じる",
 
@@ -287,11 +289,12 @@ export const messages = {
   "connector.telegram.doneTitle": "OpenBot が {chat} に参加しました",
   "connector.telegram.done": "完了",
   "connector.telegram.disconnectTitle": "{chat} を切断しますか？",
-  "connector.telegram.disconnectDescription":
-    "OpenBot ボットは {chat} から退出し、OpenBot はそこでの回答を停止します。会話は OpenBot に残ります。",
+  "connector.telegram.leaveDescription": "OpenBot ボットは {chat} から退出し、OpenBot はそこでの回答を停止します。",
   "connector.telegram.disconnectEffect":
     "{chat} のメンバーは、OpenBot ボットからあなたのエージェントに連絡できなくなります。",
   "connector.telegram.removeEffectKept": "会話と Telegram Orchestrator は OpenBot に残ります。",
+  "connector.telegram.removeEffectDeleted":
+    "これが最後のチャットのため、Telegram Orchestrator とその会話は OpenBot から削除されます。",
   "connector.telegram.keep": "接続を維持",
   "connector.telegram.close": "閉じる",
   // Marketplace > 1Password: a vault that the user shares with OpenBot through a service account.

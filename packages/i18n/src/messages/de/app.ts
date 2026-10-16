@@ -54,6 +54,8 @@ export const messages = {
   "app.rail.usage": "Nutzung",
   "app.rail.marketplace": "Marktplatz",
   "app.rail.settings": "Einstellungen",
+  "app.rail.settingsNotice": "Einstellungen. {notice}",
+  "app.page.serverFallback": "Server",
   "app.help.label": "Hilfe",
   "app.help.whatsNew": "Neuigkeiten",
   "app.help.changelog": "Vollständiges Änderungsprotokoll",
@@ -65,6 +67,10 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Einstellungen durchsuchen…",
   "app.settingsPage.results": "Suchergebnisse der Einstellungen",
   "app.settingsPage.noResults": "Keine passenden Einstellungen.",
+  "app.settingsPage.resultCount": {
+    one: "{count} passende Einstellung.",
+    other: "{count} passende Einstellungen.",
+  },
   "app.standingApproval.description":
     "{name} führt Befehle und MCP-Tools aus, ändert Dateien und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Das Veröffentlichen, Ersetzen und Löschen öffentlicher Websites erfordert weiterhin eine Genehmigung, außer im Turbo-Modus. Du kannst die automatische Genehmigung im Modellmenü dieses Agenten deaktivieren.",
   "app.standingApproval.descriptionUnnamed":

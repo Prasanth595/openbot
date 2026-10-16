@@ -1,4 +1,4 @@
-import type { HostedServerIssue, HostedServerStart } from "@openbot/contracts/ipc";
+import type { HostedServerIssue, HostedServerSleep, HostedServerStart } from "@openbot/contracts/ipc";
 import { createEffect, createSignal, Show, untrack } from "solid-js";
 import { Button } from "../../button";
 import { ErrorReference } from "../../error-reference";
@@ -15,6 +15,30 @@ export type ServerWorkspacePhase =
   | "waking"
   | "updating"
   | "blocked";
+
+/** What the desktop and the web know about a server that is not ready yet. */
+export interface ServerWorkspaceState {
+  /** The sleep phase of a hosted server, which wins over all other states. */
+  hostedSleep?: HostedServerSleep | null | undefined;
+  updating: boolean;
+  blocked: boolean;
+  /** The connection failed and waits before it tries again. */
+  waiting?: boolean;
+  /** The server is online or connecting, and its workspace loads. */
+  loading: boolean;
+  /** The workspace was on screen before, so the notice reconnects instead of connecting. */
+  hasContent: boolean;
+}
+
+/** The phase that the notice shows, in order of priority. */
+export function serverWorkspacePhase(state: ServerWorkspaceState): ServerWorkspacePhase {
+  if (state.hostedSleep) return state.hostedSleep;
+  if (state.updating) return "updating";
+  if (state.blocked) return "blocked";
+  if (state.waiting) return "waiting";
+  if (state.loading) return "loading";
+  return state.hasContent ? "reconnecting" : "connecting";
+}
 
 export interface ServerConnectionNoticeProps {
   name: string;

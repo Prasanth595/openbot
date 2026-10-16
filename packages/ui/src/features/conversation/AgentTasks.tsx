@@ -231,13 +231,13 @@ export function AgentTaskList(props: AgentTaskListProps) {
         </Button>
       </header>
       <div class={["agent-task-list", fades.classes()]} ref={fades.bind} onScroll={fades.measure}>
-        <Button variant="ghost" type="button" class="account-menu-row" onClick={() => props.onNew()}>
-          <Plus class="account-menu-icon" aria-hidden="true" />
+        <Button variant="ghost" type="button" class="agent-tasks-row" onClick={() => props.onNew()}>
+          <Plus class="agent-tasks-icon" aria-hidden="true" />
           <span>{t("conversation.tasks.new")}</span>
         </Button>
         <For each={openTasks()} keyed={(task) => task.id}>
           {(task) => (
-            <Button variant="ghost" type="button" class="account-menu-row" onClick={() => props.onOpen(task().id)}>
+            <Button variant="ghost" type="button" class="agent-tasks-row" onClick={() => props.onOpen(task().id)}>
               <AgentTaskMark task={task()} decorative />
               <span class="agent-tasks-menu-title">{task().title}</span>
               <small>{agentTaskStatus(task(), t)}</small>
@@ -250,12 +250,7 @@ export function AgentTaskList(props: AgentTaskListProps) {
               <h3 class="agent-task-list-day">{group().label}</h3>
               <For each={group().tasks} keyed={(task) => task.id}>
                 {(task) => (
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    class="account-menu-row"
-                    onClick={() => props.onOpen(task().id)}
-                  >
+                  <Button variant="ghost" type="button" class="agent-tasks-row" onClick={() => props.onOpen(task().id)}>
                     <AgentTaskMark task={task()} />
                     <span class="agent-tasks-menu-title">{task().title}</span>
                     <small>{format.date(closedAt(task()), { hour: "2-digit", minute: "2-digit" })}</small>
@@ -269,10 +264,10 @@ export function AgentTaskList(props: AgentTaskListProps) {
           <Button
             variant="ghost"
             type="button"
-            class="account-menu-row agent-tasks-disclosure"
+            class="agent-tasks-row agent-tasks-disclosure"
             onClick={() => setShowAll(true)}
           >
-            <ChevronRight class="account-menu-icon" aria-hidden="true" />
+            <ChevronRight class="agent-tasks-icon" aria-hidden="true" />
             <span>{t("conversation.tasks.showAll", { count: closedTasks().length })}</span>
           </Button>
         </Show>

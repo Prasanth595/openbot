@@ -29,7 +29,8 @@ import { createEffect, createStore, onSettled, Show } from "solid-js";
 import { type UsagePort, usagePort } from "./usage-port";
 
 interface AgentUsagePanelProps {
-  agentId?: string;
+  /** The agent the usage starts on; with none, the usage of all agents. */
+  agentId?: string | undefined;
   agentName?: string;
   serverId: string;
   hostName: string;

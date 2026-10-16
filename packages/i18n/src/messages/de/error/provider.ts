@@ -151,6 +151,10 @@ export const messages = {
     "{provider} hat nicht rechtzeitig geantwortet. Der Computer ist möglicherweise ausgelastet. OpenBot versucht es erneut.",
   "error.provider.cliTimedOutRefresh":
     "{provider} hat nicht rechtzeitig geantwortet. Der Computer ist möglicherweise ausgelastet. Aktualisiere die Anbieter, um es erneut zu versuchen.",
+  "error.provider.acpStartTimedOut":
+    "{provider} wurde nicht innerhalb von {seconds} s fertig gestartet. Der Computer ist möglicherweise ausgelastet.",
+  "error.provider.acpModelsTimedOut":
+    "{provider} hat seine Modelle nicht innerhalb von {seconds} s aufgelistet. Der Computer ist möglicherweise ausgelastet.",
   "error.provider.startStopped":
     "{provider} ist mehrmals hintereinander nicht gestartet, daher versucht OpenBot es nicht mehr. Aktualisiere die Anbieter, um es erneut zu versuchen.",
   "error.provider.tempDiskSpace":

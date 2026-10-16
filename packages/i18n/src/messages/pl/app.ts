@@ -54,6 +54,8 @@ export const messages = {
   "app.rail.usage": "Użycie",
   "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Ustawienia",
+  "app.rail.settingsNotice": "Ustawienia. {notice}",
+  "app.page.serverFallback": "Serwer",
   "app.help.label": "Pomoc",
   "app.help.whatsNew": "Co nowego",
   "app.help.changelog": "Pełna lista zmian",
@@ -65,6 +67,12 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Szukaj w ustawieniach…",
   "app.settingsPage.results": "Wyniki wyszukiwania ustawień",
   "app.settingsPage.noResults": "Brak pasujących ustawień.",
+  "app.settingsPage.resultCount": {
+    one: "{count} pasujące ustawienie.",
+    few: "{count} pasujące ustawienia.",
+    many: "{count} pasujących ustawień.",
+    other: "{count} pasującego ustawienia.",
+  },
   "app.standingApproval.description":
     "{name} będzie uruchamiać polecenia i narzędzia MCP, zmieniać pliki oraz rozszerzać własny dostęp do systemu plików i sieci na komputerze, na którym działa, bez ponownego pytania. Publikowanie, zastępowanie i usuwanie publicznych witryn nadal wymaga zatwierdzenia, chyba że tryb Turbo jest włączony. Automatyczne zatwierdzanie możesz wyłączyć w menu modelu tego agenta.",
   "app.standingApproval.descriptionUnnamed":

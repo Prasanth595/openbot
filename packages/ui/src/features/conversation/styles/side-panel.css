@@ -169,15 +169,14 @@
   color: var(--openbot-text-primary);
 }
 
-.side-panel-tab-select:focus-visible,
-.side-panel-tab-close:focus-visible {
+.side-panel-tab-select:focus-visible {
   box-shadow: var(--openbot-focus-ring);
   outline: none;
 }
 
 /* When the labels of all tabs do not fit, a tab that is not selected shows only its icon. The whole
  * tab then selects its pane. The selected tab keeps its label, and its icon still closes it. With the
- * keyboard, the close button of each tab stays available. */
+ * keyboard, Delete closes the focused tab. */
 @container side-panel-header (max-width: 480px) {
   .side-panel-tabs:has(> .side-panel-tab:nth-child(4)) {
     --side-panel-tabs-compact: 1;

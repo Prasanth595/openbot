@@ -150,6 +150,9 @@ export const messages = {
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. OpenBot lo intentará de nuevo.",
   "error.provider.cliTimedOutRefresh":
     "{provider} no respondió a tiempo. El equipo puede estar ocupado. Actualiza los proveedores para intentarlo de nuevo.",
+  "error.provider.acpStartTimedOut":
+    "{provider} no terminó de iniciarse en {seconds} s. El equipo puede estar ocupado.",
+  "error.provider.acpModelsTimedOut": "{provider} no listó sus modelos en {seconds} s. El equipo puede estar ocupado.",
   "error.provider.startStopped":
     "{provider} no se inició varias veces seguidas, así que OpenBot dejó de intentarlo. Actualiza los proveedores para intentarlo de nuevo.",
   "error.provider.tempDiskSpace":
