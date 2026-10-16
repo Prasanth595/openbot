@@ -85,6 +85,9 @@ function createStreamingBody(message: () => AgentMessage, animate?: boolean) {
   const [animateTail, setAnimateTail] = createSignal(false);
   const [smoothHeight, setSmoothHeight] = createSignal(targetStreaming || animateInitialText);
   let smoothingActive = targetStreaming || animateInitialText;
+  /* A plain copy, for the same reason as `shownBody`: true when the height smoothing, tail and
+     trail are all off and no timer will change them. */
+  let smoothingSettled = !smoothingActive;
   let timings: ReturnType<typeof streamingTimings> | undefined;
   const timing = () => {
     timings ??= streamingTimings();
@@ -106,13 +109,18 @@ function createStreamingBody(message: () => AgentMessage, animate?: boolean) {
   const keepHeightSmoothingActive = () => {
     if (smoothHeightTimer !== undefined) window.clearTimeout(smoothHeightTimer);
     smoothHeightTimer = undefined;
+    smoothingSettled = false;
     setSmoothHeight(true);
   };
   const settleHeightSmoothing = () => {
+    /* Each row that the virtual list mounts comes here. When nothing animated, there is nothing to
+       settle, and reading the timing tokens would force a style recalculation per row. */
+    if (smoothingSettled) return;
     if (smoothHeightTimer !== undefined) window.clearTimeout(smoothHeightTimer);
     smoothHeightTimer = window.setTimeout(
       () => {
         smoothHeightTimer = undefined;
+        smoothingSettled = true;
         setSmoothHeight(false);
         setAnimateTail(false);
         setTrail([]);
@@ -137,6 +145,7 @@ function createStreamingBody(message: () => AgentMessage, animate?: boolean) {
       ...steps.filter((chunk) => now - chunk.revealedAt < fadeMs),
       { length: step.length - shownBody.length, revealedAt: now },
     ]);
+    smoothingSettled = false;
     setAnimateTail(true);
     showBody(targetBody.slice(0, step.length));
     return true;
