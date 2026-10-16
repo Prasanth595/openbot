@@ -560,7 +560,7 @@ function DisconnectDialog(props: {
       logo={<TelegramMark />}
       link="broken"
       title={t("connector.telegram.disconnectTitle", { chat: chat() })}
-      description={t("connector.telegram.disconnectDescription", { chat: chat() })}
+      description={t("connector.telegram.leaveDescription", { chat: chat() })}
       footer={
         <>
           <Button type="button" variant="ghost" onClick={props.onClose}>

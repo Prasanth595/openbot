@@ -289,8 +289,7 @@ export const messages = {
   "connector.telegram.doneTitle": "OpenBot が {chat} に参加しました",
   "connector.telegram.done": "完了",
   "connector.telegram.disconnectTitle": "{chat} を切断しますか？",
-  "connector.telegram.disconnectDescription":
-    "OpenBot ボットは {chat} から退出し、OpenBot はそこでの回答を停止します。会話は OpenBot に残ります。",
+  "connector.telegram.leaveDescription": "OpenBot ボットは {chat} から退出し、OpenBot はそこでの回答を停止します。",
   "connector.telegram.disconnectEffect":
     "{chat} のメンバーは、OpenBot ボットからあなたのエージェントに連絡できなくなります。",
   "connector.telegram.removeEffectKept": "会話と Telegram Orchestrator は OpenBot に残ります。",

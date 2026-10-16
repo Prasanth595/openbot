@@ -316,8 +316,8 @@ export const messages = {
   "connector.telegram.doneTitle": "OpenBot {chat} içinde",
   "connector.telegram.done": "Bitti",
   "connector.telegram.disconnectTitle": "{chat} bağlantısı kesilsin mi?",
-  "connector.telegram.disconnectDescription":
-    "OpenBot botu {chat} sohbetinden ayrılır ve OpenBot orada yanıt vermeyi bırakır. Konuşmalar OpenBot'ta kalır.",
+  "connector.telegram.leaveDescription":
+    "OpenBot botu {chat} sohbetinden ayrılır ve OpenBot orada yanıt vermeyi bırakır.",
   "connector.telegram.disconnectEffect":
     "{chat} içindeki kişiler artık OpenBot botu aracılığıyla ajanlarınıza ulaşamaz.",
   "connector.telegram.removeEffectKept": "Konuşmalar ve Telegram Düzenleyicisi OpenBot'ta kalır.",

@@ -299,8 +299,7 @@ export const messages = {
   "connector.telegram.doneTitle": "OpenBot теперь в {chat}",
   "connector.telegram.done": "Готово",
   "connector.telegram.disconnectTitle": "Отключить {chat}?",
-  "connector.telegram.disconnectDescription":
-    "Бот OpenBot покинет {chat}, и OpenBot перестанет там отвечать. Диалоги останутся в OpenBot.",
+  "connector.telegram.leaveDescription": "Бот OpenBot покинет {chat}, и OpenBot перестанет там отвечать.",
   "connector.telegram.disconnectEffect":
     "Люди из {chat} больше не смогут обращаться к вашим агентам через бота OpenBot.",
   "connector.telegram.removeEffectKept": "Диалоги и Оркестратор Telegram останутся в OpenBot.",
