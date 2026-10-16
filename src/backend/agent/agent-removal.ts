@@ -226,7 +226,7 @@ export class AgentRemoval {
     for (const tab of owned) {
       const result = yield* Effect.result(this.#browser.close(tab.id).pipe(toAgentRemovalFailed));
       if (Result.isSuccess(result)) closed += 1;
-      else this.#logger.warn("Could not close a deleted agent's browser tab.", { error: result.failure.cause });
+      else this.#logger.warn("Could not close a deleted agent's browser tab.", removalErrorCode(result.failure));
     }
     if (closed > 0) this.#logger.info("Closed a deleted agent's browser tabs.", { agentId: agent.id, count: closed });
   });
