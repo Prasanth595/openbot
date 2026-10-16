@@ -43,7 +43,7 @@ fi
 # display size.
 requested_size=""
 if [ -r /opt/OpenBot/hosted/openbot.env ]; then
-  while IFS='=' read -r key value; do
+  while IFS='=' read -r key value || [ -n "$key" ]; do
     case $key in
       OPENBOT_AUTH_API_URL) export "$key=$value" ;;
       OPENBOT_DISPLAY_SIZE) requested_size=$value ;;
