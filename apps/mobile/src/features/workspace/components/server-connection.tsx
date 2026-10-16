@@ -17,9 +17,9 @@ import { referencedError } from "@/features/workspace/model/referenced-error";
 import { RemoteTeamTransport, type RemoteTeamTransportRef } from "./remote-team-transport";
 
 /**
- * How long the first attempt after a return to the app runs without a reconnect status. iOS
- * suspends the app, so the connection must come back on each return. Most returns are online again
- * in this time, and the app looks as the user left it.
+ * How long the first attempt after a return to the app runs without a reconnect status. The app
+ * stops its connection work in the background on iOS and Android, so the connection must come back
+ * on each return. Most returns are online again in this time, and the app looks as the user left it.
  */
 const QUIET_RESUME_MS = 5_000;
 
