@@ -117,9 +117,9 @@ export function ApprovalCard(props: {
   onApprove: () => Promise<boolean>;
   onReject: () => Promise<boolean>;
   /**
-   * Grants this agent a standing approval, then accepts the request in hand. Absent where the grant
-   * cannot be given: a `permissions` request, or an agent on a remote server whose own computer
-   * owns that choice. The card then reads exactly as it did before this option existed.
+   * Moves this agent from Ask first to Full access, then accepts the request in hand. Absent at any
+   * other level, and where the user may not change the agent's Permissions. The card then reads
+   * exactly as it did before this option existed.
    */
   onAlwaysAllow?: () => Promise<boolean>;
   /** The agent this grant would cover, for the confirmation the grant deserves. */

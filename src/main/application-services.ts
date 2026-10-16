@@ -264,7 +264,8 @@ const logger = createOpenBotLogger("application-services");
 const SETUP_FILE = "openbot-setup-v2.json";
 const ANALYTICS_PREFERENCE_FILE = "openbot-analytics-preference-v1.json";
 const ANALYTICS_INVENTORY_FILE = "openbot-analytics-inventory-v1.json";
-const APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v2.json";
+const APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v3.json";
+const V2_APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v2.json";
 const ROUTINE_FEED_FILE = "openbot-routine-feed-v1.json";
 const LEGACY_APPROVAL_AUTOMATION_FILE = "openbot-approval-automation-v1.json";
 const LANGUAGE_PREFERENCE_FILE = "openbot-language-preference-v1.json";
@@ -978,7 +979,9 @@ export async function createApplicationServices({
       readApprovalAutomation(
         approvalAutomationFile,
         store.list().map((agent) => agent.id),
-        join(app.getPath("userData"), LEGACY_APPROVAL_AUTOMATION_FILE),
+        [V2_APPROVAL_AUTOMATION_FILE, LEGACY_APPROVAL_AUTOMATION_FILE].map((file) =>
+          join(app.getPath("userData"), file),
+        ),
       ),
     ),
     knownAgentIds: () => store.list().map((agent) => agent.id),

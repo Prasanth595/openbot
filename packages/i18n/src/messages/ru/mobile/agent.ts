@@ -304,16 +304,22 @@ export const messages = {
   "mobile.agent.access.title": "Доступ",
   "mobile.agent.access.label": "Доступ агента",
   "mobile.agent.access.workspace": "Только рабочее пространство",
+  "mobile.agent.access.ask": "Сначала спрашивать",
   "mobile.agent.access.full": "Полный доступ",
-  "mobile.agent.access.autoApprove": "Автоодобрение",
-  "mobile.agent.access.autoApproveNote": "Хост сам отвечает на запросы одобрения от этого агента.",
   "mobile.agent.access.autoApproveLocked":
     "На этом хосте включён режим Turbo, поэтому все агенты получают подтверждение автоматически.",
+  "mobile.agent.access.workspaceNote": "Агент работает в своём рабочем пространстве и общей папке на хосте.",
+  "mobile.agent.access.askNote":
+    "Агент спрашивает вас, прежде чем выполнить команду, изменить файл, использовать инструмент или опубликовать сайт.",
+  "mobile.agent.access.fullNote": "Агент действует без подтверждения, кроме вопросов, которые он задаёт вам.",
   "mobile.agent.access.fullTitle": "Дать этому агенту полный доступ?",
+  "mobile.agent.access.askTitle": "Разрешить этому агенту работать за пределами рабочего пространства?",
   "mobile.agent.access.fullBody":
     "Агент сможет читать, изменять и удалять любые файлы, доступные учётной записи пользователя хоста, выполнять любые команды и пользоваться сетью.",
-  "mobile.agent.access.fullCancel": "Только рабочее пространство",
+  "mobile.agent.access.noApproval":
+    "Тогда агент будет выполнять команды, изменять файлы, использовать инструменты и публиковать сайты, не спрашивая вас.",
   "mobile.agent.access.fullConfirm": "Разрешить полный доступ",
+  "mobile.agent.access.askConfirm": "Сначала спрашивать",
   "mobile.agent.access.failed": "Не удалось изменить доступ агента.",
   "mobile.agent.access.unsupported": "Этот хост не позволяет менять доступ агента с удалённого устройства.",
   "mobile.agent.host.computerUse": "Управление компьютером",

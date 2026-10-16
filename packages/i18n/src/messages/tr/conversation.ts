@@ -47,8 +47,6 @@ export const messages = {
   "conversation.header.publish": "Ajanı yayımla",
   "conversation.header.browserActing": "{name} tarayıcıyı kontrol ediyor",
   "conversation.header.agentFallback": "Ajan",
-  "conversation.header.thisAgent": "Bu ajan",
-  "conversation.header.grantFailed": "{name} için kalıcı onay kaydedilemedi. Tekrar deneyin.",
   "conversation.header.modelsBusy": "Model değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
   "conversation.header.modelsUnavailable": "Modeller bir ajan CLI'sı bağlandıktan sonra kullanılabilir.",
   "conversation.sidePanel.label": "Yan panel",

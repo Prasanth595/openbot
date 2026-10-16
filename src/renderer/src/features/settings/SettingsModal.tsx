@@ -72,8 +72,6 @@ export interface SettingsModalProps {
   onAddHostedServer?: () => void;
   /** A hosted server that the server menu asked to delete. Each nonce opens its confirmation once. */
   hostedServerDeleteRequest?: { serverId: string; nonce: number } | null;
-  /** The agents granted a standing approval, so the user can see and undo each one. */
-  turboModePending?: boolean;
   onTestNotification?: () => void | Promise<void>;
   /** Opens the operating system notification settings. Shown only on macOS and Windows. */
   onOpenNotificationSettings?: () => void | Promise<void>;
@@ -212,7 +210,6 @@ export function SettingsModal(props: SettingsModalProps) {
             onUpdateSetting={updateSetting}
             onUpdateSettings={updateSettings}
             selectMount={modalElement}
-            turboModePending={props.turboModePending}
           />
         </Tabs.Content>
 

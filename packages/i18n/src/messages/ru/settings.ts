@@ -47,15 +47,6 @@ export const messages = {
   "settings.keepRemoteSessions.description":
     "Сохранять подключение к серверам между запусками. OpenBot запускается примерно на секунду быстрее. При выходе из OpenBot сервис OpenBot не закрывает подключение.",
   "settings.permissions.title": "Разрешения",
-  "settings.turbo.title": "Режим Turbo",
-  "settings.turbo.description":
-    "Разрешить каждому агенту выполнять команды и инструменты MCP, изменять файлы, самостоятельно расширять доступ к файловой системе и сети, а также публиковать, обновлять и удалять публичные сайты без вопросов.",
-  "settings.turbo.confirmTitle": "Включить режим Turbo?",
-  "settings.turbo.confirmDescription":
-    "Агенты будут выполнять команды и инструменты MCP, изменять файлы, самостоятельно расширять свой доступ на этом компьютере, а также публиковать, обновлять и удалять публичные сайты, не спрашивая вас. Отключить режим можно здесь в любой момент.",
-  "settings.turbo.confirmAccept": "Включить",
-  "settings.autoApprove.revokeFailed":
-    "Не удалось отозвать постоянное подтверждение для {name}. Оно по-прежнему действует. Повторите попытку.",
   "settings.notifications.title": "Уведомления",
   "settings.alerts.title": "Оповещения",
   "settings.desktopNotifications.title": "Уведомления на рабочем столе",
@@ -137,8 +128,6 @@ export const messages = {
   "settings.save.notSaved": "Изменения не сохранены",
   "settings.save.reset": "Сбросить",
   "settings.panel.resize": "Изменить размер правой панели",
-  "settings.turbo.turnOffFailed": "Не удалось выключить режим Turbo. Он по-прежнему включён. Повторите попытку.",
-  "settings.turbo.turnOnFailed": "Не удалось включить режим Turbo. Повторите попытку.",
   "settings.agentSelect.placeholder": "Выберите агента",
   "settings.agentSelect.empty": "Нет локальных агентов",
   "settings.agentSelect.label": "Установить для",

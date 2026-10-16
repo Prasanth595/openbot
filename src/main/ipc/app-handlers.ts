@@ -33,7 +33,6 @@ import {
   parseAnalyticsPreference,
   parseAppLanguagePreference,
   parseAppLogoColorPreference,
-  parseApprovalAutomation,
   parseBusyMessageModePreference,
   parseExternalDestination,
   parseRemoteSessionReusePreference,
@@ -151,9 +150,6 @@ export function appIpcHandlers({
         );
       }),
       getApprovalAutomation: handler(() => approvalAutomation.current()),
-      setApprovalAutomation: payloadHandler(parseApprovalAutomation, (parsed) =>
-        runCauseEffect(approvalAutomation.set(parsed)),
-      ),
       getBusyMessageModePreference: handler(() => busyMessageMode.get()),
       setBusyMessageModePreference: payloadHandler(parseBusyMessageModePreference, (parsed) =>
         runCauseEffect(busyMessageMode.set(parsed)),

@@ -72,7 +72,7 @@ export const messages = {
     other: "{count} passende Einstellungen.",
   },
   "app.standingApproval.description":
-    "{name} führt Befehle und MCP-Tools aus, ändert Dateien und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Das Veröffentlichen, Ersetzen und Löschen öffentlicher Websites erfordert weiterhin eine Genehmigung, außer im Turbo-Modus. Du kannst die automatische Genehmigung im Modellmenü dieses Agenten deaktivieren.",
+    "{name} wechselt zu Voller Zugriff. Der Agent führt dann Befehle und Tools aus, ändert Dateien, veröffentlicht Websites und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Du kannst das in den Zugriff-Einstellungen des Agenten ändern.",
   "app.standingApproval.descriptionUnnamed":
-    "Dieser Agent führt Befehle und MCP-Tools aus, ändert Dateien und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Das Veröffentlichen, Ersetzen und Löschen öffentlicher Websites erfordert weiterhin eine Genehmigung, außer im Turbo-Modus. Du kannst die automatische Genehmigung im Modellmenü dieses Agenten deaktivieren.",
+    "Dieser Agent wechselt zu Voller Zugriff. Er führt dann Befehle und Tools aus, ändert Dateien, veröffentlicht Websites und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Du kannst das in den Zugriff-Einstellungen des Agenten ändern.",
 } as const satisfies PartialTranslation<typeof source>;

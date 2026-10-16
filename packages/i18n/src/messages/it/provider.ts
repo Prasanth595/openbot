@@ -118,8 +118,6 @@ export const messages = {
   "provider.picker.effort": "Impegno",
   "provider.picker.effortLabel": "Impegno di ragionamento dell'agente",
   "provider.picker.selectEffort": "Seleziona l'impegno",
-  "provider.picker.autoApprove": "Approvazione automatica",
-  "provider.picker.autoApproveLabel": "Approva automaticamente le azioni di questo agente",
   "provider.picker.custom": "Personalizzato",
   "provider.picker.cliReady": "{cli} pronto",
   "provider.status.signInRequired": "Accesso richiesto",

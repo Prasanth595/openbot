@@ -14,6 +14,7 @@ import type {
   RespondToPromptInput,
 } from "@openbot/contracts/ipc";
 import { AGENT_RUNTIME_ATTENTION_LIMIT, COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
+import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Result, Schema } from "effect";
@@ -155,7 +156,7 @@ export interface AttentionRegistryOptions {
   approvalAutomation?: ApprovalAutomationPolicy;
   /**
    * Whether the agent runs in the workspace sandbox now. Each approval it raises asks to go outside
-   * the limit the user chose, so Auto approve and Turbo do not answer it.
+   * the limit the user chose, so Full access does not answer it.
    */
   workspaceSandboxed?(agentId: string): boolean;
   /**
@@ -365,19 +366,11 @@ export class AttentionRegistry {
           input.decision,
         )
         .pipe(toAttentionOperationFailed);
-    } else if (pending.approval.kind === "permissions") {
-      const permissions = getRecord(pending.params, "permissions") ?? {};
-      pending.client.respond(pending.id, {
-        permissions: input.decision === "accept" ? permissions : {},
-        scope: "turn",
-      });
-    } else if (pending.method === "applyPatchApproval" || pending.method === "execCommandApproval") {
-      pending.client.respond(pending.id, {
-        decision:
-          input.decision === "accept" ? "approved" : { denied: { rejection: "The user declined this action." } },
-      });
     } else {
-      pending.client.respond(pending.id, { decision: input.decision });
+      pending.client.respond(
+        pending.id,
+        approvalReply(pending.method, pending.params, input.decision, "The user declined this action."),
+      );
     }
     this.#approvals.delete(input.requestId);
     this.#emitInputResolved("approval", input.requestId, pending.approval.agentId);
@@ -457,20 +450,21 @@ export class AttentionRegistry {
    * later would be worse than the prompt it replaced. What the agent then does is still visible -
    * the command and the file change are ordinary timeline items either way.
    *
-   * The response shapes are the ones `respondToApproval` uses for an accepted request; they are
-   * what the provider on the other end of each method understands.
+   * The response shape is the one `respondToApproval` uses for an accepted request.
    */
   #answerWithoutAsking(client: AgentClient, request: AppServerRequest, approval: AgentApproval): boolean {
-    if (this.#workspaceSandboxed(approval.agentId)) return false;
-    if (!shouldAutoApprove(this.#approvalAutomation, approval)) return false;
-    if (approval.kind === "permissions") {
-      client.respond(request.id, { permissions: getRecord(request.params, "permissions") ?? {}, scope: "turn" });
-    } else if (request.method === "applyPatchApproval" || request.method === "execCommandApproval") {
-      client.respond(request.id, { decision: "approved" });
-    } else {
-      client.respond(request.id, { decision: "accept" });
-    }
+    if (!this.#answersForAgent(approval.agentId)) return false;
+    client.respond(request.id, approvalReply(request.method, request.params, "accept", ""));
     return true;
+  }
+
+  /**
+   * The one rule for every approval OpenBot could answer itself: the agent has Full access. A
+   * Workspace only agent asks to go outside the limit the user chose, so its approvals always reach
+   * the user, and an agent at Ask first has no standing grant.
+   */
+  #answersForAgent(agentId: string): boolean {
+    return !this.#workspaceSandboxed(agentId) && shouldAutoApprove(this.#approvalAutomation, { agentId });
   }
 
   surfaceApproval(client: AgentClient, request: AppServerRequest, kind: AgentApprovalKind): void {
@@ -508,8 +502,8 @@ export class AttentionRegistry {
 
   /**
    * Asks the user to approve a built-in tool call, and gives the answer to the tool. The tool does
-   * nothing before "accept". Turbo with a standing approval for the agent answers for the user, as
-   * for a hosted-site change. A turn that ends or a request that the provider abandons gives "cancel".
+   * nothing before "accept". An agent with Full access is answered for, as for a hosted-site change.
+   * A turn that ends or a request that the provider abandons gives "cancel".
    */
   readonly awaitToolApproval = Effect.fn("AttentionRegistry.awaitToolApproval")(function* (
     this: AttentionRegistry,
@@ -518,8 +512,7 @@ export class AttentionRegistry {
     approval: AgentApproval,
   ) {
     if (request.signal?.aborted) return "cancel" as const;
-    if (shouldAutoApprove(this.#approvalAutomation, approval) && this.#approvalAutomation.turboEnabled())
-      return "accept" as const;
+    if (this.#answersForAgent(approval.agentId)) return "accept" as const;
     const decision = Deferred.makeUnsafe<ToolApprovalDecision>();
     this.#approvals.set(request.id, {
       client,
@@ -546,7 +539,7 @@ export class AttentionRegistry {
       .pipe(toAttentionOperationFailed);
     // A request the provider abandoned during the preparation has nobody to report the decision to.
     if (!prepared || request.signal?.aborted) return;
-    if (shouldAutoApprove(this.#approvalAutomation, prepared.approval) && this.#approvalAutomation.turboEnabled()) {
+    if (this.#answersForAgent(prepared.approval.agentId)) {
       yield* this.#hostedSites
         .resolveApproval(prepared.mutation, { client, id: request.id, agentId: prepared.approval.agentId }, "accept")
         .pipe(toAttentionOperationFailed);
@@ -838,8 +831,7 @@ export class AttentionRegistry {
   #answerMcpToolConsentWithoutAsking(client: AgentClient, request: AppServerRequest, agentId: string): boolean {
     if (!mcpToolCallConsent(request.params)) return false;
     if (getString(request.params, "serverName") === COMPUTER_USE_MCP_SERVER_NAME) return false;
-    if (this.#workspaceSandboxed(agentId)) return false;
-    if (!shouldAutoApprove(this.#approvalAutomation, { agentId })) return false;
+    if (!this.#answersForAgent(agentId)) return false;
     client.respond(request.id, { action: "accept", content: {}, _meta: null });
     return true;
   }
@@ -1013,17 +1005,10 @@ export class AttentionRegistry {
   }
 
   #respondToMalformedApproval(client: AgentClient, request: AppServerRequest): void {
-    if (request.method === "item/permissions/requestApproval") {
-      client.respond(request.id, { permissions: {}, scope: "turn" });
-      return;
-    }
-    if (request.method === "applyPatchApproval" || request.method === "execCommandApproval") {
-      client.respond(request.id, {
-        decision: { denied: { rejection: "OpenBot could not identify this approval." } },
-      });
-      return;
-    }
-    client.respond(request.id, { decision: "decline" });
+    client.respond(
+      request.id,
+      approvalReply(request.method, request.params, "decline", "OpenBot could not identify this approval."),
+    );
   }
 
   /**
@@ -1157,3 +1142,22 @@ function localQuestionNeedsOpenBot(question: AgentPromptQuestion): boolean {
 }
 
 const { sync: attentionStep, rewrap: toAttentionOperationFailed } = causeHelpers(AttentionOperationFailed);
+
+type ApprovalReply =
+  | { permissions: DynamicRecord; scope: "turn" }
+  | { decision: "approved" | { denied: { rejection: string } } }
+  | { decision: "accept" | "decline" };
+
+/** The reply each approval method's provider understands for a decision. */
+function approvalReply(
+  method: string,
+  params: unknown,
+  decision: "accept" | "decline",
+  rejection: string,
+): ApprovalReply {
+  if (method === "item/permissions/requestApproval")
+    return { permissions: decision === "accept" ? (getRecord(params, "permissions") ?? {}) : {}, scope: "turn" };
+  if (method === "applyPatchApproval" || method === "execCommandApproval")
+    return { decision: decision === "accept" ? "approved" : { denied: { rejection } } };
+  return { decision };
+}

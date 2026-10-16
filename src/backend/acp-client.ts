@@ -1938,7 +1938,6 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           command: params.toolCall.kind === "execute" ? printableInput(params.toolCall.rawInput) : null,
           reason: params.toolCall.title ?? null,
           permissions: requestedPermissions,
-          acpOptions: params.options,
         },
       )
       .pipe(toProviderClientOperationError);

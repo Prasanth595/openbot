@@ -46,14 +46,6 @@ export const messages = {
   "settings.keepRemoteSessions.description":
     "Katıldığınız sunuculara olan bağlantıyı açılışlar arasında koruyun. OpenBot yaklaşık bir saniye daha hızlı başlar. OpenBot'tan çıktığınızda OpenBot hizmeti bağlantıyı kapatmaz.",
   "settings.permissions.title": "İzinler",
-  "settings.turbo.title": "Turbo modu",
-  "settings.turbo.description":
-    "Her ajanın sormadan komut ve MCP aracı çalıştırmasına, dosyaları değiştirmesine, kendi dosya sistemi ve ağ erişimini genişletmesine ve herkese açık siteleri yayımlamasına, güncellemesine veya silmesine izin verin.",
-  "settings.turbo.confirmTitle": "Turbo modu açılsın mı?",
-  "settings.turbo.confirmDescription":
-    "Ajanlar önce size sormadan komutlar ve MCP araçları çalıştıracak, dosyaları değiştirecek, bu bilgisayardaki erişimlerini genişletecek ve herkese açık siteler yayımlayacak, güncelleyecek veya silecektir. Bunu istediğiniz zaman buradan kapatabilirsiniz.",
-  "settings.turbo.confirmAccept": "Aç",
-  "settings.autoApprove.revokeFailed": "{name} için kalıcı onay iptal edilemedi. Hâlâ etkin. Tekrar deneyin.",
   "settings.notifications.title": "Bildirimler",
   "settings.alerts.title": "Uyarılar",
   "settings.desktopNotifications.title": "Masaüstü bildirimleri",
@@ -136,8 +128,6 @@ export const messages = {
   "settings.save.notSaved": "Değişiklikler kaydedilmedi",
   "settings.save.reset": "Sıfırla",
   "settings.panel.resize": "Sağ paneli yeniden boyutlandır",
-  "settings.turbo.turnOffFailed": "Turbo modu kapatılamadı. Hâlâ etkin. Tekrar deneyin.",
-  "settings.turbo.turnOnFailed": "Turbo modu açılamadı. Tekrar deneyin.",
   "settings.agentSelect.placeholder": "Bir ajan seçin",
   "settings.agentSelect.empty": "Yerel ajan yok",
   "settings.agentSelect.label": "Şuraya yükle:",

@@ -88,11 +88,11 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "Noch nicht verfügbar",
   "agentSettings.runtime.fullAccessNote":
     "Der Agent läuft von seinem Arbeitsbereich und dem gemeinsamen Ordner aus mit vollem Computerzugriff.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude handelt, ohne um Genehmigung zu bitten, außer bei Fragen, die Claude dir stellt.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Je nach Anbieter können sensible Befehle zuerst um Genehmigung bitten.",
+  "agentSettings.runtime.askNote":
+    "Er fragt dich, bevor er einen Befehl ausführt, eine Datei ändert, ein Tool nutzt oder eine Website veröffentlicht.",
+  "agentSettings.runtime.fullNote": "Er handelt ohne Rückfrage, außer bei Fragen, die er dir stellt.",
   "agentSettings.access.workspace": "Nur Arbeitsbereich",
+  "agentSettings.access.ask": "Erst fragen",
   "agentSettings.access.full": "Voller Zugriff",
   "agentSettings.busyMessage.appDefaultQueue": "App-Standard (Warteschlange)",
   "agentSettings.busyMessage.appDefaultSteer": "App-Standard (Steuern)",
@@ -113,10 +113,13 @@ export const messages = {
   "agentSettings.newChat.confirm": "Neuen Chat starten",
   "agentSettings.newChat.failed": "Ein neuer Chat konnte nicht gestartet werden.",
   "agentSettings.fullAccess.title": "Diesem Agenten vollen Zugriff geben?",
+  "agentSettings.fullAccess.askTitle": "Diesen Agenten außerhalb seines Arbeitsbereichs arbeiten lassen?",
   "agentSettings.fullAccess.description":
     "Der Agent kann dann jede Datei lesen, ändern und löschen, auf die dein Benutzerkonto zugreifen kann, jeden Befehl ausführen und das Netzwerk nutzen. Eine missverstandene Anweisung oder eine bösartige Webseite kann auf deine persönlichen Dateien zugreifen.",
-  "agentSettings.fullAccess.cancel": "Nur Arbeitsbereich",
+  "agentSettings.fullAccess.noApproval":
+    "Der Agent führt dann Befehle aus, ändert Dateien, nutzt Tools und veröffentlicht Websites, ohne dich vorher zu fragen.",
   "agentSettings.fullAccess.confirm": "Vollen Zugriff erlauben",
+  "agentSettings.fullAccess.askConfirm": "Erst fragen nutzen",
   "agentSettings.links.usage": "Nutzung",
   "agentSettings.links.memories": "Erinnerungen",
   "agentSettings.links.memoriesCount": {
@@ -141,10 +144,9 @@ export const messages = {
   },
   "agentSettings.runtime.workspaceNote":
     "„Nur Arbeitsbereich“ beschränkt Schreibzugriffe auf den Arbeitsbereich dieses Agenten, den gemeinsamen Ordner und temporäre Ordner. Lesen und Netzwerkzugriff bleiben verfügbar.",
-  "agentSettings.runtime.workspaceEnforcedCommand":
-    "Ein Befehl, der außerhalb schreiben muss, fragt dich zuerst, auch wenn Automatisch genehmigen aktiviert ist.",
+  "agentSettings.runtime.workspaceEnforcedCommand": "Ein Befehl, der außerhalb schreiben muss, fragt dich zuerst.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Eine Dateibearbeitung außerhalb fragt dich zuerst, auch wenn Automatisch genehmigen aktiviert ist. Ein Befehl kann nicht außerhalb schreiben.",
+    "Eine Dateibearbeitung außerhalb fragt dich zuerst. Ein Befehl kann nicht außerhalb schreiben.",
   "agentSettings.runtime.workspaceUnlimited":
     "Computersteuerung und der OpenBot-Browser sind nicht beschränkt. Du kannst Computersteuerung unten deaktivieren.",
   "agentSettings.computerUse.title": "Computersteuerung",

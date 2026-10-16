@@ -1,4 +1,10 @@
-import type { AgentEvent, RespondToApprovalInput, RespondToPromptInput } from "@openbot/contracts/ipc";
+import {
+  type AgentEvent,
+  agentPermissionLevel,
+  agentPermissionUpdate,
+  type RespondToApprovalInput,
+  type RespondToPromptInput,
+} from "@openbot/contracts/ipc";
 import type { AgentMessage } from "@openbot/ui/data";
 import { createEffect, createMemo, createProjection, createSignal } from "solid-js";
 import { toAgentMessage, toAgentMessages } from "../../app-message-projection";
@@ -26,13 +32,17 @@ export function createWebConversationView(options: {
       (item) => item.agentId === workspace.state.selectedId && item.threadId === workspace.selected()?.threadId,
     ),
   );
-  /** "Always allow", for an owner or admin whose host answered. The grant is written on the host. */
+  /**
+   * "Always allow" moves an agent at Ask first to Full access, for an owner or admin whose host
+   * answered. The change is written on the host.
+   */
   const alwaysAllowApproval = createMemo(() => {
     const agent = workspace.selected();
     const item = approval();
-    if (!agent || !item || !remoteAgentAdmin.settings()) return undefined;
+    const settings = remoteAgentAdmin.settings();
+    if (!agent || !item || !settings || agentPermissionLevel(settings, agent.provider) !== "ask") return undefined;
     return async () => {
-      await remoteAgentAdmin.update({ agentId: agent.id, autoApprove: true });
+      await remoteAgentAdmin.update(agentPermissionUpdate(agent.id, "full"));
       if (approval()?.requestId !== item.requestId) return false;
       await workspace.approve({ requestId: item.requestId, decision: "accept" });
       return true;

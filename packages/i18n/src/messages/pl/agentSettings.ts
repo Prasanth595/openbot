@@ -93,11 +93,11 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "Jeszcze niedostępne",
   "agentSettings.runtime.fullAccessNote":
     "Agent działa z pełnym dostępem do komputera ze swojego obszaru roboczego i folderu współdzielonego.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude działa bez pytania o zatwierdzenie, z wyjątkiem pytań, które zadaje tobie.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Zależnie od dostawcy wrażliwe polecenia mogą najpierw prosić o zatwierdzenie.",
+  "agentSettings.runtime.askNote":
+    "Pyta cię, zanim uruchomi polecenie, zmieni plik, użyje narzędzia lub opublikuje witrynę.",
+  "agentSettings.runtime.fullNote": "Działa bez pytania, z wyjątkiem pytań, które ci zadaje.",
   "agentSettings.access.workspace": "Tylko obszar roboczy",
+  "agentSettings.access.ask": "Najpierw pytaj",
   "agentSettings.access.full": "Pełny dostęp",
   "agentSettings.busyMessage.appDefaultQueue": "Domyślne aplikacji (Kolejka)",
   "agentSettings.busyMessage.appDefaultSteer": "Domyślne aplikacji (Pokieruj)",
@@ -118,10 +118,13 @@ export const messages = {
   "agentSettings.newChat.confirm": "Rozpocznij nowy czat",
   "agentSettings.newChat.failed": "Nie udało się rozpocząć nowego czatu.",
   "agentSettings.fullAccess.title": "Dać temu agentowi pełny dostęp?",
+  "agentSettings.fullAccess.askTitle": "Pozwolić temu agentowi pracować poza obszarem roboczym?",
   "agentSettings.fullAccess.description":
     "Agent będzie mógł odczytywać, zmieniać i usuwać każdy plik dostępny dla twojego konta użytkownika, uruchamiać dowolne polecenia i korzystać z sieci. Jedna źle zrozumiana instrukcja lub złośliwa strona internetowa może sięgnąć do twoich prywatnych plików.",
-  "agentSettings.fullAccess.cancel": "Zostaw tylko obszar roboczy",
+  "agentSettings.fullAccess.noApproval":
+    "Agent będzie wtedy uruchamiać polecenia, zmieniać pliki, używać narzędzi i publikować witryny bez pytania cię o zgodę.",
   "agentSettings.fullAccess.confirm": "Zezwól na pełny dostęp",
+  "agentSettings.fullAccess.askConfirm": "Najpierw pytaj",
   "agentSettings.links.usage": "Użycie",
   "agentSettings.links.memories": "Wspomnienia",
   "agentSettings.links.memoriesCount": {
@@ -155,9 +158,9 @@ export const messages = {
   "agentSettings.runtime.workspaceNote":
     "Tryb „Tylko obszar roboczy” ogranicza zapis do obszaru roboczego tego agenta, folderu współdzielonego i folderów tymczasowych. Odczyt i sieć pozostają dostępne.",
   "agentSettings.runtime.workspaceEnforcedCommand":
-    "Polecenie, które musi zapisać poza tymi folderami, najpierw zapyta cię o zgodę, także przy włączonym automatycznym zatwierdzaniu.",
+    "Polecenie, które musi zapisać poza tymi folderami, najpierw zapyta cię o zgodę.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Edycja pliku poza tymi folderami najpierw zapyta cię o zgodę, także przy włączonym automatycznym zatwierdzaniu. Polecenie nie może zapisać poza nimi.",
+    "Edycja pliku poza tymi folderami najpierw zapyta cię o zgodę. Polecenie nie może zapisać poza nimi.",
   "agentSettings.runtime.workspaceUnlimited":
     "Sterowanie komputerem i przeglądarka OpenBot nie są ograniczone; Sterowanie komputerem możesz wyłączyć poniżej.",
   "agentSettings.computerUse.title": "Sterowanie komputerem",

@@ -46,15 +46,6 @@ export const messages = {
   "settings.keepRemoteSessions.description":
     "参加しているサーバーへの接続を起動の間も維持します。OpenBot の起動が約 1 秒速くなります。OpenBot を終了しても、OpenBot サービスは接続を閉じません。",
   "settings.permissions.title": "権限",
-  "settings.turbo.title": "ターボモード",
-  "settings.turbo.description":
-    "すべてのエージェントが確認なしでコマンドや MCP ツールを実行し、ファイルを変更し、ファイルシステムやネットワークのアクセス範囲を広げ、公開サイトの公開・更新・削除を行います。",
-  "settings.turbo.confirmTitle": "ターボモードを有効にしますか？",
-  "settings.turbo.confirmDescription":
-    "エージェントは確認なしでこのコンピューターのコマンドや MCP ツールを実行し、ファイルを変更し、自身のアクセス範囲を広げ、公開サイトの公開・更新・削除を行います。ここでいつでも無効にできます。",
-  "settings.turbo.confirmAccept": "有効にする",
-  "settings.autoApprove.revokeFailed":
-    "{name} の常時許可を取り消せませんでした。許可はまだ有効です。もう一度お試しください。",
   "settings.notifications.title": "通知",
   "settings.alerts.title": "アラート",
   "settings.desktopNotifications.title": "デスクトップ通知",
@@ -136,8 +127,6 @@ export const messages = {
   "settings.save.notSaved": "変更は保存されていません",
   "settings.save.reset": "元に戻す",
   "settings.panel.resize": "右パネルのサイズを変更",
-  "settings.turbo.turnOffFailed": "ターボモードを無効にできませんでした。まだ有効です。もう一度お試しください。",
-  "settings.turbo.turnOnFailed": "ターボモードを有効にできませんでした。もう一度お試しください。",
   "settings.agentSelect.placeholder": "エージェントを選択",
   "settings.agentSelect.empty": "ローカルのエージェントがありません",
   "settings.agentSelect.label": "インストール先",

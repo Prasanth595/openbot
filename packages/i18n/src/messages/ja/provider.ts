@@ -119,8 +119,6 @@ export const messages = {
   "provider.picker.effort": "推論の強さ",
   "provider.picker.effortLabel": "エージェントの推論の強さ",
   "provider.picker.selectEffort": "推論の強さを選択",
-  "provider.picker.autoApprove": "自動承認",
-  "provider.picker.autoApproveLabel": "このエージェントの操作を自動で承認",
   "provider.picker.custom": "カスタム",
   "provider.picker.cliReady": "{cli} 準備完了",
   "provider.status.signInRequired": "サインインが必要",

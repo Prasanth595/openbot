@@ -52,15 +52,6 @@ export const messages = {
   "settings.keepRemoteSessions.description":
     "Conservez la connexion aux serveurs que vous avez rejoints entre deux lancements. OpenBot démarre environ une seconde plus vite. Quand vous quittez OpenBot, le service OpenBot ne ferme pas la connexion.",
   "settings.permissions.title": "Autorisations",
-  "settings.turbo.title": "Mode Turbo",
-  "settings.turbo.description":
-    "Autoriser chaque agent à exécuter des commandes et des outils MCP, modifier des fichiers, élargir son propre accès au système de fichiers et au réseau, et publier, mettre à jour ou supprimer des sites publics sans demander.",
-  "settings.turbo.confirmTitle": "Activer le mode Turbo ?",
-  "settings.turbo.confirmDescription":
-    "Les agents exécuteront des commandes et des outils MCP, modifieront des fichiers, élargiront leur propre accès sur cet ordinateur, et publieront, mettront à jour ou supprimeront des sites publics sans vous demander d’abord. Vous pouvez le désactiver ici à tout moment.",
-  "settings.turbo.confirmAccept": "Activer",
-  "settings.autoApprove.revokeFailed":
-    "Impossible de révoquer l’approbation permanente pour {name}. Elle est toujours active. Réessayez.",
   "settings.notifications.title": "Notifications",
   "settings.alerts.title": "Alertes",
   "settings.desktopNotifications.title": "Notifications de bureau",
@@ -148,8 +139,6 @@ export const messages = {
   "settings.save.notSaved": "Modifications non enregistrées",
   "settings.save.reset": "Rétablir",
   "settings.panel.resize": "Redimensionner le panneau de droite",
-  "settings.turbo.turnOffFailed": "Impossible de désactiver le mode Turbo. Il est toujours actif. Réessayez.",
-  "settings.turbo.turnOnFailed": "Impossible d’activer le mode Turbo. Réessayez.",
   "settings.agentSelect.placeholder": "Choisir un agent",
   "settings.agentSelect.empty": "Aucun agent local",
   "settings.agentSelect.label": "Installer dans",

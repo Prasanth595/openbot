@@ -288,16 +288,22 @@ export const messages = {
   "mobile.agent.access.title": "Accès",
   "mobile.agent.access.label": "Accès de l’agent",
   "mobile.agent.access.workspace": "Espace de travail uniquement",
+  "mobile.agent.access.ask": "Demander d’abord",
   "mobile.agent.access.full": "Accès complet",
-  "mobile.agent.access.autoApprove": "Approbation automatique",
-  "mobile.agent.access.autoApproveNote": "L’hôte répond lui-même aux demandes d’approbation de cet agent.",
   "mobile.agent.access.autoApproveLocked":
     "Le mode Turbo est activé sur cet hôte, donc chaque agent approuve automatiquement.",
+  "mobile.agent.access.workspaceNote": "L’agent travaille dans son espace de travail et le dossier partagé de l’hôte.",
+  "mobile.agent.access.askNote":
+    "L’agent vous demande avant d’exécuter une commande, de modifier un fichier, d’utiliser un outil ou de publier un site.",
+  "mobile.agent.access.fullNote": "L’agent agit sans demander, sauf pour les questions qu’il vous pose.",
   "mobile.agent.access.fullTitle": "Donner un accès complet à cet agent ?",
+  "mobile.agent.access.askTitle": "Laisser cet agent travailler hors de son espace de travail ?",
   "mobile.agent.access.fullBody":
     "L’agent pourra alors lire, modifier et supprimer tout fichier accessible au compte utilisateur de l’hôte, exécuter n’importe quelle commande et utiliser le réseau.",
-  "mobile.agent.access.fullCancel": "Garder l’espace de travail uniquement",
+  "mobile.agent.access.noApproval":
+    "L’agent exécutera alors des commandes, modifiera des fichiers, utilisera des outils et publiera des sites sans vous demander d’abord.",
   "mobile.agent.access.fullConfirm": "Autoriser l’accès complet",
+  "mobile.agent.access.askConfirm": "Demander d’abord",
   "mobile.agent.access.failed": "Impossible de modifier l’accès de l’agent.",
   "mobile.agent.access.unsupported":
     "Cet hôte ne permet pas de modifier l’accès de l’agent depuis un appareil distant.",

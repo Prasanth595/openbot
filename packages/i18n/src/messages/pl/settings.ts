@@ -47,15 +47,6 @@ export const messages = {
   "settings.keepRemoteSessions.description":
     "Zachowuj połączenie z dołączonymi serwerami między uruchomieniami. OpenBot startuje około sekundy szybciej. Gdy zamkniesz OpenBot, usługa OpenBot nie zamyka połączenia.",
   "settings.permissions.title": "Uprawnienia",
-  "settings.turbo.title": "Tryb Turbo",
-  "settings.turbo.description":
-    "Pozwól każdemu agentowi bez pytania uruchamiać polecenia i narzędzia MCP, zmieniać pliki, poszerzać własny dostęp do systemu plików i sieci oraz publikować, aktualizować i usuwać publiczne witryny.",
-  "settings.turbo.confirmTitle": "Włączyć tryb Turbo?",
-  "settings.turbo.confirmDescription":
-    "Agenci będą bez pytania uruchamiać polecenia i narzędzia MCP, zmieniać pliki, poszerzać własny dostęp na tym komputerze oraz publikować, aktualizować i usuwać publiczne witryny. Możesz to wyłączyć tutaj w każdej chwili.",
-  "settings.turbo.confirmAccept": "Włącz",
-  "settings.autoApprove.revokeFailed":
-    "Nie udało się cofnąć stałego zatwierdzenia dla {name}. Nadal jest aktywne. Spróbuj ponownie.",
   "settings.notifications.title": "Powiadomienia",
   "settings.alerts.title": "Alerty",
   "settings.desktopNotifications.title": "Powiadomienia na pulpicie",
@@ -137,8 +128,6 @@ export const messages = {
   "settings.save.notSaved": "Nie zapisano zmian",
   "settings.save.reset": "Resetuj",
   "settings.panel.resize": "Zmień rozmiar prawego panelu",
-  "settings.turbo.turnOffFailed": "Nie udało się wyłączyć trybu Turbo. Nadal jest aktywny. Spróbuj ponownie.",
-  "settings.turbo.turnOnFailed": "Nie udało się włączyć trybu Turbo. Spróbuj ponownie.",
   "settings.agentSelect.placeholder": "Wybierz agenta",
   "settings.agentSelect.empty": "Brak lokalnych agentów",
   "settings.agentSelect.label": "Zainstaluj w",

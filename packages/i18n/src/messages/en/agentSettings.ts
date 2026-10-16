@@ -89,12 +89,12 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.runtime.notAvailable": "Not available yet",
   "agentSettings.runtime.fullAccessNote":
     "The agent runs with full computer access from its workspace and the shared folder.",
-  "agentSettings.runtime.claudeApprovalNote":
-    "Claude acts without asking for approval, except for questions it puts to you.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Depending on the provider, sensitive commands may ask for approval first.",
+  "agentSettings.runtime.askNote":
+    "It asks you before it runs a command, changes a file, uses a tool or publishes a site.",
+  "agentSettings.runtime.fullNote": "It acts without asking, except for questions it puts to you.",
 
   "agentSettings.access.workspace": "Workspace only",
+  "agentSettings.access.ask": "Ask first",
   "agentSettings.access.full": "Full access",
   "agentSettings.busyMessage.appDefaultQueue": "App default (Queue)",
   "agentSettings.busyMessage.appDefaultSteer": "App default (Steer)",
@@ -118,10 +118,13 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.newChat.failed": "Could not start a new chat.",
 
   "agentSettings.fullAccess.title": "Give this agent full access?",
+  "agentSettings.fullAccess.askTitle": "Let this agent work outside its workspace?",
   "agentSettings.fullAccess.description":
     "The agent can then read, change and delete any file your user account can reach, run any command, and use the network. One misunderstood instruction or a malicious web page can reach your personal files.",
-  "agentSettings.fullAccess.cancel": "Keep workspace only",
+  "agentSettings.fullAccess.noApproval":
+    "The agent then runs commands, changes files, uses tools and publishes sites without asking you first.",
   "agentSettings.fullAccess.confirm": "Allow full access",
+  "agentSettings.fullAccess.askConfirm": "Use Ask first",
 
   "agentSettings.links.usage": "Usage",
   "agentSettings.links.memories": "Memories",
@@ -135,10 +138,9 @@ export const messages = defineMessages("agentSettings", {
   "agentSettings.links.routinesCount": { one: "{count} configured", other: "{count} configured" },
   "agentSettings.runtime.workspaceNote":
     "Workspace only limits writes to this agent's workspace, the shared folder and the temporary folders. Reads and network stay available.",
-  "agentSettings.runtime.workspaceEnforcedCommand":
-    "A command that must write outside asks you first, also when Auto approve is on.",
+  "agentSettings.runtime.workspaceEnforcedCommand": "A command that must write outside asks you first.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "A file edit outside asks you first, also when Auto approve is on. A command cannot write outside.",
+    "A file edit outside asks you first. A command cannot write outside.",
   "agentSettings.runtime.workspaceUnlimited":
     "Computer Use and the OpenBot browser are not limited; you can turn Computer Use off below.",
   "agentSettings.computerUse.title": "Computer Use",

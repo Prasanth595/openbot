@@ -518,7 +518,8 @@ clients receive the host's filtered model list.
 `AgentClient` remains the provider boundary. ACP session ownership, history replay, and turn
 completion stay together. Boolean and select settings can include grouped choices. The client
 processes configuration notifications while idle. Model and reasoning continue to use their
-existing fields. Permission, access, and approval settings remain under OpenBot controls.
+existing fields. Permission, access, and approval settings remain under OpenBot controls: the agent's
+Permissions level decides them, not an ACP setting.
 
 Additional overrides are stored in validated agent JSON, by provider identity. A custom ACP
 identity includes its custom agent ID. Saved overrides are separate from the current descriptors

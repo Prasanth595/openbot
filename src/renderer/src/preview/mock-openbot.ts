@@ -754,18 +754,6 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return clone(analyticsPreference);
     },
     getApprovalAutomation: async () => clone(approvalAutomation),
-    setApprovalAutomation: async ({ turbo, agentId, autoApprove }) => {
-      approvalAutomation = {
-        ...approvalAutomation,
-        turbo: turbo ?? approvalAutomation.turbo,
-        autoApproveOverrides:
-          agentId !== undefined && autoApprove !== undefined
-            ? { ...approvalAutomation.autoApproveOverrides, [agentId]: autoApprove }
-            : approvalAutomation.autoApproveOverrides,
-      };
-      for (const listener of approvalAutomationListeners) listener(clone(approvalAutomation));
-      return clone(approvalAutomation);
-    },
     onApprovalAutomation: (listener) => {
       approvalAutomationListeners.add(listener);
       return () => approvalAutomationListeners.delete(listener);
@@ -1438,7 +1426,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return {
           access: agent.access ?? DEFAULT_AGENT_ACCESS,
           autoApprove: agentAutoApprovalEnabled(approvalAutomation, agentId),
-          autoApproveLocked: approvalAutomation.turbo,
+          autoApproveLocked: false,
         };
       },
       getAgentHostSettings: async (agentId) => {
@@ -1467,11 +1455,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             ...approvalAutomation,
             autoApproveOverrides: { ...approvalAutomation.autoApproveOverrides, [agentId]: autoApprove },
           };
+          for (const listener of approvalAutomationListeners) listener(clone(approvalAutomation));
         }
         return {
           access: access ?? agent.access ?? DEFAULT_AGENT_ACCESS,
           autoApprove: agentAutoApprovalEnabled(approvalAutomation, agentId),
-          autoApproveLocked: approvalAutomation.turbo,
+          autoApproveLocked: false,
         };
       },
       // The preview is one computer, so the host skills are its own.

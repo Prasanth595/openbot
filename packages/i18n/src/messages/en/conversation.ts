@@ -46,8 +46,6 @@ export const messages = defineMessages("conversation", {
   "conversation.header.publish": "Publish agent",
   "conversation.header.browserActing": "{name} is controlling the browser",
   "conversation.header.agentFallback": "Agent",
-  "conversation.header.thisAgent": "This agent",
-  "conversation.header.grantFailed": "Could not save the standing approval for {name}. Try again.",
   "conversation.header.modelsBusy": "Wait for the current work to finish before changing models.",
   "conversation.header.modelsUnavailable": "Models are available after an agent CLI connects.",
   "conversation.sidePanel.label": "Side panel",

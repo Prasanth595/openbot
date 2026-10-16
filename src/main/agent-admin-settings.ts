@@ -41,7 +41,8 @@ export function createAgentAdminSettings({
     return {
       access: agent.access ?? DEFAULT_AGENT_ACCESS,
       autoApprove: agentAutoApprovalEnabled(preference, agent.id),
-      autoApproveLocked: preference.turbo,
+      // Turbo mode is gone; the field stays because `agent-admin-v1` carries it.
+      autoApproveLocked: false,
     };
   }
   return {

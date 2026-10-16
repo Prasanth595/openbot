@@ -16,7 +16,8 @@ const meta = {
     agentStatus: STORY_AGENT_STATUS,
     modelOptions: STORY_MODELS,
     working: false,
-    accessEditable: true,
+    autoApprove: true,
+    onUpdatePermissions: fn(async () => undefined),
     busyMessageModeEditable: true,
     defaultBusyMessageMode: "queue",
     width: 296,
@@ -43,6 +44,8 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 export const Working: Story = { args: { working: true } };
 export const WorkspaceOnly: Story = { args: { agent: { ...STORY_AGENT, access: "workspace" } } };
+/** Full reach, but the agent asks before it acts. */
+export const AskFirst: Story = { args: { agent: { ...STORY_AGENT, access: "full" }, autoApprove: false } };
 /** The agent steers messages sent while it works, whatever the app default says. */
 export const SteersWhileWorking: Story = { args: { agent: { ...STORY_AGENT, busyMessageMode: "steer" } } };
 /** Steer, from the app default, on a provider that cannot steer: the note says the messages queue. */
@@ -53,7 +56,7 @@ export const SteerUnsupportedProvider: Story = {
   },
 };
 /** An agent on a remote host: the setting belongs to that host, so the row is hidden. */
-export const RemoteAgent: Story = { args: { accessEditable: false, busyMessageModeEditable: false } };
+export const RemoteAgent: Story = { args: { onUpdatePermissions: undefined, busyMessageModeEditable: false } };
 /** An OpenCode model with no reasoning setting: OpenCode decides, and the row says so. */
 export const ReasoningSetByProvider: Story = {
   args: {

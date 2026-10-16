@@ -90,11 +90,11 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "まだ利用できません",
   "agentSettings.runtime.fullAccessNote":
     "エージェントは、ワークスペースと共有フォルダーからコンピューターへのフルアクセスで実行されます。",
-  "agentSettings.runtime.claudeApprovalNote": "Claude は、あなたへの質問を除き、承認を求めずに操作します。",
-  "agentSettings.runtime.providerApprovalNote":
-    "プロバイダーによっては、重要なコマンドの実行前に承認を求めることがあります。",
+  "agentSettings.runtime.askNote": "コマンドの実行、ファイルの変更、ツールの使用、サイトの公開の前に確認します。",
+  "agentSettings.runtime.fullNote": "あなたへの質問を除き、確認せずに操作します。",
 
   "agentSettings.access.workspace": "ワークスペースのみ",
+  "agentSettings.access.ask": "事前に確認",
   "agentSettings.access.full": "フルアクセス",
   "agentSettings.busyMessage.appDefaultQueue": "アプリの既定 (キュー)",
   "agentSettings.busyMessage.appDefaultSteer": "アプリの既定 (方向を修正)",
@@ -118,10 +118,13 @@ export const messages = {
   "agentSettings.newChat.failed": "新しいチャットを始められませんでした。",
 
   "agentSettings.fullAccess.title": "このエージェントにフルアクセスを許可しますか？",
+  "agentSettings.fullAccess.askTitle": "このエージェントにワークスペースの外での作業を許可しますか？",
   "agentSettings.fullAccess.description":
     "エージェントは、あなたのユーザーアカウントがアクセスできるすべてのファイルの読み取り、変更、削除、任意のコマンドの実行、ネットワークの使用ができるようになります。指示の誤解や悪意のある Web ページ 1 つで、個人のファイルに影響が及ぶ可能性があります。",
-  "agentSettings.fullAccess.cancel": "ワークスペースのみを維持",
+  "agentSettings.fullAccess.noApproval":
+    "エージェントは、事前に確認せずにコマンドを実行し、ファイルを変更し、ツールを使い、サイトを公開します。",
   "agentSettings.fullAccess.confirm": "フルアクセスを許可",
+  "agentSettings.fullAccess.askConfirm": "事前に確認を使用",
 
   "agentSettings.links.usage": "使用状況",
   "agentSettings.links.memories": "メモリー",
@@ -135,10 +138,9 @@ export const messages = {
   "agentSettings.links.routinesCount": { other: "{count} 件設定済み" },
   "agentSettings.runtime.workspaceNote":
     "「ワークスペースのみ」は、書き込みをこのエージェントのワークスペース、共有フォルダー、一時フォルダーに制限します。読み取りとネットワークは引き続き使用できます。",
-  "agentSettings.runtime.workspaceEnforcedCommand":
-    "外部に書き込む必要があるコマンドは、自動承認がオンでも先に確認します。",
+  "agentSettings.runtime.workspaceEnforcedCommand": "外部に書き込む必要があるコマンドは、先に確認します。",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "外部のファイル編集は、自動承認がオンでも先に確認します。コマンドは外部に書き込めません。",
+    "外部のファイル編集は、先に確認します。コマンドは外部に書き込めません。",
   "agentSettings.runtime.workspaceUnlimited":
     "Computer Use と OpenBot ブラウザーは制限されません。Computer Use は下でオフにできます。",
   "agentSettings.computerUse.title": "Computer Use",

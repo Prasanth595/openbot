@@ -127,8 +127,6 @@ export const messages = {
   "provider.picker.effort": "Effort",
   "provider.picker.effortLabel": "Effort de raisonnement de l’agent",
   "provider.picker.selectEffort": "Choisir l’effort",
-  "provider.picker.autoApprove": "Approbation automatique",
-  "provider.picker.autoApproveLabel": "Approuver automatiquement les actions de cet agent",
   "provider.picker.custom": "Personnalisé",
   "provider.picker.cliReady": "{cli} prêt",
   "provider.status.signInRequired": "Connexion requise",

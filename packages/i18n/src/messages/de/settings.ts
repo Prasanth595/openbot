@@ -47,15 +47,6 @@ export const messages = {
   "settings.keepRemoteSessions.description":
     "Die Verbindung zu deinen beigetretenen Servern zwischen Starts beibehalten. OpenBot startet etwa eine Sekunde schneller. Wenn du OpenBot beendest, schließt der OpenBot-Dienst die Verbindung nicht.",
   "settings.permissions.title": "Berechtigungen",
-  "settings.turbo.title": "Turbo-Modus",
-  "settings.turbo.description":
-    "Allen Agenten erlauben, ohne Rückfrage Befehle und MCP-Tools auszuführen, Dateien zu ändern, ihren Dateisystem- und Netzwerkzugriff zu erweitern und öffentliche Websites zu veröffentlichen, zu aktualisieren oder zu löschen.",
-  "settings.turbo.confirmTitle": "Turbo-Modus aktivieren?",
-  "settings.turbo.confirmDescription":
-    "Agenten führen Befehle und MCP-Tools aus, ändern Dateien, erweitern ihren Zugriff auf diesen Computer und veröffentlichen, aktualisieren oder löschen öffentliche Websites ohne Rückfrage. Du kannst dies hier jederzeit deaktivieren.",
-  "settings.turbo.confirmAccept": "Aktivieren",
-  "settings.autoApprove.revokeFailed":
-    "Die dauerhafte Genehmigung für {name} konnte nicht widerrufen werden. Sie ist noch aktiv. Versuche es erneut.",
   "settings.notifications.title": "Benachrichtigungen",
   "settings.alerts.title": "Hinweise",
   "settings.desktopNotifications.title": "Desktop-Benachrichtigungen",
@@ -140,9 +131,6 @@ export const messages = {
   "settings.save.notSaved": "Änderungen nicht gespeichert",
   "settings.save.reset": "Zurücksetzen",
   "settings.panel.resize": "Größe des rechten Bereichs ändern",
-  "settings.turbo.turnOffFailed":
-    "Der Turbo-Modus konnte nicht deaktiviert werden. Er ist noch aktiv. Versuche es erneut.",
-  "settings.turbo.turnOnFailed": "Der Turbo-Modus konnte nicht aktiviert werden. Versuche es erneut.",
   "settings.agentSelect.placeholder": "Agenten auswählen",
   "settings.agentSelect.empty": "Keine lokalen Agenten",
   "settings.agentSelect.label": "Installieren für",

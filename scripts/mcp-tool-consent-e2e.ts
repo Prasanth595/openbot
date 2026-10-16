@@ -417,7 +417,6 @@ const policyFile = join(OUT, "approval-automation.json");
 const policy = new ApprovalAutomation({
   path: policyFile,
   initial: {
-    turbo: false,
     defaultAutoApprove: false,
     autoApproveOverrides: { auto: true, manual: false, boxed: true },
   },
@@ -511,14 +510,14 @@ try {
     noCard(o);
     ran(o, "probe/echo_b");
   });
-  // Turbo answers for an agent that has auto approve off.
-  await runCauseEffect(policy.set({ turbo: true }));
-  record("Turbo on, agent with auto approve off: no card", await rig.call("manual", "other/echo_b"), (o) => {
+  // Moving the agent from Ask first to Full access answers for it at once.
+  await runCauseEffect(policy.set({ agentId: "manual", autoApprove: true }));
+  record("Full access: no card", await rig.call("manual", "other/echo_b"), (o) => {
     noCard(o);
     ran(o, "other/echo_b");
   });
-  await runCauseEffect(policy.set({ turbo: false }));
-  record("Turbo off again: card", await rig.call("manual", "other/echo_b", allowOnce), (o) => {
+  await runCauseEffect(policy.set({ agentId: "manual", autoApprove: false }));
+  record("Ask first again: card", await rig.call("manual", "other/echo_b", allowOnce), (o) => {
     oneCard(o);
     ran(o, "other/echo_b");
   });

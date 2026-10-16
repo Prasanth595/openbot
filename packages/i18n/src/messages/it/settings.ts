@@ -47,15 +47,6 @@ export const messages = {
   "settings.keepRemoteSessions.description":
     "Mantieni la connessione ai server a cui ti sei unito tra un avvio e l'altro. OpenBot si avvia circa un secondo prima. Quando esci da OpenBot, il servizio OpenBot non chiude la connessione.",
   "settings.permissions.title": "Permessi",
-  "settings.turbo.title": "Modalità Turbo",
-  "settings.turbo.description":
-    "Consenti a ogni agente di eseguire comandi e tool MCP, modificare file, ampliare il proprio accesso al file system e alla rete, e pubblicare, aggiornare o eliminare siti pubblici senza chiedere.",
-  "settings.turbo.confirmTitle": "Attivare la modalità Turbo?",
-  "settings.turbo.confirmDescription":
-    "Gli agenti eseguiranno comandi e tool MCP, modificheranno file, amplieranno il proprio accesso su questo computer e pubblicheranno, aggiorneranno o elimineranno siti pubblici senza chiederti prima. Puoi disattivarla qui in qualsiasi momento.",
-  "settings.turbo.confirmAccept": "Attiva",
-  "settings.autoApprove.revokeFailed":
-    "Impossibile revocare l'approvazione permanente per {name}. È ancora attiva. Riprova.",
   "settings.notifications.title": "Notifiche",
   "settings.alerts.title": "Avvisi",
   "settings.desktopNotifications.title": "Notifiche sul desktop",
@@ -139,8 +130,6 @@ export const messages = {
   "settings.save.notSaved": "Modifiche non salvate",
   "settings.save.reset": "Ripristina",
   "settings.panel.resize": "Ridimensiona il pannello destro",
-  "settings.turbo.turnOffFailed": "Impossibile disattivare la modalità Turbo. È ancora attiva. Riprova.",
-  "settings.turbo.turnOnFailed": "Impossibile attivare la modalità Turbo. Riprova.",
   "settings.agentSelect.placeholder": "Scegli un agente",
   "settings.agentSelect.empty": "Nessun agente locale",
   "settings.agentSelect.label": "Installa su",

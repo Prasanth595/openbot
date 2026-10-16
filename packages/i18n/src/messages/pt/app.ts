@@ -72,7 +72,7 @@ export const messages = {
     other: "{count} configurações correspondentes.",
   },
   "app.standingApproval.description":
-    "{name} executará comandos e ferramentas MCP, alterará arquivos e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Publicar, substituir e excluir sites públicos ainda exige aprovação, exceto quando o modo Turbo está ativado. Você pode desativar a Aprovação automática no menu de modelos deste agente.",
+    "{name} passa para Acesso completo. Executará comandos e ferramentas, alterará arquivos, publicará sites e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Você pode mudar isso nas configurações de Permissões do agente.",
   "app.standingApproval.descriptionUnnamed":
-    "Este agente executará comandos e ferramentas MCP, alterará arquivos e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Publicar, substituir e excluir sites públicos ainda exige aprovação, exceto quando o modo Turbo está ativado. Você pode desativar a Aprovação automática no menu de modelos deste agente.",
+    "Este agente passa para Acesso completo. Executará comandos e ferramentas, alterará arquivos, publicará sites e ampliará seu próprio acesso ao sistema de arquivos e à rede no computador em que é executado, sem perguntar novamente. Você pode mudar isso nas configurações de Permissões do agente.",
 } as const satisfies PartialTranslation<typeof source>;

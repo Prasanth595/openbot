@@ -254,8 +254,8 @@ while this computer has no Signal connection is lost, except for a hosted server
 - Until the Slack Marketplace approves OpenBot, Slack limits reading a thread to 1 request per minute
   and 15 messages, so an agent can see less context.
 - Anyone who can post in the workspace, guests and Slack Connect members included, can give the
-  agents work. They run with the access you gave them. With Turbo or **Always allow**, they run
-  commands without asking.
+  agents work. They run with the Permissions you gave them. At **Full access**, they run commands
+  without asking.
 - A hosted server sleeps after 15 minutes with no use, also with a live connection. A mention, a
   direct message, a thread reply or a button press starts it. Signal keeps that message, encrypted,
   for up to 10 minutes and gives it to the server when it connects, so the answer comes after the

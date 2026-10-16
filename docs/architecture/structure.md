@@ -88,8 +88,10 @@ SolidJS, provider, Cloudflare, and application code; and the account server to d
 - Stripe is the source of truth for paid plans. D1 `billing_subscriptions` is a copy that the Stripe
   webhook keeps current; see [Billing](servers.md#billing).
 - A local team host owns conversations, files, agents, and the local member projection used by Team API.
-- `openbot-approval-automation-v1.json` holds Turbo mode and the agents granted "Always allow". It
-  belongs to the computer that runs the agent and never crosses the Team API, whose released
+- `openbot-approval-automation-v3.json` holds which agents have Full access: the `autoApprove` half of
+  each agent's Permissions level (Workspace only, Ask first, Full access). OpenBot reads an older
+  `-v2` or `-v1` file when no v3 file exists and leaves it in place for a downgrade; Turbo mode on in
+  such a file gives every agent Full access. It belongs to the computer that runs the agent and never crosses the Team API, whose released
   adapters freeze an approval response to `accept` or `decline`: a remote host that has automation
   on answers its own approvals, so they never reach a client, and a client cannot grant one on a
   remote host's behalf. `AttentionRegistry` reads it at each approval, including hosted-site

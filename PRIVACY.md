@@ -821,10 +821,9 @@ configuration, and OpenBot sets both variables last, so nothing can turn them ba
 OpenBot started. OpenBot writes no file, so a driver you run yourself keeps the settings you gave
 it.
 
-Auto approve also permits that agent to publish, update and delete public hosted sites without
-another confirmation. Turbo mode extends this permission to every agent on that host. Publishing
-makes the selected site content publicly accessible. Without either grant, hosted-site changes
-require confirmation. Site ownership and source validation still apply.
+Full access also permits that agent to publish, update and delete public hosted sites without
+another confirmation. Publishing makes the selected site content publicly accessible. At Workspace
+only or Ask first, hosted-site changes require confirmation. Site ownership and source validation still apply.
 
 ## Exports
 

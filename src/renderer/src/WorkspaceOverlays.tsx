@@ -675,7 +675,6 @@ function AppSettings(props: AccountProps) {
     builtInDisplayGeometry,
     updateGeneralSettings,
     appSettingsRestoreTarget,
-    turboModePending,
     sendTestNotification,
     openNotificationSettings,
   } = useSettings();
@@ -722,7 +721,6 @@ function AppSettings(props: AccountProps) {
           setAppSettingsOpen(false);
           setAddServerOpen(true);
         }}
-        turboModePending={turboModePending()}
         onTestNotification={sendTestNotification}
         onOpenNotificationSettings={openNotificationSettings}
         restoreFocusTarget={appSettingsRestoreTarget()}

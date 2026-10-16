@@ -281,16 +281,22 @@ export const messages = {
   "mobile.agent.access.title": "アクセス",
   "mobile.agent.access.label": "エージェントのアクセス",
   "mobile.agent.access.workspace": "ワークスペースのみ",
+  "mobile.agent.access.ask": "事前に確認",
   "mobile.agent.access.full": "フルアクセス",
-  "mobile.agent.access.autoApprove": "自動承認",
-  "mobile.agent.access.autoApproveNote": "このエージェントの承認にはホストが自動で応答します。",
   "mobile.agent.access.autoApproveLocked":
     "このホストでは Turbo モードがオンのため、すべてのエージェントが自動承認します。",
+  "mobile.agent.access.workspaceNote": "エージェントは、ホスト上のワークスペースと共有フォルダーで作業します。",
+  "mobile.agent.access.askNote":
+    "エージェントは、コマンドの実行、ファイルの変更、ツールの使用、サイトの公開の前に確認します。",
+  "mobile.agent.access.fullNote": "エージェントは、あなたへの質問を除き、確認せずに操作します。",
   "mobile.agent.access.fullTitle": "このエージェントにフルアクセスを許可しますか？",
+  "mobile.agent.access.askTitle": "このエージェントにワークスペースの外での作業を許可しますか？",
   "mobile.agent.access.fullBody":
     "エージェントは、ホストのユーザーアカウントがアクセスできるすべてのファイルの読み取り、変更、削除、任意のコマンドの実行、ネットワークの使用ができるようになります。",
-  "mobile.agent.access.fullCancel": "ワークスペースのみのままにする",
+  "mobile.agent.access.noApproval":
+    "エージェントは、事前に確認せずにコマンドを実行し、ファイルを変更し、ツールを使い、サイトを公開します。",
   "mobile.agent.access.fullConfirm": "フルアクセスを許可",
+  "mobile.agent.access.askConfirm": "事前に確認を使用",
   "mobile.agent.access.failed": "エージェントのアクセスを変更できませんでした。",
   "mobile.agent.access.unsupported": "このホストでは、リモートデバイスからエージェントのアクセスを変更できません。",
   "mobile.agent.host.computerUse": "Computer Use",

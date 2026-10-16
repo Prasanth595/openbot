@@ -130,8 +130,6 @@ export const messages = defineMessages("provider", {
   "provider.picker.effort": "Effort",
   "provider.picker.effortLabel": "Agent reasoning effort",
   "provider.picker.selectEffort": "Select effort",
-  "provider.picker.autoApprove": "Auto approve",
-  "provider.picker.autoApproveLabel": "Auto approve this agent's actions",
   "provider.picker.custom": "Custom",
   "provider.picker.cliReady": "{cli} ready",
   "provider.status.signInRequired": "Sign in required",

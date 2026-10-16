@@ -117,8 +117,6 @@ export const messages = {
   "provider.picker.effort": "Efor",
   "provider.picker.effortLabel": "Ajan akıl yürütme eforu",
   "provider.picker.selectEffort": "Efor seçin",
-  "provider.picker.autoApprove": "Otomatik onayla",
-  "provider.picker.autoApproveLabel": "Bu ajanın eylemlerini otomatik onayla",
   "provider.picker.custom": "Özel",
   "provider.picker.cliReady": "{cli} hazır",
   "provider.status.signInRequired": "Oturum açılmalı",

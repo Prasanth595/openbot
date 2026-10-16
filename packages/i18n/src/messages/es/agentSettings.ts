@@ -88,10 +88,11 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "Todavía no disponible",
   "agentSettings.runtime.fullAccessNote":
     "El agente se ejecuta con acceso completo al equipo desde su espacio de trabajo y la carpeta compartida.",
-  "agentSettings.runtime.claudeApprovalNote": "Claude actúa sin pedir aprobación, salvo las preguntas que te haga.",
-  "agentSettings.runtime.providerApprovalNote":
-    "Según el proveedor, los comandos sensibles pueden pedir aprobación antes de ejecutarse.",
+  "agentSettings.runtime.askNote":
+    "Te pregunta antes de ejecutar un comando, cambiar un archivo, usar una herramienta o publicar un sitio.",
+  "agentSettings.runtime.fullNote": "Actúa sin preguntar, salvo las preguntas que te haga.",
   "agentSettings.access.workspace": "Solo espacio de trabajo",
+  "agentSettings.access.ask": "Preguntar antes",
   "agentSettings.access.full": "Acceso completo",
   "agentSettings.busyMessage.appDefaultQueue": "Predeterminado de la app (En cola)",
   "agentSettings.busyMessage.appDefaultSteer": "Predeterminado de la app (Orientar)",
@@ -112,10 +113,13 @@ export const messages = {
   "agentSettings.newChat.confirm": "Iniciar nuevo chat",
   "agentSettings.newChat.failed": "No se pudo iniciar un nuevo chat.",
   "agentSettings.fullAccess.title": "¿Dar acceso completo a este agente?",
+  "agentSettings.fullAccess.askTitle": "¿Dejar que este agente trabaje fuera de su espacio de trabajo?",
   "agentSettings.fullAccess.description":
     "El agente podrá leer, modificar y eliminar cualquier archivo al que tu cuenta de usuario tenga acceso, ejecutar cualquier comando y usar la red. Una instrucción malinterpretada o una página web maliciosa puede acceder a tus archivos personales.",
-  "agentSettings.fullAccess.cancel": "Solo el espacio de trabajo",
+  "agentSettings.fullAccess.noApproval":
+    "El agente ejecutará comandos, cambiará archivos, usará herramientas y publicará sitios sin preguntarte antes.",
   "agentSettings.fullAccess.confirm": "Permitir acceso completo",
+  "agentSettings.fullAccess.askConfirm": "Usar Preguntar antes",
   "agentSettings.links.usage": "Uso",
   "agentSettings.links.memories": "Recuerdos",
   "agentSettings.links.memoriesCount": {
@@ -140,10 +144,9 @@ export const messages = {
   },
   "agentSettings.runtime.workspaceNote":
     "Solo espacio de trabajo limita la escritura al espacio de trabajo de este agente, la carpeta compartida y las carpetas temporales. La lectura y la red siguen disponibles.",
-  "agentSettings.runtime.workspaceEnforcedCommand":
-    "Un comando que necesite escribir fuera te pedirá permiso primero, incluso si Aprobar automáticamente está activado.",
+  "agentSettings.runtime.workspaceEnforcedCommand": "Un comando que necesite escribir fuera te pedirá permiso primero.",
   "agentSettings.runtime.workspaceEnforcedClaude":
-    "Una edición de archivo fuera te pedirá permiso primero, incluso si Aprobar automáticamente está activado. Un comando no puede escribir fuera.",
+    "Una edición de archivo fuera te pedirá permiso primero. Un comando no puede escribir fuera.",
   "agentSettings.runtime.workspaceUnlimited":
     "El uso del equipo y el navegador de OpenBot no están limitados; puedes desactivar el uso del equipo a continuación.",
   "agentSettings.computerUse.title": "Uso del equipo",

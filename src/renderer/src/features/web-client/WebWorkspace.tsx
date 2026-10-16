@@ -1084,11 +1084,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       (request) => request.agentId === agent.id && request.threadId === agent.threadId,
     );
   });
-  const setAgentAutoApprove = createMemo(() => {
-    const agent = workspace.selected();
-    if (!agent || !remoteAgentAdmin.settings()) return undefined;
-    return (autoApprove: boolean) => remoteAgentAdmin.update({ agentId: agent.id, autoApprove });
-  });
   const clearSelectedAgentContext = createMemo(() => {
     const agent = workspace.selected();
     if (!agent || !workspace.runtime.admin || !workspace.state.capabilities.includes(CONTEXT_RESET_CAPABILITY))
@@ -1954,9 +1949,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }
                 onRespondToApproval={view.respondToApproval}
                 onAlwaysAllowApproval={view.alwaysAllowApproval()}
-                agentAutoApproves={remoteAgentAdmin.settings()?.autoApprove ?? false}
-                agentAutoApproveLocked={remoteAgentAdmin.settings()?.autoApproveLocked ?? false}
-                onSetAgentAutoApprove={setAgentAutoApprove()}
+                agentAutoApproves={remoteAgentAdmin.settings()?.autoApprove}
+                onUpdateAgentPermissions={remoteAgentAdmin.settings() ? remoteAgentAdmin.update : undefined}
                 onClearAgentContext={clearSelectedAgentContext()}
                 onRespondToBrowserTakeover={(decision) => workspace.respondToBrowserTakeover(decision)}
                 onCancelQueuedMessage={workspace.cancelQueued}

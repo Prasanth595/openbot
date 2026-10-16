@@ -282,17 +282,23 @@ export const messages = {
   "mobile.agent.access.title": "Acesso",
   "mobile.agent.access.label": "Acesso do agente",
   "mobile.agent.access.workspace": "Somente o espaço de trabalho",
+  "mobile.agent.access.ask": "Perguntar antes",
   "mobile.agent.access.full": "Acesso completo",
-  "mobile.agent.access.autoApprove": "Aprovar automaticamente",
-  "mobile.agent.access.autoApproveNote":
-    "O computador anfitrião responde sozinho às solicitações de aprovação deste agente.",
   "mobile.agent.access.autoApproveLocked":
     "O modo Turbo está ativo neste computador anfitrião, então todos os agentes aprovam automaticamente.",
+  "mobile.agent.access.workspaceNote":
+    "O agente trabalha no seu espaço de trabalho e na pasta compartilhada do computador anfitrião.",
+  "mobile.agent.access.askNote":
+    "O agente pergunta antes de executar um comando, alterar um arquivo, usar uma ferramenta ou publicar um site.",
+  "mobile.agent.access.fullNote": "O agente age sem perguntar, exceto pelas perguntas que faz a você.",
   "mobile.agent.access.fullTitle": "Dar acesso completo a este agente?",
+  "mobile.agent.access.askTitle": "Deixar este agente trabalhar fora do espaço de trabalho?",
   "mobile.agent.access.fullBody":
     "O agente poderá ler, alterar e excluir qualquer arquivo acessível à conta do usuário no computador anfitrião, executar qualquer comando e usar a rede.",
-  "mobile.agent.access.fullCancel": "Manter só o espaço de trabalho",
+  "mobile.agent.access.noApproval":
+    "O agente executará comandos, alterará arquivos, usará ferramentas e publicará sites sem perguntar a você antes.",
   "mobile.agent.access.fullConfirm": "Permitir acesso completo",
+  "mobile.agent.access.askConfirm": "Usar Perguntar antes",
   "mobile.agent.access.failed": "Não foi possível alterar o acesso do agente.",
   "mobile.agent.access.unsupported":
     "Este computador anfitrião não pode alterar o acesso de agentes a partir de um dispositivo remoto.",

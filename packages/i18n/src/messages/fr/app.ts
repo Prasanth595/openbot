@@ -73,7 +73,7 @@ export const messages = {
     other: "{count} réglages correspondants.",
   },
   "app.standingApproval.description":
-    "{name} exécutera des commandes et des outils MCP, modifiera des fichiers et élargira son propre accès au système de fichiers et au réseau sur l’ordinateur qui l’exécute, sans vous demander à nouveau. La publication, le remplacement et la suppression de sites publics nécessitent toujours une approbation, sauf si le mode Turbo est actif. Vous pouvez désactiver l’approbation automatique dans le menu du modèle de cet agent.",
+    "{name} passe en Accès complet. Il exécutera des commandes et des outils, modifiera des fichiers, publiera des sites et élargira son propre accès au système de fichiers et au réseau sur l’ordinateur qui l’exécute, sans vous demander à nouveau. Vous pouvez changer cela dans les réglages Accès de l’agent.",
   "app.standingApproval.descriptionUnnamed":
-    "Cet agent exécutera des commandes et des outils MCP, modifiera des fichiers et élargira son propre accès au système de fichiers et au réseau sur l’ordinateur qui l’exécute, sans vous demander à nouveau. La publication, le remplacement et la suppression de sites publics nécessitent toujours une approbation, sauf si le mode Turbo est actif. Vous pouvez désactiver l’approbation automatique dans le menu du modèle de cet agent.",
+    "Cet agent passe en Accès complet. Il exécutera des commandes et des outils, modifiera des fichiers, publiera des sites et élargira son propre accès au système de fichiers et au réseau sur l’ordinateur qui l’exécute, sans vous demander à nouveau. Vous pouvez changer cela dans les réglages Accès de l’agent.",
 } as const satisfies PartialTranslation<typeof source>;
