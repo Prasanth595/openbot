@@ -115,7 +115,7 @@ export interface ConversationProps {
   /** The agent's routines, for the chat card of a routine the agent created or changed. */
   routines?: readonly RoutineFields[];
   modelOptions: AgentModelOption[];
-  messages: AgentMessage[];
+  messages: readonly AgentMessage[];
   messageReferences?: Record<string, AgentMessage>;
   unreadCount: number;
   firstUnreadMessageId: string | null;

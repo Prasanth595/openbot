@@ -1,6 +1,7 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
+import type { AgentMessage } from "@openbot/ui/data";
 import { AgentTaskList, AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { SidePanelHeader, SidePanelLauncher, type SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
 import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
@@ -26,7 +27,7 @@ const CONVERSATION_PANEL_MIN = 96;
 const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
 
 import { Portal } from "@solidjs/web";
-import { createEffect, createMemo, Loading, lazy, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createProjection, Loading, lazy, onSettled, Show } from "solid-js";
 import { conversationPort } from "./conversation-port";
 
 /** @internal Stable HMR boundary for conversation panels. */
@@ -123,11 +124,16 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     const taskId = taskPanelTaskId();
     return taskId ? (props.tasks?.snapshot?.tasks.find((task) => task.id === taskId) ?? null) : null;
   });
-  const panelTaskMessages = createMemo(() => {
-    const taskId = taskPanelTaskId();
-    const conversation = taskId ? props.tasks?.conversation(taskId) : undefined;
-    return conversation ? toAgentMessages(conversation.messages, props.agent?.id) : [];
-  });
+  /** Reconciled by id, so a stream chunk redraws only the message that changed. */
+  const panelTaskMessages = createProjection<AgentMessage[]>(
+    () => {
+      const taskId = taskPanelTaskId();
+      const conversation = taskId ? props.tasks?.conversation(taskId) : undefined;
+      return conversation ? toAgentMessages(conversation.messages, props.agent?.id) : [];
+    },
+    [],
+    { key: "id" },
+  );
   /** A message in a task steers or continues it. In a new task, the first message starts it. */
   async function sendToTaskPanel(text: string): Promise<boolean> {
     const tasks = props.tasks;
@@ -294,7 +300,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
             limit={props.tasks?.snapshot?.limit ?? 1}
             agent={agent()}
             agents={props.agents}
-            messages={panelTaskMessages()}
+            messages={panelTaskMessages}
             onSend={sendToTaskPanel}
             onStop={() => {
               const task = panelTask();

@@ -152,7 +152,7 @@ export interface AgentTaskPanelProps {
   limit: number;
   agent: AgentProfile;
   agents: AgentProfile[];
-  messages: AgentMessage[];
+  messages: readonly AgentMessage[];
   onSend: (text: string) => Promise<boolean>;
   onStop: () => void;
   onCloseTask: () => void;

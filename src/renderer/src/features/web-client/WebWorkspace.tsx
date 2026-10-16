@@ -1800,7 +1800,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 agent={conversationAgent()}
                 agents={workspace.profiles()}
                 modelOptions={models()}
-                messages={view.messages()}
+                messages={view.messages}
                 messageReferences={view.messageReferences()}
                 unreadCount={readState()?.unreadCount ?? 0}
                 firstUnreadMessageId={readState()?.firstUnreadMessageId ?? null}
