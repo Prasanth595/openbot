@@ -14,7 +14,7 @@ import { createScopeGuard } from "../../scope-lifetime";
 import { createSimpleContext } from "../../simple-context";
 import { useServers } from "../servers/servers-context";
 import { usePresence } from "../team/team-context";
-import { useUsage } from "../usage/usage-context";
+import { useWindowPage } from "../window/window-page-context";
 import { conversationPort } from "./conversation-port";
 import { preserveKnownDirectUnread } from "./conversation-read-state";
 
@@ -90,11 +90,11 @@ const DirectMessages = createSimpleContext({
   name: "Direct messages",
   init: () => {
     const { appFocused, peopleEnabled } = usePlatform();
-    const usage = useUsage();
+    const windowPage = useWindowPage();
     // Every automatic read below asks whether the user can see the message it is about to mark
-    // read. Usage covers the workspace content, so a conversation under it is not visible
+    // read. A rail page, such as Usage or Settings, covers the workspace content, so a conversation under it is not visible
     // however focused the window is.
-    const conversationVisible = () => appFocused() && !usage.state.serverId;
+    const conversationVisible = () => appFocused() && !windowPage.conversationCovered();
     const { activeServer, activeServerId, activeServerSupportsCapability } = useServers();
     const { currentTeamMember, directPeople } = usePresence();
     const scopeIsCurrent = createScopeGuard();

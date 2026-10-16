@@ -174,7 +174,7 @@ export const messages = {
   "server.rail.mute": "Server stummschalten",
   "server.rail.notificationSettings": "Benachrichtigungseinstellungen",
   "server.rail.usage": "Nutzung",
-  "server.rail.schedule": "Routinen",
+  "server.rail.schedule": "Zeitplan",
   "server.rail.settings": "Servereinstellungen",
   "server.rail.remove": "Server entfernen",
   "server.rail.restart": "Server neu starten",

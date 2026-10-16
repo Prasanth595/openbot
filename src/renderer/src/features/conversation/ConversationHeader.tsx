@@ -1,4 +1,5 @@
 import { classifyFailure } from "@openbot/telemetry";
+import { isAgentTaskActive } from "@openbot/ui/features/conversation/AgentTasks";
 import { ConversationHeader as SharedConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { useConversationViewScope } from "./conversation-scope";
 
@@ -7,7 +8,6 @@ const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
 import { useText } from "@openbot/ui/text";
 import { createMemo } from "solid-js";
 import { actionToast } from "../../action-toast";
-import { serverHasStorage } from "../files/storage-usage";
 
 /** @internal Stable HMR boundary for conversation header. */
 export function ConversationHeader() {
@@ -16,20 +16,17 @@ export function ConversationHeader() {
     actingBrowserControl,
     agentActivity,
     browserControlAgent,
-    hideBrowserPanel,
     props,
-    screenOpen,
     selectAndConfirmModel,
     selectAndConfirmReasoning,
     setActiveRightPanel,
     settingsModel,
     settingsProvider,
     settingsReasoning,
-    showBrowserPanel,
-    filesOpen,
-    toggleFilesPanel,
-    openTaskPanel,
+    sidePanelOpen,
+    toggleSidePanel,
   } = useConversationViewScope();
+  const runningTasks = () => props.tasks?.snapshot?.tasks.filter(isAgentTaskActive).length ?? 0;
   const changeAutoApprove = createMemo(() => {
     const save = props.onSetAgentAutoApprove;
     const name = props.agent?.name ?? t("conversation.header.thisAgent");
@@ -90,35 +87,14 @@ export function ConversationHeader() {
             }
           : undefined
       }
-      files={
-        // The web client has no conversation Files panel, and a chat without a thread has no files to list.
-        !props.runtime && props.agent?.threadId && serverHasStorage(props.server)
-          ? { open: filesOpen(), onToggle: toggleFilesPanel }
-          : undefined
-      }
-      tasks={
-        props.tasks
-          ? {
-              tasks: props.tasks.snapshot?.tasks ?? [],
-              onNew: () => openTaskPanel(null),
-              onOpen: openTaskPanel,
-            }
-          : undefined
-      }
-      browser={
-        props.browserEnabled !== false
-          ? {
-              acting: Boolean(actingBrowserControl()),
-              agentName: browserControlAgent()?.name,
-              open: screenOpen(),
-              disabled: props.browserVisibilitySuspended,
-              onToggle: () => {
-                if (screenOpen()) hideBrowserPanel();
-                else showBrowserPanel();
-              },
-            }
-          : undefined
-      }
+      sidePanel={{
+        open: sidePanelOpen(),
+        actingAgentName: actingBrowserControl()
+          ? (browserControlAgent()?.name ?? t("conversation.header.agentFallback"))
+          : undefined,
+        running: runningTasks(),
+        onToggle: toggleSidePanel,
+      }}
     />
   );
 }

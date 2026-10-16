@@ -1,6 +1,6 @@
 import type { AgentTask, AgentTaskHold, AgentTaskOutcome, AttachmentSummary } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
-import { ArrowUp, Button, ChevronRight, X } from "@openbot/ui";
+import { ArrowUp, Button, ChevronLeft, ChevronRight, Plus, X } from "@openbot/ui";
 import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import { AgentActivityIndicator, nextAgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
 import { ChatMessageRow } from "@openbot/ui/features/conversation/ChatMessageRow";
@@ -8,7 +8,8 @@ import { ComposerEditor } from "@openbot/ui/features/conversation/ComposerEditor
 import { ComposerNotice } from "@openbot/ui/features/conversation/ComposerNotice";
 import { TaskMark, type TaskMarkState } from "@openbot/ui/features/conversation/TaskList";
 import { type TextValue, useText } from "@openbot/ui/text";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onSettled, Show } from "solid-js";
+import { createScrollFades } from "../../components/createScrollFades";
 
 const HOLD_TEXT = {
   "agent-restarting": "conversation.tasks.hold.agentRestarting",
@@ -95,7 +96,7 @@ export function AgentTaskMark(props: { task: AgentTask; decorative?: boolean }) 
 
 /**
  * The open tasks of the agent, at the foot of its chat. A chip opens its task in the side panel;
- * the close button moves a task to the earlier tasks, where the chat menu can reopen it.
+ * the close button moves a task to the closed tasks of the Tasks pane, where it can reopen.
  */
 export function AgentTaskChips(props: {
   tasks: readonly AgentTask[];
@@ -157,9 +158,127 @@ export interface AgentTaskPanelProps {
   onCloseTask: () => void;
   onReopen: () => void;
   onClosePanel: () => void;
+  /** Back to the task list of the side panel. */
+  onBack?: (() => void) | undefined;
   onOpenLink: (url: string) => void;
   onPreview: (attachment: AttachmentSummary) => void;
   onAttachmentAction: (attachment: AttachmentSummary, action: "open" | "reveal" | "download") => void;
+}
+
+export interface AgentTaskListProps {
+  /** The open tasks first, then the newest closed ones. */
+  tasks: readonly AgentTask[];
+  onNew: () => void;
+  onOpen: (taskId: string) => void;
+  onClosePanel: () => void;
+}
+
+/** The closed tasks that the Tasks pane shows before "Show all". */
+const CLOSED_TASKS_SHOWN = 5;
+
+function startOfDay(value: Date): number {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+}
+
+/**
+ * The Tasks pane of the side panel: a new task, the open tasks, then the newest closed tasks under a
+ * heading for each day.
+ */
+export function AgentTaskList(props: AgentTaskListProps) {
+  const { t, format } = useText();
+  const [showAll, setShowAll] = createSignal(false);
+  const fades = createScrollFades();
+  onSettled(() => fades.stop);
+  // New tasks and "Show all" change the scroll height while the list keeps its size.
+  createEffect(
+    () => [props.tasks.length, showAll()],
+    () => fades.remeasure(),
+  );
+  const openTasks = () => props.tasks.filter(isAgentTaskOpen);
+  const closedTasks = () => props.tasks.filter((task) => !isAgentTaskOpen(task));
+  const closedAt = (task: AgentTask) => new Date(task.closedAt ?? task.updatedAt);
+  const dayLabel = (date: Date) => {
+    const days = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86_400_000);
+    if (days === 0) return t("conversation.tasks.day.today");
+    if (days === 1) return t("conversation.tasks.day.yesterday");
+    return format.date(date, { weekday: "long", month: "short", day: "numeric" });
+  };
+  /** The shown closed tasks, newest first as the snapshot orders them, in one group for each day. */
+  const closedGroups = () => {
+    const shown = showAll() ? closedTasks() : closedTasks().slice(0, CLOSED_TASKS_SHOWN);
+    const groups: { day: number; label: string; tasks: AgentTask[] }[] = [];
+    for (const task of shown) {
+      const date = closedAt(task);
+      const day = startOfDay(date);
+      const last = groups.at(-1);
+      if (last?.day === day) last.tasks.push(task);
+      else groups.push({ day, label: dayLabel(date), tasks: [task] });
+    }
+    return groups;
+  };
+  return (
+    <aside id="agent-task-panel" class="browser-panel agent-tasks-panel" aria-label={t("conversation.tasks.title")}>
+      <header class="file-preview-header side-panel-pane-header">
+        <h2>{t("conversation.tasks.title")}</h2>
+        <Button
+          type="button"
+          variant="ghost"
+          class="browser-toolbar-button side-panel-pane-close"
+          aria-label={t("conversation.tasks.panel.closePanel")}
+          onClick={() => props.onClosePanel()}
+        >
+          <X class="browser-toolbar-icon" />
+        </Button>
+      </header>
+      <div class={["agent-task-list", fades.classes()]} ref={fades.bind} onScroll={fades.measure}>
+        <Button variant="ghost" type="button" class="account-menu-row" onClick={() => props.onNew()}>
+          <Plus class="account-menu-icon" aria-hidden="true" />
+          <span>{t("conversation.tasks.new")}</span>
+        </Button>
+        <For each={openTasks()} keyed={(task) => task.id}>
+          {(task) => (
+            <Button variant="ghost" type="button" class="account-menu-row" onClick={() => props.onOpen(task().id)}>
+              <AgentTaskMark task={task()} decorative />
+              <span class="agent-tasks-menu-title">{task().title}</span>
+              <small>{agentTaskStatus(task(), t)}</small>
+            </Button>
+          )}
+        </For>
+        <For each={closedGroups()} keyed={(group) => group.day}>
+          {(group) => (
+            <section class="agent-task-list-group">
+              <h3 class="agent-task-list-day">{group().label}</h3>
+              <For each={group().tasks} keyed={(task) => task.id}>
+                {(task) => (
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    class="account-menu-row"
+                    onClick={() => props.onOpen(task().id)}
+                  >
+                    <AgentTaskMark task={task()} />
+                    <span class="agent-tasks-menu-title">{task().title}</span>
+                    <small>{format.date(closedAt(task()), { hour: "2-digit", minute: "2-digit" })}</small>
+                  </Button>
+                )}
+              </For>
+            </section>
+          )}
+        </For>
+        <Show when={!showAll() && closedTasks().length > CLOSED_TASKS_SHOWN}>
+          <Button
+            variant="ghost"
+            type="button"
+            class="account-menu-row agent-tasks-disclosure"
+            onClick={() => setShowAll(true)}
+          >
+            <ChevronRight class="account-menu-icon" aria-hidden="true" />
+            <span>{t("conversation.tasks.showAll", { count: closedTasks().length })}</span>
+          </Button>
+        </Show>
+      </div>
+    </aside>
+  );
 }
 
 /**
@@ -178,6 +297,8 @@ export function AgentTaskPanel(props: AgentTaskPanelProps) {
     },
   );
   const activityLabel = nextAgentActivityLabel();
+  const fades = createScrollFades();
+  onSettled(() => fades.stop);
   const closed = () => props.task?.state === "closed";
   const title = () => props.task?.title ?? t("conversation.tasks.new");
   const placeholder = () => {
@@ -208,6 +329,19 @@ export function AgentTaskPanel(props: AgentTaskPanelProps) {
       aria-label={t("conversation.tasks.panel.label", { title: title() })}
     >
       <header class="file-preview-header">
+        <Show when={props.onBack}>
+          {(back) => (
+            <Button
+              type="button"
+              variant="ghost"
+              class="browser-toolbar-button"
+              aria-label={t("conversation.tasks.panel.back")}
+              onClick={() => back()()}
+            >
+              <ChevronLeft class="browser-toolbar-icon" />
+            </Button>
+          )}
+        </Show>
         <Show when={props.task}>{(task) => <AgentTaskMark task={task()} />}</Show>
         <h2 title={title()}>{title()}</h2>
         <Show when={props.task}>
@@ -238,15 +372,20 @@ export function AgentTaskPanel(props: AgentTaskPanelProps) {
         <Button
           type="button"
           variant="ghost"
-          class="browser-toolbar-button"
+          class="browser-toolbar-button side-panel-pane-close"
           aria-label={t("conversation.tasks.panel.closePanel")}
           onClick={() => props.onClosePanel()}
         >
           <X class="browser-toolbar-icon" />
         </Button>
       </header>
-      <section class="conversation-scroll agent-tasks-panel-scroll" aria-label={t("conversation.tasks.panel.messages")}>
-        <div class="virtual-chat-list virtual-chat-list-static">
+      <section
+        class={["conversation-scroll agent-tasks-panel-scroll", fades.classes()]}
+        aria-label={t("conversation.tasks.panel.messages")}
+        ref={fades.bind}
+        onScroll={fades.measure}
+      >
+        <div class="virtual-chat-list virtual-chat-list-static" ref={fades.watch}>
           <Show when={props.task?.origin === "agent"}>
             <p class="agent-tasks-panel-origin">
               {t("conversation.tasks.panel.startedByAgent", { name: props.agent.name })}

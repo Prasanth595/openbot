@@ -557,17 +557,20 @@ popover. Release signing secrets and the complete procedure are documented in
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). By contributing, you agree that your contribution is licensed
-under PolyForm Noncommercial 1.0.0. Community behavior is governed by the
+See [CONTRIBUTING.md](CONTRIBUTING.md). Before we merge a contribution, each
+author signs the [Contributor Assignment Agreement](CLA.md), which assigns its copyright to
+Synthetify Labs. Community behavior is governed by the
 [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License and attribution
 
-Copyright 2026 Norbert Bodziony.
+Copyright 2026 Synthetify Labs spółka z ograniczoną odpowiedzialnością.
 
 Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and
 distribute the code for permitted noncommercial purposes. Commercial use requires a separate license
-from the copyright owner. Versions up to and including 0.1.11 remain available under Apache-2.0.
+from the copyright owner. For a commercial license, contact
+[licenses@openbot.run](mailto:licenses@openbot.run). Versions up to and including 0.1.11 remain
+available under Apache-2.0.
 See [NOTICE](NOTICE) for attribution and third-party notices.
 
 OpenBot is an independent source-available project and is not affiliated with, endorsed by, or

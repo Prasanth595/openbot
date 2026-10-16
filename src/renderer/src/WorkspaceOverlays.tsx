@@ -35,6 +35,7 @@ import type { HostProviderSettings } from "./features/settings/ProviderSettingsS
 import { useSettings } from "./features/settings/settings-context";
 import { useUpdates } from "./features/updates/updates-context";
 import { useWhatsNew } from "./features/updates/whats-new-context";
+import { useWindowPage } from "./features/window/window-page-context";
 import { useGlobalSearchSources } from "./global-search-sources";
 import { RemoteDesktopWorkspace, SettingsModal } from "./lazy-views";
 import { useNavigation } from "./navigation";
@@ -243,6 +244,7 @@ function RestartServer() {
  * active one - hence the target held by the domain instead of `activeServer()`.
  */
 function ServerSettings(props: { connectors: ConnectorRegistry }) {
+  const windowPage = useWindowPage();
   const platform = usePlatform();
   const { hostStatus, setServerMuted, setServerNotificationLevel, hostedServerIds, hostedServersLoaded } = useServers();
   const { selectAgent, selectGlobalSearchMessage } = useNavigation();
@@ -514,7 +516,9 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
     <Show when={serverSettingsTarget()}>
       {(server) => (
         <ServerSettingsOverlay
-          open={serverSettingsOpen()}
+          // The settings show only as a page of the window, so they wait for the page.
+          open={serverSettingsOpen() && windowPage.settingsPlacement("server") !== undefined}
+          page={windowPage.settingsPlacement("server")}
           onOpenChange={setServerSettingsOpen}
           restoreFocusTarget={serverSettingsRestoreTarget()}
           platform={platform.appInfo()?.platform ?? "darwin"}
@@ -649,6 +653,7 @@ function trackHostedSiteDelete(): (result: HostedSiteDeleteResult) => void {
  * that animation off.
  */
 function AppSettings(props: AccountProps) {
+  const windowPage = useWindowPage();
   const platform = usePlatform();
   const auth = useAuth();
   const updates = useUpdates();
@@ -670,7 +675,9 @@ function AppSettings(props: AccountProps) {
   return (
     <Loading>
       <SettingsModal
-        open={appSettingsOpen()}
+        // The settings show only as a page of the window, so they wait for the page.
+        open={appSettingsOpen() && windowPage.settingsPlacement("personal") !== undefined}
+        page={windowPage.settingsPlacement("personal")}
         onOpenChange={setAppSettingsOpen}
         value={generalSettings()}
         onValueChange={updateGeneralSettings}
@@ -702,6 +709,7 @@ function AppSettings(props: AccountProps) {
         onRevokeMobileConnectedDevice={auth.revokeMobileConnectedDevice}
         onListAccountSessions={auth.listAccountSessions}
         onRevokeAccountSession={auth.revokeAccountSession}
+        onSignOut={platform.landingPreview ? undefined : auth.logoutCentralAccount}
         billingApi={appPort().billing}
         hostedServersApi={appPort().hostedServers}
         onAddHostedServer={() => {

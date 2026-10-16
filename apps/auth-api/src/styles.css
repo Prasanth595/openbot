@@ -3908,6 +3908,90 @@ a {
   }
 }
 
+/* The agent network: one screen high, with the heading over the top of the canvas.
+   The words of the heading appear one at a time when the stage starts to play. The
+   canvas fades out at its sides and under the heading, whose height the section
+   writes to `--landing-network-top`. */
+.landing-network {
+  overflow: hidden;
+}
+
+.landing-network-stage {
+  --landing-network-top: 30%;
+  position: relative;
+  height: clamp(620px, calc(100svh - 24px), 920px);
+  margin-top: clamp(64px, 8vw, 120px);
+}
+
+.landing-network-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  --landing-network-mask:
+    linear-gradient(
+      to bottom,
+      transparent var(--landing-network-top),
+      var(--openbot-mask-solid) calc(var(--landing-network-top) + 96px)
+    ),
+    radial-gradient(ellipse 72% 78% at 50% 55%, var(--openbot-mask-solid) 60%, transparent 100%);
+  -webkit-mask-image: var(--landing-network-mask);
+  -webkit-mask-composite: source-in;
+  mask-image: var(--landing-network-mask);
+  mask-composite: intersect;
+}
+
+.landing-network-heading {
+  position: relative;
+  margin-inline: auto;
+  padding: 0 clamp(20px, 4vw, 48px);
+  text-align: center;
+}
+
+.landing-network-heading .landing-network-description {
+  margin-inline: auto;
+}
+
+.landing-network[data-playing="false"] :is(.landing-network-word, .landing-network-description) {
+  opacity: 0;
+}
+
+.landing-network[data-playing="true"] .landing-network-word {
+  animation: landing-network-word 640ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--landing-network-word) * 90ms);
+}
+
+.landing-network[data-playing="true"] .landing-network-description {
+  animation: landing-download-reveal 720ms cubic-bezier(0.22, 1, 0.36, 1) 560ms backwards;
+}
+
+/* After the rules above, so it overrides their animation shorthand. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-network[data-playing="true"] :is(.landing-network-word, .landing-network-description) {
+    animation: none;
+  }
+}
+
+@keyframes landing-network-word {
+  from {
+    opacity: 0;
+    color: var(--openbot-text-muted);
+    filter: blur(var(--reveal-blur));
+  }
+
+  55% {
+    color: var(--openbot-text-muted);
+  }
+}
+
+.landing-network-marks {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 /* OpenBot for Teams --------------------------------------------------------
    The heading and the button stay on the left. One colour card for each offer
    sticks one step below the previous card, so the label row of each card stays
@@ -5801,15 +5885,235 @@ a {
   animation: landing-download-reveal 720ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
+/* A honeycomb of agent faces and art tiles. A cell is a regular hexagon with a point at
+   the top. `--agent-honeycomb-tile` is its width, flat side to flat side, and it is the
+   width / 0.866 (cos 30°) tall. Each cell is the wall plus one width from each of its six
+   neighbours, so a row is 0.866 of that below the row above it. */
+.agent-honeycomb {
+  --agent-honeycomb-tile: 84px;
+  --agent-honeycomb-gap: 6px;
+  --agent-honeycomb-height: calc(var(--agent-honeycomb-tile) / 0.866);
+  display: flex;
+  flex: none;
+  flex-direction: column;
+}
+
+.agent-honeycomb-row {
+  display: flex;
+  gap: var(--agent-honeycomb-gap);
+}
+
+.agent-honeycomb-row + .agent-honeycomb-row {
+  margin-top: calc((var(--agent-honeycomb-tile) + var(--agent-honeycomb-gap)) * 0.866 - var(--agent-honeycomb-height));
+}
+
+/* `translate`, not a margin: the comb keeps the width of one row. */
+.agent-honeycomb-row:nth-of-type(even) {
+  translate: calc((var(--agent-honeycomb-tile) + var(--agent-honeycomb-gap)) / 2) 0;
+}
+
+/* Every cell, face or art, has the same outline. A CSS shape, not a `url(#clip)`
+   reference: in one browser, a referenced clip left the animated faces square. A
+   browser with `shape()` gets soft corners; the others keep the sharp polygon. */
+.agent-honeycomb-cell {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--agent-honeycomb-tile);
+  height: var(--agent-honeycomb-height);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+}
+
+@supports (clip-path: shape(from 0 0, line to 100% 100%)) {
+  .agent-honeycomb-cell {
+    clip-path: shape(
+      from 55% 2.5%,
+      line to 95% 22.5%,
+      curve to 100% 30% with 100% 25%,
+      line to 100% 70%,
+      curve to 95% 77.5% with 100% 75%,
+      line to 55% 97.5%,
+      curve to 45% 97.5% with 50% 100%,
+      line to 5% 77.5%,
+      curve to 0% 70% with 0% 75%,
+      line to 0% 30%,
+      curve to 5% 22.5% with 0% 25%,
+      line to 45% 2.5%,
+      curve to 55% 2.5% with 50% 0%,
+      close
+    );
+  }
+}
+
+.agent-honeycomb-art {
+  width: 100%;
+  height: 100%;
+  background-position: center;
+  background-size: cover;
+  filter: grayscale(0.35);
+}
+
+/* The square body is 0.61 of its drawing. At 1.75 cells, it is a little taller than the
+   cell, so its colour fills the hexagon to the point. The drawing is centred on the cell
+   rather than laid out in it. */
+.agent-honeycomb-cell > .agent-honeycomb-avatar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--agent-honeycomb-height) * 1.75);
+  height: calc(var(--agent-honeycomb-height) * 1.75);
+  translate: -50% -50%;
+}
+
+/* A hexagon is 0.866 as wide as it is tall, and the body is square: narrower, the body
+   fits the width of the cell, and eyes near its sides stay in the cell. */
+.agent-honeycomb-cell > .agent-honeycomb-avatar > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  scale: 0.86 1;
+}
+
+/* The band of faces before the download section of the landing page. It fades at
+   the sides, and it drifts one comb to the left, then starts again. */
+.landing-agent-band {
+  overflow: hidden;
+  padding: clamp(48px, 6vw, 96px) 0 0;
+  mask-image: linear-gradient(
+    90deg,
+    var(--openbot-transparent),
+    var(--openbot-mask-solid) 8%,
+    var(--openbot-mask-solid) 92%,
+    var(--openbot-transparent)
+  );
+}
+
+.landing-agent-band-drift {
+  --landing-agent-band-gap: 6px;
+  display: flex;
+  gap: var(--landing-agent-band-gap);
+  width: max-content;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-agent-band-drift {
+    animation: landing-agent-band-drift 140s linear infinite;
+  }
+
+  .landing-agent-band:hover .landing-agent-band-drift {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes landing-agent-band-drift {
+  /* One comb and one wall. */
+  to {
+    translate: calc(-50% - var(--landing-agent-band-gap) / 2) 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .landing-agent-band-drift {
+    --landing-agent-band-gap: 5px;
+  }
+
+  .landing-agent-band .agent-honeycomb {
+    --agent-honeycomb-tile: 60px;
+    --agent-honeycomb-gap: 5px;
+  }
+}
+
 /* The closing block of a collection page. Centred, because it is an end rather than
-   another row of the page, and separated by a rule so it reads as an offer and not
-   as the last article. The type scale is the download section's, so the two places
-   that ask the reader to take the app speak at the same size. */
+   another row of the page. A comb of agents fills the full width and fades out at the
+   top and the bottom, so it reads as an offer and not as the last article. The type
+   scale is the download section's, so the two places that ask the reader to take the
+   app speak at the same size. */
 .post-cta {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 620px;
   margin-top: clamp(64px, 8vw, 104px);
-  padding-top: clamp(48px, 6vw, 80px);
-  border-top: 1px solid var(--openbot-border);
+  overflow: hidden;
   text-align: center;
+}
+
+/* The mask is on a layer the size of the block, so its edges fade where the block
+   ends. The comb is larger than the layer and centred on it. */
+.post-cta-comb {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    var(--openbot-transparent),
+    var(--openbot-mask-solid) 14%,
+    var(--openbot-mask-solid) 86%,
+    var(--openbot-transparent)
+  );
+}
+
+/* Every second row moves half a cell to the right, outside the comb's box. A quarter
+   cell to the left centres the rows, so both sides end at the same distance. */
+.post-cta-comb > .agent-honeycomb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: calc(-50% - (var(--agent-honeycomb-tile) + var(--agent-honeycomb-gap)) / 4) -50%;
+}
+
+/* Blurs the faces behind the text, and fades out from the centre, so it has no edge.
+   The pointer goes through it to the faces. */
+.post-cta-veil {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--openbot-bg-canvas) 62%, var(--openbot-transparent));
+  backdrop-filter: blur(16px);
+  mask-image: radial-gradient(720px 340px at 50% 50%, var(--openbot-mask-solid) 50%, var(--openbot-transparent) 100%);
+  pointer-events: none;
+}
+
+.post-cta-copy {
+  position: relative;
+}
+
+/* The rows end 964 px from the centre: on a wider screen, the sides fade too, so the
+   comb has no hard edge there. */
+@media (min-width: 1920px) {
+  .post-cta-comb {
+    mask-image:
+      linear-gradient(
+        var(--openbot-transparent),
+        var(--openbot-mask-solid) 14%,
+        var(--openbot-mask-solid) 86%,
+        var(--openbot-transparent)
+      ),
+      linear-gradient(
+        90deg,
+        var(--openbot-transparent) calc(50% - 960px),
+        var(--openbot-mask-solid) calc(50% - 810px),
+        var(--openbot-mask-solid) calc(50% + 810px),
+        var(--openbot-transparent) calc(50% + 960px)
+      );
+    mask-composite: intersect;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Not taller than the comb: 12 rows of the small cell are 688 px. */
+  .post-cta {
+    min-height: 680px;
+  }
+
+  .post-cta-comb > .agent-honeycomb {
+    --agent-honeycomb-tile: 60px;
+    --agent-honeycomb-gap: 5px;
+  }
+
+  .post-cta-veil {
+    mask-image: radial-gradient(340px 400px at 50% 50%, var(--openbot-mask-solid) 55%, var(--openbot-transparent) 100%);
+  }
 }
 
 .post-cta-title {

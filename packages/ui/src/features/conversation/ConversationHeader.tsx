@@ -3,13 +3,8 @@ import { ProviderModelPicker } from "@openbot/ui/components/ProviderModelPicker"
 import type { AgentProfile } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { agentAccessLockLabel } from "@openbot/ui/features/agents/agent-access";
-import {
-  ChatMenu,
-  type ChatMenuBrowser,
-  type ChatMenuFiles,
-  type ChatMenuRemoteControl,
-  type ChatMenuTasks,
-} from "@openbot/ui/features/conversation/ChatMenu";
+import { RemoteDesktopIcon } from "@openbot/ui/features/conversation/ConversationIcons";
+import { SidePanelToggle, type SidePanelToggleProps } from "@openbot/ui/features/conversation/SidePanel";
 import { useText } from "@openbot/ui/text";
 import type { ComponentProps } from "@solidjs/web";
 import { Show } from "solid-js";
@@ -19,12 +14,15 @@ export interface ConversationHeaderProps {
   modelPicker: ComponentProps<typeof ProviderModelPicker>;
   onSettingsIntent: () => void;
   onOpenSettings: () => void;
-  remoteControl?: ChatMenuRemoteControl | undefined;
-  /** The Files panel of this chat. Left out when the host cannot list them. */
-  files?: ChatMenuFiles | undefined;
-  browser?: ChatMenuBrowser | undefined;
-  /** The agent's tasks. Left out where the host keeps no tasks. */
-  tasks?: ChatMenuTasks | undefined;
+  remoteControl?: ConversationHeaderRemoteControl | undefined;
+  sidePanel: SidePanelToggleProps;
+}
+
+export interface ConversationHeaderRemoteControl {
+  enabled: boolean;
+  active: boolean;
+  visible: boolean;
+  onOpen: (trigger: HTMLButtonElement) => void;
 }
 
 export function ConversationHeader(props: ConversationHeaderProps) {
@@ -61,13 +59,26 @@ export function ConversationHeader(props: ConversationHeaderProps) {
         <Show when={props.agent}>
           <ProviderModelPicker {...props.modelPicker} />
         </Show>
-        <ChatMenu
-          remoteControl={props.remoteControl}
-          files={props.files}
-          browser={props.browser}
-          tasks={props.tasks}
-          onOpenSettings={props.onOpenSettings}
-        />
+        <Show when={props.remoteControl}>
+          {(control) => (
+            <Button
+              variant="ghost"
+              type="button"
+              class="header-panel-toggle remote-desktop-button"
+              aria-label={t(control().active ? "conversation.header.resumeRemote" : "conversation.header.openRemote")}
+              aria-expanded={control().visible ? "true" : "false"}
+              disabled={!control().enabled}
+              onClick={(event) => control().onOpen(event.currentTarget)}
+              data-cuelume-tap="open"
+            >
+              <RemoteDesktopIcon />
+              <Show when={control().active}>
+                <span class="remote-desktop-button-dot" aria-hidden="true" />
+              </Show>
+            </Button>
+          )}
+        </Show>
+        <SidePanelToggle {...props.sidePanel} />
       </div>
     </header>
   );

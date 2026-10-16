@@ -31,14 +31,7 @@ export function SidebarTopbar() {
           </Button>
         }
       >
-        {(serverMenu) => (
-          <ServerMenu
-            {...serverMenu()}
-            serverName={props.serverName}
-            compact={props.compact}
-            onOpenMarketplace={props.marketplaceSupported !== false ? props.onOpenMarketplace : undefined}
-          />
-        )}
+        {(serverMenu) => <ServerMenu {...serverMenu()} serverName={props.serverName} compact={props.compact} />}
       </Show>
       <div class="sidebar-topbar-actions">
         <Show when={!props.compact && props.serverUpdate}>
@@ -62,7 +55,7 @@ export function SidebarTopbar() {
             );
           }}
         </Show>
-        {/* The menu view needs the room for the server name, so its menu holds the marketplace. */}
+        {/* The menu view needs the room for the server name. The page rail also opens the marketplace. */}
         <Show when={props.compact || (props.marketplaceSupported !== false && props.serverMenu?.view !== "menu")}>
           <Button
             variant="ghost"

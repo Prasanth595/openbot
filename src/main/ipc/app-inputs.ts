@@ -195,6 +195,8 @@ export function parseExternalDestination(input: unknown): ExternalDestination {
     input !== "opencode-auth" &&
     input !== "feedback" &&
     input !== "message" &&
+    input !== "changelog" &&
+    input !== "guides" &&
     input !== "grok-bot-export" &&
     input !== "hosted-server-contact" &&
     input !== "mac-screen-recording"

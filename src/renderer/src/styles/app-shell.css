@@ -2972,10 +2972,6 @@ textarea {
   padding: 6px;
 }
 
-.account-dock-with-server-rail {
-  width: calc(var(--server-rail-width) + var(--left-panel-width, 280px));
-}
-
 .app-frame:has(.account-dock-hybrid) .server-rail {
   padding-bottom: 9px;
 }
@@ -3026,7 +3022,8 @@ textarea {
 
 /* The iOS beta card sits between the chat list and the dock, so the card keeps clear of the dock
  * and the list only fades into the card. */
-.app-frame .sidebar-mobile-app {
+/* Room for the account dock of the web client. The desktop sidebar has no dock under it. */
+.app-frame:has(.account-dock) .sidebar-mobile-app {
   margin-bottom: calc(52px + var(--openbot-space-2));
 }
 
@@ -3088,211 +3085,6 @@ textarea {
   background: linear-gradient(to bottom, transparent, var(--openbot-bg-sidebar) 24px);
   content: "";
   pointer-events: none;
-}
-
-.account-dock-hybrid-shelf {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  width: 100%;
-  height: 48px;
-  min-width: 0;
-  align-items: center;
-  border-radius: var(--openbot-radius-lg);
-  background: var(--openbot-bg-control);
-  box-shadow: 0 8px 24px var(--openbot-shadow-popover-ambient);
-  padding: 0 6px 0 4px;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 2px;
-}
-
-.account-dock-hybrid-identity {
-  display: grid;
-  width: 100%;
-  max-width: 280px;
-  height: 40px;
-  min-width: 0;
-  align-items: center;
-  border: 0;
-  border-radius: var(--openbot-radius-md);
-  background: transparent;
-  padding: 0;
-  grid-template-columns: calc(var(--server-rail-width) - 24px) minmax(0, 1fr);
-  gap: 0;
-  color: var(--openbot-text-primary);
-  text-align: left;
-  transition:
-    background-color var(--openbot-duration-normal) var(--openbot-ease-out),
-    box-shadow var(--openbot-duration-normal) var(--openbot-ease-out),
-    transform var(--openbot-duration-fast) var(--openbot-ease-out);
-}
-
-.account-dock-hybrid-identity .account-dock-copy strong {
-  line-height: 16px;
-}
-
-.account-dock-avatar-frame {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  justify-self: center;
-}
-
-.account-dock-hybrid-identity .account-dock-avatar {
-  transition: transform var(--openbot-duration-normal) var(--openbot-ease-out);
-}
-
-.account-dock-hybrid-identity:focus-visible {
-  outline: 0;
-  background: var(--openbot-bg-control-hover);
-  box-shadow: inset 0 0 0 1px var(--openbot-border-focus);
-}
-
-.account-dock-hybrid-identity:active {
-  transform: scale(0.96);
-}
-
-.account-dock-hybrid-identity[aria-expanded="true"] {
-  background: var(--openbot-bg-control-active);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .account-dock-hybrid-identity:hover:not(:disabled):not([data-disabled]) {
-    background: var(--openbot-hover);
-  }
-
-  .account-dock-hybrid-identity:hover .account-dock-avatar {
-    transform: scale(1.04);
-  }
-}
-
-.account-dock-tooltip-trigger {
-  display: flex;
-}
-
-.account-dock-usage-trigger,
-.account-dock-icon-button {
-  position: relative;
-  display: grid;
-  height: 30px;
-  min-width: 30px;
-  place-items: center;
-  border: 0;
-  border-radius: var(--openbot-radius-md);
-  background: transparent;
-  box-shadow: none;
-  padding: 0;
-  color: var(--openbot-text-secondary);
-  transition:
-    background-color var(--openbot-duration-normal) var(--openbot-ease-out),
-    box-shadow var(--openbot-duration-normal) var(--openbot-ease-out),
-    color var(--openbot-duration-normal) var(--openbot-ease-out),
-    transform var(--openbot-duration-fast) var(--openbot-ease-out);
-}
-
-.account-dock-usage-trigger {
-  --account-dock-usage-color: var(--openbot-text-secondary);
-
-  width: auto;
-  padding-inline: 7px;
-  color: var(--account-dock-usage-color);
-}
-
-.account-dock-usage-trigger[data-usage-tone="warning"] {
-  --account-dock-usage-color: var(--openbot-warning);
-}
-
-.account-dock-usage-trigger[data-usage-tone="critical"] {
-  --account-dock-usage-color: var(--openbot-danger);
-}
-
-.account-dock-icon-button > svg {
-  width: 18px;
-  height: 18px;
-  stroke-width: var(--openbot-icon-stroke);
-  transition: transform var(--openbot-duration-normal) var(--openbot-ease-out);
-}
-
-.account-dock-usage-trigger:focus-visible,
-.account-dock-icon-button:focus-visible {
-  outline: 0;
-  box-shadow:
-    0 0 0 1px var(--openbot-accent-strong),
-    0 0 0 4px var(--openbot-accent-soft);
-}
-
-.account-dock-usage-trigger:active,
-.account-dock-icon-button:active {
-  transform: scale(0.96);
-}
-
-.account-dock-usage-trigger[aria-expanded="true"],
-.account-dock-icon-button[aria-expanded="true"] {
-  background: var(--openbot-bg-control-active);
-  color: var(--account-dock-usage-color, var(--openbot-text-primary));
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .account-dock-usage-trigger:hover:not(:focus-visible),
-  .account-dock-icon-button:hover:not(:focus-visible) {
-    background: var(--openbot-bg-surface-raised);
-    box-shadow:
-      0 0 0 1px var(--openbot-border),
-      0 var(--openbot-space-1) var(--openbot-space-3) var(--openbot-shadow-popover-ambient);
-    color: var(--account-dock-usage-color, var(--openbot-text-primary));
-  }
-
-  .account-dock-icon-button:hover > svg {
-    transform: rotate(18deg) scale(1.06);
-  }
-}
-
-.account-dock-usage-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.account-dock-usage-chip > svg {
-  width: 15px;
-  height: 15px;
-  stroke-width: var(--openbot-icon-stroke);
-}
-
-.account-dock-usage-chip > strong {
-  min-width: 4ch;
-  color: inherit;
-  font-size: var(--openbot-text-sm);
-  font-weight: var(--openbot-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  line-height: 14px;
-  text-align: right;
-}
-
-.account-dock-usage-loading {
-  display: inline-flex;
-  width: 4ch;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
-
-.account-dock-usage-loading i {
-  width: 3px;
-  height: 3px;
-  border-radius: var(--openbot-radius-pill);
-  background: currentColor;
-  --typing-dot-travel: -1px;
-  animation: typing-dot-pulse 900ms ease-in-out infinite;
-}
-
-.account-dock-usage-loading i:nth-child(2) {
-  animation-delay: var(--openbot-duration-fast);
-}
-
-.account-dock-usage-loading i:nth-child(3) {
-  animation-delay: var(--openbot-duration-overlay);
 }
 
 .account-usage-popover {
@@ -3530,49 +3322,6 @@ textarea {
   line-height: var(--openbot-leading-sm);
 }
 
-.account-dock-trigger {
-  display: grid;
-  width: 100%;
-  height: 40px;
-  min-width: 0;
-  align-items: center;
-  border: 0;
-  border-radius: var(--openbot-radius-md);
-  background: transparent;
-  padding: 0 8px;
-  grid-template-columns: 32px minmax(0, 1fr) auto 16px;
-  gap: 8px;
-  color: var(--openbot-text-primary);
-  text-align: left;
-  transition:
-    background-color var(--openbot-duration-hover) ease,
-    transform var(--openbot-duration-fast) var(--openbot-ease-out);
-}
-
-.account-dock-with-server-rail .account-dock-trigger {
-  padding-left: 0;
-  grid-template-columns: calc(var(--server-rail-width) - 12px) minmax(0, 1fr) auto 16px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .account-dock-trigger:hover {
-    background: var(--openbot-bg-control-hover);
-  }
-}
-
-.account-dock-trigger[aria-expanded="true"] {
-  background: var(--openbot-bg-control-hover);
-}
-
-.account-dock-trigger:active {
-  transform: scale(0.985);
-}
-
-.account-dock-trigger:focus-visible {
-  outline: 2px solid var(--openbot-border-focus);
-  outline-offset: -2px;
-}
-
 .sidebar-compact .sidebar-topbar {
   padding-inline: 12px;
 }
@@ -3667,122 +3416,6 @@ textarea {
   transform: translateX(-8px);
 }
 
-.account-dock-avatar {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: var(--openbot-radius-pill);
-  background: var(--openbot-bg-control);
-  color: var(--openbot-text-secondary);
-  font-size: var(--openbot-text-sm);
-  font-weight: var(--openbot-weight-semibold);
-}
-
-.account-dock-avatar {
-  justify-self: center;
-}
-
-.account-dock-avatar > img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  object-fit: cover;
-}
-
-.account-dock-copy {
-  display: grid;
-  min-width: 0;
-  gap: 0;
-}
-
-.account-dock-copy strong,
-.account-dock-copy > span:not(.sr-only) {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-dock-copy strong {
-  color: var(--openbot-text-primary);
-  font-size: var(--openbot-text-md);
-  line-height: 16px;
-  letter-spacing: -0.08px;
-  font-weight: var(--openbot-weight-semibold);
-}
-
-.account-dock-copy > span:not(.sr-only) {
-  color: var(--openbot-text-muted);
-  font-size: var(--openbot-text-sm);
-  line-height: 14px;
-}
-
-/* Placement only. The colours are the shared `new` badge variant. */
-.sidebar-update-pill {
-  justify-self: end;
-}
-
-.account-dock-chevron {
-  width: 16px;
-  height: 16px;
-  grid-column: 4;
-  fill: none;
-  stroke: currentcolor;
-  stroke-width: var(--openbot-icon-stroke);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  color: var(--openbot-text-muted);
-  transition: transform var(--openbot-duration-fast) var(--openbot-ease-out);
-}
-
-.account-dock-trigger[aria-expanded="true"] .account-dock-chevron {
-  transform: rotate(180deg);
-}
-
-.account-dock-compact .account-dock-trigger {
-  grid-template-columns: 32px minmax(0, 1fr) 16px;
-}
-
-.account-dock-with-server-rail.account-dock-compact .account-dock-trigger {
-  grid-template-columns: calc(var(--server-rail-width) - 12px) minmax(0, 1fr) 16px;
-}
-
-.account-dock-compact .account-dock-copy,
-.account-dock-compact .sidebar-update-pill {
-  display: none;
-}
-
-.account-dock-compact .account-dock-chevron {
-  grid-column: 3;
-}
-
-.account-popover {
-  position: relative;
-  width: min(260px, calc(100vw - var(--openbot-space-4)));
-  max-height: min(60vh, 420px);
-  z-index: 80;
-  overflow: auto;
-  padding: var(--openbot-space-1);
-  opacity: 1;
-  transform: scale(1);
-  transform-origin: var(--kb-popover-content-transform-origin);
-  transition:
-    opacity 120ms ease,
-    transform 140ms var(--openbot-ease-out);
-
-  @starting-style {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-}
-
-.account-menu-group {
-  display: grid;
-  gap: 1px;
-}
-
 .account-menu-row {
   display: grid;
   width: 100%;
@@ -3817,23 +3450,6 @@ textarea {
   box-shadow: inset 0 0 0 1px var(--openbot-border-strong);
 }
 
-.account-menu-danger,
-.account-menu-danger .account-menu-icon {
-  color: var(--openbot-danger);
-}
-
-.account-menu-danger:hover:not(:disabled),
-.account-menu-danger:focus-visible {
-  background: var(--openbot-danger-soft);
-  color: var(--openbot-danger);
-}
-
-.account-menu-separator {
-  height: 1px;
-  margin: var(--openbot-space-1) var(--openbot-space-2);
-  background: var(--openbot-border);
-}
-
 .account-menu-row small {
   color: var(--openbot-text-muted);
   font-size: var(--openbot-text-sm);
@@ -3863,15 +3479,6 @@ textarea {
   }
 }
 
-.account-popover-error {
-  /* A failure message wraps to two or three lines in a 232px menu, so the leading has to hold a
-     descender clear of the popover's clipped edge rather than being tuned for a single line. */
-  margin: var(--openbot-space-1) 7px var(--openbot-space-2);
-  color: var(--openbot-danger);
-  font-size: var(--openbot-text-sm);
-  line-height: 1.4;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .server-rail-mark,
   .server-rail-server-item,
@@ -3888,7 +3495,6 @@ textarea {
     transition: none;
   }
 
-  .account-popover,
   .account-usage-popover {
     transform: none;
     transition: opacity var(--openbot-duration-fast) ease;
@@ -3899,34 +3505,16 @@ textarea {
     }
   }
 
-  .account-dock-chevron {
-    transition: none;
-  }
-
-  .account-dock-hybrid-identity,
-  .account-dock-hybrid-identity .account-dock-avatar,
-  .account-dock-usage-trigger,
-  .account-dock-icon-button,
-  .account-dock-icon-button > svg,
   .account-usage-refresh > svg {
     transition: none;
   }
 
-  .account-dock-hybrid-identity:active,
-  .account-dock-hybrid-identity:hover .account-dock-avatar,
-  .account-dock-usage-trigger:active,
-  .account-dock-icon-button:active,
-  .account-dock-icon-button:hover > svg,
   .account-usage-refresh:hover:not(:disabled) > svg {
     transform: none;
   }
 
   .account-menu-icon-spinning {
     animation-duration: 1.6s;
-  }
-
-  .account-dock-usage-loading i {
-    animation: none;
   }
 }
 

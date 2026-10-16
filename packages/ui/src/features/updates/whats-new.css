@@ -272,3 +272,24 @@
     transition: none;
   }
 }
+
+/* The Help menu of the window rail. A long release headline ends in an ellipsis before its date. */
+.help-menu {
+  width: 320px;
+}
+
+.help-menu .help-menu-news {
+  gap: var(--openbot-space-3);
+}
+
+.help-menu-news-headline {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.help-menu-news .ui-menu-trailing {
+  flex: none;
+}

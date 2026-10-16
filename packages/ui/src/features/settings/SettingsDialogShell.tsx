@@ -1,8 +1,16 @@
 import { Dialog, IconButton, X } from "@openbot/ui";
 import { cx, prefersReducedMotion } from "@openbot/ui/utils";
-import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { type JSX, Portal } from "@solidjs/web";
+import { createEffect, createSignal, createUniqueId, onCleanup, Show, untrack } from "solid-js";
 import { useText } from "../../text";
+
+/** Where a settings page puts its parts, when the settings show as a page of the window. */
+export interface SettingsPagePlacement {
+  /** The element that holds the section list. */
+  nav: HTMLElement;
+  /** The element that holds the panel. */
+  content: HTMLElement;
+}
 
 interface SettingsDialogShellProps {
   open: boolean;
@@ -23,6 +31,8 @@ interface SettingsDialogShellProps {
   closeLabel?: string;
   onContentElement?: (element: HTMLElement) => void;
   restoreFocusTarget?: HTMLElement | null;
+  /** Shows the settings as a page of the window, not as a dialog. The page has no close button. */
+  page?: SettingsPagePlacement | undefined;
 }
 
 function durationToMilliseconds(value: string, fallback: number): number {
@@ -114,12 +124,15 @@ export function SaveBarDock<T>(props: SaveBarDockProps<T>) {
 
 export function SettingsDialogShell(props: SettingsDialogShellProps) {
   const { t } = useText();
+  const titleId = createUniqueId();
   const [rendered, setRendered] = createSignal(untrack(() => props.open));
   const [closing, setClosing] = createSignal(false);
   const [canScrollUp, setCanScrollUp] = createSignal(false);
   const [canScrollDown, setCanScrollDown] = createSignal(false);
   let closeTimer: number | undefined;
   let restoreTarget: HTMLElement | null = untrack(() => props.restoreFocusTarget ?? null);
+  /** A page has no closing motion. Its placement goes when it closes, so the dialog must not show for the motion. */
+  const [shownAsPage, setShownAsPage] = createSignal(false);
   let restoreFrame: number | undefined;
   let modalElement: HTMLElement | undefined;
   let scrollElement: HTMLDivElement | undefined;
@@ -162,6 +175,13 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
   );
 
   createEffect(
+    () => props.page,
+    (page) => {
+      if (page) setShownAsPage(true);
+    },
+  );
+
+  createEffect(
     () => ({ open: props.open, restoreFocusTarget: props.restoreFocusTarget }),
     ({ open, restoreFocusTarget }) => {
       clearCloseTimer();
@@ -179,6 +199,13 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
       }
 
       if (!isRendered) return;
+      if (untrack(shownAsPage)) {
+        setShownAsPage(false);
+        setRendered(false);
+        setClosing(false);
+        restoreFocus();
+        return;
+      }
       setClosing(true);
       closeTimer = window.setTimeout(() => {
         closeTimer = undefined;
@@ -200,63 +227,105 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
     props.onOpenChange(open);
   }
 
+  const scrollContent = () => (
+    <div
+      class="settings-modal-scroll-frame"
+      data-scroll-up={canScrollUp() ? "" : undefined}
+      data-scroll-down={canScrollDown() ? "" : undefined}
+    >
+      <div ref={registerScrollElement} class="settings-modal-content" onScroll={updateScrollFades}>
+        {props.children}
+      </div>
+    </div>
+  );
+
   return (
-    <Dialog.Root open={rendered()} onOpenChange={requestOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay
-          class="settings-modal-backdrop"
-          data-motion={closing() ? "closing" : "open"}
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) requestOpenChange(false);
-          }}
-        >
-          <Dialog.Content
-            as="section"
-            ref={(element) => {
-              modalElement = element;
-              props.onContentElement?.(element);
-            }}
-            class={cx("settings-modal", props.class)}
+    <Show when={props.page} fallback={dialog()}>
+      {(page) => (
+        <Show when={props.open}>
+          <Portal mount={page().nav}>
+            <div class="settings-page-nav-group">{props.sidebar}</div>
+          </Portal>
+          <Portal mount={page().content}>
+            <section
+              ref={(element) => {
+                modalElement = element;
+                props.onContentElement?.(element);
+              }}
+              class={cx("settings-modal settings-modal-page", props.class)}
+              aria-labelledby={titleId}
+            >
+              <div class="settings-modal-main">
+                <header class="settings-modal-header">
+                  <div>
+                    <h2 id={titleId} class="settings-modal-title">
+                      {props.title}
+                    </h2>
+                    <p class="settings-modal-description">{props.description}</p>
+                  </div>
+                </header>
+                {scrollContent()}
+                <div class="settings-modal-footer">{props.footer}</div>
+                {props.floatingContent}
+              </div>
+            </section>
+          </Portal>
+        </Show>
+      )}
+    </Show>
+  );
+
+  function dialog() {
+    return (
+      <Dialog.Root open={rendered() && !shownAsPage()} onOpenChange={requestOpenChange}>
+        <Dialog.Portal>
+          <Dialog.Overlay
+            class="settings-modal-backdrop"
             data-motion={closing() ? "closing" : "open"}
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              queueMicrotask(() => modalElement?.focus({ preventScroll: true }));
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget) requestOpenChange(false);
             }}
           >
-            <aside class="settings-modal-sidebar">{props.sidebar}</aside>
+            <Dialog.Content
+              as="section"
+              ref={(element) => {
+                modalElement = element;
+                props.onContentElement?.(element);
+              }}
+              class={cx("settings-modal", props.class)}
+              data-motion={closing() ? "closing" : "open"}
+              onOpenAutoFocus={(event) => {
+                event.preventDefault();
+                queueMicrotask(() => modalElement?.focus({ preventScroll: true }));
+              }}
+            >
+              <aside class="settings-modal-sidebar">{props.sidebar}</aside>
 
-            <div class="settings-modal-main">
-              <header class="settings-modal-header">
-                <div>
-                  <Dialog.Title class="settings-modal-title">{props.title}</Dialog.Title>
-                  <Dialog.Description class="settings-modal-description">{props.description}</Dialog.Description>
-                </div>
-                <IconButton
-                  label={props.closeLabel ?? t("settings.dialog.close")}
-                  tooltip={props.closeLabel ?? t("settings.dialog.close")}
-                  variant="ghost"
-                  data-cuelume-tap="close"
-                  onClick={() => requestOpenChange(false)}
-                >
-                  <X />
-                </IconButton>
-              </header>
+              <div class="settings-modal-main">
+                <header class="settings-modal-header">
+                  <div>
+                    <Dialog.Title class="settings-modal-title">{props.title}</Dialog.Title>
+                    <Dialog.Description class="settings-modal-description">{props.description}</Dialog.Description>
+                  </div>
+                  <IconButton
+                    label={props.closeLabel ?? t("settings.dialog.close")}
+                    tooltip={props.closeLabel ?? t("settings.dialog.close")}
+                    variant="ghost"
+                    data-cuelume-tap="close"
+                    onClick={() => requestOpenChange(false)}
+                  >
+                    <X />
+                  </IconButton>
+                </header>
 
-              <div
-                class="settings-modal-scroll-frame"
-                data-scroll-up={canScrollUp() ? "" : undefined}
-                data-scroll-down={canScrollDown() ? "" : undefined}
-              >
-                <div ref={registerScrollElement} class="settings-modal-content" onScroll={updateScrollFades}>
-                  {props.children}
-                </div>
+                {scrollContent()}
+                <div class="settings-modal-footer">{props.footer}</div>
+                {props.floatingContent}
               </div>
-              <div class="settings-modal-footer">{props.footer}</div>
-              {props.floatingContent}
-            </div>
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
+            </Dialog.Content>
+          </Dialog.Overlay>
+        </Dialog.Portal>
+      </Dialog.Root>
+    );
+  }
 }

@@ -17,7 +17,7 @@ import { BillingPanel } from "@openbot/ui/features/billing/BillingPanel";
 import { createBillingStore } from "@openbot/ui/features/billing/billing-store";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
 import { ProfileNameSaveBar } from "@openbot/ui/features/settings/ProfileNameSaveBar";
-import { SettingsDialogShell } from "@openbot/ui/features/settings/SettingsDialogShell";
+import { SettingsDialogShell, type SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsMobileConnectTab } from "@openbot/ui/features/settings/SettingsMobileConnectTab";
 import { SettingsProfileTab } from "@openbot/ui/features/settings/SettingsProfileTab";
 import { SettingsUpdatesTab } from "@openbot/ui/features/settings/SettingsUpdatesTab";
@@ -64,6 +64,7 @@ export interface SettingsModalProps {
   onRevokeMobileConnectedDevice?: (sessionId: string) => Promise<void>;
   onListAccountSessions?: () => Promise<AccountSession[]>;
   onRevokeAccountSession?: (sessionId: string) => Promise<void>;
+  onSignOut?: (() => Promise<void>) | undefined;
   processAvatarFile?: (file: File) => Promise<AvatarImageInput>;
   billingApi?: BillingDesktopApi;
   /** The account's hosted servers. The tab is shown only when the account server offers them. */
@@ -82,6 +83,8 @@ export interface SettingsModalProps {
   initialTab?: SettingsTab;
   /** The tab shown each time the modal opens. Without it, the modal shows the tab that was open last. */
   openTab?: SettingsTab | undefined;
+  /** Shows the settings as a page of the window, not as a dialog. */
+  page?: SettingsPagePlacement | undefined;
 }
 
 /**
@@ -176,6 +179,7 @@ export function SettingsModal(props: SettingsModalProps) {
     <Tabs.Root {...tabsProps} class="settings-modal-tabs-root">
       <SettingsDialogShell
         class="app-settings-modal-shell"
+        page={props.page}
         open={props.open}
         onOpenChange={props.onOpenChange}
         title={title()}
@@ -257,6 +261,7 @@ export function SettingsModal(props: SettingsModalProps) {
             account={props.account}
             canListSessions={Boolean(props.onListAccountSessions)}
             canRevokeSession={Boolean(props.onRevokeAccountSession)}
+            onSignOut={props.onSignOut}
           />
         </Tabs.Content>
 

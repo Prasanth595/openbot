@@ -265,7 +265,7 @@ function AppChatStage(props: { onOpenLink: (url: string) => void }) {
           onChange: fn(),
           onReasoningEffortChange: fn(),
         }}
-        browser={{ acting: false, open: false, onToggle: fn() }}
+        sidePanel={{ open: false, running: 0, onToggle: fn() }}
       />
       <section class="conversation-scroll" aria-label="Messages">
         <div class="virtual-chat-list virtual-chat-list-static">

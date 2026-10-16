@@ -170,7 +170,7 @@ export const messages = {
   "server.rail.mute": "Mettre le serveur en sourdine",
   "server.rail.notificationSettings": "Réglages des notifications",
   "server.rail.usage": "Utilisation",
-  "server.rail.schedule": "Routines",
+  "server.rail.schedule": "Planning",
   "server.rail.settings": "Réglages du serveur",
   "server.rail.remove": "Supprimer le serveur",
   "server.rail.restart": "Redémarrer le serveur",

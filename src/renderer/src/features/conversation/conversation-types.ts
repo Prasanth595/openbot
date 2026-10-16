@@ -274,6 +274,8 @@ export type SidebarFilePreview =
 
 export type RightPanelMode =
   | "none"
+  /** The side panel with no open pane. It lists the panes it can open. */
+  | "side-panel"
   | "browser"
   | "browser-expanded"
   | "browser-pip"
@@ -282,6 +284,8 @@ export type RightPanelMode =
   | "file-preview"
   | "files"
   | "task";
+
+export type { SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
 
 /** The tasks of the active agent, and the task actions. Each action names the task, not the agent. */
 export interface ConversationTasks {
