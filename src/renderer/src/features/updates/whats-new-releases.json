@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.41.0",
+    "date": "2026-10-16",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "An agent can work on tasks at the same time as its chat. Start one with \"New task\" in the chat menu, or select \"Run as task\" on a queued message.",
+          "Each task has its own conversation, progress, stop button and result. Closed tasks stay under \"Earlier tasks\".",
+          "Set how many tasks of an agent run at once in Agent settings > Advanced > \"Tasks at once\"."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["The chat header has one menu for the computer, remote control, files, agent settings and tasks."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "OpenBot starts faster after a clean stop when the database is large.",
+          "The database no longer grows each time you read a conversation. The first start after this update can take longer while OpenBot makes the file smaller.",
+          "Large chats open faster and no longer stall OpenBot.",
+          "Agents with very long messages open from a remote device without reconnects.",
+          "A hosted server stays on while you read it in a focused window, and the app waits while the server starts.",
+          "Muse shows \"Connected\" after you sign in.",
+          "Numbered lists in the message box keep their numbers in order."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.40.0",
     "date": "2026-10-15",
     "notices": [],

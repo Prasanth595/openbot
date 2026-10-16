@@ -6,6 +6,78 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-10-16
+
+### Added
+
+- Add a contact form at `openbot.run/contact`. The Contact buttons on the website open it, and the
+  message goes to the OpenBot team by email.
+- A new customer now gets a "Welcome to OpenBot!" email when the plan of their first cloud server
+  starts. The email shows the plan, the server name, and a link to the web app.
+- An agent can work on tasks at the same time as its chat. Start a task with "New task" in the chat menu, or move a queued message to a task with "Run as task". The agent can also start a task itself.
+- Each task has its own conversation, progress, stop button and result. Open a task from its chip below the chat, or from the chat menu. Closed tasks stay under "Earlier tasks", where you can open them again.
+- Two tasks of an agent run at the same time. Change this from 1 to 4 in the agent's settings, under Advanced, "Tasks at once". Other tasks wait, and the task shows why it waits.
+- A custom ACP agent runs one turn at a time: its tasks and its chat wait for each other, and the settings show this.
+- When a task fails, its panel shows the error, also after a restart. The main chat does not.
+- Tasks run without Computer Use, so that only the agent's chat controls the screen. Each task has its own browser tabs.
+- You cannot change an agent's provider while its tasks run. After the change, the tasks continue on the new provider.
+- The transfer file keeps the "Tasks at once" setting of each agent.
+- Add an "OpenBot for Teams" section to the website. It shows managed servers, team environments,
+  custom integrations and launch support, and its Contact us button opens the contact form.
+- Add a For Teams page to the website, at `/teams`. It shows the three setups (local, managed server
+  and custom deployment), what a server adds, the steps of a custom deployment, and who it is for. The header
+  and the Teams section on the home page open it, and its buttons open the contact form.
+
+### Changed
+
+- A full refund of the current payment for a cloud server now ends its plan at once. The server
+  stops and keeps its data. Before, the plan continued and renewed.
+- The chat header has one menu for the computer, remote control, files, agent settings and tasks.
+- The log records when a provider starts and stops connecting, so a report of a provider that stays on "Connecting" can show the cause.
+
+### Fixed
+
+- Show why a Telegram connect failed on a joined server. Before, the error said only "Request
+  failed.".
+- Stop the Telegram connect dialog from waiting for Telegram after a connect fails.
+- A hosted server could start with "OpenBot database failed its integrity check." after it stopped.
+  The host saved the disk while OpenBot wrote its database, and kept a damaged copy. A hosted server
+  now stops OpenBot and closes the database before the host saves the disk. A server gets this
+  change when it updates and starts again.
+- A server that got the stop signal (for example, from `systemctl stop` or `docker stop`) ended at
+  once. It now stops its services and closes the database, as the desktop app does when it quits.
+- The integrity check error is now in your language, and the log shows which parts of the database
+  are damaged.
+- Muse shows "Connected" after you sign in with your Meta account or save a Meta API key. Before, Muse always showed "Muse authentication is not verified", also after a successful sign-in. When Muse has no credential, it now asks you to sign in.
+- Open an agent with very long messages from a remote device. Before, the connection to the server
+  dropped and reconnected again and again. The server now sends fewer messages at a time, and you
+  load the rest when you scroll up.
+- Show an error when a server reply is too large to send to a remote device. Before, the server
+  closed the connection.
+- Keep the numbers in a Markdown list in order when you add an item between existing items in the
+  message box. Before, the new item and the item below it had the same number.
+- A server signs in to OpenBot at start when a slow database check holds the start. Before, the
+  sign-in failed and the server went online about one minute later.
+- Start OpenBot faster after a clean stop when the database is large. Before, each start read the
+  full database file to check it, which took minutes on a large file. The check now runs only after
+  a stop that did not close the database, or after a database upgrade.
+- Stop the database from growing each time a conversation is read. Before, each read wrote the
+  latest messages again when nothing had changed, so `openbot.db` could grow by gigabytes. An
+  upgrade deletes the repeated writes that follow each other in a chat, which are most of them,
+  and makes the file smaller. On a large database, the first start after the upgrade takes longer.
+- A hosted server no longer stops soon after it starts while you read it in a focused window or tab. Before, it stopped about 15 minutes after a wake when you did not type or click, and showed as asleep. An app that has focus now keeps it on for at most 30 minutes after your last message, change or typing, or after you return to the app.
+- The desktop app and the web client wait while a hosted server starts. Before, they
+  stopped waiting after 5 minutes and showed "did not start in time", also when the server came online
+  a minute later. They now stop only when the machine runs and OpenBot on it does not connect in 15
+  minutes.
+- The desktop app and the web client show the start step and its time while a hosted server starts.
+  Restart is not available while the machine starts.
+- The desktop app shows when a hosted server did not start, could not start, or has an ended plan.
+- When the cloud provider limits new starts, the account server tries the start again after a delay,
+  and the desktop app and the web client say so. Before, they showed "Could not start".
+- A conversation and its unread count load from an index of the message order. Before, each load sorted
+  the whole chat several times, so a client that opened many agents could stall OpenBot for seconds.
+
 ## [0.40.0] - 2026-10-15
 
 ### Added
