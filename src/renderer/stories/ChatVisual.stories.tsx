@@ -354,7 +354,7 @@ function AppShellStage(props: { onOpenLink: (url: string) => void }) {
     if (!shell) return;
     const root = shell;
     const find = () => {
-      const element = root.querySelector<HTMLElement>(".usage-workspace-content");
+      const element = root.querySelector<HTMLElement>(".app-frame-panes");
       if (element) setContent(element);
     };
     const observer = new MutationObserver(find);

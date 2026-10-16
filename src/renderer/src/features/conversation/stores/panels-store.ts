@@ -6,7 +6,7 @@ import {
   type WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
-import { createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, createStore } from "solid-js";
 import { attachmentFilePreview } from "../attachment-preview";
 import { conversationRuntime } from "../conversation-runtime";
 import type {
@@ -45,19 +45,16 @@ export const SIDE_PANEL_MODES = {
   settings: "settings",
 } as const satisfies Record<SidePanelPane, RightPanelMode>;
 
+function isSidePanelPane(value: string): value is SidePanelPane {
+  return value in SIDE_PANEL_MODES;
+}
+
+/** The pane that shows a panel mode, or null for a mode outside the side panel. */
 function paneOfMode(mode: RightPanelMode): SidePanelPane | null {
-  switch (mode) {
-    case "browser":
-      return "browser";
-    case "files":
-      return "files";
-    case "task":
-      return "tasks";
-    case "settings":
-      return "settings";
-    default:
-      return null;
+  for (const [pane, paneMode] of Object.entries(SIDE_PANEL_MODES)) {
+    if (paneMode === mode && isSidePanelPane(pane)) return pane;
   }
+  return null;
 }
 
 export interface PanelsStoreDeps {
@@ -93,14 +90,23 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     const agentId = deps.props.agent?.id;
     return agentId ? (deps.rightPanels()[agentId] ?? "none") : "none";
   });
-  const [sidePanels, setSidePanels] = createSignal<Record<string, SidePanelState>>({});
+  /**
+   * The side panel of each agent, and the task in its Tasks pane. A task of null is a new task, until its
+   * first message starts it; an agent with no task entry shows the task list.
+   */
+  const [panels, setPanels] = createStore<{
+    side: Record<string, SidePanelState>;
+    tasks: Record<string, string | null>;
+  }>({ side: {}, tasks: {} });
   const sidePanel = (): SidePanelState => {
     const agentId = deps.props.agent?.id;
-    return (agentId && sidePanels()[agentId]) || SIDE_PANEL_EMPTY;
+    return (agentId && panels.side[agentId]) || SIDE_PANEL_EMPTY;
   };
   const sidePanelOpen = () => activeRightPanel() === "side-panel" || paneOfMode(activeRightPanel()) !== null;
   function updateSidePanel(agentId: string, update: (state: SidePanelState) => SidePanelState) {
-    setSidePanels((current) => ({ ...current, [agentId]: update(current[agentId] ?? SIDE_PANEL_EMPTY) }));
+    setPanels((draft) => {
+      draft.side[agentId] = update(draft.side[agentId] ?? SIDE_PANEL_EMPTY);
+    });
   }
   function setSidePanelMaximized(maximized: boolean) {
     const agentId = deps.props.agent?.id;
@@ -110,7 +116,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   function removeSidePanelPane(pane: SidePanelPane): SidePanelPane | null {
     const agentId = deps.props.agent?.id;
     if (!agentId) return null;
-    const state = sidePanels()[agentId] ?? SIDE_PANEL_EMPTY;
+    const state = panels.side[agentId] ?? SIDE_PANEL_EMPTY;
     const index = state.panes.indexOf(pane);
     const panes = state.panes.filter((item) => item !== pane);
     const selected =
@@ -120,17 +126,15 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   }
   const settingsOpen = () => activeRightPanel() === "settings";
   const filesOpen = () => activeRightPanel() === "files";
-  // The task in each agent's task panel. Null is a new task, until its first message starts it.
-  const [taskPanels, setTaskPanels] = createSignal<Record<string, string | null>>({});
   const taskPanelOpen = () => activeRightPanel() === "task" && deps.props.tasks !== undefined;
   const taskPanelTaskId = (): string | null => {
     const agentId = deps.props.agent?.id;
-    return agentId ? (taskPanels()[agentId] ?? null) : null;
+    return agentId ? (panels.tasks[agentId] ?? null) : null;
   };
   /** The Tasks pane lists the tasks until the user opens one or starts a new one. */
   const taskListOpen = () => {
     const agentId = deps.props.agent?.id;
-    return taskPanelOpen() && agentId !== undefined && !(agentId in taskPanels());
+    return taskPanelOpen() && agentId !== undefined && !(agentId in panels.tasks);
   };
   const filePreviewOpen = () =>
     activeRightPanel() === "file-preview" && deps.sidebarFilePreview()?.ownerAgentId === deps.props.agent?.id;
@@ -150,7 +154,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
         selected: pane,
       }));
     else if (mode === "side-panel") updateSidePanel(agentId, (state) => ({ ...state, selected: null }));
-    else if (mode === "none" && sidePanels()[agentId]?.maximized) {
+    else if (mode === "none" && panels.side[agentId]?.maximized) {
       updateSidePanel(agentId, (state) => ({ ...state, maximized: false }));
     }
   }
@@ -159,7 +163,9 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   function openTaskPanel(taskId: string | null): void {
     const agentId = deps.props.agent?.id;
     if (!agentId) return;
-    setTaskPanels((current) => ({ ...current, [agentId]: taskId }));
+    setPanels((draft) => {
+      draft.tasks[agentId] = taskId;
+    });
     if (taskId) deps.props.tasks?.onOpen(taskId);
     setActiveRightPanel("task", agentId);
   }
@@ -168,10 +174,8 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
   function showTaskList(): void {
     const agentId = deps.props.agent?.id;
     if (!agentId) return;
-    setTaskPanels((current) => {
-      if (!(agentId in current)) return current;
-      const { [agentId]: _removed, ...next } = current;
-      return next;
+    setPanels((draft) => {
+      delete draft.tasks[agentId];
     });
     setActiveRightPanel("task", agentId);
   }

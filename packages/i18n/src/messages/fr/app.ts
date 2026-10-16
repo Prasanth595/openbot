@@ -52,6 +52,8 @@ export const messages = {
   "app.rail.schedule": "Planning",
   "app.rail.usage": "Utilisation",
   "app.rail.settings": "Réglages",
+  "app.rail.settingsNotice": "Réglages. {notice}",
+  "app.page.serverFallback": "Serveur",
   "app.help.label": "Aide",
   "app.help.whatsNew": "Nouveautés",
   "app.help.changelog": "Journal des modifications complet",

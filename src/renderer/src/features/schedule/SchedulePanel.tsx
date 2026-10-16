@@ -13,7 +13,7 @@ import { createEffect, createMemo, createSignal, createStore, onSettled } from "
 import { useNavigation } from "../../navigation";
 import { useAgents } from "../agents/agents-context";
 import { useChannels } from "../channels/channels-context";
-import { useUsage } from "../usage/usage-context";
+import { useWindowPage } from "../window/window-page-context";
 import { desktopScheduleSource, type ScheduleSource } from "./schedule-port";
 
 const DAY = 86_400_000;
@@ -66,12 +66,12 @@ export function SchedulePanel(props: SchedulePanelProps) {
   const { agentList, agentSetupOpen, creatingAgent, setSettingsRequest } = useAgents();
   const { selectAgent } = useNavigation();
   const channels = useChannels();
-  const { dismissUsage } = useUsage();
+  const windowPage = useWindowPage();
 
   function openRoutine(routine: ScheduleRoutine): void {
     if (routine.owner.kind === "channel") {
       // An open channel does not open again, so its settings would stay under the pane.
-      dismissUsage();
+      windowPage.showAgents();
       // The channel settings hold its routines one step down.
       void channels.editChannel(routine.owner.channelId);
       return;

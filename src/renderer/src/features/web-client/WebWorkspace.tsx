@@ -56,10 +56,12 @@ import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRai
 import type { DiagramModelChoice } from "@openbot/ui/features/diagrams/DiagramNewAgentCard";
 import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialog";
 import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
+import type { ServerActionCallbacks } from "@openbot/ui/features/servers/ServerActionItems";
 import {
   ConversationLoadNotice,
   ServerConnectionNotice,
   ServerPanelLoadNotice,
+  serverWorkspacePhase,
 } from "@openbot/ui/features/servers/ServerConnectionNotice";
 import { ServerRail } from "@openbot/ui/features/servers/ServerRail";
 import type { SettingsPagePlacement } from "@openbot/ui/features/settings/SettingsDialogShell";
@@ -67,6 +69,7 @@ import { createSettingsHostedServersStore } from "@openbot/ui/features/settings/
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
+import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRail";
 import { useText } from "@openbot/ui/text";
 import { Effect } from "effect";
 import { createEffect, createMemo, createSignal, Loading, lazy, onCleanup, onSettled, Show, untrack } from "solid-js";
@@ -86,6 +89,7 @@ import {
   ServerSettingsOverlay,
   SharedAgentInstallOverlay,
 } from "../../WorkspaceOverlayViews";
+import { createUsageRefreshPoll } from "../account/usage-refresh-poll";
 import { type NewAgentDraft, newAgentInput } from "../agents/agent-create-input";
 import { type CreationPreference, resolveCreationModel } from "../agents/agent-creation-model";
 import { claimErrorToast, readableAgentError } from "../agents/agent-error-text";
@@ -122,7 +126,6 @@ import {
   showServerUpdate,
 } from "../servers/server-update-flow";
 import { isReaderAuthor } from "../team/reader-identity";
-import { PageRail, type PageRailPage } from "../window/PageRail";
 import { RailHelpMenu } from "../window/RailHelpMenu";
 import { ServerSettingsPageTitle, SettingsPageFrame } from "../window/SettingsPageFrame";
 import type { SettingsKind, WindowPage } from "../window/window-page-context";
@@ -140,7 +143,7 @@ import { createWebConversationRuntime } from "./web-conversation-runtime";
 import { createWebConversationView } from "./web-conversation-view";
 import { createWebFileSaver } from "./web-file-download";
 import { webGitHubConnectorPort } from "./web-github-connector";
-import { createWebHostedServerCalls } from "./web-hosted-servers";
+import { createWebHostedServers } from "./web-hosted-server-state";
 import { createWebAgentTemplateCalls, createWebMarketplaceCalls } from "./web-marketplace";
 import { webHostMessaging } from "./web-messaging-connector";
 import { createWebServerNotifications } from "./web-notification-preferences";
@@ -168,10 +171,6 @@ const CONNECTING_STATUS: AgentStatus = {
 const WEB_APP_INFO: AppInfo = { name: "OpenBot", version: "web", platform: "darwin", variant: "production" };
 /** Below this width the web shows one pane at a time; see `web-client.css`. */
 const PHONE_QUERY = "(max-width: 720px)";
-/** How old a plan limits reading may get before it is fetched again, as on desktop. */
-const USAGE_AUTO_REFRESH_MS = 5 * 60_000;
-/** The poll asks more often than it refreshes, and each tick compares the age of the reading. */
-const USAGE_AUTO_REFRESH_CHECK_MS = 30_000;
 /** The account whose queue edit the browser may hold under `QUEUE_EDIT_STORAGE_KEY`. */
 const QUEUE_EDIT_ACCOUNT_KEY = "openbot.web.queue-edit-account";
 
@@ -344,55 +343,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     },
   );
   const [joinOpen, setJoinOpen] = createSignal(false);
-  const hostedServerCalls = createWebHostedServerCalls(props.accountFetch);
-  const [addServer, setAddServer] = createSignal<{ resume: AddServerResume | null } | null>(null);
-  // True when the account can create hosted servers. The plus button then opens the plans.
-  const [hostedServersAvailable, setHostedServersAvailable] = createSignal(false);
-  /** The hosted servers of this account. The server menu can delete these. */
-  const [hostedServersLoaded, setHostedServersLoaded] = createSignal(false);
-  const [hostedServerIds, setHostedServerIds] = createSignal<ReadonlySet<string>>(new Set());
-  async function refreshHostedServersAvailable(): Promise<boolean> {
-    // A failed read keeps the last answer: a network error does not turn the plans off.
-    const list = await hostedServerCalls.list().catch(() => null);
-    if (!list) return hostedServersAvailable();
-    setHostedServersAvailable(list.available);
-    setHostedServersLoaded(true);
-    setHostedServerIds(new Set(list.servers.map((server) => server.serverId)));
-    return list.available;
-  }
-  void refreshHostedServersAvailable();
-  // A server that the add server dialog creates comes into the host list as an owned host. Each owned
-  // host is read once, so its Delete server item shows without a reload.
-  const readOwnedHostIds = new Set<string>();
-  createEffect(
-    () =>
-      workspace.state.hosts
-        .filter((host) => host.role === "owner" && !readOwnedHostIds.has(host.hostId))
-        .map((host) => host.hostId),
-    (hostIds) => {
-      if (hostIds.length === 0) return;
-      for (const hostId of hostIds) readOwnedHostIds.add(hostId);
-      void refreshHostedServersAvailable();
-    },
-  );
-  /**
-   * The plus button opens the add server dialog when the account can create hosted servers, else the
-   * join dialog. It uses the last answer, so the click does not wait for the network; the read after it
-   * is for the next click.
-   */
-  function openAddServer(): void {
-    if (hostedServersAvailable()) setAddServer({ resume: null });
-    else setJoinOpen(true);
-    void refreshHostedServersAvailable();
-  }
-  createEffect(
-    () => props.hostingReturn,
-    (resume) => {
-      if (!resume) return;
-      setAddServer({ resume });
-      props.onHostingReturnConsumed?.();
-    },
-  );
+  const hostedServers = createWebHostedServers({
+    accountFetch: props.accountFetch,
+    hosts: () => workspace.state.hosts,
+    hostingReturn: () => props.hostingReturn,
+    onHostingReturnConsumed: () => props.onHostingReturnConsumed?.(),
+    onJoin: () => setJoinOpen(true),
+  });
   const [creating, setCreating] = createSignal(false);
   /** The new agent form's avatar. The first-agent row in an empty sidebar shows it. */
   const [agentAvatar, setAgentAvatar] = createSignal(newAgentAvatar());
@@ -583,34 +540,17 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const providerSettings = providerAdmin.settings;
   /** The usage of the providers' own sign-ins, with that of the host's other accounts. */
   const accountUsage = () => withHostAccountUsage(usageReading.accountUsage(), providerAdmin.hostAccounts.limits());
-  /** The providers that report plan limits, for the rings of the rail. */
-  const usageRows = createMemo(() =>
-    accountUsageProviderRows(accountUsage(), providerAdmin.status().providers, text).filter(
-      (row) => row.reportsUsage && row.windows.length > 0,
-    ),
-  );
-  /* As on desktop: the rail rings always show the plan limits, so a reading older than five minutes is
-   * taken again. The first reading for a target comes from `createWebAccountUsage`. A hidden tab does
-   * not poll; coming back to it refreshes at once when the interval has passed. */
-  createEffect(
-    () => (usageReading.usageReady() ? usageReading.usageTargetKey() : null),
-    (target) => {
-      if (!target) return;
-      let lastRefreshAt = Date.now();
-      function refreshWhenDue() {
-        if (document.hidden || Date.now() - lastRefreshAt < USAGE_AUTO_REFRESH_MS) return;
-        lastRefreshAt = Date.now();
-        void providerAdmin.hostAccounts.refreshUsage().catch(() => undefined);
-        void usageReading.refreshUsage().catch(() => undefined);
-      }
-      const timer = window.setInterval(refreshWhenDue, USAGE_AUTO_REFRESH_CHECK_MS);
-      document.addEventListener("visibilitychange", refreshWhenDue);
-      return () => {
-        window.clearInterval(timer);
-        document.removeEventListener("visibilitychange", refreshWhenDue);
-      };
+  /** The plan limits of each provider account, for the rings of the rail. */
+  const usageRows = createMemo(() => accountUsageProviderRows(accountUsage(), providerAdmin.status().providers, text));
+  // As on desktop. The first reading for a target comes from `createWebAccountUsage`.
+  createUsageRefreshPoll({
+    target: () => (usageReading.usageReady() ? usageReading.usageTargetKey() : null),
+    refreshAtStart: false,
+    refresh: () => {
+      void providerAdmin.hostAccounts.refreshUsage().catch(() => undefined);
+      void usageReading.refreshUsage().catch(() => undefined);
     },
-  );
+  });
   const connectFromComposer = (provider: AgentProviderId) =>
     providerSettings()?.connection?.connect(provider, "composer");
   /** Whether the composer's sign-in notice can connect the agent's provider from this tab. */
@@ -756,25 +696,19 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const billingCalls = createWebBillingCalls(props.accountFetch);
   const billing = createBillingStore(() => billingCalls, billingOpen);
   // The web client has no Hosted servers settings, so a server whose plan ended is renewed or deleted in Billing.
-  const hostedServers = createSettingsHostedServersStore(
+  const billingHostedServers = createSettingsHostedServersStore(
     {
       get open() {
         return billingOpen();
       },
-      hostedServersApi: hostedServerCalls,
+      hostedServersApi: hostedServers.calls,
     },
     billingOpen,
   );
   /** Billing holds the hosted servers on the web, so the server menu deletes a server there. */
   function deleteHostedServer(serverId: string): void {
     setBillingOpen(true);
-    hostedServers.requestDeleteById(serverId);
-  }
-  function canRemoveOwnedServer(serverId: string): boolean {
-    return Boolean(workspace.runtime.removeOwnedHost) && hostedServersLoaded() && !hostedServerIds().has(serverId);
-  }
-  function requestRemoveOwnedServer(hostId: string, trigger: HTMLElement | null): void {
-    setLeaveRequest({ hostId, trigger, removeOwned: true });
+    billingHostedServers.requestDeleteById(serverId);
   }
   /** The joined server that the leave confirmation asks about, and the element that asked. */
   const [leaveRequest, setLeaveRequest] = createSignal<{
@@ -809,7 +743,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   );
   async function restartHost(): Promise<void> {
     const hostId = restartRequest()?.hostId;
-    if (hostId) await hostedServerCalls.restart(hostId);
+    if (hostId) await hostedServers.calls.restart(hostId);
   }
   createEffect(
     () => props.billingReturn,
@@ -906,6 +840,20 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     setServerSettingsLoaded(true);
     serverSettings.open(trigger);
   }
+  /** The server items of the rail and of the server menu. */
+  const serverActionCallbacks = {
+    onOpenSettings: (serverId, trigger) => void openServerSettings(serverId, trigger),
+    onSetMuted: setMuted,
+    onSetNotificationLevel: setNotificationLevel,
+    onLeave: (hostId, trigger) => setLeaveRequest({ hostId, trigger }),
+    onRemove: (hostId, trigger) => setLeaveRequest({ hostId, trigger, removeOwned: true }),
+    canRemove: (serverId) =>
+      Boolean(workspace.runtime.removeOwnedHost) && hostedServers.loaded() && !hostedServers.isHosted(serverId),
+    onDelete: deleteHostedServer,
+    canDelete: hostedServers.isHosted,
+    onRestart: (hostId, trigger) => setRestartRequest({ hostId, trigger }),
+    canRestart: hostedServers.isHosted,
+  } satisfies ServerActionCallbacks;
   // Each time the user enters a host that has a new version, the update dialog opens. A reconnect does not offer again.
   let entry: { id: string; offered: boolean } | null = null;
   createEffect(
@@ -1348,18 +1296,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                         ? (workspace.state.connectionError?.reference ?? null)
                         : null
                     }
-                    phase={
-                      workspace.state.hostedSleep ??
-                      (hostUpdating()
-                        ? "updating"
-                        : workspace.state.recovery?.phase === "suspended"
-                          ? "blocked"
-                          : workspace.state.status === "connecting"
-                            ? "loading"
-                            : workspace.state.workspaceLoaded
-                              ? "reconnecting"
-                              : "connecting")
-                    }
+                    phase={serverWorkspacePhase({
+                      hostedSleep: workspace.state.hostedSleep,
+                      updating: hostUpdating(),
+                      blocked: workspace.state.recovery?.phase === "suspended",
+                      loading: workspace.state.status === "connecting",
+                      hasContent: workspace.state.workspaceLoaded,
+                    })}
                     remainingSeconds={
                       workspace.state.recovery?.phase === "waiting" || workspace.state.recovery?.phase === "cooldown"
                         ? workspace.state.recovery.remainingSeconds
@@ -1395,9 +1338,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 if (host) await workspace.connect(host);
               })
             }
-            usageOpen={pageCovered()}
-            data-window-page={page()}
-            usage={
+            windowPage={page()}
+            page={
               <Show
                 when={page() === "usage" || page() === "schedule" ? server() : undefined}
                 fallback={
@@ -1456,18 +1398,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     servers={servers()}
                     onSelect={selectServer}
                     onReorder={workspace.reorderHosts}
-                    onAdd={openAddServer}
-                    addCreatesServer={hostedServersAvailable()}
-                    onOpenSettings={(id, trigger) => void openServerSettings(id, trigger)}
-                    onSetMuted={setMuted}
-                    onSetNotificationLevel={setNotificationLevel}
-                    onLeave={(hostId, trigger) => setLeaveRequest({ hostId, trigger })}
-                    onRemove={requestRemoveOwnedServer}
-                    canRemove={canRemoveOwnedServer}
-                    onDelete={deleteHostedServer}
-                    canDelete={(id) => hostedServerIds().has(id)}
-                    onRestart={(hostId, trigger) => setRestartRequest({ hostId, trigger })}
-                    canRestart={(id) => hostedServerIds().has(id)}
+                    onAdd={hostedServers.openAddServer}
+                    addCreatesServer={hostedServers.available()}
+                    {...serverActionCallbacks}
                   />
                 </Show>
                 <Sidebar
@@ -1509,18 +1442,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     view: layout.serverView(),
                     onViewChange: layout.setServerView,
                     onSelect: selectServer,
-                    onAdd: openAddServer,
-                    addCreatesServer: hostedServersAvailable(),
-                    onOpenSettings: (id, trigger) => void openServerSettings(id, trigger),
-                    onSetMuted: setMuted,
-                    onSetNotificationLevel: setNotificationLevel,
-                    onLeave: (hostId, trigger) => setLeaveRequest({ hostId, trigger }),
-                    onRemove: requestRemoveOwnedServer,
-                    canRemove: canRemoveOwnedServer,
-                    onDelete: deleteHostedServer,
-                    canDelete: (id) => hostedServerIds().has(id),
-                    onRestart: (hostId, trigger) => setRestartRequest({ hostId, trigger }),
-                    canRestart: (id) => hostedServerIds().has(id),
+                    onAdd: hostedServers.openAddServer,
+                    addCreatesServer: hostedServers.available(),
+                    ...serverActionCallbacks,
                   }}
                   agents={workspace.profiles()}
                   activeAgentId={channelOpen() ? "" : (workspace.state.selectedId ?? "")}
@@ -1591,19 +1515,19 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               <>
                 <ServerUpdateDialogHost hosts={workspace.hostViews()} />
                 <AddServerOverlay
-                  open={addServer() !== null}
-                  calls={hostedServerCalls}
+                  open={hostedServers.addServer() !== null}
+                  calls={hostedServers.calls}
                   servers={servers()}
                   onRefreshServers={workspace.retryHosts}
-                  resume={addServer()?.resume}
-                  onClose={() => setAddServer(null)}
+                  resume={hostedServers.addServer()?.resume}
+                  onClose={hostedServers.closeAddServer}
                   onOpenServer={(serverId) => {
-                    setAddServer(null);
+                    hostedServers.closeAddServer();
                     selectServer(serverId);
                   }}
                   onContactUs={() => window.location.assign(HOSTED_SERVER_CONTACT_URL)}
                   onJoinWithInvite={() => {
-                    setAddServer(null);
+                    hostedServers.closeAddServer();
                     setJoinOpen(true);
                   }}
                   onManageServers={() => setBillingOpen(true)}
@@ -1803,7 +1727,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   open={billingOpen()}
                   onOpenChange={setBillingOpen}
                   store={billing}
-                  hostedServers={hostedServers}
+                  hostedServers={billingHostedServers}
                 />
                 <ChannelCreateOverlay />
                 <GlobalSearchOverlay

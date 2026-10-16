@@ -122,12 +122,12 @@
   color: var(--openbot-text-secondary);
 }
 
-.agent-tasks-disclosure .account-menu-icon {
+.agent-tasks-disclosure .agent-tasks-icon {
   color: var(--openbot-text-muted);
   transition: transform var(--openbot-duration-fast) ease;
 }
 
-.agent-tasks-disclosure[aria-expanded="true"] .account-menu-icon {
+.agent-tasks-disclosure[aria-expanded="true"] .agent-tasks-icon {
   transform: rotate(90deg);
 }
 
@@ -178,7 +178,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .agent-tasks-disclosure .account-menu-icon {
+  .agent-tasks-disclosure .agent-tasks-icon {
     transition: none;
   }
 }

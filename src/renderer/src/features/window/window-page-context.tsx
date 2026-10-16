@@ -9,6 +9,17 @@ import { useUsage } from "../usage/usage-context";
 /** The pages of the window rail. Each one fills the card below the top row. */
 export type WindowPage = "agents" | "schedule" | "usage" | "marketplace" | "settings" | "server-settings";
 
+/**
+ * How a page sits in the window. A settings page starts below the top row. The title of a schedule,
+ * usage or Marketplace page goes in the top row after the server menu.
+ */
+export type WindowPageKind = "agents" | "settings" | "titled";
+
+export function windowPageKind(page: WindowPage): WindowPageKind {
+  if (page === "settings" || page === "server-settings") return "settings";
+  return page === "agents" ? "agents" : "titled";
+}
+
 /** The settings pages: the settings of the user, or the settings of one server. */
 export type SettingsKind = "personal" | "server";
 

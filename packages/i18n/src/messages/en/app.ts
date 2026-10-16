@@ -55,6 +55,8 @@ export const messages = defineMessages("app", {
   "app.rail.usage": "Usage",
   "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Settings",
+  "app.rail.settingsNotice": "Settings. {notice}",
+  "app.page.serverFallback": "Server",
   "app.help.label": "Help",
   "app.help.whatsNew": "What’s new",
   "app.help.changelog": "Full changelog",

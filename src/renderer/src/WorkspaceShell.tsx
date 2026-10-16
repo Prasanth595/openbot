@@ -3,9 +3,10 @@ import {
   ConversationLoadNotice,
   ServerConnectionNotice,
   ServerPanelLoadNotice,
+  serverWorkspacePhase,
 } from "@openbot/ui/features/servers/ServerConnectionNotice";
 import { useText } from "@openbot/ui/text";
-import { createMemo, Loading, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { useAccountUsagePolling } from "./features/account/account-usage-polling";
 import { useAgents } from "./features/agents/agents-context";
 import { WorkspaceAgentSetup } from "./features/agents/WorkspaceAgentSetup";
@@ -19,7 +20,6 @@ import { WorkspaceDirectConversation } from "./features/conversation/WorkspaceDi
 import { WorkspaceServerOnboarding } from "./features/onboarding/WorkspaceServerOnboarding";
 import { useRemoteDesktop } from "./features/remote-desktop/remote-desktop-context";
 import { WorkspaceRoutineFlows } from "./features/routine-flows/WorkspaceRoutineFlows";
-import { SchedulePanel } from "./features/schedule/SchedulePanel";
 import { createServerConnectionToast } from "./features/servers/server-connection-toast";
 import { useServerScope } from "./features/servers/server-scope";
 import { followsServerUpdate, ServerUpdateDialogHost } from "./features/servers/server-update-flow";
@@ -28,15 +28,13 @@ import { WorkspaceServerRail } from "./features/servers/WorkspaceServerRail";
 import { useSettings } from "./features/settings/settings-context";
 import { WorkspaceSidebar } from "./features/sidebar/WorkspaceSidebar";
 import { createHostRestartToasts, type HostRestartView } from "./features/updates/host-restart-toast";
-import { useUsage } from "./features/usage/usage-context";
-import { SettingsPage } from "./features/window/SettingsPage";
+import { WindowPageView } from "./features/window/WindowPageView";
 import { WorkspacePageRail } from "./features/window/WorkspacePageRail";
-import { type SettingsKind, useWindowPage } from "./features/window/window-page-context";
+import { useWindowPage } from "./features/window/window-page-context";
 import { useLayout } from "./layout";
-import { AgentUsagePanel } from "./lazy-views";
 import { usePlatform } from "./platform";
 import { WorkspaceFrame } from "./WorkspaceFrame";
-import { SkillsMarketplace, WorkspaceOverlays } from "./WorkspaceOverlays";
+import { WorkspaceOverlays } from "./WorkspaceOverlays";
 
 /**
  * The desktop application frame, and nothing else: which pane occupies the
@@ -64,13 +62,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
   const settings = useSettings();
   const channels = useChannels();
   const channelOpen = () => channels.state.selectedId !== null;
-  const usage = useUsage();
   const windowPage = useWindowPage();
-  const settingsKind = (): SettingsKind | null => {
-    const page = windowPage.page();
-    if (page === "settings") return "personal";
-    return page === "server-settings" ? "server" : null;
-  };
   useAccountUsagePolling();
   const layout = useLayout();
   const {
@@ -87,8 +79,14 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
   const { conversations, retryConversation } = useConversation();
   const activeConversation = () => conversations[activeAgent()?.id ?? ""];
   const { activeDirectMember } = useDirectMessages();
-  const agentChatOpen = () =>
-    !agentSetupOpen() && !channelOpen() && !activeDirectMember() && layout.sidebarView() !== "routines";
+  /** The pane in the middle. The Agent form wins, then a channel, then a person, then the Agent or its routines. */
+  const middlePane = createMemo(() => {
+    if (agentSetupOpen()) return "agent-setup";
+    if (channelOpen()) return "channel";
+    if (activeDirectMember()) return "direct";
+    return layout.sidebarView() === "routines" ? "routines" : "agent";
+  });
+  const agentChatOpen = () => middlePane() === "agent";
 
   const blockedRemoteServer = createMemo(() => {
     const server = activeServer();
@@ -177,20 +175,14 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
                   detail={connectionFailure()?.message ?? null}
                   reference={connectionFailure()?.reference ?? null}
                   updateVersion={activeServer()?.hostRestart?.version ?? null}
-                  phase={
-                    activeServer()?.hostedSleep ??
-                    (activeServer()?.hostRestart?.state === "restarting"
-                      ? "updating"
-                      : serversLoadFailed()
-                        ? "blocked"
-                        : scope.connection.failed
-                          ? "waiting"
-                          : activeServer()?.state === "online"
-                            ? "loading"
-                            : scope.connection.hasContent
-                              ? "reconnecting"
-                              : "connecting")
-                  }
+                  phase={serverWorkspacePhase({
+                    hostedSleep: activeServer()?.hostedSleep,
+                    updating: activeServer()?.hostRestart?.state === "restarting",
+                    blocked: serversLoadFailed(),
+                    waiting: scope.connection.failed,
+                    loading: activeServer()?.state === "online",
+                    hasContent: scope.connection.hasContent,
+                  })}
                   remainingSeconds={
                     scope.connection.recovery.phase === "waiting" || scope.connection.recovery.phase === "cooldown"
                       ? scope.connection.recovery.remainingSeconds
@@ -220,46 +212,14 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
           hidden={remoteDesktopWorkspaceVisible()}
           blockedServer={blockedRemoteServer()}
           onRetryServer={retryServerConnection}
-          usageOpen={windowPage.page() !== "agents"}
-          data-window-page={windowPage.page()}
+          windowPage={windowPage.page()}
           left={
             <>
               <WorkspaceServerRail />
               <WorkspaceSidebar peopleEnabled={activePeopleEnabled()} />
             </>
           }
-          usage={
-            <Show
-              when={settingsKind() ? null : usage.state.serverId}
-              fallback={
-                <Show when={settingsKind()} keyed fallback={<SkillsMarketplace />}>
-                  {(kind) => <SettingsPage kind={kind} />}
-                </Show>
-              }
-            >
-              {(serverId) => (
-                <Show
-                  when={usage.state.view === "schedule"}
-                  fallback={
-                    <Loading>
-                      <AgentUsagePanel
-                        serverId={serverId()}
-                        hostName={servers().find((server) => server.id === serverId())?.name ?? "Host"}
-                        agentId={usage.state.agentId}
-                        onBack={usage.closeUsage}
-                      />
-                    </Loading>
-                  }
-                >
-                  <SchedulePanel
-                    serverId={serverId()}
-                    hostName={servers().find((server) => server.id === serverId())?.name ?? "Host"}
-                    onBack={usage.closeUsage}
-                  />
-                </Show>
-              )}
-            </Show>
-          }
+          page={<WindowPageView />}
           after={
             <>
               <WorkspaceOverlays account={props.account} />
@@ -270,22 +230,20 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
           <Show when={serverOnboardingOpen()}>
             <WorkspaceServerOnboarding />
           </Show>
-          <Show when={agentSetupOpen() && !serverOnboardingOpen()}>
+          <Show when={middlePane() === "agent-setup" && !serverOnboardingOpen()}>
             <WorkspaceAgentSetup />
           </Show>
           {/* Keyed by id: each presence snapshot is a new member object, and remounting would clear the draft. */}
-          <Show when={activePeopleEnabled() && !agentSetupOpen() && !channelOpen() && activeDirectMember()?.id} keyed>
+          <Show when={activePeopleEnabled() && middlePane() === "direct" && activeDirectMember()?.id} keyed>
             <Show when={activeDirectMember()}>{(member) => <WorkspaceDirectConversation member={member()} />}</Show>
           </Show>
           <Show when={agentChatOpen()}>
             <WorkspaceConversation account={props.account} />
           </Show>
-          <Show
-            when={!agentSetupOpen() && !channelOpen() && !activeDirectMember() && layout.sidebarView() === "routines"}
-          >
+          <Show when={middlePane() === "routines"}>
             <WorkspaceRoutineFlows />
           </Show>
-          <Show when={!agentSetupOpen() && channelOpen()}>
+          <Show when={middlePane() === "channel"}>
             <WorkspaceChannelConversation />
           </Show>
         </WorkspaceFrame>

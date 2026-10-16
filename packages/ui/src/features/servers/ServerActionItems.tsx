@@ -68,12 +68,12 @@ export interface ServerActionCallbacks {
   canRestart?: ((serverId: string) => boolean) | undefined;
 }
 
-/** Mute, notification level, usage, schedule, settings, restart, and leave or delete for one server. */
+/** Mute, notification level, settings, restart, and leave or delete for one server. */
 export function ServerActionItems(
   props: ServerActionCallbacks & {
     menu: ServerActionMenu;
     server: ServerSummary;
-    /** The element that focus and the settings or usage panel return to. */
+    /** The element that focus and the settings page return to. */
     trigger: () => HTMLElement | null;
   },
 ) {

@@ -1,18 +1,14 @@
 import { isUpdateActivePhase } from "@openbot/contracts/ipc";
-import { accountUsageProviderRows } from "@openbot/ui/features/account/account-usage-view";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
+import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRail";
 import { useText } from "@openbot/ui/text";
-import { createMemo } from "solid-js";
 import { appPort } from "../../app-port";
 import { useLayout } from "../../layout";
-import { useAuth } from "../account/account-context";
-import { useAgents } from "../agents/agents-context";
-import { withHostAccountUsage } from "../agents/host-provider-accounts";
 import { useChannels } from "../channels/channels-context";
 import { useSettings } from "../settings/settings-context";
 import { useUpdates } from "../updates/updates-context";
 import { useWhatsNew } from "../updates/whats-new-context";
-import { PageRail, type PageRailPage } from "./PageRail";
+import { usePlanLimitRows } from "../usage/plan-limit-rows";
 import { RailHelpMenu } from "./RailHelpMenu";
 import { useWindowPage } from "./window-page-context";
 
@@ -23,8 +19,6 @@ import { useWindowPage } from "./window-page-context";
 export function WorkspacePageRail(props: { hidden: boolean }) {
   const text = useText();
   const windowPage = useWindowPage();
-  const auth = useAuth();
-  const { agentStatus, hostAccountLimits } = useAgents();
   const { openAppSettings, setSkillsMarketplaceOpen } = useSettings();
   const updates = useUpdates();
   const layout = useLayout();
@@ -37,13 +31,7 @@ export function WorkspacePageRail(props: { hidden: boolean }) {
     if (view === "routines") channels.close();
     layout.setSidebarView(view);
   }
-  const usageRows = createMemo(() =>
-    accountUsageProviderRows(
-      withHostAccountUsage(auth.accountUsage(), hostAccountLimits()),
-      agentStatus().providers,
-      text,
-    ).filter((row) => row.reportsUsage && row.windows.length > 0),
-  );
+  const usageRows = usePlanLimitRows();
   /** The compact sidebar has no footer, so the update island does not show. The Settings button then marks the update. */
   const updateNotice = () => {
     const phase = updates.status().phase;

@@ -25,126 +25,6 @@
   grid-column: -2;
 }
 
-/* The window buttons of macOS sit at the top of the rail, in the top row. */
-.window-rail {
-  display: flex;
-  width: 52px;
-  min-height: 0;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  padding: calc(var(--left-header-height, 38px) + var(--openbot-space-1)) 0 var(--openbot-space-3);
-  -webkit-app-region: drag;
-}
-
-.window-rail-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--openbot-space-1-5);
-}
-
-.window-rail-button {
-  position: relative;
-  display: flex;
-  width: var(--openbot-control-lg);
-  height: var(--openbot-control-lg);
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: var(--openbot-radius-lg);
-  background: transparent;
-  padding: 0;
-  color: var(--openbot-text-muted);
-  font: inherit;
-  cursor: pointer;
-  -webkit-app-region: no-drag;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .window-rail-button:hover {
-    background: var(--openbot-bg-control-hover);
-    color: var(--openbot-text-primary);
-  }
-}
-
-.window-rail-button[aria-current="page"],
-.window-rail-button[aria-current="page"]:hover:not(:disabled):not([data-disabled]) {
-  background: var(--openbot-bg-control-active);
-  color: var(--openbot-text-primary);
-}
-
-.window-rail-button:focus-visible {
-  outline: 0;
-  box-shadow: var(--openbot-focus-ring);
-}
-
-.window-rail-button svg {
-  width: var(--openbot-icon-lg);
-  height: var(--openbot-icon-lg);
-}
-
-/* The dot of a rail button that has a notice, such as an update. */
-.window-rail-notice {
-  position: absolute;
-  top: var(--openbot-space-1-5);
-  right: var(--openbot-space-1-5);
-  width: var(--openbot-space-2);
-  height: var(--openbot-space-2);
-  border-radius: var(--openbot-radius-pill);
-  background: var(--openbot-badge-new);
-}
-
-/* The hover card of a usage ring shows the limits only. The usage page has the refresh. */
-.window-rail-usage-card .account-usage-refresh {
-  display: none;
-}
-
-/* The card opens, closes and moves with the tooltip motion, not with the transition of the usage
- * popover. A transition would cover the motion. */
-.account-usage-popover.window-rail-usage-card {
-  transition: none;
-  transform-origin: var(--kb-tooltip-content-transform-origin);
-}
-
-/* Usage rings: the provider logo inside one ring per limit window. The hover fill is a circle around
- * the rings. */
-.window-rail-button.window-rail-usage {
-  border-radius: var(--openbot-radius-pill);
-}
-
-.window-rail-button .window-rail-usage-ring {
-  position: absolute;
-  inset: 1px;
-  width: 34px;
-  height: 34px;
-  transform: rotate(-90deg);
-}
-
-.window-rail-button .window-rail-usage-logo {
-  width: var(--openbot-icon-xs);
-  height: var(--openbot-icon-xs);
-  overflow: visible;
-  fill: var(--openbot-provider-current);
-}
-
-.window-rail-usage-track {
-  stroke: currentcolor;
-  opacity: 0.15;
-}
-
-.window-rail-usage-arc {
-  stroke: var(--openbot-success);
-}
-
-.window-rail-usage-arc[data-usage-tone="warning"] {
-  stroke: var(--openbot-warning);
-}
-
-.window-rail-usage-arc[data-usage-tone="critical"] {
-  stroke: var(--openbot-danger);
-}
-
 /* The frame below the edge layout keeps its own shape, so the rail would only take width. */
 @media (max-width: 720px) {
   .app-window > .window-rail {
@@ -395,12 +275,12 @@
   /* The usage and schedule pages sit in the card, as the chat does. Their title and controls go in the
    * top row, as the chat header does, and the rest of the page goes in the card below it. The card
    * draws the surface, the line and the rounded corner, so the page has no background of its own. */
-  .app-frame-edge > .agent-usage-workspace > :is(.agent-usage, .schedule-pane) {
+  .app-frame-edge > .window-page > :is(.agent-usage, .schedule-pane) {
     background: transparent;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .agent-usage-header,
-  .app-window > .app-frame-edge > .agent-usage-workspace .routine-planner-title {
+  .app-window > .app-frame-edge > .window-page .agent-usage-header,
+  .app-window > .app-frame-edge > .window-page .routine-planner-title {
     flex: none;
     height: var(--left-header-height);
     flex-wrap: nowrap;
@@ -411,7 +291,7 @@
 
   .app-window
     > .app-frame-edge
-    > .agent-usage-workspace
+    > .window-page
     :is(.agent-usage-header, .routine-planner-title)
     > :is(.agent-usage-identity, .agent-usage-controls, .routine-planner-identity, p) {
     flex-wrap: nowrap;
@@ -419,15 +299,11 @@
     -webkit-app-region: no-drag;
   }
 
-  .app-window
-    > .app-frame-edge
-    > .agent-usage-workspace
-    :is(.agent-usage-identity, .routine-planner-identity)
-    .ui-icon-button {
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) .ui-icon-button {
     margin-left: 0;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace :is(.agent-usage-identity, .routine-planner-title) h2 {
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-title) h2 {
     gap: var(--openbot-space-2);
     font-size: var(--openbot-text-md);
     font-weight: var(--openbot-weight-medium);
@@ -436,18 +312,18 @@
   }
 
   /* In a narrow window, the title gets shorter and the controls keep their size. */
-  .app-window > .app-frame-edge > .agent-usage-workspace :is(.agent-usage-identity, .routine-planner-identity) {
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) {
     overflow: hidden;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace :is(.agent-usage-controls, .routine-planner-title > p) {
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-controls, .routine-planner-title > p) {
     flex: none;
   }
 
   /* Flat controls, as in the chat header. */
   .app-window
     > .app-frame-edge
-    > .agent-usage-workspace
+    > .window-page
     :is(.agent-usage-header, .routine-planner-title)
     :is(.ui-select-trigger, .ui-icon-button) {
     height: var(--openbot-control-sm);
@@ -458,18 +334,14 @@
     color: var(--openbot-text-secondary);
   }
 
-  .app-window
-    > .app-frame-edge
-    > .agent-usage-workspace
-    :is(.agent-usage-header, .routine-planner-title)
-    .ui-icon-button {
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-header, .routine-planner-title) .ui-icon-button {
     width: var(--openbot-control-sm);
   }
 
   @media (hover: hover) {
     .app-window
       > .app-frame-edge
-      > .agent-usage-workspace
+      > .window-page
       :is(.agent-usage-header, .routine-planner-title)
       :is(.ui-select-trigger, .ui-icon-button):hover {
       background: var(--openbot-bg-control-hover);
@@ -478,42 +350,37 @@
   }
 
   /* The schedule header holds the title in the top row; the week below it scrolls in the card. */
-  .app-window > .app-frame-edge > .agent-usage-workspace > .schedule-pane {
+  .app-window > .app-frame-edge > .window-page > .schedule-pane {
     padding: 0;
     overflow: hidden;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .routine-planner {
+  .app-window > .app-frame-edge > .window-page .routine-planner {
     height: 100%;
     grid-template-rows: auto minmax(0, 1fr);
     gap: 0;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .routine-planner-header {
+  .app-window > .app-frame-edge > .window-page .routine-planner-header {
     gap: 0;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .routine-planner-toolbar {
+  .app-window > .app-frame-edge > .window-page .routine-planner-toolbar {
     padding: var(--openbot-space-4) var(--openbot-space-6) 0;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .routine-planner-body {
+  .app-window > .app-frame-edge > .window-page .routine-planner-body {
     min-height: 0;
     overflow-y: auto;
     padding: var(--openbot-space-4) var(--openbot-space-6) var(--openbot-space-6);
   }
 
   /* The settings, schedule, usage and Marketplace pages cover the sidebar, so the week has room for
-   * seven days. The server menu stays in the top row, so the user can select the server that the
-   * page shows. `$="settings"` selects both settings pages: "settings" and "server-settings". */
+   * seven days. The server menu stays in the top row, so the user can select the server that the page
+   * shows. The "settings" kind is both settings pages; the "titled" kind is schedule, usage and Marketplace. */
   /* Out of the grid flow: a grid cell would push the sidebar to a second row. The grid area of an
    * absolute item is its containing block, so the item spans the whole grid. */
-  .app-frame-edge:is(
-    [data-window-page$="settings"],
-    [data-window-page="schedule"],
-    [data-window-page="usage"],
-    [data-window-page="marketplace"]
-  ) > .agent-usage-workspace {
+  .app-frame-edge:not([data-window-page-kind="agents"]) > .window-page {
     position: absolute;
     grid-row: 1 / -1;
     grid-column: 1 / -1;
@@ -523,55 +390,42 @@
   /* The settings page starts below the top row. The schedule, usage and Marketplace titles go in the
    * top row, after the server menu, and the rest of the top row lets clicks through to that menu. The
    * rail is the way back, so these titles have no Back button and no server name. */
-  .app-frame-edge[data-window-page$="settings"] > .agent-usage-workspace {
+  .app-frame-edge[data-window-page-kind="settings"] > .window-page {
     top: var(--left-header-height);
   }
 
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
-    > .agent-usage-workspace {
+  .app-frame-edge[data-window-page-kind="titled"] > .window-page {
     pointer-events: none;
   }
 
-  .app-frame-edge.app-frame-with-server-rail:is(
-      [data-window-page$="settings"],
-      [data-window-page="schedule"],
-      [data-window-page="usage"],
-      [data-window-page="marketplace"]
-    )
-    > .agent-usage-workspace {
+  .app-frame-edge.app-frame-with-server-rail:not([data-window-page-kind="agents"]) > .window-page {
     left: calc(var(--server-rail-width) + 1px);
   }
 
-  .app-frame-edge[data-window-page$="settings"] > .sidebar > :not(.sidebar-topbar),
-  .app-frame-edge[data-window-page$="settings"] > .left-panel-resizer,
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
-    > .sidebar
-    > :not(.sidebar-topbar),
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
-    > .left-panel-resizer {
+  .app-frame-edge:not([data-window-page-kind="agents"]) > .sidebar > :not(.sidebar-topbar),
+  .app-frame-edge:not([data-window-page-kind="agents"]) > .left-panel-resizer {
     visibility: hidden;
   }
 
   /* New agent and New section add to the agent list, so the button shows only on the agents page. */
-  .app-frame-edge:not([data-window-page="agents"]) > .sidebar .sidebar-new-button {
+  .app-frame-edge:not([data-window-page-kind="agents"]) > .sidebar .sidebar-new-button {
     display: none;
   }
 
   /* The page spans the sidebar, so the line at the end of the sidebar does not show. */
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
-  > .sidebar::before {
+  .app-frame-edge[data-window-page-kind="titled"] > .sidebar::before {
     display: none;
   }
 
   .app-window
-    > .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
-    > .agent-usage-workspace
+    > .app-frame-edge[data-window-page-kind="titled"]
+    > .window-page
     :is(.agent-usage-header, .routine-planner-title, .skills-marketplace-topbar) {
     margin-left: var(--left-panel-width);
   }
 
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
-    > .agent-usage-workspace
+  .app-frame-edge[data-window-page-kind="titled"]
+    > .window-page
     :is(
       .agent-usage-header,
       .routine-planner-title,
@@ -586,43 +440,34 @@
 
   /* The Marketplace page: its crumbs go in the top row, as the usage title does, and the rest of the
    * Marketplace scrolls in the card below it. */
-  .app-window > .app-frame-edge > .agent-usage-workspace > .skills-marketplace-page {
+  .app-window > .app-frame-edge > .window-page > .skills-marketplace-page {
     grid-template-rows: var(--left-header-height) minmax(0, 1fr);
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .skills-marketplace-topbar {
+  .app-window > .app-frame-edge > .window-page .skills-marketplace-topbar {
     min-height: 0;
     padding: 0 var(--openbot-space-3);
     border-bottom: 0;
     -webkit-app-region: drag;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .marketplace-crumbs {
+  .app-window > .app-frame-edge > .window-page .marketplace-crumbs {
     flex: 0 1 auto;
     -webkit-app-region: no-drag;
   }
 
-  .app-window > .app-frame-edge > .agent-usage-workspace .skills-marketplace-topbar .marketplace-title {
+  .app-window > .app-frame-edge > .window-page .skills-marketplace-topbar .marketplace-title {
     font-size: var(--openbot-text-md);
     font-weight: var(--openbot-weight-medium);
     white-space: nowrap;
   }
 
-  .app-window
-    > .app-frame-edge
-    > .agent-usage-workspace
-    :is(.agent-usage-identity, .routine-planner-identity)
-    > .ui-icon-button,
-  .app-window
-    > .app-frame-edge
-    > .agent-usage-workspace
-    :is(.agent-usage-identity, .routine-planner-identity)
-    > h2
-    > span {
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) > .ui-icon-button,
+  .app-window > .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) > h2 > span {
     display: none;
   }
 
-  .app-frame-edge > .agent-usage-workspace :is(.agent-usage-identity, .routine-planner-identity) h2:focus {
+  .app-frame-edge > .window-page :is(.agent-usage-identity, .routine-planner-identity) h2:focus {
     outline: none;
   }
 }

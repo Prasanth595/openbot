@@ -4,22 +4,22 @@
  * children, so `.app-frame > *` no longer reaches them: without this, a conversation panel grows to
  * its content height and pushes the composer under the window edge.
  */
-.usage-workspace-content {
+.app-frame-panes {
   display: contents;
 }
-.usage-workspace-content > * {
+.app-frame-panes > * {
   min-height: 0;
 }
-.app-frame-usage-open .usage-workspace-content {
+.app-frame-page-open .app-frame-panes {
   visibility: hidden;
   pointer-events: none;
 }
 
 /* A selected tab in the chat sets itself visible, so every part of the chat hides, not only its root. */
-.app-frame.app-frame-usage-open .usage-workspace-content * {
+.app-frame.app-frame-page-open .app-frame-panes * {
   visibility: hidden;
 }
-.agent-usage-workspace {
+.window-page {
   z-index: 1;
   min-height: 0;
   overflow: hidden;
@@ -184,7 +184,7 @@
   font-weight: var(--openbot-weight-medium);
 }
 
-.usage-workspace-content.server-connection-workspace {
+.app-frame-panes.server-connection-workspace {
   position: relative;
   grid-column: -2 / -1;
   grid-row: 1;

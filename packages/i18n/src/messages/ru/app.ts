@@ -54,6 +54,8 @@ export const messages = {
   "app.rail.usage": "Использование",
   "app.rail.marketplace": "Маркетплейс",
   "app.rail.settings": "Настройки",
+  "app.rail.settingsNotice": "Настройки. {notice}",
+  "app.page.serverFallback": "Сервер",
   "app.help.label": "Справка",
   "app.help.whatsNew": "Что нового",
   "app.help.changelog": "Полный список изменений",
