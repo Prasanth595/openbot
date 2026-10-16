@@ -160,6 +160,19 @@ export function isBackgroundRefreshDiagnostic(message: string): boolean {
 }
 
 /**
+ * Whether a provider diagnostic is Grok's own record of a failed usage reading.
+ *
+ * OpenBot reads Grok's usage with `_x.ai/billing`, and the CLI fetches it from Grok's billing
+ * service. When that fetch fails, the CLI answers the request with the error and also logs
+ * `ERROR billing: upstream request failed …` on stderr. The answer already shows the usage as
+ * unavailable. The user met the stderr copy as a "Provider error" toast on each usage refresh, with
+ * nothing to do about it. It belongs in the log. The auto top-up reading logs the same way.
+ */
+export function isUsageReadDiagnostic(message: string): boolean {
+  return /\b(?:ERROR|WARN)\s+(?:billing|auto-topup):\s/.test(message);
+}
+
+/**
  * Whether a provider diagnostic is Codex's notice that it uses its bundled bubblewrap.
  *
  * On Linux, Codex looks for `bwrap` on PATH for its sandbox. When it is not there, it writes "Codex
