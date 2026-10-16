@@ -6,6 +6,7 @@ import type { AgentAuthState, AgentProviderId } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { AcpAgentClient, type AcpHistoryPersistence } from "./acp-client";
+import { readMuseAccount } from "./agent/muse-login";
 import type { AgentClient } from "./agent-client";
 import { CodexAppServerClient } from "./app-server-client";
 import { ClaudeAgentClient } from "./claude-client";
@@ -398,6 +399,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         requestTimeoutMs: timeout,
         apiKey: () => context.apiKey("muse"),
         extraEnv: () => ({ ...context.agentEnvironment?.() }),
+        readAccount: () =>
+          readMuseAccount({ cli, apiKey: context.apiKey("muse"), extraEnv: { ...context.agentEnvironment?.() } }),
         ...(confinement
           ? {
               confine: (target) => {

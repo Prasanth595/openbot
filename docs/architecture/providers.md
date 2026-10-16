@@ -554,7 +554,10 @@ newer SDK versions must meet the three-day dependency rule before adoption. The 
 supplies `sessionMcp`, preserves native session identity, and reads durable items to recover missed
 events before completion. A cached model list does not prove authentication. Connect starts the
 `muse serve` device sign-in and opens its page, because `muse login` with no terminal never opens
-it; an explicit Meta API key uses OpenBot's encrypted credential store.
+it; an explicit Meta API key uses OpenBot's encrypted credential store. The account check asks a
+short-lived `muse serve` host, which gets the same key, for the experimental `account/read`. The
+session host does not opt in to experimental MSP, so its strict event decoders see no experimental
+variants. A Muse CLI without `account/read` stays "not verified" and keeps running.
 
 Muse profile generation fails before the CLI starts. The pinned native host still starts inherited
 MCP servers with `--disable-shell`, `--disable-write`, empty hooks, and session `mcpServers: {}`.
