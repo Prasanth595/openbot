@@ -1,4 +1,6 @@
 import { AppLogo } from "@openbot/brand";
+import ChevronDown from "lucide-solid/icons/chevron-down";
+import Rss from "lucide-solid/icons/rss";
 import { createMemo, createSignal, createUniqueId, For, Show } from "solid-js";
 import {
   formatClock,
@@ -177,7 +179,8 @@ export function StatusPage(props: StatusPageProps) {
         <header class="status-hero">
           <h1 class="status-title">OpenBot status</h1>
           <div class="status-hero-actions">
-            <a class="status-button" data-icon="rss" href="feed.xml" type="application/atom+xml">
+            <a class="status-button" href="feed.xml" type="application/atom+xml">
+              <Rss class="status-button-icon" aria-hidden="true" />
               RSS feed
             </a>
             <a class="status-button" data-icon="github" href={ISSUES_URL}>
@@ -354,18 +357,7 @@ function HistoryRow(props: { incident: Incident; now: string }) {
       >
         <StateDot state={props.incident.impact} />
         {props.incident.title}
-        <svg
-          class="status-incident-chevron"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        <ChevronDown class="status-incident-chevron" aria-hidden="true" />
       </button>
       <p class="status-muted status-incident-meta">
         {incidentWhen(props.incident, props.now)} · {props.incident.components.map(serviceName).join(", ")}
