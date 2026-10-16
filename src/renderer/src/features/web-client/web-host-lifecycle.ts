@@ -91,7 +91,7 @@ export function createWebHostLifecycle(options: {
       if (!current(id, version) || !start || options.status() === "online") return;
       const status = await runTeamEffect(hosted.status(id));
       if (!current(id, version) || !start || options.status() === "online") return;
-      const step = status && hostedStartStep(status);
+      const step = status && !status.sleeping ? hostedStartStep(status) : null;
       if (status && !step) {
         clearStart();
         options.setHostedSleep(null);
@@ -105,8 +105,8 @@ export function createWebHostLifecycle(options: {
         } else options.setIssue("wake_failed");
         return;
       }
-      // The account server sends a refused start again when its delay ends, after a wake request.
-      if (step === "provider_limit") void runTeamEffect(hosted.wake(id));
+      // A wake starts a stopped server, and sends a refused start again when its delay ends.
+      if (step === "provider_limit" || status?.state === "stopped") void runTeamEffect(hosted.wake(id));
       // A failed read is also a reason the host is offline. The client reads again, up to a limit.
       failedReads = status ? 0 : failedReads + 1;
       if (failedReads >= HOSTED_START_FAILED_READS) {

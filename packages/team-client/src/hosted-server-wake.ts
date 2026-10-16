@@ -42,12 +42,14 @@ const NOT_HOSTED_RECHECK_MS = 10 * 60_000;
 const NEW_OUTAGE_MS = 2 * 60_000;
 /**
  * The step of a start that the account server reports, or null when the server does not start by itself.
- * A server whose plan ended stops, also from a start state.
+ * A server whose plan ended stops, also from a start state. A `stopped` server with no error must run (the
+ * caller checks that it does not sleep): the account server starts it again, at once after a wake.
  */
 export function hostedStartStep(server: {
   state: HostedServerState;
   error: HostedServerError | null;
 }): HostedServerStartStep | null {
+  if (server.state === "stopped") return server.error === null ? "machine" : null;
   if (!WAKE_RECONNECT_STATES.has(server.state) || server.error === "plan_ended") return null;
   if (server.state === "running") return "openbot";
   return server.state === "waking" && server.error === "provider_limit" ? "provider_limit" : "machine";

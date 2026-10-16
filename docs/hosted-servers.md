@@ -169,12 +169,14 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    The desktop asks for each stored hosted server when Signal answers `host_unavailable`, at most
    once a minute for each host, and wakes only the selected server while the app has focus. After a
    wake, it connects again every 5 seconds, and reads the status every 30 seconds to show the step:
-   the machine starts (`waking`, `starting`, `stopping`), OpenBot starts (`running`), or the provider
-   refused the start (`waking` with `provider_limit`). The client waits with no limit while the
+   the machine starts (`waking`, `starting`, `stopping`, or `stopped` with no error, which also gets a
+   wake), OpenBot starts (`running`), or the provider refused the start (`waking` with
+   `provider_limit`). The client waits with no limit while the
    machine starts. When the machine is `running` and its host does not connect in 15 minutes, the
    client shows that the server did not start in time, as it does after 10 status reads in a row
-   that fail. Restart is not available while the server starts. The web client does the same for its one server, and checks a sleeping server again every
-   5 minutes. The mobile app has no status check: it wakes the selected server while the app is in
+   that fail. Restart is not available while the machine starts. It is available when the machine
+   runs and OpenBot does not answer. The web client does the same for its one server, and checks a
+   sleeping server again every 5 minutes. The mobile app has no status check: it wakes the selected server while the app is in
    the foreground, with the same limit for a `running` server. A server whose plan ended answers
    `402 plan_required`.
 

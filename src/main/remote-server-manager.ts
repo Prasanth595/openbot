@@ -1136,7 +1136,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       this.#expireHostedStart(serverId);
       return;
     }
-    const step = status && hostedStartStep(status);
+    const step = status && !status.sleeping ? hostedStartStep(status) : null;
     if (status && !step) {
       this.#clearHostedStart(serverId);
       this.#events.setHostStarting(serverId, false);
@@ -1150,8 +1150,9 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       this.#emitChanged();
       return;
     }
-    // The account server sends a refused start again when its delay ends, after a wake request.
-    if (step === "provider_limit") yield* Effect.forkIn(hosted.wake(serverId).pipe(Effect.ignore), this.#scope);
+    // A wake starts a stopped server, and sends a refused start again when its delay ends.
+    if (step === "provider_limit" || status?.state === "stopped")
+      yield* Effect.forkIn(hosted.wake(serverId).pipe(Effect.ignore), this.#scope);
     if (step && this.#applyHostedStartStep(serverId, step)) this.#emitChanged();
     if (this.#hostedStartAt.has(serverId)) this.#scheduleHostedStartRead(serverId);
   });
