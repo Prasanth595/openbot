@@ -51,12 +51,12 @@ export function createWebAccountUsage(options: {
   // As on desktop: a reading is for one host. On that host, the reading stays until the refresh for the new
   // target replaces it, so the rail rings do not blink while models load. It goes when no refresh follows.
   createEffect(usageHostId, () => {
-    setAccountUsage(null);
+    reset();
   });
   createEffect(
     () => usageReady() || providersLoading(),
     (refreshFollows) => {
-      if (!refreshFollows) setAccountUsage(null);
+      if (!refreshFollows) reset();
     },
   );
   // The composer shows the usage-limit notice with the Usage page closed, so read once for each target.
@@ -85,7 +85,7 @@ export function createWebAccountUsage(options: {
     if (generation === usageGeneration) setAccountUsage(usage);
     return usage;
   }
-  /** Drops the reading and any read in flight, for a host change. */
+  /** Drops the reading and any read in flight. */
   function reset(): void {
     usageGeneration += 1;
     setAccountUsage(null);
