@@ -287,7 +287,10 @@ const decodeIssues = Schema.decodeUnknownSync(Schema.Array(GitHubIssue));
 const decodeIssue = Schema.decodeUnknownSync(GitHubIssue);
 const decodeComments = Schema.decodeUnknownSync(Schema.Array(GitHubComment));
 const decodeNumber = Schema.decodeUnknownSync(Schema.Struct({ number: Schema.Int }));
-const decodePermission = Schema.decodeUnknownSync(Schema.Struct({ permission: Schema.String }));
+/** `push` is also true for maintain and admin. */
+const decodeCollaborators = Schema.decodeUnknownSync(
+  Schema.Array(Schema.Struct({ login: Schema.String, permissions: Schema.Struct({ push: Schema.Boolean }) })),
+);
 const decodeId = Schema.decodeUnknownSync(Schema.Struct({ id: Schema.Int }));
 
 /** One GitHub API call. `decode` parses the response at this boundary. */
@@ -320,53 +323,57 @@ async function listIssues(): Promise<readonly GitHubIssue[]> {
   const issues = new Map<number, GitHubIssue>();
   // Open issues always count. Closed ones count when they changed in the history window.
   for (const query of ["state=open", `state=closed&since=${since}`]) {
-    for (let page = 1; page <= 5; page += 1) {
-      const batch = await github(
-        "GET",
-        `/repos/${REPOSITORY}/issues?labels=status&${query}&per_page=100&page=${page}`,
-        decodeIssues,
-      );
-      for (const issue of batch) if (!issue.pull_request) issues.set(issue.number, issue);
-      if (batch.length < 100) break;
+    for (const issue of await allPages(`/repos/${REPOSITORY}/issues?labels=status&${query}`, decodeIssues)) {
+      if (!issue.pull_request) issues.set(issue.number, issue);
     }
   }
   return [...issues.values()];
 }
 
+/** Every page of a list, oldest first. A full page means that another page can follow. */
+async function allPages<A>(path: string, decode: (value: unknown) => readonly A[]): Promise<A[]> {
+  const items: A[] = [];
+  for (let page = 1; page <= 10; page += 1) {
+    const batch = await github("GET", `${path}${path.includes("?") ? "&" : "?"}per_page=100&page=${page}`, decode);
+    items.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return items;
+}
+
 async function issueComments(issue: GitHubIssue): Promise<readonly GitHubComment[]> {
   if (issue.comment_list) return issue.comment_list;
   if (issue.comments === 0) return [];
-  return github("GET", `/repos/${REPOSITORY}/issues/${issue.number}/comments?per_page=100`, decodeComments);
+  return allPages(`/repos/${REPOSITORY}/issues/${issue.number}/comments`, decodeComments);
 }
 
 /** A COLLABORATOR can have read access only, so that association gets the permission check too. */
 const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER"]);
-const permissionCache = new Map<string, boolean>();
+let writers: Promise<ReadonlySet<string>> | null = null;
+
+/** The people with write access, read once for each run, so many commenters cost no extra calls. */
+function writeAccess(): Promise<ReadonlySet<string>> {
+  writers ??= allPages(`/repos/${REPOSITORY}/collaborators?affiliation=all`, decodeCollaborators).then(
+    (people) => new Set(people.filter((person) => person.permissions.push).map((person) => person.login)),
+    (error: unknown) => {
+      // Nobody else is trusted in this run. The next run reads the list again.
+      logger.warn(`The collaborator list failed: ${error instanceof Error ? error.message : String(error)}`);
+      return new Set<string>();
+    },
+  );
+  return writers;
+}
 
 /**
  * The repository is public, and the issue form adds the `status` label for anyone. Only the bot and
  * people with write access can publish on the page. A private organization member can show as
- * CONTRIBUTOR, so a person with another association is checked against the collaborator permission.
+ * CONTRIBUTOR, so a person with another association is checked against the collaborator list.
  */
 async function trusted(user: GitHubUser | null, association: string): Promise<boolean> {
   if (!user) return false;
   if (user.login === BOT_LOGIN || TRUSTED_ASSOCIATIONS.has(association)) return true;
   if (args["issues-file"]) return false;
-  const cached = permissionCache.get(user.login);
-  if (cached !== undefined) return cached;
-  let allowed = false;
-  try {
-    const result = await github(
-      "GET",
-      `/repos/${REPOSITORY}/collaborators/${encodeURIComponent(user.login)}/permission`,
-      decodePermission,
-    );
-    allowed = ["admin", "maintain", "write"].includes(result.permission);
-  } catch {
-    allowed = false;
-  }
-  permissionCache.set(user.login, allowed);
-  return allowed;
+  return (await writeAccess()).has(user.login);
 }
 
 // Issue form parsing -----------------------------------------------------------
