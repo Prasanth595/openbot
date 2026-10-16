@@ -219,15 +219,18 @@ function MarketplaceWindow(props: MarketplaceProps) {
 }
 
 /**
- * The Marketplace as a page of the window. The title takes the focus, as a new page does. Escape
- * clears the search, or else goes back one view, or else closes the page, as it closed the dialog. It
- * is on the document and after the delegated handlers, so a control that handles Escape keeps it. The
- * focus can stay on the control that opened the page, so a target outside the page also counts,
- * except an open popup or a text field.
+ * The Marketplace as a page of the window. The title takes the focus, as a new page does, and the
+ * control that opened the page gets it back when the page closes with the focus in it. Escape goes
+ * back one view, or else clears the search, or else closes the page, as it closed the dialog. A view
+ * keeps the search but does not show it, so the view goes back first. The handler is on the document
+ * and after the delegated handlers, so a control that handles Escape keeps it. The focus can stay on
+ * the control that opened the page, so a target outside the page also counts, except an open popup or
+ * a text field.
  */
 function MarketplacePage(props: MarketplaceProps) {
   const { t } = useText();
   let root!: HTMLElement;
+  const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   onSettled(() => {
     root.querySelector<HTMLElement>(".marketplace-title")?.focus({ preventScroll: true });
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -237,15 +240,26 @@ function MarketplacePage(props: MarketplaceProps) {
       if (target && !root.contains(target) && target.closest("input, textarea, select, [contenteditable]")) return;
       event.preventDefault();
       const nav = props.nav;
-      if (nav.state.query)
+      if (nav.state.stack.length > 1) nav.back();
+      else if (nav.state.query)
         nav.set((draft) => {
           draft.query = "";
         });
-      else if (nav.state.stack.length > 1) nav.back();
       else props.onOpenChange(false);
     };
     document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      // A rail button that closed the page keeps the focus.
+      const focus = document.activeElement;
+      if (focus && focus !== document.body && !root.contains(focus)) return;
+      // After the page leaves the DOM, unless the next page took the focus.
+      queueMicrotask(() => {
+        if (opener?.isConnected && (!document.activeElement || document.activeElement === document.body)) {
+          opener.focus({ preventScroll: true });
+        }
+      });
+    };
   });
   return (
     <section ref={root} class="skills-marketplace skills-marketplace-page" aria-label={t("marketplace.title")}>

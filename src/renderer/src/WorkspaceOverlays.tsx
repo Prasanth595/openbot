@@ -8,7 +8,7 @@ import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialo
 import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import type { HostedSiteDeleteResult } from "@openbot/ui/features/settings/stores/hosted-sites-store";
 import { currentText } from "@openbot/ui/text";
-import { createEffect, Loading, Show } from "solid-js";
+import { createEffect, Loading, Show, untrack } from "solid-js";
 import { actionToast } from "./action-toast";
 import { desktopAnalytics } from "./analytics";
 import { appPort } from "./app-port";
@@ -123,6 +123,12 @@ export function SkillsMarketplace() {
   const { activeServer } = useServers();
   const { openInstalledMarketplaceAgent } = useServerSelection();
   const connectors = useConnectors();
+  const { remoteDesktopWorkspaceVisible, hideRemoteDesktopWorkspace } = useRemoteDesktop();
+  // The remote desktop covers the window card, so a link or a search that opens the page hides it.
+  // The remote desktop session stays.
+  createEffect(skillsMarketplaceOpen, (open) => {
+    if (open && untrack(remoteDesktopWorkspaceVisible)) hideRemoteDesktopWorkspace();
+  });
 
   return (
     <MarketplaceOverlay

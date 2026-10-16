@@ -395,6 +395,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
               sessionSettingsEditable={serverCanAdminister(props.server, "agent-session-settings-v1")}
               adminCalls={props.runtime?.admin}
               skillsMarketplaceOpen={props.skillsMarketplaceOpen}
+              workspaceCovered={props.workspaceCovered}
               onAddFromMarketplace={
                 serverCanAdminister(props.server, "skills-admin-v1") ? props.onOpenMarketplace : undefined
               }

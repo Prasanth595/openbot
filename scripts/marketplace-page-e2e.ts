@@ -67,11 +67,27 @@ try {
   assert.equal(await windowPage(), "marketplace", "Escape in a view closed the page.");
   steps.push("escape goes back one view");
 
-  // Escape on the catalog closes the page.
+  // A view does not show the search, so Escape there goes back and keeps the search. On the catalog,
+  // Escape clears the search.
+  const search = marketplace.getByRole("searchbox");
+  await search.fill("git");
+  await marketplace.locator(".marketplace-hitarea").first().click();
+  await crumbs.getByRole("button", { name: "Marketplace", exact: true }).waitFor();
+  await page.keyboard.press("Escape");
+  await crumbs.getByRole("button", { name: "Marketplace", exact: true }).waitFor({ state: "detached" });
+  assert.equal(await search.inputValue(), "git", "Escape in a view cleared the search.");
+  await marketplace.getByRole("heading", { level: 2 }).focus();
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.querySelector<HTMLInputElement>('input[type="search"]')?.value === "");
+  assert.equal(await windowPage(), "marketplace", "Escape with a search closed the page.");
+  steps.push("escape keeps the search in a view and clears it on the catalog");
+
+  // Escape on the catalog closes the page, and the rail button that opened it gets the focus back.
   await page.keyboard.press("Escape");
   await waitForPage("agents");
   await marketplace.waitFor({ state: "detached" });
-  steps.push("escape closes the page");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Marketplace");
+  steps.push("escape closes the page and returns the focus");
 
   // The rail leaves the page.
   await railButton("Marketplace").click();
