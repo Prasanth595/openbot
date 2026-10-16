@@ -193,6 +193,9 @@ const FOCUS_GAP_MS = 2 * FOCUS_USE_INTERVAL_MS;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1_000;
 const RATE_LIMIT_SWEEP_MS = 60_000;
 const RATE_LIMIT_ATTEMPTS = 5;
+// The limit for one user name over all callers. A member who opens a new WebRTC session gets a new
+// count per caller, so this count stops repeated sessions from multiplying the guesses.
+const RATE_LIMIT_USERNAME_ATTEMPTS = 25;
 const RATE_LIMIT_CAPACITY = 10_000;
 const RUNTIME_SNAPSHOT_REQUEST_INTERVAL_MS = 1_000;
 const TEST_LEGACY_EVENT_PROTOCOL = "openbot-events";
@@ -910,9 +913,14 @@ export class TeamApiServer {
   }
 
   #checkRate(request: IncomingMessage, username: string): void {
-    const key = `${this.#rateLimitSource(request)}:${username.toLowerCase()}`;
+    const name = username.toLowerCase();
     const now = this.#now();
     this.#pruneRateLimits(now, this.#rateLimits.size >= this.#rateLimitCapacity);
+    this.#countAttempt(`${this.#rateLimitSource(request)}:${name}`, RATE_LIMIT_ATTEMPTS, now);
+    this.#countAttempt(`*:${name}`, RATE_LIMIT_USERNAME_ATTEMPTS, now);
+  }
+
+  #countAttempt(key: string, limit: number, now: number): void {
     const current = this.#rateLimits.get(key);
     if (!current || current.resetAt <= now) {
       if (!current && this.#rateLimits.size >= this.#rateLimitCapacity) {
@@ -922,7 +930,7 @@ export class TeamApiServer {
       return;
     }
     current.attempts += 1;
-    if (current.attempts > RATE_LIMIT_ATTEMPTS) {
+    if (current.attempts > limit) {
       throw new HttpError(429, sourceText("error.team.tooManySignInAttempts"));
     }
   }

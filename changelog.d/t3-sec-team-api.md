@@ -6,7 +6,8 @@
   session of that member. This also applies to a change from the desktop app.
 - Count failed sign-in attempts for each connected device. Before, all devices that connect through
   the account service used one count, so one member could stop password sign-in to a user name for
-  all other members.
+  all other members. A higher limit for each user name over all devices stays, so a new connection
+  does not give more attempts.
 - Do not send the full folder path of an agent workspace when a member opens a folder. The path
   now starts with `~` when the workspace is in the home folder, so it does not show the user name
   of the server computer.
