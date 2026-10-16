@@ -161,6 +161,41 @@ installs it in Server Settings > Updates. `sudo openbot update` stages, stops th
 and starts the service again. When a step fails or a signal stops it, the command completes an
 interrupted copy, starts the service, and exits with an error.
 
+## Agent count
+
+Local and private-server installs keep a default limit of 100 agents. To raise it, set
+`OPENBOT_AGENT_LIMIT` in the environment that starts OpenBot. For a systemd server, use
+`sudo systemctl edit openbot` and add:
+
+```ini
+[Service]
+Environment=OPENBOT_AGENT_LIMIT=250
+```
+
+Restart the service to apply the change. In a container, set the same variable on the OpenBot
+container. A desktop started from a terminal can use `OPENBOT_AGENT_LIMIT=250` before its launch
+command. Hosted OpenBot plans ignore this variable and keep their existing limit.
+
+Use a positive integer. A missing or invalid value uses 100 and logs a warning for an invalid
+value. The configuration is read once at startup. Lowering the value does not remove saved agents,
+their chats or their files. An over-limit host can still edit and delete agents; it cannot create,
+duplicate or import another agent until there is room.
+
+The count setting does not remove transport limits. A new agent must keep the host's roster within
+the existing 1 MiB Team event budget. Large roster and runtime events, and their archive previews,
+use the same budget. JSON's minimum entry size bounds the accepted count before the byte check.
+Admission also reserves the bounded active-turn and failure state for every agent. Under transport
+pressure, runtime reply previews and model hints can be omitted. Chats stay in SQLite. If saved
+profiles already exceed the transport budget, startup logs a warning and keeps the full data.
+Reduce profile text in successive edits or remove agents. Edits
+that expand an oversized roster are refused. Remote roster reads show a budget error until it fits.
+Increase the limit only when this host has enough memory and disk space for the agents you need.
+
+Clients must support `large-agent-roster-v1` to use a host with more than 100 agents. An older client
+gets an update notice. Clients without this capability use the released Team codecs when the host
+has at most 100 agents. Updated clients use separate negotiated roster and archive routes; the
+released import and transfer routes keep their 100-agent bounds.
+
 ## Control socket
 
 The `openbot` command talks to main over HTTP on a Unix socket, with form bodies and `key=value`

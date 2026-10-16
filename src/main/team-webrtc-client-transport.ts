@@ -2,6 +2,7 @@ import { generateKeyPairSync, randomBytes, sign, verify } from "node:crypto";
 import { EventEmitter } from "node:events";
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { releasedAgentCollectionRoute } from "@openbot/contracts/team-protocol";
 import { teamCapabilitiesForProtocol } from "@openbot/contracts/team-protocol/current";
 import { optionalTeamEvent, optionalTeamEventToCurrent } from "@openbot/contracts/team-protocol/optional-events";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
@@ -530,7 +531,10 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
           ? null
           : yield* remoteDecode(() =>
               sideRoute
-                ? sideRoute.response(path, status, envelope.body, { historyExtent: true })
+                ? sideRoute.response(path, status, envelope.body, {
+                    historyExtent: true,
+                    fromHost: releasedAgentCollectionRoute(path) === "/v1/agents",
+                  })
                 : decodeTeamProtocolV7WebRtcHttpResponse(method, path, status, envelope.body),
             ).pipe(
               Effect.mapError(

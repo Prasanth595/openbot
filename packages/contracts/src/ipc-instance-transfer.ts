@@ -8,7 +8,7 @@
  */
 
 import { type AgentProviderId, isAgentProvider } from "./agent-providers";
-import { INPUT_LIMITS } from "./input-limits";
+import { AGENT_ROSTER_ITEMS_LIMIT, fitsAgentRosterBudget, INPUT_LIMITS, isBoundedAgentRoster } from "./input-limits";
 import { type AvatarHue, isAvatarHue } from "./ipc-agent-identity";
 import {
   AGENT_IMPORT_LIMITS,
@@ -118,12 +118,18 @@ function isUniqueList<T extends string>(
   maximum: number,
   item: (entry: unknown) => entry is T,
 ): value is T[] {
-  return Array.isArray(value) && value.length <= maximum && value.every(item) && new Set(value).size === value.length;
+  return (
+    Array.isArray(value) &&
+    value.length <= maximum &&
+    fitsAgentRosterBudget(value) &&
+    value.every(item) &&
+    new Set(value).size === value.length
+  );
 }
 
 export function parseExportInstanceInput(value: unknown): ExportInstanceInput {
   const input = record(value, "export request");
-  if (!isUniqueList(input.agentIds, INPUT_LIMITS.agents, isIdentifier) || input.agentIds.length === 0)
+  if (!isUniqueList(input.agentIds, AGENT_ROSTER_ITEMS_LIMIT, isIdentifier) || input.agentIds.length === 0)
     invalid("agent selection");
   if (!isBoolean(input.includeFiles) || !isBoolean(input.includeSettings)) invalid("export request");
   return { agentIds: input.agentIds, includeFiles: input.includeFiles, includeSettings: input.includeSettings };
@@ -132,7 +138,7 @@ export function parseExportInstanceInput(value: unknown): ExportInstanceInput {
 export function parseApplyInstanceTransferInput(value: unknown): ApplyInstanceTransferInput {
   const input = record(value, "import request");
   if (!isIdentifier(input.token)) invalid("import token");
-  if (!isUniqueList(input.keys, INPUT_LIMITS.agents, isAgentImportKey)) invalid("agent selection");
+  if (!isUniqueList(input.keys, AGENT_ROSTER_ITEMS_LIMIT, isAgentImportKey)) invalid("agent selection");
   if (!isBoolean(input.includeSettings)) invalid("import request");
   if (input.keys.length === 0 && !input.includeSettings) invalid("import request");
   return { token: input.token, keys: input.keys, includeSettings: input.includeSettings };
@@ -166,7 +172,7 @@ function decodeTransferAgent(value: unknown): InstanceTransferAgent {
 
 export function decodeInstanceTransferSummary(value: unknown): InstanceTransferSummary {
   const summary = record(value, "transfer summary");
-  if (!Array.isArray(summary.agents) || summary.agents.length > INPUT_LIMITS.agents) invalid("transfer summary");
+  if (!isBoundedAgentRoster(summary.agents)) invalid("transfer summary");
   return { agents: summary.agents.map(decodeTransferAgent) };
 }
 
@@ -183,8 +189,7 @@ export function decodeInstanceTransferPreview(value: unknown): InstanceTransferP
     !isIdentifier(preview.token) ||
     !isBoundedString(preview.appVersion, INSTANCE_TRANSFER_LIMITS.appVersion) ||
     !isNullableBoundedString(preview.exportedAt, 64) ||
-    !Array.isArray(preview.agents) ||
-    preview.agents.length > INPUT_LIMITS.agents ||
+    !isBoundedAgentRoster(preview.agents) ||
     !isBoolean(preview.hasSettings)
   )
     invalid("transfer preview");
@@ -200,7 +205,7 @@ export function decodeInstanceTransferPreview(value: unknown): InstanceTransferP
 
 export function decodeInstanceTransferResult(value: unknown): InstanceTransferResult {
   const result = record(value, "transfer result");
-  if (!Array.isArray(result.agents) || !result.agents.every(isAgentSummary)) invalid("transfer result");
+  if (!isBoundedAgentRoster(result.agents) || !result.agents.every(isAgentSummary)) invalid("transfer result");
   if (!isUniqueList(result.signIn, 32, isAgentProvider)) invalid("transfer result");
   return {
     agents: result.agents,
@@ -213,7 +218,7 @@ export function decodeInstanceTransferResult(value: unknown): InstanceTransferRe
 /** A remote host's summary: `instance-transfer-v1` carries no avatar addresses. */
 export function decodeRemoteInstanceTransferSummary(value: unknown): InstanceTransferSummary {
   const summary = record(value, "transfer summary");
-  if (!Array.isArray(summary.agents)) invalid("transfer summary");
+  if (!isBoundedAgentRoster(summary.agents)) invalid("transfer summary");
   return decodeInstanceTransferSummary({
     agents: summary.agents.map((agent) => ({ ...record(agent, "transfer agent"), avatarUrl: null })),
   });
@@ -222,7 +227,7 @@ export function decodeRemoteInstanceTransferSummary(value: unknown): InstanceTra
 /** A remote host's preview: `instance-transfer-v1` carries no avatars. */
 export function decodeRemoteInstanceTransferPreview(value: unknown): InstanceTransferPreview {
   const preview = record(value, "transfer preview");
-  if (!Array.isArray(preview.agents)) invalid("transfer preview");
+  if (!isBoundedAgentRoster(preview.agents)) invalid("transfer preview");
   const decoded = decodeInstanceTransferPreview({
     ...preview,
     agents: preview.agents.map((agent) => ({ ...record(agent, "transfer agent"), avatarUrl: null })),
@@ -238,7 +243,7 @@ export interface RemoteInstanceTransferResult extends Omit<InstanceTransferResul
 
 export function decodeRemoteInstanceTransferResult(value: unknown): RemoteInstanceTransferResult {
   const result = record(value, "transfer result");
-  if (!Array.isArray(result.agents)) invalid("transfer result");
+  if (!isBoundedAgentRoster(result.agents)) invalid("transfer result");
   const agents = result.agents.map((item) => {
     const entry = record(item, "transferred agent");
     if (!isIdentifier(entry.agentId) || !isBoundedString(entry.name, INPUT_LIMITS.agentName))

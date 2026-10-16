@@ -29,7 +29,8 @@ import { sourceText } from "@openbot/i18n/source";
 import type { AgentService } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import { MCP_PROBE_TIMEOUT_MS } from "../../backend/mcp-probe";
-import { type McpToolRuntimes, needsManagedRuntime } from "../../backend/mcp-provider-shapes";
+import type { McpToolRuntimes } from "../../backend/mcp-provider-shapes";
+import { prepareToolRuntimeForTest, TOOL_RUNTIME_TEST_WAIT_MS } from "../mcp-tool-runtime-preparation";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import type { ResponseDecoder } from "../remote-host-decoding";
 import type { RemoteRequestInit } from "../remote-server-client";
@@ -46,6 +47,8 @@ import {
   parseTestMcpServer,
 } from "./mcp-inputs";
 import { scopedHandler, scopedQueryHandler } from "./scoped-handler";
+
+export { type McpToolRuntimePreparation, prepareToolRuntimeForTest } from "../mcp-tool-runtime-preparation";
 
 /** The AgentService members this registrar reaches, and nothing else. */
 type McpServerService = Pick<
@@ -75,34 +78,6 @@ interface McpRemoteServers {
   ): Effect.Effect<T, RemoteWorkflowError>;
 }
 
-/**
- * The managed tool runtimes as the MCP writers reach them. The IPC handlers and the host's Team
- * API routes share this shape: the routes call `AgentService` directly and would otherwise bypass
- * every preparation below, leaving a host with no Node unable to save or test its first server.
- */
-export interface McpToolRuntimePreparation {
-  startToolRuntimes: () => void;
-  ensureToolRuntimesReady: OmitThisParameter<ProviderRuntimeManager["ensureToolRuntimesReady"]>;
-  toolRuntimes: () => McpToolRuntimes;
-}
-
-/**
- * What a connection test waits for: nothing for http and installed commands, the bounded
- * download for a command nothing names. Shared by the local Test button and the host route that
- * answers a remote Test.
- */
-export const prepareToolRuntimeForTest = Effect.fn("Mcp.prepareToolRuntimeForTest")(function* (
-  config: McpServerConfig,
-  preparation: McpToolRuntimePreparation,
-) {
-  if (yield* needsManagedRuntime(config, preparation.toolRuntimes())) {
-    yield* preparation.ensureToolRuntimesReady().pipe(
-      Effect.timeout(TOOL_RUNTIME_TEST_WAIT_MS),
-      Effect.catch(() => Effect.void),
-    );
-  }
-});
-
 interface McpServerIpcDependencies {
   service: McpServerService;
   remoteServers: McpRemoteServers;
@@ -125,9 +100,6 @@ interface McpServerIpcDependencies {
   /** Opens the page of a joined server's sign-in in this computer's browser, and relays the callback. */
   relay: Pick<SignInRelayClient, "run" | "page" | "open" | "paste">;
 }
-
-/** How long a connection test waits for the managed runtimes before probing without them. */
-const TOOL_RUNTIME_TEST_WAIT_MS = 60_000;
 
 /**
  * The remote Test deadline: the host may wait out the preparation above before its own probe

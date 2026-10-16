@@ -1,4 +1,4 @@
-import { INPUT_LIMITS } from "./input-limits";
+import { fitsAgentRosterBudget, INPUT_LIMITS } from "./input-limits";
 import { isBoundedString, isIdentifier, isNullableBoundedString, isRequestId } from "./ipc-bounded-values";
 import { type BrowserSecretRequest, isBrowserSecretRequest } from "./ipc-browser-secret";
 import { isBoolean, isDynamicRecord, isOneOf } from "./runtime-values";
@@ -92,7 +92,8 @@ export function isApprovalAutomationPreference(value: unknown): value is Approva
   if (!isDynamicRecord(value.autoApproveOverrides)) return false;
   const entries = Object.entries(value.autoApproveOverrides);
   return (
-    entries.length <= INPUT_LIMITS.agents && entries.every(([id, enabled]) => isIdentifier(id) && isBoolean(enabled))
+    fitsAgentRosterBudget(value.autoApproveOverrides) &&
+    entries.every(([id, enabled]) => isIdentifier(id) && isBoolean(enabled))
   );
 }
 

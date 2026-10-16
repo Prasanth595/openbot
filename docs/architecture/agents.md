@@ -1,5 +1,27 @@
 # Agents
 
+Local agent admission reads `OPENBOT_AGENT_LIMIT` once at the host boundary. `AgentStore` owns the
+effective count, and create, duplicate and legacy creation use its existing creation semaphore.
+Hosted plans keep 100. Agent import and instance transfer read this same count before any selected
+agent or setting is written. This is a static capacity preflight, not an archive reservation.
+Concurrent changes can still yield the established partial-import result after preflight. Each
+individual creator rechecks count and bytes after file operations before it publishes its record.
+Startup recovery never applies the count to saved agents. It logs an oversized saved roster without
+discarding any profile or chat. Profile edits can reduce excess bytes in steps. An over-budget
+encoding cannot grow, while an encoding that already fits can change within the limit. Additions
+and expansions remain blocked until the data fits. Runtime fitting throws a named budget error when its
+mandatory roster and turn state cannot fit; it never returns a partial roster.
+
+The additive `large-agent-roster-v1` capability carries distinct roster and runtime event names.
+It validates records through the unchanged v7 codec in groups of at most 100, then joins the checked
+records within the existing 1 MiB HTTPS event budget. The optional-event transport boundary maps
+them to current IPC events. The roster HTTP route and large import and instance-transfer paths
+use the released per-record decoders with the same byte budget. This one capability gates all three
+collection routes; import and transfer still require their original capabilities and roles. Large runtime events explicitly
+carry bounded per-agent usage holds, which frozen runtime events omit. Frozen v1-v7 events and
+frozen archive routes keep their count bounds. A peer without this capability gets an update notice
+on an over-100 host.
+
 ## Local scripts API
 
 `src/main/automation-server.ts` is a loopback HTTP listener through which a local script sends

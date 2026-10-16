@@ -52,6 +52,7 @@ import { INSTANCE_TRANSFER_REMOTE_BYTES } from "@openbot/contracts/team-protocol
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Result } from "effect";
 import { Zip, ZipPassThrough, zipSync } from "fflate";
+import type { AgentService } from "../backend/agent-service";
 import { isMissingFileError } from "../backend/file-errors";
 import { isPathInside } from "../backend/path-containment";
 import {
@@ -121,6 +122,8 @@ const AVATAR_EXTENSIONS: Record<AvatarImageInput["mimeType"], string> = {
 /** The agent operations a transfer uses, as `AgentService` offers them. */
 interface InstanceTransferAgents {
   listAgents(): AgentSummary[];
+  agentLimit?(): number;
+  checkAgentProfileAdmission?: AgentService["checkAgentProfileAdmission"];
   listRoutines(agentId: string): Routine[];
   listMemories(agentId: string): AgentMemory[];
   getMemorySelection(agentId: string): Pick<AgentMemorySelectionState, "selections">;
@@ -597,9 +600,21 @@ export class InstanceTransferService {
     const selected = staged.manifest.agents.filter((agent) => input.keys.includes(agent.key));
     if (selected.length !== input.keys.length)
       return yield* archiveFailure(new Error(sourceText("error.import.agentNotInExport")));
-    if (this.options.agents.listAgents().length + selected.length > INPUT_LIMITS.agents)
-      return yield* archiveFailure(
-        new Error(sourceText("error.import.serverAgentLimit", { limit: INPUT_LIMITS.agents })),
+    const agentLimit = this.options.agents.agentLimit?.() ?? INPUT_LIMITS.agents;
+    if (this.options.agents.listAgents().length + selected.length > agentLimit)
+      return yield* archiveFailure(new Error(sourceText("error.import.serverAgentLimit", { limit: agentLimit })));
+    if (this.options.agents.checkAgentProfileAdmission)
+      yield* archiveSync(() =>
+        this.options.agents.checkAgentProfileAdmission?.(
+          selected.map((agent) => ({
+            name: agent.name,
+            title: agent.title,
+            description: agent.description,
+            avatarSeed: "x".repeat(128),
+            avatarHue: null,
+            hasAvatar: agent.avatar !== null,
+          })),
+        ),
       );
     // The file is read again rather than held since `stage`, and only the same bytes are accepted.
     const bytes = yield* readArchiveEffect(staged.path, staged.temporary ? REMOTE_ARCHIVE : ARCHIVE);

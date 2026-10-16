@@ -1249,6 +1249,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return this.#duplication.visibleAgents(this.#store.list());
   }
 
+  agentLimit(): number {
+    return this.#store.agentLimit;
+  }
+
+  checkAgentProfileAdmission(inputs: Parameters<AgentStore["checkAgentProfileAdmission"]>[0]): void {
+    this.#store.checkAgentProfileAdmission(inputs);
+  }
+
   /**
    * The other agents in the agent's sidebar section, in sidebar order, for its instructions. Null when
    * the agent has no section of the user's, or is in the Integrations section: the orchestrators there

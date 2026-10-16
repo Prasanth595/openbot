@@ -62,6 +62,11 @@ import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Effect, Result, Semaphore, Stream } from "effect";
 import { ProfileCreationRecovery } from "./agent/profile-creation-recovery";
+import {
+  AgentRosterBudgetExceeded,
+  reducesAgentRosterBudget,
+  requireAgentRosterBudget,
+} from "./agent/roster-admission";
 import { writeFileAtomically } from "./atomic-json-file";
 import { automationRoot } from "./automation-command";
 import type { AgentModelChange } from "./database/agent-roster";
@@ -71,6 +76,12 @@ import { isRecord } from "./protocol";
 import { StoredStateFailure, storedIO, storedSync } from "./stored-state-effects";
 
 type StoredAgent = AgentSummary & { access: AgentAccess; computerUse: boolean };
+/**
+ * Initializes owned metadata before roster visibility and returns its rollback, if needed.
+ * If initialization throws before returning, the initializer must undo its own partial writes.
+ */
+export type AgentCreationInitializer = (agentId: string) => (() => void) | undefined;
+export type AgentProfileAdmission = Omit<CreateAgentInput, "initialMessage"> & { title?: string; hasAvatar?: boolean };
 type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access" | "computerUse"> & {
   avatarUrl?: string | null;
   provider?: AgentProviderId;
@@ -163,11 +174,17 @@ export class AgentStore {
   readonly #automationRoot: string;
   readonly #profileCreationRecovery: ProfileCreationRecovery;
   readonly #database: OpenBotDatabase;
+  readonly #agentLimit: number;
   #state: StoredState = { version: 2, examplesInitialized: false, agents: [] };
   readonly #avatarUpdateQueue = Semaphore.makeUnsafe(1);
   readonly #creationQueue = Semaphore.makeUnsafe(1);
 
-  constructor(userDataPath: string, homePath: string, database = new OpenBotDatabase(userDataPath)) {
+  constructor(
+    userDataPath: string,
+    homePath: string,
+    database = new OpenBotDatabase(userDataPath),
+    agentLimit: number = INPUT_LIMITS.agents,
+  ) {
     const openbotRoot = join(homePath, "OpenBot");
     this.#statePath = join(userDataPath, LEGACY_AGENTS_STATE_FILE);
     this.#agentsRoot = join(openbotRoot, "Agents");
@@ -178,6 +195,7 @@ export class AgentStore {
     this.#duplicationsRoot = join(userDataPath, "agent-duplications");
     this.#automationRoot = automationRoot(userDataPath);
     this.#database = database;
+    this.#agentLimit = agentLimit;
     this.#profileCreationRecovery = new ProfileCreationRecovery(
       join(userDataPath, "agent-profile-creations"),
       this.#agentsRoot,
@@ -186,6 +204,34 @@ export class AgentStore {
 
   get database(): OpenBotDatabase {
     return this.#database;
+  }
+
+  get agentLimit(): number {
+    return this.#agentLimit;
+  }
+
+  /** A whole archive selection must fit before profiles or settings are written. */
+  checkAgentProfileAdmission(inputs: readonly AgentProfileAdmission[]): void {
+    if (this.#state.agents.length + inputs.length > this.#agentLimit)
+      throw new Error(sourceText("error.import.serverAgentLimit", { limit: this.#agentLimit }));
+    const prospective = [...this.#state.agents];
+    for (const [index, input] of inputs.entries()) {
+      const record = this.#createRecord(`agent-${randomUUID()}`, input.name, input.title ?? "", input.description);
+      record.avatarSeed = input.avatarSeed;
+      record.avatarHue = input.avatarHue;
+      // The model assigned after creation may be longer than the built-in default. Reserve its
+      // released maximum, rather than let that follow-up update push a batch over the budget.
+      record.provider = "antigravity";
+      record.model = "m".repeat(160);
+      record.reasoningEffort = "medium";
+      if (input.hasAvatar) record.avatarUrl = agentAvatarUrl(record.id, randomUUID(), "image/webp");
+      prospective.push(record);
+      if (
+        this.#agentLimit > INPUT_LIMITS.agents &&
+        ((index + 1) % INPUT_LIMITS.agents === 0 || index === inputs.length - 1)
+      )
+        requireAgentRosterBudget(prospective);
+    }
   }
 
   get sharedRoot(): string {
@@ -286,6 +332,16 @@ export class AgentStore {
       // Last, so that a thread belonging to an agent the two recoveries above have just removed is gone
       // rather than re-adopted.
       this.#reconcileUnclaimedThreads();
+      if (this.#state.agents.length > INPUT_LIMITS.agents) {
+        try {
+          requireAgentRosterBudget(this.#state.agents);
+        } catch (error) {
+          if (!(error instanceof AgentRosterBudgetExceeded)) throw error;
+          logger.warn(
+            "Saved agents exceed the roster or runtime transport budget. Reduce profile text or remove agents. Saved data is preserved.",
+          );
+        }
+      }
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
     }
@@ -295,18 +351,23 @@ export class AgentStore {
     return this.#state.agents.map((agent) => ({ ...agent }));
   }
 
-  createAgent(input: Omit<CreateAgentInput, "initialMessage">, profileOperationId?: string) {
-    return this.#creationQueue.withPermit(this.#createAgent(input, profileOperationId));
+  createAgent(
+    input: Omit<CreateAgentInput, "initialMessage">,
+    profileOperationId?: string,
+    initialize?: AgentCreationInitializer,
+  ) {
+    return this.#creationQueue.withPermit(this.#createAgent(input, profileOperationId, initialize));
   }
 
   #createAgent = Effect.fn("AgentStore.createAgent")(function* (
     this: AgentStore,
     input: Omit<CreateAgentInput, "initialMessage">,
     profileOperationId?: string,
+    initialize?: AgentCreationInitializer,
   ): Effect.fn.Return<AgentSummary, StoredStateFailure> {
     try {
-      if (this.#state.agents.length >= INPUT_LIMITS.agents) {
-        throw new Error(sourceText("error.agent.hostLimit", { limit: INPUT_LIMITS.agents }));
+      if (this.#state.agents.length >= this.#agentLimit) {
+        throw new Error(sourceText("error.agent.hostLimit", { limit: this.#agentLimit }));
       }
       const name = requiredText(input.name, "Agent name", INPUT_LIMITS.agentName);
       const description = limitedText(input.description, "Agent description", INPUT_LIMITS.agentDescription);
@@ -315,15 +376,27 @@ export class AgentStore {
       const record = this.#createRecord(`agent-${randomUUID()}`, name, "", description);
       record.avatarSeed = input.avatarSeed;
       record.avatarHue = input.avatarHue;
+      this.#checkRosterBudget(record);
       if (profileOperationId) yield* this.#profileCreationRecovery.begin(record.id, profileOperationId);
-      yield* storedIO(() => mkdir(record.workspacePath, { recursive: true, mode: 0o700 }));
-      this.#state.agents.unshift(record);
+      const createdWorkspace = yield* storedIO(() => mkdir(record.workspacePath, { recursive: true, mode: 0o700 }));
+      let rollback: (() => void) | undefined;
       try {
+        rollback = initialize?.(record.id);
+        if (this.#state.agents.length >= this.#agentLimit)
+          throw new Error(sourceText("error.agent.hostLimit", { limit: this.#agentLimit }));
+        this.#checkRosterBudget(record);
+        this.#state.agents.unshift(record);
         this.#persist("agent.created");
       } catch (error) {
         this.#state.agents = this.#state.agents.filter((candidate) => candidate.id !== record.id);
-        yield* storedIO(() => rm(record.workspacePath, { recursive: true, force: true }));
-        throw error;
+        let failure = error;
+        try {
+          rollback?.();
+        } catch (cleanup) {
+          failure = new AggregateError([error, cleanup], sourceText("error.agent.setupCleanupFailed"));
+        }
+        if (createdWorkspace) yield* storedIO(() => rm(record.workspacePath, { recursive: true, force: true }));
+        throw failure;
       }
       return { ...record };
     } catch (cause) {
@@ -345,8 +418,8 @@ export class AgentStore {
       if (this.#database.commandResult(duplicationCommandId(operationId)) !== undefined) {
         throw new Error("This agent duplication operation is already committed.");
       }
-      if (this.#state.agents.length >= INPUT_LIMITS.agents) {
-        throw new Error(sourceText("error.agent.hostLimit", { limit: INPUT_LIMITS.agents }));
+      if (this.#state.agents.length >= this.#agentLimit) {
+        throw new Error(sourceText("error.agent.hostLimit", { limit: this.#agentLimit }));
       }
       const source = this.#requireAgent(sourceId);
       const sourceProfileSignature = duplicationProfileSignature(source);
@@ -420,12 +493,16 @@ export class AgentStore {
                 stagedWorkspace,
                 record.workspacePath,
               );
-              if (this.#state.agents.length >= INPUT_LIMITS.agents) {
-                throw new Error(sourceText("error.agent.hostLimit", { limit: INPUT_LIMITS.agents }));
+              if (this.#state.agents.length >= this.#agentLimit) {
+                throw new Error(sourceText("error.agent.hostLimit", { limit: this.#agentLimit }));
               }
               record.name = duplicateAgentName(source.name, this.#state.agents);
+              this.#checkRosterBudget(record);
               yield* storedIO(() => rename(stagedWorkspace, record.workspacePath));
               if (sourceAvatar) yield* storedIO(() => rename(stagedAvatarDirectory, avatarDirectory));
+              if (this.#state.agents.length >= this.#agentLimit)
+                throw new Error(sourceText("error.agent.hostLimit", { limit: this.#agentLimit }));
+              this.#checkRosterBudget(record);
               this.#state.agents.unshift(record);
               try {
                 this.#persist("agent.duplicated");
@@ -549,6 +626,7 @@ export class AgentStore {
       updatedAt: new Date().toISOString(),
     });
     try {
+      this.#checkAgentReplacementBudget(agent, previous);
       this.#persist("agent.updated");
     } catch (error) {
       Object.assign(agent, previous);
@@ -594,11 +672,13 @@ export class AgentStore {
   ): AgentSummary {
     if (!isAgentSessionSettingOverrides(overrides)) throw new Error(sourceText("error.provider.sessionSettingInvalid"));
     const agent = this.#requireAgent(agentId);
+    const previousAgent = { ...agent };
     const previous = agent.sessionSettingOverrides;
     const previousResets = agent.sessionSettingResets;
     if (resetIdentity) agent.sessionSettingResets = [...new Set([...(previousResets ?? []), resetIdentity])];
     agent.sessionSettingOverrides = structuredClone(overrides);
     try {
+      this.#checkAgentReplacementBudget(agent, previousAgent);
       this.#persist("agent.updated");
     } catch (error) {
       if (previous === undefined) delete agent.sessionSettingOverrides;
@@ -746,6 +826,7 @@ export class AgentStore {
       if (next.backupModels === undefined) delete agent.backupModels;
       if (next.usageLimitReturn === undefined) delete agent.usageLimitReturn;
       try {
+        this.#checkAgentReplacementBudget(agent, previous);
         this.#persist(modelChange ? "agent.model-changed" : "agent.updated", modelChange);
       } catch (error) {
         Object.assign(agent, previous);
@@ -764,8 +845,9 @@ export class AgentStore {
 
   setMarketplaceSource(agentId: string, source: NonNullable<AgentSummary["marketplaceSource"]>): AgentSummary {
     const agent = this.#requireAgent(agentId);
-    agent.marketplaceSource = structuredClone(source);
-    agent.updatedAt = new Date().toISOString();
+    const next = { ...agent, marketplaceSource: structuredClone(source), updatedAt: new Date().toISOString() };
+    this.#checkAgentReplacementBudget(next, agent);
+    Object.assign(agent, next);
     this.#persist("agent.marketplace-source-updated");
     return { ...agent, marketplaceSource: structuredClone(source) };
   }
@@ -781,6 +863,7 @@ export class AgentStore {
   ): Effect.fn.Return<AgentSummary, StoredStateFailure> {
     try {
       const agent = this.#requireAgent(agentId);
+      const previousAgent = { ...agent };
       const previous = this.resolveAvatar(agentId);
       const previousAvatarUrl = agent.avatarUrl;
       const previousUpdatedAt = agent.updatedAt;
@@ -788,6 +871,7 @@ export class AgentStore {
         agent.avatarUrl = null;
         agent.updatedAt = new Date().toISOString();
         try {
+          this.#checkAgentReplacementBudget(agent, previousAgent);
           this.#persist("agent.avatar-removed");
         } catch (error) {
           agent.avatarUrl = previousAvatarUrl;
@@ -811,6 +895,7 @@ export class AgentStore {
       agent.avatarUrl = agentAvatarUrl(agent.id, version, image.mimeType);
       agent.updatedAt = new Date().toISOString();
       try {
+        this.#checkAgentReplacementBudget(agent, previousAgent);
         this.#persist("agent.avatar-updated");
       } catch (error) {
         agent.avatarUrl = previousAvatarUrl;
@@ -922,14 +1007,24 @@ export class AgentStore {
         yield* storedIO(() => mkdir(existing.workspacePath, { recursive: true, mode: 0o700 }));
         return { ...existing };
       }
-      if (this.#state.agents.length >= INPUT_LIMITS.agents) {
-        throw new Error(sourceText("error.agent.hostLimit", { limit: INPUT_LIMITS.agents }));
+      if (this.#state.agents.length >= this.#agentLimit) {
+        throw new Error(sourceText("error.agent.hostLimit", { limit: this.#agentLimit }));
       }
 
       const record = this.#createRecord(id, name ?? titleFromId(id), title ?? "Local teammate");
-      this.#state.agents.push(record);
-      yield* storedIO(() => mkdir(record.workspacePath, { recursive: true, mode: 0o700 }));
-      this.#persist("agent.created");
+      this.#checkRosterBudget(record);
+      const createdWorkspace = yield* storedIO(() => mkdir(record.workspacePath, { recursive: true, mode: 0o700 }));
+      try {
+        if (this.#state.agents.length >= this.#agentLimit)
+          throw new Error(sourceText("error.agent.hostLimit", { limit: this.#agentLimit }));
+        this.#checkRosterBudget(record);
+        this.#state.agents.push(record);
+        this.#persist("agent.created");
+      } catch (error) {
+        this.#state.agents = this.#state.agents.filter((candidate) => candidate.id !== record.id);
+        if (createdWorkspace) yield* storedIO(() => rm(record.workspacePath, { recursive: true, force: true }));
+        throw error;
+      }
       return { ...record };
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -1387,8 +1482,25 @@ export class AgentStore {
   ): Effect.fn.Return<void, StoredStateFailure> {
     try {
       const agent = this.#requireAgent(id);
+      const previous = { ...agent };
       agent.preview = preview.slice(0, AGENT_PREVIEW_MAX_LENGTH);
       agent.updatedAt = new Date().toISOString();
+      try {
+        this.#checkAgentReplacementBudget(agent, previous);
+      } catch (error) {
+        if (!(error instanceof AgentRosterBudgetExceeded)) throw error;
+        // The full answer is in the conversation. A sidebar preview must not make that answer
+        // fail when a large roster has used its transport budget.
+        agent.preview = "";
+        agent.updatedAt = previous.updatedAt;
+        try {
+          this.#checkAgentReplacementBudget(agent, previous);
+        } catch (error) {
+          if (!(error instanceof AgentRosterBudgetExceeded)) throw error;
+          Object.assign(agent, previous);
+          return;
+        }
+      }
       this.#persist("agent.preview-updated");
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -1494,6 +1606,23 @@ export class AgentStore {
     this.#database.replaceAgents(`agents:${eventType}:${randomUUID()}`, this.#state.agents, eventType, modelChange);
   }
 
+  #checkRosterBudget(record: StoredAgent): void {
+    if (this.#agentLimit > INPUT_LIMITS.agents) requireAgentRosterBudget([record, ...this.#state.agents]);
+  }
+
+  #checkAgentReplacementBudget(record: StoredAgent, previous: StoredAgent): void {
+    if (this.#state.agents.length <= INPUT_LIMITS.agents) return;
+    const next = this.#state.agents.map((agent) => (agent.id === record.id ? record : agent));
+    try {
+      requireAgentRosterBudget(next);
+    } catch (error) {
+      if (!(error instanceof AgentRosterBudgetExceeded)) throw error;
+      const before = next.map((agent) => (agent.id === previous.id ? previous : agent));
+      if (reducesAgentRosterBudget(before, next)) return;
+      throw error;
+    }
+  }
+
   #createRecord(id: string, name: string, title: string, description = ""): StoredAgent {
     validateAgentId(id);
     return {
@@ -1541,7 +1670,7 @@ function duplicateAgentName(sourceName: string, agents: readonly StoredAgent[]):
   const match = /^(.*?)(?: copy(?: (\d+))?)$/iu.exec(sourceName);
   const base = match?.[1]?.trim() || sourceName.trim();
   const existing = new Set(agents.map((agent) => agent.name.toLocaleLowerCase()));
-  for (let index = 1; index <= INPUT_LIMITS.agents + 1; index += 1) {
+  for (let index = 1; index <= agents.length + 1; index += 1) {
     const suffix = index === 1 ? " copy" : ` copy ${index}`;
     const candidate = `${base.slice(0, Math.max(1, INPUT_LIMITS.agentName - suffix.length)).trimEnd()}${suffix}`;
     if (!existing.has(candidate.toLocaleLowerCase())) return candidate;

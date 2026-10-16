@@ -24,6 +24,12 @@ import { isAvatarMimeType } from "@openbot/contracts/avatar-images";
 import { AVATAR_IMAGE_LIMITS, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { CreateAgentInput, DuplicateAgentResult } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import {
+  agentCollectionRoute,
+  encodeLargeAgentRosterEvent,
+  LARGE_AGENT_ROSTER_CAPABILITY,
+  LargeAgentRosterBudgetExceeded,
+} from "@openbot/contracts/team-protocol";
 import { V5_AGENT_MODEL } from "@openbot/contracts/team-protocol/v5-adapter";
 import { V6_AGENT_MODEL } from "@openbot/contracts/team-protocol/v6-adapter";
 import { sourceText } from "@openbot/i18n/source";
@@ -177,8 +183,23 @@ export async function routeAgents(
       (await agents.listModels()).filter((model) => modelId.test(model.id)),
     );
   }
-  if (method === "GET" && url.pathname === TEAM_API_ROUTES.agents.all) {
-    return json(200, agents.listAgents());
+  const largeRosterRoute = url.pathname === agentCollectionRoute(TEAM_API_ROUTES.agents.all, true);
+  if (method === "GET" && (url.pathname === TEAM_API_ROUTES.agents.all || largeRosterRoute)) {
+    const roster = agents.listAgents();
+    if (
+      (largeRosterRoute && !capabilities.has(LARGE_AGENT_ROSTER_CAPABILITY)) ||
+      (!largeRosterRoute && roster.length > INPUT_LIMITS.agents)
+    )
+      throw new HttpError(409, sourceText("error.agent.largeRosterClientUpdate"));
+    if (largeRosterRoute && roster.length > INPUT_LIMITS.agents) {
+      try {
+        encodeLargeAgentRosterEvent({ type: "agents-changed", agents: roster });
+      } catch (error) {
+        if (!(error instanceof LargeAgentRosterBudgetExceeded)) throw error;
+        throw new HttpError(409, sourceText("error.agent.rosterBudget"));
+      }
+    }
+    return json(200, roster);
   }
   if (method === "GET" && url.pathname === TEAM_API_ROUTES.agents.conversationReads) {
     return json(200, agents.listConversationReads(member.id, markerExclusionsForCapabilities(capabilities)));

@@ -9,6 +9,7 @@
 // the user is `remote-server-connection-status.ts`; deciding which server to ask is the caller's.
 
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
+import { releasedAgentCollectionRoute } from "@openbot/contracts/team-protocol";
 import type { TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
 import { teamHttpCodec } from "@openbot/contracts/team-protocol/http-codecs";
 import { teamSideRouteCodec } from "@openbot/contracts/team-protocol/side-routes";
@@ -94,7 +95,10 @@ export const requestJson = Effect.fn("RemoteHttp.requestJson")(function* <T>(
     value = yield* Effect.try({
       try: () =>
         sideRoute
-          ? sideRoute.response(path, response.status, input, { historyExtent: true })
+          ? sideRoute.response(path, response.status, input, {
+              historyExtent: true,
+              fromHost: releasedAgentCollectionRoute(path) === "/v1/agents",
+            })
           : codec.decodeResponse(method, path, response.status, input),
       catch: (cause) =>
         new RemoteProtocolError("protocol_error", sourceText("error.remote.unsafeData"), null, { cause }),

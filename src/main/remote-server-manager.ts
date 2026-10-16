@@ -54,6 +54,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import { agentCollectionRoute, LARGE_AGENT_ROSTER_CAPABILITY } from "@openbot/contracts/team-protocol";
 import { AGENT_IMPORT_ROUTES } from "@openbot/contracts/team-protocol/agent-import-v1";
 import { decodeBrowserViewSessionResponse } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_MEMBER_LEAVE_CAPABILITY, type TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
@@ -1180,7 +1181,8 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     decoder: ResponseDecoder<T>,
     init: RemoteRequestInit = {},
   ): Effect.Effect<T, RemoteWorkflowError> {
-    return this.#owned(RemoteRequest.use((service) => service.request(serverId, path, decoder, init))).pipe(
+    const collectionPath = agentCollectionRoute(path, this.supportsCapability(serverId, LARGE_AGENT_ROSTER_CAPABILITY));
+    return this.#owned(RemoteRequest.use((service) => service.request(serverId, collectionPath, decoder, init))).pipe(
       Effect.withSpan("RemoteManager.request"),
     );
   }
@@ -1582,7 +1584,13 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       bytes: Uint8Array,
     ): Effect.fn.Return<AgentImportPreview, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
-      const url = new URL(AGENT_IMPORT_ROUTES.stage, server.apiUrl);
+      const url = new URL(
+        agentCollectionRoute(
+          AGENT_IMPORT_ROUTES.stage,
+          this.supportsCapability(serverId, LARGE_AGENT_ROSTER_CAPABILITY),
+        ),
+        server.apiUrl,
+      );
       const response = yield* this.#client.fetch(
         server,
         url,
@@ -1604,7 +1612,13 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       bytes: Uint8Array,
     ): Effect.fn.Return<InstanceTransferPreview, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
-      const url = new URL(INSTANCE_TRANSFER_ROUTES.stage, server.apiUrl);
+      const url = new URL(
+        agentCollectionRoute(
+          INSTANCE_TRANSFER_ROUTES.stage,
+          this.supportsCapability(serverId, LARGE_AGENT_ROSTER_CAPABILITY),
+        ),
+        server.apiUrl,
+      );
       const response = yield* this.#client.fetch(
         server,
         url,
@@ -1627,7 +1641,13 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       input: ExportInstanceInput,
     ): Effect.fn.Return<Uint8Array, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
-      const url = new URL(INSTANCE_TRANSFER_ROUTES.export, server.apiUrl);
+      const url = new URL(
+        agentCollectionRoute(
+          INSTANCE_TRANSFER_ROUTES.export,
+          this.supportsCapability(serverId, LARGE_AGENT_ROSTER_CAPABILITY),
+        ),
+        server.apiUrl,
+      );
       const response = yield* this.#client.fetch(
         server,
         url,

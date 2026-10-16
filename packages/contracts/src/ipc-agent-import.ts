@@ -7,7 +7,7 @@
  * and its result names the new agents only, so the client reads them with the agent list.
  */
 
-import { INPUT_LIMITS } from "./input-limits";
+import { INPUT_LIMITS, isBoundedAgentRoster } from "./input-limits";
 import { type AgentSummary, isAgentSummary } from "./ipc-agents";
 import { isBoundedString, isIdentifier, isNullableBoundedString } from "./ipc-bounded-values";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "./runtime-values";
@@ -122,9 +122,8 @@ export function parseApplyAgentImportInput(value: unknown): ApplyAgentImportInpu
   const input = record(value, "import request");
   if (!isIdentifier(input.token)) invalid("import token");
   if (
-    !Array.isArray(input.keys) ||
+    !isBoundedAgentRoster(input.keys) ||
     input.keys.length === 0 ||
-    input.keys.length > INPUT_LIMITS.agents ||
     !input.keys.every(isAgentImportKey) ||
     new Set(input.keys).size !== input.keys.length
   )
@@ -164,7 +163,7 @@ function decodePreviewChannel(value: unknown): AgentImportPreviewChannel {
 }
 
 export function decodeAgentImportSkipped(value: unknown, label: string): AgentImportSkipped[] {
-  if (!Array.isArray(value)) invalid("import result");
+  if (!isBoundedAgentRoster(value)) invalid("import result");
   return value.map((item): AgentImportSkipped => {
     const entry = record(item, label);
     if (
@@ -210,8 +209,7 @@ export function decodeAgentImportPreview(value: unknown): AgentImportPreview | n
     !isIdentifier(preview.token) ||
     !isBoundedString(preview.sourceApp, AGENT_IMPORT_LIMITS.sourceApp) ||
     !isNullableBoundedString(preview.exportedAt, 64) ||
-    !Array.isArray(preview.agents) ||
-    preview.agents.length > INPUT_LIMITS.agents ||
+    !isBoundedAgentRoster(preview.agents) ||
     !Array.isArray(preview.channels) ||
     preview.channels.length > AGENT_IMPORT_LIMITS.channels
   )
@@ -228,7 +226,7 @@ export function decodeAgentImportPreview(value: unknown): AgentImportPreview | n
 
 export function decodeAgentImportResult(value: unknown): AgentImportResult {
   const result = record(value, "import result");
-  if (!Array.isArray(result.agents) || !result.agents.every(isAgentSummary)) invalid("import result");
+  if (!isBoundedAgentRoster(result.agents) || !result.agents.every(isAgentSummary)) invalid("import result");
   if (!Array.isArray(result.channels)) invalid("import result");
   const channels = result.channels.map((item): AgentImportChannel => {
     const entry = record(item, "imported channel");
@@ -247,7 +245,7 @@ export function decodeAgentImportResult(value: unknown): AgentImportResult {
 /** A remote host's preview: `agent-import-v1` carries no avatars. */
 export function decodeRemoteAgentImportPreview(value: unknown): AgentImportPreview {
   const preview = record(value, "import preview");
-  if (!Array.isArray(preview.agents)) invalid("import preview");
+  if (!isBoundedAgentRoster(preview.agents)) invalid("import preview");
   const agents = preview.agents.map((agent) => ({ ...record(agent, "imported agent"), avatarUrl: null }));
   const decoded = decodeAgentImportPreview({ ...preview, agents });
   if (!decoded) invalid("import preview");
@@ -261,7 +259,7 @@ export interface RemoteAgentImportResult extends Omit<AgentImportResult, "agents
 
 export function decodeRemoteAgentImportResult(value: unknown): RemoteAgentImportResult {
   const result = record(value, "import result");
-  if (!Array.isArray(result.agents)) invalid("import result");
+  if (!isBoundedAgentRoster(result.agents)) invalid("import result");
   const agents = result.agents.map((item) => {
     const entry = record(item, "imported agent");
     if (!isIdentifier(entry.agentId) || !isBoundedString(entry.name, INPUT_LIMITS.agentName)) invalid("imported agent");

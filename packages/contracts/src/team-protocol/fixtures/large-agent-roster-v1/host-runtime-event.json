@@ -1,0 +1,56 @@
+{
+  "type": "large-runtime-snapshot",
+  "snapshot": {
+    "bots": [
+      {
+        "id": "agent-fixture-001",
+        "name": "Fixture 001",
+        "notifications": true,
+        "preview": "",
+        "updatedAt": null,
+        "avatarSeed": "builder",
+        "avatarHue": 215,
+        "avatarUrl": null
+      },
+      {
+        "id": "agent-fixture-002",
+        "name": "Fixture 002",
+        "notifications": true,
+        "preview": "",
+        "updatedAt": null,
+        "avatarSeed": "reviewer",
+        "avatarHue": null,
+        "avatarUrl": null
+      }
+    ],
+    "activeTurns": [
+      {
+        "botId": "agent-fixture-001",
+        "threadId": "thread-001",
+        "turnId": "turn-001"
+      },
+      {
+        "botId": "agent-fixture-002",
+        "threadId": "thread-002",
+        "turnId": "turn-002"
+      }
+    ],
+    "work": [],
+    "latestMessages": [],
+    "attentionComplete": true,
+    "pendingPrompts": [],
+    "pendingApprovals": [],
+    "pendingBrowserTakeovers": [],
+    "failedTurns": [],
+    "usageLimits": [
+      {
+        "botId": "agent-fixture-001",
+        "resetsAt": 1802563200
+      },
+      {
+        "botId": "agent-fixture-002",
+        "resetsAt": null
+      }
+    ]
+  }
+}

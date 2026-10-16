@@ -105,6 +105,7 @@ import { StorageUsageScanner, StorageUsageService } from "../backend/storage-usa
 import { TeamChatStore } from "../backend/team-chat-store";
 import { AgentImportService } from "./agent-import-service";
 import { AgentInitializationGate } from "./agent-initialization";
+import { agentLimitForHost } from "./agent-limit-environment";
 import { AgentMarketplaceService } from "./agent-marketplace-service";
 import { AgentMemoryLimitPreferenceStore } from "./agent-memory-limit-preference-store";
 import { AgentTemplateService } from "./agent-template-service";
@@ -825,7 +826,12 @@ export async function createApplicationServices({
     mainWindow.removeListener("blur", stopProfileTimer);
     centralAuth.stopProfileRefresh();
   });
-  const store = new AgentStore(app.getPath("userData"), homedir());
+  const store = new AgentStore(
+    app.getPath("userData"),
+    homedir(),
+    undefined,
+    agentLimitForHost(process.env, hostedServer !== null),
+  );
   await runCauseEffect(store.initialize());
   // Closing copies the write-ahead log into the database file and removes it.
   teardown.push(TEARDOWN_ORDER.database, "the database", () => store.database.close());

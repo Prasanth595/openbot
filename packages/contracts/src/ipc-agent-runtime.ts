@@ -1,4 +1,4 @@
-import { INPUT_LIMITS } from "./input-limits";
+import { fitsAgentRosterBudget, INPUT_LIMITS, isBoundedAgentRoster } from "./input-limits";
 import { type AvatarHue, isAvatarHue, isAvatarSeed } from "./ipc-agent-identity";
 import { type AgentModelChoice, isAgentModelChoice } from "./ipc-agents";
 import {
@@ -213,16 +213,14 @@ export interface AgentRuntimeSnapshot {
 
 export function isAgentRuntimeSnapshot(value: unknown): value is AgentRuntimeSnapshot {
   if (!isDynamicRecord(value)) return false;
+  if (Array.isArray(value.agents) && value.agents.length > INPUT_LIMITS.agents && !fitsAgentRosterBudget(value))
+    return false;
   return (
     (value.contextStates === undefined ||
-      (Array.isArray(value.contextStates) &&
-        value.contextStates.length <= INPUT_LIMITS.agents &&
-        value.contextStates.every(isAgentContextState))) &&
-    Array.isArray(value.agents) &&
-    value.agents.length <= INPUT_LIMITS.agents &&
+      (isBoundedAgentRoster(value.contextStates) && value.contextStates.every(isAgentContextState))) &&
+    isBoundedAgentRoster(value.agents) &&
     value.agents.every(isAgentRuntimeRosterEntry) &&
-    Array.isArray(value.activeTurns) &&
-    value.activeTurns.length <= INPUT_LIMITS.agents &&
+    isBoundedAgentRoster(value.activeTurns) &&
     value.activeTurns.every(
       (turn) =>
         isDynamicRecord(turn) && isIdentifier(turn.agentId) && isIdentifier(turn.threadId) && isIdentifier(turn.turnId),
@@ -230,8 +228,7 @@ export function isAgentRuntimeSnapshot(value: unknown): value is AgentRuntimeSna
     Array.isArray(value.work) &&
     value.work.length <= AGENT_RUNTIME_WORKING_ITEMS_LIMIT + AGENT_RUNTIME_ATTENTION_LIMIT &&
     value.work.every(isRuntimeWorkItem) &&
-    Array.isArray(value.latestMessages) &&
-    value.latestMessages.length <= INPUT_LIMITS.agents &&
+    isBoundedAgentRoster(value.latestMessages) &&
     value.latestMessages.every(
       (message) =>
         isDynamicRecord(message) &&
@@ -252,14 +249,12 @@ export function isAgentRuntimeSnapshot(value: unknown): value is AgentRuntimeSna
     value.pendingBrowserTakeovers.every(isBrowserTakeoverRequest) &&
     value.pendingPrompts.length + value.pendingApprovals.length + value.pendingBrowserTakeovers.length <=
       AGENT_RUNTIME_ATTENTION_LIMIT &&
-    Array.isArray(value.failedTurns) &&
-    value.failedTurns.length <= INPUT_LIMITS.agents &&
+    isBoundedAgentRoster(value.failedTurns) &&
     value.failedTurns.every(
       (turn) => isDynamicRecord(turn) && isIdentifier(turn.agentId) && isIdentifier(turn.turnId),
     ) &&
     (value.usageLimits === undefined ||
-      (Array.isArray(value.usageLimits) &&
-        value.usageLimits.length <= INPUT_LIMITS.agents &&
+      (isBoundedAgentRoster(value.usageLimits) &&
         value.usageLimits.every(
           (limit) =>
             isDynamicRecord(limit) &&
@@ -267,9 +262,7 @@ export function isAgentRuntimeSnapshot(value: unknown): value is AgentRuntimeSna
             (limit.resetsAt === null || (isNumber(limit.resetsAt) && Number.isFinite(limit.resetsAt))),
         ))) &&
     (value.usageLimitedModels === undefined ||
-      (Array.isArray(value.usageLimitedModels) &&
-        value.usageLimitedModels.length <= INPUT_LIMITS.agents &&
-        value.usageLimitedModels.every(isAgentModelChoice)))
+      (isBoundedAgentRoster(value.usageLimitedModels) && value.usageLimitedModels.every(isAgentModelChoice)))
   );
 }
 
