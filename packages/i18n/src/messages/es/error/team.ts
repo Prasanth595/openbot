@@ -60,6 +60,7 @@ export const messages = {
   "error.team.membersCannotArchiveChannels": "Los miembros no pueden archivar canales.",
   "error.team.sharedDataUnsupported": "Esta conexión no admite datos compartidos.",
   "error.team.agentInstallUnsupported": "Esta conexión no permite añadir agentes.",
+  "error.team.agentHideUnsupported": "Esta conexión no permite ocultar agentes.",
   "error.team.agentPublishUnsupported": "Esta conexión no permite publicar agentes.",
   "error.team.agentUpdateUnsupported": "Esta conexión no permite actualizar agentes.",
   "error.team.contextResetUnsupported": "Esta conexión no permite iniciar un nuevo chat.",

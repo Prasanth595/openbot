@@ -20,7 +20,7 @@ export async function routeAgentHidden(
   if (method !== "POST" || !Object.values(AGENT_HIDDEN_ROUTES).some((path) => path === url.pathname))
     return "unmatched";
   if (!hiddenAgents || !capabilities.has(AGENT_HIDDEN_CAPABILITY))
-    throw new HttpError(400, sourceText("error.team.agentSettingsUnsupported"));
+    throw new HttpError(400, sourceText("error.team.agentHideUnsupported"));
   const body = await readJson(request);
   if (url.pathname === AGENT_HIDDEN_ROUTES.read)
     return json(200, visibleSnapshot(hiddenAgents.listHiddenAgents(), hiddenAgentIds));

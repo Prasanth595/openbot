@@ -254,7 +254,7 @@ export function agentIpcHandlers({
         local: (input) => runCauseEffect(service.setAgentHidden(input)),
         remote: (input, serverId) => {
           if (!remoteServers.supportsCapability(serverId, AGENT_HIDDEN_CAPABILITY))
-            throw new Error(sourceText("error.team.agentSettingsUnsupported"));
+            throw new Error(sourceText("error.team.agentHideUnsupported"));
           return runCauseEffect(
             remoteServers.request(serverId, AGENT_HIDDEN_ROUTES.set, decodeHiddenAgentsFromHost, {
               method: "POST",

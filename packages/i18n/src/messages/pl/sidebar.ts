@@ -99,7 +99,7 @@ export const messages = {
   "sidebar.hidden.count": { one: "({count})", few: "({count})", many: "({count})", other: "({count})" },
   "sidebar.hidden.label": {
     one: "Ukryte, {count} agent",
-    few: "Ukryte, {count} agentów",
+    few: "Ukryte, {count} agenty",
     many: "Ukryte, {count} agentów",
     other: "Ukryte, {count} agenta",
   },

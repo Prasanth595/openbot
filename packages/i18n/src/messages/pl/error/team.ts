@@ -59,6 +59,7 @@ export const messages = {
   "error.team.membersCannotArchiveChannels": "Członkowie nie mogą archiwizować kanałów.",
   "error.team.sharedDataUnsupported": "To połączenie nie obsługuje wspólnych danych.",
   "error.team.agentInstallUnsupported": "To połączenie nie obsługuje dodawania agentów.",
+  "error.team.agentHideUnsupported": "To połączenie nie obsługuje ukrywania agentów.",
   "error.team.agentPublishUnsupported": "To połączenie nie obsługuje publikowania agentów.",
   "error.team.agentUpdateUnsupported": "To połączenie nie obsługuje aktualizowania agentów.",
   "error.team.contextResetUnsupported": "To połączenie nie obsługuje rozpoczynania nowego czatu.",

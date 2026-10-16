@@ -60,6 +60,7 @@ export const messages = {
   "error.team.membersCannotArchiveChannels": "Участники не могут архивировать каналы.",
   "error.team.sharedDataUnsupported": "Это подключение не поддерживает общие данные.",
   "error.team.agentInstallUnsupported": "Это подключение не поддерживает добавление агентов.",
+  "error.team.agentHideUnsupported": "Это подключение не поддерживает скрытие агентов.",
   "error.team.agentPublishUnsupported": "Это подключение не поддерживает публикацию агентов.",
   "error.team.agentUpdateUnsupported": "Это подключение не поддерживает обновление агентов.",
   "error.team.contextResetUnsupported": "Это подключение не поддерживает начало нового чата.",
