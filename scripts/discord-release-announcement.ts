@@ -15,6 +15,10 @@ const MAX_HIGHLIGHTS = 5;
 /** The longest message that Discord accepts. */
 const MAX_CONTENT = 2000;
 const PLACEHOLDER = /\b(TODO|TBD|FIXME|XXX)\b/;
+/** `@everyone`, `@here`, and user, role and channel mentions. */
+const MENTION = /@(everyone|here)\b|<[@#][!&]?\d+>/;
+/** How long Discord can take to answer before the post counts as failed. */
+const SEND_TIMEOUT_MS = 30_000;
 
 /** What stops `announcement` from being posted for `version`. Empty when it is ready. */
 export function announcementProblems(announcement: string, version: string): string[] {
@@ -39,6 +43,11 @@ export function announcementProblems(announcement: string, version: string): str
       problems.push(`Highlight ${index + 1} has no text.`);
     } else if (PLACEHOLDER.test(highlight)) {
       problems.push(`Highlight ${index + 1} has a placeholder.`);
+    } else if (/[\r\n]/.test(highlight)) {
+      problems.push(`Highlight ${index + 1} has a line break.`);
+    } else if (MENTION.test(highlight)) {
+      // The post may mention everyone, so a mention in a highlight would notify everyone again.
+      problems.push(`Highlight ${index + 1} has a mention.`);
     }
   }
   if (problems.length === 0 && announcementMessage(highlights, version).length > MAX_CONTENT) {
@@ -108,9 +117,13 @@ if (import.meta.main) {
           content,
           allowed_mentions: { parse: ["everyone"] },
         }),
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
     } catch {
-      process.stderr.write("Could not reach the Discord webhook in DISCORD_RELEASE_WEBHOOK_URL.\n");
+      // After a timeout, Discord can still have posted the message. Look in the channel before a re-run.
+      process.stderr.write(
+        "Could not reach the Discord webhook in DISCORD_RELEASE_WEBHOOK_URL, or it did not answer in time.\n",
+      );
       process.exit(1);
     }
     if (!response.ok) {

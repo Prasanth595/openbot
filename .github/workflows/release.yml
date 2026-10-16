@@ -1035,11 +1035,13 @@ jobs:
           fi
 
   # Posts the highlights of `.github/release-announcement.json`, which the `validate` job checked, as
-  # OpenBot through a channel webhook (docs/RELEASING.md#discord-announcement). A failure here does
-  # not undo the release: re-run this job. A re-run after a success posts the message again.
+  # OpenBot through a channel webhook (docs/RELEASING.md#discord-announcement). It waits for the
+  # Docker image and the boat snapshot, so the post says "is out" only when every channel has the
+  # version. A failure here does not undo the release: re-run this job. A re-run after a success
+  # posts the message again.
   discord-announce:
     name: Announce the release on Discord
-    needs: [validate, publish]
+    needs: [validate, publish, docker-publish, hosted-release]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5

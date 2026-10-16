@@ -459,10 +459,11 @@ previous release; the file holds only one version.
 `OpenBot vx.y.z is out`, the highlights, and a link to the version on `/changelog`. Run
 `bun scripts/discord-release-announcement.ts check x.y.z` to see it. The tag workflow and
 `bun run release:preflight` stop when the file is not for the release version, has fewer than 3 or
-more than 5 highlights, has an empty highlight or a placeholder, or makes a message longer than
-2000 characters. After the GitHub Release is published, the `discord-announce` job posts the
-message as OpenBot through the channel webhook in the `DISCORD_RELEASE_WEBHOOK_URL` secret of the
-`release` environment. To make the webhook, open the channel settings in Discord, then
+more than 5 highlights, has a highlight that is empty or has a placeholder, a line break or a
+mention, or makes a message longer than 2000 characters. After the GitHub Release, the Docker image
+and the boat snapshot are published, the `discord-announce` job posts the message as OpenBot
+through the channel webhook in the `DISCORD_RELEASE_WEBHOOK_URL` secret of the `release`
+environment. To make the webhook, open the channel settings in Discord, then
 Integrations > Webhooks, and name it `OpenBot` with the OpenBot icon. A failed post does not undo
 the release: re-run the job. A re-run after a successful post posts the message again.
 
