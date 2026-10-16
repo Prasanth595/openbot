@@ -32,3 +32,16 @@
   font-size: var(--openbot-text-sm);
   line-height: var(--openbot-leading-sm);
 }
+
+/* The chat composer's compact row, without its attach button: the editor and the send button. */
+.side-question-composer.composer[data-compact] {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.side-question-composer.composer[data-compact] > .composer-input-label {
+  grid-column: 1;
+}
+
+.side-question-composer.composer[data-compact] .composer-primary-actions {
+  grid-column: 2;
+}

@@ -139,7 +139,7 @@ export function SideQuestionPanel(props: SideQuestionPanelProps) {
           {(error) => <ComposerNotice tone="danger" title={t("conversation.sideQuestion.failed")} body={error()} />}
         </Show>
         <form
-          class="composer"
+          class="composer side-question-composer"
           data-compact="true"
           onSubmit={(event) => {
             event.preventDefault();

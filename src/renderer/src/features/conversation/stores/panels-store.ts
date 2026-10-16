@@ -6,7 +6,7 @@ import {
   type WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import { currentText } from "@openbot/ui/text";
-import { createMemo, createSignal, createStore } from "solid-js";
+import { createMemo, createSignal, type Store, type StoreSetter } from "solid-js";
 import { createScopeGuard } from "../../../scope-lifetime";
 import { attachmentFilePreview } from "../attachment-preview";
 import { releaseFilePreviewPage } from "../conversation-port";
@@ -37,6 +37,13 @@ export interface SidePanelState {
   maximized: boolean;
 }
 
+/** The side panel of each agent, and the task in its Tasks pane. */
+export interface SidePanelsState {
+  side: Record<string, SidePanelState>;
+  /** A task of null is a new task, until its first message starts it; an agent with no entry shows the task list. */
+  tasks: Record<string, string | null>;
+}
+
 const SIDE_PANEL_EMPTY: SidePanelState = { panes: [], selected: null, maximized: false };
 
 /** The panel mode of each pane. */
@@ -64,6 +71,9 @@ export interface PanelsStoreDeps {
   props: ConversationProps;
   rightPanels: () => Record<string, RightPanelMode>;
   setRightPanels: (update: (current: Record<string, RightPanelMode>) => Record<string, RightPanelMode>) => void;
+  /** Owned with `rightPanels`, so that the tabs stay with the open pane when the view of the chat closes. */
+  panels: Store<SidePanelsState>;
+  setPanels: StoreSetter<SidePanelsState>;
   settingsProvider: () => import("@openbot/contracts/ipc").AgentProviderId;
   settingsModel: () => import("@openbot/contracts/ipc").AgentModelId;
   settingsReasoning: () => import("@openbot/contracts/ipc").AgentReasoningEffort;
@@ -94,14 +104,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     const agentId = deps.props.agent?.id;
     return agentId ? (deps.rightPanels()[agentId] ?? "none") : "none";
   });
-  /**
-   * The side panel of each agent, and the task in its Tasks pane. A task of null is a new task, until its
-   * first message starts it; an agent with no task entry shows the task list.
-   */
-  const [panels, setPanels] = createStore<{
-    side: Record<string, SidePanelState>;
-    tasks: Record<string, string | null>;
-  }>({ side: {}, tasks: {} });
+  const { panels, setPanels } = deps;
   const sidePanel = (): SidePanelState => {
     const agentId = deps.props.agent?.id;
     return (agentId && panels.side[agentId]) || SIDE_PANEL_EMPTY;

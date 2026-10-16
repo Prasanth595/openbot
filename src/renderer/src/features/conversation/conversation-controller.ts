@@ -29,6 +29,7 @@ import type {
   SidebarFilePreview,
   VoiceLiveTranscript,
 } from "./conversation-types";
+import type { SidePanelsState } from "./stores/panels-store";
 import { createPendingSendStore } from "./stores/pending-send-store";
 import type { SideQuestionState } from "./stores/side-question-store";
 import type { VoiceCloudStream } from "./stores/voice-store";
@@ -364,6 +365,7 @@ export function createServerConversationState() {
   const [markingRead, setMarkingRead] = createSignal(false);
   const [dropActive, setDropActive] = createSignal(false);
   const [rightPanels, setRightPanels] = createSignal<Record<string, RightPanelMode>>({});
+  const [sidePanels, setSidePanels] = createStore<SidePanelsState>({ side: {}, tasks: {} });
   const [settingsProvider, setSettingsProvider] = createSignal<AgentProviderId>("codex");
   const [settingsModel, setSettingsModel] = createSignal<AgentModelId>("gpt-6-luna");
   const [settingsReasoning, setSettingsReasoning] = createSignal<AgentReasoningEffort>("medium");
@@ -407,6 +409,8 @@ export function createServerConversationState() {
     setDropActive,
     rightPanels,
     setRightPanels,
+    sidePanels,
+    setSidePanels,
     settingsProvider,
     setSettingsProvider,
     settingsModel,

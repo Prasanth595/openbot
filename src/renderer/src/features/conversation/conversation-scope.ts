@@ -132,6 +132,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setHiddenAwaitingReplyIds,
     sideQuestions: sideQuestionStates,
     setSideQuestions,
+    sidePanels,
+    setSidePanels,
     resources,
   } = controller;
   /**
@@ -173,6 +175,8 @@ export function createConversationViewScope(props: ConversationProps) {
     props,
     rightPanels,
     setRightPanels,
+    panels: sidePanels,
+    setPanels: setSidePanels,
     settingsProvider,
     settingsModel,
     settingsReasoning,
