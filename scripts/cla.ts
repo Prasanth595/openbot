@@ -5,10 +5,9 @@
 //
 // The author of the pull request and each commit author must sign. Bots, organization members and
 // users with write access skip the check, as in `contribution-policy.ts`. The author of the pull
-// request signs with the agreement box that TEMPLATE_PATH puts, ticked, in the description. When
-// the description has no box, for example because an agent wrote it, the script adds the box of
-// TEMPLATE_PATH, unticked, to the end, so that the author signs with one click. The script does not
-// add a ticked box: its edit is not the author's signature. Each author can
+// request signs with the agreement box that TEMPLATE_PATH puts in the description. When the
+// description has no box, for example because an agent wrote it, the script adds the unticked box
+// of TEMPLATE_PATH to the end, so that the author signs with one click. Each author can
 // also sign with a comment that contains the signing line of CLA.md. A box or a comment counts only
 // when its last editor is the author: a user with write access can edit the text of other people.
 //
@@ -108,7 +107,7 @@ function parseNumber(value: string | undefined): number {
   return number;
 }
 
-/** The heading of the agreement section in TEMPLATE_PATH, and its box, unticked. */
+/** The heading and the unticked box of the agreement section in TEMPLATE_PATH. */
 interface AgreementSection {
   readonly heading: string;
   readonly box: string;
@@ -117,7 +116,7 @@ interface AgreementSection {
 /**
  * The version of CLA.md, the line that signs it, and the agreement section of the template. The
  * script fails when CLA.md does not contain the line, or when the pull request template has no
- * ticked box with it under a heading.
+ * empty box with it under a heading.
  */
 function loadAgreement(): {
   readonly version: string;
@@ -131,11 +130,11 @@ function loadAgreement(): {
   if (!text.includes(signingLine)) fail(`${AGREEMENT_PATH} does not contain the signing line "${signingLine}".`);
   const expected = normalize(signingLine);
   const lines = readFileSync(TEMPLATE_PATH, "utf8").split("\n");
-  const box = lines.find((line) => line.startsWith("- [x] ") && normalize(line.slice(6)) === expected);
-  if (box === undefined) fail(`${TEMPLATE_PATH} has no "- [x]" box with the signing line "${signingLine}".`);
+  const box = lines.find((line) => line.startsWith("- [ ] ") && normalize(line.slice(6)) === expected);
+  if (box === undefined) fail(`${TEMPLATE_PATH} has no "- [ ]" box with the signing line "${signingLine}".`);
   const heading = lines.slice(0, lines.indexOf(box)).findLast((line) => line.startsWith("## "));
   if (heading === undefined) fail(`${TEMPLATE_PATH} has no "## " heading before the agreement box.`);
-  return { version, signingLine, section: { heading, box: `- [ ] ${box.slice(6)}` } };
+  return { version, signingLine, section: { heading, box } };
 }
 
 /** Compares lines without links, case, extra spaces or the final full stop. */
