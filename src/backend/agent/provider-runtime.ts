@@ -2790,7 +2790,7 @@ export class ProviderRuntime implements ProviderPort {
         stderrLogger.warn("A provider reported a failed background refresh.", { provider: client.provider, message });
         return;
       }
-      if (isUsageReadDiagnostic(message)) {
+      if (client.provider === "grok" && isUsageReadDiagnostic(message)) {
         stderrLogger.warn("A provider reported a failed usage reading.", { provider: client.provider, message });
         return;
       }
