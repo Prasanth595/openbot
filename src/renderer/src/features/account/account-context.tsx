@@ -190,15 +190,15 @@ const Auth = createSimpleContext({
     const accountUsageTargetKey = () => accountUsageState.targetKey;
 
     /**
-     * Selects the target of the reading and drops the reading of the old target. With `keepReading`, the
-     * old reading stays until a refresh for the new target replaces it.
+     * Selects the target of the reading. The reading stays until a refresh for the new target replaces it,
+     * so the rail rings do not go away while providers finish their checks. `invalidateAccountUsage`
+     * drops it.
      */
-    function selectAccountUsageTarget(targetKey: string | null, options = { keepReading: false }): void {
+    function selectAccountUsageTarget(targetKey: string | null): void {
       if (accountUsageState.targetKey === targetKey) return;
       accountUsageRequestGeneration += 1;
       setAccountUsageState((state) => {
         state.targetKey = targetKey;
-        if (!options.keepReading) state.data = null;
       });
     }
 
@@ -227,9 +227,7 @@ const Auth = createSimpleContext({
     }
 
     async function refreshAccountUsage(targetKey: string): Promise<AccountUsage> {
-      // The polling selects the target first and drops the reading of another server. The store applies
-      // that write later, so this call does not see it and must not drop the reading again.
-      selectAccountUsageTarget(targetKey, { keepReading: true });
+      selectAccountUsageTarget(targetKey);
       const generation = ++accountUsageRequestGeneration;
       accountUsageEventIds = new Set();
       const usage = await accountPort().agent.getUsage();

@@ -31,11 +31,6 @@ export function createWebAccountUsage(options: {
       .join(",");
     return `${hostId}:${connected}`;
   });
-  // As on desktop: a reading is for one host. On the same host, a provider check keeps the reading until
-  // the next one replaces it, so the rail rings do not blink while models load.
-  createEffect(usageHostId, () => {
-    setAccountUsage(null);
-  });
   const usageReady = createMemo(() => {
     const current = status();
     return (
@@ -44,9 +39,28 @@ export function createWebAccountUsage(options: {
         Boolean(current.providers?.some((item) => item.state === "available" && item.connectionState !== "connecting")))
     );
   });
+  /** As on desktop: a provider still starts or checks its sign-in, so a new target and its reading follow. */
+  const providersLoading = createMemo(() => {
+    const current = status();
+    return (
+      current.phase === "starting" ||
+      current.phase === "restarting" ||
+      Boolean(current.providers?.some((item) => item.state === "checking" || item.connectionState === "connecting"))
+    );
+  });
+  // As on desktop: a reading is for one host. On that host, the reading stays until the refresh for the new
+  // target replaces it, so the rail rings do not blink while models load. It goes when no refresh follows.
+  createEffect(usageHostId, () => {
+    setAccountUsage(null);
+  });
+  createEffect(usageTargetKey, () => {
+    if (!untrack(usageReady) && !untrack(providersLoading)) setAccountUsage(null);
+  });
   // The composer shows the usage-limit notice with the account menu closed, so read once for each target.
+  // As on desktop, while a reading shows, the read waits for the provider checks to end.
+  const hasReading = createMemo(() => (accountUsage()?.limits.length ?? 0) > 0);
   createEffect(
-    () => (usageReady() ? usageTargetKey() : null),
+    () => (usageReady() && !(hasReading() && providersLoading()) ? usageTargetKey() : null),
     (target) => {
       if (target) void refreshUsage().catch(() => undefined);
     },
