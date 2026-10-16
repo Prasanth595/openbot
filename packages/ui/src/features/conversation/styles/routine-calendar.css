@@ -99,9 +99,13 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: var(--openbot-space-1);
-  padding: 0 var(--openbot-space-2);
   color: var(--openbot-text-muted);
   font-size: var(--openbot-text-sm);
+}
+
+/* The day cell's border and padding, so that each head starts where its day starts. */
+.routine-planner-weekdays > * {
+  padding-inline: calc(1px + var(--openbot-space-1-5));
 }
 
 /* Each day is a list, not a time grid: runs at the same minute stack and stay readable. */
