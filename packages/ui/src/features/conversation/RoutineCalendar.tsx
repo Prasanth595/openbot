@@ -168,7 +168,15 @@ export function RoutineCalendar(props: RoutineCalendarProps) {
       .slice(0, UPCOMING_LIMIT),
   );
 
-  const clockChange = createMemo(() => clockChangeDay(visibleDays(), props.timeZone));
+  /** A month grid fills its first and last rows with days of the months next to it. */
+  const outsideMonth = (day: CalendarDay) =>
+    state.view === "month" && calendarMonthStart(day) !== calendarMonthStart(state.anchor);
+  const clockChange = createMemo(() =>
+    clockChangeDay(
+      visibleDays().filter((day) => !outsideMonth(day)),
+      props.timeZone,
+    ),
+  );
 
   const dayText = (day: CalendarDay, options: Intl.DateTimeFormatOptions) =>
     format.date(calendarDayDate(day), { ...options, timeZone: "UTC" });
@@ -211,7 +219,6 @@ export function RoutineCalendar(props: RoutineCalendarProps) {
         ? addCalendarMonths(state.anchor, direction)
         : addCalendarDays(state.anchor, direction * (state.view === "week" ? 7 : 1)),
     );
-  /** A month grid also shows days of the months next to it; those do not make it today's month. */
   const showsToday = () =>
     state.view === "month"
       ? calendarMonthStart(state.anchor) === calendarMonthStart(today())
@@ -227,6 +234,15 @@ export function RoutineCalendar(props: RoutineCalendarProps) {
       time,
     });
   };
+
+  /** The month grid names the weekdays once, above its columns. */
+  const weekdayHeads = () => (
+    <Show when={state.view === "month"}>
+      <div class="routine-planner-weekdays" aria-hidden="true">
+        <For each={visibleDays().slice(0, 7)}>{(day) => <span>{dayText(day, { weekday: "short" })}</span>}</For>
+      </div>
+    </Show>
+  );
 
   onSettled(() => {
     if (untrack(() => props.onBack)) heading?.focus();
@@ -318,16 +334,19 @@ export function RoutineCalendar(props: RoutineCalendarProps) {
             <p class="sr-only" role="status">
               {t("routine.calendar.loading")}
             </p>
-            <div class="routine-planner-week routine-planner-loading">
-              <For each={visibleDays()}>
-                {() => (
-                  <div class="routine-planner-day">
-                    <Skeleton class="routine-planner-skeleton-heading" />
-                    <Skeleton class="routine-planner-skeleton-run" />
-                    <Skeleton class="routine-planner-skeleton-run" />
-                  </div>
-                )}
-              </For>
+            <div class="routine-planner-grid">
+              {weekdayHeads()}
+              <div class="routine-planner-week routine-planner-loading">
+                <For each={visibleDays()}>
+                  {(day) => (
+                    <div class="routine-planner-day" data-outside={outsideMonth(day) ? "" : undefined}>
+                      <Skeleton class="routine-planner-skeleton-heading" />
+                      <Skeleton class="routine-planner-skeleton-run" />
+                      <Skeleton class="routine-planner-skeleton-run" />
+                    </div>
+                  )}
+                </For>
+              </div>
             </div>
           </div>
         </Match>
@@ -372,27 +391,19 @@ export function RoutineCalendar(props: RoutineCalendarProps) {
               }
             >
               <div class="routine-planner-grid">
-                <Show when={state.view === "month"}>
-                  <div class="routine-planner-weekdays" aria-hidden="true">
-                    <For each={visibleDays().slice(0, 7)}>
-                      {(day) => <span>{dayText(day, { weekday: "short" })}</span>}
-                    </For>
-                  </div>
-                </Show>
+                {weekdayHeads()}
                 <ol class="routine-planner-week">
                   <For each={visibleDays()}>
                     {(day) => {
                       const dayEntries = () => entriesByDay().get(day) ?? [];
                       const limit = () => (state.view === "month" ? DAY_CELL_LIMIT.month : DAY_CELL_LIMIT.week);
                       const hidden = () => Math.max(0, dayEntries().length - limit());
-                      const outside = () =>
-                        state.view === "month" && calendarMonthStart(day) !== calendarMonthStart(state.anchor);
                       return (
                         <li
                           class="routine-planner-day"
                           aria-current={day === today() ? "date" : undefined}
                           data-past={day < today() ? "" : undefined}
-                          data-outside={outside() ? "" : undefined}
+                          data-outside={outsideMonth(day) ? "" : undefined}
                         >
                           <h3 class="routine-planner-day-heading">
                             <Button
