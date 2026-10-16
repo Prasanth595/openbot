@@ -7,6 +7,7 @@ import type {
 import { runTeamEffect } from "@openbot/team-client";
 import {
   HOSTED_HOST_READY_LIMIT_MS,
+  HOSTED_START_FAILED_READS,
   HOSTED_START_POLL_MS,
   hostedStartStep,
 } from "@openbot/team-client/hosted-server-wake";
@@ -36,6 +37,8 @@ export function createWebHostLifecycle(options: {
   let start: HostedServerStart | null = null;
   /** When the account server first reported the server `running`: OpenBot on it starts. */
   let runningSince: number | null = null;
+  /** The status reads in a row that failed. */
+  let failedReads = 0;
   let sleepTimer: ReturnType<typeof setTimeout> | undefined;
   let removeInput: (() => void) | undefined;
   let waking: Promise<void> | null = null;
@@ -59,18 +62,22 @@ export function createWebHostLifecycle(options: {
     startTimer = undefined;
     start = null;
     runningSince = null;
+    failedReads = 0;
     options.setStart(null);
+  }
+  function expire() {
+    cancelPending();
+    clearStart();
+    expired = true;
+    options.setHostedSleep(null);
+    options.setIssue("start_timeout");
   }
   /** The client waits while the server starts. Only OpenBot on a running machine has a time limit. */
   function setStep(startedAt: number, step: HostedServerStartStep): boolean {
     if (step !== "openbot") runningSince = null;
     else runningSince ??= Date.now();
     if (runningSince !== null && Date.now() - runningSince >= HOSTED_HOST_READY_LIMIT_MS) {
-      cancelPending();
-      clearStart();
-      expired = true;
-      options.setHostedSleep(null);
-      options.setIssue("start_timeout");
+      expire();
       return false;
     }
     start = { step, startedAt };
@@ -100,7 +107,12 @@ export function createWebHostLifecycle(options: {
       }
       // The account server sends a refused start again when its delay ends, after a wake request.
       if (step === "provider_limit") void runTeamEffect(hosted.wake(id));
-      // A failed read is also a reason the host is offline. The client keeps waiting and reads again.
+      // A failed read is also a reason the host is offline. The client reads again, up to a limit.
+      failedReads = status ? 0 : failedReads + 1;
+      if (failedReads >= HOSTED_START_FAILED_READS) {
+        expire();
+        return;
+      }
       if (step && !setStep(start.startedAt, step)) return;
       readStart(id);
     }, HOSTED_START_POLL_MS);

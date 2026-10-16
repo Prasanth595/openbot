@@ -15,6 +15,12 @@ const STEPS = [
 ] as const;
 
 /**
+ * The end of a restart that no client waits for, such as a server that the web client did not open. The
+ * client that waits sets a hosted issue much sooner. A hosted machine restored its disk in 18 minutes.
+ */
+const RESTART_LIMIT_SECONDS = 30 * 60;
+
+/**
  * Asks before the owner or an admin restarts a hosted server, then shows the restart until the server
  * is online again or does not start. A failed request stays in the dialog. The user can hide the dialog
  * while the server restarts; a toast then reports the result.
@@ -144,6 +150,7 @@ export function RestartServerDialog(props: {
     clock = setInterval(() => {
       seconds += 1;
       setElapsed(seconds);
+      if (seconds >= RESTART_LIMIT_SECONDS) finish("failed");
     }, 1000);
     try {
       await props.onRestart();

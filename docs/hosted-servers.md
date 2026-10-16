@@ -149,8 +149,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    the machine starts (`waking`, `starting`, `stopping`), OpenBot starts (`running`), or the provider
    refused the start (`waking` with `provider_limit`). The client waits with no limit while the
    machine starts. When the machine is `running` and its host does not connect in 15 minutes, the
-   client shows that the server did not start in time. Restart is not available while the server
-   starts. The web client does the same for its one server, and checks a sleeping server again every
+   client shows that the server did not start in time, as it does after 10 status reads in a row
+   that fail. Restart is not available while the server starts. The web client does the same for its one server, and checks a sleeping server again every
    5 minutes. The mobile app has no status check: it wakes the selected server while the app is in
    the foreground, with the same limit for a `running` server. A server whose plan ended answers
    `402 plan_required`.
@@ -161,7 +161,9 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    (`provider_event_at`) to the last refusal, from 30 seconds to 5 minutes. A retry keeps the wake time
    and the error, and only one caller can claim it. A resume that boat accepts clears the error. The
    cron does not ask boat about such a row, because boat reports the sandbox `archived` and the row
-   would become `stopped`. Any other resume failure sets `error` as before.
+   would become `stopped`. A `409` on a retry (boat already resumes the sandbox) clears the error, so
+   the cron reads boat again when the webhook does not come. Any other resume failure sets `error` as
+   before.
 
    A paid server whose setup failed has no sandbox. A wake (Retry in the add server dialog) sets
    it up again at once, and the cron does this 10 minutes after each failure. Each attempt sends

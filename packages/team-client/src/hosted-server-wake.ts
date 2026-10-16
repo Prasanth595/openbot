@@ -31,16 +31,24 @@ export const WAKE_RECONNECT_STATES: ReadonlySet<HostedServerState> = new Set([
 export const HOSTED_HOST_READY_LIMIT_MS = 15 * 60_000;
 /** While a hosted server starts, the client reads its state this often, to show the step. */
 export const HOSTED_START_POLL_MS = 30_000;
+/**
+ * A start whose state the client cannot read this many times in a row ends, as a start that took too
+ * long. With `HOSTED_START_POLL_MS`, this is 5 minutes.
+ */
+export const HOSTED_START_FAILED_READS = 10;
 /** A host that is not a hosted server stays so. It is asked again after this long, not on each failure. */
 const NOT_HOSTED_RECHECK_MS = 10 * 60_000;
 /** A failure after this long with no wake request is a new outage, so its wait for the host starts again. */
 const NEW_OUTAGE_MS = 2 * 60_000;
-/** The step of a start that the account server reports, or null when the server does not start by itself. */
+/**
+ * The step of a start that the account server reports, or null when the server does not start by itself.
+ * A server whose plan ended stops, also from a start state.
+ */
 export function hostedStartStep(server: {
   state: HostedServerState;
   error: HostedServerError | null;
 }): HostedServerStartStep | null {
-  if (!WAKE_RECONNECT_STATES.has(server.state)) return null;
+  if (!WAKE_RECONNECT_STATES.has(server.state) || server.error === "plan_ended") return null;
   if (server.state === "running") return "openbot";
   return server.state === "waking" && server.error === "provider_limit" ? "provider_limit" : "machine";
 }

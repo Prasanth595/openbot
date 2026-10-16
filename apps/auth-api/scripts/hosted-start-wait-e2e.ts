@@ -258,6 +258,7 @@ async function clientWaitsWhileServerStarts(template: HostedServerSummary) {
     stopping: hostedStartStep({ state: "stopping", error: null }),
     stopped: hostedStartStep({ state: "stopped", error: null }),
     failed: hostedStartStep({ state: "error", error: "provider_limit" }),
+    planEnded: hostedStartStep({ state: "stopping", error: "plan_ended" }),
   };
   check(
     "the start step follows the account server state",
@@ -266,7 +267,8 @@ async function clientWaitsWhileServerStarts(template: HostedServerSummary) {
       steps.running === "openbot" &&
       steps.stopping === "machine" &&
       steps.stopped === null &&
-      steps.failed === null,
+      steps.failed === null &&
+      steps.planEnded === null,
     steps,
   );
 }

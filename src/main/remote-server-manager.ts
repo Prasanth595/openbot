@@ -64,6 +64,7 @@ import { decodeTeamProtocolV1CurrentHttpResponse } from "@openbot/contracts/team
 import { sourceText } from "@openbot/i18n/source";
 import {
   HOSTED_HOST_READY_LIMIT_MS,
+  HOSTED_START_FAILED_READS,
   HOSTED_START_POLL_MS,
   hostedStartStep,
   WAKE_RECONNECT_STATES,
@@ -217,6 +218,8 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
   readonly #hostedStartAt = new Map<string, number>();
   /** When the account server first reported each starting server `running`: OpenBot on it starts. */
   readonly #hostedRunningSince = new Map<string, number>();
+  /** The status reads in a row that failed, for each starting server. */
+  readonly #hostedFailedReads = new Map<string, number>();
   readonly #hostedWakePending = new Set<string>();
   readonly #hostedStartRevision = new Map<string, number>();
   /** The next status read of each hosted server that starts. */
@@ -1106,16 +1109,26 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     const hosted = this.#hostedServers;
     if (!hosted || this.#stopping || !this.#hostedStartAt.has(serverId)) return;
     const revision = this.#hostedStartRevision.get(serverId) ?? 0;
-    // A failed read is also a reason the host is offline. The client keeps waiting and reads again.
     const status = yield* hosted.status(serverId).pipe(Effect.catch(() => Effect.succeed(null)));
     if (
       this.#stopping ||
       !this.#hostedStartAt.has(serverId) ||
       !this.#store.has(serverId) ||
-      this.#connections.stateFor(serverId) === "online" ||
-      (this.#hostedStartRevision.get(serverId) ?? 0) !== revision
+      this.#connections.stateFor(serverId) === "online"
     )
       return;
+    // A wake during the read changed the start. Its state is read again later.
+    if ((this.#hostedStartRevision.get(serverId) ?? 0) !== revision) {
+      this.#scheduleHostedStartRead(serverId);
+      return;
+    }
+    // A failed read is also a reason the host is offline. The client reads again, up to a limit.
+    const failedReads = status ? 0 : (this.#hostedFailedReads.get(serverId) ?? 0) + 1;
+    this.#hostedFailedReads.set(serverId, failedReads);
+    if (failedReads >= HOSTED_START_FAILED_READS) {
+      this.#expireHostedStart(serverId);
+      return;
+    }
     const step = status && hostedStartStep(status);
     if (status && !step) {
       this.#clearHostedStart(serverId);
@@ -1221,6 +1234,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     this.#hostedStartTimers.delete(serverId);
     this.#hostedStartAt.delete(serverId);
     this.#hostedRunningSince.delete(serverId);
+    this.#hostedFailedReads.delete(serverId);
     this.#connections.setHostedStart(serverId, null);
   }
 

@@ -1223,16 +1223,17 @@ export class HostedServerService {
           .all<HostedServerRow>(),
       );
       result.restarted = yield* run(stopped.results, (row) => this.#wake(row, "restart"));
-      // A start that boat refused with a rate limit, when no client wake sent it again. `#wake` waits for
-      // the delay. A provider refresh would see the stopped sandbox and mark the server `stopped`.
+      // A start that boat refused with a rate limit, when no client wake sent it again and its delay ended
+      // (`rateLimitRetryAt`). A provider refresh would see the stopped sandbox and mark the server `stopped`.
       const rateLimited = yield* hostedCall(() =>
         dependencies.database
           .prepare(
             `SELECT ${ROW_COLUMNS} FROM hosted_servers
          WHERE desired_state = 'running' AND provider_sandbox_id IS NOT NULL AND observed_state = 'waking'
-           AND observed_error = 'provider_limit' AND updated_at <= ? LIMIT ?`,
+           AND observed_error = 'provider_limit'
+           AND updated_at + MIN(?, MAX(?, updated_at - COALESCE(provider_event_at, updated_at))) <= ? LIMIT ?`,
           )
-          .bind(now - RATE_LIMIT_RETRY_MIN_MS, TICK_BATCH_SIZE)
+          .bind(RATE_LIMIT_RETRY_MAX_MS, RATE_LIMIT_RETRY_MIN_MS, now, TICK_BATCH_SIZE)
           .all<HostedServerRow>(),
       );
       result.restarted += yield* run(rateLimited.results, (row) => this.#wake(row, "restart"));
@@ -1241,8 +1242,8 @@ export class HostedServerService {
           .prepare(
             `SELECT ${ROW_COLUMNS} FROM hosted_servers
          WHERE desired_state != 'deleted' AND provider_sandbox_id IS NOT NULL
-           AND observed_state IN ('starting', 'stopping', 'waking') AND observed_error IS NOT 'provider_limit'
-           AND updated_at <= ? LIMIT ?`,
+           AND observed_state IN ('starting', 'stopping', 'waking')
+           AND NOT (observed_state = 'waking' AND observed_error IS 'provider_limit') AND updated_at <= ? LIMIT ?`,
           )
           .bind(now - STUCK_AFTER_MS, TICK_BATCH_SIZE)
           .all<HostedServerRow>(),
@@ -2101,11 +2102,17 @@ export class HostedServerService {
         return yield* this.#resume({ ...row, pending_size: null });
       }
       // 409: the provider already resumes or runs it; the webhook or the cron reports the result. boat
-      // kept its old stop time, so the next activity sets a new one.
+      // kept its old stop time, so the next activity sets a new one. A rate limit no longer applies, so the
+      // cron reads the provider when the webhook does not come.
       if (error instanceof BoatApiError && error.status === 409) {
         yield* hostedCall(() =>
           dependencies.database
-            .prepare("UPDATE hosted_servers SET lease_until = NULL WHERE server_id = ?")
+            .prepare(
+              `UPDATE hosted_servers SET lease_until = NULL,
+               observed_error = CASE WHEN observed_state = 'waking' AND observed_error = 'provider_limit'
+                 THEN NULL ELSE observed_error END
+             WHERE server_id = ?`,
+            )
             .bind(row.server_id)
             .run(),
         );
