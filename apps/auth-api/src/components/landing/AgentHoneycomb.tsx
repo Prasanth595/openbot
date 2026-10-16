@@ -1,4 +1,5 @@
 import { createSignal, For, lazy, onSettled, Show } from "solid-js";
+import { articleGradient, articleGradientCss } from "../../lib/article-gradient";
 import { articleArtPath } from "../../lib/content-collection";
 import { NEWS_COLLECTION } from "../../lib/news";
 
@@ -7,20 +8,28 @@ const AgentAvatar = lazy(() =>
   import("@openbot/ui/features/agents/AgentAvatar").then((module) => ({ default: module.AgentAvatar })),
 );
 
-/**
- * The article cards of the news collection, at the paths `/news` already loads them from, so the
- * browser cache serves both. Only a full build ships these images.
- */
-const ART = [
+const ART_SLUGS = new Set([
   "introducing-openbot",
   "channels-put-agents-in-one-room",
   "every-agent-gets-a-workspace",
   "one-agent-many-providers",
   "routines-give-an-agent-a-schedule",
   "your-work-stays-on-your-computer",
-].map((slug) => articleArtPath(NEWS_COLLECTION, slug, "card"));
+]);
 
-type HoneycombTile = { kind: "agent"; seed: string } | { kind: "art"; src: string };
+/**
+ * The article cards of the news collection, at the paths `/news` already loads them from, so the
+ * browser cache serves both. Only a full build ships these images; under each one is the article's
+ * CSS gradient, as in `ArticleGradient`, so a tile is never empty.
+ */
+const ART = NEWS_COLLECTION.articles
+  .filter((article) => ART_SLUGS.has(article.slug))
+  .map((article) => ({
+    src: articleArtPath(NEWS_COLLECTION, article.slug, "card"),
+    gradient: articleGradientCss(articleGradient(article.title)),
+  }));
+
+type HoneycombTile = { kind: "agent"; seed: string } | ({ kind: "art" } & (typeof ART)[number]);
 
 interface HoneycombCell {
   index: number;
@@ -32,10 +41,8 @@ export function honeycombRows(rows: number, columns: number, artEvery: number, p
   return Array.from({ length: rows }, (_, row) =>
     Array.from({ length: columns }, (_, column) => {
       const index = row * columns + column;
-      const art = artEvery > 0 && (index * 7 + 3) % artEvery === 0;
-      const tile: HoneycombTile = art
-        ? { kind: "art", src: ART[(index * 5) % ART.length] ?? "" }
-        : { kind: "agent", seed: `${prefix}-${index}` };
+      const art = artEvery > 0 && (index * 7 + 3) % artEvery === 0 ? ART[(index * 5) % ART.length] : undefined;
+      const tile: HoneycombTile = art ? { kind: "art", ...art } : { kind: "agent", seed: `${prefix}-${index}` };
       return { index, tile };
     }),
   );
@@ -85,11 +92,16 @@ export function AgentHoneycomb(props: { rows: HoneycombCell[][] }) {
                   onPointerLeave={() => setHovered((index) => (index === cell.index ? null : index))}
                 >
                   {cell.tile.kind === "art" ? (
-                    // A background, as in `ArticleGradient`: in development the image answers 404, and an
-                    // `<img>` then paints the broken-image glyph. Set only when near, so it loads late.
+                    // A background, as in `ArticleGradient`: in development the image answers 404 and the
+                    // gradient shows through; an `<img>` would paint the broken-image glyph. The image URL is
+                    // set only when near, so it loads late.
                     <span
                       class="agent-honeycomb-art"
-                      style={near() ? { "background-image": `url("${cell.tile.src}")` } : undefined}
+                      style={{
+                        "background-image": near()
+                          ? `url("${cell.tile.src}"), ${cell.tile.gradient}`
+                          : cell.tile.gradient,
+                      }}
                     />
                   ) : (
                     <Show when={near()}>
