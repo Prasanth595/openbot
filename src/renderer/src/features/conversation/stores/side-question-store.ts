@@ -1,8 +1,7 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type { SideQuestionExchange } from "@openbot/ui/features/conversation/SideQuestionPanel";
 import { currentText } from "@openbot/ui/text";
-import { createStore } from "solid-js";
-import { createScopeGuard } from "../../../scope-lifetime";
+import type { Store, StoreSetter } from "solid-js";
 import { conversationPort } from "../conversation-port";
 import type { ConversationProps } from "../conversation-types";
 
@@ -21,14 +20,15 @@ const SIDE_QUESTION_EMPTY: SideQuestionState = { draft: "", exchanges: [], error
 
 export interface SideQuestionStoreDeps {
   props: ConversationProps;
+  /** Owned by the server's conversation state, so that a side question outlives the view of its chat. */
+  questions: Store<Record<string, SideQuestionState>>;
+  setQuestions: StoreSetter<Record<string, SideQuestionState>>;
   /** Opens the side question pane of the agent on screen. */
   openPane: () => void;
 }
 
 export function createSideQuestionStore(deps: SideQuestionStoreDeps) {
-  const scopeActive = createScopeGuard();
-  const [questions, setQuestions] = createStore<Record<string, SideQuestionState>>({});
-  let nextExchange = 0;
+  const { questions, setQuestions } = deps;
 
   /** Only the computer that runs the agent answers a side question. */
   const sideQuestionAvailable = () => !deps.props.runtime && (deps.props.server?.id ?? "local") === "local";
@@ -36,6 +36,11 @@ export function createSideQuestionStore(deps: SideQuestionStoreDeps) {
     const agentId = deps.props.agent?.id;
     return (agentId && questions[agentId]) || SIDE_QUESTION_EMPTY;
   };
+  /**
+   * One side composer shows the side question of each agent in turn, so a focus request must be higher
+   * than the request of each agent.
+   */
+  const nextFocusRequest = () => Math.max(0, ...Object.values(questions).map((state) => state.focusRequest)) + 1;
   function update(agentId: string, change: (state: SideQuestionState) => void) {
     setQuestions((draft) => {
       draft[agentId] ??= { ...SIDE_QUESTION_EMPTY, exchanges: [] };
@@ -58,7 +63,7 @@ export function createSideQuestionStore(deps: SideQuestionStoreDeps) {
     const question = text.trim();
     update(agentId, (state) => {
       if (question) state.draft = state.draft.trim() ? `${state.draft.trim()}\n${question}` : question;
-      state.focusRequest += 1;
+      state.focusRequest = nextFocusRequest();
     });
     deps.openPane();
   }
@@ -68,13 +73,18 @@ export function createSideQuestionStore(deps: SideQuestionStoreDeps) {
     if (!agentId) return;
     const state = questions[agentId] ?? SIDE_QUESTION_EMPTY;
     if (state.exchanges.at(-1)?.answer === null) return;
-    const earlier = state.exchanges
-      .slice(-INPUT_LIMITS.sideQuestionTurns)
-      .flatMap((exchange) =>
-        exchange.answer === null ? [] : [{ question: exchange.question, answer: exchange.answer }],
-      );
-    nextExchange += 1;
-    const id = `side-question-${nextExchange}`;
+    const earlier = state.exchanges.slice(-INPUT_LIMITS.sideQuestionTurns).flatMap((exchange) =>
+      exchange.answer === null
+        ? []
+        : [
+            {
+              question: exchange.question.slice(0, INPUT_LIMITS.messageText),
+              // A longer answer still shows in full; only its start goes back to the agent.
+              answer: exchange.answer.slice(0, INPUT_LIMITS.sideQuestionAnswer),
+            },
+          ],
+    );
+    const id = crypto.randomUUID();
     update(agentId, (draft) => {
       draft.exchanges.push({ id, question, askedAt: new Date().toISOString(), answer: null, answeredAt: null });
       draft.draft = "";
@@ -84,7 +94,7 @@ export function createSideQuestionStore(deps: SideQuestionStoreDeps) {
       .agent.askSideQuestion({ agentId, question, earlier })
       .then(
         (answer) => {
-          if (!scopeActive() || !questions[agentId]) return;
+          if (!questions[agentId]) return;
           update(agentId, (draft) => {
             const exchange = draft.exchanges.find((item) => item.id === id);
             if (!exchange) return;
@@ -93,14 +103,14 @@ export function createSideQuestionStore(deps: SideQuestionStoreDeps) {
           });
         },
         (error) => {
-          if (!scopeActive() || !questions[agentId]) return;
+          if (!questions[agentId]) return;
           update(agentId, (draft) => {
             if (!draft.exchanges.some((item) => item.id === id)) return;
-            // The question goes back to the composer, so that Send asks it again.
+            // The question goes back to the composer, before text typed since, so that Send asks it again.
             draft.exchanges = draft.exchanges.filter((item) => item.id !== id);
             draft.error = errorMessage(error, t("conversation.sideQuestion.error"));
-            if (!draft.draft.trim()) draft.draft = question;
-            draft.focusRequest += 1;
+            draft.draft = draft.draft.trim() ? `${question}\n${draft.draft.trim()}` : question;
+            draft.focusRequest = nextFocusRequest();
           });
         },
       );

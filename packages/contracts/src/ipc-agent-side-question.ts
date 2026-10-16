@@ -21,7 +21,7 @@ export interface AskSideQuestionInput {
 function isSideQuestionTurn(value: unknown): value is SideQuestionTurn {
   return (
     isDynamicRecord(value) &&
-    isBoundedString(value.question, INPUT_LIMITS.directMessageText) &&
+    isBoundedString(value.question, INPUT_LIMITS.messageText) &&
     isBoundedString(value.answer, INPUT_LIMITS.sideQuestionAnswer)
   );
 }
@@ -30,7 +30,7 @@ export function parseAskSideQuestion(value: unknown): AskSideQuestionInput {
   if (
     !isDynamicRecord(value) ||
     !isIdentifier(value.agentId) ||
-    !isBoundedString(value.question, INPUT_LIMITS.directMessageText) ||
+    !isBoundedString(value.question, INPUT_LIMITS.messageText) ||
     !value.question.trim() ||
     !Array.isArray(value.earlier) ||
     value.earlier.length > INPUT_LIMITS.sideQuestionTurns ||

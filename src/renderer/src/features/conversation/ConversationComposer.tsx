@@ -640,8 +640,10 @@ export function ConversationComposer() {
                   <DropdownMenu.Separator />
                   <DropdownMenu.Item
                     onSelectAfterClose={() => {
-                      // The draft goes to the side question, so that the chat gets nothing of it.
-                      const text = currentDraft().text;
+                      // The draft goes to the side question, so that the chat gets nothing of it. A draft
+                      // with attachments stays: the side question cannot send files.
+                      const draft = currentDraft();
+                      const text = draft.attachments.length === 0 ? draft.text : "";
                       if (text) updateCurrentDraft({ text: "" });
                       // The menu gives the focus back first. A side panel tab that gets it selects its
                       // pane, so open the side question after that.

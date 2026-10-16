@@ -6,15 +6,17 @@ import {
   type ConversationMessage,
   ROUTINE_QUIET_ANSWER_ITEM_TYPE,
 } from "@openbot/contracts/ipc";
+import { tagSafe } from "./developer-instructions";
 
 /** The chat messages a side question reads, newest last. */
 export const SIDE_QUESTION_CHAT_MESSAGES = 60;
 const MESSAGE_CHARACTERS = 4_000;
 const CHAT_CHARACTERS = 60_000;
+const EARLIER_CHARACTERS = 60_000;
 
-/** JSON for a prompt block. An escaped `<` keeps chat text from closing the block's tag. */
-function tagSafe(value: unknown): string {
-  return JSON.stringify(value, null, 2).replaceAll("<", "\\u003c");
+/** Indented JSON for a prompt block, with `<` escaped as `tagSafe` does. */
+function promptJson(value: unknown): string {
+  return tagSafe(JSON.stringify(value, null, 2));
 }
 
 /** A message that a person or the agent wrote in the chat, not a tool step or a status line. */
@@ -49,6 +51,20 @@ function chatTranscript(agent: AgentSummary, messages: readonly ConversationMess
   return entries.reverse();
 }
 
+/** The newest earlier side questions that fit the budget, oldest first. */
+function earlierTurns(input: AskSideQuestionInput) {
+  const turns: AskSideQuestionInput["earlier"] = [];
+  let characters = 0;
+  for (const turn of [...input.earlier].reverse()) {
+    const question = turn.question.slice(0, MESSAGE_CHARACTERS);
+    const answer = turn.answer.slice(0, MESSAGE_CHARACTERS);
+    if (characters + question.length + answer.length > EARLIER_CHARACTERS) break;
+    characters += question.length + answer.length;
+    turns.push({ question, answer });
+  }
+  return turns.reverse();
+}
+
 /**
  * The prompt of a side question: the agent's profile, the end of its chat, the earlier side turns, and
  * the question. The generation has no tools, so the answer can only come from this text.
@@ -58,23 +74,22 @@ export function sideQuestionPrompt(
   messages: readonly ConversationMessage[],
   input: AskSideQuestionInput,
 ): string {
+  const earlier = earlierTurns(input);
   return [
     "You are the agent in this profile. The user asks a side question about your chat with them. The question and your answer stay out of the chat, and you cannot use tools here. Answer from the chat and from what you know. Give the shortest complete answer in plain text or Markdown.",
     "<agent_profile>",
-    tagSafe({
+    promptJson({
       name: agent.name,
       title: agent.title.trim() || "General assistant",
       description: agent.description.trim() || "No additional description configured.",
     }),
     "</agent_profile>",
     "<chat>",
-    tagSafe(chatTranscript(agent, messages)),
+    promptJson(chatTranscript(agent, messages)),
     "</chat>",
-    ...(input.earlier.length > 0
-      ? ["<earlier_side_questions>", tagSafe(input.earlier), "</earlier_side_questions>"]
-      : []),
+    ...(earlier.length > 0 ? ["<earlier_side_questions>", promptJson(earlier), "</earlier_side_questions>"] : []),
     "<side_question>",
-    tagSafe(input.question),
+    promptJson(input.question),
     "</side_question>",
   ].join("\n");
 }

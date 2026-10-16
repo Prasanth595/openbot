@@ -130,6 +130,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setBrowserPanelWidth,
     hiddenAwaitingReplyIds,
     setHiddenAwaitingReplyIds,
+    sideQuestions: sideQuestionStates,
+    setSideQuestions,
     resources,
   } = controller;
   /**
@@ -225,7 +227,12 @@ export function createConversationViewScope(props: ConversationProps) {
     revealSidebarFile,
     closeSidebarFilePreview,
   } = panels;
-  const sideQuestions = createSideQuestionStore({ props, openPane: () => setActiveRightPanel("question") });
+  const sideQuestions = createSideQuestionStore({
+    props,
+    questions: sideQuestionStates,
+    setQuestions: setSideQuestions,
+    openPane: () => setActiveRightPanel("question"),
+  });
   const {
     sideQuestionAvailable,
     sideQuestion,

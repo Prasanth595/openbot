@@ -39,7 +39,7 @@ export interface SectionTeammates {
 }
 
 /** JSON for a prompt block. An escaped `<` keeps user text from closing the block's tag; the JSON stays valid. */
-function tagSafe(json: string): string {
+export function tagSafe(json: string): string {
   return json.replaceAll("<", "\\u003c");
 }
 
