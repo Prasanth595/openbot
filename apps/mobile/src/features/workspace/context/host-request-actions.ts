@@ -172,7 +172,7 @@ type HostRequestActions = Pick<
 >;
 
 /** A host that serves `agent-hidden-v1` owns the hidden agents of its members. */
-export function hidesAgentsOnHost(capabilities: readonly string[] | undefined): boolean {
+function hidesAgentsOnHost(capabilities: readonly string[] | undefined): boolean {
   return capabilities?.includes(AGENT_HIDDEN_CAPABILITY) ?? false;
 }
 
