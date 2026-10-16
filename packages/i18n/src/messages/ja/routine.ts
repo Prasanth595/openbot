@@ -158,7 +158,7 @@ export const messages = {
   "routine.card.updated": "ルーティンを更新しました",
   "routine.card.open": "ルーティン {name} を開く",
   "routine.calendar.title": "スケジュール",
-  "routine.calendar.open": "ルーティンを開く",
+  "routine.calendar.open": "スケジュールを開く",
   "routine.calendar.timeZone": "時刻は {zone} です",
   "routine.calendar.previousWeek": "前の週",
   "routine.calendar.nextWeek": "次の週",

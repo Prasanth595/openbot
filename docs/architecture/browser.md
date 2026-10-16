@@ -4,8 +4,8 @@
 
 `apps/auth-api` serves `/app`. Its lazy route mounts the interactive client after browser startup.
 `src/renderer/src/features/web-client` owns the browser composition and its typed
-`WebWorkspaceRuntime` interface. It mounts the existing account login, server rail, sidebar,
-account dock, and full conversation view. `ConversationRuntime` routes host actions through
+`WebWorkspaceRuntime` interface. It mounts the existing account login, page rail, server rail,
+sidebar, and full conversation view. `ConversationRuntime` routes host actions through
 the browser connection; its desktop default is the preload API. The desktop `WorkspaceShell` and the
 web client draw the same `WorkspaceFrame` under `LayoutProvider`, so the rail geometry, the sidebar
 resizer and compact modes, the compatibility screen, and the usage report slot are the same on both.
@@ -30,8 +30,8 @@ remote session. Existing bearer-token endpoints retain their behavior. The brows
 account's name, avatar, and sessions through `v1/me/profile`, `v1/me/avatar`, and `v1/me/sessions`,
 which call the same `AuthService` methods and avatar storage (`avatar-storage.ts`) as the bearer
 routes. The avatar upload is the one write that is not JSON; the origin and `X-OpenBot-Browser`
-checks still apply. `web-account.ts` makes these calls, and the shared `AccountProfilePanel` shows
-them in the conversation's right panel.
+checks still apply. `web-account.ts` makes these calls, and the Profile tab of the web Settings dialog
+(`WebAccountSettings.tsx`) shows them.
 
 An owner or admin gets the host controls of a desktop remote admin. Shared components keep their
 desktop port as the default and take injected calls: `web-server-settings.ts` gives

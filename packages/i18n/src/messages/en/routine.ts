@@ -161,7 +161,7 @@ export const messages = defineMessages("routine", {
   "routine.card.open": "Open routine {name}",
 
   "routine.calendar.title": "Schedule",
-  "routine.calendar.open": "Open routines",
+  "routine.calendar.open": "Open schedule",
   "routine.calendar.timeZone": "Times in {zone}",
   "routine.calendar.previousWeek": "Previous week",
   "routine.calendar.nextWeek": "Next week",

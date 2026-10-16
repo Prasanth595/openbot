@@ -23,7 +23,7 @@ const ANALYTICS_APP_VERSION_STORAGE_KEY = "openbot:analytics-app-version";
 
 /**
  * Application-wide preferences and the two surfaces that edit them: the
- * settings dialog and the skills marketplace.
+ * settings page and the skills marketplace.
  *
  * Ungated - every preference has a default the app runs on, so nothing waits
  * for the three reads below. `analyticsPreferenceLoaded()` is `null` until the

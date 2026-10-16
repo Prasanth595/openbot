@@ -157,7 +157,7 @@ const CONNECTING_STATUS: AgentStatus = {
 };
 /**
  * What the web client reports as its build. The browser has no main process to ask, and the web frame
- * uses the macOS geometry: the account dock beside the rail is the hybrid one.
+ * uses the macOS geometry.
  */
 const WEB_APP_INFO: AppInfo = { name: "OpenBot", version: "web", platform: "darwin", variant: "production" };
 /** Below this width the web shows one pane at a time; see `web-client.css`. */
@@ -712,7 +712,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const [billingOpen, setBillingOpen] = createSignal(false);
   const billingCalls = createWebBillingCalls(props.accountFetch);
   const billing = createBillingStore(() => billingCalls, billingOpen);
-  // The web client has no Settings dialog, so a server whose plan ended is renewed or deleted in Billing.
+  // The web client has no Hosted servers settings, so a server whose plan ended is renewed or deleted in Billing.
   const hostedServers = createSettingsHostedServersStore(
     {
       get open() {
@@ -1339,7 +1339,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     onAdd={openAddServer}
                     addCreatesServer={hostedServersAvailable()}
                     onOpenSettings={(id, trigger) => void openServerSettings(id, trigger)}
-                    onOpenUsage={(id, trigger) => void openUsage(id, trigger)}
                     onSetMuted={setMuted}
                     onSetNotificationLevel={setNotificationLevel}
                     onLeave={(hostId, trigger) => setLeaveRequest({ hostId, trigger })}
@@ -1399,7 +1398,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     onAdd: openAddServer,
                     addCreatesServer: hostedServersAvailable(),
                     onOpenSettings: (id, trigger) => void openServerSettings(id, trigger),
-                    onOpenUsage: (id, trigger) => void openUsage(id, trigger),
                     onSetMuted: setMuted,
                     onSetNotificationLevel: setNotificationLevel,
                     onLeave: (hostId, trigger) => setLeaveRequest({ hostId, trigger }),
@@ -1855,13 +1853,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   joinOpen() || serverSettings.state.open || searchOpen() || marketplaceOpen() || hasVisibleToasts()
                 }
                 settingsRequest={settingsRequest()}
-                accountProfile={{
-                  account: account(),
-                  onUpdateAccountName: accountCalls.updateName,
-                  onUpdateAccountAvatar: accountCalls.updateAvatar,
-                  onListAccountSessions: accountCalls.listSessions,
-                  onRevokeAccountSession: accountCalls.revokeSession,
-                }}
                 messageFocusRequest={messageFocusRequest()}
                 queue={workspace.state.selectedId ? workspace.state.queues[workspace.state.selectedId] : undefined}
                 browserRuntime={workspace.runtime.browser}

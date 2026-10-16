@@ -168,7 +168,7 @@ turn at a time. Other task messages wait with a `hold` reason: `task-limit`, `ag
 `usage-limit`, `server-busy`, `agent-busy` or `one-turn`. The server-wide `TurnSlots` limit of a
 hosted server is separate.
 
-The user starts a task from the chat menu ("New task") or moves a queued message to one ("Run as
+The user starts a task from the Tasks tab of the side panel ("New task") or moves a queued message to one ("Run as
 task"). The agent starts one with the `start_task` OpenBot tool, up to 8 open tasks. An agent has at most 50
 open tasks (`INPUT_LIMITS.agentTasks`, the size of the task list), so each open task stays visible. A message to a
 running task waits in the task, or steers the turn when the agent's busy-message mode is "steer"

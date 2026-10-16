@@ -236,8 +236,6 @@ export function ServerMenu(props: ServerMenuProps) {
                           trigger={() => trigger ?? null}
                           onSetMuted={props.onSetMuted}
                           onSetNotificationLevel={props.onSetNotificationLevel}
-                          onOpenUsage={props.onOpenUsage}
-                          onOpenSchedule={props.onOpenSchedule}
                           onOpenSettings={props.onOpenSettings}
                           onLeave={props.onLeave}
                           onDelete={props.onDelete}

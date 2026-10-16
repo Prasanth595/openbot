@@ -176,8 +176,6 @@ export const messages = {
   "server.rail.unmute": "Sunucunun sesini aç",
   "server.rail.mute": "Sunucuyu sessize al",
   "server.rail.notificationSettings": "Bildirim ayarları",
-  "server.rail.usage": "Kullanım",
-  "server.rail.schedule": "Zamanlama",
   "server.rail.settings": "Sunucu ayarları",
   "server.rail.remove": "Sunucuyu kaldır",
   "server.rail.restart": "Sunucuyu yeniden başlat",

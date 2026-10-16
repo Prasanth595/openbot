@@ -42,6 +42,7 @@ assertMutationAllowed({
 const logger = createOpenBotLogger("i18n-e2e");
 const session = await connectToDevApp(instance.remoteDebuggingPort, logger, {
   expectedRendererPort: instance.rendererPort,
+  ownerPid: instance.pid,
 });
 
 async function savedLanguage(page: Page): Promise<AppLanguage> {
@@ -50,12 +51,17 @@ async function savedLanguage(page: Page): Promise<AppLanguage> {
   return preference.language;
 }
 
+/** The heading of the Settings page, which shows while the page is open. */
+function settingsTitle(page: Page, shown: TranslatedLocale) {
+  return page.getByRole("heading", { level: 1, name: translateFor(shown)("app.settingsPage.title"), exact: true });
+}
+
 async function openSettings(page: Page, shown: TranslatedLocale) {
   const t = translateFor(shown);
-  const dialog = page.getByRole("dialog");
-  if (!(await dialog.isVisible()))
+  const title = settingsTitle(page, shown);
+  if (!(await title.isVisible()))
     await page.keyboard.press(process.platform === "darwin" ? "Meta+Comma" : "Control+Comma");
-  await dialog.waitFor();
+  await title.waitFor();
   const general = page.getByRole("tab", { name: t("settings.tab.general.title"), exact: true });
   if (await general.isVisible()) await general.click();
   return languageButton(page, t("settings.language.title"));
@@ -115,7 +121,7 @@ try {
     const settings = await leftovers(page);
     await page.screenshot({ path: resolve(OUT, `settings-${locale}.png`) });
     await page.keyboard.press("Escape");
-    await page.getByRole("dialog").waitFor({ state: "hidden" });
+    await settingsTitle(page, locale).waitFor({ state: "hidden" });
     const workspace = await leftovers(page);
     await page.screenshot({ path: resolve(OUT, `workspace-${locale}.png`) });
     const error = await hostError(page);

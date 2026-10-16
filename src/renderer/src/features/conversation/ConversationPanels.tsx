@@ -8,7 +8,6 @@ import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPag
 import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
 import { toAgentMessages } from "../../app-message-projection";
-import { createSettingsPanelWidth, saveSettingsPanelWidth } from "../../components/settings-panel-width";
 import { agentTemplatesPort } from "../agent-templates/agent-templates-port";
 import { createPublishAgent } from "../agent-templates/PublishAgent";
 import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
@@ -77,7 +76,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     handleRoutineSettingsRequest,
     sidebarFilePreview,
     settingsOpen,
-    profileOpen,
     skillSettingsRequest,
     routineSettingsRequest,
     settingsModel,
@@ -496,32 +494,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
         )}
       </Show>
 
-      <Show when={profileOpen() && props.accountProfile}>
-        {(profile) => {
-          // Read on each open, as the agent settings panel does, so the two share the last saved width
-          // and the layout reserves this panel's width.
-          const [width, setWidth] = createSettingsPanelWidth();
-          createEffect(width, (value) => {
-            setSettingsPanelWidth(value);
-          });
-          return (
-            <Loading>
-              <AccountProfilePanel
-                account={profile().account}
-                onUpdateAccountName={profile().onUpdateAccountName}
-                onUpdateAccountAvatar={profile().onUpdateAccountAvatar}
-                onListAccountSessions={profile().onListAccountSessions}
-                onRevokeAccountSession={profile().onRevokeAccountSession}
-                width={width()}
-                maxWidth={settingsMaxWidth}
-                onResize={setWidth}
-                onResizeEnd={saveSettingsPanelWidth}
-                onClose={() => setActiveRightPanel("none")}
-              />
-            </Loading>
-          );
-        }}
-      </Show>
       {publishAgent.dialog()}
       {/* A sign-in link of the host's agent, when this computer cannot take its callback: the user pastes
           the address that the browser shows. */}
@@ -542,7 +514,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
 }
 
 const AgentSettingsPanel = lazy(loadAgentSettingsPanel);
-const AccountProfilePanel = lazy(() => import("@openbot/ui/features/settings/AccountProfilePanel"));
 const BrowserPanel = lazy(() => import("@openbot/ui/features/browser/BrowserPanel"));
 const FilePreviewPanel = lazy(() => import("./FilePreviewPanel"));
 const ChatFilesPanel = lazy(() => import("../files/ChatFilesPanel"));

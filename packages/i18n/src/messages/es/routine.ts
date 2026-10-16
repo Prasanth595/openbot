@@ -161,7 +161,7 @@ export const messages = {
   "routine.card.updated": "Rutina actualizada",
   "routine.card.open": "Abrir la rutina {name}",
   "routine.calendar.title": "Programación",
-  "routine.calendar.open": "Abrir rutinas",
+  "routine.calendar.open": "Abrir programación",
   "routine.calendar.timeZone": "Horas en {zone}",
   "routine.calendar.previousWeek": "Semana anterior",
   "routine.calendar.nextWeek": "Semana siguiente",

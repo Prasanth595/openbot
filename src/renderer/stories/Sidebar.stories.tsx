@@ -490,7 +490,6 @@ const serverMenu = {
   onAdd: fn(),
   onSetMuted: fn(),
   onSetNotificationLevel: fn(),
-  onOpenUsage: fn(),
   onOpenSettings: fn(),
 };
 

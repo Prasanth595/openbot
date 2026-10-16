@@ -189,7 +189,7 @@ export const messages = {
   "routine.card.open": "Открыть регулярную задачу {name}",
 
   "routine.calendar.title": "Расписание",
-  "routine.calendar.open": "Открыть регулярные задачи",
+  "routine.calendar.open": "Открыть расписание",
   "routine.calendar.timeZone": "Время: {zone}",
   "routine.calendar.previousWeek": "Предыдущая неделя",
   "routine.calendar.nextWeek": "Следующая неделя",

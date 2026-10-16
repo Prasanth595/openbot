@@ -13,7 +13,7 @@ export interface BillingDialogProps {
   hostedServers?: SettingsHostedServersStore | undefined;
 }
 
-/** The Billing panel in a dialog, for the web client, which has no Settings dialog. */
+/** The Billing panel in a dialog, for the web client, which has no Billing settings. */
 export function BillingDialog(props: BillingDialogProps): JSX.Element {
   const { t } = useText();
 

@@ -119,7 +119,6 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     return selected;
   }
   const settingsOpen = () => activeRightPanel() === "settings";
-  const profileOpen = () => activeRightPanel() === "profile";
   const filesOpen = () => activeRightPanel() === "files";
   // The task in each agent's task panel. Null is a new task, until its first message starts it.
   const [taskPanels, setTaskPanels] = createSignal<Record<string, string | null>>({});
@@ -154,10 +153,6 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     else if (mode === "none" && sidePanels()[agentId]?.maximized) {
       updateSidePanel(agentId, (state) => ({ ...state, maximized: false }));
     }
-  }
-
-  function toggleFilesPanel(): void {
-    setActiveRightPanel(filesOpen() ? "none" : "files");
   }
 
   /** Opens a task in the side panel, or a new task when `taskId` is null. */
@@ -406,9 +401,7 @@ export function createPanelsStore(deps: PanelsStoreDeps) {
     routineSettingsRequest,
     activeRightPanel,
     settingsOpen,
-    profileOpen,
     filesOpen,
-    toggleFilesPanel,
     taskPanelOpen,
     taskPanelTaskId,
     taskListOpen,

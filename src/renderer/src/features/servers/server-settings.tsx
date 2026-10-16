@@ -22,7 +22,7 @@ import { useServers } from "./servers-context";
 import { serverAdminPort, serversPort } from "./servers-port";
 
 /**
- * The settings dialog for one server: its identity, whether it is published,
+ * The settings page for one server: its identity, whether it is published,
  * and who can reach it.
  *
  * Global rather than scoped to the active server, and deliberately so - the

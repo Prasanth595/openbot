@@ -61,7 +61,7 @@ export interface AgentTasksOptions {
 /**
  * Owns the tasks of each agent: conversations with their own thread and provider session that run
  * beside the agent's own chat. It gives the drain one lane per open task, keeps the events of task
- * threads out of the agent's own chat, and builds the task list that the chat menu shows.
+ * threads out of the agent's own chat, and builds the task list that the Tasks tab of the side panel shows.
  *
  * It never imports the agent service facade.
  */

@@ -2,7 +2,7 @@ import type { OpenBotDesktopApi, ServerSummary } from "@openbot/contracts/ipc";
 
 /**
  * What the servers domain reaches in main: the server list and selection, the account changes, the local host, the
- * settings dialog of one server, the name, logo and update of a joined server's host, and the remote desktop
+ * settings of one server, the name, logo and update of a joined server's host, and the remote desktop
  * setup of a server.
  */
 export interface ServersPort {

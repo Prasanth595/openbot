@@ -3,7 +3,7 @@ import { useText } from "../../text";
 import { SaveBarDock } from "./SettingsDialogShell";
 import type { SettingsProfileStore } from "./stores/profile-store";
 
-/** The Profile display name's Reset and Save bar, for the settings dialog footer and the side panel. */
+/** The Profile display name's Reset and Save bar, for the footer of the desktop and web settings. */
 export function ProfileNameSaveBar(props: { store: SettingsProfileStore }) {
   const { t } = useText();
   return (

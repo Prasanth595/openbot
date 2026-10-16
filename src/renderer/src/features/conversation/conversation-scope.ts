@@ -192,9 +192,7 @@ export function createConversationViewScope(props: ConversationProps) {
     routineSettingsRequest,
     activeRightPanel,
     settingsOpen,
-    profileOpen,
     filesOpen,
-    toggleFilesPanel,
     taskPanelOpen,
     taskPanelTaskId,
     taskListOpen,
@@ -627,7 +625,6 @@ export function createConversationViewScope(props: ConversationProps) {
   let lastConversationIdentity: string | undefined;
   let lastPanelAgentId: string | undefined;
   let lastHandledSettingsRequestNonce: number | undefined;
-  let lastHandledProfileRequestNonce: number | undefined;
   let lastHandledMessageFocusNonce: number | undefined;
   let lastRuntimeSettingsSignature: string | undefined;
   async function saveAgentPatch(
@@ -927,7 +924,7 @@ export function createConversationViewScope(props: ConversationProps) {
     if (
       !previousAgentId ||
       !agentId ||
-      (panel !== "settings" && panel !== "profile" && panel !== "file-preview" && panel !== "files" && panel !== "task")
+      (panel !== "settings" && panel !== "file-preview" && panel !== "files" && panel !== "task")
     )
       return;
     setRightPanels((current) => ({ ...current, [agentId]: "none" }));
@@ -946,15 +943,6 @@ export function createConversationViewScope(props: ConversationProps) {
       lastHandledSettingsRequestNonce = request.nonce;
       if (request.routine) openRoutineSettings(request.routine);
       else setActiveRightPanel("settings", agentId);
-    },
-  );
-
-  createEffect(
-    () => ({ request: props.profileRequest, agentId: props.agent?.id }),
-    ({ request, agentId }) => {
-      if (!request || agentId !== request.agentId || request.nonce === lastHandledProfileRequestNonce) return;
-      lastHandledProfileRequestNonce = request.nonce;
-      setActiveRightPanel("profile", agentId);
     },
   );
 
@@ -1247,7 +1235,6 @@ export function createConversationViewScope(props: ConversationProps) {
     expandedEmojiMessageId,
     scrollFades,
     filesOpen,
-    toggleFilesPanel,
     taskPanelOpen,
     taskPanelTaskId,
     activeRightPanel,
@@ -1338,11 +1325,9 @@ export function createConversationViewScope(props: ConversationProps) {
     settingsModel,
     settingsProvider,
     settingsOpen,
-    profileOpen,
     settingsPanelWidth,
     settingsReasoning,
     sidebarFilePreview,
-    showBrowserPanel,
     showBrowserPip,
     showComposerActions,
     showScrollToLatest,
