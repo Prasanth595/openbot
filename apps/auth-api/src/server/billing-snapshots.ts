@@ -62,9 +62,23 @@ type StripeDiscount = typeof StripeDiscount.Type;
 type StripePrice = typeof StripePrice.Type;
 
 const BILLING_SNAPSHOT_EVENT = "billing_snapshot" as const;
+/** Errors of one row that do not go away when the run is tried again. */
+const PERMANENT_ROW_ERRORS: ReadonlySet<BillingSnapshotError["code"]> = new Set([
+  "missing_subscription",
+  "invalid_subscription",
+  "currency",
+]);
 
 export class BillingSnapshotError extends Schema.TaggedError<BillingSnapshotError>()("BillingSnapshotError", {
-  code: Schema.Literals(["database", "stripe", "invalid_subscription", "currency", "delivery", "invalid_input"]),
+  code: Schema.Literals([
+    "database",
+    "stripe",
+    "missing_subscription",
+    "invalid_subscription",
+    "currency",
+    "delivery",
+    "invalid_input",
+  ]),
 }) {}
 
 export interface BillingSnapshotBindings {
@@ -97,7 +111,7 @@ interface SubscriptionSample {
   serverId: string | null;
   status: "active" | "past_due";
   amountMinor: number;
-  currency: string;
+  currency: "eur" | "usd" | "pln";
   interval: "month" | "year";
   cancelAtPeriodEnd: boolean;
 }
@@ -152,29 +166,24 @@ export const captureBillingSnapshot = Effect.fn("captureBillingSnapshot")(functi
 
   const rows = yield* readKnownSubscriptions(bindings.DB).pipe(Effect.mapError(() => snapshotError("database")));
   const samples: SubscriptionSample[] = [];
+  // A row that stays bad must not block every later snapshot, so it is counted and left out. A Stripe
+  // failure that can pass still fails the run: the snapshot of a day is never corrected.
+  let skippedSubscriptions = 0;
   for (const row of rows) {
-    const subscription = yield* readStripeSubscription(row.stripe_subscription_id, secretKey, fetcher).pipe(
-      Effect.mapError(() => snapshotError("stripe")),
+    const sample = yield* subscriptionSample(row, secretKey, fetcher, timestamp).pipe(
+      Effect.catchIf(
+        (error) => PERMANENT_ROW_ERRORS.has(error.code),
+        (error) => {
+          console.warn("billing snapshot: subscription skipped", {
+            subscriptionId: row.stripe_subscription_id,
+            code: error.code,
+          });
+          skippedSubscriptions += 1;
+          return Effect.succeed(null);
+        },
+      ),
     );
-    if (subscription.status !== "active" && subscription.status !== "past_due") {
-      if (!KNOWN_STRIPE_SUBSCRIPTION_STATUSES.has(subscription.status))
-        return yield* new BillingSnapshotError({ code: "invalid_subscription" });
-      continue;
-    }
-    if (subscription.id !== row.stripe_subscription_id)
-      return yield* new BillingSnapshotError({ code: "invalid_subscription" });
-    if (!subscription.interval) return yield* new BillingSnapshotError({ code: "invalid_subscription" });
-    const amount = yield* subscriptionAmountAfterDiscount(subscription, timestamp);
-    samples.push({
-      id: subscription.id,
-      userId: row.user_id,
-      serverId: row.server_id,
-      status: subscription.status,
-      amountMinor: amount.amountMinor,
-      currency: subscription.currency,
-      interval: subscription.interval,
-      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd || subscription.cancelAt !== null,
-    });
+    if (sample) samples.push(sample);
   }
 
   const billingUsd = new BillingUsd({ database: bindings.DB, fetch: fetcher });
@@ -189,7 +198,6 @@ export const captureBillingSnapshot = Effect.fn("captureBillingSnapshot")(functi
   const users = new Set<string>();
   const servers = new Set<string>();
   for (const sample of samples) {
-    if (!isBillingUsdCurrency(sample.currency)) return yield* new BillingSnapshotError({ code: "currency" });
     const converted = yield* billingUsd
       .convert(sample.amountMinor, sample.currency, timestamp)
       .pipe(Effect.mapError(() => snapshotError("currency")));
@@ -246,6 +254,7 @@ export const captureBillingSnapshot = Effect.fn("captureBillingSnapshot")(functi
         checkout_mature_accounts: cohorts.checkout_mature_accounts,
         checkout_converted_accounts: cohorts.checkout_converted_accounts,
         checkout_pending_accounts: cohorts.checkout_pending_accounts,
+        skipped_subscriptions: skippedSubscriptions,
       },
       timestamp,
     )
@@ -268,6 +277,39 @@ function billingSnapshotSourceKey(timestamp: number): string {
   return `${BILLING_SNAPSHOT_EVENT}:${utcDay(timestamp)}`;
 }
 
+/** Reads one stored subscription from Stripe. Returns null when it has no recurring revenue now. */
+function subscriptionSample(
+  row: StoredSubscription,
+  secretKey: string,
+  fetcher: BillingSnapshotFetch,
+  timestamp: number,
+): Effect.Effect<SubscriptionSample | null, BillingSnapshotError> {
+  return Effect.gen(function* () {
+    const subscription = yield* readStripeSubscription(row.stripe_subscription_id, secretKey, fetcher);
+    if (subscription.status !== "active" && subscription.status !== "past_due") {
+      if (!KNOWN_STRIPE_SUBSCRIPTION_STATUSES.has(subscription.status))
+        return yield* new BillingSnapshotError({ code: "invalid_subscription" });
+      return null;
+    }
+    if (subscription.id !== row.stripe_subscription_id)
+      return yield* new BillingSnapshotError({ code: "invalid_subscription" });
+    if (!subscription.interval) return yield* new BillingSnapshotError({ code: "invalid_subscription" });
+    if (!isBillingUsdCurrency(subscription.currency)) return yield* new BillingSnapshotError({ code: "currency" });
+    const amount = yield* subscriptionAmountAfterDiscount(subscription, timestamp);
+    return {
+      id: subscription.id,
+      userId: row.user_id,
+      serverId: row.server_id,
+      status: subscription.status,
+      amountMinor: amount.amountMinor,
+      currency: subscription.currency,
+      interval: subscription.interval,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd || subscription.cancelAt !== null,
+    };
+  });
+}
+
+/** Stripe never moves a subscription out of these statuses, so the snapshot does not read them. */
 function readKnownSubscriptions(database: D1Database): Effect.Effect<StoredSubscription[], unknown> {
   return Effect.tryPromise({
     try: async () =>
@@ -276,6 +318,7 @@ function readKnownSubscriptions(database: D1Database): Effect.Effect<StoredSubsc
           .prepare(
             `SELECT stripe_subscription_id, user_id, server_id
                FROM billing_subscriptions
+              WHERE status NOT IN ('canceled', 'incomplete_expired')
               ORDER BY stripe_subscription_id`,
           )
           .all<StoredSubscription>()
@@ -313,6 +356,7 @@ function readStripeSubscription(
         }),
       catch: () => snapshotError("stripe"),
     });
+    if (response.status === 404) return yield* snapshotError("missing_subscription");
     if (!response.ok) return yield* snapshotError("stripe");
     const body = yield* Effect.tryPromise({
       try: () => response.json(),
