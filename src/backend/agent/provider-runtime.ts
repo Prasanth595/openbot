@@ -2354,10 +2354,13 @@ export class ProviderRuntime implements ProviderPort {
     const fallbackMessage = `OpenBot could not connect ${providerLabel(provider)}. Try again.`;
     const rawMessage = error instanceof Error ? error.message : String(error);
     const timeout = isProviderTimeout(error);
-    // A timeout says which stage did not answer, and the row's last error keeps it.
+    // A timeout says which stage did not answer, and the row's last error keeps it. Only a catalog
+    // text replaces the fallback: a request timeout names a protocol method in English.
     if (timeout) this.#recordProviderError(provider, error);
     const message =
-      timeout || error instanceof ProviderSignInError || /^(ChatGPT connection|OpenBot)/u.test(rawMessage)
+      (timeout && matchingSourceKeys(rawMessage).length > 0) ||
+      error instanceof ProviderSignInError ||
+      /^(ChatGPT connection|OpenBot)/u.test(rawMessage)
         ? rawMessage
         : fallbackMessage;
     const status = hasActiveClient
@@ -2584,7 +2587,9 @@ export class ProviderRuntime implements ProviderPort {
           });
           yield* this.#initializeProviderClient(
             candidate,
-            options.startTimeoutMs ?? (this.#slowStarts.has(provider) ? LONG_START_TIMEOUT_MS : undefined),
+            // A connect of several providers waits for all of them, as a launch does.
+            options.startTimeoutMs ??
+              (requestedProviders.length === 1 && this.#slowStarts.has(provider) ? LONG_START_TIMEOUT_MS : undefined),
           );
           logger.info("A provider answered initialize.", { provider, durationMs: stageMs() });
           stage = "account";

@@ -164,9 +164,9 @@ export const messages = {
   "error.provider.cliTimedOutRefresh":
     "{provider} n’a pas répondu à temps. L’ordinateur est peut-être occupé. Actualisez les fournisseurs pour réessayer.",
   "error.provider.acpStartTimedOut":
-    "{provider} n’a pas fini de démarrer en {seconds} s. L’ordinateur est peut-être occupé. Actualisez les fournisseurs pour réessayer.",
+    "{provider} n’a pas fini de démarrer en {seconds} s. L’ordinateur est peut-être occupé.",
   "error.provider.acpModelsTimedOut":
-    "{provider} a démarré, mais n’a pas listé ses modèles en {seconds} s. L’ordinateur est peut-être occupé. Actualisez les fournisseurs pour réessayer.",
+    "{provider} n’a pas listé ses modèles en {seconds} s. L’ordinateur est peut-être occupé.",
   "error.provider.startStopped":
     "{provider} n’a pas démarré plusieurs fois de suite, OpenBot a donc arrêté d’essayer. Actualisez les fournisseurs pour réessayer.",
   "error.provider.tempDiskSpace":

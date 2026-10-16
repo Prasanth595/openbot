@@ -149,10 +149,8 @@ export const messages = {
   "error.provider.cliTimedOut": "{provider} не ответил вовремя. Возможно, компьютер занят. OpenBot повторит попытку.",
   "error.provider.cliTimedOutRefresh":
     "{provider} не ответил вовремя. Возможно, компьютер занят. Обновите провайдеров, чтобы повторить попытку.",
-  "error.provider.acpStartTimedOut":
-    "{provider} не завершил запуск за {seconds} с. Возможно, компьютер занят. Обновите провайдеров, чтобы повторить попытку.",
-  "error.provider.acpModelsTimedOut":
-    "{provider} запустился, но не вывел список моделей за {seconds} с. Возможно, компьютер занят. Обновите провайдеров, чтобы повторить попытку.",
+  "error.provider.acpStartTimedOut": "{provider} не завершил запуск за {seconds} с. Возможно, компьютер занят.",
+  "error.provider.acpModelsTimedOut": "{provider} не вывел список моделей за {seconds} с. Возможно, компьютер занят.",
   "error.provider.startStopped":
     "{provider} несколько раз подряд не запустился, поэтому OpenBot перестал пытаться. Обновите провайдеров, чтобы повторить попытку.",
   "error.provider.tempDiskSpace":
