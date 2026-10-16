@@ -322,6 +322,22 @@ export function modelSwitchReason(message: ConversationMessage): ModelSwitchReas
 }
 
 /**
+ * The item type of the marker that says the loop guard stopped a turn: the same tool call failed
+ * the same way too many times in a row. The text is a readable sentence that names the call, as
+ * for the model switch.
+ */
+export const LOOP_GUARD_STOP_ITEM_TYPE = "loop-guard-stop";
+
+export function isLoopGuardStopMarker(message: ConversationMessage): boolean {
+  return (
+    message.author === "system" &&
+    message.source === "system" &&
+    message.status === "completed" &&
+    message.itemType === LOOP_GUARD_STOP_ITEM_TYPE
+  );
+}
+
+/**
  * The item type of a message that one agent sends to another, in the sender's thread and in the
  * recipient's thread. It is traffic between agents, not a message to the user.
  */

@@ -163,6 +163,7 @@ import { InstanceTransferService } from "./instance-transfer-service";
 import { LanguageService } from "./language-service";
 import { localRoutineFeedDocument } from "./local-routine-calendar";
 import { LogoColorService } from "./logo-color-service";
+import { LoopGuardPreferenceStore } from "./loop-guard-preference-store";
 import type { MacHapticFeedback } from "./mac-haptic-feedback";
 import {
   computerUseCoveringWindowIds,
@@ -272,6 +273,8 @@ const UPDATE_PREFERENCE_FILE = "openbot-update-preference-v1.json";
 const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
 const PUSH_NOTIFICATION_FILE = "openbot-push-notifications-v1.json";
 const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
+/** Optional and edited by hand; see docs/TROUBLESHOOTING.md. */
+const LOOP_GUARD_PREFERENCE_FILE = "openbot-loop-guard-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
@@ -942,6 +945,8 @@ export async function createApplicationServices({
     join(app.getPath("userData"), BUSY_MESSAGE_MODE_PREFERENCE_FILE),
   );
   await runCauseEffect(busyMessageMode.load());
+  const loopGuard = new LoopGuardPreferenceStore(join(app.getPath("userData"), LOOP_GUARD_PREFERENCE_FILE));
+  await runCauseEffect(loopGuard.load());
   const agentMemoryLimit = new AgentMemoryLimitPreferenceStore(
     join(app.getPath("userData"), AGENT_MEMORY_LIMIT_PREFERENCE_FILE),
   );
@@ -1389,6 +1394,7 @@ export async function createApplicationServices({
     routineFlowTools: () => routineFlowRuntime,
     approvalAutomation,
     busyMessageMode: () => busyMessageMode.get().mode,
+    loopGuard: () => loopGuard.get(),
     agentMemoryLimit: () => agentMemoryLimit.get().limit,
     timezone: () => serverTimezone.effective(),
     deleteWithRevokedApproval: (agentId, remove) =>

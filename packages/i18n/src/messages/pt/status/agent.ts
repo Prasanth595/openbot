@@ -7,5 +7,9 @@ export const messages = {
   "status.agent.contextCleared": "Contexto limpo. Um novo chat começa aqui.",
   "status.agent.modelSwitchedForLimit": "Limite de uso atingido. Trocou para {model}.",
   "status.agent.modelReturnedAfterLimit": "O limite de uso terminou. Voltou para {model}.",
+  "status.agent.loopGuardStopped": {
+    one: "Parado: a mesma chamada falhou {count} vez seguida com o mesmo resultado: {call}",
+    other: "Parado: a mesma chamada falhou {count} vezes seguidas com o mesmo resultado: {call}",
+  },
   "status.agent.marketplaceSuggested": "App do Marketplace sugerido: {app}.",
 } as const satisfies PartialTranslation<typeof source>;

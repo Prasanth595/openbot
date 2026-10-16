@@ -132,6 +132,8 @@ export type ChatActionMarkerModel =
   | { kind: "context-reset"; timestamp: string }
   /** The agent left its model for a usage limit, or went back to it. `text` is the host's note. */
   | { kind: "model-switch"; reason: ModelSwitchReason; text: string; timestamp: string }
+  /** The loop guard stopped a turn whose tool call failed the same way again and again. `text` is the host's note. */
+  | { kind: "loop-guard-stop"; text: string; timestamp: string }
   | {
       kind: "unavailable";
       label: string;

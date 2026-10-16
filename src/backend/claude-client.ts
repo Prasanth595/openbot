@@ -133,7 +133,8 @@ interface ActiveTurn {
   thinkingStreamId: string | null;
   assistantMessages: Map<string, string>;
   thinkingMessages: Map<string, string>;
-  toolCalls: Map<string, string>;
+  /** The running tool calls by ID, with the input Claude sent, for the completed item. */
+  toolCalls: Map<string, { name: string; input: unknown }>;
   /**
    * Set when Claude refuses the turn for a spent plan window. The refusal arrives as an assistant
    * message that only states the limit, so its text is held here and not published as the answer.
@@ -900,7 +901,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       thinkingStreamId: null,
       assistantMessages: new Map<string, string>(),
       thinkingMessages: new Map<string, string>(),
-      toolCalls: new Map<string, string>(),
+      toolCalls: new Map<string, { name: string; input: unknown }>(),
       usageLimit: null,
       unprompted,
     };
@@ -1111,7 +1112,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       for (const toolCall of toolCalls) {
         if (turn.toolCalls.has(toolCall.id)) continue;
         const name = claudeBridgedToolName(toolCall.name, toolCall.input);
-        turn.toolCalls.set(toolCall.id, name);
+        turn.toolCalls.set(toolCall.id, { name, input: toolCall.input });
         this.#emitToolCall(runtime, toolCall.id, name, false, toolCall.input);
         const plan = foldClaudePlanCall(runtime.plan, toolCall);
         if (plan) this.#emitPlan(runtime, plan);
@@ -1122,13 +1123,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     if (message.type === "user") {
       const turn = runtime.activeTurn;
       if (!turn) return;
-      for (const { id: toolCallId, text } of messageToolResults(message.message)) {
+      for (const { id: toolCallId, text, isError } of messageToolResults(message.message)) {
         // A subagent's task ids are its own, so only the main agent's results name a plan task.
         if (!message.parent_tool_use_id) foldClaudePlanResult(runtime.plan, toolCallId, message.tool_use_result, text);
-        const name = turn.toolCalls.get(toolCallId);
-        if (!name) continue;
+        const call = turn.toolCalls.get(toolCallId);
+        if (!call) continue;
         turn.toolCalls.delete(toolCallId);
-        this.#emitToolCall(runtime, toolCallId, name, true);
+        this.#emitToolCall(runtime, toolCallId, call.name, true, call.input, { text, isError });
       }
       return;
     }
@@ -1162,8 +1163,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     const apiError = message.subtype === "success" && message.is_error === true;
     const turn = runtime.activeTurn;
     if (turn) {
-      for (const [toolCallId, name] of turn.toolCalls) {
-        this.#emitToolCall(runtime, toolCallId, name, true);
+      for (const [toolCallId, call] of turn.toolCalls) {
+        this.#emitToolCall(runtime, toolCallId, call.name, true, call.input);
       }
       turn.toolCalls.clear();
       // A rejected window alone is not a failure: the request can still run on overage. Only the
@@ -1236,21 +1237,43 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     });
   }
 
-  #emitToolCall(runtime: ThreadRuntime, id: string, name: string, completed: boolean, input?: unknown): void {
+  /**
+   * A tool call's start or end. The end has the input and, when Claude sent one, the end of the
+   * result and whether it is an error, so that the loop guard and the tool analytics see a failure
+   * as they do for the other providers.
+   */
+  #emitToolCall(
+    runtime: ThreadRuntime,
+    id: string,
+    name: string,
+    completed: boolean,
+    input?: unknown,
+    result?: { text: string; isError: boolean },
+  ): void {
     const turn = runtime.activeTurn;
     if (!turn) return;
+    const status = !completed ? "in_progress" : result?.isError ? "failed" : "completed";
     this.emit("notification", {
       method: completed ? "item/completed" : "item/started",
       params: {
         threadId: runtime.id,
         turnId: turn.id,
+        // Only the start names the files, as before: the end now carries the input too.
         filePaths:
+          !completed &&
           ["Read", "Write", "Edit", "MultiEdit"].includes(name) &&
           isRecord(input) &&
           typeof input.file_path === "string"
             ? [input.file_path]
             : undefined,
-        item: { id, type: "toolCall", name, status: completed ? "completed" : "in_progress" },
+        item: {
+          id,
+          type: "toolCall",
+          name,
+          status,
+          ...(completed && input !== undefined ? { arguments: input } : {}),
+          ...(result ? { result: result.text.slice(-TOOL_RESULT_TAIL) } : {}),
+        },
       },
     });
   }
@@ -1877,7 +1900,10 @@ function messageToolCalls(message: unknown): Array<{ id: string; name: string; i
   });
 }
 
-function messageToolResults(message: unknown): Array<{ id: string; text: string }> {
+/** The end of a tool result that the completed item keeps. Errors are at the end; the item stays small. */
+const TOOL_RESULT_TAIL = 2_000;
+
+function messageToolResults(message: unknown): Array<{ id: string; text: string; isError: boolean }> {
   if (!isRecord(message) || !Array.isArray(message.content)) return [];
   return message.content.filter(isRecord).flatMap((block) => {
     const id = getString(block, "tool_use_id");
@@ -1891,7 +1917,7 @@ function messageToolResults(message: unknown): Array<{ id: string; text: string 
             .map((part) => getString(part, "text") ?? "")
             .join("\n")
         : "";
-    return [{ id, text }];
+    return [{ id, text, isError: block.is_error === true }];
   });
 }
 

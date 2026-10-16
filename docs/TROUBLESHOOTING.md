@@ -118,6 +118,37 @@ agent keeps its workspace. With OpenCode, OpenBot adds a JSON copy of each drive
 to the result text, because OpenCode shows the model only the text. The copy leaves out the element
 list, because the tree in the text already names each element by its index.
 
+## An agent runs the same failing command again and again
+
+The loop guard watches each turn. When the same tool call fails with the same result 3 times in a
+row, OpenBot puts a short note into the running turn: the call failed 3 times the same way, so the
+agent must change its approach or say what blocks it. The same call means the same shell command,
+or the same tool with the same input. Numbers in the output, such as times and process IDs, do not
+make two failures different. The count ends when that call succeeds or fails with other output.
+Other calls between two tries do not end it. The note is for the agent: the chat does not show it,
+also not after a restart.
+
+The note needs a provider that takes input during a turn: Codex, Claude, Pi or Muse. The ACP agents
+cannot take it, so for them only the stop below applies.
+
+OpenBot does not stop the turn unless you ask for it, because a wait that fails until something is
+ready (`curl -f` against a server that still starts) is correct. To change the guard, write
+`openbot-loop-guard-v1.json` in the OpenBot application data folder (see
+[Local scripts API, Files](automation.md#files)) and restart OpenBot:
+
+```json
+{ "version": 1, "enabled": true, "warnAt": 3, "stopAt": 6 }
+```
+
+- `enabled`: `false` turns the guard off.
+- `warnAt`: identical failures in a row before the note, 2–1000.
+- `stopAt`: identical failures in a row before OpenBot stops the turn, 2–1000, or `null` (the
+  default) to never stop. A stopped turn of the agent's own chat gets a note in the desktop chat, in
+  the app's language, that names the call. The mobile app does not show it yet. Send a new message
+  to continue.
+
+A value that is missing or out of range keeps its default.
+
 ## A chat is missing after an update
 
 Do not follow the reset steps below. Your messages are stored in one SQLite file, nothing copies it

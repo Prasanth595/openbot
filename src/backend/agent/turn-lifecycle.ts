@@ -86,6 +86,8 @@ export interface TurnHooks {
   redactMcp(text: string): string;
   /** A finished tool step, for product analytics only. It never reaches a renderer or a remote client. */
   emitToolUsage(usage: ToolUsageSignal): void;
+  /** A completed item of a turn, for the loop guard. It must return at once. */
+  toolStepCompleted?(agentId: string, threadId: string, turnId: string, item: ThreadItem): void;
   /** The model this turn was started with, or null when the drain no longer knows it. */
   turnModel(agentId: string, turnId: string): string | null;
   /**
@@ -964,6 +966,7 @@ export class TurnLifecycle {
   ) {
     const usage = completed ? toolUsage(item) : null;
     if (usage) this.#hooks.emitToolUsage({ ...usage, agentId, turnId });
+    if (usage) this.#hooks.toolStepCompleted?.(agentId, threadId, turnId, item);
     if (yield* this.#images.handleItem(agentId, threadId, turnId, item, completed)) return;
     const toolProgress = toolProgressText(item, completed);
     if (toolProgress) {

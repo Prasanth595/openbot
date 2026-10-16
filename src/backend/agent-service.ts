@@ -103,6 +103,7 @@ import {
   DEFAULT_BUSY_MESSAGE_MODE,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   isContextResetMarker,
+  LOOP_GUARD_STOP_ITEM_TYPE,
   MODEL_SWITCH_ITEM_TYPES,
   type ModelSwitchReason,
   type QueueSteerFallback,
@@ -112,9 +113,9 @@ import {
 import { ContextResetBusyError } from "@openbot/contracts/team-protocol/context-reset-v1";
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { sourceText } from "@openbot/i18n/source";
-import { createOpenBotLogger } from "@openbot/logging";
+import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { classifyFailure } from "@openbot/telemetry";
-import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope, Semaphore } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Result, Schema, Scope, Semaphore } from "effect";
 import { AgentMemories } from "./agent/agent-memories";
 import { AgentRemoval, AgentRemovalFailed } from "./agent/agent-removal";
 import type { ApprovalAutomationPolicy } from "./agent/approval-automation";
@@ -135,6 +136,13 @@ import { DuplicationGate, toAgentDuplicationFailed } from "./agent/duplication-g
 import type { FailureContext, FailureSignal } from "./agent/failure-signal";
 import { type AgentHostedSites, HostedSiteCoordinator } from "./agent/hosted-site-coordinator";
 import { ImageGenRuntime } from "./agent/image-gen-runtime";
+import {
+  DEFAULT_LOOP_GUARD_SETTINGS,
+  LoopGuard,
+  type LoopGuardSettings,
+  type LoopGuardVerdict,
+  loopGuardWarning,
+} from "./agent/loop-guard";
 import { MailboxSync } from "./agent/mailbox-sync";
 import { type GitHubConnectorSource, McpGateway, type TestMcpServerOptions } from "./agent/mcp-gateway";
 import { MemoryHold } from "./agent/memory-hold";
@@ -198,7 +206,7 @@ import type { McpSignInOpener } from "./mcp-oauth-provider";
 import { McpServerStore } from "./mcp-server-store";
 import { MessagingThreads, toMessagingThreadFailed } from "./messaging/messaging-threads";
 import type { PasswordVault } from "./password-vault";
-import { decodeRecordResponse, getString } from "./protocol";
+import { decodeRecordResponse, getString, type ThreadItem } from "./protocol";
 import { NO_PROVIDER_CREDENTIALS, type ProviderClientContext } from "./provider-drivers";
 import { providerHistoryPersistence } from "./provider-history-persistence";
 import { recordAgentRestartActivity } from "./restart-activity";
@@ -274,6 +282,11 @@ export interface AgentServiceOptions {
    * Omitted, such a message waits in the queue, as every one did before the setting existed.
    */
   busyMessageMode?: () => BusyMessageMode;
+  /**
+   * The loop guard: what happens when a tool call fails the same way again and again in one turn.
+   * The main process owns the preference. Omitted, the guard warns the agent and never stops a turn.
+   */
+  loopGuard?: () => LoopGuardSettings;
   /**
    * How many memories one agent can hold. The main process owns the preference. Omitted, the
    * default cap, which was the only cap before the setting existed.
@@ -381,6 +394,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #developmentDefaults: boolean;
   readonly #busyMessageMode: () => BusyMessageMode;
+  readonly #loopGuardSettings: () => LoopGuardSettings;
+  readonly #loopGuard = new LoopGuard();
   /** The last turn of each agent's chat that the user stopped. One per agent, so it needs no clean-up. */
   readonly #stoppedTurns = new Map<string, string>();
   #initialized = false;
@@ -409,11 +424,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       githubConnector = null,
       hostMemory = null,
       busyMessageMode = () => DEFAULT_BUSY_MESSAGE_MODE,
+      loopGuard = () => DEFAULT_LOOP_GUARD_SETTINGS,
       retireChannels = false,
     } = options;
     this.#retireChannels = retireChannels;
     this.#developmentDefaults = developmentDefaults;
     this.#busyMessageMode = busyMessageMode;
+    this.#loopGuardSettings = loopGuard;
     this.#localSkillTools = localSkillTools;
     this.#routineFlowTools = routineFlowTools;
     this.#store = store;
@@ -1109,6 +1126,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         listAgents: () => this.listAgents(),
         redactMcp: (text) => this.#mcp.redact(text),
         emitToolUsage: (usage) => this.emit("toolUsage", usage),
+        toolStepCompleted: (agentId, threadId, turnId, item) => this.#guardToolStep(agentId, threadId, turnId, item),
         turnModel: (agentId, turnId) => this.#drain.modelForTurn(agentId, turnId),
         requeueChannelDelivery: (deliveryId) => this.#requeueChannelDelivery(deliveryId),
         quietRoutineDelivery: (deliveryId) => this.#routines.quietRunForDelivery(deliveryId),
@@ -2356,6 +2374,106 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   });
 
+  /** Whether a public thread is the agent's own chat, not a channel's execution thread. */
+  #isOwnChatThread(agent: AgentSummary, publicThreadId: string): boolean {
+    return publicThreadId === agent.threadId;
+  }
+
+  /**
+   * Tells or stops an agent whose tool call fails the same way again and again. Returns at once.
+   * `threadId` is the provider's session ID, as in the item notification; the session lookup and
+   * the stop need the public thread ID that the session is bound to.
+   */
+  #guardToolStep(agentId: string, threadId: string, turnId: string, item: ThreadItem): void {
+    const verdict = this.#loopGuard.observe(agentId, turnId, item, this.#loopGuardSettings());
+    if (!verdict) return;
+    const publicThreadId = this.#conversation.publicThreadId(agentId, threadId);
+    const action = verdict.action === "stop" ? this.#stopLoopingTurn : this.#warnLoopingTurn;
+    Effect.runFork(
+      action(agentId, publicThreadId, turnId, verdict).pipe(
+        Effect.catchCause((cause) =>
+          Effect.sync(() => this.#emitError("loop_guard_failed", Cause.squash(cause), agentId)),
+        ),
+        Effect.forkIn(this.#scope, { startImmediately: true }),
+      ),
+    );
+  }
+
+  /**
+   * Puts the warning into the running turn, as the user's steer does. A provider that cannot take
+   * input in a turn (the ACP agents) refuses it; only `stopAt` helps there.
+   */
+  readonly #warnLoopingTurn = Effect.fn("AgentService.warnLoopingTurn")(function* (
+    this: AgentService,
+    agentId: string,
+    publicThreadId: string,
+    turnId: string,
+    verdict: LoopGuardVerdict,
+  ) {
+    const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+    if (!agent) return;
+    // The agent's own chat finds its session as the user's steer does; a channel thread by its ID.
+    const session = this.#isOwnChatThread(agent, publicThreadId)
+      ? this.#store.activeProviderSession(agentId)
+      : this.#store.database.activeProviderSession(publicThreadId, agent.provider);
+    const client = this.#providers.clientForAgent(agent);
+    if (!session || !client) return;
+    yield* client
+      .request(
+        "turn/steer",
+        {
+          threadId: session.externalSessionId,
+          expectedTurnId: turnId,
+          clientUserMessageId: randomUUID(),
+          input: [{ type: "text", text: loopGuardWarning(verdict) }],
+        },
+        decodeRecordResponse,
+      )
+      .pipe(Effect.ignore);
+    logger.info(`The loop guard warned agent ${agentId} after ${verdict.count} identical failures.`);
+  }).bind(this);
+
+  /** Stops the turn as the Stop button does, and says why in the chat. */
+  readonly #stopLoopingTurn = Effect.fn("AgentService.stopLoopingTurn")(function* (
+    this: AgentService,
+    agentId: string,
+    publicThreadId: string,
+    turnId: string,
+    verdict: LoopGuardVerdict,
+  ) {
+    const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+    if (!agent) return;
+    // A turn on a channel's thread is not the agent's own chat: stop it there, with no note here.
+    const ownThread = this.#isOwnChatThread(agent, publicThreadId);
+    // A turn that ended before the stop gets no stop request, and so no note and no log line.
+    if (!(yield* this.#requestInterrupt(agentId, turnId, ownThread ? undefined : publicThreadId))) return;
+    logger.info(`The loop guard stopped a turn of agent ${agentId} after ${verdict.count} identical failures.`);
+    if (!ownThread) return;
+    const database = this.#store.database;
+    this.#conversation.withConversationTransaction(agentId, ({ threadId: chatThreadId, snapshot }) => {
+      const message: ConversationMessage = {
+        id: `loop-guard-${randomUUID()}`,
+        turnId,
+        author: "system",
+        source: "system",
+        text: sourceText("status.agent.loopGuardStopped", { count: verdict.count, call: redactText(verdict.call) }),
+        createdAt: new Date().toISOString(),
+        status: "completed",
+        itemType: LOOP_GUARD_STOP_ITEM_TYPE,
+      };
+      snapshot.messages.push(message);
+      sortConversationMessages(snapshot.messages);
+      snapshot.revision = database.appendConversationMessage({
+        agentId,
+        threadId: chatThreadId,
+        activeTurnId: snapshot.activeTurnId,
+        message,
+        eventType: "thread.loop-guard-stopped",
+      });
+      return { result: undefined, snapshot };
+    });
+  }).bind(this);
+
   /** A note in the agent's chat that it left its model for a usage limit, or went back to it. */
   #appendModelSwitchMarker(agent: AgentSummary, reason: ModelSwitchReason): void {
     const model =
@@ -3571,10 +3689,19 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }, Effect.uninterruptible).bind(this);
 
   interrupt(agentId: string, turnId: string, executionThreadId?: string): Effect.Effect<void, AgentLifecycleFailed> {
+    return this.#requestInterrupt(agentId, turnId, executionThreadId).pipe(Effect.asVoid);
+  }
+
+  /** As `interrupt`, and whether a stop request was sent: `false` when the turn had already ended. */
+  #requestInterrupt(
+    agentId: string,
+    turnId: string,
+    executionThreadId?: string,
+  ): Effect.Effect<boolean, AgentLifecycleFailed> {
     return Effect.suspend(() => {
       if (!executionThreadId) this.#stoppedTurns.set(agentId, turnId);
       return this.#interruptTurn(agentId, turnId, executionThreadId);
-    }).pipe(Effect.asVoid);
+    });
   }
 
   /**

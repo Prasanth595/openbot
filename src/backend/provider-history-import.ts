@@ -2,6 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { type AgentProviderId, type ConversationMessage, ROUTINE_QUIET_ANSWER_ITEM_TYPE } from "@openbot/contracts/ipc";
 import { Effect } from "effect";
 import { isImageGenerationItem } from "./agent/image-generation";
+import { isLoopGuardNote } from "./agent/loop-guard";
 import { isNoUpdateAnswer, isNoUpdateToolCall, isTextAnswer, keptQuietAnswer } from "./agent/routine-quiet-runs";
 import { mergeProviderHistoryMessages, messagesFromThreadItems, threadTurnBaseTime } from "./conversation-snapshots";
 import { databaseRow, decodeConversationMessageJson, requiredStringColumn } from "./database/database-rows";
@@ -286,8 +287,13 @@ function routineTurnAnswers(
       );
       for (const { item } of page) {
         // Every delivery of the turn must be a scheduled run, as at the turn completion: a message
-        // steered into the turn waits for the answer.
-        if (routine !== false && item.type === "userMessage" && typeof item.clientId === "string")
+        // steered into the turn waits for the answer. The loop guard's note is no delivery.
+        if (
+          routine !== false &&
+          item.type === "userMessage" &&
+          typeof item.clientId === "string" &&
+          !isLoopGuardNote(item.content?.find((part) => part.type === "text")?.text ?? "")
+        )
           routine =
             input.findDelivery(item.clientId)?.delivery.sender.kind === "routine" &&
             input.quietRoutineDelivery(item.clientId);

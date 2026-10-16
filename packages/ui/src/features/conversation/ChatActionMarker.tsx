@@ -797,7 +797,7 @@ function markerLabel(
   sourceText: (text: string) => string,
 ): string {
   if (marker.kind === "unavailable") return marker.label;
-  if (marker.kind === "model-switch") return sourceText(marker.text);
+  if (marker.kind === "model-switch" || marker.kind === "loop-guard-stop") return sourceText(marker.text);
   if (marker.kind === "context-reset") return t("chat.marker.contextReset");
   if (marker.kind === "marketplace-suggestion") return t("chat.marker.marketplaceSuggestion");
   if (marker.kind === "skill-lifecycle") return t(SKILL_ACTION_LABELS[marker.action]);
@@ -870,7 +870,8 @@ function markerAccessibleLabel(
     marker.kind === "unavailable" ||
     marker.kind === "context-reset" ||
     marker.kind === "marketplace-suggestion" ||
-    marker.kind === "model-switch"
+    marker.kind === "model-switch" ||
+    marker.kind === "loop-guard-stop"
   )
     return label;
   if (marker.kind === "skill-lifecycle") return t("chat.marker.accessible.named", { label, name: marker.skillName });

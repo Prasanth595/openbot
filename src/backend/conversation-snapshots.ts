@@ -4,6 +4,7 @@ import { isImageGenerationAspectRatio } from "@openbot/contracts/ipc";
 import { isString } from "@openbot/contracts/runtime-values";
 import { displayMessageReferences, type TeammatePrompt, teammatePrompts } from "./agent/delivery-content";
 import { imageGenerationFailure, isImageGenerationItem } from "./agent/image-generation";
+import { isLoopGuardNote } from "./agent/loop-guard";
 import type { DeliveryContext } from "./mailbox-store";
 import type { ThreadItem } from "./protocol";
 
@@ -41,6 +42,8 @@ export function messagesFromThreadItems(
         .join("\n");
       const delivery = item.clientId ? findDelivery(item.clientId) : null;
       if (!text) continue;
+      // The loop guard's note to the agent has no delivery and is not shown in the live chat either.
+      if (!delivery && isLoopGuardNote(text)) continue;
       const row = { id: item.id, turnId: turn.id, text, createdAt };
       if (delivery) messages.push(promptMessage(delivery, row));
       else {

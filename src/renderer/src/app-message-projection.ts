@@ -3,6 +3,7 @@ import {
   CONVERSATION_PLAN_ITEM_TYPE,
   hostedSiteConversationEvent,
   isContextResetMarker,
+  isLoopGuardStopMarker,
   marketplaceSuggestionEvent,
   modelSwitchReason,
   parseConversationPlanText,
@@ -279,6 +280,8 @@ function chatActionMarker(
   const switchReason = modelSwitchReason(message);
   if (switchReason)
     return { kind: "model-switch", reason: switchReason, text: message.text, timestamp: message.createdAt };
+  if (isLoopGuardStopMarker(message))
+    return { kind: "loop-guard-stop", text: message.text, timestamp: message.createdAt };
   const skillEvent = skillConversationEvent(message);
   if (skillEvent) return { ...skillEvent, kind: "skill-lifecycle", timestamp: message.createdAt };
   const suggestion = marketplaceSuggestionEvent(message);

@@ -1,5 +1,13 @@
 import { serializeAttachmentReference } from "@openbot/contracts/attachment-references";
-import type { AgentEvent, AttachmentSummary, DraftAttachment, QueueSnapshot } from "@openbot/contracts/ipc";
+import {
+  type AgentEvent,
+  type AttachmentSummary,
+  type ConversationMessage,
+  type DraftAttachment,
+  LOOP_GUARD_STOP_ITEM_TYPE,
+  type QueueSnapshot,
+} from "@openbot/contracts/ipc";
+import { sourceText } from "@openbot/i18n/source";
 import type { AgentMessage as RendererAgentMessage, RoutineRunMarkerModel } from "@openbot/ui/data";
 import { BrowserTakeoverCard } from "@openbot/ui/features/conversation/ConversationPrompts";
 import { currentText } from "@openbot/ui/text";
@@ -8,6 +16,7 @@ import { createEffect, createSignal, onCleanup, onSettled, Show } from "solid-js
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { clipboardFiles } from "../../preload/clipboard-files";
+import { toAgentMessages } from "../src/app-message-projection";
 import { Conversation, createConversationController } from "../src/features/conversation/Conversation";
 import { ConversationView } from "../src/features/conversation/ConversationView";
 import { ConversationControllerProvider } from "../src/features/conversation/conversation-controller-context";
@@ -1137,6 +1146,46 @@ export const UsageLimitReached: Story = {
         },
       ],
     },
+  },
+};
+
+/**
+ * The loop guard stopped a turn whose tool call failed the same way six times in a row. The host's
+ * messages go through the desktop projection, so the system note is drawn as the app draws it.
+ */
+export const LoopGuardStopped: Story = {
+  name: "Loop guard stopped a turn",
+  args: {
+    messages: toAgentMessages(
+      (
+        [
+          ["user", "user", "Run the tests and fix what fails.", undefined],
+          [
+            "assistant",
+            undefined,
+            "The tests fail: the module `left-pad` is missing. I will run them again.",
+            "agentMessage",
+          ],
+          [
+            "system",
+            "system",
+            sourceText("status.agent.loopGuardStopped", { count: 6, call: "npm test" }),
+            LOOP_GUARD_STOP_ITEM_TYPE,
+          ],
+        ] as const
+      ).map(
+        ([author, source, text, itemType], index): ConversationMessage => ({
+          id: `loop-guard-story-${index}`,
+          turnId: "turn-loop-guard-story",
+          author,
+          ...(source ? { source } : {}),
+          text,
+          createdAt: new Date(Date.UTC(2026, 9, 15, 13, 2 + index)).toISOString(),
+          status: "completed",
+          ...(itemType ? { itemType } : {}),
+        }),
+      ),
+    ),
   },
 };
 
