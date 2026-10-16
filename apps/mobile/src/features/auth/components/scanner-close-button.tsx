@@ -1,6 +1,6 @@
 import { Button } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { X } from "lucide-react-native";
+import X from "lucide-react-native/icons/x";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 

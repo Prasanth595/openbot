@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
-import { X } from "lucide-react-native";
+import X from "lucide-react-native/icons/x";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";

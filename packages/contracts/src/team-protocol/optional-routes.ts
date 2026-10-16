@@ -15,6 +15,7 @@ import { CONNECTORS_CODECS } from "./connectors-v1";
 import { CONTEXT_RESET_CODECS } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CODECS } from "./conversation-file-search-v1";
 import { EVENTS_CODECS } from "./events-v1";
+import { FOCUS_USE_CODECS } from "./focus-use-v1";
 import { HOST_ADMIN_CODECS } from "./host-admin-v1";
 import { HOST_MEMBER_UPDATE_CODECS } from "./host-member-update-v1";
 import { HOST_RELEASE_CODECS } from "./host-release-v1";
@@ -78,6 +79,7 @@ const CODECS: ReadonlyMap<string, OptionalRouteCodec> = new Map([
   ...PROVIDER_HOST_SIGN_IN_CODECS,
   ...MCP_SIGN_IN_APP_CODECS,
   ...SIGN_IN_RELAY_CODECS,
+  ...FOCUS_USE_CODECS,
   ...CONNECTORS_CODECS,
   ...CONVERSATION_FILE_SEARCH_CODECS,
   ...ROUTINE_FLOWS_CODECS,

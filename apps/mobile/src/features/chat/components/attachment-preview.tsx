@@ -7,7 +7,7 @@ import { File, Paths } from "expo-file-system";
 import { Image } from "expo-image";
 import * as Sharing from "expo-sharing";
 import { useThemeColor } from "heroui-native/hooks";
-import { FileText } from "lucide-react-native";
+import FileText from "lucide-react-native/icons/file-text";
 import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { showFailureAlert } from "@/features/analytics/failure-reports";

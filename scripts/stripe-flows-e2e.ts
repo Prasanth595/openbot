@@ -13,7 +13,8 @@
  *
  * The `boat` scenario runs only when named. It makes a real VM: the Worker needs the real `BOAT_API_KEY`
  * and `HOSTED_SERVER_TEMPLATE`, and the template must know a public origin of this Worker. It waits
- * until OpenBot in the VM redeems its claim and publishes its host. Then it waits for the idle stop
+ * until OpenBot in the VM redeems its claim and publishes its host. Then it keeps a focused web client
+ * open with no input for 20 minutes and checks that the server stays on, waits for the idle stop
  * (about 15 minutes), starts the server, changes the plan, ends it, renews it, and deletes the server.
  * `--checkout` pays each Checkout page with a test card in the local Chrome. The web client then
  * connects to the server over Signal, and the screenshots go to `.openbot-build/`.
@@ -493,9 +494,10 @@ const peersSchema = z.array(
 
 /**
  * Opens the web client as the account, waits until it shows the server and a peer connection is
- * connected, and then waits for the server's next activity report. Closing the page ends the use.
+ * connected, and then waits for the server's next activity report. With `holdMs`, it keeps the focused
+ * page open with no input for that long and reads the server row each minute. Closing the page ends the use.
  */
-async function connectWeb(account: Account, serverId: string, name: string, screenshot: string) {
+async function connectWeb(account: Account, serverId: string, name: string, screenshot: string, holdMs = 0) {
   const context = await (await browser()).newContext();
   try {
     await context.addCookies([
@@ -537,7 +539,24 @@ async function connectWeb(account: Account, serverId: string, name: string, scre
       },
       180_000,
     ).catch(() => null);
-    return { connectMs: connectedAt - start, peers, activityReportedAfterMs: reported ? reported - connectedAt : null };
+    const held: { atMinute: number; desiredState: string | null; lastActiveAt: number | null; focused: boolean }[] = [];
+    if (holdMs > 0) await page.bringToFront();
+    while (Date.now() - connectedAt < holdMs) {
+      await sleep(60_000);
+      const row = account.row(serverId);
+      held.push({
+        atMinute: Math.round((Date.now() - connectedAt) / 60_000),
+        desiredState: row?.desired_state ?? null,
+        lastActiveAt: row?.last_active_at ?? null,
+        focused: await page.evaluate(() => !document.hidden && document.hasFocus()),
+      });
+    }
+    return {
+      connectMs: connectedAt - start,
+      peers,
+      activityReportedAfterMs: reported ? reported - connectedAt : null,
+      held,
+    };
   } finally {
     await context.close();
   }
@@ -1284,12 +1303,27 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
         output: restarted,
       });
 
-      const web = await connectWeb(account, serverId, name, "boat-e2e-web-connected.png");
+      // The focused page sends `focus-use-v1` pings and no input. The idle stop would come after 15 to 20 minutes.
+      const web = await connectWeb(account, serverId, name, "boat-e2e-web-connected.png", 20 * 60_000);
       record(
         "boat",
         "the web client connects to the server over Signal, and the server reports the use",
         web.peers.some((peer) => peer.state === "connected") && web.activityReportedAfterMs !== null,
         web,
+      );
+      const reports = new Set(web.held.map((sample) => sample.lastActiveAt).filter((at) => at !== null));
+      // Without focus the page sends no ping, so a failure below would not be about the server.
+      record(
+        "boat",
+        "the held web page has focus",
+        web.held.length > 0 && web.held.every((sample) => sample.focused),
+        web.held,
+      );
+      record(
+        "boat",
+        "a focused web client with no input keeps the server running for 20 minutes",
+        web.held.length > 0 && web.held.every((sample) => sample.desiredState === "running") && reports.size >= 3,
+        { reports: reports.size, held: web.held },
       );
 
       // The page is closed, so the server reports no use. It stops 15 minutes after its last use.

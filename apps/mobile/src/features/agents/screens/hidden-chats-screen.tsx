@@ -1,7 +1,7 @@
 import { type Href, Link, router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Eye } from "lucide-react-native";
+import Eye from "lucide-react-native/icons/eye";
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";

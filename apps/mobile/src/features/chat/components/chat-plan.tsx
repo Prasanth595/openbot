@@ -1,6 +1,6 @@
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { Typography } from "heroui-native";
-import { ChevronDown } from "lucide-react-native";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
 import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {

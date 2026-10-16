@@ -9,7 +9,7 @@ import type { NativeStackNavigationProp } from "expo-router/native-stack";
 import { type ParamListBase, useNavigation } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ArrowDown } from "lucide-react-native";
+import ArrowDown from "lucide-react-native/icons/arrow-down";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Keyboard, useColorScheme, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -40,7 +40,10 @@ import {
 import { ConnectionStatus } from "@/features/workspace/components/connection-status";
 import { useBrowserRequests } from "@/features/workspace/components/use-live-workspace";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgentActivity } from "@/features/workspace/model/agent-activity";
 import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
 import { showsOnline } from "@/features/workspace/model/server-status";
@@ -186,14 +189,10 @@ export function ChatView({
   showLatestMessages,
 }: ChatViewProps) {
   const { t, errorMessage } = useText();
-  const {
-    respondToApproval,
-    respondToBrowserSecret,
-    respondToBrowserTakeover,
-    attachmentSupport,
-    browserViewSupport,
-    setMessageReaction,
-  } = useMobileWorkspace();
+  const workspace = useMobileWorkspaceReader();
+  const browserViewAvailable = useMobileWorkspaceSelector(
+    (current) => current.browserViewSupport(target.serverId).view,
+  );
   const browserRequests = useBrowserRequests(target.serverId);
   const chatBrowserRequests = useMemo(
     () => browserRequests.filter((request) => request.agentId === target.id),
@@ -205,6 +204,7 @@ export function ChatView({
   const [conversationAnalytics] = useState(() => new MobileConversationAnalytics(mobileAnalytics));
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
   const reducedTransparency = useReducedTransparency();
+  const server = useMobileWorkspaceSelector((current) => current.servers.find((item) => item.id === target.serverId));
   const insets = useSafeAreaInsets();
   const keyboardOffset = Math.max(insets.bottom, 10) - 10;
   const [foreground, muted, fieldBackground, raised, action, actionForeground, background] = useThemeColor([
@@ -241,7 +241,7 @@ export function ChatView({
   }, [isFocused, sendError, target.id]);
   const [sendRetryVersion, setSendRetryVersion] = useState(0);
   const queryClient = useQueryClient();
-  const composerAttachments = useChatAttachments([], undefined, () => attachmentSupport(target.serverId));
+  const composerAttachments = useChatAttachments([], undefined, () => workspace().attachmentSupport(target.serverId));
   const attachments = composerAttachments;
   const [messageAliases, setMessageAliases] = useState<ReadonlyMap<string, string>>(new Map());
   // A message sent from this phone keeps its local row ID after the host names it. The host knows
@@ -252,7 +252,6 @@ export function ChatView({
   );
   const hostMessageId = (id: string) => hostMessageIds.get(id) ?? id;
   const [showStarter, setShowStarter] = useState(true);
-  const { servers } = useMobileWorkspace();
   // The messages of this chat that the host has not drawn yet. They wait for the connection, in order.
   const { store: outbox, snapshot: outboxSnapshot } = useOutbox();
   const outboxKey = outboxChatKey(target);
@@ -449,7 +448,6 @@ export function ChatView({
     void showLatestMessages().then(motion.returnToLatest, () => undefined);
   };
   const liquidGlassAvailable = isLiquidGlassAvailable() && !reducedTransparency;
-  const server = servers.find((server) => server.id === target.serverId);
   // A quiet return to the app counts as online: the chat keeps its look, and its requests wait.
   const serverOnline = showsOnline(server);
   // Speech goes to the voice mode's own transcript, and only Send makes it a
@@ -793,7 +791,7 @@ export function ChatView({
               browserRequests={chatBrowserRequests}
               serverName={server?.name ?? ""}
               onRespondApproval={(approval, decision) =>
-                respondToApproval(target.serverId, { requestId: approval.requestId, decision })
+                workspace().respondToApproval(target.serverId, { requestId: approval.requestId, decision })
               }
               fieldBackground={fieldBackground}
               foreground={foreground}
@@ -806,7 +804,7 @@ export function ChatView({
               onLoadOlder={loadOlder}
               onReply={replyToMessage}
               onReact={(message, emoji) =>
-                setMessageReaction(target.id, target.serverId, hostMessageId(message.id), emoji)
+                workspace().setMessageReaction(target.id, target.serverId, hostMessageId(message.id), emoji)
               }
               selectingMessageId={selection?.message.id ?? null}
               // Select text starts the selection, and a second tap on it ends the selection.
@@ -901,10 +899,13 @@ export function ChatView({
                         key={`${target.serverId}:${request.requestId}`}
                         request={request}
                         respondToTakeover={(decision) =>
-                          respondToBrowserTakeover(target.serverId, { requestId: request.requestId, decision })
+                          workspace().respondToBrowserTakeover(target.serverId, {
+                            requestId: request.requestId,
+                            decision,
+                          })
                         }
                         openBrowser={
-                          browserAllowed && browserViewSupport(target.serverId).view
+                          browserAllowed && browserViewAvailable
                             ? () =>
                                 router.push({
                                   pathname: "/browser/[agentId]",
@@ -949,7 +950,7 @@ export function ChatView({
                 <BrowserSecretComposer
                   key={`${target.serverId}:${secretRequest.requestId}`}
                   request={secretRequest}
-                  respond={(input) => respondToBrowserSecret(target.serverId, input)}
+                  respond={(input) => workspace().respondToBrowserSecret(target.serverId, input)}
                   bottomInset={insets.bottom}
                   liquidGlassAvailable={liquidGlassAvailable}
                   fallbackBackground={fieldBackground}

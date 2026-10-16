@@ -1,7 +1,12 @@
 import { type ConversationReaction, MESSAGE_REACTIONS, MORE_MESSAGE_REACTIONS } from "@openbot/contracts/ipc";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Check, Copy, Plus, Reply, SmilePlus, TextSelect } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import Copy from "lucide-react-native/icons/copy";
+import SmilePlus from "lucide-react-native/icons/face-slightly-smiling-plus";
+import Plus from "lucide-react-native/icons/plus";
+import Reply from "lucide-react-native/icons/reply";
+import TextSelect from "lucide-react-native/icons/square-dashed-text";
 import { useState } from "react";
 import { View } from "react-native";
 import Animated, { FadeIn, FadeOut, ReduceMotion } from "react-native-reanimated";

@@ -1,7 +1,12 @@
 import { GlassView } from "expo-glass-effect";
 import { useIsFocused } from "expo-router";
 import { Button, Spinner, Typography } from "heroui-native";
-import { ArrowUp, Mic, Plus, Reply, Square, X } from "lucide-react-native";
+import ArrowUp from "lucide-react-native/icons/arrow-up";
+import Mic from "lucide-react-native/icons/mic";
+import Plus from "lucide-react-native/icons/plus";
+import Reply from "lucide-react-native/icons/reply";
+import Square from "lucide-react-native/icons/square";
+import X from "lucide-react-native/icons/x";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,

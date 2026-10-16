@@ -32,6 +32,7 @@ import {
   decodeConversationFileSearchResponse,
 } from "@openbot/contracts/team-protocol/conversation-file-search-v1";
 import {
+  TEAM_AGENT_CREATE_MODEL_CAPABILITY,
   TEAM_EML_ATTACHMENTS_CAPABILITY,
   TEAM_MEDIA_ATTACHMENTS_CAPABILITY,
   TEAM_MESSAGE_CLIENT_ID_CAPABILITY,
@@ -133,6 +134,7 @@ type HostRequestActions = Pick<
   | "loadProviderAccounts"
   | "setAgentProviderAccount"
   | "canStartNewChat"
+  | "canChooseNewAgentModel"
   | "startNewChat"
   | "loadAgentSessionSettings"
   | "setAgentSessionSetting"
@@ -423,6 +425,8 @@ export function createHostRequestActions({
       await runTeamRequest(setAgentProviderAccount(teamApi(serverId), input));
     },
     canStartNewChat: (serverId) => capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY) ?? false,
+    canChooseNewAgentModel: (serverId) =>
+      capabilities.get(serverId)?.includes(TEAM_AGENT_CREATE_MODEL_CAPABILITY) ?? false,
     startNewChat: async (agentId, serverId) => {
       // A host too old to know the route answers 404, so refuse before the request.
       if (!capabilities.get(serverId)?.includes(CONTEXT_RESET_CAPABILITY))

@@ -12,7 +12,7 @@ import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Pencil } from "lucide-react-native";
+import Pencil from "lucide-react-native/icons/pencil";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { AgentAccessFields, useAgentAdminSettings } from "@/features/agents/components/agent-access-fields";
@@ -343,7 +343,7 @@ function AgentForm({
       ) : null}
       {page === "runtime" ? (
         <AgentRuntimeFields
-          agent={agent}
+          serverId={agent.serverId}
           available={available}
           saving={saving}
           provider={provider}

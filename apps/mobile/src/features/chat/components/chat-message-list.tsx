@@ -5,20 +5,18 @@ import { markdownPlainText } from "@openbot/contracts/markdown-preview-text";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useIsFocused } from "expo-router";
 import { Button, Typography } from "heroui-native";
-import {
-  CalendarClock,
-  CalendarPlus,
-  CalendarX2,
-  CircleCheck,
-  CirclePause,
-  CircleX,
-  Clock3,
-  CornerUpRight,
-  LoaderCircle,
-  type LucideIcon,
-  TriangleAlert,
-  X,
-} from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
+import CalendarClock from "lucide-react-native/icons/calendar-clock";
+import CalendarPlus from "lucide-react-native/icons/calendar-plus";
+import CalendarX2 from "lucide-react-native/icons/calendar-x-2";
+import CircleCheck from "lucide-react-native/icons/circle-check";
+import CirclePause from "lucide-react-native/icons/circle-pause";
+import CircleX from "lucide-react-native/icons/circle-x";
+import Clock3 from "lucide-react-native/icons/clock-3";
+import CornerUpRight from "lucide-react-native/icons/corner-up-right";
+import LoaderCircle from "lucide-react-native/icons/loader-circle";
+import TriangleAlert from "lucide-react-native/icons/triangle-alert";
+import X from "lucide-react-native/icons/x";
 import {
   type ComponentProps,
   createContext,

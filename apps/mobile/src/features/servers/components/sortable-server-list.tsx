@@ -1,4 +1,4 @@
-import { GripVertical } from "lucide-react-native";
+import GripVertical from "lucide-react-native/icons/grip-vertical";
 import { type ReactNode, useEffect } from "react";
 import { View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";

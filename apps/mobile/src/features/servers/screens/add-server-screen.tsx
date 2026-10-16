@@ -8,13 +8,17 @@ import { type Href, router } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Button, Spinner, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { CircleCheck, ClipboardPaste, ScanLine, Server } from "lucide-react-native";
+import CircleCheck from "lucide-react-native/icons/circle-check";
+import ClipboardPaste from "lucide-react-native/icons/clipboard-paste";
+import ScanLine from "lucide-react-native/icons/scan-line";
+import Server from "lucide-react-native/icons/server";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { AppState, Keyboard, Pressable, View } from "react-native";
 
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { SERVER_ROLE_KEYS } from "@/features/servers/model/server-role";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useLiveServerRecovery } from "@/features/workspace/context/server-recovery-countdown";
 import { ErrorReference } from "@/shared/components/error-reference";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
@@ -64,7 +68,7 @@ export function AddServerScreen({
   const { session } = useMobileSession();
   const inviteLinks = { selfHostedApiOrigin: selfHostedApiOrigin(session?.apiUrl) };
   const [joinedId, setJoinedId] = useState<string | null>(null);
-  const joinedServer = servers.find((server) => server.id === joinedId);
+  const joinedServer = useLiveServerRecovery(servers.find((server) => server.id === joinedId));
   const [inviteLink, setInviteLink] = useState(initialInvite);
   // A new object repeats a failed preview for the same link; an unchanged link keeps the result.
   const [request, setRequest] = useState(() => {

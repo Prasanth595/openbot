@@ -19,8 +19,12 @@ import {
   TEAM_BROWSER_VIEW_FRAME_POINT_CAPABILITY,
   TEAM_BROWSER_VIEW_VIEWPORT_CAPABILITY,
 } from "@openbot/contracts/team-protocol/browser-view-v1";
-import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import {
+  TEAM_AGENT_CREATE_MODEL_CAPABILITY,
+  TEAM_CONVERSATION_UNREAD_CAPABILITY,
+} from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { FOCUS_USE_CAPABILITY, FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
@@ -44,8 +48,10 @@ import {
   type RemoteTeamHost,
   type RemoteWorkspacePreferences,
   readAgentAnalytics,
+  remoteRecoveryMessage,
   runTeamEffect,
 } from "@openbot/team-client";
+import { createFocusUsePing } from "@openbot/team-client/focus-use";
 import { createHostedServerWake, WAKE_RECONNECT_DELAY_MS } from "@openbot/team-client/hosted-server-wake";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { reconcilePendingRequests } from "@openbot/team-client/runtime-attention";
@@ -98,6 +104,10 @@ import {
   type ServerLoadContext,
 } from "@/features/workspace/components/server-connection";
 import { createHostRequestActions, requestAgentAvatar } from "@/features/workspace/context/host-request-actions";
+import {
+  createRecoveryCountdowns,
+  RecoveryCountdownContext,
+} from "@/features/workspace/context/server-recovery-countdown";
 import { reduceAgentActivity } from "@/features/workspace/model/agent-activity";
 import { canToggleAgentPin, reconcileAgentPins } from "@/features/workspace/model/agent-pins";
 import { conversationMessageId, decodeConversationPage } from "@/features/workspace/model/conversation";
@@ -117,7 +127,12 @@ import {
   serverOrderKey,
   sortServers,
 } from "@/features/workspace/model/server-order";
-import { applyServerRecovery, serverKind, showsOnline } from "@/features/workspace/model/server-status";
+import {
+  applyServerRecovery,
+  sameServerRecovery,
+  serverKind,
+  showsOnline,
+} from "@/features/workspace/model/server-status";
 import { trustedHostKeys } from "@/features/workspace/model/trusted-host-keys";
 import {
   decodeAgent,
@@ -148,6 +163,7 @@ export type {
 } from "@/features/workspace/model/workspace-types";
 
 const NO_IDS: string[] = [];
+const NO_AGENTS: MobileAgent[] = [];
 /** The longest that the servers which are not selected wait for the selected one on a return to the app. */
 const OTHER_SERVERS_RETURN_DELAY_MS = 3_000;
 const EMPTY_SERVER: MobileServer = {
@@ -743,15 +759,17 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   );
   /** The last failed attempt of each server that asked for a wake. */
   const wakeAttempts = useRef(new Map<string, number>());
+  const [recoveryCountdowns] = useState(createRecoveryCountdowns);
   const handleConnectionStatus = useCallback(
     (hostId: string, status: RemoteRecoveryStatus, failure: RemoteConnectionFailure | null, resuming: boolean) => {
-      setServers((current) =>
-        current.map((server) =>
-          server.id === hostId
-            ? applyServerRecovery(server, status, failure?.message ?? null, failure, resuming)
-            : server,
-        ),
-      );
+      recoveryCountdowns.publish(hostId, { status, message: remoteRecoveryMessage(status, failure?.message ?? null) });
+      setServers((current) => {
+        const index = current.findIndex((server) => server.id === hostId);
+        const server = current[index];
+        if (!server) return current;
+        const next = applyServerRecovery(server, status, failure?.message ?? null, failure, resuming);
+        return sameServerRecovery(server, next) ? current : current.map((item, at) => (at === index ? next : item));
+      });
       if (resuming && status.phase !== "online") resumingServers.current.add(hostId);
       else resumingServers.current.delete(hostId);
       // A waiting request goes when the server is online, and fails with the attempt. An attempt that
@@ -767,7 +785,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       wakeAttempts.current.set(hostId, status.attempt);
       wakeSelectedServer(hostId);
     },
-    [wakeSelectedServer, settleConnectionWaits],
+    [recoveryCountdowns, wakeSelectedServer, settleConnectionWaits],
   );
   // The next retry of an offline server can be two minutes away, so a server starts when it is selected.
   useEffect(() => {
@@ -776,6 +794,22 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       wakeSelectedServer(activeServerId);
     }
   }, [foreground, activeServerId, wakeSelectedServer]);
+  // A hosted server keeps running while this app is in the foreground (`focus-use-v1`).
+  const focusUse = useMemo(
+    () =>
+      createFocusUsePing(
+        (serverId) => void request("POST", FOCUS_USE_ROUTES.ping, ignoreResponse, {}, serverId).catch(() => undefined),
+      ),
+    [request],
+  );
+  const activeServerOnline = servers.some((server) => server.id === activeServerId && server.state === "online");
+  useEffect(() => {
+    const supported =
+      activeServerId !== null &&
+      serverCapabilities.current.get(activeServerId)?.includes(FOCUS_USE_CAPABILITY) === true;
+    focusUse.setTarget(foreground && activeServerOnline && supported ? activeServerId : null);
+  }, [focusUse, foreground, activeServerOnline, activeServerId]);
+  useEffect(() => () => focusUse.dispose(), [focusUse]);
 
   useEffect(() => {
     if (!foreground) {
@@ -1194,8 +1228,23 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     [preferenceStore],
   );
 
+  const activeServer = useMemo(
+    () => servers.find((server) => server.id === activeServerId) ?? EMPTY_SERVER,
+    [servers, activeServerId],
+  );
+  const activeServerHasPreferences = Boolean(preferences[activeServer.id]);
+  const activeAgents = useMemo(
+    () =>
+      activeServerHasPreferences
+        ? agents.filter((agent) => agent.serverId === activeServer.id && !hiddenAgentIds.includes(agent.id))
+        : NO_AGENTS,
+    [activeServerHasPreferences, agents, activeServer.id, hiddenAgentIds],
+  );
+  const hiddenAgents = useMemo(
+    () => agents.filter((agent) => agent.serverId === activeServer.id && hiddenAgentIds.includes(agent.id)),
+    [agents, activeServer.id, hiddenAgentIds],
+  );
   const value = useMemo<MobileWorkspaceContextValue>(() => {
-    const activeServer = servers.find((server) => server.id === activeServerId) ?? EMPTY_SERVER;
     /** An owner or admin of an online host that serves `capability`. The host checks the role again. */
     const administers = (serverId: string, capability: string) => {
       const server = servers.find((candidate) => candidate.id === serverId);
@@ -1370,10 +1419,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       serverDirectoryError,
       agents,
       activeServer,
-      activeAgents: preferences[activeServer.id]
-        ? agents.filter((agent) => agent.serverId === activeServer.id && !hiddenAgentIds.includes(agent.id))
-        : [],
-      hiddenAgents: agents.filter((agent) => agent.serverId === activeServer.id && hiddenAgentIds.includes(agent.id)),
+      activeAgents,
+      hiddenAgents,
       pinnedAgentIds,
       conversationStore,
       liveState,
@@ -1504,6 +1551,17 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           avatarSeed: input.avatarSeed,
           avatarHue: input.avatarHue,
           initialMessage: input.initialMessage,
+          // The host applies the pair before it queues the initial message. A host without the
+          // capability starts its own default.
+          ...(input.provider &&
+          input.model &&
+          serverCapabilities.current.get(activeServer.id)?.includes(TEAM_AGENT_CREATE_MODEL_CAPABILITY)
+            ? {
+                provider: input.provider,
+                model: input.model,
+                ...(input.reasoningEffort ? { reasoningEffort: input.reasoningEffort } : {}),
+              }
+            : {}),
         });
         setAgents((current) => [
           ...current.filter((agent) => agent.id !== created.id),
@@ -1672,11 +1730,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     sidebarByServer,
     applySidebarLayout,
     activeServerId,
+    activeServer,
+    activeAgents,
+    hiddenAgents,
     agents,
     conversationStore,
     directory,
     directoryRefresh,
-    hiddenAgentIds,
     loadConversation,
     loadConversationAround,
     loadLatestMessages,
@@ -1703,7 +1763,6 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     sessionScope,
     queryClient,
     liveState,
-    preferences,
     updatePreferences,
     supportsPushNotifications,
     sendApproval,
@@ -1717,32 +1776,34 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   return (
     <MobileWorkspaceContext.Provider value={value}>
       <MobileWorkspaceStoreContext.Provider value={valueStore}>
-        <View className="flex-1">
-          {children}
-          <QuickActionsSync
-            apiUrl={session.apiUrl}
-            userId={session.user.id}
-            servers={servers}
-            serversReady={serverDirectoryState === "ready"}
-            activeServerId={activeServerId}
-            agents={agents}
-            preferences={preferences}
-          />
-          {servers.map((server) => (
-            <ServerConnection
-              key={server.id}
-              hostId={server.id}
-              publicKey={server.publicKey}
-              active={foreground && (!othersHeld || server.id === activeServerId)}
-              directory={directory}
-              register={registerConnection}
-              load={loadServer}
-              onStatus={handleConnectionStatus}
-              onMembershipChanged={refreshMemberships}
-              onTeamEvent={handleTeamEvent}
+        <RecoveryCountdownContext.Provider value={recoveryCountdowns}>
+          <View className="flex-1">
+            {children}
+            <QuickActionsSync
+              apiUrl={session.apiUrl}
+              userId={session.user.id}
+              servers={servers}
+              serversReady={serverDirectoryState === "ready"}
+              activeServerId={activeServerId}
+              agents={agents}
+              preferences={preferences}
             />
-          ))}
-        </View>
+            {servers.map((server) => (
+              <ServerConnection
+                key={server.id}
+                hostId={server.id}
+                publicKey={server.publicKey}
+                active={foreground && (!othersHeld || server.id === activeServerId)}
+                directory={directory}
+                register={registerConnection}
+                load={loadServer}
+                onStatus={handleConnectionStatus}
+                onMembershipChanged={refreshMemberships}
+                onTeamEvent={handleTeamEvent}
+              />
+            ))}
+          </View>
+        </RecoveryCountdownContext.Provider>
       </MobileWorkspaceStoreContext.Provider>
     </MobileWorkspaceContext.Provider>
   );

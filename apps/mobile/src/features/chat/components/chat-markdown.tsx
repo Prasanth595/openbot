@@ -12,7 +12,7 @@ import type { MobileTranslate } from "@openbot/i18n/mobile";
 import * as Linking from "expo-linking";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { FileText } from "lucide-react-native";
+import FileText from "lucide-react-native/icons/file-text";
 import type { Token, Tokens } from "marked";
 import { Fragment, memo, type ReactNode, useEffect, useId, useMemo, useRef } from "react";
 import { type ColorValue, ScrollView, type TextStyle, useWindowDimensions, View } from "react-native";
@@ -31,7 +31,7 @@ import { graphemes } from "@/shared/lib/graphemes";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
-import { parseChatMarkdown, parseFinishedChatMarkdown } from "../model/chat-markdown-parser";
+import { parseFinishedChatMarkdown, parseStreamingChatMarkdown } from "../model/chat-markdown-parser";
 import { plainMentionParts } from "../model/chat-mentions";
 import { createReplyReveal } from "../model/reply-reveal";
 import { ChatCodeBlock } from "./chat-code-block";
@@ -843,7 +843,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   const textReveal = useMotionPreference("textReveal");
   const { fontScale } = useWindowDimensions();
   const tokens = useMemo(
-    () => (finished ? parseFinishedChatMarkdown(body) : parseChatMarkdown(body)),
+    () => (finished ? parseFinishedChatMarkdown(body) : parseStreamingChatMarkdown(body)),
     [body, finished],
   );
   const reveal = useMemo(() => createReplyReveal(tokens), [tokens]);

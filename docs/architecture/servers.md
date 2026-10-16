@@ -159,6 +159,17 @@ too. The event carries no skill data: a client reads the list again through `ins
 `skills-admin-v1`. `team-protocol/optional-events.ts` is the one place where each transport
 recognizes the optional events that the frozen base vocabularies reject.
 
+### Focus use
+
+`focus-use-v1` adds `POST /v1/client/focus` with an empty body. Only a hosted server advertises it
+(`focusUse` in `TeamApiOptions`), and the capability is v7 only. A client sends it while its app has
+focus and the server is online, through `createFocusUsePing` in `packages/team-client`: the desktop
+main process, the web client and the mobile app each give it their own focus signal and transport.
+The host keeps the focus period of each session apart from `#sessionUse`, so a focused desktop does
+not stop the phone's push notifications. A ping moves `lastClientUseAt` only for 30 minutes after the
+later of the last user action of its session and the start of its focus period. The route is in `PASSIVE_ROUTES`, so the generic client use path
+does not count it. See [hosted servers](../hosted-servers.md) step 5.
+
 ### Admin capabilities
 
 An owner or admin of a joined server manages its host through optional `POST /v1/admin/...` routes.

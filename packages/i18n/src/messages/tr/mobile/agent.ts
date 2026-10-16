@@ -272,6 +272,7 @@ export const messages = {
   "mobile.agent.permissions.title": "İzinler",
   "mobile.agent.advanced.title": "Gelişmiş",
   "mobile.agent.runtime.unavailable": "Kullanılamıyor",
+  "mobile.agent.runtime.hostDefault": "Ana makine varsayılanı",
   "mobile.agent.runtime.provider": "Sağlayıcı",
   "mobile.agent.runtime.account": "Hesap",
   "mobile.agent.runtime.accountNumbered": "Hesap {number}",

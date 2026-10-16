@@ -58,10 +58,12 @@ import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_IMPORT_ROUTES } from "@openbot/contracts/team-protocol/agent-import-v1";
 import { decodeBrowserViewSessionResponse } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_MEMBER_LEAVE_CAPABILITY, type TeamCurrentCapability } from "@openbot/contracts/team-protocol/current";
+import { FOCUS_USE_CAPABILITY, FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
 import type { HostRestartEvent } from "@openbot/contracts/team-protocol/host-update-v1";
 import { INSTANCE_TRANSFER_ROUTES } from "@openbot/contracts/team-protocol/instance-transfer-v1";
 import { decodeTeamProtocolV1CurrentHttpResponse } from "@openbot/contracts/team-protocol/v1-adapter";
 import { sourceText } from "@openbot/i18n/source";
+import { createFocusUsePing } from "@openbot/team-client/focus-use";
 import {
   HOSTED_HOST_READY_LIMIT_MS,
   HOSTED_START_FAILED_READS,
@@ -90,7 +92,7 @@ import {
 } from "./remote-conversation-decoding";
 import { decodeRemoteDesktopSetupFromHost, decodeRemoteDesktopTestFromHost } from "./remote-desktop-setup-decoding";
 import { decodeRemoteDesktopSession } from "./remote-device-decoding";
-import { decodeVoid, type ResponseDecoder } from "./remote-host-decoding";
+import { acceptEmpty, decodeVoid, type ResponseDecoder } from "./remote-host-decoding";
 import { type RemoteRequestInit, RemoteServerClient } from "./remote-server-client";
 import { RemoteServerConnections } from "./remote-server-connections";
 import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors";
@@ -227,6 +229,10 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
   /** Hosted servers whose host did not connect in the start time. Only the user's next wake starts them again. */
   readonly #hostedStartExpired = new Set<string>();
   #appFocused = true;
+  /** The selected hosted server keeps running while this window has focus (`focus-use-v1`). */
+  readonly #focusUse = createFocusUsePing((serverId) =>
+    this.#background(this.request(serverId, FOCUS_USE_ROUTES.ping, acceptEmpty, { method: "POST", body: {} })),
+  );
   readonly #remoteViewerProxy: RemoteViewerProxy | null;
   #selections = Semaphore.makeUnsafe(1);
   /** One read of the account's host list at a time, so an older answer cannot replace a newer one. */
@@ -554,6 +560,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     focused: boolean,
   ) {
     this.#appFocused = focused;
+    this.#syncFocusUse();
     yield* this.#events.setAppFocused(focused);
   }).bind(this);
 
@@ -1886,6 +1893,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     this.#stopping = done;
     return yield* Effect.gen({ self: this }, function* () {
       for (const serverId of [...this.#hostedStartAt.keys()]) this.#clearHostedStart(serverId);
+      this.#focusUse.dispose();
       yield* this.#events.stop();
       this.#refresh.clear();
       this.#client.clear();
@@ -2005,7 +2013,18 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
   }
 
   #emitChanged(): void {
+    this.#syncFocusUse();
     this.emit("changed", this.list());
+  }
+
+  #syncFocusUse(): void {
+    const serverId = this.#store.activeServerId;
+    const focused =
+      !this.#stopping &&
+      this.#appFocused &&
+      this.#connections.stateFor(serverId) === "online" &&
+      this.supportsCapability(serverId, FOCUS_USE_CAPABILITY);
+    this.#focusUse.setTarget(focused ? serverId : null);
   }
 }
 

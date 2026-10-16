@@ -2,7 +2,9 @@ import { AVATAR_HUE_CHOICES, avatarHueSwatch } from "@openbot/brand/bloub-avatar
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ChevronLeft, ChevronRight, Dices } from "lucide-react-native";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Dices from "lucide-react-native/icons/dices";
 import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";

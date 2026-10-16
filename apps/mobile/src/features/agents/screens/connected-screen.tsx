@@ -4,7 +4,10 @@ import { type Href, router, Stack } from "expo-router";
 import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { EllipsisVertical, Layers3, Search, WifiOff } from "lucide-react-native";
+import EllipsisVertical from "lucide-react-native/icons/ellipsis-vertical";
+import Layers3 from "lucide-react-native/icons/layers";
+import Search from "lucide-react-native/icons/search";
+import WifiOff from "lucide-react-native/icons/wifi-off";
 import { memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
@@ -39,7 +42,11 @@ import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { ConnectionHeaderStatus } from "@/features/workspace/components/connection-header-status";
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
 import { useUnreadAgentIds } from "@/features/workspace/components/use-live-workspace";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import {
   type MobileSidebarItem,
@@ -186,20 +193,17 @@ export function ConnectedScreen() {
   const { t, sourceText } = useText();
   const { isLoaderPresent, isLoaderLeaving } = useAppLoadingOverlay();
   const { openDrawer } = useAppDrawer();
-  const {
-    sidebarByServer,
-    refreshServer,
-    agents,
-    activeAgents,
-    activeServer,
-    hiddenAgents,
-    markAllRead,
-    pinnedAgentIds,
-    refreshServers,
-    serverDirectoryError,
-    serverDirectoryState,
-    servers,
-  } = useMobileWorkspace();
+  const workspace = useMobileWorkspaceReader();
+  const sidebarByServer = useMobileWorkspaceSelector((current) => current.sidebarByServer);
+  const agents = useMobileWorkspaceSelector((current) => current.agents);
+  const activeAgents = useMobileWorkspaceSelector((current) => current.activeAgents);
+  const activeServer = useMobileWorkspaceSelector((current) => current.activeServer);
+  const hiddenAgents = useMobileWorkspaceSelector((current) => current.hiddenAgents);
+  const markAllRead = useMobileWorkspaceSelector((current) => current.markAllRead);
+  const pinnedAgentIds = useMobileWorkspaceSelector((current) => current.pinnedAgentIds);
+  const serverDirectoryError = useMobileWorkspaceSelector((current) => current.serverDirectoryError);
+  const serverDirectoryState = useMobileWorkspaceSelector((current) => current.serverDirectoryState);
+  const servers = useMobileWorkspaceSelector((current) => current.servers);
   const [collapsedByServer, setCollapsedByServer] = useState<Record<string, ReadonlySet<string>>>({});
   const collapsedSectionIds = collapsedByServer[activeServer.id];
   const [foreground, muted] = useThemeColor(["foreground", "muted"]);
@@ -435,7 +439,11 @@ export function ConnectedScreen() {
                   <Typography.Paragraph className="text-danger-text">{sourceText(sidebar.error)}</Typography.Paragraph>
                   <Button
                     variant="secondary"
-                    onPress={() => void refreshServer(activeServer.id).catch(() => undefined)}
+                    onPress={() =>
+                      void workspace()
+                        .refreshServer(activeServer.id)
+                        .catch(() => undefined)
+                    }
                   >
                     <Button.Label>{t("mobile.agent.home.retrySections")}</Button.Label>
                   </Button>
@@ -456,7 +464,15 @@ export function ConnectedScreen() {
                     {serverDirectoryError ? sourceText(serverDirectoryError) : t("mobile.agent.home.serversFailedBody")}
                   </Typography.Paragraph>
                 </View>
-                <Button size="md" variant="secondary" onPress={() => void refreshServers().catch(() => undefined)}>
+                <Button
+                  size="md"
+                  variant="secondary"
+                  onPress={() =>
+                    void workspace()
+                      .refreshServers()
+                      .catch(() => undefined)
+                  }
+                >
                   <Button.Label>{t("common.tryAgain")}</Button.Label>
                 </Button>
               </View>

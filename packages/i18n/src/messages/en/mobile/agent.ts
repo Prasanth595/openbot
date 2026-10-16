@@ -254,6 +254,7 @@ export const messages = defineMessages("mobile.agent", {
   "mobile.agent.permissions.title": "Permissions",
   "mobile.agent.advanced.title": "Advanced",
   "mobile.agent.runtime.unavailable": "Unavailable",
+  "mobile.agent.runtime.hostDefault": "Host default",
   "mobile.agent.runtime.provider": "Provider",
   "mobile.agent.runtime.account": "Account",
   "mobile.agent.runtime.accountNumbered": "Account {number}",

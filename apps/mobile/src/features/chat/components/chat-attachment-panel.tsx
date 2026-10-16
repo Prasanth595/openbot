@@ -1,6 +1,9 @@
 import { GlassView } from "expo-glass-effect";
 import { Typography } from "heroui-native";
-import { Camera, Images, type LucideIcon, Paperclip } from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
+import Camera from "lucide-react-native/icons/camera";
+import Images from "lucide-react-native/icons/images";
+import Paperclip from "lucide-react-native/icons/paperclip";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, Keyboard, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from "react-native";
 import Animated, {

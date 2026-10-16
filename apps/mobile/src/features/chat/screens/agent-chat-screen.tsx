@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams, usePreventZoomTransitionDismissal } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { ArrowLeft } from "lucide-react-native";
+import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import { useCallback } from "react";
 import { Pressable, View } from "react-native";
 
