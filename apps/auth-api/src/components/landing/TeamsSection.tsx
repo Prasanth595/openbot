@@ -1,5 +1,6 @@
 import { createSignal, For, onSettled } from "solid-js";
 import { LANDING_TEAMS_OFFERS, type LandingTeamsOfferId } from "../../lib/landing-content";
+import { TEAMS_ROUTE } from "../../lib/teams-page";
 import { ButtonLink } from "../ui/button";
 import { LandingIcon, type LandingIconName } from "./LandingIcon";
 
@@ -64,9 +65,14 @@ export function TeamsSection() {
           <p class="landing-teams-description">
             We run OpenBot on managed servers and set it up around your team and tools.
           </p>
-          <ButtonLink to="/contact" variant="primary" size="lg" icon="contact" class="landing-teams-action">
-            Contact us
-          </ButtonLink>
+          <div class="landing-teams-actions">
+            <ButtonLink to="/contact" variant="primary" size="lg" icon="contact">
+              Contact us
+            </ButtonLink>
+            <ButtonLink to={TEAMS_ROUTE} variant="secondary" size="lg" icon="arrow-right">
+              Learn more
+            </ButtonLink>
+          </div>
           <ol class="landing-teams-progress" aria-hidden="true">
             <For each={LANDING_TEAMS_OFFERS}>
               {(offer, index) => (

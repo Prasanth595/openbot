@@ -3967,7 +3967,10 @@ a {
   margin-top: 10px;
 }
 
-.landing-teams-action {
+.landing-teams-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 28px;
 }
 
@@ -4156,6 +4159,976 @@ a {
     width: 110px;
     height: 110px;
     stroke-width: 0.9;
+  }
+}
+
+/* The For Teams page ------------------------------------------------------
+   /teams: the team in the hero title with moving name cursors, the setups in
+   the colours of the Teams cards, a bento of benefits, the steps of a custom
+   project, a marquee of who it is for, and a closing title that lights up as
+   you scroll. */
+
+.teams-page {
+  --landing-card-border: color-mix(in srgb, var(--openbot-text-primary) 8%, transparent);
+  --landing-card-border-hover: color-mix(in srgb, var(--openbot-text-primary) 16%, transparent);
+  --landing-card-fill: color-mix(in srgb, var(--openbot-text-primary) 5%, transparent);
+  --teams-soft-grid:
+    linear-gradient(color-mix(in srgb, var(--openbot-text-on-light) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--openbot-text-on-light) 7%, transparent) 1px, transparent 1px);
+  color: var(--openbot-text-primary);
+}
+
+.teams-page .teams-main {
+  padding-bottom: 0;
+}
+
+.teams-page [data-setup="local"],
+.teams-page [data-tile="0"],
+.teams-page [data-cursor="0"] {
+  --teams-color: var(--openbot-logo-production);
+}
+
+.teams-page [data-setup="managed"],
+.teams-page [data-tile="1"],
+.teams-page [data-cursor="1"] {
+  --teams-color: var(--openbot-logo-preview);
+}
+
+.teams-page [data-setup="custom"],
+.teams-page [data-tile="2"],
+.teams-page [data-cursor="2"] {
+  --teams-color: var(--openbot-logo-dev);
+}
+
+.teams-page [data-tile="3"] {
+  --teams-color: var(--download-ios-color);
+}
+
+/* Shared ----------------------------------------------------------------- */
+
+.teams-page .teams-section {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: clamp(96px, 10vw, 144px) clamp(20px, 4vw, 48px) 0;
+}
+
+.teams-page .teams-heading {
+  max-width: 760px;
+}
+
+.teams-page .teams-heading-center {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.teams-page .teams-heading h2 {
+  margin: 0;
+  font-size: clamp(38px, 5vw, 64px);
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.teams-page .teams-heading p {
+  max-width: 560px;
+  margin: 22px 0 0;
+  color: var(--openbot-text-secondary);
+  font-size: clamp(16px, 1.8vw, 19px);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.teams-page .teams-heading-center p {
+  margin-inline: auto;
+}
+
+.teams-page .teams-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 16px;
+  margin: 32px 0 0;
+  color: var(--openbot-text-secondary);
+  font-size: 16px;
+}
+
+.teams-page [data-revealed="false"] > * {
+  opacity: 0;
+}
+
+.teams-page [data-revealed="true"] > * {
+  animation: landing-download-reveal 720ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.teams-page [data-revealed="true"] > :nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.teams-page [data-revealed="true"] > :nth-child(3) {
+  animation-delay: 240ms;
+}
+
+/* Hero, setups and benefits --------------------------------------------- */
+
+.teams-page .teams-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 28px;
+  padding: 5px 14px 5px 6px;
+  border: 1px solid var(--openbot-border-strong);
+  border-radius: var(--openbot-radius-pill);
+  background: var(--openbot-bg-sidebar);
+  color: var(--openbot-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.teams-page .teams-pill-dots {
+  display: inline-flex;
+}
+
+.teams-page .teams-pill-dots span {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--openbot-bg-sidebar);
+  border-radius: var(--openbot-radius-pill);
+  background: var(--teams-color);
+}
+
+.teams-page .teams-pill-dots span + span {
+  margin-left: -6px;
+}
+
+.teams-page .teams-hero {
+  padding-bottom: 24px;
+}
+
+.teams-page .teams-title {
+  max-width: 17ch;
+  margin: 0;
+  font-size: clamp(46px, 7.2vw, 104px);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+  text-wrap: balance;
+}
+
+.teams-page .teams-setups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: clamp(48px, 6vw, 72px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teams-page .teams-setup {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  min-height: 440px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: clamp(26px, 2.6vw, 34px);
+  border: 1px solid var(--openbot-download-card-border);
+  border-radius: 28px;
+  background: var(--teams-color);
+  color: var(--openbot-text-on-light);
+  transition: transform var(--openbot-duration-normal) var(--openbot-ease-out);
+}
+
+.teams-page .teams-setup::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image: var(--teams-soft-grid);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(90% 70% at 20% 15%, var(--openbot-mask-solid) 10%, transparent 100%);
+  pointer-events: none;
+}
+
+.teams-page .teams-setup:hover {
+  transform: translateY(-6px);
+}
+
+.teams-page .teams-setup-icon {
+  width: clamp(76px, 7vw, 96px);
+  height: clamp(76px, 7vw, 96px);
+  stroke-width: 1;
+}
+
+.teams-page .teams-setup .landing-download-card-copy h3 {
+  text-wrap: balance;
+}
+
+.teams-page .teams-setup .landing-download-card-copy p {
+  font-size: 15px;
+  text-wrap: pretty;
+}
+
+.teams-page .teams-bento {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teams-page .teams-tile {
+  min-width: 0;
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--landing-card-border);
+  border-radius: 28px;
+  background: var(--openbot-bg-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease;
+}
+
+.teams-page .teams-tile:hover {
+  border-color: var(--landing-card-border-hover);
+  background: var(--openbot-bg-surface-raised);
+}
+
+.teams-page .teams-tile[data-tile="0"] {
+  grid-column: 1 / 8;
+}
+
+.teams-page .teams-tile[data-tile="1"] {
+  grid-column: 8 / 13;
+}
+
+.teams-page .teams-tile[data-tile="2"] {
+  grid-column: 1 / 6;
+}
+
+.teams-page .teams-tile[data-tile="3"] {
+  grid-column: 6 / 13;
+}
+
+/* The picture of a tile: the hero grid, a glow in the tile colour, and the icon on a coloured tile. */
+.teams-page .teams-tile-art {
+  position: relative;
+  flex: 1;
+  min-height: 170px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(50% 70% at 50% 60%, color-mix(in srgb, var(--teams-color) 22%, transparent), transparent 70%),
+    linear-gradient(90deg, var(--openbot-hero-grid-line) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(var(--openbot-hero-grid-line) 1px, transparent 1px) 0 0 / 32px 32px;
+  mask-image: linear-gradient(var(--openbot-mask-solid) 55%, transparent);
+}
+
+.teams-page .teams-tile-art svg {
+  width: 88px;
+  height: 88px;
+  padding: 20px;
+  border: 1px solid var(--openbot-download-card-border);
+  border-radius: 24px;
+  background: var(--teams-color);
+  box-shadow: 0 20px 50px -18px var(--teams-color);
+  color: var(--openbot-text-on-light);
+  stroke-width: 1.6;
+  transition: transform 400ms var(--openbot-ease-out);
+}
+
+.teams-page .teams-tile:hover .teams-tile-art svg {
+  transform: translateY(-6px) rotate(-4deg);
+}
+
+.teams-page .teams-tile-copy {
+  padding: 8px 32px 32px;
+}
+
+.teams-page .teams-tile-copy h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.teams-page .teams-tile-copy p {
+  max-width: 48ch;
+  margin: 10px 0 0;
+  color: var(--openbot-text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* Custom timeline -------------------------------------------------------- */
+
+.teams-page .teams-timeline {
+  position: relative;
+  margin: clamp(56px, 7vw, 88px) 0 0;
+}
+
+.teams-page .teams-timeline-line {
+  position: absolute;
+  top: 27px;
+  right: 10%;
+  left: 10%;
+  height: 2px;
+  background: var(--landing-card-border-hover);
+  pointer-events: none;
+}
+
+.teams-page .teams-timeline-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--openbot-logo-production),
+    var(--openbot-logo-preview),
+    var(--openbot-logo-dev),
+    var(--download-ios-color)
+  );
+  transform-origin: left;
+}
+
+/* The spark is under the nodes, so it goes out of view behind each step. */
+.teams-page .teams-timeline-spark {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: var(--openbot-text-primary);
+  box-shadow:
+    0 0 10px 3px color-mix(in srgb, var(--openbot-logo-preview) 80%, transparent),
+    0 0 36px 12px color-mix(in srgb, var(--openbot-logo-production) 45%, transparent);
+  opacity: 0;
+}
+
+.teams-page .teams-timeline-spark::before {
+  position: absolute;
+  top: 50%;
+  right: 50%;
+  width: 160px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--openbot-text-primary));
+  content: "";
+  translate: 0 -50%;
+}
+
+.teams-page .teams-timeline-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teams-page .teams-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.teams-page .teams-step-node {
+  position: relative;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--teams-color);
+  box-shadow:
+    0 0 0 10px var(--openbot-bg-canvas),
+    0 0 36px 6px color-mix(in srgb, var(--teams-color) 40%, transparent);
+  color: var(--openbot-text-on-light);
+}
+
+.teams-page .teams-step-node::after {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--teams-color);
+  border-radius: 50%;
+  content: "";
+  opacity: 0;
+}
+
+.teams-page .teams-step-node svg {
+  width: 24px;
+  height: 24px;
+}
+
+.teams-page .teams-step-number {
+  margin: 26px 0 0;
+  color: var(--openbot-text-muted);
+  font-family: var(--openbot-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.teams-page .teams-step-title {
+  max-width: 16ch;
+  margin: 10px 0 0;
+  font-size: clamp(17px, 1.6vw, 21px);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+/* Before a step lights, its node is a small grey dot, and its text is not shown. */
+.teams-page [data-play="false"] .teams-timeline-fill {
+  transform: scaleX(0);
+}
+
+.teams-page [data-play="false"] .teams-step-node {
+  background: var(--openbot-bg-surface-raised);
+  box-shadow: 0 0 0 10px var(--openbot-bg-canvas);
+  color: transparent;
+  transform: scale(0.5);
+}
+
+.teams-page [data-play="false"] :is(.teams-step-number, .teams-step-title) {
+  opacity: 0;
+}
+
+/* One run of the spark. Step n lights when the spark gets to it. */
+.teams-page [data-play="true"] .teams-timeline-fill {
+  animation: teams-timeline-fill 2000ms linear 200ms backwards;
+}
+
+.teams-page [data-play="true"] .teams-timeline-spark {
+  animation: teams-timeline-spark-x 2000ms linear 200ms both;
+}
+
+.teams-page [data-play="true"] .teams-step-node {
+  animation: teams-step-pop 760ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: calc(200ms + var(--teams-index) * 500ms);
+}
+
+.teams-page [data-play="true"] .teams-step-node::after {
+  animation: teams-step-burst 900ms ease-out forwards;
+  animation-delay: calc(200ms + var(--teams-index) * 500ms);
+}
+
+.teams-page [data-play="true"] :is(.teams-step-number, .teams-step-title) {
+  animation: landing-download-reveal 720ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(320ms + var(--teams-index) * 500ms);
+}
+
+@keyframes teams-timeline-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes teams-timeline-spark-x {
+  from {
+    left: 0;
+    opacity: 0;
+  }
+
+  6%,
+  94% {
+    opacity: 1;
+  }
+
+  to {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes teams-step-pop {
+  from {
+    background: var(--openbot-bg-surface-raised);
+    box-shadow: 0 0 0 10px var(--openbot-bg-canvas);
+    color: transparent;
+    transform: scale(0.5);
+  }
+
+  55% {
+    transform: scale(1.22);
+  }
+}
+
+@keyframes teams-step-burst {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+/* Audience: marquee ---------------------------------------------------------- */
+
+.teams-page .teams-marquee {
+  display: grid;
+  gap: 16px;
+  margin: clamp(48px, 6vw, 72px) calc(clamp(20px, 4vw, 48px) * -1) 0;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.teams-page .teams-marquee-row {
+  overflow: hidden;
+}
+
+.teams-page [data-revealed="false"] .teams-marquee-row {
+  opacity: 0;
+}
+
+.teams-page [data-revealed="true"] .teams-marquee-row {
+  animation: landing-download-reveal 720ms cubic-bezier(0.22, 1, 0.36, 1) 200ms backwards;
+}
+
+.teams-page [data-revealed="true"] .teams-marquee-row[data-row="1"] {
+  animation-delay: 340ms;
+}
+
+.teams-page .teams-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: teams-marquee-scroll 48s linear infinite;
+}
+
+.teams-page .teams-marquee-row[data-row="1"] .teams-marquee-track {
+  animation-direction: reverse;
+  animation-duration: 40s;
+}
+
+.teams-page .teams-marquee-row:hover .teams-marquee-track {
+  animation-play-state: paused;
+}
+
+.teams-page .teams-marquee-group {
+  display: flex;
+  gap: 16px;
+  padding-right: 16px;
+}
+
+.teams-page .teams-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 28px 12px 12px;
+  border: 1px solid var(--landing-card-border);
+  border-radius: var(--openbot-radius-pill);
+  background: var(--landing-card-fill);
+  color: var(--openbot-text-secondary);
+  font-size: clamp(17px, 1.6vw, 21px);
+  white-space: nowrap;
+  transition:
+    border-color var(--openbot-duration-normal) var(--openbot-ease-out),
+    background-color var(--openbot-duration-normal) var(--openbot-ease-out);
+}
+
+.teams-page .teams-chip:hover {
+  border-color: color-mix(in srgb, var(--teams-color) 50%, transparent);
+  background: color-mix(in srgb, var(--teams-color) 12%, transparent);
+}
+
+.teams-page .teams-chip strong {
+  color: var(--openbot-text-primary);
+  font-weight: 600;
+}
+
+.teams-page .teams-chip-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--teams-color);
+  color: var(--openbot-text-on-light);
+}
+
+.teams-page .teams-chip-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+@keyframes teams-marquee-scroll {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.teams-page .teams-closing {
+  display: grid;
+  justify-items: center;
+  gap: 36px;
+  padding-bottom: clamp(80px, 9vw, 128px);
+  text-align: center;
+}
+
+.teams-page .teams-closing h2 {
+  position: relative;
+  z-index: 1;
+  max-width: 16ch;
+  margin: 0;
+  font-size: clamp(40px, 6vw, 84px);
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+/* Closing ---------------------------------------------------------------- */
+
+/* A second grid in a setup colour, shown only in a circle under the pointer. */
+.teams-page .teams-closing-spot {
+  --openbot-hero-grid-line: color-mix(in srgb, var(--openbot-logo-preview) 60%, transparent);
+  mask-image: radial-gradient(
+    220px circle at var(--teams-x, -999px) var(--teams-y, -999px),
+    var(--openbot-mask-solid),
+    var(--openbot-transparent)
+  );
+}
+
+/* `--teams-progress` (0 to 1) follows the scroll with inertia. Each word turns on over three words' part of
+   it, so the next words start before one ends, and `--teams-ease` (smoothstep) softens each start and end.
+   The dim words keep 3:1 contrast, as large text needs. */
+.teams-page .teams-closing-word {
+  --teams-on: clamp(0, calc((var(--teams-progress, 0) * (var(--teams-count) + 3) - var(--teams-word)) / 3), 1);
+  --teams-ease: calc(var(--teams-on) * var(--teams-on) * (3 - 2 * var(--teams-on)));
+  display: inline-block;
+  opacity: calc(0.4 + var(--teams-ease) * 0.6);
+  filter: blur(calc((1 - var(--teams-ease)) * 6px));
+  transform: translateY(calc((1 - var(--teams-ease)) * 0.16em));
+}
+
+.teams-page .teams-closing-word[data-accent] {
+  background: linear-gradient(100deg, var(--openbot-logo-production), var(--openbot-logo-preview));
+  background-clip: text;
+  color: transparent;
+}
+
+/* The button rises into place over the last part of the scroll. It follows the same smooth value. */
+.teams-page .teams-closing-action {
+  --teams-rise: clamp(0, calc((var(--teams-progress, 0) - 0.7) / 0.3), 1);
+  position: relative;
+  z-index: 1;
+  transform: translateY(calc((1 - var(--teams-rise)) * 14px)) scale(calc(0.97 + var(--teams-rise) * 0.03));
+}
+
+/* A soft glow behind the button. It fades in when the title is complete, then breathes slowly. */
+.teams-page .teams-closing-action::before {
+  position: absolute;
+  inset: -8px -14px;
+  z-index: -1;
+  border-radius: var(--openbot-radius-pill);
+  background: linear-gradient(
+    100deg,
+    var(--openbot-logo-production),
+    var(--openbot-logo-preview) 50%,
+    var(--openbot-logo-dev)
+  );
+  content: "";
+  filter: blur(18px);
+  opacity: 0;
+  scale: 0.85;
+  transition:
+    opacity 1200ms var(--openbot-ease-out),
+    scale 1200ms var(--openbot-ease-out);
+}
+
+.teams-page .teams-closing[data-done="true"] .teams-closing-action::before {
+  opacity: 0.5;
+  scale: 1;
+  animation: teams-closing-breathe 4.8s ease-in-out 1200ms infinite alternate;
+}
+
+@keyframes teams-closing-breathe {
+  from {
+    opacity: 0.5;
+    scale: 1;
+  }
+
+  to {
+    opacity: 0.22;
+    scale: 1.08;
+  }
+}
+
+/* Hero: the agents in the title ----------------------------------------- */
+
+/* The selector outranks the generic `.agent-avatar` size rule, which loads after this stylesheet. */
+.teams-page .teams-avatar {
+  --teams-avatar-size: 0.7em;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--teams-avatar-size);
+  height: var(--teams-avatar-size);
+  border-radius: var(--openbot-radius-pill);
+}
+
+.teams-page .teams-avatar:empty {
+  background: var(--landing-card-fill);
+}
+
+.teams-page .teams-avatar > svg {
+  display: block;
+  width: 128%;
+  height: 128%;
+  overflow: visible;
+  translate: 0 calc(var(--teams-avatar-size) * -0.14);
+}
+
+/* "of" and the avatars stay on one line, so the avatars never start a line alone. */
+.teams-page .teams-title-keep {
+  white-space: nowrap;
+}
+
+.teams-page .teams-title-team {
+  display: inline-flex;
+  vertical-align: -0.26em;
+}
+
+.teams-page .teams-title-team > * + * {
+  margin-left: -0.06em;
+}
+
+.teams-page .teams-cursors {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The script moves each cursor each frame, and sets `--teams-lean` from its sideways speed. */
+.teams-page .teams-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-start;
+  will-change: transform;
+}
+
+.teams-page .teams-cursor-arrow {
+  width: 30px;
+  height: 30px;
+  fill: var(--teams-color);
+  stroke: var(--openbot-bg-canvas);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 35%));
+  transform: rotate(var(--teams-lean, 0deg));
+  transform-origin: 4px 3px;
+}
+
+.teams-page .teams-cursor-name {
+  margin: 22px 0 0 -6px;
+  padding: 6px 13px;
+  border-radius: var(--openbot-radius-pill);
+  background: var(--teams-color);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
+  color: var(--openbot-text-on-light);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Phone ------------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+  .teams-page .teams-setups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .teams-page .teams-setup {
+    min-height: 320px;
+    border-radius: 24px;
+  }
+
+  .teams-page .teams-tile[data-tile] {
+    grid-column: 1 / -1;
+  }
+
+  .teams-page .teams-chip {
+    gap: 12px;
+    padding: 8px 20px 8px 8px;
+  }
+
+  .teams-page .teams-chip-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .teams-page .teams-timeline-track {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .teams-page .teams-timeline-line {
+    top: 28px;
+    right: auto;
+    bottom: 28px;
+    left: 27px;
+    width: 2px;
+    height: auto;
+  }
+
+  .teams-page .teams-timeline-fill {
+    background: linear-gradient(
+      180deg,
+      var(--openbot-logo-production),
+      var(--openbot-logo-preview),
+      var(--openbot-logo-dev),
+      var(--download-ios-color)
+    );
+    transform-origin: top;
+  }
+
+  .teams-page [data-play="false"] .teams-timeline-fill {
+    transform: scaleY(0);
+  }
+
+  .teams-page .teams-timeline-spark {
+    top: 0;
+    left: 50%;
+    margin: -6px 0 0 -6px;
+  }
+
+  .teams-page .teams-timeline-spark::before {
+    top: auto;
+    right: auto;
+    bottom: 50%;
+    left: 50%;
+    width: 2px;
+    height: 120px;
+    background: linear-gradient(180deg, transparent, var(--openbot-text-primary));
+    translate: -50% 0;
+  }
+
+  .teams-page [data-play="true"] .teams-timeline-fill {
+    animation-name: teams-timeline-fill-y;
+  }
+
+  .teams-page [data-play="true"] .teams-timeline-spark {
+    animation-name: teams-timeline-spark-y;
+  }
+
+  .teams-page .teams-step {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 20px;
+    text-align: left;
+  }
+
+  .teams-page .teams-step-node {
+    grid-row: 1 / 3;
+  }
+
+  .teams-page .teams-step-number {
+    align-self: end;
+    margin: 0;
+  }
+
+  .teams-page .teams-step-title {
+    align-self: start;
+    max-width: none;
+    margin: 4px 0 0;
+  }
+
+  .teams-page .teams-cursors {
+    display: none;
+  }
+}
+
+@keyframes teams-timeline-fill-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes teams-timeline-spark-y {
+  from {
+    top: 0;
+    opacity: 0;
+  }
+
+  6%,
+  94% {
+    opacity: 1;
+  }
+
+  to {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teams-page [data-revealed="true"] > *,
+  .teams-page .teams-timeline *,
+  .teams-page .teams-timeline *::after {
+    animation: none;
+  }
+
+  .teams-page .teams-setup,
+  .teams-page .teams-tile-art svg,
+  .teams-page .teams-timeline * {
+    transition: none;
+  }
+
+  .teams-page .teams-closing-action::before {
+    transition: none;
+  }
+
+  .teams-page [data-revealed="true"] .teams-marquee-row,
+  .teams-page .teams-closing[data-done="true"] .teams-closing-action::before {
+    animation: none;
+  }
+
+  /* No marquee: the chips of the first copy wrap, and the second copy is not shown. */
+  .teams-page .teams-marquee {
+    mask-image: none;
+  }
+
+  .teams-page .teams-marquee-track {
+    width: auto;
+    animation: none;
+  }
+
+  .teams-page .teams-marquee-group {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 0 16px;
+  }
+
+  .teams-page .teams-marquee-group + .teams-marquee-group,
+  .teams-page .teams-marquee-group > :nth-child(n + 4) {
+    display: none;
+  }
+
+  .teams-page .teams-marquee-row[data-row="1"] .teams-marquee-group > :nth-child(n + 3) {
+    display: none;
+  }
+
+  .teams-page .teams-chip {
+    white-space: normal;
   }
 }
 
