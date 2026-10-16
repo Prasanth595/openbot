@@ -541,8 +541,17 @@ function autoIssueBody(service: ServiceId, reason: string) {
 
 async function openIssue(service: ServiceId, reason: string): Promise<number> {
   if (DRY_RUN) return 0;
+  const title = `${serviceName(service)} is not available`;
+  // A run whose POST timed out, or whose history push failed, can have opened the issue already.
+  const open = await github(
+    "GET",
+    `/repos/${REPOSITORY}/issues?labels=status-auto&state=open&per_page=100`,
+    decodeIssues,
+  );
+  const existing = open.find((issue) => issue.title === title && issue.user?.login === BOT_LOGIN);
+  if (existing) return existing.number;
   const issue = await github("POST", `/repos/${REPOSITORY}/issues`, decodeNumber, {
-    title: `${serviceName(service)} is not available`,
+    title,
     body: autoIssueBody(service, reason),
     labels: ["status", "status-auto"],
   });
@@ -568,12 +577,13 @@ async function recoverIssue(service: ServiceId, number: number): Promise<"close-
     });
     return "comment-issue";
   }
-  await github("POST", `/repos/${REPOSITORY}/issues/${number}/comments`, decodeId, {
-    body: `Resolved: ${name} passed the last ${RUNS_TO_RECOVER} checks.`,
-  });
+  // Close first: after a failed close, a comment first would repeat on each run.
   await github("PATCH", `/repos/${REPOSITORY}/issues/${number}`, decodeNumber, {
     state: "closed",
     state_reason: "completed",
+  });
+  await github("POST", `/repos/${REPOSITORY}/issues/${number}/comments`, decodeId, {
+    body: `Resolved: ${name} passed the last ${RUNS_TO_RECOVER} checks.`,
   });
   return "close-issue";
 }

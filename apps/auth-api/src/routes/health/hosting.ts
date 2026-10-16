@@ -34,8 +34,13 @@ export const Route = createFileRoute("/health/hosting")({
           Effect.gen(function* () {
             // One cache entry for every query string, so a query cannot skip the cache.
             const cacheKey = new Request(new URL("/health/hosting", request.url));
-            const cache = yield* Effect.promise(() => caches.open("health-hosting"));
-            const cached = yield* Effect.promise(() => cache.match(cacheKey));
+            // A cache failure only costs one more boat call. It does not change the answer.
+            const cache = yield* Effect.tryPromise(() => caches.open("health-hosting")).pipe(
+              Effect.orElseSucceed(() => null),
+            );
+            const cached = cache
+              ? yield* Effect.tryPromise(() => cache.match(cacheKey)).pipe(Effect.orElseSucceed(() => undefined))
+              : undefined;
             if (cached) return cached;
 
             const apiKey = requireWorkerBindings(env).BOAT_API_KEY?.trim();
@@ -46,7 +51,7 @@ export const Route = createFileRoute("/health/hosting")({
                 )
               : false;
             const response = hostingResponse(healthy);
-            yield* Effect.promise(() => cache.put(cacheKey, response.clone()));
+            if (cache) yield* Effect.tryPromise(() => cache.put(cacheKey, response.clone())).pipe(Effect.ignore);
             return response;
           }),
           () => apiError(503, "hosting_not_ready", "Hosted servers are not available."),

@@ -45,6 +45,8 @@ jobs:
     permissions:
       contents: write
       issues: write
+    outputs:
+      publish: ${{ steps.publish.outputs.publish }}
     env:
       CHECKS: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     steps:
@@ -116,8 +118,27 @@ jobs:
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
             push --force-with-lease="refs/heads/status-data:$LEASE" origin "$commit:refs/heads/status-data"
 
+      # An issue event runs beside the check runs. When a check run saved new history after this run
+      # read it, this run's check data is old, and the check run publishes the page.
+      - name: Decide to publish
+        id: publish
+        shell: bash
+        env:
+          LEASE: ${{ steps.history.outputs.lease }}
+        run: |
+          publish=true
+          if [ "$CHECKS" != "true" ]; then
+            head=$(git ls-remote --exit-code origin refs/heads/status-data | cut -f1)
+            if [ "$head" != "$LEASE" ]; then
+              echo "::notice::A check run saved new history. That run publishes the page."
+              publish=false
+            fi
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
       # The page changes only with apps/status, so most runs reuse the build.
       - name: Restore the page build
+        if: steps.publish.outputs.publish == 'true'
         id: build-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -125,15 +146,17 @@ jobs:
           key: status-page-${{ hashFiles('apps/status/**', 'packages/brand/**', 'apps/auth-api/public/favicon-32x32.png', 'apps/auth-api/public/apple-touch-icon.png', 'bun.lock') }}
 
       - name: Build the page
-        if: steps.build-cache.outputs.cache-hit != 'true'
+        if: steps.publish.outputs.publish == 'true' && steps.build-cache.outputs.cache-hit != 'true'
         run: bun run --cwd apps/status build
 
       - name: Add the status files
+        if: steps.publish.outputs.publish == 'true'
         run: |
           cp -R apps/status/dist .status-pages
           cp .status-site/status.json .status-site/feed.xml .status-pages/
 
       - name: Upload the page
+        if: steps.publish.outputs.publish == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: .status-pages
@@ -141,6 +164,7 @@ jobs:
   deploy:
     name: Deploy
     needs: update
+    if: needs.update.outputs.publish == 'true'
     concurrency:
       group: status-page-deploy
       cancel-in-progress: false
