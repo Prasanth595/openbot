@@ -87,32 +87,35 @@
   height: var(--openbot-icon-sm);
 }
 
-/* The one header menu: the side panels, then the tasks. */
-.agent-tasks-popover.account-popover {
-  width: min(320px, calc(100vw - var(--openbot-space-4)));
-}
-
-.agent-tasks-popover-glyph {
-  display: grid;
-  width: 16px;
-  height: 16px;
-  place-items: center;
-  color: var(--openbot-text-primary);
-}
-
-.agent-tasks-popover-label {
+/* The task list of the side panel. */
+.agent-task-list {
   display: flex;
-  height: 24px;
-  align-items: center;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--openbot-space-0-5);
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--openbot-space-2);
+}
+
+.agent-task-list .agent-tasks-mark {
+  width: 16px;
+}
+
+/* The closed tasks of one day, under its heading. */
+.agent-task-list-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--openbot-space-0-5);
+  margin-top: var(--openbot-space-2);
+}
+
+.agent-task-list-day {
   margin: 0;
-  padding: 0 var(--openbot-space-2);
+  padding: var(--openbot-space-1) var(--openbot-space-2);
   color: var(--openbot-text-muted);
   font-size: var(--openbot-text-sm);
-  font-weight: var(--openbot-weight-medium);
-}
-
-.agent-tasks-popover .agent-tasks-mark {
-  width: 16px;
+  font-weight: 500;
 }
 
 .agent-tasks-disclosure {

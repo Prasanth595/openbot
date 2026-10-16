@@ -3026,7 +3026,8 @@ textarea {
 
 /* The iOS beta card sits between the chat list and the dock, so the card keeps clear of the dock
  * and the list only fades into the card. */
-.app-frame .sidebar-mobile-app {
+/* Room for the account dock of the web client. The desktop sidebar has no dock under it. */
+.app-frame:has(.account-dock) .sidebar-mobile-app {
   margin-bottom: calc(52px + var(--openbot-space-2));
 }
 

@@ -48,6 +48,23 @@ export const messages = defineMessages("app", {
   "app.questionnaire.empty": "No questions",
   "app.standingApproval.title": "Always allow {name}?",
   "app.standingApproval.titleUnnamed": "Always allow this agent?",
+  // The page rail and the settings page of the desktop window.
+  "app.rail.label": "Pages",
+  "app.rail.agents": "Agents",
+  "app.rail.schedule": "Schedule",
+  "app.rail.usage": "Usage",
+  "app.rail.marketplace": "Marketplace",
+  "app.rail.settings": "Settings",
+  "app.help.label": "Help",
+  "app.help.whatsNew": "What’s new",
+  "app.help.changelog": "Full changelog",
+  "app.help.guides": "Guides",
+  "app.rail.usageRings": "{name} usage: {windows}. Open usage",
+  "app.settingsPage.title": "Settings",
+  "app.settingsPage.search": "Search settings",
+  "app.settingsPage.searchPlaceholder": "Search settings…",
+  "app.settingsPage.results": "Settings search results",
+  "app.settingsPage.noResults": "No matching settings.",
   "app.standingApproval.description":
     "{name} will run commands and MCP tools, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
   "app.standingApproval.descriptionUnnamed":

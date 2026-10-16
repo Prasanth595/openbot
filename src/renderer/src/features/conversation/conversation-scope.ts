@@ -16,14 +16,14 @@ import { createAttachmentImportSounds } from "./attachment-import-sounds";
 import { useConversationController } from "./conversation-controller-context";
 import { agentConversationKey, composerDraftKey } from "./conversation-keys";
 import { conversationRuntime } from "./conversation-runtime";
-import type { ComposerDraft, ConversationProps, ConversationTarget } from "./conversation-types";
+import type { ComposerDraft, ConversationProps, ConversationTarget, SidePanelPane } from "./conversation-types";
 import { createActivityStore } from "./stores/activity-store";
 import { createBrowserStore } from "./stores/browser-store";
 import { createComposerActions } from "./stores/composer-actions";
 import { createComposerStore, currentConversationTarget } from "./stores/composer-store";
 import { createMcpServersStore } from "./stores/mcp-servers-store";
 import { createMessageActions } from "./stores/message-actions";
-import { createPanelsStore } from "./stores/panels-store";
+import { createPanelsStore, SIDE_PANEL_MODES } from "./stores/panels-store";
 import { PENDING_SEND_ID_PREFIX, pendingSendMessage } from "./stores/pending-send-store";
 import { createQueueStore } from "./stores/queue-store";
 import { createScrollStore } from "./stores/scroll-store";
@@ -197,7 +197,13 @@ export function createConversationViewScope(props: ConversationProps) {
     toggleFilesPanel,
     taskPanelOpen,
     taskPanelTaskId,
+    taskListOpen,
     openTaskPanel,
+    showTaskList,
+    sidePanel,
+    sidePanelOpen,
+    setSidePanelMaximized,
+    removeSidePanelPane,
     filePreviewOpen,
     setActiveRightPanel,
     openRoutineSettings,
@@ -313,6 +319,29 @@ export function createConversationViewScope(props: ConversationProps) {
   function showBrowserPanel() {
     setActiveRightPanel("browser");
     if (browserTabs().length === 0) void openBrowserAddress();
+  }
+  function openSidePanelPane(pane: SidePanelPane) {
+    if (pane === "browser") showBrowserPanel();
+    else setActiveRightPanel(SIDE_PANEL_MODES[pane]);
+  }
+  /** The panel button opens the side panel at its last pane, or at the list of panes when none is open. */
+  function toggleSidePanel() {
+    if (sidePanelOpen()) {
+      hideBrowserPanel();
+      return;
+    }
+    const { panes, selected } = sidePanel();
+    const pane = selected && panes.includes(selected) ? selected : (panes[0] ?? null);
+    if (pane) openSidePanelPane(pane);
+    else setActiveRightPanel("side-panel");
+  }
+  /** Closes the tab of a pane. The next tab takes its place; with no tab, the panel lists the panes. */
+  function closeSidePanelPane(pane: SidePanelPane) {
+    const shown = sidePanelOpen() && sidePanel().selected === pane;
+    const next = removeSidePanelPane(pane);
+    if (!shown) return;
+    if (next) openSidePanelPane(next);
+    else setActiveRightPanel("side-panel");
   }
   const viewIsMounted = createScopeGuard();
   let attachmentPicker: HTMLInputElement | undefined;
@@ -658,10 +687,10 @@ export function createConversationViewScope(props: ConversationProps) {
     });
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
-      // An open popover, such as a routine chip or the model picker, closes on this key from a
-      // document listener that runs after this one. Closing the panel under it too discards the
-      // edit the person was making.
-      if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return;
+      // An open popover or menu, such as a routine chip, the model picker or the side panel's add
+      // menu, closes on this key from a document listener that runs after this one. Closing the
+      // panel under it too discards the edit the person was making.
+      if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="menu"]')) return;
       if (browserExpandedOpen() && !props.globalOverlayOpen) {
         event.preventDefault();
         setActiveRightPanel("browser");
@@ -1217,7 +1246,16 @@ export function createConversationViewScope(props: ConversationProps) {
     toggleFilesPanel,
     taskPanelOpen,
     taskPanelTaskId,
+    activeRightPanel,
+    taskListOpen,
     openTaskPanel,
+    showTaskList,
+    sidePanel,
+    sidePanelOpen,
+    setSidePanelMaximized,
+    openSidePanelPane,
+    toggleSidePanel,
+    closeSidePanelPane,
     filePreviewOpen,
     handleChatSearchShortcut,
     hideBrowserPanel,

@@ -64,6 +64,7 @@ export const messages = {
   "usage.panel.metric": "使用量の指標",
   "usage.panel.period": "使用量の期間",
   "usage.panel.refresh": "使用量を更新",
+  "usage.panel.planLimits": "プランの上限",
   "usage.panel.loading": "使用量を読み込んでいます…",
   "usage.panel.unsupported":
     "このホストはエージェントの分析に対応していません。このビューを使うにはホストをアップデートしてください。",

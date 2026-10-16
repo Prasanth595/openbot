@@ -36,7 +36,11 @@ import {
   Text,
   UsersRound,
 } from "@openbot/ui";
-import { SaveBarDock, SettingsDialogShell } from "@openbot/ui/features/settings/SettingsDialogShell";
+import {
+  SaveBarDock,
+  SettingsDialogShell,
+  type SettingsPagePlacement,
+} from "@openbot/ui/features/settings/SettingsDialogShell";
 import { SettingsHostedSitesTab } from "@openbot/ui/features/settings/SettingsHostedSitesTab";
 import {
   createSettingsHostedSitesStore,
@@ -176,6 +180,8 @@ export interface ServerSettingsModalProps {
   routineFeed?: ServerRoutineFeedOptions | undefined;
   /** The section to show when the dialog opens. Updates shows General when the server has no Updates section. */
   initialSection?: ServerSettingsSection | null;
+  /** Shows the settings as a page of the window, not as a dialog. */
+  page?: SettingsPagePlacement;
 }
 
 export interface ServerHostedSitesOptions {
@@ -400,6 +406,7 @@ export function ServerSettingsModal(props: ServerSettingsModalProps) {
     <Tabs.Root {...sectionTabsProps} class="settings-modal-tabs-root">
       <SettingsDialogShell
         class="server-settings-modal-shell"
+        page={props.page}
         open={props.open}
         onOpenChange={props.onOpenChange}
         title={

@@ -805,6 +805,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           fallback={
             <SettingsPanelHeader
               title={t("agentSettings.title")}
+              paneRoot
               onBack={props.onClose}
               backLabel={t("agentSettings.backToDetails")}
               onClose={props.onClose}

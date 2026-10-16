@@ -187,6 +187,7 @@ const Auth = createSimpleContext({
 
     const accountUsage = () => accountUsageState.data;
     const accountUsageRefreshRevision = () => accountUsageState.refreshRevision;
+    const accountUsageTargetKey = () => accountUsageState.targetKey;
 
     function selectAccountUsageTarget(targetKey: string | null): void {
       if (accountUsageState.targetKey === targetKey) return;
@@ -266,6 +267,7 @@ const Auth = createSimpleContext({
       visibleSignedInAccount,
       accountUsage,
       accountUsageRefreshRevision,
+      accountUsageTargetKey,
       selectAccountUsageTarget,
       invalidateAccountUsage,
       applyAccountUsage,

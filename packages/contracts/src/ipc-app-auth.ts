@@ -343,6 +343,9 @@ export type ExternalDestination =
   | "claude-install"
   | "feedback"
   | "message"
+  // The release notes and the guides on the OpenBot site, from the Help menu of the window rail.
+  | "changelog"
+  | "guides"
   // The x.ai marketplace listing of the Grok Bot agent that exports agents for OpenBot.
   | "grok-bot-export"
   // The email for a hosted server plan that the add server dialog does not have, such as a Mac.

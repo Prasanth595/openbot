@@ -58,6 +58,7 @@
 .settings-modal-nav-item {
   position: relative;
   width: 100%;
+  height: auto;
   min-height: var(--openbot-control-md);
   display: grid;
   grid-template-columns: var(--openbot-icon-md) minmax(0, 1fr) auto;

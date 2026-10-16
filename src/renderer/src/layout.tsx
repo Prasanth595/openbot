@@ -71,8 +71,10 @@ const Layout = createSimpleContext({
     const [leftPanelCollapsed, setLeftPanelCollapsed] = createSignal(
       window.localStorage.getItem(LEFT_PANEL_COLLAPSED_STORAGE_KEY) === "true",
     );
+    // The page rail is the left column of the window, so the server menu is the default. The rail
+    // shows only for a user who chose it; `setServerView` saves only an explicit choice.
     const [serverView, setServerViewSignal] = createSignal<ServerView>(
-      window.localStorage.getItem(SERVER_VIEW_STORAGE_KEY) === "menu" ? "menu" : "rail",
+      window.localStorage.getItem(SERVER_VIEW_STORAGE_KEY) === "rail" ? "rail" : "menu",
     );
     const [sidebarView, setSidebarViewSignal] = createSignal<SidebarView>(
       window.localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === "routines" ? "routines" : "agents",

@@ -19,7 +19,7 @@ const meta = {
       onChange: fn(),
       onReasoningEffortChange: fn(),
     },
-    browser: { acting: false, open: false, onToggle: fn() },
+    sidePanel: { open: false, running: 0, onToggle: fn() },
   },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof ConversationHeader>;
@@ -35,12 +35,11 @@ export const RemoteControl: Story = {
 export const OfflineHost: Story = {
   args: {
     remoteControl: { enabled: false, active: false, visible: false, onOpen: fn() },
-    browser: { acting: false, open: false, disabled: true, onToggle: fn() },
   },
 };
 export const AgentUsingBrowser: Story = {
-  args: { browser: { acting: true, agentName: STORY_AGENT.name, open: true, onToggle: fn() } },
+  args: { sidePanel: { open: true, actingAgentName: STORY_AGENT.name, running: 0, onToggle: fn() } },
 };
-export const Files: Story = {
-  args: { files: { open: false, onToggle: fn() } },
+export const TasksRunning: Story = {
+  args: { sidePanel: { open: false, running: 2, onToggle: fn() } },
 };

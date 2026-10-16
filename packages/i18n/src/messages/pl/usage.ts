@@ -69,6 +69,7 @@ export const messages = {
   "usage.panel.metric": "Miara użycia",
   "usage.panel.period": "Okres użycia",
   "usage.panel.refresh": "Odśwież użycie",
+  "usage.panel.planLimits": "Limity planu",
   "usage.panel.loading": "Wczytywanie użycia…",
   "usage.panel.unsupported": "Ten host nie obsługuje analityki agentów. Zaktualizuj host, aby korzystać z tego widoku.",
   "usage.panel.loadFailed": "Nie udało się wczytać użycia. Sprawdź połączenie i zakres dat.",

@@ -89,7 +89,7 @@ export default function BrowserPreviewSidebar(props: BrowserPreviewSidebarProps)
       />
 
       <header class="window-drag browser-preview-header">
-        <span>{t("browser.panel.label")}</span>
+        <span class="side-panel-pane-title">{t("browser.panel.label")}</span>
         <Show when={props.onNewTab}>
           <Button variant="ghost" size="icon-sm" aria-label={t("browser.newTab")} onClick={() => props.onNewTab?.()}>
             <Plus />
@@ -98,6 +98,7 @@ export default function BrowserPreviewSidebar(props: BrowserPreviewSidebarProps)
         <Button
           variant="ghost"
           size="icon-sm"
+          class="side-panel-pane-close"
           aria-label={t("browser.previews.collapse")}
           data-cuelume-tap="close"
           onClick={props.onCollapse}

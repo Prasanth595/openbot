@@ -19,9 +19,6 @@ export const AgentTemplateInstall = lazy(() =>
 export const AgentUsagePanel = lazy(() =>
   import("./features/usage/AgentUsagePanel").then((module) => ({ default: module.AgentUsagePanel })),
 );
-export const AccountDock = lazy(() =>
-  import("@openbot/ui/features/account/AccountDock").then((module) => ({ default: module.AccountDock })),
-);
 export const AccountLogin = lazy(() =>
   import("@openbot/ui/features/account/AccountLogin").then((module) => ({ default: module.AccountLogin })),
 );

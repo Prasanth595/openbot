@@ -318,3 +318,14 @@
     animation: none;
   }
 }
+
+/* In the sidebar there is no account box to come out of: the island is in the flow at the end of
+ * the sidebar, with four round corners and the same space above and below its button. */
+.sidebar-update-island > .account-update-island {
+  position: relative;
+  inset: auto;
+  min-height: 0;
+  margin: var(--openbot-space-2) var(--openbot-space-3) var(--openbot-space-3);
+  border-radius: var(--openbot-radius-lg);
+  padding: var(--openbot-space-1-5) var(--openbot-space-1-5) var(--openbot-space-1-5) var(--openbot-space-3);
+}

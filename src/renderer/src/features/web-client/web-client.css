@@ -30,8 +30,21 @@
 }
 
 @media (max-width: 720px) {
-  .web-app-frame {
+  .web-app-window {
     --web-mobile-navigation-height: 64px;
+  }
+
+  /* The workspace pane shows the page rail at its left, so its pages stay in reach on a phone. */
+  .web-app-window:has(> .web-app-frame[data-web-mobile-pane="workspace"]) > .window-rail {
+    display: flex;
+    padding-bottom: calc(
+      var(--web-mobile-navigation-height) +
+      env(safe-area-inset-bottom, 0px) +
+      var(--openbot-space-3)
+    );
+  }
+
+  .web-app-frame {
     /* The workspace pane gives the rail a 56px column, also in the macOS geometry. */
     --server-rail-width: 56px;
 
@@ -44,8 +57,7 @@
   }
 
   .web-app-frame[data-web-mobile-pane="conversation"] > .server-rail,
-  .web-app-frame[data-web-mobile-pane="conversation"] > .sidebar,
-  .web-app-frame[data-web-mobile-pane="conversation"] > .account-dock {
+  .web-app-frame[data-web-mobile-pane="conversation"] > .sidebar {
     display: none;
   }
 
@@ -92,12 +104,6 @@
 
   .web-app-frame[data-web-mobile-pane="workspace"]:not(.app-frame-with-server-rail) > .sidebar {
     grid-column: 1;
-  }
-
-  .web-app-frame[data-web-mobile-pane="workspace"] > .account-dock {
-    display: block;
-    width: 100%;
-    bottom: calc(var(--web-mobile-navigation-height) + env(safe-area-inset-bottom, 0px));
   }
 
   .web-mobile-navigation {

@@ -64,6 +64,7 @@ export const messages = {
   "usage.panel.metric": "Mesure de l’utilisation",
   "usage.panel.period": "Période d’utilisation",
   "usage.panel.refresh": "Actualiser l’utilisation",
+  "usage.panel.planLimits": "Limites du forfait",
   "usage.panel.loading": "Chargement de l’utilisation…",
   "usage.panel.unsupported":
     "Cet hôte ne prend pas en charge les analyses des agents. Mettez l’hôte à jour pour utiliser cette vue.",

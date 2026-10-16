@@ -65,6 +65,8 @@ const Settings = createSimpleContext({
      */
     const [pendingAgentTemplateId, setPendingAgentTemplateId] = createSignal<string | null>(null);
     const [appSettingsOpen, setAppSettingsOpen] = createSignal(false);
+    /** Counts each open request, so the settings page can tell a new request while it is open. */
+    const [appSettingsOpenRequest, setAppSettingsOpenRequest] = createSignal(0);
     /** The tab that the next opening shows. Undefined keeps the tab that was open last. */
     const [appSettingsTab, setAppSettingsTab] = createSignal<SettingsTab | undefined>();
     /** A hosted server that the server menu asked to delete. The nonce repeats a request for the same server. */
@@ -347,6 +349,7 @@ const Settings = createSimpleContext({
       appSettingsRestoreTarget = target;
       setAppSettingsTab(tab);
       setAppSettingsOpen(true);
+      setAppSettingsOpenRequest((count) => count + 1);
     }
 
     /** Opens the Hosted servers tab with the delete confirmation of one server. */
@@ -488,6 +491,7 @@ const Settings = createSimpleContext({
       agentAutoApproves,
       appSettingsOpen,
       setAppSettingsOpen,
+      appSettingsOpenRequest,
       appSettingsRestoreTarget: () => appSettingsRestoreTarget,
       appSettingsTab,
       openAppSettings,

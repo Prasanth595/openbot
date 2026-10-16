@@ -37,6 +37,7 @@ import { notifyTeamTyping } from "./features/team/team-typing";
 import { UpdatesProvider } from "./features/updates/updates-context";
 import { WhatsNewProvider } from "./features/updates/whats-new-context";
 import { UsageProvider } from "./features/usage/usage-context";
+import { WindowPageProvider } from "./features/window/window-page-context";
 import { I18nProvider } from "./i18n-context";
 import { LayoutProvider } from "./layout";
 import { NavigationProvider } from "./navigation";
@@ -108,12 +109,14 @@ export function AppProviders(props: ParentProps<AppProps>): JSX.Element {
                                     <AnsweredPromptsProvider>
                                       <UiErrorsProvider>
                                         <UsageProvider>
-                                          <AgentReadTrackingProvider>
-                                            <AppBootstrap />
-                                            <ServerScopeBoundary stableConversation={stableConversation}>
-                                              {props.children}
-                                            </ServerScopeBoundary>
-                                          </AgentReadTrackingProvider>
+                                          <WindowPageProvider>
+                                            <AgentReadTrackingProvider>
+                                              <AppBootstrap />
+                                              <ServerScopeBoundary stableConversation={stableConversation}>
+                                                {props.children}
+                                              </ServerScopeBoundary>
+                                            </AgentReadTrackingProvider>
+                                          </WindowPageProvider>
                                         </UsageProvider>
                                       </UiErrorsProvider>
                                     </AnsweredPromptsProvider>

@@ -11,7 +11,7 @@ import { useConversation } from "./features/conversation/conversation-context";
 import { useDirectMessages } from "./features/conversation/direct-messages-context";
 import { useServers } from "./features/servers/servers-context";
 import { usePresence } from "./features/team/team-context";
-import { useUsage } from "./features/usage/usage-context";
+import { useWindowPage } from "./features/window/window-page-context";
 import { usePlatform } from "./platform";
 import { createScopeGuard } from "./scope-lifetime";
 import { createSimpleContext } from "./simple-context";
@@ -41,7 +41,7 @@ const Navigation = createSimpleContext({
     } = useAgents();
     const { setDirectTyping, clearDirectSelection, openDirectConversation } = useDirectMessages();
     const channels = useChannels();
-    const { dismissUsage } = useUsage();
+    const windowPage = useWindowPage();
     const scopeIsCurrent = createScopeGuard();
     const {
       pruneInactiveAgentHistory,
@@ -64,8 +64,9 @@ const Navigation = createSimpleContext({
       // conversation is one click away while the report hides where it opens. Opening
       // one that stays hidden also reads it: `requestConversationRead` below is the
       // explicit read, and a search result runs `openAgentMessage`, which marks every
-      // message through the match. Both would be messages nobody saw.
-      dismissUsage();
+      // message through the match. Both would be messages nobody saw. The settings page covers the
+      // conversation in the same way.
+      windowPage.showAgents();
       // An open channel covers the workspace the same way the report does, so it has to leave here
       // rather than in each caller: Edit agent and a global-search result open a chat that would
       // otherwise stay hidden under it.
@@ -85,8 +86,8 @@ const Navigation = createSimpleContext({
     async function selectDirectMember(memberId: string): Promise<void> {
       if (agentSetupOpen() && creatingAgent()) return;
       if (!peopleEnabled || !currentTeamMember() || !directPeople().some((member) => member.id === memberId)) return;
-      // Past the guards, so a call that opens nothing leaves the report or the channel alone.
-      dismissUsage();
+      // Past the guards, so a call that opens nothing leaves the page or the channel alone.
+      windowPage.showAgents();
       channels.close();
       const previousAgentId = activeAgentId();
       if (previousAgentId) pruneInactiveAgentHistory(previousAgentId);
