@@ -1,7 +1,10 @@
 // One run of the status checks. The `status-page` workflow runs it about every 5 minutes:
-//   bun apps/status/scripts/update.ts --state <state.json> --out <dir> [--bootstrap]
+//   bun apps/status/scripts/update.ts --state <state.json> --out <dir> [--bootstrap | --incidents-only]
 // It probes each service, updates `state.json`, opens or closes the automatic incident issues,
 // reads the `status` issues, and writes `status.json` and `feed.xml` into `--out`.
+//
+// `--incidents-only` (issue events) reads the issues again and keeps the stored checks. It does not
+// probe, count runs, write issues or change `state.json`, because anyone can start an issue event.
 //
 // Smoke and local options:
 //   --dry-run              no issue writes; the planned writes are in the report
@@ -42,6 +45,7 @@ const { values: args } = parseArgs({
     out: { type: "string" },
     report: { type: "string" },
     bootstrap: { type: "boolean", default: false },
+    "incidents-only": { type: "boolean", default: false },
     "dry-run": { type: "boolean", default: false },
     "probe-base": { type: "string" },
     "issues-file": { type: "string" },
@@ -54,6 +58,8 @@ if (!args.state || !args.out) throw new Error("Pass --state <state.json> and --o
 const STATE_PATH = resolve(args.state);
 const OUT_DIR = resolve(args.out);
 const DRY_RUN = args["dry-run"];
+const INCIDENTS_ONLY = args["incidents-only"];
+if (INCIDENTS_ONLY && args.bootstrap) throw new Error("Do not pass --incidents-only with --bootstrap.");
 const NOW = args.now ?? new Date().toISOString();
 if (Number.isNaN(Date.parse(NOW))) throw new Error(`--now: "${NOW}" is not a time.`);
 const RETRY_DELAY_MS = Number(args["retry-delay"] ?? 10_000);
@@ -333,7 +339,8 @@ async function issueComments(issue: GitHubIssue): Promise<readonly GitHubComment
   return github("GET", `/repos/${REPOSITORY}/issues/${issue.number}/comments?per_page=100`, decodeComments);
 }
 
-const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+/** A COLLABORATOR can have read access only, so that association gets the permission check too. */
+const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER"]);
 const permissionCache = new Map<string, boolean>();
 
 /**
@@ -548,8 +555,11 @@ async function recoverIssue(service: ServiceId, number: number): Promise<"close-
   if (number === 0) return "close-issue";
   const issue = await github("GET", `/repos/${REPOSITORY}/issues/${number}`, decodeIssue);
   if (issue.state === "closed") return "close-issue";
-  const comments = await issueComments(issue);
-  const people = comments.some((comment) => comment.user?.login !== BOT_LOGIN);
+  // Only a maintainer's comment keeps the issue open: anyone can comment on a public issue.
+  let people = false;
+  for (const comment of await issueComments(issue)) {
+    if (comment.user?.login !== BOT_LOGIN && (await trusted(comment.user, comment.author_association))) people = true;
+  }
   if (DRY_RUN) return people ? "comment-issue" : "close-issue";
   const name = serviceName(service);
   if (people) {
@@ -614,38 +624,46 @@ const writeFile = (path: string, content: string) => {
 // Run --------------------------------------------------------------------------
 
 const previous = readState();
-const checked = await Promise.all(SERVICE_IDS.map(async (id) => ({ id, outcome: await check(PROBES[id]) })));
 
-const minutes = previous.checkedAt
-  ? Math.max(0, Math.min(MAX_CHECK_MINUTES, (Date.parse(NOW) - Date.parse(previous.checkedAt)) / 60_000))
-  : FIRST_CHECK_MINUTES;
+/** Probes the services, counts the runs, opens or closes the automatic issues, and saves the state. */
+async function runChecks() {
+  const checked = await Promise.all(SERVICE_IDS.map(async (id) => ({ id, outcome: await check(PROBES[id]) })));
 
-const services = { ...previous.services };
-const actions: Action[] = [];
-for (const { id, outcome } of checked) {
-  const next = nextServiceState(previous.services[id], outcome, minutes);
-  let issue = next.openIssue;
-  logger.info(`${id}: ${outcome.result} in ${outcome.durationMs} ms${outcome.reason ? ` (${outcome.reason})` : ""}`);
-  try {
-    if (next.failedRuns >= RUNS_TO_OPEN && issue === null) {
-      const reason = outcome.reason ?? "no response";
-      issue = await openIssue(id, reason);
-      actions.push({ type: "open-issue", service: id, reason, issue });
-    } else if (next.healthyRuns >= RUNS_TO_RECOVER && issue !== null) {
-      actions.push({ type: await recoverIssue(id, issue), service: id, issue });
-      issue = null;
+  const minutes = previous.checkedAt
+    ? Math.max(0, Math.min(MAX_CHECK_MINUTES, (Date.parse(NOW) - Date.parse(previous.checkedAt)) / 60_000))
+    : FIRST_CHECK_MINUTES;
+
+  const services = { ...previous.services };
+  const actions: Action[] = [];
+  for (const { id, outcome } of checked) {
+    const next = nextServiceState(previous.services[id], outcome, minutes);
+    let issue = next.openIssue;
+    logger.info(`${id}: ${outcome.result} in ${outcome.durationMs} ms${outcome.reason ? ` (${outcome.reason})` : ""}`);
+    try {
+      if (next.failedRuns >= RUNS_TO_OPEN && issue === null) {
+        const reason = outcome.reason ?? "no response";
+        issue = await openIssue(id, reason);
+        actions.push({ type: "open-issue", service: id, reason, issue });
+      } else if (next.healthyRuns >= RUNS_TO_RECOVER && issue !== null) {
+        actions.push({ type: await recoverIssue(id, issue), service: id, issue });
+        issue = null;
+      }
+    } catch (error) {
+      // The next run tries the issue write again. The checks of this run are still saved.
+      logger.error(`${id}: the issue write failed: ${error instanceof Error ? error.message : String(error)}`);
     }
-  } catch (error) {
-    // The next run tries the issue write again. The checks of this run are still saved.
-    logger.error(`${id}: the issue write failed: ${error instanceof Error ? error.message : String(error)}`);
+    services[id] = { ...next, openIssue: issue };
   }
-  services[id] = { ...next, openIssue: issue };
+
+  const state: StateFile = { version: 1, checkedAt: NOW, services };
+  // Before the issue list: when that read fails, the workflow still saves the checks and the number
+  // of an issue that this run opened, so the next run does not open the issue again.
+  writeFile(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
+  return { state, checked, actions };
 }
 
-const state: StateFile = { version: 1, checkedAt: NOW, services };
-// Before the issue list: when that read fails, the workflow still saves the checks and the number
-// of an issue that this run opened, so the next run does not open the issue again.
-writeFile(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
+const checks = INCIDENTS_ONLY ? null : await runChecks();
+const current = checks?.state ?? previous;
 
 const incidents = (await Promise.all((await listIssues()).map(toIncident)))
   .filter((incident): incident is Incident => incident !== null && inHistory(incident))
@@ -653,17 +671,19 @@ const incidents = (await Promise.all((await listIssues()).map(toIncident)))
 
 const status: StatusFile = {
   version: 1,
-  checkedAt: NOW,
-  services: SERVICE_IDS.map((id) => ({ id, result: services[id].result, days: services[id].days })),
+  checkedAt: current.checkedAt,
+  services: SERVICE_IDS.map((id) => ({ id, result: current.services[id].result, days: current.services[id].days })),
   incidents,
 };
 
 writeFile(resolve(OUT_DIR, "status.json"), JSON.stringify(status));
 writeFile(resolve(OUT_DIR, "feed.xml"), atomFeed(incidents));
+const actions = checks?.actions ?? [];
 if (args.report) {
+  const outcomes = Object.fromEntries((checks?.checked ?? []).map((item) => [item.id, item.outcome]));
   writeFile(
     resolve(args.report),
-    `${JSON.stringify({ checkedAt: NOW, dryRun: DRY_RUN, outcomes: Object.fromEntries(checked.map((item) => [item.id, item.outcome])), actions, incidents: incidents.map((item) => item.id) }, null, 2)}\n`,
+    `${JSON.stringify({ checkedAt: NOW, dryRun: DRY_RUN, outcomes, actions, incidents: incidents.map((item) => item.id) }, null, 2)}\n`,
   );
 }
 for (const action of actions) logger.info(`${DRY_RUN ? "Planned" : "Done"}: ${action.type} for ${action.service}`);

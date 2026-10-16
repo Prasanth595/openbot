@@ -14,7 +14,8 @@ on:
         type: boolean
         default: false
   # A maintainer's change to an incident issue shows on the page without a wait for the schedule.
-  # Issues and comments that the workflow writes with GITHUB_TOKEN start no run.
+  # Anyone can start these events, so they only read the issues again: no probes, no run counts, no
+  # issue writes, and no new history. Issues and comments that GITHUB_TOKEN writes start no run.
   issues:
     types: [opened, edited, closed, reopened, labeled, unlabeled, deleted]
   issue_comment:
@@ -32,17 +33,20 @@ jobs:
         contains(github.event.issue.labels.*.name, 'status') ||
         github.event.label.name == 'status'
       )
-    # One run at a time, because each run replaces `status-data` with a new commit. A new run waits;
-    # it does not stop the run that writes. On the job, not the workflow: an issue event that the `if`
-    # skips must not take the group from a pending run.
+    # One check run at a time, because each check run replaces `status-data` with a new commit. A new
+    # run waits; it does not stop the run that writes. Issue events use their own group, so a pending
+    # issue event never replaces a pending check run. On the job, not the workflow: an issue event
+    # that the `if` skips must not take a group.
     concurrency:
-      group: status-page
+      group: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'status-page' || 'status-page-issues' }}
       cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
       issues: write
+    env:
+      CHECKS: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,13 +94,14 @@ jobs:
         run: |
           flags=()
           if [ "$BOOTSTRAP" = "true" ]; then flags+=(--bootstrap); fi
+          if [ "$CHECKS" != "true" ]; then flags+=(--incidents-only); fi
           bun apps/status/scripts/update.ts --state .status-data/state.json --out .status-site "${flags[@]}"
 
       # One parentless commit, so the branch does not grow with every run. The lease stops the push
       # when another writer changed the branch after this run read it.
       # Also after a failed check step: the state can hold an issue that the step opened.
       - name: Save the check history
-        if: ${{ !cancelled() && steps.history.outcome == 'success' && hashFiles('.status-data/state.json') != '' }}
+        if: ${{ !cancelled() && env.CHECKS == 'true' && steps.history.outcome == 'success' && hashFiles('.status-data/state.json') != '' }}
         shell: bash
         env:
           LEASE: ${{ steps.history.outputs.lease }}

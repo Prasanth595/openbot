@@ -299,6 +299,25 @@ assert.deepEqual(today, {
 });
 const accounts = readJson<{ services: Record<string, ServiceStateJson> }>(STATE).services.accounts;
 assert.equal(accounts?.days.at(-1)?.failedMinutes, 0);
+
+// An issue event only reads the issues again: anyone can start one, so it must not count a run.
+failing.add("marketplace");
+const stateBefore = readFileSync(STATE, "utf8");
+report = await update("incidents-only", "2026-10-16T10:52:00Z", ["--incidents-only"]);
+assert.deepEqual(report.outcomes, {}, "An issue event probed the services.");
+assert.deepEqual(report.actions, []);
+assert.equal(readFileSync(STATE, "utf8"), stateBefore, "An issue event changed the check history.");
+assert.deepEqual(report.incidents, [103, 101, 106]);
+assert.equal(
+  readJson<{ checkedAt: string }>(resolve(SITE, "status.json")).checkedAt,
+  "2026-10-16T10:50:00Z",
+  "An issue event moved the time of the last check.",
+);
+await assert.rejects(
+  update("incidents-only-bootstrap", "2026-10-16T10:53:00Z", ["--incidents-only", "--bootstrap"]),
+  "--incidents-only with --bootstrap must fail.",
+);
+failing.clear();
 probeServer.close();
 
 const status = readJson<{ incidents: { id: number; updates: { stage: string; body: string }[] }[] }>(
