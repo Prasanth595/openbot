@@ -39,7 +39,7 @@ const storybook = option("storybook")?.replace(/\/$/, "");
 assert.ok(storybook, "Pass --storybook=<url> with the URL that `bun run storybook` reports.");
 const browserExecutable = option("browser-executable");
 const storyFilters = option("stories")?.split(",") ?? [];
-const workers = Number(option("workers") ?? "2");
+const workers = Number(option("workers") ?? "1");
 assert.ok(Number.isInteger(workers) && workers >= 1, "--workers takes a whole number, 1 or more.");
 const requestedLocales = option("locales")?.split(",");
 for (const locale of requestedLocales ?? []) {
@@ -126,28 +126,18 @@ interface Measured {
 
 /**
  * Measures the story, then opens each distinct menu trigger in turn and measures what opens.
- * `record` runs while a popup is open, so its screenshots show the popup. The result says that a
- * popup changed the story, so the next language must reload it.
+ * `record` runs while a popup is open, so its screenshots show the popup. English picks the
+ * triggers by label, and each other language opens the same ones, so each popup scope has an
+ * English baseline. `opened` says that a popup changed the story, so the next language must reload it.
  */
-async function measureStory(page: Page, record: (measured: Measured) => Promise<void>): Promise<boolean> {
+async function measureStory(
+  page: Page,
+  englishPicks: readonly number[] | undefined,
+  record: (measured: Measured) => Promise<void>,
+): Promise<{ picked: readonly number[]; opened: boolean }> {
   // Dialogs and toasts render outside the story root, so measure the whole frame.
   await record({ scope: "story", problems: await page.evaluate(measureFit, "body") });
-  const labels = await page
-    .locator(TRIGGERS)
-    .evaluateAll((elements) =>
-      elements.map((element) =>
-        element.getBoundingClientRect().width > 0
-          ? (element.getAttribute("aria-label") ?? element.textContent ?? "").trim()
-          : null,
-      ),
-    );
-  const picked: number[] = [];
-  const seenLabels = new Set<string>();
-  labels.forEach((label, index) => {
-    if (label === null || seenLabels.has(label) || picked.length >= MAX_TRIGGERS) return;
-    seenLabels.add(label);
-    picked.push(index);
-  });
+  const picked = englishPicks ?? (await pickTriggers(page));
   let opened = false;
   for (const index of picked) {
     const shown = await page
@@ -175,7 +165,28 @@ async function measureStory(page: Page, record: (measured: Measured) => Promise<
     // A popup that does not close covers the next trigger.
     if (!closed) break;
   }
-  return opened;
+  return { picked, opened };
+}
+
+/** The first visible trigger for each distinct label, up to `MAX_TRIGGERS`. */
+async function pickTriggers(page: Page): Promise<number[]> {
+  const labels = await page
+    .locator(TRIGGERS)
+    .evaluateAll((elements) =>
+      elements.map((element) =>
+        element.getBoundingClientRect().width > 0
+          ? (element.getAttribute("aria-label") ?? element.textContent ?? "").trim()
+          : null,
+      ),
+    );
+  const picked: number[] = [];
+  const seenLabels = new Set<string>();
+  labels.forEach((label, index) => {
+    if (label === null || seenLabels.has(label) || picked.length >= MAX_TRIGGERS) return;
+    seenLabels.add(label);
+    picked.push(index);
+  });
+  return picked;
 }
 
 async function openStory(page: Page, id: string, attempt = 1): Promise<string | null> {
@@ -216,10 +227,11 @@ async function runStory(page: Page, entry: StoryEntry, run: { stopped: boolean }
     return;
   }
   const english = new Set<string>();
+  let englishPicks: readonly number[] | undefined;
   for (const locale of order) {
     try {
       await setLocale(page, locale);
-      const opened = await measureStory(page, async ({ scope, problems }) => {
+      const { picked, opened } = await measureStory(page, englishPicks, async ({ scope, problems }) => {
         for (const found of problems) {
           const id = `${scope}|${found.path}|${found.reason}`;
           if (locale === "en") english.add(id);
@@ -254,6 +266,7 @@ async function runStory(page: Page, entry: StoryEntry, run: { stopped: boolean }
         }
       });
       if (run.stopped) return;
+      englishPicks ??= picked;
       // A popup can leave the story in a state the next language should not start from.
       if (opened && locale !== order.at(-1)) {
         const reopened = await openStory(page, entry.id);
