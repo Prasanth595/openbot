@@ -12,9 +12,9 @@ export const messages = {
   "usage.exactCost": "{amount} USD",
   "usage.tokensAmount": "{tokens} Tokens",
   "usage.chart.costDescription":
-    "Geschätzte tägliche Kosten in USD nach Anbieter. Genaue Werte findest du unter Tagesdaten anzeigen.",
+    "Geschätzte tägliche Kosten in USD nach Anbieter. Genaue Werte findest du unter „Tagesdaten anzeigen“.",
   "usage.chart.tokensDescription":
-    "Täglich verarbeitete Tokens nach Anbieter. Genaue Werte findest du unter Tagesdaten anzeigen.",
+    "Täglich verarbeitete Tokens nach Anbieter. Genaue Werte findest du unter „Tagesdaten anzeigen“.",
   "usage.chart.costLabel": "Geschätzte tägliche Kosten in USD nach Anbieter",
   "usage.chart.tokensLabel": "Täglich verarbeitete Tokens nach Anbieter",
   "usage.column.cost": "Kosten",
@@ -24,7 +24,7 @@ export const messages = {
   "usage.column.costUsd": "Kosten · USD",
   "usage.empty": "Für diesen Zeitraum wurde keine Nutzung erfasst.",
   "usage.partial":
-    "Unvollständige Daten · {turns} Durchgänge ohne gemeldete Nutzung; {unpriced} Einträge ohne Kostenschätzung; {incomplete} Einträge mit unvollständigen Token-Daten.",
+    "Unvollständige Daten · {turns} Durchläufe ohne gemeldete Nutzung; {unpriced} Einträge ohne Kostenschätzung; {incomplete} Einträge mit unvollständigen Token-Daten.",
   "usage.summary": "Nutzungsübersicht",
   "usage.sessions": {
     one: "{sessions} Sitzung",
@@ -55,7 +55,7 @@ export const messages = {
   "usage.breakdown.byAgent": "Nutzung nach Agent",
   "usage.breakdown.byDay": "Tägliche Nutzung und Kosten",
   "usage.unknownModel": "Unbekanntes Modell",
-  "usage.footer": "Erfassung begonnen {started} · Aktualisiert {updated}",
+  "usage.footer": "Erfasst seit {started} · Aktualisiert {updated}",
   "usage.updatedNever": "nie",
   "usage.about.title": "Über diese Schätzungen",
   "usage.about.body":
@@ -66,7 +66,7 @@ export const messages = {
   "usage.panel.agents": "Agenten für die Nutzungsansicht",
   "usage.panel.metric": "Nutzungskennzahl",
   "usage.panel.period": "Nutzungszeitraum",
-  "usage.panel.refresh": "Nutzungsdaten aktualisieren",
+  "usage.panel.refresh": "Nutzung aktualisieren",
   "usage.panel.loading": "Nutzungsdaten werden geladen…",
   "usage.panel.unsupported":
     "Dieser Host unterstützt keine Agentenstatistiken. Aktualisiere den Host, um diese Ansicht zu nutzen.",

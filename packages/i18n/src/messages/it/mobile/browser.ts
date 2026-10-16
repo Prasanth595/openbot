@@ -59,7 +59,7 @@ export const messages = {
     "Pizzica per ingrandire. Con lo zoom attivo, due dita spostano la vista invece di scorrere.",
   "mobile.browser.help.pages": "Pagine e schede",
   "mobile.browser.help.navigate.title": "Indietro e avanti",
-  "mobile.browser.help.navigate.body": "Tocca le frecce nella barra in basso. Ricarica la pagina è nel menu ···.",
+  "mobile.browser.help.navigate.body": "Tocca le frecce nella barra in basso. «Ricarica la pagina» è nel menu ···.",
   "mobile.browser.help.tabs.title": "Schede",
   "mobile.browser.help.tabs.body":
     "Tocca il pulsante delle schede nella barra in basso per cambiare scheda, aprirne una nuova o chiudere questa.",
@@ -68,13 +68,13 @@ export const messages = {
   "mobile.browser.help.type.body": "Tocca il pulsante della tastiera nella barra in basso.",
   "mobile.browser.help.clipboard.title": "Copia e incolla",
   "mobile.browser.help.clipboard.body":
-    "Tocca il pulsante degli appunti nella barra in basso per Copia sul telefono e Incolla dal telefono.",
+    "Tocca il pulsante degli appunti nella barra in basso per «Copia sul telefono» e «Incolla dal telefono».",
   "mobile.browser.help.pointer": "Quando un puntatore è più comodo",
   "mobile.browser.help.trackpad.title": "Modalità trackpad",
   "mobile.browser.help.trackpad.body":
-    "È attiva all'apertura del browser. Il dito muove il puntatore; tocca per fare clic lì, tocca due volte e tieni premuto per trascinare. Ricentra il puntatore se si sposta. Disattivala nel menu ··· per fare clic dove tocchi.",
+    "È attiva all'apertura del browser. Il dito muove il puntatore; tocca per fare clic lì, tocca due volte e tieni premuto per trascinare. Usa «Ricentra il puntatore» se si sposta. Disattivala nel menu ··· per fare clic dove tocchi.",
   "mobile.browser.help.handingBack": "Restituirlo",
   "mobile.browser.help.handBack.title": "Restituisci il browser",
   "mobile.browser.help.handBack.body":
-    "Quando un agente ti chiede di prendere il controllo, scegli Ho finito nel menu ···. L'agente poi continua in questa scheda.",
+    "Quando un agente ti chiede di intervenire, scegli «Ho finito» nel menu ···. L'agente poi continua in questa scheda.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -7,7 +7,7 @@ export const messages = {
   "agentSettings.session.pending": "Le modifiche salvate si applicano prima del prossimo turno.",
   "agentSettings.session.unavailable": "Il valore salvato {value} non è disponibile. Scegline un altro o reimpostalo.",
   "agentSettings.session.effective": "Valore attuale del provider: {value}",
-  "agentSettings.session.reset": "Reimposta l'impostazione",
+  "agentSettings.session.reset": "Reimposta",
   "agentSettings.session.resetNamed": "Reimposta {name}",
   "agentSettings.label": "Impostazioni dell'agente",
   "agentSettings.title": "Impostazioni",
@@ -38,8 +38,8 @@ export const messages = {
   "agentSettings.backupModels.note":
     "{name} non cambia mai dopo aver iniziato a scrivere. Torna a {model} quando il limite termina.",
   "agentSettings.groups.brain": "Cervello",
-  "agentSettings.groups.knows": "Sa",
-  "agentSettings.groups.does": "Fa",
+  "agentSettings.groups.knows": "Cosa sa",
+  "agentSettings.groups.does": "Cosa fa",
   "agentSettings.groups.rules": "Regole",
   "agentSettings.saveFailed": "Impossibile salvare le impostazioni dell'agente.",
 
@@ -67,9 +67,9 @@ export const messages = {
   "agentSettings.avatar.option": "Opzione avatar {number}",
   "agentSettings.avatar.color": "Colore",
   "agentSettings.avatar.colorLabel": "Colore dell'avatar",
-  "agentSettings.avatar.autoColor": "Colore dell'avatar automatico",
+  "agentSettings.avatar.autoColor": "Colore automatico dell'avatar",
   "agentSettings.avatar.autoInitial": "A",
-  "agentSettings.avatar.hueColor": "Avatar di colore {hue}",
+  "agentSettings.avatar.hueColor": "Colore dell'avatar: {hue}",
   "agentSettings.avatar.saveFailed": "Impossibile salvare l'avatar dell'agente.",
   "agentSettings.avatar.processFailed": "Impossibile elaborare l'avatar dell'agente.",
 
@@ -79,11 +79,13 @@ export const messages = {
   "agentSettings.runtime.reasoning": "Ragionamento",
   "agentSettings.runtime.reasoningLabel": "Livello di ragionamento dell'agente",
   "agentSettings.runtime.selectReasoning": "Scegli il ragionamento",
-  "agentSettings.runtime.reasoningSetByProvider": "Impostato da {provider}",
+  "agentSettings.runtime.reasoningSetByProvider": "Da {provider}",
   "agentSettings.runtime.access": "Accesso",
   "agentSettings.runtime.accessLabel": "Accesso dell'agente",
   "agentSettings.runtime.busyMessage": "Durante il lavoro",
   "agentSettings.runtime.busyMessageLabel": "Messaggi mentre l'agente lavora",
+  "agentSettings.runtime.taskLimit": "Attività parallele",
+  "agentSettings.runtime.taskLimitLabel": "Attività eseguite contemporaneamente",
   "agentSettings.runtime.workingDirectory": "Cartella di lavoro",
   "agentSettings.runtime.notAvailable": "Non ancora disponibile",
   "agentSettings.runtime.fullAccessNote":
@@ -101,6 +103,9 @@ export const messages = {
   "agentSettings.busyMessage.steer": "Indirizza",
   "agentSettings.busyMessage.steerUnsupported":
     "{provider} non può indirizzare un turno in corso. I messaggi inviati mentre lavora restano in coda.",
+  "agentSettings.taskLimit.default": "Predefinito ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} esegue un turno alla volta. Le attività e la chat di questo agente si aspettano a vicenda.",
 
   "agentSettings.notifications.title": "Notifiche",
 
@@ -117,7 +122,7 @@ export const messages = {
   "agentSettings.fullAccess.description":
     "L'agente potrà leggere, modificare ed eliminare qualsiasi file raggiungibile dal tuo account utente, eseguire qualsiasi comando e usare la rete. Un'istruzione fraintesa o una pagina web malevola può arrivare ai tuoi file personali.",
   "agentSettings.fullAccess.cancel": "Resta solo nel workspace",
-  "agentSettings.fullAccess.confirm": "Consenti l'accesso completo",
+  "agentSettings.fullAccess.confirm": "Consenti accesso completo",
 
   "agentSettings.links.usage": "Utilizzo",
   "agentSettings.links.memories": "Memorie",

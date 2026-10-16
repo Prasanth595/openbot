@@ -32,14 +32,14 @@ export const messages = {
     other: "Un agente può pubblicare fino a {count} skill locali. Rimuovine alcune.",
   },
   "error.marketplace.templateSkill":
-    'La skill "{name}" non può essere pubblicata. Controlla il suo nome e il suo SKILL.md.',
+    "La skill «{name}» non può essere pubblicata. Controlla il suo nome e il suo SKILL.md.",
   "error.marketplace.templateRoutines": {
     one: "Un agente può pubblicare fino a {count} routine. Rimuovine alcune.",
     other: "Un agente può pubblicare fino a {count} routine. Rimuovine alcune.",
   },
   "error.marketplace.templateRoutine": {
-    one: 'La routine "{name}" ha bisogno di un nome di massimo {count} caratteri e di un\'istruzione.',
-    other: 'La routine "{name}" ha bisogno di un nome di massimo {count} caratteri e di un\'istruzione.',
+    one: "La routine «{name}» ha bisogno di un nome di massimo {count} caratteri e di un'istruzione.",
+    other: "La routine «{name}» ha bisogno di un nome di massimo {count} caratteri e di un'istruzione.",
   },
   "error.marketplace.templateRoutineNoName": "senza nome",
   "error.marketplace.templateTooLarge":
@@ -48,16 +48,15 @@ export const messages = {
   "error.marketplace.changedSinceOpened":
     "Questo agente è cambiato dopo che l'hai aperto. Riapri il link per vedere la nuova versione.",
   "error.marketplace.skillNameConflict":
-    'Hai già una skill locale diversa chiamata "{name}". Rinominala o rimuovila, poi aggiungi di nuovo questo agente.',
+    "Hai già una skill locale diversa chiamata «{name}». Rinominala o rimuovila, poi aggiungi di nuovo questo agente.",
   "error.marketplace.avatarInvalid": "L'avatar dell'agente non è valido.",
   "error.marketplace.secretInName": "Rimuovi il segreto o l'indirizzo email dal nome prima di pubblicare.",
   "error.marketplace.secretInTitle": "Rimuovi il segreto o l'indirizzo email dal titolo prima di pubblicare.",
   "error.marketplace.secretInInstructions":
     "Rimuovi il segreto o l'indirizzo email dalle istruzioni prima di pubblicare.",
   "error.marketplace.secretInRoutine":
-    'Rimuovi il segreto o l\'indirizzo email dalla routine "{name}" prima di pubblicare.',
-  "error.marketplace.secretInSkill":
-    'Rimuovi il segreto o l\'indirizzo email dalla skill "{name}" prima di pubblicare.',
+    "Rimuovi il segreto o l'indirizzo email dalla routine «{name}» prima di pubblicare.",
+  "error.marketplace.secretInSkill": "Rimuovi il segreto o l'indirizzo email dalla skill «{name}» prima di pubblicare.",
   "error.marketplace.catalogLoadFailed": "Non è stato possibile caricare il Marketplace. Riprova.",
   "error.marketplace.templateUnreadable":
     "Non è stato possibile leggere questo agente condiviso. Il suo proprietario potrebbe averlo rimosso.",

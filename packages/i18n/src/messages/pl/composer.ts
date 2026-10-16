@@ -13,7 +13,7 @@ export const messages = {
   "composer.update.body": "Zaktualizuj {provider}, aby kontynuować.",
   "composer.update.manual": "Zaktualizuj {provider} na komputerze, na którym działa, aby kontynuować.",
   "composer.update.pending": "Aktualizowanie…",
-  "composer.update.action": "Aktualizuj",
+  "composer.update.action": "Zaktualizuj",
   "composer.usageLimit.resets": "Wykorzystano cały limit {provider}. Odnowienie: {reset}.",
   "composer.usageLimit.selectModel": "Wykorzystano cały limit {provider}. Wybierz inny model, aby kontynuować.",
   "composer.usageLimit.title": "Osiągnięto limit użycia",

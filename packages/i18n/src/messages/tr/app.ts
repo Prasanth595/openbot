@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/app";
 
 export const messages = {
-  "app.loading": "OpenBot Yükleniyor",
+  "app.loading": "OpenBot yükleniyor",
   "app.leftPanel.resize": "Sol kenar çubuğunu yeniden boyutlandır",
   "app.host.thisMac": "Bu Mac",
   "app.host.thisComputer": "Bu bilgisayar",
@@ -23,7 +23,7 @@ export const messages = {
   "app.errorStatus.messageLoad": "Mesaj yüklenemedi",
   "app.errorStatus.acknowledge": "Onaylama başarısız oldu",
   "app.provider.connected": "{name} bağlandı",
-  "app.provider.signedInAs": "{account} olarak giriş yapıldı.",
+  "app.provider.signedInAs": "{account} olarak oturum açıldı.",
   "app.provider.signedInElsewhere": "Giriş işlemi diğer cihazda tamamlandı.",
   "app.provider.newCode": "Yeni kod al",
   "app.provider.codeExpired": "{name} kodunun süresi doldu",

@@ -4,18 +4,18 @@ import type { messages as source } from "../en/agentSettings";
 export const messages = {
   "agentSettings.session.title": "Anbietereinstellungen",
   "agentSettings.session.readFailed": "Die Anbietereinstellungen konnten nicht gelesen werden.",
-  "agentSettings.session.pending": "Gespeicherte Änderungen gelten vor dem nächsten Durchgang.",
+  "agentSettings.session.pending": "Gespeicherte Änderungen gelten vor dem nächsten Durchlauf.",
   "agentSettings.session.unavailable":
     "Der gespeicherte Wert {value} ist nicht verfügbar. Wähle einen anderen Wert oder setze ihn zurück.",
   "agentSettings.session.effective": "Aktueller Wert des Anbieters: {value}",
-  "agentSettings.session.reset": "Einstellung zurücksetzen",
+  "agentSettings.session.reset": "Zurücksetzen",
   "agentSettings.session.resetNamed": "{name} zurücksetzen",
   "agentSettings.label": "Agenteneinstellungen",
   "agentSettings.title": "Einstellungen",
   "agentSettings.backToDetails": "Zurück zu den Details",
   "agentSettings.closeDetails": "Details schließen",
   "agentSettings.backToSettings": "Zurück zu den Einstellungen",
-  "agentSettings.permissions.title": "Berechtigungen",
+  "agentSettings.permissions.title": "Zugriff",
   "agentSettings.advanced.title": "Erweitert",
   "agentSettings.backupModels.title": "Ersatzmodelle",
   "agentSettings.backupModels.valueAsk": "Erst fragen",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Gerade nicht verfügbar · übersprungen",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} wechselt nie, nachdem es zu schreiben begonnen hat. Es kehrt zu {model} zurück, wenn das Limit endet.",
+    "{name} wechselt nie, nachdem das Schreiben begonnen hat. Wenn das Limit endet, kehrt {name} zu {model} zurück.",
   "agentSettings.groups.brain": "Gehirn",
   "agentSettings.groups.knows": "Wissen",
   "agentSettings.groups.does": "Aufgaben",
@@ -77,17 +77,19 @@ export const messages = {
   "agentSettings.runtime.reasoning": "Denkleistung",
   "agentSettings.runtime.reasoningLabel": "Denkleistungsstufe des Agenten",
   "agentSettings.runtime.selectReasoning": "Denkleistung auswählen",
-  "agentSettings.runtime.reasoningSetByProvider": "Von {provider} festgelegt",
+  "agentSettings.runtime.reasoningSetByProvider": "Von {provider}",
   "agentSettings.runtime.access": "Zugriff",
   "agentSettings.runtime.accessLabel": "Agentenzugriff",
   "agentSettings.runtime.busyMessage": "Während der Arbeit",
   "agentSettings.runtime.busyMessageLabel": "Nachrichten während der Arbeit des Agenten",
+  "agentSettings.runtime.taskLimit": "Aufgaben parallel",
+  "agentSettings.runtime.taskLimitLabel": "Aufgaben, die gleichzeitig laufen",
   "agentSettings.runtime.workingDirectory": "Arbeitsverzeichnis",
   "agentSettings.runtime.notAvailable": "Noch nicht verfügbar",
   "agentSettings.runtime.fullAccessNote":
     "Der Agent läuft von seinem Arbeitsbereich und dem gemeinsamen Ordner aus mit vollem Computerzugriff.",
   "agentSettings.runtime.claudeApprovalNote":
-    "Claude handelt ohne nach einer Genehmigung zu fragen, abgesehen von Fragen, die es dir stellt.",
+    "Claude handelt, ohne um Genehmigung zu bitten, außer bei Fragen, die Claude dir stellt.",
   "agentSettings.runtime.providerApprovalNote":
     "Je nach Anbieter können sensible Befehle zuerst um Genehmigung bitten.",
   "agentSettings.access.workspace": "Nur Arbeitsbereich",
@@ -97,7 +99,10 @@ export const messages = {
   "agentSettings.busyMessage.queue": "Warteschlange",
   "agentSettings.busyMessage.steer": "Steuern",
   "agentSettings.busyMessage.steerUnsupported":
-    "{provider} kann einen laufenden Durchgang nicht steuern. Während der Arbeit gesendete Nachrichten warten in der Warteschlange.",
+    "{provider} kann einen laufenden Durchlauf nicht steuern. Während der Arbeit gesendete Nachrichten warten in der Warteschlange.",
+  "agentSettings.taskLimit.default": "Standard ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} führt immer nur einen Durchlauf aus. Die Aufgaben und der Chat dieses Agenten warten aufeinander.",
   "agentSettings.notifications.title": "Benachrichtigungen",
   "agentSettings.newChat.title": "Neuer Chat",
   "agentSettings.newChat.description": "Der Agent vergisst diesen Chat. Seine Einrichtung bleibt erhalten.",
@@ -110,7 +115,7 @@ export const messages = {
   "agentSettings.fullAccess.title": "Diesem Agenten vollen Zugriff geben?",
   "agentSettings.fullAccess.description":
     "Der Agent kann dann jede Datei lesen, ändern und löschen, auf die dein Benutzerkonto zugreifen kann, jeden Befehl ausführen und das Netzwerk nutzen. Eine missverstandene Anweisung oder eine bösartige Webseite kann auf deine persönlichen Dateien zugreifen.",
-  "agentSettings.fullAccess.cancel": "Auf Arbeitsbereich beschränkt lassen",
+  "agentSettings.fullAccess.cancel": "Nur Arbeitsbereich",
   "agentSettings.fullAccess.confirm": "Vollen Zugriff erlauben",
   "agentSettings.links.usage": "Nutzung",
   "agentSettings.links.memories": "Erinnerungen",
@@ -135,7 +140,7 @@ export const messages = {
     other: "{count} eingerichtet",
   },
   "agentSettings.runtime.workspaceNote":
-    "Nur Arbeitsbereich beschränkt Schreibzugriffe auf den Arbeitsbereich dieses Agenten, den gemeinsamen Ordner und temporäre Ordner. Lesen und Netzwerkzugriff bleiben verfügbar.",
+    "„Nur Arbeitsbereich“ beschränkt Schreibzugriffe auf den Arbeitsbereich dieses Agenten, den gemeinsamen Ordner und temporäre Ordner. Lesen und Netzwerkzugriff bleiben verfügbar.",
   "agentSettings.runtime.workspaceEnforcedCommand":
     "Ein Befehl, der außerhalb schreiben muss, fragt dich zuerst, auch wenn Automatisch genehmigen aktiviert ist.",
   "agentSettings.runtime.workspaceEnforcedClaude":

@@ -14,8 +14,8 @@ export const messages = {
   "agentSettings.title": "Ajustes",
   "agentSettings.backToDetails": "Volver a detalles",
   "agentSettings.closeDetails": "Cerrar detalles",
-  "agentSettings.backToSettings": "Volver a la configuración",
-  "agentSettings.permissions.title": "Permisos",
+  "agentSettings.backToSettings": "Volver a los ajustes",
+  "agentSettings.permissions.title": "Acceso",
   "agentSettings.advanced.title": "Avanzado",
   "agentSettings.backupModels.title": "Modelos de respaldo",
   "agentSettings.backupModels.valueAsk": "Preguntar primero",
@@ -77,11 +77,13 @@ export const messages = {
   "agentSettings.runtime.reasoning": "Razonamiento",
   "agentSettings.runtime.reasoningLabel": "Nivel de razonamiento del agente",
   "agentSettings.runtime.selectReasoning": "Seleccionar razonamiento",
-  "agentSettings.runtime.reasoningSetByProvider": "Establecido por {provider}",
+  "agentSettings.runtime.reasoningSetByProvider": "Según {provider}",
   "agentSettings.runtime.access": "Acceso",
   "agentSettings.runtime.accessLabel": "Acceso del agente",
   "agentSettings.runtime.busyMessage": "Durante el trabajo",
   "agentSettings.runtime.busyMessageLabel": "Mensajes mientras el agente trabaja",
+  "agentSettings.runtime.taskLimit": "Tareas a la vez",
+  "agentSettings.runtime.taskLimitLabel": "Tareas que se ejecutan a la vez",
   "agentSettings.runtime.workingDirectory": "Directorio de trabajo",
   "agentSettings.runtime.notAvailable": "Todavía no disponible",
   "agentSettings.runtime.fullAccessNote":
@@ -97,6 +99,9 @@ export const messages = {
   "agentSettings.busyMessage.steer": "Orientar",
   "agentSettings.busyMessage.steerUnsupported":
     "{provider} no puede orientar un turno en curso. Los mensajes enviados mientras trabaja esperan en la cola.",
+  "agentSettings.taskLimit.default": "Predeterminado ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} ejecuta un turno a la vez. Las tareas y el chat de este agente se esperan entre sí.",
   "agentSettings.notifications.title": "Notificaciones",
   "agentSettings.newChat.title": "Nuevo chat",
   "agentSettings.newChat.description": "El agente olvida este chat. Se conserva su configuración.",
@@ -109,7 +114,7 @@ export const messages = {
   "agentSettings.fullAccess.title": "¿Dar acceso completo a este agente?",
   "agentSettings.fullAccess.description":
     "El agente podrá leer, modificar y eliminar cualquier archivo al que tu cuenta de usuario tenga acceso, ejecutar cualquier comando y usar la red. Una instrucción malinterpretada o una página web maliciosa puede acceder a tus archivos personales.",
-  "agentSettings.fullAccess.cancel": "Mantener solo el espacio de trabajo",
+  "agentSettings.fullAccess.cancel": "Solo el espacio de trabajo",
   "agentSettings.fullAccess.confirm": "Permitir acceso completo",
   "agentSettings.links.usage": "Uso",
   "agentSettings.links.memories": "Recuerdos",
@@ -140,7 +145,7 @@ export const messages = {
   "agentSettings.runtime.workspaceEnforcedClaude":
     "Una edición de archivo fuera te pedirá permiso primero, incluso si Aprobar automáticamente está activado. Un comando no puede escribir fuera.",
   "agentSettings.runtime.workspaceUnlimited":
-    "El uso del equipo y el navegador de OpenBot no están limitados; puedes desactivar uso del equipo a continuación.",
+    "El uso del equipo y el navegador de OpenBot no están limitados; puedes desactivar el uso del equipo a continuación.",
   "agentSettings.computerUse.title": "Uso del equipo",
   "agentSettings.computerUse.description": "Permitir que este agente controle apps en este equipo",
   "agentSettings.automation.title": "Scripts locales",

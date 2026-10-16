@@ -73,7 +73,7 @@ export const messages = {
   "onboarding.choice.freeDetail": "Modelos gratuitos. Sin suscripción.",
   "onboarding.choice.subscription": "Tengo una suscripción",
   "onboarding.choice.subscriptionDetail": "ChatGPT, Claude o Grok",
-  "onboarding.choice.startFreeInstead": "Empezar gratis en su lugar",
+  "onboarding.choice.startFreeInstead": "Prefiero empezar gratis",
   "onboarding.plan.title": "Conecta tu plan",
   "onboarding.plan.description": "Inicia sesión una vez. Tus agentes usan tu plan.",
   "onboarding.computer.title": "OpenBot podría controlar tu equipo",

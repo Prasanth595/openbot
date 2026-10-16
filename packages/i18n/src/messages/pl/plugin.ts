@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/plugin";
 
 export const messages = {
-  "plugin.link.website": "Strona internetowa",
+  "plugin.link.website": "Strona WWW",
   "plugin.link.privacyPolicy": "Polityka prywatności",
   "plugin.link.terms": "Warunki korzystania",
   "plugin.copyLink": "Kopiuj link",
@@ -13,10 +13,10 @@ export const messages = {
   "plugin.info.developer": "Twórca",
   "plugin.info.category": "Kategoria",
   "plugin.info.version": "Wersja",
-  "plugin.uninstallDialog.title": "Odłączyć {name}?",
+  "plugin.uninstallDialog.title": "Rozłączyć {name}?",
   "plugin.uninstallDialog.description":
     "Elementy zainstalowane przez {name} na tym komputerze zostaną usunięte. Nic innego na tym hoście ani w tym agencie się nie zmieni.",
-  "plugin.uninstallDialog.confirm": "Odłącz",
+  "plugin.uninstallDialog.confirm": "Rozłącz",
   "plugin.uninstallDialog.appsLabel": "Aplikacje do usunięcia: {number}",
   "plugin.uninstallDialog.appsTitle": "Aplikacje usunięte z tego hosta",
   "plugin.uninstallDialog.appsNote":

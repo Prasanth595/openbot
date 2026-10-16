@@ -75,7 +75,7 @@ export const messages = {
   "customProvider.header.valuePlaceholder": "wartość",
   "customProvider.header.remove": "Usuń nagłówek {number}",
   "customProvider.header.add": "Dodaj nagłówek",
-  "customProvider.submit": "Wyślij",
+  "customProvider.submit": "Zapisz",
   "customProvider.discovery.find": "Znajdź modele",
   "customProvider.discovery.refresh": "Szukaj ponownie",
   "customProvider.discovery.loading": "Pobieranie listy modeli z {url}.",
@@ -188,7 +188,7 @@ export const messages = {
   "customProvider.agents.empty": "Brak własnych agentów.",
   "customProvider.agents.add": "Dodaj agenta",
   "customProvider.agents.restart": "Uruchom agentów ponownie",
-  "customProvider.agents.cancelRestart": "Anuluj ponowne uruchomienie",
+  "customProvider.agents.cancelRestart": "Anuluj restart",
   "customProvider.agents.restartPending": "Własni agenci uruchomią się ponownie po zakończeniu bieżących zadań.",
   "customProvider.agents.commandMissing": "{command} · Nie znaleziono polecenia",
   "customProvider.agents.envCount": {

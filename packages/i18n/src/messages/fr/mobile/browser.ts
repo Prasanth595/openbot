@@ -49,7 +49,7 @@ export const messages = {
   "mobile.browser.help.title": "Utiliser le navigateur",
   "mobile.browser.help.movingAround": "Se déplacer",
   "mobile.browser.help.scroll.title": "Faire défiler",
-  "mobile.browser.help.scroll.body": "Faites glisser deux doigts.",
+  "mobile.browser.help.scroll.body": "Faites glisser avec deux doigts.",
   "mobile.browser.help.click.title": "Cliquer et faire glisser",
   "mobile.browser.help.click.body": "Touchez pour cliquer à cet endroit. Un doigt fait glisser.",
   "mobile.browser.help.rightClick.title": "Clic droit",
@@ -60,7 +60,7 @@ export const messages = {
   "mobile.browser.help.pages": "Pages et onglets",
   "mobile.browser.help.navigate.title": "Précédent et suivant",
   "mobile.browser.help.navigate.body":
-    "Touchez les flèches de la barre du bas. Recharger la page se trouve dans le menu ···.",
+    "Touchez les flèches de la barre du bas. « Recharger la page » se trouve dans le menu ···.",
   "mobile.browser.help.tabs.title": "Onglets",
   "mobile.browser.help.tabs.body":
     "Touchez le bouton des onglets dans la barre du bas pour changer d’onglet, ouvrir un nouvel onglet ou fermer celui-ci.",
@@ -69,7 +69,7 @@ export const messages = {
   "mobile.browser.help.type.body": "Touchez le bouton du clavier dans la barre du bas.",
   "mobile.browser.help.clipboard.title": "Copier et coller",
   "mobile.browser.help.clipboard.body":
-    "Touchez le bouton du presse-papiers dans la barre du bas pour Copier vers le téléphone et Coller depuis le téléphone.",
+    "Touchez le bouton du presse-papiers dans la barre du bas pour « Copier vers le téléphone » et « Coller depuis le téléphone ».",
   "mobile.browser.help.pointer": "Quand un pointeur est plus simple",
   "mobile.browser.help.trackpad.title": "Mode trackpad",
   "mobile.browser.help.trackpad.body":
@@ -77,5 +77,5 @@ export const messages = {
   "mobile.browser.help.handingBack": "Rendre la main",
   "mobile.browser.help.handBack.title": "Rendre la main",
   "mobile.browser.help.handBack.body":
-    "Quand un agent vous demande de prendre le contrôle, choisissez J’ai terminé dans le menu ···. L’agent continue ensuite dans cet onglet.",
+    "Quand un agent vous demande de prendre la main, choisissez « J’ai terminé » dans le menu ···. L’agent continue ensuite dans cet onglet.",
 } as const satisfies PartialTranslation<typeof source>;

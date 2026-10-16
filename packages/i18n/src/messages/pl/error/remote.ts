@@ -72,7 +72,7 @@ export const messages = {
   "error.remote.bridgeNotReady": "Mostek Team WebRTC nie jest gotowy.",
   "error.remote.bridgeCommandTimeout": "Przekroczono limit czasu polecenia Team WebRTC {command}.",
   "error.remote.bridgeCommandFailed": "Polecenie Team WebRTC nie powiodło się.",
-  "error.remote.webRtcFailed": "WebRTC nie powiodło się.",
+  "error.remote.webRtcFailed": "Błąd WebRTC.",
   "error.remote.ownerCannotLeave": "Właściciel nie może opuścić tego hosta.",
   "error.remote.ownerOnlyRemove": "Tylko właściciel może usunąć ten serwer.",
   "error.remote.requestTimeout": "Przekroczono limit czasu zdalnego żądania.",

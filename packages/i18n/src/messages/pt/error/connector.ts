@@ -3,9 +3,9 @@ import type { messages as source } from "../../en/error/connector";
 
 export const messages = {
   "error.connector.githubUnavailable": "Esta versão do OpenBot não tem um GitHub App.",
-  "error.connector.githubDenied": "A entrada no GitHub foi recusada.",
+  "error.connector.githubDenied": "O login no GitHub foi recusado.",
   "error.connector.githubCodeExpired": "O código do GitHub expirou. Conecte o GitHub novamente.",
-  "error.connector.githubDeviceFlowDisabled": "O GitHub App não permite entrar pelo dispositivo.",
+  "error.connector.githubDeviceFlowDisabled": "O GitHub App não permite login por dispositivo.",
   "error.connector.githubClientUnknown": "O GitHub não reconhece o Client ID deste GitHub App.",
   "error.connector.githubUnexpected": "O GitHub enviou uma resposta inesperada: {detail}",
   "error.connector.githubUnreachable": "O OpenBot não consegue acessar o GitHub: {detail}",

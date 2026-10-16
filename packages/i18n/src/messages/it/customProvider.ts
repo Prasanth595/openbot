@@ -40,11 +40,11 @@ export const messages = {
   "customProvider.error.baseUrlCredential": "Metti la credenziale in un header, non nell'URL.",
   "customProvider.saved.restarted": "Salvato. OpenBot sta caricando i modelli.",
   "customProvider.saved.skippedBusy":
-    "Salvato. OpenCode legge l'elenco dopo la fine dell'attività in corso. Poi premi Connetti.",
+    "Salvato. OpenCode legge l'elenco dopo la fine dell'attività in corso. Poi premi «Connetti».",
   "customProvider.saved.notRunning": "Salvato. OpenCode legge l'elenco al prossimo avvio.",
   "customProvider.removed.restarted": "Rimosso. OpenBot sta caricando i modelli.",
   "customProvider.removed.skippedBusy":
-    "Rimosso. OpenCode legge l'elenco dopo la fine dell'attività in corso. Poi premi Connetti.",
+    "Rimosso. OpenCode legge l'elenco dopo la fine dell'attività in corso. Poi premi «Connetti».",
   "customProvider.removed.notRunning": "Rimosso. OpenCode legge l'elenco al prossimo avvio.",
   "customProvider.saveFailed": "OpenBot non è riuscito a salvare questo endpoint.",
   "customProvider.removeFailed": "OpenBot non è riuscito a rimuovere {name}.",

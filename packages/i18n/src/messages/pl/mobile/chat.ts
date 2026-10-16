@@ -99,7 +99,7 @@ export const messages = {
   "mobile.chat.attachment.displayFailed": "Nie udało się wyświetlić tego obrazu.",
   "mobile.chat.attachment.loadingImage": "Wczytywanie obrazu",
   "mobile.chat.attachment.uploading": "Przesyłanie: {name}",
-  "mobile.chat.attachment.retryImage": "Wczytaj obraz ponownie",
+  "mobile.chat.attachment.retryImage": "Wczytaj obraz",
   "mobile.chat.attachment.openOnDesktopDetail": "{size} · Otwórz na komputerze",
   "mobile.chat.attachment.uploadingPercent": "Przesyłanie · {percent}",
   "mobile.chat.attachment.downloading": "Pobieranie…",
@@ -116,9 +116,9 @@ export const messages = {
   "mobile.chat.attachment.unsupported":
     "{name}: wybierz obrazy, dźwięk MP3, wideo MOV, PDF, dokumenty Office, EML, tekst, Markdown, dane lub pliki źródłowe.",
   "mobile.chat.attachment.hostRejectsType":
-    "{name}: komputer-host nie przyjmuje plików {type}. Zaktualizuj tam OpenBot, aby je załączać.",
+    "{name}: komputer hosta nie przyjmuje plików {type}. Zaktualizuj tam OpenBot, aby je załączać.",
   "mobile.chat.attachment.hostRejects":
-    "{name}: komputer-host nie przyjmuje tych plików. Zaktualizuj tam OpenBot, aby je załączać.",
+    "{name}: komputer hosta nie przyjmuje tych plików. Zaktualizuj tam OpenBot, aby je załączać.",
   "mobile.chat.attachment.nameTooLong": "Wybierz plik o krótszej nazwie.",
   "mobile.chat.attachment.damaged": "Załącznik jest uszkodzony. Wybierz go ponownie.",
   "mobile.chat.attachment.tooLarge": "{name} ma ponad 10 MB.",
@@ -158,7 +158,7 @@ export const messages = {
   "mobile.chat.markdown.linkFailedTitle": "Nie udało się otworzyć linku",
   "mobile.chat.markdown.linkFailedMessage": "Możesz zaznaczyć i skopiować link.",
   "mobile.chat.message.reply": "Odpowiedz",
-  "mobile.chat.message.actions": "Działania wiadomości",
+  "mobile.chat.message.actions": "Akcje wiadomości",
   "mobile.chat.message.copy": "Kopiuj wiadomość",
   "mobile.chat.message.copied": "Skopiowano wiadomość",
   "mobile.chat.message.selectText": "Zaznacz tekst",
@@ -192,7 +192,7 @@ export const messages = {
   "mobile.chat.browserSecret.submit": "Wyślij",
   "mobile.chat.browserSecret.takeOver": "Przejmij",
   "mobile.chat.starter.title": "Od czego zaczniemy?",
-  "mobile.chat.starter.body": "Wybierz jedną opcję lub wpisz własną — kierunek zmienimy w każdej chwili.",
+  "mobile.chat.starter.body": "Wybierz jedną opcję lub wpisz własną – kierunek zmienimy w każdej chwili.",
   "mobile.chat.starter.dismiss": "Odrzuć sugestie",
   "mobile.chat.starter.orAnswer": "Lub odpowiedz na czacie poniżej",
   "mobile.chat.starter.planLabel": "Zaplanuj kolejne kroki",
@@ -267,16 +267,16 @@ export const messages = {
   "mobile.chat.approval.read": "Odczyt: {path}",
   "mobile.chat.approval.write": "Zapis: {path}",
   "mobile.chat.approval.effect.command":
-    "„Zezwól” uruchamia to polecenie na {server}. „Odmów” każe agentowi {name} go nie uruchamiać.",
+    "„Zezwól” uruchamia to polecenie na serwerze {server}. „Odmów” każe agentowi {name} go nie uruchamiać.",
   "mobile.chat.approval.effect.fileChange":
-    "„Zezwól” pozwala agentowi {name} zmienić te pliki na {server}. „Odmów” zostawia pliki bez zmian.",
+    "„Zezwól” pozwala agentowi {name} zmienić te pliki na serwerze {server}. „Odmów” zostawia pliki bez zmian.",
   "mobile.chat.approval.effect.permissions":
-    "„Zezwól” daje agentowi {name} te uprawnienia na {server}. „Odmów” zachowuje obecne uprawnienia.",
+    "„Zezwól” daje agentowi {name} te uprawnienia na serwerze {server}. „Odmów” zachowuje obecne uprawnienia.",
   "mobile.chat.approval.partial":
-    "To żądanie jest zbyt długie, aby pokazać je na telefonie. Aby na nie zezwolić, otwórz OpenBot na {server}. Odmówić możesz tutaj.",
+    "To żądanie jest zbyt długie, aby pokazać je na telefonie. Aby na nie zezwolić, otwórz OpenBot na serwerze {server}. Odmówić możesz tutaj.",
   "mobile.chat.approval.allow": "Zezwól",
   "mobile.chat.approval.deny": "Odmów",
-  "mobile.chat.approval.reconnect": "Połącz się z {server}, aby odpowiedzieć na to żądanie.",
+  "mobile.chat.approval.reconnect": "Połącz się z serwerem {server}, aby odpowiedzieć na to żądanie.",
   "mobile.chat.approval.sendFailed": "Nie udało się wysłać decyzji. Spróbuj ponownie.",
   "mobile.chat.approval.inactiveTitle": "Żądanie zamknięte",
   "mobile.chat.activity.waitingOnDesktop": "Czeka na twoją odpowiedź na komputerze",

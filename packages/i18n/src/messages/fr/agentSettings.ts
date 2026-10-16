@@ -8,14 +8,14 @@ export const messages = {
   "agentSettings.session.unavailable":
     "La valeur enregistrée {value} n’est pas disponible. Sélectionnez une autre valeur ou réinitialisez-la.",
   "agentSettings.session.effective": "Valeur actuelle du fournisseur : {value}",
-  "agentSettings.session.reset": "Réinitialiser le réglage",
+  "agentSettings.session.reset": "Réinitialiser",
   "agentSettings.session.resetNamed": "Réinitialiser {name}",
   "agentSettings.label": "Réglages de l’agent",
   "agentSettings.title": "Réglages",
   "agentSettings.backToDetails": "Retour aux détails",
   "agentSettings.closeDetails": "Fermer les détails",
-  "agentSettings.backToSettings": "Retour aux paramètres",
-  "agentSettings.permissions.title": "Autorisations",
+  "agentSettings.backToSettings": "Retour aux réglages",
+  "agentSettings.permissions.title": "Accès",
   "agentSettings.advanced.title": "Avancé",
   "agentSettings.backupModels.title": "Modèles de secours",
   "agentSettings.backupModels.valueAsk": "Demander d’abord",
@@ -39,8 +39,8 @@ export const messages = {
   "agentSettings.backupModels.note":
     "{name} ne change jamais de modèle après avoir commencé à écrire. Il revient à {model} quand la limite prend fin.",
   "agentSettings.groups.brain": "Cerveau",
-  "agentSettings.groups.knows": "Sait",
-  "agentSettings.groups.does": "Fait",
+  "agentSettings.groups.knows": "Connaissances",
+  "agentSettings.groups.does": "Actions",
   "agentSettings.groups.rules": "Règles",
   "agentSettings.saveFailed": "Impossible d’enregistrer les réglages de l’agent.",
 
@@ -80,11 +80,13 @@ export const messages = {
   "agentSettings.runtime.reasoning": "Raisonnement",
   "agentSettings.runtime.reasoningLabel": "Niveau de raisonnement de l’agent",
   "agentSettings.runtime.selectReasoning": "Choisir le raisonnement",
-  "agentSettings.runtime.reasoningSetByProvider": "Défini par {provider}",
+  "agentSettings.runtime.reasoningSetByProvider": "Selon {provider}",
   "agentSettings.runtime.access": "Accès",
   "agentSettings.runtime.accessLabel": "Accès de l’agent",
   "agentSettings.runtime.busyMessage": "Pendant le travail",
   "agentSettings.runtime.busyMessageLabel": "Messages pendant le travail de l’agent",
+  "agentSettings.runtime.taskLimit": "Tâches simultanées",
+  "agentSettings.runtime.taskLimitLabel": "Tâches exécutées en même temps",
   "agentSettings.runtime.workingDirectory": "Répertoire de travail",
   "agentSettings.runtime.notAvailable": "Pas encore disponible",
   "agentSettings.runtime.fullAccessNote":
@@ -94,7 +96,7 @@ export const messages = {
   "agentSettings.runtime.providerApprovalNote":
     "Selon le fournisseur, les commandes sensibles peuvent d’abord demander une approbation.",
 
-  "agentSettings.access.workspace": "Espace de travail uniquement",
+  "agentSettings.access.workspace": "Espace de travail seul",
   "agentSettings.access.full": "Accès complet",
   "agentSettings.busyMessage.appDefaultQueue": "Par défaut de l’app (File d’attente)",
   "agentSettings.busyMessage.appDefaultSteer": "Par défaut de l’app (Orienter)",
@@ -103,6 +105,9 @@ export const messages = {
   "agentSettings.busyMessage.steerUnsupported":
     "{provider} ne peut pas orienter un tour en cours. Les messages envoyés pendant son travail attendent dans la file.",
 
+  "agentSettings.taskLimit.default": "Par défaut ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} exécute un tour à la fois. Les tâches et la discussion de cet agent s’attendent mutuellement.",
   "agentSettings.notifications.title": "Notifications",
 
   "agentSettings.newChat.title": "Nouvelle discussion",
@@ -110,14 +115,14 @@ export const messages = {
   "agentSettings.newChat.button": "Commencer",
   "agentSettings.newChat.confirmTitle": "Commencer une nouvelle discussion avec {name} ?",
   "agentSettings.newChat.confirmDescription":
-    "L’agent oublie cette discussion. Les messages restent visibles au-dessus d’un séparateur. Les instructions, le modèle, les outils, les mémoires, l’espace de travail et le navigateur ne changent pas.",
+    "L’agent oublie cette discussion. Les messages restent visibles au-dessus d’un séparateur. Les instructions, le modèle, les outils, les souvenirs, l’espace de travail et le navigateur ne changent pas.",
   "agentSettings.newChat.confirm": "Nouvelle discussion",
   "agentSettings.newChat.failed": "Impossible de commencer une nouvelle discussion.",
 
   "agentSettings.fullAccess.title": "Donner un accès complet à cet agent ?",
   "agentSettings.fullAccess.description":
     "L’agent pourra alors lire, modifier et supprimer tout fichier accessible à votre compte utilisateur, exécuter n’importe quelle commande et utiliser le réseau. Une seule instruction mal comprise ou une page web malveillante peut atteindre vos fichiers personnels.",
-  "agentSettings.fullAccess.cancel": "Garder l’espace de travail uniquement",
+  "agentSettings.fullAccess.cancel": "Garder l’accès limité",
   "agentSettings.fullAccess.confirm": "Autoriser l’accès complet",
 
   "agentSettings.links.usage": "Utilisation",

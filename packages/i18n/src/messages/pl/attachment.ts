@@ -14,6 +14,7 @@ export const messages = {
   "attachment.error.open": "Nie udało się otworzyć ani zapisać tego załącznika. Spróbuj ponownie.",
   "attachment.error.openFile": "Nie udało się otworzyć tego pliku. Spróbuj ponownie.",
   "attachment.error.fileFallback": "Plik",
-  "attachment.error.fileNotFound": "Nie znaleziono „{name}” w tej ścieżce. Plik mógł zostać przeniesiony lub usunięty.",
+  "attachment.error.fileNotFound":
+    "Nie znaleziono „{name}” pod tą ścieżką. Plik mógł zostać przeniesiony lub usunięty.",
   "attachment.error.previewFile": "Nie udało się wyświetlić podglądu „{name}”. Spróbuj ponownie.",
 } as const satisfies PartialTranslation<typeof source>;

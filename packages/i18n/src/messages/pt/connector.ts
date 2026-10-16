@@ -34,7 +34,7 @@ export const messages = {
   "connector.github.actionFailed": "O OpenBot não conseguiu alterar a conexão com o GitHub.",
   "connector.github.statusConnected": "Conectado",
   "connector.github.statusConnecting": "Conectando",
-  "connector.github.statusExpired": "Expirada",
+  "connector.github.statusExpired": "Expirado",
   "connector.github.statusNotSetUp": "Não configurado",
   "connector.github.accountTitle": "Conta",
   "connector.github.filterPlaceholder": { one: "Filtrar {count} repositório", other: "Filtrar {count} repositórios" },
@@ -53,7 +53,7 @@ export const messages = {
   "connector.github.done": "Concluir",
   "connector.github.later": "Mais tarde",
   "connector.github.disconnectConfirmTitle": "Desconectar GitHub?",
-  "connector.github.disconnectConfirmDescription": "Desconectar remove o acesso de @{login} deste computador.",
+  "connector.github.disconnectConfirmDescription": "Desconectar remove o login de @{login} deste computador.",
   "connector.github.disconnectEffectTools": "Todos os agentes perdem as ferramentas do GitHub, gh e git.",
   "connector.github.disconnectEffectRevoke": "Em seguida, o GitHub abre para você revogar o OpenBot.",
   "connector.github.disconnectEffectKept": "Os chats, arquivos e a memória dos agentes continuam neste computador.",
@@ -64,7 +64,7 @@ export const messages = {
     one: "{count} repositório · todos os agentes em {host}",
     other: "{count} repositórios · todos os agentes em {host}",
   },
-  "connector.github.disconnectConfirmDescriptionHost": "Desconectar remove o acesso de @{login} de {host}.",
+  "connector.github.disconnectConfirmDescriptionHost": "Desconectar remove o login de @{login} de {host}.",
   "connector.github.disconnectEffectKeptHost": "Os chats, arquivos e a memória dos agentes continuam em {host}.",
   "connector.github.keepConnected": "Manter conectado",
   "connector.github.close": "Fechar",
@@ -104,7 +104,7 @@ export const messages = {
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Orquestrador do Slack",
   "connector.slack.orchestratorDescription":
-    "Este agente recebe todas as solicitações do Slack. Ele responde às mais curtas, encaminha o restante do trabalho ao agente certo e publica a resposta na conversa.",
+    "Este agente recebe todas as solicitações do Slack. Ele mesmo responde às curtas, encaminha o restante do trabalho ao agente certo e publica a resposta na conversa.",
   "connector.slack.orchestratorNone": "Nenhum agente responde ainda",
   "connector.slack.orchestratorNoneDescription": "Adicione o Orquestrador do Slack para que o Slack receba respostas.",
   "connector.slack.inviteNote":
@@ -169,7 +169,7 @@ export const messages = {
   "connector.discord.rowAction": "{action}: {name}",
   "connector.discord.orchestratorTitle": "Orquestrador do Discord",
   "connector.discord.orchestratorDescription":
-    "Este agente recebe todas as solicitações do Discord. Ele responde às mais curtas, encaminha o restante do trabalho ao agente certo e responde no canal.",
+    "Este agente recebe todas as solicitações do Discord. Ele mesmo responde às curtas, encaminha o restante do trabalho ao agente certo e responde no canal.",
   "connector.discord.orchestratorNone": "Nenhum agente responde ainda",
   "connector.discord.orchestratorNoneDescription":
     "Adicione o Orquestrador do Discord para que o Discord receba respostas.",
@@ -251,7 +251,7 @@ export const messages = {
   "connector.telegram.openDirectChat": "Abrir um chat direto",
   "connector.telegram.orchestratorTitle": "Orquestrador do Telegram",
   "connector.telegram.orchestratorDescription":
-    "Este agente recebe as mensagens para o OpenBot de todos os seus chats do Telegram. Ele responde às mais curtas, encaminha o restante do trabalho ao agente certo e publica a resposta no chat.",
+    "Este agente recebe as mensagens para o OpenBot de todos os seus chats do Telegram. Ele mesmo responde às curtas, encaminha o restante do trabalho ao agente certo e publica a resposta no chat.",
   "connector.telegram.orchestratorNone": "Nenhum agente responde ainda",
   "connector.telegram.orchestratorNoneDescription":
     "Adicione o Orquestrador do Telegram para que o Telegram receba respostas.",
@@ -263,7 +263,7 @@ export const messages = {
   "connector.telegram.connectDescription":
     "Adicione o bot do OpenBot a um grupo ou abra um chat direto com ele. Um único bot atende todos os seus chats.",
   "connector.telegram.connectStepBrowser": "O Telegram abre no seu navegador",
-  "connector.telegram.connectStepPick": "Selecione o grupo ou toque em Iniciar no chat direto",
+  "connector.telegram.connectStepPick": "Selecione o grupo ou clique em Iniciar no chat direto",
   "connector.telegram.connectStepReturn": "Esta janela continua quando o chat estiver vinculado",
   "connector.telegram.connectWaiting": "Aguardando o Telegram. Selecione o chat no Telegram.",
   "connector.telegram.agentStepTitle": "Adicionar o Orquestrador do Telegram",

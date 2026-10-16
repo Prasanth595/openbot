@@ -55,7 +55,8 @@ export const messages = {
   "mobile.browser.help.rightClick.title": "Clique direito",
   "mobile.browser.help.rightClick.body": "Toque com dois dedos, ou toque e segure.",
   "mobile.browser.help.zoom.title": "Ampliar",
-  "mobile.browser.help.zoom.body": "Faça pinça para ampliar. Com zoom, dois dedos movem a imagem em vez de rolar.",
+  "mobile.browser.help.zoom.body":
+    "Use o gesto de pinça para ampliar. Com zoom, dois dedos movem a imagem em vez de rolar.",
   "mobile.browser.help.pages": "Páginas e abas",
   "mobile.browser.help.navigate.title": "Voltar e avançar",
   "mobile.browser.help.navigate.body": "Toque nas setas da barra inferior. Recarregar página fica no menu ···.",

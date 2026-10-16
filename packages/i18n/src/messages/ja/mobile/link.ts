@@ -29,7 +29,7 @@ export const messages = {
   "mobile.link.template.section.routines": "ルーティン",
   "mobile.link.template.section.noRoutines": "ルーティンはありません。",
   "mobile.link.template.skill.local": "ローカルスキル (SKILL.md のみ)",
-  "mobile.link.template.skill.marketplace": "Marketplace のスキル、バージョン {version}",
+  "mobile.link.template.skill.marketplace": "マーケットプレイスのスキル、バージョン {version}",
   "mobile.link.template.server.title": "追加先のサーバー",
   "mobile.link.template.server.footer": "オーナーまたは管理者であるサーバーのみが表示されます。",
   "mobile.link.template.server.updateRequired":

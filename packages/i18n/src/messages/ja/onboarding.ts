@@ -7,7 +7,7 @@ export const messages = {
   "onboarding.setup.connectFailed": "OpenBot はこのホストに接続できませんでした。",
   "onboarding.setup.localTitle": "このコンピューターを設定",
   "onboarding.setup.remoteTitle": "ホストに接続",
-  "onboarding.setup.title": "OpenBot をどこで実行しますか?",
+  "onboarding.setup.title": "OpenBot をどこで実行しますか？",
   "onboarding.setup.localDescription": "エージェント、会話、ファイルはこのコンピューターに保存されます。",
   "onboarding.setup.remoteDescription": "OpenBot ホストを運用している人からの招待を使ってください。",
   "onboarding.setup.description":
@@ -70,7 +70,7 @@ export const messages = {
   "onboarding.toast.connecting":
     "{provider} に接続しています。ブラウザーのウィンドウが開いたら、サインインを完了してください。",
   "onboarding.progress": "オンボーディング ステップ {step}/{total}",
-  "onboarding.choice.title": "AI チームをつくろう。",
+  "onboarding.choice.title": "AI チームを作りましょう。",
   "onboarding.choice.description": "どちらかを選んでください。後で変更できます。",
   "onboarding.choice.startFree": "無料で始める",
   "onboarding.choice.freeDetail": "無料のモデル。サブスクリプションは不要です。",
@@ -80,7 +80,7 @@ export const messages = {
   "onboarding.plan.title": "プランを接続",
   "onboarding.plan.description": "一度サインインするだけ。エージェントがあなたのプランを使います。",
   "onboarding.computer.title": "OpenBot がコンピューターを操作する場合があります",
-  "onboarding.opening": "OpenBot を開いています…",
+  "onboarding.opening": "OpenBot を起動中…",
   "onboarding.launch.downloading": "無料モデルをダウンロードしています…",
   "onboarding.action.connect": "接続",
   "onboarding.action.open": "OpenBot を開く",

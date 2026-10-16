@@ -41,7 +41,7 @@ export const messages = {
   "conversation.direct.typing": "{name} schreibt",
   "conversation.direct.input": "Nachricht an {name}",
   "conversation.direct.send": "Direktnachricht senden",
-  "conversation.header.settings": "Agenteneinstellungen anzeigen",
+  "conversation.header.settings": "Agenteneinstellungen",
   "conversation.header.resumeRemote": "Fernsteuerung fortsetzen",
   "conversation.header.openRemote": "Fernsteuerung öffnen",
   "conversation.header.publish": "Agenten veröffentlichen",

@@ -18,7 +18,7 @@ export const messages = {
   "error.agent.messageOrAttachmentRequired": "Wymagana jest wiadomość lub załącznik.",
   "error.agent.promptAnswersTooLong": "Odpowiedzi na pytania są za długie.",
   "error.agent.gone": "Ten agent już nie istnieje.",
-  "error.agent.profileGenerationBusy": "Generowanie profilu jest zajęte. Spróbuj ponownie za chwilę.",
+  "error.agent.profileGenerationBusy": "Generowanie profilu już trwa. Spróbuj ponownie za chwilę.",
   "error.agent.initialMessageRequired": "Wymagana jest wiadomość początkowa.",
   "error.agent.initialMessageTooLong": "Wiadomość początkowa jest za długa.",
   "error.agent.setupCleanupFailed": "Konfiguracja agenta nie powiodła się i nie udało się usunąć niepełnego agenta.",
@@ -42,6 +42,8 @@ export const messages = {
   "error.agent.noStartingModel":
     "{provider} nie ma dostępnego modelu i nie ma go też żaden inny zalogowany dostawca. Zaloguj się do dostawcy lub zmień domyślnego dostawcę w sekcji „Dostawcy i uprawnienia”.",
   "error.agent.waitBeforeProviderChange": "Poczekaj, aż bieżąca tura i kolejka się zakończą, zanim zmienisz dostawcę.",
+  "error.agent.waitForTasksBeforeProviderChange":
+    "Zadania tego agenta są uruchomione. Przed zmianą dostawcy poczekaj, aż się zakończą, albo je zatrzymaj.",
   "error.agent.waitBeforeClearContext":
     "Poczekaj, aż bieżąca tura i kolejka się zakończą, zanim rozpoczniesz nowy czat.",
   "error.agent.unknown": "Nieznany agent: {id}",
@@ -67,7 +69,7 @@ export const messages = {
   "error.agent.profileDisconnected": "Dostawca rozłączył się podczas generowania profilu.",
   "error.agent.profileToolUse": "Dostawca próbował użyć narzędzia. Spróbuj zmienić prompt.",
   "error.agent.profileFailed": "Dostawca nie mógł wygenerować profilu. Spróbuj ponownie.",
-  "error.agent.profileTooLarge": "Wygenerowany profil jest za duży. Spróbuj krótszego promptu.",
+  "error.agent.profileTooLarge": "Wygenerowany profil jest za duży. Użyj krótszego promptu.",
   "error.agent.profileNotStarted": "Dostawca nie mógł rozpocząć generowania profilu.",
   "error.agent.deletionBusy": "Usuwanie agenta już trwa.",
   "error.agent.stopBeforeDelete": "Zatrzymaj agenta i anuluj wiadomości w kolejce, zanim go usuniesz.",
@@ -87,6 +89,7 @@ export const messages = {
   "error.agent.busyMessageModeLocalOnly":
     "Zachowanie wiadomości podczas pracy agenta można ustawić tylko na komputerze, na którym działa agent.",
   "error.agent.backupModelsLocalOnly": "Modele zapasowe można ustawić tylko na komputerze, na którym działa agent.",
+  "error.agent.taskLimitLocalOnly": "Limit zadań można ustawić tylko na komputerze, na którym działa agent.",
   "error.agent.localScriptsOff": "Ten agent nie zezwala na lokalne skrypty.",
   "error.agent.localScriptsRateLimited":
     "Lokalne skrypty wysłały do tego agenta {limit} żądań wiadomości lub rutyn w ciągu ostatniej godziny. Spróbuj ponownie później.",
@@ -102,4 +105,22 @@ export const messages = {
     "Na tym serwerze brakuje pamięci. Twoja wiadomość czeka w kolejce i ruszy, gdy pamięć się zwolni.",
   "error.agent.workspaceOnlyToolMissing":
     "Tryb „Tylko obszar roboczy” wymaga narzędzia {tool}, którego OpenBot nie znalazł. Zainstaluj je lub wybierz pełny dostęp w ustawieniach agenta.",
+  "error.agent.screenCaptureOff":
+    "Przechwytywanie ekranu jest wyłączone dla tego agenta. Użytkownik może włączyć Sterowanie komputerem w ustawieniach agenta.",
+  "error.agent.screenCaptureUnavailable": "Przechwytywanie ekranu nie jest dostępne na tym komputerze.",
+  "error.agent.screenCaptureShared":
+    "Przechwytywanie ekranu nie działa w kanale ani w rozmowie w Slacku, Discordzie lub Telegramie, ponieważ jego pliki trafiają do innych osób.",
+  "error.agent.screenCaptureDeclined":
+    "Użytkownik nie zezwolił na to przechwycenie ekranu. Nic nie zostało przechwycone.",
+  "error.agent.screenCaptureWindowMissing":
+    "To okno nie jest teraz otwarte. Wywołaj list_capture_sources, aby pobrać bieżące identyfikatory okien.",
+  "error.agent.screenCaptureDisplayMissing":
+    "Ten wyświetlacz nie jest teraz podłączony. Wywołaj list_capture_sources, aby pobrać bieżące identyfikatory wyświetlaczy.",
+  "error.agent.screenCaptureRegionOutside":
+    "Obszar nie mieści się w jednym wyświetlaczu. Użyj punktów pulpitu w granicach jednego wyświetlacza z list_capture_sources.",
+  "error.agent.screenCapturePermissionMissing":
+    "OpenBot nie ma uprawnienia do nagrywania ekranu. Poproś użytkownika, aby otworzył Ustawienia systemowe > Prywatność i ochrona > Nagrywanie ekranu i dźwięku systemowego, włączył OpenBot, a potem zamknął i ponownie otworzył OpenBot.",
+  "error.agent.screenCaptureEmptyWindows":
+    "Windows zwrócił pusty obraz. Poproś użytkownika, aby odblokował komputer i zamknął chronione treści. Przechwytywanie ekranu może też blokować zasada organizacji.",
+  "error.agent.screenCaptureFailed": "Przechwycenie ekranu nie powiodło się. Spróbuj ponownie.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -12,7 +12,7 @@ export const messages = {
   "status.remote.connectingSunshine": "Подключение через Sunshine…",
   "status.remote.switchingMonitor": "Переключение общего монитора…",
   "status.remote.controlConnected": "Удалённое управление подключено.",
-  "status.remote.controlFailed": "Удалённое управление не удалось.",
+  "status.remote.controlFailed": "Сбой удалённого управления.",
   "status.remote.stagePreferences": "Загрузка локальных настроек чата: {reason}",
   "status.remote.stageConnection": "Подключение к компьютеру: {reason}",
   "status.remote.stageCompatibility": "Проверка совместимости компьютера: {reason}",

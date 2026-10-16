@@ -15,7 +15,7 @@ export const messages = {
   "error.agent.skillsLocalOnly": "Le skill si possono cambiare solo sul computer che esegue l'agente.",
   "error.agent.addLocalOnly": "Gli agenti si possono aggiungere solo sul computer che li esegue.",
   "error.agent.joinedServerUpdate": "Un agente su un server a cui ti sei unito non si può aggiornare da qui.",
-  "error.agent.searchQueryRequired": "Serve una ricerca.",
+  "error.agent.searchQueryRequired": "Serve un testo di ricerca.",
   "error.agent.messageTooLong": "Il messaggio è troppo lungo.",
   "error.agent.messageOrAttachmentRequired": "Serve un messaggio o un allegato.",
   "error.agent.promptAnswersTooLong": "Le risposte al prompt sono troppo lunghe.",
@@ -45,6 +45,8 @@ export const messages = {
   "error.agent.noStartingModel":
     "{provider} non ha modelli disponibili e nessun altro provider con accesso ne ha. Accedi a un provider, oppure cambia il provider predefinito in Provider e permessi.",
   "error.agent.waitBeforeProviderChange": "Aspetta che il turno attivo e la coda finiscano prima di cambiare provider.",
+  "error.agent.waitForTasksBeforeProviderChange":
+    "Alcune attività di questo agente sono in corso. Attendi che finiscano, o interrompile, prima di cambiare provider.",
   "error.agent.waitBeforeClearContext":
     "Aspetta che il turno attivo e la coda finiscano prima di iniziare una nuova chat.",
   "error.agent.unknown": "Agente sconosciuto: {id}",
@@ -92,6 +94,7 @@ export const messages = {
     "Cosa fanno i messaggi mentre l'agente lavora si può impostare solo sul computer che lo esegue.",
   "error.agent.backupModelsLocalOnly":
     "I modelli di riserva si possono impostare solo sul computer che esegue l'agente.",
+  "error.agent.taskLimitLocalOnly": "Il limite di attività si può impostare solo sul computer che esegue l'agente.",
   "error.agent.localScriptsOff": "Questo agente non consente gli script locali.",
   "error.agent.localScriptsRateLimited":
     "Gli script locali hanno inviato a questo agente {limit} messaggi o richieste di routine nell'ultima ora. Riprova più tardi.",
@@ -107,4 +110,22 @@ export const messages = {
     "Questo server ha poca memoria. Il tuo messaggio resta in coda e parte quando si libera memoria.",
   "error.agent.workspaceOnlyToolMissing":
     "Solo workspace richiede {tool}, che OpenBot non ha trovato. Installalo, oppure scegli Accesso completo nelle impostazioni dell'agente.",
+  "error.agent.screenCaptureOff":
+    "L'acquisizione dello schermo è disattivata per questo agente. L'utente può attivare il Controllo del computer nelle impostazioni dell'agente.",
+  "error.agent.screenCaptureUnavailable": "L'acquisizione dello schermo non è disponibile su questo computer.",
+  "error.agent.screenCaptureShared":
+    "L'acquisizione dello schermo non funziona in un canale o in una conversazione Slack, Discord o Telegram, perché altre persone ricevono i suoi file.",
+  "error.agent.screenCaptureDeclined":
+    "L'utente non ha permesso questa acquisizione dello schermo. Non è stato acquisito nulla.",
+  "error.agent.screenCaptureWindowMissing":
+    "Quella finestra ora non è aperta. Chiama list_capture_sources per ottenere gli id attuali delle finestre.",
+  "error.agent.screenCaptureDisplayMissing":
+    "Quello schermo ora non è collegato. Chiama list_capture_sources per ottenere gli id attuali degli schermi.",
+  "error.agent.screenCaptureRegionOutside":
+    "L'area non è dentro un solo schermo. Usa punti del desktop entro i limiti di uno schermo indicato da list_capture_sources.",
+  "error.agent.screenCapturePermissionMissing":
+    "OpenBot non ha il permesso Registrazione schermo. Chiedi all'utente di aprire Impostazioni di Sistema > Privacy e sicurezza > Registrazione schermo e audio di sistema, attivare OpenBot, poi uscire e riaprire OpenBot.",
+  "error.agent.screenCaptureEmptyWindows":
+    "Windows ha restituito un'immagine vuota. Chiedi all'utente di sbloccare il computer e chiudere i contenuti protetti. Anche un criterio dell'organizzazione può bloccare l'acquisizione dello schermo.",
+  "error.agent.screenCaptureFailed": "L'acquisizione dello schermo non è riuscita. Riprova.",
 } as const satisfies PartialTranslation<typeof source>;

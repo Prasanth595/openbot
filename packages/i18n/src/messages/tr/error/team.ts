@@ -72,6 +72,7 @@ export const messages = {
   "error.team.conversationPageTooLarge":
     "Bu konuşmadaki bir mesaj bu cihaza gönderilemeyecek kadar büyük. Konuşmayı sunucuyu çalıştıran bilgisayarda açın.",
   "error.team.agentImportUnsupported": "Ajan içe aktarma bu bağlantı tarafından desteklenmiyor.",
+  "error.team.instanceTransferUnsupported": "Bu bağlantı ajan aktarımını desteklemiyor.",
   "error.team.liveActivityUnsupported": "Bu ana makine bir telefonun Canlı Etkinliğini güncelleyemez.",
   "error.team.pushNotificationsUnsupported": "Bu ana makine bir telefona bildirim gönderemez.",
   "error.team.agentUpdateTargetRequired": "Güncellenecek bir ajan gereklidir.",
@@ -92,7 +93,7 @@ export const messages = {
   "error.team.hostedSitesUnregistered": "Bu sunucu OpenBot'a kayıtlı değil, bu nedenle sitesi yok.",
   "error.team.hostedSiteNotFound": "Site bulunamadı.",
   "error.team.markUnreadUnsupported": "Bu istemci konuşmaları okunmadı olarak işaretlemeyi desteklemiyor.",
-  "error.team.inviteServiceUnavailable": "Davet servisi kullanılamıyor.",
+  "error.team.inviteServiceUnavailable": "Davet hizmeti kullanılamıyor.",
   "error.team.logoNotFound": "Sunucu logosu bulunamadı.",
   "error.team.updateRequired": "Güncelleme gerekli.",
   "error.team.defaultProviderRequiresV4": "Ana makinenin varsayılan sağlayıcısı Team API v4 gerektirir.",
@@ -110,9 +111,9 @@ export const messages = {
   "error.team.agentSettingsUnsupported": "Ajan ayarları bu bağlantı tarafından desteklenmiyor.",
   "error.team.adminRequired": "Yönetici erişimi gereklidir.",
   "error.team.requestTooLarge": "İstek gövdesi çok büyük.",
-  "error.team.signInRelayUnsupported": "Bu sunucu oturum açmaları aktaramaz. Ana bilgisayardaki OpenBot'u güncelleyin.",
+  "error.team.signInRelayUnsupported": "Bu sunucu oturum açmaları aktaramaz. Ana makinedeki OpenBot'u güncelleyin.",
   "error.team.connectorsUnsupported":
-    "Bu sunucunun bağlantıları buradan yönetilemez. Ana bilgisayardaki OpenBot'u güncelleyin.",
+    "Bu sunucunun bağlantıları buradan yönetilemez. Ana makinedeki OpenBot'u güncelleyin.",
   "error.team.connectorPageRefused": "Sunucu, OpenBot'un açmadığı bir sayfa gönderdi.",
   "error.team.signInRelayUnknown": "Bu oturum açma sona erdi veya mevcut değil.",
   "error.team.signInRelayUsed": "Bu oturum açma zaten gönderildi.",

@@ -144,7 +144,7 @@ export const messages = {
   "error.provider.opencodeVersionUnreadable": "Nie można odczytać wersji OpenCode CLI.",
   "error.provider.bunVersionUnreadable": "Nie można odczytać wersji środowiska uruchomieniowego Bun.",
   "error.provider.connectBeforeProfile": "Połącz wybranego dostawcę, zanim wygenerujesz profil.",
-  "error.provider.cliNotReady": "{provider} CLI nie jest gotowy lub zalogowany.",
+  "error.provider.cliNotReady": "{provider} CLI nie jest gotowy ani zalogowany.",
   "error.provider.cliTimedOut":
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. OpenBot spróbuje ponownie.",
   "error.provider.cliTimedOutRefresh":
@@ -299,7 +299,7 @@ export const messages = {
   "error.provider.piSessionMissing": "Plik sesji Pi nie jest dostępny na tym komputerze.",
   "error.provider.piResumeCancelled": "Pi anulował wznowienie sesji. Spróbuj ponownie.",
   "error.provider.piSessionIdentity": "Pi zwrócił inną sesję. Zapisana sesja nie została zastąpiona.",
-  "error.provider.piModelInvalid": "Wybierz model Pi, który zawiera swojego dostawcę.",
+  "error.provider.piModelInvalid": "Wybierz model Pi, który zawiera nazwę dostawcy.",
   "error.provider.piToolInvalid": "Narzędzie zwróciło nieprawidłowy wynik.",
   "error.provider.piSignIn": "Użyj /login w Pi na komputerze hosta. Zamknij Pi po zakończeniu logowania.",
   "error.provider.museBusy": "Sesja Muse jest zajęta.",
@@ -322,7 +322,7 @@ export const messages = {
   "error.provider.museSessionMismatch": "Muse zwrócił inną sesję.",
   "error.provider.museCompactRejected": "Muse nie przyjął kompaktowania.",
   "error.provider.museTurnMismatch": "Muse zwrócił inną turę.",
-  "error.provider.museHistoryMismatch": "Historia Muse wykroczyła poza sesję.",
+  "error.provider.museHistoryMismatch": "Historia Muse obejmuje różne sesje.",
   "error.provider.museRecoveryFailed": "Muse nie może odzyskać brakujących zdarzeń.",
   "error.provider.museHistoryStalled": "Kursor historii Muse nie przesunął się.",
   "error.provider.museApprovalUnavailable": "Muse nie zaoferował tej odpowiedzi zatwierdzenia.",

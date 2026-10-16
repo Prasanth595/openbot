@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/agent";
 
 export const messages = {
-  "agent.access.workspaceOnly": "Solo el espacio de trabajo",
+  "agent.access.workspaceOnly": "Solo espacio de trabajo",
   "agent.setup.nameFallback": "Nuevo agente",
   "agent.setup.titleAdditional": "Crear un nuevo agente",
   "agent.setup.titleFirst": "Crea tu primer agente",

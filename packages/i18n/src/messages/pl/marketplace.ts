@@ -29,7 +29,7 @@ export const messages = {
   "marketplace.agents.routineActive": "Aktywna",
   "marketplace.agents.routineInactive": "Nieaktywna",
   "marketplace.skill.loading": "Wczytywanie umiejętności",
-  "marketplace.skill.update": "Zaktualizuj umiejętność",
+  "marketplace.skill.update": "Zaktualizuj",
   "marketplace.try.readFailed": "OpenBot nie mógł odczytać umiejętności tego agenta. Spróbuj ponownie.",
   "marketplace.try.enable": "Włącz tę umiejętność w ustawieniach agenta, aby ją wypróbować.",
   "marketplace.try.repair": "Napraw tę umiejętność w ustawieniach agenta, aby ją wypróbować.",
@@ -111,7 +111,7 @@ export const messages = {
   "marketplace.app.address": "Adres",
   "marketplace.app.disconnect.title": "Rozłącz",
   "marketplace.app.disconnect.description":
-    "Usuń {name} i jej umiejętności z tego komputera. Możesz połączyć ją ponownie później.",
+    "Usuń aplikację {name} i jej umiejętności z tego komputera. Możesz później połączyć ją ponownie.",
   "marketplace.app.disconnect.action": "Rozłącz",
   "marketplace.app.remove.title": "Usuń serwer",
   "marketplace.app.remove.description":
@@ -159,15 +159,15 @@ export const messages = {
   "marketplace.plugin.notion.prompt.updateDoc": "Zaktualizuj dokument wdrożeniowy o nową listę kontrolną wydania.",
   "marketplace.plugin.figma.tagline": "Projekty i prototypy",
   "marketplace.plugin.figma.description":
-    "Figma pozwala agentom czytać pliki projektów, sprawdzać komponenty, style i zmienne oraz przekazywać specyfikacje produkcyjne inżynierom. Łączy się z serwerem MCP w aplikacji Figma na komputer, na tym komputerze. Serwer może tylko czytać projekty; obsługa zapisu jest w przygotowaniu.",
+    "Figma pozwala agentom czytać pliki projektów, sprawdzać komponenty, style i zmienne oraz przekazywać specyfikacje produkcyjne inżynierom. Łączy się z serwerem MCP w aplikacji desktopowej Figma na tym komputerze. Serwer może tylko czytać projekty; obsługa zapisu jest w przygotowaniu.",
   "marketplace.plugin.figma.app":
-    "Kontekst projektu, metadane, zmienne i zrzuty ekranu przez serwer MCP w aplikacji Figma na komputer. Na razie tylko do odczytu.",
-  "marketplace.plugin.figma.prompt.handoff": "Przekaż plik checkout: wypisz ekrany, komponenty i style.",
+    "Kontekst projektu, metadane, zmienne i zrzuty ekranu przez serwer MCP w aplikacji desktopowej Figma. Na razie tylko do odczytu.",
+  "marketplace.plugin.figma.prompt.handoff": "Przekaż plik procesu płatności: wypisz ekrany, komponenty i style.",
   "marketplace.plugin.figma.prompt.audit": "Sprawdź ten plik pod kątem niespójnych odstępów i kolorów.",
   "marketplace.plugin.figma.prompt.assets": "Wyeksportuj ikony marketingowe w 2x do pakietu aplikacji.",
   "marketplace.plugin.paper.tagline": "Płótno projektowe oparte na HTML i CSS",
   "marketplace.plugin.paper.description":
-    "Paper pozwala agentom czytać i zapisywać plik projektu otwarty w Paper Desktop: sprawdzać obszary robocze, zaznaczenia, obliczone style, JSX i tokeny oraz tworzyć lub zmieniać ramki, tekst i style. Zainstaluj Paper Desktop, otwórz go raz i otwórz plik przed rozpoczęciem. OpenBot uruchamia Paper CLI instalowane przez Paper Desktop. Paper nie wymaga klucza. Narzędzia zapisu zmieniają otwarty plik, więc sprawdź każdy zapis, zanim go zatwierdzisz.",
+    "Paper pozwala agentom czytać i zapisywać plik projektu otwarty w Paper Desktop: sprawdzać plansze, zaznaczenia, obliczone style, JSX i tokeny oraz tworzyć lub zmieniać ramki, tekst i style. Zainstaluj Paper Desktop, otwórz go raz i otwórz plik przed rozpoczęciem. OpenBot uruchamia Paper CLI instalowane przez Paper Desktop. Paper nie wymaga klucza. Narzędzia zapisu zmieniają otwarty plik, więc sprawdź każdy zapis, zanim go zatwierdzisz.",
   "marketplace.plugin.paper.app":
     "Czyta i zapisuje otwarty plik Paper Desktop przez lokalny serwer MCP przekazywany przez Paper CLI. Wymaga Paper Desktop z otwartym plikiem.",
   "marketplace.plugin.paper.prompt.implement":
@@ -266,10 +266,10 @@ export const messages = {
   },
   "marketplace.skill.installMenu.here": "Jesteś tutaj",
   "marketplace.skill.installMenu.change": {
-    one: "{name} jest zainstalowana: {label}. Zmień",
-    few: "{name} jest zainstalowana: {label}. Zmień",
-    many: "{name} jest zainstalowana: {label}. Zmień",
-    other: "{name} jest zainstalowana: {label}. Zmień",
+    one: "Umiejętność {name} jest zainstalowana u: {label}. Zmień",
+    few: "Umiejętność {name} jest zainstalowana u: {label}. Zmień",
+    many: "Umiejętność {name} jest zainstalowana u: {label}. Zmień",
+    other: "Umiejętność {name} jest zainstalowana u: {label}. Zmień",
   },
   "marketplace.skill.doc": "SKILL.md",
   "marketplace.try.in": "Wypróbuj w: {name}",
@@ -300,9 +300,9 @@ export const messages = {
     "Zainstaluj {name} na komputerze, na którym działają ci agenci: jej aplikacja uruchamia serwer na tym komputerze.",
   "marketplace.error.installOnHost":
     "Zainstaluj {name} na komputerze, na którym działają ci agenci: jej aplikacja wymaga logowania w przeglądarce.",
-  "marketplace.error.appInvalid": "Nie można dodać {name}: {reason}",
+  "marketplace.error.appInvalid": "Nie można dodać aplikacji {name}: {reason}",
   "marketplace.error.uninstallNoServer": "Wybierz lokalny serwer, aby odinstalować wtyczkę.",
-  "marketplace.error.uninstallPartial": "Nie udało się usunąć części elementów {name}. {failures}",
+  "marketplace.error.uninstallPartial": "Nie udało się usunąć części elementów wtyczki {name}. {failures}",
   "marketplace.error.actionFailed": "Nie udało się wykonać akcji w Marketplace. Spróbuj ponownie.",
   "marketplace.thisAgent": "ten agent",
 } as const satisfies PartialTranslation<typeof source>;

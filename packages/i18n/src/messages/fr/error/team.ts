@@ -77,6 +77,7 @@ export const messages = {
   "error.team.conversationPageTooLarge":
     "Un message de cette conversation est trop volumineux pour être envoyé à cet appareil. Ouvrez la conversation sur l’ordinateur qui exécute le serveur.",
   "error.team.agentImportUnsupported": "L’importation d’agents n’est pas prise en charge par cette connexion.",
+  "error.team.instanceTransferUnsupported": "Cette connexion ne prend pas en charge le transfert d’agents.",
   "error.team.liveActivityUnsupported": "Cet hôte ne peut pas mettre à jour l’activité en direct d’un téléphone.",
   "error.team.pushNotificationsUnsupported": "Cet hôte ne peut pas envoyer de notifications à un téléphone.",
   "error.team.agentUpdateTargetRequired": "Un agent à mettre à jour est requis.",
@@ -124,5 +125,5 @@ export const messages = {
   "error.team.signInRelayUnknown": "Cette connexion est terminée ou n’existe pas.",
   "error.team.signInRelayUsed": "Cette connexion a déjà été envoyée.",
   "error.team.signInRelayMismatch": "Cette adresse ne vient pas de cette connexion.",
-  "error.team.signInRelayLinkUnknown": "Aucun agent de ce serveur n'a affiché ce lien de connexion.",
+  "error.team.signInRelayLinkUnknown": "Aucun agent de ce serveur n’a affiché ce lien de connexion.",
 } as const satisfies PartialTranslation<typeof source>;

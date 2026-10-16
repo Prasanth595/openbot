@@ -47,7 +47,7 @@ export const messages = {
   "channel.members.isLead": "{name} est le responsable du canal",
   "channel.members.makeLeadLabel": "Faire de {name} le responsable du canal",
   "channel.members.lead": "Responsable du canal",
-  "channel.members.makeLead": "Désigner comme responsable du canal",
+  "channel.members.makeLead": "Désigner responsable",
   "channel.members.remove": "Retirer {name}",
   "channel.members.removeUnavailable": "Retirer le membre indisponible {id}",
   "channel.members.add": "Ajouter un membre",

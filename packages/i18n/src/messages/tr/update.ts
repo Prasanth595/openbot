@@ -6,7 +6,7 @@ export const messages = {
   "update.action.checking": "Güncellemeler denetleniyor…",
   "update.action.download": "Güncellemeyi indir",
   "update.action.downloading": "Güncelleme indiriliyor…",
-  "update.action.restart": "Güncellemek için yeniden başlat",
+  "update.action.restart": "Yeniden başlat ve güncelle",
   "update.action.restarting": "Yeniden başlatılıyor…",
   "update.action.retryDownload": "İndirmeyi tekrar dene",
   "update.managedByHost": "Ana makine tarafından yönetiliyor",

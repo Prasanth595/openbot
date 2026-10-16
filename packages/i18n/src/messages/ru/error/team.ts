@@ -48,7 +48,7 @@ export const messages = {
   "error.team.agentNotFound": "Агент не найден.",
   "error.team.routeNotFound": "Маршрут не найден.",
   "error.team.requestFailed": "Запрос не удался.",
-  "error.team.tooManySignInAttempts": "Слишком много попыток входа. Повторите позже.",
+  "error.team.tooManySignInAttempts": "Слишком много попыток входа. Повторите попытку позже.",
   "error.team.clientUpdateRequired": "Обновите этот клиент OpenBot, прежде чем подключаться к этому хосту.",
   "error.team.hostUpdateRequired": "Обновите OpenBot на хосте, прежде чем подключаться.",
   "error.team.sidebarLayoutUnavailable": "Структура боковой панели недоступна.",
@@ -71,8 +71,9 @@ export const messages = {
   "error.team.routineCanvasTooLarge":
     "Эта схема регулярных задач слишком велика для отправки на это устройство. Сократите инструкции регулярных задач на компьютере, где работает сервер.",
   "error.team.conversationPageTooLarge":
-    "Сообщение в этом разговоре слишком велико для отправки на это устройство. Откройте разговор на компьютере, где работает сервер.",
+    "Сообщение в этом диалоге слишком велико для отправки на это устройство. Откройте диалог на компьютере, где работает сервер.",
   "error.team.agentImportUnsupported": "Это подключение не поддерживает импорт агентов.",
+  "error.team.instanceTransferUnsupported": "Это подключение не поддерживает перенос агентов.",
   "error.team.liveActivityUnsupported": "Этот хост не может обновлять Live Activity на телефоне.",
   "error.team.pushNotificationsUnsupported": "Этот хост не может отправлять уведомления на телефон.",
   "error.team.agentUpdateTargetRequired": "Нужно указать агента для обновления.",
@@ -85,7 +86,7 @@ export const messages = {
   "error.team.attachmentNotFound": "Вложение не найдено.",
   "error.team.sharedFileTooLarge": "Общий файл превышает лимит 100 МБ.",
   "error.team.workspaceFileTooLarge": "Файл рабочего пространства превышает лимит 100 МБ.",
-  "error.team.browserViewUnavailable": "Живой вид браузера недоступен.",
+  "error.team.browserViewUnavailable": "Просмотр браузера в реальном времени недоступен.",
   "error.team.browserSessionNotFound": "Сессия вида браузера не найдена.",
   "error.team.mcpUnsupported": "Это подключение не поддерживает серверы MCP.",
   "error.team.storageUnsupported": "Это подключение не поддерживает хранилище.",

@@ -70,7 +70,7 @@ export const messages = {
     "エージェントとのチャットで、自分のメッセージにそのエージェントの色を使います。文字が読みにくい場合はオフにしてください。",
   "mobile.settings.animations.title": "アニメーション",
   "mobile.settings.animations.footer":
-    "アニメーションをオフにすると、アプリ全体の動きを減らします。電話の設定で「視差効果を減らす」がオンのときも、アプリは動きを減らします。その場合、下のアニメーションはオフのままです。",
+    "アニメーションをオフにすると、アプリ全体の動きを減らします。スマートフォンの設定で「視差効果を減らす」がオンのときも、アプリは動きを減らします。その場合、下のアニメーションはオフのままです。",
   "mobile.settings.animations.all": "アニメーション",
   "mobile.settings.animations.chatZoom": "チャットへのズーム",
   "mobile.settings.animations.chatZoomFooter":
@@ -120,9 +120,9 @@ export const messages = {
   "mobile.settings.notifications.sound.default": "iOS のデフォルト",
   "mobile.settings.notifications.sound.defaultAndroid": "Android のデフォルト",
   "mobile.settings.notifications.soundFooter":
-    "通知とライブアクティビティはこのサウンドを再生します。ライブアクティビティは画面も点灯します。 OpenBot のサウンドは、デスクトップアプリがタスク完了時に鳴らすサウンドです。 その次の 4 つは、デスクトップアプリのサウンドテーマのサウンドです。",
+    "通知とライブアクティビティはこのサウンドを再生します。ライブアクティビティは画面も点灯します。OpenBot のサウンドは、デスクトップアプリがタスク完了時に鳴らすサウンドです。その次の 4 つは、デスクトップアプリのサウンドテーマのサウンドです。",
   "mobile.settings.notifications.soundFooterAndroid":
-    "通知はこのサウンドを再生します。 OpenBot のサウンドは、デスクトップアプリがタスク完了時に鳴らすサウンドです。 その次の 4 つは、デスクトップアプリのサウンドテーマのサウンドです。",
+    "通知はこのサウンドを再生します。OpenBot のサウンドは、デスクトップアプリがタスク完了時に鳴らすサウンドです。その次の 4 つは、デスクトップアプリのサウンドテーマのサウンドです。",
   "mobile.settings.notifications.notifyAbout": "通知する内容",
   "mobile.settings.notifications.level.all": "すべてのアクティビティ",
   "mobile.settings.notifications.level.needsMe": "自分が必要なときのみ",

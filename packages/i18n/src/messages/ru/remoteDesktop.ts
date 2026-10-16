@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/remoteDesktop";
 
 export const messages = {
-  "remoteDesktop.controlFailed": "Удалённое управление не удалось. Подключитесь снова и повторите попытку.",
+  "remoteDesktop.controlFailed": "Сбой удалённого управления. Подключитесь снова и повторите попытку.",
   "remoteDesktop.startFailed": "Не удалось запустить удалённое управление.",
   "remoteDesktop.disconnectFailed": "Не удалось отключить удалённое управление.",
   "remoteDesktop.switchDisplayFailed": "Не удалось переключить общий монитор.",

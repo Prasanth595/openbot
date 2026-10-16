@@ -101,9 +101,9 @@ export const messages = {
   "mobile.settings.notifications.title": "Powiadomienia",
   "mobile.settings.notifications.toggle": "Zezwalaj na powiadomienia",
   "mobile.settings.notifications.footer":
-    "Agenci powiadomią Cię, gdy skończą, zatrzymają się z błędem albo będą potrzebować Twojej odpowiedzi, zgody lub kroku w przeglądarce. Nic nie przychodzi, gdy używasz OpenBot tutaj albo w aplikacji na komputer. Gdy widać Aktywność na żywo, to ona pokazuje zdarzenie.",
+    "Agenci powiadomią cię, gdy skończą, zatrzymają się z błędem albo będą potrzebować twojej odpowiedzi, zatwierdzenia lub kroku w przeglądarce. Nic nie przychodzi, gdy używasz OpenBot tutaj albo w aplikacji na komputer. Gdy widać Aktywność na żywo, to ona pokazuje zdarzenie.",
   "mobile.settings.notifications.footerAndroid":
-    "Agenci powiadomią Cię, gdy skończą, zatrzymają się z błędem albo będą potrzebować Twojej odpowiedzi, zgody lub kroku w przeglądarce. Nic nie przychodzi, gdy używasz OpenBot tutaj albo w aplikacji na komputer.",
+    "Agenci powiadomią cię, gdy skończą, zatrzymają się z błędem albo będą potrzebować twojej odpowiedzi, zatwierdzenia lub kroku w przeglądarce. Nic nie przychodzi, gdy używasz OpenBot tutaj albo w aplikacji na komputer.",
   "mobile.settings.notifications.denied": "Powiadomienia OpenBot są wyłączone w Ustawieniach iOS.",
   "mobile.settings.notifications.deniedAndroid": "Powiadomienia OpenBot są wyłączone w ustawieniach Androida.",
   "mobile.settings.notifications.openSettings": "Otwórz Ustawienia iOS",

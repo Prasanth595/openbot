@@ -3,10 +3,10 @@ import type { messages as source } from "../../en/status/messaging";
 
 export const messages = {
   "status.messaging.working": "Pracuję nad tym…",
-  "status.messaging.queued": "Czeka: OpenBot pracuje nad innym żądaniem. Odpowiedź pojawi się tutaj.",
+  "status.messaging.queued": "Oczekiwanie: OpenBot pracuje nad innym żądaniem. Odpowiedź pojawi się tutaj.",
   "status.messaging.busy": "Czeka zbyt wiele żądań. Spróbuj ponownie później.",
   "status.messaging.failed": "OpenBot nie mógł dokończyć tego żądania. Szczegóły są na hoście OpenBot.",
-  "status.messaging.noAnswer": "OpenBot zakończył bez pisemnej odpowiedzi.",
+  "status.messaging.noAnswer": "OpenBot zakończył pracę bez odpowiedzi tekstowej.",
   "status.messaging.noAgent": "Żaden agent nie może tu jeszcze odpowiadać. Dodaj Slack Orchestrator w OpenBot.",
   "status.messaging.delegated": "Członek zespołu nad tym pracuje. Odpowiedź pojawi się tutaj.",
   "status.messaging.stopped": "Zatrzymano.",

@@ -4,7 +4,7 @@ import type { messages as source } from "../../en/error/backend";
 export const messages = {
   "error.backend.eventsUnavailable": "Zdarzenia nie są dostępne na tym hoście.",
   "error.backend.databaseIntegrity": "Baza danych OpenBot nie przeszła kontroli integralności.",
-  "error.backend.webhookRouteLimit": "Host może mieć maksymalnie {limit} rutyn webhook.",
+  "error.backend.webhookRouteLimit": "Host może mieć maksymalnie {limit} rutyn typu webhook.",
   "error.backend.webhookSettingsInvalid": "Sprawdź ustawienia webhooka i spróbuj ponownie.",
   "error.backend.webhookRouteUnavailable":
     "Publiczna trasa webhooka nie jest gotowa. Sprawdź połączenie z hostem i spróbuj ponownie.",
@@ -78,7 +78,7 @@ export const messages = {
   "error.backend.memorySelectionUserControlled":
     "Ten wybór wspomnienia kontroluje użytkownik. Zachowaj wybór użytkownika.",
   "error.backend.memorySearchQuery": "Wpisz jedno lub więcej słów wyszukiwania, do 256 znaków.",
-  "error.backend.memoryOperationFailed": "Operacja na pamięci nie powiodła się. Spróbuj ponownie.",
+  "error.backend.memoryOperationFailed": "Operacja na wspomnieniach nie powiodła się. Spróbuj ponownie.",
   "error.backend.memoryGone": "To wspomnienie już nie istnieje.",
   "error.backend.routineGone": "Ta rutyna już nie istnieje.",
   "error.backend.turnNotStarted": "Dostawca nie rozpoczął tej tury.",
@@ -92,7 +92,7 @@ export const messages = {
   "error.backend.agentMemoryLimitReached":
     "Masz {saved} z {limit} wspomnień. Aby zrobić miejsce, zaktualizuj jedno wspomnienie przez memoryId, łącząc tekst dwóch powiązanych wspomnień, a następnie zapomnij drugie lub zapomnij wspomnienie, które nie jest już prawdziwe. Potem spróbuj ponownie.",
   "error.backend.agentMemoryLimitExceeded":
-    "Masz {saved} wspomnień, a limit wynosi {limit}. Użytkownik ustawił limit poniżej liczby zapisanych wspomnień. Nie zapominaj wspomnień, aby zrobić miejsce. Powiedz użytkownikowi, że to wspomnienie nie zostało zapisane.",
+    "Liczba zapisanych wspomnień: {saved}. Limit: {limit}. Użytkownik ustawił limit poniżej liczby zapisanych wspomnień. Nie zapominaj wspomnień, aby zrobić miejsce. Powiedz użytkownikowi, że to wspomnienie nie zostało zapisane.",
   "error.backend.channelHistoryLeadRequired": "Wybierz lidera kanału, aby przygotować wspólną historię.",
   "error.backend.channelHistoryArriving": "Wspólna wiadomość wciąż napływa. Wznów, gdy będzie kompletna.",
   "error.backend.channelHistoryInvalid": "Podsumowanie historii jest nieprawidłowe. Wznów, aby spróbować ponownie.",
@@ -142,7 +142,7 @@ export const messages = {
   "error.backend.routineOncePassed": "Czas tej jednorazowej rutyny już minął. Wybierz późniejszą datę lub godzinę.",
   "error.backend.routineTimezoneInvalid": "Strefa czasowa rutyny jest nieprawidłowa.",
   "error.backend.routineCronFields": "Własne harmonogramy muszą mieć pięć pól cron.",
-  "error.backend.routineCronValueInvalid": "Wartość cron {field} jest nieprawidłowa.",
+  "error.backend.routineCronValueInvalid": "Wartość pola cron {field} jest nieprawidłowa.",
   "error.backend.routineCronFieldEmpty": "Pole cron {field} jest puste.",
   "error.backend.routineDeletionBusy": "Dla tego agenta trwa już usuwanie innej rutyny.",
   "error.backend.routineWaitForAgent": "Poczekaj na zakończenie operacji agenta, zanim uruchomisz rutynę.",
@@ -192,7 +192,7 @@ export const messages = {
   "error.backend.mcpSignInNoBrowser": "To logowanie MCP nie może otworzyć przeglądarki.",
   "error.backend.mcpSignInNotWebPage": "Adres logowania nie jest stroną internetową.",
   "error.backend.mcpSignInRequired":
-    "Ten serwer wymaga zalogowania. Wybierz Zaloguj się, aby kontynuować w przeglądarce.",
+    "Ten serwer wymaga zalogowania. Wybierz „Zaloguj się”, aby kontynuować w przeglądarce.",
   "error.backend.mcpSignInOnHost": "Ten serwer wymaga zalogowania. Zaloguj się do niego w OpenBot na komputerze hosta.",
   "error.backend.mcpSignInNeedsHttps":
     "Ten serwer wymaga zalogowania, a OpenBot loguje się tylko przez https. Zmień URL na {url}.",
@@ -228,8 +228,8 @@ export const messages = {
   "error.backend.workspaceFileOutside": "Plik obszaru roboczego musi znajdować się w obszarze roboczym agenta.",
   "error.backend.workspacePathNotFile": "Ścieżka obszaru roboczego nie jest plikiem.",
   "error.backend.workspacePathNotDirectory": "Ścieżka obszaru roboczego nie jest folderem.",
-  "error.backend.workspacePathMissing": "Nic nie istnieje pod ścieżką {path} w obszarze roboczym agenta {root}.",
-  "error.backend.workspacePathMissingForMember": "Nic nie istnieje pod ścieżką {path} w obszarze roboczym agenta.",
+  "error.backend.workspacePathMissing": "Pod ścieżką {path} w obszarze roboczym agenta {root} nic nie ma.",
+  "error.backend.workspacePathMissingForMember": "Pod ścieżką {path} w obszarze roboczym agenta nic nie ma.",
   "error.backend.useChannelTaskControls": "Użyj kontrolek zadań kanału dla tego przydziału.",
   "error.backend.editFinished": "Ta edycja została już zakończona.",
   "error.backend.editCancelled": "Ta edycja została anulowana, więc wiadomość zachowuje oryginalny tekst.",
@@ -265,7 +265,7 @@ export const messages = {
   "error.backend.browserTabNotFound": "Nie znaleziono karty przeglądarki.",
   "error.backend.authActive": "Uwierzytelnianie jest już aktywne.",
   "error.backend.authHttpsRequired": "Bezpieczne uwierzytelnianie wymaga HTTPS.",
-  "error.backend.authDigitsRange": "Kody uwierzytelniające wymagają 4–12 cyfr.",
+  "error.backend.authDigitsRange": "Kody uwierzytelniające muszą mieć od 4 do 12 cyfr.",
   "error.backend.authExpired": "Żądanie uwierzytelnienia wygasło.",
   "error.backend.authDigitsRequired": "Wpisz wymaganą liczbę cyfr.",
   "error.backend.browserViewProtected": "Widok przeglądarki jest chroniony podczas uwierzytelniania.",
@@ -281,4 +281,19 @@ export const messages = {
     "Serwer logowania tego serwera MCP zmienił się, więc OpenBot nie wysłał mu aplikacji logowania. Jeśli ta zmiana jest poprawna, usuń aplikację logowania i dodaj ją ponownie.",
   "error.backend.mcpSignInAppNoServer": "Zapisz ten serwer MCP jako serwer URL, zanim dodasz aplikację logowania.",
   "error.backend.mcpSignInAppUnavailable": "Ten komputer nie może przechować aplikacji logowania.",
+  "error.backend.taskMoveRefused": "Jako zadanie można uruchomić tylko wiadomość wysłaną wyłącznie do tego agenta.",
+  "error.backend.taskNotFound": "To zadanie nie jest dostępne.",
+  "error.backend.taskClosed": "To zadanie jest zamknięte. Otwórz je ponownie, aby wysłać wiadomość.",
+  "error.backend.taskStillRunning": "To zadanie nadal działa. Poczekaj, aż się zatrzyma, a potem je zamknij.",
+  "error.backend.taskTitleRequired": "Nadaj zadaniu krótki tytuł.",
+  "error.backend.taskToolInvalid":
+    "Nadaj zadaniu tytuł o długości maksymalnie 120 znaków i opis, który mówi, co zrobić.",
+  "error.backend.taskOwnChatOnly":
+    "Zadanie możesz rozpocząć tylko z własnego czatu. Kanał, rozmowa w komunikatorze ani inne zadanie nie mogą go rozpocząć.",
+  "error.backend.taskOpenLimit":
+    "Liczba otwartych zadań tego agenta: {count}. Zanim rozpoczniesz kolejne zadanie, poczekaj, aż użytkownik zamknie jedno z nich.",
+  "error.backend.taskOpenLimitReached":
+    "Liczba otwartych zadań tego agenta: {count}. Zamknij zadanie, a potem rozpocznij lub otwórz inne.",
+  "error.backend.taskRemoteUnsupported": "Zadania są dostępne tylko dla agentów na tym komputerze.",
+  "error.backend.taskStartFailed": "OpenBot nie może rozpocząć zadania. Zamiast tego wykonaj pracę w tej turze.",
 } as const satisfies PartialTranslation<typeof source>;

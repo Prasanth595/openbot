@@ -6,7 +6,7 @@ export const messages = {
   "update.action.checking": "Проверка обновлений…",
   "update.action.download": "Загрузить обновление",
   "update.action.downloading": "Загрузка обновления…",
-  "update.action.restart": "Перезапустить для обновления",
+  "update.action.restart": "Перезапустить и обновить",
   "update.action.restarting": "Перезапуск…",
   "update.action.retryDownload": "Повторить загрузку",
   "update.managedByHost": "Управляется хостом",
@@ -65,6 +65,6 @@ export const messages = {
     "Убедитесь, что вы в сети, и повторите попытку. Все изменения также есть в полном списке изменений.",
   "update.whatsNew.empty.title": "В этой версии нет новых функций",
   "update.whatsNew.empty.body": "Для этой версии нет примечаний. Все изменения есть в полном списке изменений.",
-  "update.whatsNew.changelog": "Полный список изменений",
+  "update.whatsNew.changelog": "Все изменения",
   "update.whatsNew.done": "Понятно",
 } as const satisfies PartialTranslation<typeof source>;

@@ -29,7 +29,7 @@ export const messages = {
   "provider.status.setupFailed": "Échec de la configuration",
   "provider.status.connected": "Connecté",
   "provider.status.notDownloaded": "Non téléchargé",
-  "provider.status.ready": "Environnement d’exécution installé",
+  "provider.status.ready": "Installé",
   "provider.status.notConnected": "Non connecté",
   "provider.status.notInstalled": "Non installé",
   "provider.status.updateRequired": "Mise à jour requise",
@@ -38,15 +38,15 @@ export const messages = {
 
   "provider.status.off": "Désactivé",
   "provider.gemini.hostSignIn":
-    "Pour connecter Gemini, ouvrez OpenBot sur l’hôte et sélectionnez Connecter dans Réglages > Fournisseurs. La connexion Google nécessite un navigateur sur cet hôte. La connexion à distance n’est pas prise en charge.",
+    "Pour connecter Gemini, ouvrez OpenBot sur l’hôte et sélectionnez « Connecter » dans Réglages > Fournisseurs. La connexion Google nécessite un navigateur sur cet hôte. La connexion à distance n’est pas prise en charge.",
   // Which account tier the OpenCode row runs on. It shows only while it adds to the runtime
   // badge: a saved key leaves the runtime "Connected" to speak for the row.
   "provider.key.free": "Gratuit",
 
   // The buttons on a provider row, and the name a screen reader reads for each. The name repeats
   // the provider, because a list of rows all saying "Connect" tells a screen reader user nothing.
-  "provider.action.connect": "Se connecter",
-  "provider.action.reconnect": "Se reconnecter",
+  "provider.action.connect": "Connecter",
+  "provider.action.reconnect": "Reconnecter",
   "provider.action.restart": "Redémarrer",
   "provider.action.updateTo": "Mettre à jour vers {version}",
   "provider.action.checkForUpdates": "Rechercher des mises à jour",
@@ -57,7 +57,7 @@ export const messages = {
   "provider.action.install": "Installer",
   "provider.action.signIn": "Se connecter",
   "provider.action.apiKey": "Clé d’API",
-  "provider.action.signInWithCode": "Se connecter avec un code",
+  "provider.action.signInWithCode": "Connexion par code",
   "provider.action.pasteAddress": "Coller l’adresse",
   "provider.aria.download": "Télécharger {name}",
   "provider.aria.cancel": "Annuler {name}",
@@ -146,7 +146,7 @@ export const messages = {
   "provider.museKey.label": "Clé d’API Meta",
   "provider.geminiKey.title": "Clé d’API Gemini",
   "provider.geminiKey.description":
-    "Enregistrez une clé d’API Gemini sur cet ordinateur. Une clé enregistrée est utilisée à la place de votre compte Google. Pour vous connecter avec Google, supprimez la clé et sélectionnez Connecter sur la ligne Gemini.",
+    "Enregistrez une clé d’API Gemini sur cet ordinateur. Une clé enregistrée est utilisée à la place de votre compte Google. Pour vous connecter avec Google, supprimez la clé et sélectionnez « Connecter » sur la ligne Gemini.",
   "provider.geminiKey.label": "Clé d’API Gemini",
   "provider.openCodeKey.title": "Se connecter à OpenCode Go",
   "provider.openCodeKey.description":

@@ -11,7 +11,7 @@ export const messages = {
   "mobile.workspace.status.attemptPrefix": "Tentativo ",
   "mobile.workspace.status.retryIn": "Riprova tra {seconds} secondi",
   "mobile.workspace.section.agents": "Agenti",
-  "mobile.workspace.error.directoryUnavailable": "La cartella del server non è disponibile.",
+  "mobile.workspace.error.directoryUnavailable": "L'elenco dei server non è disponibile.",
   "mobile.workspace.error.sectionsLoadFailed": "Impossibile caricare le sezioni. Riprova.",
   "mobile.workspace.error.transportNotReady": "Il trasporto mobile non è pronto.",
   "mobile.workspace.error.sectionsUnsupported": "Questo host non supporta la modifica delle sezioni.",

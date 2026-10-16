@@ -27,7 +27,7 @@ export const messages = {
   "remoteDesktop.setup.check.displays": "ディスプレイの利用可否",
   "remoteDesktop.setup.check.guiSession": "macOS ユーザーセッション",
   "remoteDesktop.setup.state.notChecked": "未確認",
-  "remoteDesktop.setup.state.checking": "確認しています…",
+  "remoteDesktop.setup.state.checking": "確認中…",
   "remoteDesktop.setup.state.allowed": "許可済み",
   "remoteDesktop.setup.state.blocked": "ブロック",
   "remoteDesktop.setup.state.unavailable": "利用不可",
@@ -48,7 +48,7 @@ export const messages = {
   "remoteDesktop.setup.grantAccess": "{name} へのアクセスを許可",
   "remoteDesktop.setup.grant": "許可",
   "remoteDesktop.setup.grantHelp":
-    "Mac で Sunshine アカウントにログインしたままにしてください。そのアカウントで「システム設定」→「プライバシーとセキュリティ」からアクセスを許可します。「許可」を押すとヘルパーウインドウが開きます。Sunshine.app を権限のリストにドラッグしてください。",
+    "Mac で Sunshine アカウントにログインしたままにしてください。そのアカウントで「システム設定」→「プライバシーとセキュリティ」からアクセスを許可します。「許可」を押すとヘルパーウィンドウが開きます。Sunshine.app を権限のリストにドラッグしてください。",
   "remoteDesktop.setup.restartRequired":
     "Sunshine の再起動が必要です。実行中のリモートデスクトップセッションを終了してから、もう一度確認してください。実行中のセッションは再起動されません。",
   "remoteDesktop.setup.showInFinder": "Finder で Sunshine を表示",

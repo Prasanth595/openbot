@@ -14,7 +14,7 @@ export const messages = {
   "server.connection.loading": "{name} yükleniyor",
   "server.connection.connecting": "{name} sunucusuna bağlanılıyor",
   "server.connection.reconnecting": "{name} sunucusuna yeniden bağlanılıyor",
-  "server.connection.blocked": "{name} ilginizi bekliyor",
+  "server.connection.blocked": "{name} için işleminiz gerekiyor",
   "server.connection.nextRetry": "Sonraki deneme {seconds} saniye içinde.",
   "server.connection.wakeHint": "Sunucuyu başlatmak için bu çalışma alanını kullanın veya Tekrar dene'yi seçin.",
   "server.connection.planHint": "Sunucu planını kontrol etmek için hesap ayarlarını açın.",
@@ -87,21 +87,21 @@ export const messages = {
   "server.add.currency.label": "Para birimi",
   "server.add.billing.monthly": "Aylık",
   "server.add.billing.yearly": "Yıllık",
-  "server.add.billing.save": "%{percent} tasarruf edin",
+  "server.add.billing.save": "%{percent} tasarruf",
   "server.add.billedMonthly": "Aylık faturalandırılır",
   "server.add.billedYearly": "Yıllık {price} faturalandırılır",
   // {amount} "€120" gibi biçimlendirilmiş bir tutardır. Yıllık fiyatın ardından gelir.
-  "server.add.yearlySaving": "{amount} tasarruf edin",
+  "server.add.yearlySaving": "{amount} tasarruf",
   // Görsel olarak gizli. Yıllık faturalandırmada üzeri çizili aylık fiyattan önce gelir.
   "server.add.regularPrice": "Normal fiyat {price}",
-  "server.add.choosePlan": "{plan} planını seçin",
+  "server.add.choosePlan": "{plan} planını seç",
   // Planların altındaki alt bilgi; planların karşılamadığı gereksinimler içindir.
   "server.add.custom.title": "Daha fazla güce veya özel bir çözüme mi ihtiyacınız var?",
   "server.add.custom.description":
     "Özel altyapı, ek depolama alanı veya iş akışınıza göre uyarlanmış özellikler edinin.",
   "server.add.custom.action": "Bize ulaşın",
   "server.add.join.title": "Davetiniz var mı?",
-  "server.add.join.action": "Bir sunucuya katılın",
+  "server.add.join.action": "Sunucuya katıl",
   // Hesap maksimum sayıda barındırılan sunucuya sahip olduğunda gösterilir. Planlar devre dışıdır.
   "server.add.limit.title": "Bu hesap maksimum sunucu sayısına ulaştı",
   "server.add.limit.description": {
@@ -122,14 +122,14 @@ export const messages = {
   "server.hosted.defaultNameNumbered": "Bulut sunucusu {number}",
   "server.hosted.step.create": "Makineyi oluştur",
   "server.hosted.step.start": "OpenBot'u başlat",
-  "server.hosted.step.connect": "Hesabınıza bağlanın",
+  "server.hosted.step.connect": "Hesaba bağlan",
   "server.hosted.detail.create.reserve": "Özel bir makine ayrılıyor",
   "server.hosted.detail.create.copy": "OpenBot makineye kopyalanıyor",
-  "server.hosted.detail.create.key": "Tek seferlik giriş anahtarı ekleniyor",
+  "server.hosted.detail.create.key": "Tek seferlik oturum açma anahtarı ekleniyor",
   "server.hosted.detail.start.boot": "Makine açılıyor",
   "server.hosted.detail.start.app": "OpenBot başlatılıyor",
   "server.hosted.detail.start.wait": "OpenBot'un yanıt vermesi bekleniyor",
-  "server.hosted.detail.connect.signIn": "Sizin adınıza giriş yapılıyor",
+  "server.hosted.detail.connect.signIn": "Sizin adınıza oturum açılıyor",
   "server.hosted.detail.connect.publish": "Sunucu hesabınıza ekleniyor",
   "server.hosted.detail.connect.check": "Bağlantı kontrol ediliyor",
   "server.hosted.readyTitle": "{name} hazır",
@@ -222,6 +222,9 @@ export const messages = {
   "server.settings.hostedSitesDescription": "Bu sunucudaki ajanların openbot.site üzerinde yayımladığı statik siteler.",
   "server.settings.importTitle": "İçe aktar",
   "server.settings.importDescription": "Ajanlarınızı Grok Bot'tan bu sunucuya taşıyın.",
+  "server.settings.transferTitle": "Aktarım",
+  "server.settings.transferDescription":
+    "Bu sunucunun ajanlarını ve sunucu ayarlarını bir dosyaya veya bir dosyadan taşıyın.",
   "server.settings.connectorsTitle": "Bağlayıcılar",
   "server.settings.connectorsDescription": "Bu sunucudaki her ajanın kullanabileceği hesapları bağlayın.",
   "server.settings.routinesTitle": "Rutinler",
@@ -269,7 +272,7 @@ export const messages = {
   "server.settings.published": "Sunucu yayımlandı",
   "server.settings.address": "Sunucu adresi",
   "server.settings.addressDescription": "Sunucuya bağlanmak için bu adresi kullanın.",
-  "server.settings.private": "Gizli",
+  "server.settings.private": "Özel",
   "server.settings.copyAddress": "Sunucu adresini kopyala",
   "server.settings.setUpDesktopTitle": "Uzak masaüstünü ayarlayın",
   "server.settings.setUpDesktopDescription": "Bu Mac'i başka bir bilgisayardan görüntüleyin ve kontrol edin.",
@@ -291,7 +294,7 @@ export const messages = {
   "server.settings.remoteOnline": "Ana makine çevrim içi. Yayımlama sahibi tarafından kontrol edilir.",
   "server.settings.remoteOffline": "Ana makine çevrim dışı. Yayımlama sahibi tarafından kontrol edilir.",
   "server.settings.saveIdentityFirst": "Yayımlamadan önce sunucu kimliğini kaydedin.",
-  "server.settings.reachable": "Çevrim içi erişilebilir. Yalnızca davet edilen kişiler giriş yapabilir.",
+  "server.settings.reachable": "Çevrim içi erişilebilir. Yalnızca davet edilen kişiler oturum açabilir.",
   "server.settings.notReachable": "Çevrim içi erişilemez. Mevcut üyeler ve davetler kalır.",
   "server.settings.removeTitle": "Sunucuyu kaldır",
   "server.settings.removeDescription":
@@ -318,8 +321,8 @@ export const messages = {
   "server.settings.restartHide": "Gizle",
   "server.settings.restartProgressTitle": "{name} yeniden başlatılıyor",
   "server.settings.restartProgressDescription":
-    "{time} · genellikle yaklaşık bir dakika. Bu pencereyi gizleyebilirsin.",
-  "server.settings.restartDoneTitle": "{name} yeniden çevrimiçi",
+    "{time} · genellikle yaklaşık bir dakika. Bu pencereyi gizleyebilirsiniz.",
+  "server.settings.restartDoneTitle": "{name} yeniden çevrim içi",
   "server.settings.restartDoneDescription": "Yeniden başlatma {time} sürdü.",
   "server.settings.restartFailedTitle": "{name} başlamadı",
   "server.settings.restartFailedDescription": "Sunucu durdu ama yeniden başlamadı.",
@@ -354,7 +357,7 @@ export const messages = {
   "server.members.makeAdminTitle": "{name} yönetici yapılsın mı?",
   "server.members.makeMemberTitle": "{name} üye yapılsın mı?",
   "server.members.roleChangeDescription":
-    "{name} adlı kişinin bu sunucuyla bağlantısı kesilebilir ve yeniden bağlanması gerekebilir.",
+    "{name} adlı kişinin bu sunucuyla bağlantısı kesilebilir. Bu durumda yeniden bağlanması gerekir.",
   "server.invite.invalidEmail": "Geçerli bir e-posta adresi girin.",
   "server.invite.title": "Kişileri davet edin",
   "server.invite.description":
@@ -423,15 +426,15 @@ export const messages = {
   "server.desktop.startHint": "Sunucu başlığındaki monitör düğmesinden Uzaktan kontrolü başlatın.",
   "server.settings.providersTitle": "Sağlayıcılar",
   "server.settings.providersDescription": "Bu sunucuyu çalıştıran bilgisayarın yapay zeka sağlayıcılarını yönetin.",
-  "server.settings.providersSwitchNote": "Yapay zekâ sağlayıcılarını yönetmek için {name} sunucusuna geçin.",
+  "server.settings.providersSwitchNote": "Yapay zeka sağlayıcılarını yönetmek için {name} sunucusuna geçin.",
   "server.settings.providersSwitch": "Bu sunucuya geç",
   // Sunucu Ayarları > Güncellemeler: Katılınan bir sunucunun ana makinesinin OpenBot güncellemesi. {name} sunucudur.
   "server.settings.updatesTitle": "Güncellemeler",
   "server.settings.updatesDescription": "Bu sunucuyu çalıştıran bilgisayardaki OpenBot'u güncelleyin.",
   "server.update.hostTitle": "{name} üzerinde OpenBot",
   "server.update.version": "OpenBot {version}",
-  "server.update.status.idle": "En son sürümü bulmak için güncellemeleri kontrol edin.",
-  "server.update.status.checking": "Güncellemeler kontrol ediliyor…",
+  "server.update.status.idle": "En son sürümü bulmak için güncellemeleri denetleyin.",
+  "server.update.status.checking": "Güncellemeler denetleniyor…",
   "server.update.status.available": "{version} sürümü mevcut.",
   // {progress} %42 gibi bir yüzdedir.
   "server.update.status.downloading": "{version} indiriliyor · {progress}",
@@ -439,7 +442,7 @@ export const messages = {
   "server.update.status.ready": "{version} indirildi.",
   "server.update.status.installing": "{name}, güncellemeyi yüklemek için yeniden başlatılıyor.",
   "server.update.status.upToDate": "{name} üzerinde OpenBot güncel.",
-  "server.update.status.checkFailed": "{name} güncellemeleri kontrol edemedi. Tekrar deneyin.",
+  "server.update.status.checkFailed": "{name} güncellemeleri denetleyemedi. Tekrar deneyin.",
   "server.update.status.downloadFailed": "{name} güncellemeyi indiremedi. Tekrar deneyin.",
   "server.update.status.installFailed":
     "{name} güncellemeyi yükleyemedi. O bilgisayarın başka hiçbir kullanıcısının OpenBot çalıştırmadığından emin olun, ardından tekrar deneyin.",
@@ -459,8 +462,8 @@ export const messages = {
   "server.update.path.manual":
     "Bu kurulum kendini değiştiremez. Ana makine yöneticisinden uyumlu sürümü github.com/nightly-labs/openbot/releases adresinden yüklemesini isteyin. Mevcut OpenBot verilerini saklayın.",
   "server.update.path.unavailable":
-    "Bu bir geliştirme derlemesidir. Güncellemeleri kontrol etmek için yüklü bir OpenBot sürümü kullanın.",
-  "server.update.check": "Güncellemeleri kontrol et",
+    "Bu bir geliştirme derlemesidir. Güncellemeleri denetlemek için yüklü bir OpenBot sürümü kullanın.",
+  "server.update.check": "Güncellemeleri denetle",
   "server.update.start": "Boşta olduğunda güncelle",
   "server.update.restartNow": "Şimdi yeniden başlat",
   "server.update.cancel": "Güncellemeyi iptal et",
@@ -477,9 +480,9 @@ export const messages = {
   "server.update.disabledTitle": "Uzaktan güncellemeler kapalı",
   "server.update.disabledDescription":
     "{name} kullanıcısı sunucu üyelerinin güncelleme yapmasını kapattı. OpenBot uygulamasını güncellemesini veya ayarı açmasını isteyin.",
-  "server.update.managedTitle": "Güncellemeleri bir Ana Makine Yöneticisi kontrol ediyor",
+  "server.update.managedTitle": "Güncellemeleri OpenBot Host Manager yönetiyor",
   "server.update.managedDescription":
-    "OpenBot Ana Makine Yöneticisi {name} makinesini günceller. Ana makine yöneticisiyle iletişime geçin.",
+    "OpenBot Host Manager, {name} sunucusunu günceller. Ana makine yöneticisiyle iletişime geçin.",
   "server.update.unsupportedTitle": "{name} kendini güncelleyemiyor",
   "server.update.unsupportedDescription":
     "Bu OpenBot derlemesinde güncelleyici yok. {name} üzerine yeni bir sürüm yükleyin.",

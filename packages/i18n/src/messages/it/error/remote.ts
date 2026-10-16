@@ -81,7 +81,7 @@ export const messages = {
   "error.remote.hostDidNotConnect": "L'host WebRTC non si è collegato.",
   "error.remote.connectionCancelled": "La connessione remota è stata annullata.",
   "error.remote.hostDisconnected": "L'host WebRTC si è disconnesso.",
-  "error.remote.eventGap": "La sequenza di eventi dell'host ha un buco.",
+  "error.remote.eventGap": "La sequenza di eventi dell'host presenta un'interruzione.",
   "error.remote.malformedKnownEvent": "L'host ha restituito un evento noto malformato.",
   "error.remote.fileTransportIsStopped": "Il trasporto file WebRTC è fermo.",
   "error.remote.fileTooLarge": "Il file è più grande di 100 MB.",
@@ -110,7 +110,7 @@ export const messages = {
   "error.remote.desktopDidNotConnect": "Il desktop non si è collegato.",
   "error.remote.connectionDropped": "Il server non ha più questa connessione. Nuova connessione in corso.",
   "error.remote.dataBeforeAuth": "L'host ha inviato dati prima dell'autenticazione.",
-  "error.remote.eventStreamGap": "Lo stream di eventi dell'host ha un buco.",
+  "error.remote.eventStreamGap": "Lo stream di eventi dell'host presenta un'interruzione.",
   "error.remote.malformedEvent": "L'host ha restituito un evento malformato.",
   "error.remote.desktopIdentityNotVerified": "Non è stato possibile verificare l'identità del desktop.",
   "error.remote.attachmentConnectionChanged": "La connessione dell'allegato è cambiata.",
@@ -124,7 +124,7 @@ export const messages = {
   "error.remote.preferencesUnreadable": "Non è stato possibile leggere le preferenze della chat salvate.",
   "error.remote.accountAuthRequired": "Serve l'autenticazione dell'account.",
   "error.remote.serverIdentityChanged":
-    "L'identità del server è cambiata. Rifiuto di sostituire la chiave host attendibile.",
+    "L'identità del server è cambiata. La chiave host attendibile non viene sostituita.",
   "error.remote.pairedIdentityChanged":
     "L'identità del desktop associato manca o è cambiata. Scansiona un nuovo codice da quel desktop.",
   "error.remote.permanentInviteNoEmail": "Gli inviti permanenti non si possono inviare per email.",

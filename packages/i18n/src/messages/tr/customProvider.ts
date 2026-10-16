@@ -50,7 +50,7 @@ export const messages = {
     "Kaldırıldı. OpenCode listeyi geçerli görev durduktan sonra okur. Ardından Bağlan'a basın.",
   "customProvider.removed.notRunning": "Kaldırıldı. OpenCode bir sonraki başlatılışında listeyi okur.",
   "customProvider.saveFailed": "OpenBot bu uç noktayı kaydedemedi.",
-  "customProvider.removeFailed": "OpenBot {name} ögesini kaldıramadı.",
+  "customProvider.removeFailed": "OpenBot {name} öğesini kaldıramadı.",
   "customProvider.saveUnavailable": "Bu derleme bir uç noktayı kaydedemez.",
   "customProvider.removeUnavailable": "Bu derleme bir uç noktayı kaldıramaz.",
 

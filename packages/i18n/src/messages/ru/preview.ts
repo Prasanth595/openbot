@@ -19,7 +19,7 @@ export const messages = {
   "preview.unavailable": "Просмотр недоступен.",
   "preview.unsupported.title": "Просмотр недоступен",
   "preview.unsupported.description": "Файл этого типа можно открыть в программе по умолчанию.",
-  "preview.unsupported.openExternally": "Открыть во внешней программе",
+  "preview.unsupported.openExternally": "Открыть в программе",
   "preview.spreadsheet.readFailed": "Не удалось прочитать эту таблицу.",
   "preview.spreadsheet.truncated": "Просмотр ограничен первыми {rows} строками и {columns} столбцами.",
 } as const satisfies PartialTranslation<typeof source>;

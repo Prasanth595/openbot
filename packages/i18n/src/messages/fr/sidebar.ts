@@ -85,17 +85,17 @@ export const messages = {
   "sidebar.state.routineFailed": { one: "Échec de la routine", other: "{count} routines ont échoué" },
   "sidebar.state.routineWaiting": { one: "Routine en attente", other: "{count} routines en attente" },
   "sidebar.state.routineRunning": { one: "Routine en cours", other: "{count} routines en cours" },
-  "sidebar.state.usageLimit": "Attend la limite",
-  "sidebar.state.usageLimitResets": "Attend la limite · {reset}",
+  "sidebar.state.usageLimit": "Limite atteinte",
+  "sidebar.state.usageLimitResets": "Limite atteinte · {reset}",
   "sidebar.state.usageLimitChip": "Limite",
   "sidebar.delete.pending": "Suppression…",
   "sidebar.delete.title": "Supprimer {name} ?",
   "sidebar.delete.agentDescription":
     "Cette action retire l’agent et sa conversation OpenBot de l’application. Sa file d’attente, ses souvenirs, ses routines et son espace de travail sont supprimés. L’historique conservé séparément par le fournisseur CLI connecté n’est pas supprimé.",
   "sidebar.delete.channelDescription":
-    "Cette action arrête le canal. Son historique reste dans Canaux supprimés, en aperçu uniquement. Vous ne pouvez pas le restaurer. Les agents membres sont conservés.",
+    "Cette action arrête le canal. Son historique reste dans « Canaux supprimés », en aperçu uniquement. Vous ne pouvez pas le restaurer. Les agents membres sont conservés.",
   "sidebar.delete.sectionDescription":
-    "Les agents de cette section seront déplacés vers Non attribué. Aucun agent ne sera supprimé.",
+    "Les agents de cette section seront déplacés vers « Non attribué ». Aucun agent ne sera supprimé.",
   "sidebar.delete.failed": "Impossible de supprimer cet élément. Réessayez.",
   "sidebar.announce.updateFailed": "Impossible de mettre à jour la barre latérale. Réessayez.",
   "sidebar.announce.movedToPosition": "{name} déplacé en position {position} sur {total}.",
@@ -106,7 +106,7 @@ export const messages = {
   "sidebar.announce.personFallback": "personne",
   "sidebar.announce.chatFallback": "discussion",
   "sidebar.mobileApp.title": "OpenBot sur mobile",
-  "sidebar.mobileApp.body": "L'app est maintenant disponible sur iPhone et Android.",
-  "sidebar.mobileApp.howToInstall": "Comment l'installer",
-  "sidebar.mobileApp.dismiss": "Masquer l'annonce de l'app mobile",
+  "sidebar.mobileApp.body": "L’app est maintenant disponible sur iPhone et Android.",
+  "sidebar.mobileApp.howToInstall": "Comment l’installer",
+  "sidebar.mobileApp.dismiss": "Masquer l’annonce de l’app mobile",
 } as const satisfies PartialTranslation<typeof source>;

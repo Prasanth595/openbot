@@ -234,7 +234,7 @@ export const messages = {
   "error.backend.workspaceFileOutside":
     "ワークスペースのファイルはエージェントのワークスペース内にある必要があります。",
   "error.backend.workspacePathNotFile": "ワークスペースのパスがファイルではありません。",
-  "error.backend.workspacePathNotDirectory": "ワークスペースのパスがフォルダではありません。",
+  "error.backend.workspacePathNotDirectory": "ワークスペースのパスがフォルダーではありません。",
   "error.backend.workspacePathMissing": "エージェントのワークスペース {root} に {path} はありません。",
   "error.backend.workspacePathMissingForMember": "エージェントのワークスペースに {path} はありません。",
   "error.backend.useChannelTaskControls": "この割り当てにはチャンネルのタスク操作を使用してください。",
@@ -258,7 +258,7 @@ export const messages = {
   "error.backend.browserUrlTooLong": "ブラウザーの URL が長すぎます。",
   "error.backend.browserTabLimit": "ブラウザーで開けるタブは {limit} 個までです。",
   "error.backend.browserLowMemory":
-    "このサーバーはメモリが不足しているため、ブラウザーで新しいタブを開けません。タブを閉じるか、ほかのエージェントの作業が終わるまでお待ちください。",
+    "このサーバーはメモリーが不足しているため、ブラウザーで新しいタブを開けません。タブを閉じるか、ほかのエージェントの作業が終わるまでお待ちください。",
   "error.backend.browserOpenFailed": "{url} を開けません: {reason}",
   "error.backend.popupSecureInput":
     "セキュア入力中はポップアップがブロックされます。セキュア入力を完了またはキャンセルしてから、ページからもう一度お試しください。",
@@ -289,4 +289,18 @@ export const messages = {
   "error.backend.mcpSignInAppNoServer":
     "サインインアプリを追加する前に、この MCP サーバーを URL サーバーとして保存してください。",
   "error.backend.mcpSignInAppUnavailable": "このコンピューターではサインインアプリを保存できません。",
+  "error.backend.taskMoveRefused": "タスクとして実行できるのは、このエージェントだけに送信したメッセージのみです。",
+  "error.backend.taskNotFound": "このタスクは利用できません。",
+  "error.backend.taskClosed": "このタスクは閉じています。メッセージを送信するには、もう一度開いてください。",
+  "error.backend.taskStillRunning": "このタスクはまだ実行中です。停止するまで待ってから閉じてください。",
+  "error.backend.taskTitleRequired": "タスクに短いタイトルを付けてください。",
+  "error.backend.taskToolInvalid": "タスクには 120 文字以内のタイトルと、何をするかを説明する指示を付けてください。",
+  "error.backend.taskOwnChatOnly":
+    "タスクは自分のチャットからのみ開始してください。チャンネル、メッセージングの会話、別のタスクからは開始できません。",
+  "error.backend.taskOpenLimit":
+    "このエージェントにはすでに {count} 件の開いているタスクがあります。別のタスクを開始する前に、ユーザーがいずれかを閉じるまで待ってください。",
+  "error.backend.taskOpenLimitReached":
+    "このエージェントには {count} 件の開いているタスクがあります。タスクを閉じてから、別のタスクを開始するか開いてください。",
+  "error.backend.taskRemoteUnsupported": "タスクは、このコンピューター上のエージェントでのみ利用できます。",
+  "error.backend.taskStartFailed": "OpenBot はタスクを開始できませんでした。代わりにこのターンで作業してください。",
 } as const satisfies PartialTranslation<typeof source>;

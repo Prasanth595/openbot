@@ -31,7 +31,7 @@ export const messages = {
   "mobile.link.template.section.routines": "Rotinas",
   "mobile.link.template.section.noRoutines": "Nenhuma rotina.",
   "mobile.link.template.skill.local": "Habilidade local (somente SKILL.md)",
-  "mobile.link.template.skill.marketplace": "Habilidade da Loja, versão {version}",
+  "mobile.link.template.skill.marketplace": "Habilidade da loja, versão {version}",
   "mobile.link.template.server.title": "Adicionar ao servidor",
   "mobile.link.template.server.footer":
     "A lista mostra apenas os servidores dos quais você é proprietário ou administrador.",

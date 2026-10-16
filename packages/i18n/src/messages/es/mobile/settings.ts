@@ -58,10 +58,10 @@ export const messages = {
   "mobile.settings.sessions.disconnect": "Desconectar",
   "mobile.settings.dictation.title": "Dictado",
   "mobile.settings.dictation.footer":
-    "El idioma en el que dictas un mensaje. Automático usa el primer idioma de los ajustes del teléfono que admite el reconocimiento de voz.",
+    "El idioma en el que dictas un mensaje. «Automático» usa el primer idioma de los ajustes del teléfono que admite el reconocimiento de voz.",
   "mobile.settings.dictation.automatic": "Automático",
   "mobile.settings.appearance.title": "Apariencia",
-  "mobile.settings.appearance.footer": "Sistema sigue la apariencia de tu dispositivo.",
+  "mobile.settings.appearance.footer": "«Sistema» sigue la apariencia de tu dispositivo.",
   "mobile.settings.appearance.saveFailed": "No se pudo guardar la apariencia. Vuelve a intentarlo.",
   "mobile.settings.appearance.system": "Sistema",
   "mobile.settings.appearance.light": "Claro",
@@ -72,7 +72,7 @@ export const messages = {
     "Tus mensajes en el chat de un agente usan su color. Desactívalo si el texto es difícil de leer.",
   "mobile.settings.animations.title": "Animaciones",
   "mobile.settings.animations.footer":
-    "Desactiva Animaciones para reducir el movimiento en toda la aplicación. Cuando Reducir movimiento está activado en los ajustes de tu teléfono, la aplicación también reduce el movimiento. Las animaciones de abajo se mantienen desactivadas.",
+    "Desactiva «Animaciones» para reducir el movimiento en toda la aplicación. Cuando «Reducir movimiento» está activado en los ajustes de tu teléfono, la aplicación también reduce el movimiento. En ese caso, las animaciones de abajo se mantienen desactivadas.",
   "mobile.settings.animations.all": "Animaciones",
   "mobile.settings.animations.chatZoom": "Ampliar los chats",
   "mobile.settings.animations.chatZoomFooter":
@@ -94,13 +94,13 @@ export const messages = {
   "mobile.settings.feedback.retry": "Reintentar guardar el ajuste háptico",
   "mobile.settings.liveActivities.title": "Actividades en directo",
   "mobile.settings.liveActivities.footer":
-    "Muestra el trabajo de los agentes, mensajes, preguntas y aprobaciones en la pantalla de bloqueo y Dynamic Island mientras OpenBot está en ejecución.",
+    "Muestra el trabajo de los agentes, mensajes, preguntas y aprobaciones en la pantalla de bloqueo y en la Dynamic Island mientras OpenBot está en ejecución.",
   "mobile.settings.liveActivities.toggle": "Mostrar actividad de los agentes",
   "mobile.settings.liveActivities.retry": "Reintentar guardar el ajuste de actividades en directo",
   "mobile.settings.notifications.title": "Notificaciones",
   "mobile.settings.notifications.toggle": "Permitir notificaciones",
   "mobile.settings.notifications.footer":
-    "Los agentes te avisan cuando terminan, se detienen con un error o necesitan tu respuesta, una aprobación o un paso en el navegador. No llega nada mientras usas OpenBot aquí o en la app de escritorio. Mientras se muestra la actividad en directo, ella muestra el evento en su lugar.",
+    "Los agentes te avisan cuando terminan, se detienen con un error o necesitan tu respuesta, una aprobación o un paso en el navegador. No llega nada mientras usas OpenBot aquí o en la app de escritorio. Mientras se muestra la actividad en directo, el evento aparece allí en su lugar.",
   "mobile.settings.notifications.footerAndroid":
     "Los agentes te avisan cuando terminan, se detienen con un error o necesitan tu respuesta, una aprobación o un paso en el navegador. No llega nada mientras usas OpenBot aquí o en la app de escritorio.",
   "mobile.settings.notifications.denied": "Las notificaciones de OpenBot están desactivadas en los Ajustes de iOS.",
@@ -142,7 +142,7 @@ export const messages = {
   "mobile.settings.notifications.serverFooter":
     "Los eventos de este servidor que notifican a este teléfono. La app de escritorio tiene sus propios ajustes.",
   "mobile.settings.notifications.serverUnsupported":
-    "Este servidor no puede enviar notificaciones. Actualiza OpenBot en el ordenador que lo ejecuta.",
+    "Este servidor no puede enviar notificaciones. Actualiza OpenBot en el equipo que lo ejecuta.",
   "mobile.settings.notifications.channel": "Notificaciones de agentes ({sound})",
   "mobile.settings.notifications.channelSilent": "Notificaciones de agentes (sin sonido)",
   "mobile.settings.privacy.title": "Privacidad",

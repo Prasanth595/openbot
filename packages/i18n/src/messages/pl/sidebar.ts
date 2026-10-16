@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/sidebar";
 
 export const messages = {
-  "sidebar.frame.label": "Nawigacja agentów",
+  "sidebar.frame.label": "Nawigacja po agentach",
   "sidebar.nav.label": "Lista czatów",
   "sidebar.nav.freeArea": "Wolny obszar paska bocznego",
   "sidebar.nav.actions": "Akcje paska bocznego",
@@ -130,7 +130,7 @@ export const messages = {
   "sidebar.delete.agentDescription":
     "To usunie agenta i jego rozmowę OpenBot z aplikacji. Jego kolejka, wspomnienia, rutyny i obszar roboczy zostaną usunięte. Historia przechowywana osobno przez połączonego dostawcę CLI nie zostanie usunięta.",
   "sidebar.delete.channelDescription":
-    "To zatrzyma kanał. Jego historia zostanie w sekcji „Usunięte kanały” tylko do podglądu. Nie można go przywrócić. Agenci członkowie zostaną zachowani.",
+    "To zatrzyma kanał. Jego historia zostanie w sekcji „Usunięte kanały” tylko do podglądu. Nie można go przywrócić. Agenci należący do kanału zostaną zachowani.",
   "sidebar.delete.sectionDescription":
     "Agenci z tej sekcji zostaną przeniesieni do „Bez sekcji”. Żaden agent nie zostanie usunięty.",
   "sidebar.delete.failed": "Nie udało się usunąć tego elementu. Spróbuj ponownie.",

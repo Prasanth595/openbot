@@ -3,7 +3,7 @@ import type { messages as source } from "../../en/mobile/browser";
 
 export const messages = {
   "mobile.browser.open": "Открыть браузер",
-  "mobile.browser.liveView": "Трансляция {title}",
+  "mobile.browser.liveView": "{title} в реальном времени",
   "mobile.browser.help": "Как пользоваться браузером",
   "mobile.browser.options": "Параметры браузера",
   "mobile.browser.trackpadMode": "Режим трекпада",
@@ -35,7 +35,7 @@ export const messages = {
   "mobile.browser.keyboard.field": "Ввод на странице",
   "mobile.browser.reconnect": "Переподключиться",
   "mobile.browser.status.connecting": "Подключение к браузеру…",
-  "mobile.browser.status.ended": "Трансляция завершена.",
+  "mobile.browser.status.ended": "Просмотр в реальном времени завершён.",
   "mobile.browser.status.offline": "Сервер не подключён.",
   "mobile.browser.status.noTab": "У {name} нет открытой вкладки браузера.",
   "mobile.browser.status.unsupported":
@@ -47,8 +47,8 @@ export const messages = {
   "mobile.browser.notice.copyTooLarge": "Выделенный текст слишком длинный для копирования.",
   "mobile.browser.notice.clipboardEmpty": "Буфер обмена пуст.",
   "mobile.browser.notice.pasteFailed": "Не удалось прочитать буфер обмена.",
-  "mobile.browser.notice.handBackFailed": "Не удалось вернуть управление браузером. Попробуйте ещё раз.",
-  "mobile.browser.notice.navigateFailed": "Страница не ответила. Попробуйте ещё раз.",
+  "mobile.browser.notice.handBackFailed": "Не удалось вернуть управление браузером. Повторите попытку.",
+  "mobile.browser.notice.navigateFailed": "Страница не ответила. Повторите попытку.",
   "mobile.browser.notice.openTabFailed": "Не удалось открыть новую вкладку.",
   "mobile.browser.notice.closeTabFailed": "Не удалось закрыть вкладку.",
   "mobile.browser.help.title": "Работа с браузером",

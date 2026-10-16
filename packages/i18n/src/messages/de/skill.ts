@@ -39,7 +39,7 @@ export const messages = {
   "skill.confirm.removeBody": "OpenBot entfernt diese Fähigkeit vom Agenten. Der Chatverlauf bleibt erhalten.",
   "skill.confirm.replace": "Fähigkeit ersetzen",
   "skill.confirm.remove": "Fähigkeit entfernen",
-  "skill.unavailable.readOnly": "Entfernte Fähigkeiten sind schreibgeschützt.",
+  "skill.unavailable.readOnly": "Remote-Fähigkeiten sind schreibgeschützt.",
   "skill.unavailable.add": "Füge diese Fähigkeit hinzu, um sie auszuprobieren.",
   "skill.unavailable.repair": "Repariere diese Fähigkeit, um sie auszuprobieren.",
   "skill.unavailable.updateVersion": "Aktualisiere diese Fähigkeit, um diese Version auszuprobieren.",

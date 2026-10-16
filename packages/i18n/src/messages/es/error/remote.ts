@@ -103,7 +103,7 @@ export const messages = {
   "error.remote.signalTimeout": "Se agotó el tiempo de la conexión de Remote Signal.",
   "error.remote.serverConnectionReplaced": "Se reemplazó la conexión al servidor.",
   "error.remote.selectedServerOffline": "El servidor seleccionado está sin conexión.",
-  "error.remote.hostConnectionOffline": "La conexión del host está sin conexión.",
+  "error.remote.hostConnectionOffline": "No hay conexión con el host.",
   "error.remote.appInBackground": "La aplicación está en segundo plano.",
   "error.remote.desktopRestoreNeeded": "Es necesario restablecer la conexión con el escritorio.",
   "error.remote.desktopOffline": "El escritorio quedó sin conexión.",

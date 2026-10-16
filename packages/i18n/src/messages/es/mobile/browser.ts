@@ -28,7 +28,7 @@ export const messages = {
   "mobile.browser.keyboard.show": "Mostrar teclado",
   "mobile.browser.keyboard.hide": "Ocultar teclado",
   "mobile.browser.keyboard.field": "Escribir en la página",
-  "mobile.browser.reconnect": "Volver a conectar",
+  "mobile.browser.reconnect": "Reconectar",
   "mobile.browser.status.connecting": "Conectando con el navegador…",
   "mobile.browser.status.ended": "La vista en directo terminó.",
   "mobile.browser.status.offline": "El servidor no está conectado.",

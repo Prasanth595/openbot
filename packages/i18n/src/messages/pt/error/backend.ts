@@ -2,12 +2,12 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/backend";
 
 export const messages = {
-  "error.backend.eventsUnavailable": "Eventos não estão disponíveis neste host.",
+  "error.backend.eventsUnavailable": "Os eventos não estão disponíveis neste computador anfitrião.",
   "error.backend.databaseIntegrity": "O banco de dados do OpenBot falhou na verificação de integridade.",
-  "error.backend.webhookRouteLimit": "Um host pode ter no máximo {limit} rotinas de webhook.",
+  "error.backend.webhookRouteLimit": "Um computador anfitrião pode ter no máximo {limit} rotinas de webhook.",
   "error.backend.webhookSettingsInvalid": "Verifique as configurações do webhook e tente de novo.",
   "error.backend.webhookRouteUnavailable":
-    "A rota pública do webhook não está pronta. Verifique a conexão do host e tente de novo.",
+    "A rota pública do webhook não está pronta. Verifique a conexão do computador anfitrião e tente de novo.",
   "error.backend.browserViewRemoteOnly":
     "A visualização ao vivo do navegador só está disponível para um computador anfitrião remoto.",
   "error.backend.browserViewUnsupported":
@@ -60,7 +60,7 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "Um membro do canal está indisponível.",
   "error.backend.channelArchived": "Restaure este canal antes de enviar mensagens ou alterar tarefas.",
   "error.backend.channelsRetired":
-    "Os canais não são mais compatíveis. Coloque os agentes em uma seção da barra lateral para que trabalhem juntos.",
+    "Os canais não têm mais suporte. Coloque os agentes em uma seção da barra lateral para que trabalhem juntos.",
   "error.backend.channelReferenceUnavailable": "A mensagem do canal usada como referência está indisponível.",
   "error.backend.channelTaskNotFound": "Tarefa do canal não encontrada.",
   "error.backend.channelTaskComplete": "Esta tarefa já está concluída.",
@@ -188,23 +188,23 @@ export const messages = {
   "error.backend.mcpServerLimit": "O OpenBot mantém até {limit} servidores MCP.",
   "error.backend.mcpServerNameTaken": "Já existe um servidor MCP chamado {name}.",
   "error.backend.mcpServerNoAnswer": "O servidor não respondeu em {seconds} segundos.",
-  "error.backend.mcpSignInNotAccepted": "O servidor não aceitou essa autenticação.",
+  "error.backend.mcpSignInNotAccepted": "O servidor não aceitou esse login.",
   "error.backend.mcpCommandNotFound": "Comando não encontrado: {command}",
   "error.backend.mcpRegistrationRefused":
-    "O servidor de autenticação ainda não aceita o OpenBot como aplicativo. Sua conta não é a causa. Use outra forma de conexão, como um servidor MCP local.",
-  "error.backend.mcpSignInAbandonedGeneric": "A autenticação foi abandonada.",
-  "error.backend.mcpSignInForgotten": "A autenticação MCP foi esquecida enquanto estava em andamento.",
-  "error.backend.mcpSignInAbandoned": "A autenticação MCP foi abandonada.",
-  "error.backend.mcpSignInNoBrowser": "Esta autenticação MCP não consegue abrir um navegador.",
-  "error.backend.mcpSignInNotWebPage": "O endereço de autenticação não é uma página da web.",
+    "O servidor de login ainda não aceita o OpenBot como aplicativo. Sua conta não é a causa. Use outra forma de conexão, como um servidor MCP local.",
+  "error.backend.mcpSignInAbandonedGeneric": "O login foi abandonado.",
+  "error.backend.mcpSignInForgotten": "O login MCP foi esquecido enquanto estava em andamento.",
+  "error.backend.mcpSignInAbandoned": "O login MCP foi abandonado.",
+  "error.backend.mcpSignInNoBrowser": "Este login MCP não consegue abrir um navegador.",
+  "error.backend.mcpSignInNotWebPage": "O endereço de login não é uma página da web.",
   "error.backend.mcpSignInRequired":
     "Este servidor pede que você se autentique. Escolha Entrar para continuar no navegador.",
-  "error.backend.mcpSignInOnHost": "Este servidor pede autenticação. Entre nele pelo OpenBot no computador anfitrião.",
+  "error.backend.mcpSignInOnHost": "Este servidor pede login. Entre nele pelo OpenBot no computador anfitrião.",
   "error.backend.mcpSignInNeedsHttps":
-    "Este servidor pede autenticação, e o OpenBot só se autentica por https. Altere a URL para {url}.",
-  "error.backend.mcpSignInCancelled": "A autenticação foi cancelada.",
-  "error.backend.mcpSignInTimedOut": "A autenticação não foi concluída no navegador.",
-  "error.backend.mcpSignInResponseTimedOut": "A resposta da autenticação não chegou a tempo.",
+    "Este servidor pede login, e o OpenBot só faz login por https. Altere a URL para {url}.",
+  "error.backend.mcpSignInCancelled": "O login foi cancelado.",
+  "error.backend.mcpSignInTimedOut": "O login não foi concluído no navegador.",
+  "error.backend.mcpSignInResponseTimedOut": "A resposta do login não chegou a tempo.",
   "error.backend.mcpServerExited":
     "O servidor parou antes de responder. Execute o comando em um terminal para ver o erro.",
   "error.backend.mcpServerUnreachable": "O OpenBot não conseguiu acessar o servidor. Verifique a URL e sua rede.",
@@ -215,7 +215,7 @@ export const messages = {
   "error.backend.mcpServerIncompatible":
     "Algo respondeu neste endereço, mas não como um servidor MCP por Streamable HTTP. Verifique a URL e atualize o app que executa o servidor.",
   "error.backend.mcpRemoteBridge":
-    "{reason} Este comando executa a ponte mcp-remote. Escolha Streamable HTTP com a URL {url} e o OpenBot faz a autenticação para você.",
+    "{reason} Este comando executa a ponte mcp-remote. Escolha Streamable HTTP com a URL {url} e o OpenBot faz o login para você.",
   "error.backend.oauthNotHttps": "O endpoint OAuth {origin} não usa https, por isso as credenciais não foram enviadas.",
   "error.backend.oauthTooManyRedirects": "O endpoint OAuth redirecionou vezes demais.",
   "error.backend.oauthRedirectOrigin":
@@ -242,10 +242,9 @@ export const messages = {
   "error.backend.editSaved": "Esta edição já foi salva.",
   "error.backend.editSavedDifferent": "Esta edição já foi salva com outro conteúdo. Suas alterações não foram salvas.",
   "error.backend.useChannelTaskControlsWork": "Use os controles de tarefas do canal para o trabalho no canal.",
-  "error.backend.steerTurnChanged": "O turno ativo mudou antes de esta mensagem ser encaminhada para ele.",
-  "error.backend.steerUnsupported":
-    "Este provedor não pode direcionar um turno em execução. Sua mensagem fica na fila.",
-  "error.backend.steerQueuedOnly": "Somente mensagens na fila podem ser encaminhadas para o turno ativo.",
+  "error.backend.steerTurnChanged": "O turno ativo mudou antes que esta mensagem pudesse orientá-lo.",
+  "error.backend.steerUnsupported": "Este provedor não pode orientar um turno em execução. Sua mensagem fica na fila.",
+  "error.backend.steerQueuedOnly": "Somente mensagens na fila podem orientar o turno ativo.",
   "error.backend.promptInactive": "Esta pergunta não está mais ativa.",
   "error.backend.promptAnswerMismatch": "Uma resposta não corresponde a uma pergunta ativa.",
   "error.backend.approvalInactive": "Esta aprovação não está mais ativa.",
@@ -262,9 +261,9 @@ export const messages = {
   "error.backend.popupSecureInput":
     "Pop-ups são bloqueados durante a entrada segura. Conclua ou cancele a entrada segura e tente novamente na página.",
   "error.backend.popupUnsupportedType":
-    "Este tipo de pop-up não é compatível. Use um link normal ou um botão de entrada na página.",
+    "Este tipo de pop-up não é compatível. Use um link normal ou um botão de login na página.",
   "error.backend.popupUnsupportedAddress":
-    "Este pop-up usa um endereço incompatível. Use uma opção de entrada HTTP ou HTTPS na página.",
+    "Este pop-up usa um endereço incompatível. Use uma opção de login HTTP ou HTTPS na página.",
   "error.backend.popupTabLimit":
     "O limite de abas do navegador foi atingido. Feche uma aba e tente novamente na página.",
   "error.backend.popupLoadFailed": "Não foi possível carregar o pop-up. Tente entrar novamente pela página original.",
@@ -281,11 +280,27 @@ export const messages = {
     "O servidor respondeu com {status}. Verifique a chave de API ou outras credenciais.",
   "error.backend.mcpServerHttpUrl":
     "O servidor respondeu com {status}. Verifique a URL. O link pode estar incorreto, expirado ou excluído.",
-  "error.backend.mcpSignInAppUrl": "O app de autenticação precisa de uma URL de servidor válida.",
-  "error.backend.mcpSignInAppClientId": "Digite o ID do cliente do app de autenticação.",
+  "error.backend.mcpSignInAppUrl": "O app de login precisa de uma URL de servidor válida.",
+  "error.backend.mcpSignInAppClientId": "Digite o ID do cliente do app de login.",
   "error.backend.mcpSignInAppIssuerChanged":
-    "O servidor de autenticação deste servidor MCP mudou, então o OpenBot não enviou o app de autenticação a ele. Se a mudança estiver correta, remova o app de autenticação e adicione-o de novo.",
+    "O servidor de login deste servidor MCP mudou, então o OpenBot não enviou o app de login a ele. Se a mudança estiver correta, remova o app de login e adicione-o de novo.",
   "error.backend.mcpSignInAppNoServer":
-    "Salve este servidor MCP como servidor de URL antes de adicionar um app de autenticação.",
-  "error.backend.mcpSignInAppUnavailable": "Este computador não consegue guardar um app de autenticação.",
+    "Salve este servidor MCP como servidor de URL antes de adicionar um app de login.",
+  "error.backend.mcpSignInAppUnavailable": "Este computador não consegue guardar um app de login.",
+  "error.backend.taskMoveRefused":
+    "Só uma mensagem que você enviou apenas para este agente pode ser executada como tarefa.",
+  "error.backend.taskNotFound": "Esta tarefa não está disponível.",
+  "error.backend.taskClosed": "Esta tarefa está fechada. Abra-a de novo para enviar uma mensagem.",
+  "error.backend.taskStillRunning": "Esta tarefa ainda está em execução. Aguarde até ela parar e depois feche-a.",
+  "error.backend.taskTitleRequired": "Dê um título curto à tarefa.",
+  "error.backend.taskToolInvalid":
+    "Dê à tarefa um título de no máximo 120 caracteres e uma instrução que diga o que fazer.",
+  "error.backend.taskOwnChatOnly":
+    "Inicie uma tarefa só a partir do seu próprio chat. Um canal, uma conversa de mensagens ou outra tarefa não pode iniciar uma.",
+  "error.backend.taskOpenLimit":
+    "Este agente já tem {count} tarefas abertas. Aguarde até o usuário fechar uma antes de iniciar outra tarefa.",
+  "error.backend.taskOpenLimitReached":
+    "Este agente tem {count} tarefas abertas. Feche uma tarefa e depois inicie ou abra outra.",
+  "error.backend.taskRemoteUnsupported": "As tarefas só estão disponíveis para agentes neste computador.",
+  "error.backend.taskStartFailed": "O OpenBot não conseguiu iniciar a tarefa. Faça o trabalho neste turno.",
 } as const satisfies PartialTranslation<typeof source>;

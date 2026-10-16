@@ -36,10 +36,10 @@ export const messages = {
   "billing.lifecycle.cancelRenewal": "Cancelar renovação",
   "billing.lifecycle.cancelTitle": "Cancelar a renovação de {name}?",
   "billing.lifecycle.cancelDescription":
-    "Este servidor funciona até o fim do período pago. Depois ele para. Seus agentes, conversas e arquivos ficam. Outros servidores não são afetados.",
+    "Este servidor funciona até o fim do período pago. Depois ele para. Seus agentes, conversas e arquivos são mantidos. Outros servidores não são afetados.",
   "billing.lifecycle.resumeDescription":
-    "A renovação automática será retomada para este servidor. Seus agentes, conversas e arquivos ficam.",
-  "billing.lifecycle.dataStays": "A renovação está desligada. Seus dados ficam quando o plano termina.",
+    "A renovação automática será retomada para este servidor. Seus agentes, conversas e arquivos são mantidos.",
+  "billing.lifecycle.dataStays": "A renovação está desligada. Seus dados são mantidos quando o plano termina.",
   "billing.lifecycle.deleteServer": "Excluir servidor…",
   "billing.lifecycle.whenDelete": "Quando este servidor deve ser excluído?",
   "billing.lifecycle.atPeriodEnd": "No fim do período · {date}",
@@ -61,13 +61,13 @@ export const messages = {
   "billing.lifecycle.schedule": "Excluir no fim do período",
   "billing.lifecycle.keep": "Manter servidor",
   "billing.lifecycle.deleteNow": "Excluir agora",
-  "billing.lifecycle.deletesOn": "Exclui em {date}",
+  "billing.lifecycle.deletesOn": "Exclusão em {date}",
   "billing.lifecycle.scheduledDescription": "A renovação está desligada. Seu servidor e seus dados serão excluídos.",
   "billing.lifecycle.scheduleDescription":
     "Use seu servidor pelo resto do período pago. Depois seus agentes, conversas e arquivos serão excluídos permanentemente. Você pode interromper a exclusão com Manter servidor antes dessa data.",
   "billing.lifecycle.keepTitle": "Manter {name}?",
   "billing.lifecycle.keepDescription":
-    "Seu servidor e seus dados ficam. A exclusão agendada será interrompida e a renovação automática será retomada.",
+    "Seu servidor e seus dados são mantidos. A exclusão agendada será interrompida e a renovação automática será retomada.",
   "billing.lifecycle.deleteTitle": "Excluir {name}?",
   "billing.lifecycle.deleteDescription":
     "Excluir permanentemente este servidor, seus agentes, conversas e arquivos. Sua assinatura termina agora. Você não pode desfazer isto.",

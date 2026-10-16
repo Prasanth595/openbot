@@ -5,7 +5,7 @@ export const messages = {
   "error.provider.mcpConfig":
     "OpenBot non è riuscito a registrare i server MCP nella configurazione di Codex. Controlla che il config.toml di Codex sia valido e scrivibile, poi riavvia OpenBot.",
   "error.provider.computerUseConfig":
-    "OpenBot non è riuscito a registrare il Controllo del computer nella configurazione di Codex. Controlla che il config.toml di Codex sia valido e scrivibile, poi riavvia OpenBot. Puoi disattivare il Controllo del computer nelle impostazioni del collega per continuare senza.",
+    "OpenBot non è riuscito a registrare il Controllo del computer nella configurazione di Codex. Controlla che il config.toml di Codex sia valido e scrivibile, poi riavvia OpenBot. Puoi disattivare il Controllo del computer nelle impostazioni dell'agente per continuare senza.",
   "error.provider.endpointsReadOnly":
     "Gli endpoint salvati sono stati scritti da una versione più recente di OpenBot, oppure il file non è leggibile. Aggiorna OpenBot per modificarli.",
   "error.provider.endpointNoSecureStorage":
@@ -170,11 +170,11 @@ export const messages = {
   "error.provider.signInExpired": "L'accesso a {provider} è scaduto. Accedi di nuovo per continuare.",
   "error.provider.cliActivateFailed": "OpenBot non è riuscito ad attivare la CLI gestita.",
   "error.provider.cliBusyReconnect":
-    "La CLI di {provider} sta lavorando a un turno. Attendi che finisca, poi ricollega.",
+    "La CLI di {provider} sta lavorando a un turno. Attendi che finisca, poi riconnetti.",
   "error.provider.opencodeCredentialsRejected":
     "Il provider del modello ha rifiutato la chiave API. Correggi la chiave di OpenCode in Impostazioni, oppure la chiave del provider con `opencode auth login`. Poi riprova o scegli un altro modello.\n{detail}",
   "error.provider.opencodeServiceFailure":
-    "OpenCode non ha potuto completare questo turno perché il suo servizio locale è andato in errore. Riprova. Se l'errore continua, ricollega OpenCode in Impostazioni.",
+    "OpenCode non ha potuto completare questo turno perché il suo servizio locale è andato in errore. Riprova. Se l'errore continua, riconnetti OpenCode in Impostazioni.",
   "error.provider.opencodeRateLimited":
     "Il provider del modello ha rifiutato la richiesta per via del limite di richieste. Attendi qualche minuto o scegli un altro modello, poi riprova.\n{detail}",
   "error.provider.opencodeBilling":
@@ -236,7 +236,7 @@ export const messages = {
   "error.provider.acpSignInTimedOut": "L'accesso è scaduto.",
   "error.provider.acpSignInStopped": "L'accesso si è interrotto prima di essere completato.",
   "error.provider.geminiBrowserUnavailable":
-    "Gemini non è riuscito ad aprire la pagina di accesso. Installa un browser e xdg-utils, poi collegati da una sessione desktop su questo host. Un server senza desktop non può completare questo accesso.",
+    "Gemini non è riuscito ad aprire la pagina di accesso. Installa un browser e xdg-utils, poi connettiti da una sessione desktop su questo host. Un server senza desktop non può completare questo accesso.",
   "error.provider.acpSignInFailed": "L'accesso non è stato completato.",
   "error.provider.acpSignInFailedReason": "L'accesso non è stato completato: {reason}",
   "error.provider.acpSignInMethodMissing":
@@ -287,7 +287,7 @@ export const messages = {
   "error.provider.accountInUse": "Un agente che usa questo account è al lavoro. Riprova quando l'agente si ferma.",
   "error.provider.accountsReadOnly":
     "Gli account salvati dei provider non sono leggibili. Aggiorna OpenBot prima di modificarli.",
-  "error.provider.accountSignedOut": "Questo account {provider} è disconnesso. Accedi di nuovo.",
+  "error.provider.accountSignedOut": "Hai effettuato l'uscita da questo account {provider}. Accedi di nuovo.",
   "error.provider.sessionSettingUnavailable":
     "Questa impostazione non è disponibile nella sessione attuale del provider.",
   "error.provider.sessionSettingInvalid": "Questo valore non è disponibile per l'impostazione.",
@@ -299,7 +299,7 @@ export const messages = {
   "error.provider.nativeNotStarted": "Impossibile avviare la CLI di {provider}.",
   "error.provider.nativeVersionUnreadable": "Impossibile leggere la versione della CLI di {provider}.",
   "error.provider.piSessionBusy": "Attendi che il turno attuale di Pi finisca.",
-  "error.provider.piStopped": "Pi non è in esecuzione. Collega Pi e riprova.",
+  "error.provider.piStopped": "Pi non è in esecuzione. Connetti Pi e riprova.",
   "error.provider.piSessionMissing": "Il file della sessione di Pi non è disponibile su questo computer.",
   "error.provider.piResumeCancelled": "Pi ha annullato la ripresa della sessione. Riprova.",
   "error.provider.piSessionIdentity":
@@ -339,7 +339,7 @@ export const messages = {
   "error.provider.museProfileUnsupported":
     "Muse non può generare un profilo senza accesso a tool esterni. Usa un altro provider per generare il profilo, poi seleziona Muse per l'agente.",
   "error.provider.museAuthUnverified":
-    "L'autenticazione di Muse non è verificata. Collegati sul computer host, oppure imposta una chiave API di Meta.",
+    "L'autenticazione di Muse non è verificata. Connettiti sul computer host, oppure imposta una chiave API di Meta.",
   "error.provider.museSignIn": "Per continuare, accedi a Muse sul computer host.",
   "error.provider.terminalLoginFailed":
     "Impossibile aprire il terminale di accesso. Apri la CLI del provider su questo host e accedi da lì, poi aggiorna i provider.",

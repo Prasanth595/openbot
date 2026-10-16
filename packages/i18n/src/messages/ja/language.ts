@@ -148,7 +148,7 @@ export const messages = {
   "language.region.lv": "ラトビア",
   "language.region.ma": "モロッコ",
   "language.region.mk": "北マケドニア",
-  "language.region.mm": "ミャンマー (ビルマ)",
+  "language.region.mm": "ミャンマー",
   "language.region.mn": "モンゴル",
   "language.region.mo": "マカオ",
   "language.region.mx": "メキシコ",

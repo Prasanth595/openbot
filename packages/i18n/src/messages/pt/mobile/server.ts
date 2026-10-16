@@ -39,7 +39,7 @@ export const messages = {
   "mobile.server.join.joined": "Você entrou no servidor. {status}",
   "mobile.server.join.description": "Cole ou leia o convite que você recebeu de um proprietário de servidor.",
   "mobile.server.join.paste": "Colar",
-  "mobile.server.join.scanShort": "Escanear QR code",
+  "mobile.server.join.scanShort": "Ler código QR",
   "mobile.server.join.scan": "Ler código QR do convite",
   "mobile.server.join.inviteLink": "Link de convite",
   "mobile.server.join.joining": "Entrando…",
@@ -62,7 +62,7 @@ export const messages = {
   "mobile.server.hosted.storage": { one: "{count} GB de armazenamento", other: "{count} GB de armazenamento" },
   "mobile.server.hosted.speedBase": "Velocidade básica",
   "mobile.server.hosted.speedFaster": "{factor}× mais rápido",
-  "mobile.server.hosted.joinHint": "Use um convite do dono de um servidor.",
+  "mobile.server.hosted.joinHint": "Use um convite do proprietário de um servidor.",
   "mobile.server.hosted.join": "Entrar em um servidor",
   "mobile.server.hosted.intro.title": "Seus agentes sempre ativos",
   "mobile.server.hosted.intro.description":
@@ -109,7 +109,7 @@ export const messages = {
   "mobile.server.hosted.detail.payment": "Aguardando a Stripe",
   "mobile.server.hosted.detail.reserve": "Reservando uma máquina privada",
   "mobile.server.hosted.detail.copy": "Copiando o OpenBot para a máquina",
-  "mobile.server.hosted.detail.key": "Adicionando uma chave de acesso de uso único",
+  "mobile.server.hosted.detail.key": "Adicionando uma chave de login de uso único",
   "mobile.server.hosted.detail.boot": "Ligando a máquina",
   "mobile.server.hosted.detail.app": "Iniciando o OpenBot",
   "mobile.server.hosted.detail.wait": "Aguardando a resposta do OpenBot",
@@ -169,7 +169,7 @@ export const messages = {
   "mobile.server.settings.restarting": "Reiniciando…",
   "mobile.server.settings.restartTitle": "Reiniciar {name}?",
   "mobile.server.settings.restartBody":
-    "O servidor para e inicia novamente. Isso leva cerca de um minuto. Os turnos de agentes em andamento param, e os membros perdem a conexão até o servidor voltar. Arquivos e conversas são mantidos.",
+    "O servidor para e inicia novamente. Isso leva cerca de um minuto. Os turnos de agentes em andamento param, e os membros perdem a conexão até o servidor voltar. Arquivos e chats são mantidos.",
   "mobile.server.settings.restartConfirm": "Reiniciar",
   "mobile.server.settings.restarted": "{name} está reiniciando",
   "mobile.server.settings.leaveTitle": "Sair de {name}?",
@@ -177,7 +177,7 @@ export const messages = {
   "mobile.server.settings.leave": "Sair do servidor",
   "mobile.server.settings.removeTitle": "Remover {name}?",
   "mobile.server.settings.removeBody":
-    "Isto remove o servidor do serviço de contas para todos os membros. Os arquivos e conversas no computador dele continuam. Para usá-lo de novo, registre-o naquele computador.",
+    "Isto remove o servidor do serviço de contas para todos os membros. Os arquivos e chats no computador dele continuam. Para usá-lo de novo, registre-o naquele computador.",
   "mobile.server.settings.remove": "Remover servidor",
   "mobile.server.settings.name": "Nome do servidor",
   "mobile.server.settings.nameLength": "Use de {min} a {max} caracteres.",
@@ -248,5 +248,5 @@ export const messages = {
   "mobile.server.usage.allAgents": "Todos os agentes",
   "mobile.server.usage.agent": "Agente",
   "mobile.server.usage.unsupported":
-    "Este computador anfitrião não oferece análises de uso. Atualize o anfitrião para usar esta tela.",
+    "Este computador anfitrião não oferece análises de uso. Atualize-o para usar esta tela.",
 } as const satisfies PartialTranslation<typeof source>;

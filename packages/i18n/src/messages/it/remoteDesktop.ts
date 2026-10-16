@@ -47,7 +47,7 @@ export const messages = {
   "remoteDesktop.setup.grantAccess": "Concedi l'accesso a {name}",
   "remoteDesktop.setup.grant": "Concedi",
   "remoteDesktop.setup.grantHelp":
-    "Lascia attivo l'account Sunshine sul Mac. In quell'account concedi l'accesso in Impostazioni di Sistema → Privacy e sicurezza. Concedi apre una finestra di aiuto. Trascina Sunshine.app nell'elenco dei permessi.",
+    "Lascia attivo l'account Sunshine sul Mac. In quell'account concedi l'accesso in Impostazioni di Sistema → Privacy e sicurezza. «Concedi» apre una finestra di aiuto. Trascina Sunshine.app nell'elenco dei permessi.",
   "remoteDesktop.setup.restartRequired":
     "Sunshine deve essere riavviato. Termina le sessioni di desktop remoto attive, poi controlla di nuovo. Le sessioni attive non verranno riavviate.",
   "remoteDesktop.setup.showInFinder": "Mostra Sunshine nel Finder",

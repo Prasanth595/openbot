@@ -17,7 +17,7 @@ export const messages = {
   "mcp.connect.keptOn": "Хранится на {host}.",
   "mcp.connect.httpsLinkRequired": "Введите ссылку https с {hostname}.",
   "mcp.local.description":
-    "{name} запускает этот сервер в своём приложении для компьютера, на этом компьютере. Включите его там, затем подключитесь.",
+    "{name} запускает этот сервер в своём настольном приложении на этом компьютере. Включите его там, затем подключитесь.",
   "mcp.local.stepsTitle": "Включите сервер в {name}",
   "mcp.local.address": "Адрес",
   "mcp.local.docs": "Руководство по настройке",

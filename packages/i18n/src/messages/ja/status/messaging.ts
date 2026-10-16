@@ -6,7 +6,7 @@ export const messages = {
   "status.messaging.queued": "待機中: OpenBot は別のリクエストを処理しています。回答はここに届きます。",
   "status.messaging.busy": "待機中のリクエストが多すぎます。しばらくしてからもう一度お試しください。",
   "status.messaging.failed": "OpenBot はこのリクエストを完了できませんでした。詳細は OpenBot のホストにあります。",
-  "status.messaging.noAnswer": "OpenBot は書面の回答なしで終了しました。",
+  "status.messaging.noAnswer": "OpenBot はテキストの回答を返さずに終了しました。",
   "status.messaging.noAgent":
     "ここで回答できるエージェントはまだいません。OpenBot で Slack Orchestrator を追加してください。",
   "status.messaging.delegated": "チームメイトが対応しています。回答はここに届きます。",

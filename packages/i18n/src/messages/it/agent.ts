@@ -7,7 +7,7 @@ export const messages = {
   "agent.setup.titleAdditional": "Crea un nuovo agente",
   "agent.setup.titleFirst": "Crea il tuo primo agente",
   "agent.setup.color": "Colore dell'agente",
-  "agent.setup.colorAutomatic": "Colore dell'agente automatico",
+  "agent.setup.colorAutomatic": "Colore automatico dell'agente",
   "agent.setup.colorOption": "Colore dell'agente: {color}",
   "agent.setup.face": "Volto dell'agente",
   "agent.setup.faceOption": "Volto dell'agente {number}",
@@ -29,7 +29,7 @@ export const messages = {
   "agent.error.hideFailed": "Impossibile nascondere l’agente",
   "agent.error.restoreFailed": "Impossibile ripristinare l’agente",
   "agent.error.hiddenFailed": "La modifica non è stata salvata. Riprova.",
-  "agent.error.settingsFailed": "Impostazioni non riuscite",
+  "agent.error.settingsFailed": "Modifica delle impostazioni non riuscita",
   "agent.error.avatarFailed": "Aggiornamento dell'avatar non riuscito",
   "agent.error.adminOnly":
     "Le impostazioni dell'agente possono essere modificate solo da un amministratore del server.",

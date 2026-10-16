@@ -167,7 +167,7 @@ export const messages = {
   "error.remote.signalNotConnected": "Signal に接続していません。",
   "error.remote.signalFrameUnreadable": "Signal から、このピアが読み取れないフレームが送信されました。",
   "error.remote.webRtcCommandFailed": "WebRTC コマンドが失敗しました。",
-  "error.remote.dataChannelFailed": "{kind} チャンネルが失敗しました。",
+  "error.remote.dataChannelFailed": "{kind} チャネルに失敗しました。",
   "error.remote.hostBusy": "ホストは別の接続を処理中です。しばらくしてからもう一度お試しください。",
   "error.remote.signalPermissionDenied":
     "あなたのアカウントにはこのホストへのアクセス権がありません。オーナーにアクセスを依頼してください。",

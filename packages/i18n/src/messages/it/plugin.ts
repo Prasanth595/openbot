@@ -3,7 +3,7 @@ import type { messages as source } from "../en/plugin";
 
 export const messages = {
   "plugin.link.website": "Sito web",
-  "plugin.link.privacyPolicy": "Informativa sulla privacy",
+  "plugin.link.privacyPolicy": "Informativa privacy",
   "plugin.link.terms": "Termini di servizio",
   "plugin.copyLink": "Copia link",
   "plugin.askPrompt": "Chiedi a {name}: {prompt}",
@@ -16,7 +16,7 @@ export const messages = {
 
   "plugin.uninstallDialog.title": "Disconnettere {name}?",
   "plugin.uninstallDialog.description":
-    "Verrà rimosso ciò che {name} ha installato su questo computer. Nient'altro su questo host o su questo agente cambia.",
+    "Verrà rimosso ciò che {name} ha installato su questo computer. Non cambia nient'altro su questo host o su questo agente.",
   "plugin.uninstallDialog.confirm": "Disconnetti",
   "plugin.uninstallDialog.appsLabel": "App da rimuovere, {number}",
   "plugin.uninstallDialog.appsTitle": "App rimosse da questo host",

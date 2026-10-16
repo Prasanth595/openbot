@@ -17,7 +17,7 @@ export const messages = {
   "error.connector.onePasswordCliInstallFailed":
     "OpenBot non è riuscito a installare la CLI di 1Password. Controlla la connessione a internet e riprova.",
   "error.connector.onePasswordCliSignedOut":
-    "La CLI di 1Password non ha effettuato l'accesso. Attiva la sua integrazione nell'app 1Password, poi collega di nuovo.",
+    "La CLI di 1Password non ha effettuato l'accesso. Attiva la sua integrazione nell'app 1Password, poi connetti di nuovo.",
   "error.connector.onePasswordCliFailed": "La CLI di 1Password è fallita: {detail}",
   "error.connector.onePasswordUnexpected": "1Password ha inviato una risposta inattesa: {detail}",
   "error.connector.onePasswordTokenRejected": "1Password non ha accettato il token del service account.",
@@ -26,5 +26,5 @@ export const messages = {
   "error.connector.onePasswordFileUnreadable": "Il file di connessione a 1Password non è leggibile.",
   "error.connector.onePasswordFileTooLarge": "Il file di connessione a 1Password è troppo grande.",
   "error.connector.bitwardenFailed":
-    "Impossibile leggere Bitwarden. Installa la CLI bw, accedi, sbloccala e crea una cartella chiamata Shared with OpenBot. Collega con una nuova chiave di sessione.",
+    "Impossibile leggere Bitwarden. Installa la CLI bw, accedi, sbloccala e crea una cartella chiamata Shared with OpenBot. Connetti con una nuova chiave di sessione.",
 } as const satisfies PartialTranslation<typeof source>;

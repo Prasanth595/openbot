@@ -47,7 +47,7 @@ export const messages = {
   "marketplace.search.placeholder": "検索",
   "marketplace.installs": { other: "{installs} 回インストール" },
   "marketplace.filter": "フィルター",
-  "marketplace.filter.on": "フィルター：{filters}",
+  "marketplace.filter.on": "フィルター: {filters}",
   "marketplace.filter.all": "すべて",
   "marketplace.filter.status": "状態",
   "marketplace.filter.category": "カテゴリー",
@@ -98,7 +98,7 @@ export const messages = {
   "marketplace.app.address": "アドレス",
   "marketplace.app.disconnect.title": "切断",
   "marketplace.app.disconnect.description":
-    "{name} とそのスキルをこのコンピュータから削除します。あとでもう一度接続できます。",
+    "{name} とそのスキルをこのコンピューターから削除します。あとでもう一度接続できます。",
   "marketplace.app.disconnect.action": "切断",
   "marketplace.app.remove.title": "サーバーを削除",
   "marketplace.app.remove.description": "エージェントはこのサーバーを使えなくなります。設定は削除されます。",
@@ -127,9 +127,9 @@ export const messages = {
     "このリリースノートを 6 枚の Canva プレゼンテーションにしてください。",
   "marketplace.plugin.linear.tagline": "Issue とプロジェクトのトリアージ",
   "marketplace.plugin.linear.description":
-    "Linear を使うと、エージェントはサインイン中のアカウントが属するワークスペースで、担当の Issue を一覧表示し、バックログをトリアージし、ステータスを更新し、新しい Issue の下書きを作成できます。各ユーザーはブラウザで自分の Linear アカウントにサインインします。",
+    "Linear を使うと、エージェントはサインイン中のアカウントが属するワークスペースで、担当の Issue を一覧表示し、バックログをトリアージし、ステータスを更新し、新しい Issue の下書きを作成できます。各ユーザーはブラウザーで自分の Linear アカウントにサインインします。",
   "marketplace.plugin.linear.app":
-    "Issue の検索、トリアージ、ステータスの更新、Issue の作成を、ブラウザでサインインする Linear の MCP サーバーで提供します。",
+    "Issue の検索、トリアージ、ステータスの更新、Issue の作成を、ブラウザーでサインインする Linear の MCP サーバーで提供します。",
   "marketplace.plugin.linear.prompt.myWeek": "今週、自分に割り当てられているものは何ですか？",
   "marketplace.plugin.linear.prompt.backlog":
     "バックログをトリアージしてください。古いもの、ブロックされているもの、担当者がいないものはどれですか？",
@@ -137,16 +137,16 @@ export const messages = {
     "同期キューのクラッシュについて、再現手順を付けて Issue を作成してください。",
   "marketplace.plugin.notion.tagline": "ドキュメントとナレッジベース",
   "marketplace.plugin.notion.description":
-    "Notion を使うと、エージェントはページを読み書きし、ワークスペースを検索し、チームがすでに使っている場所に議事録や仕様書を残せます。各ユーザーはブラウザで自分の Notion アカウントにサインインします。",
+    "Notion を使うと、エージェントはページを読み書きし、ワークスペースを検索し、チームがすでに使っている場所に議事録や仕様書を残せます。各ユーザーはブラウザーで自分の Notion アカウントにサインインします。",
   "marketplace.plugin.notion.app":
-    "ページの検索、読み取り、書き込み、ワークスペースの移動を、ブラウザでサインインする Notion の MCP サーバーで提供します。",
+    "ページの検索、読み取り、書き込み、ワークスペースの移動を、ブラウザーでサインインする Notion の MCP サーバーで提供します。",
   "marketplace.plugin.notion.prompt.findSpec": "現在のローンチ仕様書を探して、未解決の質問をまとめてください。",
   "marketplace.plugin.notion.prompt.meetingNotes": "この箇条書きを、チームスペースの構造化された議事録にしてください。",
   "marketplace.plugin.notion.prompt.updateDoc":
     "オンボーディングのドキュメントを新しいリリースチェックリストで更新してください。",
   "marketplace.plugin.figma.tagline": "デザインとプロトタイプ",
   "marketplace.plugin.figma.description":
-    "Figma を使うと、エージェントはデザインファイルを読み取り、コンポーネント、スタイル、変数を調べ、本番用の仕様をエンジニアに渡せます。このコンピュータの Figma デスクトップアプリにある MCP サーバーに接続します。サーバーはデザインの読み取りのみ可能で、書き込みには現在対応中です。",
+    "Figma を使うと、エージェントはデザインファイルを読み取り、コンポーネント、スタイル、変数を調べ、本番用の仕様をエンジニアに渡せます。このコンピューターの Figma デスクトップアプリにある MCP サーバーに接続します。サーバーはデザインの読み取りのみ可能で、書き込みには現在対応中です。",
   "marketplace.plugin.figma.app":
     "デザインのコンテキスト、メタデータ、変数、スクリーンショットを、Figma デスクトップアプリの MCP サーバーで提供します。現在は読み取り専用です。",
   "marketplace.plugin.figma.prompt.handoff":
@@ -166,18 +166,18 @@ export const messages = {
     "開いている Paper のファイルにあるデザイントークンを一覧にして、私たちのテーマと比較してください。",
   "marketplace.plugin.sentry.tagline": "エラーとクラッシュのトリアージ",
   "marketplace.plugin.sentry.description":
-    "Sentry を使うと、エージェントは最近のエラーを検索し、スタックトレースと影響を受けたリリースを調べ、デプロイ後に何が壊れたかをまとめられます。各ユーザーはブラウザで自分の Sentry アカウントにサインインします。",
+    "Sentry を使うと、エージェントは最近のエラーを検索し、スタックトレースと影響を受けたリリースを調べ、デプロイ後に何が壊れたかをまとめられます。各ユーザーはブラウザーで自分の Sentry アカウントにサインインします。",
   "marketplace.plugin.sentry.app":
-    "エラーの検索、Issue の調査、リリースの健全性を、ブラウザでサインインする Sentry の MCP サーバーで提供します。",
+    "エラーの検索、Issue の調査、リリースの健全性を、ブラウザーでサインインする Sentry の MCP サーバーで提供します。",
   "marketplace.plugin.sentry.prompt.newErrors": "昨日のデプロイ以降に新しく発生したエラーは何ですか？",
   "marketplace.plugin.sentry.prompt.topCrash":
     "モバイルプロジェクトで最も多いクラッシュと、その原因として考えられるものを説明してください。",
   "marketplace.plugin.sentry.prompt.releaseHealth": "現在のリリースは前回と比べてどのくらい健全ですか？",
   "marketplace.plugin.vercel.tagline": "デプロイ、ビルドログ、プロジェクト",
   "marketplace.plugin.vercel.description":
-    "Vercel を使うと、エージェントはプロジェクトと最近のデプロイを一覧表示し、ビルドログとランタイムログを読み、ビルドが失敗した理由を調べられます。各ユーザーはブラウザで自分の Vercel アカウントにサインインし、エージェントが使えるチームを選びます。それらのチームでは、エージェントはユーザーのアカウントと同じ権限を持ちます。環境変数、ドメイン、DNS レコード、デプロイの変更や、ドメインの購入もできます。",
+    "Vercel を使うと、エージェントはプロジェクトと最近のデプロイを一覧表示し、ビルドログとランタイムログを読み、ビルドが失敗した理由を調べられます。各ユーザーはブラウザーで自分の Vercel アカウントにサインインし、エージェントが使えるチームを選びます。それらのチームでは、エージェントはユーザーのアカウントと同じ権限を持ちます。環境変数、ドメイン、DNS レコード、デプロイの変更や、ドメインの購入もできます。",
   "marketplace.plugin.vercel.app":
-    "プロジェクト、デプロイ、ビルドログ、ランタイムログを、ブラウザでサインインする Vercel の MCP サーバーで提供します。",
+    "プロジェクト、デプロイ、ビルドログ、ランタイムログを、ブラウザーでサインインする Vercel の MCP サーバーで提供します。",
   "marketplace.plugin.vercel.prompt.failedBuild": "直近の本番デプロイが失敗したのはなぜですか？",
   "marketplace.plugin.vercel.prompt.recentDeployments": "今日のデプロイとそのステータスを一覧にしてください。",
   "marketplace.plugin.vercel.prompt.runtimeErrors": "過去 1 時間にランタイムエラーが発生したルートはどれですか？",
@@ -191,9 +191,9 @@ export const messages = {
   "marketplace.plugin.context7.prompt.example": "認証付きファイルアップロードの最新の例を見せてください。",
   "marketplace.plugin.stripe.tagline": "決済と請求の確認",
   "marketplace.plugin.stripe.description":
-    "Stripe を使うと、エージェントはサインイン中のユーザーがアクセスできるアカウントで、決済、顧客、請求書を調べ、支払いリンクの下書きを作成できます。各ユーザーはブラウザで自分の Stripe アカウントにサインインします。",
+    "Stripe を使うと、エージェントはサインイン中のユーザーがアクセスできるアカウントで、決済、顧客、請求書を調べ、支払いリンクの下書きを作成できます。各ユーザーはブラウザーで自分の Stripe アカウントにサインインします。",
   "marketplace.plugin.stripe.app":
-    "決済、顧客、請求書の検索を、ブラウザでサインインする Stripe の MCP サーバーで提供します。",
+    "決済、顧客、請求書の検索を、ブラウザーでサインインする Stripe の MCP サーバーで提供します。",
   "marketplace.plugin.stripe.prompt.payment": "この決済を調べて、失敗した理由を説明してください。",
   "marketplace.plugin.stripe.prompt.customer": "この顧客の請求書と未払い残高をまとめてください。",
   "marketplace.plugin.stripe.prompt.link": "Pro プランの月額 49 の支払いリンクの下書きを作成してください。",
@@ -263,7 +263,7 @@ export const messages = {
   "marketplace.notice.serverRemoved": "{name} を削除しました。",
   "marketplace.notice.skillInstalled": { other: "{name} をエージェント {count} 件にインストールしました。" },
   "marketplace.notice.skillRemoved": { other: "{name} をエージェント {count} 件から削除しました。" },
-  "marketplace.error.skillPartial": "次のエージェントでは {name} が変更されませんでした：{agents}。{reason}",
+  "marketplace.error.skillPartial": "次のエージェントでは {name} が変更されませんでした: {agents}。{reason}",
 
   "marketplace.error.openLink": "リンクを開けませんでした。",
   "marketplace.error.copyLink": "リンクをコピーできませんでした。",
@@ -271,10 +271,10 @@ export const messages = {
   "marketplace.error.installNoServer": "プラグインをインストールするローカルサーバーを選択してください。",
   "marketplace.error.installNoAgent": "このプラグインのスキルをインストールするエージェントを選んでください。",
   "marketplace.error.installLocalOnHost":
-    "{name} は、これらのエージェントを実行するコンピュータにインストールしてください。そのアプリはそのコンピュータ上でサーバーを実行します。",
+    "{name} は、これらのエージェントを実行するコンピューターにインストールしてください。そのアプリはそのコンピューター上でサーバーを実行します。",
   "marketplace.error.installOnHost":
-    "{name} は、これらのエージェントを実行するコンピュータにインストールしてください。そのアプリはブラウザでのサインインが必要です。",
-  "marketplace.error.appInvalid": "{name} を追加できません：{reason}",
+    "{name} は、これらのエージェントを実行するコンピューターにインストールしてください。そのアプリはブラウザーでのサインインが必要です。",
+  "marketplace.error.appInvalid": "{name} を追加できません: {reason}",
   "marketplace.error.uninstallNoServer": "プラグインをアンインストールするローカルサーバーを選択してください。",
   "marketplace.error.uninstallPartial": "{name} の一部を削除できませんでした。{failures}",
   "marketplace.error.actionFailed": "マーケットプレイスの操作を完了できませんでした。もう一度お試しください。",

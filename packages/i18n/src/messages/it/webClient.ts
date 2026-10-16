@@ -16,11 +16,11 @@ export const messages = {
   "webClient.pane.navigation": "Navigazione del workspace",
   "webClient.pane.chat": "Chat",
   "webClient.pane.routines": "Routine",
-  "webClient.pane.workspace": "Spazio di lavoro",
+  "webClient.pane.workspace": "Workspace",
   "webClient.notice.connecting": "Connessione al tuo computer",
   "webClient.notice.findingHosts": "Ricerca dei tuoi computer",
   "webClient.notice.hostsFailed": "Impossibile caricare i tuoi computer",
-  "webClient.notice.connectComputer": "Collega il tuo computer",
+  "webClient.notice.connectComputer": "Connetti il tuo computer",
   "webClient.connect.description":
     "Esegui OpenBot sul tuo computer per chattare con i tuoi agenti da questo browser. Puoi anche unirti a un computer con un invito.",
   "webClient.connect.stepInstall": "Installa e apri OpenBot sul tuo computer.",

@@ -71,7 +71,7 @@ export const messages = {
   "sidebar.waiting.label": { one: "Precisa de você, {count} agente", other: "Precisam de você, {count} agentes" },
   "sidebar.waiting.action.question": "Responder",
   "sidebar.waiting.action.approval": "Revisar",
-  "sidebar.waiting.action.takeover": "Assumir controle",
+  "sidebar.waiting.action.takeover": "Assumir",
   "sidebar.waiting.hint.question": "Selecione para responder",
   "sidebar.waiting.hint.approval": "Selecione para revisar",
   "sidebar.waiting.hint.takeover": "Selecione para assumir o controle",
@@ -88,7 +88,7 @@ export const messages = {
   "sidebar.delete.pending": "Excluindo…",
   "sidebar.delete.title": "Excluir {name}?",
   "sidebar.delete.agentDescription":
-    "Isso remove o agente e sua conversa no OpenBot do aplicativo. A fila, as memórias, as rotinas e o espaço de trabalho são excluídos. O histórico armazenado separadamente pelo provedor de CLI conectado não é excluído.",
+    "Isso remove do aplicativo o agente e sua conversa no OpenBot. A fila, as memórias, as rotinas e o espaço de trabalho são excluídos. O histórico armazenado separadamente pelo provedor de CLI conectado não é excluído.",
   "sidebar.delete.channelDescription":
     "Isso para o canal. O histórico continua em Canais excluídos, somente para visualização. Você não pode restaurá-lo. Os agentes membros são mantidos.",
   "sidebar.delete.sectionDescription":
@@ -96,7 +96,7 @@ export const messages = {
   "sidebar.delete.failed": "Não foi possível excluir este item. Tente novamente.",
   "sidebar.announce.updateFailed": "Não foi possível atualizar a barra lateral. Tente novamente.",
   "sidebar.announce.movedToPosition": "{name} movido para a posição {position} de {total}.",
-  "sidebar.announce.movedIn": "{name} movido em {section}.",
+  "sidebar.announce.movedIn": "{name} movido dentro de {section}.",
   "sidebar.announce.movedTo": "{name} movido para {section}.",
   "sidebar.announce.pinned": "{name} fixado.",
   "sidebar.announce.movedPinned": "Chat fixado movido para a posição {position} de {total}.",

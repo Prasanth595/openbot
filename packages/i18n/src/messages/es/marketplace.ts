@@ -86,9 +86,9 @@ export const messages = {
   "marketplace.agent.update": "Actualizar",
   "marketplace.agent.openChat": "Abrir chat",
   "marketplace.app.connect": "Conectar",
-  "marketplace.app.reconnect": "Volver a conectar",
+  "marketplace.app.reconnect": "Reconectar",
   "marketplace.app.connectNamed": "Conectar {name}",
-  "marketplace.app.reconnectNamed": "Volver a conectar {name}",
+  "marketplace.app.reconnectNamed": "Reconectar {name}",
   "marketplace.app.connected": "Conectada",
   "marketplace.app.attention": "Requiere atención",
   "marketplace.app.notConnected": "Sin conectar",
@@ -178,7 +178,7 @@ export const messages = {
   "marketplace.plugin.sentry.prompt.newErrors": "¿Qué errores nuevos aparecieron desde el despliegue de ayer?",
   "marketplace.plugin.sentry.prompt.topCrash": "Explica el fallo más frecuente del proyecto móvil y su causa probable.",
   "marketplace.plugin.sentry.prompt.releaseHealth":
-    "¿Qué tan estable es la versión actual en comparación con la anterior?",
+    "¿Cómo es la estabilidad de la versión actual en comparación con la anterior?",
   "marketplace.plugin.vercel.tagline": "Despliegues, registros de compilación y proyectos",
   "marketplace.plugin.vercel.description":
     "Vercel permite a los agentes listar proyectos y despliegues recientes, leer registros de compilación y de ejecución, y averiguar por qué falló una compilación. Cada usuario inicia sesión en su propia cuenta de Vercel desde el navegador y elige los equipos que pueden usar los agentes. En esos equipos, los agentes tienen los mismos permisos que la cuenta del usuario. También pueden cambiar variables de entorno, dominios, registros DNS y despliegues, y comprar dominios.",
@@ -234,7 +234,7 @@ export const messages = {
     "Brave Search permite a los agentes buscar en la web y obtener resultados locales sin rastreo. Una clave de API del panel de Brave Search API se pasa al servidor local como una variable de entorno.",
   "marketplace.plugin.braveSearch.app":
     "Búsqueda web y local, mediante un servidor MCP local con una clave de API de Brave.",
-  "marketplace.plugin.braveSearch.prompt.search": "¿Qué dicen los analistas sobre esta versión del framework?",
+  "marketplace.plugin.braveSearch.prompt.search": "¿Qué dicen las reseñas sobre esta versión del framework?",
   "marketplace.plugin.braveSearch.prompt.news": "Busca los anuncios de hoy sobre esta área de producto.",
   "marketplace.plugin.braveSearch.prompt.compare": "Compara estos dos proveedores con fuentes citadas.",
   "marketplace.plugin.resend.tagline": "Correo transaccional",
@@ -253,7 +253,7 @@ export const messages = {
     "Las aplicaciones que añadas a tu servidor MCP de Composio, mediante el enlace de tu cuenta de Composio.",
   "marketplace.plugin.composio.prompt.inbox": "Resume mi correo no leído y redacta respuestas a los urgentes.",
   "marketplace.plugin.composio.prompt.handoff":
-    "Publica un resumen de esta solicitud de incorporación en el canal de nuestro equipo.",
+    "Publica un resumen de este pull request en el canal de nuestro equipo.",
   "marketplace.plugin.composio.prompt.apps": "¿Qué aplicaciones y acciones puedes usar mediante Composio?",
   "marketplace.skill.installMenu.install": "Instalar",
   "marketplace.skill.installMenu.installNamed": "Instalar {name}",

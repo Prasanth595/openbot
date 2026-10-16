@@ -31,7 +31,7 @@ export const messages = {
   "mobile.workspace.alert.updateRequiredTitle": "Update erforderlich",
   "mobile.workspace.alert.updateRequiredUnread":
     "Aktualisiere diesen Desktop-Server, um Unterhaltungen als ungelesen zu markieren.",
-  "mobile.workspace.alert.markUnreadTitle": "Konnte nicht als ungelesen markiert werden",
+  "mobile.workspace.alert.markUnreadTitle": "Markieren als ungelesen fehlgeschlagen",
   "mobile.workspace.alert.markUnreadBody": "Verbinde dich erneut mit dem Server und versuche es noch einmal.",
   "mobile.workspace.alert.markAllReadTitle": "Nicht alle konnten als gelesen markiert werden",
   "mobile.workspace.alert.markAllReadBody":

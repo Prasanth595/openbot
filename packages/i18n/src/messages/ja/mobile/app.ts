@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/mobile/app";
 
 export const messages = {
-  "mobile.app.route.scanQrCode": "QRコードをスキャン",
+  "mobile.app.route.scanQrCode": "QR コードをスキャン",
   "mobile.app.route.createAgent": "エージェントを作成",
   "mobile.app.route.addSharedAgent": "共有エージェントを追加",
   "mobile.app.route.newSection": "新しいセクション",

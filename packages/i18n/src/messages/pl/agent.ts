@@ -18,7 +18,7 @@ export const messages = {
   "agent.setup.creating": "Tworzenie agenta…",
   "agent.setup.create": "Utwórz agenta",
   "agent.setup.suggestions": "Sugestie",
-  "agent.deleteUndo.title": "Usunięto {name}",
+  "agent.deleteUndo.title": "Usunięto agenta {name}",
   "agent.deleteUndo.action": "Cofnij",
   "agent.hideUndo.title": "Ukryto {name}",
   "agent.hideUndo.action": "Cofnij",

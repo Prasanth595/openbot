@@ -19,7 +19,7 @@ export const messages = {
   "status.messaging.deny": "Refuser",
   "status.messaging.approvedBy": "Approuvé par {user}.",
   "status.messaging.deniedBy": "Refusé par {user}.",
-  "status.messaging.answeredOnHost": "Répondu sur l’hôte OpenBot.",
+  "status.messaging.answeredOnHost": "Réponse donnée sur l’hôte OpenBot.",
   "status.messaging.requestInactive": "Cette demande n’est plus active.",
   "status.messaging.onlyRequester": "Seul {user} peut faire cela. L’hôte OpenBot peut aussi répondre.",
   "status.messaging.hostOnly": "Seul l’hôte OpenBot peut répondre à cette demande.",

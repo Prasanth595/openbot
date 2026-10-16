@@ -69,11 +69,11 @@ export const messages = {
     "Suas mensagens no chat de um agente usam a cor dele. Desative se o texto ficar difícil de ler.",
   "mobile.settings.animations.title": "Animações",
   "mobile.settings.animations.footer":
-    "Desative Animações para reduzir o movimento em todo o app. Quando Reduzir Movimento está ativado nos ajustes do celular, o app também reduz o movimento. As animações abaixo ficam desativadas.",
+    "Desative Animações para reduzir o movimento em todo o app. Quando Reduzir Movimento está ativado nas configurações do celular, o app também reduz o movimento. As animações abaixo ficam desativadas.",
   "mobile.settings.animations.all": "Animações",
-  "mobile.settings.animations.chatZoom": "Zoom ao abrir conversas",
+  "mobile.settings.animations.chatZoom": "Zoom ao abrir chats",
   "mobile.settings.animations.chatZoomFooter":
-    "Uma conversa abre a partir do avatar na lista e fecha de volta nele. Quando desativado, a conversa desliza pela lateral.",
+    "Um chat abre a partir do avatar na lista e fecha de volta nele. Quando desativado, o chat desliza pela lateral.",
   "mobile.settings.animations.agentFaces": "Rostos animados dos agentes",
   "mobile.settings.animations.agentFacesFooter":
     "Os avatares dos agentes mexem o rosto enquanto os agentes trabalham e descansam. Quando desativado, os rostos ficam parados.",
@@ -88,12 +88,12 @@ export const messages = {
     "Os resultados e as mensagens da busca aparecem e somem com um breve desfoque quando mudam. Com o movimento reduzido, eles só esmaecem. Quando isto está desativado, eles mudam na hora.",
   "mobile.settings.feedback.footer": "Resposta ao toque nas ações do app neste dispositivo.",
   "mobile.settings.feedback.haptics": "Resposta tátil",
-  "mobile.settings.feedback.retry": "Tentar salvar a configuração de resposta tátil novamente",
+  "mobile.settings.feedback.retry": "Tentar salvar a resposta tátil de novo",
   "mobile.settings.liveActivities.title": "Atividades ao Vivo",
   "mobile.settings.liveActivities.footer":
     "Mostra o trabalho dos agentes, mensagens, perguntas e aprovações na Tela Bloqueada e na Dynamic Island enquanto o OpenBot está em execução.",
   "mobile.settings.liveActivities.toggle": "Mostrar atividade dos agentes",
-  "mobile.settings.liveActivities.retry": "Tentar salvar a configuração de Atividades ao Vivo novamente",
+  "mobile.settings.liveActivities.retry": "Tentar salvar Atividades ao Vivo de novo",
   "mobile.settings.notifications.title": "Notificações",
   "mobile.settings.notifications.toggle": "Permitir notificações",
   "mobile.settings.notifications.footer":
@@ -137,7 +137,7 @@ export const messages = {
   "mobile.settings.notifications.mute.untilTurnedOn": "Até eu reativar",
   "mobile.settings.notifications.mute.until": "Até {time}",
   "mobile.settings.notifications.serverFooter":
-    "Os eventos deste servidor que notificam este telefone. O app para computador tem os próprios ajustes.",
+    "Os eventos deste servidor que notificam este celular. O app para computador tem as próprias configurações.",
   "mobile.settings.notifications.serverUnsupported":
     "Este servidor não pode enviar notificações. Atualize o OpenBot no computador que o executa.",
   "mobile.settings.notifications.channel": "Notificações dos agentes ({sound})",
@@ -146,7 +146,7 @@ export const messages = {
   "mobile.settings.privacy.footer":
     "Compartilhe o uso de recursos e os resultados de conexão deste celular. O conteúdo das mensagens e os arquivos não são enviados.",
   "mobile.settings.privacy.analytics": "Compartilhar análises do produto",
-  "mobile.settings.privacy.retry": "Tentar salvar a configuração de privacidade novamente",
+  "mobile.settings.privacy.retry": "Tentar salvar a privacidade de novo",
   "mobile.settings.conversations.title": "Conversas",
   "mobile.settings.conversations.hiddenChats": "Chats ocultos",
   "mobile.settings.profile.nameUnsafe": "Remova quebras de linha e caracteres de controle do seu nome.",

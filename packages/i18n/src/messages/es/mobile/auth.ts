@@ -66,15 +66,15 @@ export const messages = {
   "mobile.auth.email.error.verifyFailed": "OpenBot no pudo verificar el código. Inténtalo de nuevo.",
   "mobile.auth.error.sessionEnded": "Tu sesión terminó. Vuelve a iniciar sesión.",
   "mobile.auth.error.connectionInProgress": "Hay otra conexión en curso. Espera a que termine.",
-  "mobile.auth.error.invalidCode": "Este no es un código válido de Mobile Connect de OpenBot.",
+  "mobile.auth.error.invalidCode": "Este no es un código válido de conexión móvil de OpenBot.",
   "mobile.auth.error.codeOutdated":
-    "Genera un código nuevo de Mobile Connect en una aplicación de escritorio actualizada.",
+    "Genera un código nuevo de conexión móvil en una aplicación de escritorio actualizada.",
   "mobile.auth.error.alreadySignedIn": "Ya iniciaste sesión. Cierra la sesión antes de conectar otra cuenta.",
   "mobile.auth.error.desktopUnreachable":
     "OpenBot no pudo acceder a tu escritorio. Mantén ambos dispositivos en la misma red Wi-Fi y permite el acceso a la red local.",
   "mobile.auth.error.accountServiceUnreachable":
     "OpenBot no pudo acceder al servicio de cuentas. Comprueba tu conexión e inténtalo de nuevo.",
-  "mobile.auth.error.codeExpired": "Este código de Mobile Connect no es válido o caducó.",
+  "mobile.auth.error.codeExpired": "Este código de conexión móvil no es válido o caducó.",
   "mobile.auth.error.revokePreviousFailed":
     "No se pudo revocar la sesión móvil anterior. Comprueba tu conexión y vuelve a escanear.",
   "mobile.auth.error.verifyFailed": "OpenBot no pudo verificar esta sesión móvil.",

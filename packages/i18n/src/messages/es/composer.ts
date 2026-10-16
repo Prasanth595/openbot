@@ -23,7 +23,7 @@ export const messages = {
   "composer.picker.option.file": "Archivo {name}",
   "composer.picker.badge.agent": "Agente",
   "composer.picker.badge.file": "Archivo",
-  "composer.picker.badge.custom": "Personalizado",
+  "composer.picker.badge.custom": "Personal",
   "composer.picker.badge.system": "Sistema",
   "composer.picker.badge.workspace": "Espacio de trabajo",
   "composer.picker.badge.marketplace": "Marketplace",

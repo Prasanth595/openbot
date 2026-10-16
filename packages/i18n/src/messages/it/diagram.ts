@@ -107,7 +107,7 @@ export const messages = {
   "diagram.flows.connectFromAgent": "Collega da un agente. Una routine avvia solo il proprio agente.",
   "diagram.chat.label": "Assistente del diagramma",
   "diagram.chat.title": "Modifica con {name}",
-  "diagram.chat.empty": "Dì a {name} cosa deve fare questo diagramma. Aggiunge agenti, routine e collegamenti per te.",
+  "diagram.chat.empty": "Di' a {name} cosa deve fare questo diagramma. Aggiunge per te agenti, routine e collegamenti.",
   "diagram.chat.placeholder": "Descrivi una modifica alla routine",
   "diagram.chat.send": "Invia",
   "diagram.chat.hide": "Nascondi l'assistente",

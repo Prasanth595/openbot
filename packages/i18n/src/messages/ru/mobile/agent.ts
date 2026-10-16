@@ -260,7 +260,7 @@ export const messages = {
   "mobile.agent.record.month": "Месяц",
   "mobile.agent.record.lateMonthDay": "Месяцы без {day}-го числа пропускаются.",
   "mobile.agent.record.cronHint":
-    "Пять полей: минута, час, день месяца, месяц и день недели. Например, 0 9 * * 1-5 запускает задачу в 9:00 по будням.",
+    "Пять полей: минута, час, день месяца, месяц и день недели. Например, 0 9 * * 1-5 — запуск в 9:00 по будням.",
   "mobile.agent.record.problem.endBeforeStart": "Время окончания должно быть позже времени начала.",
   "mobile.agent.record.problem.invalidDate": "В этом месяце нет такого дня.",
   "mobile.agent.record.problem.cronRequired": "Введите выражение cron.",
@@ -308,7 +308,7 @@ export const messages = {
   "mobile.agent.access.autoApprove": "Автоодобрение",
   "mobile.agent.access.autoApproveNote": "Хост сам отвечает на запросы одобрения от этого агента.",
   "mobile.agent.access.autoApproveLocked":
-    "На этом хосте включён турбо-режим, поэтому все агенты одобряют автоматически.",
+    "На этом хосте включён режим Turbo, поэтому все агенты получают подтверждение автоматически.",
   "mobile.agent.access.fullTitle": "Дать этому агенту полный доступ?",
   "mobile.agent.access.fullBody":
     "Агент сможет читать, изменять и удалять любые файлы, доступные учётной записи пользователя хоста, выполнять любые команды и пользоваться сетью.",
@@ -316,11 +316,11 @@ export const messages = {
   "mobile.agent.access.fullConfirm": "Разрешить полный доступ",
   "mobile.agent.access.failed": "Не удалось изменить доступ агента.",
   "mobile.agent.access.unsupported": "Этот хост не позволяет менять доступ агента с удалённого устройства.",
-  "mobile.agent.host.computerUse": "Computer Use",
+  "mobile.agent.host.computerUse": "Управление компьютером",
   "mobile.agent.host.computerUseFooter": "Разрешить этому агенту управлять приложениями на компьютере-хосте.",
   "mobile.agent.host.automation": "Локальные скрипты",
   "mobile.agent.host.automationFooter":
-    "Разрешить скриптам на хосте отправлять сообщения, запускать процедуры, отвечать на вопросы и одобрять или отклонять запросы",
+    "Разрешить скриптам на хосте отправлять сообщения, запускать регулярные задачи, отвечать на вопросы, принимать и отклонять запросы на подтверждение",
   "mobile.agent.host.failed": "Не удалось изменить этот параметр.",
   "mobile.agent.host.unsupported": "Этот хост не позволяет менять эти параметры с удалённого устройства.",
   "mobile.agent.busyMessage.label": "Во время работы",

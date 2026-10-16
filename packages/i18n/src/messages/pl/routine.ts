@@ -14,8 +14,8 @@ export const messages = {
   "routine.feed.eventAgent": "Agent: {name}",
   "routine.feed.eventChannel": "Kanał: {name}",
   "routine.feed.eventTimezone": "Strefa czasowa: {timezone}",
-  "routine.clock.am": "przed południem",
-  "routine.clock.pm": "po południu",
+  "routine.clock.am": "AM",
+  "routine.clock.pm": "PM",
   "routine.clock.withMeridiem": "{time} {meridiem}",
 
   "routine.summary.hourly": "Co godzinę o :{minute}",
@@ -61,7 +61,7 @@ export const messages = {
     other: "co {count} godziny",
   },
 
-  "routine.days.everyDay": "Codziennie",
+  "routine.days.everyDay": "Co dzień",
   "routine.days.weekdays": "Dni robocze",
   "routine.days.weekends": "Weekendy",
   "routine.days.range": "{first}–{last}",
@@ -107,7 +107,7 @@ export const messages = {
   "routine.time.chipLabel": "{label}: {time}",
   "routine.time.hour": "{label}: godzina",
   "routine.time.minute": "{label}: minuta",
-  "routine.time.meridiem": "{label}: przed południem lub po południu",
+  "routine.time.meridiem": "{label}: AM lub PM",
 
   "routine.weekday.chipLabel": "Dni: {days}",
   "routine.weekday.choose": "Wybierz dni",
@@ -250,7 +250,7 @@ export const messages = {
   "routine.settings.deleteNow": "Usuń teraz",
   "routine.settings.starting": "Uruchamianie…",
   "routine.settings.testRun": "Uruchom test",
-  "routine.settings.copyRunCommand": "Kopiuj polecenie uruchomienia",
+  "routine.settings.copyRunCommand": "Kopiuj polecenie",
   "routine.settings.runCommandCopied": "Skopiowano polecenie uruchomienia",
   "routine.settings.copyRunCommandFailed": "Nie udało się skopiować polecenia uruchomienia.",
   "routine.settings.name": "Nazwa",
@@ -307,7 +307,7 @@ export const messages = {
   "routine.webhook.regenerateTitle": "Wygenerować nowy sekret podpisu?",
   "routine.webhook.regenerateDescription":
     "Obecny sekret natychmiast przestanie działać. Żądania podpisane nim będą odrzucane, dopóki nadawca nie użyje nowego sekretu.",
-  "routine.webhook.regenerateConfirm": "Wygeneruj ponownie",
+  "routine.webhook.regenerateConfirm": "Wygeneruj nowy",
   "routine.webhook.regenerateFailed": "Nie udało się wygenerować nowego sekretu podpisu.",
 
   "routine.settings.instruction": "Instrukcja",
@@ -320,7 +320,7 @@ export const messages = {
   "routine.settings.limitPolicy.skip": "Pomiń to uruchomienie",
   "routine.settings.missedPolicy": "Gdy OpenBot był zamknięty w zaplanowanym czasie",
   "routine.settings.missedPolicy.skip": "Pomiń to uruchomienie",
-  "routine.settings.missedPolicy.runOnce": "Uruchom raz po otwarciu OpenBota",
+  "routine.settings.missedPolicy.runOnce": "Uruchom raz po otwarciu OpenBot",
   "routine.settings.resultDestination": "Wysyłaj odpowiedzi do",
   "routine.settings.resultDestination.none": "Tylko ten czat",
   "routine.settings.resultDestination.place": "{connection} · {place}",

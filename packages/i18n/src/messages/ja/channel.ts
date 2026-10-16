@@ -41,7 +41,7 @@ export const messages = {
   "channel.form.titlePlaceholder": "このチャンネルの役割を説明してください",
   "channel.form.instructions": "指示",
   "channel.form.instructionsLabel": "チャンネルの指示",
-  "channel.form.instructionsPlaceholder": "このチャンネルは何に取り組みますか?",
+  "channel.form.instructionsPlaceholder": "このチャンネルは何に取り組みますか？",
   "channel.members.title": "メンバー",
   "channel.members.unavailable": "利用できないメンバー {id}",
   "channel.members.isLead": "{name} はチャンネルのリーダーです",

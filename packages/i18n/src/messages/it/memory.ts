@@ -34,7 +34,7 @@ export const messages = {
   "memory.clearFailed": "Impossibile cancellare le memorie.",
   "memory.inclusion.label": "Uso della memoria",
   "memory.inclusion.essential": "Sempre inclusa",
-  "memory.inclusion.searchable": "Cerca quando serve",
+  "memory.inclusion.searchable": "Cercata quando serve",
   "memory.inclusion.automatic": "Decide l'agente",
   "memory.inclusion.userControlled": "Scelta da te",
   "memory.inclusion.agentControlled": "L'agente può cambiarla",

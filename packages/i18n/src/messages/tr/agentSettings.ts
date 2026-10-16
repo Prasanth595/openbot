@@ -74,7 +74,7 @@ export const messages = {
   "agentSettings.runtime.model": "Ajan modeli",
   "agentSettings.runtime.modelBusy": "Model değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
   "agentSettings.runtime.modelUnavailable": "Modeller bir ajan CLI'sı bağlandıktan sonra kullanılabilir.",
-  "agentSettings.runtime.reasoning": "Akıl Yürütme",
+  "agentSettings.runtime.reasoning": "Akıl yürütme",
   "agentSettings.runtime.reasoningLabel": "Ajan akıl yürütme düzeyi",
   "agentSettings.runtime.selectReasoning": "Akıl yürütmeyi seçin",
   "agentSettings.runtime.reasoningSetByProvider": "{provider} belirler",
@@ -82,6 +82,8 @@ export const messages = {
   "agentSettings.runtime.accessLabel": "Ajan erişimi",
   "agentSettings.runtime.busyMessage": "Çalışırken",
   "agentSettings.runtime.busyMessageLabel": "Ajan çalışırken gönderilen mesajlar",
+  "agentSettings.runtime.taskLimit": "Eş zamanlı görev",
+  "agentSettings.runtime.taskLimitLabel": "Aynı anda çalışan görevler",
   "agentSettings.runtime.workingDirectory": "Çalışma dizini",
   "agentSettings.runtime.notAvailable": "Henüz kullanılamıyor",
   "agentSettings.runtime.fullAccessNote":
@@ -96,6 +98,9 @@ export const messages = {
   "agentSettings.busyMessage.steer": "Yönlendir",
   "agentSettings.busyMessage.steerUnsupported":
     "{provider} çalışan bir turu yönlendiremez. Çalışırken gönderilen mesajlar kuyrukta bekler.",
+  "agentSettings.taskLimit.default": "Varsayılan ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} aynı anda bir tur çalıştırır. Bu ajanın görevleri ve sohbeti birbirini bekler.",
   "agentSettings.notifications.title": "Bildirimler",
   "agentSettings.newChat.title": "Yeni sohbet",
   "agentSettings.newChat.description": "Ajan bu sohbeti unutur. Yapılandırması kalır.",
@@ -108,18 +113,18 @@ export const messages = {
   "agentSettings.fullAccess.title": "Bu ajana tam erişim verilsin mi?",
   "agentSettings.fullAccess.description":
     "Ajan, kullanıcı hesabınızın erişebileceği herhangi bir dosyayı okuyabilir, değiştirebilir ve silebilir, herhangi bir komutu çalıştırabilir ve ağı kullanabilir. Yanlış anlaşılan bir talimat veya kötü amaçlı bir web sayfası kişisel dosyalarınıza ulaşabilir.",
-  "agentSettings.fullAccess.cancel": "Yalnızca çalışma alanını koru",
+  "agentSettings.fullAccess.cancel": "Yalnızca çalışma alanı",
   "agentSettings.fullAccess.confirm": "Tam erişime izin ver",
   "agentSettings.links.usage": "Kullanım",
   "agentSettings.links.memories": "Bellekler",
-  "agentSettings.links.memoriesCount": { one: "{count} kaydedildi", other: "{count} kaydedildi" },
+  "agentSettings.links.memoriesCount": { one: "{count} kayıtlı", other: "{count} kayıtlı" },
   "agentSettings.links.skills": "Beceriler",
-  "agentSettings.links.skillsCount": { one: "{count} atandı", other: "{count} atandı" },
+  "agentSettings.links.skillsCount": { one: "{count} atanmış", other: "{count} atanmış" },
   "agentSettings.links.tables": "Tablolar",
   "agentSettings.links.tablesCount": { one: "{count} tablo", other: "{count} tablo" },
   "agentSettings.links.files": "Dosyalar",
   "agentSettings.links.routines": "Rutinler",
-  "agentSettings.links.routinesCount": { one: "{count} yapılandırıldı", other: "{count} yapılandırıldı" },
+  "agentSettings.links.routinesCount": { one: "{count} yapılandırılmış", other: "{count} yapılandırılmış" },
   "agentSettings.runtime.workspaceNote":
     "Yalnızca çalışma alanı, yazma işlemlerini bu ajanın çalışma alanı, paylaşılan klasör ve geçici klasörlerle sınırlar. Okuma ve ağ erişimi kullanılabilir kalır.",
   "agentSettings.runtime.workspaceEnforcedCommand":
@@ -132,7 +137,7 @@ export const messages = {
   "agentSettings.computerUse.description": "Bu ajanın bu bilgisayardaki uygulamaları kontrol etmesine izin verin",
   "agentSettings.automation.title": "Yerel betikler",
   "agentSettings.automation.description":
-    "Ana bilgisayardaki betiklerin mesaj göndermesine, rutinleri çalıştırmasına, soruları yanıtlamasına ve onay isteklerini kabul etmesine veya reddetmesine izin ver",
+    "Ana makinedeki betiklerin mesaj göndermesine, rutinleri çalıştırmasına, soruları yanıtlamasına ve onay isteklerini kabul etmesine veya reddetmesine izin verin",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tüm {provider} süreci bir korumalı alanda (sandbox) çalışır, bu nedenle dışarıya yazma işlemi başarısız olur. Yalnızca macOS'ta kullanılabilir.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -125,7 +125,7 @@ export const messages = {
   "mobile.agent.info.noSkills": "Aucune compétence pour l’instant.",
   "mobile.agent.info.skillsManaged": "Les compétences de cet agent sont gérées sur l’hôte.",
   "mobile.agent.info.skillsAddOnComputer":
-    "Utilisez + pour créer une compétence avec cet agent. Ajoutez des compétences du marketplace dans OpenBot sur un ordinateur ou dans l’application web.",
+    "Utilisez + pour créer une compétence avec cet agent. Ajoutez des compétences de la marketplace dans OpenBot sur un ordinateur ou dans l’application web.",
   "mobile.agent.info.filesUnsupported":
     "Cet hôte ne prend pas en charge la gestion des fichiers. Mettez à jour OpenBot sur l’hôte.",
   "mobile.agent.info.memoryGone": "Ce souvenir n’est plus disponible.",
@@ -242,7 +242,7 @@ export const messages = {
   "mobile.agent.record.month": "Mois",
   "mobile.agent.record.lateMonthDay": "Les mois sans jour {day} sont ignorés.",
   "mobile.agent.record.cronHint":
-    "Cinq champs : minute, heure, jour du mois, mois et jour de la semaine. Par exemple, 0 9 * * 1-5 s’exécute à 9:00 en semaine.",
+    "Cinq champs : minute, heure, jour du mois, mois et jour de la semaine. Par exemple, 0 9 * * 1-5 s’exécute à 9 h 00 en semaine.",
   "mobile.agent.record.problem.endBeforeStart": "L’heure de fin doit être après l’heure de début.",
   "mobile.agent.record.problem.invalidDate": "Ce mois n’a pas ce jour.",
   "mobile.agent.record.problem.cronRequired": "Saisissez une expression cron.",
@@ -263,8 +263,8 @@ export const messages = {
   "mobile.agent.record.deleteRoutine": "Supprimer la routine",
   "mobile.agent.record.testStarted": "L’exécution de test a commencé. Le résultat s’affiche dans la discussion.",
   "mobile.agent.groups.brain": "Cerveau",
-  "mobile.agent.groups.knows": "Sait",
-  "mobile.agent.groups.does": "Fait",
+  "mobile.agent.groups.knows": "Connaissances",
+  "mobile.agent.groups.does": "Actions",
   "mobile.agent.groups.rules": "Règles",
   "mobile.agent.permissions.title": "Autorisations",
   "mobile.agent.advanced.title": "Avancé",
@@ -274,7 +274,7 @@ export const messages = {
   "mobile.agent.runtime.account": "Compte",
   "mobile.agent.runtime.accountNumbered": "Compte {number}",
   "mobile.agent.runtime.accountUnsupported":
-    "Cet hôte ne permet pas de modifier le compte de l'agent depuis un appareil distant.",
+    "Cet hôte ne permet pas de modifier le compte de l’agent depuis un appareil distant.",
   "mobile.agent.runtime.model": "Modèle",
   "mobile.agent.runtime.reasoning": "Raisonnement",
   "mobile.agent.runtime.effort.low": "Faible",
@@ -286,21 +286,21 @@ export const messages = {
   "mobile.agent.runtime.loadingModels": "Chargement des modèles…",
   "mobile.agent.runtime.noModels": "Aucun modèle disponible pour ce fournisseur.",
   "mobile.agent.access.title": "Accès",
-  "mobile.agent.access.label": "Accès de l'agent",
+  "mobile.agent.access.label": "Accès de l’agent",
   "mobile.agent.access.workspace": "Espace de travail uniquement",
   "mobile.agent.access.full": "Accès complet",
   "mobile.agent.access.autoApprove": "Approbation automatique",
-  "mobile.agent.access.autoApproveNote": "L'hôte répond lui-même aux demandes d'approbation de cet agent.",
+  "mobile.agent.access.autoApproveNote": "L’hôte répond lui-même aux demandes d’approbation de cet agent.",
   "mobile.agent.access.autoApproveLocked":
     "Le mode Turbo est activé sur cet hôte, donc chaque agent approuve automatiquement.",
   "mobile.agent.access.fullTitle": "Donner un accès complet à cet agent ?",
   "mobile.agent.access.fullBody":
-    "L'agent pourra alors lire, modifier et supprimer tout fichier accessible au compte utilisateur de l'hôte, exécuter n'importe quelle commande et utiliser le réseau.",
-  "mobile.agent.access.fullCancel": "Garder l'espace de travail uniquement",
-  "mobile.agent.access.fullConfirm": "Autoriser l'accès complet",
-  "mobile.agent.access.failed": "Impossible de modifier l'accès de l'agent.",
+    "L’agent pourra alors lire, modifier et supprimer tout fichier accessible au compte utilisateur de l’hôte, exécuter n’importe quelle commande et utiliser le réseau.",
+  "mobile.agent.access.fullCancel": "Garder l’espace de travail uniquement",
+  "mobile.agent.access.fullConfirm": "Autoriser l’accès complet",
+  "mobile.agent.access.failed": "Impossible de modifier l’accès de l’agent.",
   "mobile.agent.access.unsupported":
-    "Cet hôte ne permet pas de modifier l'accès de l'agent depuis un appareil distant.",
+    "Cet hôte ne permet pas de modifier l’accès de l’agent depuis un appareil distant.",
   "mobile.agent.host.computerUse": "Computer Use",
   "mobile.agent.host.computerUseFooter": "Autoriser cet agent à contrôler les apps de l’ordinateur hôte.",
   "mobile.agent.host.automation": "Scripts locaux",
@@ -310,7 +310,7 @@ export const messages = {
   "mobile.agent.host.unsupported": "Cet hôte ne permet pas de modifier ces réglages depuis un appareil distant.",
   "mobile.agent.busyMessage.label": "Pendant le travail",
   "mobile.agent.busyMessage.footer":
-    "Ce que devient un message envoyé pendant que l’agent travaille. File d’attente le garde jusqu’à la fin du tour. Orienter le donne à l’agent pendant le tour.",
+    "Ce que devient un message envoyé pendant que l’agent travaille. « File d’attente » le garde jusqu’à la fin du tour. « Orienter » le donne à l’agent pendant le tour.",
   "mobile.agent.busyMessage.queue": "File d’attente",
   "mobile.agent.busyMessage.steer": "Orienter",
   "mobile.agent.busyMessage.hostDefaultQueue": "Par défaut de l’hôte (File d’attente)",
@@ -328,7 +328,7 @@ export const messages = {
   "mobile.agent.newChat.footer": "L’agent oublie cette discussion. Sa configuration reste.",
   "mobile.agent.newChat.confirmTitle": "Commencer une nouvelle discussion avec {name} ?",
   "mobile.agent.newChat.confirmBody":
-    "L’agent oublie cette discussion. Les messages restent visibles au-dessus d’un séparateur. Les instructions, le modèle, les outils, les mémoires, l’espace de travail et le navigateur ne changent pas.",
+    "L’agent oublie cette discussion. Les messages restent visibles au-dessus d’un séparateur. Les instructions, le modèle, les outils, les souvenirs, l’espace de travail et le navigateur ne changent pas.",
   "mobile.agent.newChat.confirm": "Nouvelle discussion",
   "mobile.agent.newChat.failed": "Impossible de commencer une nouvelle discussion",
   "mobile.agent.newChat.failedBody": "L’hôte n’a pas pu commencer une nouvelle discussion.",
@@ -454,7 +454,7 @@ export const messages = {
   "mobile.agent.add.creating": "Création…",
   "mobile.agent.form.name": "Nom",
   "mobile.agent.add.namePlaceholder": "Nommez votre agent",
-  "mobile.agent.add.descriptionLabel": "Pour quoi cet agent doit-il vous aider ?",
+  "mobile.agent.add.descriptionLabel": "En quoi cet agent doit-il vous aider ?",
   "mobile.agent.add.descriptionPlaceholder":
     "Planifier des voyages, comparer des options ou aider dans le travail quotidien.",
   "mobile.agent.add.nameRequired": "Saisissez un nom pour cet agent.",

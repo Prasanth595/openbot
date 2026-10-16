@@ -54,7 +54,7 @@ export const messages = {
   "skill.local.loadFailed": "No se pudieron cargar las habilidades locales.",
   "skill.local.toggleFailed": "No se pudo cambiar el estado de la habilidad.",
   "skill.local.addFailed": "No se pudo añadir la habilidad local.",
-  "skill.local.back": "Volver a habilidades locales",
+  "skill.local.back": "Volver a las habilidades locales",
   "skill.local.added": "Añadida",
   "skill.local.add": "Añadir habilidad",
   "skill.local.loading": "Cargando habilidades locales…",

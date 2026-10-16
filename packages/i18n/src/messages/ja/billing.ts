@@ -71,8 +71,8 @@ export const messages = {
   "billing.lifecycle.deleteTitle": "{name} を削除しますか？",
   "billing.lifecycle.deleteDescription":
     "このサーバーと、そのエージェント、会話、ファイルを完全に削除します。サブスクリプションは今すぐ終了します。この操作は元に戻せません。",
-  "billing.lifecycle.saving": "保存しています…",
-  "billing.lifecycle.failed": "変更を確認できませんでした。お支払いを更新して、もう一度お試しください。",
+  "billing.lifecycle.saving": "保存中…",
+  "billing.lifecycle.failed": "変更を確認できませんでした。「お支払い」を再読み込みして、もう一度お試しください。",
   "billing.lifecycle.deleted": "{name} を削除しました。サブスクリプションは終了しました。",
   "billing.lifecycle.label": "デザインプレビュー · 操作は模擬のみ",
   "billing.lifecycle.reset": "プレビューをリセット",

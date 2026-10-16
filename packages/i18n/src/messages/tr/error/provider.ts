@@ -151,7 +151,7 @@ export const messages = {
     "{provider} art arda birkaç kez başlamadı, bu yüzden OpenBot denemeyi bıraktı. Tekrar denemek için sağlayıcıları yenileyin.",
   "error.provider.tempDiskSpace":
     "{provider} başlamak için en az 1 GB boş disk alanı gerektirir. Yer açın, ardından sağlayıcıları yenileyin.",
-  "error.provider.noCodeSignIn": "{provider} bir kod ile oturum açamaz.",
+  "error.provider.noCodeSignIn": "{provider} için kodla oturum açılamaz.",
   "error.provider.codeLoginNoLink": "Sağlayıcı bir oturum açma bağlantısı göstermedi. Tekrar deneyin.",
   "error.provider.hostSignInEnded": "{provider} oturum açma işlemi tamamlanmadı. Tekrar deneyin.",
   "error.provider.codeLoginNotWaiting": "Hiçbir oturum açma işlemi bir kod beklemiyor. Oturum açmayı tekrar başlatın.",
@@ -160,7 +160,7 @@ export const messages = {
   "error.provider.codeLoginUnsupported":
     "Bu sunucu yapıştırılan bir kodla oturum açamaz. Sunucu bilgisayarında, onun tarayıcısında oturum açın.",
   "error.provider.cliBusyRetry":
-    "The {provider} CLI bir tur üzerinde çalışıyor. Bitmesini bekleyin, ardından tekrar deneyin.",
+    "{provider} CLI bir tur üzerinde çalışıyor. Bitmesini bekleyin, ardından tekrar deneyin.",
   "error.provider.cliSigningIn":
     "{provider} CLI oturum açıyor. Oturum açmayı tamamlayın veya iptal edin, ardından güncelleyin.",
   "error.provider.cliBusyUpdate":
@@ -174,9 +174,9 @@ export const messages = {
   "error.provider.opencodeCredentialsRejected":
     "Model sağlayıcısı API anahtarını reddetti. Ayarlar'da OpenCode anahtarını veya `opencode auth login` ile sağlayıcının anahtarını düzeltin. Ardından tekrar deneyin ya da başka bir model seçin.\n{detail}",
   "error.provider.opencodeServiceFailure":
-    "Yerel servisi başarısız olduğu için OpenCode bu turu tamamlayamadı. Tekrar deneyin. Hata devam ederse Ayarlar'dan OpenCode'a yeniden bağlanın.",
+    "Yerel hizmeti başarısız olduğu için OpenCode bu turu tamamlayamadı. Tekrar deneyin. Hata devam ederse Ayarlar'dan OpenCode'a yeniden bağlanın.",
   "error.provider.opencodeRateLimited":
-    "Model sağlayıcısı istek hız sınırı nedeniyle isteği reddetti. Birkaç dakika bekleyin veya başka bir model seçip tekrar deneyin.\n{detail}",
+    "Model sağlayıcısı hız sınırı nedeniyle isteği reddetti. Birkaç dakika bekleyin veya başka bir model seçip tekrar deneyin.\n{detail}",
   "error.provider.opencodeBilling":
     "Model sağlayıcısı hesabın faturalandırması nedeniyle isteği reddetti. Beklemek bunu düzeltmez. Sağlayıcı hesabına bir ödeme yöntemi veya bakiye ekleyin ya da başka bir model seçin.\n{detail}",
   "error.provider.opencodeInvalidUpload":
@@ -193,7 +193,7 @@ export const messages = {
   "error.provider.noneReady": "Hiçbir ajan sağlayıcısı hazır değil.",
   "error.provider.claudeTurnActive": "Bağlamını yenilemeden önce etkin Claude turunun bitmesini bekleyin.",
   "error.provider.codexLoginRequired":
-    "Codex bir ChatGPT abonelik girişi gerektirir. `codex login` komutunu çalıştırın.",
+    "Codex için ChatGPT aboneliğiyle oturum açmanız gerekir. `codex login` komutunu çalıştırın.",
   "error.provider.cliUpdateFailed": "OpenBot {provider} CLI'sini güncelleyemedi. {reason}",
   "error.provider.tryAgain": "Tekrar deneyin.",
   "error.provider.noAgentProcess": "{provider} bu ajan için çalışan bir işleme sahip değil.",
@@ -235,7 +235,7 @@ export const messages = {
   "error.provider.acpSignInTimedOut": "Oturum açma zaman aşımına uğradı.",
   "error.provider.acpSignInStopped": "Oturum açma tamamlanmadan önce durdu.",
   "error.provider.geminiBrowserUnavailable":
-    "Gemini giriş sayfasını açamadı. Bir tarayıcı ve xdg-utils yükleyin, ardından bu ana makinede bir masaüstü oturumundan bağlanın. Masaüstü olmayan bir sunucu bu girişi tamamlayamaz.",
+    "Gemini oturum açma sayfasını açamadı. Bir tarayıcı ve xdg-utils yükleyin, ardından bu ana makinede bir masaüstü oturumundan bağlanın. Masaüstü olmayan bir sunucu bu oturum açma işlemini tamamlayamaz.",
   "error.provider.acpSignInFailed": "Oturum açma tamamlanmadı.",
   "error.provider.acpSignInFailedReason": "Oturum açma tamamlanmadı: {reason}",
   "error.provider.acpSignInMethodMissing":
@@ -273,7 +273,8 @@ export const messages = {
   "error.provider.customAgentEnvValueMissing": "{name} için bir değer girin.",
   "error.provider.off": "{provider}, OpenBot'ta kapalı. Önce sağlayıcı ayarlarından açın.",
   "error.provider.inUse": "Bir ajan {provider} kullanıyor. Bu sağlayıcıyı kapatmadan önce ajanın modelini değiştirin.",
-  "error.provider.useBusy": "Sağlayıcı denetiminin veya girişin bitmesini bekleyin, ardından tekrar deneyin.",
+  "error.provider.useBusy":
+    "Sağlayıcı denetiminin veya oturum açma işleminin bitmesini bekleyin, ardından tekrar deneyin.",
   "error.provider.useSettingsReadOnly":
     "Kayıtlı sağlayıcı ayarları okunamıyor. Bunları değiştirmeden önce OpenBot'u güncelleyin.",
   "error.provider.useChangeFailed": "OpenBot sağlayıcı ayarını değiştiremedi.",
@@ -286,7 +287,7 @@ export const messages = {
   "error.provider.accountInUse": "Bu hesabı kullanan bir ajan çalışıyor. Ajan durduğunda tekrar deneyin.",
   "error.provider.accountsReadOnly":
     "Kayıtlı sağlayıcı hesapları okunamıyor. Bunları değiştirmeden önce OpenBot'u güncelleyin.",
-  "error.provider.accountSignedOut": "Bu {provider} hesabının oturumu kapalı. Tekrar giriş yapın.",
+  "error.provider.accountSignedOut": "Bu {provider} hesabının oturumu kapalı. Tekrar oturum açın.",
   "error.provider.sessionSettingUnavailable": "Bu ayar mevcut sağlayıcı oturumunda kullanılamıyor.",
   "error.provider.sessionSettingInvalid": "Bu değer bu ayar için kullanılamıyor.",
   "error.provider.sessionSettingsBusy": "Bir oturum ayarını değiştirmeden önce mevcut turun bitmesini bekleyin.",
@@ -301,7 +302,7 @@ export const messages = {
   "error.provider.piSessionIdentity": "Pi farklı bir oturum döndürdü. Kayıtlı oturum değiştirilmedi.",
   "error.provider.piModelInvalid": "Sağlayıcısını içeren bir Pi modeli seçin.",
   "error.provider.piToolInvalid": "Araç geçersiz bir sonuç döndürdü.",
-  "error.provider.piSignIn": "Ana makinede Pi içinde /login komutunu kullanın. Giriş tamamlanınca Pi'yi kapatın.",
+  "error.provider.piSignIn": "Ana makinede Pi içinde /login komutunu kullanın. Oturum açma tamamlanınca Pi'yi kapatın.",
   "error.provider.museBusy": "Muse oturumu meşgul.",
   "error.provider.museStopped": "Muse istemcisi çalışmıyor.",
   "error.provider.museUnexpectedProvider": "Muse beklenmeyen bir model sağlayıcısı döndürdü.",
@@ -335,9 +336,9 @@ export const messages = {
     "Muse, harici araçlara erişim olmadan profil oluşturamaz. Profili oluşturmak için başka bir sağlayıcı kullanın, ardından ajan için Muse'u seçin.",
   "error.provider.museAuthUnverified":
     "Muse kimlik doğrulaması doğrulanmadı. Ana makinede bağlanın veya bir Meta API anahtarı ayarlayın.",
-  "error.provider.museSignIn": "Devam etmek için ana makinede Muse'a giriş yapın.",
+  "error.provider.museSignIn": "Devam etmek için ana makinede Muse'da oturum açın.",
   "error.provider.terminalLoginFailed":
-    "Giriş terminali açılamadı. Bu ana makinede sağlayıcı CLI'sini açıp orada giriş yapın, ardından sağlayıcıları yenileyin.",
+    "Oturum açma terminali açılamadı. Bu ana makinede sağlayıcı CLI'sini açıp orada oturum açın, ardından sağlayıcıları yenileyin.",
   "error.provider.nativeArchiveInvalid": "Sağlayıcı indirmesi geçerli bir kurulum içermiyor.",
   "error.provider.nativeChecksum": "Sağlayıcı kurulumu bütünlük denetimini geçemedi.",
   "error.provider.registryUnavailable": "ACP kayıt defteri kullanılamıyor. Tekrar deneyin.",

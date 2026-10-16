@@ -20,7 +20,7 @@ export const messages = {
     "{name} exécute ce serveur dans son application de bureau, sur cet ordinateur. Activez-le, puis connectez-vous.",
   "mcp.local.stepsTitle": "Activer le serveur dans {name}",
   "mcp.local.address": "Adresse",
-  "mcp.local.docs": "Guide d'installation",
+  "mcp.local.docs": "Guide d’installation",
   "mcp.signIn.description":
     "Connectez-vous à votre compte {name}. OpenBot obtient les outils accessibles à ce compte, sans mot de passe.",
   "mcp.signIn.waiting": "En attente du navigateur…",

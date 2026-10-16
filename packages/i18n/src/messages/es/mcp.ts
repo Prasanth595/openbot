@@ -6,7 +6,7 @@ export const messages = {
   "mcp.connect.title": "Conectar {name}",
   "mcp.connect.notConnected": "Sin conexión",
   "mcp.connect.close": "Cerrar el diálogo de conexión con {name}",
-  "mcp.connect.getKey": "Obtener una clave",
+  "mcp.connect.getKey": "Obtener clave",
   "mcp.connect.keyDescription":
     "Pega una credencial de tu cuenta de {name}. OpenBot se conecta con ella y la guarda en {host}.",
   "mcp.connect.thisComputer": "este equipo",
@@ -24,7 +24,7 @@ export const messages = {
   "mcp.signIn.description":
     "Inicia sesión en tu cuenta de {name}. OpenBot obtiene las herramientas a las que puede acceder esa cuenta, pero no la contraseña.",
   "mcp.signIn.waiting": "Esperando al navegador…",
-  "mcp.signIn.continue": "Continuar a {name}",
+  "mcp.signIn.continue": "Continuar en {name}",
   "mcp.signIn.pageDescription": "Esta página está abierta en el navegador de {host}. Inicia sesión aquí.",
   "mcp.server.loadFailed": "No se pudieron cargar los servidores MCP.",
   "mcp.test.connected": {
@@ -110,7 +110,7 @@ export const messages = {
   "mcp.panel.testUnavailable": "Este servidor no se puede probar aquí.",
   "mcp.panel.signIn": "Iniciar sesión",
   "mcp.panel.signOut": "Cerrar sesión",
-  "mcp.panel.cancelSignIn": "Cancelar inicio de sesión",
+  "mcp.panel.cancelSignIn": "Cancelar",
   "mcp.panel.signInTo": "Iniciar sesión en {name}",
   "mcp.panel.cancelSignInTo": "Cancelar inicio de sesión en {name}",
   "mcp.panel.signInWaiting": {
@@ -152,12 +152,12 @@ export const messages = {
     "Abre la página de inicio de sesión de {page} en tu navegador. Al terminar, pega aquí la dirección que muestra el navegador. Después, OpenBot envía el inicio de sesión a {host}.",
   "mcp.signIn.relayDeviceDescription":
     "Comprueba que la página de inicio de sesión está en {page}, ábrela en tu navegador y termina allí. {host} detecta el inicio de sesión por sí mismo.",
-  "mcp.signIn.relayOpen": "Abrir página de inicio de sesión",
+  "mcp.signIn.relayOpen": "Abrir inicio de sesión",
   "mcp.signIn.relayPasteHint": "Si el navegador no vuelve a OpenBot, copia la dirección que muestra y pégala aquí.",
   "mcp.signIn.relayPasteRequired":
     "OpenBot no puede obtener por sí solo el inicio de sesión del navegador. Al terminar, copia la dirección que muestra el navegador y pégala aquí.",
   "mcp.signIn.relayAddress": "Dirección del navegador",
   "mcp.signIn.relaySend": "Enviar",
   "mcp.panel.callbackUrlRelayed":
-    "La página de inicio de sesión se abre en tu navegador y OpenBot en tu ordenador envía el inicio de sesión a {host}. Añade exactamente esta URL a las URL de redirección permitidas de la app.",
+    "La página de inicio de sesión se abre en tu navegador y OpenBot en tu equipo envía el inicio de sesión a {host}. Añade exactamente esta URL a las URL de redirección permitidas de la app.",
 } as const satisfies PartialTranslation<typeof source>;

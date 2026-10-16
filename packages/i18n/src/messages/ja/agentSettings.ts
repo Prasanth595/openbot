@@ -84,6 +84,8 @@ export const messages = {
   "agentSettings.runtime.accessLabel": "エージェントのアクセス",
   "agentSettings.runtime.busyMessage": "作業中",
   "agentSettings.runtime.busyMessageLabel": "エージェントの作業中に送るメッセージ",
+  "agentSettings.runtime.taskLimit": "同時実行タスク数",
+  "agentSettings.runtime.taskLimitLabel": "同時に実行するタスクの数",
   "agentSettings.runtime.workingDirectory": "作業ディレクトリ",
   "agentSettings.runtime.notAvailable": "まだ利用できません",
   "agentSettings.runtime.fullAccessNote":
@@ -100,6 +102,9 @@ export const messages = {
   "agentSettings.busyMessage.steer": "方向を修正",
   "agentSettings.busyMessage.steerUnsupported":
     "{provider} は実行中のターンの方向を修正できません。作業中に送ったメッセージはキューで待ちます。",
+  "agentSettings.taskLimit.default": "デフォルト ({count})",
+  "agentSettings.taskLimit.oneTurn":
+    "{provider} は一度に 1 ターンしか実行しません。このエージェントのタスクとチャットは、互いの完了を待ちます。",
 
   "agentSettings.notifications.title": "通知",
 
@@ -109,13 +114,13 @@ export const messages = {
   "agentSettings.newChat.confirmTitle": "{name} と新しいチャットを始めますか？",
   "agentSettings.newChat.confirmDescription":
     "エージェントはこのチャットを忘れます。メッセージは区切り線の上に表示されたままです。指示、モデル、ツール、メモリー、ワークスペース、ブラウザーは変わりません。",
-  "agentSettings.newChat.confirm": "新しいチャットを始める",
+  "agentSettings.newChat.confirm": "新しいチャットを開始",
   "agentSettings.newChat.failed": "新しいチャットを始められませんでした。",
 
   "agentSettings.fullAccess.title": "このエージェントにフルアクセスを許可しますか？",
   "agentSettings.fullAccess.description":
     "エージェントは、あなたのユーザーアカウントがアクセスできるすべてのファイルの読み取り、変更、削除、任意のコマンドの実行、ネットワークの使用ができるようになります。指示の誤解や悪意のある Web ページ 1 つで、個人のファイルに影響が及ぶ可能性があります。",
-  "agentSettings.fullAccess.cancel": "ワークスペースのみのままにする",
+  "agentSettings.fullAccess.cancel": "ワークスペースのみを維持",
   "agentSettings.fullAccess.confirm": "フルアクセスを許可",
 
   "agentSettings.links.usage": "使用状況",

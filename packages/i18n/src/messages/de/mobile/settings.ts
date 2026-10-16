@@ -55,7 +55,7 @@ export const messages = {
   "mobile.settings.sessions.disconnectTitle": "Verbindung zu {name} trennen?",
   "mobile.settings.sessions.disconnectBody":
     "Dies beendet auch die aktiven Remote-Verbindungen des Kontos. Das Gerät kann sich erneut anmelden.",
-  "mobile.settings.sessions.disconnect": "Verbindung trennen",
+  "mobile.settings.sessions.disconnect": "Trennen",
   "mobile.settings.dictation.title": "Diktat",
   "mobile.settings.dictation.footer":
     "Die Sprache, in der du eine Nachricht diktierst. Automatisch verwendet die erste Sprache in den Telefoneinstellungen, die von der Spracherkennung unterstützt wird.",
@@ -100,9 +100,9 @@ export const messages = {
   "mobile.settings.notifications.title": "Mitteilungen",
   "mobile.settings.notifications.toggle": "Mitteilungen erlauben",
   "mobile.settings.notifications.footer":
-    "Agenten melden sich, wenn sie fertig sind, mit einem Fehler anhalten oder deine Eingabe, eine Freigabe oder einen Schritt im Browser brauchen. Nichts kommt, während du OpenBot hier oder in der Desktop-App benutzt. Solange die Live-Aktivität angezeigt wird, zeigt sie das Ereignis stattdessen.",
+    "Agenten melden sich, wenn sie fertig sind, mit einem Fehler anhalten oder deine Eingabe, eine Genehmigung oder einen Schritt im Browser brauchen. Nichts kommt, während du OpenBot hier oder in der Desktop-App benutzt. Solange die Live-Aktivität angezeigt wird, zeigt sie das Ereignis stattdessen.",
   "mobile.settings.notifications.footerAndroid":
-    "Agenten melden sich, wenn sie fertig sind, mit einem Fehler anhalten oder deine Eingabe, eine Freigabe oder einen Schritt im Browser brauchen. Nichts kommt, während du OpenBot hier oder in der Desktop-App benutzt.",
+    "Agenten melden sich, wenn sie fertig sind, mit einem Fehler anhalten oder deine Eingabe, eine Genehmigung oder einen Schritt im Browser brauchen. Nichts kommt, während du OpenBot hier oder in der Desktop-App benutzt.",
   "mobile.settings.notifications.denied": "Mitteilungen für OpenBot sind in den iOS-Einstellungen ausgeschaltet.",
   "mobile.settings.notifications.deniedAndroid":
     "Benachrichtigungen für OpenBot sind in den Android-Einstellungen ausgeschaltet.",
@@ -110,9 +110,9 @@ export const messages = {
   "mobile.settings.notifications.openSettingsAndroid": "Android-Einstellungen öffnen",
   "mobile.settings.notifications.preview": "Vorschau der Antwort zeigen",
   "mobile.settings.notifications.previewFooter":
-    "Zeigt den Anfang einer Antwort, eine Frage oder die freizugebende Aktion. Apple und der OpenBot-Kontodienst können sie nicht lesen.",
+    "Zeigt den Anfang einer Antwort, eine Frage oder die zu genehmigende Aktion. Apple und der OpenBot-Kontodienst können sie nicht lesen.",
   "mobile.settings.notifications.previewFooterAndroid":
-    "Zeigt den Anfang einer Antwort, eine Frage oder die freizugebende Aktion. Google und der OpenBot-Kontodienst können sie nicht lesen.",
+    "Zeigt den Anfang einer Antwort, eine Frage oder die zu genehmigende Aktion. Google und der OpenBot-Kontodienst können sie nicht lesen.",
   "mobile.settings.notifications.sound": "Ton",
   "mobile.settings.notifications.playSound": "Ton abspielen",
   "mobile.settings.notifications.sound.openbot": "OpenBot",

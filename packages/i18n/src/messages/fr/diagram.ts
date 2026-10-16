@@ -36,7 +36,7 @@ export const messages = {
   "diagram.node.remove": "Retirer {name}",
   "diagram.node.startedBy": "Lancé par",
   "diagram.node.showRoutine": "Afficher l’exécution de {name}",
-  "diagram.node.runNow": "Exécuter maintenant",
+  "diagram.node.runNow": "Exécuter",
   "diagram.port.output": "Connecter depuis {name}",
   "diagram.port.input": "Connecter à {name}",
   "diagram.port.choose": "Choisissez le nœud qui reçoit la sortie de {name}.",

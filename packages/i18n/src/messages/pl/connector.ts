@@ -7,7 +7,7 @@ export const messages = {
     "Każdy agent na tym komputerze może używać twoich repozytoriów, zgłoszeń i pull requestów z GitHub oraz gh i git.",
   "connector.github.connect": "Połącz GitHub",
   "connector.github.pendingTitle": "Wpisz ten kod w GitHub",
-  "connector.github.pendingDescription": "GitHub otworzył się w przeglądarce. Wpisz tam kod, aby połączyć.",
+  "connector.github.pendingDescription": "GitHub otworzył się w przeglądarce. Wpisz tam kod, aby się połączyć.",
   "connector.github.waiting": "Czekanie na GitHub",
   "connector.github.copyCode": "Kopiuj kod",
   "connector.github.codeCopied": "Skopiowano",
@@ -83,10 +83,10 @@ export const messages = {
   "connector.dangerZone": "Strefa zagrożenia",
 
   "connector.hub.onThisComputer": "Na tym komputerze",
-  "connector.hub.onHost": "Na {host}",
+  "connector.hub.onHost": "Na serwerze {host}",
   "connector.hub.notSetUp": "Nieskonfigurowane",
   "connector.hub.available": "Dostępne",
-  "connector.hub.localOnly": "Tylko Twój komputer",
+  "connector.hub.localOnly": "Tylko twój komputer",
   "connector.hub.open": "Otwórz {name}",
   "connector.hub.setUp": "Skonfiguruj",
   "connector.hub.usedBy": "Używają: {names}",
@@ -137,23 +137,23 @@ export const messages = {
   "connector.slack.connectWaiting": "Czekanie na Slack. Dokończ instalację w przeglądarce.",
   "connector.slack.agentStepTitle": "Dodaj Slack Orchestrator",
   "connector.slack.agentStepDescription":
-    "Ten nowy agent odpowiada na wszystko, co ludzie wysyłają do @OpenBot w {workspace}.",
+    "Ten nowy agent odpowiada na wszystko, co ludzie wysyłają do @OpenBot w obszarze roboczym {workspace}.",
   "connector.slack.orchestratorName": "Slack Orchestrator",
   "connector.slack.orchestratorRole": "Odpowiada w Slacku i pyta zespół",
   "connector.slack.orchestratorDoesReceive": "Jako pierwszy odbiera każdą prośbę ze Slacka",
   "connector.slack.orchestratorDoesDelegate": "Przekazuje każde zadanie najlepiej pasującemu agentowi",
   "connector.slack.orchestratorDoesAnswer": "Publikuje odpowiedź w wątku Slacka",
   "connector.slack.orchestratorModel": "Model",
-  "connector.slack.doneTitle": "OpenBot jest w {workspace}",
+  "connector.slack.doneTitle": "OpenBot jest w obszarze roboczym {workspace}",
   "connector.slack.doneDescription": "Oznacz @OpenBot w dowolnym publicznym kanale lub wyślij mu wiadomość prywatną.",
   "connector.slack.done": "Gotowe",
   "connector.slack.disconnectTitle": "Odłączyć {workspace}?",
   "connector.slack.disconnectDescription":
-    "OpenBot przestaje odpowiadać w {workspace} i usuwa swój token Slack z tego komputera.",
+    "OpenBot przestaje odpowiadać w obszarze roboczym {workspace} i usuwa swój token Slack z tego komputera.",
   "connector.slack.disconnectDescriptionHost":
-    "OpenBot przestaje odpowiadać w {workspace} i usuwa swój token Slack z {host}.",
+    "OpenBot przestaje odpowiadać w obszarze roboczym {workspace} i usuwa swój token Slack z serwera {host}.",
   "connector.slack.disconnectEffect":
-    "Ludzie w {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
+    "Ludzie z obszaru roboczego {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
   "connector.slack.removeEffectKept": "Rozmowy i Slack Orchestrator zostają w OpenBot.",
   "connector.slack.keep": "Nie odłączaj",
   "connector.slack.close": "Zamknij",
@@ -204,23 +204,23 @@ export const messages = {
   "connector.discord.connectWaiting": "Czekanie na Discord. Dokończ autoryzację w przeglądarce.",
   "connector.discord.agentStepTitle": "Dodaj Discord Orchestrator",
   "connector.discord.agentStepDescription":
-    "Ten nowy agent odpowiada na wszystko, co ludzie wysyłają do @OpenBot w {workspace}.",
+    "Ten nowy agent odpowiada na wszystko, co ludzie wysyłają do @OpenBot na serwerze {workspace}.",
   "connector.discord.orchestratorName": "Discord Orchestrator",
   "connector.discord.orchestratorRole": "Odpowiada w Discordzie i pyta zespół",
   "connector.discord.orchestratorDoesReceive": "Jako pierwszy odbiera każdą prośbę z Discorda",
   "connector.discord.orchestratorDoesDelegate": "Przekazuje każde zadanie najlepiej pasującemu agentowi",
   "connector.discord.orchestratorDoesAnswer": "Odpowiada na kanale Discord",
   "connector.discord.orchestratorModel": "Model",
-  "connector.discord.doneTitle": "OpenBot jest w {workspace}",
+  "connector.discord.doneTitle": "OpenBot jest na serwerze {workspace}",
   "connector.discord.doneDescription": "Oznacz @OpenBot na kanale. Odpowiedz na wiadomość OpenBot, aby kontynuować.",
   "connector.discord.done": "Gotowe",
   "connector.discord.disconnectTitle": "Odłączyć {workspace}?",
   "connector.discord.disconnectDescription":
-    "OpenBot przestaje odpowiadać w {workspace} i usuwa połączenie z Discord z tego komputera.",
+    "OpenBot przestaje odpowiadać na serwerze {workspace} i usuwa połączenie z Discord z tego komputera.",
   "connector.discord.disconnectDescriptionHost":
-    "OpenBot przestaje odpowiadać w {workspace} i usuwa połączenie z Discord z {host}.",
+    "OpenBot przestaje odpowiadać na serwerze {workspace} i usuwa połączenie z Discord z serwera {host}.",
   "connector.discord.disconnectEffect":
-    "Ludzie w {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
+    "Ludzie na serwerze {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
   "connector.discord.removeEffectKept": "Rozmowy i Discord Orchestrator zostają w OpenBot.",
   "connector.discord.keep": "Nie odłączaj",
   "connector.discord.close": "Zamknij",
@@ -260,7 +260,7 @@ export const messages = {
   "connector.telegram.helpRelayUnavailable":
     "OpenBot nie może odbierać wiadomości z Telegram na tym komputerze. Zaloguj się, nadaj temu komputerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
   "connector.telegram.helpRelayUnavailableHost":
-    "OpenBot na {host} nie może odbierać wiadomości z Telegram. Na {host} zaloguj się, nadaj serwerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
+    "OpenBot na serwerze {host} nie może odbierać wiadomości z Telegram. Na serwerze {host} zaloguj się, nadaj serwerowi nazwę w ustawieniach serwera i nie zamykaj OpenBot.",
   "connector.telegram.helpError": "OpenBot nie może połączyć się z tym czatem. Połącz ponownie lub odłącz czat.",
   "connector.telegram.retryAt": "Telegram poprosił OpenBot o czekanie. Kolejna próba o {time}.",
   "connector.telegram.pause": "Wstrzymaj",
@@ -323,7 +323,7 @@ export const messages = {
   "connector.onePassword.stepCliMissing":
     "OpenBot pobierze je z 1Password do własnego folderu. Nie potrzeba hasła administratora.",
   "connector.onePassword.stepCliManual":
-    "OpenBot nie może zainstalować je na tym komputerze. Zainstaluj je z 1Password i wróć na tę stronę.",
+    "OpenBot nie może go zainstalować na tym komputerze. Zainstaluj je z 1Password i wróć na tę stronę.",
   "connector.onePassword.installCli": "Zainstaluj",
   "connector.onePassword.stepAppTitle": "Włącz integrację z CLI",
   "connector.onePassword.stepAppDescription":
@@ -362,7 +362,7 @@ export const messages = {
   "connector.onePassword.statusConnecting": "Łączenie",
   "connector.onePassword.statusNotSetUp": "Nieskonfigurowany",
   "connector.onePassword.descriptionHost":
-    "Udostępnij OpenBot na {host} osobny sejf 1Password przez konto usługi, aby agenci na {host} mogli logować się na strony w jego przeglądarce.",
+    "Udostępnij OpenBot na serwerze {host} osobny sejf 1Password przez konto usługi, aby agenci na serwerze {host} mogli logować się na strony w jego przeglądarce.",
   "connector.onePassword.howItWorksHost":
     "{host} łączy się tokenem konta usługi. Na 1Password.com utwórz konto usługi, które może odczytywać tylko sejf udostępniany OpenBot, a potem wklej tutaj jego token. {host} sprawdza token i go przechowuje; ten komputer go nie przechowuje. Agenci nigdy nie widzą hasła.",
   "connector.onePassword.disconnectSummaryHost":

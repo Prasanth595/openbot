@@ -20,7 +20,7 @@ export const messages = {
   "error.agent.messageOrAttachmentRequired": "É necessário incluir uma mensagem ou um anexo.",
   "error.agent.promptAnswersTooLong": "As respostas às perguntas são muito longas.",
   "error.agent.gone": "Este agente não existe mais.",
-  "error.agent.profileGenerationBusy": "A geração de perfil está ocupada. Tente novamente em instantes.",
+  "error.agent.profileGenerationBusy": "A geração de perfil já está em andamento. Tente novamente em instantes.",
   "error.agent.initialMessageRequired": "É necessário informar uma mensagem inicial.",
   "error.agent.initialMessageTooLong": "A mensagem inicial é muito longa.",
   "error.agent.setupCleanupFailed": "A configuração do agente falhou e não foi possível remover o agente incompleto.",
@@ -44,6 +44,8 @@ export const messages = {
   "error.agent.noStartingModel":
     "{provider} não tem nenhum modelo disponível, e nenhum outro provedor conectado tem um. Entre em um provedor ou altere o provedor padrão em Provedores e permissões.",
   "error.agent.waitBeforeProviderChange": "Aguarde o turno ativo e a fila terminarem antes de trocar de provedor.",
+  "error.agent.waitForTasksBeforeProviderChange":
+    "Há tarefas deste agente em execução. Aguarde que terminem ou pare-as antes de trocar de provedor.",
   "error.agent.waitBeforeClearContext": "Aguarde o turno ativo e a fila terminarem antes de iniciar um novo chat.",
   "error.agent.unknown": "Agente desconhecido: {id}",
   "error.agent.onlyUserWidensSettings":
@@ -76,7 +78,7 @@ export const messages = {
   "error.agent.deleteIncomplete":
     "Não foi possível remover todos os dados do agente. Tente excluir o agente novamente.",
   "error.agent.duplicationBusy": "Este agente já está sendo duplicado.",
-  "error.agent.waitBeforeDuplicate": "Aguarde o agente terminar e esvazie a fila antes de duplicá-lo.",
+  "error.agent.waitBeforeDuplicate": "Aguarde o agente terminar e esvaziar a fila antes de duplicá-lo.",
   "error.agent.saveOtherAgent": "Este registro salvo pertence a outro agente.",
   "error.agent.savedGone": "O agente salvo não existe mais.",
   "error.agent.storedProfileUnreadable":
@@ -85,10 +87,12 @@ export const messages = {
     'O perfil de agente salvo {id} tem um valor "{field}" ilegível; atualize os dados antes de iniciar o OpenBot.',
   "error.agent.queueEditRejected": "Edição da fila rejeitada: {reason}",
   "error.agent.computerUseLocalOnly": "Uso do computador só pode ser alterado no computador que executa o agente.",
-  "error.agent.automationLocalOnly": "Scripts locais só podem ser permitidos no computador que roda o agente.",
+  "error.agent.automationLocalOnly": "Scripts locais só podem ser permitidos no computador que executa o agente.",
   "error.agent.busyMessageModeLocalOnly":
-    "O que as mensagens fazem enquanto o agente trabalha só pode ser definido no computador que roda o agente.",
-  "error.agent.backupModelsLocalOnly": "Os modelos de reserva só podem ser definidos no computador que roda o agente.",
+    "O que as mensagens fazem enquanto o agente trabalha só pode ser definido no computador que executa o agente.",
+  "error.agent.backupModelsLocalOnly":
+    "Os modelos de reserva só podem ser definidos no computador que executa o agente.",
+  "error.agent.taskLimitLocalOnly": "O limite de tarefas só pode ser definido no computador que executa o agente.",
   "error.agent.localScriptsOff": "Este agente não permite scripts locais.",
   "error.agent.localScriptsRateLimited":
     "Scripts locais enviaram {limit} mensagens ou pedidos de rotina a este agente na última hora. Tente de novo mais tarde.",
@@ -97,11 +101,28 @@ export const messages = {
   "error.agent.automationRateLimited":
     "Scripts locais executaram as rotinas deste agente {limit} vezes na última hora. Tente de novo mais tarde.",
   "error.agent.workspaceOnlyMacOnly":
-    "Somente o espaço de trabalho está disponível para este provedor apenas no macOS. Escolha Acesso completo nas configurações do agente.",
+    "Para este provedor, o acesso Somente o espaço de trabalho existe apenas no macOS. Escolha Acesso completo nas configurações do agente.",
   "error.agent.lowMemory":
     "Este servidor está com pouca memória. Sua mensagem aguarda na fila e começa quando houver memória livre. Um plano maior oferece mais memória ao servidor.",
   "error.agent.lowMemoryServer":
     "Este servidor está com pouca memória. Sua mensagem aguarda na fila e começa quando houver memória livre.",
   "error.agent.workspaceOnlyToolMissing":
-    "Somente o espaço de trabalho exige {tool}, que o OpenBot não encontrou. Instale a ferramenta ou escolha Acesso completo nas configurações do agente.",
+    "O acesso Somente o espaço de trabalho exige {tool}, que o OpenBot não encontrou. Instale a ferramenta ou escolha Acesso completo nas configurações do agente.",
+  "error.agent.screenCaptureOff":
+    "A captura de tela está desativada para este agente. O usuário pode ativar o Uso do computador nas configurações do agente.",
+  "error.agent.screenCaptureUnavailable": "A captura de tela não está disponível neste computador.",
+  "error.agent.screenCaptureShared":
+    "A captura de tela não funciona em um canal nem em uma conversa do Slack, Discord ou Telegram, porque outras pessoas recebem os arquivos dela.",
+  "error.agent.screenCaptureDeclined": "O usuário não permitiu esta captura de tela. Nada foi capturado.",
+  "error.agent.screenCaptureWindowMissing":
+    "Essa janela não está aberta agora. Chame list_capture_sources para obter os ids atuais das janelas.",
+  "error.agent.screenCaptureDisplayMissing":
+    "Esse monitor não está conectado agora. Chame list_capture_sources para obter os ids atuais dos monitores.",
+  "error.agent.screenCaptureRegionOutside":
+    "A região não está dentro de um único monitor. Use pontos da área de trabalho dentro dos limites de um monitor de list_capture_sources.",
+  "error.agent.screenCapturePermissionMissing":
+    "O OpenBot não tem a permissão de Gravação de Tela. Peça ao usuário para abrir Ajustes do Sistema > Privacidade e Segurança > Gravação de Tela e Áudio do Sistema, ativar o OpenBot e depois sair e abrir o OpenBot de novo.",
+  "error.agent.screenCaptureEmptyWindows":
+    "O Windows retornou uma imagem vazia. Peça ao usuário para desbloquear o computador e fechar o conteúdo protegido. Uma política da organização também pode impedir a captura de tela.",
+  "error.agent.screenCaptureFailed": "A captura de tela falhou. Tente de novo.",
 } as const satisfies PartialTranslation<typeof source>;

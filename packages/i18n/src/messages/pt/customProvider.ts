@@ -4,8 +4,8 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Registro ACP",
   "customProvider.registry.description":
-    "Instale agentes neste host. Remover o runtime mantém as configurações, credenciais e conversas do agente.",
-  "customProvider.registry.search": "Pesquisar registro",
+    "Instale agentes neste computador anfitrião. Remover o runtime mantém as configurações, as credenciais e as conversas do agente.",
+  "customProvider.registry.search": "Buscar no registro",
   "customProvider.registry.empty": "Nenhum agente corresponde a esta busca.",
   "customProvider.registry.agentId": "ID do agente personalizado",
   "customProvider.registry.install": "Instalar",
@@ -142,7 +142,7 @@ export const messages = {
   "customProvider.acp.agentId": "ID do agente",
   "customProvider.acp.agentIdHint": "Letras minúsculas, números ou hífens. Você não pode alterá-lo depois.",
   "customProvider.acp.command": "Comando",
-  "customProvider.acp.commandHint": "O programa a iniciar. O OpenBot o busca no seu PATH.",
+  "customProvider.acp.commandHint": "O programa que será iniciado. O OpenBot o busca no seu PATH.",
   "customProvider.acp.args": "Argumentos",
   "customProvider.acp.argsHint":
     "Separe os argumentos com espaços. Coloque entre aspas um argumento que contenha espaços.",
@@ -180,7 +180,7 @@ export const messages = {
   "customProvider.agents.empty": "Nenhum agente personalizado ainda.",
   "customProvider.agents.add": "Adicionar agente",
   "customProvider.agents.restart": "Reiniciar agentes",
-  "customProvider.agents.cancelRestart": "Cancelar reinicialização",
+  "customProvider.agents.cancelRestart": "Não reiniciar",
   "customProvider.agents.restartPending": "Os agentes personalizados reiniciam quando as tarefas atuais pararem.",
   "customProvider.agents.commandMissing": "{command} · Comando não encontrado",
   "customProvider.agents.envCount": { one: "{count} variável", other: "{count} variáveis" },

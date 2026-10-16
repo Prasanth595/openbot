@@ -4,7 +4,7 @@ import type { messages as source } from "../en/agent";
 export const messages = {
   "agent.access.workspaceOnly": "Yalnızca çalışma alanı",
   "agent.setup.nameFallback": "Yeni ajan",
-  "agent.setup.titleAdditional": "Yeni bir ajan oluştur",
+  "agent.setup.titleAdditional": "Yeni bir ajan oluşturun",
   "agent.setup.titleFirst": "İlk ajanınızı oluşturun",
   "agent.setup.color": "Ajan rengi",
   "agent.setup.colorAutomatic": "Otomatik ajan rengi",
@@ -13,8 +13,7 @@ export const messages = {
   "agent.setup.faceOption": "Ajan yüzü {number}",
   "agent.setup.name": "Ad",
   "agent.setup.purpose": "Bu ajan ne konuda yardımcı olmalı?",
-  "agent.setup.purposePlaceholder":
-    "Seyahatleri planlayın, seçenekleri karşılaştırın veya günlük işlere yardımcı olun.",
+  "agent.setup.purposePlaceholder": "Seyahat planlamak, seçenekleri karşılaştırmak veya günlük işlere yardım etmek.",
   "agent.setup.model": "Ajan modeli",
   "agent.setup.creating": "Ajan oluşturuluyor…",
   "agent.setup.create": "Ajan oluştur",

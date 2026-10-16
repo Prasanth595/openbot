@@ -29,5 +29,5 @@ export const messages = {
   "error.host.tenantShutdownTimeout":
     "L’arrêt des locataires a expiré. Aucun remplacement de l’application n’a démarré.",
   "error.host.tenantHealthMissing":
-    "Les rapports d’état des locataires sont absents ou mauvais après le redémarrage. Examinez les sessions des locataires avant une autre mise à jour.",
+    "Les rapports d’état des locataires sont absents ou signalent un problème après le redémarrage. Examinez les sessions des locataires avant une autre mise à jour.",
 } as const satisfies PartialTranslation<typeof source>;

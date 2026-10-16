@@ -34,7 +34,7 @@ export const messages = {
   "marketplace.try.enable": "Ative esta habilidade nas configurações do agente para testá-la.",
   "marketplace.try.repair": "Repare esta habilidade nas configurações do agente para testá-la.",
   "marketplace.try.update": "Atualize esta habilidade para testar esta versão.",
-  "marketplace.try.composerUnavailable": "O editor de mensagens do agente está indisponível.",
+  "marketplace.try.composerUnavailable": "O campo de mensagem do agente está indisponível.",
   "marketplace.open": "Abrir {name}",
   "marketplace.tab.apps": "Apps",
   "marketplace.crumbs.label": "Localização",
@@ -101,7 +101,7 @@ export const messages = {
   "marketplace.app.remove.keep": "Manter",
   "marketplace.plugin.aave.tagline": "Dados e transações da Aave",
   "marketplace.plugin.aave.description":
-    "A Aave ajuda usuários a explorar mercados Aave V3 e V4 ao vivo, revisar posições de carteira e governança da DAO, simular ações de lending e preparar transações não-custodiais. Toda transação é retornada sem assinatura: o plugin lê os mercados e escreve a chamada, e a carteira fica com o usuário.",
+    "A Aave ajuda usuários a explorar mercados Aave V3 e V4 ao vivo, revisar posições de carteira e governança da DAO, simular ações de empréstimo e preparar transações não custodiais. Toda transação é retornada sem assinatura: o plugin lê os mercados e escreve a chamada, e a carteira fica com o usuário.",
   "marketplace.plugin.aave.app":
     "Mercados V3 e V4 ao vivo, posições de carteira, governança da DAO e transações preparadas, através de um servidor MCP.",
   "marketplace.plugin.aave.prompt.stablecoinYield": "Onde eu ganho mais com stablecoins na Aave agora?",
@@ -110,7 +110,7 @@ export const messages = {
     "Qual é o fator de saúde de 0x0a42b2f3a0d54157dbd7cc346335a4f1909fc02c e a que distância da liquidação?",
   "marketplace.plugin.canva.tagline": "Designs, assets e exportações",
   "marketplace.plugin.canva.description":
-    "O Canva permite criar e editar designs com palavras, pesquisar a própria biblioteca de designs, subir e organizar assets, exportar no formato que um canal precisa e deixar comentários onde está o trabalho. Cada usuário entra com a própria conta Canva, e o agente pode fazer o que essa conta pode fazer.",
+    "O Canva permite criar e editar designs com palavras, pesquisar a própria biblioteca de designs, enviar e organizar assets, exportar no formato que um canal precisa e deixar comentários onde está o trabalho. Cada usuário entra com a própria conta Canva, e o agente pode fazer o que essa conta pode fazer.",
   "marketplace.plugin.canva.app":
     "Criação e edição de designs, busca na biblioteca, gestão de assets e marca, exportações e comentários, através de um servidor MCP.",
   "marketplace.plugin.canva.prompt.recentDesign": "Mostre meu design do Canva editado mais recentemente.",
@@ -120,7 +120,7 @@ export const messages = {
     "Transforme estas notas de release em uma apresentação de seis slides no Canva.",
   "marketplace.plugin.linear.tagline": "Issues e triagem de projeto",
   "marketplace.plugin.linear.description":
-    "O Linear permite que agentes listem issues atribuídas, façam triagem do backlog, atualizem status e rascunhem novas issues no workspace da conta conectada. Cada usuário entra com a própria conta Linear pelo navegador.",
+    "O Linear permite que agentes listem issues atribuídas, façam triagem do backlog, atualizem status e rascunhem novas issues no espaço de trabalho da conta conectada. Cada usuário entra com a própria conta Linear pelo navegador.",
   "marketplace.plugin.linear.app":
     "Busca de issues, triagem, atualizações de status e criação de issues, através do servidor MCP do Linear com login pelo navegador.",
   "marketplace.plugin.linear.prompt.myWeek": "O que está atribuído a mim esta semana?",
@@ -129,17 +129,17 @@ export const messages = {
     "Abra uma issue para o crash na fila de sincronização com passos de reprodução.",
   "marketplace.plugin.notion.tagline": "Docs e base de conhecimento",
   "marketplace.plugin.notion.description":
-    "O Notion permite que agentes leiam e escrevam páginas, pesquisem o workspace e mantenham notas de reunião e especificações onde o time já trabalha. Cada usuário entra com a própria conta Notion pelo navegador.",
+    "O Notion permite que agentes leiam e escrevam páginas, pesquisem o espaço de trabalho e mantenham notas de reunião e especificações onde a equipe já trabalha. Cada usuário entra com a própria conta Notion pelo navegador.",
   "marketplace.plugin.notion.app":
-    "Busca, leitura, escrita de páginas e navegação do workspace, através do servidor MCP do Notion com login pelo navegador.",
+    "Busca, leitura e escrita de páginas e navegação no espaço de trabalho, através do servidor MCP do Notion com login pelo navegador.",
   "marketplace.plugin.notion.prompt.findSpec":
     "Encontre a especificação atual do lançamento e resuma as questões abertas.",
   "marketplace.plugin.notion.prompt.meetingNotes":
-    "Transforme estes tópicos em uma nota de reunião estruturada no espaço do meu time.",
+    "Transforme estes tópicos em uma nota de reunião estruturada no espaço da minha equipe.",
   "marketplace.plugin.notion.prompt.updateDoc": "Atualize o doc de onboarding com o novo checklist de release.",
   "marketplace.plugin.figma.tagline": "Designs e protótipos",
   "marketplace.plugin.figma.description":
-    "O Figma permite que agentes leiam arquivos de design, inspecionem componentes, estilos e variáveis, e entreguem especificações de produção a engenheiros. Ele conecta ao servidor MCP no app de desktop do Figma, neste computador. O servidor só lê designs por enquanto; suporte de escrita está em andamento.",
+    "O Figma permite que agentes leiam arquivos de design, inspecionem componentes, estilos e variáveis, e entreguem especificações de produção a engenheiros. Ele se conecta ao servidor MCP no app de desktop do Figma, neste computador. O servidor só lê designs por enquanto; suporte de escrita está em andamento.",
   "marketplace.plugin.figma.app":
     "Contexto de design, metadados, variáveis e screenshots, através do servidor MCP no app de desktop do Figma. Somente leitura por enquanto.",
   "marketplace.plugin.figma.prompt.handoff":
@@ -148,7 +148,7 @@ export const messages = {
   "marketplace.plugin.figma.prompt.assets": "Extraia os ícones de marketing em 2x para o pacote do app.",
   "marketplace.plugin.paper.tagline": "Canvas de design construído em HTML e CSS",
   "marketplace.plugin.paper.description":
-    "O Paper permite que agentes leiam e escrevam o arquivo de design aberto no Paper Desktop: inspecionar artboards, seleções, estilos computados, JSX e tokens, e criar ou mudar frames, textos e estilos. Instale o Paper Desktop, abra-o uma vez e abra um arquivo antes de começar. O OpenBot inicia a CLI do Paper que faz a ponte.",
+    "O Paper permite que agentes leiam e escrevam o arquivo de design aberto no Paper Desktop: inspecionar artboards, seleções, estilos computados, JSX e tokens, e criar ou mudar frames, textos e estilos. Instale o Paper Desktop, abra-o uma vez e abra um arquivo antes de começar. O OpenBot inicia a CLI do Paper que o Paper Desktop instala. O Paper não precisa de chave. As ferramentas de escrita alteram o arquivo aberto, então revise cada escrita antes de aprová-la.",
   "marketplace.plugin.paper.app":
     "Lê e escreve o arquivo aberto do Paper Desktop, através do servidor MCP local que a CLI do Paper retransmite. Precisa do Paper Desktop com um arquivo aberto.",
   "marketplace.plugin.paper.prompt.implement":
@@ -158,7 +158,7 @@ export const messages = {
   "marketplace.plugin.paper.prompt.tokens": "Liste os design tokens do arquivo Paper aberto e compare com nosso tema.",
   "marketplace.plugin.sentry.tagline": "Erros e triagem de crashes",
   "marketplace.plugin.sentry.description":
-    "O Sentry permite que agentes pesquisem erros recentes, inspecionem stack traces e releases afetadas, e resumam o que quebrou depois de um deploy. Cada usuário entra com a própria conta Sentry pelo navegador.",
+    "O Sentry permite que agentes pesquisem erros recentes, inspecionem stack traces e releases afetados, e resumam o que quebrou depois de um deploy. Cada usuário entra com a própria conta Sentry pelo navegador.",
   "marketplace.plugin.sentry.app":
     "Busca de erros, inspeção de issues e saúde de releases, através do servidor MCP do Sentry com login pelo navegador.",
   "marketplace.plugin.sentry.prompt.newErrors": "Quais erros novos apareceram desde o deploy de ontem?",
@@ -182,7 +182,7 @@ export const messages = {
   "marketplace.plugin.context7.prompt.example": "Mostre um exemplo atual de upload de arquivos autenticado.",
   "marketplace.plugin.stripe.tagline": "Revisão de pagamentos e cobrança",
   "marketplace.plugin.stripe.description":
-    "O Stripe permite que agentes consultem pagamentos, clientes e faturas, e rascunhem links de pagamento, na conta que o usuário conectado alcança. Cada usuário entra com a própria conta Stripe pelo navegador.",
+    "O Stripe permite que agentes consultem pagamentos, clientes e faturas, e rascunhem links de pagamento, na conta a que o usuário conectado tem acesso. Cada usuário entra com a própria conta Stripe pelo navegador.",
   "marketplace.plugin.stripe.app":
     "Consulta de pagamentos, clientes e faturas, através do servidor MCP do Stripe com login pelo navegador.",
   "marketplace.plugin.stripe.prompt.payment": "Consulte este pagamento e explique por que ele falhou.",
@@ -218,7 +218,7 @@ export const messages = {
     "O Brave Search permite que agentes pesquisem resultados web e locais sem rastreamento. Uma chave de API do painel da Brave Search API é passada ao servidor local como uma variável de ambiente.",
   "marketplace.plugin.braveSearch.app":
     "Busca web e local, através de um servidor MCP local com uma chave de API do Brave.",
-  "marketplace.plugin.braveSearch.prompt.search": "O que os reviews estão dizendo sobre esta versão do framework?",
+  "marketplace.plugin.braveSearch.prompt.search": "O que os avaliadores estão dizendo sobre esta versão do framework?",
   "marketplace.plugin.braveSearch.prompt.news": "Encontre os anúncios de hoje nesta área de produto.",
   "marketplace.plugin.braveSearch.prompt.compare": "Compare estes dois fornecedores com fontes citadas.",
   "marketplace.plugin.resend.tagline": "E-mail transacional",
@@ -235,7 +235,7 @@ export const messages = {
   "marketplace.plugin.composio.app":
     "Os apps que você adiciona ao seu servidor MCP do Composio, através do link da sua conta Composio.",
   "marketplace.plugin.composio.prompt.inbox": "Resuma meus e-mails não lidos e rascunhe respostas para os urgentes.",
-  "marketplace.plugin.composio.prompt.handoff": "Publique um resumo deste pull request no canal do nosso time.",
+  "marketplace.plugin.composio.prompt.handoff": "Publique um resumo deste pull request no canal da nossa equipe.",
   "marketplace.plugin.composio.prompt.apps": "Quais apps e ações você pode usar pelo Composio?",
   "marketplace.skill.installMenu.install": "Instalar",
   "marketplace.skill.installMenu.installNamed": "Instalar {name}",
@@ -270,7 +270,7 @@ export const messages = {
   "marketplace.error.installLocalOnHost":
     "Instale {name} no computador que executa estes agentes: o app executa seu servidor nesse computador.",
   "marketplace.error.installOnHost":
-    "Instale {name} no computador que executa estes agentes: o app precisa de acesso pela conta no navegador.",
+    "Instale {name} no computador que executa estes agentes: o app precisa de login pelo navegador.",
   "marketplace.error.appInvalid": "Não é possível adicionar {name}: {reason}",
   "marketplace.error.uninstallNoServer": "Selecione um servidor local para desinstalar um plugin.",
   "marketplace.error.uninstallPartial": "Não foi possível remover todas as partes de {name}. {failures}",

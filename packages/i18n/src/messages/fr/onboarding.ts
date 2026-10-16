@@ -73,7 +73,7 @@ export const messages = {
   "onboarding.choice.freeDetail": "Modèles gratuits. Aucun abonnement requis.",
   "onboarding.choice.subscription": "J’ai un abonnement",
   "onboarding.choice.subscriptionDetail": "ChatGPT, Claude ou Grok",
-  "onboarding.choice.startFreeInstead": "Commencer gratuitement à la place",
+  "onboarding.choice.startFreeInstead": "Plutôt l’option gratuite",
   "onboarding.plan.title": "Connectez votre forfait",
   "onboarding.plan.description": "Connectez-vous une fois. Vos agents utilisent votre forfait.",
   "onboarding.computer.title": "OpenBot peut contrôler votre ordinateur",
@@ -84,8 +84,8 @@ export const messages = {
   "onboarding.action.next": "Suivant",
   "onboarding.server.title": "Configurer {server}",
   "onboarding.server.description":
-    "OpenBot n’inclut pas d’abonnement IA. Connectez votre propre fournisseur à ce serveur avant de créer un agent.",
-  "onboarding.server.label": "Choisissez le fournisseur IA de ce serveur",
+    "OpenBot n’inclut pas d’abonnement d’IA. Connectez votre propre fournisseur à ce serveur avant de créer un agent.",
+  "onboarding.server.label": "Choisissez le fournisseur d’IA de ce serveur",
   "onboarding.server.hint":
     "La connexion reste sur le serveur. Vous pourrez changer le fournisseur de chaque agent plus tard.",
   "onboarding.server.continue": "Continuer",

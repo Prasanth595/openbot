@@ -34,7 +34,7 @@ export const messages = {
     other: "Połączono · {count} narzędzia",
   },
   "mcp.status.testing": "Testowanie…",
-  "mcp.status.failed": "Niepowodzenie",
+  "mcp.status.failed": "Błąd",
   "mcp.status.enabled": "Włączony",
   "mcp.status.disabled": "Wyłączony",
   "mcp.status.signedIn": "Zalogowano",
@@ -164,5 +164,5 @@ export const messages = {
   "mcp.signIn.relayAddress": "Adres z przeglądarki",
   "mcp.signIn.relaySend": "Wyślij",
   "mcp.panel.callbackUrlRelayed":
-    "Strona logowania otwiera się w Twojej przeglądarce, a OpenBot na Twoim komputerze wysyła logowanie do {host}. Dodaj dokładnie ten adres URL do dozwolonych adresów przekierowania aplikacji.",
+    "Strona logowania otwiera się w twojej przeglądarce, a OpenBot na twoim komputerze wysyła logowanie do {host}. Dodaj dokładnie ten adres URL do dozwolonych adresów przekierowania aplikacji.",
 } as const satisfies PartialTranslation<typeof source>;

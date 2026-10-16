@@ -11,8 +11,8 @@ export const messages = {
   "error.voice.prepareRequired":
     "Локальная расшифровка голоса недоступна. Выполните `bun run voice:prepare` и перезапустите OpenBot.",
   "error.voice.transcriptionFailed": "OpenBot не смог расшифровать эту запись.",
-  "error.voice.cloud.keyRequired": "Добавьте API-ключ ElevenLabs в Настройки → Голос.",
-  "error.voice.cloud.keyRejected": "ElevenLabs не принял API-ключ. Проверьте ключ в Настройки → Голос.",
+  "error.voice.cloud.keyRequired": "Добавьте API-ключ ElevenLabs в разделе «Настройки» → «Голос».",
+  "error.voice.cloud.keyRejected": "ElevenLabs не принял API-ключ. Проверьте ключ в разделе «Настройки» → «Голос».",
   "error.voice.cloud.quotaExceeded": "Квота ElevenLabs исчерпана.",
   "error.voice.cloud.rateLimited": "ElevenLabs перегружен. Повторите попытку чуть позже.",
   "error.voice.cloud.termsRequired": "Примите условия ElevenLabs в своём аккаунте ElevenLabs и повторите попытку.",

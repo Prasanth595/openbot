@@ -10,7 +10,7 @@ export const messages = {
   "prompt.question.skipped": "Pominięto",
   "prompt.question.privateAnswer": "Prywatna odpowiedź",
   "prompt.question.controls": "Sterowanie pytaniami",
-  "prompt.question.navigation": "Nawigacja pytań",
+  "prompt.question.navigation": "Nawigacja po pytaniach",
   "prompt.question.previous": "Poprzednie pytanie",
   "prompt.question.next": "Następne pytanie",
   "prompt.question.cancel": "Anuluj pytania",

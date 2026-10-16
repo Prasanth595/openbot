@@ -71,7 +71,7 @@ export const messages = {
   "mobile.server.hosted.computer.title": "Sul tuo computer",
   "mobile.server.hosted.computer.add": "Aggiungi un server cloud",
   "mobile.server.hosted.computer.addHint":
-    "In OpenBot, apri Impostazioni → Server ospitati e seleziona Aggiungi server.",
+    "In OpenBot, apri Impostazioni → Server ospitati e seleziona «Aggiungi server».",
   "mobile.server.hosted.computer.change": "Cambia un piano",
   "mobile.server.hosted.computer.changeHint": "In OpenBot, apri Impostazioni → Fatturazione.",
   "mobile.server.hosted.yourServers": "I tuoi server",

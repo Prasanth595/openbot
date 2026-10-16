@@ -52,6 +52,7 @@ export const messages = {
   "app.rail.agents": "Agenci",
   "app.rail.schedule": "Harmonogram",
   "app.rail.usage": "Użycie",
+  "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Ustawienia",
   "app.help.label": "Pomoc",
   "app.help.whatsNew": "Co nowego",

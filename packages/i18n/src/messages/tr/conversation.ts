@@ -2,7 +2,7 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/conversation";
 
 export const messages = {
-  "conversation.globalSearch.title": "OpenBot'ta Ara",
+  "conversation.globalSearch.title": "OpenBot'ta ara",
   "conversation.globalSearch.filter": "Sonuçları filtrele",
   "conversation.globalSearch.tab.all": "Tümü",
   "conversation.globalSearch.tab.messages": "Mesajlar",
@@ -28,8 +28,8 @@ export const messages = {
   "conversation.direct.sendFailed": "Mesaj gönderilemedi.",
   "conversation.direct.markReadFailed": "Mesajlar okundu olarak işaretlenemedi.",
   "conversation.direct.label": "{name} ile doğrudan konuşma",
-  "conversation.direct.online": "Çevrimiçi",
-  "conversation.direct.offline": "Çevrimdışı",
+  "conversation.direct.online": "Çevrim içi",
+  "conversation.direct.offline": "Çevrim dışı",
   "conversation.direct.private": "Özel",
   "conversation.direct.loading": "Mesajlar yükleniyor…",
   "conversation.direct.loadFailed": "Mesajlar yüklenemedi.",
@@ -44,7 +44,7 @@ export const messages = {
   "conversation.header.settings": "Ajan ayarlarını görüntüle",
   "conversation.header.resumeRemote": "Uzaktan kontrolü sürdür",
   "conversation.header.openRemote": "Uzaktan kontrolü aç",
-  "conversation.header.publish": "Ajanı yayınla",
+  "conversation.header.publish": "Ajanı yayımla",
   "conversation.header.browserActing": "{name} tarayıcıyı kontrol ediyor",
   "conversation.header.agentFallback": "Ajan",
   "conversation.header.thisAgent": "Bu ajan",

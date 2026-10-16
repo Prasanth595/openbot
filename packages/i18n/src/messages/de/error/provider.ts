@@ -5,7 +5,7 @@ export const messages = {
   "error.provider.mcpConfig":
     "OpenBot konnte die MCP-Server nicht in der Codex-Konfiguration registrieren. Prüfe, ob deine Codex-Datei config.toml gültig und beschreibbar ist, und starte OpenBot neu.",
   "error.provider.computerUseConfig":
-    "OpenBot konnte die Computersteuerung nicht in der Codex-Konfiguration registrieren. Prüfe, ob deine Codex-Datei config.toml gültig und beschreibbar ist, und starte OpenBot neu. Du kannst die Computersteuerung in den Einstellungen des Teamkollegen ausschalten, um ohne sie fortzufahren.",
+    "OpenBot konnte die Computersteuerung nicht in der Codex-Konfiguration registrieren. Prüfe, ob deine Codex-Datei config.toml gültig und beschreibbar ist, und starte OpenBot neu. Du kannst die Computersteuerung in den Agenteneinstellungen ausschalten, um ohne sie fortzufahren.",
   "error.provider.endpointsReadOnly":
     "Die gespeicherten Endpunkte wurden mit einer neueren OpenBot-Version geschrieben oder die Datei kann nicht gelesen werden. Aktualisiere OpenBot, um sie zu ändern.",
   "error.provider.endpointNoSecureStorage":
@@ -191,9 +191,9 @@ export const messages = {
   "error.provider.opencodeNetwork":
     "OpenCode konnte keine Verbindung zum Modellanbieter herstellen. Prüfe die Netzwerkverbindung des Computers, auf dem OpenBot läuft, und versuche es erneut.\n{detail}",
   "error.provider.opencodeNoAnswer":
-    "Das OpenCode-Modell hat den Turn ohne Antwort beendet. Versuche es erneut oder wähle ein anderes Modell.",
+    "Das OpenCode-Modell hat den Durchlauf ohne Antwort beendet. Versuche es erneut oder wähle ein anderes Modell.",
   "error.provider.opencodeReasoningWithoutAnswer":
-    "Das OpenCode-Modell hat den Turn nach seinem Nachdenken ohne Antwort beendet. Versuche es erneut oder wähle ein anderes Modell.",
+    "Das OpenCode-Modell hat den Durchlauf nach seinem Nachdenken ohne Antwort beendet. Versuche es erneut oder wähle ein anderes Modell.",
   "error.provider.chatgptPageFailed": "OpenBot konnte die ChatGPT-Verbindungsseite nicht öffnen.",
   "error.provider.noneReady": "Kein Agentenanbieter ist bereit.",
   "error.provider.claudeTurnActive":
@@ -307,13 +307,13 @@ export const messages = {
   "error.provider.sessionSettingUnavailable": "Diese Einstellung ist in der aktuellen Anbietersitzung nicht verfügbar.",
   "error.provider.sessionSettingInvalid": "Dieser Wert ist für die Einstellung nicht verfügbar.",
   "error.provider.sessionSettingsBusy":
-    "Warte, bis der aktuelle Durchgang endet, bevor du eine Sitzungseinstellung änderst.",
+    "Warte, bis der aktuelle Durchlauf endet, bevor du eine Sitzungseinstellung änderst.",
   "error.provider.piOutdated":
     "Pi {version} ist zu alt. Installiere Pi 1.1.0 oder neuer für native RPC- und MCP-Unterstützung.",
   "error.provider.nativeMissing": "Die {provider} CLI ist nicht installiert. Lade sie in den Einstellungen herunter.",
   "error.provider.nativeNotStarted": "Die {provider} CLI konnte nicht starten.",
   "error.provider.nativeVersionUnreadable": "Die Version der {provider} CLI konnte nicht gelesen werden.",
-  "error.provider.piSessionBusy": "Warte, bis der aktuelle Pi-Durchgang endet.",
+  "error.provider.piSessionBusy": "Warte, bis der aktuelle Pi-Durchlauf endet.",
   "error.provider.piStopped": "Pi läuft nicht. Verbinde Pi und versuche es erneut.",
   "error.provider.piSessionMissing": "Die Pi-Sitzungsdatei ist auf diesem Computer nicht verfügbar.",
   "error.provider.piResumeCancelled": "Pi hat das Fortsetzen der Sitzung abgebrochen. Versuche es erneut.",
@@ -326,7 +326,7 @@ export const messages = {
   "error.provider.museBusy": "Die Muse-Sitzung ist beschäftigt.",
   "error.provider.museStopped": "Der Muse-Client läuft nicht.",
   "error.provider.museUnexpectedProvider": "Muse hat einen unerwarteten Modellanbieter zurückgegeben.",
-  "error.provider.museNoActiveTurn": "Muse hat keinen aktiven Durchgang zum Steuern.",
+  "error.provider.museNoActiveTurn": "Muse hat keinen aktiven Durchlauf zum Steuern.",
   "error.provider.museInvalidProtocol": "Muse hat eine ungültige Protokollantwort zurückgegeben.",
   "error.provider.museNotStarted": "Muse wurde nicht gestartet.",
   "error.provider.museNativeWindows": "Muse benötigt unter Windows eine native ausführbare Datei.",
@@ -342,7 +342,7 @@ export const messages = {
   "error.provider.museMcpRequired": "Muse muss MCP-Server pro Sitzung unterstützen.",
   "error.provider.museSessionMismatch": "Muse hat eine andere Sitzung zurückgegeben.",
   "error.provider.museCompactRejected": "Muse hat die Komprimierung nicht akzeptiert.",
-  "error.provider.museTurnMismatch": "Muse hat einen anderen Durchgang zurückgegeben.",
+  "error.provider.museTurnMismatch": "Muse hat einen anderen Durchlauf zurückgegeben.",
   "error.provider.museHistoryMismatch": "Der Muse-Verlauf hat Sitzungen überschritten.",
   "error.provider.museRecoveryFailed": "Muse konnte die fehlenden Ereignisse nicht wiederherstellen.",
   "error.provider.museHistoryStalled": "Der Muse-Verlaufscursor ist nicht weitergerückt.",
@@ -351,7 +351,7 @@ export const messages = {
   "error.provider.museHistoryMissing": "Muse hat keinen Sitzungsverlauf zurückgegeben.",
   "error.provider.museEmptyInput": "Muse benötigt Text oder ein Bild.",
   "error.provider.museMethodUnsupported": "Muse unterstützt {method} nicht.",
-  "error.provider.museTurnFailed": "Der Muse-Durchgang ist fehlgeschlagen.",
+  "error.provider.museTurnFailed": "Der Muse-Durchlauf ist fehlgeschlagen.",
   "error.provider.museProfileUnsupported":
     "Muse kann ohne Zugriff auf externe Werkzeuge kein Profil erstellen. Verwende einen anderen Anbieter, um das Profil zu erstellen, und wähle dann Muse für den Agenten.",
   "error.provider.museAuthUnverified":

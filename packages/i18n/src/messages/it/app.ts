@@ -26,7 +26,7 @@ export const messages = {
   "app.provider.connected": "{name} connesso",
   "app.provider.signedInAs": "Accesso effettuato come {account}.",
   "app.provider.signedInElsewhere": "L'accesso è stato completato sull'altro dispositivo.",
-  "app.provider.newCode": "Ottieni un nuovo codice",
+  "app.provider.newCode": "Nuovo codice",
   "app.provider.codeExpired": "Il codice di {name} è scaduto",
   "app.provider.codeExpiredDescription": "Nessuno l'ha inserito in tempo. Quel codice non funziona più.",
   "app.provider.connectFailed": "Impossibile connettere {name}",
@@ -53,6 +53,7 @@ export const messages = {
   "app.rail.agents": "Agenti",
   "app.rail.schedule": "Pianificazione",
   "app.rail.usage": "Utilizzo",
+  "app.rail.marketplace": "Marketplace",
   "app.rail.settings": "Impostazioni",
   "app.help.label": "Aiuto",
   "app.help.whatsNew": "Novità",
@@ -66,7 +67,7 @@ export const messages = {
   "app.settingsPage.results": "Risultati della ricerca nelle impostazioni",
   "app.settingsPage.noResults": "Nessuna impostazione corrispondente.",
   "app.standingApproval.description":
-    "{name} eseguirà comandi e strumenti MCP, modificherà file e amplierà il proprio accesso al file system e alla rete sul computer che lo esegue, senza chiedere di nuovo. La pubblicazione, la sostituzione e l'eliminazione di siti pubblici richiedono comunque l'approvazione, a meno che la modalità Turbo non sia attiva. Puoi disattivare l'approvazione automatica nel menu del modello di questo agente.",
+    "{name} eseguirà comandi e tool MCP, modificherà file e amplierà il proprio accesso al file system e alla rete sul computer che lo esegue, senza chiedere di nuovo. La pubblicazione, la sostituzione e l'eliminazione di siti pubblici richiedono comunque l'approvazione, a meno che la modalità Turbo non sia attiva. Puoi disattivare l'approvazione automatica nel menu del modello di questo agente.",
   "app.standingApproval.descriptionUnnamed":
-    "Questo agente eseguirà comandi e strumenti MCP, modificherà file e amplierà il proprio accesso al file system e alla rete sul computer che lo esegue, senza chiedere di nuovo. La pubblicazione, la sostituzione e l'eliminazione di siti pubblici richiedono comunque l'approvazione, a meno che la modalità Turbo non sia attiva. Puoi disattivare l'approvazione automatica nel menu del modello di questo agente.",
+    "Questo agente eseguirà comandi e tool MCP, modificherà file e amplierà il proprio accesso al file system e alla rete sul computer che lo esegue, senza chiedere di nuovo. La pubblicazione, la sostituzione e l'eliminazione di siti pubblici richiedono comunque l'approvazione, a meno che la modalità Turbo non sia attiva. Puoi disattivare l'approvazione automatica nel menu del modello di questo agente.",
 } as const satisfies PartialTranslation<typeof source>;

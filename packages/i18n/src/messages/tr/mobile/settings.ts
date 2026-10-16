@@ -16,14 +16,14 @@ export const messages = {
   "mobile.settings.about.privacy": "Gizlilik politikası",
   "mobile.settings.home.profile": "Profil",
   "mobile.settings.home.preferences": "Tercihler",
-  "mobile.settings.home.about": "OpenBot Hakkında",
+  "mobile.settings.home.about": "OpenBot hakkında",
   "mobile.settings.home.support": "Destek",
   "mobile.settings.home.supportHint": "Yardım alın ve destek günlüğünü kaydedin",
   "mobile.settings.support.help": "Yardım alın",
   "mobile.settings.support.message": "Bize X üzerinden yazın",
   "mobile.settings.support.issues": "GitHub'da sorun bildirin",
   "mobile.settings.support.helpFooter":
-    "Ne olduğunu ve ne zaman olduğunu bize anlatın. Destek günlüğü dosyasını GitHub kaydınıza ekleyin.",
+    "Ne olduğunu ve ne zaman olduğunu bize anlatın. Destek günlüğü dosyasını GitHub'da açtığınız sorun kaydına ekleyin.",
   "mobile.settings.support.log": "Destek günlüğü",
   "mobile.settings.support.save": "Günlük dosyasını kaydet",
   "mobile.settings.support.events": { one: "{count} olay", other: "{count} olay" },
@@ -40,7 +40,7 @@ export const messages = {
   "mobile.settings.sessions.kindDesktop": "masaüstü",
   "mobile.settings.sessions.kindMobile": "mobil",
   "mobile.settings.sessions.kindHostedServer": "barındırılan sunucu",
-  "mobile.settings.sessions.title": "Giriş yapılmış cihazlar",
+  "mobile.settings.sessions.title": "Oturum açılmış cihazlar",
   "mobile.settings.sessions.loading": "Oturumlar yükleniyor…",
   "mobile.settings.sessions.refresh": "Oturumları yenile",
   "mobile.settings.sessions.updateFailed": "Hesap oturumları güncellenemedi. Yenileyin ve tekrar deneyin.",
@@ -68,7 +68,7 @@ export const messages = {
     "Bir ajan sohbetindeki mesajlarınız o ajanın rengini kullanır. Metni okumak zorsa kapatın.",
   "mobile.settings.animations.title": "Animasyonlar",
   "mobile.settings.animations.footer":
-    "Uygulamanın tamamında hareketi azaltmak için Animasyonlar’ı kapatın. Telefon ayarlarında Hareketi Azalt açıkken uygulama da hareketi azaltır. Bu durumda aşağıdaki animasyonlar kapalı kalır.",
+    "Uygulamanın tamamında hareketi azaltmak için “Animasyonlar” ayarını kapatın. Telefon ayarlarında “Hareketi Azalt” açıkken uygulama da hareketi azaltır. Bu durumda aşağıdaki animasyonlar kapalı kalır.",
   "mobile.settings.animations.all": "Animasyonlar",
   "mobile.settings.animations.chatZoom": "Sohbetlere yakınlaştır",
   "mobile.settings.animations.chatZoomFooter":
@@ -85,23 +85,23 @@ export const messages = {
   "mobile.settings.animations.searchTransitions": "Arama sonuçlarını canlandır",
   "mobile.settings.animations.searchTransitionsFooter":
     "Arama sonuçları ve arama mesajları değiştiğinde kısa bir bulanıklıkla belirip kaybolur. Hareket azaltıldığında yalnızca solarak değişir. Bu kapalıyken hemen değişir.",
-  "mobile.settings.feedback.footer": "Bu cihazdaki uygulamadaki eylemler için dokunma geri bildirimi.",
+  "mobile.settings.feedback.footer": "Bu cihazda, uygulamadaki eylemler için dokunma geri bildirimi.",
   "mobile.settings.feedback.haptics": "Dokunsal",
   "mobile.settings.feedback.retry": "Dokunsal ayarını kaydetmeyi tekrar dene",
   "mobile.settings.liveActivities.title": "Canlı Etkinlikler",
   "mobile.settings.liveActivities.footer":
-    "OpenBot çalışırken Kilit Ekranında ve Dinamik Adada ajan çalışmasını, mesajları, soruları ve onayları gösterir.",
+    "OpenBot çalışırken Kilit Ekranı'nda ve Dynamic Island'da ajan çalışmasını, mesajları, soruları ve onayları gösterir.",
   "mobile.settings.liveActivities.toggle": "Ajan etkinliğini göster",
   "mobile.settings.liveActivities.retry": "Canlı Etkinlikler ayarını kaydetmeyi tekrar dene",
   "mobile.settings.notifications.title": "Bildirimler",
   "mobile.settings.notifications.toggle": "Bildirimlere izin ver",
   "mobile.settings.notifications.footer":
-    "Ajanlar işi bitirdiğinde, bir hatayla durduğunda veya girdine, bir onaya ya da tarayıcıda bir adıma ihtiyaç duyduğunda sana haber verir. OpenBot’u burada veya masaüstü uygulamasında kullanırken bildirim gelmez. Canlı Etkinlik gösterilirken olayı o gösterir.",
+    "Ajanlar işi bitirdiğinde, bir hatayla durduğunda veya girdinize, bir onaya ya da tarayıcıda bir adıma ihtiyaç duyduğunda size haber verir. OpenBot'u burada veya masaüstü uygulamasında kullanırken bildirim gelmez. Canlı Etkinlik gösterilirken olayı o gösterir.",
   "mobile.settings.notifications.footerAndroid":
-    "Ajanlar işi bitirdiğinde, bir hatayla durduğunda veya girdine, bir onaya ya da tarayıcıda bir adıma ihtiyaç duyduğunda sana haber verir. OpenBot’u burada veya masaüstü uygulamasında kullanırken bildirim gelmez.",
-  "mobile.settings.notifications.denied": "OpenBot bildirimleri iOS Ayarlar’da kapalı.",
+    "Ajanlar işi bitirdiğinde, bir hatayla durduğunda veya girdinize, bir onaya ya da tarayıcıda bir adıma ihtiyaç duyduğunda size haber verir. OpenBot'u burada veya masaüstü uygulamasında kullanırken bildirim gelmez.",
+  "mobile.settings.notifications.denied": "OpenBot bildirimleri iOS Ayarlar'da kapalı.",
   "mobile.settings.notifications.deniedAndroid": "OpenBot bildirimleri Android ayarlarında kapalı.",
-  "mobile.settings.notifications.openSettings": "iOS Ayarlar’ı aç",
+  "mobile.settings.notifications.openSettings": "iOS Ayarlar'ı aç",
   "mobile.settings.notifications.openSettingsAndroid": "Android ayarlarını aç",
   "mobile.settings.notifications.preview": "Yanıt önizlemesini göster",
   "mobile.settings.notifications.previewFooter":
@@ -137,7 +137,7 @@ export const messages = {
   "mobile.settings.notifications.serverFooter":
     "Bu sunucunun bu telefona bildirdiği olaylar. Masaüstü uygulamasının kendi ayarları vardır.",
   "mobile.settings.notifications.serverUnsupported":
-    "Bu sunucu bildirim gönderemez. OpenBot’u sunucuyu çalıştıran bilgisayarda güncelle.",
+    "Bu sunucu bildirim gönderemez. Sunucuyu çalıştıran bilgisayardaki OpenBot'u güncelleyin.",
   "mobile.settings.notifications.channel": "Ajan bildirimleri ({sound})",
   "mobile.settings.notifications.channelSilent": "Ajan bildirimleri (sessiz)",
   "mobile.settings.privacy.title": "Gizlilik",
