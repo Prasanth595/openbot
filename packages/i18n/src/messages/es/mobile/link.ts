@@ -11,6 +11,8 @@ export const messages = {
   "mobile.link.pairing.alreadySignedIn":
     "Ya iniciaste sesión. Cierra la sesión en Ajustes antes de conectar otra cuenta.",
   "mobile.link.pairing.description": "Continúa solo si solicitaste este enlace de conexión móvil desde tu escritorio.",
+  "mobile.link.pairing.accountService":
+    "Este enlace se conecta al servicio de cuentas en {origin}, no al servicio de cuentas de OpenBot.",
   "mobile.link.pairing.connect": "Conectar",
   "mobile.link.plugin.title": "Abrir página del plugin",
   "mobile.link.plugin.description": "Ver este plugin en el sitio web de OpenBot.",

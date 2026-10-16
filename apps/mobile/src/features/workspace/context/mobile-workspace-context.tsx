@@ -1,6 +1,7 @@
 import {
   type AgentEvent,
   type CreateAgentInput,
+  canAdministerServer,
   isQueuedMessageReceipt,
   type RespondToApprovalInput,
   type SidebarLayoutSnapshot,
@@ -1124,7 +1125,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       hostedServerStarting,
       updateServerIdentity: async (serverId, input) => {
         const server = serversRef.current.find((candidate) => candidate.id === serverId);
-        if (!server || server.role === "member")
+        if (!server || !canAdministerServer(server.role))
           throw new Error(currentText().t("mobile.server.settings.identityNotAllowed"));
         requireCapability(
           serverCapabilities.current,
@@ -1428,7 +1429,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       return Boolean(
         server &&
           showsOnline(server) &&
-          (server.role === "owner" || server.role === "admin") &&
+          canAdministerServer(server.role) &&
           hasCapability(serverCapabilities.current, serverId, capability),
       );
     };

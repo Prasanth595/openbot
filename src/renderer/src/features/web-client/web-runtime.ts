@@ -48,6 +48,7 @@ import type {
   WorkspaceDirectory,
 } from "@openbot/contracts/ipc";
 import {
+  canAdministerServer,
   decodeWorkspaceDirectory,
   isAccountUsage,
   isAgentModelOption,
@@ -1030,7 +1031,8 @@ export function createWebWorkspaceRuntime(
       );
     },
     async deleteAgent(agentId) {
-      if (connectedHost?.role === "member") throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
+      if (connectedHost && !canAdministerServer(connectedHost.role))
+        throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
       await Effect.runPromise(deleteAgent(teamApi, agentId).pipe(Effect.mapError((error) => error.cause)));
     },
     async search(agentId, query, cursor) {

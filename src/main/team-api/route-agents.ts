@@ -1,5 +1,6 @@
 import {
   BROWSER_SECRET_RESPONSE_PATH,
+  canAdministerServer,
   parseAgentAnalyticsInput,
   parseBrowserSecretResponse,
   parseGenerateAgentProfile,
@@ -223,7 +224,8 @@ export async function routeAgents(
       return json(201, await runCauseEffect(duplicateAgent(agentId, stringField(body, "operationId"))));
     }
     if (method === "DELETE" && !action) {
-      if (member.role === "member") throw new HttpError(403, sourceText("error.team.membersCannotDeleteAgents"));
+      if (!canAdministerServer(member.role))
+        throw new HttpError(403, sourceText("error.team.membersCannotDeleteAgents"));
       await runCauseEffect(agents.deleteAgent(agentId));
       await runCauseEffect(sidebarLayout.removeAgent(agentId));
       return empty(204);

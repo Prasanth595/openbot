@@ -23,6 +23,7 @@ import type {
   TeamPresenceSnapshot,
   TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
+import { canAdministerServer } from "@openbot/contracts/ipc";
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { FOCUS_USE_CAPABILITY } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
@@ -1504,7 +1505,8 @@ export function createWebWorkspace(
     },
     async deleteAgent(agentId: string): Promise<void> {
       if (state.status !== "online") throw new Error(currentText().t("webClient.error.deleteOffline"));
-      if (state.host?.role === "member") throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
+      if (state.host && !canAdministerServer(state.host.role))
+        throw new Error(currentText().t("error.team.membersCannotDeleteAgents"));
       if (!state.agents.some((agent) => agent.id === agentId)) return;
       const current = generation;
       const wasSelected = selectedId === agentId;

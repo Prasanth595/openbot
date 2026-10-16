@@ -11,6 +11,8 @@ export const messages = {
   "mobile.link.pairing.alreadySignedIn":
     "Zaten oturum açtınız. Başka bir hesap bağlamadan önce Ayarlar'dan oturumu kapatın.",
   "mobile.link.pairing.description": "Yalnızca bu Mobile Connect bağlantısını masaüstünüzden istediyseniz devam edin.",
+  "mobile.link.pairing.accountService":
+    "Bu bağlantı OpenBot hesap hizmetine değil, {origin} adresindeki hesap hizmetine bağlanır.",
   "mobile.link.pairing.connect": "Bağlan",
   "mobile.link.plugin.title": "Eklenti sayfasını aç",
   "mobile.link.plugin.description": "Bu eklentiyi OpenBot web sitesinde görüntüleyin.",

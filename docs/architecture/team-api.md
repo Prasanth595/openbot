@@ -79,8 +79,12 @@ iOS `inactive` transitions, including Notification Center, do not trigger a chec
 Session revocation, explicit refresh,
 and completed invitation acceptance can refresh sooner. A lost healthy connection also requests
 membership reconciliation; a transport failure alone never removes a server. Mobile member controls
-use the same account endpoints: owners and admins can invite, while only owners can change another
-member's role or remove access. D1 retains revoked membership records and invalidates affected
+use the same account endpoints: owners and admins invite, change another member's role, remove access
+and end another member's session. Nobody can change or remove the owner, and only the owner ends the
+owner's sessions. `canAdministerServer` in `packages/contracts/src/ipc-team-host.ts` is the one role
+check for the clients and the host. On a host with an account directory, the Team API member `PATCH`
+and `DELETE` write to D1 through `HostService`, so the next directory sync does not undo them; each
+sync closes the host sessions of a member that D1 removed, disabled or gave another role. D1 retains revoked membership records and invalidates affected
 sessions; both clients exclude inactive members from the active list and count. On legacy HTTP(S)
 hosts, desktop exposes inactive records separately for removal before a new invitation; it does not
 restore the pause/restore controls or change the released invitation rules. Mobile separates shareable

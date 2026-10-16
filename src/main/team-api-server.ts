@@ -7,6 +7,7 @@ import {
   type AgentEvent,
   type AgentSummary,
   AnalyticsInputError,
+  canAdministerServer,
   type DirectConversationPage,
   type DirectConversationPageAnchor,
   type DirectConversationSnapshot,
@@ -23,6 +24,7 @@ import {
   type TeamPresenceSnapshot,
   type TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
+import { isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { ACP_REGISTRY_CAPABILITY } from "@openbot/contracts/team-protocol/acp-registry-v1";
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
@@ -860,6 +862,8 @@ export class TeamApiServer {
       store: this.#options.store,
       remoteScreen: this.#options.remoteScreen,
       createInvite: this.#options.createInvite,
+      updateMember: this.#options.updateMember,
+      removeMember: this.#options.removeMember,
       onSessionRevoked: this.#options.onSessionRevoked,
       getPresence: () => this.getPresence(),
       refreshPresence: () => this.refreshPresence(),
@@ -907,7 +911,8 @@ export class TeamApiServer {
   }
 
   #checkRate(request: IncomingMessage, username: string): void {
-    const key = `${request.socket.remoteAddress ?? "local"}:${username.toLowerCase()}`;
+    // The same form of the name as the team store compares, so spaces around it do not start a new count.
+    const key = `${this.#rateLimitSource(request)}:${username.trim().toLowerCase()}`;
     const now = this.#now();
     this.#pruneRateLimits(now, this.#rateLimits.size >= this.#rateLimitCapacity);
     const current = this.#rateLimits.get(key);
@@ -922,6 +927,21 @@ export class TeamApiServer {
     if (current.attempts > RATE_LIMIT_ATTEMPTS) {
       throw new HttpError(429, sourceText("error.team.tooManySignInAttempts"));
     }
+  }
+
+  /**
+   * The caller that the sign-in limit counts. The WebRTC host peer sends the requests of all its
+   * peers from this computer, so the address is the same for each peer, and one peer could use
+   * all the attempts for a user name. A forwarded request has the session token of its peer and
+   * the session ID in a header; both must agree, so a header alone does not select a new count.
+   */
+  #rateLimitSource(request: IncomingMessage): string {
+    const address = request.socket.remoteAddress ?? "local";
+    const webRtcSession = request.headers["x-openbot-webrtc-session"];
+    const token = bearerToken(request.headers.authorization);
+    if (!isString(webRtcSession) || !token) return address;
+    const authenticated = this.#options.store.authenticateSession(token);
+    return authenticated?.sessionId === webRtcSession ? `webrtc:${webRtcSession}` : address;
   }
 
   #pruneRateLimits(now: number, force: boolean): void {
@@ -1187,7 +1207,7 @@ export class TeamApiServer {
     const { browser, store } = this.#options;
     if (!event.tabs.some((tab) => browser.isPrivate(tab.id))) return event;
     const role = store.authenticate(connection.token)?.role;
-    if (role && role !== "member") return event;
+    if (canAdministerServer(role)) return event;
     const tabs = event.tabs.filter((tab) => !browser.isPrivate(tab.id));
     return { ...event, tabs, activeTabId: tabs.some((tab) => tab.id === event.activeTabId) ? event.activeTabId : null };
   }

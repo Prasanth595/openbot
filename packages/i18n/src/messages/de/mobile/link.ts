@@ -12,6 +12,8 @@ export const messages = {
     "Du bist bereits angemeldet. Melde dich in den Einstellungen ab, bevor du ein anderes Konto verbindest.",
   "mobile.link.pairing.description":
     "Fahre nur fort, wenn du diesen Link für die Mobilverbindung auf deinem Desktop angefordert hast.",
+  "mobile.link.pairing.accountService":
+    "Dieser Link verbindet mit dem Kontodienst unter {origin}, nicht mit dem OpenBot-Kontodienst.",
   "mobile.link.pairing.connect": "Verbinden",
   "mobile.link.plugin.title": "Plugin-Seite öffnen",
   "mobile.link.plugin.description": "Sieh dir dieses Plugin auf der OpenBot-Website an.",

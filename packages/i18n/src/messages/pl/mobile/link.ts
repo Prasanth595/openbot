@@ -11,6 +11,8 @@ export const messages = {
   "mobile.link.pairing.alreadySignedIn":
     "Logowanie jest już aktywne. Wyloguj się w Ustawieniach, zanim połączysz inne konto.",
   "mobile.link.pairing.description": "Kontynuuj tylko wtedy, gdy ten link Mobile Connect pochodzi z twojego komputera.",
+  "mobile.link.pairing.accountService":
+    "Ten link łączy z usługą kont pod adresem {origin}, a nie z usługą kont OpenBot.",
   "mobile.link.pairing.connect": "Połącz",
   "mobile.link.plugin.title": "Otwórz stronę wtyczki",
   "mobile.link.plugin.description": "Zobacz tę wtyczkę na stronie OpenBot.",

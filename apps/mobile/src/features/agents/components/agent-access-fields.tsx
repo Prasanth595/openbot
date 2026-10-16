@@ -4,6 +4,7 @@ import {
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
+  canAdministerServer,
   widensAgentPermission,
 } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
@@ -31,7 +32,7 @@ import { useText } from "@/shared/lib/text";
 export function useAgentAdminSettings(agent: MobileAgent, server: MobileServer | undefined, available: boolean) {
   const workspace = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
-  const canAdminister = server?.role === "owner" || server?.role === "admin";
+  const canAdminister = canAdministerServer(server?.role);
   // Under "agent-info", so the host's agent events refresh it with the other agent records.
   const queryKey = queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "admin");
   const settings = useQuery({

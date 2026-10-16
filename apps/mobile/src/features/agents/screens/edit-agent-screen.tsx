@@ -2,6 +2,7 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   type AvatarHue,
   agentPermissionLevel,
+  canAdministerServer,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   type HostProviderAccounts,
   type UpdateAgentInput,
@@ -500,7 +501,7 @@ function AgentForm({
               </SettingsRow>
             ) : null}
           </SettingsSection>
-          {host && host.role !== "member" ? (
+          {host && canAdministerServer(host.role) ? (
             <AgentSessionSettingsSection key={`${agent.serverId}:${agent.id}`} agent={agent} available={available} />
           ) : null}
           {showPermissions || showNotifications || showAdvanced ? (

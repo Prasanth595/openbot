@@ -1,4 +1,4 @@
-import { parseApplyAgentImportInput } from "@openbot/contracts/ipc";
+import { canAdministerServer, parseApplyAgentImportInput } from "@openbot/contracts/ipc";
 import {
   AGENT_IMPORT_CAPABILITY,
   AGENT_IMPORT_ROUTES,
@@ -64,7 +64,7 @@ export async function routeAgentImport(
           actor: { id: member.id, name: member.name ?? "Team member" },
           // The service checks the zone and uses the host's own when it is not valid.
           ...(typeof body.timezone === "string" ? { timezone: body.timezone } : {}),
-          reviseSkills: member.role !== "member",
+          reviseSkills: canAdministerServer(member.role),
         }),
       ),
     409,
