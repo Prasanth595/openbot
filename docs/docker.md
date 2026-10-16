@@ -423,15 +423,18 @@ of a self-hosted server from that release. The workflow starts and stops each im
 the images to GHCR only after the GitHub Release is published.
 
 `tini` is process 1. It starts `resources/hosting/openbot-container` from the release, which checks
-that it can make a user namespace, starts D-Bus, a virtual display and the keyring, and then becomes
-OpenBot with `OPENBOT_SERVER=1`. On a stop, tini gives the signal to OpenBot and waits for it.
+that it can make a user namespace, starts D-Bus, two virtual displays and the keyring, and then
+becomes OpenBot with `OPENBOT_SERVER=1`. OpenBot shows its windows on `:0`, at 1280x800. The agents
+work on `:1`, at the size of `OPENBOT_DISPLAY_SIZE`, which the script names in
+`OPENBOT_AGENT_DISPLAY`. Computer Use and remote desktop use `:1`, so they do not show the OpenBot
+window. On a stop, tini gives the signal to OpenBot and waits for it.
 `/opt/OpenBot/hosted/mode` is `container`, so the `openbot` command talks to the control socket and
 does not use systemd.
 
 ## Limits
 
-- Remote desktop and Computer Use need a display. The container has a virtual display, but remote
-  desktop and Computer Use were not tested in it. The arm64 release has no remote desktop runtime.
+- Remote desktop and Computer Use need a display. The container has a virtual display for the
+  agents, but remote desktop and Computer Use were not tested in it. The arm64 release has no remote desktop runtime.
 - Voice prompts are not available on Linux.
 - Gemini signs in on a Google page in the browser of the container. An owner or admin opens it
   with Connect in the app, and signs in through the live view of that page. This needs a release
@@ -447,6 +450,8 @@ does not use systemd.
   Podman, Kubernetes, rootless Docker, and hosts that restrict user namespaces with AppArmor, such as
   Ubuntu 23.10 or newer. On such a host, the container can need an AppArmor profile that permits
   `userns`.
+- The two displays of the entrypoint were tested with a stand-in for OpenBot: `:0` is 1280x800 and
+  `:1` has the display size. Computer Use and remote desktop on `:1` were not tested.
 - Not tested: a Codex agent with Workspace only access in a container. Codex runs its commands in
   bubblewrap, which mounts its root in a user namespace. The seccomp profile allows `mount` only with
   `CAP_SYS_ADMIN` and always refuses `pivot_root`, and the `docker-default` AppArmor profile refuses

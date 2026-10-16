@@ -108,7 +108,7 @@ one warning.
 
 ## Display size
 
-A self-hosted server runs OpenBot on a virtual display (Xvfb), and computer use reads that display.
+A self-hosted server gives the agents a virtual display (Xvfb), and computer use reads that display.
 The default size is 1280x800. A [Docker](docker.md#environment) container uses the same setting
 and the same default. A hosted server shows OpenBot on its boat desktop, and this setting does not
 change that desktop.
@@ -239,6 +239,13 @@ It starts a D-Bus session with an unlocked keyring, as on a hosted server, and r
 Xvfb with `OPENBOT_SERVER=1`. Main (`src/main/server-mode.ts`) then opens the control socket
 `/run/openbot/control.sock` and publishes the host after each sign-in.
 
+The server has two Xvfb displays, one in each of two nested `xvfb-run` commands that share one
+authority file. The outer one starts the agent display, at the [display size](#display-size), and
+the script names it in `OPENBOT_AGENT_DISPLAY`. The inner one starts the display that OpenBot shows
+its windows on, at 1280x800. Main gives that display to Computer Use, to remote desktop and to the agent
+processes, so an agent's screenshot and remote desktop do not show the OpenBot window. See
+[Computer Use and remote desktop](architecture/computer-use.md#agent-display-on-a-server).
+
 Updates work as on a hosted server (see [Updates](hosted-servers.md#updates)): the timer stages a
 new release, and it starts at the next boot, or when an owner, an admin or a permitted member
 installs it in Server Settings > Updates. `sudo openbot update` stages, stops the service, applies
@@ -282,3 +289,7 @@ Threat model:
   limits from the Claude docs. The Codex limit comes from `codex-rs/utils/image` and was not checked
   again. It is not known if Claude Code or Codex makes a screenshot smaller before it sends it to
   the model.
+- The two displays were tested in an Ubuntu 24.04 container with a stand-in for OpenBot: OpenBot
+  gets 1280x800, the agent display the display size, and a process without the authority file cannot
+  open the agent display. Computer Use and remote desktop on the agent display were not tested on a
+  server.

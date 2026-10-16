@@ -19,6 +19,7 @@ import {
 import { type DynamicRecord, isDynamicRecord } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Result } from "effect";
+import { agentDisplayEnvironment } from "./agent-display";
 import { CuaDriverActionTap, type ObservedAction, type ObservedPointer } from "./cua-driver-action-tap";
 import { CUA_DRIVER_VENDOR_CALLS_OFF } from "./cua-driver-artifact";
 import { CuaDriverFailure, cuaIO, cuaSync, toCuaDriverFailure } from "./cua-driver-effects";
@@ -550,6 +551,7 @@ export class CuaDriverRuntime {
         cwd: dirname(executable),
         env: {
           ...process.env,
+          ...agentDisplayEnvironment(this.#options.platform),
           [EMBEDDED_ENV]: "1",
           [PARENT_LIVENESS_ENV]: "1",
           ...CUA_DRIVER_VENDOR_CALLS_OFF,

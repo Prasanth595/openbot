@@ -71,6 +71,19 @@ cannot follow a display connected after startup. Keeping cursor ownership in Ope
 highlight controller add, resize, and remove display overlays without restarting the daemon or
 changing provider sessions.
 
+### Agent display on a server
+
+A self-hosted server and the container start two Xvfb displays, and name the agent display in
+`OPENBOT_AGENT_DISPLAY`. Electron keeps its own `DISPLAY`: the built-in browser draws its tabs in
+the OpenBot window, and under Xvfb a hidden view gives no capture and no clicks, so OpenBot cannot
+only hide its window. On Linux, `agent-display.ts` sets `DISPLAY` to the agent display for the
+driver daemon, for Sunshine, and in `agentEnvironment` for every agent process. The driver and
+Sunshine open the display that `DISPLAY` names, so a screenshot, an input event and the remote
+desktop stream all use the agent display, and a program that an agent starts opens there. The
+per-display overlays are OpenBot windows, so with an agent display they are not started: nothing
+draws the agent cursor or the rim there. A boat hosted server does not set the variable, and its
+desktop on `:0` shows OpenBot and the agents together.
+
 Because the driver draws no cursor, its motion styles do not apply. The renderer plays the driver's
 `adaptive` style itself (`agent-cursor-motion.ts`, a port of the driver's `trajectory.rs`): a Fitts
 min-jerk glide, or a wide swoop for a move over 900 points. The tap does not delay a request, so the
@@ -116,7 +129,8 @@ clipboard. A host with no clipboard writer serves neither route.
 On Linux, the gateway accepts only an X11 session (`DISPLAY` set, no `WAYLAND_DISPLAY`, and
 `XDG_SESSION_TYPE` not `wayland`). Sunshine then runs with X11 capture and software encoding, and
 sends input through XTest, so a hosted server under Xvfb needs no uinput device and no extra
-capability. Linux has no permission checks: an X11 session is ready.
+capability. On a server with an agent display, Sunshine runs on that display (see
+[Agent display on a server](#agent-display-on-a-server)). Linux has no permission checks: an X11 session is ready.
 
 ### Codex tool approvals
 

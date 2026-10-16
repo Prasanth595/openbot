@@ -17,6 +17,7 @@ import { createRoutineResults, type RoutineResultsHandle } from "../backend/rout
 import { type AcpRegistry, createAcpRegistry } from "./acp-registry";
 import { type AgentAdminSettingsService, createAgentAdminSettings } from "./agent-admin-settings";
 import { spawnAgentDatabaseHost } from "./agent-database-host-process";
+import { agentDisplayEnvironment, hasSeparateAgentDisplay } from "./agent-display";
 import { type AgentHostSettingsService, createAgentHostSettings } from "./agent-host-settings";
 import { HostReleaseService, readInstallationMode } from "./host-release-service";
 import {
@@ -1285,6 +1286,9 @@ export async function createApplicationServices({
     computerUseHighlight.destroy();
     await Effect.runPromise(computerUseReads.close());
   });
+  // The overlays are OpenBot windows, so they can mark only the display OpenBot is on. With an agent
+  // display of its own, the driver works where they cannot be drawn.
+  const drawsComputerUseHighlight = !hasSeparateAgentDisplay(process.platform);
   const computerUsePermissionHelp = new ComputerUsePermissionHelpWindowController({
     createWindow: () => createComputerUsePermissionHelpWindow(language.translate),
     loadWindow: loadComputerUsePermissionHelpRenderer,
@@ -1376,8 +1380,13 @@ export async function createApplicationServices({
       mcpOAuth,
       providerStateDirectory: join(app.getPath("userData"), "provider-state"),
       ...(process.platform === "win32" ? { providerTempDirectory } : {}),
-      // Paths only: `gh` and `git` read the token from the files the connection keeps current.
-      agentEnvironment: (inherited) => githubConnector.agentEnvironment(inherited),
+      // The GitHub entries are paths only: `gh` and `git` read the token from the files the connection
+      // keeps current. On a server with an agent display, `DISPLAY` names it, so a program an agent
+      // starts opens where the driver sees it.
+      agentEnvironment: (inherited) => ({
+        ...agentDisplayEnvironment(process.platform),
+        ...githubConnector.agentEnvironment(inherited),
+      }),
     },
     // Appended to the stored servers at each spawn, so the same tools reach Codex, Claude and the
     // ACP providers. Null until the daemon runs, which is what keeps a machine with no driver from
@@ -1514,8 +1523,9 @@ export async function createApplicationServices({
   // The rim follows the daemon: it can show nothing while the agents hold no tools, and polling a
   // socket nothing answers would only log failures.
   cuaDriver.onMcpServerChanged(() => {
-    if (cuaDriver.mcpServerForProviders()) computerUseHighlight.start();
-    else {
+    if (cuaDriver.mcpServerForProviders()) {
+      if (drawsComputerUseHighlight) computerUseHighlight.start();
+    } else {
       computerUseHighlight.stop();
       // The daemon this connection was opened to is gone, so the socket behind it is too.
       void Effect.runPromise(computerUseReads.close());
@@ -1535,7 +1545,7 @@ export async function createApplicationServices({
     cuaDriver.warmUp().pipe(
       Effect.tap(() =>
         Effect.sync(() => {
-          if (cuaDriver.mcpServerForProviders()) computerUseHighlight.start();
+          if (drawsComputerUseHighlight && cuaDriver.mcpServerForProviders()) computerUseHighlight.start();
         }),
       ),
       Effect.exit,

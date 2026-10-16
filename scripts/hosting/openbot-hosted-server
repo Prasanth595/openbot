@@ -4,8 +4,8 @@
 # the account session, and runs OpenBot on the boat desktop.
 #
 # On a self-hosted server (`mode` is `self`, which openbot-server-setup writes) there is no claim and
-# no boat desktop: OpenBot starts with `OPENBOT_SERVER=1` on a virtual display, and its owner signs
-# it in with `openbot login`.
+# no boat desktop: OpenBot starts with `OPENBOT_SERVER=1` on a virtual display, the agents work on a
+# second one, and its owner signs it in with `openbot login`.
 set -euo pipefail
 umask 077
 state="$HOME/.config/openbot-hosted"
@@ -115,15 +115,26 @@ export GNOME_KEYRING_CONTROL
 # The boat desktop is a lightdm session of this user on :0, with a window manager. OpenBot shows its
 # windows there, so boat's desktop viewer and OpenBot remote desktop show the same screen, and a click
 # moves the keyboard focus to another window. After a resume, boat can start that session after this
-# service. A sandbox that has no desktop session, and a self-hosted server, use a virtual display.
-for _ in $(seq 1 60); do
-  [ "$mode" = self ] && break
-  if DISPLAY=:0 XAUTHORITY="$HOME/.Xauthority" xdpyinfo >/dev/null 2>&1; then
-    export DISPLAY=:0 XAUTHORITY="$HOME/.Xauthority"
-    exec /opt/OpenBot/app/openbot --password-store=gnome-libsecret
-  fi
-  sleep 2
-done
-if [ "$mode" = hosted ]; then echo "The boat desktop session did not start. OpenBot uses a virtual display." >&2; fi
+# service. A sandbox that has no desktop session uses a virtual display.
+if [ "$mode" = hosted ]; then
+  for _ in $(seq 1 60); do
+    if DISPLAY=:0 XAUTHORITY="$HOME/.Xauthority" xdpyinfo >/dev/null 2>&1; then
+      export DISPLAY=:0 XAUTHORITY="$HOME/.Xauthority"
+      exec /opt/OpenBot/app/openbot --password-store=gnome-libsecret
+    fi
+    sleep 2
+  done
+  echo "The boat desktop session did not start. OpenBot uses a virtual display." >&2
+  exec xvfb-run -a -s "-screen 0 $(display_size "$requested_size")x24 -nolisten tcp" \
+    /opt/OpenBot/app/openbot --password-store=gnome-libsecret
+fi
+
+# A self-hosted server has two virtual displays. OpenBot shows its windows on one. The agents work on
+# the other, which OpenBot names in OPENBOT_AGENT_DISPLAY: main gives it to Computer Use, to remote
+# desktop and to the agent processes, so an agent's screenshot does not show the OpenBot window. The
+# outer xvfb-run starts the agent display, at the display size. The inner one starts the OpenBot
+# display and adds its key to the same authority file, so OpenBot and the processes it starts can
+# open both displays.
 exec xvfb-run -a -s "-screen 0 $(display_size "$requested_size")x24 -nolisten tcp" \
-  /opt/OpenBot/app/openbot --password-store=gnome-libsecret
+  bash -c 'export OPENBOT_AGENT_DISPLAY=$DISPLAY; exec xvfb-run -a -f "$XAUTHORITY" -s "-screen 0 1280x800x24 -nolisten tcp" "$@"' \
+  openbot-hosted-server /opt/OpenBot/app/openbot --password-store=gnome-libsecret

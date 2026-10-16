@@ -533,8 +533,10 @@ random password for each server (so `safeStorage` can keep the account session),
 with `--password-store=gnome-libsecret`. OpenBot uses the boat desktop: the lightdm session of the
 sandbox user on `:0`, with openbox. So boat's desktop viewer and OpenBot remote desktop show the same
 screen, and a click moves the keyboard focus to another window. After a resume, the script waits up
-to 2 minutes for that session. With no session, OpenBot runs under `xvfb-run`. The keyring files are
-in `/srv/openbot-hosted/keyrings`:
+to 2 minutes for that session. With no session, OpenBot runs under `xvfb-run`. A hosted server keeps
+one display for OpenBot and the agents, because its desktop is there to show OpenBot. Only a
+[self-hosted server](self-hosted-server.md#how-it-works) and the container give the agents a
+display of their own. The keyring files are in `/srv/openbot-hosted/keyrings`:
 
 - not in `~/.local/share/keyrings`: the boat image has a locked `default` keyring there, and a
   snapshot restore resets that folder after the service starts;
