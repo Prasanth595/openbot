@@ -1,4 +1,3 @@
-import { type MenuAction, type MenuComponentRef, MenuView } from "@expo/ui/community/menu";
 import type { MobileTranslate } from "@openbot/i18n/mobile";
 import type { Href } from "expo-router";
 import { Typography } from "heroui-native";
@@ -19,6 +18,7 @@ import {
 import type { MobileServer } from "@/features/workspace/context/mobile-workspace-context";
 import { moveServerId } from "@/features/workspace/model/server-order";
 import { serverStatusLabel, showsOnline } from "@/features/workspace/model/server-status";
+import { type MenuAction, type MenuComponentRef, MenuView } from "@/shared/components/menu-view";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { devFeatureOverride } from "@/shared/lib/dev-feature-overrides";

@@ -1,4 +1,4 @@
-import { AGENT_TEMPLATE_CARD, type AgentTemplateDetail } from "@openbot/contracts/ipc";
+import type { AgentTemplateDetail } from "@openbot/contracts/ipc";
 import { createFileRoute, notFound } from "@tanstack/solid-router";
 import { AgentTemplatePage } from "../../components/agents/AgentTemplatePage";
 import { agentTemplatePath } from "../../lib/agent-template-path";
@@ -13,9 +13,11 @@ async function loadAgentTemplate(templateId: string): Promise<AgentTemplateDetai
 
 /**
  * A shared agent is public to anyone with the link, but it is not a listing: the page asks search
- * engines to stay out and sits in no sitemap.
+ * engines to stay out and sits in no sitemap. The IPC contracts load when the head runs, because
+ * `head` stays in the bundle of every page (see routes/compare/$slug.tsx).
  */
-function agentTemplateHead(template: AgentTemplateDetail, siteUrl: string) {
+async function agentTemplateHead(template: AgentTemplateDetail, siteUrl: string) {
+  const { AGENT_TEMPLATE_CARD } = await import("@openbot/contracts/ipc");
   const url = new URL(agentTemplatePath(template.id), siteUrl).toString();
   const title = `${template.name} — OpenBot agent`;
   const description = template.title || template.description.slice(0, 200);

@@ -106,6 +106,11 @@ const config: KnipConfig = {
       entry: ["src/index.ts"],
       project: ["src/**/*.ts"],
     },
+    "packages/i18n": {
+      // apps/auth-api/vite.config.ts puts this file in place of the static catalog modules by path.
+      entry: ["src/lazy-catalogs.ts"],
+      project: ["src/**/*.{ts,tsx,css}"],
+    },
     "packages/*": {
       project: ["src/**/*.{ts,tsx,css}"],
     },

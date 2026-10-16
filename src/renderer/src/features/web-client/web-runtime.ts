@@ -23,6 +23,7 @@ import type {
   CreateAgentInput,
   DuplicateAgentResult,
   EditQueuedMessageInput,
+  HiddenAgentsSnapshot,
   InvitePreview,
   QueueSnapshot,
   ReorderQueueInput,
@@ -32,6 +33,7 @@ import type {
   RespondToPromptInput,
   Routine,
   RoutineRun,
+  SetAgentHiddenInput,
   SetMessageReactionInput,
   SidebarLayoutAction,
   SidebarLayoutSnapshot,
@@ -95,7 +97,7 @@ import {
   type RemoteTeamConnectionUpdate,
 } from "@openbot/team-client/remote-peer";
 import { remoteWorkspaceReadTimeout } from "@openbot/team-client/remote-recovery";
-import { setAgentProviderAccount } from "@openbot/team-client/team-admin-requests";
+import { listHiddenAgents, setAgentHidden, setAgentProviderAccount } from "@openbot/team-client/team-admin-requests";
 import {
   cancelQueuedMessage,
   deleteAgent,
@@ -223,6 +225,10 @@ export interface WebWorkspaceRuntime {
   updateRoutine?: (input: UpdateRoutineInput) => Promise<Routine>;
   /** Runs an agent routine now. */
   testRoutine?: (input: TestRoutineInput) => Promise<RoutineRun>;
+  /** The agents that a user hid on the host. Any member can call it on a host with `agent-hidden-v1`. */
+  listHiddenAgents?: () => Promise<HiddenAgentsSnapshot>;
+  /** Hides or restores an agent, and returns the host's hidden list. Needs `agent-hidden-v1`. */
+  setAgentHidden?: (input: SetAgentHiddenInput) => Promise<HiddenAgentsSnapshot>;
   react(input: SetMessageReactionInput): Promise<void>;
   setAvatar(agentId: string, image: AvatarImageInput | null): Promise<void>;
   models(): Promise<AgentModelOption[]>;
@@ -976,6 +982,9 @@ export function createWebWorkspaceRuntime(
       runTeamEffect(updateAgentRoutine(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
     testRoutine: (input) =>
       runTeamEffect(testAgentRoutine(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
+    listHiddenAgents: () => runTeamEffect(listHiddenAgents(teamApi).pipe(Effect.mapError((error) => error.cause))),
+    setAgentHidden: (input) =>
+      runTeamEffect(setAgentHidden(teamApi, input).pipe(Effect.mapError((error) => error.cause))),
     async models() {
       return guardedListDecoder(isAgentModelOption, "models")(await request("GET", TEAM_API_ROUTES.agents.models));
     },

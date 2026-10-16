@@ -229,6 +229,7 @@ import type {
   WebhookSecret,
 } from "./ipc-events";
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
+import type { HiddenAgentsSnapshot, SetAgentHiddenInput } from "./ipc-hidden-agents";
 import type { HostAnalytics, HostAnalyticsInput } from "./ipc-host-analytics";
 import type { HostReleaseStatus } from "./ipc-host-release";
 import type { HostTimezoneSettings } from "./ipc-host-timezone";
@@ -1030,6 +1031,9 @@ export const IPC_ENDPOINTS = {
     deleteChannel: scopedRequest<string, void>()("agent:channels:delete"),
     getSidebarLayout: scopedQuery<SidebarLayoutSnapshot>()("agent:get-sidebar-layout"),
     mutateSidebarLayout: scopedRequest<SidebarLayoutAction, SidebarLayoutSnapshot>()("agent:mutate-sidebar-layout"),
+    // A joined server answers through `agent-hidden-v1`. A server without it has no hidden agents.
+    listHiddenAgents: scopedQuery<HiddenAgentsSnapshot>()("agent:hidden:list"),
+    setAgentHidden: scopedRequest<SetAgentHiddenInput, HiddenAgentsSnapshot>()("agent:hidden:set"),
     generateProfile: scopedRequest<GenerateAgentProfileInput, AgentProfileDraft>()("agent:generate-profile"),
     saveProfile: scopedRequest<SaveAgentProfileInput, SaveAgentProfileResult>()("agent:save-profile"),
     createAgent: scopedRequest<CreateAgentInput, AgentSummary>()("agent:create"),

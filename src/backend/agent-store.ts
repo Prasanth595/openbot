@@ -48,6 +48,7 @@ import {
   isAvatarHue,
   isAvatarSeed,
   isBusyMessageMode,
+  isHiddenAt,
   isProviderAccountId,
   isReasoningEffort,
   isSidebarLayoutSnapshot,
@@ -90,6 +91,8 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   backupModels?: AgentBackupModels;
   // Present only while the agent works on a backup model for a usage limit.
   usageLimitReturn?: AgentUsageLimitReturn;
+  // Present only while a user hides the agent. Absent on every agent stored before hiding existed.
+  hiddenAt?: string;
 };
 type StoredAgentBase = Omit<PersistedStoredAgent, "avatarSeed" | "avatarHue"> & DynamicRecord;
 
@@ -138,9 +141,9 @@ export const DEFAULT_REASONING_EFFORT: AgentReasoningEffort = "low";
 // SQLite wrote its state into, and is only ever read: renaming it means that file is never found and the
 // data of anyone who has not yet run the importing release is lost. The second is the key that file's
 // agent array is stored under, and reading a different one discards every agent in it just as
-// silently. The third is a `command_id` already stamped into `orchestration_command_receipts` on
-// every existing install, and is what stops the legacy import running a second time. None of the
-// three follows the bot-to-agent rename.
+// silently. The third is the `command_id` of the import's roster event on existing installs. The next
+// roster write removes that event and its receipt; the roster event that write keeps is what stops the
+// legacy import running a second time. None of the three follows the bot-to-agent rename.
 const LEGACY_AGENTS_STATE_FILE = "bots.json";
 const LEGACY_AGENTS_STATE_KEY = "bots";
 const LEGACY_AGENTS_IMPORT_COMMAND_ID = "legacy-import:bots:v1";
@@ -761,6 +764,33 @@ export class AgentStore {
       return yield* new StoredStateFailure({ cause });
     }
   }, Effect.uninterruptible).bind(this);
+
+  /**
+   * Hides the agent at `hiddenAt`, or restores it when `hiddenAt` is null. A second hide keeps the
+   * first time. The roster event keeps the field, so the hidden state survives a restart.
+   */
+  setHidden(agentId: string, hiddenAt: string | null): AgentSummary {
+    const agent = this.#requireAgent(agentId);
+    const previous = agent.hiddenAt;
+    if ((hiddenAt === null && previous === undefined) || (hiddenAt !== null && previous !== undefined))
+      return { ...agent };
+    if (hiddenAt !== null && !isHiddenAt(hiddenAt)) throw new Error("Invalid hidden agent time.");
+    if (hiddenAt === null) delete agent.hiddenAt;
+    else agent.hiddenAt = hiddenAt;
+    try {
+      this.#persist(hiddenAt === null ? "agent.restored" : "agent.hidden");
+    } catch (error) {
+      if (previous === undefined) delete agent.hiddenAt;
+      else agent.hiddenAt = previous;
+      throw error;
+    }
+    return { ...agent };
+  }
+
+  /** Whether a user hid the agent. An unknown agent is not hidden. */
+  isHidden(agentId: string): boolean {
+    return this.#state.agents.some((agent) => agent.id === agentId && agent.hiddenAt !== undefined);
+  }
 
   setMarketplaceSource(agentId: string, source: NonNullable<AgentSummary["marketplaceSource"]>): AgentSummary {
     const agent = this.#requireAgent(agentId);
@@ -1729,6 +1759,7 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.providerAccountId === undefined || isProviderAccountId(record.providerAccountId)) &&
     (record.backupModels === undefined || isAgentBackupModels(record.backupModels)) &&
     (record.usageLimitReturn === undefined || isAgentUsageLimitReturn(record.usageLimitReturn)) &&
+    (record.hiddenAt === undefined || isHiddenAt(record.hiddenAt)) &&
     isAvatarSeed(record.avatarSeed) &&
     (record.avatarHue === null || isAvatarHue(record.avatarHue)) &&
     isMarketplaceSource(record.marketplaceSource)
@@ -1807,6 +1838,12 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     value.usageLimitReturn === undefined || isAgentUsageLimitReturn(value.usageLimitReturn)
       ? value.usageLimitReturn
       : reset("usageLimitReturn", undefined);
+  // A time this build cannot read keeps the agent hidden, at the time of the read: a user hid it,
+  // and showing it again would run its routines without a decision of the user.
+  const hiddenAt =
+    value.hiddenAt === undefined || isHiddenAt(value.hiddenAt)
+      ? value.hiddenAt
+      : reset("hiddenAt", new Date().toISOString());
   let marketplaceSource: StoredAgent["marketplaceSource"];
   if (value.marketplaceSource !== undefined) {
     if (isMarketplaceSource(value.marketplaceSource)) {
@@ -1852,6 +1889,7 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     ...(providerAccountId === undefined ? {} : { providerAccountId }),
     ...(backupModels === undefined ? {} : { backupModels }),
     ...(usageLimitReturn === undefined ? {} : { usageLimitReturn }),
+    ...(hiddenAt === undefined ? {} : { hiddenAt }),
     ...(sessionSettingOverrides === undefined ? {} : { sessionSettingOverrides }),
     ...(sessionSettingResets === undefined ? {} : { sessionSettingResets }),
     ...(marketplaceSource === undefined ? {} : { marketplaceSource }),

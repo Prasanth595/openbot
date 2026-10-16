@@ -90,13 +90,3 @@ Do not use the separate `skills:seed`, `agents:seed`, or `dev:seed` demo scripts
 The 15 original OpenBot team Skills use the repository PolyForm Noncommercial 1.0.0 license. The five existing adapted Skills retain their pinned OpenAI or Anthropic source attribution and Apache-2.0 license. Each generated bundle contains the applicable LICENSE.txt and NOTICE.txt; the build also produces UPSTREAM_NOTICES.md.
 
 `bundles/pstack/` is an unchanged copy of the `skills/` and `agents/` of the pstack plugin by Lauren Tan from the pinned `cursor/plugins` commit, under the MIT License. It is a pack in `catalog.json`: the build publishes it as the one Skill `pstack`. Its archive holds an index `SKILL.md`, the `LICENSE`, a `NOTICE.md`, and each folder of `skills/` as `skills/pstack-<folder>/`. The app installs each of those as a skill folder of its own, beside `pstack`, under one lock entry: one download and one install receipt. In Markdown, the build renames links, `/<name>` commands and `<name>` mentions of other pstack skills to `pstack-<name>`, removes `disable-model-invocation` so `$pstack-<name>` works with every provider, copies `agents/` into each skill that names a subagent, and adds a closing `pstack in OpenBot` section. Links to files that no skill installs go to the pinned commit. To update it, copy the new upstream `skills/` and `agents/`, update the pinned commit in `catalog.json` and `NOTICE.md`, and increase `catalogVersion`.
-
-## Check Agent preview switching
-
-With this worktree's dev app running and at least two local Agents, run:
-
-```sh
-bun scripts/marketplace-preview-e2e.ts --allow-mutations
-```
-
-The check switches Agents in My submissions, verifies focus and category retention, and reports card position and height for visual QA. It also switches quickly back and forth. It does not submit, install, or delete anything.

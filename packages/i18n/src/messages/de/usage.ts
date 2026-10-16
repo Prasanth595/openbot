@@ -67,7 +67,6 @@ export const messages = {
   "usage.panel.metric": "Nutzungskennzahl",
   "usage.panel.period": "Nutzungszeitraum",
   "usage.panel.refresh": "Nutzungsdaten aktualisieren",
-  "usage.panel.planLimits": "Tariflimits",
   "usage.panel.loading": "Nutzungsdaten werden geladen…",
   "usage.panel.unsupported":
     "Dieser Host unterstützt keine Agentenstatistiken. Aktualisiere den Host, um diese Ansicht zu nutzen.",

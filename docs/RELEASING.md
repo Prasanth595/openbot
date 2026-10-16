@@ -543,8 +543,8 @@ after a change to the Azure setup or to `electron-builder.windows-signing.yml`, 
 Installed OpenBot builds check for updates shortly after launch and every four minutes. New versions
 download automatically while **Automatically download updates** is on, which is the default and is
 persisted per user in `openbot-update-preference-v1.json`; with the setting off, a download starts
-only on a user action. The account popover shows the current state and lets the user download an
-available version, then restart into it. The restart action appears as
+only on a user action. The update notice in the sidebar and Settings > Updates show the current
+state and let the user download an available version, then restart into it. The restart action appears as
 soon as the download completes, and no platform installs without that
 explicit action, because `autoInstallOnAppQuit` stays off so shutdown preparation always runs. Every
 stage the user waits on is bounded by a timeout and recorded in `logs/update/update.log`, so a failed
@@ -606,7 +606,7 @@ Before creating the first tag or any later release:
     removes `HKCU\Software\Classes\openbot`;
 13. on Ubuntu 24.04 x64 with the AppArmor profile from `build/linux/openbot.apparmor` installed,
     confirm the AppImage starts with the sandbox on, that `xdg-open 'openbot://join?...'` focuses the
-    running application, that a provider downloads in-app, that the server rail is drawn, and that the
+    running application, that a provider downloads in-app, that the page rail is drawn, and that the
     microphone control is absent;
 14. confirm `CHANGELOG.md` describes the version and the working tree is clean;
 15. create and push the version commit, and create the tag locally, only after CI passes on `main`;

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/solid-router";
-import { CONTACT_ROUTE, ContactPage } from "../components/contact/ContactPage";
+import { ContactPage } from "../components/contact/ContactPage";
+import { CONTACT_ROUTE } from "../lib/contact";
 import { OPENBOT_SOCIAL_IMAGE_ALT, OPENBOT_SOCIAL_IMAGE_URL, OPENBOT_X_HANDLE } from "../lib/site-metadata";
 
 const CONTACT_TITLE = "Contact the OpenBot team";

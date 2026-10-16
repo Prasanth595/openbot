@@ -1,9 +1,9 @@
-import type { ChannelSummary, SidebarLayoutAction, SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
+import type { ChannelSummary, HiddenAgent, SidebarLayoutAction, SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import type { AvatarMood } from "@openbot/ui/bloub-avatar";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { SidebarMobileAppCard } from "@openbot/ui/features/sidebar/SidebarMobileAppCard";
 import { normalizeSidebarPinnedItems, type SidebarPinnedItem } from "@openbot/ui/features/sidebar/sidebar-pins";
-import type { SidebarAgentState } from "@openbot/ui/features/sidebar/sidebar-types";
+import { SIDEBAR_HIDDEN_GROUP_OPEN_ID, type SidebarAgentState } from "@openbot/ui/features/sidebar/sidebar-types";
 import { createSignal, untrack } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -56,6 +56,11 @@ const sectionedLayout: SidebarLayoutSnapshot = {
   agentAssignments: { chief: demoSectionId, research: demoSectionId },
   agentOrder: ["chief", "research", "sales"],
 };
+/** "Research" keeps its "Core team" section while it is hidden, so Restore names that section. */
+const userHiddenAgents: HiddenAgent[] = [
+  { agentId: "research", hiddenAt: "2026-09-28T09:00:00.000Z" },
+  { agentId: "sales", hiddenAt: "2026-10-02T15:30:00.000Z" },
+];
 const longSectionLayout: SidebarLayoutSnapshot = {
   revision: 1,
   sections: [
@@ -157,9 +162,27 @@ function InteractiveSidebar(props: Parameters<typeof Sidebar>[0]) {
   const [peopleOrder, setPeopleOrder] = createSignal(untrack(() => props.peopleOrder));
   const [layout, setLayout] = createSignal(untrack(() => props.layout));
   const [collapsedSectionIds, setCollapsedSectionIds] = createSignal(untrack(() => props.collapsedSectionIds));
+  const [hiddenAgents, setHiddenAgents] = createSignal(untrack(() => props.userHiddenAgents ?? []));
+  const onHideAgent = untrack(() => props.onHideAgent);
+  const onRestoreAgent = untrack(() => props.onRestoreAgent);
   return (
     <Sidebar
       {...props}
+      userHiddenAgents={hiddenAgents()}
+      onHideAgent={
+        onHideAgent &&
+        ((agentId) => {
+          setHiddenAgents((current) => [...current, { agentId, hiddenAt: new Date().toISOString() }]);
+          onHideAgent(agentId);
+        })
+      }
+      onRestoreAgent={
+        onRestoreAgent &&
+        ((agentId) => {
+          setHiddenAgents((current) => current.filter((entry) => entry.agentId !== agentId));
+          onRestoreAgent(agentId);
+        })
+      }
       layout={layout()}
       collapsedSectionIds={collapsedSectionIds()}
       pinnedItems={pinnedItems()}
@@ -423,6 +446,24 @@ export const SectionsCollapsed: Story = {
   decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
 };
 
+/** The Hidden group is collapsed until the user opens it. Hide and Restore work in the agent menu. */
+export const HiddenAgents: Story = {
+  args: { layout: sectionedLayout, pinnedItems: [], userHiddenAgents, onHideAgent: fn(), onRestoreAgent: fn() },
+  decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
+};
+
+export const HiddenAgentsOpen: Story = {
+  args: {
+    layout: sectionedLayout,
+    pinnedItems: [],
+    collapsedSectionIds: [SIDEBAR_HIDDEN_GROUP_OPEN_ID],
+    userHiddenAgents,
+    onHideAgent: fn(),
+    onRestoreAgent: fn(),
+  },
+  decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
+};
+
 export const SectionLongLabels: Story = {
   args: { layout: longSectionLayout, people: [], directThreads: [], pinnedItems: [] },
   decorators: [(Story) => <div style={{ width: "280px", height: "100vh" }}>{Story()}</div>],
@@ -449,7 +490,6 @@ const serverMenu = {
   onAdd: fn(),
   onSetMuted: fn(),
   onSetNotificationLevel: fn(),
-  onOpenUsage: fn(),
   onOpenSettings: fn(),
 };
 

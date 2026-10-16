@@ -648,9 +648,8 @@ function trackHostedSiteDelete(): (result: HostedSiteDeleteResult) => void {
 }
 
 /**
- * Application settings. The only overlay without a `<Show>`: the modal owns its
- * own open state and its close animation, so unmounting it on `open` would cut
- * that animation off.
+ * Application settings, shown as a page of the window. The only overlay without a
+ * `<Show>`: the settings own their open state and wait for the page placement.
  */
 function AppSettings(props: AccountProps) {
   const windowPage = useWindowPage();

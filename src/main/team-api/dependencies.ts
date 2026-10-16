@@ -199,6 +199,9 @@ export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | 
 /** `hosted-sites-v1`: the openbot.site sites of this server. Members list; only admins delete. */
 export type TeamApiHostedSites = Pick<HostedSiteDesktopService, "listServerSites" | "deleteServerSite">;
 
+/** Its presence is what `#protocolSupport` advertises `agent-hidden-v1` on. Any member can use it. */
+export type TeamApiHiddenAgents = Pick<AgentService, "listHiddenAgents" | "setAgentHidden">;
+
 /** Its presence is what `#protocolSupport` advertises `agent-import-v1` on. Any member can use it. */
 export type TeamApiAgentImport = Pick<AgentImportService, "stageUpload" | "apply" | "discard">;
 
@@ -349,6 +352,7 @@ export interface TeamApiOptions {
   agentImport?: TeamApiAgentImport;
   instanceTransfer?: TeamApiInstanceTransfer;
   routineFlows?: TeamApiRoutineFlows;
+  hiddenAgents?: TeamApiHiddenAgents;
   admin?: TeamApiAdmin;
   appVersion?: string;
   store: TeamStore;

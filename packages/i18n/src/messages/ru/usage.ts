@@ -69,7 +69,6 @@ export const messages = {
   "usage.panel.metric": "Показатель использования",
   "usage.panel.period": "Период использования",
   "usage.panel.refresh": "Обновить использование",
-  "usage.panel.planLimits": "Лимиты тарифа",
   "usage.panel.loading": "Загрузка использования…",
   "usage.panel.unsupported":
     "Этот хост не поддерживает аналитику агентов. Обновите хост, чтобы использовать этот раздел.",

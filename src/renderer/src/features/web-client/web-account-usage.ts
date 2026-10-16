@@ -4,7 +4,7 @@ import { type Accessor, createEffect, createMemo, createSignal, onCleanup, untra
 import type { WebWorkspace } from "./web-client-context";
 
 /**
- * The account usage reading of the connected host, for the account dock and the composer's usage-limit
+ * The account usage reading of the connected host, for the page rail and the composer's usage-limit
  * notice. As on desktop, a reading is for one host and is taken again for each set of connected providers.
  */
 export function createWebAccountUsage(options: {
@@ -56,7 +56,7 @@ export function createWebAccountUsage(options: {
   createEffect(usageTargetKey, () => {
     if (!untrack(usageReady) && !untrack(providersLoading)) setAccountUsage(null);
   });
-  // The composer shows the usage-limit notice with the account menu closed, so read once for each target.
+  // The composer shows the usage-limit notice with the Usage page closed, so read once for each target.
   // As on desktop, while a reading shows, the read waits for the provider checks to end.
   const hasReading = createMemo(() => (accountUsage()?.limits.length ?? 0) > 0);
   createEffect(

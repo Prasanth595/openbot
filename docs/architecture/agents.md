@@ -136,6 +136,24 @@ on a joined host.
   service, so the tool router reads it through a getter. The canvas chat panel sends the user's request
   to the open agent's own conversation and shows the answer of the turn that read it.
 
+## Hidden agents
+
+A user hides an agent from its sidebar menu in place of a delete. The agent keeps its thread, files,
+memories, settings, pin and section. `AgentSummary.hiddenAt` is in `projection_agents.agent_json`,
+so the state needs no SQL migration and a duplicate does not copy it. The host refuses new messages
+to a hidden agent with `error.backend.recipientHidden`, on IPC, channels, MCP `send_message`, the
+automation server and external messaging. Its routines do not run, and its queued messages wait
+behind the drain hold `"hidden"`. A turn that runs at the hide finishes. A hidden agent is not in
+`list_agents`, the teammates prompt, the mention picker, the counts or "Needs you".
+
+Restore marks the missed routine runs as skipped before it clears the flag, so the timer does not
+run a backlog. Then it arms the routines and drains the queue. IPC `agent:hidden:list` and
+`agent:hidden:set` change the state, and the event `hidden-agents-changed` carries the whole list.
+A joined desktop, the web client and the mobile app use the optional `agent-hidden-v1` capability
+(`packages/contracts/src/team-protocol/agent-hidden-v1.ts`). Any member reads the list; only an
+owner or an admin hides or restores an agent on a host.
+`/v1/agents` and the released agent codecs do not carry `hiddenAt`.
+
 ## Agent tasks
 
 A task is a separate execution thread of one agent. The agent keeps one identity, workspace and
@@ -150,7 +168,7 @@ turn at a time. Other task messages wait with a `hold` reason: `task-limit`, `ag
 `usage-limit`, `server-busy`, `agent-busy` or `one-turn`. The server-wide `TurnSlots` limit of a
 hosted server is separate.
 
-The user starts a task from the chat menu ("New task") or moves a queued message to one ("Run as
+The user starts a task from the Tasks tab of the side panel ("New task") or moves a queued message to one ("Run as
 task"). The agent starts one with the `start_task` OpenBot tool, up to 8 open tasks. An agent has at most 50
 open tasks (`INPUT_LIMITS.agentTasks`, the size of the task list), so each open task stays visible. A message to a
 running task waits in the task, or steers the turn when the agent's busy-message mode is "steer"

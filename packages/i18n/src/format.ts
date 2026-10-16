@@ -1,15 +1,7 @@
+import { formatTranslation } from "./format-catalogs";
 import type { TranslatedLocale } from "./locale";
 import { createTranslate } from "./message";
-import { messages as de } from "./messages/de/format";
 import { messages as en } from "./messages/en/format";
-import { messages as es } from "./messages/es/format";
-import { messages as fr } from "./messages/fr/format";
-import { messages as it } from "./messages/it/format";
-import { messages as ja } from "./messages/ja/format";
-import { messages as pl } from "./messages/pl/format";
-import { messages as pt } from "./messages/pt/format";
-import { messages as ru } from "./messages/ru/format";
-import { messages as tr } from "./messages/tr/format";
 
 /**
  * Numbers, dates, lists and sizes in the interface language.
@@ -37,8 +29,6 @@ export interface AppFormat {
   /** Binary units, as the attachment cards show them: 512 B, 12 KB, 3.4 MB. */
   fileSize: (bytes: number) => string;
 }
-
-const catalogs = { en, de, es, fr, it, ja, pl, pt, ru, tr } as const;
 
 const numberFormats = new Map<string, Intl.NumberFormat>();
 
@@ -103,7 +93,8 @@ export function createFormat(locale: TranslatedLocale, intlLocale: string | null
   const cached = formats.get(cacheKey);
   if (cached) return cached;
   const tag = intlLocale ?? undefined;
-  const t = createTranslate({ source: en, translation: catalogs[locale], locale, sourceLocale: "en" });
+  const translation = formatTranslation(locale);
+  const t = createTranslate({ source: en, translation, locale, sourceLocale: "en" });
   const oneDecimal = (value: number) =>
     numberFormat(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }).format(value);
 
@@ -135,6 +126,8 @@ export function createFormat(locale: TranslatedLocale, intlLocale: string | null
       return t("format.fileSize.terabytes", { size: oneDecimal(bytes / 1024 ** 4) });
     },
   };
-  formats.set(cacheKey, format);
+  // A language that is not loaded yet formats with English words, and the next call after the load
+  // makes the format again.
+  if (translation) formats.set(cacheKey, format);
   return format;
 }

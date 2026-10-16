@@ -31,7 +31,6 @@ import type { AgentMessage, AgentProfile } from "@openbot/ui/data";
 import type { BrowserViewRuntime } from "@openbot/ui/features/browser/BrowserLiveView";
 import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
 import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
-import type { AccountProfilePanelProps } from "@openbot/ui/features/settings/AccountProfilePanel";
 import type { JSX } from "@solidjs/web";
 import type { ConnectorRegistry } from "../connectors/connector-registry";
 import type { ConversationRuntime } from "./conversation-runtime";
@@ -81,7 +80,7 @@ export interface ConversationProps {
   /** A joined server's agents are still on their way, so the composer says that it connects. */
   agentsConnecting?: boolean;
   /**
-   * The plan windows for the active agent's provider and model, when the account dock has them.
+   * The plan windows for the active agent's provider and model, when the account usage has them.
    * The composer reads them for one thing only: a window at 100% means the next send is refused by
    * the provider, so the notice has to say so before the user writes the message.
    */
@@ -111,11 +110,16 @@ export interface ConversationProps {
   onManageProviders?: (trigger: HTMLElement) => void;
   agent: AgentProfile | undefined;
   agents: AgentProfile[];
+  /**
+   * The agents that the composer offers for a mention. Absent means `agents`. A hidden agent gets no
+   * messages, so the desktop leaves it out; the timeline still names it from `agents`.
+   */
+  mentionAgents?: AgentProfile[];
   availableRoutineIds?: readonly string[];
   /** The agent's routines, for the chat card of a routine the agent created or changed. */
   routines?: readonly RoutineFields[];
   modelOptions: AgentModelOption[];
-  messages: AgentMessage[];
+  messages: readonly AgentMessage[];
   messageReferences?: Record<string, AgentMessage>;
   unreadCount: number;
   firstUnreadMessageId: string | null;
@@ -131,19 +135,13 @@ export interface ConversationProps {
   skillsMarketplaceOpen?: boolean;
   /**
    * True while a surface that can add or remove one of the host's MCP servers is open: the server
-   * settings dialog and the marketplace, where a plugin installs its app. The composer reads the
+   * settings and the marketplace, where a plugin installs its app. The composer reads the
    * list again when the last of them closes, so a server added there can be tagged without a
    * restart.
    */
   mcpSettingsOpen?: boolean;
   globalOverlayOpen: boolean;
   settingsRequest: AgentSettingsRequest | null;
-  /** The account Profile panel, for a client that has no settings dialog. `profileRequest` opens it. */
-  accountProfile?: Pick<
-    AccountProfilePanelProps,
-    "account" | "onUpdateAccountName" | "onUpdateAccountAvatar" | "onListAccountSessions" | "onRevokeAccountSession"
-  >;
-  profileRequest?: { agentId: string; nonce: number } | null;
   messageFocusRequest: { agentId: string; messageId: string; nonce: number } | null;
   queue: QueueSnapshot | undefined;
   /** The agent's open waits. Absent where the host does not keep them. */
@@ -280,7 +278,6 @@ export type RightPanelMode =
   | "browser-expanded"
   | "browser-pip"
   | "settings"
-  | "profile"
   | "file-preview"
   | "files"
   | "task";

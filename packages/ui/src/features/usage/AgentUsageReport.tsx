@@ -176,10 +176,13 @@ export function AgentUsageReport(props: {
                     </strong>
                   </div>
                   <p>
-                    {cost()
-                      ? t("usage.provider.shareOfCost", { share: share(provider.cost) })
-                      : t("usage.provider.shareOfTokens", { share: share(provider.tokens) })}{" "}
-                    ·{" "}
+                    {/* A provider with no known cost has no share of it, and its heading already says so. */}
+                    <Show when={!cost() || provider.cost !== null}>
+                      {cost()
+                        ? t("usage.provider.shareOfCost", { share: share(provider.cost) })
+                        : t("usage.provider.shareOfTokens", { share: share(provider.tokens) })}{" "}
+                      ·{" "}
+                    </Show>
                     {cost()
                       ? t("usage.tokensAmount", { tokens: usageCompact(provider.tokens, text) })
                       : usageCost(provider.cost, text)}

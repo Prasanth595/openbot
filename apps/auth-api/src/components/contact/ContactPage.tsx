@@ -2,13 +2,11 @@ import { normalizeEmailAddress } from "@openbot/contracts/validation";
 import type { JSX } from "@solidjs/web";
 import { createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
 import { landingAnalytics } from "../../lib/analytics";
-import { CONTACT_EMAIL, CONTACT_LIMITS, CONTACT_TOPICS } from "../../lib/contact";
+import { CONTACT_EMAIL, CONTACT_LIMITS, CONTACT_ROUTE, CONTACT_TOPICS } from "../../lib/contact";
 import { EXTERNAL_LINK_REL, OPENBOT_LINKS } from "../../lib/landing-links";
 import { LandingFooter } from "../landing/LandingFooter";
 import { LandingIcon } from "../landing/LandingIcon";
 import { SiteHeader } from "../landing/SiteHeader";
-
-export const CONTACT_ROUTE = "/contact";
 
 const CONTACT_CHANNELS = [
   { label: "Discord", detail: "Community and help", href: OPENBOT_LINKS.discord },

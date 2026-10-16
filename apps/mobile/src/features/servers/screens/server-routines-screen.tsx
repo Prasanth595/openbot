@@ -1,4 +1,3 @@
-import { MenuView } from "@expo/ui/community/menu";
 import type { RoutineCalendarRoutine, RoutineCalendarRun, RoutineCalendarRunStatus } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import {
@@ -31,6 +30,7 @@ import {
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
+import { MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";

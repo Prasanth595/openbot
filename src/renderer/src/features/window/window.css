@@ -756,10 +756,6 @@
   will-change: auto;
 }
 
-.settings-page-content > .settings-modal-page[hidden] {
-  display: none;
-}
-
 .settings-page-content > .settings-modal-page > .settings-modal-main {
   background: transparent;
 }

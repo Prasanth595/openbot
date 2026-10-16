@@ -166,8 +166,6 @@ export const messages = {
   "server.rail.unmute": "サーバーのミュートを解除",
   "server.rail.mute": "サーバーをミュート",
   "server.rail.notificationSettings": "通知の設定",
-  "server.rail.usage": "使用量",
-  "server.rail.schedule": "スケジュール",
   "server.rail.settings": "サーバーの設定",
   "server.rail.remove": "サーバーを削除",
   "server.rail.restart": "サーバーを再起動",

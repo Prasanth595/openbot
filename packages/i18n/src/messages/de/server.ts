@@ -173,8 +173,6 @@ export const messages = {
   "server.rail.unmute": "Stummschaltung des Servers aufheben",
   "server.rail.mute": "Server stummschalten",
   "server.rail.notificationSettings": "Benachrichtigungseinstellungen",
-  "server.rail.usage": "Nutzung",
-  "server.rail.schedule": "Zeitplan",
   "server.rail.settings": "Servereinstellungen",
   "server.rail.remove": "Server entfernen",
   "server.rail.restart": "Server neu starten",

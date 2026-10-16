@@ -39,6 +39,11 @@ const largeApproval = {
   },
 } satisfies ScopedAgentEvent;
 
+const hiddenAgents = {
+  serverId: "server-1",
+  event: { type: "hidden-agents-changed", agents: [{ agentId: "agent-1", hiddenAt: "2026-10-16T09:00:00.000Z" }] },
+} satisfies ScopedAgentEvent;
+
 describe("decodeScopedAgentEvent", () => {
   it.each([
     ["an event", delta],
@@ -46,6 +51,8 @@ describe("decodeScopedAgentEvent", () => {
       "a buffered live event",
       { serverId: "server-1", event: { type: "queue-invalidated", agentId: "agent-1" }, bufferedLive: true },
     ],
+    ["a hidden agents change", hiddenAgents],
+    ["an empty hidden agents change", { serverId: "local", event: { type: "hidden-agents-changed", agents: [] } }],
   ] satisfies [string, ScopedAgentEvent][])("keeps %s", (_name, value) => {
     expect(decodeScopedAgentEvent(value)).toEqual(value);
   });
@@ -61,6 +68,18 @@ describe("decodeScopedAgentEvent", () => {
         event: { ...largeApproval.event, approval: { ...largeApproval.event.approval, kind: "network" } },
       },
     ],
+    [
+      "a hidden agent with a time that is not a date",
+      { ...hiddenAgents, event: { ...hiddenAgents.event, agents: [{ agentId: "agent-1", hiddenAt: "yesterday" }] } },
+    ],
+    [
+      "a hidden agent that is named two times",
+      {
+        ...hiddenAgents,
+        event: { ...hiddenAgents.event, agents: [...hiddenAgents.event.agents, ...hiddenAgents.event.agents] },
+      },
+    ],
+    ["hidden agents that are not a list", { ...hiddenAgents, event: { ...hiddenAgents.event, agents: null } }],
     ["a bufferedLive that is not a boolean", { ...delta, bufferedLive: "yes" }],
     ["a value that is not a record", "event"],
   ])("rejects %s", (_name, value) => {

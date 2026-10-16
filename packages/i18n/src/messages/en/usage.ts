@@ -63,7 +63,6 @@ export const messages = defineMessages("usage", {
   "usage.panel.metric": "Usage metric",
   "usage.panel.period": "Usage period",
   "usage.panel.refresh": "Refresh usage",
-  "usage.panel.planLimits": "Plan limits",
   "usage.panel.loading": "Loading usage…",
   "usage.panel.unsupported": "This host does not support agent analytics. Update the host to use this view.",
   "usage.panel.loadFailed": "Could not load usage. Check the connection and date range.",

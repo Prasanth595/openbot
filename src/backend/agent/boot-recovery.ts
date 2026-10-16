@@ -297,9 +297,14 @@ export class BootRecovery {
     for (const agent of yield* recoveryStep(() => this.threads())) {
       const publicThreadId = agent.threadId;
       if (!publicThreadId) continue;
-      // Inactive sessions still own history after an upgrade or provider switch.
+      // Inactive sessions still own history after an upgrade or provider switch. A session that
+      // was retired before its last complete import has no new turns, so it is not read again.
       const active = this.#store.database.activeProviderSession(publicThreadId, agent.provider);
       for (const session of this.#store.database.listProviderSessions(publicThreadId)) {
+        if (session.state === "inactive") {
+          const imported = this.#store.database.providerHistoryImport(session.id);
+          if (imported?.state === "complete" && imported.updatedAt >= session.updatedAt) continue;
+        }
         const client = this.#providers.clientFor(session.provider);
         if (!client) continue;
         const historyKey = `${session.provider}:${session.externalSessionId}`;

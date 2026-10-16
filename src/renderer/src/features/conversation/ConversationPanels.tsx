@@ -1,13 +1,13 @@
 import type { ServerSummary } from "@openbot/contracts/ipc";
 import { classifyFailure } from "@openbot/telemetry";
 import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/components/SettingsPanel";
+import type { AgentMessage } from "@openbot/ui/data";
 import { AgentTaskList, AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { SidePanelHeader, SidePanelLauncher, type SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
 import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
 import { toAgentMessages } from "../../app-message-projection";
-import { createSettingsPanelWidth, saveSettingsPanelWidth } from "../../components/settings-panel-width";
 import { agentTemplatesPort } from "../agent-templates/agent-templates-port";
 import { createPublishAgent } from "../agent-templates/PublishAgent";
 import { serverCanAdministerAgents } from "../agents/remote-agent-admin";
@@ -26,7 +26,7 @@ const CONVERSATION_PANEL_MIN = 96;
 const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
 
 import { Portal } from "@solidjs/web";
-import { createEffect, createMemo, Loading, lazy, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createProjection, Loading, lazy, onSettled, Show } from "solid-js";
 import { conversationPort } from "./conversation-port";
 
 /** @internal Stable HMR boundary for conversation panels. */
@@ -76,7 +76,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     handleRoutineSettingsRequest,
     sidebarFilePreview,
     settingsOpen,
-    profileOpen,
     skillSettingsRequest,
     routineSettingsRequest,
     settingsModel,
@@ -123,11 +122,16 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     const taskId = taskPanelTaskId();
     return taskId ? (props.tasks?.snapshot?.tasks.find((task) => task.id === taskId) ?? null) : null;
   });
-  const panelTaskMessages = createMemo(() => {
-    const taskId = taskPanelTaskId();
-    const conversation = taskId ? props.tasks?.conversation(taskId) : undefined;
-    return conversation ? toAgentMessages(conversation.messages, props.agent?.id) : [];
-  });
+  /** Reconciled by id, so a stream chunk redraws only the message that changed. */
+  const panelTaskMessages = createProjection<AgentMessage[]>(
+    () => {
+      const taskId = taskPanelTaskId();
+      const conversation = taskId ? props.tasks?.conversation(taskId) : undefined;
+      return conversation ? toAgentMessages(conversation.messages, props.agent?.id) : [];
+    },
+    [],
+    { key: "id" },
+  );
   /** A message in a task steers or continues it. In a new task, the first message starts it. */
   async function sendToTaskPanel(text: string): Promise<boolean> {
     const tasks = props.tasks;
@@ -294,7 +298,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
             limit={props.tasks?.snapshot?.limit ?? 1}
             agent={agent()}
             agents={props.agents}
-            messages={panelTaskMessages()}
+            messages={panelTaskMessages}
             onSend={sendToTaskPanel}
             onStop={() => {
               const task = panelTask();
@@ -490,32 +494,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
         )}
       </Show>
 
-      <Show when={profileOpen() && props.accountProfile}>
-        {(profile) => {
-          // Read on each open, as the agent settings panel does, so the two share the last saved width
-          // and the layout reserves this panel's width.
-          const [width, setWidth] = createSettingsPanelWidth();
-          createEffect(width, (value) => {
-            setSettingsPanelWidth(value);
-          });
-          return (
-            <Loading>
-              <AccountProfilePanel
-                account={profile().account}
-                onUpdateAccountName={profile().onUpdateAccountName}
-                onUpdateAccountAvatar={profile().onUpdateAccountAvatar}
-                onListAccountSessions={profile().onListAccountSessions}
-                onRevokeAccountSession={profile().onRevokeAccountSession}
-                width={width()}
-                maxWidth={settingsMaxWidth}
-                onResize={setWidth}
-                onResizeEnd={saveSettingsPanelWidth}
-                onClose={() => setActiveRightPanel("none")}
-              />
-            </Loading>
-          );
-        }}
-      </Show>
       {publishAgent.dialog()}
       {/* A sign-in link of the host's agent, when this computer cannot take its callback: the user pastes
           the address that the browser shows. */}
@@ -536,7 +514,6 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
 }
 
 const AgentSettingsPanel = lazy(loadAgentSettingsPanel);
-const AccountProfilePanel = lazy(() => import("@openbot/ui/features/settings/AccountProfilePanel"));
 const BrowserPanel = lazy(() => import("@openbot/ui/features/browser/BrowserPanel"));
 const FilePreviewPanel = lazy(() => import("./FilePreviewPanel"));
 const ChatFilesPanel = lazy(() => import("../files/ChatFilesPanel"));

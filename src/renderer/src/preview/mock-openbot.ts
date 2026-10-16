@@ -1,5 +1,11 @@
 import { AGENT_MEMORY_CONTEXT_BUDGET_BYTES, essentialMemoryBytes } from "@openbot/contracts/agent-memory-context";
-import type { AcpRegistryEntry, AgentSessionSettings, McpSignInApp, McpSignInAppState } from "@openbot/contracts/ipc";
+import type {
+  AcpRegistryEntry,
+  AgentSessionSettings,
+  HiddenAgentsSnapshot,
+  McpSignInApp,
+  McpSignInAppState,
+} from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
   type AgentEvent,
@@ -489,6 +495,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   function agentTaskLimitOf(agentId: string): number {
     const agent = agents.find((candidate) => candidate.id === agentId);
     return agent ? agentTaskLimit(agent) : 1;
+  }
+
+  function hiddenAgents(): HiddenAgentsSnapshot {
+    return {
+      agents: agents
+        .flatMap((agent) => (agent.hiddenAt === undefined ? [] : [{ agentId: agent.id, hiddenAt: agent.hiddenAt }]))
+        .sort(
+          (left, right) => left.hiddenAt.localeCompare(right.hiddenAt) || left.agentId.localeCompare(right.agentId),
+        ),
+    };
   }
 
   function emitTasks(agentId: string): void {
@@ -1374,6 +1390,20 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           ),
         ),
       listAgents: async () => clone(agents),
+      listHiddenAgents: async () => hiddenAgents(),
+      // As on a host: the agent keeps everything, and a hide or a restore goes to every device.
+      setAgentHidden: async ({ agentId, hidden }) => {
+        const current = agents.find((agent) => agent.id === agentId);
+        if (!current) throw new Error(sourceText("error.agent.unknown", { id: agentId }));
+        if ((current.hiddenAt !== undefined) === hidden) return hiddenAgents();
+        const { hiddenAt: _hiddenAt, ...visible } = current;
+        const updated = hidden ? { ...visible, hiddenAt: new Date().toISOString() } : visible;
+        agents = agents.map((agent) => (agent.id === agentId ? updated : agent));
+        const snapshot = hiddenAgents();
+        emitAgentEvent({ type: "hidden-agents-changed", agents: snapshot.agents });
+        emitAgentEvent({ type: "agents-changed", agents });
+        return snapshot;
+      },
       readAgentSessionSettings: async (agentId) => clone(previewSessionSettings(agentId)),
       setAgentSessionSetting: async ({ agentId, settingId, value }) => {
         const settings = previewSessionSettings(agentId);
@@ -1932,6 +1962,8 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       },
       listWorkspaceDirectory: async (input: OpenWorkspaceFileInput) => mockWorkspaceDirectory(input.path),
       sendMessage: async (input: SendMessageInput) => {
+        if (agents.some((agent) => agent.id === input.agentId && agent.hiddenAt !== undefined))
+          throw new Error(sourceText("error.backend.recipientHidden"));
         if (input.taskId) return runTaskTurn(findTask(input.agentId, input.taskId), input.text);
         // As on a host, a repeated client id answers with the first receipt and stores nothing.
         const repeated = input.clientMessageId ? sentReceipts.get(input.clientMessageId) : undefined;

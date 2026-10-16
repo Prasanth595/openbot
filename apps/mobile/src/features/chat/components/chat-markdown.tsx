@@ -15,7 +15,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import FileText from "lucide-react-native/icons/file-text";
 import type { Token, Tokens } from "marked";
 import { Fragment, memo, type ReactNode, useEffect, useId, useMemo, useRef } from "react";
-import { type ColorValue, ScrollView, type TextStyle, useWindowDimensions, View } from "react-native";
+import { type ColorValue, Platform, ScrollView, type TextStyle, useWindowDimensions, View } from "react-native";
 import { UITextView } from "react-native-uitextview";
 import { useCSSVariable } from "uniwind";
 import { BloubAvatarThumbnail } from "@/features/agents/components/bloub-avatar";
@@ -635,7 +635,7 @@ function MarkdownBlocks({
         // The list row draws the task mark, so the checkbox token adds nothing.
         if (token.type === "space" || token.type === "def" || token.type === "checkbox") return null;
         if (tokenIs(token, "paragraph") || tokenIs(token, "text")) {
-          if (inList && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
+          if ((inList || Platform.OS === "android") && token.tokens?.some((child) => tokenIs(child, "codespan"))) {
             return <ListParagraph key={offset} tokens={token.tokens} presentation={presentation} />;
           }
           const { nativeSelection } = presentation;

@@ -74,7 +74,13 @@ import {
   type ServerLoadContext,
 } from "@/features/workspace/components/server-connection";
 import { createBrowserActions } from "@/features/workspace/context/browser-actions";
-import { createHostRequestActions, requestAgentAvatar } from "@/features/workspace/context/host-request-actions";
+import {
+  createHostRequestActions,
+  hostOwnsHide,
+  readHostHiddenAgents,
+  requestAgentAvatar,
+  writeHostAgentHidden,
+} from "@/features/workspace/context/host-request-actions";
 import {
   createRecoveryCountdowns,
   RecoveryCountdownContext,
@@ -254,7 +260,54 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const [preferences, setPreferences] = useState<Record<string, RemoteWorkspacePreferences>>({});
   const preferencesRef = useRef(preferences);
   preferencesRef.current = preferences;
-  const hiddenAgentIds = (activeServerId ? preferences[activeServerId]?.hidden : null) ?? NO_IDS;
+  /**
+   * The hidden agents of each server that serves `agent-hidden-v1`. The host owns this list, and each
+   * device of the server shows it. A server without the capability has no entry.
+   */
+  const [hostHidden, setHostHidden] = useState<Record<string, string[]>>({});
+  const hostHiddenRef = useRef(hostHidden);
+  hostHiddenRef.current = hostHidden;
+  // The local list stays: it is the only list of an older host, and an agent hidden on this phone
+  // before the host had the capability stays hidden. The phone does not send it to the host.
+  const localHiddenIds = (activeServerId ? preferences[activeServerId]?.hidden : null) ?? NO_IDS;
+  const hostHiddenIds = (activeServerId ? hostHidden[activeServerId] : null) ?? NO_IDS;
+  const hiddenAgentIds = useMemo(
+    () =>
+      hostHiddenIds.length === 0
+        ? localHiddenIds
+        : localHiddenIds.length === 0
+          ? hostHiddenIds
+          : [...new Set([...localHiddenIds, ...hostHiddenIds])],
+    [localHiddenIds, hostHiddenIds],
+  );
+  /** The saved preferences with the host hidden lists added, for the views that leave out hidden chats. */
+  const visiblePreferences = useMemo(() => {
+    let next = preferences;
+    for (const [serverId, ids] of Object.entries(hostHidden)) {
+      const current = preferences[serverId];
+      if (!current || ids.length === 0) continue;
+      if (next === preferences) next = { ...preferences };
+      next[serverId] = { ...current, hidden: [...new Set([...current.hidden, ...ids])] };
+    }
+    return next;
+  }, [preferences, hostHidden]);
+  /** Puts the whole hidden list of a host in place; null drops the list of a host without the capability. */
+  const applyHostHidden = useCallback((serverId: string, hidden: readonly { agentId: string }[] | null) => {
+    if (removedServers.current.has(serverId)) return;
+    setHostHidden((current) => {
+      if (hidden === null) {
+        if (!(serverId in current)) return current;
+        const next = { ...current };
+        delete next[serverId];
+        return next;
+      }
+      const ids = replaceEqualDeep(
+        current[serverId],
+        hidden.map((agent) => agent.agentId),
+      );
+      return ids === current[serverId] ? current : { ...current, [serverId]: ids };
+    });
+  }, []);
   const pinnedAgentIds = (activeServerId ? preferences[activeServerId]?.pinned : null) ?? NO_IDS;
 
   /**
@@ -282,6 +335,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           queryClient.removeQueries({ queryKey });
       }
       setSidebarByServer((current) => withoutKeys(current, serverIds));
+      setHostHidden((current) => withoutKeys(current, serverIds));
       setAgents((current) => current.filter((agent) => !serverIds.has(agent.serverId)));
       for (const id of removedAgentIds) conversationStore.remove(id);
       liveState.update("unreadAgentIds", (current) => current.filter((id) => !removedAgentIds.has(id)));
@@ -597,13 +651,25 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             },
           )
         : setSidebarByServer((current) => ({ ...current, [serverId]: { layout: null, error: null } }));
+      // The hidden list of the host loads with the agents, so a hidden agent does not show for a moment.
+      // Each connection reads it again, because the events of an interrupted connection are lost. A failed
+      // read keeps the last list and does not stop the connection.
+      const hidden = readHostHiddenAgents(
+        (method, path, decode, body) => client.request(method, path, decode, body),
+        compatibility.capabilities,
+      ).catch(() => undefined);
       const [summaries] = await Promise.all([
         step(
           "agents",
-          client.request("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries).then((summaries) => {
-            if (context.isCurrent()) replaceServerAgents(serverId, summaries);
-            return summaries;
-          }),
+          Promise.all([client.request("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries), hidden]).then(
+            ([summaries, hiddenAgents]) => {
+              if (context.isCurrent()) {
+                if (hiddenAgents !== undefined) applyHostHidden(serverId, hiddenAgents);
+                replaceServerAgents(serverId, summaries);
+              }
+              return summaries;
+            },
+          ),
         ),
         step(
           "reads",
@@ -651,6 +717,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     },
     [
       replaceServerAgents,
+      applyHostHidden,
       preferenceStore,
       readRefresh,
       conversationStore,
@@ -817,6 +884,10 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         applySidebarLayout(serverId, event.layout);
         return;
       }
+      if (event.type === "hidden-agents-changed") {
+        applyHostHidden(serverId, event.agents);
+        return;
+      }
       syncEventQueries(queryClient, queryScope, serverId, event);
       if (event.type === "team-presence") {
         const signature = JSON.stringify(
@@ -880,6 +951,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       liveState,
       applyLiveActivityEvent,
       applySidebarLayout,
+      applyHostHidden,
       loadConversation,
       replaceServerAgents,
       conversationStore,
@@ -909,6 +981,39 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       }
     },
     [preferenceStore],
+  );
+  /**
+   * Hides or restores an agent on a host that serves `agent-hidden-v1`. The list changes at once; the
+   * answer of the host replaces it, and a failure puts the agent back and shows an alert.
+   */
+  const changeHostHidden = useCallback(
+    (serverId: string, agentId: string, hidden: boolean) => {
+      const change = (current: Record<string, string[]>, hide: boolean) => {
+        const ids = current[serverId] ?? NO_IDS;
+        if (ids.includes(agentId) === hide) return current;
+        return { ...current, [serverId]: hide ? [...ids, agentId] : ids.filter((id) => id !== agentId) };
+      };
+      setHostHidden((current) => change(current, hidden));
+      const action = hidden ? "hide" : "unhide";
+      void writeHostAgentHidden(teamApi(serverId), { agentId, hidden }).then(
+        (agents) => {
+          applyHostHidden(serverId, agents);
+          mobileAnalytics.track("conversation_action", { action, result: "succeeded" });
+        },
+        (error: unknown) => {
+          if (!removedServers.current.has(serverId)) setHostHidden((current) => change(current, !hidden));
+          mobileAnalytics.track("conversation_action", { action, result: "failed" });
+          const text = currentText();
+          showFailureAlert(
+            error,
+            "agent",
+            text.t(hidden ? "mobile.agent.menu.hideFailed" : "mobile.agent.hidden.showFailed"),
+            text.errorMessage(error, text.t("mobile.agent.menu.actionFailed")),
+          );
+        },
+      );
+    },
+    [teamApi, applyHostHidden],
   );
 
   /** Drops a server that this account left or removed, and its local state. */
@@ -1207,7 +1312,19 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         void loadConversation(agentId).catch(() => undefined);
       },
       hideAgent: (agentId) => {
-        const saved = updatePreferences(currentActiveServer().id, (current) => ({
+        const server = currentActiveServer();
+        const serverId = server.id;
+        if (hostOwnsHide(serverCapabilities.current.get(serverId), server.role)) {
+          // The host owns the hide. The pin stays a preference of this phone.
+          if (preferencesRef.current[serverId]?.pinned.includes(agentId))
+            updatePreferences(serverId, (current) => ({
+              ...current,
+              pinned: current.pinned.filter((id) => id !== agentId),
+            }));
+          if (!hostHiddenRef.current[serverId]?.includes(agentId)) changeHostHidden(serverId, agentId, true);
+          return;
+        }
+        const saved = updatePreferences(serverId, (current) => ({
           ...current,
           hidden: [...new Set([...current.hidden, agentId])],
           pinned: current.pinned.filter((id) => id !== agentId),
@@ -1215,10 +1332,19 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         mobileAnalytics.track("conversation_action", { action: "hide", result: saved ? "succeeded" : "failed" });
       },
       unhideAgent: (agentId) => {
-        const saved = updatePreferences(currentActiveServer().id, (current) => ({
+        const serverId = currentActiveServer().id;
+        // Restore removes the local hide too, so the agent shows again on this phone.
+        const saved = updatePreferences(serverId, (current) => ({
           ...current,
           hidden: current.hidden.filter((id) => id !== agentId),
         }));
+        if (
+          hostOwnsHide(serverCapabilities.current.get(serverId), currentActiveServer().role) &&
+          hostHiddenRef.current[serverId]?.includes(agentId)
+        ) {
+          changeHostHidden(serverId, agentId, false);
+          return;
+        }
         mobileAnalytics.track("conversation_action", { action: "unhide", result: saved ? "succeeded" : "failed" });
       },
       markAgentRead,
@@ -1276,6 +1402,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     markAgentRead,
     markAllRead,
     updatePreferences,
+    changeHostHidden,
   ]);
 
   const activeServer = useMemo(
@@ -1318,6 +1445,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       activeAgents,
       hiddenAgents,
       pinnedAgentIds,
+      hidesAgentsOnServer: (serverId) =>
+        hostOwnsHide(serverCapabilities.current.get(serverId), servers.find((server) => server.id === serverId)?.role),
+      canUnhideAgent: (agentId) =>
+        !hostHiddenIds.includes(agentId) ||
+        hostOwnsHide(serverCapabilities.current.get(activeServer.id), activeServer.role),
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
@@ -1343,6 +1475,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     activeAgents,
     hiddenAgents,
     pinnedAgentIds,
+    hostHiddenIds,
     supportsPushNotifications,
   ]);
   const value = useMemo<MobileWorkspaceContextValue>(() => ({ ...state, ...actions }), [state, actions]);
@@ -1359,7 +1492,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             serversReady={serverDirectoryState === "ready"}
             activeServerId={activeServerId}
             agents={agents}
-            preferences={preferences}
+            preferences={visiblePreferences}
           />
           {servers.map((server) => (
             <ServerConnection

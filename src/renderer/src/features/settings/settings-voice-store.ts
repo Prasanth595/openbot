@@ -31,7 +31,7 @@ type FailureKey =
   | "settings.voice.apiKey.removeFailed";
 
 /**
- * The Voice tab's view of the dictation models and settings. It is created by the settings dialog,
+ * The Voice tab's view of the dictation models and settings. It is created by the settings page,
  * so a download that runs keeps its row while another tab is open.
  */
 export function createSettingsVoiceStore(active: () => boolean) {

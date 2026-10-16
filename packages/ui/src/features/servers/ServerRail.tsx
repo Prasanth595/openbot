@@ -269,8 +269,6 @@ export function ServerRail(props: ServerRailProps) {
               canRemove={props.canRemove}
               onSetMuted={props.onSetMuted}
               onSetNotificationLevel={props.onSetNotificationLevel}
-              onOpenUsage={props.onOpenUsage}
-              onOpenSchedule={props.onOpenSchedule}
             />
           )}
         </For>
@@ -323,8 +321,6 @@ export function ServerRail(props: ServerRailProps) {
                     canRemove={props.canRemove}
                     onSetMuted={props.onSetMuted}
                     onSetNotificationLevel={props.onSetNotificationLevel}
-                    onOpenUsage={props.onOpenUsage}
-                    onOpenSchedule={props.onOpenSchedule}
                     onMove={(direction) => moveServer(server().id, direction)}
                   />
                 </li>
@@ -459,8 +455,6 @@ function ServerRailButton(
                 trigger={() => trigger}
                 onSetMuted={props.onSetMuted}
                 onSetNotificationLevel={props.onSetNotificationLevel}
-                onOpenUsage={props.onOpenUsage}
-                onOpenSchedule={props.onOpenSchedule}
                 onOpenSettings={props.onOpenSettings}
                 onLeave={props.onLeave}
                 onDelete={props.onDelete}

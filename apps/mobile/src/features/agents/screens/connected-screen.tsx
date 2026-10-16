@@ -1,4 +1,3 @@
-import { type MenuAction, MenuView } from "@expo/ui/community/menu";
 import type { SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { type Href, router, Stack } from "expo-router";
 import { HeaderHeightContext } from "expo-router/react-navigation";
@@ -54,6 +53,7 @@ import {
   mobileWaitingItems,
 } from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
+import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";

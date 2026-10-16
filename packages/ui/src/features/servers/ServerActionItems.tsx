@@ -1,17 +1,6 @@
 import type { ServerNotificationLevel, ServerSummary } from "@openbot/contracts/ipc";
 import type { AppFormat, AppTextKey, AppTranslate } from "@openbot/i18n";
-import {
-  Bell,
-  BellOff,
-  CalendarClock,
-  ChartArea,
-  Check,
-  ChevronRight,
-  type ContextMenu,
-  LogOut,
-  RotateCcw,
-  Trash2,
-} from "@openbot/ui";
+import { Bell, BellOff, Check, ChevronRight, type ContextMenu, LogOut, RotateCcw, Trash2 } from "@openbot/ui";
 import { For, Show } from "solid-js";
 import { useText } from "../../text";
 
@@ -63,8 +52,6 @@ export type ServerActionMenu = Pick<
 export interface ServerActionCallbacks {
   onSetMuted?: ((serverId: string, muted: boolean, durationMs?: number) => void) | undefined;
   onSetNotificationLevel?: ((serverId: string, level: ServerNotificationLevel) => void) | undefined;
-  onOpenUsage?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
-  onOpenSchedule?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
   onOpenSettings?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
   /** Asks to leave a joined server. The menu shows it for a remote server that the user does not own. */
   onLeave?: ((serverId: string, trigger: HTMLElement | null) => void) | undefined;
@@ -184,18 +171,6 @@ export function ServerActionItems(
       </Show>
       <Show when={props.onSetMuted || props.onSetNotificationLevel}>
         <Menu.Separator />
-      </Show>
-      <Show when={props.onOpenUsage}>
-        <Menu.Item onSelect={() => props.onOpenUsage?.(props.server.id, props.trigger())}>
-          <ChartArea class="agent-context-icon size-4" aria-hidden="true" />
-          <span>{t("server.rail.usage")}</span>
-        </Menu.Item>
-      </Show>
-      <Show when={props.onOpenSchedule}>
-        <Menu.Item onSelect={() => props.onOpenSchedule?.(props.server.id, props.trigger())}>
-          <CalendarClock class="agent-context-icon size-4" aria-hidden="true" />
-          <span>{t("server.rail.schedule")}</span>
-        </Menu.Item>
       </Show>
       <Show when={props.onOpenSettings}>
         <Menu.Item onSelect={() => props.onOpenSettings?.(props.server.id, props.trigger())}>

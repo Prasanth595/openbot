@@ -17,7 +17,7 @@ import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/age
 import { AGENT_IMPORT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-import-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
-import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import { AGENT_HIDDEN_CAPABILITY, TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
@@ -157,7 +157,7 @@ const CONNECTING_STATUS: AgentStatus = {
 };
 /**
  * What the web client reports as its build. The browser has no main process to ask, and the web frame
- * uses the macOS geometry: the account dock beside the rail is the hybrid one.
+ * uses the macOS geometry.
  */
 const WEB_APP_INFO: AppInfo = { name: "OpenBot", version: "web", platform: "darwin", variant: "production" };
 /** Below this width the web shows one pane at a time; see `web-client.css`. */
@@ -712,7 +712,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const [billingOpen, setBillingOpen] = createSignal(false);
   const billingCalls = createWebBillingCalls(props.accountFetch);
   const billing = createBillingStore(() => billingCalls, billingOpen);
-  // The web client has no Settings dialog, so a server whose plan ended is renewed or deleted in Billing.
+  // The web client has no Hosted servers settings, so a server whose plan ended is renewed or deleted in Billing.
   const hostedServers = createSettingsHostedServersStore(
     {
       get open() {
@@ -1171,6 +1171,39 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (view === "routines") channels.close();
     layout.setSidebarView(view);
   }
+  /**
+   * Hides or restores an agent on the host. After a hide, a toast offers Undo. The open chat stays
+   * open, as on the desktop.
+   */
+  function setAgentHidden(agentId: string, hidden: boolean): void {
+    const agent = workspace.state.agents.find((candidate) => candidate.id === agentId);
+    if (!agent) return;
+    const toastId = `agent-hide-${workspace.state.host?.hostId ?? ""}-${agentId}`;
+    void workspace.setAgentHidden(agentId, hidden).then(
+      (sent) => {
+        if (!sent) return;
+        if (!hidden) {
+          toast.dismiss(toastId);
+          return;
+        }
+        toast(t("agent.hideUndo.title", { name: agent.name }), {
+          id: toastId,
+          action: { label: t("agent.hideUndo.action"), onClick: () => setAgentHidden(agentId, false) },
+        });
+      },
+      (error: unknown) => {
+        actionToast.error(t(hidden ? "agent.error.hideFailed" : "agent.error.restoreFailed"), {
+          description: text.errorMessage(error, t("agent.error.hiddenFailed")),
+          report: { operation: "agent", source: "action", cause_code: classifyFailure(error) },
+        });
+      },
+    );
+  }
+  // The host refuses a member: a hidden agent stops for every member, as a deleted one does.
+  const hideSupported = () =>
+    workspace.state.status === "online" &&
+    workspace.state.capabilities.includes(AGENT_HIDDEN_CAPABILITY) &&
+    (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
   function startCreate() {
     setMobilePane("conversation");
     channels.close();
@@ -1306,7 +1339,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     onAdd={openAddServer}
                     addCreatesServer={hostedServersAvailable()}
                     onOpenSettings={(id, trigger) => void openServerSettings(id, trigger)}
-                    onOpenUsage={(id, trigger) => void openUsage(id, trigger)}
                     onSetMuted={setMuted}
                     onSetNotificationLevel={setNotificationLevel}
                     onLeave={(hostId, trigger) => setLeaveRequest({ hostId, trigger })}
@@ -1366,7 +1398,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     onAdd: openAddServer,
                     addCreatesServer: hostedServersAvailable(),
                     onOpenSettings: (id, trigger) => void openServerSettings(id, trigger),
-                    onOpenUsage: (id, trigger) => void openUsage(id, trigger),
                     onSetMuted: setMuted,
                     onSetNotificationLevel: setNotificationLevel,
                     onLeave: (hostId, trigger) => setLeaveRequest({ hostId, trigger }),
@@ -1421,6 +1452,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   }
                   marketplaceSupported={workspace.state.status === "online"}
                   onDeleteAgent={workspace.deleteAgent}
+                  userHiddenAgents={workspace.state.userHiddenAgents}
+                  onHideAgent={hideSupported() ? (agentId) => setAgentHidden(agentId, true) : undefined}
+                  onRestoreAgent={hideSupported() ? (agentId) => setAgentHidden(agentId, false) : undefined}
                   compact={compact()}
                   onExpand={layout.expandSidebar}
                   onOpenSearch={() => setSearchOpen(true)}
@@ -1801,7 +1835,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 agent={conversationAgent()}
                 agents={workspace.profiles()}
                 modelOptions={models()}
-                messages={view.messages()}
+                messages={view.messages}
                 messageReferences={view.messageReferences()}
                 unreadCount={readState()?.unreadCount ?? 0}
                 firstUnreadMessageId={readState()?.firstUnreadMessageId ?? null}
@@ -1819,13 +1853,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   joinOpen() || serverSettings.state.open || searchOpen() || marketplaceOpen() || hasVisibleToasts()
                 }
                 settingsRequest={settingsRequest()}
-                accountProfile={{
-                  account: account(),
-                  onUpdateAccountName: accountCalls.updateName,
-                  onUpdateAccountAvatar: accountCalls.updateAvatar,
-                  onListAccountSessions: accountCalls.listSessions,
-                  onRevokeAccountSession: accountCalls.revokeSession,
-                }}
                 messageFocusRequest={messageFocusRequest()}
                 queue={workspace.state.selectedId ? workspace.state.queues[workspace.state.selectedId] : undefined}
                 browserRuntime={workspace.runtime.browser}

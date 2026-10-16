@@ -16,7 +16,7 @@ type WorkspaceFrameProps = ParentProps<
     /** A remote server this build cannot talk to. Its screen replaces the middle panes. */
     blockedServer: ServerSummary | null;
     onRetryServer: (serverId: string) => Promise<void>;
-    /** The rail, the sidebar and the account dock, in paint order. */
+    /** The rails and the sidebar, in paint order. */
     left: JSX.Element;
     /** Whether the usage report is open. While it is, the middle panes are inert. */
     usageOpen: boolean;

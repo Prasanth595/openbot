@@ -119,6 +119,7 @@ export const messages = {
   "error.backend.mailboxStateCorrupt":
     "Posta kutusu durumu bozuk veya daha yeni bir OpenBot sürümünden; üzerine yazılması reddedildi.",
   "error.backend.recipientDeleting": "Alıcı siliniyor. Silme işlemi tamamlandıktan sonra tekrar deneyin.",
+  "error.backend.recipientHidden": "Bu ajan gizli. Mesaj göndermek için onu geri yükleyin.",
   "error.backend.attachBetween": "1 ila {limit} dosya ekleyin.",
   "error.backend.attachmentNotFile": "Ek bir dosya değil: {path}",
   "error.backend.generatedImageTooLarge": "Oluşturulan görsel 100 MB sınırını aşıyor.",

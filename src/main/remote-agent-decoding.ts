@@ -7,6 +7,7 @@ import {
   type HostProviderAccounts,
   isAgentHostSettings,
   isAgentSessionSettings,
+  isHiddenAgentsSnapshot,
 } from "@openbot/contracts/ipc";
 // Agent-shaped wire payloads: summaries, status, models, skills, memories, routines, queue.
 // See `remote-host-decoding.ts` for why the `FromHost` suffix exists and must not be merged away.
@@ -43,6 +44,7 @@ import { decodeRecord, guardedDecoder, guardedListDecoder } from "@openbot/contr
 import { isNumber, isString } from "@openbot/contracts/runtime-values";
 
 export const decodeAgentHostSettingsFromHost = guardedDecoder(isAgentHostSettings, "agent host settings response");
+export const decodeHiddenAgentsFromHost = guardedDecoder(isHiddenAgentsSnapshot, "hidden agents response");
 
 export function decodeDraftAttachment(value: unknown): DraftAttachment {
   if (!isAttachmentSummary(value)) throw new Error("Invalid attachment.");

@@ -11,6 +11,7 @@ import type {
   BrowserTab,
   BrowserTakeoverRequest,
   ConversationPage,
+  HiddenAgent,
   HostedServerIssue,
   HostedServerSleep,
   HostedServerStart,
@@ -22,6 +23,7 @@ import type {
   TeamPresenceSnapshot,
   TeamRealtimeEvent,
 } from "@openbot/contracts/ipc";
+import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { FOCUS_USE_CAPABILITY } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import { createFocusUsePing } from "@openbot/team-client/focus-use";
@@ -124,6 +126,8 @@ interface WebWorkspaceState {
   memberId: string | null;
   duplicatingAgentIds: string[];
   sidebarLayout: SidebarLayoutSnapshot;
+  /** The agents that a user hid on the host (`agent-hidden-v1`). Not the same as `hiddenIds`. */
+  userHiddenAgents: HiddenAgent[];
 }
 
 export type WebRuntimeFactory = (
@@ -190,6 +194,7 @@ export function createWebWorkspace(
     memberId: null,
     duplicatingAgentIds: [],
     sidebarLayout: defaultSidebarLayout(),
+    userHiddenAgents: [],
   });
   let generation = 0;
   let selectedId: string | null = null;
@@ -489,6 +494,10 @@ export function createWebWorkspace(
           setState((draft) => {
             if (event.layout.revision >= draft.sidebarLayout.revision) draft.sidebarLayout = event.layout;
           });
+        if (event.type === "hidden-agents-changed")
+          setState((draft) => {
+            draft.userHiddenAgents = event.agents;
+          });
         if (
           [
             "conversation",
@@ -566,6 +575,12 @@ export function createWebWorkspace(
       return { ...defaultSidebarLayout(), agentOrder: [...agentIds] };
     return read();
   }
+  /** A host without `agent-hidden-v1` has no hidden agents. */
+  async function readUserHiddenAgents(capabilities: readonly string[]): Promise<HiddenAgent[]> {
+    const read = runtime.listHiddenAgents;
+    if (!capabilities.includes(AGENT_HIDDEN_CAPABILITY) || !read) return [];
+    return (await read()).agents;
+  }
   function reconcileAgents(agents: AgentSummary[]): void {
     const ids = new Set(agents.map((agent) => agent.id));
     const nextSelected = selectedId && ids.has(selectedId) ? selectedId : null;
@@ -632,6 +647,7 @@ export function createWebWorkspace(
             draft.activeBrowserTabId = null;
             draft.browserControlState = { sessions: [] };
             draft.sidebarLayout = defaultSidebarLayout();
+            draft.userHiddenAgents = [];
             draft.duplicatingAgentIds = [];
             draft.capabilities = [];
             draft.status = "offline";
@@ -745,6 +761,7 @@ export function createWebWorkspace(
       draft.activeBrowserTabId = null;
       draft.browserControlState = { sessions: [] };
       draft.sidebarLayout = defaultSidebarLayout();
+      draft.userHiddenAgents = [];
       draft.capabilities = [];
       draft.presence = null;
       draft.duplicatingAgentIds = [];
@@ -852,6 +869,7 @@ export function createWebWorkspace(
         draft.browserTabs = [];
         draft.activeBrowserTabId = null;
         draft.sidebarLayout = defaultSidebarLayout();
+        draft.userHiddenAgents = [];
         draft.duplicatingAgentIds = [];
         draft.capabilities = [];
         draft.presence = null;
@@ -979,6 +997,14 @@ export function createWebWorkspace(
           if (isCurrent())
             setState((draft) => {
               if (layout.revision >= draft.sidebarLayout.revision) draft.sidebarLayout = layout;
+            });
+        })
+        .catch(failed),
+      readUserHiddenAgents(capabilities)
+        .then((agents) => {
+          if (isCurrent())
+            setState((draft) => {
+              draft.userHiddenAgents = agents;
             });
         })
         .catch(failed),
@@ -1158,10 +1184,13 @@ export function createWebWorkspace(
         state.capabilities,
         agents.map((agent) => agent.id),
       );
+      // A hide on another device can land while this tab is offline, and the event is then lost.
+      const userHiddenAgents = await readUserHiddenAgents(state.capabilities);
       if (disposed || current !== generation) return;
       reconcileAgents(agents);
       setState((draft) => {
         if (sidebarLayout.revision >= draft.sidebarLayout.revision) draft.sidebarLayout = sidebarLayout;
+        draft.userHiddenAgents = userHiddenAgents;
       });
       for (const agent of agents) loadQueue(agent.id);
       if (!selectedId && agents[0]) await select(agents[0].id);
@@ -1441,6 +1470,36 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.duplicatingAgentIds = draft.duplicatingAgentIds.filter((id) => id !== agentId);
           });
+      }
+    },
+    /**
+     * Hides or restores an agent. The sidebar moves the agent at once, and the host's answer then
+     * replaces the hidden list. If the host refuses, only this agent goes back and the error is thrown.
+     * Returns false when nothing was sent.
+     */
+    async setAgentHidden(agentId: string, hidden: boolean): Promise<boolean> {
+      const write = runtime.setAgentHidden;
+      if (state.status !== "online" || !state.capabilities.includes(AGENT_HIDDEN_CAPABILITY) || !write) return false;
+      if (!state.agents.some((agent) => agent.id === agentId)) return false;
+      if (state.userHiddenAgents.some((entry) => entry.agentId === agentId) === hidden) return false;
+      const current = generation;
+      const previous = state.userHiddenAgents.find((entry) => entry.agentId === agentId);
+      const apply = (entry: HiddenAgent | undefined) =>
+        setState((draft) => {
+          const others = draft.userHiddenAgents.filter((candidate) => candidate.agentId !== agentId);
+          draft.userHiddenAgents = entry ? [...others, entry] : others;
+        });
+      apply(hidden ? { agentId, hiddenAt: new Date().toISOString() } : undefined);
+      try {
+        const snapshot = await write({ agentId, hidden });
+        if (disposed || current !== generation) return true;
+        setState((draft) => {
+          draft.userHiddenAgents = snapshot.agents;
+        });
+        return true;
+      } catch (error) {
+        if (!disposed && current === generation) apply(previous);
+        throw error;
       }
     },
     async deleteAgent(agentId: string): Promise<void> {

@@ -42,41 +42,22 @@ export const Playground: Story = {
   render: () => <OpenBotPlayground />,
 };
 
-export const AccountMenu: Story = {
+export const ExpandedSidebar: Story = {
   render: () => <SidebarStatePlayground compact={false} />,
 };
 
-/** The servers in the menu on the server name, instead of the rail. Click the server name to open it. */
-export const ServerMenuView: Story = {
-  render: () => <SidebarStatePlayground compact={false} serverView="menu" />,
+/** The servers in a rail at the left of the sidebar, instead of the server menu. */
+export const ServerRailView: Story = {
+  render: () => <SidebarStatePlayground compact={false} serverView="rail" />,
 };
 
-export const CompactAccountMenu: Story = {
+export const CompactSidebar: Story = {
   render: () => <SidebarStatePlayground compact={true} />,
 };
 
-export const LinuxAccountMenu: Story = {
+export const LinuxWindow: Story = {
   render: () => (
     <SidebarStatePlayground compact={false} options={{ appInfo: { ...STORY_APP_INFO, platform: "linux" } }} />
-  ),
-};
-
-export const LongAccountEmail: Story = {
-  render: () => (
-    <SidebarStatePlayground
-      compact={false}
-      options={{
-        authState: {
-          status: "signed_in",
-          user: {
-            id: "user-long-name",
-            email: "norbert.bodziony.with.a.very.long.workspace.profile@example.com",
-            name: "Norbert Bodziony",
-            avatarUrl: null,
-          },
-        },
-      }}
-    />
   ),
 };
 

@@ -1,6 +1,6 @@
 import type { AgentEvent, RespondToApprovalInput, RespondToPromptInput } from "@openbot/contracts/ipc";
 import type { AgentMessage } from "@openbot/ui/data";
-import { createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createProjection, createSignal } from "solid-js";
 import { toAgentMessage, toAgentMessages } from "../../app-message-projection";
 import type { createRemoteAgentAdmin } from "../agents/remote-agent-admin";
 import type { WebWorkspace } from "./web-client-context";
@@ -87,10 +87,17 @@ export function createWebConversationView(options: {
       questions: message.questionPrompt.questions,
     };
   });
-  const messages = createMemo(() =>
-    toAgentMessages(workspace.conversation()?.page?.messages ?? [], workspace.state.selectedId ?? undefined).map(
-      withoutPreviewUrls,
-    ),
+  /**
+   * A stream chunk changes the text of one stored message, and this projection runs again. The
+   * result is reconciled by id, so the other messages keep their objects and their rows.
+   */
+  const messages = createProjection<AgentMessage[]>(
+    () =>
+      toAgentMessages(workspace.conversation()?.page?.messages ?? [], workspace.state.selectedId ?? undefined).map(
+        withoutPreviewUrls,
+      ),
+    [],
+    { key: "id" },
   );
   /** The replied-to messages that are not on the loaded pages. The host sends them with each page. */
   const messageReferences = createMemo(() => {

@@ -122,6 +122,7 @@ export const messages = {
   "error.backend.mailboxStateCorrupt":
     "メールボックスの状態が破損しているか、新しいバージョンの OpenBot のものです。上書きしません。",
   "error.backend.recipientDeleting": "受信者を削除中です。削除が終わってから再試行してください。",
+  "error.backend.recipientHidden": "このエージェントは非表示です。メッセージを送るには元に戻してください。",
   "error.backend.attachBetween": "1 〜 {limit} 個のファイルを添付してください。",
   "error.backend.attachmentNotFile": "添付ファイルがファイルではありません: {path}",
   "error.backend.generatedImageTooLarge": "生成された画像が 100 MB の上限を超えています。",

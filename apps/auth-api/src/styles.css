@@ -4,8 +4,32 @@
 @import "@openbot/brand/tokens.css";
 @import "@openbot/ui/stagger.css";
 
+/* Arial with the size and line metrics of Inter. Until Inter loads, the text takes the same space,
+   so the hero does not move when the font changes. Inter is wider than the system font, and on a
+   slow phone the description wrapped to one more line and pushed the buttons down. */
+@font-face {
+  font-family: "Inter Variable Fallback";
+  src: local("Arial"), local("ArialMT");
+  size-adjust: 107.12%;
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Inter Variable Fallback";
+  font-weight: 600 900;
+  src: local("Arial Bold"), local("Arial-BoldMT");
+  size-adjust: 107.12%;
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+}
+
 :root {
   color-scheme: dark;
+  --openbot-font-sans:
+    "Inter Variable", "Inter Variable Fallback", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --pulse-dur: 1000ms;
   --pulse-count: 1;
   --pulse-min: 0.5;

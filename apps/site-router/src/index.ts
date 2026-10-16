@@ -100,10 +100,14 @@ export const routeRequest = Effect.fn("SiteRouter.routeRequest")(
         headers: secureHeaders({ Location: report.toString(), "Cache-Control": "no-store" }),
       });
     }
-    const blockMarker = yield* storage.get(hostedSiteBlockKey(hostname));
+    // Read both keys at once. The block marker still wins, also when the route read fails.
+    const [blockMarker, routeRead] = yield* Effect.all(
+      [storage.get(hostedSiteBlockKey(hostname)), Effect.result(storage.get(hostedSiteRouteKey(hostname)))],
+      { concurrency: 2 },
+    );
     if (blockMarker) return errorResponse(451, "Site unavailable");
 
-    const routeObject = yield* storage.get(hostedSiteRouteKey(hostname));
+    const routeObject = yield* Effect.fromResult(routeRead);
     if (!routeObject) return errorResponse(404, "Site not found");
     if (!hasBody(routeObject)) return errorResponse(500, "Site unavailable");
     const route = yield* readRouteManifest(routeObject);

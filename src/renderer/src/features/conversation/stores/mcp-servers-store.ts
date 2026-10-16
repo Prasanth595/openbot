@@ -16,7 +16,7 @@ export interface McpServersStoreDeps {
  * its names, and a tag is a hint in the prompt, so a server that cannot answer is still a server the
  * user can name.
  *
- * The list is read again when the server settings dialog or the marketplace closes, because those
+ * The list is read again when the server settings or the marketplace close, because those
  * are where a server is added or removed, and on a reconnection, because a remote host answers this
  * only while connected.
  */

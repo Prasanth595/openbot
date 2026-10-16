@@ -1,4 +1,3 @@
-import { type MenuAction, MenuView } from "@expo/ui/community/menu";
 import * as Clipboard from "expo-clipboard";
 import { GlassView } from "expo-glass-effect";
 import * as Linking from "expo-linking";
@@ -22,6 +21,7 @@ import DiagramCanvas from "@/features/chat/components/diagram-canvas.dom";
 import HtmlPreview from "@/features/chat/components/html-preview.dom";
 import { type CodePreviewEntry, codePreview } from "@/features/chat/model/code-preview-store";
 import { useMermaidDiagram } from "@/features/chat/model/mermaid-diagrams";
+import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { expoGoDomOptions } from "@/shared/lib/expo-go-dom";
 import { haptics } from "@/shared/lib/haptics";

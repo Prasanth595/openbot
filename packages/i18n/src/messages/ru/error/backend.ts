@@ -120,6 +120,7 @@ export const messages = {
   "error.backend.mailboxStateCorrupt":
     "Состояние почтового ящика повреждено или создано более новой версией OpenBot; перезапись отклонена.",
   "error.backend.recipientDeleting": "Получатель удаляется. Повторите после завершения удаления.",
+  "error.backend.recipientHidden": "Этот агент скрыт. Восстановите его, чтобы отправлять сообщения.",
   "error.backend.attachBetween": "Прикрепите от 1 до {limit} файлов.",
   "error.backend.attachmentNotFile": "Вложение не является файлом: {path}",
   "error.backend.generatedImageTooLarge": "Созданное изображение превышает лимит 100 МБ.",

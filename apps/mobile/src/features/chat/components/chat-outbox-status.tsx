@@ -1,4 +1,3 @@
-import { type MenuAction, MenuView } from "@expo/ui/community/menu";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import CircleX from "lucide-react-native/icons/circle-x";
@@ -6,6 +5,7 @@ import Clock from "lucide-react-native/icons/clock";
 import type { PropsWithChildren } from "react";
 import { View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
+import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { useText } from "@/shared/lib/text";
 import { type OutboxMessage, outboxRetrySafe } from "../model/outbox";
 
@@ -37,6 +37,7 @@ export function OutboxMessageMenu({ status, children }: PropsWithChildren<{ stat
     <MenuView
       colorScheme={theme === "dark" ? "dark" : "light"}
       shouldOpenOnLongPress
+      style={{ alignSelf: "flex-end" }}
       // The menu says why the message did not send. The row shows only that it did not.
       title={retryable && message.error ? message.error : undefined}
       actions={actions}
