@@ -38,7 +38,7 @@ interface HeldSubmenu {
   /** Whether the panels are tooltips, whose content can change much from one to the next. */
   own: boolean;
   /** Where the panel was, when it closed while it moved to its own place. */
-  moving?: MovingState;
+  moving?: MovingState | undefined;
   /** Where the copy is without the hold: the place that the panel moved to. */
   natural?: DOMRect;
   /** The widths of the items of the copy at that place. */
