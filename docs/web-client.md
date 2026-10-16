@@ -53,10 +53,10 @@ mock. The separate web preview implements the browser runtime with that same moc
   Every write needs the same origin and `X-OpenBot-Browser: 1`; all send JSON except the avatar
   upload, which sends the image bytes. A site delete also needs an `Idempotency-Key`. A host logo is
   given to a member of that host, for its current `logoKey` only.
-- The page rail is the same as on desktop: Agents, Routines, Usage, Marketplace, Settings, and Help.
-  Settings opens a dialog with the desktop Profile tab (with Billing and Sign out), and Preferences:
-  the interface language and the completion sound. The server menu opens Server settings of the
-  connected host.
+- The page rail is the same as on desktop: Agents, Routines (when the host supports routines),
+  Schedule, Usage, Marketplace, Settings, and Help. Settings opens a page with the desktop Profile tab
+  (with Sign out), Preferences (the interface language and the completion sound), and a Billing
+  button below the tabs. The server menu opens the Server settings page of the connected host.
   This browser keeps both preferences, also before sign-in (`web-language-preference.ts`,
   `completion-sound.ts`). A browser session is listed as Desktop, and it can disconnect any other
   session of the account, as the desktop app can. Providers & permissions and app updates stay

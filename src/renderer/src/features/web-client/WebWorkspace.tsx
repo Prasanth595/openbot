@@ -406,6 +406,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   }));
   const accountCalls = createWebAccountCalls(props.accountFetch, props.onSessionCheck);
   const [accountSettingsOpen, setAccountSettingsOpen] = createSignal(false);
+  /** The settings pages stay mounted after their first open, so a closed page gives the focus back, as on desktop. */
+  const [accountSettingsLoaded, setAccountSettingsLoaded] = createSignal(false);
+  const [serverSettingsLoaded, setServerSettingsLoaded] = createSignal(false);
   const usageReading = createWebAccountUsage({
     workspace,
     status,
@@ -692,6 +695,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     setMobilePane("conversation");
     setHostPage(null);
     serverSettings.setOpen(false);
+    setAccountSettingsLoaded(true);
     setAccountSettingsOpen(true);
   }
   /** The elements of the settings page that the settings panel shows in. The page sets them. */
@@ -899,6 +903,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     setMobilePane("conversation");
     setHostPage(null);
     setAccountSettingsOpen(false);
+    setServerSettingsLoaded(true);
     serverSettings.open(trigger);
   }
   // Each time the user enters a host that has a new version, the update dialog opens. A reconnect does not offer again.
@@ -1185,6 +1190,15 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     channels.close();
     await workspace.select(id);
   }
+  /**
+   * A channel that the user opens closes the pages. On a phone the sidebar shows while a page stays open
+   * in the conversation pane. The automatic open after a host connects goes through `beforeOpen` only.
+   */
+  function openChannel(id: string, edit = false) {
+    setMobilePane("conversation");
+    showAgents();
+    void (edit ? channels.editChannel(id) : channels.open(id));
+  }
   async function openAddedAgent(agent: AddedAgent) {
     setMobilePane("conversation");
     await workspace.run(async () => {
@@ -1418,19 +1432,24 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       </Loading>
                     }
                   >
-                    <ScheduleView
-                      serverId={target().id}
-                      hostName={target().name}
-                      onBack={closeHostPage}
-                      source={scheduleSource}
-                      agents={workspace.profiles()}
-                      channels={channels.state.channels}
-                      onOpenAgent={(agentId) => {
-                        setMobilePane("conversation");
-                        void select(agentId);
-                      }}
-                      onOpenRoutine={openRoutine}
-                    />
+                    {/* The schedule loads its server once, and the page stays open across a server switch. */}
+                    <Show when={target().id} keyed>
+                      {(serverId) => (
+                        <ScheduleView
+                          serverId={serverId}
+                          hostName={target().name}
+                          onBack={closeHostPage}
+                          source={scheduleSource}
+                          agents={workspace.profiles()}
+                          channels={channels.state.channels}
+                          onOpenAgent={(agentId) => {
+                            setMobilePane("conversation");
+                            void select(agentId);
+                          }}
+                          onOpenRoutine={openRoutine}
+                        />
+                      )}
+                    </Show>
                   </Show>
                 )}
               </Show>
@@ -1463,14 +1482,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     channelsListed() ? channels.state.channels.filter((channel) => channel.archived) : []
                   }
                   activeChannelId={channels.state.selectedId}
-                  onSelectChannel={(id) => {
-                    setMobilePane("conversation");
-                    void channels.open(id);
-                  }}
-                  onEditChannel={(id) => {
-                    setMobilePane("conversation");
-                    void channels.editChannel(id);
-                  }}
+                  onSelectChannel={openChannel}
+                  onEditChannel={(id) => openChannel(id, true)}
                   onDeleteChannel={channels.deletionSupported() ? channels.remove : undefined}
                   showingArchivedChannels={channelsListed() && channels.state.archived}
                   onToggleArchivedChannels={channelsListed() ? channels.toggleArchived : undefined}
@@ -1641,7 +1654,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     else props.onPluginSlugConsumed?.();
                   }}
                 />
-                <Show when={accountSettingsOpen()}>
+                <Show when={accountSettingsLoaded()}>
                   <Loading>
                     <WebAccountSettings
                       open={accountSettingsOpen() && settingsPlacement("personal") !== undefined}
@@ -1663,7 +1676,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   onClose={() => props.onAgentTemplateClose?.()}
                   onInstalled={openAddedAgent}
                 />
-                <Show when={serverSettings.state.open && server()}>
+                <Show when={serverSettingsLoaded() && server()}>
                   {(target) => (
                     <ServerSettingsOverlay
                       open={serverSettings.state.open && settingsPlacement("server") !== undefined}
@@ -1808,10 +1821,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     setMobilePane("conversation");
                     void select(id);
                   }}
-                  onSelectChannel={(id) => {
-                    setMobilePane("conversation");
-                    void channels.open(id);
-                  }}
+                  onSelectChannel={openChannel}
                   onSelectMessage={(agentId, messageId) => void openMessage(agentId, messageId)}
                 />
               </>
