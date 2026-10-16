@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { haptics } from "@/shared/lib/haptics";
 import { replyWordFeedback } from "../model/reply-reveal";
 
-/** "PA. pa PA": a strong knock, a pause, a light knock, then a strong knock, for the rest of a reply that shows at once. */
+/** A strong knock, a pause, a light knock, then a strong knock, for the rest of a reply that shows at once. */
 const FLUSH_KNOCKS = [
   { style: "heavy", at: 0 },
   { style: "light", at: 240 },
