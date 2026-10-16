@@ -210,7 +210,7 @@ interface ClaudeQuery extends AsyncIterable<ClaudeStreamMessage> {
   getContextUsage?(options: { detail: "summary" }): Promise<unknown>;
   setModel(model?: string): Promise<void>;
   applyFlagSettings(settings: { effortLevel?: ClaudeEffort | null }): Promise<void>;
-  usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?(): Promise<unknown>;
+  usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?(options?: { skipBehaviors?: boolean }): Promise<unknown>;
   close(): void;
 }
 
@@ -262,6 +262,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   readonly #threadResumes = new Map<string, Deferred.Deferred<void, ProviderClientOperationError>>();
   #running = false;
   #scope = Scope.makeUnsafe();
+  /** The weekly window that the last account-wide usage reading showed. A live event for another one is not forwarded. */
+  #weeklyLimitKey = "seven_day";
 
   constructor(
     cli: ClaudeCliInfo,
@@ -559,12 +561,15 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     return yield* Effect.gen({ self: this }, function* () {
       const readUsage = claudeQuery.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET;
       if (!readUsage) return { rateLimits: null, rateLimitsByLimitId: null };
-      const usage = yield* providerCall(() => readUsage.call(claudeQuery)).pipe(
+      // Without `skipBehaviors` the CLI also reads every transcript, which times out on a long history.
+      const usage = yield* providerCall(() => readUsage.call(claudeQuery, { skipBehaviors: true })).pipe(
         Effect.timeoutOrElse({
           duration: timeoutMs,
           orElse: () => Effect.fail(providerFailure(new RequestTimeoutError("Claude", "account/rateLimits/read"))),
         }),
       );
+      if (model === defaultProviderModel("claude") && isDynamicRecord(usage) && isDynamicRecord(usage.rate_limits))
+        this.#weeklyLimitKey = claudeWeeklyKey(usage.rate_limits, model);
       return yield* providerSync(() => claudeRateLimits(usage, model));
     }).pipe(
       Effect.ensuring(
@@ -1043,10 +1048,18 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     }
     if (message.type === "rate_limit_event") {
       const info = message.rate_limit_info;
+      if (!isDynamicRecord(info)) return;
       const turn = runtime.activeTurn;
-      if (turn && isDynamicRecord(info) && info.status === "rejected") {
+      if (turn && info.status === "rejected") {
         turn.usageLimit = { resetsAt: claudeResetSeconds(info.resetsAt), text: turn.usageLimit?.text ?? null };
       }
+      // The plan rings follow the turn, as with Codex, instead of waiting for the next reading.
+      const window = claudePushedWindow(info, this.#weeklyLimitKey);
+      if (window)
+        this.emit("notification", {
+          method: "account/rateLimits/updated",
+          params: { rateLimits: { limitId: "claude", ...window } },
+        });
       return;
     }
 
@@ -1707,7 +1720,7 @@ function claudeRateLimits(value: unknown, model: string | null): AccountRateLimi
   }
   const rateLimits = value.rate_limits;
   const primary = claudeUsageWindow(rateLimits.five_hour, 300);
-  const secondary = claudeModelWeeklyWindow(rateLimits, model) ?? claudeUsageWindow(rateLimits.seven_day, 10_080);
+  const secondary = claudeUsageWindow(rateLimits[claudeWeeklyKey(rateLimits, model)], 10_080);
   if (!primary && !secondary) return { rateLimits: null, rateLimitsByLimitId: null };
   return {
     rateLimits: { limitId: "claude", primary, secondary },
@@ -1715,17 +1728,26 @@ function claudeRateLimits(value: unknown, model: string | null): AccountRateLimi
   };
 }
 
-function claudeModelWeeklyWindow(rateLimits: DynamicRecord, model: string | null): AccountRateLimitWindowResult | null {
-  if (!model) return null;
-  const familyKey = model.toLowerCase().includes("opus")
-    ? "seven_day_opus"
-    : model.toLowerCase().includes("sonnet")
-      ? "seven_day_sonnet"
-      : null;
-  if (familyKey) {
-    const family = claudeUsageWindow(rateLimits[familyKey], 10_080);
-    if (family) return family;
-  }
+/** The weekly window a reading shows: the one of the model's family when Claude reports it, else the overall one. */
+function claudeWeeklyKey(rateLimits: DynamicRecord, model: string | null): string {
+  const name = model?.toLowerCase() ?? "";
+  const familyKey = name.includes("opus") ? "seven_day_opus" : name.includes("sonnet") ? "seven_day_sonnet" : null;
+  return familyKey && claudeUsageWindow(rateLimits[familyKey], 10_080) ? familyKey : "seven_day";
+}
+
+/**
+ * The window that a live `rate_limit_event` reports, in the shape of a reading. The event sends `utilization` as a
+ * fraction of 1, where the usage reading sends a percent.
+ */
+function claudePushedWindow(
+  info: DynamicRecord,
+  weeklyKey: string,
+): { primary: AccountRateLimitWindowResult } | { secondary: AccountRateLimitWindowResult } | null {
+  const utilization = numberValue(info.utilization);
+  if (utilization === null || utilization < 0 || utilization > 1) return null;
+  const window = { usedPercent: utilization * 100, resetsAt: claudeResetSeconds(info.resetsAt) };
+  if (info.rateLimitType === "five_hour") return { primary: { ...window, windowDurationMins: 300 } };
+  if (info.rateLimitType === weeklyKey) return { secondary: { ...window, windowDurationMins: 10_080 } };
   return null;
 }
 
