@@ -8,6 +8,3 @@
   the account service used one count, so one member could stop password sign-in to a user name for
   all other members.
 - Count sign-in attempts for a user name with spaces around it as attempts for that user name.
-- Do not send the full folder path of an agent workspace when a member opens a folder. The path
-  now starts with `~` when the workspace is in the home folder, so it does not show the user name
-  of the server computer.

@@ -58,9 +58,17 @@ export async function routeTeam(
   const { method, url, request, response, member, token, sessionId, json, empty } = context;
 
   /** What removing a member does, whether an admin removes them or they leave. */
+  /**
+   * Whether the host service makes the change, so that it also reaches the account directory. The
+   * owner and an unknown member stay with the team store, which refuses them with its released error.
+   */
+  function hostChanges(memberId: string): boolean {
+    const target = store.listMembers().find((candidate) => candidate.id === memberId);
+    return target !== undefined && target.role !== "owner";
+  }
+
   async function removeMember(memberId: string): Promise<void> {
-    // The host service also removes the membership from the account directory.
-    if (removeHostMember) return runCauseEffect(removeHostMember(memberId));
+    if (removeHostMember && hostChanges(memberId)) return runCauseEffect(removeHostMember(memberId));
     await runCauseEffect(store.removeMember(memberId));
     await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(memberId)) : undefined);
     refreshPresence();
@@ -144,8 +152,8 @@ export async function routeTeam(
       ...(role ? { role } : {}),
       ...(disabled === undefined ? {} : { disabled }),
     };
-    // The host service also changes the membership in the account directory.
-    if (updateMember) return json(200, await runCauseEffect(updateMember({ memberId, ...patch })));
+    if (updateMember && hostChanges(memberId))
+      return json(200, await runCauseEffect(updateMember({ memberId, ...patch })));
     const updated = await runCauseEffect(store.updateMember(memberId, patch));
     if (updated.disabled) await (remoteScreen ? runCauseEffect(remoteScreen.revokeMember(updated.id)) : undefined);
     refreshPresence();

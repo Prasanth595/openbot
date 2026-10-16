@@ -196,7 +196,7 @@ const resolveWorkspacePath = Effect.fn("Workspace.resolveWorkspacePath")(functio
  * A path in the home folder as `~/…`. The error display hides a message with a `/Users/` path as runtime
  * output, and the short form is also easier to read.
  */
-export function homeRelative(path: string): string {
+function homeRelative(path: string): string {
   const home = homedir();
   return path === home || path.startsWith(`${home}${sep}`) ? `~${path.slice(home.length)}` : path;
 }

@@ -212,7 +212,6 @@ import type { RoutineHoldWindow } from "./routine-store";
 import { RoutineTimer } from "./routine-timer";
 import type { SidebarLayoutStore } from "./sidebar-layout-store";
 import {
-  homeRelative,
   listWorkspaceDirectory,
   type ResolvedSharedFile,
   resolveSharedFile,
@@ -2629,8 +2628,6 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   ) {
     const agent = yield* lifecycleStep("find workspace agent", () => this.#agentForFile(agentId));
     return yield* listWorkspaceDirectory(agent, inputPath).pipe(
-      // The absolute path names the user account of the host computer. A member does not need it.
-      Effect.map((directory) => ({ ...directory, root: homeRelative(directory.root) })),
       Effect.mapError(
         (failure) => new AgentLifecycleFailed({ operation: "list workspace directory", cause: failure.cause }),
       ),
