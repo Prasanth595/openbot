@@ -1,5 +1,43 @@
 [
   {
+    "version": "0.40.0",
+    "date": "2026-10-15",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Backup models: when an agent's model reaches its usage limit, send the message to another connected model, or let the agent switch by itself. Set the order in Agent settings > Backup models.",
+          "A routine can run one time, at a date and time that you select.",
+          "A routine can send each answer to a Slack, Discord or Telegram place. Select it in \"Send answers to\" in the routine editor.",
+          "Set a server timezone in Server settings > General. Agents use it for new routines.",
+          "Connect 1Password on a joined server in Settings > Connectors.",
+          "Settings > Dynamic Island can hide the activity of each server.",
+          "Agents fill forms in the browser faster."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "After you delete an agent, Undo shows for 8 seconds.",
+          "The model picker shows only the providers that are ready. Select + to connect another one.",
+          "Admins of a hosted server can restart it."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Agents in Slack, Discord and Telegram no longer stop answering after a provider error or a restart.",
+          "A paused, deleted or changed routine no longer starts its old run.",
+          "Custom agents that need Node start when you open OpenBot from Finder or the Dock.",
+          "Gemini no longer fills the disk on Windows.",
+          "A failed provider CLI update keeps your sign-in and shows a short reason.",
+          "Large chats no longer stop the app for a second when old history is removed."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.39.1",
     "date": "2026-10-14",
     "notices": [],

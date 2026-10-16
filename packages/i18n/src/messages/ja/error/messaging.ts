@@ -14,6 +14,8 @@ export const messages = {
   "error.messaging.telegramUnsupported": "このコンピュータは Telegram に接続できません。",
   "error.messaging.telegramRelayUnavailable":
     "OpenBot はこのコンピュータから Telegram に接続できません。サインインし、このコンピュータに名前を付けてから、もう一度お試しください。",
+  "error.messaging.telegramServiceUnavailable":
+    "OpenBot は現在 Telegram に接続できません。しばらくしてからもう一度お試しください。",
   "error.messaging.memoryLimit":
     "接続したワークスペースに置けるメモリーは {limit} 個までです。先に 1 つ削除してください。",
 } as const satisfies PartialTranslation<typeof source>;

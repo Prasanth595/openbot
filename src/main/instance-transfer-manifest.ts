@@ -10,6 +10,7 @@ import { isAgentProvider } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   isAgentImportKey,
+  isAgentTaskLimit,
   isAvatarHue,
   isBusyMessageMode,
   isMcpServerConfig,
@@ -66,6 +67,7 @@ const Agent = Schema.Struct({
   reasoningEffort: guarded(isReasoningEffort),
   notifications: Schema.Boolean,
   busyMessageMode: Schema.optionalKey(guarded(isBusyMessageMode)),
+  taskLimit: Schema.optionalKey(guarded(isAgentTaskLimit)),
   skills: Schema.Array(text(512)).check(Schema.isMaxLength(INPUT_LIMITS.agentSkills)),
   files: Schema.NullOr(text(512)),
   routines: Schema.Array(Routine).check(Schema.isMaxLength(INPUT_LIMITS.agentRoutines)),

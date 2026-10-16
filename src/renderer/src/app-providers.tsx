@@ -3,6 +3,7 @@ import { type ParentProps, Show } from "solid-js";
 import { AnsweredPromptsProvider } from "./answered-prompts";
 import { AppBootstrap } from "./app-bootstrap";
 import { AuthProvider } from "./features/account/account-context";
+import { AgentTasksProvider } from "./features/agent-tasks/agent-tasks-context";
 import { AgentActionsProvider } from "./features/agents/agent-actions";
 import { AgentEventBridge } from "./features/agents/agent-event-bridge";
 import { AgentReadTrackingProvider } from "./features/agents/agent-read-tracking";
@@ -166,23 +167,25 @@ function ScopedProviders(props: ParentProps<ScopedConversationProps>): JSX.Eleme
             <ChannelsProvider>
               <ProvidersProvider>
                 <TurnsProvider>
-                  <ConversationProvider>
-                    <BrowserTabsProvider>
-                      <SidebarProvider>
-                        <NavigationProvider>
-                          <ServerSelectionProvider>
-                            <AgentActionsProvider>
-                              <ServerScopeProvider>
-                                <AgentEventBridge />
-                                <DynamicIslandBridge />
-                                {props.children}
-                              </ServerScopeProvider>
-                            </AgentActionsProvider>
-                          </ServerSelectionProvider>
-                        </NavigationProvider>
-                      </SidebarProvider>
-                    </BrowserTabsProvider>
-                  </ConversationProvider>
+                  <AgentTasksProvider>
+                    <ConversationProvider>
+                      <BrowserTabsProvider>
+                        <SidebarProvider>
+                          <NavigationProvider>
+                            <ServerSelectionProvider>
+                              <AgentActionsProvider>
+                                <ServerScopeProvider>
+                                  <AgentEventBridge />
+                                  <DynamicIslandBridge />
+                                  {props.children}
+                                </ServerScopeProvider>
+                              </AgentActionsProvider>
+                            </ServerSelectionProvider>
+                          </NavigationProvider>
+                        </SidebarProvider>
+                      </BrowserTabsProvider>
+                    </ConversationProvider>
+                  </AgentTasksProvider>
                 </TurnsProvider>
               </ProvidersProvider>
             </ChannelsProvider>

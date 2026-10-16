@@ -53,6 +53,7 @@ type LandingPlacement =
   | "header"
   | "hero"
   | "download_section"
+  | "teams_section"
   | "download_page"
   | "footer"
   | "content_index"
@@ -64,6 +65,7 @@ const LANDING_PLACEMENTS = [
   "header",
   "hero",
   "download_section",
+  "teams_section",
   "download_page",
   "footer",
   "content_index",
@@ -79,6 +81,8 @@ type LandingDestination =
   | "news"
   | "guides"
   | "contact"
+  | "x"
+  | "discord"
   | "repository"
   | "releases"
   | "license"
@@ -99,6 +103,7 @@ type DownloadPagePath = (typeof OPENBOT_DOWNLOAD_PAGE_LINKS)[keyof typeof OPENBO
 export type LandingScreenPath =
   | "/"
   | "/join"
+  | "/contact"
   | DownloadPagePath
   | CollectionIndexRoute
   | `${CollectionIndexRoute}/${string}`;
@@ -106,6 +111,7 @@ export type LandingScreenPath =
 const FIXED_SCREEN_PATHS = [
   "/",
   "/join",
+  "/contact",
   ...Object.values(OPENBOT_DOWNLOAD_PAGE_LINKS),
   "/news",
   "/guides",
@@ -183,6 +189,8 @@ const LINK_DESTINATIONS = new Map<string, LandingDestination>([
   [OPENBOT_LINKS.news, "news"],
   [OPENBOT_LINKS.guides, "guides"],
   [OPENBOT_LINKS.contact, "contact"],
+  [OPENBOT_LINKS.x, "x"],
+  [OPENBOT_LINKS.discord, "discord"],
   [OPENBOT_LINKS.repository, "repository"],
   [OPENBOT_LINKS.releases, "releases"],
   // The same destination on this site: the release notes, reported under the name they had.
@@ -574,6 +582,7 @@ function landingPlacement(link: HTMLAnchorElement): LandingPlacement {
   if (link.closest(".post-more")) return "content_related";
   if (link.closest(".landing-hero")) return "hero";
   if (link.closest(".landing-download")) return "download_section";
+  if (link.closest(".landing-teams")) return "teams_section";
   if (link.closest(".landing-footer")) return "footer";
   if (link.closest(".download-page")) return "download_page";
   // Without these, every link inside an article body reports "other", which makes

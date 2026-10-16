@@ -94,7 +94,11 @@ SolidJS, provider, Cloudflare, and application code; and the account server to d
   on answers its own approvals, so they never reach a client, and a client cannot grant one on a
   remote host's behalf. `AttentionRegistry` reads it at each approval, including hosted-site
   publishing, replacement and deletion. Site validation, ownership checks and activity markers
-  still apply. Questions and browser takeovers remain interactive.
+  still apply. The registry also accepts, once, Codex's consent to run an MCP tool (`_meta.codex_approval_kind`
+  `mcp_tool_call` with `persist` that offers `always`), and saves nothing: "Always allow" stays the user's
+  choice, which Codex keeps per server and tool. A Workspace only agent, a Computer Use tool and a tool set to
+  ask every time keep their card. Other questions, MCP forms and sign-in requests, and browser takeovers
+  remain interactive.
 - `browser-tabs.json` is the embedded browser's own durable state, outside `openbot.db` and outside the
   migration runner. It is versioned in the file (`v1` predates the per-tab `BrowserEnvironment`, `v2`
   carries it) and always rewritten as the current version, so a downgrade reads a file it does not know.

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
+import { readFcmServiceAccount } from "../apps/auth-api/src/server/android-notification-relay";
 
 const logger = createOpenBotLogger("deploy-auth-api");
 
@@ -21,6 +22,7 @@ async function main(): Promise<void> {
     requiredSecret("OPENPANEL_CLIENT_ID");
     requiredSecret("OPENPANEL_CLIENT_SECRET");
   }
+  assertFcmServiceAccount();
   await putRequiredSecret("EMAIL_SMTP_PASSWORD");
   await putRequiredSecret("SKILLS_ADMIN_TOKEN");
   await putRequiredSecret("SITE_REPORT_HASH_SECRET");
@@ -58,6 +60,8 @@ async function main(): Promise<void> {
   }
   // The Live Activity relay stays off until the Apple key is in the environment.
   await putOptionalSecretSet("APNS_PRIVATE_KEY", "APNS_KEY_ID");
+  // The Android notification relay stays off until the Firebase service account key is in the environment.
+  await putOptionalSecret("FCM_SERVICE_ACCOUNT");
   await run(wranglerExecutable, ["d1", "migrations", "apply", "DB", "--remote", ...environmentArgs], {
     label: "Remote D1 migrations",
   });
@@ -85,6 +89,15 @@ async function putRequiredSecret(name: string): Promise<void> {
     input: `${value}\n`,
     label: `${name} secret`,
   });
+}
+
+/** A key that the Worker cannot read turns the relay off, so it stops the deployment before remote changes. */
+function assertFcmServiceAccount(): void {
+  const value = process.env.FCM_SERVICE_ACCOUNT?.trim();
+  if (!value) return;
+  if (value.startsWith("encrypted:"))
+    throw new Error("FCM_SERVICE_ACCOUNT is not decrypted. Check the environment decryption key.");
+  if (!readFcmServiceAccount(value)) throw new Error("FCM_SERVICE_ACCOUNT is not a Firebase service account key file.");
 }
 
 /** A test Worker must never take real payments, and production must never take test payments. */

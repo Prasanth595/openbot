@@ -25,7 +25,6 @@ import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { haptics } from "@/shared/lib/haptics";
 import { type AvatarPhoto, pickAvatarPhoto } from "@/shared/lib/pick-avatar-photo";
-import { isIOS } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
 
 export function ServerSettingsScreen() {
@@ -210,7 +209,7 @@ export function ServerSettingsScreen() {
         {restarted ? <SettingsNote>{restarted}</SettingsNote> : null}
         {error ? <SettingsNote>{error}</SettingsNote> : null}
       </SettingsSection>
-      {isIOS ? <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} /> : null}
+      <ServerNotificationSettings server={server} title={t("mobile.settings.notifications.title")} />
     </SettingsContent>
   );
 }

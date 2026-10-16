@@ -2,7 +2,15 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { isCanonicalInviteUrl } from "@openbot/contracts/invite-links";
 import { isValidHostname as isSharedValidHostname } from "@openbot/contracts/validation";
 import { Effect, Fiber, Option, Result, Schema } from "effect";
-import { type RenderedEmail, renderSignInCodeEmail, renderTeamInviteEmail } from "./email-templates";
+import {
+  type ContactMessageEmailInput,
+  type RenderedEmail,
+  renderContactMessageEmail,
+  renderSignInCodeEmail,
+  renderTeamInviteEmail,
+  renderWelcomeEmail,
+  type WelcomeEmailInput,
+} from "./email-templates";
 
 export interface SmtpEmailConfig {
   host: string;
@@ -26,8 +34,16 @@ export interface SmtpTeamInviteMessage {
   role: "admin" | "member";
 }
 
+export type SmtpContactMessage = ContactMessageEmailInput;
+
+export interface SmtpWelcomeMessage extends WelcomeEmailInput {
+  email: string;
+}
+
 interface PreparedEmailMessage {
   email: string;
+  /** The address a reply goes to, when it is not the sender. */
+  replyTo?: string;
   content: RenderedEmail;
 }
 
@@ -149,6 +165,41 @@ export const sendPrivateTeamInvite = Effect.fn("Smtp.sendPrivateTeamInvite ")(fu
   );
 });
 
+/** Sends the welcome email of an account's first plan. A reply goes to the sending mailbox. */
+export const sendPrivateWelcomeEmail = Effect.fn("Smtp.sendPrivateWelcomeEmail")(function* (
+  config: SmtpEmailConfig,
+  message: SmtpWelcomeMessage,
+  connector?: SmtpConnector,
+) {
+  yield* smtpValidate(() => {
+    if (
+      !message.serverName.trim() ||
+      message.serverName.length > INPUT_LIMITS.serverName ||
+      hasHeaderBreak(message.serverName)
+    ) {
+      throw new Error("smtp_invalid_server_name");
+    }
+  });
+  return yield* sendPrivateEmail(
+    config,
+    { email: message.email, content: renderWelcomeEmail({ plan: message.plan, serverName: message.serverName }) },
+    connector,
+  );
+});
+
+/** Sends a message from the site's contact form to the sending mailbox. A reply goes to the visitor. */
+export const sendPrivateContactMessage = Effect.fn("Smtp.sendPrivateContactMessage")(function* (
+  config: SmtpEmailConfig,
+  message: SmtpContactMessage,
+  connector?: SmtpConnector,
+) {
+  return yield* sendPrivateEmail(
+    config,
+    { email: config.from, replyTo: message.email, content: renderContactMessageEmail(message) },
+    connector,
+  );
+});
+
 const sendPrivateEmail = Effect.fn("SmtpEmail.send")(function* (
   config: SmtpEmailConfig,
   message: PreparedEmailMessage,
@@ -156,6 +207,8 @@ const sendPrivateEmail = Effect.fn("SmtpEmail.send")(function* (
 ): Effect.fn.Return<void, SmtpFailure> {
   yield* smtpValidate(() => validateConfig(config));
   yield* smtpValidate(() => validateEmail(message.email, "recipient"));
+  const { replyTo } = message;
+  if (replyTo !== undefined) yield* smtpValidate(() => validateEmail(replyTo, "reply_to"));
   const { subject } = message.content;
   if (!subject || subject.length > 160 || hasHeaderBreak(subject)) return yield* new SmtpError("smtp_invalid_subject");
   const connect = connector ?? (yield* smtpCall(loadCloudflareConnector));
@@ -377,6 +430,7 @@ function createMimeMessage(from: string, message: PreparedEmailMessage): string 
     [
       `From: OpenBot <${from}>`,
       `To: <${message.email}>`,
+      ...(message.replyTo ? [`Reply-To: <${message.replyTo}>`] : []),
       `Subject: ${encodeHeaderValue(message.content.subject)}`,
       `Date: ${new Date().toUTCString()}`,
       `Message-ID: <${crypto.randomUUID()}@openbot.run>`,

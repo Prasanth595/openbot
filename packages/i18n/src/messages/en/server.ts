@@ -92,8 +92,9 @@ export const messages = defineMessages("server", {
   "server.add.regularPrice": "Regular price {price}",
   "server.add.choosePlan": "Choose {plan}",
   // The footer under the plans, for needs that the plans do not cover.
-  "server.add.custom.title": "Need a Mac or a custom setup?",
-  "server.add.custom.description": "We can run OpenBot on a dedicated Mac mini, or make a plan for your company.",
+  "server.add.custom.title": "Need more power or a custom solution?",
+  "server.add.custom.description":
+    "Get dedicated infrastructure, additional storage, or features tailored to your workflow.",
   "server.add.custom.action": "Contact us",
   "server.add.join.title": "Have an invite?",
   "server.add.join.action": "Join a server",

@@ -1,7 +1,7 @@
 import { expandChatTagReferences } from "@openbot/contracts/chat-tag-references";
 import type { InstalledSkill, QueueDelivery, QueueHold, QueueSteerFallback } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
-import { Button, ConfirmDialog } from "@openbot/ui";
+import { Button, ConfirmDialog, Plus } from "@openbot/ui";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import { createEffect, createMemo, createSignal, createUniqueId, For, onCleanup, Show, untrack } from "solid-js";
 import { createVerticalDragPreview } from "../../components/createVerticalDragPreview";
@@ -21,6 +21,8 @@ interface QueuePanelProps {
   editingDeliveryId?: string | null;
   canSteer: boolean;
   onSteer: (deliveryId: string) => void;
+  /** Starts a separate task with a queued message. Absent where the host keeps no tasks. */
+  onRunAsTask?: (deliveryId: string) => void;
   onCancel: (deliveryId: string) => void;
   onEdit: (delivery: QueueDelivery) => void;
   onReorder: (deliveryIds: string[]) => void;
@@ -531,6 +533,33 @@ export function QueuePanel(props: QueuePanelProps) {
                         <SteerIcon />
                         <span>{delivery.status === "starting" ? t("queue.item.steering") : t("queue.item.steer")}</span>
                       </Button>
+                      <Show when={props.onRunAsTask}>
+                        {(runAsTask) => (
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            class="agent-queue-icon-button agent-queue-run-as-task"
+                            disabled={!actionable}
+                            aria-describedby={actionTooltipId}
+                            aria-label={t("queue.item.runAsTaskLabel", { position: delivery.position ?? "" })}
+                            onPointerEnter={(event) =>
+                              openActionTooltip(event.currentTarget, t("queue.item.runAsTask"))
+                            }
+                            onMouseEnter={(event) => openActionTooltip(event.currentTarget, t("queue.item.runAsTask"))}
+                            onPointerLeave={(event) => closeActionTooltip(event.currentTarget)}
+                            onMouseLeave={(event) => closeActionTooltip(event.currentTarget)}
+                            onFocus={(event) => openActionTooltip(event.currentTarget, t("queue.item.runAsTask"))}
+                            onBlur={(event) => closeActionTooltip(event.currentTarget)}
+                            onKeyDown={closeActionTooltipOnEscape}
+                            onClick={() => {
+                              setActionTooltip(null);
+                              runAsTask()(delivery.id);
+                            }}
+                          >
+                            <Plus aria-hidden="true" />
+                          </Button>
+                        )}
+                      </Show>
                       <Button
                         variant="destructive-ghost"
                         type="button"

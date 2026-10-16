@@ -116,6 +116,21 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    create and resume sends `ttlSeconds: 7200`, so boat stops a sandbox that the Worker loses. An
    activity report extends the time (`PATCH /sandboxes/:id`) when less than 1 hour is left
    (`lease_until`). When boat stops a server in use at the end of its lease, the Worker resumes it.
+
+   **Disk save at a stop.** boat saves the disk of a running server file by file, with no pause,
+   and a file that changes during its copy is restored torn. A SQLite checkpoint during the save
+   gave a damaged database ("OpenBot database failed its integrity check"). Thus a hosted server
+   stops OpenBot before the save. boat runs `/home/user/.boat/pre-stop` as `user` when a stop
+   starts, waits for it to end (at most 60 seconds), and then saves the disk. boat supports this
+   hook, but its documentation does not show it yet. `openbot-hosted-update` installs `scripts/hosting/openbot-boat-pre-stop` there
+   (`install_hosting`, and `trigger` at each start, so a server that an older release updated gets
+   it). The hook makes `/run/openbot-pre-stop` and runs `systemctl stop openbot.service`: OpenBot
+   gets `SIGTERM`, stops its services and closes `openbot.db` last. After 40 seconds the hook kills
+   the unit, which leaves a database that SQLite recovers. The file makes the unit condition
+   `ConditionPathExists=!/run/openbot-pre-stop` fail, so `Restart=` and the end of an update request
+   do not start OpenBot during the save. `/run` is empty at each boot. If boat does not complete the
+   stop after the hook, OpenBot stays stopped until the next stop and resume. A hook that OpenBot did
+   not write stays, and a self-hosted server gets no hook.
 6. **Start after a failure.** A client that cannot reach the host first calls
    `GET /v2/hosting/servers/:id/status` (owner or member; 404 for a host that is not a hosted
    server). It returns `{serverId, state, error, sleeping}` and writes nothing, so it does not count
@@ -156,6 +171,21 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    "leave the subscription past-due", Stripe moves the period end at each renewal and the server
    runs with no payment. A cancel at the period end (`cancel_at_period_end` or `cancel_at`)
    shows the end date and keeps the server running until then.
+
+   Refunds and disputes. A full refund (`refund.created` or `refund.updated` with `succeeded`) of
+   the invoice that paid the current period cancels the plan now: the account paid nothing for that
+   period. That invoice is the subscription's `latest_invoice`, made for a new plan or a renewal
+   (`billing_reason` `subscription_create` or `subscription_cycle`). Partial refunds that add up to
+   the full amount count as a full refund (the charge is `refunded`). A partial refund, or a refund of
+   an earlier invoice or of a plan change, keeps the plan and the server. After a plan change in the
+   period, `latest_invoice` is the plan change invoice, so a refund of the renewal keeps the plan too.
+   To end the plan in these cases, cancel the subscription in the Stripe Dashboard. A dispute
+   (`charge.dispute.created`, an inquiry too) cancels the plan of the disputed invoice now, so Stripe
+   does not charge that card again. In both cases
+   the server stops with `plan_ended` and keeps its disk. The Worker finds the plan through the
+   invoice of the PaymentIntent (`GET /v1/invoice_payments`). A refund or dispute of a payment that
+   is not an OpenBot plan invoice changes nothing. A refund that fails after it succeeded does not
+   start the plan again.
 8. **Plan change.** In the Customer Portal an upgrade is charged at once, and a downgrade or a
    shorter interval starts at the next period. The Worker copies the new plan, interval and currency
    to the server. boat changes the machine of a sandbox only on a resume (`type`), so the Worker
@@ -289,6 +319,9 @@ servers, their webhooks and the cron continue.
    It makes the six Prices, the Customer Portal settings, the Stripe webhook endpoint and the boat
    webhook. It writes the two keys and the two webhook signing secrets to the `cloudflare-production` GitHub Environment. Run it again at any time: it keeps
    a secret that the Environment has. `--replace-webhooks` makes new signing secrets.
+   Run it again after a deploy that adds an event to `BILLING_WEBHOOK_EVENTS`
+   (`scripts/stripe-bootstrap.ts`), not before: an older Worker records an event that it does not
+   know as received, and Stripe does not send it again.
 4. **Stripe Dashboard.** In live mode, in the failed-payment settings for subscriptions (Revenue
    recovery → Retries), set "If all retries for a payment fail" to cancel the subscription or to
    mark it unpaid. Both stop the server.
@@ -322,8 +355,10 @@ use, and the checks that repair a missed webhook run at most 5 minutes late.
 
 The OpenPanel **Revenue and Customers** dashboard shows purchases and checkout outcomes.
 Revenue comes from verified `invoice.paid` events. It includes collected tax and discounts,
-before refunds and fees. Amounts use USD cents. EUR and PLN amounts use the latest available
-ECB rate on or before the payment date in UTC. The original currency and amount stay on the event.
+before refunds and fees. Refunds and lost disputes are separate `billing_action` events with
+`amount_usd` (see [ANALYTICS.md](../ANALYTICS.md)); subtract them for net revenue. Amounts use USD cents. EUR and PLN amounts use the latest available
+ECB rate on or before the payment date in UTC; a refund or a dispute uses the rate of its own date, so a
+full refund can leave a small USD difference. The original currency and amount stay on the event.
 
 Daily `billing_snapshot` events show MRR and ARR. MRR includes active and overdue subscriptions,
 after discounts and before tax. Annual prices are divided by 12. Overdue MRR is separate.
@@ -365,8 +400,12 @@ one release and account-service origin; do not use that production prefix for ma
 
 The builder stops before creating an eleventh snapshot. This is our automation limit:
 [boat permits additional paid snapshots](https://docs.boat.dev/api/reference/snapshots/list-named-snapshots).
-No snapshot is deleted automatically. Before removing one, check both Workers and pending server
-creation records (`provider_template`); a pending retry still needs its original snapshot.
+Before each production build, the release job removes `openbot-server-production-` snapshots of
+older releases and keeps the 3 newest releases, including the new one
+([details](RELEASING.md#hosted-server-snapshots)). It never removes other names. Before removing a
+test snapshot by hand, check both Workers and pending server creation records
+(`provider_template`); a pending retry still needs its original snapshot. Servers already made
+from a removed snapshot keep running.
 
 ### Updates
 
@@ -644,6 +683,30 @@ A boat trial account refuses a sandbox with no auto-stop, or a TTL longer than 2
 `PATCH /sandboxes/:id {ttlSeconds}` sets `archiveAfter` to the current time plus the TTL. A trial
 allows only `small` and `default`, so a Pro server (`large`) needs a paid boat plan.
 
+A durability test on 2026-10-15 (`scripts/hosting/hosted-database-durability-e2e.ts`, one hosted
+sandbox) stopped the sandbox while a writer used SQLite in WAL mode in the home folder:
+
+- with automatic checkpoints, the database came back damaged after the second stop
+  (`btreeInitPage() returns error code 11`);
+- with an empty WAL and only small appends at the stop, 9 checks were healthy;
+- with no automatic checkpoint, the main file was not damaged, but in 3 of 6 restores the WAL
+  header was torn, and SQLite ignored the full WAL. The rows of that run were lost;
+- with `openbot-boat-pre-stop` for the writer unit (`--mode=pre-stop`), each of 4 stops during
+  writes gave a healthy database with every committed row, and no `/run` flag after the resume.
+
+A stop-order probe on the same day (a unit that records `SIGTERM` and writes each 200 ms) showed
+that boat saves the disk while the processes run, about 3 seconds after the stop call, and sends no
+`SIGTERM` before the save. A pre-stop hook that slept 20 seconds started at once after the stop
+call, and the last write that the restore kept was from after the hook ended. Thus boat waits for
+the hook before it saves the disk.
+
+An install test on the same sandbox put the new `openbot-hosted-update`, `openbot.service` and hook
+in place, as an older release does when it updates. At the next start, `trigger` installed the hook
+as `user` with mode 0755. It did not change a current hook, kept a hook that OpenBot did not write
+(a file, a link or a FIFO, with no wait), and replaced a changed OpenBot hook. At a stop of the real OpenBot, the hook
+stopped `openbot.service` in 0.3 seconds and ended with 0. After the resume (a new boot ID), the
+flag was gone, OpenBot ran, and `openbot.db` passed `quick_check`.
+
 ## Not confirmed
 
 These were not tested on boat. Test them before a user gets access:
@@ -668,7 +731,14 @@ These were not tested on boat. Test them before a user gets access:
 - the [memory guards](#memory) with real agents: the held message, the turn slots and the release of
   idle provider threads on a server with a signed-in account;
 - whether boat stops a sandbox that runs for weeks. The Worker restarts it, but work in progress
-  at that time stops.
+  at that time stops;
+- whether boat runs the pre-stop hook for a stop that it starts by itself: maintenance (the
+  `updating` state) or the end of `ttlSeconds`. A crash of the machine restores the last periodic
+  save, which also copies files while they change;
+- that OpenBot closes `openbot.db` at a `systemctl stop` on a server. The install test used a release
+  without the `SIGTERM` handler. The unit sends `SIGTERM` to all of its processes at the same time,
+  so on the virtual display Xvfb can stop first and end OpenBot before it closes the database. The
+  database is then as after a crash, which SQLite recovers, because the save starts after the stop.
 
 
 ### Billing and server deletion

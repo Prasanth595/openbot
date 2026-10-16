@@ -33,6 +33,7 @@ import {
   AGENT_INSTALL_CAPABILITY,
   AGENT_PUBLISH_CAPABILITY,
   AGENT_UPDATE_CAPABILITY,
+  ANDROID_PUSH_NOTIFICATIONS_CAPABILITY,
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
   EVENTS_CAPABILITY,
@@ -99,7 +100,7 @@ import { TEAM_CURSOR_CLINE_CAPABILITY } from "@openbot/contracts/team-protocol/v
 import { encodeTeamProtocolV6BaseCurrentEvent } from "@openbot/contracts/team-protocol/v6-base-adapter";
 import { TEAM_PI_MUSE_CAPABILITY, TEAM_PROTOCOL_V7 } from "@openbot/contracts/team-protocol/v7";
 import { encodeTeamProtocolV7BaseCurrentEvent } from "@openbot/contracts/team-protocol/v7-base-adapter";
-import { sourceText } from "@openbot/i18n/source";
+import { isFixedSourceText, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { Deferred, Effect, Exit, Scope } from "effect";
 import type * as Ws from "ws";
@@ -808,7 +809,12 @@ export class TeamApiServer {
         error instanceof AgentMemorySelectionError;
       const status =
         error instanceof HttpError || error instanceof RemoteScreenError ? error.status : expected ? 400 : 500;
-      const message = expected ? error.message : sourceText("error.team.requestFailed");
+      // Catalog text with no placeholder is safe to show, and the user can act on it. Any other
+      // unexpected text stays private.
+      const message =
+        expected || (error instanceof Error && isFixedSourceText(error.message))
+          ? error.message
+          : sourceText("error.team.requestFailed");
       const code = error instanceof RemoteScreenError ? error.code : undefined;
       if (!expected) (this.#options.logger ?? logger).error("Team API request failed:", toLogValue(error));
       // A streamed file can fail after its head is on the wire. A second head is not possible, so
@@ -1598,7 +1604,8 @@ export class TeamApiServer {
         if (capability === INSTANCE_TRANSFER_CAPABILITY) return this.#options.instanceTransfer !== undefined;
         if (capability === LIVE_ACTIVITY_PUSH_CAPABILITY) return this.#options.liveActivityPush !== undefined;
         if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
-        if (capability === PUSH_NOTIFICATIONS_CAPABILITY) return this.#options.pushNotifications !== undefined;
+        if (capability === PUSH_NOTIFICATIONS_CAPABILITY || capability === ANDROID_PUSH_NOTIFICATIONS_CAPABILITY)
+          return this.#options.pushNotifications !== undefined;
         return true;
       }),
     };

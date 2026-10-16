@@ -221,3 +221,41 @@ export const LANDING_COMPARISON_LINKS: readonly LandingComparisonLink[] = COMPAR
         ]
       : [],
 );
+
+/** Each offer of OpenBot for Teams has its own colour and icon, which the section sets for this id. */
+export type LandingTeamsOfferId = "servers" | "environments" | "integrations" | "support";
+
+export interface LandingTeamsOffer {
+  id: LandingTeamsOfferId;
+  label: string;
+  title: string;
+  description: string;
+}
+
+/** In reading order. Each offer is one card of the stack. */
+export const LANDING_TEAMS_OFFERS: readonly LandingTeamsOffer[] = [
+  {
+    id: "servers",
+    label: "Managed servers",
+    title: "Always on",
+    description: "Agents run on managed servers, not on someone’s laptop.",
+  },
+  {
+    id: "environments",
+    label: "Team environments",
+    title: "Shared or personal",
+    description: "One company server, one per employee, or both.",
+  },
+  {
+    id: "integrations",
+    label: "Custom integrations",
+    title: "Your tools",
+    description: "We connect OpenBot to your systems, APIs and workflows.",
+  },
+  {
+    id: "support",
+    label: "Implementation and support",
+    title: "We launch it with you",
+    description: "Setup, testing, onboarding and ongoing support.",
+  },
+];

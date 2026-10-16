@@ -97,12 +97,19 @@ export const messages = {
   "mobile.settings.notifications.title": "Notificações",
   "mobile.settings.notifications.toggle": "Permitir notificações",
   "mobile.settings.notifications.footer":
-    "Os agentes avisam quando terminam, param com um erro ou precisam da sua resposta, de uma aprovação ou de uma etapa no navegador. Nada chega enquanto você usa o OpenBot. Enquanto você usa o app para computador, só chega o que precisa de você. Enquanto a Atividade ao Vivo aparece, ela mostra o evento no lugar.",
+    "Os agentes avisam quando terminam, param com um erro ou precisam da sua resposta, de uma aprovação ou de uma etapa no navegador. Nada chega enquanto você usa o OpenBot aqui ou no app para computador. Enquanto a Atividade ao Vivo aparece, ela mostra o evento no lugar.",
+  "mobile.settings.notifications.footerAndroid":
+    "Os agentes avisam quando terminam, param com um erro ou precisam da sua resposta, de uma aprovação ou de uma etapa no navegador. Nada chega enquanto você usa o OpenBot aqui ou no app para computador.",
   "mobile.settings.notifications.denied": "As notificações do OpenBot estão desativadas nos Ajustes do iOS.",
+  "mobile.settings.notifications.deniedAndroid":
+    "As notificações do OpenBot estão desativadas nas configurações do Android.",
   "mobile.settings.notifications.openSettings": "Abrir Ajustes do iOS",
+  "mobile.settings.notifications.openSettingsAndroid": "Abrir configurações do Android",
   "mobile.settings.notifications.preview": "Mostrar prévia da resposta",
   "mobile.settings.notifications.previewFooter":
     "Mostra o início de uma resposta, uma pergunta ou a ação a aprovar. A Apple e o serviço de contas do OpenBot não conseguem ler.",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "Mostra o início de uma resposta, uma pergunta ou a ação a aprovar. O Google e o serviço de contas do OpenBot não conseguem ler.",
   "mobile.settings.notifications.sound": "Som",
   "mobile.settings.notifications.playSound": "Tocar som",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -111,8 +118,11 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "Borbulhante",
   "mobile.settings.notifications.sound.press": "Teclado",
   "mobile.settings.notifications.sound.default": "Padrão do iOS",
+  "mobile.settings.notifications.sound.defaultAndroid": "Padrão do Android",
   "mobile.settings.notifications.soundFooter":
     "As notificações e a Atividade ao Vivo tocam este som. A Atividade ao Vivo também acende a tela. O som do OpenBot é o som que o app para computador toca quando uma tarefa termina. Os quatro sons seguintes são os dos temas de som do app para computador.",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "As notificações tocam este som. O som do OpenBot é o som que o app para computador toca quando uma tarefa termina. Os quatro sons seguintes são os dos temas de som do app para computador.",
   "mobile.settings.notifications.notifyAbout": "Notificar sobre",
   "mobile.settings.notifications.level.all": "Toda atividade",
   "mobile.settings.notifications.level.needsMe": "Só quando precisar de mim",
@@ -130,6 +140,8 @@ export const messages = {
     "Os eventos deste servidor que notificam este telefone. O app para computador tem os próprios ajustes.",
   "mobile.settings.notifications.serverUnsupported":
     "Este servidor não pode enviar notificações. Atualize o OpenBot no computador que o executa.",
+  "mobile.settings.notifications.channel": "Notificações dos agentes ({sound})",
+  "mobile.settings.notifications.channelSilent": "Notificações dos agentes (sem som)",
   "mobile.settings.privacy.title": "Privacidade",
   "mobile.settings.privacy.footer":
     "Compartilhe o uso de recursos e os resultados de conexão deste celular. O conteúdo das mensagens e os arquivos não são enviados.",

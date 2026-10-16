@@ -13,6 +13,7 @@ import { useProviders } from "../../providers";
 import { queueAfterTurnCompleted } from "../../queue-reconciliation";
 import { useTurns } from "../../turns";
 import { useAuth } from "../account/account-context";
+import { useAgentTasks } from "../agent-tasks/agent-tasks-context";
 import { useBrowserTabs } from "../browser/browser-context";
 import { useChannels } from "../channels/channels-context";
 import { useConversation } from "../conversation/conversation-context";
@@ -49,6 +50,7 @@ export function AgentEventBridge() {
   const { applyAgentStatus, refreshAgentProviders } = useProviders();
   const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents } = useAgents();
   const { setConversationErrors } = useConversationController();
+  const agentTasks = useAgentTasks();
   const {
     applyRuntimeMessages,
     conversations,
@@ -166,6 +168,11 @@ export function AgentEventBridge() {
       case "waits-changed":
         waitSnapshotRequests.set(event.snapshot.agentId, (waitSnapshotRequests.get(event.snapshot.agentId) ?? 0) + 1);
         setWaits((current) => ({ ...current, [event.snapshot.agentId]: event.snapshot }));
+        return;
+      case "agent-tasks-changed":
+      case "agent-task-conversation":
+      case "agent-task-conversation-delta":
+        agentTasks.applyEvent(event);
         return;
       case "routines-changed":
         refreshRoutineIds(event.agentId, activeServerId());

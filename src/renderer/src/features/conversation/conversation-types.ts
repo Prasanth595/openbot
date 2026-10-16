@@ -6,12 +6,15 @@ import type {
   AgentModelOption,
   AgentProviderId,
   AgentStatus,
+  AgentTask,
+  AgentTasksSnapshot,
   AgentWait,
   AttachmentSummary,
   AvatarImageInput,
   BrowserControlState,
   BrowserTab,
   BusyMessageMode,
+  ConversationSnapshot,
   CustomAgentSummary,
   CustomProviderSummary,
   DraftAttachment,
@@ -145,6 +148,8 @@ export interface ConversationProps {
   queue: QueueSnapshot | undefined;
   /** The agent's open waits. Absent where the host does not keep them. */
   waits?: readonly AgentWait[];
+  /** The agent's tasks. Absent where the host keeps no tasks. */
+  tasks?: ConversationTasks;
   browserTabs: BrowserTab[];
   activeBrowserTabId: string | null;
   browserVisibilitySuspended: boolean;
@@ -275,4 +280,19 @@ export type RightPanelMode =
   | "settings"
   | "profile"
   | "file-preview"
-  | "files";
+  | "files"
+  | "task";
+
+/** The tasks of the active agent, and the task actions. Each action names the task, not the agent. */
+export interface ConversationTasks {
+  snapshot: AgentTasksSnapshot | undefined;
+  /** The conversation of a task, after `onOpen` read it. */
+  conversation: (taskId: string) => ConversationSnapshot | undefined;
+  onOpen: (taskId: string) => void;
+  onStart: (text: string) => Promise<AgentTask | null>;
+  onRunQueuedMessage: (deliveryId: string) => void;
+  onSend: (taskId: string, text: string) => Promise<boolean>;
+  onStop: (taskId: string) => void;
+  onClose: (taskId: string) => void;
+  onReopen: (taskId: string) => void;
+}

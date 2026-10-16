@@ -3,6 +3,7 @@ import type { ConversationMessageSender } from "@openbot/contracts/ipc";
 import { Button } from "@openbot/ui";
 import type { AgentMessage, ChatActionMarkerModel } from "@openbot/ui/data";
 import { AgentActivityIndicator } from "@openbot/ui/features/conversation/AgentActivity";
+import { AgentTaskChips } from "@openbot/ui/features/conversation/AgentTasks";
 import { AttachmentCards } from "@openbot/ui/features/conversation/AttachmentCards";
 import { UsageLimitAskCard } from "@openbot/ui/features/conversation/BackupModels";
 import { ChatActionMarker } from "@openbot/ui/features/conversation/ChatActionMarker";
@@ -140,8 +141,10 @@ export function ConversationTimeline() {
     setStickToLatest,
     setUnreadMessagesDividerElement,
     setVirtualRootElement,
+    openTaskPanel,
   } = useConversationViewScope();
   const { t, format } = useText();
+  const openTasks = () => props.tasks?.snapshot?.tasks.filter((task) => task.state !== "closed") ?? [];
   const compaction = (): ContextCompactionView | null => {
     const state = props.contextState;
     if (state?.agentId !== props.agent?.id || state?.threadId !== props.agent?.threadId || !state?.compaction)
@@ -803,6 +806,15 @@ export function ConversationTimeline() {
               )}
             </Show>
           </div>
+          <Show when={props.tasks}>
+            {(tasks) => (
+              <AgentTaskChips
+                tasks={openTasks()}
+                onOpen={openTaskPanel}
+                onClose={(taskId) => tasks().onClose(taskId)}
+              />
+            )}
+          </Show>
           <Show when={keyedPrompt()} keyed>
             {(entry) => (
               <Loading>

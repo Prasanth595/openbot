@@ -168,14 +168,20 @@ export class CliLoginFlow {
     const pending = this.#pending.get(provider);
     if (!pending) return;
     this.#pending.delete(provider);
-    if (pending.child) yield* stopProcessTree(pending.child).pipe(toCliLoginFailed);
-    yield* Scope.close(pending.scope, Exit.void);
-    const task = pending.task;
-    // Closing the login scope can interrupt its completion task. Wait for cleanup without
-    // propagating that expected interruption into Cancel or the next Connect command.
-    if (task) yield* Fiber.await(task);
-    if (message) this.#options.setFailure(provider, new Error(message), pending.cli.version);
-    else this.#options.clearConnectionState(provider);
+    const settle = Effect.gen({ self: this }, function* () {
+      yield* Scope.close(pending.scope, Exit.void);
+      const task = pending.task;
+      // Closing the login scope can interrupt its completion task. Wait for cleanup without
+      // propagating that expected interruption into Cancel or the next Connect command.
+      if (task) yield* Fiber.await(task);
+      if (message) this.#options.setFailure(provider, new Error(message), pending.cli.version);
+      else this.#options.clearConnectionState(provider);
+    });
+    // A stop that fails still ends the sign-in: the row must not stay connecting after it is forgotten.
+    yield* (pending.child ? stopProcessTree(pending.child) : Effect.void).pipe(
+      toCliLoginFailed,
+      Effect.ensuring(settle),
+    );
   }, Effect.uninterruptible).bind(this);
 
   /**
@@ -232,8 +238,10 @@ export class CliLoginFlow {
   ) {
     if (this.#pending.get(provider) !== pending) return;
     this.#pending.delete(provider);
-    if (pending.child) yield* stopProcessTree(pending.child).pipe(toCliLoginFailed);
-    this.#options.setFailure(provider, error, pending.cli.version);
+    yield* (pending.child ? stopProcessTree(pending.child) : Effect.void).pipe(
+      toCliLoginFailed,
+      Effect.ensuring(Effect.sync(() => this.#options.setFailure(provider, error, pending.cli.version))),
+    );
   });
 }
 

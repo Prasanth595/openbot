@@ -98,12 +98,19 @@ export const messages = {
   "mobile.settings.notifications.title": "Notifications",
   "mobile.settings.notifications.toggle": "Autoriser les notifications",
   "mobile.settings.notifications.footer":
-    "Les agents vous préviennent quand ils terminent, s’arrêtent sur une erreur ou attendent votre réponse, une approbation ou une étape dans le navigateur. Rien n’arrive pendant que vous utilisez OpenBot. Pendant que vous utilisez l’app de bureau, seul ce qui a besoin de vous arrive. Tant que l’activité en direct s’affiche, elle montre l’évènement à la place.",
+    "Les agents vous préviennent quand ils terminent, s’arrêtent sur une erreur ou attendent votre réponse, une approbation ou une étape dans le navigateur. Rien n’arrive pendant que vous utilisez OpenBot ici ou dans l’app de bureau. Tant que l’activité en direct s’affiche, elle montre l’évènement à la place.",
+  "mobile.settings.notifications.footerAndroid":
+    "Les agents vous préviennent quand ils terminent, s’arrêtent sur une erreur ou attendent votre réponse, une approbation ou une étape dans le navigateur. Rien n’arrive pendant que vous utilisez OpenBot ici ou dans l’app de bureau.",
   "mobile.settings.notifications.denied": "Les notifications d’OpenBot sont désactivées dans les Réglages d’iOS.",
+  "mobile.settings.notifications.deniedAndroid":
+    "Les notifications d’OpenBot sont désactivées dans les paramètres d’Android.",
   "mobile.settings.notifications.openSettings": "Ouvrir les Réglages d’iOS",
+  "mobile.settings.notifications.openSettingsAndroid": "Ouvrir les paramètres d’Android",
   "mobile.settings.notifications.preview": "Afficher l’aperçu de la réponse",
   "mobile.settings.notifications.previewFooter":
     "Affiche le début d’une réponse, une question ou l’action à approuver. Apple et le service de compte OpenBot ne peuvent pas le lire.",
+  "mobile.settings.notifications.previewFooterAndroid":
+    "Affiche le début d’une réponse, une question ou l’action à approuver. Google et le service de compte OpenBot ne peuvent pas le lire.",
   "mobile.settings.notifications.sound": "Son",
   "mobile.settings.notifications.playSound": "Jouer un son",
   "mobile.settings.notifications.sound.openbot": "OpenBot",
@@ -112,8 +119,11 @@ export const messages = {
   "mobile.settings.notifications.sound.bubble": "Pétillant",
   "mobile.settings.notifications.sound.press": "Clavier",
   "mobile.settings.notifications.sound.default": "Son par défaut d’iOS",
+  "mobile.settings.notifications.sound.defaultAndroid": "Son par défaut d’Android",
   "mobile.settings.notifications.soundFooter":
     "Les notifications et l’activité en direct jouent ce son. L’activité en direct allume aussi l’écran. Le son OpenBot est celui que l’app de bureau joue quand une tâche se termine. Les quatre sons suivants sont ceux des thèmes sonores de l’app de bureau.",
+  "mobile.settings.notifications.soundFooterAndroid":
+    "Les notifications jouent ce son. Le son OpenBot est celui que l’app de bureau joue quand une tâche se termine. Les quatre sons suivants sont ceux des thèmes sonores de l’app de bureau.",
   "mobile.settings.notifications.notifyAbout": "Me notifier pour",
   "mobile.settings.notifications.level.all": "Toute l’activité",
   "mobile.settings.notifications.level.needsMe": "Seulement quand on a besoin de moi",
@@ -131,6 +141,8 @@ export const messages = {
     "Les événements de ce serveur qui notifient ce téléphone. L’app de bureau a ses propres réglages.",
   "mobile.settings.notifications.serverUnsupported":
     "Ce serveur ne peut pas envoyer de notifications. Mettez à jour OpenBot sur l’ordinateur qui l’exécute.",
+  "mobile.settings.notifications.channel": "Notifications des agents ({sound})",
+  "mobile.settings.notifications.channelSilent": "Notifications des agents (sans son)",
   "mobile.settings.privacy.title": "Confidentialité",
   "mobile.settings.privacy.footer":
     "Partagez l’utilisation des fonctions et les résultats de connexion de ce téléphone. Le contenu des messages et les fichiers ne sont pas envoyés.",

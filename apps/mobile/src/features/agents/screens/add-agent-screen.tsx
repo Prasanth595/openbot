@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";
 import { agentInitialMessage } from "@/features/agents/model/agent-initial-message";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspaceReader } from "@/features/workspace/context/mobile-workspace-context";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
@@ -20,12 +20,13 @@ import { useText } from "@/shared/lib/text";
 
 export function AddAgentScreen() {
   const { t, errorMessage } = useText();
-  const { createAgent } = useMobileWorkspace();
+  // Read on submit, so a server status or an agent update does not render the form again.
+  const workspace = useMobileWorkspaceReader();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [avatarSeed, setAvatarSeed] = useState(() => `mobile:${Crypto.randomUUID().replaceAll("-", "")}`);
   const [avatarHue, setAvatarHue] = useState<AvatarHue | null>(null);
-  const initialAvatarSeed = useRef(avatarSeed);
+  const [initialAvatarSeed] = useState(avatarSeed);
   const pending = useRef(false);
   const navigation = useNavigation();
   const [finished, setFinished] = useState(false);
@@ -33,9 +34,7 @@ export function AddAgentScreen() {
   const [error, setError] = useState<string | null>(null);
   const valid = name.trim().length > 0;
 
-  const dirty = Boolean(
-    name.trim() || description.trim() || avatarSeed !== initialAvatarSeed.current || avatarHue !== null,
-  );
+  const dirty = Boolean(name.trim() || description.trim() || avatarSeed !== initialAvatarSeed || avatarHue !== null);
   usePreventRemove(!finished && (dirty || saving), ({ data }) => {
     if (pending.current) return;
     Alert.alert(t("mobile.agent.discard.title"), t("mobile.agent.discard.body"), [
@@ -57,7 +56,7 @@ export function AddAgentScreen() {
     setSaving(true);
     setError(null);
     try {
-      await createAgent({
+      await workspace().createAgent({
         name: name.trim(),
         description: description.trim(),
         initialMessage: agentInitialMessage(description),

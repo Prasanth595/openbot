@@ -19,6 +19,8 @@ import type { AgentBrowserHost, TurnLifecycle } from "./turn-lifecycle";
 export interface AgentRemovalHooks {
   emit(event: AgentEvent): void;
   listAgents(): AgentSummary[];
+  /** Removes the agent's tasks, with their threads and provider session files. */
+  deleteTasks(agentId: string): Effect.Effect<void, AgentRemovalFailed>;
 }
 
 export interface AgentRemovalOptions {
@@ -99,7 +101,10 @@ export class AgentRemoval {
     const agent = yield* removalStep(() => {
       if (this.#deleting.has(agentId)) throw new Error(sourceText("error.agent.deletionBusy"));
       const candidate = this.#store.list().find((entry) => entry.id === agentId);
-      if (this.#mailbox.hasUnfinishedDelivery(agentId) || this.#conversation.workingSnapshot(agentId)?.activeTurnId) {
+      if (
+        this.#mailbox.hasUnfinishedDelivery(agentId) ||
+        this.#conversation.anyWorkingSnapshot(agentId)?.activeTurnId
+      ) {
         throw new Error(sourceText("error.agent.stopBeforeDelete"));
       }
       return candidate;
@@ -160,6 +165,8 @@ export class AgentRemoval {
           .pipe(toAgentRemovalFailed);
       stage = "messaging";
       yield* this.#messaging.deleteForAgent(agent.id).pipe(toAgentRemovalFailed);
+      stage = "tasks";
+      yield* this.#hooks.deleteTasks(agent.id);
       stage = "mailbox";
       yield* this.#mailbox
         .deleteAgentData(agent.id, this.#channels.store.allContextThreads())

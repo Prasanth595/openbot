@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 import { createAccountAnalytics } from "./account-analytics";
 import { BillingSales } from "./billing-sales";
-import { BillingService } from "./billing-service";
+import { BillingService, type FirstPlanStart } from "./billing-service";
+import { createWelcomeEmailDelivery, type EmailDeliveryBindings } from "./email-delivery";
 import {
   type HostedServerBindings,
   HostedServerService,
@@ -11,6 +12,7 @@ import type { RemoteFailure } from "./remote-control-plane";
 import type { WorkerBindings } from "./types";
 
 export type HostedBillingBindings = HostedServerBindings &
+  EmailDeliveryBindings &
   Partial<
     Pick<
       WorkerBindings,
@@ -55,6 +57,7 @@ export function createHostedBilling(
         fetch: (input, init) => fetch(input, init),
         analytics,
         ...(sales ? { sales } : {}),
+        onFirstPlanStarted: (start) => options.schedule(sendWelcomeEmail(bindings, start)),
         onSubscriptionSynced: (sync) =>
           hosting.onSubscriptionSynced(sync).pipe(Effect.andThen(() => options.planChanged(sync.serverId))),
       })
@@ -66,4 +69,22 @@ export function createHostedBilling(
     analytics,
   });
   return { billing, hosting };
+}
+
+/**
+ * A deployment without SMTP sends no welcome email. A failed send is not sent again. Each result logs
+ * one line with no address.
+ */
+function sendWelcomeEmail(bindings: EmailDeliveryBindings, start: FirstPlanStart): Effect.Effect<void> {
+  return Effect.try({
+    try: () => createWelcomeEmailDelivery(bindings),
+    catch: () => ({ message: "smtp_config_incomplete" }),
+  }).pipe(
+    Effect.flatMap((delivery) =>
+      delivery
+        ? delivery.send(start).pipe(Effect.andThen(Effect.sync(() => console.log("billing: welcome email sent"))))
+        : Effect.sync(() => console.log("billing: welcome email not sent: SMTP is not set")),
+    ),
+    Effect.catch((error) => Effect.sync(() => console.warn("billing: welcome email failed", error.message))),
+  );
 }

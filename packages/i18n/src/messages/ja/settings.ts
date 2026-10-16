@@ -48,10 +48,10 @@ export const messages = {
   "settings.permissions.title": "権限",
   "settings.turbo.title": "ターボモード",
   "settings.turbo.description":
-    "すべてのエージェントが確認なしでコマンドを実行し、ファイルを変更し、ファイルシステムやネットワークのアクセス範囲を広げ、公開サイトの公開・更新・削除を行います。",
+    "すべてのエージェントが確認なしでコマンドやMCPツールを実行し、ファイルを変更し、ファイルシステムやネットワークのアクセス範囲を広げ、公開サイトの公開・更新・削除を行います。",
   "settings.turbo.confirmTitle": "ターボモードを有効にしますか？",
   "settings.turbo.confirmDescription":
-    "エージェントは確認なしでこのコンピューターのコマンドを実行し、ファイルを変更し、自身のアクセス範囲を広げ、公開サイトの公開・更新・削除を行います。ここでいつでも無効にできます。",
+    "エージェントは確認なしでこのコンピューターのコマンドやMCPツールを実行し、ファイルを変更し、自身のアクセス範囲を広げ、公開サイトの公開・更新・削除を行います。ここでいつでも無効にできます。",
   "settings.turbo.confirmAccept": "有効にする",
   "settings.autoApprove.revokeFailed":
     "{name} の常時許可を取り消せませんでした。許可はまだ有効です。もう一度お試しください。",
@@ -93,6 +93,9 @@ export const messages = {
   "settings.notch.displays.description": "接続された外部ディスプレイにも Dynamic Island を表示します。",
   "settings.notch.haptics.title": "触覚フィードバック",
   "settings.notch.haptics.description": "Force Touch トラックパッドで Dynamic Island の操作を確認します。",
+  "settings.notch.servers.title": "サーバー",
+  "settings.notch.servers.description": "アイランドに項目を表示するサーバーを選択します。",
+  "settings.notch.servers.later": "後で追加するサーバーを表示",
   "settings.notch.size.title": "サイズ",
   "settings.notch.size.description": "ノッチのあるディスプレイでは、アイランドはノッチより小さくなりません。",
   "settings.notch.size.reset": "デフォルトに戻す",

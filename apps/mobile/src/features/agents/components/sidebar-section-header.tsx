@@ -4,16 +4,19 @@ import { router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { ChevronRight, Ellipsis } from "lucide-react-native";
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  useMobileWorkspaceReader,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
 
-export function SidebarSectionHeader({
+export const SidebarSectionHeader = memo(function SidebarSectionHeader({
   id,
   name,
   empty,
@@ -24,27 +27,31 @@ export function SidebarSectionHeader({
   id: string;
   name: string;
   empty: boolean;
-  visibleSectionIds: string[];
+  visibleSectionIds: readonly string[];
   collapsed: boolean;
-  onToggle: () => void;
+  onToggle: (sectionId: string) => void;
 }) {
   const { t } = useText();
-  const { activeServer, sidebarByServer, mutateSidebarLayout } = useMobileWorkspace();
+  const workspace = useMobileWorkspaceReader();
+  const serverId = useMobileWorkspaceSelector(({ activeServer }) => activeServer.id);
+  const online = useMobileWorkspaceSelector(({ activeServer }) => activeServer.state === "online");
+  const layout = useMobileWorkspaceSelector(
+    ({ activeServer, sidebarByServer }) => sidebarByServer[activeServer.id]?.layout,
+  );
   const muted = String(useThemeColor("muted"));
   const reducedMotion = useReducedMotion();
-  const layout = sidebarByServer[activeServer.id]?.layout;
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
   const custom = layout?.sections.some((section) => section.id === id);
   const index = layout?.order.indexOf(id) ?? -1;
   const visibleIndex = visibleSectionIds.indexOf(id);
-  const disabled = activeServer.state !== "online" || saving;
+  const disabled = !online || saving;
   async function run(action: SidebarLayoutAction) {
     if (pending.current || disabled) return;
     pending.current = true;
     setSaving(true);
     try {
-      await mutateSidebarLayout(activeServer.id, action);
+      await workspace().mutateSidebarLayout(serverId, action);
       void (action.type === "move" ? haptics.selection() : haptics.notification("success"));
     } catch (error) {
       void haptics.notification("error");
@@ -83,7 +90,7 @@ export function SidebarSectionHeader({
           accessibilityState={{ expanded: !collapsed }}
           onPress={() => {
             void haptics.selection();
-            onToggle();
+            onToggle(id);
           }}
           className="min-h-12 flex-1 flex-row items-center gap-2"
           style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
@@ -115,8 +122,7 @@ export function SidebarSectionHeader({
                       index),
                 ),
               });
-            if (action === "rename")
-              router.push({ pathname: "/section-form", params: { serverId: activeServer.id, sectionId: id } });
+            if (action === "rename") router.push({ pathname: "/section-form", params: { serverId, sectionId: id } });
             if (action === "delete")
               Alert.alert(t("mobile.agent.section.deleteTitle", { name }), t("mobile.agent.section.deleteBody"), [
                 { text: t("common.cancel"), style: "cancel" },
@@ -145,4 +151,4 @@ export function SidebarSectionHeader({
       ) : null}
     </View>
   );
-}
+});

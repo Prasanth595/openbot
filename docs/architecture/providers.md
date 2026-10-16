@@ -478,7 +478,10 @@ next list starts another.
 values in one `safeStorage` ciphertext. `list()` returns summaries; only the backend gets the
 values. `customAgents.check` starts the program in a temporary folder, sends `initialize` only, and
 stops its process group. The scan (`src/backend/acp-agent-scan.ts`) looks up the preset names on the
-login-shell `PATH` and in the user's folders, and never starts a file. The agents run confined with
+login-shell `PATH` and in the user's folders, and never starts a file. An agent and its check start
+with the `PATH` that its command was looked up in (`agentLaunchPath`): the absolute folders of the
+login-shell `PATH`, then those of OpenBot's own, so an app that Finder starts can still run a
+`#!/usr/bin/env node` agent. A `PATH` saved on the agent wins. The agents run confined with
 no state paths. Migration 23 adds `acp` to `projection_provider_sessions`. The host hides `acp`
 agents, models, status, and sign-in state from peers before protocol 5, and the `customAgents` IPC
 group is local only.
@@ -549,8 +552,12 @@ Remote clients must complete sign-in on the host. There is no separate Pi accoun
 Muse uses the official `@muse-code/sdk` to run `muse serve` over MSP. The SDK is pinned to `1.4.2`;
 newer SDK versions must meet the three-day dependency rule before adoption. The native integration
 supplies `sessionMcp`, preserves native session identity, and reads durable items to recover missed
-events before completion. A cached model list does not prove authentication. Setup can run CLI
-login; an explicit Meta API key uses OpenBot's encrypted credential store.
+events before completion. A cached model list does not prove authentication. Connect starts the
+`muse serve` device sign-in and opens its page, because `muse login` with no terminal never opens
+it; an explicit Meta API key uses OpenBot's encrypted credential store. The account check asks a
+short-lived `muse serve` host, which gets the same key, for the experimental `account/read`. The
+session host does not opt in to experimental MSP, so its strict event decoders see no experimental
+variants. A Muse CLI without `account/read` stays "not verified" and keeps running.
 
 Muse profile generation fails before the CLI starts. The pinned native host still starts inherited
 MCP servers with `--disable-shell`, `--disable-write`, empty hooks, and session `mcpServers: {}`.

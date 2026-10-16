@@ -2,8 +2,10 @@ import type { DatabaseSync } from "node:sqlite";
 import { COMPUTER_USE_MCP_SERVER_NAME } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
 import { isGeneratedAgentId } from "@openbot/contracts/validation";
+import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { AGENT_MEMORY_SELECTION_SCHEMA_SQL, migrateAgentMemorySelection } from "./agent-memory-selection";
+import { AGENT_TASK_SCHEMA_SQL } from "./agent-tasks/agent-task-schema";
 import { AGENT_WAIT_SCHEMA_SQL } from "./agent-waits/agent-wait-schema";
 import { CHANNEL_SCHEMA_SQL, CHANNEL_SETTINGS_SCHEMA_SQL } from "./channel-schema";
 import { PROVIDER_HISTORY_SCHEMA_SQL } from "./database/provider-history-schema";
@@ -505,7 +507,8 @@ const LATEST_SCHEMA_SQL =
   AGENT_MEMORY_SELECTION_SCHEMA_SQL +
   AGENT_WAIT_SCHEMA_SQL +
   MESSAGING_MEMORY_SCHEMA_SQL +
-  ROUTINE_RESULT_SCHEMA_SQL;
+  ROUTINE_RESULT_SCHEMA_SQL +
+  AGENT_TASK_SCHEMA_SQL;
 
 /** The end of a routine table with the migration 27 and 33 columns after its last one. */
 function withRoutinePolicies(tableEnd: string): string {
@@ -706,6 +709,12 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
     // routine keeps its answers in OpenBot, which is what it did before.
     up: (db) => db.exec(ROUTINE_RESULT_SCHEMA_SQL),
   },
+  {
+    version: 38,
+    // Only creates tables, so no foreign-key pause and no vacuum. No agent has a task yet, so every
+    // delivery keeps running in its agent's own chat, which is what it did before.
+    up: (db) => db.exec(AGENT_TASK_SCHEMA_SQL),
+  },
 ];
 
 const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? BASELINE_SCHEMA_VERSION;
@@ -888,9 +897,14 @@ function assertForeignKeys(db: DatabaseSync): void {
 }
 
 function assertQuickCheck(db: DatabaseSync): void {
-  const result = db.prepare("PRAGMA quick_check").get();
-  if (isDynamicRecord(result) && result.quick_check === "ok") return;
-  throw new Error("OpenBot database failed its integrity check.");
+  const problems = db
+    .prepare("PRAGMA quick_check(20)")
+    .all()
+    .map((row) => (isDynamicRecord(row) ? row.quick_check : row));
+  if (problems.length === 1 && problems[0] === "ok") return;
+  // The lines name the damaged pages and tables, which tell a page left by a disk save from a bad index.
+  logger.error("The OpenBot database failed its integrity check.", { problems });
+  throw new Error(sourceText("error.backend.databaseIntegrity"));
 }
 
 function migrateReactionsForActors(db: DatabaseSync): void {

@@ -18,7 +18,7 @@ import {
   isAgentProvider,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
-import { sourceText } from "@openbot/i18n/source";
+import { matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { classifyUserError } from "@openbot/user-errors";
 import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect";
@@ -67,6 +67,7 @@ import {
   ignoredCodexSettings,
   isAcpHandlerDiagnostic,
   isBackgroundRefreshDiagnostic,
+  isBundledSandboxFallbackDiagnostic,
   isGlogBelowErrorDiagnostic,
   isIgnoredConfigDiagnostic,
   isMcpSubsystemDiagnostic,
@@ -132,7 +133,10 @@ const SPAWN_ENVIRONMENT_PROVIDERS: readonly AgentProvider[] = [
   "acp",
 ];
 
-/** One log line for each row whose state changes, so the provider log shows when a provider went away. */
+/**
+ * One log line for each row whose state or connection state changes, so the provider log shows when a
+ * provider went away, and when a connect started and ended.
+ */
 function logProviderStateChanges(
   previous: readonly AgentProviderStatus[],
   next: readonly AgentProviderStatus[],
@@ -140,11 +144,12 @@ function logProviderStateChanges(
 ): void {
   for (const row of next) {
     const before = previous.find((candidate) => candidate.id === row.id);
-    if (before?.state === row.state) continue;
+    if (before?.state === row.state && before?.connectionState === row.connectionState) continue;
     logger.info("A provider changed state.", {
       provider: row.id,
       from: before?.state ?? null,
       to: row.state,
+      connectionState: row.connectionState ?? null,
       version: row.version,
       message: row.message === null ? null : shortenDiagnostic(redactMcp(row.message)),
     });
@@ -1024,9 +1029,9 @@ export class ProviderRuntime implements ProviderPort {
 
   /**
    * Signs the user in to one provider, in the way that provider's driver declares. `openExternal`
-   * is only reached by a `browser` sign-in, whose login hands back a URL; a `cli-command` sign-in
-   * opens its own browser window from the CLI OpenBot spawns, and an `external` sign-in happens
-   * outside OpenBot, so Connect only asks the provider again.
+   * is only reached by a `browser` or `muse-device` sign-in, whose login hands back a URL; a
+   * `cli-command` sign-in opens its own browser window from the CLI OpenBot spawns, and an
+   * `external` sign-in happens outside OpenBot, so Connect only asks the provider again.
    */
   readonly connectProvider = Effect.fn("ProviderRuntime.connectProvider")(function* (
     this: ProviderRuntime,
@@ -1121,6 +1126,16 @@ export class ProviderRuntime implements ProviderPort {
           .start(provider, (cli) => startProviderTerminalLogin(cli, signIn.timeoutMs))
           .pipe(toProviderOperationFailed);
         return this.status();
+      case "muse-device": {
+        const started = yield* this.#startProviderCode(provider, signIn);
+        if (started.kind !== "code") return this.status();
+        // A page that did not open cannot finish the sign-in, so its code stops working.
+        yield* Effect.tryPromise({
+          try: () => openExternal(started.verificationUrlComplete ?? started.verificationUrl),
+          catch: (cause) => new ProviderOperationFailed({ cause }),
+        }).pipe(Effect.tapError(() => this.#cancelCliLogin(provider).pipe(Effect.ignore)));
+        return this.status();
+      }
     }
   });
 
@@ -1205,15 +1220,7 @@ export class ProviderRuntime implements ProviderPort {
     provider: AgentProvider,
     openPage: (url: string) => Promise<void>,
   ) {
-    const codeSignIn = requireProviderDriver(provider).codeSignIn;
-    if (codeSignIn?.kind === "muse-device") {
-      // `muse login` with no terminal waits on a device page it never opens; the page is the sign-in.
-      const started = yield* this.startProviderCodeLogin(provider);
-      if (started.kind === "code")
-        yield* Effect.promise(() => openPage(started.verificationUrlComplete ?? started.verificationUrl));
-    } else {
-      yield* this.#connectProvider(provider, openPage, true);
-    }
+    yield* this.#connectProvider(provider, openPage, true);
     // A sign-in that ended before this read leaves no task; the clients then tell how it ended.
     const pending =
       requireProviderDriver(provider).signIn.kind === "browser"
@@ -1552,6 +1559,8 @@ export class ProviderRuntime implements ProviderPort {
     });
     const previousVersion = this.#cli.get(provider)?.version ?? null;
     const previousExecutable = this.#bundledExecutables[provider];
+    // A reprobe that finds no account leaves the provider released, so only an available row keeps it.
+    const wasAvailable = this.#status.providers?.find((row) => row.id === provider)?.state === "available";
     let installed = false;
     yield* Effect.acquireUseRelease(
       providerStep(() => {
@@ -1577,11 +1586,22 @@ export class ProviderRuntime implements ProviderPort {
             const failure = new Error(
               sourceText("error.provider.cliUpdateFailed", {
                 provider: providerLabel(provider),
-                reason: cause instanceof Error ? redactText(cause.message) : sourceText("error.provider.tryAgain"),
+                // Catalog text only: a system error names private paths, and team admins read this status.
+                reason:
+                  cause instanceof Error && matchingSourceKeys(cause.message).length > 0
+                    ? redactText(cause.message)
+                    : sourceText("error.provider.tryAgain"),
               }),
               { cause },
             );
-            this.#setProviderConnectionFailure(provider, failure, previousVersion, installed);
+            // Before the install, the old CLI is untouched: a provider that the idle timer released keeps its account.
+            this.#setProviderConnectionFailure(
+              provider,
+              failure,
+              previousVersion,
+              installed,
+              !installed && wasAvailable,
+            );
             return new ProviderOperationFailed({ cause: failure });
           }),
         ),
@@ -1625,6 +1645,17 @@ export class ProviderRuntime implements ProviderPort {
     const client = this.clientForAgent(agent);
     if (!client) throw new Error(sourceText("error.provider.noAgentProcess", { provider: providerLabel(provider) }));
     return client;
+  }
+
+  /**
+   * False when `ensureAgentClient` would stop this agent's own process to start another one. A task
+   * of the agent waits then while another of its turns runs on that process.
+   */
+  agentClientCurrent(agent: AgentSummary): boolean {
+    const current = this.#confined.get(agent.id);
+    if (!current) return true;
+    const own = this.#ownProcessFor(agent);
+    return own !== null && current.key === this.#confinedKey(providerForAgent(agent), own);
   }
 
   /**
@@ -2285,15 +2316,17 @@ export class ProviderRuntime implements ProviderPort {
   /**
    * `cliFailed` is for a failure of the CLI itself, such as an update that installed a CLI which does
    * not start. A CLI that stopped before it answered is one as well. Such a provider needs the CLI
-   * fixed, not a sign-in, so its status says so.
+   * fixed, not a sign-in, so its status says so. `keepsReleased` counts a provider that the idle timer
+   * released as connected, as when its old CLI is still in use.
    */
   #setProviderConnectionFailure(
     provider: AgentProvider,
     error: unknown,
     version?: string | null,
     cliFailed = error instanceof AgentProcessExitError,
+    keepsReleased = false,
   ): void {
-    const hasActiveClient = this.#clients.has(provider);
+    const hasActiveClient = this.#clients.has(provider) || (keepsReleased && this.#released.has(provider));
     const fallbackMessage = `OpenBot could not connect ${providerLabel(provider)}. Try again.`;
     const rawMessage = error instanceof Error ? error.message : String(error);
     const message =
@@ -2345,8 +2378,14 @@ export class ProviderRuntime implements ProviderPort {
       });
       const status = this.status().providers?.find((row) => row.id === provider);
       if (status?.version !== cli.version || !["available", "sign-in-required"].includes(status.state)) {
+        // The update reason keeps catalog text only, so other text would leave only "Try again.".
+        // The log keeps the start failure as the cause.
+        const message = status?.message;
         return yield* new ProviderOperationFailed({
-          cause: new Error(status?.message ?? sourceText("error.provider.cliActivateFailed")),
+          cause:
+            message && matchingSourceKeys(message).length > 0
+              ? new Error(message)
+              : new Error(sourceText("error.provider.cliActivateFailed"), { cause: message }),
         });
       }
       return;
@@ -2759,6 +2798,10 @@ export class ProviderRuntime implements ProviderPort {
       }
       if (isIgnoredConfigDiagnostic(message)) {
         stderrLogger.warn("A provider ignored settings in its configuration.", { provider: client.provider, message });
+        return;
+      }
+      if (isBundledSandboxFallbackDiagnostic(message)) {
+        stderrLogger.warn("A provider uses its bundled bubblewrap.", { provider: client.provider, message });
         return;
       }
       // The usage notice reports the limit only for a provider with a usage reading. Another

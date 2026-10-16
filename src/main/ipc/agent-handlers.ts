@@ -67,6 +67,7 @@ import type { SkillMarketplaceService } from "../skill-marketplace-service";
 import {
   parseAcknowledgeFailedTurn,
   parseAgentId,
+  parseAgentTask,
   parseApprovalResponse,
   parseBrowserTakeoverResponse,
   parseCancelAgentWait,
@@ -84,11 +85,13 @@ import {
   parseQueueEdit,
   parseReadConversationPage,
   parseReorderQueue,
+  parseRunQueuedMessageAsTask,
   parseSearchConversationFiles,
   parseSearchConversationMessages,
   parseSendMessage,
   parseSetAgentAvatar,
   parseSidebarLayoutAction,
+  parseStartAgentTask,
   parseSteerQueuedMessage,
   parseUpdateAgent,
   parseUpdateQueuedMessage,
@@ -104,6 +107,11 @@ const modelLogger = createOpenBotLogger("provider-models");
  * The preload refuses the whole list for one such member and has no log of its own, so without this
  * the window shows "Invalid agent model response." and nothing records which model it was.
  */
+/** A joined server has no task route, so a task control there fails with a reason. */
+function taskRemoteUnsupported(): never {
+  throw new Error(sourceText("error.backend.taskRemoteUnsupported"));
+}
+
 function logRejectedModels<T>(models: T, source: "local" | "remote"): T {
   if (!Array.isArray(models)) return models;
   for (const model of models) {
@@ -346,6 +354,10 @@ export function agentIpcHandlers({
           if (input.busyMessageMode !== undefined) {
             throw new Error(sourceText("error.agent.busyMessageModeLocalOnly"));
           }
+          // A server runs tasks only on its own computer: the Team API has no task route.
+          if (input.taskLimit !== undefined) {
+            throw new Error(sourceText("error.agent.taskLimitLocalOnly"));
+          }
           if (input.backupModels !== undefined || input.leaveUsageLimit !== undefined) {
             throw new Error(sourceText("error.agent.backupModelsLocalOnly"));
           }
@@ -444,14 +456,16 @@ export function agentIpcHandlers({
       }),
       sendMessage: scopedHandler(parseSendMessage, {
         local: (input) => runCauseEffect(service.sendMessage(input, host.conversationSender())),
-        remote: (input, serverId) =>
-          runCauseEffect(
+        remote: (input, serverId) => {
+          if (input.taskId) throw new Error(sourceText("error.backend.taskRemoteUnsupported"));
+          return runCauseEffect(
             remoteServers.request(serverId, TEAM_API_ROUTES.agent.messages(input.agentId), decodeQueuedMessageReceipt, {
               method: "POST",
               // The host uses this computer's zone for a routine the agent creates from the message.
               body: { ...input, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             }),
-          ),
+          );
+        },
       }),
       setMessageReaction: scopedHandler(parseMessageReaction, {
         local: (parsed) => runCauseEffect(service.setMessageReaction(parsed)),
@@ -478,6 +492,35 @@ export function agentIpcHandlers({
         remote: () => {
           throw new Error(sourceText("error.backend.agentWaitRemoteUnsupported"));
         },
+      }),
+      // Tasks are local only: the Team API has no task route. A joined server shows no task.
+      listTasks: scopedHandler(parseAgentId, {
+        local: (agentId) => service.listTasks(agentId),
+        remote: (agentId) => ({ agentId, tasks: [], limit: 1 }),
+      }),
+      readTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => service.readTask(parsed.agentId, parsed.taskId),
+        remote: taskRemoteUnsupported,
+      }),
+      startTask: scopedHandler(parseStartAgentTask, {
+        local: (input) => runCauseEffect(service.startTask(input, host.conversationSender())),
+        remote: taskRemoteUnsupported,
+      }),
+      runQueuedMessageAsTask: scopedHandler(parseRunQueuedMessageAsTask, {
+        local: (parsed) => runCauseEffect(service.runQueuedMessageAsTask(parsed)),
+        remote: taskRemoteUnsupported,
+      }),
+      stopTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => runCauseEffect(service.stopTask(parsed)),
+        remote: taskRemoteUnsupported,
+      }),
+      closeTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => runCauseEffect(service.closeTask(parsed)),
+        remote: taskRemoteUnsupported,
+      }),
+      reopenTask: scopedHandler(parseAgentTask, {
+        local: (parsed) => service.reopenTask(parsed),
+        remote: taskRemoteUnsupported,
       }),
       acknowledgeFailedTurn: scopedHandler(parseAcknowledgeFailedTurn, {
         local: (parsed) => service.acknowledgeFailedTurn(parsed.agentId, parsed.turnId),

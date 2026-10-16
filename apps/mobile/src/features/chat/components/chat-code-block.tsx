@@ -9,7 +9,7 @@ import { useCSSVariable } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
-import { type CodeToken, codeLanguageLabel, highlightCode } from "../model/code-highlight";
+import { type CodeToken, cachedHighlight, codeLanguageLabel, highlightCode } from "../model/code-highlight";
 
 /** A streaming block grows each frame. Highlight it at most this often; the new tail stays plain until then. */
 const STREAMING_HIGHLIGHT_INTERVAL_MS = 250;
@@ -18,22 +18,35 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
   text,
   language,
   selectable = true,
+  finished = false,
 }: {
   text: string;
   language?: string;
   selectable?: boolean;
+  /** The text will not change, so its highlight is kept for the app run. */
+  finished?: boolean;
 }) {
   const { fontScale } = useWindowDimensions();
   const { t } = useText();
   const { foreground, muted, colors } = useCodeTokenColors();
-  const [highlight, setHighlight] = useState<{ text: string; language?: string; tokens: CodeToken[] } | null>(null);
+  const [highlight, setHighlight] = useState<{ text: string; language?: string; tokens: CodeToken[] } | null>(() => {
+    const tokens = cachedHighlight(text, language);
+    return tokens ? { text, language, tokens } : null;
+  });
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const lastHighlight = useRef<number | null>(null);
   useEffect(() => {
+    const cached = cachedHighlight(text, language);
+    if (cached) {
+      setHighlight((current) =>
+        current?.text === text && current.language === language ? current : { text, language, tokens: cached },
+      );
+      return;
+    }
     let active = true;
     const run = () => {
       lastHighlight.current = Date.now();
-      void highlightCode(text, language)
+      void highlightCode(text, language, finished)
         .then((tokens) => {
           if (active) setHighlight({ text, language, tokens });
         })
@@ -49,7 +62,7 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
       active = false;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [text, language]);
+  }, [text, language, finished]);
   const tokens =
     !highlight || highlight.language !== language || !text.startsWith(highlight.text)
       ? [{ text, offset: 0 }]

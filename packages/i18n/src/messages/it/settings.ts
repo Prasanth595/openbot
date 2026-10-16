@@ -49,10 +49,10 @@ export const messages = {
   "settings.permissions.title": "Permessi",
   "settings.turbo.title": "Modalità Turbo",
   "settings.turbo.description":
-    "Consenti a ogni agente di eseguire comandi, modificare file, ampliare il proprio accesso al file system e alla rete, e pubblicare, aggiornare o eliminare siti pubblici senza chiedere.",
+    "Consenti a ogni agente di eseguire comandi e strumenti MCP, modificare file, ampliare il proprio accesso al file system e alla rete, e pubblicare, aggiornare o eliminare siti pubblici senza chiedere.",
   "settings.turbo.confirmTitle": "Attivare la modalità Turbo?",
   "settings.turbo.confirmDescription":
-    "Gli agenti eseguiranno comandi, modificheranno file, amplieranno il proprio accesso su questo computer e pubblicheranno, aggiorneranno o elimineranno siti pubblici senza chiederti prima. Puoi disattivarla qui in qualsiasi momento.",
+    "Gli agenti eseguiranno comandi e strumenti MCP, modificheranno file, amplieranno il proprio accesso su questo computer e pubblicheranno, aggiorneranno o elimineranno siti pubblici senza chiederti prima. Puoi disattivarla qui in qualsiasi momento.",
   "settings.turbo.confirmAccept": "Attiva",
   "settings.autoApprove.revokeFailed":
     "Impossibile revocare l'approvazione permanente per {name}. È ancora attiva. Riprova.",
@@ -97,6 +97,9 @@ export const messages = {
   "settings.notch.haptics.title": "Feedback aptico",
   "settings.notch.haptics.description":
     "Usa il trackpad Force Touch per confermare le interazioni con la Dynamic Island.",
+  "settings.notch.servers.title": "Server",
+  "settings.notch.servers.description": "Scegli i server di cui l'isola mostra gli elementi.",
+  "settings.notch.servers.later": "Mostra i server aggiunti in seguito",
   "settings.notch.size.title": "Dimensione",
   "settings.notch.size.description": "Su uno schermo con notch, l'isola non è mai più piccola del notch.",
   "settings.notch.size.reset": "Ripristina predefinito",

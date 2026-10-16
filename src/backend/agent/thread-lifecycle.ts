@@ -319,7 +319,11 @@ export class ThreadLifecycle {
       // A Codex tool/config change replaces only the provider session, never the public thread.
       if (
         client.provider === "codex" &&
-        !(yield* this.hasCurrentToolsEffect(currentAgent, client, session.externalSessionId))
+        !(yield* this.hasCurrentToolsEffect(
+          this.#sessionAgent(currentAgent, publicThreadId),
+          client,
+          session.externalSessionId,
+        ))
       ) {
         const replacement = yield* this.startProviderThread(
           currentAgent,
@@ -386,11 +390,12 @@ export class ThreadLifecycle {
 
   readonly #startProviderThread = Effect.fn("ThreadLifecycle.prepareProviderThread")(function* (
     this: ThreadLifecycle,
-    agent: AgentSummary,
+    owner: AgentSummary,
     client: AgentClient,
     publicThreadId: string,
     reason?: "configuration-change" | "missing-session",
   ) {
+    const agent = this.#sessionAgent(owner, publicThreadId);
     // One reading of the MCP set for the request and for the manifest below. Read twice, a change
     // that lands while the provider answers would be recorded as what this session was given, and
     // `hasCurrentTools` would then accept a session that never got it.
@@ -419,7 +424,7 @@ export class ThreadLifecycle {
           sandbox: codexSandboxMode(agent),
           ...this.#workspaceOnlyParam(agent, client),
           ...this.#computerUseParam(agent, client),
-          ...this.#instructions(agent, client, section),
+          ...this.#instructions(agent, client, section, this.#computerUseInOwnChat(owner, publicThreadId)),
           ephemeral: false,
           serviceName: "openbot",
           dynamicTools: VISIBLE_DYNAMIC_TOOLS,
@@ -689,6 +694,19 @@ export class ThreadLifecycle {
       .digest("hex");
   }
 
+  /**
+   * The settings that one session of the agent runs with. A task runs without Computer Use: the
+   * agent's own chat keeps the one screen of this computer, so two conversations of the agent never
+   * drive it at the same time.
+   */
+  #sessionAgent(agent: AgentSummary, publicThreadId: string): AgentSummary {
+    return this.#computerUseInOwnChat(agent, publicThreadId) ? { ...agent, computerUse: false } : agent;
+  }
+
+  #computerUseInOwnChat(agent: AgentSummary, publicThreadId: string): boolean {
+    return this.#conversation.isTaskThread(publicThreadId) && agentComputerUseEnabled(agent);
+  }
+
   /** The enabled servers this agent is given. Without Computer Use the fingerprint changes, so Codex replaces the session. */
   #agentMcpServers(agent: AgentSummary): readonly McpServerConfig[] {
     return agentMcpServers(this.#mcpServers(), agentComputerUseEnabled(agent));
@@ -741,9 +759,15 @@ export class ThreadLifecycle {
    * The developer instructions of a session start or resume, with what is connected now. Claude
    * gets the memories apart, and its client sends them with the turns: see `memoriesInTurns`.
    */
-  #instructions(agent: AgentSummary, client: AgentClient, section = this.#sectionTeammates(agent.id)): DynamicRecord {
+  #instructions(
+    agent: AgentSummary,
+    client: AgentClient,
+    section = this.#sectionTeammates(agent.id),
+    computerUseInOwnChat = false,
+  ): DynamicRecord {
     const memories = this.#memories.essentialFor(agent.id);
     const options = {
+      computerUseInOwnChat,
       passwordVault: this.#passwordVaultConnected(),
       memoryLimit: this.#memories.limit(),
       storedMemoryCount: this.#memories.listFor(agent.id).length,
@@ -770,10 +794,13 @@ export class ThreadLifecycle {
 
   readonly threadParams = Effect.fn("ThreadLifecycle.threadParams")(function* (
     this: ThreadLifecycle,
-    agent: AgentSummary,
+    owner: AgentSummary,
     client: AgentClient,
     externalThreadId: string,
   ): Effect.fn.Return<DynamicRecord, ThreadOperationFailed> {
+    const publicThreadId = this.#conversation.publicThreadId(owner.id, externalThreadId);
+    const computerUseInOwnChat = this.#computerUseInOwnChat(owner, publicThreadId);
+    const agent = this.#sessionAgent(owner, publicThreadId);
     const configs = this.#agentMcpServers(agent);
     const toolRuntimes = this.#toolRuntimes();
     return {
@@ -786,7 +813,7 @@ export class ThreadLifecycle {
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
       ...this.#computerUseParam(agent, client),
-      ...this.#instructions(agent, client),
+      ...this.#instructions(agent, client, this.#sectionTeammates(agent.id), computerUseInOwnChat),
       ...(client.provider === "codex" ? {} : { dynamicTools: VISIBLE_DYNAMIC_TOOLS }),
       ...(yield* this.codexConfigEffect(
         agent,
@@ -1066,7 +1093,8 @@ export class ThreadLifecycle {
     agentId: string,
     threadId: string,
   ) {
-    if (this.#conversation.isExecutionThread(threadId)) return null;
+    // A task keeps its own conversation across sessions, as the agent's own chat does.
+    if (this.#conversation.isExecutionThread(threadId) && !this.#conversation.isTaskThread(threadId)) return null;
     const sessions = this.#store.database.listProviderSessions(threadId);
     if (sessions.length < 1) return null;
     const agentNames = agentNamesById(this.#store.list());

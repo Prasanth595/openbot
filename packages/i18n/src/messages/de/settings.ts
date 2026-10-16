@@ -49,10 +49,10 @@ export const messages = {
   "settings.permissions.title": "Berechtigungen",
   "settings.turbo.title": "Turbo-Modus",
   "settings.turbo.description":
-    "Allen Agenten erlauben, ohne Rückfrage Befehle auszuführen, Dateien zu ändern, ihren Dateisystem- und Netzwerkzugriff zu erweitern und öffentliche Websites zu veröffentlichen, zu aktualisieren oder zu löschen.",
+    "Allen Agenten erlauben, ohne Rückfrage Befehle und MCP-Tools auszuführen, Dateien zu ändern, ihren Dateisystem- und Netzwerkzugriff zu erweitern und öffentliche Websites zu veröffentlichen, zu aktualisieren oder zu löschen.",
   "settings.turbo.confirmTitle": "Turbo-Modus aktivieren?",
   "settings.turbo.confirmDescription":
-    "Agenten führen Befehle aus, ändern Dateien, erweitern ihren Zugriff auf diesen Computer und veröffentlichen, aktualisieren oder löschen öffentliche Websites ohne Rückfrage. Du kannst dies hier jederzeit deaktivieren.",
+    "Agenten führen Befehle und MCP-Tools aus, ändern Dateien, erweitern ihren Zugriff auf diesen Computer und veröffentlichen, aktualisieren oder löschen öffentliche Websites ohne Rückfrage. Du kannst dies hier jederzeit deaktivieren.",
   "settings.turbo.confirmAccept": "Aktivieren",
   "settings.autoApprove.revokeFailed":
     "Die dauerhafte Genehmigung für {name} konnte nicht widerrufen werden. Sie ist noch aktiv. Versuche es erneut.",
@@ -98,6 +98,9 @@ export const messages = {
   "settings.notch.displays.description": "Dynamic Island auf angeschlossenen externen Displays anzeigen.",
   "settings.notch.haptics.title": "Haptisches Feedback",
   "settings.notch.haptics.description": "Interaktionen mit Dynamic Island über das Force Touch Trackpad bestätigen.",
+  "settings.notch.servers.title": "Server",
+  "settings.notch.servers.description": "Server auswählen, deren Einträge die Insel anzeigt.",
+  "settings.notch.servers.later": "Später hinzugefügte Server anzeigen",
   "settings.notch.size.title": "Größe",
   "settings.notch.size.description": "Auf einem Display mit Aussparung ist die Insel nie kleiner als die Aussparung.",
   "settings.notch.size.reset": "Auf Standard zurücksetzen",

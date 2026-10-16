@@ -157,6 +157,8 @@ import {
   decodeComputerUseState,
 } from "./computer-use-decoding";
 import {
+  decodeAgentTask,
+  decodeAgentTasks,
   decodeAttachments,
   decodeConversation,
   decodeConversationFileSearchPage,
@@ -167,6 +169,7 @@ import {
   decodeReadState,
   decodeReadStates,
   decodeReceipt,
+  decodeTaskConversation,
   decodeWaits,
 } from "./conversation-decoding";
 import {
@@ -444,6 +447,13 @@ const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   listQueue: decodeQueue,
   listWaits: decodeWaits,
   cancelWait: decodeVoid,
+  listTasks: decodeAgentTasks,
+  readTask: decodeTaskConversation,
+  startTask: decodeAgentTask,
+  runQueuedMessageAsTask: decodeAgentTask,
+  stopTask: decodeVoid,
+  closeTask: decodeVoid,
+  reopenTask: decodeVoid,
   acknowledgeFailedTurn: decodeVoid,
   cancelQueuedMessage: decodeVoid,
   steerQueuedMessage: decodeVoid,

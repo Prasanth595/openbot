@@ -321,6 +321,7 @@ export function ConversationComposer() {
                 editingDeliveryId={editingDeliveryId()}
                 canSteer={Boolean(props.activeTurnId)}
                 onSteer={props.onSteerQueuedMessage}
+                onRunAsTask={props.tasks?.onRunQueuedMessage}
                 onCancel={props.onCancelQueuedMessage}
                 onEdit={editQueuedMessage}
                 onReorder={reorderPresentedQueue}

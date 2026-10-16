@@ -142,6 +142,30 @@ export function mcpElicitationQuestions(params: unknown): AgentPromptQuestion[] 
   return validPromptQuestions(questions) ? questions : null;
 }
 
+/**
+ * Codex asks this before it runs an MCP tool, and says so in `_meta`. The marker tells the ask from a
+ * plugin's own yes or no, which can carry the same words and the same `persist` list.
+ */
+const CODEX_MCP_TOOL_CALL_APPROVAL_KIND = "mcp_tool_call";
+
+/**
+ * Whether the request is Codex's consent to run one MCP tool: a form with no field, the marker, and
+ * the offer to remember the answer. A tool that the user set to ask every time offers no `persist`,
+ * so its card stays.
+ */
+export function mcpToolCallConsent(params: unknown): boolean {
+  const mode = getString(params, "mode") ?? "form";
+  const meta = getRecord(params, "_meta");
+  const properties = getRecord(getRecord(params, "requestedSchema"), "properties");
+  return (
+    (mode === "form" || mode === "openai/form") &&
+    properties !== null &&
+    Object.keys(properties).length === 0 &&
+    getString(meta, "codex_approval_kind") === CODEX_MCP_TOOL_CALL_APPROVAL_KIND &&
+    getArray(meta, "persist").includes("always")
+  );
+}
+
 export function mcpElicitationResult(
   params: unknown,
   answers: Record<string, string[]>,

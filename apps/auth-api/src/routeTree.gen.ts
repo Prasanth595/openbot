@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AppPreviewRouteImport } from './routes/app-preview'
 import { Route as ChangelogRouteImport } from './routes/changelog'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as ReportSiteRouteImport } from './routes/report-site'
@@ -42,6 +43,7 @@ import { Route as ProvidersIndexRouteImport } from './routes/providers/index'
 import { Route as ProvidersSlugRouteImport } from './routes/providers/$slug'
 import { Route as ProvidersRssDotxmlRouteImport } from './routes/providers/rss[.]xml'
 import { Route as SlackConnectRouteImport } from './routes/slack/connect'
+import { Route as V1ContactRouteImport } from './routes/v1/contact'
 import { Route as V1MeRouteImport } from './routes/v1/me'
 import { Route as ApiBrowserSplatRouteImport } from './routes/api/browser/$'
 import { Route as DownloadPlatformLatestRouteImport } from './routes/download/$platform_/latest'
@@ -130,6 +132,7 @@ import { Route as V2HostingServersServerIdRestartRouteImport } from './routes/v2
 import { Route as V2HostingServersServerIdStatusRouteImport } from './routes/v2/hosting/servers/$serverId/status'
 import { Route as V2HostingServersServerIdWakeRouteImport } from './routes/v2/hosting/servers/$serverId/wake'
 import { Route as V2RemoteHostsHostIdIndexRouteImport } from './routes/v2/remote/hosts/$hostId/index'
+import { Route as V2RemoteHostsHostIdAndroidNotificationRouteImport } from './routes/v2/remote/hosts/$hostId/android-notification'
 import { Route as V2RemoteHostsHostIdDiscordDisconnectRouteImport } from './routes/v2/remote/hosts/$hostId/discord-disconnect'
 import { Route as V2RemoteHostsHostIdDiscordRouteRouteImport } from './routes/v2/remote/hosts/$hostId/discord-route'
 import { Route as V2RemoteHostsHostIdInvitesRouteImport } from './routes/v2/remote/hosts/$hostId/invites'
@@ -170,6 +173,11 @@ const AppPreviewRoute = AppPreviewRouteImport.update({
 const ChangelogRoute = ChangelogRouteImport.update({
   id: '/changelog',
   path: '/changelog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JoinRoute = JoinRouteImport.update({
@@ -316,6 +324,11 @@ const ProvidersRssDotxmlRoute = ProvidersRssDotxmlRouteImport.update({
 const SlackConnectRoute = SlackConnectRouteImport.update({
   id: '/slack/connect',
   path: '/slack/connect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V1ContactRoute = V1ContactRouteImport.update({
+  id: '/v1/contact',
+  path: '/v1/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V1MeRoute = V1MeRouteImport.update({
@@ -790,6 +803,12 @@ const V2RemoteHostsHostIdIndexRoute =
     path: '/v2/remote/hosts/$hostId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const V2RemoteHostsHostIdAndroidNotificationRoute =
+  V2RemoteHostsHostIdAndroidNotificationRouteImport.update({
+    id: '/v2/remote/hosts/$hostId/android-notification',
+    path: '/v2/remote/hosts/$hostId/android-notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const V2RemoteHostsHostIdDiscordDisconnectRoute =
   V2RemoteHostsHostIdDiscordDisconnectRouteImport.update({
     id: '/v2/remote/hosts/$hostId/discord-disconnect',
@@ -921,6 +940,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
   '/app-preview': typeof AppPreviewRoute
   '/changelog': typeof ChangelogRoute
+  '/contact': typeof ContactRoute
   '/join': typeof JoinRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/report-site': typeof ReportSiteRoute
@@ -944,6 +964,7 @@ export interface FileRoutesByFullPath {
   '/providers/$slug': typeof ProvidersSlugRoute
   '/providers/rss.xml': typeof ProvidersRssDotxmlRoute
   '/slack/connect': typeof SlackConnectRoute
+  '/v1/contact': typeof V1ContactRoute
   '/v1/me': typeof V1MeRouteWithChildren
   '/compare/': typeof CompareIndexRoute
   '/download/': typeof DownloadIndexRoute
@@ -1036,6 +1057,7 @@ export interface FileRoutesByFullPath {
   '/v2/hosting/servers/$serverId/restart': typeof V2HostingServersServerIdRestartRoute
   '/v2/hosting/servers/$serverId/status': typeof V2HostingServersServerIdStatusRoute
   '/v2/hosting/servers/$serverId/wake': typeof V2HostingServersServerIdWakeRoute
+  '/v2/remote/hosts/$hostId/android-notification': typeof V2RemoteHostsHostIdAndroidNotificationRoute
   '/v2/remote/hosts/$hostId/discord-disconnect': typeof V2RemoteHostsHostIdDiscordDisconnectRoute
   '/v2/remote/hosts/$hostId/discord-route': typeof V2RemoteHostsHostIdDiscordRouteRoute
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
@@ -1065,6 +1087,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppRoute
   '/app-preview': typeof AppPreviewRoute
   '/changelog': typeof ChangelogRoute
+  '/contact': typeof ContactRoute
   '/join': typeof JoinRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/report-site': typeof ReportSiteRoute
@@ -1088,6 +1111,7 @@ export interface FileRoutesByTo {
   '/providers/$slug': typeof ProvidersSlugRoute
   '/providers/rss.xml': typeof ProvidersRssDotxmlRoute
   '/slack/connect': typeof SlackConnectRoute
+  '/v1/contact': typeof V1ContactRoute
   '/v1/me': typeof V1MeRouteWithChildren
   '/compare': typeof CompareIndexRoute
   '/download': typeof DownloadIndexRoute
@@ -1180,6 +1204,7 @@ export interface FileRoutesByTo {
   '/v2/hosting/servers/$serverId/restart': typeof V2HostingServersServerIdRestartRoute
   '/v2/hosting/servers/$serverId/status': typeof V2HostingServersServerIdStatusRoute
   '/v2/hosting/servers/$serverId/wake': typeof V2HostingServersServerIdWakeRoute
+  '/v2/remote/hosts/$hostId/android-notification': typeof V2RemoteHostsHostIdAndroidNotificationRoute
   '/v2/remote/hosts/$hostId/discord-disconnect': typeof V2RemoteHostsHostIdDiscordDisconnectRoute
   '/v2/remote/hosts/$hostId/discord-route': typeof V2RemoteHostsHostIdDiscordRouteRoute
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
@@ -1210,6 +1235,7 @@ export interface FileRoutesById {
   '/app': typeof AppRoute
   '/app-preview': typeof AppPreviewRoute
   '/changelog': typeof ChangelogRoute
+  '/contact': typeof ContactRoute
   '/join': typeof JoinRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/report-site': typeof ReportSiteRoute
@@ -1233,6 +1259,7 @@ export interface FileRoutesById {
   '/providers/$slug': typeof ProvidersSlugRoute
   '/providers/rss.xml': typeof ProvidersRssDotxmlRoute
   '/slack/connect': typeof SlackConnectRoute
+  '/v1/contact': typeof V1ContactRoute
   '/v1/me': typeof V1MeRouteWithChildren
   '/compare/': typeof CompareIndexRoute
   '/download/': typeof DownloadIndexRoute
@@ -1325,6 +1352,7 @@ export interface FileRoutesById {
   '/v2/hosting/servers/$serverId/restart': typeof V2HostingServersServerIdRestartRoute
   '/v2/hosting/servers/$serverId/status': typeof V2HostingServersServerIdStatusRoute
   '/v2/hosting/servers/$serverId/wake': typeof V2HostingServersServerIdWakeRoute
+  '/v2/remote/hosts/$hostId/android-notification': typeof V2RemoteHostsHostIdAndroidNotificationRoute
   '/v2/remote/hosts/$hostId/discord-disconnect': typeof V2RemoteHostsHostIdDiscordDisconnectRoute
   '/v2/remote/hosts/$hostId/discord-route': typeof V2RemoteHostsHostIdDiscordRouteRoute
   '/v2/remote/hosts/$hostId/invites': typeof V2RemoteHostsHostIdInvitesRoute
@@ -1356,6 +1384,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app-preview'
     | '/changelog'
+    | '/contact'
     | '/join'
     | '/llms.txt'
     | '/report-site'
@@ -1379,6 +1408,7 @@ export interface FileRouteTypes {
     | '/providers/$slug'
     | '/providers/rss.xml'
     | '/slack/connect'
+    | '/v1/contact'
     | '/v1/me'
     | '/compare/'
     | '/download/'
@@ -1471,6 +1501,7 @@ export interface FileRouteTypes {
     | '/v2/hosting/servers/$serverId/restart'
     | '/v2/hosting/servers/$serverId/status'
     | '/v2/hosting/servers/$serverId/wake'
+    | '/v2/remote/hosts/$hostId/android-notification'
     | '/v2/remote/hosts/$hostId/discord-disconnect'
     | '/v2/remote/hosts/$hostId/discord-route'
     | '/v2/remote/hosts/$hostId/invites'
@@ -1500,6 +1531,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app-preview'
     | '/changelog'
+    | '/contact'
     | '/join'
     | '/llms.txt'
     | '/report-site'
@@ -1523,6 +1555,7 @@ export interface FileRouteTypes {
     | '/providers/$slug'
     | '/providers/rss.xml'
     | '/slack/connect'
+    | '/v1/contact'
     | '/v1/me'
     | '/compare'
     | '/download'
@@ -1615,6 +1648,7 @@ export interface FileRouteTypes {
     | '/v2/hosting/servers/$serverId/restart'
     | '/v2/hosting/servers/$serverId/status'
     | '/v2/hosting/servers/$serverId/wake'
+    | '/v2/remote/hosts/$hostId/android-notification'
     | '/v2/remote/hosts/$hostId/discord-disconnect'
     | '/v2/remote/hosts/$hostId/discord-route'
     | '/v2/remote/hosts/$hostId/invites'
@@ -1644,6 +1678,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/app-preview'
     | '/changelog'
+    | '/contact'
     | '/join'
     | '/llms.txt'
     | '/report-site'
@@ -1667,6 +1702,7 @@ export interface FileRouteTypes {
     | '/providers/$slug'
     | '/providers/rss.xml'
     | '/slack/connect'
+    | '/v1/contact'
     | '/v1/me'
     | '/compare/'
     | '/download/'
@@ -1759,6 +1795,7 @@ export interface FileRouteTypes {
     | '/v2/hosting/servers/$serverId/restart'
     | '/v2/hosting/servers/$serverId/status'
     | '/v2/hosting/servers/$serverId/wake'
+    | '/v2/remote/hosts/$hostId/android-notification'
     | '/v2/remote/hosts/$hostId/discord-disconnect'
     | '/v2/remote/hosts/$hostId/discord-route'
     | '/v2/remote/hosts/$hostId/invites'
@@ -1789,6 +1826,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   AppPreviewRoute: typeof AppPreviewRoute
   ChangelogRoute: typeof ChangelogRoute
+  ContactRoute: typeof ContactRoute
   JoinRoute: typeof JoinRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   ReportSiteRoute: typeof ReportSiteRoute
@@ -1812,6 +1850,7 @@ export interface RootRouteChildren {
   ProvidersSlugRoute: typeof ProvidersSlugRoute
   ProvidersRssDotxmlRoute: typeof ProvidersRssDotxmlRoute
   SlackConnectRoute: typeof SlackConnectRoute
+  V1ContactRoute: typeof V1ContactRoute
   V1MeRoute: typeof V1MeRouteWithChildren
   CompareIndexRoute: typeof CompareIndexRoute
   DownloadIndexRoute: typeof DownloadIndexRoute
@@ -1890,6 +1929,7 @@ export interface RootRouteChildren {
   V2HostingServersServerIdRestartRoute: typeof V2HostingServersServerIdRestartRoute
   V2HostingServersServerIdStatusRoute: typeof V2HostingServersServerIdStatusRoute
   V2HostingServersServerIdWakeRoute: typeof V2HostingServersServerIdWakeRoute
+  V2RemoteHostsHostIdAndroidNotificationRoute: typeof V2RemoteHostsHostIdAndroidNotificationRoute
   V2RemoteHostsHostIdDiscordDisconnectRoute: typeof V2RemoteHostsHostIdDiscordDisconnectRoute
   V2RemoteHostsHostIdDiscordRouteRoute: typeof V2RemoteHostsHostIdDiscordRouteRoute
   V2RemoteHostsHostIdInvitesRoute: typeof V2RemoteHostsHostIdInvitesRoute
@@ -1941,6 +1981,13 @@ declare module '@tanstack/solid-router' {
       path: '/changelog'
       fullPath: '/changelog'
       preLoaderRoute: typeof ChangelogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/join': {
@@ -2144,6 +2191,13 @@ declare module '@tanstack/solid-router' {
       path: '/slack/connect'
       fullPath: '/slack/connect'
       preLoaderRoute: typeof SlackConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v1/contact': {
+      id: '/v1/contact'
+      path: '/v1/contact'
+      fullPath: '/v1/contact'
+      preLoaderRoute: typeof V1ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v1/me': {
@@ -2762,6 +2816,13 @@ declare module '@tanstack/solid-router' {
       preLoaderRoute: typeof V2RemoteHostsHostIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/v2/remote/hosts/$hostId/android-notification': {
+      id: '/v2/remote/hosts/$hostId/android-notification'
+      path: '/v2/remote/hosts/$hostId/android-notification'
+      fullPath: '/v2/remote/hosts/$hostId/android-notification'
+      preLoaderRoute: typeof V2RemoteHostsHostIdAndroidNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/v2/remote/hosts/$hostId/discord-disconnect': {
       id: '/v2/remote/hosts/$hostId/discord-disconnect'
       path: '/v2/remote/hosts/$hostId/discord-disconnect'
@@ -3043,6 +3104,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   AppPreviewRoute: AppPreviewRoute,
   ChangelogRoute: ChangelogRoute,
+  ContactRoute: ContactRoute,
   JoinRoute: JoinRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   ReportSiteRoute: ReportSiteRoute,
@@ -3067,6 +3129,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProvidersSlugRoute: ProvidersSlugRoute,
   ProvidersRssDotxmlRoute: ProvidersRssDotxmlRoute,
   SlackConnectRoute: SlackConnectRoute,
+  V1ContactRoute: V1ContactRoute,
   V1MeRoute: V1MeRouteWithChildren,
   CompareIndexRoute: CompareIndexRoute,
   DownloadIndexRoute: DownloadIndexRoute,
@@ -3147,6 +3210,8 @@ const rootRouteChildren: RootRouteChildren = {
   V2HostingServersServerIdRestartRoute: V2HostingServersServerIdRestartRoute,
   V2HostingServersServerIdStatusRoute: V2HostingServersServerIdStatusRoute,
   V2HostingServersServerIdWakeRoute: V2HostingServersServerIdWakeRoute,
+  V2RemoteHostsHostIdAndroidNotificationRoute:
+    V2RemoteHostsHostIdAndroidNotificationRoute,
   V2RemoteHostsHostIdDiscordDisconnectRoute:
     V2RemoteHostsHostIdDiscordDisconnectRoute,
   V2RemoteHostsHostIdDiscordRouteRoute: V2RemoteHostsHostIdDiscordRouteRoute,

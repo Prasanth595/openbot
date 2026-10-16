@@ -12,6 +12,7 @@ export const messages = {
   "mobile.app.route.about": "情報",
   "mobile.app.route.support": "サポート",
   "mobile.app.route.hiddenChats": "非表示のチャット",
+  "mobile.app.route.share": "共有",
   "mobile.app.route.cropPhoto": "移動と拡大縮小",
   "mobile.app.route.queuedMessages": "待機中のメッセージ",
   "mobile.app.route.messageOptions": "メッセージのオプション",
@@ -23,4 +24,6 @@ export const messages = {
   "mobile.app.route.routines": "ルーティン",
   "mobile.app.route.routine": "ルーティン",
   "mobile.app.route.usage": "使用量",
+  "mobile.app.quickAction.routines": "ルーティン",
+  "mobile.app.quickAction.search": "検索",
 } as const satisfies PartialTranslation<typeof source>;

@@ -49,7 +49,7 @@ export const messages = defineMessages("app", {
   "app.standingApproval.title": "Always allow {name}?",
   "app.standingApproval.titleUnnamed": "Always allow this agent?",
   "app.standingApproval.description":
-    "{name} will run commands, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
+    "{name} will run commands and MCP tools, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
   "app.standingApproval.descriptionUnnamed":
-    "This agent will run commands, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
+    "This agent will run commands and MCP tools, change files and widen its own filesystem and network access on the computer that runs it without asking again. Publishing, replacing and deleting public sites still require approval unless Turbo mode is on. You can turn off Auto approve in this agent's model menu.",
 });

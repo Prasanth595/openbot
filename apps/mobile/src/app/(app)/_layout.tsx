@@ -13,6 +13,8 @@ import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
+import type { QuickActionTarget } from "@/features/quick-actions/model/quick-action-items";
+import { setQuickActionNavigator } from "@/features/quick-actions/quick-actions-native";
 import { AppDrawerShell } from "@/features/servers/components/app-drawer-shell";
 import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
 import { useReducedMotion } from "@/shared/lib/motion";
@@ -53,7 +55,26 @@ function AuthenticatedStack() {
     },
     [navigationGate],
   );
+  /** Opens the screen of a quick action of the app icon, on top of the main screen. */
+  const openQuickAction = useCallback(
+    (target: QuickActionTarget) => {
+      if (target.type === "chat") {
+        openFromOutside(target.agentId);
+        return;
+      }
+      if (router.canDismiss()) router.dismissAll();
+      navigationGate.request(
+        () =>
+          target.type === "routines"
+            ? router.push({ pathname: "/server-routines", params: { serverId: target.serverId } })
+            : router.push("/search-agents"),
+        () => onChatList.current,
+      );
+    },
+    [navigationGate, openFromOutside],
+  );
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
+  useEffect(() => setQuickActionNavigator(openQuickAction), [openQuickAction]);
   useNotificationTaps(openFromOutside, () => openChat.current);
 
   return (
@@ -263,6 +284,18 @@ function AuthenticatedStack() {
         />
         <Stack.Screen
           name="server-usage"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="share"
+          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
           options={{
             contentStyle: { backgroundColor: sheetBackground },
             headerShown: false,

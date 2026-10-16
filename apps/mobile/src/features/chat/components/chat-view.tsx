@@ -5,11 +5,13 @@ import { type CauseCode, classifyFailure, type FailureProperties } from "@openbo
 import { useQueryClient } from "@tanstack/react-query";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { router, useIsFocused } from "expo-router";
+import type { NativeStackNavigationProp } from "expo-router/native-stack";
+import { type ParamListBase, useNavigation } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { ArrowDown } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, AppState, Keyboard, useColorScheme, View } from "react-native";
+import { AppState, Keyboard, useColorScheme, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { KeyboardController, KeyboardGestureArea } from "react-native-keyboard-controller";
 import Animated, { useSharedValue } from "react-native-reanimated";
@@ -42,12 +44,18 @@ import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspac
 import type { MobileAgentActivity } from "@/features/workspace/model/agent-activity";
 import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
 import { haptics } from "@/shared/lib/haptics";
-import { isIOS } from "@/shared/lib/platform";
+import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
+import { useReducedTransparency } from "@/shared/lib/use-reduced-transparency";
 import { mentionDraft } from "../model/chat-mentions";
 import type { ChatTarget } from "../model/chat-target";
-import { takeComposerFocus, takeComposerRequest, useComposerRequest } from "../model/composer-requests";
+import {
+  deleteComposerFiles,
+  takeComposerFocus,
+  takeComposerRequest,
+  useComposerRequest,
+} from "../model/composer-requests";
 import { type OutboxMessage, outboxChatKey, outboxChatMessage, outboxRowId, outboxTargetKey } from "../model/outbox";
 import type { OutboxDraft, OutboxStore } from "../model/outbox-store";
 import { queueReceiptMessages } from "../model/queue-edit-draft";
@@ -116,6 +124,32 @@ function outboxRow(outbox: OutboxStore, message: OutboxMessage): ChatBubbleMessa
   return row;
 }
 
+/** The longest wait for the open transition, for a chat that opens without one. */
+const OPEN_TRANSITION_DEADLINE_MS = 700;
+
+/**
+ * Whether the message rows render. Android starts the push animation of a screen only after the
+ * screen's first commit, and the rows made that commit long: the chat came seconds after the tap.
+ * There the chat slides in without its rows, which render when it is in place, as when the history
+ * arrives after a first open. iOS animates the screen while it renders, so it renders them at once.
+ */
+function useRowsAfterOpenTransition(): boolean {
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+  const [shown, setShown] = useState(!isAndroid);
+  useEffect(() => {
+    if (shown) return;
+    const unsubscribe = navigation.addListener("transitionEnd", (event) => {
+      if (!event.data.closing) setShown(true);
+    });
+    const deadline = setTimeout(() => setShown(true), OPEN_TRANSITION_DEADLINE_MS);
+    return () => {
+      unsubscribe();
+      clearTimeout(deadline);
+    };
+  }, [navigation, shown]);
+  return shown;
+}
+
 function leaveConversation(): void {
   void KeyboardController.dismiss();
   if (router.canGoBack()) router.back();
@@ -169,7 +203,7 @@ export function ChatView({
   const foregroundVisit = useAppForeground();
   const [conversationAnalytics] = useState(() => new MobileConversationAnalytics(mobileAnalytics));
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
-  const [reducedTransparency, setReducedTransparency] = useState(true);
+  const reducedTransparency = useReducedTransparency();
   const insets = useSafeAreaInsets();
   const keyboardOffset = Math.max(insets.bottom, 10) - 10;
   const [foreground, muted, fieldBackground, raised, action, actionForeground, background] = useThemeColor([
@@ -342,15 +376,19 @@ export function ChatView({
   useEffect(() => {
     if (answersQuestion) setAnswerFocusVersion((version) => version + 1);
   }, [answersQuestion]);
-  // Another screen, such as Agent info > Skills, can put text in this composer and close itself.
-  // Only a chat in front takes it: a chat under that screen is not the one the user returns to.
+  // Another screen, such as Agent info > Skills or a share from another app, can put text and files
+  // in this composer and close itself. Only a chat in front takes it: a chat under that screen is not
+  // the one the user returns to.
   const composerRequest = useComposerRequest((state) => state.request);
   useEffect(() => {
     if (!isFocused || !composerRequest) return;
-    const text = takeComposerRequest(target.serverId, target.id);
-    if (!text) return;
-    setDraft((current) => (current ? `${current}\n${text}` : text));
-  }, [isFocused, composerRequest, target.serverId, target.id]);
+    const request = takeComposerRequest(target.serverId, target.id);
+    if (!request) return;
+    const files = request.files ?? [];
+    void composerAttachments
+      .addShared(request.text, files, (text) => setDraft((current) => (current ? `${current}\n${text}` : text)))
+      .finally(() => deleteComposerFiles(files));
+  }, [isFocused, composerRequest, target.serverId, target.id, composerAttachments.addShared]);
   const composerFocus = useComposerRequest((state) => state.focus);
   const [handoffFocusVersion, setHandoffFocusVersion] = useState(0);
   useEffect(() => {
@@ -390,10 +428,12 @@ export function ChatView({
         setAwaitingTurn(true);
       }
   }, [outboxMessages]);
+  const rowsShown = useRowsAfterOpenTransition();
   const motion = useChatMotion(
     insets.top + 84,
     keyboardOffset,
-    ready,
+    // The list takes its place at the latest message once its rows render.
+    ready && rowsShown,
     lastUserId,
     questionForm?.question ? (questionForm.messageId ?? null) : null,
     holdOpening,
@@ -449,18 +489,6 @@ export function ChatView({
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => setAppActive(state === "active"));
     return () => subscription.remove();
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    void AccessibilityInfo.isReduceTransparencyEnabled().then((value) => {
-      if (mounted) setReducedTransparency(value);
-    });
-    const subscription = AccessibilityInfo.addEventListener("reduceTransparencyChanged", setReducedTransparency);
-    return () => {
-      mounted = false;
-      subscription.remove();
-    };
   }, []);
 
   // Opening a chat reads it, as on desktop. After the user scrolls away, only the latest message in view reads it.
@@ -735,6 +763,7 @@ export function ChatView({
             />
             <ChatMessageList
               agents={serverAgents}
+              rowsShown={rowsShown}
               target={target}
               accessibilityHidden={voiceOpen}
               motion={motion}

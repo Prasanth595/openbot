@@ -21,6 +21,15 @@ export const COMPARE_COLLECTION: ContentCollection<"compare"> = {
   imageEyebrow: "OPENBOT · COMPARE",
   articles: publishedFirst([
     {
+      slug: "instinct",
+      title: "OpenBot vs Instinct: A Private, Local Alternative",
+      description:
+        "OpenBot is a free, private Instinct alternative: run a team of AI agents on your own computer, keep your data there, and approve each message before it is sent.",
+      publishedAt: "2026-10-15",
+      updatedAt: "2026-10-15",
+      author: NEWS_AUTHOR,
+    },
+    {
       slug: "best-ai-agent-apps",
       title: "Best AI Agent Apps in 2026: 13 Apps Compared",
       description:

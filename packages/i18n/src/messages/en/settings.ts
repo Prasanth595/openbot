@@ -52,10 +52,10 @@ export const messages = defineMessages("settings", {
   "settings.permissions.title": "Permissions",
   "settings.turbo.title": "Turbo mode",
   "settings.turbo.description":
-    "Let every agent run commands, change files, widen its own filesystem and network access, and publish, update or delete public sites without asking.",
+    "Let every agent run commands and MCP tools, change files, widen its own filesystem and network access, and publish, update or delete public sites without asking.",
   "settings.turbo.confirmTitle": "Turn on Turbo mode?",
   "settings.turbo.confirmDescription":
-    "Agents will run commands, change files, widen their own access on this computer, and publish, update or delete public sites without asking you first. Turn this off here at any time.",
+    "Agents will run commands and MCP tools, change files, widen their own access on this computer, and publish, update or delete public sites without asking you first. Turn this off here at any time.",
   "settings.turbo.confirmAccept": "Turn on",
   "settings.autoApprove.revokeFailed":
     "Could not revoke the standing approval for {name}. It is still active. Try again.",
@@ -97,6 +97,9 @@ export const messages = defineMessages("settings", {
   "settings.notch.displays.description": "Show Dynamic Island on connected external displays.",
   "settings.notch.haptics.title": "Haptic feedback",
   "settings.notch.haptics.description": "Use the Force Touch trackpad to confirm Dynamic Island interactions.",
+  "settings.notch.servers.title": "Servers",
+  "settings.notch.servers.description": "Choose the servers that show items in the island.",
+  "settings.notch.servers.later": "Show servers that you add later",
   "settings.notch.size.title": "Size",
   "settings.notch.size.description": "On a display with a notch, the island is never smaller than the notch.",
   "settings.notch.size.reset": "Reset to default",

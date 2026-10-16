@@ -48,10 +48,10 @@ export const messages = {
   "settings.permissions.title": "Permissões",
   "settings.turbo.title": "Modo Turbo",
   "settings.turbo.description":
-    "Permita que todos os agentes executem comandos, alterem arquivos, ampliem seu próprio acesso ao sistema de arquivos e à rede e publiquem, atualizem ou excluam sites públicos sem perguntar.",
+    "Permita que todos os agentes executem comandos e ferramentas MCP, alterem arquivos, ampliem seu próprio acesso ao sistema de arquivos e à rede e publiquem, atualizem ou excluam sites públicos sem perguntar.",
   "settings.turbo.confirmTitle": "Ativar o modo Turbo?",
   "settings.turbo.confirmDescription":
-    "Os agentes executarão comandos, alterarão arquivos, ampliarão seu próprio acesso neste computador e publicarão, atualizarão ou excluirão sites públicos sem perguntar antes. Desative isso aqui a qualquer momento.",
+    "Os agentes executarão comandos e ferramentas MCP, alterarão arquivos, ampliarão seu próprio acesso neste computador e publicarão, atualizarão ou excluirão sites públicos sem perguntar antes. Desative isso aqui a qualquer momento.",
   "settings.turbo.confirmAccept": "Ativar",
   "settings.autoApprove.revokeFailed":
     "Não foi possível revogar a aprovação permanente de {name}. Ela continua ativa. Tente novamente.",
@@ -94,6 +94,9 @@ export const messages = {
   "settings.notch.displays.description": "Mostre a Dynamic Island nas telas externas conectadas.",
   "settings.notch.haptics.title": "Resposta tátil",
   "settings.notch.haptics.description": "Use o trackpad Force Touch para confirmar interações com a Dynamic Island.",
+  "settings.notch.servers.title": "Servidores",
+  "settings.notch.servers.description": "Escolha os servidores cujos itens a ilha mostra.",
+  "settings.notch.servers.later": "Mostrar servidores adicionados depois",
   "settings.notch.size.title": "Tamanho",
   "settings.notch.size.description": "Em uma tela com recorte, a ilha nunca é menor que o recorte.",
   "settings.notch.size.reset": "Restaurar padrão",

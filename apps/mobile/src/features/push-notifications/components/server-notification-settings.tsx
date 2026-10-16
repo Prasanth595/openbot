@@ -17,6 +17,7 @@ import {
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { haptics } from "@/shared/lib/haptics";
+import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
 const LEVEL_KEYS = {
@@ -38,7 +39,7 @@ type MuteChoice = "current" | "off" | "forever" | `${number}`;
 
 /**
  * What one server may notify about on this phone, and a mute, as the desktop server settings have.
- * The same choices decide when the Live Activity plays the sound, so they stay on for that too.
+ * On iOS the same choices decide when the Live Activity plays the sound, so they stay on for that too.
  */
 export function ServerNotificationSettings({
   server,
@@ -55,7 +56,8 @@ export function ServerNotificationSettings({
   const [error, setError] = useState<string | null>(null);
   const setting = serverNotificationSetting(preference, server.id);
   const until = mutedUntil(setting, Date.now());
-  const enabled = preference.ready && !preference.saving && alertsOn(preference, liveActivities.enabled);
+  // Android has no Live Activity.
+  const enabled = preference.ready && !preference.saving && alertsOn(preference, isIOS && liveActivities.enabled);
   const mute: MuteChoice = until === null ? "off" : until === Number.POSITIVE_INFINITY ? "forever" : "current";
 
   function save(change: Partial<ServerNotificationSetting>) {

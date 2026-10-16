@@ -43,6 +43,7 @@ import {
   isAgentModel,
   isAgentSessionSettingOverrides,
   isAgentSessionSettingResets,
+  isAgentTaskLimit,
   isAgentUsageLimitReturn,
   isAvatarHue,
   isAvatarSeed,
@@ -81,6 +82,8 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   allowAutomation?: boolean;
   // Absent means the app default, as for every agent stored before the setting existed.
   busyMessageMode?: BusyMessageMode;
+  // Absent means the default task limit, as for every agent stored before tasks existed.
+  taskLimit?: number;
   // Absent means the provider's own sign-in, as for every agent stored before accounts existed.
   providerAccountId?: string;
   // Absent means the agent asks before it leaves a model at its usage limit.
@@ -366,6 +369,7 @@ export class AgentStore {
       record.access = source.access;
       record.computerUse = source.computerUse;
       if (source.busyMessageMode) record.busyMessageMode = source.busyMessageMode;
+      if (source.taskLimit !== undefined) record.taskLimit = source.taskLimit;
       if (source.backupModels) record.backupModels = structuredClone(source.backupModels);
       record.avatarSeed = source.avatarSeed;
       record.avatarHue = source.avatarHue;
@@ -687,6 +691,11 @@ export class AgentStore {
         if (!isBusyMessageMode(input.busyMessageMode)) throw new Error("Invalid busy message mode.");
         next.busyMessageMode = input.busyMessageMode;
       }
+      if (input.taskLimit === null) delete next.taskLimit;
+      else if (input.taskLimit !== undefined) {
+        if (!isAgentTaskLimit(input.taskLimit)) throw new Error("Invalid task limit.");
+        next.taskLimit = input.taskLimit;
+      }
       if (input.backupModels === null) delete next.backupModels;
       else if (input.backupModels !== undefined) {
         if (!isAgentBackupModels(input.backupModels)) throw new Error("Invalid backup models.");
@@ -732,6 +741,7 @@ export class AgentStore {
       // A copy cannot remove a field, and `null` above returned the agent to the app default or to
       // the provider's own sign-in.
       if (next.busyMessageMode === undefined) delete agent.busyMessageMode;
+      if (next.taskLimit === undefined) delete agent.taskLimit;
       if (next.providerAccountId === undefined) delete agent.providerAccountId;
       if (next.backupModels === undefined) delete agent.backupModels;
       if (next.usageLimitReturn === undefined) delete agent.usageLimitReturn;
@@ -740,6 +750,7 @@ export class AgentStore {
       } catch (error) {
         Object.assign(agent, previous);
         if (previous.busyMessageMode === undefined) delete agent.busyMessageMode;
+        if (previous.taskLimit === undefined) delete agent.taskLimit;
         if (previous.providerAccountId === undefined) delete agent.providerAccountId;
         if (previous.backupModels === undefined) delete agent.backupModels;
         if (previous.usageLimitReturn === undefined) delete agent.usageLimitReturn;
@@ -1714,6 +1725,7 @@ function isStoredAgent(value: unknown): value is PersistedStoredAgent {
     (record.computerUse === undefined || isBoolean(record.computerUse)) &&
     (record.allowAutomation === undefined || isBoolean(record.allowAutomation)) &&
     (record.busyMessageMode === undefined || isBusyMessageMode(record.busyMessageMode)) &&
+    (record.taskLimit === undefined || isAgentTaskLimit(record.taskLimit)) &&
     (record.providerAccountId === undefined || isProviderAccountId(record.providerAccountId)) &&
     (record.backupModels === undefined || isAgentBackupModels(record.backupModels)) &&
     (record.usageLimitReturn === undefined || isAgentUsageLimitReturn(record.usageLimitReturn)) &&
@@ -1779,6 +1791,10 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)
       ? value.busyMessageMode
       : reset("busyMessageMode", undefined);
+  const taskLimit =
+    value.taskLimit === undefined || isAgentTaskLimit(value.taskLimit)
+      ? value.taskLimit
+      : reset("taskLimit", undefined);
   const providerAccountId =
     value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)
       ? value.providerAccountId
@@ -1832,6 +1848,7 @@ function readStoredAgent(value: unknown): ReadStoredAgent | UnreadableStoredAgen
     ...(computerUse === undefined ? {} : { computerUse }),
     ...(allowAutomation === undefined ? {} : { allowAutomation }),
     ...(busyMessageMode === undefined ? {} : { busyMessageMode }),
+    ...(taskLimit === undefined ? {} : { taskLimit }),
     ...(providerAccountId === undefined ? {} : { providerAccountId }),
     ...(backupModels === undefined ? {} : { backupModels }),
     ...(usageLimitReturn === undefined ? {} : { usageLimitReturn }),

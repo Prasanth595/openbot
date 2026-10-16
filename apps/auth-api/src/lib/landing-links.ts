@@ -24,7 +24,11 @@ export const OPENBOT_DOWNLOAD_PAGE_LINKS = {
 } as const;
 
 export const OPENBOT_LINKS = {
-  contact: "https://x.com/OpenBot_",
+  /** The contact form page. */
+  contact: "/contact",
+  x: "https://x.com/OpenBot_",
+  /** A Redirect Rule in the openbot.run Cloudflare zone sends this to the current Discord invite. */
+  discord: "https://discord.openbot.run",
   download: "#download",
   /** The same anchor from a page that is not the landing page. */
   downloadFromOtherPage: "/#download",
@@ -96,6 +100,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
       { label: "Contributing", external: true, href: OPENBOT_LINKS.contributing },
       { label: "Codex", external: true, href: OPENBOT_LINKS.codex },
       { label: "Claude Code", external: true, href: OPENBOT_LINKS.claude },
+      { label: "Discord", external: true, href: OPENBOT_LINKS.discord },
     ],
   },
   {
@@ -115,6 +120,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
   {
     title: "Compare",
     links: [
+      { label: "OpenBot vs Instinct", external: false, to: "/compare/$slug", slug: "instinct" },
       { label: "OpenBot vs ChatGPT dots", external: false, to: "/compare/$slug", slug: "chatgpt-dots" },
       { label: "OpenBot vs Grok Bot", external: false, to: "/compare/$slug", slug: "grok-bot" },
       { label: "OpenBot vs Muse", external: false, to: "/compare/$slug", slug: "muse" },

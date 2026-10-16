@@ -2,6 +2,7 @@ import { type SpawnedMspConnection, spawnMspConnection } from "@muse-code/sdk";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect, Option, Schema } from "effect";
 import { type AgentCliInfo, cliSpawnTarget } from "../cli";
+import { providerCall, providerFailure, providerSync } from "../provider-client-effects";
 import { CliCodeLoginFailed, type CliCodePrompt } from "./cli-code-login";
 import type { CliLoginProcess } from "./cli-login-flow";
 
@@ -103,6 +104,59 @@ export const startMuseDeviceLogin = Effect.fn("MuseLogin.start")(function* (opti
     },
   } satisfies CliLoginProcess;
 });
+
+/** Below the 5 s deadline of the provider runtime's `account/read`. */
+const ACCOUNT_READ_TIMEOUT_MS = 4_000;
+const AccountState = Schema.Struct({
+  state: Schema.String,
+  credentialRequired: Schema.Boolean,
+  label: Schema.optional(Schema.String),
+});
+
+/**
+ * Reads which Meta credential Muse uses, from a short-lived `muse serve` host.
+ *
+ * `account/read` is experimental in MSP. The session host does not opt in, because experimental
+ * variants would reach its strict event decoders. This host gets the same `META_API_KEY` as the
+ * session host, so a saved key counts, and it can neither run a shell nor write files.
+ */
+export const readMuseAccount = Effect.fn("MuseLogin.readAccount")(
+  function* (options: { cli: AgentCliInfo; apiKey: string | null; extraEnv?: Record<string, string> }) {
+    const target = cliSpawnTarget(options.cli.executable, ["serve", "--disable-shell", "--disable-write"]);
+    if (target.windowsVerbatimArguments)
+      return yield* providerFailure(new Error(sourceText("error.provider.museNativeWindows")));
+    const environment: NodeJS.ProcessEnv = { ...process.env, ...options.extraEnv, MUSE_NO_AUTO_UPDATE: "1" };
+    for (const key of Object.keys(environment)) if (key.toUpperCase() === "META_API_KEY") delete environment[key];
+    if (options.apiKey) environment.META_API_KEY = options.apiKey;
+    const handshake = yield* Effect.acquireRelease(
+      providerSync(() =>
+        spawnMspConnection({ command: target.command, args: target.args, env: environment, shutdownTimeoutMs: 10_000 }),
+      ),
+      // Not awaited: a stalled host can take its shutdown window plus a 2 s SIGTERM grace to end,
+      // which would hold the answer past the 5 s `account/read` deadline. The SDK still ends it.
+      (handshake) => Effect.sync(() => void handshake.close().catch(() => undefined)),
+    );
+    const host = yield* providerCall(() =>
+      handshake.initialize({
+        clientInfo: { name: "openbot", version: "1" },
+        capabilities: { experimentalApi: true },
+      }),
+    );
+    const state = yield* providerCall(() => host.connection.request("account/read", {})).pipe(
+      Effect.flatMap((value) => Schema.decodeUnknownEffect(AccountState)(value).pipe(Effect.mapError(providerFailure))),
+    );
+    return {
+      authenticated: state.state !== "loggedOut" || !state.credentialRequired,
+      email: state.state === "accountLogin" ? (state.label ?? null) : null,
+      planType: null,
+    };
+  },
+  Effect.timeoutOrElse({
+    duration: ACCOUNT_READ_TIMEOUT_MS,
+    orElse: () => Effect.fail(providerFailure(new Error(sourceText("error.provider.museStartTimeout")))),
+  }),
+  Effect.scoped,
+);
 
 /** Settles on Meta's answer: success only when the user granted the code. */
 function waitForLoginCompleted(host: SpawnedMspConnection, timeoutMs: number, onAnswer: () => void) {

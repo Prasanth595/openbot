@@ -15,6 +15,7 @@ const HOSTED_SCRIPTS = [
   "openbot-hosted-env",
   "openbot-hosted-update",
   "openbot",
+  "openbot-boat-pre-stop",
   // Not installed on a server: `install-server.sh` runs it from the unpacked release.
   "openbot-server-setup",
 ];

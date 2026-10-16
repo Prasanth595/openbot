@@ -42,11 +42,16 @@ const SCENARIOS = [
   "delete",
   "foreign",
   "customer-deleted",
+  "refund",
+  "dispute",
   "portal",
+  "welcome",
   "boat",
 ] as const;
 type Scenario = (typeof SCENARIOS)[number];
 const DAY = 86_400;
+/** `WELCOME_EMAIL_CLAIM_PREFIX` of `billing-service.ts`. That module needs the Worker types. */
+const WELCOME_EMAIL_CLAIM_PREFIX = "openbot_welcome_email:";
 
 const stepSchema = z.object({
   scenario: z.enum(SCENARIOS),
@@ -116,6 +121,15 @@ const hostSchema = z.object({
 const commandSchema = z.object({ exitCode: z.number().nullable().optional(), stdout: z.string().optional() });
 const sandboxSchema = z.object({ sandbox: z.object({ state: z.string(), type: z.string().optional() }) });
 const portalSchema = z.object({ url: z.string() });
+const invoicePaymentsSchema = z.object({
+  data: z.array(z.object({ payment: z.object({ payment_intent: z.string().nullable().optional() }) })),
+});
+const refundSchema = z.object({ id: z.string(), status: z.string() });
+const disputeListSchema = z.object({ data: z.array(z.object({ id: z.string(), status: z.string() })) });
+const eventListSchema = z.object({
+  data: z.array(z.object({ id: z.string(), data: z.object({ object: z.object({ id: z.string() }) }) })),
+});
+const factSchema = z.object({ source_key: z.string(), fact_type: z.string(), attributes_json: z.string() });
 
 /** The request bodies of the browser API routes that this check calls. */
 type BrowserApiBody =
@@ -244,6 +258,7 @@ class Account {
         `DELETE FROM billing_subscriptions WHERE user_id = ${id}`,
         `DELETE FROM billing_customers WHERE user_id = ${id}`,
         `DELETE FROM auth_sessions WHERE user_id = ${id}`,
+        `DELETE FROM billing_webhook_events WHERE event_id = ${quote(`${WELCOME_EMAIL_CLAIM_PREFIX}${this.id}`)}`,
         `INSERT OR IGNORE INTO users(id, identity_key, email, name, created_at, updated_at)
          VALUES (${id}, ${quote(`e2e:${this.id}`)}, ${quote(`${this.id}@example.com`)}, 'Stripe e2e', ${now}, ${now})`,
         `INSERT INTO auth_sessions(id, user_id, token_hash, expires_at, created_at, last_used_at)
@@ -554,6 +569,54 @@ async function invoices(subscriptionId: string) {
   }));
 }
 
+/** The PaymentIntent that paid the latest invoice of the plan. */
+async function paymentIntent(subscriptionId: string) {
+  const invoice = (await subscription(subscriptionId)).latest_invoice;
+  if (!invoice) throw new Error("No invoice");
+  const payments = await stripe("GET", "/v1/invoice_payments", invoicePaymentsSchema, { invoice });
+  const intent = payments.data[0]?.payment.payment_intent;
+  if (!intent) throw new Error("The invoice has no PaymentIntent");
+  return { invoice, intent };
+}
+
+/** Waits until Stripe sent the event of this type about this object and the Worker applied it. */
+async function applied(type: string, objectId: string, timeoutMs = 120_000) {
+  // A test refund fails about two minutes after Stripe accepts it.
+  const event = await waitFor(
+    `${type} ${objectId}`,
+    async () => {
+      const list = await stripe("GET", "/v1/events", eventListSchema, { type, limit: "20" });
+      return list.data.find((entry) => entry.data.object.id === objectId) ?? null;
+    },
+    timeoutMs,
+  );
+  await waitFor(
+    `Worker applied ${event.id}`,
+    async () =>
+      d1(`SELECT 1 AS seen FROM billing_webhook_events WHERE event_id = ${quote(event.id)}`, z.unknown()).length > 0,
+    timeoutMs,
+  );
+  return event.id;
+}
+
+/** The sales facts of an invoice. The Worker records them only when OpenPanel is set. */
+function facts(invoiceId: string) {
+  return d1(
+    `SELECT source_key, fact_type, attributes_json FROM billing_sales_facts
+     WHERE invoice_id = ${quote(invoiceId)} ORDER BY event_timestamp, source_key`,
+    factSchema,
+  );
+}
+
+/** True when the Worker records sales facts: the paid invoice gets its fact soon after the payment. */
+async function recordsSales(invoiceId: string) {
+  return waitFor(
+    "payment fact",
+    async () => facts(invoiceId).some((fact) => fact.fact_type === "payment_succeeded"),
+    20_000,
+  ).catch(() => false);
+}
+
 async function waitFor<T>(label: string, check: () => Promise<T | null | undefined | false>, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   let last = "";
@@ -594,12 +657,40 @@ function rowWhere(account: Account, serverId: string, label: string, test: (row:
   );
 }
 
+/** The claim that the Worker records when it sends the welcome email of an account. */
+function welcomeClaims(account: Account) {
+  return d1(
+    `SELECT event_id, type, received_at FROM billing_webhook_events
+     WHERE event_id = ${quote(`${WELCOME_EMAIL_CLAIM_PREFIX}${account.id}`)}`,
+    welcomeClaimSchema,
+  );
+}
+
+const observabilitySchema = z.object({ result: z.object({ rows: z.array(z.tuple([z.string()])) }) });
+
+/**
+ * The welcome email results that a local Worker logged since `since`: one line for each send. Only
+ * `bun run dev:api` has this log query, so `--remote-d1` reads nothing.
+ */
+async function welcomeSends(api: string, since: number) {
+  const response = await fetch(`${api}/cdn-cgi/local/explorer/api/local/observability/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sql: `SELECT message FROM logs WHERE message LIKE '%billing: welcome email%' AND ts_ms >= ${since}`,
+    }),
+  });
+  return observabilitySchema.parse(await response.json()).result.rows.map(([message]) => message);
+}
+
 function planWhere(account: Account, subscriptionId: string, label: string, test: (plan: Plan) => boolean) {
   return waitFor(label, async () => {
     const plan = await account.plan(subscriptionId);
     return plan && test(plan) ? plan : null;
   });
 }
+
+const welcomeClaimSchema = z.object({ event_id: z.string(), type: z.string(), received_at: z.number() });
 
 const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
   async renewal(account) {
@@ -936,6 +1027,145 @@ const scenarios: Record<Scenario, (account: Account) => Promise<void>> = {
         page.customer === stored?.stripe_customer_id,
       { oldReplaced: stored?.stripe_customer_id !== old },
     );
+  },
+  async refund(account) {
+    // A partial refund keeps the plan. The second refund makes the payment refunded in full and ends it.
+    const { server } = await account.createServer("Refund");
+    const sub = await account.pay(server.serverId);
+    await provisioned(account, server.serverId);
+    const paid = await paymentIntent(sub);
+    const sales = await recordsSales(paid.invoice);
+    const partial = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: paid.intent, amount: "100" });
+    await applied("refund.created", partial.id);
+    const plan = await account.plan(sub);
+    const row = account.row(server.serverId);
+    record(
+      "refund",
+      "a partial refund keeps the plan and the server",
+      plan?.status === "active" && row?.desired_state === "running" && row.observed_error !== "plan_ended",
+      { refund: partial.status, plan, row },
+    );
+    const rest = await stripe("POST", "/v1/refunds", refundSchema, { payment_intent: paid.intent });
+    await applied("refund.created", rest.id);
+    const ended = await rowWhere(account, server.serverId, "plan ended", (row) => row.desired_state === "stopped");
+    const stripeSub = await subscription(sub);
+    record(
+      "refund",
+      "a full refund of the current invoice cancels the plan now; the server stops with plan_ended and is kept",
+      stripeSub.status === "canceled" && ended.observed_error === "plan_ended" && ended.deleted_at === null,
+      { refund: rest.status, stripeStatus: stripeSub.status, row: ended },
+    );
+    if (sales) {
+      const recorded = facts(paid.invoice);
+      record(
+        "refund",
+        "each refund is a payment_refunded sales fact",
+        recorded.some((fact) => fact.source_key === `refund:${partial.id}:succeeded`) &&
+          recorded.some((fact) => fact.source_key === `refund:${rest.id}:succeeded`),
+        recorded,
+      );
+    } else {
+      print("SKIP [refund] sales facts: the Worker has no OpenPanel client");
+    }
+    // This test card makes the refund fail after Stripe accepts it. The refund is partial, so the plan stays.
+    const second = await account.createServer("Refund fails");
+    await account.useCard("pm_card_refundFail");
+    const secondSub = await account.pay(second.server.serverId);
+    await provisioned(account, second.server.serverId);
+    const secondPaid = await paymentIntent(secondSub);
+    const failing = await stripe("POST", "/v1/refunds", refundSchema, {
+      payment_intent: secondPaid.intent,
+      amount: "100",
+    });
+    await applied("refund.failed", failing.id, 180_000);
+    const failedRow = account.row(second.server.serverId);
+    record(
+      "refund",
+      "a failed refund keeps the plan and the server",
+      (await account.plan(secondSub))?.status === "active" && failedRow?.desired_state === "running",
+      { row: failedRow },
+    );
+    if (sales) {
+      const recorded = facts(secondPaid.invoice);
+      // Stripe says this refund starts as succeeded, so both facts exist; the order of their events can vary.
+      record(
+        "refund",
+        "a failed refund is a refund_failed fact",
+        recorded.some((fact) => fact.source_key === `refund:${failing.id}:failed`),
+        recorded,
+      );
+    }
+  },
+
+  async dispute(account) {
+    const { server } = await account.createServer("Dispute");
+    // This test card makes the issuer open a dispute soon after the payment.
+    await account.useCard("pm_card_createDispute");
+    const sub = await account.pay(server.serverId);
+    const paid = await paymentIntent(sub);
+    const sales = await recordsSales(paid.invoice);
+    const disputed = await waitFor("dispute", async () => {
+      const list = await stripe("GET", "/v1/disputes", disputeListSchema, { payment_intent: paid.intent });
+      return list.data[0] ?? null;
+    });
+    await applied("charge.dispute.created", disputed.id);
+    const ended = await rowWhere(account, server.serverId, "plan ended", (row) => row.desired_state === "stopped");
+    const stripeSub = await subscription(sub);
+    record(
+      "dispute",
+      "a dispute cancels the plan now; the server stops with plan_ended and is kept",
+      stripeSub.status === "canceled" && ended.observed_error === "plan_ended" && ended.deleted_at === null,
+      { dispute: disputed.status, stripeStatus: stripeSub.status, row: ended },
+    );
+    // This evidence text makes the test dispute close as lost.
+    await stripe("POST", `/v1/disputes/${disputed.id}`, idSchema, {
+      "evidence[uncategorized_text]": "losing_evidence",
+      submit: "true",
+    });
+    await applied("charge.dispute.closed", disputed.id, 180_000);
+    if (sales) {
+      const recorded = facts(paid.invoice);
+      record(
+        "dispute",
+        "the dispute and its loss are payment_disputed and dispute_lost facts",
+        recorded.some((fact) => fact.source_key === `dispute:${disputed.id}:created`) &&
+          recorded.some((fact) => fact.source_key === `dispute:${disputed.id}:lost`),
+        recorded,
+      );
+    } else {
+      print("SKIP [dispute] sales facts: the Worker has no OpenPanel client");
+    }
+  },
+
+  // The Worker claims the welcome email before it sends it, and logs one line for each send.
+  async welcome(account) {
+    const since = Date.now();
+    const first = await account.createServer("Welcome");
+    record("welcome", "a server that is not paid gets no welcome email", welcomeClaims(account).length === 0, null);
+    const sub = await account.pay(first.server.serverId);
+    await applied("customer.subscription.created", sub);
+    await provisioned(account, first.server.serverId);
+    const claimed = await waitFor("welcome claim", async () => welcomeClaims(account)[0]);
+    record(
+      "welcome",
+      "the first plan of the account claims the welcome email",
+      claimed.type === "welcome_email",
+      claimed,
+    );
+    const second = await account.createServer("Welcome second");
+    const secondSub = await account.pay(second.server.serverId);
+    await applied("customer.subscription.created", secondSub);
+    await provisioned(account, second.server.serverId);
+    await stripe("DELETE", `/v1/subscriptions/${sub}`, idSchema);
+    await rowWhere(account, first.server.serverId, "ended", (row) => row.desired_state === "stopped");
+    await account.pay(first.server.serverId);
+    await rowWhere(account, first.server.serverId, "running again", (row) => row.desired_state === "running");
+    if (REMOTE_D1) {
+      print("SKIP [welcome] send count: the remote Worker log is not available");
+      return;
+    }
+    const sends = await welcomeSends(account.api, since);
+    record("welcome", "a second server and a renewed plan send no second welcome email", sends.length === 1, sends);
   },
   async boat(account) {
     const name = "Boat e2e";

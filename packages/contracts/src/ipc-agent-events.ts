@@ -6,6 +6,7 @@ import { type AgentProviderId, isAgentProvider } from "./agent-providers";
 import { INPUT_LIMITS } from "./input-limits";
 import { type AgentRuntimeSnapshot, isAgentRuntimeSnapshot } from "./ipc-agent-runtime";
 import type { AccountUsage, AgentStatus } from "./ipc-agent-status";
+import { type AgentTasksSnapshot, isAgentTasksSnapshot } from "./ipc-agent-tasks";
 import { type AgentWaitsSnapshot, isAgentWaitsSnapshot } from "./ipc-agent-waits";
 import { type AgentSummary, isAgentSummary } from "./ipc-agents";
 import {
@@ -64,6 +65,21 @@ export type AgentEvent =
   | { type: "queue-changed"; snapshot: QueueSnapshot }
   /** Local only: the Team API has no wait events, so a remote server never sends one. */
   | { type: "waits-changed"; snapshot: AgentWaitsSnapshot }
+  /** Local only, as the task events below: the Team API has no task events. */
+  | { type: "agent-tasks-changed"; snapshot: AgentTasksSnapshot }
+  /** The conversation of one task. Its turns never reach the agent's own chat events. */
+  | { type: "agent-task-conversation"; taskId: string; snapshot: ConversationSnapshot }
+  | {
+      type: "agent-task-conversation-delta";
+      taskId: string;
+      agentId: string;
+      threadId: string;
+      turnId: string;
+      messageId: string;
+      delta: string;
+      createdAt: string;
+      revision: number;
+    }
   | { type: "turn-progress"; agentId: string; threadId: string; turnId: string; detail: string }
   | { type: "turn-started"; agentId: string; threadId: string; turnId: string; origin?: AgentTurnOrigin }
   | {
@@ -186,6 +202,21 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isQueueSnapshot(value.snapshot);
     case "waits-changed":
       return isAgentWaitsSnapshot(value.snapshot);
+    case "agent-tasks-changed":
+      return isAgentTasksSnapshot(value.snapshot);
+    case "agent-task-conversation":
+      return isIdentifier(value.taskId) && isConversationSnapshot(value.snapshot);
+    case "agent-task-conversation-delta":
+      return (
+        isIdentifier(value.taskId) &&
+        isString(value.agentId) &&
+        isString(value.threadId) &&
+        isString(value.turnId) &&
+        isString(value.messageId) &&
+        isString(value.delta) &&
+        isString(value.createdAt) &&
+        isNumber(value.revision)
+      );
     case "turn-progress":
       return (
         isIdentifier(value.agentId) &&

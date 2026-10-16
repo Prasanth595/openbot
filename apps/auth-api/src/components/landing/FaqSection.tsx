@@ -4,7 +4,6 @@ import { For } from "solid-js";
 import { COMPARE_COLLECTION } from "../../lib/compare";
 import { LANDING_COMPARISON_LINKS } from "../../lib/landing-content";
 import { LANDING_FAQ } from "../../lib/landing-faq";
-import { EXTERNAL_LINK_REL, OPENBOT_LINKS } from "../../lib/landing-links";
 import { RivalMark } from "../compare/RivalMark";
 import { ArticleGradient } from "../content/ArticleGradient";
 import { createLandingReveal } from "./createLandingReveal";
@@ -26,10 +25,10 @@ export function FaqSection() {
           <header class="landing-section-heading landing-faq-heading">
             <h2 id="faq-title">Questions</h2>
             <p>Short answers about price, setup, providers and your data.</p>
-            <a class="landing-faq-contact" href={OPENBOT_LINKS.contact} target="_blank" rel={EXTERNAL_LINK_REL}>
+            <Link class="landing-faq-contact" to="/contact">
               Ask us something else
-              <LandingIcon name="arrow-up-right" class="landing-faq-contact-icon" />
-            </a>
+              <LandingIcon name="arrow-right" class="landing-faq-contact-icon" />
+            </Link>
           </header>
           <div class="landing-faq-body">
             <div class="compare-faq-list">

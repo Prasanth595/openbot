@@ -4,7 +4,6 @@ import { mobileUserName } from "@/features/auth/api/mobile-user-name";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { SettingsContent, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
-import { isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
 export function SettingsScreen() {
@@ -42,12 +41,10 @@ export function SettingsScreen() {
         <SettingsRow onPress={() => router.push("/settings/haptics")}>
           <Typography.Paragraph type="body-sm">{t("mobile.settings.feedback.haptics")}</Typography.Paragraph>
         </SettingsRow>
-        {/* Notifications come through Apple, and Live Activities exist only on iOS. One screen has both. */}
-        {isIOS ? (
-          <SettingsRow onPress={() => router.push("/settings/notifications")}>
-            <Typography.Paragraph type="body-sm">{t("mobile.settings.notifications.title")}</Typography.Paragraph>
-          </SettingsRow>
-        ) : null}
+        {/* On iOS the screen also has the Live Activities, which exist only there. */}
+        <SettingsRow onPress={() => router.push("/settings/notifications")}>
+          <Typography.Paragraph type="body-sm">{t("mobile.settings.notifications.title")}</Typography.Paragraph>
+        </SettingsRow>
         <SettingsRow onPress={() => router.push("/settings/privacy")}>
           <Typography.Paragraph type="body-sm">{t("mobile.settings.privacy.title")}</Typography.Paragraph>
         </SettingsRow>

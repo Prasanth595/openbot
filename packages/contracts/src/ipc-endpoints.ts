@@ -80,6 +80,13 @@ import type {
   SubmitProviderCodeLoginInput,
 } from "./ipc-agent-status";
 import type {
+  AgentTask,
+  AgentTaskInput,
+  AgentTasksSnapshot,
+  RunQueuedMessageAsTaskInput,
+  StartAgentTaskInput,
+} from "./ipc-agent-tasks";
+import type {
   AgentTemplateDetail,
   AgentTemplatePreview,
   AgentTemplatePublication,
@@ -172,6 +179,7 @@ import type {
   ConversationPage,
   ConversationReadState,
   ConversationSearchPage,
+  ConversationSnapshot,
   ConversationWithReadState,
   MarkConversationReadInput,
   OpenMessageLinkInput,
@@ -1053,6 +1061,14 @@ export const IPC_ENDPOINTS = {
     listQueue: scopedRequest<string, QueueSnapshot>()("agent:list-queue"),
     listWaits: scopedRequest<string, AgentWaitsSnapshot>()("agent:list-waits"),
     cancelWait: scopedRequest<CancelAgentWaitInput, void>()("agent:cancel-wait"),
+    // Tasks are local only: the Team API has no task route.
+    listTasks: scopedRequest<string, AgentTasksSnapshot>()("agent:tasks:list"),
+    readTask: scopedRequest<AgentTaskInput, ConversationSnapshot>()("agent:tasks:read"),
+    startTask: scopedRequest<StartAgentTaskInput, AgentTask>()("agent:tasks:start"),
+    runQueuedMessageAsTask: scopedRequest<RunQueuedMessageAsTaskInput, AgentTask>()("agent:tasks:run-queued-message"),
+    stopTask: scopedRequest<AgentTaskInput, void>()("agent:tasks:stop"),
+    closeTask: scopedRequest<AgentTaskInput, void>()("agent:tasks:close"),
+    reopenTask: scopedRequest<AgentTaskInput, void>()("agent:tasks:reopen"),
     acknowledgeFailedTurn: scopedRequest<AcknowledgeFailedTurnInput, void>()("agent:acknowledge-failed-turn"),
     cancelQueuedMessage: scopedRequest<CancelQueuedMessageInput, void>()("agent:cancel-queued-message"),
     steerQueuedMessage: scopedRequest<SteerQueuedMessageInput, void>()("agent:steer-queued-message"),

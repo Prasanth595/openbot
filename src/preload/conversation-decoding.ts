@@ -5,19 +5,25 @@
 // carries, so a value the renderer reads always has the shape its type says.
 
 import {
+  type AgentTask,
+  type AgentTasksSnapshot,
   type AgentWaitsSnapshot,
   type ConversationFileSearchPage,
   type ConversationMessage,
   type ConversationPage,
   type ConversationReadState,
   type ConversationSearchPage,
+  type ConversationSnapshot,
   type ConversationWithReadState,
   type DraftAttachment,
   type FilePreview,
+  isAgentTask,
+  isAgentTasksSnapshot,
   isAgentWaitsSnapshot,
   isAttachmentSummary,
   isConversationMessage,
   isConversationReadState,
+  isConversationSnapshot,
   isConversationWithReadState,
   isFilePreviewKind,
   isQueuedMessageReceipt,
@@ -153,6 +159,27 @@ export function decodeReceipt(value: unknown): QueuedMessageReceipt {
 export function decodeWaits(value: unknown): AgentWaitsSnapshot {
   if (!isAgentWaitsSnapshot(value)) {
     throw new Error("Invalid open waits response.");
+  }
+  return value;
+}
+
+export function decodeAgentTasks(value: unknown): AgentTasksSnapshot {
+  if (!isAgentTasksSnapshot(value)) {
+    throw new Error("Invalid task list response.");
+  }
+  return value;
+}
+
+export function decodeAgentTask(value: unknown): AgentTask {
+  if (!isAgentTask(value)) {
+    throw new Error("Invalid task response.");
+  }
+  return value;
+}
+
+export function decodeTaskConversation(value: unknown): ConversationSnapshot {
+  if (!isConversationSnapshot(value)) {
+    throw new Error("Invalid task conversation response.");
   }
   return value;
 }

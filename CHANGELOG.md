@@ -6,6 +6,121 @@ All notable changes to OpenBot will be documented here. The project follows
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-10-15
+
+### Added
+
+- Backup models for a usage limit. When the plan of an agent's model refuses a turn, the chat shows a card: send the queued message to another connected model now, or wait for the reset. By default the agent asks first. Agent settings › Backup models keeps an order; turn off "Ask before switching" and the agent moves to the first ready model in the order without a question. A note in the chat shows each switch, and the agent goes back to its own model when the limit ends. The agent keeps its workspace and thread.
+- Set a server timezone in Server settings → General. Agents use it for a new routine when the message does not give the sender's timezone. Before, a message that waited across a server restart created its routine in the timezone of the server's computer, often UTC.
+- Connect 1Password on a joined server, such as a server with no screen. In Settings › Connectors, an owner or admin of the server pastes a 1Password service account token. The server checks the token, keeps it in its own encrypted store, and keeps the connection after a restart. The page shows the vault names and the login count of that server. Disconnect acts on that server only. Both sides need this release; on an older server, 1Password does not show.
+- An agent routine on this computer can send each answer to a Slack, Discord or Telegram place. Choose the place in "Send answers to" in the routine editor.
+- The run history shows where each answer went. A delivery has its own status: a run that succeeded stays succeeded when its answer is not sent. A connection that does not run gets more attempts for one day. Use "Send again" for an answer that was not sent, or that OpenBot stopped during the send.
+- Agents can set what a routine does with runs that came due while OpenBot was off, and what it does at the account usage limit. An update that changes one of these settings keeps the other.
+- On a joined server, an owner or admin can see and change what a routine does with missed runs, and see the missed runs in the run history. The server must have this version of OpenBot.
+- Routines can run one time, at a local date and time. After the run, the routine stays as a paused record. You can cancel it before it runs. A run missed while OpenBot was closed runs one time at start, unless you set it to skip. A restart does not run it again. Agents use this schedule for reminders, not a yearly schedule. Only the desktop app on the computer that runs OpenBot shows one-time routines for now.
+- Several instances on one Docker host: `openbot-instance backup`, `verify`, `restore` and `backups` back up all data of an instance, check the backup in a temporary folder, and restore it with the same agents and conversations. To back up an instance each day, turn on its timer with `systemctl enable --now openbot-instance-backup@<name>.timer`.
+- Settings → Dynamic Island has a Servers list. Turn off a server to hide its agent activity and requests from the island. The server stays connected and its desktop notifications continue. A switch sets whether servers that you add later show in the island.
+- Add links to the OpenBot Discord community on openbot.run: a "Discord" item in the Resources
+  column of the footer, and a Discord icon next to the GitHub and X icons.
+- Add discord.openbot.run, a short address that opens the OpenBot Discord community.
+- Agents fill forms in the built-in browser faster. They can fill up to 16 text fields in one step. They do not use this step for password, verification code, or card fields.
+- Send agent notifications to the OpenBot app on Android phones. The phone gets the same events as
+  an iPhone: a finished task, an error, a question, an approval, or a step in the browser. The
+  agent name and the text are sealed, so Google and the OpenBot account service cannot read them.
+- The website compares OpenBot with Instinct at /compare/instinct: where agents work, who holds your data, who approves actions, price, and where you can use each.
+
+### Changed
+
+- A self-hosted server and the Docker container use the memory guards of a hosted server. When free
+  memory is low, new turns wait in the queue and the browser opens no new tab. A fixed number of
+  turns run at the same time, from the memory limit of the service or the container. Before, these
+  servers started every turn and could run out of memory.
+- `openbot status` on a self-hosted server or a container shows the memory limit, the free memory
+  and the turn limit.
+- Admins of a hosted server can now restart it from the server menu. Before, only the owner could restart it.
+- The model picker in a conversation shows only the providers that are ready to use. Select + to connect another provider in Settings.
+- A disputed payment for a hosted server ends its plan at once. The server stops and keeps its disk. A refund keeps the plan and the server running.
+- After you delete an agent, a notice with an Undo button shows for 8 seconds. Press Undo to get the agent back in the same place. OpenBot deletes the agent only when the time ends. The time stops while the pointer is on the notice.
+- The "Contact" button in the openbot.run header is now "Community". It opens the OpenBot Discord
+  community instead of the OpenBot account on X.
+- Docker and hosted servers now include bubblewrap. Codex recommends the system copy instead of its bundled copy.
+- Docker documentation explains browser access and how to check a new release before upgrading a self-hosted server. It includes the release metadata source, deployment-file review and cold backup steps.
+- The add server dialog now asks "Need more power or a custom solution?" in its footer, in all languages.
+- "Contact us" in the add server dialog opens an email with a subject and a short message to complete.
+- A phone gets no notification while you use the desktop app, also for a question, an approval, or a
+  step in the browser. The desktop app shows these itself.
+
+### Fixed
+
+- An agent that sent many messages to teammates made each chat open and each finished turn slower, because OpenBot searched all saved message keys again for each message. It now reads them once.
+- File, agent, skill and MCP chips in a message are centred on their line again. Before, their icons sat low, the file type badge went out of its box, the agent face was clipped on the right, and a file chip could cut a short name such as `provider-session.log` with an ellipsis.
+- Skill and MCP chips in a message and in the message box have icons of the same size and line weight as file chips. Before, their icons were larger and heavier.
+- Telegram messages and captions now preserve repeated spaces and tabs. Previously, code indentation and tab-separated text lost their spacing.
+- Show Markdown block quotes as quotes in Slack, including quotes with up to three leading spaces. Before, the message showed the `>` mark as text and no quote.
+- Telegram animations are now imported once. Previously, the same file could appear twice as an attachment.
+- Show email link labels and addresses as readable text in Slack messages and conversation history. Before, these links showed raw Slack markup.
+- Show Slack group mention labels in incoming messages and history. Before, these mentions showed raw Slack markup.
+- Keep underscores inside words with Unicode letters, numbers, or combining marks in Telegram messages. These underscores no longer turn parts of the word into italic text.
+- Emoji and other supplementary Unicode characters stay correct when a long Slack or Discord message splits into posts. Before, a split could break such a character.
+- Discord author and channel names can recover after a failed lookup. Before, later lookups kept showing the ID.
+- Slack author and channel names now recover after a temporary lookup failure. Before, the names stayed as IDs until the connection restarted.
+- Gemini no longer fills the disk on Windows. Each start of the Gemini server unpacks about 310 MB
+  into the temporary folder, and a start that was stopped or timed out left that copy behind. Now
+  each Gemini process on Windows uses its own folder in the OpenBot data folder, and OpenBot removes
+  it when the process ends and at each launch.
+- On Windows, Gemini does not start when the disk has less than 1 GB free, and says so.
+- After 3 failed starts in a row, OpenBot stops starting a provider by itself and shows why on the
+  provider row. Refresh the providers to try again.
+- On Windows, to get back the disk space that Gemini used in earlier versions, quit OpenBot and delete the `_MEI` folders in `%TEMP%`.
+- On Linux, the invitation page now offers the Linux installer. Before, Download OpenBot gave the macOS installer.
+- A self-hosted server now starts again when `sudo openbot update` fails or is stopped. Before, the
+  server stayed stopped until an operator started it.
+- A browser live view that moves to a new connection now stops the previous view. Before, the previous view kept the screencast and the page size active.
+- Many large chats no longer stop the app for a second or more when their history gets too large to keep in memory. Before, OpenBot measured all chats again for each old message that it removed.
+- A published site now sends a folder address without a final `/`, such as `/guide`, to `/guide/`. Before, the page opened at `/guide`, and its relative styles, images, scripts and links did not load.
+- Slack, Discord, Telegram and webhook connectors no longer stay at Connecting when Signal accepts the connection but does not answer. After 15 seconds, OpenBot closes that connection and tries again.
+- After a Codex protocol error, OpenBot now stops the old Codex process with SIGKILL when it does not stop within 2 seconds. Before, the old process could continue to run next to its replacement.
+- In a narrow settings column, the ACP registry actions move under the agent and wrap. Before, long translated labels hid the agent name, covered its version, and cut off Remove runtime.
+- Stopping Pi or Muse while a chat opens now also stops that chat's provider process. Before, the process could stay open after the provider stopped.
+- Record the correct owner when two agents create shared tables at the same time. Before, both
+  tables could go to the first agent, and the other agent could not remove its own table. A table
+  that the user makes outside OpenBot also stays without an owner now.
+- A transfer to another computer keeps executable workspace and shared files executable. Before, an imported script failed to run by its path.
+- ACP registry settings now keep a gap between the search and agent ID fields and their buttons, and between Install and Cancel. Before, these controls touched.
+- A transfer export stops with an error when it cannot read a workspace, skill or shared folder. Before, it left out the folder's files and reported a complete export.
+- Agents can now write, search, and delete full-text (FTS5) and R*Tree tables in the shared database. Before, SQLite refused every use of these tables after `CREATE`, refused to create an R*Tree table, and the table could not be removed. While such a table existed, the shared tables list also showed no row counts.
+- An agent can read the result page after it submits a form in the browser. Before, the click failed and the tab showed an empty page.
+- An agent that answers in Slack, Discord or Telegram no longer stops answering after a provider error. Before, a failed Muse turn start, a provider that exited, a turn that ended before its start was confirmed, or a turn start with no confirmation could hold every later message with "OpenBot is working on another request" until OpenBot restarted.
+- An agent in a Slack, Discord or Telegram conversation no longer waits for an answer to a question card that nobody there can see. It asks the question in its answer instead.
+- An approval request that did not reach Slack, Discord or Telegram is posted again when the conversation is connected. Before, the turn waited with no notice in the conversation.
+- The "Working" and "Waiting" posts in Slack, Discord and Telegram now end after a restart, a provider crash or a lost connection. Before, they stayed with a Stop button that did nothing. When an answer cannot be posted, the conversation now says that OpenBot could not finish the request.
+- Slack and Discord messages no longer wait minutes to start when a channel or user name lookup is slow.
+- A hosted server that wakes now handles the kept Slack, Discord and Telegram events of each workspace or chat separately. Before, one connection that could not start held back the events of all other connections, and each of its events waited 60 seconds.
+- A Telegram chat that you link while OpenBot connects to Signal again now shows in OpenBot. Before, the link could be lost, and you had to link the chat again.
+- An agent that answers in Discord, Slack or Telegram no longer stops answering after a restart. Before, a restart could make one of its conversations the agent's own chat. Then, after a routine ran there, every new message waited with "OpenBot is working on another request" until OpenBot restarted. A restart no longer does this. An agent that is already in this state keeps its chat and its history, and answers again.
+- The chat of such an agent shows its new messages in the app again.
+- Stop the Windows download page and the OpenBot 101 guide from saying that the installer is not
+  code-signed. They now say that SYNTHETIFY LABS signs it, and tell you how to continue when
+  SmartScreen still warns about a new release.
+- You can name a sidebar section with a Japanese, Chinese or Korean input method. Before, the Enter that confirms a conversion saved the section, and Escape closed the editor and lost the name.
+- Start custom agents that need Node or another tool from your shell when you open OpenBot from
+  Finder, the Dock, or a login item. Before, they stopped with exit code 127. Check agent now uses
+  the same `PATH`, and a `PATH` that you saved on the agent still wins.
+- The Model field in agent settings, first-agent setup and the Slack and Telegram agent forms uses the full width of its row in narrow windows. Before, in windows 720 pixels wide or less, the field stayed at 148 pixels and cut the model name.
+- A provider CLI that cannot update or set up now shows "Update failed" or "Setup failed". Before, each failure showed "Download failed", also when the download was complete and the new CLI did not start.
+- The provider log (`logs/providers/providers.log`) now records the provider, the version and the step where a CLI update failed (`download`, `verify`, `install` or `activate`). Before, the line did not name the step or the version, and it could hold your home folder path.
+- Connect for Muse opens the Meta sign-in page. Before, no page opened and the sign-in could not finish.
+- A failed provider CLI update no longer shows the system error and your home folder path in the provider row, the model picker, or the provider status that team admins read. The row now shows a short reason, such as "Try again.". The full cause stays in `logs/providers/providers.log`.
+- A failed provider CLI update now says "The update failed. Try again." Before, it said that the update was interrupted, also when nothing interrupted it.
+- Keep the account of an idle provider when its CLI update fails. Before, the provider showed that
+  it needed a new sign-in, but the old CLI was still installed and signed in.
+- Do not show a "Provider error" when Codex uses its bundled bubblewrap. Before, Codex showed this error on each connect on Linux servers, but it worked.
+- Keep the Create agent button visible and clickable when the agent description is long or the window is small. Before, the suggestion cards covered the button.
+- A scheduled routine no longer starts after you pause, delete or reschedule it while another routine is starting. Before, OpenBot could still start the old occurrence. A routine that you edit at that time now uses your new instruction and settings.
+- Docker instance restore now verifies the backup before it stops the target or replaces its data.
+  A backup with valid checksums but a damaged database could previously replace healthy data.
+- Auto approve and Turbo now accept Codex's request to run an MCP tool. Before, a new tool still asked each time. A Workspace only agent, a Computer Use tool, a tool set to ask every time, forms and sign-in requests still ask.
+
 ## [0.39.1] - 2026-10-14
 
 ### Added

@@ -2,6 +2,8 @@ import { agentProviderDescriptor, agentProviderName } from "@openbot/contracts/a
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import {
   AGENT_ACCESS_MODES,
+  AGENT_TASK_LIMIT_DEFAULT,
+  AGENT_TASK_LIMIT_MAX,
   type AgentAccess,
   type AgentBackupModels,
   type AgentModelChoice,
@@ -103,6 +105,8 @@ export interface AgentSettingsPanelProps {
   automationEditable?: boolean;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
+  /** Tasks run only on this computer: the Team API has no task route. */
+  taskLimitEditable?: boolean;
   /** Backup models are local-only too: the Team API does not carry them. */
   backupModelsEditable?: boolean;
   /** Whether a usage limit holds this model and account now, for the backup models page. */
@@ -118,7 +122,8 @@ export interface AgentSettingsPanelProps {
   onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
   onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
   canConnectProvider?: (provider: AgentProviderId) => boolean;
-  onAddCustomProvider?: (trigger: HTMLElement) => void;
+  /** Opens the provider settings from the model picker. */
+  onManageProviders?: (trigger: HTMLElement) => void;
   maxWidth: () => number;
   onClose: () => void;
   width: number;
@@ -187,6 +192,8 @@ interface AgentSettingsDraft {
   allowAutomation: boolean;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
+  /** `default` is `AGENT_TASK_LIMIT_DEFAULT`. */
+  taskLimit: TaskLimitChoice;
   /** Null asks first, with no saved order. */
   backupModels: AgentBackupModels | null;
   /** Widening to full access waits here for the confirmation. */
@@ -205,7 +212,7 @@ interface TextSaveRequest {
 }
 
 export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
-  const { t, errorMessage } = useText();
+  const { t, errorMessage, format } = useText();
   const [newChatOpen, setNewChatOpen] = createSignal(false);
   const [newChatError, setNewChatError] = createSignal<UserErrorDetails | null>(null);
   async function startNewChat(start: () => Promise<void>): Promise<void> {
@@ -236,6 +243,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     computerUse: true,
     allowAutomation: false,
     busyMessage: "default",
+    taskLimit: "default",
     backupModels: null,
     confirmingFullAccess: false,
     runtime: untrack(() => ({ ...props.runtimeSettings })),
@@ -334,6 +342,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           String(agentComputerUseEnabled(agent)),
           String(agentAutomationAllowed(agent)),
           agent.busyMessageMode ?? "default",
+          String(agent.taskLimit ?? "default"),
           JSON.stringify(agent.backupModels ?? null),
           runtimeSettings.provider,
           runtimeSettings.model,
@@ -375,6 +384,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.computerUse = agentComputerUseEnabled(agent);
           state.allowAutomation = agentAutomationAllowed(agent);
           state.busyMessage = agent.busyMessageMode ?? "default";
+          state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
           if (agentChanged) state.confirmingFullAccess = false;
           state.runtime.provider = runtimeSettings.provider;
@@ -685,6 +695,20 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     }
   }
 
+  async function saveTaskLimit(next: TaskLimitChoice): Promise<void> {
+    const agentId = props.agent.id;
+    const previous = draft.taskLimit;
+    setDraft((state) => {
+      state.taskLimit = next;
+    });
+    if (await saveAgentPatch({ taskLimit: next === "default" ? null : Number(next) }, agentId)) return;
+    if (!disposed && props.agent.id === agentId && draft.taskLimit === next) {
+      setDraft((state) => {
+        state.taskLimit = previous;
+      });
+    }
+  }
+
   /** The store wraps the saved value in a proxy, so a newer save is told apart by its number. */
   let backupModelsSave = 0;
   async function saveBackupModels(next: AgentBackupModels | null): Promise<void> {
@@ -733,6 +757,12 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const steerUnsupported = () =>
     (draft.busyMessage === "default" ? appBusyMessageMode() : draft.busyMessage) === "steer" &&
     agentProviderDescriptor(draft.runtime.provider).steer !== "native";
+
+  const oneTurnAtATime = () => !agentProviderDescriptor(draft.runtime.provider).concurrentTurns;
+  const taskLimitLabel = (choice: TaskLimitChoice) =>
+    choice === "default"
+      ? t("agentSettings.taskLimit.default", { count: AGENT_TASK_LIMIT_DEFAULT })
+      : format.number(Number(choice));
 
   async function saveComputerUse(next: boolean): Promise<void> {
     const agentId = props.agent.id;
@@ -1045,7 +1075,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   onCancelProviderDownload={props.onCancelProviderDownload}
                   onConnectProvider={props.onConnectProvider}
                   canConnectProvider={props.canConnectProvider}
-                  onAddCustomProvider={props.onAddCustomProvider}
+                  onManageProviders={props.onManageProviders}
                   disabled={props.working}
                   disabledReason={
                     props.working ? t("agentSettings.runtime.modelBusy") : t("agentSettings.runtime.modelUnavailable")
@@ -1257,6 +1287,32 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     <SelectContent />
                   </Select>
                 </Show>
+                <Show when={props.taskLimitEditable}>
+                  <Select<TaskLimitChoice>
+                    class="agent-settings-runtime-select"
+                    options={[...TASK_LIMIT_CHOICES]}
+                    value={oneTurnAtATime() ? "1" : draft.taskLimit}
+                    disabled={oneTurnAtATime()}
+                    onChange={(next) => {
+                      if (!next || next === draft.taskLimit) return;
+                      void saveTaskLimit(next);
+                    }}
+                    itemComponent={(item) => (
+                      <SelectItem item={item.item}>{taskLimitLabel(item.item.rawValue)}</SelectItem>
+                    )}
+                  >
+                    <SelectTrigger
+                      class="agent-settings-runtime-row"
+                      aria-label={t("agentSettings.runtime.taskLimitLabel")}
+                    >
+                      <span class="agent-settings-runtime-label">{t("agentSettings.runtime.taskLimit")}</span>
+                      <SelectValue<TaskLimitChoice>>
+                        {(state) => taskLimitLabel(state.selectedOption() ?? "default")}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent />
+                  </Select>
+                </Show>
                 <div class="agent-settings-runtime-path">
                   <span class="agent-settings-runtime-label">{t("agentSettings.runtime.workingDirectory")}</span>
                   <span>
@@ -1271,6 +1327,11 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   {t("agentSettings.busyMessage.steerUnsupported", {
                     provider: agentProviderName(draft.runtime.provider),
                   })}
+                </Text>
+              </Show>
+              <Show when={props.taskLimitEditable && oneTurnAtATime()}>
+                <Text as="p" class="agent-settings-runtime-note" variant="caption" tone="muted">
+                  {t("agentSettings.taskLimit.oneTurn", { provider: agentProviderName(draft.runtime.provider) })}
                 </Text>
               </Show>
               <Show when={props.onStartNewChat}>
@@ -1375,6 +1436,17 @@ function sameRuntimeSettings(current: AgentRuntimeSettings, settings: AgentRunti
     current.model === settings.model &&
     current.reasoningEffort === settings.reasoningEffort
   );
+}
+
+/** `default`, then each limit as text, because a select keys its options by value. */
+type TaskLimitChoice = "default" | `${number}`;
+const TASK_LIMIT_CHOICES: readonly TaskLimitChoice[] = [
+  "default",
+  ...Array.from({ length: AGENT_TASK_LIMIT_MAX }, (_, index): TaskLimitChoice => `${index + 1}`),
+];
+
+function taskLimitChoice(limit: number | undefined): TaskLimitChoice {
+  return limit === undefined ? "default" : `${limit}`;
 }
 
 const BUSY_MESSAGE_CHOICES = ["default", "queue", "steer"] as const;

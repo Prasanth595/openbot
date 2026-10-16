@@ -39,6 +39,7 @@ export function toAgentProfile(stored: AgentSummary): AgentProfile {
     computerUse: stored.computerUse,
     allowAutomation: stored.allowAutomation,
     busyMessageMode: stored.busyMessageMode,
+    taskLimit: stored.taskLimit,
     backupModels: stored.backupModels,
     usageLimitReturn: stored.usageLimitReturn,
     threadId: stored.threadId,

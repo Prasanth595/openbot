@@ -366,10 +366,12 @@ const TEARDOWN_ORDER = {
   analytics: 112,
   // After all account consumers have stopped.
   centralAuth: 115,
-  // Last, so the turns that end while the services stop are still written.
+  // After the service, so the turns that end while the services stop are still written.
   trace: 120,
   // After the service, so the lines its providers write while they stop are kept.
   providerLog: 121,
+  // Last: every step above can still write.
+  database: 130,
 } as const;
 
 export interface ApplicationServiceContext {
@@ -666,9 +668,17 @@ async function createMessagingServices({
                 cause: new Error(sourceText("error.messaging.telegramRelayUnavailable")),
               }),
             );
-          return centralAuth
-            .createTelegramLink(hostId)
-            .pipe(Effect.mapError((error) => new MessagingOperationFailed({ cause: error.cause })));
+          return centralAuth.createTelegramLink(hostId).pipe(
+            Effect.mapError(({ cause }) => {
+              // The account service has no Telegram bot. The user can only wait, so they get catalog
+              // text, which a joined server can show to its client.
+              const notConfigured =
+                cause instanceof Error && "code" in cause && cause.code === "telegram_not_configured";
+              return new MessagingOperationFailed({
+                cause: notConfigured ? new Error(sourceText("error.messaging.telegramServiceUnavailable")) : cause,
+              });
+            }),
+          );
         }),
       unlink: (chatId) =>
         Effect.suspend(() => {
@@ -817,6 +827,8 @@ export async function createApplicationServices({
   });
   const store = new AgentStore(app.getPath("userData"), homedir());
   await runCauseEffect(store.initialize());
+  // Closing copies the write-ahead log into the database file and removes it.
+  teardown.push(TEARDOWN_ORDER.database, "the database", () => store.database.close());
   const managedSkills = new ManagedSkillService(
     app.isPackaged
       ? join(process.resourcesPath, "managed-skills", "openbot-site-hosting", "SKILL.md")

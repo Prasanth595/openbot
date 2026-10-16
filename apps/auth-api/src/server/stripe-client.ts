@@ -63,6 +63,7 @@ const priceSchema = Schema.Struct({
 });
 export type StripePrice = typeof priceSchema.Type;
 const priceListSchema = Schema.Struct({ data: Schema.Array(priceSchema) });
+const expandable = Schema.Union([Schema.String, Schema.Struct({ id: Schema.String })]);
 const subscriptionSchema = Schema.Struct({
   id: Schema.String,
   customer: Schema.Union([Schema.String, Schema.Struct({ id: Schema.String })]),
@@ -72,6 +73,7 @@ const subscriptionSchema = Schema.Struct({
   cancel_at: Schema.optional(Schema.NullOr(Schema.Int)),
   metadata: Metadata,
   current_period_end: Schema.optional(Schema.Int),
+  latest_invoice: Schema.optional(Schema.NullOr(expandable)),
   items: Schema.Struct({
     data: Schema.Array(
       Schema.Struct({
@@ -90,6 +92,25 @@ const subscriptionSchema = Schema.Struct({
   }),
 });
 export type StripeSubscription = typeof subscriptionSchema.Type;
+const invoicePaymentListSchema = Schema.Struct({ data: Schema.Array(Schema.Struct({ invoice: expandable })) });
+const invoiceSchema = Schema.Struct({
+  id: Schema.String,
+  billing_reason: Schema.optional(Schema.NullOr(Schema.String)),
+  parent: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({
+        subscription_details: Schema.optional(
+          Schema.NullOr(Schema.Struct({ subscription: Schema.optional(Schema.NullOr(expandable)) })),
+        ),
+      }),
+    ),
+  ),
+});
+const paymentIntentSchema = Schema.Struct({
+  latest_charge: Schema.optional(
+    Schema.NullOr(Schema.Union([Schema.String, Schema.Struct({ refunded: Schema.Boolean })])),
+  ),
+});
 const eventSchema = Schema.Struct({
   id: Schema.String,
   type: Schema.String,
@@ -277,6 +298,50 @@ export class StripeClient {
     );
   }).bind(this);
 
+  /**
+   * The invoice that a PaymentIntent paid, the subscription of that invoice and why Stripe made it. Null for
+   * a payment of no subscription invoice. From API version 2025-03-31 a charge does not name its invoice.
+   */
+
+  readonly getPaymentInvoice = Effect.fn("StripeClient.getPaymentInvoice")(function* (
+    this: StripeClient,
+    paymentIntentId: string,
+  ): Effect.fn.Return<
+    { invoiceId: string; subscriptionId: string; billingReason: string | null } | null,
+    StripeRequestError | StripeTransportError
+  > {
+    const query = new URLSearchParams({
+      "payment[type]": "payment_intent",
+      "payment[payment_intent]": paymentIntentId,
+      limit: "1",
+    });
+    const payments = yield* this.#requestEffect("GET", `/v1/invoice_payments?${query}`, null, invoicePaymentListSchema);
+    const invoice = payments.data[0]?.invoice;
+    if (!invoice) return null;
+    const invoiceId = typeof invoice === "string" ? invoice : invoice.id;
+    const path = `/v1/invoices/${encodeURIComponent(invoiceId)}`;
+    const invoiceRecord = yield* this.#requestEffect("GET", path, null, invoiceSchema);
+    const subscription = invoiceRecord.parent?.subscription_details?.subscription;
+    if (!subscription) return null;
+    return {
+      invoiceId,
+      subscriptionId: typeof subscription === "string" ? subscription : subscription.id,
+      billingReason: invoiceRecord.billing_reason ?? null,
+    };
+  }).bind(this);
+
+  /** True when the refunds of the PaymentIntent's charge add up to its full amount. */
+
+  readonly isPaymentRefunded = Effect.fn("StripeClient.isPaymentRefunded")(function* (
+    this: StripeClient,
+    paymentIntentId: string,
+  ): Effect.fn.Return<boolean, StripeRequestError | StripeTransportError> {
+    const query = new URLSearchParams({ "expand[]": "latest_charge" });
+    const path = `/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?${query}`;
+    const charge = (yield* this.#requestEffect("GET", path, null, paymentIntentSchema)).latest_charge;
+    return typeof charge === "object" && charge !== null && charge.refunded;
+  }).bind(this);
+
   readonly #requestEffect = Effect.fn("StripeClient.request")(function* <T>(
     this: StripeClient,
     method: "GET" | "POST" | "DELETE",
@@ -341,6 +406,13 @@ export function subscriptionAmount(subscription: StripeSubscription): number | n
   if (unitAmount === null) return null;
   const amount = unitAmount * (item.quantity ?? 1);
   return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
+}
+
+/** The ID of the subscription's latest invoice, or null before its first invoice. */
+export function subscriptionLatestInvoiceId(subscription: StripeSubscription): string | null {
+  const invoice = subscription.latest_invoice;
+  if (!invoice) return null;
+  return typeof invoice === "string" ? invoice : invoice.id;
 }
 
 export function subscriptionCustomerId(subscription: StripeSubscription): string {

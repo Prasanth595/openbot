@@ -52,8 +52,8 @@ also sets the allow list from `HOSTED_SERVERS_TEST_ALLOW_LIST` and the developer
 `HOSTED_SERVERS_DEVELOPER_KEY` from `.env.dev`.
 
 `scripts/stripe-flows-e2e.ts` checks the plan flows against the sandbox and a local Worker: renewal,
-failed renewal, cancel at the period end, plan change, renew, delete, another account's server, and a
-deleted customer. Each scenario uses a Stripe test clock and deletes it at the end. Start the Worker
+failed renewal, cancel at the period end, plan change, renew, delete, another account's server, a
+deleted customer, a refund, a dispute, and the welcome email of a first plan. Each scenario uses a Stripe test clock and deletes it at the end. Start the Worker
 with `HOSTED_SERVERS_ENABLED=true`, `HOSTED_SERVERS_ALLOWED_USER_IDS` set to the output of
 `bun scripts/stripe-flows-e2e.ts --print-user-ids`, and `BOAT_API_KEY=e2e-invalid-key`, and forward
 the webhooks to it. A value in the shell overrides `.env.dev`; without the fake key, each paid
@@ -190,6 +190,13 @@ for a team invitation. The message is never sent in that case, so the app can
 ask again later. Namecheap Private Email allows 500 messages an hour for each
 mailbox, and every sign-in code and invitation spends that same quota.
 
+The contact form on `/contact` posts to `/v1/contact`. The Worker sends each message to
+`EMAIL_FROM` through SMTP, with the visitor's address in `Reply-To`, and stores nothing.
+The D1 counter of sign-in allows 3 messages for each IP address and 15 in total in each 15-minute
+window, so the form cannot spend the quota that sign-in codes need. A Cloudflare rate-limit binding
+counts in each location separately, so it cannot hold a total. Without SMTP the route answers 503
+`email_delivery_not_configured`, and the form tells the visitor to write to `hello@openbot.run`.
+
 ## Cloudflare deployment
 
 Create the D1 database and replace the placeholder `database_id` in
@@ -269,3 +276,12 @@ sets `APNS_ORIGIN` and forwards the Worker's request to Apple from Node
 (`dev-apns-proxy.ts`). The Worker still checks the host and the limit, makes the payload and signs
 the token. Only a loopback caller can use the forwarder, and the Worker accepts only a loopback
 `APNS_ORIGIN`.
+
+`POST /v2/remote/hosts/:hostId/android-notification` forwards a sealed Android notification to
+Firebase Cloud Messaging in the same way, with the same limit and session check. The Worker sends a
+data message with the sealed bytes and the sound only; the app opens the seal. The relay is off until
+`FCM_SERVICE_ACCOUNT` is set: the service account key file (JSON) of the Firebase project of the app,
+from Firebase console > Project settings > Service accounts > Generate new private key. Put it into
+the encrypted environment as one line (`jq -c . <file>.json`) and into the `cloudflare-production`
+GitHub environment. A deployment stops before remote changes when the value is not a service account
+key file. The local Worker sends to Firebase directly.

@@ -18,6 +18,7 @@ import { MobileAnalyticsLifecycle } from "@/features/analytics/lifecycle";
 import { DevelopmentConnectLinkHandler } from "@/features/auth/components/development-connect-link-handler";
 import { MobileSessionProvider, useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { loadOnboardingProgress } from "@/features/onboarding/model/onboarding-progress";
+import { installQuickActions, resetQuickActions } from "@/features/quick-actions/quick-actions-native";
 import { loadAppLanguage } from "@/features/settings/model/app-language";
 import { loadAppearance, useAppearance } from "@/features/settings/model/appearance";
 import { loadDictationLanguage } from "@/features/settings/model/dictation-language";
@@ -37,7 +38,7 @@ import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { queryClient } from "@/shared/lib/query-client";
 import { SPLASH_LOGO_SIZE } from "@/shared/lib/splash-motion";
 import { useText } from "@/shared/lib/text";
-import { startedInBackground, untilForeground } from "@/shared/lib/until-foreground";
+import { untilForeground } from "@/shared/lib/until-foreground";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
 import {
   SplashContentReadyContext,
@@ -56,6 +57,7 @@ export const unstable_settings = {
 const SESSION_FADE_MS = 300;
 
 installSupportLog();
+installQuickActions();
 
 const UniwindGestureHandlerRootView = withUniwind(GestureHandlerRootView);
 
@@ -69,9 +71,6 @@ function RootNavigator() {
   // Motion choices are read before the first screen, so no screen starts an animation that Settings turned off.
   const motionReady = useMotionPreferences((state) => state.ready);
   const preferencesReady = appearanceReady && motionReady;
-  // A start in the background shows nothing, and it reads no settings until the user opens the app. The
-  // screens render at once, so the workspace can answer a notification button, and they stay mounted.
-  const [hiddenStart] = useState(startedInBackground);
   // A loader without a session keeps the splash up, but the email sign-in's logo flight into the
   // loader does not: the session comes right after it, and the splash must not cover it again.
   const busy = loading || !preferencesReady || (!session && isLoaderPresent && !isLoaderFlying);
@@ -122,6 +121,11 @@ function RootNavigator() {
     holdLoader(false);
   }, [covered, handOff, holdLoader, isLoaderRequested, motion.complete, session]);
 
+  // A quick action stays on the app icon after the session ends, such as one that another device revoked.
+  useEffect(() => {
+    if (!loading && !session) resetQuickActions();
+  }, [loading, session]);
+
   useLayoutEffect(() => {
     if (loading || !session || (pathname !== "/" && pathname !== "/connected")) setLoadingLabel(null);
     // The splash backdrop covers account loading on its own, so it never raises
@@ -139,7 +143,7 @@ function RootNavigator() {
             accessibilityElementsHidden={covered}
             importantForAccessibility={covered ? "no-hide-descendants" : "auto"}
           >
-            {!loading && (preferencesReady || hiddenStart) ? (
+            {!loading && preferencesReady ? (
               <View className="flex-1" onLayout={session || pathname !== "/" ? () => reportReady() : undefined}>
                 <Stack
                   screenOptions={{
@@ -174,6 +178,7 @@ function RootNavigator() {
                     />
                   </Stack.Protected>
                   <Stack.Screen name="incoming-link" options={{ headerShown: false }} />
+                  <Stack.Screen name="incoming-share" options={{ headerShown: false }} />
                 </Stack>
               </View>
             ) : null}
@@ -213,7 +218,7 @@ export default function RootLayout() {
     void SystemUI.setBackgroundColorAsync(canvas).catch(() => undefined);
   }, [canvas]);
   // A locked phone does not open the settings, and a failed read keeps a default. So a start in the
-  // background, for a notification button, reads them when the user first opens the app.
+  // background reads them when the user first opens the app.
   useEffect(() => {
     void untilForeground().then(() => {
       void loadAppearance().catch(() => undefined);

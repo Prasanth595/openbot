@@ -207,7 +207,10 @@ export interface MobileWorkspaceContextValue {
   hostedServerStarting: (serverId: string) => void;
   /** An owner or admin of an online host that serves `host-admin-v1`. The host checks the role again. */
   canEditServerIdentity: (serverId: string) => boolean;
-  /** An online host that sends notifications to this phone (`push-notifications-v1`). */
+  /**
+   * An online host that sends notifications to this phone: `push-notifications-v1` for an iPhone,
+   * `push-notifications-android-v1` for an Android phone.
+   */
   canSendNotifications: (serverId: string) => boolean;
   /** An absent field stays unchanged; a `null` logo removes it. */
   updateServerIdentity: (

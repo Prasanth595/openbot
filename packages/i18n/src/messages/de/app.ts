@@ -49,7 +49,7 @@ export const messages = {
   "app.standingApproval.title": "{name} immer erlauben?",
   "app.standingApproval.titleUnnamed": "Diesem Agenten immer erlauben?",
   "app.standingApproval.description":
-    "{name} führt Befehle aus, ändert Dateien und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Das Veröffentlichen, Ersetzen und Löschen öffentlicher Websites erfordert weiterhin eine Genehmigung, außer im Turbo-Modus. Du kannst die automatische Genehmigung im Modellmenü dieses Agenten deaktivieren.",
+    "{name} führt Befehle und MCP-Tools aus, ändert Dateien und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Das Veröffentlichen, Ersetzen und Löschen öffentlicher Websites erfordert weiterhin eine Genehmigung, außer im Turbo-Modus. Du kannst die automatische Genehmigung im Modellmenü dieses Agenten deaktivieren.",
   "app.standingApproval.descriptionUnnamed":
-    "Dieser Agent führt Befehle aus, ändert Dateien und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Das Veröffentlichen, Ersetzen und Löschen öffentlicher Websites erfordert weiterhin eine Genehmigung, außer im Turbo-Modus. Du kannst die automatische Genehmigung im Modellmenü dieses Agenten deaktivieren.",
+    "Dieser Agent führt Befehle und MCP-Tools aus, ändert Dateien und erweitert den eigenen Dateisystem- und Netzwerkzugriff auf dem ausführenden Computer ohne erneute Rückfrage. Das Veröffentlichen, Ersetzen und Löschen öffentlicher Websites erfordert weiterhin eine Genehmigung, außer im Turbo-Modus. Du kannst die automatische Genehmigung im Modellmenü dieses Agenten deaktivieren.",
 } as const satisfies PartialTranslation<typeof source>;

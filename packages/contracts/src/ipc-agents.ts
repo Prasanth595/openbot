@@ -19,6 +19,7 @@ import {
   isAgentProvider,
   isProviderAccountId,
 } from "./ipc-agent-status";
+import { isAgentTaskLimit } from "./ipc-agent-tasks";
 import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
@@ -164,6 +165,11 @@ export interface AgentSummary {
    */
   busyMessageMode?: BusyMessageMode;
   /**
+   * How many tasks of the agent run a turn at the same time, 1 to `AGENT_TASK_LIMIT_MAX`. Local-only,
+   * like `access`. Absent means `AGENT_TASK_LIMIT_DEFAULT`; see `agentTaskLimit`.
+   */
+  taskLimit?: number;
+  /**
    * The provider account the agent's turns run on. Local-only, like `access`. Absent means the
    * provider's own sign-in, `DEFAULT_PROVIDER_ACCOUNT_ID`.
    */
@@ -208,6 +214,7 @@ export function isAgentSummary(value: unknown): value is AgentSummary {
     (value.computerUse === undefined || isBoolean(value.computerUse)) &&
     (value.allowAutomation === undefined || isBoolean(value.allowAutomation)) &&
     (value.busyMessageMode === undefined || isBusyMessageMode(value.busyMessageMode)) &&
+    (value.taskLimit === undefined || isAgentTaskLimit(value.taskLimit)) &&
     (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)) &&
     (value.backupModels === undefined || isAgentBackupModels(value.backupModels)) &&
     (value.usageLimitReturn === undefined || isAgentUsageLimitReturn(value.usageLimitReturn)) &&
@@ -253,6 +260,8 @@ export interface UpdateAgentInput {
   allowAutomation?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;
+  /** `null` returns the agent to the default task limit. */
+  taskLimit?: number | null;
   /** `null` returns the agent to the provider's own sign-in. */
   providerAccountId?: string | null;
   /** `null` returns the agent to the default: ask, with no saved order. */

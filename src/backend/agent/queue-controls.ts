@@ -26,6 +26,8 @@ import { providerForAgent } from "./thread-items";
 export interface QueueControlsHooks {
   /** The channel task that owns a delivery. Read late: the channel service is built after this. */
   channelAssignment(deliveryId: string): ChannelAssignment | null;
+  /** The thread of the open task that a delivery runs in, or null for the agent's own chat. */
+  taskThreadId(deliveryId: string): string | null;
 }
 
 export interface QueueControlsOptions {
@@ -216,8 +218,12 @@ export class QueueControls {
     const agent = yield* this.#store.existing(input.agentId).pipe(toQueueOperationFailed);
     const { client, session, snapshot, context, turnId } = yield* queueStep(() => {
       const client = this.#providers.requireReadyClientForAgent(agent);
-      const session = this.#store.activeProviderSession(agent.id);
-      const snapshot = this.#conversation.ensureSnapshot(agent.id, agent.threadId);
+      // A task message steers the task's turn, in the task's own provider session.
+      const taskThreadId = this.#hooks.taskThreadId(input.deliveryId);
+      const session = taskThreadId
+        ? this.#store.database.activeProviderSession(taskThreadId, agent.provider)
+        : this.#store.activeProviderSession(agent.id);
+      const snapshot = this.#conversation.ensureSnapshot(agent.id, taskThreadId ?? agent.threadId);
       if (!session || !snapshot.activeTurnId || snapshot.activeTurnId !== input.expectedTurnId)
         throw new Error(sourceText("error.backend.steerTurnChanged"));
       if (this.#hooks.channelAssignment(input.deliveryId))

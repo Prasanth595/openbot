@@ -49,10 +49,10 @@ export const messages = {
   "settings.permissions.title": "Uprawnienia",
   "settings.turbo.title": "Tryb Turbo",
   "settings.turbo.description":
-    "Pozwól każdemu agentowi bez pytania uruchamiać polecenia, zmieniać pliki, poszerzać własny dostęp do systemu plików i sieci oraz publikować, aktualizować i usuwać publiczne witryny.",
+    "Pozwól każdemu agentowi bez pytania uruchamiać polecenia i narzędzia MCP, zmieniać pliki, poszerzać własny dostęp do systemu plików i sieci oraz publikować, aktualizować i usuwać publiczne witryny.",
   "settings.turbo.confirmTitle": "Włączyć tryb Turbo?",
   "settings.turbo.confirmDescription":
-    "Agenci będą bez pytania uruchamiać polecenia, zmieniać pliki, poszerzać własny dostęp na tym komputerze oraz publikować, aktualizować i usuwać publiczne witryny. Możesz to wyłączyć tutaj w każdej chwili.",
+    "Agenci będą bez pytania uruchamiać polecenia i narzędzia MCP, zmieniać pliki, poszerzać własny dostęp na tym komputerze oraz publikować, aktualizować i usuwać publiczne witryny. Możesz to wyłączyć tutaj w każdej chwili.",
   "settings.turbo.confirmAccept": "Włącz",
   "settings.autoApprove.revokeFailed":
     "Nie udało się cofnąć stałego zatwierdzenia dla {name}. Nadal jest aktywne. Spróbuj ponownie.",
@@ -95,6 +95,9 @@ export const messages = {
   "settings.notch.displays.description": "Pokazuj Dynamic Island na podłączonych ekranach zewnętrznych.",
   "settings.notch.haptics.title": "Reakcja haptyczna",
   "settings.notch.haptics.description": "Używaj gładzika Force Touch do potwierdzania interakcji z Dynamic Island.",
+  "settings.notch.servers.title": "Serwery",
+  "settings.notch.servers.description": "Wybierz serwery, których elementy pokazuje wyspa.",
+  "settings.notch.servers.later": "Pokazuj serwery dodane później",
   "settings.notch.size.title": "Rozmiar",
   "settings.notch.size.description": "Na ekranie z wycięciem wyspa nigdy nie jest mniejsza niż wycięcie.",
   "settings.notch.size.reset": "Przywróć domyślne",

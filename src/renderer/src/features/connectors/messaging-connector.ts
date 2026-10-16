@@ -174,7 +174,19 @@ export function createMessagingConnector(
           get hostName() {
             return options.hostName?.();
           },
-          onConnectChat: (place) => run(() => api.connect({ platform, place })),
+          onConnectChat: (place) =>
+            new Promise<boolean>((resolve) => {
+              let opened = false;
+              actions.run(() => api.connect({ platform, place }), {
+                done: () => {
+                  opened = true;
+                },
+                settled: () => {
+                  reload();
+                  resolve(opened);
+                },
+              });
+            }),
           onDisconnectChat: shared.disconnect,
           onReconnect: shared.reconnect,
           onSetEnabled: shared.setEnabled,
