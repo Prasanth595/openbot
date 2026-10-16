@@ -122,6 +122,8 @@ interface AuthenticatedPeer {
   discordSession: string | null;
   // `ingress` only: opaque generic webhook route IDs whose requests this socket receives.
   webhookRoutes: string[];
+  // The TURN credentials of the last `turn-refresh`, and when Signal made them.
+  turnCredentials: { iceServers: IceServer[]; issuedAt: number } | null;
 }
 
 interface ActiveConnection {
@@ -251,6 +253,14 @@ const UNAVAILABLE = { status: 503 } as const;
 const MAXIMUM_RATE_WINDOWS = 100_000;
 const RATE_WINDOW_MILLISECONDS = 60_000;
 const SIGNAL_RECONNECT_GRACE_MILLISECONDS = 30_000;
+// A socket must send its hello in this time. Signal closes an idle socket that does not, so it cannot
+// keep a connection slot of its address for the proxy's read timeout. The desktop app opens a socket
+// before its ticket is ready and keeps it without a hello for at most 30 seconds.
+const SIGNAL_HELLO_DEADLINE_MILLISECONDS = 30_000;
+// A `turn-refresh` in this time after the last one gets the same TURN credentials again. Each new
+// username has its own coturn quota, so a peer must not make many of them. Clients refresh at
+// `SIGNAL_TURN_REFRESH_INTERVAL_MS`, and credentials of this age still last past their next refresh.
+const TURN_CREDENTIAL_REUSE_MILLISECONDS = 5 * 60_000;
 // The older sockets of a host stay registered. This limits them, because host sockets are not in the
 // account's connection limit.
 const MAXIMUM_SOCKETS_PER_HOST = 4;
@@ -314,6 +324,7 @@ export class SignalService {
   readonly #connections = new Map<string, ActiveConnection>();
   readonly #connectionDropTimers = new Map<string, ReturnType<typeof setTimeout>>();
   readonly #peerExpirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  readonly #helloTimers = new Map<string, ReturnType<typeof setTimeout>>();
   readonly #usedTicketIds = new Map<string, number>();
   readonly #revokedEpochs = new Map<string, number>();
   readonly #revokedSessions = new Map<string, number>();
@@ -379,8 +390,10 @@ export class SignalService {
   close(): void {
     for (const timer of this.#connectionDropTimers.values()) clearTimeout(timer);
     for (const timer of this.#peerExpirationTimers.values()) clearTimeout(timer);
+    for (const timer of this.#helloTimers.values()) clearTimeout(timer);
     this.#connectionDropTimers.clear();
     this.#peerExpirationTimers.clear();
+    this.#helloTimers.clear();
     for (const requestId of [...this.#pendingDeliveries.keys()]) this.#settleDelivery(requestId, null);
     this.#queue.close();
   }
@@ -393,6 +406,14 @@ export class SignalService {
     }
     this.#sockets.set(socket.id, socket);
     this.#metrics.activeSockets = this.#sockets.size;
+    const timer = setTimeout(() => {
+      this.#helloTimers.delete(socket.id);
+      if (this.#sockets.has(socket.id) && !this.#peers.has(socket.id)) {
+        this.#fail(socket, "authentication_required", "Authenticate before sending signal messages.", 1008);
+      }
+    }, SIGNAL_HELLO_DEADLINE_MILLISECONDS);
+    timer.unref?.();
+    this.#helloTimers.set(socket.id, timer);
     return true;
   }
 
@@ -417,6 +438,8 @@ export class SignalService {
         return;
       }
       if (message.type === "hello") {
+        // The deadline is for the hello only. Verification has its own request deadlines.
+        this.#clearHelloTimer(socket.id);
         yield* this.#authenticate(socket, message);
         return;
       }
@@ -434,12 +457,17 @@ export class SignalService {
           this.#fail(socket, "permission_denied", "The connection does not belong to this peer.");
           return;
         }
+        const resumeToken = yield* tokens.issueResumeToken(peer.claims);
+        const now = Date.now();
+        if (!peer.turnCredentials || now - peer.turnCredentials.issuedAt >= TURN_CREDENTIAL_REUSE_MILLISECONDS) {
+          peer.turnCredentials = { iceServers: this.#tokens.iceServers(peer.claims), issuedAt: now };
+        }
         this.#send(socket, {
           type: "ready",
           version: 1,
           connectionId: message.connectionId,
-          resumeToken: yield* tokens.issueResumeToken(peer.claims),
-          iceServers: this.#tokens.iceServers(peer.claims),
+          resumeToken,
+          iceServers: peer.turnCredentials.iceServers,
           ...this.#capabilities(peer.peer),
         });
         return;
@@ -485,6 +513,7 @@ export class SignalService {
       this.#sockets.delete(socket.id);
       const peer = this.#peers.get(socket.id);
       this.#clearPeerExpiration(socket.id);
+      this.#clearHelloTimer(socket.id);
       if (!peer) {
         this.#metrics.activeSockets = this.#sockets.size;
         return;
@@ -1231,6 +1260,7 @@ export class SignalService {
           discordGuilds: discordRoute.guilds.map((guild) => guild.id),
           discordSession: null,
           webhookRoutes: webhookRoute.routes.map((route) => route.id),
+          turnCredentials: null,
         };
         this.#peers.set(socket.id, peer);
         this.#schedulePeerExpiration(peer);
@@ -1547,6 +1577,12 @@ export class SignalService {
     );
     timer.unref?.();
     this.#peerExpirationTimers.set(peer.socket.id, timer);
+  }
+
+  #clearHelloTimer(socketId: string): void {
+    const timer = this.#helloTimers.get(socketId);
+    if (timer) clearTimeout(timer);
+    this.#helloTimers.delete(socketId);
   }
 
   #clearPeerExpiration(socketId: string): void {
