@@ -55,8 +55,9 @@ function expectHealthy(db: DatabaseSync): void {
 }
 
 describe("attachment owner index migration", () => {
-  it("upgrades v40 and keeps every attachment", () => {
-    const db = databaseAt(40);
+  // The table is the same from the v8 baseline on, so the oldest and the newest released schema bound it.
+  it.each([8, 40])("upgrades v%i and keeps every attachment", (version) => {
+    const db = databaseAt(version);
     seedAttachments(db);
     const before = attachments(db);
     migrateOpenBotDatabase(db);
