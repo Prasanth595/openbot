@@ -297,7 +297,7 @@ export const messages = {
     "Bu ana makinede Turbo mod açık, bu nedenle her ajanın istekleri otomatik onaylanır.",
   "mobile.agent.access.workspaceNote": "Ajan, ana makinedeki çalışma alanında ve paylaşılan klasörde çalışır.",
   "mobile.agent.access.askNote":
-    "Ajan bir komut çalıştırmadan, bir dosyayı değiştirmeden, bir araç kullanmadan veya bir site yayımlamadan önce size sorar.",
+    "Ajan bir OpenBot aracı kullanmadan veya bir site yayımlamadan önce ve sağlayıcısı onay istediğinde size sorar.",
   "mobile.agent.access.fullNote": "Ajan, size sorduğu sorular hariç, sormadan hareket eder.",
   "mobile.agent.access.fullTitle": "Bu ajana tam erişim verilsin mi?",
   "mobile.agent.access.askTitle": "Bu ajan çalışma alanının dışında çalışabilsin mi?",

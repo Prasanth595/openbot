@@ -89,7 +89,7 @@ export const messages = {
   "agentSettings.runtime.fullAccessNote":
     "Ajan, çalışma alanından ve paylaşılan klasörden tam bilgisayar erişimiyle çalışır.",
   "agentSettings.runtime.askNote":
-    "Bir komut çalıştırmadan, bir dosyayı değiştirmeden, bir araç kullanmadan veya bir site yayımlamadan önce size sorar.",
+    "Bir OpenBot aracı kullanmadan veya bir site yayımlamadan önce ve sağlayıcısı onay istediğinde size sorar.",
   "agentSettings.runtime.fullNote": "Size sorduğu sorular hariç, sormadan hareket eder.",
   "agentSettings.access.workspace": "Yalnızca çalışma alanı",
   "agentSettings.access.ask": "Önce sor",

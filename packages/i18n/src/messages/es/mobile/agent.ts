@@ -286,7 +286,7 @@ export const messages = {
   "mobile.agent.access.workspaceNote":
     "El agente trabaja en su espacio de trabajo y en la carpeta compartida del host.",
   "mobile.agent.access.askNote":
-    "El agente te pregunta antes de ejecutar un comando, cambiar un archivo, usar una herramienta o publicar un sitio.",
+    "El agente te pregunta antes de usar una herramienta de OpenBot o publicar un sitio, y cuando su proveedor pide aprobación.",
   "mobile.agent.access.fullNote": "El agente actúa sin preguntar, salvo las preguntas que te haga.",
   "mobile.agent.access.fullTitle": "¿Dar acceso completo a este agente?",
   "mobile.agent.access.askTitle": "¿Dejar que este agente trabaje fuera de su espacio de trabajo?",

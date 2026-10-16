@@ -294,7 +294,7 @@ export const messages = {
     "Le mode Turbo est activé sur cet hôte, donc chaque agent approuve automatiquement.",
   "mobile.agent.access.workspaceNote": "L’agent travaille dans son espace de travail et le dossier partagé de l’hôte.",
   "mobile.agent.access.askNote":
-    "L’agent vous demande avant d’exécuter une commande, de modifier un fichier, d’utiliser un outil ou de publier un site.",
+    "L’agent vous demande avant d’utiliser un outil OpenBot ou de publier un site, et quand son fournisseur demande une approbation.",
   "mobile.agent.access.fullNote": "L’agent agit sans demander, sauf pour les questions qu’il vous pose.",
   "mobile.agent.access.fullTitle": "Donner un accès complet à cet agent ?",
   "mobile.agent.access.askTitle": "Laisser cet agent travailler hors de son espace de travail ?",

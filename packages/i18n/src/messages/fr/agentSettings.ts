@@ -92,7 +92,7 @@ export const messages = {
   "agentSettings.runtime.fullAccessNote":
     "L’agent s’exécute avec un accès complet à l’ordinateur depuis son espace de travail et le dossier partagé.",
   "agentSettings.runtime.askNote":
-    "Il vous demande avant d’exécuter une commande, de modifier un fichier, d’utiliser un outil ou de publier un site.",
+    "Il vous demande avant d’utiliser un outil OpenBot ou de publier un site, et quand son fournisseur demande une approbation.",
   "agentSettings.runtime.fullNote": "Il agit sans demander, sauf pour les questions qu’il vous pose.",
 
   "agentSettings.access.workspace": "Espace de travail seul",

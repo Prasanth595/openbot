@@ -91,7 +91,7 @@ export const messages = {
   "agentSettings.runtime.fullAccessNote":
     "L'agente gira con accesso completo al computer dal suo workspace e dalla cartella condivisa.",
   "agentSettings.runtime.askNote":
-    "Ti chiede prima di eseguire un comando, modificare un file, usare un tool o pubblicare un sito.",
+    "Ti chiede prima di usare un tool di OpenBot o pubblicare un sito, e quando il suo provider chiede un'approvazione.",
   "agentSettings.runtime.fullNote": "Agisce senza chiedere, tranne per le domande che ti pone.",
 
   "agentSettings.access.workspace": "Solo workspace",

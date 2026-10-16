@@ -287,7 +287,7 @@ export const messages = {
     "このホストでは Turbo モードがオンのため、すべてのエージェントが自動承認します。",
   "mobile.agent.access.workspaceNote": "エージェントは、ホスト上のワークスペースと共有フォルダーで作業します。",
   "mobile.agent.access.askNote":
-    "エージェントは、コマンドの実行、ファイルの変更、ツールの使用、サイトの公開の前に確認します。",
+    "エージェントは、OpenBot のツールを使う前、サイトを公開する前、およびプロバイダーが承認を求めたときに確認します。",
   "mobile.agent.access.fullNote": "エージェントは、あなたへの質問を除き、確認せずに操作します。",
   "mobile.agent.access.fullTitle": "このエージェントにフルアクセスを許可しますか？",
   "mobile.agent.access.askTitle": "このエージェントにワークスペースの外での作業を許可しますか？",

@@ -90,7 +90,8 @@ export const messages = {
   "agentSettings.runtime.notAvailable": "まだ利用できません",
   "agentSettings.runtime.fullAccessNote":
     "エージェントは、ワークスペースと共有フォルダーからコンピューターへのフルアクセスで実行されます。",
-  "agentSettings.runtime.askNote": "コマンドの実行、ファイルの変更、ツールの使用、サイトの公開の前に確認します。",
+  "agentSettings.runtime.askNote":
+    "OpenBot のツールを使う前、サイトを公開する前、およびプロバイダーが承認を求めたときに確認します。",
   "agentSettings.runtime.fullNote": "あなたへの質問を除き、確認せずに操作します。",
 
   "agentSettings.access.workspace": "ワークスペースのみ",

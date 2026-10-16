@@ -122,6 +122,11 @@ export function createRemoteAgentAdmin(
     },
     /** Null for a local agent, before the first answer, and when the host does not serve the capability. */
     settings: (): AgentAdminSettings | null => (state.key !== null && state.key === key() ? state.settings : null),
+    /** Undefined until the host answers. A released host with Turbo mode on locks every agent to auto-approve. */
+    autoApproves: (): boolean | undefined => {
+      const settings = state.key !== null && state.key === key() ? state.settings : null;
+      return settings ? settings.autoApprove || settings.autoApproveLocked : undefined;
+    },
     /**
      * Writes to the host of the selected server. The agent is named by the caller, because an
      * approval card or the settings panel can outlive a switch to another agent. Rejects with the

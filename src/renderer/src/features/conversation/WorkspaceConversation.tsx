@@ -230,7 +230,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
 
   /** Read from the local preference, or from the host. Unknown until a host answers. */
   const activeAgentAutoApproves = () =>
-    activeServer()?.kind === "local" ? agentAutoApproves(activeAgent()?.id ?? "") : remoteAgentSettings()?.autoApprove;
+    activeServer()?.kind === "local" ? agentAutoApproves(activeAgent()?.id ?? "") : remoteAgentAdmin.autoApproves();
 
   /** "Always allow" moves an agent at Ask first to Full access. Other levels have nothing to move to. */
   const alwaysAllowApproval = createMemo(() => {

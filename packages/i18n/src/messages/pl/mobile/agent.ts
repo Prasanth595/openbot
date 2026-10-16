@@ -307,7 +307,7 @@ export const messages = {
     "Tryb Turbo jest włączony na tym hoście, więc każdy agent zatwierdza automatycznie.",
   "mobile.agent.access.workspaceNote": "Agent pracuje w swoim obszarze roboczym i w folderze współdzielonym na hoście.",
   "mobile.agent.access.askNote":
-    "Agent pyta cię, zanim uruchomi polecenie, zmieni plik, użyje narzędzia lub opublikuje witrynę.",
+    "Agent pyta cię, zanim użyje narzędzia OpenBot lub opublikuje witrynę, oraz gdy jego dostawca prosi o zgodę.",
   "mobile.agent.access.fullNote": "Agent działa bez pytania, z wyjątkiem pytań, które ci zadaje.",
   "mobile.agent.access.fullTitle": "Dać temu agentowi pełny dostęp?",
   "mobile.agent.access.askTitle": "Pozwolić temu agentowi pracować poza obszarem roboczym?",

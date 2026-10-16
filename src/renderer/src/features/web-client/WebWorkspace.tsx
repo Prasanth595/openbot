@@ -1953,7 +1953,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }
                 onRespondToApproval={view.respondToApproval}
                 onAlwaysAllowApproval={view.alwaysAllowApproval()}
-                agentAutoApproves={remoteAgentAdmin.settings()?.autoApprove}
+                agentAutoApproves={remoteAgentAdmin.autoApproves()}
                 onUpdateAgentPermissions={remoteAgentAdmin.settings() ? remoteAgentAdmin.update : undefined}
                 onClearAgentContext={clearSelectedAgentContext()}
                 onRespondToBrowserTakeover={(decision) => workspace.respondToBrowserTakeover(decision)}
