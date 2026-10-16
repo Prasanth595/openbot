@@ -120,17 +120,22 @@ export class MailboxSync {
       this.#mailbox.conversationMessages(agent.id, oldest === undefined ? {} : { fromCreatedAt: oldest }),
     );
     if (conversationContentSignature(persisted) === previousSignature) return;
+    // The signature also changes with key order, which the stored rows keep. Write only the
+    // messages that store differently, so a read with no real change writes nothing (#2224).
+    const changedMessages = this.#database.changedConversationMessages(agent.threadId, persisted.messages);
+    const removedMessageIds = [...previousMessageIds].filter(
+      (messageId) => !persisted.messages.some((message) => message.id === messageId),
+    );
+    if (changedMessages.length === 0 && removedMessageIds.length === 0) return;
     this.#database.persistConversationChanges({
       agentId: agent.id,
       threadId: agent.threadId,
       activeTurnId: persisted.activeTurnId,
-      changedMessages: persisted.messages,
-      removedMessageIds: [...previousMessageIds].filter(
-        (messageId) => !persisted.messages.some((message) => message.id === messageId),
-      ),
+      changedMessages,
+      removedMessageIds,
       eventType: "conversation.mailbox-reconciled",
       detail: {
-        messageCount: persisted.messages.length,
+        messageCount: changedMessages.length,
       },
     });
     const live = this.#conversation.snapshot(agent.id);

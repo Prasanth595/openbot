@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
+import { isDeepStrictEqual } from "node:util";
 import type { ConversationMessage, ConversationSnapshot } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import type { AgentRoster } from "./agent-roster";
@@ -371,6 +372,34 @@ export class ConversationWriter {
       },
     );
     return result.revision;
+  }
+
+  /**
+   * The messages that `persistConversationChanges` would store differently: a message with no row,
+   * or one whose merge into its row changes the stored value. Key order does not count, because
+   * the merge keeps the key order of the row.
+   */
+  changedConversationMessages(threadId: string, messages: readonly ConversationMessage[]): ConversationMessage[] {
+    if (messages.length === 0) return [];
+    const stored = new Map(
+      databaseRows(
+        this.#core.connection
+          .prepare(
+            `SELECT message_id, message_json FROM projection_thread_messages
+             WHERE thread_id = ? AND message_id IN (${messages.map(() => "?").join(", ")})`,
+          )
+          .all(threadId, ...messages.map((message) => message.id)),
+      ).map((row) => [
+        requiredStringColumn(row, "message_id"),
+        currentConversationMessage(JSON.parse(requiredStringColumn(row, "message_json"))),
+      ]),
+    );
+    return messages.filter((message) => {
+      const existing = stored.get(message.id);
+      if (!existing) return true;
+      // The JSON round trip drops `undefined` keys, as the stored row does.
+      return !isDeepStrictEqual(JSON.parse(JSON.stringify(mergeLiveMessage(existing, message))), existing);
+    });
   }
 
   /**
