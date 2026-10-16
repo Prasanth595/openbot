@@ -113,6 +113,20 @@ export const LANDING_TEAM_REPLY: LandingTeamMessage = {
   text: "Thanks. I closed the issue.",
 };
 
+/** The provider of each agent in the network picture. Ada starts on Codex, as in the persist picture. */
+export const LANDING_NETWORK_AGENTS: readonly { teammate: LandingTeammate; provider: ProviderLogoVariant }[] = [
+  { teammate: ADA, provider: "codex" },
+  { teammate: LINUS, provider: "claude" },
+  { teammate: GRACE, provider: "antigravity" },
+];
+
+/** The words of the network heading appear one at a time. */
+export const LANDING_NETWORK_TITLE: readonly string[] = ["Your", "agents", "talk", "to", "each", "other."];
+export const LANDING_NETWORK_DESCRIPTION =
+  "They ask, hand off and review. Add agents, and the team grows around the work.";
+/** The name under the mark at the centre of the network picture. */
+export const LANDING_NETWORK_HUB = "OpenBot";
+
 /** The channel the team picture shows, and the line OpenBot writes when the task changes owner. */
 export const LANDING_TEAM_CHANNEL = "launch";
 export const LANDING_TEAM_HANDOFF = "Ada gave the task to Linus";
