@@ -7,6 +7,9 @@ export const messages = {
   "server.connection.startTimeout": "{name} não iniciou a tempo",
   "server.connection.sleeping": "{name} está em repouso",
   "server.connection.waking": "Iniciando {name}",
+  "server.connection.startProgress": "{step} · {time}",
+  "server.connection.providerLimit":
+    "O provedor de nuvem está limitando novas inicializações agora. O OpenBot tentará de novo em breve.",
   "server.connection.updating": "Atualizando {name}",
   "server.connection.loading": "Carregando {name}",
   "server.connection.connecting": "Conectando a {name}",

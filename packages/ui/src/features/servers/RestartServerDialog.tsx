@@ -14,9 +14,6 @@ const STEPS = [
   { label: "server.settings.restartStepStart", detail: "server.settings.restartStepStartDetail" },
 ] as const;
 
-/** The start limit of desktop and web. A server that is not back by then did not start. */
-const RESTART_LIMIT_SECONDS = 5 * 60;
-
 /**
  * Asks before the owner or an admin restarts a hosted server, then shows the restart until the server
  * is online again or does not start. A failed request stays in the dialog. The user can hide the dialog
@@ -106,8 +103,8 @@ export function RestartServerDialog(props: {
   }
 
   /**
-   * The server goes offline when it stops, and comes back online when it starts again. A server that
-   * sends no result fails at the start limit.
+   * The server goes offline when it stops, and comes back online when it starts again. The client that
+   * waits for the start sets a hosted issue when the start fails or takes too long.
    */
   function follow(server: Pick<RestartServer, "state" | "hostedIssue"> | null): void {
     if (!requestDone || !restarting() || !server) return;
@@ -147,7 +144,6 @@ export function RestartServerDialog(props: {
     clock = setInterval(() => {
       seconds += 1;
       setElapsed(seconds);
-      if (seconds >= RESTART_LIMIT_SECONDS) finish("failed");
     }, 1000);
     try {
       await props.onRestart();

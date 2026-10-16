@@ -200,6 +200,7 @@ export function createMockTeam(
         state: "online" as const,
         hostedSleep: null,
         hostedIssue: null,
+        hostedStart: null,
         connectionSequence: (server.connectionSequence ?? 0) + 1,
       };
       servers = servers.map((item) => (item.id === serverId ? connected : item));

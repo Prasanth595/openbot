@@ -7,6 +7,9 @@ export const messages = {
   "server.connection.startTimeout": "{name} zamanında başlamadı",
   "server.connection.sleeping": "{name} uyku modunda",
   "server.connection.waking": "{name} başlatılıyor",
+  "server.connection.startProgress": "{step} · {time}",
+  "server.connection.providerLimit":
+    "Bulut sağlayıcısı şu anda yeni başlatmaları sınırlıyor. OpenBot kısa süre içinde yeniden deneyecek.",
   "server.connection.updating": "{name} güncelleniyor",
   "server.connection.loading": "{name} yükleniyor",
   "server.connection.connecting": "{name} sunucusuna bağlanılıyor",

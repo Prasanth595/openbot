@@ -101,10 +101,12 @@ export function ServerActionItems(
     props.server.kind === "remote" &&
     props.server.role === "owner" &&
     Boolean(props.canRemove?.(props.server.id));
+  // A restart while the server starts would stop it and begin the start again.
   const canRestart = () =>
     Boolean(props.onRestart) &&
     props.server.kind === "remote" &&
     (props.server.role === "owner" || props.server.role === "admin") &&
+    props.server.hostedSleep !== "waking" &&
     (props.server.hosted === true || Boolean(props.canRestart?.(props.server.id)));
   // A component, so the JSX below can use it as a tag. The menu does not change after render.
   const Menu = props.menu;

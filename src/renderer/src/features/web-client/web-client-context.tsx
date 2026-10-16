@@ -13,6 +13,7 @@ import type {
   ConversationPage,
   HostedServerIssue,
   HostedServerSleep,
+  HostedServerStart,
   QueueSnapshot,
   RespondToApprovalInput,
   RespondToPromptInput,
@@ -87,6 +88,8 @@ interface WebWorkspaceState {
    */
   hostedSleep: HostedServerSleep | null;
   hostedIssue: HostedServerIssue | null;
+  /** The step of a hosted start, while `hostedSleep` is `waking`. */
+  hostedStart: HostedServerStart | null;
   /** The last connection failure, with its code. Shown while the workspace reconnects. */
   connectionError: UserErrorDetails | null;
   recovery: RemoteRecoveryStatus | null;
@@ -163,6 +166,7 @@ export function createWebWorkspace(
     status: "offline",
     hostedSleep: null,
     hostedIssue: null,
+    hostedStart: null,
     connectionError: null,
     recovery: null,
     workspaceLoaded: false,
@@ -261,6 +265,10 @@ export function createWebWorkspace(
     setIssue: (issue) =>
       setState((draft) => {
         draft.hostedIssue = issue;
+      }),
+    setStart: (start) =>
+      setState((draft) => {
+        draft.hostedStart = start;
       }),
     suspend: () => {
       recoveryBlocked = true;

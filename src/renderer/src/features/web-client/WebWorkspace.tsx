@@ -426,6 +426,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         // Only the opened host has a known sleep state.
         hostedSleep: active ? workspace.state.hostedSleep : null,
         hostedIssue: active ? workspace.state.hostedIssue : null,
+        hostedStart: active ? workspace.state.hostedStart : null,
         notificationsMuted: notice.muted,
         notificationsMutedUntil: notice.mutedUntil,
         notificationLevel: notice.level,
@@ -1161,6 +1162,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   name={workspace.state.host?.name ?? t("webClient.notice.findingHosts")}
                   initial={!workspace.state.workspaceLoaded}
                   issue={workspace.state.hostedIssue}
+                  start={workspace.state.hostedStart}
                   updateVersion={workspace.state.hostRestart?.version ?? null}
                   detail={
                     workspace.state.hostedSleep !== "sleeping" && !workspace.state.hostedIssue && !hostUpdating()
