@@ -58,10 +58,11 @@ Install options go after `sudo bash -s --`:
 | --- | --- | --- |
 | `--user <name>` | the installed user, else `openbot` | The user that runs OpenBot and its agents. The install makes it when it does not exist, with its home folder in `/var/lib/<name>`. |
 | `--auth-api-url <origin>` | the installed one, else the URL in the build | Another account server, for example the `test` Worker or a [self-hosted account service](self-hosting.md). |
+| `--display-size <W>x<H>` | the installed one, else `1920x1080` | The size of the virtual display that computer use reads (see [Display size](#display-size)). |
 
 Run the install again to reinstall or upgrade. The data stays in the home folder of the service
 user. A reinstall keeps the user and the account server, because the sign-in belongs to them, and
-refuses another `--user`. The install refuses an older release than the installed one, because an older OpenBot cannot
+refuses another `--user`. A reinstall without `--display-size` keeps the display size. The install refuses an older release than the installed one, because an older OpenBot cannot
 open a database that a newer one migrated. It also refuses a computer that is a hosted server.
 
 ## Commands
@@ -104,6 +105,72 @@ Turns at the same time: at most 4
 
 The guard reads cgroup v2. On a system with cgroup v1, it uses the machine memory and the log has
 one warning.
+
+## Display size
+
+A self-hosted server runs OpenBot on a virtual display (Xvfb), and computer use reads that display.
+The default size is 1920x1080. A [Docker](docker.md#environment) container uses the same setting
+and the same default. A hosted server shows OpenBot on its boat desktop, and this setting does not
+change that desktop.
+
+To use another size, give it at the install with `--display-size 1280x800`, or write this line in
+`/opt/OpenBot/hosted/openbot.env` and run `sudo openbot restart`:
+
+```text
+OPENBOT_DISPLAY_SIZE=1280x800
+```
+
+The value is `WIDTHxHEIGHT` in digits, from 640x480 to 2576x2576. The install refuses a value that is
+not valid. At a start, a value that is not valid writes this warning in `openbot logs`, and the
+server starts with 1920x1080:
+
+```text
+OPENBOT_DISPLAY_SIZE is not WIDTHxHEIGHT from 640x480 to 2576x2576. The display is 1920x1080.
+```
+
+### Why 1920x1080
+
+Claude 4.7 and later models read an image of up to 2576 px on the long edge and 4784 visual tokens
+at its full size, and their coordinates map 1:1 to the pixels of the image. For computer use, the
+Claude docs say that "1080p provides a good balance of performance and cost", and that 720p or
+1366x768 are lower-cost options. See
+[Vision](https://platform.claude.com/docs/en/build-with-claude/vision#resolution-and-token-cost) and
+[Computer use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool).
+
+An image costs `⌈width / 28⌉ × ⌈height / 28⌉` visual tokens on Claude. A full-display screenshot at
+1920x1080 costs about 2 times the tokens of one at 1280x800:
+
+| Display size | Visual tokens of one full-display screenshot |
+| --- | --- |
+| 1280x720 | 1196 |
+| 1280x800 | 1334 |
+| 1366x768 | 1372 |
+| 1920x1080 | 2691 |
+| 2560x1440 | 4784 |
+
+### Screenshots and clicks
+
+The computer use driver (cua-driver, `cua-driver-rs-v0.34.0`) has two screenshots on Linux:
+
+- **One window** (`get_window_state`). The driver makes the image 1.15 megapixels or less, with a long
+  edge of 1568 px or less, and changes the x and y of each click back to screen pixels. So a window
+  that fills a 1920x1080 display gets to the model at about 1430x804, and the clicks land correctly
+  with all models.
+- **The full display** (`get_desktop_state`). The driver sends the image at its full size and uses
+  the x and y of a click as screen pixels. The clicks land correctly only when the model reads the
+  image at its full size.
+
+What a model reads of a full-display screenshot at 1920x1080:
+
+| Provider | Image | Full-display clicks |
+| --- | --- | --- |
+| Claude 4.7 and later, all Claude 5 models | Full size | Correct |
+| Codex | Full size: the limit is 2048 px and 2,500 tiles of 32x32 px, and 1920x1080 is 2,040 tiles | Correct |
+| Claude before 4.7, such as Sonnet 4.6 and Haiku 4.5 | Made smaller to 1456x819 | Short, at about 0.76 of the correct position |
+| Grok, Gemini, OpenCode, Cursor, Cline, Pi | Not known | Not known |
+
+Use 1280x800 with a model that makes a 1920x1080 image smaller, or to use fewer image tokens. A
+1280x800 screenshot is not made smaller by any Claude or Codex model.
 
 ## Phone app
 
@@ -189,3 +256,10 @@ Threat model:
   to start there.
 - The full install was not run on a Linux computer before the first release that has the setup
   file. It needs a release build.
+- [Display size](#display-size): the display sizes, the warning and the start with a value that is
+  not valid were tested in the Docker image. An install with `--display-size` was not run. Computer
+  use at 1920x1080 was not tested with a model. The screenshots and clicks come from the cua-driver
+  source (`platform-linux/src/tools/impl_.rs`, `get_window_state` and `get_desktop_state`), and
+  the Claude limits from the Claude docs. The Codex limit comes from `codex-rs/utils/image` and was
+  not checked again. It is not known if Claude Code or Codex makes a screenshot smaller before it
+  sends it to the model.

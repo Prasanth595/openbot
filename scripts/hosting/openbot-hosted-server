@@ -39,12 +39,31 @@ else
   # The control socket of `openbot`. It goes in the runtime directory that openbot.service makes.
   export OPENBOT_SERVER=1
 fi
-# A self-hosted server has this file only when its install named another account server.
+# A self-hosted server has this file only when its install named another account server or a
+# display size.
+requested_size=""
 if [ -r /opt/OpenBot/hosted/openbot.env ]; then
   while IFS='=' read -r key value; do
-    if [ "$key" = OPENBOT_AUTH_API_URL ]; then export "$key=$value"; fi
+    case $key in
+      OPENBOT_AUTH_API_URL) export "$key=$value" ;;
+      OPENBOT_DISPLAY_SIZE) requested_size=$value ;;
+    esac
   done </opt/OpenBot/hosted/openbot.env
 fi
+
+# The size of the virtual display, which computer use reads: $1 as WIDTHxHEIGHT, else 1920x1080. A
+# value that is not valid writes a warning and does not stop the start. See
+# docs/self-hosted-server.md#display-size. openbot-container has the same rules.
+display_size() {
+  if [[ $1 =~ ^([1-9][0-9]{2,3})x([1-9][0-9]{2,3})$ ]] &&
+    [ "${BASH_REMATCH[1]}" -ge 640 ] && [ "${BASH_REMATCH[1]}" -le 2576 ] &&
+    [ "${BASH_REMATCH[2]}" -ge 480 ] && [ "${BASH_REMATCH[2]}" -le 2576 ]; then
+    echo "$1"
+    return
+  fi
+  [ -z "$1" ] || echo "OPENBOT_DISPLAY_SIZE is not WIDTHxHEIGHT from 640x480 to 2576x2576. The display is 1920x1080." >&2
+  echo 1920x1080
+}
 
 # Each server makes its own keyring password on its first start, so no two servers share one.
 # The password only lets the daemon open the keyring without a person; the file is 0600.
@@ -106,5 +125,5 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 if [ "$mode" = hosted ]; then echo "The boat desktop session did not start. OpenBot uses a virtual display." >&2; fi
-exec xvfb-run -a -s "-screen 0 1280x800x24 -nolisten tcp" \
+exec xvfb-run -a -s "-screen 0 $(display_size "$requested_size")x24 -nolisten tcp" \
   /opt/OpenBot/app/openbot --password-store=gnome-libsecret
