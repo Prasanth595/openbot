@@ -12,7 +12,11 @@ import { useUniwind } from "uniwind";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { useText } from "@/shared/lib/text";
 
@@ -41,9 +45,9 @@ function pickerLabel(text: string): string {
  * member, for a host without `provider-accounts-v1`, and until the host answers.
  */
 export function useProviderAccounts(agent: MobileAgent, enabled: boolean) {
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
-  const canManage = workspace.canManageProviderAccounts(agent.serverId);
+  const canManage = useMobileWorkspaceSelector((current) => current.canManageProviderAccounts(agent.serverId));
   // Under "agent-info", so the host's agent events refresh it with the other agent records.
   const queryKey = queryKeys.agentProviderAccounts(queryScope, agent.serverId, agent.id);
   const accounts = useQuery({
@@ -93,7 +97,7 @@ export function AgentRuntimeFields({
   // The name of an account, as on desktop: the user's name for it, its email, or its place in the list.
   const accountName = (account: ProviderAccountStatus, index: number) =>
     account.label || account.email || t("mobile.agent.runtime.accountNumbered", { number: index + 1 });
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const { theme } = useUniwind();
   const models = useQuery({

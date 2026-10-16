@@ -2,7 +2,7 @@ import type { BrowserViewContextMenu, BrowserViewCursor } from "@openbot/contrac
 import { type SkImage, Skia } from "@shopify/react-native-skia";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSharedValue } from "react-native-reanimated";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import type { RemoteBrowserViewSession } from "../model/browser-view-bridge";
 import type { Size } from "../model/live-view-geometry";
 import { createLiveViewInputQueue } from "../model/live-view-input-queue";
@@ -31,7 +31,7 @@ export function useBrowserLiveView(
   active: boolean,
   onContextMenu: (menu: BrowserViewContextMenu) => void,
 ) {
-  const { openBrowserView } = useMobileWorkspace();
+  const { openBrowserView } = useMobileWorkspaceActions();
   // The workspace value changes with every server and agent update. A view stays open through them.
   const open = useRef(openBrowserView);
   open.current = openBrowserView;

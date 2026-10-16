@@ -11,7 +11,7 @@ import { SettingsPicker } from "@/features/settings/components/settings-controls
 import {
   type MobileAgent,
   type MobileServer,
-  useMobileWorkspace,
+  useMobileWorkspaceActions,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
@@ -22,7 +22,7 @@ import { useText } from "@/shared/lib/text";
  * without `agent-admin-v1`, and until the host answers. The info page and this page share the read.
  */
 export function useAgentAdminSettings(agent: MobileAgent, server: MobileServer | undefined, available: boolean) {
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const canAdminister = server?.role === "owner" || server?.role === "admin";
   // Under "agent-info", so the host's agent events refresh it with the other agent records.
@@ -53,7 +53,7 @@ export function AgentAccessFields({
   available: boolean;
 }) {
   const { t, errorMessage } = useText();
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryClient = useQueryClient();
   const { theme } = useUniwind();
   const [saving, setSaving] = useState(false);

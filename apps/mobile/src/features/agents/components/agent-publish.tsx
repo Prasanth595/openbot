@@ -8,7 +8,7 @@ import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { type MobileAgent, useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { haptics } from "@/shared/lib/haptics";
@@ -29,7 +29,7 @@ const SUMMARY_LENGTH = 120;
 export function AgentPublish({ agent, available }: { agent: MobileAgent; available: boolean }) {
   const text = useText();
   const { t, format, sourceText } = text;
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryClient = useQueryClient();
   const queryScope = useQueryScope();
   const [pending, setPending] = useState<"publish" | "unpublish" | null>(null);

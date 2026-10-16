@@ -16,7 +16,7 @@ import { SettingsPicker, SettingsSwitch } from "@/features/settings/components/s
 import {
   type MobileAgent,
   type MobileServer,
-  useMobileWorkspace,
+  useMobileWorkspaceActions,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
@@ -49,7 +49,7 @@ interface AgentHostFieldsProps {
  */
 function useAgentHostSettings({ agent, server, available }: AgentHostFieldsProps) {
   const { t, errorMessage } = useText();
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryScope = useQueryScope();
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);

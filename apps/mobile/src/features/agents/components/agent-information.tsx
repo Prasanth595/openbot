@@ -8,7 +8,11 @@ import { View } from "react-native";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { useText } from "@/shared/lib/text";
 import { AgentFiles } from "./agent-files";
@@ -96,8 +100,10 @@ export function AgentInformation({
   }, [section]);
   const { t, format } = useText();
   const { recordId } = useLocalSearchParams<{ recordId?: string }>();
-  const workspace = useMobileWorkspace();
-  const role = workspace.servers.find((server) => server.id === agent.serverId)?.role;
+  const workspace = useMobileWorkspaceActions();
+  const role = useMobileWorkspaceSelector(
+    (current) => current.servers.find((server) => server.id === agent.serverId)?.role,
+  );
   const queryScope = useQueryScope();
   const [range, setRange] = useState(() => analyticsRange(agent.id));
   const options = { enabled: available, retry: false, staleTime: 0, gcTime: 0 };
@@ -128,7 +134,7 @@ export function AgentInformation({
   );
   const allRoutines = [...(routines.data ?? []), ...webhookRoutines];
   // An owner or admin reads the admin list, which has the enabled state, and can change it.
-  const manageSkills = workspace.canManageAgentSkills(agent.serverId);
+  const manageSkills = useMobileWorkspaceSelector((current) => current.canManageAgentSkills(agent.serverId));
   const skillsKey = queryKeys.agentSkills(queryScope, agent.serverId, agent.id, manageSkills);
   const skills = useQuery({
     ...options,

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Typography } from "heroui-native";
 import { View } from "react-native";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspaceActions } from "@/features/workspace/context/mobile-workspace-context";
 import { queryKeys } from "@/features/workspace/model/query-keys";
 import { useText } from "@/shared/lib/text";
 
@@ -28,7 +28,7 @@ export function RoutineWebhookActivity({
   routineId: string;
 }) {
   const { t, format } = useText();
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const activity = useQuery({
     queryKey: queryKeys.routineWebhookActivity(serverId, owner.kind, owner.id, routineId),
     retry: false,

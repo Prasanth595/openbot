@@ -93,7 +93,11 @@ import {
 } from "@/features/workspace/model/server-capabilities";
 import { runTeamRequest } from "@/features/workspace/model/team-request";
 import { decodeAgentSummaries, ignoreResponse } from "@/features/workspace/model/workspace-records";
-import type { MobileWorkspaceContextValue } from "@/features/workspace/model/workspace-types";
+import type {
+  MobileWorkspaceActions,
+  MobileWorkspaceCapabilityCheck,
+  MobileWorkspaceState,
+} from "@/features/workspace/model/workspace-types";
 
 /** Sends one Team API request to a server; without a server ID it uses the active server. */
 export type WorkspaceRequest = <T>(
@@ -106,8 +110,11 @@ export type WorkspaceRequest = <T>(
   onUploadProgress?: (fraction: number) => void,
 ) => Promise<T>;
 
+/** The capability checks that only read what a host advertised. */
+type HostRequestChecks = Pick<MobileWorkspaceState, Exclude<MobileWorkspaceCapabilityCheck, "browserViewSupport">>;
+
 type HostRequestActions = Pick<
-  MobileWorkspaceContextValue,
+  MobileWorkspaceActions,
   | "saveAgentMemory"
   | "deleteAgentMemory"
   | "createAgentRoutine"
@@ -128,7 +135,6 @@ type HostRequestActions = Pick<
   | "listEventActivity"
   | "loadHostAnalytics"
   | "searchMessages"
-  | "canSearchFiles"
   | "searchFiles"
   | "loadAgentSkills"
   | "setAgentSkillEnabled"
@@ -140,8 +146,6 @@ type HostRequestActions = Pick<
   | "updateAgentHostSettings"
   | "loadProviderAccounts"
   | "setAgentProviderAccount"
-  | "canStartNewChat"
-  | "canChooseNewAgentModel"
   | "startNewChat"
   | "loadAgentSessionSettings"
   | "setAgentSessionSetting"
@@ -152,14 +156,10 @@ type HostRequestActions = Pick<
   | "publishAgentTemplate"
   | "unpublishAgentTemplate"
   | "deleteStoredFile"
-  | "canInstallAgentTemplate"
   | "installAgentTemplate"
   | "loadAgentAvatar"
   | "duplicateAgent"
   | "loadQueue"
-  | "canEditQueue"
-  | "canRetryMessage"
-  | "attachmentSupport"
   | "editQueue"
   | "changeQueue"
   | "setMessageReaction"
@@ -182,7 +182,7 @@ export function createHostRequestActions({
   queryScope: QueryScope;
   capabilities: ServerCapabilities;
   attachmentDownloads: { current: Promise<void> };
-}): HostRequestActions {
+}): { checks: HostRequestChecks; actions: HostRequestActions } {
   const has = (serverId: string, capability: string) => hasCapability(capabilities, serverId, capability);
   /** The Team API of a server that serves `capability`, for an optional admin route set. */
   function capabilityApi(serverId: string, capability: string, unsupported: MobileTextKey): TeamApiRequest {
@@ -210,7 +210,22 @@ export function createHostRequestActions({
         catch: (cause) => new TeamRequestError({ cause }),
       });
   }
-  return {
+  const checks: HostRequestChecks = {
+    canSearchFiles: (serverId) => has(serverId, CONVERSATION_FILE_SEARCH_CAPABILITY),
+    canStartNewChat: (serverId) => has(serverId, CONTEXT_RESET_CAPABILITY),
+    canChooseNewAgentModel: (serverId) => has(serverId, TEAM_AGENT_CREATE_MODEL_CAPABILITY),
+    canInstallAgentTemplate: (serverId) => has(serverId, AGENT_INSTALL_CAPABILITY),
+    canEditQueue: (serverId) => has(serverId, TEAM_QUEUE_EDIT_CAPABILITY),
+    canRetryMessage: (serverId) => has(serverId, TEAM_MESSAGE_CLIENT_ID_CAPABILITY),
+    attachmentSupport: (serverId) => {
+      const advertised = capabilities.get(serverId) ?? [];
+      return {
+        eml: advertised.includes(TEAM_EML_ATTACHMENTS_CAPABILITY),
+        media: advertised.includes(TEAM_MEDIA_ATTACHMENTS_CAPABILITY),
+      };
+    },
+  };
+  const actions: HostRequestActions = {
     loadAgentSessionSettings: async (agentId, serverId) =>
       has(serverId, AGENT_SESSION_SETTINGS_CAPABILITY)
         ? runTeamRequest(readAgentSessionSettings(sessionSettingsAdmin(serverId), agentId))
@@ -352,7 +367,6 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
-    canSearchFiles: (serverId) => has(serverId, CONVERSATION_FILE_SEARCH_CAPABILITY),
     searchFiles: (query, serverId, cursor) => {
       const body: ConversationFileSearchRequest = { query, cursor: cursor || null, limit: 50 };
       return request(
@@ -407,8 +421,6 @@ export function createHostRequestActions({
       );
       await runTeamRequest(setAgentProviderAccount(teamApi(serverId), input));
     },
-    canStartNewChat: (serverId) => has(serverId, CONTEXT_RESET_CAPABILITY),
-    canChooseNewAgentModel: (serverId) => has(serverId, TEAM_AGENT_CREATE_MODEL_CAPABILITY),
     startNewChat: async (agentId, serverId) => {
       // A host too old to know the route answers 404, so refuse before the request.
       requireCapability(capabilities, serverId, CONTEXT_RESET_CAPABILITY, "mobile.agent.newChat.unsupported");
@@ -428,7 +440,6 @@ export function createHostRequestActions({
       requireCapability(capabilities, serverId, STORAGE_CAPABILITY, "mobile.workspace.error.filesUnsupported");
       await request("POST", STORAGE_ROUTES.deleteFile, ignoreResponse, { fileId }, serverId);
     },
-    canInstallAgentTemplate: (serverId) => has(serverId, AGENT_INSTALL_CAPABILITY),
     installAgentTemplate: async (input, serverId) => {
       // A host too old to know the route answers 404, so refuse before the request.
       requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.link.template.error.unsupported");
@@ -452,15 +463,6 @@ export function createHostRequestActions({
         undefined,
         serverId,
       ),
-    canEditQueue: (serverId) => has(serverId, TEAM_QUEUE_EDIT_CAPABILITY),
-    canRetryMessage: (serverId) => has(serverId, TEAM_MESSAGE_CLIENT_ID_CAPABILITY),
-    attachmentSupport: (serverId) => {
-      const advertised = capabilities.get(serverId) ?? [];
-      return {
-        eml: advertised.includes(TEAM_EML_ATTACHMENTS_CAPABILITY),
-        media: advertised.includes(TEAM_MEDIA_ATTACHMENTS_CAPABILITY),
-      };
-    },
     editQueue: async (agentId, serverId, input) => {
       return request(
         "POST",
@@ -513,6 +515,7 @@ export function createHostRequestActions({
       return result;
     },
   };
+  return { checks, actions };
 }
 
 /** The routes that the desktop calendar reads from a remote host, so both place the same runs. */

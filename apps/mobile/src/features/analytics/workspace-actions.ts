@@ -1,12 +1,16 @@
-import type { MobileWorkspaceContextValue } from "../workspace/model/workspace-types";
+import type { MobileWorkspaceActions, MobileWorkspaceState } from "../workspace/model/workspace-types";
 import { attachmentSizeBucket } from "./events";
 import { mobileAnalytics } from "./mobile-analytics";
 
 /** Instrument user commands, never background reads or host lifecycle broadcasts. */
-export function trackWorkspaceActions(workspace: MobileWorkspaceContextValue): MobileWorkspaceContextValue {
+export function trackWorkspaceActions(
+  workspace: MobileWorkspaceActions,
+  /** The workspace state when a command runs. */
+  state: () => Pick<MobileWorkspaceState, "agents" | "pinnedAgentIds">,
+): MobileWorkspaceActions {
   const run = mobileAnalytics.operation.bind(mobileAnalytics);
   const agentProperties = (id: string) => {
-    const agent = workspace.agents.find((candidate) => candidate.id === id);
+    const agent = state().agents.find((candidate) => candidate.id === id);
     return { provider: agent?.provider, model: agent?.model, reasoning_effort: agent?.reasoningEffort };
   };
   return {
@@ -81,9 +85,10 @@ export function trackWorkspaceActions(workspace: MobileWorkspaceContextValue): M
       mobileAnalytics.track("team_action", { action: "server_selected", server_kind: "remote", result: "succeeded" });
     },
     toggleAgentPin: (id) => {
+      const pinned = state().pinnedAgentIds.includes(id);
       const result = workspace.toggleAgentPin(id);
       mobileAnalytics.track("conversation_action", {
-        action: workspace.pinnedAgentIds.includes(id) ? "unpin" : "pin",
+        action: pinned ? "unpin" : "pin",
         result: result === "error" ? "failed" : "succeeded",
       });
       return result;
