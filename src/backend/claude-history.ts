@@ -389,6 +389,17 @@ function resetIndex(database: DatabaseSync): void {
 }
 
 async function selectConversation(database: DatabaseSync, signal: AbortSignal): Promise<void> {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    await writeSelectedConversation(database, signal);
+    database.exec("COMMIT");
+  } catch (cause) {
+    database.exec("ROLLBACK");
+    throw cause;
+  }
+}
+
+async function writeSelectedConversation(database: DatabaseSync, signal: AbortSignal): Promise<void> {
   const updateParent = database.prepare("UPDATE entries SET parent_uuid = ? WHERE uuid = ?");
   const existsById = database.prepare("SELECT 1 FROM entries WHERE uuid = ?");
   for (const raw of database
