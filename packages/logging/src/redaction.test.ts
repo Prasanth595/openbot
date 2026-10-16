@@ -67,6 +67,17 @@ describe("redactText", () => {
     expect(redactText("curl -H 'Cookie: a=one-value; b=two-value' https://example.com")).toBe(
       "curl -H 'Cookie: [redacted]' https://example.com",
     );
+    expect(redactText('Cookie: a=one-value; b="quoted-secret"; c=three')).toBe("Cookie: [redacted]");
+    expect(redactText('{"cookie":"a=b; s=\\"escaped-secret\\"","url":"/x"}')).not.toContain("escaped-secret");
+  });
+
+  // The scan is synchronous and runs on provider stderr: a repeated rule prefix with no value must
+  // not make each match attempt scan the rest of the line.
+  it("bounds the work of repeated cookie and query prefixes", () => {
+    const started = performance.now();
+    redactText("cookie:".repeat(20_000));
+    redactText("?key=".repeat(20_000));
+    expect(performance.now() - started).toBeLessThan(1_000);
   });
 
   it("redacts credential query values in a URL", () => {

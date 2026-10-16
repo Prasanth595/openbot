@@ -62,13 +62,17 @@ const PEM_PRIVATE_KEY =
   /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----(?:[\s\S]{0,16384}?-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----|(?:\\[rn]|\s)*[A-Za-z0-9+/=]{16,}[\s\S]*$)/gu;
 // Every cookie in a `Cookie:` or `Set-Cookie:` header. The assignment rule stops at the first `;`
 // and kept every later cookie. The value must start with `name=`, so prose such as
-// `cookie: missing` is left to the assignment rule.
-const COOKIE_HEADER = /(\bcookie["']?\s*:\s*["']?)[^\s=;,"'\\]+=[^\r\n"'\\]*/giu;
+// `cookie: missing` is left to the assignment rule. The value also takes an escaped quote, as in a
+// JSON string, and a quoted cookie value that ends at a `;` or at the end of the line. The name is
+// bounded: a line of repeated `cookie:` with no `=` must not scan the rest of the line once each.
+const COOKIE_HEADER =
+  /(\bcookie["']?\s*:\s*["']?)[^\s=;,"'\\]{1,256}=(?:\\.|"[^"\r\n\\]{0,4096}"(?=;|[ \t]*(?:[\r\n]|$))|[^\r\n"'\\])*/giu;
 // URL query values that carry a credential under a name too common to be a secret label: an API
 // key, an OAuth code, a login ticket, a signature. Only a `?` or `&` before the name makes it a
 // query parameter. The value must hold a digit, so a placeholder such as `YOUR_API_KEY` in a skill
-// or a template is not taken for a secret.
-const QUERY_SECRET = /([?&](?:key|code|ticket|sig)=)(?!\[redacted\])(?=[^&#\s"'<>)\]]*\d)[^&#\s"'<>)\]]{8,}/giu;
+// or a template is not taken for a secret. The search for the digit is bounded, so a line of
+// repeated `?key=` with no digit does not scan the rest of the line once each.
+const QUERY_SECRET = /([?&](?:key|code|ticket|sig)=)(?!\[redacted\])(?=[^&#\s"'<>)\]]{0,256}\d)[^&#\s"'<>)\]]{8,}/giu;
 // Bounded for the same reason as the label above, and more sharply: with `+`
 // on the local part, every character of a long payload consumed the rest of
 // the run looking for an `@` and then backtracked over all of it.
