@@ -17,6 +17,8 @@ import type {
   MessagingOverview,
   MessagingPlatform,
   RespondToApprovalInput,
+  SidebarLayoutSnapshot,
+  SidebarSection,
 } from "@openbot/contracts/ipc";
 import { MESSAGING_CONNECTION_STATES } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isOneOf, isString } from "@openbot/contracts/runtime-values";
@@ -93,6 +95,9 @@ export interface MessagingAgents {
     },
   ): Effect.Effect<AgentSummary, AgentLifecycleFailed>;
   createMemory(input: { agentId: string; text: string }): unknown;
+  /** Fails as `deleteAgent` would, such as while the agent has an active turn. */
+  ensureDeletable(agentId: string): Effect.Effect<void, AgentLifecycleFailed>;
+  deleteAgent(agentId: string): Effect.Effect<void, AgentLifecycleFailed>;
 }
 
 export interface MessagingServiceOptions {
@@ -114,7 +119,7 @@ export interface MessagingServiceOptions {
   /** The account service half of the OpenBot Telegram bot. Without it and `ingress`, no chat can connect. */
   telegramApp?: TelegramAppPort;
   /** Where the Slack, Discord and Telegram Orchestrators go in the sidebar: an Integrations section. */
-  sidebar?: Pick<SidebarLayoutStore, "getSnapshot" | "mutate">;
+  sidebar?: Pick<SidebarLayoutStore, "getSnapshot" | "mutate" | "removeAgent">;
   /** The file that keeps status posts across a restart. Without it, they are kept in memory only. */
   statusPath?: string;
 }
@@ -213,7 +218,7 @@ export class MessagingService {
   readonly #discordConnect: DiscordConnect | null;
   readonly #slackOrigin: string | undefined;
   readonly #telegramApp: TelegramAppPort | null;
-  readonly #sidebar: Pick<SidebarLayoutStore, "getSnapshot" | "mutate"> | null;
+  readonly #sidebar: Pick<SidebarLayoutStore, "getSnapshot" | "mutate" | "removeAgent"> | null;
   #started = false;
   /** `start` asked every enabled connection to start. One with no live entry then does not start by itself. */
   #connectionsStarted = false;
@@ -420,7 +425,7 @@ export class MessagingService {
     if (!sidebar) return null;
     const name = sourceText("status.messaging.integrationsSection");
     const agentIds = new Set(this.#agents.listAgents().map((agent) => agent.id));
-    const existing = sidebar.getSnapshot().sections.find((section) => section.name === name);
+    const existing = integrationsSection(sidebar.getSnapshot());
     const layout = yield* sidebar
       .mutate(
         existing ? { type: "assign", agentId, sectionId: existing.id } : { type: "create", name, agentId },
@@ -428,6 +433,53 @@ export class MessagingService {
       )
       .pipe(toMessagingOperationFailed);
     return layout.agentAssignments[agentId] ?? null;
+  });
+
+  /**
+   * The orchestrator that a disconnect of `record` leaves with no connected place, so the disconnect
+   * deletes it. The Telegram Orchestrator stays while another chat is linked. Fails, before the
+   * disconnect changes anything, when the agent cannot be deleted now.
+   */
+  readonly #orphanedOrchestrator = Effect.fn("MessagingService.orphanedOrchestrator")(function* (
+    this: MessagingService,
+    record: MessagingConnectionRecord,
+  ) {
+    const agentId = this.#orchestrator(record);
+    if (!agentId) return null;
+    const shared = this.#threads.store
+      .connections()
+      .some(
+        (other) =>
+          other.connectionId !== record.connectionId &&
+          other.orchestratorAgentId === agentId &&
+          this.#credentials.status(other.connectionId) !== "missing",
+      );
+    if (shared) return null;
+    yield* this.#agents.ensureDeletable(agentId).pipe(toMessagingOperationFailed);
+    return agentId;
+  });
+
+  /**
+   * Deletes the orchestrator of a disconnected place, and then the Integrations section when no agent
+   * is left in it. The place is already disconnected, so a failure is only logged.
+   */
+  readonly #deleteOrchestrator = Effect.fn("MessagingService.deleteOrchestrator")(function* (
+    this: MessagingService,
+    agentId: string,
+  ) {
+    yield* Effect.gen({ self: this }, function* () {
+      yield* this.#agents.deleteAgent(agentId).pipe(toMessagingOperationFailed);
+      const sidebar = this.#sidebar;
+      if (!sidebar) return;
+      const layout = yield* sidebar.removeAgent(agentId).pipe(toMessagingOperationFailed);
+      const section = integrationsSection(layout);
+      const agentIds = new Set(this.#agents.listAgents().map((agent) => agent.id));
+      if (
+        section &&
+        !Object.entries(layout.agentAssignments).some(([id, sectionId]) => sectionId === section.id && agentIds.has(id))
+      )
+        yield* sidebar.mutate({ type: "delete", sectionId: section.id }, agentIds).pipe(toMessagingOperationFailed);
+    }).pipe(Effect.catch((failure) => Effect.sync(() => this.#warn(failure.cause))));
   });
 
   /**
@@ -477,6 +529,7 @@ export class MessagingService {
     workspaceId: string,
   ) {
     const record = yield* messagingStep(() => this.#requireConnection("slack", workspaceId));
+    const orphan = yield* this.#orphanedOrchestrator(record);
     yield* this.#stopConnection(record.connectionId);
     const botToken = this.#credentials.get(record.connectionId)?.botToken;
     if (botToken)
@@ -492,6 +545,7 @@ export class MessagingService {
         .unlink(workspaceId)
         .pipe(Effect.catch((failure) => Effect.sync(() => this.#warn(failure.cause))));
     this.#ingress?.reconnect();
+    if (orphan) yield* this.#deleteOrchestrator(orphan);
   }, Effect.uninterruptible).bind(this);
 
   /**
@@ -548,6 +602,7 @@ export class MessagingService {
     guildId: string,
   ) {
     const record = yield* messagingStep(() => this.#requireConnection("discord", guildId));
+    const orphan = yield* this.#orphanedOrchestrator(record);
     if (this.#discordConnect) yield* this.#discordConnect.unlink(guildId).pipe(toMessagingOperationFailed);
     yield* this.#stopConnection(record.connectionId);
     yield* this.#credentials.clear(record.connectionId);
@@ -555,6 +610,7 @@ export class MessagingService {
       this.#threads.store.updateConnection(record.connectionId, { enabled: false, lastErrorCode: null }),
     );
     this.#ingress?.reconnect();
+    if (orphan) yield* this.#deleteOrchestrator(orphan);
   }, Effect.uninterruptible).bind(this);
 
   /**
@@ -705,8 +761,9 @@ export class MessagingService {
   }
 
   /**
-   * The bot leaves the chat, and the chat is unlinked from this host. The conversations stay in
-   * OpenBot, and a later link of the same chat gives them back their agents.
+   * The bot leaves the chat, and the chat is unlinked from this host. When no other chat is linked,
+   * the Telegram Orchestrator is deleted with its conversations. Otherwise the conversations stay, and
+   * a later link of the same chat gives them back their agents.
    */
   readonly disconnectTelegramChat = Effect.fn("MessagingService.disconnectTelegramChat")(function* (
     this: MessagingService,
@@ -714,6 +771,7 @@ export class MessagingService {
   ) {
     const { app, ingress } = yield* messagingStep(() => this.#requireTelegram());
     const record = yield* messagingStep(() => this.#requireConnection("telegram", chatId));
+    const orphan = yield* this.#orphanedOrchestrator(record);
     const botId = this.#credentials.get(record.connectionId)?.botId;
     // The chat's transport may be the last holder of the socket. The call needs it open, and it must
     // come before the unlink: Signal accepts a call only for a chat that is routed to this host.
@@ -734,6 +792,7 @@ export class MessagingService {
       this.#threads.store.updateConnection(record.connectionId, { enabled: false, lastErrorCode: null }),
     );
     yield* app.unlink(chatId).pipe(Effect.catch((failure) => Effect.sync(() => this.#warn(failure.cause))));
+    if (orphan) yield* this.#deleteOrchestrator(orphan);
   }, Effect.uninterruptible).bind(this);
 
   /**
@@ -1702,6 +1761,12 @@ export class MessagingService {
       ...(code ? { code } : {}),
     });
   }
+}
+
+/** The sidebar section that holds the orchestrators. It is found by its name. */
+function integrationsSection(layout: SidebarLayoutSnapshot): SidebarSection | undefined {
+  const name = sourceText("status.messaging.integrationsSection");
+  return layout.sections.find((section) => section.name === name);
 }
 
 /** Where to answer when the message that started the work is not known: the conversation's thread. */

@@ -144,6 +144,7 @@ export const messages = {
     "OpenBot cesse de répondre dans {workspace} et supprime son jeton Slack de {host}.",
   "connector.slack.disconnectEffect": "Les membres de {workspace} ne peuvent plus joindre vos agents via @OpenBot.",
   "connector.slack.removeEffectKept": "Les conversations et le Slack Orchestrator restent dans OpenBot.",
+  "connector.slack.removeEffectDeleted": "Le Slack Orchestrator et ses conversations sont supprimés d’OpenBot.",
   "connector.slack.keep": "Rester connecté",
   "connector.slack.close": "Fermer",
 
@@ -207,6 +208,7 @@ export const messages = {
     "OpenBot cesse de répondre dans {workspace} et supprime la connexion Discord de {host}.",
   "connector.discord.disconnectEffect": "Les membres de {workspace} ne peuvent plus joindre vos agents via @OpenBot.",
   "connector.discord.removeEffectKept": "Les conversations et le Discord Orchestrator restent dans OpenBot.",
+  "connector.discord.removeEffectDeleted": "Le Discord Orchestrator et ses conversations sont supprimés d’OpenBot.",
   "connector.discord.keep": "Rester connecté",
   "connector.discord.close": "Fermer",
 
@@ -287,6 +289,8 @@ export const messages = {
     "Le bot OpenBot quitte {chat}, et OpenBot cesse d’y répondre. Les conversations restent dans OpenBot.",
   "connector.telegram.disconnectEffect": "Les membres de {chat} ne peuvent plus joindre vos agents via le bot OpenBot.",
   "connector.telegram.removeEffectKept": "Les conversations et le Telegram Orchestrator restent dans OpenBot.",
+  "connector.telegram.removeEffectDeleted":
+    "C’est la dernière discussion : le Telegram Orchestrator et ses conversations sont supprimés d’OpenBot.",
   "connector.telegram.keep": "Rester connecté",
   "connector.telegram.close": "Fermer",
   "connector.onePassword.title": "1Password",

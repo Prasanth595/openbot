@@ -157,6 +157,7 @@ export const messages = defineMessages("connector", {
     "OpenBot stops answering in {workspace} and removes its Slack token from {host}.",
   "connector.slack.disconnectEffect": "People in {workspace} can no longer reach your agents through @OpenBot.",
   "connector.slack.removeEffectKept": "The conversations and the Slack Orchestrator stay in OpenBot.",
+  "connector.slack.removeEffectDeleted": "The Slack Orchestrator and its conversations are deleted from OpenBot.",
   "connector.slack.keep": "Keep connected",
   "connector.slack.close": "Close",
 
@@ -226,6 +227,7 @@ export const messages = defineMessages("connector", {
     "OpenBot stops answering in {workspace} and removes the Discord connection from {host}.",
   "connector.discord.disconnectEffect": "People in {workspace} can no longer reach your agents through @OpenBot.",
   "connector.discord.removeEffectKept": "The conversations and the Discord Orchestrator stay in OpenBot.",
+  "connector.discord.removeEffectDeleted": "The Discord Orchestrator and its conversations are deleted from OpenBot.",
   "connector.discord.keep": "Keep connected",
   "connector.discord.close": "Close",
 
@@ -310,6 +312,8 @@ export const messages = defineMessages("connector", {
     "The OpenBot bot leaves {chat}, and OpenBot stops answering there. The conversations stay in OpenBot.",
   "connector.telegram.disconnectEffect": "People in {chat} can no longer reach your agents through the OpenBot bot.",
   "connector.telegram.removeEffectKept": "The conversations and the Telegram Orchestrator stay in OpenBot.",
+  "connector.telegram.removeEffectDeleted":
+    "This is the last chat, so the Telegram Orchestrator and its conversations are deleted from OpenBot.",
   "connector.telegram.keep": "Keep connected",
   "connector.telegram.close": "Close",
   // Marketplace > 1Password: a vault that the user shares with OpenBot through a service account.

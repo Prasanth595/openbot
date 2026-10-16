@@ -140,6 +140,7 @@ export const messages = {
   "connector.slack.disconnectEffect":
     "As pessoas em {workspace} não poderão mais acessar seus agentes por meio de @OpenBot.",
   "connector.slack.removeEffectKept": "As conversas e o Orquestrador do Slack continuam no OpenBot.",
+  "connector.slack.removeEffectDeleted": "O Orquestrador do Slack e as conversas dele são excluídos do OpenBot.",
   "connector.slack.keep": "Manter conectado",
   "connector.slack.close": "Fechar",
   "connector.discord.title": "Discord",
@@ -203,6 +204,7 @@ export const messages = {
   "connector.discord.disconnectEffect":
     "As pessoas em {workspace} não poderão mais acessar seus agentes por meio de @OpenBot.",
   "connector.discord.removeEffectKept": "As conversas e o Orquestrador do Discord continuam no OpenBot.",
+  "connector.discord.removeEffectDeleted": "O Orquestrador do Discord e as conversas dele são excluídos do OpenBot.",
   "connector.discord.keep": "Manter conectado",
   "connector.discord.close": "Fechar",
   "connector.telegram.title": "Telegram",
@@ -283,6 +285,8 @@ export const messages = {
   "connector.telegram.disconnectEffect":
     "As pessoas em {chat} não poderão mais acessar seus agentes por meio do bot do OpenBot.",
   "connector.telegram.removeEffectKept": "As conversas e o Orquestrador do Telegram continuam no OpenBot.",
+  "connector.telegram.removeEffectDeleted":
+    "Este é o último chat, então o Orquestrador do Telegram e as conversas dele são excluídos do OpenBot.",
   "connector.telegram.keep": "Manter conectado",
   "connector.telegram.close": "Fechar",
   "connector.onePassword.title": "1Password",

@@ -31,6 +31,7 @@ import {
   SettingsSection,
   Spinner,
   Text,
+  Trash2,
   TriangleAlert,
 } from "@openbot/ui";
 import { createEffect, createSignal, For, Match, Show, Switch } from "solid-js";
@@ -169,6 +170,7 @@ const SLACK_TEXT = {
   disconnectDescriptionHost: "connector.slack.disconnectDescriptionHost",
   disconnectEffect: "connector.slack.disconnectEffect",
   removeEffectKept: "connector.slack.removeEffectKept",
+  removeEffectDeleted: "connector.slack.removeEffectDeleted",
   keep: "connector.slack.keep",
   close: "connector.slack.close",
 } as const satisfies Record<string, keyof AppMessages>;
@@ -223,6 +225,7 @@ const DISCORD_TEXT = {
   disconnectDescriptionHost: "connector.discord.disconnectDescriptionHost",
   disconnectEffect: "connector.discord.disconnectEffect",
   removeEffectKept: "connector.discord.removeEffectKept",
+  removeEffectDeleted: "connector.discord.removeEffectDeleted",
   keep: "connector.discord.keep",
   close: "connector.discord.close",
 } as const satisfies Record<keyof typeof SLACK_TEXT, keyof AppMessages>;
@@ -285,6 +288,11 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
   /** Until the first workspace has its orchestrator, the header offers the next step of the dialog. */
   const setUpDone = () => {
     const connection = first();
+    return connection !== null && slackOrchestrator(connection, props.agents) !== null;
+  };
+  /** A disconnect deletes the workspace's orchestrator. */
+  const disconnectDeletesOrchestrator = () => {
+    const connection = disconnecting();
     return connection !== null && slackOrchestrator(connection, props.agents) !== null;
   };
 
@@ -397,6 +405,7 @@ export function SlackIntegrationPanel(props: SlackIntegrationPanelProps) {
         platform={props.platform}
         hostName={props.hostName}
         connection={disconnecting()}
+        deletesOrchestrator={disconnectDeletesOrchestrator()}
         onConfirm={(workspaceId) => {
           setDisconnecting(null);
           props.onDisconnectWorkspace(workspaceId);
@@ -667,6 +676,7 @@ function DisconnectDialog(props: {
   platform?: WorkspacePlatform | undefined;
   hostName?: string | undefined;
   connection: MessagingConnection | null;
+  deletesOrchestrator: boolean;
   onConfirm: (workspaceId: string) => void;
   onClose: () => void;
 }) {
@@ -715,12 +725,24 @@ function DisconnectDialog(props: {
           </span>
           {t(text().disconnectEffect, { workspace: workspace() })}
         </li>
-        <li data-tone="success">
-          <span class="slack-effect-icon" aria-hidden="true">
-            <Check />
-          </span>
-          {t(text().removeEffectKept)}
-        </li>
+        <Show
+          when={props.deletesOrchestrator}
+          fallback={
+            <li data-tone="success">
+              <span class="slack-effect-icon" aria-hidden="true">
+                <Check />
+              </span>
+              {t(text().removeEffectKept)}
+            </li>
+          }
+        >
+          <li data-tone="danger">
+            <span class="slack-effect-icon" aria-hidden="true">
+              <Trash2 />
+            </span>
+            {t(text().removeEffectDeleted)}
+          </li>
+        </Show>
       </ul>
     </WizardDialog>
   );

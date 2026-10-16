@@ -155,6 +155,7 @@ export const messages = {
   "connector.slack.disconnectEffect":
     "Ludzie w {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
   "connector.slack.removeEffectKept": "Rozmowy i Slack Orchestrator zostają w OpenBot.",
+  "connector.slack.removeEffectDeleted": "Slack Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
   "connector.slack.keep": "Nie odłączaj",
   "connector.slack.close": "Zamknij",
 
@@ -222,6 +223,7 @@ export const messages = {
   "connector.discord.disconnectEffect":
     "Ludzie w {workspace} nie będą już mogli kontaktować się z twoimi agentami przez @OpenBot.",
   "connector.discord.removeEffectKept": "Rozmowy i Discord Orchestrator zostają w OpenBot.",
+  "connector.discord.removeEffectDeleted": "Discord Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
   "connector.discord.keep": "Nie odłączaj",
   "connector.discord.close": "Zamknij",
 
@@ -307,6 +309,8 @@ export const messages = {
   "connector.telegram.disconnectEffect":
     "Ludzie w czacie {chat} nie będą już mogli kontaktować się z twoimi agentami przez bota OpenBot.",
   "connector.telegram.removeEffectKept": "Rozmowy i Telegram Orchestrator zostają w OpenBot.",
+  "connector.telegram.removeEffectDeleted":
+    "To ostatni czat, więc Telegram Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
   "connector.telegram.keep": "Nie odłączaj",
   "connector.telegram.close": "Zamknij",
   "connector.onePassword.title": "1Password",

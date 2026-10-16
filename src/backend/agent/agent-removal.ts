@@ -97,18 +97,13 @@ export class AgentRemoval {
     return this.#deleting;
   }
 
+  /** Fails as `delete` would when the agent is being deleted, has an active turn or an unfinished delivery. */
+  readonly ensureDeletable = Effect.fn("AgentRemoval.ensureDeletable")(function* (this: AgentRemoval, agentId: string) {
+    yield* removalStep(() => this.#deletable(agentId));
+  });
+
   readonly delete = Effect.fn("AgentRemoval.delete")(function* (this: AgentRemoval, agentId: string) {
-    const agent = yield* removalStep(() => {
-      if (this.#deleting.has(agentId)) throw new Error(sourceText("error.agent.deletionBusy"));
-      const candidate = this.#store.list().find((entry) => entry.id === agentId);
-      if (
-        this.#mailbox.hasUnfinishedDelivery(agentId) ||
-        this.#conversation.anyWorkingSnapshot(agentId)?.activeTurnId
-      ) {
-        throw new Error(sourceText("error.agent.stopBeforeDelete"));
-      }
-      return candidate;
-    });
+    const agent = yield* removalStep(() => this.#deletable(agentId));
     yield* Effect.acquireUseRelease(
       removalStep(() => {
         const gate = this.#duplication.releaseForDelete(agentId);
@@ -136,6 +131,15 @@ export class AgentRemoval {
         }),
     );
   }, Effect.uninterruptible);
+
+  #deletable(agentId: string): AgentSummary | undefined {
+    if (this.#deleting.has(agentId)) throw new Error(sourceText("error.agent.deletionBusy"));
+    const candidate = this.#store.list().find((entry) => entry.id === agentId);
+    if (this.#mailbox.hasUnfinishedDelivery(agentId) || this.#conversation.anyWorkingSnapshot(agentId)?.activeTurnId) {
+      throw new Error(sourceText("error.agent.stopBeforeDelete"));
+    }
+    return candidate;
+  }
 
   readonly deleteData = Effect.fn("AgentRemoval.deleteData")(function* (
     this: AgentRemoval,
