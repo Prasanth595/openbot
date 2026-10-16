@@ -1,6 +1,6 @@
 import type { TooltipRootOptions } from "@kobalte/core/tooltip";
 import type { JSX } from "@solidjs/web";
-import { createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { Tooltip } from "./complex";
 import { type MotionPlace, useMenuMotion } from "./menu-motion";
 
@@ -49,6 +49,14 @@ function MotionTooltipContent(props: {
  */
 export function MotionTooltip(props: MotionTooltipProps) {
   const [open, setOpen] = createSignal(false);
+  // While the panel is suppressed, Kobalte does not close it, so it would open again when the
+  // suppression ends, also with the pointer away.
+  createEffect(
+    () => props.suppressed,
+    (suppressed) => {
+      if (suppressed) setOpen(false);
+    },
+  );
   let trigger: HTMLElement | undefined;
   const place = (): MotionPlace | undefined => {
     const group = trigger?.parentElement;

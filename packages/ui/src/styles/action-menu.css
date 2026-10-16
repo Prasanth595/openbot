@@ -266,7 +266,7 @@
 }
 
 /* While the panel moves, its size changes and its content stays as it is: no scroll bar shows. */
-.ui-motion-tooltip:is([data-menu-hold], [data-menu-swap-in], [data-menu-swap-out]) {
+.ui-motion-tooltip:is([data-menu-hold], [data-menu-moving], [data-menu-swap-out]) {
   overflow: hidden;
 }
 

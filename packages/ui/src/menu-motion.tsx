@@ -35,6 +35,8 @@ interface HeldSubmenu {
   panel: HTMLElement;
   /** The menu or the group of triggers whose next panel takes the place of this one. */
   group: Element;
+  /** Whether the panels are tooltips, whose content can change much from one to the next. */
+  own: boolean;
   /** Where the panel was, when it closed while it moved to its own place. */
   moving?: MovingState;
   /** Where the copy is without the hold: the place that the panel moved to. */
@@ -62,10 +64,15 @@ interface MovingState {
   rect: DOMRect;
   /** The opacity of the items, which fade in while the panel moves. */
   itemOpacity: number;
+  /** The surface that is nearer to the panel's surface at this point of the move. */
+  surface: Keyframe;
 }
 
 /** The move of a panel that took the place of the one before. */
-const moves = new WeakMap<HTMLElement, { from: DOMRect; to: DOMRect; animation: Animation }>();
+const moves = new WeakMap<
+  HTMLElement,
+  { from: DOMRect; to: DOMRect; animation: Animation; large: boolean; surfaces: [Keyframe, Keyframe] }
+>();
 
 /**
  * Where a panel is in its move. Content can leave the page before its cleanup runs, so the place
@@ -83,7 +90,8 @@ function movingState(panel: HTMLElement): MovingState | undefined {
       mix(move.from.width, move.to.width),
       mix(move.from.height, move.to.height),
     ),
-    itemOpacity: progress,
+    itemOpacity: move.large ? Math.max(0, (progress - LARGE_RESIZE_IN_START) / (1 - LARGE_RESIZE_IN_START)) : progress,
+    surface: move.surfaces[progress < 0.5 ? 0 : 1],
   };
 }
 
@@ -200,6 +208,7 @@ function leave(panel: HTMLElement, place: Node | null, own: MotionPlace | undefi
       copy,
       panel: copyPanel,
       group,
+      own: own !== undefined,
       moving: movingState(panel),
       timer: setTimeout(releaseHeld, HANDOFF_WAIT_MS),
     };
@@ -215,10 +224,12 @@ function leave(panel: HTMLElement, place: Node | null, own: MotionPlace | undefi
     if (held?.copy === copy) {
       insertCopy(copy, document.body);
       holdInPlace(held);
+      // A panel that does not match keeps its entry, so that its own timer shows it.
       const next = unmatched;
-      unmatched = undefined;
-      if (next?.group === held.group && next.panel.isConnected && performance.now() - next.since < LATE_HANDOFF_MS)
+      if (next?.group === held.group && next.panel.isConnected && performance.now() - next.since < LATE_HANDOFF_MS) {
+        unmatched = undefined;
         handOff(held, next.panel);
+      }
       return;
     }
     // Content without a portal goes back into its parent, so that its position stays right.
@@ -231,11 +242,14 @@ const translate = (to: DOMRect, from: DOMRect) => `translate(${to.left - from.le
 const size = (rect: DOMRect) => ({ width: `${rect.width}px`, height: `${rect.height}px` });
 
 /**
- * The width of each item of a panel at its own size. While the size of the panel changes, the items
+ * The width of each item of a panel at its own size. While the size of a tooltip changes, the items
  * keep these widths, so that content such as a card does not wrap again on each frame.
  */
 const itemWidths = (panel: HTMLElement) =>
   Array.from(panel.children, (item) => `${item.getBoundingClientRect().width}px`);
+
+/** The keyframe part that keeps the width of an item. Only the items of a tooltip keep it. */
+const itemWidth = (from: HeldSubmenu, width: string | undefined): Keyframe => (from.own ? { width } : {});
 
 /**
  * A copy shows its content at rest. When the panel closed while it moved, the copy waits where the
@@ -249,9 +263,9 @@ function holdInPlace(from: HeldSubmenu): void {
   const moving = from.moving;
   if (!moving) return;
   const hold: KeyframeAnimationOptions = { duration: 0, fill: "forwards" };
-  from.panel.animate([{ transform: translate(moving.rect, natural), ...size(moving.rect) }], hold);
+  from.panel.animate([{ transform: translate(moving.rect, natural), ...size(moving.rect), ...moving.surface }], hold);
   for (const [index, item] of Array.from(from.panel.children).entries())
-    item.animate([{ opacity: moving.itemOpacity, width: widths[index] }], hold);
+    item.animate([{ opacity: moving.itemOpacity, ...itemWidth(from, widths[index]) }], hold);
 }
 
 /** Whether the size of a panel changes so much that its content shows clipped while it moves. */
@@ -305,8 +319,10 @@ function handOff(from: HeldSubmenu, panel: HTMLElement): void {
     insertCopy(from.copy, document.body);
     const oldSurface = surfaceOf(from.panel);
     const newSurface = surfaceOf(panel);
+    // The hold keeps a surface, which would cover the transparent surface of the swap state.
+    for (const animation of from.panel.getAnimations()) animation.cancel();
     from.panel.dataset.menuSwapOut = "";
-    const large = largeResize(before, after);
+    const large = from.own && largeResize(before, after);
 
     const move = panel.animate(
       [
@@ -315,20 +331,25 @@ function handOff(from: HeldSubmenu, panel: HTMLElement): void {
       ],
       timing,
     );
-    moves.set(panel, { from: before, to: after, animation: move });
+    moves.set(panel, { from: before, to: after, animation: move, large, surfaces: [oldSurface, newSurface] });
+    // The panel clips its content while its size changes, and can scroll again after the move.
+    panel.dataset.menuMoving = "";
+    const moved = () => delete panel.dataset.menuMoving;
+    move.onfinish = moved;
+    move.oncancel = moved;
     // Kobalte places the panel again when its size changes. A panel aligned to the end or the center
     // of its trigger then moves on each frame and stops at a place for a height it does not have.
     // The positioner keeps the height of the panel at its new place.
     const height = `${after.height}px`;
     positionerOf(panel)?.animate([{ height }, { height }], timing);
     for (const [index, item] of Array.from(panel.children).entries()) {
-      const width = widths[index];
-      const hidden = { opacity: 0, filter: SWAP_BLUR, width };
+      const width = itemWidth(from, widths[index]);
+      const hidden = { opacity: 0, filter: SWAP_BLUR, ...width };
       item.animate(
         [
           hidden,
           ...(large ? [{ ...hidden, offset: LARGE_RESIZE_IN_START }] : []),
-          { opacity: 1, filter: "blur(0px)", width },
+          { opacity: 1, filter: "blur(0px)", ...width },
         ],
         timing,
       );
@@ -342,12 +363,12 @@ function handOff(from: HeldSubmenu, panel: HTMLElement): void {
       { ...timing, fill: "forwards" },
     ).onfinish = () => from.copy.remove();
     for (const [index, item] of Array.from(from.panel.children).entries()) {
-      const width = oldWidths[index];
+      const width = itemWidth(from, oldWidths[index]);
       item.animate(
         [
-          { opacity: from.moving?.itemOpacity ?? 1, filter: "blur(0px)", width },
-          { opacity: 0, filter: SWAP_BLUR, width, ...(large ? { offset: LARGE_RESIZE_OUT_END } : {}) },
-          ...(large ? [{ opacity: 0, filter: SWAP_BLUR, width }] : []),
+          { opacity: from.moving?.itemOpacity ?? 1, filter: "blur(0px)", ...width },
+          { opacity: 0, filter: SWAP_BLUR, ...width, ...(large ? { offset: LARGE_RESIZE_OUT_END } : {}) },
+          ...(large ? [{ opacity: 0, filter: SWAP_BLUR, ...width }] : []),
         ],
         { ...timing, fill: "forwards" },
       );
