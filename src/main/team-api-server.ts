@@ -37,6 +37,7 @@ import {
   CHANNEL_DELETE_CAPABILITY,
   CONNECTORS_CAPABILITY,
   EVENTS_CAPABILITY,
+  FOCUS_USE_CAPABILITY,
   HOST_ADMIN_CAPABILITY,
   HOST_MEMBER_UPDATE_CAPABILITY,
   HOST_RELEASE_CAPABILITY,
@@ -73,6 +74,7 @@ import {
   TEAM_HISTORY_EXTENT_CAPABILITY,
   type TeamCurrentCapability,
 } from "@openbot/contracts/team-protocol/current";
+import { FOCUS_USE_INTERVAL_MS } from "@openbot/contracts/team-protocol/focus-use-v1";
 import {
   HOST_RESTART_EVENT,
   type HostRestartEvent,
@@ -151,6 +153,7 @@ import { routeConversationFiles } from "./team-api/route-conversation-files";
 import { routeDirect } from "./team-api/route-direct";
 import { routeEvents } from "./team-api/route-events";
 import { routeFiles } from "./team-api/route-files";
+import { routeFocusUse } from "./team-api/route-focus-use";
 import { routeHostAdmin } from "./team-api/route-host-admin";
 import { routeHostTimezone } from "./team-api/route-host-timezone";
 import { routeHostUpdate } from "./team-api/route-host-update";
@@ -180,6 +183,10 @@ const TYPING_TIMEOUT_MS = 5_000;
 /** Past this many sessions, the user actions older than the age below are dropped. */
 const SESSION_USE_LIMIT = 200;
 const SESSION_USE_MAX_AGE_MS = 60 * 60 * 1000;
+/** A focused app counts as use for at most this long after the last user action of its session. */
+const FOCUS_USE_LIMIT_MS = 30 * 60_000;
+/** A focus ping after a longer gap starts a new focus period: the app lost focus or its connection. */
+const FOCUS_GAP_MS = 2 * FOCUS_USE_INTERVAL_MS;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1_000;
 const RATE_LIMIT_SWEEP_MS = 60_000;
 const RATE_LIMIT_ATTEMPTS = 5;
@@ -266,6 +273,8 @@ export class TeamApiServer {
   #lastClientUseAt: number | null = null;
   /** The last user action of each session, so a phone can stay quiet while its member uses another app. */
   readonly #sessionUse = new Map<string, { memberId: string; at: number }>();
+  /** When the focus period of each session started, and its last focus ping. Push notifications do not read it. */
+  readonly #sessionFocus = new Map<string, { since: number; at: number }>();
   #agentListener: ((event: AgentEvent) => void) | null = null;
   #sidebarLayoutListener: ((layout: SidebarLayoutSnapshot) => void) | null = null;
   #localTypingAgentId: string | null = null;
@@ -445,8 +454,9 @@ export class TeamApiServer {
   }
 
   /**
-   * The last user action from a client - a send, a change, or a typing event - or null for none. Reads,
-   * polls and mark-read do not count: a client that is only open does not keep a hosted server running.
+   * The last user action from a client - a send, a change, or a typing event - or null for none. A focus
+   * ping (`focus-use-v1`) also counts, for at most 30 minutes after the last user action of its session.
+   * Reads, polls and mark-read do not count: a client that is only open does not keep a hosted server running.
    */
   lastClientUseAt(): number | null {
     return this.#lastClientUseAt;
@@ -466,11 +476,18 @@ export class TeamApiServer {
     this.#lastClientUseAt = now;
     if (!sessionId) return;
     this.#sessionUse.set(sessionId, { memberId, at: now });
-    // A session that has ended stays until it is old, so the map keeps one entry for each recent session.
-    if (this.#sessionUse.size > SESSION_USE_LIMIT) {
-      for (const [other, use] of this.#sessionUse)
-        if (now - use.at > SESSION_USE_MAX_AGE_MS) this.#sessionUse.delete(other);
-    }
+    pruneSessions(this.#sessionUse, now);
+  }
+
+  #recordFocusUse(sessionId: string): void {
+    const now = Date.now();
+    const previous = this.#sessionFocus.get(sessionId);
+    const start = previous && now - previous.at <= FOCUS_GAP_MS ? previous.since : now;
+    // A send, a change or a typing event of the session starts the limit again.
+    const since = Math.max(start, this.#sessionUse.get(sessionId)?.at ?? 0);
+    this.#sessionFocus.set(sessionId, { since, at: now });
+    pruneSessions(this.#sessionFocus, now);
+    if (now - since < FOCUS_USE_LIMIT_MS) this.#lastClientUseAt = now;
   }
 
   setLocalTyping(agentId: string | null, typing: boolean): void {
@@ -793,6 +810,11 @@ export class TeamApiServer {
       )
         return;
       if ((await routePushNotifications(context, this.#options.pushNotifications)) === "handled") return;
+      if (
+        (await routeFocusUse(context, this.#options.focusUse ? (id) => this.#recordFocusUse(id) : undefined)) ===
+        "handled"
+      )
+        return;
       if ((await this.#routeAgents(context)) === "handled") return;
 
       // The only 404 in the Team API.
@@ -1606,6 +1628,7 @@ export class TeamApiServer {
         if (capability === ROUTINE_FLOWS_CAPABILITY) return this.#options.routineFlows !== undefined;
         if (capability === PUSH_NOTIFICATIONS_CAPABILITY || capability === ANDROID_PUSH_NOTIFICATIONS_CAPABILITY)
           return this.#options.pushNotifications !== undefined;
+        if (capability === FOCUS_USE_CAPABILITY) return this.#options.focusUse === true;
         return true;
       }),
     };
@@ -1684,6 +1707,12 @@ export class TeamApiServer {
       empty: (status) => this.#empty(response, status),
     };
   }
+}
+
+/** A session that has ended stays until it is old, so the map keeps one entry for each recent session. */
+function pruneSessions(sessions: Map<string, { at: number }>, now: number): void {
+  if (sessions.size <= SESSION_USE_LIMIT) return;
+  for (const [sessionId, use] of sessions) if (now - use.at > SESSION_USE_MAX_AGE_MS) sessions.delete(sessionId);
 }
 
 function unavailableSidebarLayout(): TeamApiSidebarLayout {

@@ -21,6 +21,7 @@ import {
 } from "@openbot/contracts/team-protocol/browser-view-v1";
 import { TEAM_CONVERSATION_UNREAD_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
+import { FOCUS_USE_CAPABILITY, FOCUS_USE_ROUTES } from "@openbot/contracts/team-protocol/focus-use-v1";
 import { HOST_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/host-admin-v1";
 import { LIVE_ACTIVITY_PUSH_CAPABILITY } from "@openbot/contracts/team-protocol/live-activity-push-v1";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
@@ -46,6 +47,7 @@ import {
   readAgentAnalytics,
   runTeamEffect,
 } from "@openbot/team-client";
+import { createFocusUsePing } from "@openbot/team-client/focus-use";
 import { createHostedServerWake, WAKE_RECONNECT_DELAY_MS } from "@openbot/team-client/hosted-server-wake";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { reconcilePendingRequests } from "@openbot/team-client/runtime-attention";
@@ -776,6 +778,22 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       wakeSelectedServer(activeServerId);
     }
   }, [foreground, activeServerId, wakeSelectedServer]);
+  // A hosted server keeps running while this app is in the foreground (`focus-use-v1`).
+  const focusUse = useMemo(
+    () =>
+      createFocusUsePing(
+        (serverId) => void request("POST", FOCUS_USE_ROUTES.ping, ignoreResponse, {}, serverId).catch(() => undefined),
+      ),
+    [request],
+  );
+  const activeServerOnline = servers.some((server) => server.id === activeServerId && server.state === "online");
+  useEffect(() => {
+    const supported =
+      activeServerId !== null &&
+      serverCapabilities.current.get(activeServerId)?.includes(FOCUS_USE_CAPABILITY) === true;
+    focusUse.setTarget(foreground && activeServerOnline && supported ? activeServerId : null);
+  }, [focusUse, foreground, activeServerOnline, activeServerId]);
+  useEffect(() => () => focusUse.dispose(), [focusUse]);
 
   useEffect(() => {
     if (!foreground) {

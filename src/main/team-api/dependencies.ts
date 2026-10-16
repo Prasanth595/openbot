@@ -378,6 +378,8 @@ export interface TeamApiOptions {
   liveActivityPush?: LiveActivityPushService;
   /** Sends notifications to members' phones. Absent when this host has no account credential. */
   pushNotifications?: PushNotificationService;
+  /** `focus-use-v1`: true on a hosted server, where a focused app keeps the server running. */
+  focusUse?: boolean;
   rateLimitCapacity?: number;
   now?: () => number;
   logger?: Logger;
