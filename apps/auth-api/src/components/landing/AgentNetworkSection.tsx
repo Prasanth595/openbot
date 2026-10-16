@@ -13,8 +13,12 @@ import { buildAgentNetwork, drawAgentNetwork, type NetworkAssets, type NetworkVi
 
 /** The grown network chooses from this many avatars. The three named agents come after them. */
 const GROWN_AVATARS = 24;
-/** The scene starts when this share of the stage is on screen, so the first agents are in view. */
-const START_RATIO = 0.7;
+/**
+ * The scene starts when this share of the stage is on screen, so the first agents are in view.
+ * A stage that is higher than the window counts against the window height.
+ */
+const START_SHARE = 0.7;
+const SHARE_STEPS = Array.from({ length: 11 }, (_, index) => index / 10);
 const MARKS = LANDING_PROVIDERS.map((entry) => entry.provider);
 
 /**
@@ -119,6 +123,11 @@ export function AgentNetworkSection() {
     const canvas = canvasRef;
     const context = canvas?.getContext("2d");
     if (!stage || !canvas || !context) return;
+    // Safari before 16 cannot draw rounded rectangles: show the heading with no network.
+    if (typeof context.roundRect !== "function") {
+      setPlaying(true);
+      return;
+    }
 
     const reduced = prefersReducedMotion();
     // A new network at each visit. The scene builds only in the browser, so the page markup does not change.
@@ -209,39 +218,52 @@ export function AgentNetworkSection() {
       ([entry]) => {
         if (!entry) return;
         visible = entry.isIntersecting;
-        if (entry.intersectionRatio >= START_RATIO && !started) {
+        const room = Math.min(entry.boundingClientRect.height, entry.rootBounds?.height ?? window.innerHeight);
+        if (room > 0 && entry.intersectionRect.height / room >= START_SHARE && !started) {
           started = true;
           setPlaying(true);
         }
         play();
       },
-      { threshold: [0, START_RATIO] },
+      { threshold: SHARE_STEPS },
     );
     intersectionObserver.observe(stage);
     document.addEventListener("visibilitychange", play);
     if (reduced) setPlaying(true);
 
+    // A failed image keeps its node as a coloured circle; the rest of the scene still draws.
+    const marks = Array.from(marksRef?.querySelectorAll("svg") ?? []);
+    void Promise.all(marks.map((mark) => rasterize(standaloneMark(mark), 64)))
+      .then((images) => {
+        if (disposed) return;
+        assets.marks = images;
+        draw();
+      })
+      .catch(() => {});
     // The avatar engine is too large for the first load of the home page, as in the features section.
-    void (async () => {
-      const marks = Array.from(marksRef?.querySelectorAll("svg") ?? []);
-      assets.marks = await Promise.all(marks.map((mark) => rasterize(standaloneMark(mark), 64)));
-      draw();
-      const { AVATAR_HUE_CHOICES, avatarHeadColor, createStaticAvatarSvg } = await import("@openbot/ui/bloub-avatar");
-      const seeds = [
-        ...Array.from({ length: GROWN_AVATARS }, (_, index) => ({
-          seed: `landing-network-${seed}-${index}`,
-          hue: AVATAR_HUE_CHOICES[(seed + index) % AVATAR_HUE_CHOICES.length]?.hue ?? null,
-        })),
-        ...LANDING_NETWORK_AGENTS.map((agent) => ({ seed: agent.teammate.avatarSeed, hue: agent.teammate.avatarHue })),
-      ];
-      assets.avatarColors = seeds.map((entry) => avatarHeadColor(entry.seed, entry.hue));
-      const avatars = await Promise.all(
-        seeds.map((entry) => rasterize(createStaticAvatarSvg(entry.seed, entry.hue), 192, true)),
-      );
-      if (disposed) return;
-      assets.avatars = avatars;
-      draw();
-    })();
+    void import("@openbot/ui/bloub-avatar")
+      .then(({ AVATAR_HUE_CHOICES, avatarHeadColor, createStaticAvatarSvg }) => {
+        if (disposed) return;
+        const seeds = [
+          ...Array.from({ length: GROWN_AVATARS }, (_, index) => ({
+            seed: `landing-network-${seed}-${index}`,
+            hue: AVATAR_HUE_CHOICES[(seed + index) % AVATAR_HUE_CHOICES.length]?.hue ?? null,
+          })),
+          ...LANDING_NETWORK_AGENTS.map((agent) => ({
+            seed: agent.teammate.avatarSeed,
+            hue: agent.teammate.avatarHue,
+          })),
+        ];
+        assets.avatarColors = seeds.map((entry) => avatarHeadColor(entry.seed, entry.hue));
+        draw();
+        return Promise.all(seeds.map((entry) => rasterize(createStaticAvatarSvg(entry.seed, entry.hue), 192, true)));
+      })
+      .then((avatars) => {
+        if (disposed || !avatars) return;
+        assets.avatars = avatars;
+        draw();
+      })
+      .catch(() => {});
 
     return () => {
       disposed = true;
@@ -272,7 +294,7 @@ export function AgentNetworkSection() {
               )}
             </For>
           </h2>
-          <p>{LANDING_NETWORK_DESCRIPTION}</p>
+          <p class="landing-network-description">{LANDING_NETWORK_DESCRIPTION}</p>
         </header>
         {/* The provider marks that the scene draws on each badge, with their page colours. */}
         <div ref={marksRef} class="landing-network-marks" aria-hidden="true">
