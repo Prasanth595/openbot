@@ -150,7 +150,11 @@ export class ProviderHistoryStore {
            turn_started_at = COALESCE(excluded.turn_started_at, provider_history_turns.turn_started_at),
            complete = MAX(provider_history_turns.complete, excluded.complete),
            imported = provider_history_turns.imported,
-           updated_at = excluded.updated_at`,
+           updated_at = excluded.updated_at
+         WHERE provider_history_turns.turn_status IS NOT COALESCE(excluded.turn_status, provider_history_turns.turn_status)
+            OR provider_history_turns.turn_started_at
+                 IS NOT COALESCE(excluded.turn_started_at, provider_history_turns.turn_started_at)
+            OR provider_history_turns.complete < excluded.complete`,
       ).run(
         input.sessionId,
         input.fragment.turnId,

@@ -59,16 +59,20 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
         }),
       );
     };
-    const stampStaging = () =>
+    const stampStaging = () => {
       database.connection.prepare("UPDATE provider_history_staging SET updated_at = ?").run(SENTINEL_TIME);
+      database.connection.prepare("UPDATE provider_history_turns SET updated_at = ?").run(SENTINEL_TIME);
+    };
     const stagingRewritten = () =>
-      count(database, "SELECT COUNT(*) AS count FROM provider_history_staging WHERE updated_at <> ?", SENTINEL_TIME);
+      count(database, "SELECT COUNT(*) AS count FROM provider_history_staging WHERE updated_at <> ?", SENTINEL_TIME) +
+      count(database, "SELECT COUNT(*) AS count FROM provider_history_turns WHERE updated_at <> ?", SENTINEL_TIME);
     const events = () => count(database, "SELECT COUNT(*) AS count FROM orchestration_events");
     const messageTexts = () => database.readConversation(agentId, threadId).messages.map((message) => message.text);
 
-    const codexTurns = [turn("codex-turn-1", 1), turn("codex-turn-2", 2), turn("codex-turn-3", 3)];
+    const turn1 = turn("codex-turn-1", 1);
+    const turn3 = turn("codex-turn-3", 3);
     const recordsOnlyTurn: ProviderHistoryFragment = { ...turn("codex-records-only", 4), recordsOnly: true };
-    const codexHistory = [...codexTurns, recordsOnlyTurn];
+    const codexHistory = [turn1, turn("codex-turn-2", 2), turn3, recordsOnlyTurn];
 
     const first = await runImport("codex-session", "codex", codexHistory);
     const messagesAfterFirst = messageTexts();
@@ -76,7 +80,7 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
     stampStaging();
     const eventsBeforeRepeat = events();
     const repeat = await runImport("codex-session", "codex", codexHistory);
-    const repeatWroteNoItem = stagingRewritten() === 0;
+    const repeatWroteNoRow = stagingRewritten() === 0;
     const repeatWroteNoEvent = events() === eventsBeforeRepeat;
     const repeatKeptMessages = JSON.stringify(messageTexts()) === JSON.stringify(messagesAfterFirst);
 
@@ -94,9 +98,7 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
       database.stageProviderHistoryFragment({ sessionId: "codex-session", fragment });
     const partialRead = database.providerHistoryImport("codex-session");
 
-    const editedHistory = [codexTurns[0], turn("codex-turn-2", 2, "edited"), codexTurns[2], recordsOnlyTurn].flatMap(
-      (fragment) => (fragment ? [fragment] : []),
-    );
+    const editedHistory = [turn1, turn("codex-turn-2", 2, "edited"), turn3, recordsOnlyTurn];
     const edited = await runImport("codex-session", "codex", editedHistory);
     const messagesAfterEdit = messageTexts();
 
@@ -107,15 +109,38 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
     const claudeFirst = await runImport("claude-session", "claude", claudeHistory);
     const claudeRepeat = await runImport("claude-session", "claude", claudeHistory);
 
+    // A turn in two fragments: a change in the first one must still import the turn.
+    const splitFirst = await runImport("split-session", "codex", splitTurn("split-turn", 8));
+    const splitRepeat = await runImport("split-session", "codex", splitTurn("split-turn", 8));
+    const splitEdited = await runImport("split-session", "codex", splitTurn("split-turn", 8, "edited"));
+    const messagesAfterSplitEdit = messageTexts();
+
+    // A turn that an import did not finish keeps `imported = 0` and is imported at the next start.
+    database.connection
+      .prepare("UPDATE provider_history_turns SET imported = 0 WHERE session_id = ? AND turn_id = ?")
+      .run("codex-session", "codex-turn-3");
+    const unfinished = await runImport("codex-session", "codex", [...editedHistory, turn("codex-turn-5", 5)]);
+
     const report: Report = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       command: process.argv.join(" "),
-      imports: { first, repeat, edited, appended, claudeFirst, claudeRepeat },
+      imports: {
+        first,
+        repeat,
+        edited,
+        appended,
+        claudeFirst,
+        claudeRepeat,
+        splitFirst,
+        splitRepeat,
+        splitEdited,
+        unfinished,
+      },
       acceptance: {
         firstImportsEveryTurn: first.turns === codexHistory.length && messagesAfterFirst.length === 6,
         repeatImportsNoTurn: repeat.turns === 0 && repeat.messages === 0,
-        repeatWritesNoStagedItem: repeatWroteNoItem,
+        repeatWritesNoStagedRow: repeatWroteNoRow,
         repeatWritesNoConversationEvent: repeatWroteNoEvent,
         repeatKeepsMessages: repeatKeptMessages,
         partialReadKeepsLastFullReadTime: partialRead?.state === "complete" && partialRead.updatedAt === SENTINEL_TIME,
@@ -123,6 +148,10 @@ async function runProviderHistoryReimportCheck(outputPath: string): Promise<Repo
         editUpdatesMessage: messagesAfterEdit.includes("Answer 2 edited") && !messagesAfterEdit.includes("Answer 2"),
         appendImportsOnlyNewTurn: appended.turns === 1 && messagesAfterAppend.includes("Answer 5"),
         claudeRepeatImportsNoTurn: claudeFirst.turns === 2 && claudeRepeat.turns === 0,
+        splitRepeatImportsNoTurn: splitFirst.turns === 1 && splitRepeat.turns === 0,
+        splitEditInFirstFragmentImportsTurn:
+          splitEdited.turns === 1 && messagesAfterSplitEdit.includes("Part A 8 edited"),
+        unfinishedTurnImportsAgain: unfinished.turns === 1,
         importCompleted: database.providerHistoryImport("codex-session")?.state === "complete",
       },
     };
@@ -149,6 +178,28 @@ function turn(turnId: string, startedAt: number, suffix?: string): ProviderHisto
       { type: "agentMessage", id: `${turnId}-answer`, text: text("Answer"), status: "completed" },
     ],
   };
+}
+
+function splitTurn(turnId: string, startedAt: number, suffix?: string): ProviderHistoryFragment[] {
+  const first = suffix ? `Part A ${startedAt} ${suffix}` : `Part A ${startedAt}`;
+  return [
+    {
+      turnId,
+      status: "completed",
+      startedAt,
+      itemOffset: 0,
+      complete: false,
+      items: [{ type: "agentMessage", id: `${turnId}-a`, text: first, status: "completed" }],
+    },
+    {
+      turnId,
+      status: "completed",
+      startedAt,
+      itemOffset: 1,
+      complete: true,
+      items: [{ type: "agentMessage", id: `${turnId}-b`, text: `Part B ${startedAt}`, status: "completed" }],
+    },
+  ];
 }
 
 function count(database: OpenBotDatabase, sql: string, ...parameters: string[]): number {
