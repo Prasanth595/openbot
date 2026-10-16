@@ -1,3 +1,5 @@
+import { OPENBOT_CONTROL_PLANE_ORIGIN } from "@openbot/contracts/invite-links";
+import { parseMobileConnectUrl } from "@openbot/contracts/mobile-connect";
 import { Redirect, router, Stack, useLocalSearchParams } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { openBrowserAsync } from "expo-web-browser";
@@ -109,6 +111,10 @@ function IncomingLinkContent({ request }: { request?: string }) {
     );
   }
 
+  // A link can name any account service. Show one that is not ours before the phone connects to it.
+  const pairingService = link.kind === "pairing" && !session ? parseMobileConnectUrl(link.url)?.apiUrl : undefined;
+  const accountService = pairingService && pairingService !== OPENBOT_CONTROL_PLANE_ORIGIN ? pairingService : null;
+
   return (
     <View className="flex-1 justify-center gap-5 bg-background px-6 py-safe-offset-6">
       <Stack.Screen options={{ gestureEnabled: !busy, headerShown: false }} />
@@ -128,6 +134,11 @@ function IncomingLinkContent({ request }: { request?: string }) {
             ? t("mobile.link.plugin.description")
             : t("mobile.link.unavailable.description")}
       </Typography.Paragraph>
+      {accountService ? (
+        <Typography.Paragraph>
+          {t("mobile.link.pairing.accountService", { origin: accountService })}
+        </Typography.Paragraph>
+      ) : null}
       {error ? <Typography.Paragraph className="text-danger-text">{error}</Typography.Paragraph> : null}
       {link.kind === "pairing" && !session ? (
         <Button isDisabled={busy} onPress={() => void pair()}>

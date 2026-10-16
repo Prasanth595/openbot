@@ -919,6 +919,49 @@ export class RemoteControlPlane {
     (operation) => operation.pipe(Effect.provide(this.#layer)),
   ).bind(this);
 
+  /**
+   * The host name for an invitation email. The caller must be an owner or admin of the host, and
+   * the token must identify an open single-use invitation of that host for this email and role.
+   */
+  readonly emailableInvite = Effect.fn("RemoteControlPlane.emailableInvite")(
+    function* (
+      this: RemoteControlPlane,
+      userId: string,
+      input: { hostId: string; token: string; email: string; role: Exclude<RemoteMemberRole, "owner"> },
+    ) {
+      const dependencies = yield* RemoteDependencies;
+      yield* this.#requireRole(input.hostId, userId, ["owner", "admin"]);
+      const validToken = yield* remoteValidate(() => requiredText(input.token, 512, "invite token"));
+      const tokenHash = yield* sha256(validToken).pipe(
+        Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
+      );
+      const invite = yield* remoteCall(() =>
+        dependencies.database
+          .prepare(
+            `SELECT i.invite_id, i.host_id, i.email, i.role, i.expires_at, i.used_at, i.revoked_at,
+                i.max_uses, i.use_count, h.name
+         FROM remote_invites i JOIN remote_hosts h ON h.host_id = i.host_id
+         WHERE i.token_hash = ? AND i.host_id = ? LIMIT 1`,
+          )
+          .bind(tokenHash, input.hostId)
+          .first<RemoteInviteRow & { name: string }>(),
+      );
+      if (
+        !invite ||
+        invite.revoked_at ||
+        invite.expires_at <= dependencies.now() ||
+        invite.used_at ||
+        invite.max_uses === null ||
+        invite.email !== input.email ||
+        invite.role !== input.role
+      ) {
+        return yield* new RemoteControlPlaneError(404, "invite_invalid", "The invitation is invalid or expired.");
+      }
+      return { hostName: invite.name };
+    },
+    (operation) => operation.pipe(Effect.provide(this.#layer)),
+  ).bind(this);
+
   readonly acceptInvite = Effect.fn("RemoteControlPlane.acceptInvite")(
     function* (this: RemoteControlPlane, user: AuthUser, token: string) {
       const dependencies = yield* RemoteDependencies;

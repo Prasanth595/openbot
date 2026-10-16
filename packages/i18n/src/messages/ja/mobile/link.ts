@@ -11,6 +11,8 @@ export const messages = {
   "mobile.link.pairing.alreadySignedIn":
     "すでにサインインしています。別のアカウントを接続する前に、設定でサインアウトしてください。",
   "mobile.link.pairing.description": "この Mobile Connect リンクをデスクトップから要求した場合にのみ続行してください。",
+  "mobile.link.pairing.accountService":
+    "このリンクは OpenBot のアカウントサービスではなく、{origin} のアカウントサービスに接続します。",
   "mobile.link.pairing.connect": "接続",
   "mobile.link.plugin.title": "プラグインのページを開く",
   "mobile.link.plugin.description": "このプラグインを OpenBot の Web サイトで表示します。",
