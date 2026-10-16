@@ -69,6 +69,8 @@ export const messages = {
     "Este servidor no admite flujos de rutinas. Actualiza OpenBot en el equipo que lo ejecuta.",
   "error.team.routineCanvasTooLarge":
     "Este lienzo de rutinas es demasiado grande para enviarlo a este dispositivo. Acorta las instrucciones de las rutinas en el equipo que ejecuta el servidor.",
+  "error.team.conversationPageTooLarge":
+    "Un mensaje de esta conversación es demasiado grande para enviarlo a este dispositivo. Abre la conversación en el equipo que ejecuta el servidor.",
   "error.team.agentImportUnsupported": "Esta conexión no permite importar agentes.",
   "error.team.liveActivityUnsupported": "Este host no puede actualizar la Live Activity de un teléfono.",
   "error.team.pushNotificationsUnsupported": "Este host no puede enviar notificaciones a un teléfono.",

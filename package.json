@@ -206,6 +206,7 @@
     "test:signal": "bun scripts/signal-security-e2e.ts",
     "test:ipc-input": "bun scripts/ipc-input-e2e.ts",
     "test:analytics-redaction": "bun scripts/analytics-redaction-e2e.ts",
+    "test:composer-lists": "bun scripts/composer-markdown-lists-e2e.ts",
     "codex:doctor": "bun scripts/codex-doctor.ts",
     "cua-driver:doctor": "bun scripts/cua-driver-doctor.ts",
     "skills:review": "bun scripts/review-skills.ts",

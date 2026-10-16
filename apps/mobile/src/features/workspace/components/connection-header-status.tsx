@@ -5,7 +5,12 @@ import { View } from "react-native";
 import { ConnectionCountdown } from "@/features/workspace/components/connection-countdown";
 import { AnimatedCounter } from "@/features/workspace/components/connection-counter";
 import { ConnectionStatusReveal } from "@/features/workspace/components/connection-status-reveal";
-import { recoveryAttempt, recoveryCountdown, serverStatusLabel } from "@/features/workspace/model/server-status";
+import {
+  recoveryAttempt,
+  recoveryCountdown,
+  serverStatusLabel,
+  showsOnline,
+} from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { ErrorReference } from "@/shared/components/error-reference";
 import { useText } from "@/shared/lib/text";
@@ -76,7 +81,7 @@ export function ConnectionHeaderStatus({ server }: { server: MobileServer | unde
     // Keep this native toolbar slot mounted: removing it would cut off the exit animation.
     <View className="justify-center" style={{ width: 164, height: 44 }}>
       <ConnectionStatusReveal
-        value={server && !server.initialConnectionPending && server.state !== "online" ? server : null}
+        value={server && !server.initialConnectionPending && !showsOnline(server) ? server : null}
       >
         {(displayed) => <StatusText server={displayed} />}
       </ConnectionStatusReveal>

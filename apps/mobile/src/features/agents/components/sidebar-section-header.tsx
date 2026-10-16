@@ -12,6 +12,7 @@ import {
   useMobileWorkspaceReader,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";
@@ -34,7 +35,7 @@ export const SidebarSectionHeader = memo(function SidebarSectionHeader({
   const { t } = useText();
   const workspace = useMobileWorkspaceReader();
   const serverId = useMobileWorkspaceSelector(({ activeServer }) => activeServer.id);
-  const online = useMobileWorkspaceSelector(({ activeServer }) => activeServer.state === "online");
+  const online = useMobileWorkspaceSelector(({ activeServer }) => showsOnline(activeServer));
   const layout = useMobileWorkspaceSelector(
     ({ activeServer, sidebarByServer }) => sidebarByServer[activeServer.id]?.layout,
   );

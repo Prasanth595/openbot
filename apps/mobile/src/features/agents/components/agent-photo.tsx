@@ -9,6 +9,7 @@ import {
   useMobileWorkspaceReader,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 
 export interface AgentPhotoProps {
   agentId?: string;
@@ -33,7 +34,7 @@ export function AgentPhoto({
       : undefined,
   );
   const online = useMobileWorkspaceSelector((current) =>
-    current.servers.some((server) => server.id === serverId && server.state === "online"),
+    current.servers.some((server) => server.id === serverId && showsOnline(server)),
   );
   const photo = useQuery({
     queryKey: ["agent-avatar", session?.apiUrl, session?.user.id, sessionScope, serverId, agentId, avatarUrl],

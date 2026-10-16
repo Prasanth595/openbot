@@ -92,6 +92,7 @@ export const messages = {
   "error.remote.fileTransportStopped": "Il trasporto file WebRTC si è fermato.",
   "error.remote.fileResumeExpired": "La scadenza per riprendere il trasferimento file WebRTC è trascorsa.",
   "error.remote.hostRequestFailed": "L'host non ha potuto completare la richiesta.",
+  "error.remote.responseTooLarge": "La risposta dell'host è troppo grande per essere inviata a questo dispositivo.",
   "error.remote.sessionNotReady": "La sessione remota non è pronta.",
   "error.remote.peerDisconnected": "Il peer WebRTC si è disconnesso.",
   "error.remote.tooManyStreams": "Ci sono troppi stream dell'host aperti.",

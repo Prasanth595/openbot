@@ -4,6 +4,7 @@ import { useAgentActivity } from "@/features/workspace/components/use-agent-acti
 import { useApprovalRequests } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { openTurnActivity } from "@/features/workspace/model/agent-activity";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { chatRowIndex, latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
 import { ChatView } from "./chat-view";
 import { useChatQueue } from "./use-chat-queue";
@@ -59,7 +60,9 @@ export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; 
       ),
     [serverApprovals, agent.id, threadId],
   );
-  const online = servers.find((item) => item.id === agent.serverId)?.state === "online";
+  const server = servers.find((item) => item.id === agent.serverId);
+  // The history and the queue load again when the connection is back, so they read the live state.
+  const online = server?.state === "online";
   const queue = useChatQueue(
     agent.id,
     agent.serverId,
@@ -143,7 +146,7 @@ export function MobileChatView({ agent, focusMessageId }: { agent: MobileAgent; 
   const questionForm = useQuestionPrompt(
     agent.id,
     activePrompt?.kind === "question" ? activePrompt : undefined,
-    online,
+    showsOnline(server),
     respondToPrompt,
   );
   return (

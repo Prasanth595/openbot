@@ -93,6 +93,7 @@ export const messages = {
   "error.remote.fileTransportStopped": "WebRTC dosya iletimi durdu.",
   "error.remote.fileResumeExpired": "WebRTC dosya aktarımı sürdürme süresi doldu.",
   "error.remote.hostRequestFailed": "Ana makine isteği tamamlayamadı.",
+  "error.remote.responseTooLarge": "Ana makinenin yanıtı bu cihaza gönderilemeyecek kadar büyük.",
   "error.remote.sessionNotReady": "Uzak oturum hazır değil.",
   "error.remote.peerDisconnected": "WebRTC eşinin bağlantısı kesildi.",
   "error.remote.tooManyStreams": "Çok fazla ana makine akışı açık.",

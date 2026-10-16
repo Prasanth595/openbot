@@ -40,6 +40,7 @@ import { ConnectionHeaderStatus } from "@/features/workspace/components/connecti
 import { useWaitingAgentIds } from "@/features/workspace/components/use-agent-activity";
 import { useUnreadAgentIds } from "@/features/workspace/components/use-live-workspace";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import {
   type MobileSidebarItem,
   mobileSidebarItems,
@@ -243,7 +244,8 @@ export function ConnectedScreen() {
     return agents.some((agent) => agent.serverId === activeServer.id && unread.has(agent.id));
   }, [agents, activeServer.id, unreadAgentIds]);
   const [markingAllRead, setMarkingAllRead] = useState(false);
-  const canMarkAllRead = hasUnread && !markingAllRead && activeServer.state === "online";
+  const activeServerOnline = showsOnline(activeServer);
+  const canMarkAllRead = hasUnread && !markingAllRead && activeServerOnline;
   const markAllChatsRead = () => {
     if (!canMarkAllRead) return;
     void haptics.impact("soft");
@@ -292,7 +294,7 @@ export function ConnectedScreen() {
   // Pins and a sidebar error still need the list header, so they keep the scene in the list.
   const showAgentsScene =
     hasSelectedServer &&
-    activeServer.state === "online" &&
+    activeServerOnline &&
     activeAgents.length === 0 &&
     items.length === 0 &&
     !hasPins &&
@@ -481,7 +483,7 @@ export function ConnectedScreen() {
                   <Button.Label>{t("mobile.agent.home.openServers")}</Button.Label>
                 </Button>
               </View>
-            ) : activeAgents.length === 0 && activeServer.state !== "online" ? (
+            ) : activeAgents.length === 0 && !activeServerOnline ? (
               <View className="flex-1 items-center justify-center gap-5 px-8 py-16">
                 <WifiOff color={mutedColor} size={28} strokeWidth={1.6} />
                 <View className="items-center gap-1.5">

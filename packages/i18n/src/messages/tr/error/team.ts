@@ -68,6 +68,8 @@ export const messages = {
     "Bu sunucu rutin akışlarını desteklemiyor. Sunucuyu çalıştıran bilgisayardaki OpenBot'u güncelleyin.",
   "error.team.routineCanvasTooLarge":
     "Bu rutin tuvali bu cihaza gönderilemeyecek kadar büyük. Sunucuyu çalıştıran bilgisayarda rutin talimatlarını kısaltın.",
+  "error.team.conversationPageTooLarge":
+    "Bu konuşmadaki bir mesaj bu cihaza gönderilemeyecek kadar büyük. Konuşmayı sunucuyu çalıştıran bilgisayarda açın.",
   "error.team.agentImportUnsupported": "Ajan içe aktarma bu bağlantı tarafından desteklenmiyor.",
   "error.team.liveActivityUnsupported": "Bu ana makine bir telefonun Canlı Etkinliğini güncelleyemez.",
   "error.team.pushNotificationsUnsupported": "Bu ana makine bir telefona bildirim gönderemez.",

@@ -7,6 +7,7 @@ import {
   useMobileWorkspaceReader,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 
@@ -15,7 +16,7 @@ export function useChatSectionMenu(serverId: string, chatId: string) {
   const workspace = useMobileWorkspaceReader();
   const layout = useMobileWorkspaceSelector(({ sidebarByServer }) => sidebarByServer[serverId]?.layout);
   const online = useMobileWorkspaceSelector(({ servers }) =>
-    servers.some((server) => server.id === serverId && server.state === "online"),
+    servers.some((server) => server.id === serverId && showsOnline(server)),
   );
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);

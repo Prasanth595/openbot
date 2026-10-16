@@ -77,6 +77,47 @@ export function insertPlainText(editor: HTMLDivElement, text: string): void {
   selection?.addRange(caretRange);
 }
 
+function replaceListRange(
+  editor: HTMLDivElement,
+  selection: Selection,
+  caret: number,
+  insert: string,
+  replacements: NonNullable<ReturnType<typeof markdownListLineBreak>>["replacements"],
+): boolean {
+  if (!replacements?.length) return false;
+  const end = Math.max(...replacements.map((replacement) => replacement.end));
+  const target = rangeFromTextOffsets(editor, caret, end);
+  if (!target) return false;
+
+  // Rewrite a cloned plain-text range, then let the browser record the insertion and all
+  // renumbering as one edit.
+  const content = document.createElement("div");
+  content.append(target.cloneContents());
+  // Chromium does not undo an insertHTML range containing non-editable chips reliably. Keep those
+  // nodes in place and use the token-safe multi-range fallback below instead.
+  if (content.querySelector('[contenteditable="false"]')) return false;
+  for (const replacement of replacements.toReversed()) {
+    const marker = rangeFromTextOffsets(content, replacement.start - caret, replacement.end - caret);
+    if (!marker) return false;
+    marker.deleteContents();
+    marker.insertNode(document.createTextNode(replacement.text));
+  }
+  content.prepend(document.createTextNode(insert));
+
+  selection.removeAllRanges();
+  selection.addRange(target);
+  if (typeof document.execCommand === "function" && document.execCommand("insertHTML", false, content.innerHTML)) {
+    return true;
+  }
+
+  // jsdom has no editing commands. Preserve the same DOM shape for its unit-test path.
+  target.deleteContents();
+  const fragment = content.ownerDocument.createDocumentFragment();
+  fragment.append(...content.childNodes);
+  target.insertNode(fragment);
+  return true;
+}
+
 /*
  * Continues or ends a Markdown list, as `markdownListLineBreak` describes. The edit works in the
  * editor's text offsets, where a chip counts as one position, and it changes only the current
@@ -85,7 +126,7 @@ export function insertPlainText(editor: HTMLDivElement, text: string): void {
 export function insertLineBreak(editor: HTMLDivElement): void {
   const selection = window.getSelection();
   const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-  if (!range?.collapsed || !editor.contains(range.commonAncestorContainer)) {
+  if (!selection || !range?.collapsed || !editor.contains(range.commonAncestorContainer)) {
     insertPlainText(editor, "\n");
     return;
   }
@@ -97,7 +138,26 @@ export function insertLineBreak(editor: HTMLDivElement): void {
     return;
   }
   if (edit.caret > caret) {
-    insertPlainText(editor, edit.text.slice(caret, edit.caret));
+    const insert = edit.text.slice(caret, edit.caret);
+    if (!replaceListRange(editor, selection, caret, insert, edit.replacements)) {
+      insertPlainText(editor, insert);
+      for (const replacement of edit.replacements?.toReversed() ?? []) {
+        const replacementRange = rangeFromTextOffsets(
+          editor,
+          replacement.start + insert.length,
+          replacement.end + insert.length,
+        );
+        if (!replacementRange) continue;
+        selection.removeAllRanges();
+        selection.addRange(replacementRange);
+        insertPlainText(editor, replacement.text);
+      }
+    }
+    const caretRange = rangeFromTextOffsets(editor, edit.caret, edit.caret);
+    if (caretRange) {
+      selection.removeAllRanges();
+      selection.addRange(caretRange);
+    }
     return;
   }
   const marker = rangeFromTextOffsets(editor, edit.caret, edit.caret + text.length - edit.text.length);

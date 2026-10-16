@@ -29,7 +29,14 @@ peer renews its Signal socket and restarts ICE; a host that dropped the connecti
 fingerprint, and the peer fails at once instead of after a read timeout. A connection that is lost
 while a return checks it is replaced at once, with no countdown, as when the check fails. After 160 s Signal has told
 the host to drop the connection (120 s socket idle timeout, then 30 s), so the peer is replaced on the
-same session at once, without a resume hello, and the first attempt shows Connecting. Canceled reads
+same session at once, without a resume hello, and the first attempt connects. A server that was
+Online when the app left keeps its Online look during the first attempt after the return, for up to
+5 s (`QUIET_RESUME_MS` in `server-connection.tsx`): the server is `resuming`, `showsOnline` is
+true, and no reconnect status, faded avatars or faded chat show. A workspace request to a resuming
+server waits for Online instead of failing; it fails when an attempt fails, when the app leaves, or
+when the server goes. The outbox, the queue, history reloads and the browser view still read the
+live `state`. A failed attempt, a cooldown, a protocol stop or the end of the 5 s shows the normal
+reconnect status. A server that was not Online when the app left shows its status at once. Canceled reads
 and event resets request data synchronization without showing a reconnect on a healthy connection. Invite selection and manual refresh reuse the same controller. A transient RTC
 disconnected state has a 15-second recovery window, including on resume; failed or closed states
 drive recovery immediately. Signal's `rate_limited`, or a close with code 1008 and no error frame,

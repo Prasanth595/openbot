@@ -5,7 +5,12 @@ import { View } from "react-native";
 import { ConnectionCountdown } from "@/features/workspace/components/connection-countdown";
 import { AnimatedCounter } from "@/features/workspace/components/connection-counter";
 import { ConnectionStatusReveal } from "@/features/workspace/components/connection-status-reveal";
-import { recoveryAttempt, recoveryCountdown, serverStatusLabel } from "@/features/workspace/model/server-status";
+import {
+  recoveryAttempt,
+  recoveryCountdown,
+  serverStatusLabel,
+  showsOnline,
+} from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { useText } from "@/shared/lib/text";
 
@@ -73,7 +78,7 @@ function ConnectionStatusText({ server, note }: { server: MobileServer; note: st
 export function ConnectionStatus({ server, note = null }: { server: MobileServer | undefined; note?: string | null }) {
   return (
     <ConnectionStatusReveal
-      value={server && !server.initialConnectionPending && server.state !== "online" ? server : null}
+      value={server && !server.initialConnectionPending && !showsOnline(server) ? server : null}
       collapseOnHide
     >
       {(displayed) => <ConnectionStatusText server={displayed} note={note} />}

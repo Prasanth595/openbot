@@ -68,6 +68,8 @@ export const messages = {
     "Ten serwer nie obsługuje przepływów rutyn. Zaktualizuj OpenBot na komputerze, na którym działa.",
   "error.team.routineCanvasTooLarge":
     "Ta kanwa rutyn jest za duża, aby wysłać ją na to urządzenie. Skróć instrukcje rutyn na komputerze, na którym działa serwer.",
+  "error.team.conversationPageTooLarge":
+    "Wiadomość w tej rozmowie jest za duża, aby wysłać ją na to urządzenie. Otwórz rozmowę na komputerze, na którym działa serwer.",
   "error.team.agentImportUnsupported": "To połączenie nie obsługuje importowania agentów.",
   "error.team.liveActivityUnsupported": "Ten host nie może aktualizować Live Activity telefonu.",
   "error.team.pushNotificationsUnsupported": "Ten host nie może wysyłać powiadomień na telefon.",

@@ -10,10 +10,20 @@ const LABELS = {
   error: "mobile.workspace.status.error",
 } as const satisfies Record<MobileServerState, MobileTextKey>;
 
+/**
+ * What the screens show: online, also while a return to the app connects again quietly. Actions
+ * can use it too, because a request then waits for the connection. Code that needs the live
+ * connection itself, such as the outbox or the browser view, reads `state`.
+ */
+export function showsOnline(server: Pick<MobileServer, "state" | "resuming"> | undefined): boolean {
+  return server?.state === "online" || server?.resuming === true;
+}
+
 export function serverStatusLabel(
-  server: Pick<MobileServer, "state" | "initialConnectionPending">,
+  server: Pick<MobileServer, "state" | "initialConnectionPending" | "resuming">,
   t: MobileTranslate,
 ): string {
+  if (showsOnline(server)) return t(LABELS.online);
   if (server.state === "connecting" && !server.initialConnectionPending) return t(LABELS.offline);
   return t(LABELS[server.state]);
 }
@@ -23,6 +33,7 @@ export function applyServerRecovery(
   status: RemoteRecoveryStatus,
   failure: string | null,
   details: RemoteConnectionFailure | null = null,
+  resuming = false,
 ): MobileServer {
   const state: MobileServerState =
     status.phase === "online"
@@ -38,6 +49,7 @@ export function applyServerRecovery(
     connectionMessage: remoteRecoveryMessage(status, failure),
     connectionFailure: status.phase === "online" ? null : details,
     recoveryStatus: status,
+    resuming: resuming && state !== "online",
     initialConnectionPending: server.initialConnectionPending && state === "connecting",
   };
 }

@@ -16,7 +16,7 @@ import {
 } from "@/features/servers/model/hosted-server-availability";
 import type { MobileServer } from "@/features/workspace/context/mobile-workspace-context";
 import { moveServerId } from "@/features/workspace/model/server-order";
-import { serverStatusLabel } from "@/features/workspace/model/server-status";
+import { serverStatusLabel, showsOnline } from "@/features/workspace/model/server-status";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
 import { devFeatureOverride } from "@/shared/lib/dev-feature-overrides";
@@ -271,7 +271,7 @@ export function ServerDrawerContent({
         <View className="min-w-0 flex-1">
           <Typography.Paragraph
             weight="medium"
-            className={serverItem.state === "online" ? undefined : "text-text-secondary"}
+            className={showsOnline(serverItem) ? undefined : "text-text-secondary"}
             numberOfLines={1}
           >
             {serverItem.name}

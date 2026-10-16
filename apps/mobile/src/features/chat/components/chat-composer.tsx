@@ -38,7 +38,7 @@ import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
 import { useText } from "@/shared/lib/text";
 import { editMentionDraft, insertMention, mentionDraft, mentionQuery } from "../model/chat-mentions";
-import { markdownListReturn } from "../model/composer-lists";
+import { applyMarkdownListEdit, markdownListReturn } from "../model/composer-lists";
 import { largePastedText } from "../model/composer-paste";
 import { createComposerSendGate } from "../model/composer-send";
 import { composerAction } from "../model/voice-dictation";
@@ -971,9 +971,13 @@ export function ChatComposer({
                           });
                         return;
                       }
-                      const listEdit = markdownListReturn(mentionDraft(latestTextRef.current).text, text, cursor);
+                      const source = latestTextRef.current;
+                      const previous = mentionDraft(source).text;
+                      const listEdit = markdownListReturn(previous, text, cursor);
                       if (listEdit) pendingCursor.current = listEdit.caret;
-                      const next = editMentionDraft(latestTextRef.current, listEdit?.text ?? text);
+                      const next = listEdit
+                        ? applyMarkdownListEdit(source, previous, cursor, listEdit)
+                        : editMentionDraft(source, text);
                       latestTextRef.current = next;
                       onChangeDraft(next);
                     }}
