@@ -71,6 +71,8 @@ export const messages = {
     "Dieser Server unterstützt keine Routinenabläufe. Aktualisiere OpenBot auf dem Computer, auf dem er läuft.",
   "error.team.routineCanvasTooLarge":
     "Diese Routinenansicht ist zu groß, um sie an dieses Gerät zu senden. Kürze die Routinenanweisungen auf dem Computer, auf dem der Server läuft.",
+  "error.team.conversationPageTooLarge":
+    "Eine Nachricht in dieser Unterhaltung ist zu groß, um sie an dieses Gerät zu senden. Öffne die Unterhaltung auf dem Computer, auf dem der Server läuft.",
   "error.team.agentImportUnsupported": "Diese Verbindung unterstützt das Importieren von Agenten nicht.",
   "error.team.liveActivityUnsupported": "Dieser Host kann die Live Activity eines Telefons nicht aktualisieren.",
   "error.team.pushNotificationsUnsupported": "Dieser Host kann keine Mitteilungen an ein Telefon senden.",

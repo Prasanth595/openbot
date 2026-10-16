@@ -73,6 +73,8 @@ export const messages = {
     "Ce serveur ne prend pas en charge les flux de routines. Mettez à jour OpenBot sur l’ordinateur qui l’exécute.",
   "error.team.routineCanvasTooLarge":
     "Ce canevas de routines est trop volumineux pour être envoyé à cet appareil. Raccourcissez les instructions des routines sur l’ordinateur qui exécute le serveur.",
+  "error.team.conversationPageTooLarge":
+    "Un message de cette conversation est trop volumineux pour être envoyé à cet appareil. Ouvrez la conversation sur l’ordinateur qui exécute le serveur.",
   "error.team.agentImportUnsupported": "L’importation d’agents n’est pas prise en charge par cette connexion.",
   "error.team.liveActivityUnsupported": "Cet hôte ne peut pas mettre à jour l’activité en direct d’un téléphone.",
   "error.team.pushNotificationsUnsupported": "Cet hôte ne peut pas envoyer de notifications à un téléphone.",

@@ -73,6 +73,8 @@ export const messages = {
     "Questo server non supporta i flussi di routine. Aggiorna OpenBot sul computer che lo esegue.",
   "error.team.routineCanvasTooLarge":
     "La tela di questa routine è troppo grande per essere inviata a questo dispositivo. Accorcia le istruzioni della routine sul computer che esegue il server.",
+  "error.team.conversationPageTooLarge":
+    "Un messaggio di questa conversazione è troppo grande per essere inviato a questo dispositivo. Apri la conversazione sul computer che esegue il server.",
   "error.team.agentImportUnsupported": "L'importazione di agenti non è supportata da questa connessione.",
   "error.team.liveActivityUnsupported": "Questo host non può aggiornare la Live Activity di un telefono.",
   "error.team.pushNotificationsUnsupported": "Questo host non può inviare notifiche a un telefono.",
