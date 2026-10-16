@@ -8,9 +8,13 @@ starts it before its next routine run, and Signal starts it for a Slack, Discord
 that addresses OpenBot (see [Connector events](#connector-events)). A connected client counts as use for 5 minutes after its
 last user action (`CLIENT_USE_WINDOW_MS`): a request that changes data, or a typing event. Reads and
 the requests that a client sends with no user action (polls, previews, mark-read) do not count
-(`src/main/team-api/client-use.ts`). So an app that is open but not used does not keep the server on:
-it stops 15 to 30 minutes after the last action (see the cron interval below). The desktop and the web client then show the server
-as asleep, and the next key press or click wakes it.
+(`src/main/team-api/client-use.ts`). An app that has focus (a focused desktop window, a visible and
+focused browser tab, the phone app in the foreground) also counts, for at most 30 minutes after the
+last user action of its session or after the app gets focus again (`focus-use-v1`). So an app that has focus but is not used keeps the
+server on for 30 minutes, and then the server stops 15 to 30 minutes later. An app that is open
+without focus does not keep the server on: it stops 15 to 30 minutes after the last action (see the
+cron interval below). The desktop and the web client then show the server as asleep, and the next key
+press or click wakes it.
 
 To run the same build on your own computer, see [self-hosted servers](self-hosted-server.md). It
 uses the scripts and units of this page with `mode` set to `self`.
@@ -83,9 +87,22 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    [server claim](self-hosted-server.md#sign-in-with-a-server-claim) of a self-hosted server.
 5. **In use.** OpenBot checks each minute whether the server is in use: an agent works, a remote
    desktop view is open, a file moves, or a remote client is connected (an open Team API event
-   stream) and sent a user action or a typing event in the last 5 minutes. A key press or pointer
+   stream) and sent a user action, a typing event or a focus ping in the last 5 minutes. A key press or pointer
    input in a browser view is a user action. An open browser view with no input does not count,
-   because a view that the user forgot would keep the server on. It sends
+   because a view that the user forgot would keep the server on.
+
+   **Focus.** Only a hosted server advertises `focus-use-v1`. While the app of a client has focus and
+   the server is online, the client sends `POST /v1/client/focus` with an empty body at once and then
+   each 4 minutes (`FOCUS_USE_INTERVAL_MS`): the desktop for its selected server while the window has
+   focus, the web client for its server while the tab is visible and has focus, and the mobile app for
+   its selected server while it is in the foreground. The host counts a ping as use only for 30 minutes
+   (`FOCUS_USE_LIMIT_MS`) after the later of the start of the focus period and the last user action of
+   the same session. A ping more than 8 minutes after the previous one starts a new focus period. The
+   ping is passive in `client-use.ts`, so it does not reset the limit and does not change which session
+   push notifications count as in use. Like other use, a focused app delays the automatic update
+   restart of a hosted server (`RequestedUpdate`, `clientInUse`).
+
+   It sends
    `POST /v2/hosting/servers/:id/activity` with `{inUse, nextRunAt}` and the session from its claim:
    at once when the use starts, then at most each 5 minutes while the use continues, and each time
    the next routine run changes. The Worker accepts only that session, not the owner's own sessions.
@@ -104,7 +121,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    `desired_state = 'idle'`, and boat saves the disk. It does not stop a server whose next routine
    run is less than 10 minutes away. The webhook does not resume an idle server. The next wake
    (step 6) sets it to `running` and resumes it. A start and a resume count as activity, so the first
-   client has 15 minutes to connect.
+   client has 15 minutes to connect. A client that connects with focus keeps it on for 30 minutes
+   with no input.
 
    **Scheduled start.** The cron starts an idle server when its `next_run_at` is less than 10 minutes
    away (one cron interval and the start time), with the wake reason `schedule`. It clears
@@ -354,7 +372,7 @@ servers, their webhooks and the cron continue.
    connect from the desktop and the web client. Delete the server at the end.
 
 The cron runs each 5 minutes in production. An idle server stops 15 to 30 minutes after its last
-use, and the checks that repair a missed webhook run at most 5 minutes late.
+use (a focus ping is use only for 30 minutes after the last user action or a new focus period), and the checks that repair a missed webhook run at most 5 minutes late.
 
 ### Sales reports
 

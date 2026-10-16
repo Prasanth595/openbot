@@ -403,11 +403,11 @@ const V33_ROUTINE_RUN_MISSED_COLUMNS_SQL = [
 // the migration 33 columns, before the UNIQUE constraint.
 const V35_ROUTINE_RUN_SOURCE_COLUMN_SQL = `run_source TEXT CHECK(run_source IS NULL OR run_source IN ('test', 'script', 'webhook'))`;
 
-// Migration 39 stores the shown-order keys of each thread message, so a page reads an index range rather
+// Migration 40 stores the shown-order keys of each thread message, so a page reads an index range rather
 // than sorting the whole thread (#2226). Frozen with the migration; `database/thread-message-order.ts`
 // keeps them current, and every write to the table must call it. No default: a key of 0 or '' would look
 // real. ADD COLUMN puts the columns before the PRIMARY KEY constraint that ends the table.
-const V39_THREAD_MESSAGE_ORDER_COLUMNS_SQL = [
+const V40_THREAD_MESSAGE_ORDER_COLUMNS_SQL = [
   "group_start TEXT",
   "group_first INTEGER",
   "group_id TEXT",
@@ -419,16 +419,16 @@ const BASELINE_THREAD_MESSAGES_END_SQL = `    last_event_sequence INTEGER NOT NU
 
 // The order index carries the author and item type, so the marker and unread filters read no table row.
 // The turn index finds the rows of one turn for its refresh after a write.
-const V39_THREAD_MESSAGE_ORDER_INDEX_SQL = `
+const V40_THREAD_MESSAGE_ORDER_INDEX_SQL = `
   CREATE INDEX IF NOT EXISTS thread_messages_shown_order ON projection_thread_messages(
     thread_id, group_start, group_first, group_id, turn_rank, created_at, ordinal, message_id, author, item_type
   );
   CREATE INDEX IF NOT EXISTS thread_messages_turn ON projection_thread_messages(thread_id, turn_id);
 `;
 
-// The order of migration 39, frozen: the window that pages ran over each thread before it, over every
+// The order of migration 40, frozen: the window that pages ran over each thread before it, over every
 // thread at once. A row that has its keys already is not written again.
-const V39_THREAD_MESSAGE_ORDER_BACKFILL_SQL = `WITH ranked AS (
+const V40_THREAD_MESSAGE_ORDER_BACKFILL_SQL = `WITH ranked AS (
   SELECT thread_id, message_id, created_at, ordinal, NULLIF(turn_id, '') AS turn,
     CASE
       WHEN author = 'user' THEN 0
@@ -566,13 +566,13 @@ const LATEST_SCHEMA_SQL =
   MESSAGING_MEMORY_SCHEMA_SQL +
   ROUTINE_RESULT_SCHEMA_SQL +
   AGENT_TASK_SCHEMA_SQL +
-  V39_THREAD_MESSAGE_ORDER_INDEX_SQL;
+  V40_THREAD_MESSAGE_ORDER_INDEX_SQL;
 
-/** The end of the thread message table with the migration 39 columns before its PRIMARY KEY constraint. */
+/** The end of the thread message table with the migration 40 columns before its PRIMARY KEY constraint. */
 function withThreadMessageOrderColumns(tableEnd: string): string {
   return tableEnd.replace(
     "last_event_sequence INTEGER NOT NULL,\n",
-    `last_event_sequence INTEGER NOT NULL,\n${V39_THREAD_MESSAGE_ORDER_COLUMNS_SQL.map((column) => `    ${column},\n`).join("")}`,
+    `last_event_sequence INTEGER NOT NULL,\n${V40_THREAD_MESSAGE_ORDER_COLUMNS_SQL.map((column) => `    ${column},\n`).join("")}`,
   );
 }
 
@@ -785,6 +785,12 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
   },
   {
     version: 39,
+    // Deletes many large rows, so the file gets smaller only after a vacuum.
+    vacuumAfterCommit: true,
+    up: deleteRepeatedMailboxReconciliations,
+  },
+  {
+    version: 40,
     // Adds columns with no default and two indexes: no rebuild, so no foreign-key pause and no vacuum. The
     // keys of every existing message come from the order that pages computed before, so a cursor that a
     // client holds keeps its place.
@@ -1113,18 +1119,18 @@ function addRoutineRunSource(db: DatabaseSync): void {
   }
 }
 
-// Migration 39 stores the shown-order keys of each thread message and indexes them.
+// Migration 40 stores the shown-order keys of each thread message and indexes them.
 function addThreadMessageOrder(db: DatabaseSync): void {
   // A development profile that ran this version before it shipped has the columns already.
   const columns = db.prepare("PRAGMA table_info(projection_thread_messages)").all();
-  for (const column of V39_THREAD_MESSAGE_ORDER_COLUMNS_SQL) {
+  for (const column of V40_THREAD_MESSAGE_ORDER_COLUMNS_SQL) {
     const name = column.slice(0, column.indexOf(" "));
     if (columns.some((existing) => isDynamicRecord(existing) && existing.name === name)) continue;
     db.exec(`ALTER TABLE projection_thread_messages ADD COLUMN ${column}`);
   }
   // The index is built once, after the keys, rather than updated row by row.
-  db.exec(V39_THREAD_MESSAGE_ORDER_BACKFILL_SQL);
-  db.exec(V39_THREAD_MESSAGE_ORDER_INDEX_SQL);
+  db.exec(V40_THREAD_MESSAGE_ORDER_BACKFILL_SQL);
+  db.exec(V40_THREAD_MESSAGE_ORDER_INDEX_SQL);
 }
 
 // Migration 28 removes the provider CHECK. It rebuilds the table with no guard: every shipped table has the
@@ -1600,6 +1606,42 @@ function compactConversationHistory(db: DatabaseSync): void {
     updateActivity.run(JSON.stringify(activityDetail), event.threadId, event.sequence);
     deleteActivities.run(event.threadId, event.threadId, event.sequence);
     deleteEvents.run(event.threadId, event.sequence);
+  }
+  deleteOrphanReceipts(db);
+}
+
+// A page read wrote its mailbox messages again on each read when only their key order differed from
+// the rows (#2224), so a thread can hold thousands of identical `conversation.mailbox-reconciled`
+// events in a row. An event goes only when the next event of its thread is the same type with the
+// same payload. Replay merges a changed message into the one it names, so applying the same payload
+// twice in a row gives what applying it once gives. The last event of each run stays, and with it
+// the `last_event_sequence` that the rows it wrote point to.
+function deleteRepeatedMailboxReconciliations(db: DatabaseSync): void {
+  db.exec("CREATE TEMP TABLE repeated_mailbox_reconciliations (sequence INTEGER PRIMARY KEY)");
+  try {
+    // `event_type` comes before `payload_json` in a row, so the scan reads a payload only for a pair of
+    // reconcile events. The next event comes from the aggregate index.
+    db.exec(`
+      INSERT INTO repeated_mailbox_reconciliations (sequence)
+      SELECT event.sequence
+      FROM orchestration_events event
+      JOIN orchestration_events next ON next.sequence = (
+        SELECT later.sequence FROM orchestration_events later
+        WHERE later.aggregate_type = 'thread' AND later.aggregate_id = event.aggregate_id
+          AND later.sequence > event.sequence
+        ORDER BY later.sequence LIMIT 1
+      )
+      WHERE event.aggregate_type = 'thread' AND event.event_type = 'conversation.mailbox-reconciled'
+        AND next.event_type = event.event_type AND next.payload_json = event.payload_json`);
+    db.exec(`
+      DELETE FROM projection_thread_activities
+      WHERE activity_type = 'conversation.mailbox-reconciled'
+        AND last_event_sequence IN (SELECT sequence FROM repeated_mailbox_reconciliations)`);
+    db.exec(
+      "DELETE FROM orchestration_events WHERE sequence IN (SELECT sequence FROM repeated_mailbox_reconciliations)",
+    );
+  } finally {
+    db.exec("DROP TABLE temp.repeated_mailbox_reconciliations");
   }
   deleteOrphanReceipts(db);
 }

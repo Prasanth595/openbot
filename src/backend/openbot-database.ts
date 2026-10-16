@@ -280,6 +280,10 @@ export class OpenBotDatabase {
     return this.#conversationWrites.appendConversationMessage(input);
   }
 
+  changedConversationMessages(threadId: string, messages: readonly ConversationMessage[]): ConversationMessage[] {
+    return this.#conversationWrites.changedConversationMessages(threadId, messages);
+  }
+
   persistConversationChanges(input: {
     agentId: string;
     threadId: string;

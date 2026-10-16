@@ -1176,6 +1176,8 @@ if (!hasSingleInstanceLock) {
         "browser-window-blur",
         () => void Effect.runPromise(remoteServers.setAppFocused(BrowserWindow.getFocusedWindow() !== null)),
       );
+      // A window that has no focus at start sends no blur event, and focus keeps a hosted server on.
+      void Effect.runPromise(remoteServers.setAppFocused(BrowserWindow.getFocusedWindow() !== null));
       const refreshMemberships = () => void Effect.runPromise(directoryRefresh.refresh(true));
       remoteServers.on("directoryInvalidated", refreshMemberships);
       let stopDirectoryWatch = () => {};

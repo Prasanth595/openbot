@@ -95,6 +95,7 @@ interface HostServiceOptions {
   instanceTransfer?: ForwardedApiOptions["instanceTransfer"];
   routineFlows?: ForwardedApiOptions["routineFlows"];
   admin?: ForwardedApiOptions["admin"];
+  focusUse?: ForwardedApiOptions["focusUse"];
   appVersion: string;
   store: TeamStore;
   agents: ForwardedApiOptions["agents"] & Pick<AgentService, "adoptConversationReads">;
@@ -387,6 +388,7 @@ export class HostService extends EventEmitter<HostEvents> {
       onSessionRevoked: (sessionId) => this.#revokeWebRtcSession(sessionId),
       liveActivityPush: this.#liveActivityPush,
       pushNotifications: this.#pushNotifications,
+      focusUse: options.focusUse,
     });
     this.#runtime = ManagedRuntime.make(
       Layer.succeed(
