@@ -923,7 +923,17 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     ).pipe(
       Effect.timeoutOrElse({
         duration: timeoutMs,
-        orElse: () => Effect.fail(providerFailure(new TimeoutError("ACP initialization timed out."))),
+        orElse: () =>
+          Effect.fail(
+            providerFailure(
+              new TimeoutError(
+                sourceText("error.provider.acpStartTimedOut", {
+                  provider: this.#label,
+                  seconds: String(Math.round(timeoutMs / 1_000)),
+                }),
+              ),
+            ),
+          ),
       }),
     );
     const initialization = this.#initialization;

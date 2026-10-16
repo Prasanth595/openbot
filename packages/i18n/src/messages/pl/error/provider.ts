@@ -149,6 +149,10 @@ export const messages = {
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. OpenBot spróbuje ponownie.",
   "error.provider.cliTimedOutRefresh":
     "{provider} nie odpowiedział na czas. Komputer może być zajęty. Odśwież dostawców, aby spróbować ponownie.",
+  "error.provider.acpStartTimedOut":
+    "{provider} nie zakończył uruchamiania w ciągu {seconds} s. Komputer może być zajęty. Odśwież dostawców, aby spróbować ponownie.",
+  "error.provider.acpModelsTimedOut":
+    "{provider} uruchomił się, ale nie podał listy modeli w ciągu {seconds} s. Komputer może być zajęty. Odśwież dostawców, aby spróbować ponownie.",
   "error.provider.startStopped":
     "{provider} kilka razy z rzędu się nie uruchomił, więc OpenBot przestał próbować. Odśwież dostawców, aby spróbować ponownie.",
   "error.provider.tempDiskSpace":

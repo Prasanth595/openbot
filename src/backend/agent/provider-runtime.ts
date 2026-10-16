@@ -96,13 +96,15 @@ const stderrLogger = createOpenBotLogger("provider-stderr");
 
 const ACCOUNT_USAGE_READ_TIMEOUT_MS = 30_000;
 /**
- * How long the first start of a CLI that was just installed may take. The Gemini runtime unpacks
- * itself on its first run, and an antivirus scan of the unpacked files can take minutes on a slow
- * computer. The request timeout failed that start after a good download, the install was rolled
- * back, and each retry downloaded and failed again. Only this start waits so long: a launch waits
- * for every provider, and one CLI that hangs would hold chat back for all of them.
+ * How long a start may take when it holds back no other provider: the first start of a CLI that was
+ * just installed, a start that follows a sign-in or a key change, and each start of a provider that
+ * did not finish a start in the request timeout. The Windows Gemini server unpacks about 310 MB at
+ * every start, and an antivirus scan of the unpacked files can take minutes on a slow computer
+ * (#1275, #2311). A start in the request timeout stopped it while it unpacked, and the next start
+ * unpacked again. A launch keeps the request timeout: it waits for every provider, and one CLI that
+ * hangs would hold chat back for all of them.
  */
-const INSTALLED_CLI_START_TIMEOUT_MS = 180_000;
+const LONG_START_TIMEOUT_MS = 180_000;
 /** How long a provider CLI stays running with nothing to do before its process is stopped. */
 const PROVIDER_IDLE_RELEASE_MS = 10 * 60_000;
 /**
@@ -390,6 +392,8 @@ export class ProviderRuntime implements ProviderPort {
   readonly #restartAttempts = new Map<AgentProvider, number>();
   /** Starts in a row that failed (`START_FAILURE_LIMIT`). A user action clears them. */
   readonly #startFailures = new Map<AgentProvider, number>();
+  /** Providers that did not answer `initialize` in the request timeout. Their starts get `LONG_START_TIMEOUT_MS`. */
+  readonly #slowStarts = new Set<AgentProvider>();
   /** When each provider's current client became its client. */
   readonly #activatedAt = new Map<AgentProvider, number>();
   readonly #restartTimers = new Map<AgentProvider, NodeJS.Timeout>();
@@ -463,7 +467,8 @@ export class ProviderRuntime implements ProviderPort {
     this.#cliLogin = new CliLoginFlow({
       scope: () => this.#scope,
       resolveCli: (provider) => this.#resolveProviderCli(provider).pipe(toCliLoginFailed),
-      authenticate: (provider, cli) => this.#authenticateClient(provider, cli).pipe(toCliLoginFailed),
+      authenticate: (provider, cli) =>
+        this.#authenticateClient(provider, cli, { startTimeoutMs: LONG_START_TIMEOUT_MS }).pipe(toCliLoginFailed),
       activate: (provider, client, cli, account, activateOptions) =>
         this.#activateProviderClient(provider, client, cli, account, activateOptions).pipe(toCliLoginFailed),
       setConnecting: (provider) => this.#setProviderConnectionState(provider, "connecting"),
@@ -1743,6 +1748,7 @@ export class ProviderRuntime implements ProviderPort {
     const disposals = this.#disposals;
     const accountEnvironment = own.account ? this.#providerAccounts?.environment(own.account) : undefined;
     const { client } = yield* this.#authenticateClient(provider, cli, {
+      ...(this.#slowStarts.has(provider) ? { startTimeoutMs: LONG_START_TIMEOUT_MS } : {}),
       ...(own.confinement ? { confinement: own.confinement } : {}),
       ...(accountEnvironment ? { accountEnvironment } : {}),
     });
@@ -2157,7 +2163,24 @@ export class ProviderRuntime implements ProviderPort {
               this.#bindClient(client);
               client.start();
             });
-            yield* this.#initializeProviderClient(client, startTimeoutMs);
+            const startedAt = performance.now();
+            const durationMs = () => Math.round(performance.now() - startedAt);
+            yield* this.#initializeProviderClient(client, startTimeoutMs).pipe(
+              Effect.tapError((failure) =>
+                Effect.sync(() => {
+                  const error = this.#withExitDetail(failure.cause);
+                  if (isProviderTimeout(error)) this.#slowStarts.add(provider);
+                  logger.warn("A provider did not start.", {
+                    provider,
+                    stage: "initialize",
+                    durationMs: durationMs(),
+                    timeout: isProviderTimeout(error),
+                    message: shortenDiagnostic(this.#redactMcp(error instanceof Error ? error.message : String(error))),
+                  });
+                }),
+              ),
+            );
+            logger.info("A provider answered initialize.", { provider, durationMs: durationMs() });
             const response = yield* client
               .request("account/read", { refreshToken: true }, decodeAccountReadResult)
               .pipe(toProviderOperationFailed);
@@ -2330,8 +2353,11 @@ export class ProviderRuntime implements ProviderPort {
     const hasActiveClient = this.#clients.has(provider) || (keepsReleased && this.#released.has(provider));
     const fallbackMessage = `OpenBot could not connect ${providerLabel(provider)}. Try again.`;
     const rawMessage = error instanceof Error ? error.message : String(error);
+    const timeout = isProviderTimeout(error);
+    // A timeout says which stage did not answer, and the row's last error keeps it.
+    if (timeout) this.#recordProviderError(provider, error);
     const message =
-      error instanceof ProviderSignInError || /^(ChatGPT connection|OpenBot)/u.test(rawMessage)
+      timeout || error instanceof ProviderSignInError || /^(ChatGPT connection|OpenBot)/u.test(rawMessage)
         ? rawMessage
         : fallbackMessage;
     const status = hasActiveClient
@@ -2375,7 +2401,7 @@ export class ProviderRuntime implements ProviderPort {
       yield* this.#connect("starting", [provider], {
         preserveCheckErrors: true,
         notifyReady: false,
-        startTimeoutMs: INSTALLED_CLI_START_TIMEOUT_MS,
+        startTimeoutMs: LONG_START_TIMEOUT_MS,
       });
       const status = this.status().providers?.find((row) => row.id === provider);
       if (status?.version !== cli.version || !["available", "sign-in-required"].includes(status.state)) {
@@ -2392,7 +2418,7 @@ export class ProviderRuntime implements ProviderPort {
       return;
     }
     const candidate = yield* this.#authenticateClient(provider, cli, {
-      startTimeoutMs: INSTALLED_CLI_START_TIMEOUT_MS,
+      startTimeoutMs: LONG_START_TIMEOUT_MS,
     });
     yield* this.#activateProviderClient(provider, candidate.client, cli, candidate.account, {
       notifyReady: false,
@@ -2425,7 +2451,9 @@ export class ProviderRuntime implements ProviderPort {
         Effect.gen({ self: this }, function* () {
           const resolved = yield* this.#resolveProviderCli(provider);
           cli = resolved;
-          const candidate = yield* this.#authenticateClient(provider, resolved);
+          const candidate = yield* this.#authenticateClient(provider, resolved, {
+            startTimeoutMs: LONG_START_TIMEOUT_MS,
+          });
           yield* this.#activateProviderClient(provider, candidate.client, resolved, candidate.account, {
             notifyReady: false,
           }).pipe(toProviderOperationFailed);
@@ -2554,7 +2582,10 @@ export class ProviderRuntime implements ProviderPort {
             this.#bindClient(candidate);
             candidate.start();
           });
-          yield* this.#initializeProviderClient(candidate, options.startTimeoutMs);
+          yield* this.#initializeProviderClient(
+            candidate,
+            options.startTimeoutMs ?? (this.#slowStarts.has(provider) ? LONG_START_TIMEOUT_MS : undefined),
+          );
           logger.info("A provider answered initialize.", { provider, durationMs: stageMs() });
           stage = "account";
           stageStartedAt = performance.now();
@@ -2615,6 +2646,8 @@ export class ProviderRuntime implements ProviderPort {
               });
               if (isProviderTimeout(error)) {
                 this.#recordProviderError(provider, error);
+                // The process may still be unpacking. The next start waits long enough to finish.
+                if (stage === "initialize") this.#slowStarts.add(provider);
                 if (this.#countStartFailure(provider)) return this.#showStartStopped(provider);
                 // A busy computer, not a broken CLI: say so, keep the version, and try again later.
                 const message = this.#retryAfterTimeout(provider, !disposed());

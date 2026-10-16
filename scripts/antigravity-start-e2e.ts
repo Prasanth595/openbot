@@ -2,14 +2,16 @@
 // server that, like the Windows PyInstaller build, unpacks itself into the temporary folder at each
 // start. Checks that each process gets its own temporary folder and that OpenBot removes it, that
 // failed starts stop after the limit, that an automatic refresh does not start the provider again
-// and a user refresh does, that low disk space stops a start before the process spawns, and that a
-// launch removes what an earlier run left.
+// and a user refresh does, that low disk space stops a start before the process spawns, that a
+// launch removes what an earlier run left, and that a server that unpacks for longer than the
+// request timeout connects on the retry and after a key change (#2311).
 // `bun scripts/antigravity-start-e2e.ts`. Writes .openbot-build/antigravity-start-e2e/report.json.
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { sourceText } from "@openbot/i18n/source";
+import { teeLogLines } from "@openbot/logging";
 import { Effect } from "effect";
 import { ConversationRuntime } from "../src/backend/agent/conversation-runtime";
 import { ProviderRuntime } from "../src/backend/agent/provider-runtime";
@@ -27,19 +29,53 @@ import { sweepProviderTemp } from "../src/backend/provider-temp";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/antigravity-start-e2e");
 const WAIT_MS = 15_000;
+/** Longer than the runtime's 5 s request timeout, and far shorter than the long start timeout. */
+const SLOW_UNPACK_MS = 7_000;
 
-// `FAKE_AGY_MODE`: `hang` never answers, `crash` exits at its first request.
+// `FAKE_AGY_MODE`: `hang` never answers, `crash` exits at its first request, and `slow` unpacks for
+// `FAKE_AGY_UNPACK_MS` before it reads a request, then answers as an ACP server with one model.
 const FAKE_AGY = `#!/usr/bin/env node
 const fs = require("node:fs");
 const path = require("node:path");
+const NL = String.fromCharCode(10);
 const temp = process.env.TMP || process.env.TEMP || process.env.TMPDIR;
 const unpacked = path.join(temp, "_MEI" + process.pid.toString(16));
 fs.mkdirSync(unpacked, { recursive: true });
 fs.writeFileSync(path.join(unpacked, "python310.dll"), Buffer.alloc(5 * 1024 * 1024));
 fs.appendFileSync(process.env.FAKE_AGY_LOG, JSON.stringify({
   pid: process.pid, TMP: process.env.TMP, TEMP: process.env.TEMP, TMPDIR: process.env.TMPDIR, unpacked,
-}) + String.fromCharCode(10));
-process.stdin.on("data", () => {
+}) + NL);
+const write = (message) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + NL);
+function handle(message) {
+  if (message.id === undefined) return;
+  if (message.method === "initialize") {
+    write({ id: message.id, result: { protocolVersion: 1, agentCapabilities: {}, authMethods: [] } });
+    return;
+  }
+  if (message.method === "session/new") {
+    write({ id: message.id, result: {
+      sessionId: "s-" + message.id,
+      models: { availableModels: [{ modelId: "gemini-fake", name: "Gemini Fake" }], currentModelId: "gemini-fake" },
+    } });
+    return;
+  }
+  write({ id: message.id, result: {} });
+}
+function serve() {
+  let buffer = "";
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", (chunk) => {
+    buffer += chunk;
+    let index;
+    while ((index = buffer.indexOf(NL)) >= 0) {
+      const line = buffer.slice(0, index);
+      buffer = buffer.slice(index + 1);
+      if (line.trim()) handle(JSON.parse(line));
+    }
+  });
+}
+if (process.env.FAKE_AGY_MODE === "slow") setTimeout(serve, Number(process.env.FAKE_AGY_UNPACK_MS));
+else process.stdin.on("data", () => {
   if (process.env.FAKE_AGY_MODE === "crash") process.exit(3);
 });
 setInterval(() => {}, 1000);
@@ -62,6 +98,12 @@ interface Report {
   leftInTempRoot?: string[];
   launchSweep?: { left: string[] };
   lowDisk?: { attempts: number; spawns: number; message: string | null | undefined };
+  slowStart?: {
+    timedOut: { state: string | undefined; message: string | null | undefined; lastError: string | null };
+    retry: { spawns: number; state: string | undefined };
+    keyChange: { spawns: number; state: string | undefined };
+    logLines: string[];
+  };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-antigravity-start-e2e-"));
@@ -78,8 +120,8 @@ async function starts(): Promise<StartEntry[]> {
 }
 
 /** Waits for a condition on files that another process changes, and fails after `WAIT_MS`. */
-async function waitFor(label: string, check: () => Promise<boolean>): Promise<void> {
-  const deadline = Date.now() + WAIT_MS;
+async function waitFor(label: string, check: () => Promise<boolean>, waitMs = WAIT_MS): Promise<void> {
+  const deadline = Date.now() + waitMs;
   while (!(await check())) {
     if (Date.now() > deadline) throw new Error(`Timed out waiting for ${label}.`);
     await new Promise((resume) => setTimeout(resume, 50));
@@ -122,6 +164,11 @@ function runtime(tempRoot: string, freeBytes: () => number): { providers: Provid
     redactMcp: (text) => text,
   });
   return { providers, store };
+}
+
+/** `dispose` hands the running clients to its caller, which stops them, as `AgentService` does. */
+async function stopAll(providers: ProviderRuntime): Promise<void> {
+  for (const client of await runCauseEffect(providers.dispose())) await runCauseEffect(client.stop());
 }
 
 function antigravityRow(providers: ProviderRuntime) {
@@ -217,6 +264,53 @@ try {
     async () => (await entries(join(sweepRoot, "antigravity"))).length === 0,
   );
   report.launchSweep = { left: await entries(join(sweepRoot, "antigravity")) };
+
+  // 7. A server that unpacks for longer than the request timeout, as the Windows build can (#2311).
+  // The first start times out and names its stage. The retry waits long enough and connects.
+  const logLines: string[] = [];
+  const stopTee = teeLogLines(["acp-connection", "provider-runtime"], (line) => logLines.push(line));
+  process.env.FAKE_AGY_MODE = "slow";
+  process.env.FAKE_AGY_UNPACK_MS = String(SLOW_UNPACK_MS);
+  await rm(log, { force: true });
+  const slow = runtime(join(root, "temp-slow"), () => Number.MAX_SAFE_INTEGER).providers;
+  await runCauseEffect(slow.ensureProvider("antigravity").pipe(Effect.ignore));
+  const timedOutRow = antigravityRow(slow);
+  const timedOut = {
+    state: timedOutRow?.state,
+    message: timedOutRow?.message,
+    lastError: slow.lastError("antigravity"),
+  };
+  assert.equal(timedOut.state, "error");
+  assert.equal(timedOut.message, sourceText("error.provider.cliTimedOut", { provider: "Gemini" }));
+  assert.equal(timedOut.lastError, sourceText("error.provider.acpStartTimedOut", { provider: "Gemini", seconds: "5" }));
+  await waitFor(
+    "the retry to connect the slow server",
+    async () => antigravityRow(slow)?.state === "available",
+    5_000 + SLOW_UNPACK_MS + WAIT_MS,
+  );
+  const retry = { spawns: (await starts()).length, state: antigravityRow(slow)?.state };
+  await stopAll(slow);
+  assert.equal(retry.spawns, 2, "one start that timed out, then one retry that connected");
+
+  // A key change starts a new process. It waits long enough on a runtime that saw no slow start.
+  await rm(log, { force: true });
+  const keyChange = runtime(join(root, "temp-slow-key"), () => Number.MAX_SAFE_INTEGER).providers;
+  await runCauseEffect(keyChange.changeProviderCredential("antigravity", () => Effect.void));
+  const keyChangeResult = { spawns: (await starts()).length, state: antigravityRow(keyChange)?.state };
+  await stopAll(keyChange);
+  stopTee();
+  assert.equal(keyChangeResult.state, "available");
+  assert.equal(keyChangeResult.spawns, 1);
+  const diagnostics = logLines.filter((line) =>
+    /An ACP agent process (started|wrote its first output|ended)|A provider did not start/u.test(line),
+  );
+  report.slowStart = { timedOut, retry, keyChange: keyChangeResult, logLines: diagnostics };
+  assert.ok(diagnostics.some((line) => line.includes("An ACP agent process started.")));
+  assert.ok(diagnostics.some((line) => line.includes("An ACP agent process wrote its first output.")));
+  assert.ok(diagnostics.some((line) => line.includes("An ACP agent process ended.") && line.includes('"pid"')));
+  assert.ok(
+    diagnostics.some((line) => line.includes("A provider did not start.") && line.includes('"stage":"initialize"')),
+  );
 
   report.passed = true;
 } finally {

@@ -1,6 +1,8 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import { basename } from "node:path";
 import { Readable, Writable } from "node:stream";
 import { type Client, ClientSideConnection, ndJsonStream } from "@agentclientprotocol/sdk";
+import { createOpenBotLogger } from "@openbot/logging";
 import { Deferred, Effect } from "effect";
 import { AgentProcessExitError, type DiagnosticOrigin } from "./agent-client";
 import { type AgentCliInfo, cliSpawnTarget } from "./cli";
@@ -18,6 +20,7 @@ import { createDiagnosticStream } from "./stderr-diagnostics";
 import { endProcessTree } from "./windows-process-tree";
 
 const EXIT_REPORT_WAIT_MS = 2_000;
+const logger = createOpenBotLogger("acp-connection");
 interface ProcessEnd {
   ending: string;
   detail: string | null;
@@ -78,6 +81,19 @@ export class AcpConnection {
     );
     this.#process = child;
     registerProviderProcess(child, this.options.provider);
+    // A start that times out says nothing of the process. These lines show whether it ran, how long
+    // it took to write anything, and how it ended, such as a Windows server that unpacks itself (#2311).
+    const startedAt = performance.now();
+    const elapsedMs = () => Math.round(performance.now() - startedAt);
+    const logFields = {
+      provider: this.options.provider,
+      command: basename(this.options.cli.executable),
+      pid: child.pid ?? null,
+    };
+    logger.info("An ACP agent process started.", logFields);
+    child.stdout.once("data", () =>
+      logger.info("An ACP agent process wrote its first output.", { ...logFields, durationMs: elapsedMs() }),
+    );
     // The SDK holds a line until its newline with no limit. At the limit the connection closes with
     // the error, so each open request fails with it, and the process ends.
     const stdout = child.stdout.pipe(
@@ -111,6 +127,7 @@ export class AcpConnection {
     const ended = Deferred.makeUnsafe<ProcessEnd>();
     this.#ended = ended;
     child.once("close", (code, signal) => {
+      logger.info("An ACP agent process ended.", { ...logFields, code, signal, durationMs: elapsedMs() });
       diagnostics.flush();
       Deferred.doneUnsafe(
         ended,
