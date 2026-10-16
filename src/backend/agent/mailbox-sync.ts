@@ -126,18 +126,19 @@ export class MailboxSync {
     const removedMessageIds = [...previousMessageIds].filter(
       (messageId) => !persisted.messages.some((message) => message.id === messageId),
     );
-    if (changedMessages.length === 0 && removedMessageIds.length === 0) return;
-    this.#database.persistConversationChanges({
-      agentId: agent.id,
-      threadId: agent.threadId,
-      activeTurnId: persisted.activeTurnId,
-      changedMessages,
-      removedMessageIds,
-      eventType: "conversation.mailbox-reconciled",
-      detail: {
-        messageCount: changedMessages.length,
-      },
-    });
+    if (changedMessages.length > 0 || removedMessageIds.length > 0) {
+      this.#database.persistConversationChanges({
+        agentId: agent.id,
+        threadId: agent.threadId,
+        activeTurnId: persisted.activeTurnId,
+        changedMessages,
+        removedMessageIds,
+        eventType: "conversation.mailbox-reconciled",
+        detail: {
+          messageCount: changedMessages.length,
+        },
+      });
+    }
     const live = this.#conversation.snapshot(agent.id);
     if (live) {
       const liveOldest = live.messages[0]?.createdAt;
