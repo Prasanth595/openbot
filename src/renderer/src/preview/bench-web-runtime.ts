@@ -9,7 +9,7 @@ import { mockWebRuntimeFor } from "./mock-web-runtime";
  * conversation, and the script streams a reply into it and counts the host requests that the web
  * client makes. The script reads the driver from `globalThis.openbotWebBench`.
  */
-export interface WebBench {
+interface WebBench {
   /** Resolves when the host has the long conversation. */
   ready: Promise<string>;
   /** Host requests per runtime method since the last reset. */
