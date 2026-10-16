@@ -9,7 +9,7 @@ import {
   type RoutineCalendarRoutine,
   type RoutineCalendarStatus,
 } from "@openbot/ui/features/conversation/RoutineCalendar";
-import { createMemo, createSignal, createStore, onSettled } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { useNavigation } from "../../navigation";
 import { useAgents } from "../agents/agents-context";
 import { useChannels } from "../channels/channels-context";
@@ -159,16 +159,22 @@ export function ScheduleView(props: ScheduleViewProps) {
     if (routine) props.onOpenRoutine(routine);
   }
 
+  // The page stays open when the user switches the server, so the calendar loads and listens again.
+  createEffect(
+    () => props.serverId,
+    (serverId) => {
+      void load();
+      const unsubscribe = props.source.onStale(serverId, () => void load(true));
+      return () => {
+        generation++;
+        unsubscribe();
+      };
+    },
+  );
   onSettled(() => {
-    void load();
-    const unsubscribe = props.source.onStale(props.serverId, () => void load(true));
     // A planned run that passes without a result keeps its place; the clock only moves "now".
     const clock = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => {
-      generation++;
-      unsubscribe();
-      window.clearInterval(clock);
-    };
+    return () => window.clearInterval(clock);
   });
 
   return (

@@ -1432,24 +1432,19 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       </Loading>
                     }
                   >
-                    {/* The schedule loads its server once, and the page stays open across a server switch. */}
-                    <Show when={target().id} keyed>
-                      {(serverId) => (
-                        <ScheduleView
-                          serverId={serverId}
-                          hostName={target().name}
-                          onBack={closeHostPage}
-                          source={scheduleSource}
-                          agents={workspace.profiles()}
-                          channels={channels.state.channels}
-                          onOpenAgent={(agentId) => {
-                            setMobilePane("conversation");
-                            void select(agentId);
-                          }}
-                          onOpenRoutine={openRoutine}
-                        />
-                      )}
-                    </Show>
+                    <ScheduleView
+                      serverId={target().id}
+                      hostName={target().name}
+                      onBack={closeHostPage}
+                      source={scheduleSource}
+                      agents={workspace.profiles()}
+                      channels={channels.state.channels}
+                      onOpenAgent={(agentId) => {
+                        setMobilePane("conversation");
+                        void select(agentId);
+                      }}
+                      onOpenRoutine={openRoutine}
+                    />
                   </Show>
                 )}
               </Show>
