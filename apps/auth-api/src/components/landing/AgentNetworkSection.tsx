@@ -208,6 +208,7 @@ export function AgentNetworkSection() {
     const draw = () => {
       if (!view.width) return;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      if (signals.some((signal) => signal.end <= now())) signals = signals.filter((signal) => signal.end > now());
       drawAgentNetwork(context, network, assets, view, now(), !reduced, signals);
     };
     const tick = (now: number) => {
@@ -253,7 +254,7 @@ export function AgentNetworkSection() {
       if (onHub(event)) {
         const style = HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple";
         const signal = startHubSignal(network, style, now());
-        if (signal) signals = [...signals.filter((entry) => entry.end > now()), signal];
+        if (signal) signals = [...signals, signal];
         return;
       }
       const root = agentAt(event);
