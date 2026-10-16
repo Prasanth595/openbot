@@ -111,8 +111,8 @@ const STAGING_PREFIXES = [".staging-", ".installing-", ".replaced-"];
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 /**
  * How many check intervals a version no instance stamped is kept by the update check. A check
- * collects only when this instance's previous check ran less than two intervals before it, so the
- * computer did not sleep between them and every running sibling has stamped its versions since.
+ * uses it only one interval or more after the computer last started or woke, so every running
+ * sibling has stamped its versions since.
  * Provider CLIs release every few days at 100-600 MB a copy, so each copy kept longer adds up.
  */
 const AWAKE_RETENTION_CHECKS = 3;
@@ -211,6 +211,8 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   #checkTimer: NodeJS.Timeout | null = null;
   #checkIntervalMs = UPDATE_CHECK_INTERVAL_MS;
   #lastCheckAt: number | null = null;
+  /** The first check after the start or after a sleep. */
+  #awakeSince = 0;
   /** The window the last update check collected with. */
   #checkRetentionMs = VERSION_RETENTION_MS;
   #revision = 0;
@@ -371,9 +373,12 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       this.#revision += 1;
       this.emit("status", this.getStatus());
       const now = Date.now();
-      const awake = this.#lastCheckAt !== null && now - this.#lastCheckAt < 2 * this.#checkIntervalMs;
+      // Timer checks are one interval apart while the computer is awake, so a longer gap is a sleep.
+      if (this.#lastCheckAt === null || now - this.#lastCheckAt > 1.5 * this.#checkIntervalMs) this.#awakeSince = now;
       this.#lastCheckAt = now;
-      // After a gap the siblings have not stamped yet, so the start window applies.
+      // Each sibling's timer fires within one interval of a wake. Until then its stamps can be as
+      // old as the sleep, so the start window applies, also to a check the user starts at once.
+      const awake = now - this.#awakeSince >= this.#checkIntervalMs;
       this.#checkRetentionMs = awake ? AWAKE_RETENTION_CHECKS * this.#checkIntervalMs : VERSION_RETENTION_MS;
       // Forked: the first collection after a long gap removes gigabytes, and a check the user asked
       // for answers without waiting for it.

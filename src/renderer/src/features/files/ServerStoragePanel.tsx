@@ -62,8 +62,10 @@ export function ServerStoragePanel(props: ServerStorageOptions & { serverId: str
         .then((old) => {
           if (current) setOldRuntimeBytes(old.bytes);
         })
-        // The row stays hidden; the storage read reports its own failures.
-        .catch(() => undefined);
+        // Hide the row rather than show an old size; the storage read reports its own failures.
+        .catch(() => {
+          if (current) setOldRuntimeBytes(0);
+        });
       return () => {
         current = false;
       };
