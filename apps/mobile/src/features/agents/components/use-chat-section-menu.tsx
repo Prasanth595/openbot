@@ -1,4 +1,3 @@
-import type { MenuAction } from "@expo/ui/community/menu";
 import { SIDEBAR_UNASSIGNED_SECTION_ID } from "@openbot/contracts/ipc";
 import { Link } from "expo-router";
 import { useRef, useState } from "react";
@@ -8,6 +7,7 @@ import {
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
+import type { MenuAction } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 
@@ -57,6 +57,7 @@ export function useChatSectionMenu(serverId: string, chatId: string) {
         {
           id: "sections",
           title: t("mobile.agent.section.moveTo"),
+          image: "folder",
           attributes: { disabled },
           subactions: sections.map((section) => ({
             id: `section:${section.id}`,

@@ -1,4 +1,3 @@
-import { type MenuAction, type MenuComponentRef, MenuView } from "@expo/ui/community/menu";
 import type { BrowserViewContextMenu, BrowserViewInput } from "@openbot/contracts/team-protocol/browser-view-v1";
 import * as Clipboard from "expo-clipboard";
 import { GlassView } from "expo-glass-effect";
@@ -35,6 +34,7 @@ import {
 } from "@/features/workspace/components/use-live-workspace";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgent, MobileBrowserViewSupport } from "@/features/workspace/model/workspace-types";
+import { type MenuAction, type MenuComponentRef, MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isIOS } from "@/shared/lib/platform";

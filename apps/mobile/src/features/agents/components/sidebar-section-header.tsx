@@ -1,4 +1,3 @@
-import { type MenuAction, MenuView } from "@expo/ui/community/menu";
 import type { SidebarLayoutAction } from "@openbot/contracts/ipc";
 import { router } from "expo-router";
 import { Typography } from "heroui-native";
@@ -14,6 +13,7 @@ import {
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
+import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { currentText, useText } from "@/shared/lib/text";

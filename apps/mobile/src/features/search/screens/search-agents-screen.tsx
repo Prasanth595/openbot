@@ -1,4 +1,3 @@
-import { type MenuAction, MenuView } from "@expo/ui/community/menu";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
@@ -10,7 +9,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import { KeyboardController } from "react-native-keyboard-controller";
 import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
-
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { MobileSearchResultRow } from "@/features/search/components/search-result-row";
@@ -26,6 +24,7 @@ import {
 } from "@/features/search/model/mobile-search";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import { BlurEnter, BlurSwap, swapItemMotion } from "@/shared/components/blur-swap";
+import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { haptics } from "@/shared/lib/haptics";
 import { useTransitionMode } from "@/shared/lib/motion";

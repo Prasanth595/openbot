@@ -54,6 +54,8 @@
      * loses to HeroUI's own near-black dark --background. */
     @variant dark {
       --background: var(--openbot-bg-native-canvas);
+      /* Only the Android menu draws on --overlay. HeroUI's light value is already #ffffff. */
+      --overlay: var(--openbot-bg-surface-raised);
     }
 
     /* HeroUI consumes these aliases; OpenBot tokens remain the source of truth. */
@@ -64,7 +66,6 @@
     --surface-secondary-foreground: var(--openbot-text-primary);
     --surface-tertiary: var(--openbot-bg-surface-raised);
     --surface-tertiary-foreground: var(--openbot-text-primary);
-    --overlay: var(--openbot-bg-surface-raised);
     --overlay-foreground: var(--openbot-text-primary);
     --backdrop: var(--openbot-bg-overlay);
     --muted: var(--openbot-text-muted);
