@@ -501,34 +501,40 @@
     padding: var(--openbot-space-4) var(--openbot-space-6) var(--openbot-space-6);
   }
 
-  /* The settings, schedule and usage pages cover the sidebar, so the week has room for seven days.
-   * The server menu stays in the top row, so the user can select the server that the page shows.
-   * `$="settings"` selects both settings pages: "settings" and "server-settings". */
+  /* The settings, schedule, usage and Marketplace pages cover the sidebar, so the week has room for
+   * seven days. The server menu stays in the top row, so the user can select the server that the
+   * page shows. `$="settings"` selects both settings pages: "settings" and "server-settings". */
   /* Out of the grid flow: a grid cell would push the sidebar to a second row. The grid area of an
    * absolute item is its containing block, so the item spans the whole grid. */
-  .app-frame-edge:is([data-window-page$="settings"], [data-window-page="schedule"], [data-window-page="usage"])
-  > .agent-usage-workspace {
+  .app-frame-edge:is(
+    [data-window-page$="settings"],
+    [data-window-page="schedule"],
+    [data-window-page="usage"],
+    [data-window-page="marketplace"]
+  ) > .agent-usage-workspace {
     position: absolute;
     grid-row: 1 / -1;
     grid-column: 1 / -1;
     inset: 0 0 0 1px;
   }
 
-  /* The settings page starts below the top row. The schedule and usage titles go in the top row,
-   * after the server menu, and the rest of the top row lets clicks through to that menu. The rail is
-   * the way back, so these titles have no Back button and no server name. */
+  /* The settings page starts below the top row. The schedule, usage and Marketplace titles go in the
+   * top row, after the server menu, and the rest of the top row lets clicks through to that menu. The
+   * rail is the way back, so these titles have no Back button and no server name. */
   .app-frame-edge[data-window-page$="settings"] > .agent-usage-workspace {
     top: var(--left-header-height);
   }
 
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"]) > .agent-usage-workspace {
+  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
+    > .agent-usage-workspace {
     pointer-events: none;
   }
 
   .app-frame-edge.app-frame-with-server-rail:is(
       [data-window-page$="settings"],
       [data-window-page="schedule"],
-      [data-window-page="usage"]
+      [data-window-page="usage"],
+      [data-window-page="marketplace"]
     )
     > .agent-usage-workspace {
     left: calc(var(--server-rail-width) + 1px);
@@ -536,8 +542,11 @@
 
   .app-frame-edge[data-window-page$="settings"] > .sidebar > :not(.sidebar-topbar),
   .app-frame-edge[data-window-page$="settings"] > .left-panel-resizer,
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"]) > .sidebar > :not(.sidebar-topbar),
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"]) > .left-panel-resizer {
+  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
+    > .sidebar
+    > :not(.sidebar-topbar),
+  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
+    > .left-panel-resizer {
     visibility: hidden;
   }
 
@@ -547,27 +556,54 @@
   }
 
   /* The page spans the sidebar, so the line at the end of the sidebar does not show. */
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"]) > .sidebar::before {
+  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
+  > .sidebar::before {
     display: none;
   }
 
   .app-window
-    > .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"])
+    > .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
     > .agent-usage-workspace
-    :is(.agent-usage-header, .routine-planner-title) {
+    :is(.agent-usage-header, .routine-planner-title, .skills-marketplace-topbar) {
     margin-left: var(--left-panel-width);
   }
 
-  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"])
+  .app-frame-edge:is([data-window-page="schedule"], [data-window-page="usage"], [data-window-page="marketplace"])
     > .agent-usage-workspace
     :is(
       .agent-usage-header,
       .routine-planner-title,
       .agent-usage-body,
       .routine-planner-toolbar,
-      .routine-planner-body
+      .routine-planner-body,
+      .marketplace-crumbs,
+      .skills-marketplace-body
     ) {
     pointer-events: auto;
+  }
+
+  /* The Marketplace page: its crumbs go in the top row, as the usage title does, and the rest of the
+   * Marketplace scrolls in the card below it. */
+  .app-window > .app-frame-edge > .agent-usage-workspace > .skills-marketplace-page {
+    grid-template-rows: var(--left-header-height) minmax(0, 1fr);
+  }
+
+  .app-window > .app-frame-edge > .agent-usage-workspace .skills-marketplace-topbar {
+    min-height: 0;
+    padding: 0 var(--openbot-space-3);
+    border-bottom: 0;
+    -webkit-app-region: drag;
+  }
+
+  .app-window > .app-frame-edge > .agent-usage-workspace .marketplace-crumbs {
+    flex: 0 1 auto;
+    -webkit-app-region: no-drag;
+  }
+
+  .app-window > .app-frame-edge > .agent-usage-workspace .skills-marketplace-topbar .marketplace-title {
+    font-size: var(--openbot-text-md);
+    font-weight: var(--openbot-weight-medium);
+    white-space: nowrap;
   }
 
   .app-window

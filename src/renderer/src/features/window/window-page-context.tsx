@@ -7,14 +7,14 @@ import { useSettings } from "../settings/settings-context";
 import { useUsage } from "../usage/usage-context";
 
 /** The pages of the window rail. Each one fills the card below the top row. */
-type WindowPage = "agents" | "schedule" | "usage" | "settings" | "server-settings";
+type WindowPage = "agents" | "schedule" | "usage" | "marketplace" | "settings" | "server-settings";
 
 /** The settings pages: the settings of the user, or the settings of one server. */
 export type SettingsKind = "personal" | "server";
 
 /**
- * The page of the desktop window, from the state that already opens each page: the settings flags
- * and the host pane of `usage-context`. Every opener keeps its call, and this provider joins them.
+ * The page of the desktop window, from the state that already opens each page: the settings flags,
+ * the Marketplace flag and the host pane of `usage-context`. Every opener keeps its call, and this provider joins them.
  *
  * The user settings and the server settings are two pages. An opener of one closes the other. When
  * the user selects another server, the server settings page follows it.
@@ -35,32 +35,44 @@ const context = createSimpleContext({
     const page = createMemo<WindowPage>(() => {
       if (serverSettings.serverSettingsOpen()) return "server-settings";
       if (settings.appSettingsOpen()) return "settings";
+      if (settings.skillsMarketplaceOpen()) return "marketplace";
       return usage.state.serverId ? usage.state.view : "agents";
     });
 
-    // Opening the user settings closes the server settings and the host pane.
+    // Opening the user settings closes the server settings, the Marketplace and the host pane.
     createEffect(settings.appSettingsOpenRequest, (request, previous) => {
       if (previous === undefined || request === previous) return;
       usage.dismissUsage();
+      if (untrack(settings.skillsMarketplaceOpen)) settings.setSkillsMarketplaceOpen(false);
       if (untrack(serverSettings.serverSettingsOpen)) serverSettings.setServerSettingsOpen(false);
     });
 
-    // Opening the server settings closes the user settings and the host pane.
+    // Opening the server settings closes the user settings, the Marketplace and the host pane.
     createEffect(serverSettings.serverSettingsOpenRequest, (request, previous) => {
       if (previous === undefined || request === previous) return;
       usage.dismissUsage();
+      if (untrack(settings.skillsMarketplaceOpen)) settings.setSkillsMarketplaceOpen(false);
       if (untrack(settings.appSettingsOpen)) settings.setAppSettingsOpen(false);
     });
 
-    // An open host pane closes the settings pages, so the rail shows one page.
+    // An open host pane closes the settings pages and the Marketplace, so the rail shows one page.
     createEffect(
       () => usage.state.serverId,
       (serverId) => {
         if (!serverId) return;
         if (untrack(settings.appSettingsOpen)) settings.setAppSettingsOpen(false);
         if (untrack(serverSettings.serverSettingsOpen)) serverSettings.setServerSettingsOpen(false);
+        if (untrack(settings.skillsMarketplaceOpen)) settings.setSkillsMarketplaceOpen(false);
       },
     );
+
+    // Opening the Marketplace closes the settings pages and the host pane.
+    createEffect(settings.skillsMarketplaceOpen, (open) => {
+      if (!open) return;
+      usage.dismissUsage();
+      if (untrack(settings.appSettingsOpen)) settings.setAppSettingsOpen(false);
+      if (untrack(serverSettings.serverSettingsOpen)) serverSettings.setServerSettingsOpen(false);
+    });
 
     // The server settings page follows the server that the user selects.
     createEffect(activeServerId, (serverId, previous) => {
@@ -86,6 +98,7 @@ const context = createSimpleContext({
       showAgents() {
         settings.setAppSettingsOpen(false);
         serverSettings.setServerSettingsOpen(false);
+        settings.setSkillsMarketplaceOpen(false);
         usage.dismissUsage();
       },
       openSchedule(source: HTMLElement | null) {

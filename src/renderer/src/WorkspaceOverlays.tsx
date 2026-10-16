@@ -86,7 +86,6 @@ export function WorkspaceOverlays(props: AccountProps) {
   );
   return (
     <>
-      <SkillsMarketplace connectors={connectors.active} />
       <SharedAgentInstall />
       <JoinServer account={props.account} />
       <AddServer />
@@ -107,8 +106,10 @@ export function WorkspaceOverlays(props: AccountProps) {
  * browses and installs nothing. A marketplace agent is added to that joined server when its host
  * serves `agent-install-v1`, otherwise to this computer. An agent of a joined server is updated from
  * its listing only when its host serves `agent-update-v1`.
+ *
+ * It is a page of the window, so the shell shows it in the card rather than over the workspace.
  */
-function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
+export function SkillsMarketplace() {
   const {
     skillsMarketplaceOpen,
     setSkillsMarketplaceOpen,
@@ -121,6 +122,7 @@ function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
   const { selectAgent } = useNavigation();
   const { activeServer } = useServers();
   const { openInstalledMarketplaceAgent } = useServerSelection();
+  const connectors = useConnectors();
 
   return (
     <MarketplaceOverlay
@@ -138,7 +140,8 @@ function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
         setPendingPluginSlug(null);
         setPendingPluginConnect(false);
       }}
-      connectors={props.connectors}
+      connectors={connectors.active}
+      variant="page"
     />
   );
 }

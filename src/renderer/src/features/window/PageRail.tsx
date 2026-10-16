@@ -113,7 +113,7 @@ function RailButtonRings(props: {
 }
 
 /** The rail pages. Agents and Routines show the same page with a different sidebar list. */
-export type PageRailPage = "agents" | "routines" | "schedule" | "usage" | "settings";
+export type PageRailPage = "agents" | "routines" | "schedule" | "usage" | "marketplace" | "settings";
 
 export interface PageRailProps {
   hidden: boolean;
@@ -178,7 +178,11 @@ export function PageRail(props: PageRailProps) {
         <For each={props.usageRows}>{(row) => <UsageRings row={row} current={false} onOpen={props.onUsage} />}</For>
         <Show when={props.onMarketplace}>
           {(onMarketplace) => (
-            <RailButton label={t("app.rail.marketplace")} onClick={() => onMarketplace()()}>
+            <RailButton
+              label={t("app.rail.marketplace")}
+              current={props.current === "marketplace"}
+              onClick={() => onMarketplace()()}
+            >
               <Store aria-hidden="true" />
             </RailButton>
           )}
