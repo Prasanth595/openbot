@@ -71,15 +71,14 @@ function modelTier(model: PickerModel): 0 | 1 {
   return model.free ? 0 : 1;
 }
 
-/** OpenCode exposes reasoning variants as model IDs. Keep those IDs at the selection boundary. */
+/** Reasoning variants exposed as model IDs. Keep those IDs at the selection boundary. */
 export function pickerModels(options: AgentModelOption[]): PickerModel[] {
   const { t } = currentText();
   const byId = new Map(options.map((model) => [model.id, model]));
   const variants = new Map<string, { id: string; name: string }[]>();
   const variantIds = new Set<string>();
   for (const model of options) {
-    if (model.provider !== "opencode") continue;
-    const match = /^(.*)\/(none|minimal|low|medium|high|xhigh|max|ultra)$/.exec(model.id);
+    const match = /^(.*)[/-](none|minimal|low|medium|high|xhigh|max|ultra)$/i.exec(model.id);
     const [, baseId, effort] = match ?? [];
     const base = baseId === undefined ? undefined : byId.get(baseId);
     if (!base || effort === undefined || model.name !== `${base.name} (${effort})`) continue;

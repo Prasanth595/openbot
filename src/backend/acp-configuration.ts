@@ -386,13 +386,25 @@ interface SessionSetupResponse {
   models?: unknown;
 }
 
-function modelsFromSessionSetup(response: SessionSetupResponse): AcpModel[] {
+export function modelsFromSessionSetup(response: SessionSetupResponse): AcpModel[] {
   const options = sessionConfigOptions(response);
+  const modelConfig = options.find(
+    (option): option is Extract<SessionConfigOption, { type: "select" }> =>
+      option.category === "model" && option.type === "select",
+  );
+  if (modelConfig) return modelsFromConfig(options);
   const discovered = availableModels(response);
   if (discovered.length === 0) return modelsFromConfig(options);
   const configReasoning = reasoningFromConfig(options);
   return discovered.map((model) => {
-    const supportedReasoningEfforts = model.supportedReasoningEfforts ?? configReasoning.supportedReasoningEfforts;
+    const isFixedEffort =
+      /\((none|minimal|low|medium|high|xhigh|max|ultra)\)$/i.test(model.name) ||
+      /[-/](none|minimal|low|medium|high|xhigh|max|ultra)$/i.test(model.id);
+    const supportedReasoningEfforts = isFixedEffort
+      ? model.defaultReasoningEffort
+        ? [model.defaultReasoningEffort]
+        : ["medium"]
+      : (model.supportedReasoningEfforts ?? configReasoning.supportedReasoningEfforts);
     const reasoningEffortWireValues = model.reasoningEffortWireValues;
     const defaultReasoningEffort =
       model.defaultReasoningEffort && supportedReasoningEfforts.includes(model.defaultReasoningEffort)
@@ -407,8 +419,9 @@ function modelsFromSessionSetup(response: SessionSetupResponse): AcpModel[] {
       defaultReasoningEffort,
       supportedReasoningEfforts,
       reasoningEffortConfigurable:
-        model.usesModelReasoningEffort ??
-        (model.supportedReasoningEfforts ? true : configReasoning.reasoningEffortConfigurable),
+        !isFixedEffort &&
+        (model.usesModelReasoningEffort ??
+          (model.supportedReasoningEfforts ? true : configReasoning.reasoningEffortConfigurable)),
       reasoningEffortWireValues:
         reasoningEffortWireValues && reasoningEffortWireValues.size > 0
           ? reasoningEffortWireValues
@@ -462,6 +475,12 @@ function sessionConfigOptions(response: SessionSetupResponse): SessionConfigOpti
 }
 
 export function currentModelFromSessionSetup(response: SessionSetupResponse): string | null {
+  const options = sessionConfigOptions(response);
+  const modelConfig = options.find(
+    (option): option is Extract<SessionConfigOption, { type: "select" }> =>
+      option.category === "model" && option.type === "select",
+  );
+  if (modelConfig) return modelConfig.currentValue;
   if (!isRecord(response.models)) return null;
   return isString(response.models.currentModelId) && response.models.currentModelId.trim()
     ? response.models.currentModelId.trim()

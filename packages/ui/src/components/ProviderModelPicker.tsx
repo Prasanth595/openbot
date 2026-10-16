@@ -393,15 +393,13 @@ export function ProviderModelPicker(props: ProviderModelPickerProps) {
   const triggerModelName = () => displayModelName(selectedModel()?.name, props.value);
   const field = () => props.variant === "field";
   const showsReasoningEffort = () => props.reasoningEffort !== undefined && props.onReasoningEffortChange !== undefined;
-  /** An OpenCode model with variants: the chosen variant is its effort, and its name says so. */
-  const selectedHasVariants = createMemo(
-    () =>
-      props.provider === "opencode" &&
-      pickerModels(railModelOptions(activeProvider())).some(
-        (model) =>
-          model.variants.length > 0 &&
-          (model.id === props.value || model.variants.some((variant) => variant.id === props.value)),
-      ),
+  /** A model with variants: the chosen variant is its effort, and its name says so. */
+  const selectedHasVariants = createMemo(() =>
+    pickerModels(railModelOptions(activeProvider())).some(
+      (model) =>
+        model.variants.length > 0 &&
+        (model.id === props.value || model.variants.some((variant) => variant.id === props.value)),
+    ),
   );
   /** Only an effort that the model can use. */
   const triggerEffort = () => {
