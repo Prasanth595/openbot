@@ -1,18 +1,24 @@
 import { createSignal, For, lazy, onSettled, Show } from "solid-js";
-import channelsArt from "../../../content-art/news/art/card/channels-put-agents-in-one-room.webp";
-import workspaceArt from "../../../content-art/news/art/card/every-agent-gets-a-workspace.webp";
-import introducingArt from "../../../content-art/news/art/card/introducing-openbot.webp";
-import providersArt from "../../../content-art/news/art/card/one-agent-many-providers.webp";
-import routinesArt from "../../../content-art/news/art/card/routines-give-an-agent-a-schedule.webp";
-import localArt from "../../../content-art/news/art/card/your-work-stays-on-your-computer.webp";
+import { articleArtPath } from "../../lib/content-collection";
+import { NEWS_COLLECTION } from "../../lib/news";
 
 // Loaded in the browser, as in `FeaturesSection`: the avatar engine does not run in the Worker.
 const AgentAvatar = lazy(() =>
   import("@openbot/ui/features/agents/AgentAvatar").then((module) => ({ default: module.AgentAvatar })),
 );
 
-/** The article cards of the news collection, so the art tiles are the site's own pictures. */
-const ART = [introducingArt, channelsArt, workspaceArt, providersArt, routinesArt, localArt];
+/**
+ * The article cards of the news collection, at the paths `/news` already loads them from, so the
+ * browser cache serves both. Only a full build ships these images.
+ */
+const ART = [
+  "introducing-openbot",
+  "channels-put-agents-in-one-room",
+  "every-agent-gets-a-workspace",
+  "one-agent-many-providers",
+  "routines-give-an-agent-a-schedule",
+  "your-work-stays-on-your-computer",
+].map((slug) => articleArtPath(NEWS_COLLECTION, slug, "card"));
 
 type HoneycombTile = { kind: "agent"; seed: string } | { kind: "art"; src: string };
 
@@ -28,7 +34,7 @@ export function honeycombRows(rows: number, columns: number, artEvery: number, p
       const index = row * columns + column;
       const art = artEvery > 0 && (index * 7 + 3) % artEvery === 0;
       const tile: HoneycombTile = art
-        ? { kind: "art", src: ART[(index * 5) % ART.length] ?? introducingArt }
+        ? { kind: "art", src: ART[(index * 5) % ART.length] ?? "" }
         : { kind: "agent", seed: `${prefix}-${index}` };
       return { index, tile };
     }),
@@ -79,7 +85,12 @@ export function AgentHoneycomb(props: { rows: HoneycombCell[][] }) {
                   onPointerLeave={() => setHovered((index) => (index === cell.index ? null : index))}
                 >
                   {cell.tile.kind === "art" ? (
-                    <img src={cell.tile.src} alt="" loading="lazy" decoding="async" draggable={false} />
+                    // A background, as in `ArticleGradient`: in development the image answers 404, and an
+                    // `<img>` then paints the broken-image glyph. Set only when near, so it loads late.
+                    <span
+                      class="agent-honeycomb-art"
+                      style={near() ? { "background-image": `url("${cell.tile.src}")` } : undefined}
+                    />
                   ) : (
                     <Show when={near()}>
                       <AgentAvatar

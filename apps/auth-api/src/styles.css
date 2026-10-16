@@ -5946,10 +5946,11 @@ a {
   }
 }
 
-.agent-honeycomb-cell[data-kind="art"] img {
+.agent-honeycomb-art {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  background-position: center;
+  background-size: cover;
   filter: grayscale(0.35);
 }
 
