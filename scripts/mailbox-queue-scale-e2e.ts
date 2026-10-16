@@ -130,18 +130,18 @@ function timeQueueChanges(mailbox: MailboxStore): NonNullable<Report["timing"]> 
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-mailbox-queue-scale-"));
+const path = join(root, "profile");
+const database = new OpenBotDatabase(path);
 try {
-  const path = join(root, "profile");
-  const database = new OpenBotDatabase(path);
   const mailbox = new MailboxStore(path, join(root, "shared"), database);
   await runCauseEffect(mailbox.initialize());
   const seeded = await seed(mailbox);
   report.agentDeliveries = seeded.length;
   checkQueue(mailbox, seeded);
   report.timing = timeQueueChanges(mailbox);
-  database.close();
   report.passed = true;
 } finally {
+  database.close();
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
   await rm(root, { recursive: true, force: true });
