@@ -36,6 +36,15 @@ interface HoneycombCell {
   tile: HoneycombTile;
 }
 
+/**
+ * Seconds into the avatar's montage, spread over many cycles. The engine wraps the value to one
+ * cycle, so the faces that mount together blink, wink and widen their eyes at different times.
+ * Without it, the seeded start in `AgentAvatar` spans only 1.4 s.
+ */
+function scatteredPhase(index: number): number {
+  return ((Math.imul(index + 1, 0x9e3779b1) >>> 0) / 0x100000000) * 60;
+}
+
 /** A stable mix: with `artEvery` 5, about one tile in five is art. The same seed always gets the same face. */
 export function honeycombRows(rows: number, columns: number, artEvery: number, prefix: string): HoneycombCell[][] {
   return Array.from({ length: rows }, (_, row) =>
@@ -111,6 +120,7 @@ export function AgentHoneycomb(props: { rows: HoneycombCell[][] }) {
                         shape="squircle"
                         motion="always"
                         cycleOffset={(cell.index * 3) % 5}
+                        animationOffset={scatteredPhase(cell.index)}
                         followPointer={hovered() === cell.index}
                         class="agent-honeycomb-avatar"
                       />
