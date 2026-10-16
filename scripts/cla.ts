@@ -6,12 +6,13 @@
 // The author of the pull request and each commit author must sign. Bots, organization members and
 // users with write access skip the check, as in `contribution-policy.ts`. The author of the pull
 // request signs with the agreement box that TEMPLATE_PATH puts in the description. Each author can
-// also sign with a comment that contains the signing line of CLA.md. A box that a different person
-// ticked does not count: the last person who edited the description must be the author.
+// also sign with a comment that contains the signing line of CLA.md. A box or a comment counts only
+// when its last editor is the author: a user with write access can edit the text of other people.
 //
 // The script copies each new signature to SIGNATURES_FILE on the SIGNATURES_BRANCH branch, so the
-// record stays when the author edits the description or deletes the comment. Each run reads all comments again, so a
-// run that GitHub cancels loses no signature: the next run records it. A closed pull request is skipped.
+// record stays when the author edits the description or deletes the comment. Each run reads all
+// comments again, so a run that GitHub cancels loses no signature: the next run records it. A
+// closed pull request is skipped.
 //
 // No package imports: `cla.yml` runs this before `bun install`. Every GitHub read uses `gh api --jq`.
 
@@ -19,7 +20,9 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+// Not COLLABORATOR: that includes collaborators with read or triage access, who must sign. The
+// permission lookup in `isTrusted` passes collaborators with write access.
+const TRUSTED_ASSOCIATIONS = new Set(["OWNER", "MEMBER"]);
 const TRUSTED_PERMISSIONS = new Set(["admin", "maintain", "write"]);
 const AGREEMENT_PATH = "CLA.md";
 const TEMPLATE_PATH = ".github/PULL_REQUEST_TEMPLATE.md";
@@ -142,10 +145,14 @@ function tickedBox(body: string, signingLine: string): string | undefined {
     ?.trim();
 }
 
-function signs(body: string, signingLine: string): boolean {
+/** The line of a comment that signs, if there is one. */
+function signingLineIn(body: string, signingLine: string): string | undefined {
   const expected = normalize(signingLine);
   // A quoted line (`> ...`) does not sign: an author can quote the request to ask about it.
-  return body.split(/\r?\n/).some((line) => normalize(line.trim().replace(/^`+|`+$/g, "")) === expected);
+  return body
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^`+|`+$/g, ""))
+    .find((line) => normalize(line) === expected);
 }
 
 interface Person {
@@ -302,17 +309,33 @@ function signingComments(
   const found = new Map<number, Signature>();
   const rows = readLines(
     `repos/${repository}/issues/${number}/comments?per_page=100`,
-    '.[] | [.user.id, .user.login, .created_at, .html_url, (.body // "" | @base64)] | @tsv',
+    '.[] | [.user.id, .user.login, .created_at, .html_url, (.body // "" | @base64), .node_id] | @tsv',
   ).map((line) => line.split("\t"));
   for (const row of rows) {
     const userId = Number(column(row, 0));
-    const text = Buffer.from(column(row, 4), "base64").toString("utf8");
-    if (!ids.has(userId) || found.has(userId) || !signs(text, signingLine)) continue;
+    const login = column(row, 1);
+    if (!ids.has(userId) || found.has(userId)) continue;
+    const text = signingLineIn(Buffer.from(column(row, 4), "base64").toString("utf8"), signingLine);
+    if (text === undefined) continue;
+    // A user with write access can edit the comment of a different person. As for the box, only an
+    // edit by the comment author counts.
+    const edit = gh([
+      "api",
+      "graphql",
+      "-f",
+      "query=query($id:ID!){node(id:$id){... on IssueComment{lastEditedAt editor{login}}}}",
+      "-F",
+      `id=${column(row, 5)}`,
+      "--jq",
+      '.data.node | [(.lastEditedAt // ""), (.editor.login // "")] | @tsv',
+    ]).split("\t");
+    const editor = column(edit, 1);
+    if (editor !== "" && editor !== login) continue;
     found.set(userId, {
-      login: column(row, 1),
+      login,
       userId,
       version,
-      signedAt: column(row, 2),
+      signedAt: column(edit, 0) || column(row, 2),
       pullRequest: number,
       method: "comment",
       url: column(row, 3),
@@ -431,7 +454,9 @@ function requestComment(
         "",
       );
     }
-    lines.push("You sign one time. The signature applies to all your contributions to OpenBot.");
+    lines.push(
+      "You sign one time for each version of the agreement. The signature applies to all your contributions to OpenBot.",
+    );
   }
   if (unlinked.length > 0) {
     if (lines.length > 0) lines.push("");
