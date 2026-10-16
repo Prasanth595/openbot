@@ -181,7 +181,7 @@ export interface ServerSettingsModalProps {
   /** The section to show when the dialog opens. Updates shows General when the server has no Updates section. */
   initialSection?: ServerSettingsSection | null;
   /** Shows the settings as a page of the window, not as a dialog. */
-  page?: SettingsPagePlacement;
+  page?: SettingsPagePlacement | undefined;
 }
 
 export interface ServerHostedSitesOptions {

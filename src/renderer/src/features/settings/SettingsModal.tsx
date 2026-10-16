@@ -64,7 +64,7 @@ export interface SettingsModalProps {
   onRevokeMobileConnectedDevice?: (sessionId: string) => Promise<void>;
   onListAccountSessions?: () => Promise<AccountSession[]>;
   onRevokeAccountSession?: (sessionId: string) => Promise<void>;
-  onSignOut?: () => Promise<void>;
+  onSignOut?: (() => Promise<void>) | undefined;
   processAvatarFile?: (file: File) => Promise<AvatarImageInput>;
   billingApi?: BillingDesktopApi;
   /** The account's hosted servers. The tab is shown only when the account server offers them. */
@@ -84,7 +84,7 @@ export interface SettingsModalProps {
   /** The tab shown each time the modal opens. Without it, the modal shows the tab that was open last. */
   openTab?: SettingsTab | undefined;
   /** Shows the settings as a page of the window, not as a dialog. */
-  page?: SettingsPagePlacement;
+  page?: SettingsPagePlacement | undefined;
 }
 
 /**

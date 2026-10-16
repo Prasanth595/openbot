@@ -32,7 +32,7 @@ interface SettingsDialogShellProps {
   onContentElement?: (element: HTMLElement) => void;
   restoreFocusTarget?: HTMLElement | null;
   /** Shows the settings as a page of the window, not as a dialog. The page has no close button. */
-  page?: SettingsPagePlacement;
+  page?: SettingsPagePlacement | undefined;
 }
 
 function durationToMilliseconds(value: string, fallback: number): number {
