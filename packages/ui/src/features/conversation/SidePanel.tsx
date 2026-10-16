@@ -6,6 +6,7 @@ import {
   Folder,
   ListChecks,
   Maximize2,
+  MessageCircleQuestionMark,
   Minimize2,
   PanelRight,
   Plus,
@@ -18,14 +19,18 @@ import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
 import { For, flush, onSettled, Show } from "solid-js";
 
-/** A pane of the side panel. Each open pane has a tab at the top of the panel. */
-export type SidePanelPane = "browser" | "files" | "tasks" | "settings";
+/**
+ * A pane of the side panel. Each open pane has a tab at the top of the panel. A side question opens
+ * from the composer only, so the launcher and Add do not list it.
+ */
+export type SidePanelPane = "browser" | "files" | "tasks" | "settings" | "question";
 
 const PANE_LABELS: Record<SidePanelPane, AppTextKey> = {
   browser: "conversation.sidePanel.pane.browser",
   files: "conversation.sidePanel.pane.files",
   tasks: "conversation.sidePanel.pane.tasks",
   settings: "conversation.sidePanel.pane.settings",
+  question: "conversation.sidePanel.pane.question",
 };
 
 /** The same glyphs as the rest of the app: the browser is the computer. */
@@ -39,6 +44,8 @@ function PaneIcon(props: { pane: SidePanelPane }): JSX.Element {
       return <ListChecks aria-hidden="true" />;
     case "settings":
       return <Settings aria-hidden="true" />;
+    case "question":
+      return <MessageCircleQuestionMark aria-hidden="true" />;
   }
 }
 

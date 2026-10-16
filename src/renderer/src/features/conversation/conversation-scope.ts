@@ -29,6 +29,7 @@ import { createQueueStore } from "./stores/queue-store";
 import { createScrollStore } from "./stores/scroll-store";
 import { createSearchStore } from "./stores/search-store";
 import { createSettingsStore, runtimeSettingsEqual } from "./stores/settings-store";
+import { createSideQuestionStore } from "./stores/side-question-store";
 import { createSkillsStore } from "./stores/skills-store";
 import { createVoiceStore } from "./stores/voice-store";
 
@@ -224,6 +225,15 @@ export function createConversationViewScope(props: ConversationProps) {
     revealSidebarFile,
     closeSidebarFilePreview,
   } = panels;
+  const sideQuestions = createSideQuestionStore({ props, openPane: () => setActiveRightPanel("question") });
+  const {
+    sideQuestionAvailable,
+    sideQuestion,
+    setSideQuestionDraft,
+    openSideQuestion,
+    askSideQuestion,
+    deleteSideQuestion,
+  } = sideQuestions;
   const skills = createSkillsStore({ props, settingsOpen });
   const { installedSkills, installedSkillsLoadFailed } = skills;
   const { mcpServers } = createMcpServersStore({ props });
@@ -335,6 +345,7 @@ export function createConversationViewScope(props: ConversationProps) {
   }
   /** Closes the tab of a pane. The next tab takes its place; with no tab, the panel lists the panes. */
   function closeSidePanelPane(pane: SidePanelPane) {
+    if (pane === "question") deleteSideQuestion();
     const shown = sidePanelOpen() && sidePanel().selected === pane;
     const next = removeSidePanelPane(pane);
     if (!shown) return;
@@ -1166,6 +1177,11 @@ export function createConversationViewScope(props: ConversationProps) {
   };
 
   return {
+    sideQuestionAvailable,
+    sideQuestion,
+    setSideQuestionDraft,
+    openSideQuestion,
+    askSideQuestion,
     conversationPanelElement,
     setAgentActivitySlotElement,
     setBrowserSurfaceElement,

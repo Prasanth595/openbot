@@ -18,6 +18,7 @@ import type {
   AgentTaskInput,
   AgentTasksSnapshot,
   AgentWaitsSnapshot,
+  AskSideQuestionInput,
   AttachmentDataInput,
   AvatarImageInput,
   CancelMcpSignInInput,
@@ -166,6 +167,7 @@ import { type RoutineMutationOptions, RoutineScheduler, toRoutineOperationFailed
 import { buildRuntimeSnapshot } from "./agent/runtime-snapshot";
 import type { ScreenCaptureHost } from "./agent/screen-capture";
 import { SessionSettings } from "./agent/session-settings";
+import { SIDE_QUESTION_CHAT_MESSAGES, sideQuestionPrompt } from "./agent/side-question";
 import type { AgentSidebar } from "./agent/sidebar-tools";
 import type { LocalSkillTools } from "./agent/skill-tools";
 import {
@@ -1797,6 +1799,61 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
     },
     Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "generate profile", cause: failure.cause })),
+  ).bind(this);
+
+  /**
+   * Answers a question about an agent's chat with the agent's own model. Nothing is kept: the
+   * generation has no tools, no session and no thread, and the answer goes back to the caller only.
+   */
+  readonly askSideQuestion = Effect.fn("AgentService.askSideQuestion")(
+    function* (this: AgentService, input: AskSideQuestionInput) {
+      const failed = (message: string) => new ProfileGenerationFailed({ cause: new Error(message) });
+      const agent = this.listAgents().find((candidate) => candidate.id === input.agentId);
+      if (!agent) return yield* failed(sourceText("error.agent.gone"));
+      if (this.#stopping) return yield* failed(sourceText("error.backend.shuttingDown"));
+      if (this.#profileClients.busy()) return yield* failed(sourceText("error.agent.sideQuestionBusy"));
+      yield* this.#providers.ensureProvider(agent.provider);
+      const model = this.#endpoints
+        .available()
+        .find((candidate) => candidate.provider === agent.provider && candidate.id === agent.model);
+      if (!model) return yield* failed(sourceText("error.provider.noModel"));
+      if (this.#stopping) return yield* failed(sourceText("error.backend.shuttingDown"));
+      if (this.#profileClients.busy()) return yield* failed(sourceText("error.agent.sideQuestionBusy"));
+      const messages =
+        this.#conversation.loadedSnapshot(agent.id)?.messages ??
+        this.#store.database.readConversationPage(
+          agent.id,
+          agent.threadId,
+          { type: "latest" },
+          SIDE_QUESTION_CHAT_MESSAGES,
+        ).messages;
+      const client = this.#providers.createProfileClient(agent.provider);
+      return yield* this.#profileClients
+        .run(client, (cancelled) =>
+          generateTextWithoutTools(
+            client,
+            { ...model, defaultReasoningEffort: agent.reasoningEffort },
+            sideQuestionPrompt(agent, messages, input),
+            cancelled,
+          ),
+        )
+        .pipe(
+          Effect.tapError((failure) =>
+            Effect.sync(() =>
+              logger.warn("Could not answer a side question.", { provider: agent.provider, error: failure.cause }),
+            ),
+          ),
+          // The generation's own messages name a profile.
+          Effect.mapError((failure) =>
+            failed(
+              failure instanceof GenerationUsageLimitError
+                ? sourceText("error.provider.usageLimitReached")
+                : sourceText("error.agent.sideQuestionFailed"),
+            ),
+          ),
+        );
+    },
+    Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "ask side question", cause: failure.cause })),
   ).bind(this);
 
   saveProfile(

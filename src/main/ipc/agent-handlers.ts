@@ -23,6 +23,7 @@ import {
   hostAnalyticsQuery,
   isAgentModelOption,
   parseAgentAnalyticsInput,
+  parseAskSideQuestion,
   parseBrowserSecretResponse,
   parseChannelCommand,
   parseChannelRead,
@@ -342,6 +343,12 @@ export function agentIpcHandlers({
               timeoutMs: 150_000,
             }),
           ),
+      }),
+      askSideQuestion: scopedHandler(parseAskSideQuestion, {
+        local: (input) => runCauseEffect(service.askSideQuestion(input)),
+        remote: () => {
+          throw new Error(sourceText("error.agent.sideQuestionLocalOnly"));
+        },
       }),
       saveProfile: scopedHandler(parseSaveAgentProfile, {
         local: (input) => runCauseEffect(service.saveProfile(input, sidebarLayout, host.conversationSender())),

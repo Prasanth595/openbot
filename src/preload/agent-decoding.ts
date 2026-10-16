@@ -52,6 +52,7 @@ export const decodeRoutines = guardedListDecoder(isRoutine, "routine list respon
 export const decodeRoutineRun = guardedDecoder(isRoutineRun, "routine run response");
 export const decodeRoutineRuns = guardedListDecoder(isRoutineRun, "routine history response");
 export const decodeAutomationRunCommand = guardedDecoder(isString, "run command response");
+export const decodeSideQuestionAnswer = guardedDecoder(isString, "side question answer");
 export const decodeRoutineCalendar = guardedDecoder(isRoutineCalendar, "routine calendar response");
 export const decodeRoutineFeed = guardedDecoder(isRoutineFeed, "routine feed response");
 

@@ -1570,6 +1570,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         avatarHue: input.draft?.avatarHue ?? 215,
         sectionId: input.draft?.sectionId ?? null,
       }),
+      askSideQuestion: async (input) => `You asked: ${input.question}`,
       saveProfile: async (input) => {
         const agent = input.agentId
           ? await api.agent.updateAgent({ agentId: input.agentId, ...input.draft })

@@ -56,6 +56,7 @@ export function ConversationView(props: ConversationProps) {
               filePreviewOpen() ||
               filesOpen() ||
               taskPanelOpen() ||
+              activeRightPanel() === "question" ||
               activeRightPanel() === "side-panel",
             "side-panel-docked": sidePanelOpen(),
             "side-panel-maximized": sidePanelOpen() && sidePanel().maximized,

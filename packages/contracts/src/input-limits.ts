@@ -53,6 +53,9 @@ export const INPUT_LIMITS = {
   routineCron: 255,
   messageText: 100_000,
   directMessageText: 20_000,
+  // A side question carries its earlier questions and answers, because nothing on the host keeps them.
+  sideQuestionTurns: 20,
+  sideQuestionAnswer: 32_000,
   promptQuestions: 32,
   promptOptions: 5,
   promptHeader: 120,

@@ -13,6 +13,7 @@ export * from "./ipc-agent-memories";
 export * from "./ipc-agent-profile";
 export * from "./ipc-agent-runtime";
 export * from "./ipc-agent-session-settings";
+export * from "./ipc-agent-side-question";
 export * from "./ipc-agent-status";
 export * from "./ipc-agent-tasks";
 export * from "./ipc-agent-templates";

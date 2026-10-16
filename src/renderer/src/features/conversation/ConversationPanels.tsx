@@ -4,6 +4,7 @@ import { SETTINGS_PANEL_DEFAULT, SETTINGS_PANEL_MAX } from "@openbot/ui/componen
 import type { AgentMessage } from "@openbot/ui/data";
 import { AgentTaskList, AgentTaskPanel } from "@openbot/ui/features/conversation/AgentTasks";
 import { SidePanelHeader, SidePanelLauncher, type SidePanelPane } from "@openbot/ui/features/conversation/SidePanel";
+import { SideQuestionPanel } from "@openbot/ui/features/conversation/SideQuestionPanel";
 import { McpSignInRelayDialog } from "@openbot/ui/features/settings/McpSignInPage";
 import { useText } from "@openbot/ui/text";
 import { actionToast } from "../../action-toast";
@@ -99,6 +100,9 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
     openSidePanelPane,
     toggleSidePanel,
     closeSidePanelPane,
+    sideQuestion,
+    setSideQuestionDraft,
+    askSideQuestion,
   } = useConversationViewScope();
   const { t, errorMessage } = useText();
   const publishAgent = createPublishAgent(
@@ -317,6 +321,23 @@ export function ConversationPanels(panelProps: { onOpenUsage?: (trigger: HTMLBut
             onOpenLink={(url) => void openExternalMessageUrl(url)}
             onPreview={(attachment) => void previewAttachment(attachment)}
             onAttachmentAction={attachmentAction}
+          />
+        )}
+      </Show>
+
+      <Show when={activeRightPanel() === "question" && props.agent}>
+        {(agent) => (
+          <SideQuestionPanel
+            agent={agent()}
+            agents={props.agents}
+            exchanges={sideQuestion().exchanges}
+            error={sideQuestion().error}
+            draft={sideQuestion().draft}
+            focusRequest={sideQuestion().focusRequest}
+            onDraftChange={setSideQuestionDraft}
+            onAsk={askSideQuestion}
+            onClosePanel={() => closeSidePanelPane("question")}
+            onOpenLink={(url) => void openExternalMessageUrl(url)}
           />
         )}
       </Show>

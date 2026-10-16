@@ -8,6 +8,7 @@ export interface ConversationPort {
   agent: Pick<
     OpenBotDesktopApi["agent"],
     | "readAgentSessionSettings"
+    | "askSideQuestion"
     | "setAgentSessionSetting"
     | "resetAgentSessionSetting"
     | "onScopedEvent"

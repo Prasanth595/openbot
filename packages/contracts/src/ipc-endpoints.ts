@@ -63,6 +63,7 @@ import type {
   SaveAgentProfileInput,
   SaveAgentProfileResult,
 } from "./ipc-agent-profile";
+import type { AskSideQuestionInput } from "./ipc-agent-side-question";
 import type {
   AccountUsage,
   AgentProviderId,
@@ -1037,6 +1038,8 @@ export const IPC_ENDPOINTS = {
     setAgentHidden: scopedRequest<SetAgentHiddenInput, HiddenAgentsSnapshot>()("agent:hidden:set"),
     generateProfile: scopedRequest<GenerateAgentProfileInput, AgentProfileDraft>()("agent:generate-profile"),
     saveProfile: scopedRequest<SaveAgentProfileInput, SaveAgentProfileResult>()("agent:save-profile"),
+    // Only the computer that runs the agent answers. A joined server has no route for it.
+    askSideQuestion: scopedRequest<AskSideQuestionInput, string>()("agent:ask-side-question"),
     createAgent: scopedRequest<CreateAgentInput, AgentSummary>()("agent:create"),
     duplicateAgent: scopedRequest<string, DuplicateAgentResult>()("agent:duplicate"),
     updateAgent: scopedRequest<UpdateAgentInput, AgentSummary>()("agent:update"),

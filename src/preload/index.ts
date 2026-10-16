@@ -86,6 +86,7 @@ import {
   decodeRoutineRuns,
   decodeRoutines,
   decodeSidebarLayout,
+  decodeSideQuestionAnswer,
   decodeTables,
 } from "./agent-decoding";
 import { decodeScopedAgentEvent } from "./agent-event-decoding";
@@ -432,6 +433,7 @@ const agentGroup = bridgeGroup(IPC_ENDPOINTS.agent, {
   mutateSidebarLayout: decodeSidebarLayout,
   generateProfile: decodeAgentProfileDraft,
   saveProfile: decodeSaveAgentProfileResult,
+  askSideQuestion: decodeSideQuestionAnswer,
   createAgent: decodeAgent,
   duplicateAgent: decodeDuplicateAgentResultFromMain,
   updateAgent: decodeAgent,
