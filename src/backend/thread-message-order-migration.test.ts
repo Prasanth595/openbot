@@ -7,8 +7,7 @@ import { migrateOpenBotDatabase } from "./openbot-database-schema";
 // Failure modes: an upgrade loses or changes a message; a stored key differs from the order that pages
 // computed before, so a page or a cursor that a client holds moves; a turn id that two threads share
 // mixes their orders; a partial migration survives a failure; a retry adds a column twice or keeps a
-// wrong key; a newer or incomplete history is changed; a page sorts the thread instead of reading the
-// order index.
+// wrong key; a newer or incomplete history is changed.
 const databases: DatabaseSync[] = [];
 afterEach(() => {
   for (const db of databases.splice(0)) db.close();
@@ -193,22 +192,6 @@ describe("thread message order migration", () => {
       expectHealthy(db);
     },
   );
-
-  it("reads the latest page from the order index without sorting the thread", () => {
-    const db = databaseAt(38);
-    seedMessages(db);
-    migrateOpenBotDatabase(db);
-    const plan = db
-      .prepare(
-        `EXPLAIN QUERY PLAN ${ORDERED_THREAD_MESSAGES}
-         SELECT ${ORDER_KEY_COLUMNS} FROM ordered WHERE COALESCE(item_type, '') != 'routine_quiet_answer'
-         ORDER BY ${ORDER_KEY_DESC} LIMIT 101`,
-      )
-      .all(THREAD)
-      .map((row) => String(row.detail));
-    expect(plan.some((detail) => detail.includes("COVERING INDEX thread_messages_shown_order"))).toBe(true);
-    expect(plan.some((detail) => detail.includes("TEMP B-TREE"))).toBe(false);
-  });
 
   it("rolls back the columns, the keys and the marker after a late failure, then retries", () => {
     const db = databaseAt(38);

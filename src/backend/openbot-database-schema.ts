@@ -405,8 +405,8 @@ const V35_ROUTINE_RUN_SOURCE_COLUMN_SQL = `run_source TEXT CHECK(run_source IS N
 
 // Migration 39 stores the shown-order keys of each thread message, so a page reads an index range rather
 // than sorting the whole thread (#2226). Frozen with the migration; `database/thread-message-order.ts`
-// keeps them current. No default: a row that a write left without keys fails its read, rather than sort
-// as the oldest. ADD COLUMN puts the columns before the PRIMARY KEY constraint that ends the table.
+// keeps them current, and every write to the table must call it. No default: a key of 0 or '' would look
+// real. ADD COLUMN puts the columns before the PRIMARY KEY constraint that ends the table.
 const V39_THREAD_MESSAGE_ORDER_COLUMNS_SQL = [
   "group_start TEXT",
   "group_first INTEGER",
@@ -418,12 +418,12 @@ const BASELINE_THREAD_MESSAGES_END_SQL = `    last_event_sequence INTEGER NOT NU
     PRIMARY KEY(thread_id, message_id)`;
 
 // The order index carries the author and item type, so the marker and unread filters read no table row.
-// The turn index serves the refresh of one turn after a write.
+// The turn index finds the rows of one turn for its refresh after a write.
 const V39_THREAD_MESSAGE_ORDER_INDEX_SQL = `
   CREATE INDEX IF NOT EXISTS thread_messages_shown_order ON projection_thread_messages(
     thread_id, group_start, group_first, group_id, turn_rank, created_at, ordinal, message_id, author, item_type
   );
-  CREATE INDEX IF NOT EXISTS thread_messages_turn ON projection_thread_messages(thread_id, turn_id, created_at, ordinal);
+  CREATE INDEX IF NOT EXISTS thread_messages_turn ON projection_thread_messages(thread_id, turn_id);
 `;
 
 // The order of migration 39, frozen: the window that pages ran over each thread before it, over every
