@@ -3934,8 +3934,8 @@ a {
 
 /* The agent network: one screen high, with the heading over the top of the canvas.
    The words of the heading appear one at a time when the stage starts to play. The
-   canvas fades out at its sides and under the heading, whose height the section
-   writes to `--landing-network-top`. */
+   canvas fades out at its sides, at its bottom, and under the heading, whose height the
+   section writes to `--landing-network-top`. */
 .landing-network {
   overflow: hidden;
 }
@@ -3957,7 +3957,9 @@ a {
     linear-gradient(
       to bottom,
       transparent var(--landing-network-top),
-      var(--openbot-mask-solid) calc(var(--landing-network-top) + 96px)
+      var(--openbot-mask-solid) calc(var(--landing-network-top) + 96px),
+      var(--openbot-mask-solid) calc(100% - 120px),
+      transparent
     ),
     radial-gradient(ellipse 72% 78% at 50% 55%, var(--openbot-mask-solid) 60%, transparent 100%);
   -webkit-mask-image: var(--landing-network-mask);

@@ -239,10 +239,11 @@ export function AgentNetworkSection() {
       draw();
     };
     // True where the mask of `.landing-network-canvas` shows at least half of the network:
-    // below the middle of the fade under the heading, and inside the middle of the fade of the
-    // ellipse (72% × 78% at 50% 55%, solid to 60%).
+    // between the middles of the fades under the heading and at the bottom, and inside the middle
+    // of the fade of the ellipse (72% × 78% at 50% 55%, solid to 60%).
     const unmasked = (x: number, y: number) =>
       y >= view.top + 48 &&
+      y <= view.height - 60 &&
       Math.hypot((x - view.width * 0.5) / (view.width * 0.72), (y - view.height * 0.55) / (view.height * 0.78)) <= 0.8;
     // When the network is complete, a click on a visible agent grows a new network from it.
     const agentAt = (event: MouseEvent) => {
