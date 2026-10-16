@@ -673,6 +673,7 @@ export class MailboxStore {
   listQueue(agentId: string): QueueSnapshot {
     const executionMessageIds = this.#executionMessageIds();
     const positions = this.#queuedPositions();
+    const messages = this.#messagesById();
     return {
       agentId,
       // Queue order, not storage order: a restart reads the deliveries back sorted by their
@@ -680,7 +681,9 @@ export class MailboxStore {
       deliveries: [...this.#state.deliveries]
         .filter((delivery) => delivery.recipientAgentId === agentId && !executionMessageIds.has(delivery.messageId))
         .sort(compareQueueOrder)
-        .map((delivery) => this.#publicDelivery(delivery, positions)),
+        .map((delivery) =>
+          this.#publicDelivery(delivery, positions, this.#requireMessage(delivery.messageId, messages)),
+        ),
     };
   }
 
@@ -708,6 +711,11 @@ export class MailboxStore {
     for (const message of this.#state.messages)
       if (message.channelId || message.messaging || message.taskId) ids.add(message.id);
     return ids;
+  }
+
+  /** Indexed once for a whole read, so a read over many deliveries does not scan the messages for each one. */
+  #messagesById(): Map<string, StoredMessage> {
+    return new Map(this.#state.messages.map((message) => [message.id, message]));
   }
 
   /** The task a delivery runs in, or null for the agent's own chat. */
@@ -900,7 +908,7 @@ export class MailboxStore {
             replyToMessageId: message.replyToMessageId,
             ...(message.expectsReply === false ? { expectsReply: false } : {}),
             deliveries: deliveries.map((item) => {
-              const delivery = this.#publicDelivery(item, positions);
+              const delivery = this.#publicDelivery(item, positions, message);
               return {
                 id: delivery.id,
                 recipientAgentId: delivery.recipientAgentId,
@@ -918,7 +926,7 @@ export class MailboxStore {
 
       for (const storedDelivery of deliveries) {
         if (storedDelivery.recipientAgentId !== agentId) continue;
-        const delivery = this.#publicDelivery(storedDelivery, positions);
+        const delivery = this.#publicDelivery(storedDelivery, positions, message);
         messages.push({
           id: delivery.id,
           turnId: storedDelivery.turnId ?? undefined,
@@ -944,7 +952,7 @@ export class MailboxStore {
                   replyToMessageId: message.replyToMessageId,
                   ...(message.expectsReply === false ? { expectsReply: false } : {}),
                   deliveries: deliveries.map((item) => {
-                    const publicItem = this.#publicDelivery(item, positions);
+                    const publicItem = this.#publicDelivery(item, positions, message);
                     return {
                       id: publicItem.id,
                       recipientAgentId: publicItem.recipientAgentId,
@@ -1062,9 +1070,10 @@ export class MailboxStore {
 
   senderAgentIdsForRecipient(agentId: string): string[] {
     const result = new Set<string>();
+    const messages = this.#messagesById();
     for (const delivery of this.#state.deliveries) {
       if (delivery.recipientAgentId !== agentId) continue;
-      const sender = this.#requireMessage(delivery.messageId).sender;
+      const sender = this.#requireMessage(delivery.messageId, messages).sender;
       if (sender.kind === "agent") result.add(sender.agentId);
     }
     return [...result];
@@ -2332,8 +2341,8 @@ export class MailboxStore {
     this.#changes.deliveryIds.add(delivery.id);
   }
 
-  #requireMessage(id: string): StoredMessage {
-    const message = this.#state.messages.find((candidate) => candidate.id === id);
+  #requireMessage(id: string, messages?: ReadonlyMap<string, StoredMessage>): StoredMessage {
+    const message = messages ? messages.get(id) : this.#state.messages.find((candidate) => candidate.id === id);
     if (!message) throw new Error(`Mailbox message is missing: ${id}`);
     return message;
   }
