@@ -105,7 +105,7 @@ export function ServerStoragePanel(props: ServerStorageOptions & { serverId: str
       }}
       onClear={storage.clear}
       oldRuntimeBytes={runtimes() ? oldRuntimeBytes() : 0}
-      onRemoveOldRuntimes={runtimes() ? removeOldRuntimes : undefined}
+      onRemoveOldRuntimes={removeOldRuntimes}
       // Settings has no preview pane, so a preview opens the file in its app.
       onPreviewFile={(file) => void storage.fileAction(file, "open", { onShowInChat: () => undefined })}
       onFileAction={(file, action) =>
