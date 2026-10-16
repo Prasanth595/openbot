@@ -16,6 +16,9 @@ on:
   # A maintainer's change to an incident issue shows on the page without a wait for the schedule.
   # Anyone can start these events, so they only read the issues again: no probes, no run counts, no
   # issue writes, and no new history. Issues and comments that GITHUB_TOKEN writes start no run.
+  # The job `if` skips text that the page drops: a comment from another person, or an issue that
+  # another person wrote (only its author and maintainers can change it). A private member can show
+  # as CONTRIBUTOR; the next scheduled run shows that person's change.
   issues:
     types: [opened, edited, closed, reopened, labeled, unlabeled, deleted]
   issue_comment:
@@ -30,8 +33,19 @@ jobs:
       github.repository == 'nightly-labs/openbot' && (
         github.event_name == 'schedule' ||
         github.event_name == 'workflow_dispatch' ||
-        contains(github.event.issue.labels.*.name, 'status') ||
-        github.event.label.name == 'status'
+        (
+          (contains(github.event.issue.labels.*.name, 'status') || github.event.label.name == 'status') && (
+            (
+              github.event_name == 'issues' && (
+                contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association) ||
+                github.event.issue.user.login == 'github-actions[bot]'
+              )
+            ) || (
+              github.event_name == 'issue_comment' &&
+              contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+            )
+          )
+        )
       )
     # One check run at a time, because each check run replaces `status-data` with a new commit. A new
     # run waits; it does not stop the run that writes. Issue events use their own group, so a pending
