@@ -828,6 +828,12 @@ export class DrainScheduler {
           if (this.#channels)
             yield* this.#channels.deliveryFailed(delivery.id, CHANNEL_START_FAILED).pipe(toDeliveryStartFailed);
           this.#messaging?.deliveryFailed(delivery.id);
+          // The provider refused the session or the turn, so no turn line records the failure.
+          logger.warn("A message did not start.", {
+            agentId: delivery.recipientAgentId,
+            model: requestedModel,
+            reason,
+          });
           this.#hooks.emitError("delivery_start_failed", error, delivery.recipientAgentId);
           this.scheduleDrain(delivery.recipientAgentId);
           // The requester may hold the other answers until this request ends.
