@@ -116,10 +116,16 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
       { node, text, at, until: at + length },
     ];
   };
-  /** Each agent of `nodes` says a different line of `lines`, one after the other. */
+  /**
+   * Each agent of `nodes` says a different line of `lines`, one after the other. A narrow frame
+   * shows one bubble at a time, so there only the first agent speaks, and only when no bubble shows.
+   */
   const chorus = (nodes: readonly number[], lines: readonly string[], delay: number, step: number, length: number) => {
+    const t = now();
+    const busy = [...host.network().messages, ...bubbles].some((bubble) => bubble.until >= t);
+    const speakers = view.narrow ? (busy ? [] : nodes.slice(0, 1)) : nodes;
     const order = shuffled(lines);
-    for (const [index, node] of nodes.entries())
+    for (const [index, node] of speakers.entries())
       say(node, order[index % order.length] ?? "", delay + index * step, length);
   };
   const signal = (style: HubSignalStyle, delay = 0) => host.signal(style, now() + delay);

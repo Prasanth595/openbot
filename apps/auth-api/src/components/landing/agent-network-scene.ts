@@ -987,7 +987,7 @@ function drawNetwork(
   const lineHeight = 20;
   for (const [order, message] of network.messages.entries()) {
     const following = network.messages[order + 1];
-    const until = view.narrow && following ? following.at : message.until;
+    const until = view.narrow && following ? Math.min(message.until, following.at) : message.until;
     const appear = clamp01((t - message.at) / 0.3);
     const leave = clamp01((t - until) / 0.25);
     const alpha = easeOutCubic(appear) * (1 - leave);
