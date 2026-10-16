@@ -127,6 +127,44 @@ export const LANDING_NETWORK_DESCRIPTION =
 /** The name under the mark at the centre of the network picture. */
 export const LANDING_NETWORK_HUB = "OpenBot";
 
+/** What the network says in its easter eggs. Each reaction chooses one line of its list at random. */
+export const LANDING_NETWORK_EGGS = {
+  /** The visitor types "hello". */
+  greetings: ["Hi!", "Hello.", "Hey there.", "Oh, hi.", "Good to see you.", "Hello, human.", "Welcome back."],
+  /** The visitor types the Konami code. */
+  konami: ["Cheat code accepted.", "Thirty extra agents.", "Achievement unlocked."],
+  /** The visitor types "party". */
+  party: ["Party mode.", "Who brought the confetti?", "Dance break."],
+  /** The visitor types "sudo". */
+  sudo: ["This incident will be reported.", "Nice try.", "You are not in the sudoers file."],
+  /** The hub after quick clicks: 3, 5 and 8 in a row. 12 makes it sneeze. */
+  tickle: ["That tickles.", "Hey.", "I felt that."],
+  awake: ["Okay, okay. I am awake.", "Yes? Can I help you?", "I am listening."],
+  busy: ["Please. I am routing messages.", "I have work to do.", "Stop that, please."],
+  /** The agents answer the hub at 5 clicks. */
+  wonder: ["What was that?", "Did you feel that?", "Is the hub okay?"],
+  sneeze: ["Achoo!", "Ah… choo!"],
+  blessings: ["Bless you.", "Gesundheit.", "Salud.", "Bless you!"],
+  /** The agents wake up after the visitor leaves the page alone. */
+  wake: [
+    "I was not asleep.",
+    "Just resting my tokens.",
+    "Back to work.",
+    "Who turned off the lights?",
+    "Five more minutes.",
+  ],
+  /** An agent under a still pointer. */
+  hover: [
+    "I only look busy.",
+    "Ask me about the Safari task.",
+    "I read the whole repository. Twice.",
+    "My context window has room for you.",
+    "Please do not close this tab.",
+    "I fixed one bug and found three.",
+    "I run on your computer, not in a cloud.",
+  ],
+} satisfies Record<string, readonly string[]>;
+
 /** The channel the team picture shows, and the line OpenBot writes when the task changes owner. */
 export const LANDING_TEAM_CHANNEL = "launch";
 export const LANDING_TEAM_HANDOFF = "Ada gave the task to Linus";

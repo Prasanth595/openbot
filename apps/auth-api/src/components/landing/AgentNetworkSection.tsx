@@ -9,6 +9,7 @@ import {
   LANDING_PROVIDERS,
   LANDING_TEAM_MESSAGES,
 } from "../../lib/landing-content";
+import { createAgentNetworkEggs } from "./agent-network-eggs";
 import {
   agentNetworkHubAt,
   agentNetworkNodeAt,
@@ -16,6 +17,7 @@ import {
   drawAgentNetwork,
   HUB_SIGNAL_STYLES,
   type HubSignal,
+  type HubSignalStyle,
   type NetworkAssets,
   type NetworkView,
   regrowAgentNetwork,
@@ -123,6 +125,7 @@ function standaloneMark(mark: SVGSVGElement): SVGSVGElement {
  * complete, a click on an agent grows a new network from that agent. At any time,
  * a click on the hub sends a signal, in one of the styles at random, through the
  * network. The picture is decorative; the heading and the sentence carry the message.
+ * It also hides easter eggs (see `agent-network-eggs.ts`), which reduced motion turns off.
  */
 export function AgentNetworkSection() {
   const [playing, setPlaying] = createSignal(false);
@@ -207,15 +210,23 @@ export function AgentNetworkSection() {
     const now = () => (reduced ? network.end : time);
     const draw = () => {
       if (!view.width) return;
+      const t = now();
+      if (signals.some((signal) => signal.end <= t)) signals = signals.filter((signal) => signal.end > t);
+      // A roll turns the canvas, so the scene cannot clear the corners: clear the whole canvas first.
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      if (signals.some((signal) => signal.end <= now())) signals = signals.filter((signal) => signal.end > now());
-      drawAgentNetwork(context, network, assets, view, now(), !reduced, signals);
+      eggs.move(context, t);
+      drawAgentNetwork(context, eggs.shown(t), assets, view, t, !reduced && !eggs.asleep(), signals);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      eggs.drawSleep(context, assets, t);
     };
-    const tick = (now: number) => {
+    const tick = (stamp: number) => {
       frame = 0;
       // A long gap (a hidden tab, a slow frame) does not jump the story forward.
-      time += last ? Math.min(0.05, (now - last) / 1000) : 0;
-      last = now;
+      time += last ? Math.min(0.05, (stamp - last) / 1000) : 0;
+      last = stamp;
+      eggs.tick();
       draw();
       if (visible && !document.hidden) frame = requestAnimationFrame(tick);
     };
@@ -245,6 +256,11 @@ export function AgentNetworkSection() {
       y >= view.top + 48 &&
       y <= view.height - 60 &&
       Math.hypot((x - view.width * 0.5) / (view.width * 0.72), (y - view.height * 0.55) / (view.height * 0.78)) <= 0.8;
+    const startSignal = (style: HubSignalStyle, at: number) => {
+      const signal = startHubSignal(network, style, at);
+      if (signal) signals = [...signals, signal];
+    };
+    const eggs = createAgentNetworkEggs({ network: () => network, view, now, unmasked, signal: startSignal });
     // When the network is complete, a click on a visible agent grows a new network from it.
     const agentAt = (event: MouseEvent) => {
       if (now() < network.end) return -1;
@@ -261,14 +277,14 @@ export function AgentNetworkSection() {
     };
     const click = (event: MouseEvent) => {
       if (onHub(event)) {
-        const style = HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple";
-        const signal = startHubSignal(network, style, now());
-        if (signal) signals = [...signals, signal];
+        startSignal(HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple", now());
+        eggs.poke();
         return;
       }
       const root = agentAt(event);
       if (root < 0) return;
       signals = [];
+      eggs.reset();
       network = regrowAgentNetwork(network, root, now(), {
         seed: newSeed(),
         avatarCount: GROWN_AVATARS,
@@ -280,10 +296,21 @@ export function AgentNetworkSection() {
       play();
     };
     const point = (event: PointerEvent) => {
-      canvas.style.cursor = event.pointerType === "mouse" && (onHub(event) || agentAt(event) >= 0) ? "pointer" : "";
+      const mouse = event.pointerType === "mouse";
+      const agent = mouse ? agentAt(event) : -1;
+      canvas.style.cursor = mouse && (onHub(event) || agent >= 0) ? "pointer" : "";
+      if (!reduced) eggs.hover(agent);
     };
     canvas.addEventListener("click", click);
     canvas.addEventListener("pointermove", point);
+    const leave = () => eggs.hover(-1);
+    canvas.addEventListener("pointerleave", leave);
+    const typed = (event: KeyboardEvent) => {
+      if (!reduced && visible) eggs.typed(event);
+    };
+    document.addEventListener("keydown", typed);
+    const inputEvents = ["pointermove", "pointerdown", "keydown", "wheel", "scroll", "touchstart"] as const;
+    for (const name of inputEvents) window.addEventListener(name, eggs.active, { passive: true });
 
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(stage);
@@ -344,8 +371,11 @@ export function AgentNetworkSection() {
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       document.removeEventListener("visibilitychange", play);
+      document.removeEventListener("keydown", typed);
+      for (const name of inputEvents) window.removeEventListener(name, eggs.active);
       canvas.removeEventListener("click", click);
       canvas.removeEventListener("pointermove", point);
+      canvas.removeEventListener("pointerleave", leave);
       cancelAnimationFrame(frame);
     };
   });

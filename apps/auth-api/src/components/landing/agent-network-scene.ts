@@ -40,7 +40,7 @@ interface NetworkEdge {
   length: number;
 }
 
-interface NetworkMessage {
+export interface NetworkMessage {
   node: number;
   text: string;
   at: number;
@@ -514,6 +514,19 @@ export function agentNetworkNodeAt(network: AgentNetwork, view: NetworkView, t: 
     if (Math.hypot(toX(node.x) - x, toY(node.y) - y) <= reach) return index;
   }
   return -1;
+}
+
+/** The frame point and the radius in pixels of node `index` at second `t`, or undefined. */
+export function agentNetworkNodePoint(
+  network: AgentNetwork,
+  view: NetworkView,
+  t: number,
+  index: number,
+): { x: number; y: number; radius: number } | undefined {
+  const node = network.nodes[index];
+  if (!node) return undefined;
+  const { cam, toX, toY } = projector(view, network, t, NO_PAN);
+  return { x: toX(node.x), y: toY(node.y), radius: node.radius * cam.scale };
 }
 
 /** True when the frame point (`x`, `y`) is on the hub at second `t`. */
