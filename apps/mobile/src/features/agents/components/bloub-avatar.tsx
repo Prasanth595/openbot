@@ -243,10 +243,5 @@ function saturateColor(color: string, saturation: number) {
 }
 
 export function thumbnailColor(color: string, disconnected: boolean) {
-  if (!disconnected) return color;
-  const r = Number.parseInt(color.slice(1, 3), 16);
-  const g = Number.parseInt(color.slice(3, 5), 16);
-  const b = Number.parseInt(color.slice(5, 7), 16);
-  const gray = r * 0.213 + g * 0.715 + b * 0.072;
-  return `rgb(${[r, g, b].map((value) => Math.round(gray + (value - gray) * DISCONNECTED_APPEARANCE.saturation)).join(",")})`;
+  return disconnected ? saturateColor(color, DISCONNECTED_APPEARANCE.saturation) : color;
 }
