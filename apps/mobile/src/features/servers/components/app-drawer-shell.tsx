@@ -68,45 +68,50 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const drawerListTopInset = drawerHeaderHeight + 8;
   const surfaceCornerRadius = Math.max(DRAWER_SURFACE_MIN_RADIUS, insets.top, insets.right, insets.bottom, insets.left);
 
+  const drawerOpenOnUI = useSharedValue(false);
   const commitDrawerState = useCallback((open: boolean) => setDrawerOpen(open), []);
+  const finishClosing = useCallback(
+    (finished?: boolean) => {
+      "worklet";
+      if (!finished) return;
+      drawerOpenOnUI.set(false);
+      scheduleOnRN(commitDrawerState, false);
+    },
+    [commitDrawerState, drawerOpenOnUI],
+  );
 
   const openDrawer = useCallback(() => {
     triggerDrawerHaptic();
+    drawerOpenOnUI.set(true);
     setDrawerOpen(true);
-    drawerProgress.set(
-      withSpring(1, DRAWER_SPRING, (finished) => {
-        if (finished) scheduleOnRN(commitDrawerState, true);
-      }),
-    );
-  }, [commitDrawerState, drawerProgress]);
+    drawerProgress.set(withSpring(1, DRAWER_SPRING));
+  }, [drawerOpenOnUI, drawerProgress]);
 
   const closeDrawer = useCallback(() => {
+    if (!drawerOpenOnUI.get()) return;
     triggerDrawerHaptic();
-    drawerProgress.set(
-      withSpring(0, DRAWER_SPRING, (finished) => {
-        if (finished) scheduleOnRN(commitDrawerState, false);
-      }),
-    );
-  }, [commitDrawerState, drawerProgress]);
+    drawerProgress.set(withSpring(0, DRAWER_SPRING, finishClosing));
+  }, [drawerOpenOnUI, drawerProgress, finishClosing]);
 
   useEffect(() => {
     if (session) return;
+    drawerOpenOnUI.set(false);
     setDrawerOpen(false);
     drawerProgress.set(0);
-  }, [drawerProgress, session]);
+  }, [drawerOpenOnUI, drawerProgress, session]);
 
   // Rows attach their swipe to this gesture, so it must stay the same object. A new gesture on each
   // navigation or drawer change would rebuild the swipe of every row.
   const openingEnabled = useSharedValue(false);
   const [openingBlocked, setOpeningBlocked] = useState(false);
   useEffect(() => {
-    openingEnabled.set(!drawerOpen && !openingBlocked && pathname === "/connected");
-  }, [drawerOpen, openingBlocked, openingEnabled, pathname]);
+    openingEnabled.set(!openingBlocked && pathname === "/connected");
+  }, [openingBlocked, openingEnabled, pathname]);
   const openingGesture = useMemo(
     () =>
       Gesture.Pan()
         .onTouchesDown((_event, manager) => {
-          if (!openingEnabled.get()) manager.fail();
+          if (!openingEnabled.get() || drawerOpenOnUI.get()) manager.fail();
         })
         .activeOffsetX(12)
         .failOffsetX(-10)
@@ -117,24 +122,24 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
         .onEnd((event) => {
           const projected = drawerProgress.get() + event.velocityX / drawerWidth / 6;
           const shouldOpen = projected > 0.45;
-          if (shouldOpen) scheduleOnRN(triggerDrawerHaptic);
+          if (shouldOpen) {
+            drawerOpenOnUI.set(true);
+            scheduleOnRN(triggerDrawerHaptic);
+            scheduleOnRN(commitDrawerState, true);
+          }
           drawerProgress.set(
-            withSpring(
-              shouldOpen ? 1 : 0,
-              { ...DRAWER_SPRING, velocity: event.velocityX / drawerWidth },
-              (finished) => {
-                if (finished) scheduleOnRN(commitDrawerState, shouldOpen);
-              },
-            ),
+            withSpring(shouldOpen ? 1 : 0, { ...DRAWER_SPRING, velocity: event.velocityX / drawerWidth }),
           );
         }),
-    [commitDrawerState, drawerProgress, drawerWidth, openingEnabled],
+    [commitDrawerState, drawerOpenOnUI, drawerProgress, drawerWidth, openingEnabled],
   );
 
   const closingGesture = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(drawerOpen)
+        .onTouchesDown((_event, manager) => {
+          if (!drawerOpenOnUI.get()) manager.fail();
+        })
         .activeOffsetX(-8)
         .failOffsetX(12)
         .failOffsetY([-12, 12])
@@ -149,13 +154,11 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
             withSpring(
               shouldOpen ? 1 : 0,
               { ...DRAWER_SPRING, velocity: event.velocityX / drawerWidth },
-              (finished) => {
-                if (finished) scheduleOnRN(commitDrawerState, shouldOpen);
-              },
+              shouldOpen ? undefined : finishClosing,
             ),
           );
         }),
-    [commitDrawerState, drawerOpen, drawerProgress, drawerWidth],
+    [drawerOpenOnUI, drawerProgress, drawerWidth, finishClosing],
   );
 
   const surfaceStyle = useAnimatedStyle(() => ({
