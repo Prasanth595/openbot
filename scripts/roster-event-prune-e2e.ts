@@ -163,7 +163,7 @@ try {
 
     // A model change that an agent makes adds an audit entry, and the next write keeps it.
     const effort = AGENT_REASONING_EFFORTS.find((candidate) => candidate !== first.reasoningEffort);
-    assert.ok(effort);
+    assert.ok(effort, "No other reasoning effort exists.");
     await runCauseEffect(store.updateAgent({ agentId: first.id, reasoningEffort: effort }, second.id));
     await runCauseEffect(store.updateAgent({ agentId: second.id, name: "Second renamed" }));
     const afterAuditWrite = rosterEvents(database);

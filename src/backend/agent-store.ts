@@ -138,9 +138,9 @@ export const DEFAULT_REASONING_EFFORT: AgentReasoningEffort = "low";
 // SQLite wrote its state into, and is only ever read: renaming it means that file is never found and the
 // data of anyone who has not yet run the importing release is lost. The second is the key that file's
 // agent array is stored under, and reading a different one discards every agent in it just as
-// silently. The third is a `command_id` already stamped into `orchestration_command_receipts` on
-// every existing install, and is what stops the legacy import running a second time. None of the
-// three follows the bot-to-agent rename.
+// silently. The third is the `command_id` of the import's roster event on existing installs. The next
+// roster write removes that event and its receipt; the roster event that write keeps is what stops the
+// legacy import running a second time. None of the three follows the bot-to-agent rename.
 const LEGACY_AGENTS_STATE_FILE = "bots.json";
 const LEGACY_AGENTS_STATE_KEY = "bots";
 const LEGACY_AGENTS_IMPORT_COMMAND_ID = "legacy-import:bots:v1";
