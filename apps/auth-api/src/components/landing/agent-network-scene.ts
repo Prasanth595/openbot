@@ -66,7 +66,7 @@ export interface AgentNetwork {
   salt: number;
 }
 
-export interface AgentNetworkAgent {
+interface AgentNetworkAgent {
   label: string;
   avatar: number;
   mark: number;
