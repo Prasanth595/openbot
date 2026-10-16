@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -15,6 +15,7 @@ import {
   routineRunConversationEventItemType,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { sourceText } from "@openbot/i18n/source";
 import { afterEach, assert, describe, expect, it } from "vitest";
 import { AgentRoutineStore } from "./agent-routine-store";
 import { ChannelRoutineStore } from "./channel-routine-store";
@@ -3855,7 +3856,55 @@ describe("OpenBotDatabase", () => {
       reopened.close();
     },
   );
+
+  it("checks the file at a start after a stop that did not close it", async () => {
+    const database = await createDatabase();
+    const { path, userDataPath } = database;
+    damageProbeTable(database);
+    // A crash or a kill leaves the write-ahead log; a clean close removes it.
+    await writeFile(`${path}-wal`, "");
+
+    await expect(runCauseEffect(new OpenBotDatabase(userDataPath).initialize())).rejects.toThrow(
+      sourceText("error.backend.databaseIntegrity"),
+    );
+  });
+
+  it("does not read the full file at a start after a clean close", async () => {
+    const database = await createDatabase();
+    const userDataPath = database.userDataPath;
+    damageProbeTable(database);
+
+    const reopened = new OpenBotDatabase(userDataPath);
+    await runCauseEffect(reopened.initialize());
+    // The damage is still there: the start did not run the check that finds it.
+    expect(reopened.connection.prepare("PRAGMA quick_check").all()).not.toEqual([{ quick_check: "ok" }]);
+    reopened.close();
+  });
+
+  it("checks the file after a migration at a start after a clean close", async () => {
+    const database = await createDatabase();
+    const userDataPath = database.userDataPath;
+    database.connection.exec("DROP TABLE projection_agent_tasks; DELETE FROM schema_migrations WHERE version = 38");
+    damageProbeTable(database);
+
+    await expect(runCauseEffect(new OpenBotDatabase(userDataPath).initialize())).rejects.toThrow(
+      sourceText("error.backend.databaseIntegrity"),
+    );
+  });
 });
+
+/** Breaks a NOT NULL rule in a new table, as a damaged page would, and closes the database cleanly. */
+function damageProbeTable(database: OpenBotDatabase): void {
+  database.connection.exec("CREATE TABLE damage_probe (value TEXT); INSERT INTO damage_probe VALUES (NULL)");
+  const path = database.path;
+  database.close();
+  const connection = new DatabaseSync(path, { defensive: false });
+  connection.exec("PRAGMA writable_schema = ON");
+  connection
+    .prepare("UPDATE sqlite_master SET sql = ? WHERE name = 'damage_probe'")
+    .run("CREATE TABLE damage_probe (value TEXT NOT NULL)");
+  connection.close();
+}
 
 // Rebuilds the pre-v12 `projection_reactions` shape so v12, v13 and v14 run again over a fixture that
 // looks the way a shipped release left it, rather than over a database that already carries their result.

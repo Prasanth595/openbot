@@ -539,6 +539,8 @@ function substituteOnce(source: string, search: string, replacement: string): st
 export interface OpenBotMigrationOptions {
   appliedAt?: string;
   warn?: (message: string, error: unknown) => void;
+  /** The last connection closed cleanly, so SQLite removed the write-ahead log. */
+  closedCleanly?: boolean;
 }
 
 const logger = createOpenBotLogger("openbot-database-schema");
@@ -754,7 +756,9 @@ export function migrateOpenBotDatabase(db: DatabaseSync, options: OpenBotMigrati
     }
   }
 
-  assertQuickCheck(db);
+  // The check reads every page, which takes minutes on a large file. Only a migration, or a stop that
+  // did not close the file (a crash, a kill, a disk save while it ran), can leave a damaged page.
+  if (pending.length > 0 || !options.closedCleanly) assertQuickCheck(db);
 }
 
 function migrateToBaselineV8(db: DatabaseSync, appliedAt: string): void {
