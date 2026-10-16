@@ -37,6 +37,7 @@ export function OutboxMessageMenu({ status, children }: PropsWithChildren<{ stat
     <MenuView
       colorScheme={theme === "dark" ? "dark" : "light"}
       shouldOpenOnLongPress
+      style={{ alignSelf: "flex-end" }}
       // The menu says why the message did not send. The row shows only that it did not.
       title={retryable && message.error ? message.error : undefined}
       actions={actions}
