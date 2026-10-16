@@ -17,8 +17,8 @@ import { RailHelpMenu } from "./RailHelpMenu";
 import { useWindowPage } from "./window-page-context";
 
 /**
- * The page rail of the desktop window. Agents, Routines, Schedule, Usage and Settings change the page in the
- * card.
+ * The page rail of the desktop window. Agents, Routines, Schedule, Usage, Marketplace and Settings
+ * change the page in the card.
  */
 export function WorkspacePageRail(props: { hidden: boolean }) {
   const text = useText();

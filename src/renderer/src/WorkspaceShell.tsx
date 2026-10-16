@@ -36,7 +36,7 @@ import { useLayout } from "./layout";
 import { AgentUsagePanel } from "./lazy-views";
 import { usePlatform } from "./platform";
 import { WorkspaceFrame } from "./WorkspaceFrame";
-import { WorkspaceOverlays } from "./WorkspaceOverlays";
+import { SkillsMarketplace, WorkspaceOverlays } from "./WorkspaceOverlays";
 
 /**
  * The desktop application frame, and nothing else: which pane occupies the
@@ -232,7 +232,7 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
             <Show
               when={settingsKind() ? null : usage.state.serverId}
               fallback={
-                <Show when={settingsKind()} keyed>
+                <Show when={settingsKind()} keyed fallback={<SkillsMarketplace />}>
                   {(kind) => <SettingsPage kind={kind} />}
                 </Show>
               }

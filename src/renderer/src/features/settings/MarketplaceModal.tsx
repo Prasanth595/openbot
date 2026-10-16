@@ -26,6 +26,8 @@ export interface MarketplaceModalProps extends MarketplaceControllerProps {
    * a second link to the same listing reads as a new request instead of no change.
    */
   onInitialPluginSlugConsumed?: (() => void) | undefined;
+  /** A dialog, or a page of the desktop window. */
+  variant?: "dialog" | "page" | undefined;
 }
 
 /** The Marketplace on this computer's or a joined server's data, with the dialogs it opens. */
@@ -119,7 +121,13 @@ export function MarketplaceModal(props: MarketplaceModalProps) {
 
   return (
     <>
-      <Marketplace model={controller.model} nav={nav} open={props.open} onOpenChange={props.onOpenChange} />
+      <Marketplace
+        model={controller.model}
+        nav={nav}
+        open={props.open}
+        onOpenChange={props.onOpenChange}
+        variant={props.variant}
+      />
       {/* The confirmation and the connect step are beside the Marketplace: each is one decision
           over the page it was started from, not a part of that page. */}
       <Show when={controller.uninstalling()} keyed>

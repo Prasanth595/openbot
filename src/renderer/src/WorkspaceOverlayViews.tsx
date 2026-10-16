@@ -77,6 +77,8 @@ export function MarketplaceOverlay(props: {
   connectors?: ConnectorRegistry | undefined;
   /** What the dialog calls. Absent: this computer's bridge. */
   calls?: MarketplaceCalls | undefined;
+  /** A dialog, or a page of the desktop window. */
+  variant?: "dialog" | "page" | undefined;
 }) {
   const controller = useConversationController();
   const manage = createMemo(() => serverCanAdminister(props.server, "skills-admin-v1"));
@@ -103,6 +105,7 @@ export function MarketplaceOverlay(props: {
       <Loading>
         <MarketplaceModal
           open={true}
+          variant={props.variant}
           calls={props.calls}
           connectors={props.connectors}
           agents={manage() ? props.agents : []}

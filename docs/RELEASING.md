@@ -440,6 +440,33 @@ its own local marker when post-update notes are added there. Desktop notes must 
 version or the version of a connected server. This desktop feature does not change mobile,
 public web, Signal, database schemas, or Team API contracts.
 
+### Discord announcement
+
+Each desktop release posts a message in the OpenBot Discord. Before publishing a desktop release,
+select the 3 to 5 changes in its `CHANGELOG.md` section that have the largest effect on users, and
+write them with the version in `.github/release-announcement.json`:
+
+```json
+{ "version": "x.y.z", "highlights": ["...", "...", "..."] }
+```
+
+Write each highlight as one short, plain sentence that tells the user what they can do now. Put a
+required upgrade step first. Use the rules of the post-update notes: do not copy commit messages,
+developer setup, internal paths, credentials, or unpublished plans. Replace the highlights of the
+previous release; the file holds only one version.
+
+`scripts/discord-release-announcement.ts` builds the message: `@everyone`, the title
+`OpenBot vx.y.z is out`, the highlights, and a link to the version on `/changelog`. Run
+`bun scripts/discord-release-announcement.ts check x.y.z` to see it. The tag workflow and
+`bun run release:preflight` stop when the file is not for the release version, has fewer than 3 or
+more than 5 highlights, has a highlight that is empty or has a placeholder, a line break or a
+mention, or makes a message longer than 2000 characters. After the GitHub Release, the Docker image
+and the boat snapshot are published, the `discord-announce` job posts the message as OpenBot
+through the channel webhook in the `DISCORD_RELEASE_WEBHOOK_URL` secret of the `release`
+environment. To make the webhook, open the channel settings in Discord, then
+Integrations > Webhooks, and name it `OpenBot` with the OpenBot icon. A failed post does not undo
+the release: re-run the job. A re-run after a successful post posts the message again.
+
 ## Publish a version
 
 Start from a clean, up-to-date `main` branch. For the first release, `package.json` and
@@ -464,7 +491,7 @@ under the new dated version heading, and deletes the `changelog.d` files. Review
 preparation before creating the tag:
 
 ```bash
-git add package.json CHANGELOG.md changelog.d
+git add package.json CHANGELOG.md changelog.d .github/release-announcement.json
 git commit -m "release: prepare vX.Y.Z"
 git push origin main
 bun run release:preflight
@@ -608,7 +635,8 @@ Before creating the first tag or any later release:
     confirm the AppImage starts with the sandbox on, that `xdg-open 'openbot://join?...'` focuses the
     running application, that a provider downloads in-app, that the page rail is drawn, and that the
     microphone control is absent;
-14. confirm `CHANGELOG.md` describes the version and the working tree is clean;
+14. confirm `CHANGELOG.md` and `.github/release-announcement.json` describe the version and the
+    working tree is clean;
 15. create and push the version commit, and create the tag locally, only after CI passes on `main`;
 16. read the running Signal commit from `curl -fsS https://signal.openbot.run/health/live`. If it is
     missing or `unknown`, or if `git diff --quiet <running commit> <new tag> -- remote packages/contracts/src/signal-protocol`

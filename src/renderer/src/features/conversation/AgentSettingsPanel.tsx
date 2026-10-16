@@ -50,6 +50,8 @@ interface AgentSettingsPanelProps
   /** The joined server that runs the agent, for the `host` skills mode. */
   skillsServerId?: string | undefined;
   skillsMarketplaceOpen?: boolean;
+  /** Another page of the window covers the conversation. */
+  workspaceCovered?: boolean | undefined;
   /** The shared data lives on the computer that runs the agents. A joined server shows it to an admin only. */
   tablesVisible?: boolean;
   /** Names the agent that keeps each set of records. Threaded like `customProviders`, for the same reason. */
@@ -206,9 +208,11 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     () => props.skillsMarketplaceOpen === true,
     (open) => {
       if (lastSkillsMarketplaceOpen && !open && untrack(() => draft.skills.reopenAfterMarketplace)) {
+        // The Marketplace page can close for another page. The skills dialog then stays closed.
+        const covered = untrack(() => props.workspaceCovered === true);
         setDraft((state) => {
           state.skills.reopenAfterMarketplace = false;
-          state.skills.open = true;
+          state.skills.open = !covered;
         });
       }
       lastSkillsMarketplaceOpen = open;

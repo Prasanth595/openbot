@@ -8,7 +8,7 @@ import { LeaveServerDialog } from "@openbot/ui/features/servers/LeaveServerDialo
 import { RestartServerDialog } from "@openbot/ui/features/servers/RestartServerDialog";
 import type { HostedSiteDeleteResult } from "@openbot/ui/features/settings/stores/hosted-sites-store";
 import { currentText } from "@openbot/ui/text";
-import { createEffect, Loading, Show } from "solid-js";
+import { createEffect, Loading, Show, untrack } from "solid-js";
 import { actionToast } from "./action-toast";
 import { desktopAnalytics } from "./analytics";
 import { appPort } from "./app-port";
@@ -86,7 +86,6 @@ export function WorkspaceOverlays(props: AccountProps) {
   );
   return (
     <>
-      <SkillsMarketplace connectors={connectors.active} />
       <SharedAgentInstall />
       <JoinServer account={props.account} />
       <AddServer />
@@ -107,8 +106,10 @@ export function WorkspaceOverlays(props: AccountProps) {
  * browses and installs nothing. A marketplace agent is added to that joined server when its host
  * serves `agent-install-v1`, otherwise to this computer. An agent of a joined server is updated from
  * its listing only when its host serves `agent-update-v1`.
+ *
+ * It is a page of the window, so the shell shows it in the card rather than over the workspace.
  */
-function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
+export function SkillsMarketplace() {
   const {
     skillsMarketplaceOpen,
     setSkillsMarketplaceOpen,
@@ -121,6 +122,13 @@ function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
   const { selectAgent } = useNavigation();
   const { activeServer } = useServers();
   const { openInstalledMarketplaceAgent } = useServerSelection();
+  const connectors = useConnectors();
+  const { remoteDesktopWorkspaceVisible, hideRemoteDesktopWorkspace } = useRemoteDesktop();
+  // The remote desktop covers the window card, so a link or a search that opens the page hides it.
+  // The remote desktop session stays.
+  createEffect(skillsMarketplaceOpen, (open) => {
+    if (open && untrack(remoteDesktopWorkspaceVisible)) hideRemoteDesktopWorkspace();
+  });
 
   return (
     <MarketplaceOverlay
@@ -138,7 +146,8 @@ function SkillsMarketplace(props: { connectors: ConnectorRegistry }) {
         setPendingPluginSlug(null);
         setPendingPluginConnect(false);
       }}
-      connectors={props.connectors}
+      connectors={connectors.active}
+      variant="page"
     />
   );
 }
