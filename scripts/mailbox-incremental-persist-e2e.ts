@@ -68,10 +68,11 @@ class MirroredDatabase extends OpenBotDatabase {
     changes: MailboxProjectionChanges,
     eventType: string,
     fileDeletions: string[] = [],
-  ): void {
-    super.applyMailboxChanges(commandId, state, changes, eventType, fileDeletions);
+  ): boolean {
+    const wrote = super.applyMailboxChanges(commandId, state, changes, eventType, fileDeletions);
     report.incrementalWrites += 1;
     this.#reference.replaceMailboxState(commandId, structuredClone(state), eventType);
+    return wrote;
   }
 
   override replaceMailboxState(
@@ -80,10 +81,11 @@ class MirroredDatabase extends OpenBotDatabase {
     eventType: string,
     fileDeletions: string[] = [],
     rebaseHistory = false,
-  ): void {
-    super.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory);
+  ): boolean {
+    const wrote = super.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory);
     report.fullWrites += 1;
     this.#reference.replaceMailboxState(commandId, structuredClone(state), eventType);
+    return wrote;
   }
 }
 
@@ -226,8 +228,17 @@ async function parity(root: string): Promise<void> {
   check("channel attachments committed", database, reference);
   await runCauseEffect(committed.revert);
   check("channel attachments reverted", database, reference);
+  // A rolled-back write leaves its keys, and then a command that was already applied runs again: its
+  // receipt is the newest, so it writes no row. It must keep the keys for the next write.
+  assert.throws(() =>
+    withDatabaseTransaction(database, () => {
+      mailbox.cancelNow(AGENT, edited);
+      throw new Error("The caller's work failed.");
+    }),
+  );
+  await runCauseEffect(committed.revert);
   await enqueue(mailbox, "channel message", { channelId: CHANNEL });
-  check("channel message sent", database, reference);
+  check("channel message sent after a replayed command", database, reference);
 
   await runCauseEffect(
     mailbox.storeGeneratedAttachment({ bytes: PNG, name: "made.png", mimeType: "image/png", ownerAgentId: AGENT }),
@@ -264,12 +275,36 @@ async function parity(root: string): Promise<void> {
   check("own write after a rolled-back write", database, reference);
   await runCauseEffect(mailbox.markStarting(after));
 
+  // The same with a nested transaction whose restore runs before the owner's ROLLBACK, as the
+  // routine scheduler does. The restore reads rows that the rollback then undoes.
+  const nested = deliveryOf(await enqueue(mailbox, "nested rollback"));
+  assert.throws(() =>
+    withDatabaseTransaction(database, () =>
+      withDatabaseTransaction(
+        database,
+        () => {
+          mailbox.cancelNow(AGENT, nested);
+          throw new Error("The nested work failed.");
+        },
+        () => mailbox.restorePersistedState(),
+      ),
+    ),
+  );
+  await enqueue(mailbox, "after the nested rollback");
+  check("own write after a nested rollback with a restore", database, reference);
+
   await runCauseEffect(mailbox.deleteChannelData(CHANNEL));
   check("channel data deleted", database, reference);
   await draft(mailbox, "left on restart.txt");
   check("draft left for the restart", database, reference);
 
-  // A restart reads the rows back and clears the drafts that no edit holds.
+  // A row in an older form: a delivery with no queue order, as an earlier build could store it. A
+  // restart reads the rows back, writes the current form, and clears the drafts that no edit holds.
+  database.connection
+    .prepare(
+      "UPDATE projection_deliveries SET delivery_json = json_remove(delivery_json, '$.queueOrder') WHERE delivery_id = ?",
+    )
+    .run(after);
   database.close();
   ({ database, mailbox } = await openProfile(root, "profile", reference));
   check("restart", database, reference);

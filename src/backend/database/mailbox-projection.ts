@@ -114,29 +114,28 @@ export class MailboxProjection {
     eventType: string,
     fileDeletions: string[] = [],
     _rebaseHistory = false,
-  ): void {
-    this.#write(commandId, state, eventType, fileDeletions, (db, statements, sequence) => {
-      const value = state;
-      const attachments = mailboxAttachmentRows(value);
+  ): boolean {
+    return this.#write(commandId, state, eventType, fileDeletions, (db, statements, sequence) => {
+      const attachments = mailboxAttachmentRows(state);
       // Deliveries go before their messages, as in the full rewrite this replaced, so no row
       // depends on the cascade of the foreign key.
       deleteRowsNotIn(
         db,
         "projection_deliveries",
         ["delivery_id"],
-        new Set(value.deliveries.map((delivery) => rowKey([String(delivery.id)]))),
+        new Set(state.deliveries.map((delivery) => rowKey([String(delivery.id)]))),
       );
       deleteRowsNotIn(
         db,
         "projection_mailbox_messages",
         ["message_id"],
-        new Set(value.messages.map((message) => rowKey([String(message.id)]))),
+        new Set(state.messages.map((message) => rowKey([String(message.id)]))),
       );
       deleteRowsNotIn(
         db,
         "projection_reactions",
         ["agent_id", "message_id", "actor_kind", "actor_agent_id"],
-        new Set(value.reactions.map((reaction) => rowKey(reactionKey(reaction)))),
+        new Set(state.reactions.map((reaction) => rowKey(reactionKey(reaction)))),
       );
       deleteRowsNotIn(
         db,
@@ -145,16 +144,17 @@ export class MailboxProjection {
         new Set(attachments.map((attachment) => rowKey([attachment[0]]))),
         "owner_kind IN ('mailbox-message', 'draft', 'generated')",
       );
-      for (const message of value.messages) writeMessage(statements, message, sequence);
-      for (const delivery of value.deliveries) writeDelivery(statements, delivery, sequence);
-      for (const reaction of value.reactions) writeReaction(statements, reaction, sequence);
+      for (const message of state.messages) writeMessage(statements, message, sequence);
+      for (const delivery of state.deliveries) writeDelivery(statements, delivery, sequence);
+      for (const reaction of state.reactions) writeReaction(statements, reaction, sequence);
       for (const attachment of attachments) statements.attachmentUpsert.run(...attachment, sequence);
     });
   }
 
   /**
    * Writes only the rows that `changes` names. It gives the same rows as {@link replaceMailboxState}
-   * when every row that changed since the last write is in `changes`.
+   * when every row that changed since the last write is in `changes`. Returns false when the command
+   * was already applied, because then no row was written.
    */
   applyMailboxChanges(
     commandId: string,
@@ -162,8 +162,8 @@ export class MailboxProjection {
     changes: MailboxProjectionChanges,
     eventType: string,
     fileDeletions: string[] = [],
-  ): void {
-    this.#write(commandId, state, eventType, fileDeletions, (_db, statements, sequence) => {
+  ): boolean {
+    return this.#write(commandId, state, eventType, fileDeletions, (_db, statements, sequence) => {
       const messages = changedRows(state.messages, changes.messageIds, (message) => String(message.id));
       const deliveries = changedRows(state.deliveries, changes.deliveryIds, (delivery) => String(delivery.id));
       const reactions = changedRows(state.reactions, changes.reactionKeys, (reaction) => rowKey(reactionKey(reaction)));
@@ -210,7 +210,9 @@ export class MailboxProjection {
     eventType: string,
     fileDeletions: string[],
     writeRows: (db: DatabaseSync, statements: MailboxStatements, sequence: number) => void,
-  ): void {
+  ): boolean {
+    // A command that already has a receipt returns that result and runs no projection.
+    let wrote = false;
     this.#core.dispatch(
       commandId,
       [
@@ -231,12 +233,7 @@ export class MailboxProjection {
         // sequence of the write that last changed it.
         writeRows(db, statements, sequence);
         // The queue state is one metadata row and the paused agents, so each write replaces it.
-        deleteRowsNotIn(
-          db,
-          "projection_queue_state",
-          ["agent_id"],
-          new Set([MAILBOX_METADATA_ROW, ...state.pausedAgentIds].map((agentId) => rowKey([agentId]))),
-        );
+        statements.queueStateDelete.run(JSON.stringify([MAILBOX_METADATA_ROW, ...state.pausedAgentIds]));
         statements.queueUpsert.run(
           MAILBOX_METADATA_ROW,
           0,
@@ -247,9 +244,11 @@ export class MailboxProjection {
         for (const path of fileDeletions) {
           statements.outboxInsert.run(randomUUID(), path, eventType, new Date().toISOString());
         }
+        wrote = true;
         return null;
       },
     );
+    return wrote;
   }
 
   /** Each statement is compiled once per connection. A new connection after `close` compiles them again. */
@@ -392,6 +391,7 @@ interface MailboxStatements {
   deliveryUpsert: StatementSync;
   deliveryDelete: StatementSync;
   queueUpsert: StatementSync;
+  queueStateDelete: StatementSync;
   reactionUpsert: StatementSync;
   reactionDelete: StatementSync;
   attachmentUpsert: StatementSync;
@@ -448,6 +448,9 @@ function prepareMailboxStatements(db: DatabaseSync): MailboxStatements {
       WHERE projection_queue_state.paused IS NOT excluded.paused
         OR projection_queue_state.metadata_json IS NOT excluded.metadata_json
     `),
+    queueStateDelete: db.prepare(
+      "DELETE FROM projection_queue_state WHERE agent_id NOT IN (SELECT value FROM json_each(?))",
+    ),
     reactionUpsert: db.prepare(`
       INSERT INTO projection_reactions
         (agent_id, message_id, actor_kind, actor_agent_id, emoji, updated_at, last_event_sequence)

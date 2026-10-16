@@ -243,6 +243,11 @@ export class MailboxStore {
         const persisted = toCurrentMailboxState(stored);
         if (!persisted || !isStoredState(persisted)) throw new Error("Stored mailbox projection is invalid.");
         this.#state = normalizeStoredState(persisted);
+        // Each read accepts rows in an older form, and a write stores only the rows that changed. So
+        // rows that the read had to bring to the current form are all written once, here.
+        if (JSON.stringify(this.#state) !== JSON.stringify(stored)) {
+          this.#persist("mailbox.normalized", undefined, [], true);
+        }
       } else {
         this.#state = normalizeStoredState(yield* this.#readStateEffect());
         yield* this.#database.backupLegacyFile(this.#statePath);
@@ -1451,7 +1456,8 @@ export class MailboxStore {
     const persisted = toCurrentMailboxState(this.#database.readMailboxState());
     if (!persisted || !isStoredState(persisted)) throw new Error("Stored mailbox projection is invalid.");
     this.#state = normalizeStoredState(persisted);
-    this.#clearChanges();
+    // Inside a transaction this read sees rows that a later ROLLBACK can still undo, so the keys stay.
+    if (!this.#database.connection.isTransaction) this.#clearChanges();
   }
 
   #assertQueueNotEditing(deliveryId: string): void {
@@ -2351,7 +2357,8 @@ export class MailboxStore {
   /**
    * Writes the rows in `#changes`, or with `replaceAll` the whole state. The keys are cleared only
    * after a write that committed its own transaction: a caller's transaction can still roll back,
-   * and the next write must then write those rows again.
+   * and the next write must then write those rows again. A command that was already applied writes
+   * no row, so it keeps the keys too.
    */
   #persist(
     eventType = "mailbox.updated",
@@ -2360,12 +2367,10 @@ export class MailboxStore {
     replaceAll = false,
   ): void {
     const ownsTransaction = !this.#database.connection.isTransaction;
-    if (replaceAll) {
-      this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, true);
-    } else {
-      this.#database.applyMailboxChanges(commandId, this.#state, this.#changes, eventType, fileDeletions);
-    }
-    if (ownsTransaction) this.#clearChanges();
+    const wrote = replaceAll
+      ? this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, true)
+      : this.#database.applyMailboxChanges(commandId, this.#state, this.#changes, eventType, fileDeletions);
+    if (wrote && ownsTransaction) this.#clearChanges();
   }
 
   #clearChanges(): void {

@@ -523,8 +523,8 @@ export class OpenBotDatabase {
     eventType: string,
     fileDeletions: string[] = [],
     rebaseHistory = false,
-  ): void {
-    this.#mailbox.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory);
+  ): boolean {
+    return this.#mailbox.replaceMailboxState(commandId, state, eventType, fileDeletions, rebaseHistory);
   }
 
   applyMailboxChanges(
@@ -533,8 +533,8 @@ export class OpenBotDatabase {
     changes: MailboxProjectionChanges,
     eventType: string,
     fileDeletions: string[] = [],
-  ): void {
-    this.#mailbox.applyMailboxChanges(commandId, state, changes, eventType, fileDeletions);
+  ): boolean {
+    return this.#mailbox.applyMailboxChanges(commandId, state, changes, eventType, fileDeletions);
   }
 
   pendingFileDeletions(): Array<{ id: string; path: string }> {
