@@ -78,6 +78,8 @@ const context = createSimpleContext({
 
     return {
       page,
+      /** Whether a page other than the agents covers the conversation. A message there is not seen. */
+      conversationCovered: () => page() !== "agents",
       setSettingsMounts,
       settingsPlacement,
       /** Shows the agents and closes the other pages. */

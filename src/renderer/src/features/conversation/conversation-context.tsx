@@ -30,7 +30,7 @@ import { useAgents } from "../agents/agents-context";
 import { useChannels } from "../channels/channels-context";
 import { useServers } from "../servers/servers-context";
 import { notifyTeamTyping } from "../team/team-typing";
-import { useUsage } from "../usage/usage-context";
+import { useWindowPage } from "../window/window-page-context";
 import {
   agentConversationKey,
   agentMessageKey,
@@ -95,7 +95,7 @@ interface ConversationState {
 const Conversation = createSimpleContext({
   name: "Conversation",
   init: () => {
-    const usage = useUsage();
+    const windowPage = useWindowPage();
     const { appFocused } = usePlatform();
     const { activeServerId, activeServer } = useServers();
     const { agentChatsToMarkRead, agentChatsToRetryRead, autoReadAgentMessages } = useAgentReadTracking();
@@ -326,9 +326,9 @@ const Conversation = createSimpleContext({
       });
     }
 
-    // Usage covers the workspace content and marks it inert, so the chat under it is not the
+    // A rail page, such as Usage or Settings, covers the workspace content, so the chat under it is not the
     // pane the user is looking at. Both readers of this predicate use it to decide whether a
-    // message may be marked read, and a message read behind the report was never seen.
+    // message may be marked read, and a message read behind the page was never seen.
     //
     // An open channel is the same case: `WorkspaceShell` keeps the agent selected under it, so a
     // reply that arrives while the channel is on screen must stay unread.
@@ -337,7 +337,7 @@ const Conversation = createSimpleContext({
         !agentSetupOpen() &&
         !activeDirectMemberId() &&
         !channels.state.selectedId &&
-        !usage.state.serverId &&
+        !windowPage.conversationCovered() &&
         activeAgent()?.id === agentId
       );
     }
