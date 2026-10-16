@@ -122,16 +122,6 @@ export function AgentNetworkSection() {
     const stage = stageRef;
     const canvas = canvasRef;
     const context = canvas?.getContext("2d");
-    if (!stage || !canvas || !context) return;
-    // Safari before 16 cannot draw rounded rectangles: show the heading with no network.
-    if (typeof context.roundRect !== "function") {
-      setPlaying(true);
-      return;
-    }
-
-    const reduced = prefersReducedMotion();
-    // A new network at each visit. The scene builds only in the browser, so the page markup does not change.
-    const seed = Math.floor(Math.random() * 2 ** 32);
     const named = LANDING_NETWORK_AGENTS.map((agent, index) => ({
       label: agent.teammate.name,
       avatar: GROWN_AVATARS + index,
@@ -139,7 +129,27 @@ export function AgentNetworkSection() {
     }));
     const [first, second, third] = named;
     const [firstMessage, secondMessage, thirdMessage] = LANDING_TEAM_MESSAGES;
-    if (!first || !second || !third || !firstMessage || !secondMessage || !thirdMessage) return;
+    // With no canvas, or in Safari before 16, which cannot draw rounded rectangles,
+    // the section shows its heading with no network.
+    if (
+      !stage ||
+      !canvas ||
+      !context ||
+      typeof context.roundRect !== "function" ||
+      !first ||
+      !second ||
+      !third ||
+      !firstMessage ||
+      !secondMessage ||
+      !thirdMessage
+    ) {
+      setPlaying(true);
+      return;
+    }
+
+    const reduced = prefersReducedMotion();
+    // A new network at each visit. The scene builds only in the browser, so the page markup does not change.
+    const seed = Math.floor(Math.random() * 2 ** 32);
     const network = buildAgentNetwork({
       agents: [first, second, third],
       messages: [firstMessage.text, secondMessage.text, thirdMessage.text],
