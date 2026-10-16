@@ -350,51 +350,49 @@ export class ConversationQueries {
     const textParameters = terms.length > 1 ? [`%${escapeLike(longestTerm)}%`, pattern] : [pattern];
     const filter = agentId ? "AND thread.agent_id = ?" : "";
     const parameters = agentId ? [...textParameters, agentId] : textParameters;
-    const countRow = databaseRow(
-      this.#core.connection
-        .prepare(
-          `SELECT COUNT(*) AS count
-           FROM projection_thread_messages message
-           JOIN projection_threads thread ON thread.thread_id = message.thread_id
-           WHERE ${textFilter}
-             AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
-             AND COALESCE(message.item_type, '') NOT IN ('commentary', '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}')
-             AND COALESCE(message.item_type, '') NOT LIKE '${SKILL_EVENT_ITEM_TYPE_PREFIX}%' AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
-             AND json_extract(message.message_json, '$.routine') IS NULL
-             ${SIDE_THREAD_EXCLUSION}
-             ${filter}`,
-        )
-        .get(...parameters),
-    );
-    const total = countRow ? requiredNumberColumn(countRow, "count") : 0;
+    // The text filter reads every stored message, so it runs one time: the matches keep only their
+    // keys, the total counts them, and only the page's rows read their message (#2279). The left
+    // join gives the total also for a cursor past the last page.
     const rows = databaseRows(
       this.#core.connection
         .prepare(
-          `SELECT thread.agent_id, message.message_json
-           FROM projection_thread_messages message
-           JOIN projection_threads thread ON thread.thread_id = message.thread_id
-           WHERE ${textFilter}
-             AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
-             AND COALESCE(message.item_type, '') NOT IN ('commentary', '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}')
-             AND COALESCE(message.item_type, '') NOT LIKE '${SKILL_EVENT_ITEM_TYPE_PREFIX}%' AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
-             AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
-             AND json_extract(message.message_json, '$.routine') IS NULL
-             ${SIDE_THREAD_EXCLUSION}
-             ${filter}
-           ORDER BY message.created_at DESC, message.ordinal DESC, message.message_id DESC
-           LIMIT ? OFFSET ?`,
+          `WITH matches AS MATERIALIZED (
+             SELECT thread.agent_id, message.thread_id, message.message_id, message.created_at, message.ordinal
+             FROM projection_thread_messages message
+             JOIN projection_threads thread ON thread.thread_id = message.thread_id
+             WHERE ${textFilter}
+               AND COALESCE(json_extract(message.message_json, '$.delivery.status'), '') NOT IN ('queued', 'cancelled')
+               AND COALESCE(message.item_type, '') NOT IN ('commentary', '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}')
+               AND COALESCE(message.item_type, '') NOT LIKE '${SKILL_EVENT_ITEM_TYPE_PREFIX}%' AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_EVENT_ITEM_TYPE_PREFIX}%'
+               AND COALESCE(message.item_type, '') NOT LIKE '${ROUTINE_RUN_EVENT_ITEM_TYPE_PREFIX}%'
+               AND COALESCE(message.item_type, '') NOT LIKE '${HOSTED_SITE_EVENT_ITEM_TYPE_PREFIX}%'
+               AND COALESCE(message.item_type, '') NOT LIKE '${MARKETPLACE_SUGGESTION_ITEM_TYPE_PREFIX}%'
+               AND json_extract(message.message_json, '$.routine') IS NULL
+               ${SIDE_THREAD_EXCLUSION}
+               ${filter}
+           )
+           SELECT counted.count, page.agent_id, page.message_json
+           FROM (SELECT COUNT(*) AS count FROM matches) counted
+           LEFT JOIN (
+             SELECT match.agent_id, message.message_json, match.created_at, match.ordinal, match.message_id
+             FROM matches match
+             JOIN projection_thread_messages message
+               ON message.thread_id = match.thread_id AND message.message_id = match.message_id
+             ORDER BY match.created_at DESC, match.ordinal DESC, match.message_id DESC
+             LIMIT ? OFFSET ?
+           ) page
+           ORDER BY page.created_at DESC, page.ordinal DESC, page.message_id DESC`,
         )
         .all(...parameters, limit, offset),
     );
-    const results = rows.map((row) => ({
-      agentId: requiredStringColumn(row, "agent_id"),
-      message: decodeConversationMessageJson(requiredStringColumn(row, "message_json")),
-    }));
+    const total = rows[0] ? requiredNumberColumn(rows[0], "count") : 0;
+    // An empty page is one row with the count only.
+    const results = rows
+      .filter((row) => row.message_json !== null)
+      .map((row) => ({
+        agentId: requiredStringColumn(row, "agent_id"),
+        message: decodeConversationMessageJson(requiredStringColumn(row, "message_json")),
+      }));
     const nextOffset = offset + results.length;
     return {
       results,
