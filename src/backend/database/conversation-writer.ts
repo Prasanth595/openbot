@@ -876,15 +876,16 @@ function pruneConversationSnapshots(db: DatabaseSync, threadId: string, retained
     aggregate_type = 'thread' AND aggregate_id = ? AND sequence < ?
       AND (json_type(payload_json, '$.snapshot') = 'object'
         OR json_type(payload_json, '$.streamedMessage') = 'object')`;
-  const supersededCommandIds = databaseRows(
-    db.prepare(`SELECT command_id FROM orchestration_events WHERE ${supersededEvents}`).all(threadId, retainedSequence),
-  ).map((row) => requiredStringColumn(row, "command_id"));
   db.prepare(
     `DELETE FROM projection_thread_activities
      WHERE thread_id = ? AND last_event_sequence IN (
        SELECT sequence FROM orchestration_events WHERE ${supersededEvents}
      )`,
   ).run(threadId, threadId, retainedSequence);
-  db.prepare(`DELETE FROM orchestration_events WHERE ${supersededEvents}`).run(threadId, retainedSequence);
+  const supersededCommandIds = databaseRows(
+    db
+      .prepare(`DELETE FROM orchestration_events WHERE ${supersededEvents} RETURNING command_id`)
+      .all(threadId, retainedSequence),
+  ).map((row) => requiredStringColumn(row, "command_id"));
   deleteReceiptsOf(db, supersededCommandIds);
 }

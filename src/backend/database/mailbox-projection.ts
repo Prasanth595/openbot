@@ -113,11 +113,15 @@ export class MailboxProjection {
       ],
       (db, sequences) => {
         const sequence = sequences[0] ?? 0;
-        const olderEvents = "aggregate_type = 'mailbox' AND aggregate_id = 'mailbox' AND sequence < ?";
         const olderCommandIds = databaseRows(
-          db.prepare(`SELECT command_id FROM orchestration_events WHERE ${olderEvents}`).all(sequence),
+          db
+            .prepare(
+              `DELETE FROM orchestration_events
+               WHERE aggregate_type = 'mailbox' AND aggregate_id = 'mailbox' AND sequence < ?
+               RETURNING command_id`,
+            )
+            .all(sequence),
         ).map((row) => requiredStringColumn(row, "command_id"));
-        db.prepare(`DELETE FROM orchestration_events WHERE ${olderEvents}`).run(sequence);
         deleteReceiptsOf(db, olderCommandIds);
         const value = state;
         const attachments = mailboxAttachmentRows(value);
