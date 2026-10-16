@@ -29,7 +29,8 @@ const CATEGORY_BY_NAME: Readonly<Record<string, AgentContextCategory>> = {
 
 /**
  * The rows of a Claude context answer that fill `totalTokens`, or none when the answer has an
- * unknown shape. Tool calls and their results leave the messages row for a row of their own.
+ * unknown shape or rows other than messages are more than the total. Tool calls and their results
+ * leave the messages row for a row of their own.
  */
 export function claudeContextCategories(usage: unknown): AgentContextCategoryUsage[] | undefined {
   const decoded = Schema.decodeUnknownOption(ClaudeContextUsage)(usage);
@@ -40,7 +41,12 @@ export function claudeContextCategories(usage: unknown): AgentContextCategoryUsa
     const category = row.isDeferred ? undefined : CATEGORY_BY_NAME[row.name];
     if (category) tokens.set(category, (tokens.get(category) ?? 0) + row.tokens);
   }
-  const messages = tokens.get("messages") ?? 0;
+  // `totalTokens` is the input of the last API answer. The messages row adds an estimate of the
+  // messages after that answer, so the rows can be more than the total. The excess leaves that row.
+  const excess = [...tokens.values()].reduce((sum, value) => sum + value, 0) - totalTokens;
+  const messages = (tokens.get("messages") ?? 0) - Math.max(0, excess);
+  if (messages < 0) return undefined;
+  if (tokens.has("messages")) tokens.set("messages", messages);
   const toolResults = Math.min(
     messages,
     (messageBreakdown?.toolCallTokens ?? 0) + (messageBreakdown?.toolResultTokens ?? 0),
@@ -49,8 +55,6 @@ export function claudeContextCategories(usage: unknown): AgentContextCategoryUsa
     tokens.set("toolResults", toolResults);
     tokens.set("messages", messages - toolResults);
   }
-  const known = [...tokens.values()].reduce((sum, value) => sum + value, 0);
-  if (known > totalTokens) return undefined;
-  if (totalTokens > known) tokens.set("other", totalTokens - known);
+  if (excess < 0) tokens.set("other", -excess);
   return [...tokens].filter(([, value]) => value > 0).map(([category, value]) => ({ category, tokens: value }));
 }

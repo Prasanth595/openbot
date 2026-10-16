@@ -185,7 +185,8 @@ export function isAgentContextCategories(value: unknown): value is AgentContextC
     value.length <= AGENT_CONTEXT_CATEGORIES.length &&
     value.every(
       (row) => isDynamicRecord(row) && isOneOf(AGENT_CONTEXT_CATEGORIES, row.category) && isContextCount(row.tokens),
-    )
+    ) &&
+    new Set(value.map((row) => row.category)).size === value.length
   );
 }
 
