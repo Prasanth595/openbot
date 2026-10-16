@@ -202,7 +202,10 @@ export function attachmentIpcHandlers({
       openSharedFile: scopedHandler(parseOpenSharedFile, {
         local: async (parsed) => {
           const sharedFile = await runCauseEffect(service.resolveSharedFile(parsed.path));
-          await deliverLocalFile(sharedFile.path, sharedFile.name, parsed.action, () => openPath(sharedFile.path));
+          // A member upload lands in the shared folder too, so a shared file opens only when its type is safe.
+          await deliverLocalFile(sharedFile.path, sharedFile.name, parsed.action, () =>
+            openOrRevealPath(sharedFile.path),
+          );
         },
         remote: async (parsed, serverId) => {
           const downloaded = await runCauseEffect(remoteServers.downloadSharedFile(parsed.path, serverId));
