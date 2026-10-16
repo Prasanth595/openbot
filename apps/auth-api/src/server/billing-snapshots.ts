@@ -139,7 +139,7 @@ interface StripeSubscriptionSample {
  * The source key is retained by SalesAnalyticsDelivery, so a five-minute cron can call this safely:
  * one `billing_snapshot:YYYY-MM-DD` event is accepted for each UTC day. Stripe remains the source of
  * the current subscription state; the D1 rows only provide the bounded list of known OpenBot IDs and
- * their account/server owners.
+ * their account/server owners. Rows whose stored status is terminal in Stripe are not read again.
  */
 export const captureBillingSnapshot = Effect.fn("captureBillingSnapshot")(function* (
   bindings: BillingSnapshotBindings,
@@ -168,7 +168,7 @@ export const captureBillingSnapshot = Effect.fn("captureBillingSnapshot")(functi
   const samples: SubscriptionSample[] = [];
   // A row that stays bad must not block every later snapshot, so it is counted and left out. A Stripe
   // failure that can pass still fails the run: the snapshot of a day is never corrected.
-  let skippedSubscriptions = 0;
+  const skipped: BillingSnapshotError[] = [];
   for (const row of rows) {
     const sample = yield* subscriptionSample(row, secretKey, fetcher, timestamp).pipe(
       Effect.catchIf(
@@ -178,13 +178,17 @@ export const captureBillingSnapshot = Effect.fn("captureBillingSnapshot")(functi
             subscriptionId: row.stripe_subscription_id,
             code: error.code,
           });
-          skippedSubscriptions += 1;
+          skipped.push(error);
           return Effect.succeed(null);
         },
       ),
     );
     if (sample) samples.push(sample);
   }
+  // When every row is bad, the cause is more probably the Stripe key or the Stripe API than the rows.
+  // A snapshot with no revenue would then stay for the day, so the run fails.
+  const [firstSkip] = skipped;
+  if (firstSkip && skipped.length === rows.length) return yield* firstSkip;
 
   const billingUsd = new BillingUsd({ database: bindings.DB, fetch: fetcher });
   let metrics: BillingSnapshotMetrics = {
@@ -254,7 +258,7 @@ export const captureBillingSnapshot = Effect.fn("captureBillingSnapshot")(functi
         checkout_mature_accounts: cohorts.checkout_mature_accounts,
         checkout_converted_accounts: cohorts.checkout_converted_accounts,
         checkout_pending_accounts: cohorts.checkout_pending_accounts,
-        skipped_subscriptions: skippedSubscriptions,
+        skipped_subscriptions: skipped.length,
       },
       timestamp,
     )

@@ -1,8 +1,8 @@
 // Runs the real daily billing snapshot on a migrated SQLite database, with a Stripe API that knows a
 // fixed set of subscriptions (#2242). The snapshot must not read canceled or expired subscriptions
 // from Stripe, must read each FX rate once, must count and leave out subscriptions that stay bad, and
-// must fail without an event when Stripe has a failure that can pass. A second run on the same day
-// makes no Stripe call.
+// must fail without an event when Stripe has a failure that can pass or when every row is bad. A second
+// run on the same day makes no Stripe call.
 //
 // Run: bun apps/auth-api/scripts/billing-snapshot-e2e.ts
 // It writes .openbot-build/billing-snapshot-e2e/report.json and exits non-zero on a failure.
@@ -229,10 +229,31 @@ async function transientStripeFailureFailsTheRun() {
   check("a failed run stores no event", storedEvents(database).length === 0);
 }
 
+async function allRowsBadFailsTheRun() {
+  // A Stripe key of another account or mode gives a 404 for each subscription.
+  const database = migratedDatabase([
+    { id: "sub_other_1", status: "active" },
+    { id: "sub_other_2", status: "past_due" },
+    { id: "sub_closed", status: "canceled" },
+  ]);
+  const fetcher = stripeFetch({ sub_other_1: 404, sub_other_2: 404 }, []);
+  const exit = await Effect.runPromiseExit(
+    captureBillingSnapshot({ ...BINDINGS, DB: sqliteD1(database, []) }, NOW, fetcher),
+  );
+  const code = Exit.isFailure(exit) ? JSON.stringify(exit.cause) : null;
+  check(
+    "a 404 for every open subscription fails the run",
+    Exit.isFailure(exit) && code?.includes('"missing_subscription"') === true,
+    code,
+  );
+  check("a run with every row bad stores no event", storedEvents(database).length === 0);
+}
+
 let passed = false;
 try {
   await snapshotSkipsTerminalAndBadRows();
   await transientStripeFailureFailsTheRun();
+  await allRowsBadFailsTheRun();
   passed = checks.every((item) => item.passed);
 } finally {
   await mkdir(OUT, { recursive: true });

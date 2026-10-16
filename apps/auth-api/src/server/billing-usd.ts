@@ -80,9 +80,11 @@ export class BillingUsd {
     }
 
     const key = `${currency}:${day}`;
-    const rate =
-      this.#rates.get(key) ?? (yield* this.#cachedRate(currency, day)) ?? (yield* this.#loadRate(currency, day));
-    this.#rates.set(key, rate);
+    let rate = this.#rates.get(key);
+    if (!rate) {
+      rate = (yield* this.#cachedRate(currency, day)) ?? (yield* this.#loadRate(currency, day));
+      this.#rates.set(key, rate);
+    }
     const amountUsd = Math.round(amountMinor * rate.usdRate);
     if (!Number.isSafeInteger(amountUsd) || amountUsd < 0) {
       return yield* new BillingUsdError({ reason: "invalid_rate" });
