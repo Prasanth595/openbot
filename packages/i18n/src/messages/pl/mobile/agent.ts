@@ -282,6 +282,7 @@ export const messages = {
   "mobile.agent.permissions.title": "Uprawnienia",
   "mobile.agent.advanced.title": "Zaawansowane",
   "mobile.agent.runtime.unavailable": "Niedostępne",
+  "mobile.agent.runtime.hostDefault": "Domyślny hosta",
   "mobile.agent.runtime.provider": "Dostawca",
   "mobile.agent.runtime.account": "Konto",
   "mobile.agent.runtime.accountNumbered": "Konto {number}",

@@ -343,7 +343,7 @@ function AgentForm({
       ) : null}
       {page === "runtime" ? (
         <AgentRuntimeFields
-          agent={agent}
+          serverId={agent.serverId}
           available={available}
           saving={saving}
           provider={provider}

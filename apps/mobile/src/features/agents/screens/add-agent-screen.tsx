@@ -1,5 +1,5 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { AvatarHue } from "@openbot/contracts/ipc";
+import type { AvatarHue, CreateAgentInput } from "@openbot/contracts/ipc";
 import * as Crypto from "expo-crypto";
 import { router, Stack, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
@@ -8,8 +8,10 @@ import { X } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";
+import { AgentRuntimeFields } from "@/features/agents/components/agent-runtime-fields";
 import { agentInitialMessage } from "@/features/agents/model/agent-initial-message";
-import { useMobileWorkspaceReader } from "@/features/workspace/context/mobile-workspace-context";
+import { useMobileWorkspace, useMobileWorkspaceReader } from "@/features/workspace/context/mobile-workspace-context";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
@@ -18,12 +20,17 @@ import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
+type AgentRuntimeChoice = Pick<CreateAgentInput, "provider" | "model" | "reasoningEffort">;
+
 export function AddAgentScreen() {
   const { t, errorMessage } = useText();
   // Read on submit, so a server status or an agent update does not render the form again.
   const workspace = useMobileWorkspaceReader();
+  // The agent is created on the server that was active when the form opened.
+  const [serverId] = useState(() => workspace().activeServer.id);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [runtime, setRuntime] = useState<AgentRuntimeChoice>({});
   const [avatarSeed, setAvatarSeed] = useState(() => `mobile:${Crypto.randomUUID().replaceAll("-", "")}`);
   const [avatarHue, setAvatarHue] = useState<AvatarHue | null>(null);
   const [initialAvatarSeed] = useState(avatarSeed);
@@ -34,7 +41,13 @@ export function AddAgentScreen() {
   const [error, setError] = useState<string | null>(null);
   const valid = name.trim().length > 0;
 
-  const dirty = Boolean(name.trim() || description.trim() || avatarSeed !== initialAvatarSeed || avatarHue !== null);
+  const dirty = Boolean(
+    name.trim() ||
+      description.trim() ||
+      avatarSeed !== initialAvatarSeed ||
+      avatarHue !== null ||
+      runtime.provider !== undefined,
+  );
   usePreventRemove(!finished && (dirty || saving), ({ data }) => {
     if (pending.current) return;
     Alert.alert(t("mobile.agent.discard.title"), t("mobile.agent.discard.body"), [
@@ -62,6 +75,7 @@ export function AddAgentScreen() {
         initialMessage: agentInitialMessage(description),
         avatarSeed,
         avatarHue,
+        ...(workspace().activeServer.id === serverId ? runtime : {}),
       });
       void haptics.notification("success");
       setFinished(true);
@@ -149,6 +163,13 @@ export function AddAgentScreen() {
         onChangeText={setDescription}
       />
 
+      <NewAgentRuntimeFields
+        serverId={serverId}
+        saving={saving}
+        value={runtime}
+        onChange={(value) => setRuntime((current) => ({ ...current, ...value }))}
+      />
+
       {dirty && !valid ? (
         <Typography.Paragraph accessibilityRole="alert" className="text-danger-text">
           {t("mobile.agent.add.nameRequired")}
@@ -160,5 +181,39 @@ export function AddAgentScreen() {
         </Typography.Paragraph>
       ) : null}
     </SheetScrollView>
+  );
+}
+
+/**
+ * The provider and model of the new agent, for a host that reads them on creation. It reads the
+ * workspace itself, so a server status change renders only these rows, not the whole form.
+ */
+function NewAgentRuntimeFields({
+  serverId,
+  saving,
+  value,
+  onChange,
+}: {
+  serverId: string;
+  saving: boolean;
+  value: AgentRuntimeChoice;
+  onChange: (value: AgentRuntimeChoice) => void;
+}) {
+  const { t } = useText();
+  const { servers, canChooseNewAgentModel } = useMobileWorkspace();
+  const server = servers.find((candidate) => candidate.id === serverId);
+  if (!canChooseNewAgentModel(serverId)) return null;
+  return (
+    <AgentRuntimeFields
+      serverId={serverId}
+      available={showsOnline(server)}
+      saving={saving}
+      hostDefault
+      title={t("mobile.agent.groups.brain")}
+      provider={value.provider}
+      model={value.model}
+      reasoningEffort={value.reasoningEffort}
+      onChange={onChange}
+    />
   );
 }

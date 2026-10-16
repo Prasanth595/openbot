@@ -131,6 +131,11 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    do not start OpenBot during the save. `/run` is empty at each boot. If boat does not complete the
    stop after the hook, OpenBot stays stopped until the next stop and resume. A hook that OpenBot did
    not write stays, and a self-hosted server gets no hook.
+
+   **Check at a start.** `PRAGMA quick_check` reads every page of `openbot.db`: on a 15.7 GB file
+   it stopped the main thread for 77 seconds to about 4 minutes. A clean close removes
+   `openbot.db-wal`. Thus OpenBot runs the check at a start only when that file is there (a crash,
+   a kill, or a save while OpenBot ran) or when a migration ran.
 6. **Start after a failure.** A client that cannot reach the host first calls
    `GET /v2/hosting/servers/:id/status` (owner or member; 404 for a host that is not a hosted
    server). It returns `{serverId, state, error, sleeping}` and writes nothing, so it does not count
