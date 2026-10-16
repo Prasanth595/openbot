@@ -1,4 +1,4 @@
-import { agentProviderDescriptor, isManagedRuntimeProvider } from "@openbot/contracts/agent-providers";
+import { isManagedRuntimeProvider } from "@openbot/contracts/agent-providers";
 import { openPanelTransport, ReportQueue } from "@openbot/telemetry";
 import { fileReportStorage } from "@openbot/telemetry/node";
 import { Effect, Fiber } from "effect";
@@ -985,10 +985,6 @@ export async function createApplicationServices({
       ),
     ),
     knownAgentIds: () => store.list().map((agent) => agent.id),
-    providerNeverAsks: (agentId) => {
-      const agent = store.list().find((candidate) => candidate.id === agentId);
-      return agent !== undefined && !agentProviderDescriptor(agent.provider).approvalsInFullAccess;
-    },
   });
   /*
    * The installed CLIs are the computer's, the partial downloads are this profile's.

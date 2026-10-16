@@ -302,10 +302,10 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   }
 
   function currentPermission(): AgentPermissionLevel {
-    return agentPermissionLevel(
-      { access: props.agent.access ?? DEFAULT_AGENT_ACCESS, autoApprove: props.autoApprove ?? true },
-      props.runtimeSettings.provider,
-    );
+    return agentPermissionLevel({
+      access: props.agent.access ?? DEFAULT_AGENT_ACCESS,
+      autoApprove: props.autoApprove ?? true,
+    });
   }
 
   /** Leaving the workspace warns about reach; reaching Full access warns that the agent stops asking. */
@@ -1202,7 +1202,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                 <SettingsLinkGroup inset class="agent-settings-runtime-rows">
                   <Select<AgentPermissionLevel>
                     class="agent-settings-runtime-select"
-                    options={[...agentPermissionLevels(draft.runtime.provider)]}
+                    options={[...agentPermissionLevels(draft.runtime.provider, currentPermission())]}
                     value={draft.permission}
                     onChange={(next) => {
                       if (!next || next === draft.permission) return;

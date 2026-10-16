@@ -36,26 +36,25 @@ export const AGENT_PERMISSION_LEVELS = ["workspace", "ask", "full"] as const;
 export type AgentPermissionLevel = (typeof AGENT_PERMISSION_LEVELS)[number];
 
 /**
- * The levels a provider can honor. A provider that cannot ask in full reach has no `ask`. An older
- * host can leave the provider out; then every level shows.
+ * The levels a provider can honor. A provider that cannot ask in full reach has no `ask`, except
+ * while the agent is stored at `ask`: OpenBot still asks before its built-in tools and sites then,
+ * and the select must show that. An older host can leave the provider out; then every level shows.
  */
-export function agentPermissionLevels(provider: AgentProviderId | undefined): readonly AgentPermissionLevel[] {
-  return provider === undefined || agentProviderDescriptor(provider).approvalsInFullAccess
+export function agentPermissionLevels(
+  provider: AgentProviderId | undefined,
+  current?: AgentPermissionLevel,
+): readonly AgentPermissionLevel[] {
+  return provider === undefined || agentProviderDescriptor(provider).approvalsInFullAccess || current === "ask"
     ? AGENT_PERMISSION_LEVELS
     : ["workspace", "full"];
 }
 
-/**
- * The level that the stored settings give. An agent whose provider never asks in full reach shows
- * Full access, because that is how it already behaves.
- */
+/** The level that the stored settings give. */
 export function agentPermissionLevel(
   settings: Pick<AgentAdminSettings, "access" | "autoApprove"> & { autoApproveLocked?: boolean },
-  provider: AgentProviderId | undefined,
 ): AgentPermissionLevel {
   if (settings.access === "workspace") return "workspace";
-  if (settings.autoApprove || settings.autoApproveLocked) return "full";
-  return agentPermissionLevels(provider).includes("ask") ? "ask" : "full";
+  return settings.autoApprove || settings.autoApproveLocked ? "full" : "ask";
 }
 
 /** The stored settings for a level. Workspace only keeps the grant, which applies only in full reach. */

@@ -510,9 +510,7 @@ function AgentForm({
             >
               {showPermissions ? (
                 <SettingsRow
-                  supportingText={
-                    adminSettings ? t(PERMISSION_LABEL[agentPermissionLevel(adminSettings, agent.provider)]) : undefined
-                  }
+                  supportingText={adminSettings ? t(PERMISSION_LABEL[agentPermissionLevel(adminSettings)]) : undefined}
                   onPress={() =>
                     router.push({
                       pathname: "/agent-info/[agentId]/permissions",

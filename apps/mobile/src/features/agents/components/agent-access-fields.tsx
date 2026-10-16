@@ -68,7 +68,7 @@ export function AgentAccessFields({
   const { queryKey, settings } = useAgentAdminSettings(agent, server, available);
   // A host without the capability answers null. A failed read keeps the controls hidden, as for a member.
   if (!settings) return null;
-  const current = agentPermissionLevel(settings, agent.provider);
+  const current = agentPermissionLevel(settings);
   // A released host with Turbo mode on answers every agent as auto-approving, and a change cannot narrow it.
   const locked = settings.autoApproveLocked;
   const enabled = available && !saving;
@@ -120,7 +120,7 @@ export function AgentAccessFields({
           trailing={
             <SettingsPicker<AgentPermissionLevel>
               value={current}
-              options={agentPermissionLevels(agent.provider).map((level) => ({
+              options={agentPermissionLevels(agent.provider, current).map((level) => ({
                 value: level,
                 label: t(PERMISSION_LABEL[level]),
               }))}

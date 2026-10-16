@@ -87,11 +87,6 @@ export interface ApprovalAutomationOptions {
   initial: ApprovalAutomationPreference;
   /** Agent ids that still exist. A grant for an agent the user deleted is dropped rather than kept. */
   knownAgentIds: () => Iterable<string>;
-  /**
-   * Whether the agent's provider never asks in full reach (Claude). Such an agent at full reach
-   * shows Full access with no grant, so its other approvals must not ask either.
-   */
-  providerNeverAsks?: (agentId: string) => boolean;
 }
 
 /**
@@ -106,7 +101,6 @@ export interface ApprovalAutomationOptions {
 export class ApprovalAutomation {
   readonly #path: string;
   readonly #knownAgentIds: () => Iterable<string>;
-  readonly #providerNeverAsks: (agentId: string) => boolean;
   #preference: ApprovalAutomationPreference;
   #writes = Semaphore.makeUnsafe(1);
   readonly #deletingAgentIds = new Set<string>();
@@ -115,7 +109,6 @@ export class ApprovalAutomation {
   constructor(options: ApprovalAutomationOptions) {
     this.#path = options.path;
     this.#knownAgentIds = options.knownAgentIds;
-    this.#providerNeverAsks = options.providerNeverAsks ?? (() => false);
     this.#preference = options.initial;
   }
 
@@ -134,7 +127,7 @@ export class ApprovalAutomation {
     return (
       !this.#deletingAgentIds.has(agentId) &&
       new Set(this.#knownAgentIds()).has(agentId) &&
-      (agentAutoApprovalEnabled(this.#preference, agentId) || this.#providerNeverAsks(agentId))
+      agentAutoApprovalEnabled(this.#preference, agentId)
     );
   }
 

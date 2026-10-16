@@ -239,7 +239,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
     const autoApprove = activeAgentAutoApproves();
     if (!agent || !approval || !permissionsEditable() || autoApprove === undefined) return undefined;
     const access = agent.access ?? DEFAULT_AGENT_ACCESS;
-    if (agentPermissionLevel({ access, autoApprove }, agent.provider) !== "ask") return undefined;
+    if (agentPermissionLevel({ access, autoApprove }) !== "ask") return undefined;
     return async () => {
       await writeAgentPermissions(agentPermissionUpdate(agent.id, "full"));
       if (!scopeIsCurrent()) return false;
