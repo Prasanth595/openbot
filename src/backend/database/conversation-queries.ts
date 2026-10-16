@@ -357,7 +357,7 @@ export class ConversationQueries {
       this.#core.connection
         .prepare(
           `WITH matches AS MATERIALIZED (
-             SELECT thread.agent_id, message.thread_id, message.message_id, message.created_at, message.ordinal
+             SELECT message.rowid AS message_rowid, thread.agent_id, message.created_at, message.ordinal, message.message_id
              FROM projection_thread_messages message
              JOIN projection_threads thread ON thread.thread_id = message.thread_id
              WHERE ${textFilter}
@@ -371,28 +371,26 @@ export class ConversationQueries {
                ${SIDE_THREAD_EXCLUSION}
                ${filter}
            )
-           SELECT counted.count, page.agent_id, page.message_json
+           SELECT counted.count, page.agent_id, message.message_json
            FROM (SELECT COUNT(*) AS count FROM matches) counted
            LEFT JOIN (
-             SELECT match.agent_id, message.message_json, match.created_at, match.ordinal, match.message_id
-             FROM matches match
-             JOIN projection_thread_messages message
-               ON message.thread_id = match.thread_id AND message.message_id = match.message_id
-             ORDER BY match.created_at DESC, match.ordinal DESC, match.message_id DESC
+             SELECT * FROM matches
+             ORDER BY created_at DESC, ordinal DESC, message_id DESC
              LIMIT ? OFFSET ?
            ) page
+           LEFT JOIN projection_thread_messages message ON message.rowid = page.message_rowid
            ORDER BY page.created_at DESC, page.ordinal DESC, page.message_id DESC`,
         )
         .all(...parameters, limit, offset),
     );
     const total = rows[0] ? requiredNumberColumn(rows[0], "count") : 0;
     // An empty page is one row with the count only.
-    const results = rows
-      .filter((row) => row.message_json !== null)
-      .map((row) => ({
-        agentId: requiredStringColumn(row, "agent_id"),
-        message: decodeConversationMessageJson(requiredStringColumn(row, "message_json")),
-      }));
+    const results = rows.flatMap((row) => {
+      const messageJson = optionalStringColumn(row, "message_json");
+      return messageJson === null
+        ? []
+        : [{ agentId: requiredStringColumn(row, "agent_id"), message: decodeConversationMessageJson(messageJson) }];
+    });
     const nextOffset = offset + results.length;
     return {
       results,
