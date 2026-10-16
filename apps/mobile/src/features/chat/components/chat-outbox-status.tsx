@@ -1,7 +1,8 @@
 import { type MenuAction, MenuView } from "@expo/ui/community/menu";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { CircleX, Clock } from "lucide-react-native";
+import CircleX from "lucide-react-native/icons/circle-x";
+import Clock from "lucide-react-native/icons/clock";
 import type { PropsWithChildren } from "react";
 import { View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";

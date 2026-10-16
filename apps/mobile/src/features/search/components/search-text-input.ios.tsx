@@ -1,7 +1,7 @@
 import { Host, TextInput, type TextInputRef } from "@expo/ui";
 import { useNativeState } from "@expo/ui/swift-ui";
 import { useThemeColor } from "heroui-native/hooks";
-import { CircleX } from "lucide-react-native";
+import CircleX from "lucide-react-native/icons/circle-x";
 import { useImperativeHandle, useRef } from "react";
 import { Pressable, View } from "react-native";
 

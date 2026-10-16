@@ -4,7 +4,7 @@ import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Camera } from "lucide-react-native";
+import Camera from "lucide-react-native/icons/camera";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
@@ -20,6 +20,7 @@ import {
   SettingsSection,
 } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { useLiveServerRecovery } from "@/features/workspace/context/server-recovery-countdown";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
@@ -31,7 +32,7 @@ export function ServerSettingsScreen() {
   const { t, sourceText, errorMessage } = useText();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { servers, leaveServer, removeServer, refreshServer, hostedServerStarting } = useMobileWorkspace();
-  const server = servers.find((item) => item.id === serverId);
+  const server = useLiveServerRecovery(servers.find((item) => item.id === serverId));
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

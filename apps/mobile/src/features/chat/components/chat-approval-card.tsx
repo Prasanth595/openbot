@@ -1,6 +1,7 @@
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { Folder, ShieldAlert } from "lucide-react-native";
+import Folder from "lucide-react-native/icons/folder";
+import ShieldAlert from "lucide-react-native/icons/shield-alert";
 import { useState } from "react";
 import { View } from "react-native";
 import { useCSSVariable } from "uniwind";

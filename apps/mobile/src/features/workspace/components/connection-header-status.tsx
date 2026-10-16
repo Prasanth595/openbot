@@ -5,6 +5,7 @@ import { View } from "react-native";
 import { ConnectionCountdown } from "@/features/workspace/components/connection-countdown";
 import { AnimatedCounter } from "@/features/workspace/components/connection-counter";
 import { ConnectionStatusReveal } from "@/features/workspace/components/connection-status-reveal";
+import { useLiveServerRecovery } from "@/features/workspace/context/server-recovery-countdown";
 import {
   recoveryAttempt,
   recoveryCountdown,
@@ -15,8 +16,9 @@ import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { ErrorReference } from "@/shared/components/error-reference";
 import { useText } from "@/shared/lib/text";
 
-function StatusText({ server }: { server: MobileServer }) {
+function StatusText({ server: shown }: { server: MobileServer }) {
   const { t, sourceText } = useText();
+  const server = useLiveServerRecovery(shown);
   const recovery = server.recoveryStatus;
   const reconnecting = recovery && recovery.phase !== "online" && recovery.phase !== "suspended";
   const title = reconnecting ? t("mobile.workspace.status.reconnecting") : serverStatusLabel(server, t);

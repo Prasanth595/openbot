@@ -1,4 +1,4 @@
-import { Link as LinkIcon } from "lucide-react-native";
+import LinkIcon from "lucide-react-native/icons/link";
 import { memo } from "react";
 import { type ColorValue, View } from "react-native";
 

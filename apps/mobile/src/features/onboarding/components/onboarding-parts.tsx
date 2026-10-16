@@ -1,5 +1,5 @@
 import { Typography } from "heroui-native";
-import { ChevronLeft } from "lucide-react-native";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import type { ReactNode, RefObject } from "react";
 import { ScrollView, View } from "react-native";
 import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";

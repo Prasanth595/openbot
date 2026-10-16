@@ -54,6 +54,21 @@ export function applyServerRecovery(
   };
 }
 
+/** True when `next` differs from `server` only in the recovery countdown. */
+export function sameServerRecovery(server: MobileServer, next: MobileServer): boolean {
+  const previous = server.recoveryStatus;
+  const status = next.recoveryStatus;
+  return (
+    previous?.phase === status?.phase &&
+    previous?.attempt === status?.attempt &&
+    server.state === next.state &&
+    server.resuming === next.resuming &&
+    server.initialConnectionPending === next.initialConnectionPending &&
+    server.connectionFailure?.message === next.connectionFailure?.message &&
+    server.connectionFailure?.reference === next.connectionFailure?.reference
+  );
+}
+
 /** A lost connection reports attempt 0 while its first attempt is due; show that attempt. */
 export function recoveryAttempt(status: RemoteRecoveryStatus): number {
   return Math.max(1, status.attempt);

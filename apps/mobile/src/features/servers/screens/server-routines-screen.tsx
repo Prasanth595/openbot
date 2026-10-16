@@ -12,7 +12,10 @@ import {
 import { useQueries } from "@tanstack/react-query";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Typography } from "heroui-native";
-import { Check, ChevronDown, CirclePause, X } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import CirclePause from "lucide-react-native/icons/circle-pause";
+import X from "lucide-react-native/icons/x";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";

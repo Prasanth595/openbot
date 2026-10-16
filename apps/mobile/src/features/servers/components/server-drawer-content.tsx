@@ -2,7 +2,9 @@ import { type MenuAction, type MenuComponentRef, MenuView } from "@expo/ui/commu
 import type { MobileTranslate } from "@openbot/i18n/mobile";
 import type { Href } from "expo-router";
 import { Typography } from "heroui-native";
-import { Check, Plus, Settings } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import Plus from "lucide-react-native/icons/plus";
+import Settings from "lucide-react-native/icons/settings";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, View, type ViewStyle } from "react-native";
 import { useUniwind } from "uniwind";

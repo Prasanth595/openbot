@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, Stack, useNavigation } from "expo-router";
 import { usePreventRemove } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
-import { X } from "lucide-react-native";
+import X from "lucide-react-native/icons/x";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { AgentAppearancePicker } from "@/features/agents/components/agent-appearance-picker";

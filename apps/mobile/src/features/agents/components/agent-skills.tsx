@@ -5,7 +5,7 @@ import { type QueryKey, useQueryClient } from "@tanstack/react-query";
 import { Stack, useNavigation } from "expo-router";
 import { StackActions } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
-import { Plus } from "lucide-react-native";
+import Plus from "lucide-react-native/icons/plus";
 import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { useUniwind } from "uniwind";

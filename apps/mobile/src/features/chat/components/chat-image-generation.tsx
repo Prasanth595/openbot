@@ -3,7 +3,7 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import { Image } from "expo-image";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import { X } from "lucide-react-native";
+import X from "lucide-react-native/icons/x";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, useWindowDimensions, View } from "react-native";
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";

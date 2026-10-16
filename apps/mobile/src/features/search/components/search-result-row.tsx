@@ -1,28 +1,26 @@
 import { router } from "expo-router";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
-import {
-  Bell,
-  CalendarClock,
-  ChartColumn,
-  EyeOff,
-  File as FileIcon,
-  FileImage,
-  FileText,
-  Info,
-  Languages,
-  LifeBuoy,
-  type LucideIcon,
-  MonitorSmartphone,
-  Palette,
-  Radio,
-  Server,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
-  UsersRound,
-  Vibrate,
-} from "lucide-react-native";
+import type { LucideIcon } from "lucide-react-native";
+import Bell from "lucide-react-native/icons/bell";
+import CalendarClock from "lucide-react-native/icons/calendar-clock";
+import ChartColumn from "lucide-react-native/icons/chart-column";
+import EyeOff from "lucide-react-native/icons/eye-off";
+import FileIcon from "lucide-react-native/icons/file";
+import FileImage from "lucide-react-native/icons/file-image";
+import FileText from "lucide-react-native/icons/file-text";
+import Info from "lucide-react-native/icons/info";
+import Languages from "lucide-react-native/icons/languages";
+import LifeBuoy from "lucide-react-native/icons/life-buoy";
+import MonitorSmartphone from "lucide-react-native/icons/monitor-smartphone";
+import Palette from "lucide-react-native/icons/palette";
+import Radio from "lucide-react-native/icons/radio";
+import Server from "lucide-react-native/icons/server";
+import ShieldCheck from "lucide-react-native/icons/shield-check";
+import Sparkles from "lucide-react-native/icons/sparkles";
+import UserRound from "lucide-react-native/icons/user-round";
+import UsersRound from "lucide-react-native/icons/users-round";
+import Vibrate from "lucide-react-native/icons/vibrate";
 import { type ReactNode, useContext, useMemo } from "react";
 import { Pressable, View } from "react-native";
 

@@ -2,7 +2,7 @@ import MaskedView from "@react-native-masked-view/masked-view";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Typography } from "heroui-native";
-import { Monitor } from "lucide-react-native";
+import Monitor from "lucide-react-native/icons/monitor";
 import { useState } from "react";
 import { View } from "react-native";
 import Svg, { Path } from "react-native-svg";

@@ -1,7 +1,8 @@
 import { GlassView } from "expo-glass-effect";
 import { Link, router } from "expo-router";
 import { Typography } from "heroui-native";
-import { ArrowLeft, Globe } from "lucide-react-native";
+import ArrowLeft from "lucide-react-native/icons/arrow-left";
+import Globe from "lucide-react-native/icons/globe";
 import { Pressable, View, type ViewStyle } from "react-native";
 import { AgentPinAvatar } from "@/features/agents/components/agent-pin-avatar";
 import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
