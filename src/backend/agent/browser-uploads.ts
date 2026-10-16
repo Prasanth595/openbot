@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { ATTACHMENT_LIMITS } from "@openbot/contracts/input-limits";
-import { redactText } from "@openbot/logging";
+import { createOpenBotLogger, redactText } from "@openbot/logging";
 import { Effect, Exit, Fiber, Scope } from "effect";
 import {
   type AttachmentOperationError,
@@ -87,6 +87,8 @@ const removeUploadRoot = Effect.fn("BrowserUploads.removeRoot")((path: string) =
   ),
 );
 
+const logger = createOpenBotLogger("browser-uploads");
+
 const MAX_BROWSER_UPLOAD_INPUTS_PER_TAB = 10;
 const MAX_BROWSER_UPLOAD_BYTES_PER_TAB = ATTACHMENT_LIMITS.totalBytes;
 const MAX_BROWSER_UPLOAD_BYTES_TOTAL = ATTACHMENT_LIMITS.totalBytes * 2;
@@ -134,14 +136,10 @@ export class BrowserUploads {
     // "dynamic tool request failed", so the agent could not correct an ambiguous selector or a bad path.
     return yield* this.#stageAndAssign(agentId, params).pipe(
       Effect.catch((error) =>
-        Effect.succeed<DynamicToolResult>({
-          success: false,
-          contentItems: [
-            {
-              type: "inputText",
-              text: redactText(error.cause instanceof Error ? error.cause.message : String(error.cause)),
-            },
-          ],
+        Effect.sync((): DynamicToolResult => {
+          const text = redactText(error.cause instanceof Error ? error.cause.message : String(error.cause));
+          logger.warn("A browser upload failed.", { error: text });
+          return { success: false, contentItems: [{ type: "inputText", text }] };
         }),
       ),
     );

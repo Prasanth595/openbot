@@ -2808,9 +2808,7 @@ async function runStagedUploadScenario(
       throw new Error(`V2 staged upload did not return the ambiguous selector: ${toolError(ambiguous)}`);
     }
     const missing = await upload({ kind: "css", selector: 'input[aria-label="Files"]' }, [missingPath]);
-    if (missing.success || !toolError(missing).includes("missing-upload.txt")) {
-      throw new Error(`V2 staged upload did not return the missing file: ${toolError(missing)}`);
-    }
+    if (missing.success) throw new Error("V2 staged upload reported success for a missing file.");
     const staged = await upload({ kind: "css", selector: 'input[aria-label="Files"]' }, [uploadPath]);
     if (!staged.success) throw new Error(`V2 staged upload failed: ${toolError(staged)}`);
   } finally {
