@@ -1939,21 +1939,15 @@ export class ProviderRuntime implements ProviderPort {
 
   /**
    * Router arm: the CLI pushed new rate limits. The push is sparse, so a window it leaves out keeps its last
-   * value. A push that cannot be merged reads Codex again, as before. The readings of added accounts follow
-   * their own reads.
+   * value. A push for another bucket, or one that cannot be read, waits for the next reading. The readings of
+   * added accounts follow their own reads. The event holds every row, because the web client replaces its rows
+   * with each event; a provider that stopped reporting is left out, so its row does not come back.
    */
-  readonly applyPushedUsage = Effect.fn("ProviderRuntime.applyPushedUsage")(function* (
-    this: ProviderRuntime,
-    source: AgentClient,
-    params: unknown,
-  ) {
+  applyPushedUsage(source: AgentClient, params: unknown): void {
     const provider = source.provider;
     if (this.#clients.get(provider) !== source) return;
     const pushed = pushedUsageLimit(provider, params);
-    if (!pushed) {
-      if (provider === "codex") yield* this.#refreshUsage(source, undefined, false).pipe(Effect.ignore);
-      return;
-    }
+    if (!pushed) return;
     const kept = this.#lastUsage.get(provider);
     const limit = {
       ...kept,
@@ -1964,10 +1958,10 @@ export class ProviderRuntime implements ProviderPort {
     this.#usageUnreported.delete(provider);
     this.#lastUsage.set(provider, limit);
     const limits = [...this.#lastUsage]
-      .filter(([item]) => this.#clients.has(item) || this.#released.has(item))
+      .filter(([item]) => !this.#usageUnreported.has(item) && (this.#clients.has(item) || this.#released.has(item)))
       .map(([, item]) => item);
     this.#emit({ type: "usage-changed", usage: structuredClone({ limits }) });
-  }).bind(this);
+  }
 
   /** Refresh the notice once when one provider reports the same exhausted balance several ways. */
   readonly refreshUsageAfterLimit = Effect.fn("ProviderRuntime.refreshUsageAfterLimit")(function* (

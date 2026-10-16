@@ -548,7 +548,7 @@ export class TurnLifecycle {
         return;
       }
       case "account/rateLimits/updated": {
-        yield* this.#providers.applyPushedUsage(source, params);
+        this.#providers.applyPushedUsage(source, params);
         return;
       }
       case USAGE_LIMIT_METHOD: {

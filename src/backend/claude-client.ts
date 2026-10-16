@@ -1054,11 +1054,11 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
         turn.usageLimit = { resetsAt: claudeResetSeconds(info.resetsAt), text: turn.usageLimit?.text ?? null };
       }
       // The plan rings follow the turn, as with Codex, instead of waiting for the next reading.
-      const window = claudePushedWindow(info, this.#weeklyLimitKey);
-      if (window)
+      const windows = claudePushedWindows(info, this.#weeklyLimitKey);
+      if (windows)
         this.emit("notification", {
           method: "account/rateLimits/updated",
-          params: { rateLimits: { limitId: "claude", ...window } },
+          params: { rateLimits: { limitId: "claude", ...windows } },
         });
       return;
     }
@@ -1736,19 +1736,35 @@ function claudeWeeklyKey(rateLimits: DynamicRecord, model: string | null): strin
 }
 
 /**
- * The window that a live `rate_limit_event` reports, in the shape of a reading. The event sends `utilization` as a
- * fraction of 1, where the usage reading sends a percent.
+ * The windows that a live `rate_limit_event` reports, in the shape of a reading. The CLI sends both windows in
+ * `unifiedWindows` on each event. Before its first such response, and in an older CLI, the event holds only the
+ * window of `rateLimitType`, at the top level. `unifiedWindows` has no model-family weekly window, so a reading
+ * that shows one keeps it.
  */
-function claudePushedWindow(
+function claudePushedWindows(
   info: DynamicRecord,
   weeklyKey: string,
-): { primary: AccountRateLimitWindowResult } | { secondary: AccountRateLimitWindowResult } | null {
-  const utilization = numberValue(info.utilization);
-  if (utilization === null || utilization < 0 || utilization > 1) return null;
-  const window = { usedPercent: utilization * 100, resetsAt: claudeResetSeconds(info.resetsAt) };
-  if (info.rateLimitType === "five_hour") return { primary: { ...window, windowDurationMins: 300 } };
-  if (info.rateLimitType === weeklyKey) return { secondary: { ...window, windowDurationMins: 10_080 } };
-  return null;
+): { primary?: AccountRateLimitWindowResult; secondary?: AccountRateLimitWindowResult } | null {
+  const windows = isDynamicRecord(info.unifiedWindows)
+    ? info.unifiedWindows
+    : isString(info.rateLimitType)
+      ? { [info.rateLimitType]: info }
+      : {};
+  const primary = claudePushedWindow(windows.five_hour, 300);
+  const secondary = claudePushedWindow(windows[weeklyKey], 10_080);
+  if (!primary && !secondary) return null;
+  return { ...(primary && { primary }), ...(secondary && { secondary }) };
+}
+
+/**
+ * The event sends `utilization` as a fraction of 1, where the usage reading sends a percent. A value above 1 is
+ * usage past the cap, so it is kept, as a reading keeps a percent above 100.
+ */
+function claudePushedWindow(value: unknown, windowDurationMins: number): AccountRateLimitWindowResult | null {
+  if (!isDynamicRecord(value)) return null;
+  const utilization = numberValue(value.utilization);
+  if (utilization === null || utilization < 0) return null;
+  return { usedPercent: utilization * 100, windowDurationMins, resetsAt: claudeResetSeconds(value.resetsAt) };
 }
 
 function claudeUsageWindow(value: unknown, windowDurationMins: number): AccountRateLimitWindowResult | null {
