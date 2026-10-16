@@ -14,10 +14,6 @@ runtime_config="/tmp/openbot-turnserver.conf"
 cp /etc/coturn/openbot.conf "$runtime_config"
 {
   echo "external-ip=${TURN_PUBLIC_IP}"
-  # The relay must not send to this host's own address. `external-ip` can be `<public>/<private>`.
-  for address in $(printf '%s' "$TURN_PUBLIC_IP" | tr '/' ' '); do
-    echo "denied-peer-ip=${address}"
-  done
   echo "realm=${TURN_REALM}"
   echo "server-name=${TURN_REALM}"
   echo "static-auth-secret=${TURN_SHARED_SECRET}"
