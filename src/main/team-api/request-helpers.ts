@@ -45,11 +45,14 @@ import {
   TEAM_PROTOCOL_V1,
   TEAM_PROTOCOL_VERSION_HEADER,
 } from "@openbot/contracts/team-protocol/v1";
+import { TEAM_PROTOCOL_V2_MAX_JSON_FRAME_BYTES } from "@openbot/contracts/team-protocol/v2";
 import { sourceText } from "@openbot/i18n/source";
 import { readBodyWithin } from "../http-body";
 import { HttpError } from "./http-error";
 
 export const JSON_LIMIT = 1024 * 1024;
+/** A response body leaves room in one WebRTC frame for the response envelope around it. */
+export const WEBRTC_FRAME_BODY_BUDGET = Math.floor(TEAM_PROTOCOL_V2_MAX_JSON_FRAME_BYTES * 0.75);
 
 export function requestCapabilities(request: IncomingMessage): Set<string> {
   const header = request.headers[TEAM_CAPABILITIES_HEADER.toLowerCase()];

@@ -8,7 +8,6 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { isMessageReaction } from "@openbot/contracts/ipc";
 import { isString } from "@openbot/contracts/runtime-values";
-import { TEAM_PROTOCOL_V2_MAX_JSON_FRAME_BYTES } from "@openbot/contracts/team-protocol/v2";
 import { TEAM_PROTOCOL_V3 } from "@openbot/contracts/team-protocol/v3";
 import { sourceText } from "@openbot/i18n/source";
 import { runCauseEffect } from "../../backend/effect-boundary";
@@ -26,10 +25,8 @@ import {
   requireListedAgent,
   stringArray,
   stringField,
+  WEBRTC_FRAME_BODY_BUDGET,
 } from "./request-helpers";
-
-/** A page leaves room in one WebRTC frame for the response envelope around it. */
-const PAGE_BYTE_BUDGET = Math.floor(TEAM_PROTOCOL_V2_MAX_JSON_FRAME_BYTES * 0.75);
 
 export interface AgentConversationRouteDependencies {
   agents: Pick<
@@ -64,7 +61,7 @@ export async function routeAgentConversation(
     // rest as older pages. A page larger than the frame cannot reach a remote client.
     for (let limit = pageLimit(url); ; limit = Math.floor(limit / 2)) {
       const page = await runCauseEffect(agents.readConversationPageFor(agentId, member.id, anchor, limit, exclusions));
-      if (Buffer.byteLength(JSON.stringify(page)) <= PAGE_BYTE_BUDGET) return json(200, page);
+      if (Buffer.byteLength(JSON.stringify(page)) <= WEBRTC_FRAME_BODY_BUDGET) return json(200, page);
       if (limit === 1) throw new HttpError(413, sourceText("error.team.conversationPageTooLarge"));
     }
   }
