@@ -28,7 +28,6 @@ import { WorkspaceServerRail } from "./features/servers/WorkspaceServerRail";
 import { useSettings } from "./features/settings/settings-context";
 import { WorkspaceSidebar } from "./features/sidebar/WorkspaceSidebar";
 import { createHostRestartToasts, type HostRestartView } from "./features/updates/host-restart-toast";
-import { UsagePlanLimits, useRefreshPlanLimits } from "./features/usage/UsagePlanLimits";
 import { useUsage } from "./features/usage/usage-context";
 import { SettingsPage } from "./features/window/SettingsPage";
 import { WorkspacePageRail } from "./features/window/WorkspacePageRail";
@@ -72,7 +71,6 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
     if (page === "settings") return "personal";
     return page === "server-settings" ? "server" : null;
   };
-  const refreshPlanLimits = useRefreshPlanLimits();
   useAccountUsagePolling();
   const layout = useLayout();
   const {
@@ -249,8 +247,6 @@ export function WorkspaceShell(props: { account: () => CentralAuthUser }) {
                         hostName={servers().find((server) => server.id === serverId())?.name ?? "Host"}
                         agentId={usage.state.agentId}
                         onBack={usage.closeUsage}
-                        limits={<UsagePlanLimits />}
-                        onRefresh={refreshPlanLimits}
                       />
                     </Loading>
                   }

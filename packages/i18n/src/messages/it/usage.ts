@@ -64,7 +64,6 @@ export const messages = {
   "usage.panel.metric": "Metrica dell'utilizzo",
   "usage.panel.period": "Periodo dell'utilizzo",
   "usage.panel.refresh": "Aggiorna l'utilizzo",
-  "usage.panel.planLimits": "Limiti del piano",
   "usage.panel.loading": "Caricamento dell'utilizzo…",
   "usage.panel.unsupported":
     "Questo host non supporta le analisi degli agenti. Aggiorna l'host per usare questa vista.",
