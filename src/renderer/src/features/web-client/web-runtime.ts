@@ -82,6 +82,7 @@ import {
   WORKSPACE_DIRECTORY_ROUTES,
 } from "@openbot/contracts/team-protocol/workspace-directory-v1";
 import { runTeamEffect } from "@openbot/team-client";
+import { bytesToBase64 } from "@openbot/team-client/base64";
 import { createRemoteBrowserView, type RemoteBrowserView } from "@openbot/team-client/browser-view";
 import {
   RemoteDirectoryError,
@@ -874,13 +875,11 @@ export function createWebWorkspaceRuntime(
         await request("DELETE", TEAM_API_ROUTES.agent.avatar(agentId));
         return;
       }
-      let binary = "";
-      for (const byte of image.bytes) binary += String.fromCharCode(byte);
       await request(
         "PUT",
         TEAM_API_ROUTES.agent.avatar(agentId),
         {},
-        { name: "avatar", mimeType: image.mimeType, base64: btoa(binary) },
+        { name: "avatar", mimeType: image.mimeType, base64: bytesToBase64(image.bytes) },
       );
     },
     async send(id, text, attachmentDraftIds, replyToMessageId = null, clientMessageId) {
@@ -930,11 +929,9 @@ export function createWebWorkspaceRuntime(
       const bytes = new Uint8Array(await file.arrayBuffer());
       if (currentUpload !== uploadGeneration || uploadHostGeneration !== generation)
         throw new Error(currentText().t("webClient.error.uploadCancelled"));
-      let binary = "";
-      for (const byte of bytes) binary += String.fromCharCode(byte);
       const mimeType = file.type || "application/octet-stream";
       const value = await Effect.runPromise(
-        uploadAttachmentDraft(teamApi, { name: file.name, mimeType, base64: btoa(binary) }).pipe(
+        uploadAttachmentDraft(teamApi, { name: file.name, mimeType, base64: bytesToBase64(bytes) }).pipe(
           Effect.mapError((error) => error.cause),
         ),
       );

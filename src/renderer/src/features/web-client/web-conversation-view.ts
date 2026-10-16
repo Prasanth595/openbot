@@ -1,6 +1,11 @@
-import type { AgentEvent, RespondToApprovalInput, RespondToPromptInput } from "@openbot/contracts/ipc";
+import type {
+  AgentEvent,
+  ConversationMessage,
+  RespondToApprovalInput,
+  RespondToPromptInput,
+} from "@openbot/contracts/ipc";
 import type { AgentMessage } from "@openbot/ui/data";
-import { createEffect, createMemo, createProjection, createSignal } from "solid-js";
+import { createEffect, createMemo, createProjection, createSignal, mapArray } from "solid-js";
 import { toAgentMessage, toAgentMessages } from "../../app-message-projection";
 import type { createRemoteAgentAdmin } from "../agents/remote-agent-admin";
 import type { WebWorkspace } from "./web-client-context";
@@ -87,15 +92,26 @@ export function createWebConversationView(options: {
       questions: message.questionPrompt.questions,
     };
   });
+  const storedMessages = () => workspace.conversation()?.page?.messages ?? [];
+  const row = (message: ConversationMessage) =>
+    withoutPreviewUrls(toAgentMessage(message, workspace.state.selectedId ?? undefined));
   /**
-   * A stream chunk changes the text of one stored message, and this projection runs again. The
-   * result is reconciled by id, so the other messages keep their objects and their rows.
+   * One row per stored message, each in its own memo: a stream chunk changes the text of one message,
+   * and only that message is converted again.
    */
+  const rows = mapArray(storedMessages, (message) => createMemo(() => row(message())), {
+    keyed: (message) => message.id,
+  });
+  /** The rows, with the thinking of a turn joined. The result is reconciled by id, so the other messages keep their rows. */
   const messages = createProjection<AgentMessage[]>(
-    () =>
-      toAgentMessages(workspace.conversation()?.page?.messages ?? [], workspace.state.selectedId ?? undefined).map(
-        withoutPreviewUrls,
-      ),
+    () => {
+      const converted = rows();
+      return toAgentMessages(
+        storedMessages(),
+        workspace.state.selectedId ?? undefined,
+        (message, index) => converted[index]?.() ?? row(message),
+      );
+    },
     [],
     { key: "id" },
   );

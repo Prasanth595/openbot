@@ -212,6 +212,8 @@ export function createWebWorkspace(
   let acceptedInvite: { inviteUrl: string; host: RemoteTeamHost } | null = null;
   /** Set when a revoked session connects again by itself; cleared when the host is online. */
   let revokedReconnect = false;
+  /** When the last full read of the open host ended. The events keep the state current after it. */
+  let syncedAt = 0;
   /** The queue read in flight by agent. An event during a read asks for one more read. */
   const queueLoads = new Map<string, { generation: number; again: boolean }>();
   /** Counts queue snapshots from events by agent. A read that started before a newer snapshot is dropped. */
@@ -315,6 +317,7 @@ export function createWebWorkspace(
           (update.state === "offline" || update.hostOffline === true) && !update.code && !state.hostRestart;
         setState((draft) => {
           if (update.state !== "online") draft.status = update.state;
+          if (update.state !== "online") syncedAt = 0;
           const text = currentText();
           const reference = update.reference ?? null;
           // An update without a reason keeps the last failure on screen. A working connection clears it.
@@ -498,18 +501,9 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.userHiddenAgents = event.agents;
           });
-        if (
-          [
-            "conversation",
-            "conversation-page",
-            "conversation-invalidated",
-            "turn-started",
-            "turn-completed",
-            "prompt",
-            "agent-input-resolved",
-          ].includes(event.type)
-        )
-          void refresh();
+        // A read loads only the open conversation, so the events of other agents do not start one.
+        const changed = changedConversation(event);
+        if (changed !== undefined && changed === selectedId) void refresh();
       },
     },
     props.accountFetch,
@@ -906,6 +900,7 @@ export function createWebWorkspace(
         draft.connectionError = null;
         draft.status = "online";
       });
+      syncedAt = Date.now();
       void loadPanels(
         capabilities,
         agents.map((agent) => agent.id),
@@ -1086,7 +1081,9 @@ export function createWebWorkspace(
   function applyDelta(event: Extract<AgentEvent, { type: "conversation-delta" }>) {
     if (disposed || event.agentId !== selectedId) return;
     if (conversationReads.has(event.agentId)) {
-      heldDeltas.set(event.agentId, [...(heldDeltas.get(event.agentId) ?? []), event]);
+      const held = heldDeltas.get(event.agentId);
+      if (held) held.push(event);
+      else heldDeltas.set(event.agentId, [event]);
       return;
     }
     let otherThread = false;
@@ -1099,7 +1096,8 @@ export function createWebWorkspace(
         return;
       }
       if (event.revision <= value.revision) return;
-      const message = value.messages.find((item) => item.id === event.messageId);
+      // The streamed message is at the end of the page.
+      const message = value.messages.findLast((item) => item.id === event.messageId);
       if (message) {
         message.text += event.delta;
         message.status = "streaming";
@@ -1178,15 +1176,20 @@ export function createWebWorkspace(
   async function resync() {
     const current = generation;
     try {
-      const agents = await runtime.listAgents();
-      if (disposed || current !== generation) return;
-      const sidebarLayout = await readSidebarLayout(
-        state.capabilities,
-        agents.map((agent) => agent.id),
-      );
       // A hide on another device can land while this tab is offline, and the event is then lost.
-      const userHiddenAgents = await readUserHiddenAgents(state.capabilities);
+      const [{ agents, sidebarLayout }, userHiddenAgents] = await Promise.all([
+        // The layout read needs the agent ids.
+        runtime.listAgents().then(async (agents) => ({
+          agents,
+          sidebarLayout: await readSidebarLayout(
+            state.capabilities,
+            agents.map((agent) => agent.id),
+          ),
+        })),
+        readUserHiddenAgents(state.capabilities),
+      ]);
       if (disposed || current !== generation) return;
+      syncedAt = Date.now();
       reconcileAgents(agents);
       setState((draft) => {
         if (sidebarLayout.revision >= draft.sidebarLayout.revision) draft.sidebarLayout = sidebarLayout;
@@ -1325,7 +1328,9 @@ export function createWebWorkspace(
         .onSessionCheck()
         .then(() => refreshHosts())
         .then(() => {
-          if (state.status === "online") return resync();
+          // While the host stays online, its events keep the workspace current. A focus soon after a
+          // full read, such as a switch between windows, does not read the host again.
+          if (state.status === "online") return Date.now() - syncedAt < FOCUS_RESYNC_MS ? undefined : resync();
           if (state.recovery?.phase !== "suspended") recover();
         })
         .catch(report);
@@ -1660,4 +1665,25 @@ export function createWebWorkspace(
       });
     },
   };
+}
+
+/** A focus within this time after a full read of an online host does not read it again. */
+const FOCUS_RESYNC_MS = 30_000;
+
+/** The agent whose conversation an event changes, for the events that can change it. */
+function changedConversation(event: AgentEvent | TeamRealtimeEvent): string | undefined {
+  switch (event.type) {
+    case "conversation":
+      return event.snapshot.agentId;
+    case "conversation-page":
+      return event.page.agentId;
+    case "conversation-invalidated":
+    case "turn-started":
+    case "turn-completed":
+    case "prompt":
+    case "agent-input-resolved":
+      return event.agentId;
+    default:
+      return undefined;
+  }
 }
