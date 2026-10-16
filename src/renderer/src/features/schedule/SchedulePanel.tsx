@@ -8,7 +8,7 @@ import {
   type RoutineCalendarRoutine,
   type RoutineCalendarStatus,
 } from "@openbot/ui/features/conversation/RoutineCalendar";
-import { createMemo, createSignal, createStore, onSettled } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { useNavigation } from "../../navigation";
 import { useAgents } from "../agents/agents-context";
 import { useChannels } from "../channels/channels-context";
@@ -130,8 +130,18 @@ export function SchedulePanel(props: SchedulePanelProps) {
     setSettingsRequest({ agentId, nonce: Date.now(), routine: { routineId, name: routine.name } });
   }
 
+  // The panel can mount before the open pane follows a server switch, so the server can change under it.
+  createEffect(
+    () => props.serverId,
+    () => {
+      setState((draft) => {
+        draft.calendar = null;
+      });
+      void load();
+    },
+  );
+
   onSettled(() => {
-    void load();
     const unsubscribe = port().agent.onScopedEvent(({ serverId, event }) => {
       if (serverId !== props.serverId) return;
       if (
