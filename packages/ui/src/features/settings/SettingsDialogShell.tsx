@@ -131,6 +131,8 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
   const [canScrollDown, setCanScrollDown] = createSignal(false);
   let closeTimer: number | undefined;
   let restoreTarget: HTMLElement | null = untrack(() => props.restoreFocusTarget ?? null);
+  /** A page has no closing motion. Its placement goes when it closes, so the dialog must not show for the motion. */
+  const [shownAsPage, setShownAsPage] = createSignal(false);
   let restoreFrame: number | undefined;
   let modalElement: HTMLElement | undefined;
   let scrollElement: HTMLDivElement | undefined;
@@ -173,6 +175,13 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
   );
 
   createEffect(
+    () => props.page,
+    (page) => {
+      if (page) setShownAsPage(true);
+    },
+  );
+
+  createEffect(
     () => ({ open: props.open, restoreFocusTarget: props.restoreFocusTarget }),
     ({ open, restoreFocusTarget }) => {
       clearCloseTimer();
@@ -190,6 +199,13 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
       }
 
       if (!isRendered) return;
+      if (untrack(shownAsPage)) {
+        setShownAsPage(false);
+        setRendered(false);
+        setClosing(false);
+        restoreFocus();
+        return;
+      }
       setClosing(true);
       closeTimer = window.setTimeout(() => {
         closeTimer = undefined;
@@ -261,7 +277,7 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
 
   function dialog() {
     return (
-      <Dialog.Root open={rendered()} onOpenChange={requestOpenChange}>
+      <Dialog.Root open={rendered() && !shownAsPage()} onOpenChange={requestOpenChange}>
         <Dialog.Portal>
           <Dialog.Overlay
             class="settings-modal-backdrop"
