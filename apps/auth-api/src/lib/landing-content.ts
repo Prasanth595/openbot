@@ -153,6 +153,24 @@ export const LANDING_NETWORK_EGGS = {
     "Who turned off the lights?",
     "Five more minutes.",
   ],
+  /** Agents answer a click: a signal from the hub, or a new network that grows from an agent. */
+  chats: [
+    "On it.",
+    "Got it. Starting now.",
+    "Tests pass on my side.",
+    "I can take the review.",
+    "I pushed a fix.",
+    "Who has the Safari task?",
+    "Done. Over to you.",
+    "I need one more file.",
+    "Merged.",
+    "The build is green.",
+    "I found the bug.",
+    "Can someone review my branch?",
+    "Ship it.",
+    "Give me five minutes.",
+    "I wrote the release notes.",
+  ],
   /** An agent under a still pointer. */
   hover: [
     "I only look busy.",

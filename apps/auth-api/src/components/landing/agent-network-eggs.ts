@@ -34,6 +34,8 @@ const IDLE_MS = 8000;
 /** Milliseconds that the pointer stays on an agent before the agent talks. */
 const HOVER_MS = 1100;
 const ROLL_SECONDS = 1.6;
+/** A click adds no chat while this many agents talk. */
+const MAX_TALKERS = 4;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 const easeInOutCubic = (value: number) => (value < 0.5 ? 4 * value ** 3 : 1 - (-2 * value + 2) ** 3 / 2);
@@ -67,6 +69,10 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
   let dim = 0;
   let dimAt = 0;
   let hover = { node: -1, since: 0, spoken: false };
+  /** True when a new network is to chat when it is complete. */
+  let chatWhenComplete = false;
+  /** The page time at which the network was complete, or -1. A visitor who watches it grow is not idle. */
+  let completedAt = -1;
 
   const point = (t: number, index: number) => agentNetworkNodePoint(host.network(), view, t, index);
   const hubIndex = () => host.network().nodes.findIndex((node) => node.avatar === -1);
@@ -74,7 +80,8 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
   const speaker = () => Math.max(0, hubIndex());
   /**
    * Up to `count` agents on screen, large ones first with some chance, far enough apart that their
-   * bubbles do not overlap. Agents near the heading do not count: their bubbles go under it.
+   * bubbles do not overlap, also with the bubbles that show now. Agents near the heading do not
+   * count: their bubbles go under it.
    */
   const spreadAgents = (count: number, gap = 190) => {
     const t = now();
@@ -92,11 +99,12 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
       )
       .sort((a, b) => (b.at?.radius ?? 0) - (a.at?.radius ?? 0) + (Math.random() - 0.5) * 6);
     const hub = point(t, speaker());
+    const talking = bubbles.filter((bubble) => bubble.until >= t).flatMap((bubble) => point(t, bubble.node) ?? []);
     const chosen: { x: number; y: number; index: number }[] = [];
     for (const { index, at } of candidates) {
       if (!at || chosen.length >= count) continue;
       if (hub && Math.hypot(hub.x - at.x, hub.y - at.y) < gap * 0.8) continue;
-      if (chosen.some((other) => Math.hypot(other.x - at.x, other.y - at.y) < gap)) continue;
+      if ([...talking, ...chosen].some((other) => Math.hypot(other.x - at.x, other.y - at.y) < gap)) continue;
       chosen.push({ x: at.x, y: at.y, index });
     }
     return chosen.map((entry) => entry.index);
@@ -117,6 +125,12 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
   const signal = (style: HubSignalStyle, delay = 0) => host.signal(style, now() + delay);
   const randomSignal = (delay = 0) =>
     signal(HUB_SIGNAL_STYLES[Math.floor(Math.random() * HUB_SIGNAL_STYLES.length)] ?? "ripple", delay);
+  /** Up to `count` agents chat after `delay`, when there is room. */
+  const chat = (count: number, delay: number) => {
+    const t = now();
+    const talkers = new Set(bubbles.filter((bubble) => bubble.until >= t).map((bubble) => bubble.node)).size;
+    chorus(spreadAgents(Math.min(count, MAX_TALKERS - talkers)), LANDING_NETWORK_EGGS.chats, delay, 0.45, 2.6);
+  };
   const startShake = (length: number, size: number) => {
     shake = { at: now(), until: now() + length, size };
   };
@@ -177,11 +191,20 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
       context.globalAlpha = 1;
     },
 
-    /** Call it each frame: a complete network with no input falls asleep, and an agent under a still pointer talks. */
+    /**
+     * Call it each frame: a new network chats when it is complete, a complete network with no input
+     * falls asleep, and an agent under a still pointer talks.
+     */
     tick() {
       const t = now();
       const stamp = performance.now();
-      if (t >= host.network().end && !sleep.asleep && stamp - lastInput > IDLE_MS) {
+      if (t < host.network().end) return;
+      if (completedAt < 0) completedAt = stamp;
+      if (chatWhenComplete) {
+        chatWhenComplete = false;
+        chat(2 + Math.floor(Math.random() * 2), 0.2);
+      }
+      if (!sleep.asleep && stamp - Math.max(lastInput, completedAt) > IDLE_MS) {
         bubbles = [];
         const hub = hubIndex();
         sleep = { asleep: true, at: t, sleepers: [...spreadAgents(9, 120), ...(hub >= 0 ? [hub] : [])] };
@@ -206,7 +229,10 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
       chorus(spreadAgents(3), LANDING_NETWORK_EGGS.wake, 0.3, 0.35, 2.4);
     },
 
-    /** A click on the hub. A quick streak of clicks makes the hub answer, then shake, then sneeze. */
+    /**
+     * A click on the hub. One or two agents answer the signal. A quick streak of clicks makes the
+     * hub answer, then shake, then sneeze.
+     */
     poke() {
       const t = now();
       pokes = { count: t - pokes.last < POKE_STREAK_GAP ? pokes.count + 1 : 1, last: t };
@@ -226,7 +252,9 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
         for (const style of HUB_SIGNAL_STYLES) signal(style, 0.05);
         chorus(spreadAgents(5), LANDING_NETWORK_EGGS.blessings, 0.9, 0.2, 2);
         pokes = { count: 0, last: -10 };
+        return;
       }
+      if (pokes.count !== 5) chat(1 + Math.floor(Math.random() * 2), 0.5);
     },
 
     /** A key on the page. Secret words: "hello", "party", "sudo", and the Konami code. Keys in a field do not count. */
@@ -260,8 +288,10 @@ export function createAgentNetworkEggs(host: AgentNetworkEggsHost) {
       }
     },
 
-    /** A new network starts with no egg running. */
+    /** A new network starts with no egg running, and chats when it is complete. */
     reset() {
+      chatWhenComplete = true;
+      completedAt = -1;
       bubbles = [];
       shake = { at: -1, until: -1, size: 0 };
       roll = { at: -1, until: -1 };
