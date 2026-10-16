@@ -3864,9 +3864,12 @@ describe("OpenBotDatabase", () => {
     // A crash or a kill leaves the write-ahead log; a clean close removes it.
     await writeFile(`${path}-wal`, "");
 
-    await expect(runCauseEffect(new OpenBotDatabase(userDataPath).initialize())).rejects.toThrow(
-      sourceText("error.backend.databaseIntegrity"),
-    );
+    // The failed start closes the database, which removes the log; the next start must fail again.
+    for (const _start of [1, 2]) {
+      await expect(runCauseEffect(new OpenBotDatabase(userDataPath).initialize())).rejects.toThrow(
+        sourceText("error.backend.databaseIntegrity"),
+      );
+    }
   });
 
   it("does not read the full file at a start after a clean close", async () => {
@@ -3887,9 +3890,12 @@ describe("OpenBotDatabase", () => {
     database.connection.exec("DROP TABLE projection_agent_tasks; DELETE FROM schema_migrations WHERE version = 38");
     damageProbeTable(database);
 
-    await expect(runCauseEffect(new OpenBotDatabase(userDataPath).initialize())).rejects.toThrow(
-      sourceText("error.backend.databaseIntegrity"),
-    );
+    // The first start applies the migration; the second has none to run and must still check.
+    for (const _start of [1, 2]) {
+      await expect(runCauseEffect(new OpenBotDatabase(userDataPath).initialize())).rejects.toThrow(
+        sourceText("error.backend.databaseIntegrity"),
+      );
+    }
   });
 });
 

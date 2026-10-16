@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import { chmod, copyFile, mkdir, readFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -88,6 +88,9 @@ export class DatabaseCore {
         db.close();
         this.#db = null;
       });
+      // The close removed the write-ahead log. An empty one makes the next start run the check again,
+      // so a database that failed it does not open at the next start.
+      yield* storedSync(() => appendFileSync(`${this.path}-wal`, "", { mode: 0o600 })).pipe(Effect.ignore);
       return yield* configured.failure;
     }
   }, Effect.uninterruptible);
