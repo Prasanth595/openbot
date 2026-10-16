@@ -1,13 +1,15 @@
 import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/bloub-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
-import { memo, useCallback, useId, useMemo, useState } from "react";
+import { memo, useMemo } from "react";
 import Animated, {
+  convertToRGBA,
   type DerivedValue,
   type SharedValue,
   useAnimatedProps,
   useAnimatedStyle,
+  useDerivedValue,
 } from "react-native-reanimated";
-import Svg, { Circle, Defs, FeColorMatrix, Filter, G, Path } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 import { useAgentColorTransition } from "@/features/agents/components/agent-color-glow";
 import { AgentOrbitRings } from "@/features/agents/components/agent-orbit-rings";
 import { useBloubActivityFrame } from "@/features/agents/components/use-bloub-activity-frame";
@@ -37,7 +39,6 @@ interface BloubAvatarProps extends AgentPhotoProps {
 }
 
 const AVATAR_PAPER = "#f9f9f9";
-const AnimatedColorMatrix = Animated.createAnimatedComponent(FeColorMatrix);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -46,9 +47,20 @@ function AvatarEye({ frame, index }: { frame: DerivedValue<BloubActivityFrame>; 
   return <AnimatedPath fill={AVATAR_PAPER} animatedProps={props} />;
 }
 
-function AvatarDot({ frame, index, color }: { frame: DerivedValue<BloubActivityFrame>; index: number; color: string }) {
-  const props = useAnimatedProps(() => frame.get().dots[index] ?? { cx: 0, cy: 0, r: 0, opacity: 0 });
-  return <AnimatedCircle fill={color} animatedProps={props} />;
+function AvatarDot({
+  frame,
+  index,
+  color,
+}: {
+  frame: DerivedValue<BloubActivityFrame>;
+  index: number;
+  color: DerivedValue<string>;
+}) {
+  const props = useAnimatedProps(() => ({
+    ...(frame.get().dots[index] ?? { cx: 0, cy: 0, r: 0, opacity: 0 }),
+    fill: color.get(),
+  }));
+  return <AnimatedCircle animatedProps={props} />;
 }
 
 export function BloubAvatar({
@@ -116,19 +128,14 @@ const AnimatedAvatarPreview = memo(function AnimatedAvatarPreview({
   animateIdle = true,
   animatedColor,
 }: Omit<BloubAvatarProps, "agentId"> & AvatarPreviewOptions) {
-  // Android draws a filtered group off screen on every redraw. The gray filter applies only while
-  // the avatar is offline or returns to its colour, where saturation is not 1.
-  const [filtered, setFiltered] = useState(disconnected);
-  if (disconnected && !filtered) setFiltered(true);
-  const releaseFilter = useCallback((settledDisconnected: boolean) => {
-    if (!settledDisconnected) setFiltered(false);
-  }, []);
-  const appearance = useConnectionAppearance(disconnected, filtered ? releaseFilter : undefined);
-  const colorProps = useAnimatedProps(() => ({ values: [appearance.get().saturation] }));
+  const appearance = useConnectionAppearance(disconnected);
   const appearanceStyle = useAnimatedStyle(() => ({ opacity: appearance.get().opacity }));
   const frame = useBloubActivityFrame(seed, mood, animateIdle && !disconnected);
-  const filterId = `bloub-${useId().replaceAll(":", "")}-offline`;
   const color = getBloubAvatarColor(seed, hue);
+  const bodyColor = useDerivedValue(() =>
+    saturateColor(animatedColor ? animatedColor.get() : color, appearance.get().saturation),
+  );
+  const dotColor = useDerivedValue(() => saturateColor(color, appearance.get().saturation));
 
   // The opacity stays on the native view: react-native-svg on Android crashes with
   // "Underflow in restore" when a filtered <G> has an opacity other than 1.
@@ -142,40 +149,22 @@ const AnimatedAvatarPreview = memo(function AnimatedAvatarPreview({
         viewBox="-158 -158 316 316"
         width={size}
       >
-        {filtered ? (
-          <Defs>
-            <Filter id={filterId}>
-              <AnimatedColorMatrix type="saturate" animatedProps={colorProps} />
-            </Filter>
-          </Defs>
-        ) : null}
         {/* Mobile-only feedback: keep the synced avatar profile and color untouched. */}
-        <G filter={filtered ? `url(#${filterId})` : undefined}>
-          {/* The body and eyes are opaque in every pose the phone plays, so paper eyes on the coloured
-              body draw what a body mask with cut-out eyes drew, without a mask layer on each redraw. */}
-          <AvatarBody frame={frame} color={animatedColor ?? color} />
-          <AvatarEye frame={frame} index={0} />
-          <AvatarEye frame={frame} index={1} />
-          <AvatarDot frame={frame} index={0} color={color} />
-          <AvatarDot frame={frame} index={1} color={color} />
-          <AvatarDot frame={frame} index={2} color={color} />
-        </G>
+        {/* The body and eyes are opaque in every pose the phone plays, so paper eyes on the coloured
+            body draw what a body mask with cut-out eyes drew, without a mask layer on each redraw. */}
+        <AvatarBody frame={frame} color={bodyColor} />
+        <AvatarEye frame={frame} index={0} />
+        <AvatarEye frame={frame} index={1} />
+        <AvatarDot frame={frame} index={0} color={dotColor} />
+        <AvatarDot frame={frame} index={1} color={dotColor} />
+        <AvatarDot frame={frame} index={2} color={dotColor} />
       </Svg>
     </Animated.View>
   );
 });
 
-function AvatarBody({
-  frame,
-  color,
-}: {
-  frame: DerivedValue<BloubActivityFrame>;
-  color: string | SharedValue<string>;
-}) {
-  const props = useAnimatedProps(() => ({
-    ...frame.get().body,
-    fill: typeof color === "string" ? color : color.get(),
-  }));
+function AvatarBody({ frame, color }: { frame: DerivedValue<BloubActivityFrame>; color: DerivedValue<string> }) {
+  const props = useAnimatedProps(() => ({ ...frame.get().body, fill: color.get() }));
   return <AnimatedPath animatedProps={props} />;
 }
 
@@ -241,6 +230,15 @@ function AnimatedThumbnailBody({ d, color, opacity }: { d: string; color: string
   const animated = useAgentColorTransition(color);
   const props = useAnimatedProps(() => ({ fill: animated.get() }));
   return <AnimatedPath d={d} opacity={opacity} animatedProps={props} />;
+}
+
+function saturateColor(color: string, saturation: number) {
+  "worklet";
+  if (saturation >= 1) return color;
+  const [r, g, b, a] = convertToRGBA(color);
+  const gray = r * 0.213 + g * 0.715 + b * 0.072;
+  const channel = (value: number) => Math.round((gray + (value - gray) * saturation) * 255);
+  return `rgba(${channel(r)}, ${channel(g)}, ${channel(b)}, ${a})`;
 }
 
 export function thumbnailColor(color: string, disconnected: boolean) {

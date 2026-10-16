@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { Easing, ReduceMotion, useDerivedValue, useSharedValue, withTiming } from "react-native-reanimated";
-import { scheduleOnRN } from "react-native-worklets";
 
 export const DISCONNECTED_APPEARANCE = { saturation: 0.15, opacity: 0.6 };
 
@@ -10,17 +9,12 @@ const CONNECTION_TRANSITION = {
   reduceMotion: ReduceMotion.System,
 };
 
-/** `onSettled` runs when the appearance reaches the state of `disconnected`. */
-export function useConnectionAppearance(disconnected: boolean, onSettled?: (disconnected: boolean) => void) {
+export function useConnectionAppearance(disconnected: boolean) {
   const faded = useSharedValue(disconnected ? 1 : 0);
 
   useEffect(() => {
-    faded.set(
-      withTiming(disconnected ? 1 : 0, CONNECTION_TRANSITION, (finished) => {
-        if (finished && onSettled) scheduleOnRN(onSettled, disconnected);
-      }),
-    );
-  }, [disconnected, faded, onSettled]);
+    faded.set(withTiming(disconnected ? 1 : 0, CONNECTION_TRANSITION));
+  }, [disconnected, faded]);
 
   return useDerivedValue(() => ({
     saturation: 1 - faded.get() * (1 - DISCONNECTED_APPEARANCE.saturation),
