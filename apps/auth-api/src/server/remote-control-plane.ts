@@ -51,6 +51,9 @@ import type { AuthUser, WorkerBindings } from "./types";
 const TICKET_TTL_SECONDS = 180;
 const LEGACY_SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/u;
 const AUTH_EVENT_RETRY_MS = 60_000;
+const AUTH_EVENT_SEND_CONCURRENCY = 6;
+/** Longer than one drain: 50 events, 6 at a time, each with a 5 s timeout. */
+const AUTH_EVENT_CLAIM_MS = 2 * 60_000;
 const MAX_OUTSTANDING_INVITES_PER_HOST = 50;
 const MAX_PERMANENT_INVITES_PER_HOST = 5;
 const MAX_TELEGRAM_LINK_CODES_PER_HOST = 10;
@@ -2624,16 +2627,21 @@ const deliverRemoteAuthEvents = Effect.fn("RemoteControlPlane.deliverAuthEvents"
 }) {
   const { webhookUrl, webhookSecret } = input;
   if (!webhookUrl || !webhookSecret) return;
+  // The claim moves the events out of reach of other drains until it lapses, so each drain sends its own.
   const result = yield* remoteCall(() =>
     input.database
       .prepare(
-        "SELECT event_id, payload, attempts FROM remote_auth_events WHERE next_attempt_at <= ? ORDER BY created_at LIMIT 50",
+        `UPDATE remote_auth_events SET next_attempt_at = ?
+         WHERE event_id IN (SELECT event_id FROM remote_auth_events WHERE next_attempt_at <= ? ORDER BY created_at LIMIT 50)
+         RETURNING event_id, payload, attempts`,
       )
-      .bind(input.now)
+      .bind(input.now + AUTH_EVENT_CLAIM_MS, input.now)
       .all<RemoteAuthEventRow>(),
   );
-  for (const event of result.results ?? []) {
-    const delivery = yield* Effect.result(
+  const events = result.results ?? [];
+  const deliveries = yield* Effect.forEach(
+    events,
+    (event) =>
       Effect.gen(function* () {
         const timestamp = Math.floor(input.now / 1_000).toString();
         const signature = yield* hmacSha256(webhookSecret, `${timestamp}.${event.payload}`).pipe(
@@ -2654,21 +2662,28 @@ const deliverRemoteAuthEvents = Effect.fn("RemoteControlPlane.deliverAuthEvents"
           catch: () => new RemoteOperationError({}),
         });
         if (!response.ok) return yield* new RemoteOperationError({});
-        yield* remoteCall(() =>
-          input.database.prepare("DELETE FROM remote_auth_events WHERE event_id = ?").bind(event.event_id).run(),
-        );
-      }),
+      }).pipe(
+        Effect.result,
+        Effect.map((delivery) => ({ event, sent: Result.isSuccess(delivery) })),
+      ),
+    { concurrency: AUTH_EVENT_SEND_CONCURRENCY },
+  );
+  const sent = deliveries.filter((delivery) => delivery.sent).map((delivery) => delivery.event);
+  const failed = deliveries.filter((delivery) => !delivery.sent).map((delivery) => delivery.event);
+  const statements = failed.map((event) => {
+    const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
+    return input.database
+      .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
+      .bind(input.now + delay, event.event_id);
+  });
+  if (sent.length > 0) {
+    statements.push(
+      input.database
+        .prepare("DELETE FROM remote_auth_events WHERE event_id IN (SELECT value FROM json_each(?))")
+        .bind(JSON.stringify(sent.map((event) => event.event_id))),
     );
-    if (Result.isFailure(delivery)) {
-      const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
-      yield* remoteCall(() =>
-        input.database
-          .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
-          .bind(input.now + delay, event.event_id)
-          .run(),
-      );
-    }
   }
+  if (statements.length > 0) yield* remoteCall(() => input.database.batch(statements));
 });
 
 function requiredIdentifier(value: string, name: string): string {
