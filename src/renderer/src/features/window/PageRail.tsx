@@ -1,32 +1,47 @@
 import { ProviderLogo } from "@openbot/brand";
-import { Bot, Button, CalendarClock, ChartArea, Settings, Store, Tooltip, Workflow } from "@openbot/ui";
+import { Bot, Button, CalendarClock, ChartArea, MotionTooltip, Settings, Store, Workflow } from "@openbot/ui";
 import { AccountUsageDetails } from "@openbot/ui/features/account/AccountUsageDetails";
 import type { AccountUsageProviderRow } from "@openbot/ui/features/account/account-usage-view";
 import { useText } from "@openbot/ui/text";
 import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
 
-/** One rail button. The name shows as the tooltip, unless `card` is set: a hover card then shows. */
+/** One rail button. Its name shows as a tooltip, unless it has a `card`: the card shows instead. */
 function RailButton(props: {
   label: string;
-  card?: boolean;
+  /** Renders the card while it is open. */
+  card?: () => JSX.Element;
   current?: boolean;
   class?: string;
   onClick: (button: HTMLElement) => void;
   children: JSX.Element;
 }) {
-  return (
+  const button = () => (
     <Button
       variant="ghost"
       type="button"
       class={props.class ? `window-rail-button ${props.class}` : "window-rail-button"}
       aria-label={props.label}
-      title={props.card ? undefined : props.label}
       aria-current={props.current ? "page" : undefined}
       onClick={(event) => props.onClick(event.currentTarget)}
     >
       {props.children}
     </Button>
+  );
+  return (
+    <Show when={props.card} fallback={<MotionTooltip content={props.label}>{button()}</MotionTooltip>}>
+      {(card) => (
+        <MotionTooltip
+          content={card()()}
+          class="ui-popover-menu-surface account-usage-popover window-rail-usage-card"
+          placement="right-end"
+          openDelay={250}
+          closeDelay={75}
+        >
+          {button()}
+        </MotionTooltip>
+      )}
+    </Show>
   );
 }
 
@@ -35,7 +50,8 @@ const RING = { size: 34, stroke: 2.25, spacing: 4.5 };
 
 /**
  * The limits of one provider as concentric rings: the outer ring is the longest window, the inner
- * ring the shortest. Each arc shows how much is left, in the tone of that window.
+ * ring the shortest. Each arc shows how much is left, in the tone of that window. The hover card
+ * shows the windows with their reset times.
  */
 function UsageRings(props: { row: AccountUsageProviderRow; current: boolean; onOpen: (button: HTMLElement) => void }) {
   const { t } = useText();
@@ -46,39 +62,26 @@ function UsageRings(props: { row: AccountUsageProviderRow; current: boolean; onO
         .map((window) => t("account.usage.row.window", { window: window.label, percent: window.remainingPercent }))
         .join(", "),
     });
-  return (
-    <Tooltip.Root openDelay={250} closeDelay={75} placement="right-end" gutter={10}>
-      <Tooltip.Trigger as="div" class="window-rail-card-trigger">
-        <RailButtonRings row={props.row} current={props.current} label={label()} onOpen={props.onOpen} />
-      </Tooltip.Trigger>
-      <Tooltip.Portal>
-        <Tooltip.Content class="ui-popover-menu-surface account-usage-popover window-rail-usage-card">
-          <AccountUsageDetails
-            rows={[props.row]}
-            loading={false}
-            error={null}
-            refreshActive={false}
-            refreshDisabled
-            onRefresh={() => undefined}
-            title={<h2 class="account-usage-popover-title">{t("account.usage.title")}</h2>}
-          />
-        </Tooltip.Content>
-      </Tooltip.Portal>
-    </Tooltip.Root>
-  );
-}
-
-/** The ring button itself. The hover card around it shows the windows with their reset times. */
-function RailButtonRings(props: {
-  row: AccountUsageProviderRow;
-  current: boolean;
-  label: string;
-  onOpen: (button: HTMLElement) => void;
-}) {
   const windows = () => [...props.row.windows].reverse().slice(0, 2);
   const outerRadius = (RING.size - RING.stroke) / 2;
   return (
-    <RailButton label={props.label} card current={props.current} class="window-rail-usage" onClick={props.onOpen}>
+    <RailButton
+      label={label()}
+      card={() => (
+        <AccountUsageDetails
+          rows={[props.row]}
+          loading={false}
+          error={null}
+          refreshActive={false}
+          refreshDisabled
+          onRefresh={() => undefined}
+          title={<h2 class="account-usage-popover-title">{t("account.usage.title")}</h2>}
+        />
+      )}
+      current={props.current}
+      class="window-rail-usage"
+      onClick={props.onOpen}
+    >
       <svg class="window-rail-usage-ring" viewBox={`0 0 ${RING.size} ${RING.size}`} fill="none" aria-hidden="true">
         <For each={windows()}>
           {(window, index) => (

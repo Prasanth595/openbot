@@ -96,13 +96,16 @@
 }
 
 /* The box of a rail button that has a hover card, so the card has a place to point at. */
-.window-rail-card-trigger {
-  display: flex;
-}
-
 /* The hover card of a usage ring shows the limits only. The usage page has the refresh. */
 .window-rail-usage-card .account-usage-refresh {
   display: none;
+}
+
+/* The card opens, closes and moves with the tooltip motion, not with the transition of the usage
+ * popover. A transition would cover the motion. */
+.account-usage-popover.window-rail-usage-card {
+  transition: none;
+  transform-origin: var(--kb-tooltip-content-transform-origin);
 }
 
 /* Usage rings: the provider logo inside one ring per limit window. The hover fill is a circle around

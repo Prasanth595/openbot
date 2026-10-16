@@ -1,5 +1,5 @@
-import { BookOpen, CircleQuestionMark, DropdownMenu, Gift, Megaphone } from "@openbot/ui";
-import { For, Show } from "solid-js";
+import { BookOpen, CircleQuestionMark, DropdownMenu, Gift, Megaphone, MotionTooltip } from "@openbot/ui";
+import { createSignal, For, Show } from "solid-js";
 import { useText } from "../../text";
 import { DiscordMark } from "../settings/IntegrationLayout";
 
@@ -33,17 +33,21 @@ function releaseDate(value: string): Date {
 /** The Help menu: the newest release notes, the changelog, the guides, the Discord community and feedback. */
 export function HelpMenu(props: HelpMenuProps) {
   const { t, format } = useText();
+  const [open, setOpen] = createSignal(false);
   return (
     <DropdownMenu.Root
       placement="right-end"
       gutter={10}
-      onOpenChange={(open) => {
-        if (open) props.onOpen?.();
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) props.onOpen?.();
       }}
     >
-      <DropdownMenu.Trigger class={props.triggerClass} aria-label={t("app.help.label")} title={t("app.help.label")}>
-        <CircleQuestionMark aria-hidden="true" />
-      </DropdownMenu.Trigger>
+      <MotionTooltip content={t("app.help.label")} suppressed={open()}>
+        <DropdownMenu.Trigger class={props.triggerClass} aria-label={t("app.help.label")}>
+          <CircleQuestionMark aria-hidden="true" />
+        </DropdownMenu.Trigger>
+      </MotionTooltip>
       <DropdownMenu.Portal>
         <DropdownMenu.Content class="agent-context-menu help-menu" aria-label={t("app.help.label")}>
           <Show when={props.news.length > 0}>

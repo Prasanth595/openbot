@@ -1,0 +1,71 @@
+import { accountUsageProviderRows } from "@openbot/ui/features/account/account-usage-view";
+import { HelpMenu } from "@openbot/ui/features/updates/HelpMenu";
+import { useText } from "@openbot/ui/text";
+import { createSignal } from "solid-js";
+import { fn } from "storybook/test";
+import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { PageRail, type PageRailPage } from "../src/features/window/PageRail";
+
+const nowSeconds = Math.floor(Date.now() / 1_000);
+
+const usageRows = accountUsageProviderRows({
+  limits: [
+    {
+      id: "codex",
+      primary: { usedPercent: 28, windowDurationMins: 300, resetsAt: nowSeconds + 2 * 3_600 },
+      secondary: { usedPercent: 15, windowDurationMins: 10_080, resetsAt: nowSeconds + 4 * 86_400 },
+    },
+  ],
+});
+
+/** The page rail as the desktop window shows it. Hover a button, or move to it with Tab, to see its tooltip. */
+function RailPreview(props: { updateReady?: boolean }) {
+  const { t } = useText();
+  const [current, setCurrent] = createSignal<PageRailPage | null>("agents");
+  return (
+    // The extra box keeps the rail out of the rule that hides it in a narrow window.
+    <div class="app-window" style={{ height: "100vh" }}>
+      <div style={{ display: "flex" }}>
+        <PageRail
+          hidden={false}
+          current={current()}
+          usageRows={usageRows}
+          onAgents={() => setCurrent("agents")}
+          onRoutines={() => setCurrent("routines")}
+          onSchedule={() => setCurrent("schedule")}
+          onUsage={() => setCurrent("usage")}
+          onMarketplace={fn()}
+          onSettings={() => setCurrent("settings")}
+          settingsNotice={props.updateReady ? t("account.update.ready") : undefined}
+          help={
+            <HelpMenu
+              news={[]}
+              triggerClass="window-rail-button"
+              onOpenWhatsNew={fn()}
+              onOpenChangelog={fn()}
+              onOpenGuides={fn()}
+              onOpenDiscord={fn()}
+              onSendFeedback={fn()}
+            />
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+const meta = {
+  title: "Window/PageRail",
+  component: RailPreview,
+} satisfies Meta<typeof RailPreview>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {};
+
+/** The Settings tooltip also says what the dot stands for. */
+export const SettingsNotice: Story = {
+  args: { updateReady: true },
+};
