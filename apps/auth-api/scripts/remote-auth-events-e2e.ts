@@ -1,6 +1,7 @@
 // Runs the real account server delivery of the remote auth event outbox on a migrated SQLite database,
 // with a fake Signal (#2243). Drains that run at the same time must send each event once, one drain
-// sends at most 6 events at a time, a failed send waits with the backoff, and the hosted server cron
+// sends at most 6 events at a time, a failed send waits with the backoff, a stopped drain keeps the
+// events that it sent, and the hosted server cron
 // sends the events of its deletes once, after the deletes, not inside each one.
 //
 // Run: bun run test:remote-auth-events
@@ -8,7 +9,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { Effect } from "effect";
+import { Effect, Fiber } from "effect";
 import { deliverPendingRemoteAuthEvents, verifyRemoteServiceSignature } from "../src/server/remote-control-plane";
 import { createWorkerHandler } from "../src/server/worker-handler";
 import { sqliteD1 } from "./sqlite-d1";
@@ -186,9 +187,38 @@ async function oneDrainSendsSixAtATimeAndBacksOff() {
   );
 }
 
+async function aStoppedDrainKeepsTheSentEvents() {
+  const database = await migratedDatabase();
+  const now = Date.UTC(2026, 9, 16, 12);
+  seedProfileEvents(database, 10, now);
+  let answered = 0;
+  // Signal answers each event except `user-9`, and the Worker stops the drain while it waits for that one.
+  const signalFetch = async (_input: string | URL | Request, init?: RequestInit) => {
+    if (JSON.parse(String(init?.body)).userId === "user-9") return new Promise<Response>(() => {});
+    answered += 1;
+    return new Response(null, { status: 204 });
+  };
+  const fiber = Effect.runFork(
+    deliverPendingRemoteAuthEvents(
+      { DB: sqliteD1(database), REMOTE_AUTH_WEBHOOK_URL: SIGNAL_URL, REMOTE_AUTH_WEBHOOK_SECRET: SECRET },
+      now,
+      signalFetch,
+    ),
+  );
+  const nineDeleted = await waitFor(() => answered === 9 && remaining(database).length === 1);
+  await Effect.runPromise(Fiber.interrupt(fiber));
+  const rows = remaining(database);
+  check(
+    "a stopped drain deletes each event that Signal accepted",
+    nineDeleted && rows.length === 1 && rows[0]?.event_id === "event-9",
+    { answered, rows },
+  );
+}
+
 async function cronSendsTheEventsOfItsDeletesOnceAfterThem() {
   const database = await migratedDatabase();
-  const now = Date.now();
+  // Before the events of the check, so that the cron's own drain does not read them.
+  const now = Date.now() - 1_000;
   database
     .prepare("INSERT INTO users(id, identity_key, email, created_at, updated_at) VALUES (?, ?, ?, 1, 1)")
     .run("owner", "email:owner@example.test", "owner@example.test");
@@ -294,6 +324,7 @@ async function cronSendsTheEventsOfItsDeletesOnceAfterThem() {
 const scenarios = [
   parallelDrainsSendEachEventOnce,
   oneDrainSendsSixAtATimeAndBacksOff,
+  aStoppedDrainKeepsTheSentEvents,
   cronSendsTheEventsOfItsDeletesOnceAfterThem,
 ];
 for (const scenario of scenarios) {

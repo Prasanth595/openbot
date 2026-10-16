@@ -190,8 +190,8 @@ function tickHostedServers(
     Partial<Pick<WorkerBindings, HostedServerTickBindingKey>>,
   now: number,
 ) {
-  // The check sends the queued auth events once, after its last change. The last delivery reads every
-  // event that the check queued before it.
+  // The check sends the queued auth events once, after its last change. A delivery reads the time when
+  // it starts, so it reads every event that the check queued.
   let authEvents: Effect.Effect<void, RemoteFailure> | null = null;
   const remote = new RemoteControlPlane(bindings, {
     schedule: (delivery) => {

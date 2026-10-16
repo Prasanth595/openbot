@@ -2553,13 +2553,16 @@ export class RemoteControlPlane {
     this: RemoteControlPlane,
   ): Effect.fn.Return<void, RemoteFailure, RemoteDependencies> {
     const dependencies = yield* RemoteDependencies;
-    const delivery = deliverRemoteAuthEvents({
-      database: dependencies.database,
-      webhookUrl: dependencies.webhookUrl,
-      webhookSecret: dependencies.webhookSecret,
-      fetch: dependencies.fetch,
-      now: dependencies.now(),
-    });
+    // The time is read when the delivery starts, which can be later than this flush.
+    const delivery = Effect.suspend(() =>
+      deliverRemoteAuthEvents({
+        database: dependencies.database,
+        webhookUrl: dependencies.webhookUrl,
+        webhookSecret: dependencies.webhookSecret,
+        fetch: dependencies.fetch,
+        now: dependencies.now(),
+      }),
+    );
     if (!dependencies.schedule) return yield* delivery;
     dependencies.schedule(delivery);
   });
@@ -2638,52 +2641,51 @@ const deliverRemoteAuthEvents = Effect.fn("RemoteControlPlane.deliverAuthEvents"
       .bind(input.now + AUTH_EVENT_CLAIM_MS, input.now)
       .all<RemoteAuthEventRow>(),
   );
-  const events = result.results ?? [];
-  const deliveries = yield* Effect.forEach(
-    events,
+  // Each event saves its result after its send, so a drain that the Worker stops keeps what it did.
+  yield* Effect.forEach(
+    result.results ?? [],
     (event) =>
       Effect.gen(function* () {
-        const timestamp = Math.floor(input.now / 1_000).toString();
-        const signature = yield* hmacSha256(webhookSecret, `${timestamp}.${event.payload}`).pipe(
-          Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
+        const delivery = yield* Effect.result(
+          Effect.gen(function* () {
+            const timestamp = Math.floor(input.now / 1_000).toString();
+            const signature = yield* hmacSha256(webhookSecret, `${timestamp}.${event.payload}`).pipe(
+              Effect.mapError((error) =>
+                error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}),
+              ),
+            );
+            const response = yield* Effect.tryPromise({
+              try: (signal) =>
+                input.fetch(webhookUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "OpenBot-Timestamp": timestamp,
+                    "OpenBot-Signature": signature,
+                  },
+                  body: event.payload,
+                  signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
+                }),
+              catch: () => new RemoteOperationError({}),
+            });
+            if (!response.ok) return yield* new RemoteOperationError({});
+            yield* remoteCall(() =>
+              input.database.prepare("DELETE FROM remote_auth_events WHERE event_id = ?").bind(event.event_id).run(),
+            );
+          }),
         );
-        const response = yield* Effect.tryPromise({
-          try: (signal) =>
-            input.fetch(webhookUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "OpenBot-Timestamp": timestamp,
-                "OpenBot-Signature": signature,
-              },
-              body: event.payload,
-              signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
-            }),
-          catch: () => new RemoteOperationError({}),
-        });
-        if (!response.ok) return yield* new RemoteOperationError({});
-      }).pipe(
-        Effect.result,
-        Effect.map((delivery) => ({ event, sent: Result.isSuccess(delivery) })),
-      ),
-    { concurrency: AUTH_EVENT_SEND_CONCURRENCY },
+        if (Result.isFailure(delivery)) {
+          const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
+          yield* remoteCall(() =>
+            input.database
+              .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
+              .bind(input.now + delay, event.event_id)
+              .run(),
+          );
+        }
+      }),
+    { concurrency: AUTH_EVENT_SEND_CONCURRENCY, discard: true },
   );
-  const sent = deliveries.filter((delivery) => delivery.sent).map((delivery) => delivery.event);
-  const failed = deliveries.filter((delivery) => !delivery.sent).map((delivery) => delivery.event);
-  const statements = failed.map((event) => {
-    const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
-    return input.database
-      .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
-      .bind(input.now + delay, event.event_id);
-  });
-  if (sent.length > 0) {
-    statements.push(
-      input.database
-        .prepare("DELETE FROM remote_auth_events WHERE event_id IN (SELECT value FROM json_each(?))")
-        .bind(JSON.stringify(sent.map((event) => event.event_id))),
-    );
-  }
-  if (statements.length > 0) yield* remoteCall(() => input.database.batch(statements));
 });
 
 function requiredIdentifier(value: string, name: string): string {
