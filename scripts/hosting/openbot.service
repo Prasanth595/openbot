@@ -19,6 +19,8 @@ Environment=XDG_RUNTIME_DIR=/run/openbot
 # older release moved this one into place; openbot-hosted-update says why.
 ExecStartPre=-+/opt/OpenBot/hosted/openbot-hosted-update trigger
 ExecStart=/opt/OpenBot/hosted/openbot-hosted-server
+# Stops OpenBot before its virtual displays, so that it closes its database first.
+ExecStop=/opt/OpenBot/hosted/openbot-hosted-server --stop
 Restart=always
 RestartSec=10
 TimeoutStopSec=60

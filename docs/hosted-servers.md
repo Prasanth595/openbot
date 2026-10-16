@@ -782,9 +782,10 @@ These were not tested on boat. Test them before a user gets access:
   `updating` state) or the end of `ttlSeconds`. A crash of the machine restores the last periodic
   save, which also copies files while they change;
 - that OpenBot closes `openbot.db` at a `systemctl stop` on a server. The install test used a release
-  without the `SIGTERM` handler. The unit sends `SIGTERM` to all of its processes at the same time,
-  so on the virtual display Xvfb can stop first and end OpenBot before it closes the database. The
-  database is then as after a crash, which SQLite recovers, because the save starts after the stop;
+  without the `SIGTERM` handler. The `ExecStop` of the unit stops OpenBot before its Xvfb displays
+  (see [Computer Use](architecture/computer-use.md#agent-display-on-a-server)). This was tested in a
+  container with a stand-in for OpenBot, not with systemd. When OpenBot does not close the database,
+  it is as after a crash, which SQLite recovers, because the save starts after the stop;
 - the agent display on boat with a release build. On 2026-10-16 one boat server ran a 0.42.0 build
   with this change, from `openbot.service`: OpenBot was on Xvfb `:99` at 1280x800, and `:0` had no
   OpenBot window. In an agent turn, the agent shell and `cua-driver` had `DISPLAY=:0`, and Computer

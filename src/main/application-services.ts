@@ -1324,13 +1324,17 @@ export async function createApplicationServices({
     mailbox,
     browser,
     visualPreview: new ChatVisualPreviewer(),
-    screenCapture: new ScreenCapturer({
-      platform: process.platform,
-      screenAccess: () => systemPreferences.getMediaAccessStatus("screen"),
-      displays: () => screen.getAllDisplays(),
-      primaryDisplayId: () => screen.getPrimaryDisplay().id,
-      getSources: (options) => desktopCapturer.getSources(options),
-    }),
+    // `desktopCapturer` captures the display OpenBot is on. With an agent display of its own, that
+    // is only the OpenBot window, so agents take their screenshots with the Computer Use driver.
+    screenCapture: hasSeparateAgentDisplay(process.platform)
+      ? null
+      : new ScreenCapturer({
+          platform: process.platform,
+          screenAccess: () => systemPreferences.getMediaAccessStatus("screen"),
+          displays: () => screen.getAllDisplays(),
+          primaryDisplayId: () => screen.getPrimaryDisplay().id,
+          getSources: (options) => desktopCapturer.getSources(options),
+        }),
     hostMemory,
     retireChannels: true,
     requestTimeoutMs: 30_000,

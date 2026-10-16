@@ -82,7 +82,15 @@ driver daemon, for Sunshine, and in `agentEnvironment` for every agent process. 
 Sunshine open the display that `DISPLAY` names, so a screenshot, an input event and the remote
 desktop stream all use the agent display, and a program that an agent starts opens there. The
 per-display overlays are OpenBot windows, so with an agent display they are not started: nothing
-draws the agent cursor or the rim there.
+draws the agent cursor or the rim there. `capture_screen` and `list_capture_sources` use Electron's
+`desktopCapturer`, which sees only the OpenBot display, so with an agent display they are not
+available, and agents take screenshots with the driver.
+
+`openbot.service` holds the Xvfb displays too, and a stop signals each process of the unit at the
+same time. An Xvfb that stops first ends OpenBot before it closes its database. So the unit's
+`ExecStop` runs `openbot-hosted-server --stop`: it sends `SIGTERM` to OpenBot only, whose PID the
+script writes to `$XDG_RUNTIME_DIR/openbot.pid`, and waits for it. The container does not need this:
+tini signals only OpenBot.
 
 Because the driver draws no cursor, its motion styles do not apply. The renderer plays the driver's
 `adaptive` style itself (`agent-cursor-motion.ts`, a port of the driver's `trajectory.rs`): a Fitts

@@ -8,6 +8,17 @@
 # second one, and its owner signs it in with `openbot login`.
 set -euo pipefail
 umask 077
+
+# ExecStop of openbot.service. The unit also holds the virtual displays, and its stop signal goes to
+# each of its processes at the same time. An Xvfb that stops first ends OpenBot before it closes its
+# database. So this gives the signal to OpenBot only and waits for it; the unit then stops the rest.
+if [ "${1:-}" = --stop ]; then
+  pid=$(cat "$XDG_RUNTIME_DIR/openbot.pid" 2>/dev/null) || exit 0
+  [[ $pid =~ ^[1-9][0-9]*$ && /proc/$pid/exe -ef /opt/OpenBot/app/openbot ]] || exit 0
+  kill -TERM "$pid" 2>/dev/null || exit 0
+  while [ -e "/proc/$pid" ]; do sleep 0.2; done
+  exit 0
+fi
 state="$HOME/.config/openbot-hosted"
 mode=hosted
 if [ -r /opt/OpenBot/hosted/mode ] && [ "$(</opt/OpenBot/hosted/mode)" = self ]; then mode=self; fi
@@ -121,12 +132,15 @@ export GNOME_KEYRING_CONTROL
 # to ~/.Xauthority, which already has the key of :0, so OpenBot and the processes it starts can open
 # both. lightdm keeps the other keys when it writes the file. After a resume, boat can start the
 # session after this service. A sandbox that has no desktop session uses two virtual displays.
+
+# OpenBot writes its PID for `--stop` before it starts.
+openbot=(bash -c 'echo "$$" >"$XDG_RUNTIME_DIR/openbot.pid" && exec "$@"' openbot-hosted-server
+  /opt/OpenBot/app/openbot --password-store=gnome-libsecret)
 if [ "$mode" = hosted ]; then
   for _ in $(seq 1 60); do
     if DISPLAY=:0 XAUTHORITY="$HOME/.Xauthority" xdpyinfo >/dev/null 2>&1; then
       export OPENBOT_AGENT_DISPLAY=:0
-      exec xvfb-run -a -f "$HOME/.Xauthority" -s "-screen 0 1280x800x24 -nolisten tcp" \
-        /opt/OpenBot/app/openbot --password-store=gnome-libsecret
+      exec xvfb-run -a -f "$HOME/.Xauthority" -s "-screen 0 1280x800x24 -nolisten tcp" "${openbot[@]}"
     fi
     sleep 2
   done
@@ -137,4 +151,4 @@ fi
 # display and adds its key to the same authority file.
 exec xvfb-run -a -s "-screen 0 $(display_size "$requested_size")x24 -nolisten tcp" \
   bash -c 'export OPENBOT_AGENT_DISPLAY=$DISPLAY; exec xvfb-run -a -f "$XAUTHORITY" -s "-screen 0 1280x800x24 -nolisten tcp" "$@"' \
-  openbot-hosted-server /opt/OpenBot/app/openbot --password-store=gnome-libsecret
+  openbot-hosted-server "${openbot[@]}"
