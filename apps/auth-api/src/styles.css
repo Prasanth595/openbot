@@ -5976,7 +5976,7 @@ a {
   scale: 0.86 1;
 }
 
-/* The closing block of a collection page. Centred, because it is an end rather than
+/* The closing block of the landing page and of a collection page. Centred, because it is an end rather than
    another row of the page. A comb of agents fills the full width and fades out at the
    top and the bottom, so it reads as an offer and not as the last article. The type
    scale is the download section's, so the two places that ask the reader to take the

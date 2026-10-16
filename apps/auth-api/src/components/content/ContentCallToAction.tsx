@@ -5,8 +5,9 @@ import { ButtonLink } from "../ui/button";
 // Covers a 1920 px screen and is taller than the block; the block clips the rest.
 const COMB_ROWS = honeycombRows(12, 22, 5, "post-cta");
 
-// The last block before the footer on a collection page. A reader who reaches the end of
-// an article has nowhere left to go, so this is the one clear way on to the app.
+// The last block before the footer on a collection page, and after the download section
+// on the landing page. A reader who reaches the end of an article has nowhere left to go,
+// so this is the one clear way on to the app.
 // It borrows the landing page's type scale and its reveal rather than inventing a
 // second treatment, so the page ends in the voice the site opened in. A comb of agents
 // fills the block, and a blur behind the text keeps it easy to read.
