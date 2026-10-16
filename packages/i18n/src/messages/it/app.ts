@@ -67,6 +67,10 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Cerca nelle impostazioni…",
   "app.settingsPage.results": "Risultati della ricerca nelle impostazioni",
   "app.settingsPage.noResults": "Nessuna impostazione corrispondente.",
+  "app.settingsPage.resultCount": {
+    one: "{count} impostazione corrispondente.",
+    other: "{count} impostazioni corrispondenti.",
+  },
   "app.standingApproval.description":
     "{name} eseguirà comandi e strumenti MCP, modificherà file e amplierà il proprio accesso al file system e alla rete sul computer che lo esegue, senza chiedere di nuovo. La pubblicazione, la sostituzione e l'eliminazione di siti pubblici richiedono comunque l'approvazione, a meno che la modalità Turbo non sia attiva. Puoi disattivare l'approvazione automatica nel menu del modello di questo agente.",
   "app.standingApproval.descriptionUnnamed":

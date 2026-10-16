@@ -246,7 +246,8 @@
     > .app-frame-edge
     .conversation-header
     :is(.provider-model-trigger, .header-panel-toggle):is([aria-expanded="true"], [data-expanded]):not(
-      .computer-button-agent-active
+      .computer-button-agent-active,
+      .side-panel-toggle
     ) {
     border-color: transparent;
     background: var(--openbot-bg-control-active);
@@ -508,6 +509,11 @@
   font-size: var(--openbot-text-lg);
   font-weight: var(--openbot-weight-semibold);
   line-height: var(--openbot-leading-lg);
+}
+
+/* The heading takes the focus when the page opens, only so a screen reader reads it. */
+.settings-page-title:focus {
+  outline: none;
 }
 
 /* A capsule search field */

@@ -1348,7 +1348,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       <SettingsPageFrame
                         heading={
                           kind === "personal" ? (
-                            <h1 class="settings-page-title">{t("app.settingsPage.title")}</h1>
+                            <h1 class="settings-page-title" tabindex={-1}>
+                              {t("app.settingsPage.title")}
+                            </h1>
                           ) : (
                             <Show when={server()}>{(target) => <ServerSettingsPageTitle server={target()} />}</Show>
                           )

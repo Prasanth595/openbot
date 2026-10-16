@@ -67,6 +67,10 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Ayarlarda ara…",
   "app.settingsPage.results": "Ayar arama sonuçları",
   "app.settingsPage.noResults": "Eşleşen ayar yok.",
+  "app.settingsPage.resultCount": {
+    one: "{count} eşleşen ayar.",
+    other: "{count} eşleşen ayar.",
+  },
   "app.standingApproval.description":
     "{name}, onu çalıştıran bilgisayarda tekrar sormadan komut ve MCP aracı çalıştıracak, dosyaları değiştirecek ve kendi dosya sistemi ile ağ erişimini genişletecektir. Turbo modu açık olmadığı sürece herkese açık siteleri yayımlamak, değiştirmek ve silmek yine onay gerektirir. Bu ajanın model menüsünden Otomatik onayı kapatabilirsiniz.",
   "app.standingApproval.descriptionUnnamed":

@@ -68,6 +68,9 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "設定を検索…",
   "app.settingsPage.results": "設定の検索結果",
   "app.settingsPage.noResults": "一致する設定はありません。",
+  "app.settingsPage.resultCount": {
+    other: "一致する設定：{count} 件。",
+  },
   "app.standingApproval.description":
     "{name} は、実行しているコンピュータ上で、確認なしにコマンドやMCPツールを実行し、ファイルを変更し、自身のファイルシステムとネットワークへのアクセスを広げます。ターボモードがオンでない限り、公開サイトの公開、置き換え、削除には引き続き承認が必要です。自動承認は、このエージェントのモデルメニューでオフにできます。",
   "app.standingApproval.descriptionUnnamed":

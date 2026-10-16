@@ -67,6 +67,12 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Поиск в настройках…",
   "app.settingsPage.results": "Результаты поиска в настройках",
   "app.settingsPage.noResults": "Подходящих настроек нет.",
+  "app.settingsPage.resultCount": {
+    one: "{count} подходящая настройка.",
+    few: "{count} подходящие настройки.",
+    many: "{count} подходящих настроек.",
+    other: "{count} подходящей настройки.",
+  },
   "app.standingApproval.description":
     "{name} будет выполнять команды и инструменты MCP, изменять файлы и расширять собственный доступ к файловой системе и сети на компьютере, где работает, без повторных вопросов. Публикация, замена и удаление публичных сайтов по-прежнему требуют подтверждения, если не включён турбо-режим. Автоодобрение можно отключить в меню модели этого агента.",
   "app.standingApproval.descriptionUnnamed":

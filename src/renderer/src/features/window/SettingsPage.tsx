@@ -90,6 +90,14 @@ export function SettingsPage(props: { kind: SettingsKind }) {
   const serverSettings = useServerSettings();
   const [query, setQuery] = createSignal("");
   const results = () => (query().trim() ? rankRows(query().trim(), (key) => i18n.t(key)) : null);
+  /** What a screen reader hears while the user types a query. */
+  const resultStatus = () => {
+    const rows = results();
+    if (!rows) return "";
+    return rows.length > 0
+      ? i18n.t("app.settingsPage.resultCount", { count: rows.length })
+      : i18n.t("app.settingsPage.noResults");
+  };
   let content: HTMLElement | undefined;
 
   /** Opens the tab of the row, then scrolls to the row, marks it and puts the focus on its control. */
@@ -124,7 +132,9 @@ export function SettingsPage(props: { kind: SettingsKind }) {
             </Show>
           }
         >
-          <h1 class="settings-page-title">{i18n.t("app.settingsPage.title")}</h1>
+          <h1 class="settings-page-title" tabindex={-1}>
+            {i18n.t("app.settingsPage.title")}
+          </h1>
         </Show>
       }
       sectionsHidden={results() !== null}
@@ -157,6 +167,10 @@ export function SettingsPage(props: { kind: SettingsKind }) {
             }}
           />
         </label>
+        {/* Always in the page, so a screen reader announces each change of the count. */}
+        <span class="sr-only" role="status">
+          {resultStatus()}
+        </span>
         <Show when={results()}>
           {(rows) => (
             <Show

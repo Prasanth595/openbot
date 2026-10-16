@@ -956,8 +956,9 @@ textarea {
   }
 
   /* An open panel's toggle. The faint fill it has elsewhere disappears on the edge, so it takes the
-   * ghost button's open fill. An agent at the controls keeps its accent. */
-  .app-frame-edge .header-panel-toggle[aria-expanded="true"]:not(.computer-button-agent-active) {
+   * ghost button's open fill. An agent at the controls keeps its accent. The side panel toggle has no
+   * fill: the panel shows next to it. */
+  .app-frame-edge .header-panel-toggle[aria-expanded="true"]:not(.computer-button-agent-active, .side-panel-toggle) {
     border-color: var(--openbot-border-strong);
     background: var(--openbot-bg-control-hover);
     color: var(--openbot-text-primary);

@@ -65,6 +65,10 @@ export const messages = {
   "app.settingsPage.searchPlaceholder": "Rechercher dans les réglages…",
   "app.settingsPage.results": "Résultats de recherche des réglages",
   "app.settingsPage.noResults": "Aucun réglage correspondant.",
+  "app.settingsPage.resultCount": {
+    one: "{count} réglage correspondant.",
+    other: "{count} réglages correspondants.",
+  },
   "app.standingApproval.description":
     "{name} exécutera des commandes et des outils MCP, modifiera des fichiers et élargira son propre accès au système de fichiers et au réseau sur l’ordinateur qui l’exécute, sans vous demander à nouveau. La publication, le remplacement et la suppression de sites publics nécessitent toujours une approbation, sauf si le mode Turbo est actif. Vous pouvez désactiver l’approbation automatique dans le menu du modèle de cet agent.",
   "app.standingApproval.descriptionUnnamed":
