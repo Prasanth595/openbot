@@ -37,7 +37,7 @@ const markdown = new Marked({
   ],
 });
 
-export function parseChatMarkdown(body: string): TokensList {
+function parseChatMarkdown(body: string): TokensList {
   return markdown.lexer(body);
 }
 
