@@ -2,7 +2,7 @@ import { AgentHoneycomb, honeycombRows } from "../landing/AgentHoneycomb";
 import { createLandingReveal } from "../landing/createLandingReveal";
 import { ButtonLink } from "../ui/button";
 
-// Wider than a 1920 px screen and taller than the block; the block clips the rest.
+// Covers a 1920 px screen and is taller than the block; the block clips the rest.
 const COMB_ROWS = honeycombRows(12, 22, 5, "post-cta");
 
 // The last block before the footer on a collection page. A reader who reaches the end of

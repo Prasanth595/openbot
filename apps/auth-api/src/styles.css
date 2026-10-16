@@ -6053,11 +6053,13 @@ a {
   );
 }
 
+/* Every second row moves half a cell to the right, outside the comb's box. A quarter
+   cell to the left centres the rows, so both sides end at the same distance. */
 .post-cta-comb > .agent-honeycomb {
   position: absolute;
   top: 50%;
   left: 50%;
-  translate: -50% -50%;
+  translate: calc(-50% - (var(--agent-honeycomb-tile) + var(--agent-honeycomb-gap)) / 4) -50%;
 }
 
 /* Blurs the faces behind the text, and fades out from the centre, so it has no edge.
@@ -6075,8 +6077,9 @@ a {
   position: relative;
 }
 
-/* Wider than the comb: the sides fade too, so the comb has no hard edge there. */
-@media (min-width: 1980px) {
+/* The rows end 964 px from the centre: on a wider screen, the sides fade too, so the
+   comb has no hard edge there. */
+@media (min-width: 1920px) {
   .post-cta-comb {
     mask-image:
       linear-gradient(
@@ -6087,18 +6090,19 @@ a {
       ),
       linear-gradient(
         90deg,
-        var(--openbot-transparent) calc(50% - 990px),
-        var(--openbot-mask-solid) calc(50% - 840px),
-        var(--openbot-mask-solid) calc(50% + 840px),
-        var(--openbot-transparent) calc(50% + 990px)
+        var(--openbot-transparent) calc(50% - 960px),
+        var(--openbot-mask-solid) calc(50% - 810px),
+        var(--openbot-mask-solid) calc(50% + 810px),
+        var(--openbot-transparent) calc(50% + 960px)
       );
     mask-composite: intersect;
   }
 }
 
 @media (max-width: 760px) {
+  /* Not taller than the comb: 12 rows of the small cell are 688 px. */
   .post-cta {
-    min-height: 760px;
+    min-height: 680px;
   }
 
   .post-cta-comb > .agent-honeycomb {

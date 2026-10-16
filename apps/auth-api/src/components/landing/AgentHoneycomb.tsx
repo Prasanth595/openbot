@@ -1,11 +1,10 @@
-import { createSignal, For, lazy, Show } from "solid-js";
+import { createSignal, For, lazy, onSettled, Show } from "solid-js";
 import channelsArt from "../../../content-art/news/art/card/channels-put-agents-in-one-room.webp";
 import workspaceArt from "../../../content-art/news/art/card/every-agent-gets-a-workspace.webp";
 import introducingArt from "../../../content-art/news/art/card/introducing-openbot.webp";
 import providersArt from "../../../content-art/news/art/card/one-agent-many-providers.webp";
 import routinesArt from "../../../content-art/news/art/card/routines-give-an-agent-a-schedule.webp";
 import localArt from "../../../content-art/news/art/card/your-work-stays-on-your-computer.webp";
-import { createLandingReveal } from "./createLandingReveal";
 
 // Loaded in the browser, as in `FeaturesSection`: the avatar engine does not run in the Worker.
 const AgentAvatar = lazy(() =>
@@ -17,7 +16,7 @@ const ART = [introducingArt, channelsArt, workspaceArt, providersArt, routinesAr
 
 type HoneycombTile = { kind: "agent"; seed: string } | { kind: "art"; src: string };
 
-export interface HoneycombCell {
+interface HoneycombCell {
   index: number;
   tile: HoneycombTile;
 }
@@ -41,13 +40,30 @@ export function honeycombRows(rows: number, columns: number, artEvery: number, p
  * the right, and the rows lock together. Each cell is clipped to the same hexagon, so each wall is
  * equal: the agent bodies are drawn by hand and are not all the same size.
  *
- * The faces load when the comb comes near the viewport, so a page that the reader leaves early does not
- * load the avatar engine. Each face then drifts, blinks and winks; only the one under the pointer turns
- * its eyes to it. Decorative: the caller hides it from assistive technology.
+ * The faces load when the comb comes near the viewport, also with reduced motion, so a page that the
+ * reader leaves early does not load the avatar engine. Each face then drifts, blinks and winks; only
+ * the one under the pointer turns its eyes to it. Decorative: the caller hides it from assistive
+ * technology.
  */
 export function AgentHoneycomb(props: { rows: HoneycombCell[][] }) {
   let comb: HTMLDivElement | undefined;
-  const near = createLandingReveal(() => comb, { rootMargin: "400px 0px" });
+  const [near, setNear] = createSignal(false);
+  onSettled(() => {
+    if (!comb || !globalThis.IntersectionObserver) {
+      setNear(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setNear(true);
+        observer.disconnect();
+      },
+      { rootMargin: "400px 0px" },
+    );
+    observer.observe(comb);
+    return () => observer.disconnect();
+  });
   const [hovered, setHovered] = createSignal<number | null>(null);
   return (
     <div ref={comb} class="agent-honeycomb">
@@ -63,7 +79,7 @@ export function AgentHoneycomb(props: { rows: HoneycombCell[][] }) {
                   onPointerLeave={() => setHovered((index) => (index === cell.index ? null : index))}
                 >
                   {cell.tile.kind === "art" ? (
-                    <img src={cell.tile.src} alt="" draggable={false} />
+                    <img src={cell.tile.src} alt="" loading="lazy" decoding="async" draggable={false} />
                   ) : (
                     <Show when={near()}>
                       <AgentAvatar
