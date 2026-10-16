@@ -29,7 +29,12 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { haptics } from "@/shared/lib/haptics";
@@ -79,7 +84,7 @@ function useRecordAction(failure: MobileTextKey = "mobile.agent.record.saveFaile
       await action();
       void haptics.notification("success");
       done?.();
-      void client.invalidateQueries({ queryKey: ["agent-info"] });
+      void client.invalidateQueries({ queryKey: queryKeys.agentInfo() });
     } catch (cause) {
       void haptics.notification("error");
       setError(errorMessage(cause, t(failure)));
@@ -105,7 +110,7 @@ export function MemoryEditor({
   selectionAvailable?: boolean;
 }) {
   const { t, format } = useText();
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const action = useRecordAction();
   const inclusion = useRecordAction();
   const selected = selection?.selections.find((entry) => entry.memoryId === memory?.id);
@@ -273,7 +278,7 @@ export function RoutineEditor({
   available: boolean;
 }) {
   const { t } = useText();
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const action = useRecordAction();
   const toggle = useRecordAction();
   const testRun = useRecordAction("mobile.agent.record.testFailed");
@@ -336,7 +341,7 @@ export function RoutineEditor({
   const savedFilters = webhookRoutine?.trigger.filters ?? [];
   const eventType = edits.eventType ?? savedEventType;
   const filters = edits.filters ?? filterDrafts(savedFilters);
-  const eventsSupported = workspace.canManageEvents(agent.serverId);
+  const eventsSupported = useMobileWorkspaceSelector((current) => current.canManageEvents(agent.serverId));
   // The form edits a draft; an untouched schedule saves as it is, so a kind the form cannot show stays.
   const scheduleDraft = edits.schedule ?? routineScheduleToDraft(savedSchedule);
   const scheduleProblem = routineDraftProblemCode(scheduleDraft);

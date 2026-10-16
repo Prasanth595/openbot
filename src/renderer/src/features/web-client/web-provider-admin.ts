@@ -80,6 +80,7 @@ const WEB_EXTERNAL_DESTINATIONS: Partial<Record<ExternalDestination, string>> = 
   message: "https://x.com/norbertbodziony",
   changelog: "https://openbot.run/changelog",
   guides: "https://openbot.run/guides",
+  discord: "https://discord.openbot.run",
 };
 
 export function openWebDestination(destination: ExternalDestination): Promise<void> {

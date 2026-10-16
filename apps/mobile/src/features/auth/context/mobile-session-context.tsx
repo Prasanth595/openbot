@@ -22,6 +22,7 @@ import {
   updateMobileProfile,
   validateMobileSession,
 } from "@/features/auth/api/mobile-auth";
+import { type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { queryClient } from "@/shared/lib/query-client";
 import { untilForeground } from "@/shared/lib/until-foreground";
 import { useAppForeground } from "@/shared/lib/use-app-foreground";
@@ -55,9 +56,9 @@ export function MobileSessionProvider({ children }: PropsWithChildren) {
   const setCurrentSession = useCallback((session: MobileSession | null) => {
     if (sessionRef.current?.sessionToken !== session?.sessionToken || sessionRef.current?.apiUrl !== session?.apiUrl) {
       sessionScope.current += 1;
-      queryClient.removeQueries({ queryKey: ["account-sessions"] });
+      queryClient.removeQueries({ queryKey: queryKeys.accountSessions() });
       // The hosted server plans keep the last answer for the life of the app; a new session drops it.
-      queryClient.removeQueries({ queryKey: ["hosted-server-plans"] });
+      queryClient.removeQueries({ queryKey: queryKeys.hostedServerPlans() });
     }
     mobileAnalytics.setUser(session?.user ?? null);
     sessionRef.current = session;
@@ -178,4 +179,10 @@ export function useMobileSession(): MobileSessionContextValue {
   const value = useContext(MobileSessionContext);
   if (!value) throw new Error("useMobileSession must be used within MobileSessionProvider.");
   return value;
+}
+
+/** The account part of the query keys (`queryKeys`). */
+export function useQueryScope(): QueryScope {
+  const { session, sessionScope } = useMobileSession();
+  return [session?.apiUrl, session?.user.id, sessionScope];
 }

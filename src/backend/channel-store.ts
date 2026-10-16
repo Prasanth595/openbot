@@ -17,7 +17,7 @@ import {
 import { markdownPreviewText } from "@openbot/contracts/markdown-preview-text";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
-import { deleteAggregateHistory } from "./database/database-core";
+import { deleteAggregateHistory, deleteThreadAttachments } from "./database/database-core";
 import {
   databaseRow,
   databaseRows,
@@ -520,9 +520,7 @@ export class ChannelStore {
 
         for (const threadId of threadIds) {
           deleteAggregateHistory(db, "thread", [threadId]);
-          db.prepare("DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id LIKE ?").run(
-            `${threadId}:%`,
-          );
+          deleteThreadAttachments(db, threadId);
           db.prepare("DELETE FROM projection_threads WHERE thread_id = ?").run(threadId);
         }
         return null;

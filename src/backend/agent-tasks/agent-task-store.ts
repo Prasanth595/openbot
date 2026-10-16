@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { AGENT_TASK_OUTCOMES, type AgentTaskOutcome } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isOneOf } from "@openbot/contracts/runtime-values";
-import { deleteAggregateHistory } from "../database/database-core";
+import { deleteAggregateHistory, deleteThreadAttachments } from "../database/database-core";
 import { databaseRow, databaseRows, optionalStringColumn, requiredStringColumn } from "../database/database-rows";
 import type { OpenBotDatabase } from "../openbot-database";
 
@@ -233,9 +233,7 @@ export class AgentTaskStore {
         );
         for (const { threadId } of tasks) {
           deleteAggregateHistory(db, "thread", [threadId]);
-          db.prepare("DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id LIKE ?").run(
-            `${threadId}:%`,
-          );
+          deleteThreadAttachments(db, threadId);
         }
         // The thread rows take the task rows with them.
         for (const { threadId } of tasks)

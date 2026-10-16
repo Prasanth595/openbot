@@ -377,3 +377,49 @@ export interface MobileWorkspaceContextValue {
   markAllRead: () => Promise<void>;
   toggleAgentPin: (agentId: string) => ToggleAgentPinResult;
 }
+
+/** The checks that read what a host advertised. Their answer changes when a server connects. */
+export type MobileWorkspaceCapabilityCheck =
+  | "browserViewSupport"
+  | "canEditQueue"
+  | "canRetryMessage"
+  | "attachmentSupport"
+  | "canStartNewChat"
+  | "canChooseNewAgentModel"
+  | "canInstallAgentTemplate"
+  | "canSearchFiles";
+
+type MobileWorkspaceStateKey =
+  | MobileWorkspaceCapabilityCheck
+  | "sidebarByServer"
+  | "servers"
+  | "defaultServerId"
+  | "serverDirectoryState"
+  | "serverDirectoryError"
+  | "agents"
+  | "activeServer"
+  | "activeAgents"
+  | "hiddenAgents"
+  | "pinnedAgentIds"
+  | "canEditServerIdentity"
+  | "canSendNotifications"
+  | "canManageEvents"
+  | "canManageAgentSkills"
+  | "canManageAgentAccess"
+  | "canManageAgentHostSettings"
+  | "canManageProviderAccounts"
+  | "canManageSharedTables"
+  | "canPublishAgent";
+
+/**
+ * The workspace data, and the checks that a component calls while it renders. A change renders
+ * every component that reads the context again.
+ */
+export type MobileWorkspaceState = Pick<MobileWorkspaceContextValue, MobileWorkspaceStateKey>;
+
+/**
+ * The commands, and the stores and the directory of the session. They do not change while the
+ * session lasts, so a component that reads only these does not render again for a workspace change.
+ * A command reads the latest workspace when it runs.
+ */
+export type MobileWorkspaceActions = Omit<MobileWorkspaceContextValue, MobileWorkspaceStateKey>;

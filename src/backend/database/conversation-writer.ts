@@ -104,6 +104,11 @@ export class ConversationWriter {
             message_json = excluded.message_json,
             last_event_sequence = excluded.last_event_sequence
         `);
+        const insertAttachment = db.prepare(`
+          INSERT OR REPLACE INTO projection_attachments
+            (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
+          VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
+        `);
         snapshot.messages.forEach((message, ordinal) => {
           recordUsageMessage(db, agent.id, message, agent.provider, agent.model);
           upsert.run(
@@ -119,11 +124,7 @@ export class ConversationWriter {
             sequence,
           );
           for (const attachment of message.attachments ?? []) {
-            db.prepare(`
-              INSERT OR REPLACE INTO projection_attachments
-                (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
-              VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
-            `).run(
+            insertAttachment.run(
               `${snapshot.threadId}:${message.id}:${attachment.id}`,
               `${snapshot.threadId}:${message.id}`,
               attachment.name,
@@ -478,6 +479,14 @@ export class ConversationWriter {
             message_json = excluded.message_json,
             last_event_sequence = excluded.last_event_sequence
         `);
+        const deleteAttachments = db.prepare(
+          "DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id = ?",
+        );
+        const insertAttachment = db.prepare(`
+          INSERT OR REPLACE INTO projection_attachments
+            (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
+          VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
+        `);
         for (const imported of input.changedMessages) {
           const existingRow = databaseRow(findOrdinal.get(input.threadId, imported.id));
           const existing = existingRow
@@ -503,15 +512,9 @@ export class ConversationWriter {
             sequence,
           );
           recordUsageMessage(db, agent.id, message, agent.provider, agent.model);
-          db.prepare("DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id = ?").run(
-            `${input.threadId}:${message.id}`,
-          );
+          deleteAttachments.run(`${input.threadId}:${message.id}`);
           for (const attachment of message.attachments ?? []) {
-            db.prepare(`
-              INSERT OR REPLACE INTO projection_attachments
-                (attachment_id, owner_kind, owner_id, name, path, metadata_json, created_at, last_event_sequence)
-              VALUES (?, 'thread-message', ?, ?, '', ?, ?, ?)
-            `).run(
+            insertAttachment.run(
               `${input.threadId}:${message.id}:${attachment.id}`,
               `${input.threadId}:${message.id}`,
               attachment.name,
@@ -521,9 +524,6 @@ export class ConversationWriter {
             );
           }
         }
-        const deleteAttachments = db.prepare(
-          "DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id = ?",
-        );
         const deleteMessage = db.prepare(
           "DELETE FROM projection_thread_messages WHERE thread_id = ? AND message_id = ?",
         );

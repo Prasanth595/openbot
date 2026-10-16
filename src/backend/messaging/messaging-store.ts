@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { MESSAGING_PLATFORMS, type MessagingPlatform } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isOneOf } from "@openbot/contracts/runtime-values";
-import { deleteAggregateHistory } from "../database/database-core";
+import { deleteAggregateHistory, deleteThreadAttachments } from "../database/database-core";
 import {
   databaseRow,
   databaseRows,
@@ -276,9 +276,7 @@ export class MessagingStore {
         );
         for (const { threadId } of links) {
           deleteAggregateHistory(db, "thread", [threadId]);
-          db.prepare("DELETE FROM projection_attachments WHERE owner_kind = 'thread-message' AND owner_id LIKE ?").run(
-            `${threadId}:%`,
-          );
+          deleteThreadAttachments(db, threadId);
         }
         db.prepare("DELETE FROM projection_messaging_threads WHERE agent_id = ?").run(agentId);
         for (const { threadId } of links)

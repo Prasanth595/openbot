@@ -1,6 +1,7 @@
 import { BookOpen, CircleQuestionMark, DropdownMenu, Gift, Megaphone } from "@openbot/ui";
 import { For, Show } from "solid-js";
 import { useText } from "../../text";
+import { DiscordMark } from "../settings/IntegrationLayout";
 
 /** One line of the What's new list: the headline of a release note and the date of its release. */
 export interface HelpMenuNews {
@@ -19,6 +20,7 @@ export interface HelpMenuProps {
   onOpenWhatsNew: () => void;
   onOpenChangelog: () => void;
   onOpenGuides: () => void;
+  onOpenDiscord: () => void;
   onSendFeedback: () => void;
 }
 
@@ -28,7 +30,7 @@ function releaseDate(value: string): Date {
   return new Date(year, month - 1, day);
 }
 
-/** The Help menu: the newest release notes, the changelog, the guides and feedback. */
+/** The Help menu: the newest release notes, the changelog, the guides, the Discord community and feedback. */
 export function HelpMenu(props: HelpMenuProps) {
   const { t, format } = useText();
   return (
@@ -69,6 +71,10 @@ export function HelpMenu(props: HelpMenuProps) {
           <DropdownMenu.Item onSelect={() => props.onOpenGuides()}>
             <BookOpen class="agent-context-icon size-4" aria-hidden="true" />
             <span>{t("app.help.guides")}</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onSelect={() => props.onOpenDiscord()}>
+            <DiscordMark class="agent-context-icon size-4" />
+            <span>{t("app.help.discord")}</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item onSelect={() => props.onSendFeedback()}>
             <Megaphone class="agent-context-icon size-4" aria-hidden="true" />

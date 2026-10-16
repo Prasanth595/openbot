@@ -456,6 +456,12 @@ WHERE message.thread_id = keyed.thread_id AND message.message_id = keyed.message
   AND (message.group_start, message.group_first, message.group_id, message.turn_rank)
     IS NOT (keyed.group_start, keyed.group_first, keyed.group_id, keyed.turn_rank)`;
 
+// Migration 41 indexes attachments by owner. Each conversation write deletes the attachments of each
+// changed message by owner, which without it is a scan of every attachment (#2241). Frozen with the migration.
+const V41_ATTACHMENT_OWNER_INDEX_SQL = `
+  CREATE INDEX IF NOT EXISTS attachments_owner ON projection_attachments(owner_kind, owner_id);
+`;
+
 const BASELINE_AGENT_ROUTINES_END_SQL = `    last_event_sequence INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS agent_routines_agent`;
@@ -566,7 +572,8 @@ const LATEST_SCHEMA_SQL =
   MESSAGING_MEMORY_SCHEMA_SQL +
   ROUTINE_RESULT_SCHEMA_SQL +
   AGENT_TASK_SCHEMA_SQL +
-  V40_THREAD_MESSAGE_ORDER_INDEX_SQL;
+  V40_THREAD_MESSAGE_ORDER_INDEX_SQL +
+  V41_ATTACHMENT_OWNER_INDEX_SQL;
 
 /** The end of the thread message table with the migration 40 columns before its PRIMARY KEY constraint. */
 function withThreadMessageOrderColumns(tableEnd: string): string {
@@ -795,6 +802,11 @@ const MIGRATIONS: readonly OpenBotMigration[] = [
     // keys of every existing message come from the order that pages computed before, so a cursor that a
     // client holds keeps its place.
     up: addThreadMessageOrder,
+  },
+  {
+    version: 41,
+    // Only creates an index, so no foreign-key pause and no vacuum.
+    up: (db) => db.exec(V41_ATTACHMENT_OWNER_INDEX_SQL),
   },
 ];
 

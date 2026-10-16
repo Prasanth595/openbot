@@ -11,7 +11,7 @@ import { useRef, useState } from "react";
 import { Alert, type AlertButton, View } from "react-native";
 import { useUniwind } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SERVER_ROLE_KEYS, SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import {
   SettingsContent,
@@ -21,6 +21,7 @@ import {
 } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { ProfileAvatar } from "@/shared/components/profile-avatar";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { haptics } from "@/shared/lib/haptics";
@@ -33,7 +34,7 @@ export function ServerMembersScreen() {
   const { theme } = useUniwind();
   const { serverId } = useLocalSearchParams<{ serverId: string }>();
   const { servers, teamDirectory } = useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
+  const queryScope = useQueryScope();
   const server = servers.find((candidate) => candidate.id === serverId);
   const canInvite = server?.role === "owner" || server?.role === "admin";
   const [inviteMode, setInviteMode] = useState<"email" | "link" | "permanent">("link");
@@ -48,14 +49,14 @@ export function ServerMembersScreen() {
   const [copied, setCopied] = useState(false);
   const locked = useRef(false);
   const members = useQuery({
-    queryKey: ["server-members", session?.apiUrl, session?.user.id, sessionScope, serverId],
+    queryKey: queryKeys.serverMembers(queryScope, serverId),
     enabled: Boolean(server),
     retry: false,
     gcTime: 0,
     queryFn: () => runTeamEffect(teamDirectory.listMembers(serverId)),
   });
   const invites = useQuery({
-    queryKey: ["server-invites", session?.apiUrl, session?.user.id, sessionScope, serverId],
+    queryKey: queryKeys.serverInvites(queryScope, serverId),
     enabled: canInvite,
     retry: false,
     gcTime: 0,

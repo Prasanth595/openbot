@@ -31,15 +31,23 @@ export function createSearchStore(deps: SearchStoreDeps) {
   let lastChatSearchQuery = "";
 
   createEffect(
-    () => ({
-      open: deps.chatSearchOpen(),
-      query: deps.chatSearchQuery(),
-      messageSignature: deps.props.messages
-        .map((message) => `${message.id}:${message.body}:${message.items?.join("\u0000") ?? ""}`)
-        .join("\u0001"),
-      remoteMessageIds: deps.chatSearchMessageIds(),
-      activeRemoteIndex: deps.activeChatSearchIndex(),
-    }),
+    () => {
+      const open = deps.chatSearchOpen();
+      const query = deps.chatSearchQuery();
+      return {
+        open,
+        query,
+        // Read the transcript only while a search runs, so a closed search does not join it on each stream chunk.
+        messageSignature:
+          open && query.trim()
+            ? deps.props.messages
+                .map((message) => `${message.id}:${message.body}:${message.items?.join("\u0000") ?? ""}`)
+                .join("\u0001")
+            : "",
+        remoteMessageIds: deps.chatSearchMessageIds(),
+        activeRemoteIndex: deps.activeChatSearchIndex(),
+      };
+    },
     ({ open, query, remoteMessageIds, activeRemoteIndex }) => {
       if (chatSearchFrame !== undefined) cancelAnimationFrame(chatSearchFrame);
       if (chatSearchTimer !== undefined) clearTimeout(chatSearchTimer);

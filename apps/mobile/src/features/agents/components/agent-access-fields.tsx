@@ -5,14 +5,15 @@ import { Typography } from "heroui-native";
 import { useState } from "react";
 import { Alert } from "react-native";
 import { useUniwind } from "uniwind";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
 import {
   type MobileAgent,
   type MobileServer,
-  useMobileWorkspace,
+  useMobileWorkspaceActions,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
@@ -21,11 +22,11 @@ import { useText } from "@/shared/lib/text";
  * without `agent-admin-v1`, and until the host answers. The info page and this page share the read.
  */
 export function useAgentAdminSettings(agent: MobileAgent, server: MobileServer | undefined, available: boolean) {
-  const workspace = useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
+  const workspace = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
   const canAdminister = server?.role === "owner" || server?.role === "admin";
   // Under "agent-info", so the host's agent events refresh it with the other agent records.
-  const queryKey = ["agent-info", session?.apiUrl, session?.user.id, sessionScope, agent.serverId, agent.id, "admin"];
+  const queryKey = queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "admin");
   const settings = useQuery({
     queryKey,
     queryFn: () => workspace.loadAgentAdminSettings(agent.id, agent.serverId),
@@ -52,7 +53,7 @@ export function AgentAccessFields({
   available: boolean;
 }) {
   const { t, errorMessage } = useText();
-  const workspace = useMobileWorkspace();
+  const workspace = useMobileWorkspaceActions();
   const queryClient = useQueryClient();
   const { theme } = useUniwind();
   const [saving, setSaving] = useState(false);

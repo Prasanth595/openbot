@@ -1,5 +1,11 @@
 import type { MobileTextKey, MobileTranslate } from "@openbot/i18n/mobile";
-import { type RemoteConnectionFailure, type RemoteRecoveryStatus, remoteRecoveryMessage } from "@openbot/team-client";
+import {
+  type RemoteConnectionFailure,
+  type RemoteRecoveryStatus,
+  type RemoteTeamHost,
+  remoteRecoveryMessage,
+} from "@openbot/team-client";
+import { serverAccent } from "./server-order";
 import type { MobileServer, MobileServerState } from "./workspace-types";
 
 const LABELS = {
@@ -84,4 +90,31 @@ export function recoveryCountdown(status: RemoteRecoveryStatus): number | null {
 
 export function serverKind(hostId: string, pairedHostId: string | undefined): MobileServer["kind"] {
   return hostId === pairedHostId ? "local" : "remote";
+}
+
+/** The server of a directory host. A server that is already listed keeps its connection state. */
+export function serverFromHost(
+  host: RemoteTeamHost,
+  kind: MobileServer["kind"],
+  previous?: MobileServer,
+): MobileServer {
+  return {
+    id: host.hostId,
+    name: host.name,
+    logoKey: host.logoKey,
+    kind,
+    state: previous?.state ?? "unknown",
+    initialConnectionPending: previous?.initialConnectionPending ?? true,
+    connectionMessage: previous?.connectionMessage ?? null,
+    connectionFailure: previous?.connectionFailure,
+    recoveryStatus: previous?.recoveryStatus,
+    resuming: previous?.resuming,
+    address: null,
+    accent: serverAccent(host.hostId),
+    publicKey: previous?.publicKey ?? host.devicePublicKey,
+    membershipId: host.membershipId,
+    role: host.role,
+    ...(host.memberLimit === undefined ? {} : { memberLimit: host.memberLimit }),
+    ...(host.hosted === undefined ? {} : { hosted: host.hosted }),
+  };
 }

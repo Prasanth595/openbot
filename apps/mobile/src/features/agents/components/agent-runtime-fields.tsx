@@ -9,10 +9,15 @@ import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Typography } from "heroui-native";
 import { useUniwind } from "uniwind";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsPicker } from "@/features/settings/components/settings-controls";
-import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  type MobileAgent,
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { useText } from "@/shared/lib/text";
 
 const EFFORT_LABELS = {
@@ -40,19 +45,11 @@ function pickerLabel(text: string): string {
  * member, for a host without `provider-accounts-v1`, and until the host answers.
  */
 export function useProviderAccounts(agent: MobileAgent, enabled: boolean) {
-  const workspace = useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
-  const canManage = workspace.canManageProviderAccounts(agent.serverId);
+  const workspace = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
+  const canManage = useMobileWorkspaceSelector((current) => current.canManageProviderAccounts(agent.serverId));
   // Under "agent-info", so the host's agent events refresh it with the other agent records.
-  const queryKey = [
-    "agent-info",
-    session?.apiUrl,
-    session?.user.id,
-    sessionScope,
-    agent.serverId,
-    agent.id,
-    "provider-accounts",
-  ];
+  const queryKey = queryKeys.agentProviderAccounts(queryScope, agent.serverId, agent.id);
   const accounts = useQuery({
     queryKey,
     queryFn: () => workspace.loadProviderAccounts(agent.serverId),
@@ -100,11 +97,11 @@ export function AgentRuntimeFields({
   // The name of an account, as on desktop: the user's name for it, its email, or its place in the list.
   const accountName = (account: ProviderAccountStatus, index: number) =>
     account.label || account.email || t("mobile.agent.runtime.accountNumbered", { number: index + 1 });
-  const workspace = useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
+  const workspace = useMobileWorkspaceActions();
+  const queryScope = useQueryScope();
   const { theme } = useUniwind();
   const models = useQuery({
-    queryKey: ["agent-models", session?.apiUrl, session?.user.id, sessionScope, serverId],
+    queryKey: queryKeys.agentModels(queryScope, serverId),
     queryFn: () => workspace.loadAgentModels(serverId),
     enabled: available,
     retry: false,
