@@ -313,6 +313,8 @@ See [web client delivery](docs/web-client.md) for the release gate and focused c
 | `bun run api:stripe:bootstrap` | Create or update the Stripe plan catalog and the Customer Portal settings from `STRIPE_SECRET_KEY` in the encrypted `apps/auth-api/.env.dev` (shell values replace it). It refuses a live key unless you add `--live`. For local webhooks, run `stripe listen --forward-to localhost:<API port>/v1/stripe/webhook` and set the signing secret in `STRIPE_WEBHOOK_SECRET`. See [Billing](docs/architecture/servers.md#billing). |
 | `bun run hosting:setup --target=production\|test` | Set up the Stripe catalog, the Customer Portal, and the Stripe and boat webhooks of one account server, and store the webhook signing secrets: production in the `cloudflare-production` GitHub Environment, test in the encrypted `apps/auth-api/.env.dev`. See [hosted servers](docs/hosted-servers.md#production). |
 | `bun run hosting:template` | Build the boat named snapshot that new hosted servers start from. Needs `BOAT_TEMPLATE_API_KEY` and `--version`, `--appimage-url`, `--appimage-sha256` and `--auth-api-url`. See [hosted servers](docs/hosted-servers.md). |
+| `bun run status:build` | Build the public status page in `apps/status/dist`. The `status-page` workflow adds `status.json` and `feed.xml` and publishes it to GitHub Pages at `status.openbot.run`. |
+| `bun run status:smoke` | Run the status page smoke test: update runs against a local fake service, one read-only run against the live checks, and the built page in Chrome. It writes `.openbot-build/status-page/report.json`. |
 | `bun run remote:up` | Build and start the self-hosted Signal, coturn, and ACME stack. |
 | `bun run remote:check` | Check the Remote API and both Docker Compose configurations. |
 | `bun run remote:check:compose` | Validate both Docker Compose configurations alone, without a running daemon. |
@@ -473,6 +475,7 @@ Cloudflare Workers
 - `src/preload` exposes only the typed `window.openbot` API.
 - `src/renderer` contains the SolidJS interface.
 - `apps/auth-api` contains the TanStack Start account API, one-time email codes, rate limits, and D1 migrations. It also serves the public site: the landing page, `/news`, `/guides`, and the plugin pages at `/plugins` and `/plugins/<slug>`.
+- `apps/status` contains the public status page at `status.openbot.run` and the script that the `status-page` workflow runs to check the services. GitHub hosts it, so it stays up when Cloudflare does not.
 - `packages/contracts` contains process-boundary contracts, shared limits, and pure validation.
 - `packages/i18n` contains the interface text in English, French, Japanese, Brazilian Portuguese and Turkish for desktop, web and mobile. See [docs/i18n.md](docs/i18n.md) to add text or a language.
 

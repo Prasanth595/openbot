@@ -207,6 +207,24 @@
         "wrangler": "catalog:",
       },
     },
+    "apps/status": {
+      "name": "@openbot/status",
+      "version": "0.0.0",
+      "dependencies": {
+        "@fontsource-variable/inter": "catalog:",
+        "@openbot/brand": "workspace:*",
+        "@openbot/logging": "workspace:*",
+        "@solidjs/web": "catalog:",
+        "effect": "catalog:",
+        "solid-js": "2.0.0-rc.0",
+      },
+      "devDependencies": {
+        "@solidjs/vite-plugin": "catalog:",
+        "@types/node": "catalog:",
+        "typescript": "catalog:",
+        "vite": "catalog:",
+      },
+    },
     "packages/brand": {
       "name": "@openbot/brand",
       "version": "0.0.0",
@@ -964,6 +982,8 @@
     "@openbot/remote-api": ["@openbot/remote-api@workspace:remote/api"],
 
     "@openbot/site-router": ["@openbot/site-router@workspace:apps/site-router"],
+
+    "@openbot/status": ["@openbot/status@workspace:apps/status"],
 
     "@openbot/team-client": ["@openbot/team-client@workspace:packages/team-client"],
 
