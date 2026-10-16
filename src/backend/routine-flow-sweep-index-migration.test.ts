@@ -16,7 +16,7 @@ const ROUTINE_FLOWS_SINCE = 31;
 
 const INDEXES = {
   routine_runs_status_updated: ["status", "updated_at"],
-  routine_flow_steps_status: ["status"],
+  routine_flow_steps_running: ["created_at", "step_id"],
   routine_flow_steps_updated: ["updated_at"],
 };
 
@@ -84,11 +84,12 @@ function expectHealthy(db: DatabaseSync): void {
   expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
 }
 
-const NO_INDEXES = { routine_runs_status_updated: [], routine_flow_steps_status: [], routine_flow_steps_updated: [] };
+const NO_INDEXES = { routine_runs_status_updated: [], routine_flow_steps_running: [], routine_flow_steps_updated: [] };
 
 describe("routine flow sweep index migration", () => {
-  // The oldest released schema, the first with the flow tables, and the newest released schema.
-  it.each([8, ROUTINE_FLOWS_SINCE, 41])("upgrades v%i and keeps every run, link and step", (version) => {
+  // The oldest released schema, the first with the flow tables, the newest released schema (v0.42.0), and
+  // migration 41 on main.
+  it.each([8, ROUTINE_FLOWS_SINCE, 40, 41])("upgrades v%i and keeps every run, link and step", (version) => {
     const db = databaseAt(version);
     seedRoutineFlow(db, version);
     const before = contents(db);

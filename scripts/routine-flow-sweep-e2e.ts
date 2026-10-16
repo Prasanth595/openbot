@@ -2,8 +2,9 @@
 // the real routine flow service on a temporary profile, with a week of runs of a 15-minute routine that
 // has no flow and of a routine with a flow. Checks that the sweep still gives each ended run its own
 // agent's step, sends only the handoffs that are not sent yet, and sends nothing on a second sweep.
-// Records the time of a sweep with nothing to do, which runs on each turn and queue change. No app,
-// provider, account or network is started.
+// Years of older runs sit outside the 7 days: no query of the sweep may read every row of a table for
+// them. Records the time of a sweep with nothing to do, which runs on each turn and queue change. No
+// app, provider, account or network is started.
 //
 // Run: bun scripts/routine-flow-sweep-e2e.ts
 // Writes .openbot-build/routine-flow-sweep-e2e/report.json and exits non-zero on a failure.
@@ -24,24 +25,34 @@ const QUARTER_HOUR_MS = 15 * 60 * 1000;
 const SOLO_RUNS = 672;
 /** A routine with a flow, every hour: runs whose flow is done. */
 const DONE_FLOW_RUNS = 160;
+/** The same routine before the 7 days: more than two years of hourly runs whose flow is done. */
+const OLD_FLOW_RUNS = 20_000;
 const TIMED_SWEEPS = 20;
-const INDEXES = ["routine_runs_status_updated", "routine_flow_steps_status", "routine_flow_steps_updated"];
+const INDEXES = ["routine_runs_status_updated", "routine_flow_steps_running", "routine_flow_steps_updated"];
 
 interface Report {
   soloRuns: number;
   doneFlowRuns: number;
+  oldFlowRuns: number;
+  plans?: Record<string, string[]>;
   checks: string[];
   timing?: { sweeps: number; totalMs: number; perSweepMs: number };
   passed: boolean;
 }
 
-const report: Report = { soloRuns: SOLO_RUNS, doneFlowRuns: DONE_FLOW_RUNS, checks: [], passed: false };
+const report: Report = {
+  soloRuns: SOLO_RUNS,
+  doneFlowRuns: DONE_FLOW_RUNS,
+  oldFlowRuns: OLD_FLOW_RUNS,
+  checks: [],
+  passed: false,
+};
 
 function seed(database: OpenBotDatabase): void {
   const db = database.connection;
   const now = Date.now();
   const at = (ms: number) => new Date(ms).toISOString();
-  const weekAgo = at(now - 8 * 24 * 60 * 60 * 1000);
+  const weekAgo = at(now - 8 * 24 * 60 * 60 * 1000 - OLD_FLOW_RUNS * 4 * QUARTER_HOUR_MS);
   const routine = db.prepare(
     `INSERT INTO projection_agent_routines (routine_id, agent_id, name, instruction, active, timezone, created_at,
        updated_at, last_event_sequence) VALUES (?, ?, ?, 'Collect the news.', 1, 'UTC', ?, ?, 1)`,
@@ -72,6 +83,12 @@ function seed(database: OpenBotDatabase): void {
     step.run(`done-${index}-chief`, `done-${index}`, "chief", null, time, time);
     step.run(`done-${index}-editor`, `done-${index}`, "editor", `done-editor-${index}`, time, time);
   }
+  for (let index = 0; index < OLD_FLOW_RUNS; index += 1) {
+    const time = at(now - 8 * 24 * 60 * 60 * 1000 - index * 4 * QUARTER_HOUR_MS);
+    run.run(`old-${index}`, "routine-flow", "chief", time, "Hourly brief", `old-delivery-${index}`, time, time);
+    step.run(`old-${index}-chief`, `old-${index}`, "chief", null, time, time);
+    step.run(`old-${index}-editor`, `old-${index}`, "editor", `old-editor-${index}`, time, time);
+  }
   const recent = at(now - 60_000);
   // The app stopped after the answer and before its handoff.
   run.run("pending", "routine-flow", "chief", recent, "Hourly brief", "pending-delivery", recent, recent);
@@ -79,6 +96,36 @@ function seed(database: OpenBotDatabase): void {
   // The answer is in, and no sweep saw it yet.
   run.run("fresh", "routine-flow", "chief", recent, "Hourly brief", "fresh-delivery", recent, recent);
   db.exec("COMMIT");
+}
+
+/**
+ * The query plan of each statement that one sweep prepares. The sweep reads through the store, so the
+ * statements come from the connection, not from a copy of their text here.
+ */
+async function sweepPlans(database: OpenBotDatabase, sweep: () => Promise<void>): Promise<Record<string, string[]>> {
+  const connection = database.connection;
+  const prepare = connection.prepare.bind(connection);
+  const statements = new Set<string>();
+  connection.prepare = (...args: Parameters<typeof prepare>) => {
+    statements.add(args[0]);
+    return prepare(...args);
+  };
+  try {
+    await sweep();
+  } finally {
+    connection.prepare = prepare;
+  }
+  return Object.fromEntries(
+    [...statements]
+      .filter((sql) => /^\s*SELECT/i.test(sql))
+      .map((sql) => [
+        sql.replace(/\s+/g, " ").trim(),
+        connection
+          .prepare(`EXPLAIN QUERY PLAN ${sql}`)
+          .all()
+          .map((row) => String(row.detail)),
+      ]),
+  );
 }
 
 function count(database: OpenBotDatabase, sql: string): number {
@@ -137,6 +184,15 @@ try {
       "The sweep sends the handoff of a new answer and the one a restart left, and no other.",
     );
     report.checks.push("handoffs: the new answer's and the one a restart left, once each");
+
+    const plans = await sweepPlans(database, () => Effect.runPromise(flows.sweep()));
+    report.plans = plans;
+    // The running steps index holds only running steps, so its scan reads no ended step.
+    const scans = Object.entries(plans).filter(([, plan]) =>
+      plan.some((line) => line.startsWith("SCAN") && !line.includes("USING INDEX routine_flow_steps_running")),
+    );
+    assert.deepEqual(scans, [], "No query of a sweep reads every row of a table.");
+    report.checks.push(`query plans: ${Object.keys(plans).length} sweep queries, each reads by an index`);
 
     const steps = count(database, "SELECT COUNT(*) AS count FROM routine_flow_steps");
     const started = performance.now();

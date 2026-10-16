@@ -294,8 +294,10 @@ export class RoutineFlowStore {
     return databaseRows(
       this.#database.connection
         .prepare(
+          // CROSS JOIN keeps the steps first, so the read starts at the recent steps on their `updated_at`
+          // index. Without it, SQLite reads every run ever stored in `run_id` order.
           `SELECT DISTINCT run.run_id FROM routine_flow_steps AS source
-           JOIN projection_routine_runs AS run ON run.run_id = source.run_id
+           CROSS JOIN projection_routine_runs AS run ON run.run_id = source.run_id
            JOIN routine_flow_links AS link ON link.routine_id = run.routine_id
              AND link.from_agent_id = source.agent_id AND link.created_at <= run.created_at
            WHERE source.updated_at >= ? AND source.status <> 'running'
