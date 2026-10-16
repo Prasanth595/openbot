@@ -132,7 +132,9 @@ export const readMuseAccount = Effect.fn("MuseLogin.readAccount")(
       providerSync(() =>
         spawnMspConnection({ command: target.command, args: target.args, env: environment, shutdownTimeoutMs: 10_000 }),
       ),
-      (handshake) => Effect.tryPromise(() => handshake.close()).pipe(Effect.ignore),
+      // Not awaited: a stalled host can take its shutdown window plus a 2 s SIGTERM grace to end,
+      // which would hold the answer past the 5 s `account/read` deadline. The SDK still ends it.
+      (handshake) => Effect.sync(() => void handshake.close().catch(() => undefined)),
     );
     const host = yield* providerCall(() =>
       handshake.initialize({
