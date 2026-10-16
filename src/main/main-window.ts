@@ -150,17 +150,9 @@ export function createMainWindowController({
       // both of those rows. The setup window below uses the same offsets.
       ...(process.platform === "darwin"
         ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 12, y: 13 } }
-        : process.platform === "win32"
-          ? // No title bar and no menu bar: Windows draws its window buttons over the right end of the
-            // top row, which leaves `--window-controls-inset` free for them. The color is the
-            // window frame of `window.css`, and the height is its `--left-header-height`.
-            {
-              titleBarStyle: "hidden" as const,
-              titleBarOverlay: { color: "#0d0d0d", symbolColor: "#dcdcdc", height: 38 },
-            }
-          : // Linux draws the application menu as a bar in the window. It stays set, so its shortcuts
-            // work, and the Alt key shows it.
-            { autoHideMenuBar: true }),
+        : // Windows and Linux draw the application menu as a bar under the title bar. It stays set, so
+          // its shortcuts work, and the Alt key shows it.
+          { autoHideMenuBar: true }),
       webPreferences: {
         preload: join(__dirname, "../preload/index.cjs"),
         contextIsolation: true,
