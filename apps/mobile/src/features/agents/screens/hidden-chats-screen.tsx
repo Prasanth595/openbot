@@ -12,10 +12,10 @@ import { useText } from "@/shared/lib/text";
 
 export function HiddenChatsScreen() {
   const { t } = useText();
-  const { activeServer, hiddenAgents, unhideAgent, hidesAgentsOnServer } = useMobileWorkspace();
+  const { activeServer, hiddenAgents, unhideAgent, hidesAgentsOnServer, canUnhideAgent } = useMobileWorkspace();
   const foreground = useThemeColor("foreground");
-  const items: { id: string; name: string; href: Href; avatar: ReactNode; show: () => void }[] = hiddenAgents.map(
-    (agent) => ({
+  const items: { id: string; name: string; href: Href; avatar: ReactNode; show: (() => void) | null }[] =
+    hiddenAgents.map((agent) => ({
       id: agent.id,
       name: agent.name,
       href: { pathname: "/chat/[agentId]" as const, params: { agentId: agent.id } },
@@ -29,13 +29,16 @@ export function HiddenChatsScreen() {
           animateIdle={false}
         />
       ),
-      show: () => {
-        unhideAgent(agent.id);
-        void haptics.notification();
-        if (hiddenAgents.length === 1) router.back();
-      },
-    }),
-  );
+      // A member cannot show an agent that the host hid; the host refuses the request.
+      show: canUnhideAgent(agent.id)
+        ? () => {
+            unhideAgent(agent.id);
+            void haptics.notification();
+            if (hiddenAgents.length === 1) router.back();
+          }
+        : null,
+    }));
+  const synced = hidesAgentsOnServer(activeServer.id) || items.some((item) => item.show === null);
 
   return (
     <SheetScrollView contentContainerClassName="gap-5 px-5 pb-safe-offset-5 pt-7">
@@ -44,7 +47,7 @@ export function HiddenChatsScreen() {
           {t("mobile.agent.hidden.title")}
         </Typography.Heading>
         <Typography.Paragraph type="body-xs" align="center" className="text-text-secondary">
-          {t(hidesAgentsOnServer(activeServer.id) ? "mobile.agent.hidden.bodySynced" : "mobile.agent.hidden.body")}
+          {t(synced ? "mobile.agent.hidden.bodySynced" : "mobile.agent.hidden.body")}
         </Typography.Paragraph>
       </View>
 
@@ -73,17 +76,19 @@ export function HiddenChatsScreen() {
                 </Pressable>
               </Link.Trigger>
             </Link>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("mobile.agent.hidden.showNamed", { name: item.name })}
-              className="min-h-10 flex-row items-center gap-1.5 rounded-full bg-control-active px-3"
-              onPress={item.show}
-            >
-              <Eye color={String(foreground)} size={16} strokeWidth={1.9} />
-              <Typography.Paragraph type="body-xs" weight="semibold">
-                {t("mobile.agent.hidden.show")}
-              </Typography.Paragraph>
-            </Pressable>
+            {item.show ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("mobile.agent.hidden.showNamed", { name: item.name })}
+                className="min-h-10 flex-row items-center gap-1.5 rounded-full bg-control-active px-3"
+                onPress={item.show}
+              >
+                <Eye color={String(foreground)} size={16} strokeWidth={1.9} />
+                <Typography.Paragraph type="body-xs" weight="semibold">
+                  {t("mobile.agent.hidden.show")}
+                </Typography.Paragraph>
+              </Pressable>
+            ) : null}
           </View>
         ))}
       </View>

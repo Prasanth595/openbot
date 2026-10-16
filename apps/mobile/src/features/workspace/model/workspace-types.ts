@@ -374,6 +374,11 @@ export interface MobileWorkspaceContextValue {
    * device shows it. A member hides on this phone only.
    */
   hidesAgentsOnServer: (serverId: string) => boolean;
+  /**
+   * True when the user can show a hidden agent of the active server again: this phone hid it, or the
+   * host hid it and the user is an owner or admin.
+   */
+  canUnhideAgent: (agentId: string) => boolean;
   /** Hides an agent of the active server: on the host when it owns the list, else on this phone only. */
   hideAgent: (agentId: string) => void;
   /** Shows a hidden agent of the active server again, on this phone and on the host. */
@@ -409,6 +414,7 @@ type MobileWorkspaceStateKey =
   | "hiddenAgents"
   | "pinnedAgentIds"
   | "hidesAgentsOnServer"
+  | "canUnhideAgent"
   | "canEditServerIdentity"
   | "canSendNotifications"
   | "canManageEvents"

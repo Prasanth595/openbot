@@ -1340,7 +1340,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           hidden: current.hidden.filter((id) => id !== agentId),
         }));
         if (
-          hidesAgentsOnHost(serverCapabilities.current.get(serverId)) &&
+          hostOwnsHide(serverCapabilities.current.get(serverId), currentActiveServer().role) &&
           hostHiddenRef.current[serverId]?.includes(agentId)
         ) {
           changeHostHidden(serverId, agentId, false);
@@ -1448,6 +1448,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       pinnedAgentIds,
       hidesAgentsOnServer: (serverId) =>
         hostOwnsHide(serverCapabilities.current.get(serverId), servers.find((server) => server.id === serverId)?.role),
+      canUnhideAgent: (agentId) =>
+        !hostHiddenIds.includes(agentId) ||
+        hostOwnsHide(serverCapabilities.current.get(activeServer.id), activeServer.role),
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canSendNotifications: (serverId) =>
         servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
@@ -1473,6 +1476,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     activeAgents,
     hiddenAgents,
     pinnedAgentIds,
+    hostHiddenIds,
     supportsPushNotifications,
   ]);
   const value = useMemo<MobileWorkspaceContextValue>(() => ({ ...state, ...actions }), [state, actions]);
