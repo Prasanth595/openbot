@@ -369,7 +369,19 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<DraftAttachment>;
   downloadAttachment: (serverId: string, attachmentId: string) => Promise<RemoteFileUpload>;
   discardAttachment: (agentId: string, attachmentId: string, serverId?: string) => Promise<void>;
+  /**
+   * True when a hide goes to the host (`agent-hidden-v1`, and the user is an owner or admin), so each
+   * device shows it. A member hides on this phone only.
+   */
+  hidesAgentsOnServer: (serverId: string) => boolean;
+  /**
+   * True when the user can show a hidden agent of the active server again: this phone hid it, or the
+   * host hid it and the user is an owner or admin.
+   */
+  canUnhideAgent: (agentId: string) => boolean;
+  /** Hides an agent of the active server: on the host when it owns the list, else on this phone only. */
   hideAgent: (agentId: string) => void;
+  /** Shows a hidden agent of the active server again, on this phone and on the host. */
   unhideAgent: (agentId: string) => void;
   markAgentRead: (agentId: string, throughMessageId?: string, serverId?: string) => void;
   markAgentUnread: (agentId: string) => void;
@@ -401,6 +413,8 @@ type MobileWorkspaceStateKey =
   | "activeAgents"
   | "hiddenAgents"
   | "pinnedAgentIds"
+  | "hidesAgentsOnServer"
+  | "canUnhideAgent"
   | "canEditServerIdentity"
   | "canSendNotifications"
   | "canManageEvents"

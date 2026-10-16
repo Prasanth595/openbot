@@ -64,7 +64,6 @@ export const messages = {
   "usage.panel.metric": "Kullanım metriği",
   "usage.panel.period": "Kullanım dönemi",
   "usage.panel.refresh": "Kullanımı yenile",
-  "usage.panel.planLimits": "Plan sınırları",
   "usage.panel.loading": "Kullanım yükleniyor…",
   "usage.panel.unsupported":
     "Bu ana makine ajan analizlerini desteklemiyor. Bu görünümü kullanmak için ana makineyi güncelleyin.",

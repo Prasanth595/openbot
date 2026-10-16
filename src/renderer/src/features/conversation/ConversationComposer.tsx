@@ -514,7 +514,7 @@ export function ConversationComposer() {
         <div class="composer-input-label">
           <ComposerEditor
             agentId={props.agent?.id}
-            agents={props.agents}
+            agents={props.mentionAgents ?? props.agents}
             skills={installedSkills()}
             skillsLoadFailed={installedSkillsLoadFailed()}
             mcpServers={mcpServers()}

@@ -1769,6 +1769,11 @@ textarea {
   font-weight: 650;
 }
 
+.sidebar-hidden-group-count {
+  margin-inline-start: var(--openbot-space-1);
+  font-variant-numeric: tabular-nums;
+}
+
 .sidebar-chat-group > .sidebar-section-editor-wrap {
   height: 36px;
 }
@@ -2201,6 +2206,12 @@ textarea {
   place-items: center;
   transform: translateX(0);
   transition: transform var(--panel-resize-duration, var(--openbot-duration-overlay)) cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* A hidden agent sleeps, so its face is faded and has no colour. */
+.sidebar-agent-item-user-hidden .agent-row-avatar {
+  opacity: 0.5;
+  filter: grayscale(1);
 }
 
 .agent-row-agent-status {

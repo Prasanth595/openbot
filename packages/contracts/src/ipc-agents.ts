@@ -21,6 +21,7 @@ import {
 } from "./ipc-agent-status";
 import { isAgentTaskLimit } from "./ipc-agent-tasks";
 import { isBoundedString, isIdentifier } from "./ipc-bounded-values";
+import { isHiddenAt } from "./ipc-hidden-agents";
 import { type BusyMessageMode, isBusyMessageMode } from "./ipc-queue";
 import type { SidebarLayoutSnapshot } from "./ipc-sidebar-layout";
 import { isBoolean, isDynamicRecord, isNumber, isOneOf } from "./runtime-values";
@@ -181,6 +182,11 @@ export interface AgentSummary {
    * back to it when the limit ends.
    */
   usageLimitReturn?: AgentUsageLimitReturn;
+  /**
+   * ISO 8601 time when a user hid the agent. Local-only, like `access`: a remote client reads the
+   * hidden agents through `agent-hidden-v1`. Absent means the agent is not hidden.
+   */
+  hiddenAt?: string;
   threadId: string | null;
   workspacePath: string;
   preview: string;
@@ -218,6 +224,7 @@ export function isAgentSummary(value: unknown): value is AgentSummary {
     (value.providerAccountId === undefined || isProviderAccountId(value.providerAccountId)) &&
     (value.backupModels === undefined || isAgentBackupModels(value.backupModels)) &&
     (value.usageLimitReturn === undefined || isAgentUsageLimitReturn(value.usageLimitReturn)) &&
+    (value.hiddenAt === undefined || isHiddenAt(value.hiddenAt)) &&
     (value.threadId === null || isIdentifier(value.threadId)) &&
     isBoundedString(value.workspacePath, INPUT_LIMITS.path) &&
     isBoundedString(value.preview, INPUT_LIMITS.messageText) &&

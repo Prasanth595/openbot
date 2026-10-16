@@ -51,6 +51,9 @@ import type { AuthUser, WorkerBindings } from "./types";
 const TICKET_TTL_SECONDS = 180;
 const LEGACY_SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/u;
 const AUTH_EVENT_RETRY_MS = 60_000;
+const AUTH_EVENT_SEND_CONCURRENCY = 6;
+/** Longer than one drain: 50 events, 6 at a time, each with a 5 s timeout. */
+const AUTH_EVENT_CLAIM_MS = 2 * 60_000;
 const MAX_OUTSTANDING_INVITES_PER_HOST = 50;
 const MAX_PERMANENT_INVITES_PER_HOST = 5;
 const MAX_TELEGRAM_LINK_CODES_PER_HOST = 10;
@@ -2550,13 +2553,16 @@ export class RemoteControlPlane {
     this: RemoteControlPlane,
   ): Effect.fn.Return<void, RemoteFailure, RemoteDependencies> {
     const dependencies = yield* RemoteDependencies;
-    const delivery = deliverRemoteAuthEvents({
-      database: dependencies.database,
-      webhookUrl: dependencies.webhookUrl,
-      webhookSecret: dependencies.webhookSecret,
-      fetch: dependencies.fetch,
-      now: dependencies.now(),
-    });
+    // The time is read when the delivery starts, which can be later than this flush.
+    const delivery = Effect.suspend(() =>
+      deliverRemoteAuthEvents({
+        database: dependencies.database,
+        webhookUrl: dependencies.webhookUrl,
+        webhookSecret: dependencies.webhookSecret,
+        fetch: dependencies.fetch,
+        now: dependencies.now(),
+      }),
+    );
     if (!dependencies.schedule) return yield* delivery;
     dependencies.schedule(delivery);
   });
@@ -2624,51 +2630,62 @@ const deliverRemoteAuthEvents = Effect.fn("RemoteControlPlane.deliverAuthEvents"
 }) {
   const { webhookUrl, webhookSecret } = input;
   if (!webhookUrl || !webhookSecret) return;
+  // The claim moves the events out of reach of other drains until it lapses, so each drain sends its own.
   const result = yield* remoteCall(() =>
     input.database
       .prepare(
-        "SELECT event_id, payload, attempts FROM remote_auth_events WHERE next_attempt_at <= ? ORDER BY created_at LIMIT 50",
+        `UPDATE remote_auth_events SET next_attempt_at = ?
+         WHERE event_id IN (SELECT event_id FROM remote_auth_events WHERE next_attempt_at <= ? ORDER BY created_at LIMIT 50)
+         RETURNING event_id, payload, attempts`,
       )
-      .bind(input.now)
+      .bind(input.now + AUTH_EVENT_CLAIM_MS, input.now)
       .all<RemoteAuthEventRow>(),
   );
-  for (const event of result.results ?? []) {
-    const delivery = yield* Effect.result(
+  // Each event saves its result after its send, so a drain that the Worker stops keeps what it did.
+  yield* Effect.forEach(
+    result.results ?? [],
+    (event) =>
       Effect.gen(function* () {
-        const timestamp = Math.floor(input.now / 1_000).toString();
-        const signature = yield* hmacSha256(webhookSecret, `${timestamp}.${event.payload}`).pipe(
-          Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
+        const delivery = yield* Effect.result(
+          Effect.gen(function* () {
+            const timestamp = Math.floor(input.now / 1_000).toString();
+            const signature = yield* hmacSha256(webhookSecret, `${timestamp}.${event.payload}`).pipe(
+              Effect.mapError((error) =>
+                error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}),
+              ),
+            );
+            const response = yield* Effect.tryPromise({
+              try: (signal) =>
+                input.fetch(webhookUrl, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "OpenBot-Timestamp": timestamp,
+                    "OpenBot-Signature": signature,
+                  },
+                  body: event.payload,
+                  signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
+                }),
+              catch: () => new RemoteOperationError({}),
+            });
+            if (!response.ok) return yield* new RemoteOperationError({});
+            yield* remoteCall(() =>
+              input.database.prepare("DELETE FROM remote_auth_events WHERE event_id = ?").bind(event.event_id).run(),
+            );
+          }),
         );
-        const response = yield* Effect.tryPromise({
-          try: (signal) =>
-            input.fetch(webhookUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "OpenBot-Timestamp": timestamp,
-                "OpenBot-Signature": signature,
-              },
-              body: event.payload,
-              signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]),
-            }),
-          catch: () => new RemoteOperationError({}),
-        });
-        if (!response.ok) return yield* new RemoteOperationError({});
-        yield* remoteCall(() =>
-          input.database.prepare("DELETE FROM remote_auth_events WHERE event_id = ?").bind(event.event_id).run(),
-        );
+        if (Result.isFailure(delivery)) {
+          const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
+          yield* remoteCall(() =>
+            input.database
+              .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
+              .bind(input.now + delay, event.event_id)
+              .run(),
+          );
+        }
       }),
-    );
-    if (Result.isFailure(delivery)) {
-      const delay = Math.min(AUTH_EVENT_RETRY_MS * 2 ** Math.min(event.attempts, 6), 60 * 60_000);
-      yield* remoteCall(() =>
-        input.database
-          .prepare("UPDATE remote_auth_events SET attempts = attempts + 1, next_attempt_at = ? WHERE event_id = ?")
-          .bind(input.now + delay, event.event_id)
-          .run(),
-      );
-    }
-  }
+    { concurrency: AUTH_EVENT_SEND_CONCURRENCY, discard: true },
+  );
 });
 
 function requiredIdentifier(value: string, name: string): string {

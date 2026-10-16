@@ -204,23 +204,3 @@
   min-height: 0;
   flex: 1;
 }
-
-/* The plan limits of each provider, first in the report body. The page header refreshes them, so the
- * section has no refresh button, and its headings have no icon. */
-.usage-plan-limits {
-  display: grid;
-  gap: var(--openbot-space-3);
-}
-
-.usage-plan-limits :is(.account-usage-refresh, .account-usage-popover-heading > svg) {
-  display: none;
-}
-
-.usage-plan-limits .account-usage-popover-heading {
-  padding-inline-start: 0;
-}
-
-/* Bars as wide as the report columns are hard to compare, so the list keeps a reading width. */
-.usage-plan-limits .account-usage-providers {
-  max-width: calc(var(--openbot-space-6) * 24);
-}

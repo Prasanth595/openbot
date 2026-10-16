@@ -11,6 +11,7 @@ export interface ServersPort {
     | "getStatus"
     | "listAgents"
     | "listConversationReads"
+    | "listHiddenAgents"
     | "listMcpServers"
     | "listModels"
     | "removeMcpServer"

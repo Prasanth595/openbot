@@ -354,8 +354,8 @@ class RoutineFlows extends Context.Service<RoutineFlows, RoutineFlowsShape>()("o
               runIds.add(step.runId);
             }
           }
-          // Also every run with a recent step: a restart between an answer and its handoff resumes here.
-          for (const runId of store.runIdsWithStepsSince(since)) runIds.add(runId);
+          // Also every run with a handoff not sent yet: a restart between an answer and its handoff resumes here.
+          for (const runId of store.runIdsWithPendingHandoff(since)) runIds.add(runId);
           for (const runId of runIds) {
             const run = store.run(runId);
             if (!run) continue;

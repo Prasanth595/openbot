@@ -276,6 +276,8 @@ export class DrainScheduler {
       this.#lanesOf(agentId).some((other) => other.taskId !== taskId && this.#laneRunning(other))
     )
       return "agent-client-changing";
+    // A hidden agent finishes the turn that runs. Its queued messages wait until the user restores it.
+    if (agent?.hiddenAt !== undefined) return "hidden";
     if (!(taskId === null ? (this.#channels?.mayDrain(agentId) ?? true) : (this.#channels?.mayDrainTask() ?? true)))
       return "channel";
     if (!this.#profileSave.mayDrain(agentId)) return "profile-save";

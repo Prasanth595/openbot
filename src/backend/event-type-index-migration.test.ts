@@ -55,7 +55,7 @@ function typeIndexColumns(db: DatabaseSync) {
 const TYPE_INDEX_COLUMNS = ["aggregate_id", "event_type", "sequence"];
 
 function expectHealthy(db: DatabaseSync): void {
-  expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 42 });
+  expect(db.prepare("SELECT MAX(version) AS version FROM schema_migrations").get()).toEqual({ version: 43 });
   expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
   expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
@@ -63,7 +63,7 @@ function expectHealthy(db: DatabaseSync): void {
 
 describe("event type index migration", () => {
   // The event table is the same from the v8 baseline on, so the oldest and the newest released schema bound it.
-  it.each([8, 41])("upgrades v%i and keeps every event and receipt", (version) => {
+  it.each([8, 42])("upgrades v%i and keeps every event and receipt", (version) => {
     const db = databaseAt(version);
     seedEvents(db);
     const before = contents(db);
@@ -74,15 +74,15 @@ describe("event type index migration", () => {
   });
 
   it("rolls back the index and the marker after a failure, then retries", () => {
-    const db = databaseAt(41);
+    const db = databaseAt(42);
     seedEvents(db);
     const before = contents(db);
-    db.exec(`CREATE TEMP TRIGGER fail_marker BEFORE INSERT ON schema_migrations WHEN new.version = 42
+    db.exec(`CREATE TEMP TRIGGER fail_marker BEFORE INSERT ON schema_migrations WHEN new.version = 43
       BEGIN SELECT RAISE(ABORT, 'late failure'); END;`);
-    expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 42 failed");
+    expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 43 failed");
     expect(typeIndexColumns(db)).toEqual([]);
     expect(contents(db)).toEqual(before);
-    expect(db.prepare("SELECT version FROM schema_migrations WHERE version = 42").all()).toEqual([]);
+    expect(db.prepare("SELECT version FROM schema_migrations WHERE version = 43").all()).toEqual([]);
     db.exec("DROP TRIGGER fail_marker");
     migrateOpenBotDatabase(db);
     expect(contents(db)).toEqual(before);
@@ -91,13 +91,13 @@ describe("event type index migration", () => {
   });
 
   it("rolls back when the index name is taken, then retries", () => {
-    const db = databaseAt(41);
+    const db = databaseAt(42);
     seedEvents(db);
     const before = contents(db);
     // SQLite refuses an index whose name a table holds, even with IF NOT EXISTS.
     db.exec("CREATE TABLE orchestration_events_thread_type (conflict TEXT)");
-    expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 42 failed");
-    expect(db.prepare("SELECT version FROM schema_migrations WHERE version = 42").all()).toEqual([]);
+    expect(() => migrateOpenBotDatabase(db)).toThrow("migration to version 43 failed");
+    expect(db.prepare("SELECT version FROM schema_migrations WHERE version = 43").all()).toEqual([]);
     expect(contents(db)).toEqual(before);
     db.exec("DROP TABLE orchestration_events_thread_type");
     migrateOpenBotDatabase(db);
@@ -107,12 +107,12 @@ describe("event type index migration", () => {
   });
 
   it("rejects newer and incomplete migration histories before it adds the index", () => {
-    const db = databaseAt(41);
+    const db = databaseAt(42);
     seedEvents(db);
     const before = contents(db);
-    db.exec("INSERT INTO schema_migrations VALUES(43, 'now')");
+    db.exec("INSERT INTO schema_migrations VALUES(44, 'now')");
     expect(() => migrateOpenBotDatabase(db)).toThrow("newer than this application supports");
-    db.exec("DELETE FROM schema_migrations WHERE version = 43; DELETE FROM schema_migrations WHERE version = 20");
+    db.exec("DELETE FROM schema_migrations WHERE version = 44; DELETE FROM schema_migrations WHERE version = 20");
     expect(() => migrateOpenBotDatabase(db)).toThrow("missing version 20");
     expect(contents(db)).toEqual(before);
     expect(typeIndexColumns(db)).toEqual([]);

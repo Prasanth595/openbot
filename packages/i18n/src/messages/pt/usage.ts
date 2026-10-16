@@ -64,7 +64,6 @@ export const messages = {
   "usage.panel.metric": "Métrica de uso",
   "usage.panel.period": "Período de uso",
   "usage.panel.refresh": "Atualizar uso",
-  "usage.panel.planLimits": "Limites do plano",
   "usage.panel.loading": "Carregando uso…",
   "usage.panel.unsupported":
     "Este computador anfitrião não oferece análises dos agentes. Atualize-o para usar esta visualização.",

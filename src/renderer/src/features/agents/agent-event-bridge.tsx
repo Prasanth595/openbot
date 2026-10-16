@@ -48,7 +48,8 @@ export function AgentEventBridge() {
   const { activeServerId } = useServers();
   const { applyAccountUsage } = useAuth();
   const { applyAgentStatus, refreshAgentProviders } = useProviders();
-  const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents } = useAgents();
+  const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents, applyUserHiddenAgents } =
+    useAgents();
   const { setConversationErrors } = useConversationController();
   const agentTasks = useAgentTasks();
   const {
@@ -114,6 +115,9 @@ export function AgentEventBridge() {
         return;
       case "sidebar-layout-changed":
         setSidebarLayout(event.layout);
+        return;
+      case "hidden-agents-changed":
+        applyUserHiddenAgents(event.agents);
         return;
       case "conversation":
         scheduleConversation(event.snapshot);

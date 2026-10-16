@@ -111,6 +111,11 @@ export interface ConversationProps {
   onManageProviders?: (trigger: HTMLElement) => void;
   agent: AgentProfile | undefined;
   agents: AgentProfile[];
+  /**
+   * The agents that the composer offers for a mention. Absent means `agents`. A hidden agent gets no
+   * messages, so the desktop leaves it out; the timeline still names it from `agents`.
+   */
+  mentionAgents?: AgentProfile[];
   availableRoutineIds?: readonly string[];
   /** The agent's routines, for the chat card of a routine the agent created or changed. */
   routines?: readonly RoutineFields[];

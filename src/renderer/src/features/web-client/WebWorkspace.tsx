@@ -17,7 +17,7 @@ import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/age
 import { AGENT_IMPORT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-import-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
-import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
+import { AGENT_HIDDEN_CAPABILITY, TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { EVENTS_CAPABILITY } from "@openbot/contracts/team-protocol/events-v1";
 import { HOST_RELEASE_CAPABILITY } from "@openbot/contracts/team-protocol/host-release-v1";
 import { HOSTED_SITES_CAPABILITY } from "@openbot/contracts/team-protocol/hosted-sites-v1";
@@ -1171,6 +1171,39 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (view === "routines") channels.close();
     layout.setSidebarView(view);
   }
+  /**
+   * Hides or restores an agent on the host. After a hide, a toast offers Undo. The open chat stays
+   * open, as on the desktop.
+   */
+  function setAgentHidden(agentId: string, hidden: boolean): void {
+    const agent = workspace.state.agents.find((candidate) => candidate.id === agentId);
+    if (!agent) return;
+    const toastId = `agent-hide-${workspace.state.host?.hostId ?? ""}-${agentId}`;
+    void workspace.setAgentHidden(agentId, hidden).then(
+      (sent) => {
+        if (!sent) return;
+        if (!hidden) {
+          toast.dismiss(toastId);
+          return;
+        }
+        toast(t("agent.hideUndo.title", { name: agent.name }), {
+          id: toastId,
+          action: { label: t("agent.hideUndo.action"), onClick: () => setAgentHidden(agentId, false) },
+        });
+      },
+      (error: unknown) => {
+        actionToast.error(t(hidden ? "agent.error.hideFailed" : "agent.error.restoreFailed"), {
+          description: text.errorMessage(error, t("agent.error.hiddenFailed")),
+          report: { operation: "agent", source: "action", cause_code: classifyFailure(error) },
+        });
+      },
+    );
+  }
+  // The host refuses a member: a hidden agent stops for every member, as a deleted one does.
+  const hideSupported = () =>
+    workspace.state.status === "online" &&
+    workspace.state.capabilities.includes(AGENT_HIDDEN_CAPABILITY) &&
+    (workspace.state.host?.role === "owner" || workspace.state.host?.role === "admin");
   function startCreate() {
     setMobilePane("conversation");
     channels.close();
@@ -1421,6 +1454,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   }
                   marketplaceSupported={workspace.state.status === "online"}
                   onDeleteAgent={workspace.deleteAgent}
+                  userHiddenAgents={workspace.state.userHiddenAgents}
+                  onHideAgent={hideSupported() ? (agentId) => setAgentHidden(agentId, true) : undefined}
+                  onRestoreAgent={hideSupported() ? (agentId) => setAgentHidden(agentId, false) : undefined}
                   compact={compact()}
                   onExpand={layout.expandSidebar}
                   onOpenSearch={() => setSearchOpen(true)}

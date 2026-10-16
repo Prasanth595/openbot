@@ -25,7 +25,6 @@ import {
 } from "@openbot/ui/features/usage/usage-format";
 import { useText } from "@openbot/ui/text";
 import { errorReference } from "@openbot/user-errors";
-import type { JSX } from "@solidjs/web";
 import { createEffect, createStore, onSettled, Show } from "solid-js";
 import { type UsagePort, usagePort } from "./usage-port";
 
@@ -35,10 +34,6 @@ interface AgentUsagePanelProps {
   serverId: string;
   hostName: string;
   onBack: () => void;
-  /** Shown first in the report body, such as the plan limits of the window page. */
-  limits?: JSX.Element;
-  /** Called with the report refresh, so the content of `limits` refreshes too. */
-  onRefresh?: () => void;
   /** The web client reads the host through its own connection. The default is the desktop bridge. */
   port?: UsagePort;
 }
@@ -235,17 +230,13 @@ export function AgentUsagePanel(props: AgentUsagePanelProps) {
             variant="outline"
             label={t("usage.panel.refresh")}
             disabled={state.phase === "loading"}
-            onClick={() => {
-              props.onRefresh?.();
-              void load();
-            }}
+            onClick={() => void load()}
           >
             <RefreshCw />
           </IconButton>
         </div>
       </header>
       <div ref={reportBody} class="agent-usage-body">
-        {props.limits}
         <Show when={state.phase === "loading"}>
           <div class="agent-usage-loading" role="status">
             <span>{t("usage.panel.loading")}</span>

@@ -33,6 +33,7 @@ import {
   type ProviderHistoryStagedItem,
   type ProviderHistoryStagedTurn,
   type ProviderHistoryStagedTurnPage,
+  type ProviderHistoryStageResult,
   ProviderHistoryStore,
   type ProviderHistoryTurnCursor,
 } from "./database/provider-history-store";
@@ -54,6 +55,7 @@ export type {
   ProviderHistoryStagedItem,
   ProviderHistoryStagedTurn,
   ProviderHistoryStagedTurnPage,
+  ProviderHistoryStageResult,
   ProviderHistoryTurnCursor,
 } from "./database/provider-history-store";
 export type { ProviderSession } from "./database/provider-sessions";
@@ -459,7 +461,7 @@ export class OpenBotDatabase {
     sessionId: string;
     fragment: import("./provider-history").ProviderHistoryFragment;
     cursor?: unknown;
-  }): ProviderHistoryImportState {
+  }): ProviderHistoryStageResult {
     return this.#providerHistory.stageProviderHistoryFragment(input);
   }
 
