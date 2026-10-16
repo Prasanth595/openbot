@@ -6,9 +6,10 @@ import { Button, Typography } from "heroui-native";
 import { type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { useText } from "@/shared/lib/text";
 import { AgentFiles } from "./agent-files";
 import { MemoryEditor, RoutineEditor } from "./agent-record-editor";
@@ -97,39 +98,38 @@ export function AgentInformation({
   const { recordId } = useLocalSearchParams<{ recordId?: string }>();
   const workspace = useMobileWorkspace();
   const role = workspace.servers.find((server) => server.id === agent.serverId)?.role;
-  const { session, sessionScope } = useMobileSession();
+  const queryScope = useQueryScope();
   const [range, setRange] = useState(() => analyticsRange(agent.id));
-  const key = ["agent-info", session?.apiUrl, session?.user.id, sessionScope, agent.serverId, agent.id];
   const options = { enabled: available, retry: false, staleTime: 0, gcTime: 0 };
   const memories = useQuery({
     ...options,
     enabled: available && (section === "memories" || section === "memory"),
-    queryKey: [...key, "memories"],
+    queryKey: queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "memories"),
     queryFn: () => workspace.loadAgentMemories(agent.id, agent.serverId),
   });
   const memorySelection = useQuery({
     ...options,
     enabled: available && (section === "memories" || section === "memory"),
-    queryKey: [...key, "memory-selection"],
+    queryKey: queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "memory-selection"),
     queryFn: () => workspace.loadAgentMemorySelection(agent.id, agent.serverId),
   });
   const selectionById = new Map(memorySelection.data?.selections.map((entry) => [entry.memoryId, entry]));
   const routines = useQuery({
     ...options,
     enabled: available && (section === "routines" || section === "routine"),
-    queryKey: [...key, "routines"],
+    queryKey: queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "routines"),
     queryFn: () => workspace.loadAgentRoutines(agent.id, agent.serverId),
   });
   const { eventsEnabled, eventRoutines, webhookRoutines } = useEventRoutines(
     { kind: "agent", id: agent.id },
     agent.serverId,
     available && (section === "routines" || section === "routine"),
-    key,
+    queryKeys.agentEventRoutines(queryScope, agent.serverId, agent.id),
   );
   const allRoutines = [...(routines.data ?? []), ...webhookRoutines];
   // An owner or admin reads the admin list, which has the enabled state, and can change it.
   const manageSkills = workspace.canManageAgentSkills(agent.serverId);
-  const skillsKey = [...key, "skills", manageSkills];
+  const skillsKey = queryKeys.agentSkills(queryScope, agent.serverId, agent.id, manageSkills);
   const skills = useQuery({
     ...options,
     enabled: available && section === "skills",
@@ -144,7 +144,7 @@ export function AgentInformation({
   const storage = useQuery({
     ...options,
     enabled: available && section === "files",
-    queryKey: [...key, "storage"],
+    queryKey: queryKeys.agentRecord(queryScope, agent.serverId, agent.id, "storage"),
     queryFn: () => {
       const force = forceStorageScan.current;
       forceStorageScan.current = false;
@@ -158,7 +158,7 @@ export function AgentInformation({
   const usage = useQuery({
     ...options,
     enabled: available && section === "usage",
-    queryKey: [...key, "usage", available, range],
+    queryKey: queryKeys.agentUsage(queryScope, agent.serverId, agent.id, available, range),
     // The last report stays on screen while the next range loads, so its values change in place.
     placeholderData: keepPreviousData,
     // As on desktop, the agent page reads the host report with an agent filter: it splits the days by

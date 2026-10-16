@@ -4,29 +4,20 @@ import { Typography } from "heroui-native";
 import { Fragment, useState } from "react";
 import { useUniwind } from "uniwind";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsPicker, SettingsSwitch } from "@/features/settings/components/settings-controls";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { currentText, useText } from "@/shared/lib/text";
 
 export function AgentSessionSettingsSection({ agent, available }: { agent: MobileAgent; available: boolean }) {
   const { t } = useText();
   const { theme } = useUniwind();
   const { loadAgentSessionSettings, setAgentSessionSetting, resetAgentSessionSetting } = useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
+  const queryScope = useQueryScope();
   const queryClient = useQueryClient();
-  const queryKey = [
-    "agent-info",
-    session?.apiUrl,
-    session?.user.id,
-    sessionScope,
-    agent.serverId,
-    agent.id,
-    agent.provider,
-    agent.model,
-    "session-settings",
-  ];
+  const queryKey = queryKeys.agentSessionSettings(queryScope, agent.serverId, agent.id, agent.provider, agent.model);
   const query = useQuery({
     queryKey,
     queryFn: () => loadAgentSessionSettings(agent.id, agent.serverId),

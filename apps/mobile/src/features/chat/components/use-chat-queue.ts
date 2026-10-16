@@ -11,6 +11,7 @@ import {
   useMobileWorkspaceReader,
   useMobileWorkspaceSelector,
 } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { currentText, useText } from "@/shared/lib/text";
 import { useHiddenReplies } from "../context/queued-messages-context";
 import { awaitingReplies } from "../model/awaiting-replies";
@@ -53,7 +54,7 @@ export function useChatQueue(
   const { session } = useMobileSession();
   const storageKey = `queue-edit.${session?.user.id}.${serverId}.${agentId}`;
   const queryClient = useQueryClient();
-  const queryKey = useMemo(() => ["chat-queue", serverId, agentId], [serverId, agentId]);
+  const queryKey = useMemo(() => queryKeys.chatQueue(serverId, agentId), [serverId, agentId]);
   const query = useQuery({
     queryKey,
     queryFn: () => workspace().loadQueue(agentId, serverId),

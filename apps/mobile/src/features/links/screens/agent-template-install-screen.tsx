@@ -17,6 +17,7 @@ import { useMobileSession } from "@/features/auth/context/mobile-session-context
 import { ThinkingTextGradient } from "@/features/chat/components/thinking-text-gradient";
 import { SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { serverStatusLabel, showsOnline } from "@/features/workspace/model/server-status";
 import type { MobileServer } from "@/features/workspace/model/workspace-types";
 import { AndroidHeaderButton } from "@/shared/components/android-header-button";
@@ -48,7 +49,7 @@ function AgentTemplateInstall({ request }: { request?: string }) {
   const templateId = link.kind === "template" ? link.templateId : null;
   const apiUrl = session?.apiUrl ?? null;
   const template = useQuery({
-    queryKey: ["agent-template", apiUrl, templateId],
+    queryKey: queryKeys.agentTemplate(apiUrl, templateId),
     queryFn: ({ signal }) => {
       if (!apiUrl || !templateId) throw new AgentTemplateNotFoundError();
       return loadAgentTemplate(apiUrl, templateId, signal);

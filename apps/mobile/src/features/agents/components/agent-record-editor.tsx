@@ -30,6 +30,7 @@ import { Alert, View } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { type MobileAgent, useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { SheetFormField } from "@/shared/components/sheet-form-field";
 import { SheetSaveAction } from "@/shared/components/sheet-save-action";
 import { haptics } from "@/shared/lib/haptics";
@@ -79,7 +80,7 @@ function useRecordAction(failure: MobileTextKey = "mobile.agent.record.saveFaile
       await action();
       void haptics.notification("success");
       done?.();
-      void client.invalidateQueries({ queryKey: ["agent-info"] });
+      void client.invalidateQueries({ queryKey: queryKeys.agentInfo() });
     } catch (cause) {
       void haptics.notification("error");
       setError(errorMessage(cause, t(failure)));

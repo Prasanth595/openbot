@@ -12,7 +12,7 @@ import { KeyboardController } from "react-native-keyboard-controller";
 import Animated, { LayoutAnimationConfig } from "react-native-reanimated";
 
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
-import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { useMobileSession, useQueryScope } from "@/features/auth/context/mobile-session-context";
 import { MobileSearchResultRow } from "@/features/search/components/search-result-row";
 import { MobileSearchTextInput } from "@/features/search/components/search-text-input";
 import type { MobileSearchTextInputHandle } from "@/features/search/components/search-text-input.types";
@@ -25,6 +25,7 @@ import {
   normalizeMobileSearchQuery,
 } from "@/features/search/model/mobile-search";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { BlurEnter, BlurSwap, swapItemMotion } from "@/shared/components/blur-swap";
 import { SheetScrollView } from "@/shared/components/sheet-scroll-view";
 import { haptics } from "@/shared/lib/haptics";
@@ -71,7 +72,8 @@ export function SearchAgentsScreen() {
   const { t } = useText();
   const { activeAgents, activeServer, searchMessages, canSearchFiles, searchFiles, loadRoutineCalendar } =
     useMobileWorkspace();
-  const { session, sessionScope } = useMobileSession();
+  const { session } = useMobileSession();
+  const queryScope = useQueryScope();
   const serverId = activeServer.id;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<MobileSearchFilter>("all");
@@ -130,8 +132,7 @@ export function SearchAgentsScreen() {
   const sources = mobileSearchSources(filter, hostQuery);
   const wanted = mobileSearchSources(filter, query);
   const typing = normalizeMobileSearchQuery(query) !== hostQuery;
-  const queryScope = [session?.apiUrl, session?.user.id, sessionScope, serverId] as const;
-  const messageKey = ["message-search", ...queryScope, hostQuery];
+  const messageKey = queryKeys.messageSearch(queryScope, serverId, hostQuery);
   const messages = useInfiniteQuery({
     queryKey: messageKey,
     queryFn: ({ pageParam }) => searchMessages(hostQuery, serverId, pageParam),
@@ -143,7 +144,7 @@ export function SearchAgentsScreen() {
     enabled: sources.messages,
     retry: false,
   });
-  const fileKey = ["file-search", ...queryScope, hostQuery];
+  const fileKey = queryKeys.fileSearch(queryScope, serverId, hostQuery);
   const files = useInfiniteQuery({
     queryKey: fileKey,
     queryFn: ({ pageParam }) => searchFiles(hostQuery, serverId, pageParam),
@@ -162,7 +163,7 @@ export function SearchAgentsScreen() {
   const routineOwnerKey = routineOwners.map((owner) => `a:${owner.agentId}`).join(",");
   const routines = useQuery({
     // The routine calendar key, so the events that change routines refresh this list too.
-    queryKey: ["server-routines", ...queryScope, "search", routineOwnerKey],
+    queryKey: queryKeys.serverRoutineSearch(queryScope, serverId, routineOwnerKey),
     queryFn: async () => {
       // A range that starts after now reads no run history, and an empty one places no runs.
       const at = new Date(Date.now() + 60_000).toISOString();

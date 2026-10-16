@@ -12,7 +12,6 @@ import { AGENT_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-a
 import { AGENT_HOST_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import {
-  TEAM_BROWSER_VIEW_CAPABILITY,
   TEAM_BROWSER_VIEW_CLIPBOARD_CAPABILITY,
   TEAM_BROWSER_VIEW_CONTEXT_MENU_CAPABILITY,
   TEAM_BROWSER_VIEW_CURSOR_CAPABILITY,
@@ -118,7 +117,14 @@ import {
   InactiveRequestError,
   reducePendingApprovals,
 } from "@/features/workspace/model/pending-approvals";
+import { AGENT_SETTINGS_PARTS, type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { applyMobileQueueEvent } from "@/features/workspace/model/queue-cache";
+import {
+  hasCapability,
+  requireCapability,
+  SIDEBAR_LAYOUT_CAPABILITY,
+  supportsBrowserView,
+} from "@/features/workspace/model/server-capabilities";
 import {
   decodeDefaultServer,
   decodeServerOrder,
@@ -133,6 +139,7 @@ import {
   serverKind,
   showsOnline,
 } from "@/features/workspace/model/server-status";
+import { runTeamRequest } from "@/features/workspace/model/team-request";
 import { trustedHostKeys } from "@/features/workspace/model/trusted-host-keys";
 import {
   decodeAgent,
@@ -215,9 +222,13 @@ function createWorkspaceValueStore(initial: MobileWorkspaceContextValue): Worksp
 export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const { session, sessionScope } = useMobileSession();
   const queryClient = useQueryClient();
-  useEffect(() => () => queryClient.removeQueries({ queryKey: ["chat-queue"] }), [queryClient]);
+  useEffect(() => () => queryClient.removeQueries({ queryKey: queryKeys.chatQueue() }), [queryClient]);
   const presenceSignatures = useRef(new Map<string, string>());
   if (!session) throw new Error("MobileWorkspaceProvider requires a signed-in mobile session.");
+  const queryScope = useMemo<QueryScope>(
+    () => [session.apiUrl, session.user.id, sessionScope],
+    [session.apiUrl, session.user.id, sessionScope],
+  );
 
   const directory = useMemo(
     () =>
@@ -279,7 +290,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const serverAgentIds = useRef(new Map<string, Set<string>>());
   const removedServers = useRef(new Set<string>());
   const readRefresh = useMemo(() => createRemoteReadRefresh(), []);
-  const serverCapabilities = useRef(new Map<string, string[]>());
+  const serverCapabilities = useRef(new Map<string, readonly string[]>());
   const orderKey = serverOrderKey(session.apiUrl, session.user.id);
   const storedServerOrder = useMemo(() => {
     try {
@@ -362,10 +373,14 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         for (const id of serverAgentIds.current.get(server.id) ?? []) removedAgentIds.add(id);
         serverAgentIds.current.delete(server.id);
         presenceSignatures.current.delete(server.id);
-        queryClient.removeQueries({ queryKey: ["chat-queue", server.id] });
-        for (const kind of ["server-members", "server-invites", "agent-avatar", "server-logo"]) {
-          queryClient.removeQueries({ queryKey: [kind, session.apiUrl, session.user.id, sessionScope, server.id] });
-        }
+        for (const queryKey of [
+          queryKeys.chatQueue(server.id),
+          queryKeys.serverMembers(queryScope, server.id),
+          queryKeys.serverInvites(queryScope, server.id),
+          queryKeys.agentAvatar(queryScope, server.id),
+          queryKeys.serverLogo(queryScope, server.id),
+        ])
+          queryClient.removeQueries({ queryKey });
       }
       for (const host of hosts) removedServers.current.delete(host.hostId);
       if (removed.length) {
@@ -417,17 +432,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             )[0]?.id ?? null),
       );
     },
-    [
-      liveState,
-      session.host?.hostId,
-      session.apiUrl,
-      session.user.id,
-      sessionScope,
-      queryClient,
-      readRefresh,
-      conversationStore,
-      settleConnectionWaits,
-    ],
+    [liveState, session.host?.hostId, queryScope, queryClient, readRefresh, conversationStore, settleConnectionWaits],
   );
 
   const directoryRefresh = useMemo(
@@ -497,7 +502,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     [request],
   );
   const supportsLiveActivityPush = useCallback(
-    (serverId: string) => serverCapabilities.current.get(serverId)?.includes(LIVE_ACTIVITY_PUSH_CAPABILITY) === true,
+    (serverId: string) => hasCapability(serverCapabilities.current, serverId, LIVE_ACTIVITY_PUSH_CAPABILITY),
     [],
   );
   const applyLiveActivityEvent = useLiveActivity({
@@ -513,9 +518,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   // An iPhone and an Android phone register through capabilities of their own.
   const supportsPushNotifications = useCallback(
     (serverId: string) =>
-      serverCapabilities.current
-        .get(serverId)
-        ?.includes(isAndroid ? ANDROID_PUSH_NOTIFICATIONS_CAPABILITY : PUSH_NOTIFICATIONS_CAPABILITY) === true,
+      hasCapability(
+        serverCapabilities.current,
+        serverId,
+        isAndroid ? ANDROID_PUSH_NOTIFICATIONS_CAPABILITY : PUSH_NOTIFICATIONS_CAPABILITY,
+      ),
     [],
   );
   usePushNotifications({
@@ -612,7 +619,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           failed = true;
           throw error;
         });
-      const sections = compatibility.capabilities.includes("sidebar-layout")
+      const sections = compatibility.capabilities.includes(SIDEBAR_LAYOUT_CAPABILITY)
         ? client.request("GET", TEAM_API_ROUTES.sidebarLayout.state, decodeSidebarLayout).then(
             (layout) => {
               if (context.isCurrent()) applySidebarLayout(serverId, layout);
@@ -717,9 +724,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   const sendApproval = useCallback(
     async (serverId: string, input: RespondToApprovalInput) => {
       try {
-        await Effect.runPromise(
-          respondToApproval(teamApi(serverId), input).pipe(Effect.mapError((error) => error.cause)),
-        );
+        await runTeamRequest(respondToApproval(teamApi(serverId), input));
       } catch (error) {
         // Another device answered first, or the turn ended. The request is gone on the host too.
         if (error instanceof InactiveRequestError)
@@ -804,9 +809,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   );
   const activeServerOnline = servers.some((server) => server.id === activeServerId && server.state === "online");
   useEffect(() => {
-    const supported =
-      activeServerId !== null &&
-      serverCapabilities.current.get(activeServerId)?.includes(FOCUS_USE_CAPABILITY) === true;
+    const supported = hasCapability(serverCapabilities.current, activeServerId, FOCUS_USE_CAPABILITY);
     focusUse.setTarget(foreground && activeServerOnline && supported ? activeServerId : null);
   }, [focusUse, foreground, activeServerOnline, activeServerId]);
   useEffect(() => () => focusUse.dispose(), [focusUse]);
@@ -983,11 +986,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         // A routine run ends as a turn: its slot changes from planned to its outcome.
         (event.type === "turn-completed" && event.origin === "routine")
       ) {
-        void queryClient.invalidateQueries({
-          queryKey: ["server-routines", session.apiUrl, session.user.id, sessionScope, serverId],
-        });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.serverRoutines(queryScope, serverId) });
         // Webhook history: a host also sends a routine change when it ignores a request.
-        void queryClient.invalidateQueries({ queryKey: ["routine-webhooks", serverId] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.routineWebhooks(serverId) });
       }
       if (event.type === "team-presence") {
         const signature = JSON.stringify(
@@ -995,11 +996,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         );
         if (presenceSignatures.current.get(serverId) !== signature) {
           presenceSignatures.current.set(serverId, signature);
-          for (const kind of ["server-members", "server-invites"]) {
-            void queryClient.invalidateQueries({
-              queryKey: [kind, session.apiUrl, session.user.id, sessionScope, serverId],
-            });
-          }
+          void queryClient.invalidateQueries({ queryKey: queryKeys.serverMembers(queryScope, serverId) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.serverInvites(queryScope, serverId) });
         }
         return;
       }
@@ -1026,13 +1024,11 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         event.type === "skills-changed" ||
         event.type === "turn-completed"
       ) {
-        void queryClient.invalidateQueries({
-          queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId, event.agentId],
-        });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.agentInfo(queryScope, serverId, event.agentId) });
       }
       if (event.type === "agent-session-settings-changed") {
         void queryClient.invalidateQueries({
-          queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId, event.agentId],
+          queryKey: queryKeys.agentInfo(queryScope, serverId, event.agentId),
           predicate: (query) => query.queryKey.at(-1) === "session-settings",
         });
       }
@@ -1041,9 +1037,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         // The admin and host settings and the provider account of an agent are not in the agent summary.
         // The host sends this event when one of them changes, so an open settings page reads them again.
         void queryClient.invalidateQueries({
-          queryKey: ["agent-info", session.apiUrl, session.user.id, sessionScope, serverId],
-          predicate: (query) =>
-            ["admin", "host", "session-settings", "provider-accounts"].includes(String(query.queryKey.at(-1))),
+          queryKey: queryKeys.agentInfo(queryScope, serverId),
+          predicate: (query) => AGENT_SETTINGS_PARTS.includes(String(query.queryKey.at(-1))),
         });
       } else if (event.type === "conversation") {
         const knownIds = serverAgentIds.current.get(serverId) ?? new Set<string>();
@@ -1083,9 +1078,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       refreshConversationReads,
       readRefresh,
       queryClient,
-      session.apiUrl,
-      session.user.id,
-      sessionScope,
+      queryScope,
       applyConversationReads,
     ],
   );
@@ -1158,7 +1151,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       const serverId = targetServerId ?? activeServerId;
       if (
         visibleMessageId === null &&
-        (!serverId || !serverCapabilities.current.get(serverId)?.includes(TEAM_CONVERSATION_UNREAD_CAPABILITY))
+        !hasCapability(serverCapabilities.current, serverId, TEAM_CONVERSATION_UNREAD_CAPABILITY)
       ) {
         showWarningAlert(
           "team",
@@ -1252,7 +1245,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         server &&
           showsOnline(server) &&
           (server.role === "owner" || server.role === "admin") &&
-          serverCapabilities.current.get(serverId)?.includes(capability),
+          hasCapability(serverCapabilities.current, serverId, capability),
       );
     };
     /** Drops a server that this account left or removed, and its local state. */
@@ -1362,9 +1355,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       },
       sidebarByServer,
       mutateSidebarLayout: async (serverId, action) => {
-        if (!serverCapabilities.current.get(serverId)?.includes("sidebar-layout")) {
-          throw new Error(currentText().t("mobile.workspace.error.sectionsUnsupported"));
-        }
+        requireCapability(
+          serverCapabilities.current,
+          serverId,
+          SIDEBAR_LAYOUT_CAPABILITY,
+          "mobile.workspace.error.sectionsUnsupported",
+        );
         const layout = await request(
           "POST",
           TEAM_API_ROUTES.sidebarLayout.actions,
@@ -1433,14 +1429,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           throw new Error(currentText().t("mobile.workspace.error.approvalOffline"));
         await sendApproval(serverId, input);
       },
-      respondToBrowserTakeover: (serverId, input) =>
-        Effect.runPromise(
-          respondToBrowserTakeover(teamApi(serverId), input).pipe(Effect.mapError((error) => error.cause)),
-        ),
-      respondToBrowserSecret: (serverId, input) =>
-        Effect.runPromise(
-          respondToBrowserSecret(teamApi(serverId), input).pipe(Effect.mapError((error) => error.cause)),
-        ),
+      respondToBrowserTakeover: (serverId, input) => runTeamRequest(respondToBrowserTakeover(teamApi(serverId), input)),
+      respondToBrowserSecret: (serverId, input) => runTeamRequest(respondToBrowserSecret(teamApi(serverId), input)),
       selectServer: (id) => {
         loadGeneration.current += 1;
         conversationStore.cancelRequests();
@@ -1478,9 +1468,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         const server = serversRef.current.find((candidate) => candidate.id === serverId);
         if (!server || server.role === "member")
           throw new Error(currentText().t("mobile.server.settings.identityNotAllowed"));
-        if (!serverCapabilities.current.get(serverId)?.includes(HOST_ADMIN_CAPABILITY))
-          throw new Error(currentText().t("mobile.server.settings.identityUnsupported"));
-        await runTeamEffect(updateHostIdentity(teamApi(serverId), input).pipe(Effect.mapError((error) => error.cause)));
+        requireCapability(
+          serverCapabilities.current,
+          serverId,
+          HOST_ADMIN_CAPABILITY,
+          "mobile.server.settings.identityUnsupported",
+        );
+        await runTeamRequest(updateHostIdentity(teamApi(serverId), input));
         if (input.serverName !== undefined) {
           const serverName = input.serverName;
           setServers((current) =>
@@ -1529,19 +1523,19 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         request,
         teamApi,
         queryClient,
-        queryScope: [session.apiUrl, session.user.id, sessionScope],
+        queryScope,
         capabilities: serverCapabilities.current,
         attachmentDownloads,
       }),
       loadAgentAnalytics: async (input, serverId) => {
         if (!agents.some((agent) => agent.id === input.agentId && agent.serverId === serverId))
           throw new Error(currentText().t("mobile.workspace.error.agentNotOnHost"));
-        return runTeamEffect(
+        return runTeamRequest(
           readAgentAnalytics(
             (method, path, decode) => request(method, path, decode, undefined, serverId),
             serverCapabilities.current.get(serverId) ?? [],
             input,
-          ).pipe(Effect.mapError((error) => error.cause)),
+          ),
         );
       },
       createAgent: async (input: CreateAgentInput) => {
@@ -1555,7 +1549,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           // capability starts its own default.
           ...(input.provider &&
           input.model &&
-          serverCapabilities.current.get(activeServer.id)?.includes(TEAM_AGENT_CREATE_MODEL_CAPABILITY)
+          hasCapability(serverCapabilities.current, activeServer.id, TEAM_AGENT_CREATE_MODEL_CAPABILITY)
             ? {
                 provider: input.provider,
                 model: input.model,
@@ -1598,7 +1592,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         );
         if (image && updated.avatarUrl) {
           queryClient.setQueryData(
-            ["agent-avatar", session.apiUrl, session.user.id, sessionScope, serverId, agentId, updated.avatarUrl],
+            queryKeys.agentAvatar(queryScope, serverId, agentId, updated.avatarUrl),
             `data:${image.mimeType};base64,${image.base64}`,
           );
         }
@@ -1608,12 +1602,9 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           ),
         );
       },
-      deleteAgent: (agentId) =>
-        Effect.runPromise(deleteAgent(teamApi(), agentId).pipe(Effect.mapError((error) => error.cause))),
+      deleteAgent: (agentId) => runTeamRequest(deleteAgent(teamApi(), agentId)),
       interruptTurn: (agentId, turnId, serverId) =>
-        Effect.runPromise(
-          interruptAgentTurn(teamApi(serverId), agentId, turnId).pipe(Effect.mapError((error) => error.cause)),
-        ),
+        runTeamRequest(interruptAgentTurn(teamApi(serverId), agentId, turnId)),
       loadConversation,
       loadConversationAround,
       loadLatestMessages,
@@ -1621,16 +1612,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       uploadAttachment: async (agentId, input, targetServerId, onProgress) => {
         const serverId = targetServerId ?? agents.find((candidate) => candidate.id === agentId)?.serverId;
         if (!serverId) throw new Error(currentText().t("mobile.workspace.error.agentUnavailable"));
-        return Effect.runPromise(
-          uploadAttachmentDraft(teamApi(serverId, onProgress), input).pipe(Effect.mapError((error) => error.cause)),
-        );
+        return runTeamRequest(uploadAttachmentDraft(teamApi(serverId, onProgress), input));
       },
       discardAttachment: async (agentId, attachmentId, targetServerId) => {
         const serverId = targetServerId ?? agents.find((candidate) => candidate.id === agentId)?.serverId;
         if (!serverId) throw new Error(currentText().t("mobile.workspace.error.agentUnavailable"));
-        await Effect.runPromise(
-          discardAttachmentDraft(teamApi(serverId), attachmentId).pipe(Effect.mapError((error) => error.cause)),
-        );
+        await runTeamRequest(discardAttachmentDraft(teamApi(serverId), attachmentId));
       },
       sendMessage: async (
         agentId,
@@ -1758,9 +1745,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     defaultKey,
     defaultServerId,
     serverOrder,
-    session.apiUrl,
-    session.user.id,
-    sessionScope,
+    queryScope,
     queryClient,
     liveState,
     updatePreferences,
@@ -1835,9 +1820,4 @@ export function useMobileWorkspaceSelector<T>(select: (workspace: MobileWorkspac
 /** Reads the latest workspace when an event occurs. The component does not render again for changes. */
 export function useMobileWorkspaceReader(): () => MobileWorkspaceContextValue {
   return useWorkspaceValueStore().get;
-}
-
-/** The host lists its tabs to a member (`browser-control`) and streams one of them (`browser-view`). */
-function supportsBrowserView(capabilities: readonly string[]): boolean {
-  return capabilities.includes("browser-control") && capabilities.includes(TEAM_BROWSER_VIEW_CAPABILITY);
 }

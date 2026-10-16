@@ -5,6 +5,7 @@ import { Typography } from "heroui-native";
 import { View } from "react-native";
 import { SettingsNote, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { useText } from "@/shared/lib/text";
 
 const IGNORED_KEYS = {
@@ -29,7 +30,7 @@ export function RoutineWebhookActivity({
   const { t, format } = useText();
   const workspace = useMobileWorkspace();
   const activity = useQuery({
-    queryKey: ["routine-webhooks", serverId, owner.kind, owner.id, routineId, "activity"],
+    queryKey: queryKeys.routineWebhookActivity(serverId, owner.kind, owner.id, routineId),
     retry: false,
     queryFn: () => workspace.listEventActivity({ owner, routineId, limit: 50 }, serverId),
   });

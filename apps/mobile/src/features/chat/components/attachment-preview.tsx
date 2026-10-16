@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { View } from "react-native";
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import { queryKeys } from "@/features/workspace/model/query-keys";
 import { haptics } from "@/shared/lib/haptics";
 import { currentText, useText } from "@/shared/lib/text";
 import { createImageDimensionCache } from "../model/image-dimension-cache";
@@ -82,7 +83,7 @@ export function useAttachmentFile(serverId: string, attachment: AttachmentSummar
       ? attachment.previewUrl
       : null;
   const query = useQuery({
-    queryKey: ["chat-attachment", serverId, attachment.id],
+    queryKey: queryKeys.chatAttachment(serverId, attachment.id),
     queryFn: (): Promise<RemoteFileUpload & { localUri?: string }> => {
       if (attachment.size > MOBILE_ATTACHMENT_BYTES) throw new Error(t("mobile.chat.attachment.tooLargeForMobile"));
       return downloadAttachment(serverId, attachment.id);
