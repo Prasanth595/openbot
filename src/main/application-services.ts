@@ -587,6 +587,7 @@ async function createMessagingServices({
       createMemory: (input) => service.createMemory(input),
       ensureDeletable: (agentId) => service.ensureAgentDeletable(agentId),
       deleteAgent: (agentId) => service.deleteAgent(agentId),
+      sidebarChatIds: () => service.sidebarChatIds(),
     },
     credentials: messagingCredentials,
     drivers: [

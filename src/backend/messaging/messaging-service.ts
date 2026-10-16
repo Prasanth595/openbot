@@ -98,6 +98,8 @@ export interface MessagingAgents {
   /** Fails as `deleteAgent` would, such as while the agent has an active turn. */
   ensureDeletable(agentId: string): Effect.Effect<void, AgentLifecycleFailed>;
   deleteAgent(agentId: string): Effect.Effect<void, AgentLifecycleFailed>;
+  /** The agents and group chats that the sidebar can assign to a section. */
+  sidebarChatIds(): ReadonlySet<string>;
 }
 
 export interface MessagingServiceOptions {
@@ -461,7 +463,7 @@ export class MessagingService {
 
   /**
    * Deletes the orchestrator of a disconnected place, and then the Integrations section when no agent
-   * is left in it. The place is already disconnected, so a failure is only logged.
+   * or group chat is left in it. The place is already disconnected, so a failure is only logged.
    */
   readonly #deleteOrchestrator = Effect.fn("MessagingService.deleteOrchestrator")(function* (
     this: MessagingService,
@@ -473,12 +475,12 @@ export class MessagingService {
       if (!sidebar) return;
       const layout = yield* sidebar.removeAgent(agentId).pipe(toMessagingOperationFailed);
       const section = integrationsSection(layout);
-      const agentIds = new Set(this.#agents.listAgents().map((agent) => agent.id));
+      const chatIds = this.#agents.sidebarChatIds();
       if (
         section &&
-        !Object.entries(layout.agentAssignments).some(([id, sectionId]) => sectionId === section.id && agentIds.has(id))
+        !Object.entries(layout.agentAssignments).some(([id, sectionId]) => sectionId === section.id && chatIds.has(id))
       )
-        yield* sidebar.mutate({ type: "delete", sectionId: section.id }, agentIds).pipe(toMessagingOperationFailed);
+        yield* sidebar.mutate({ type: "delete", sectionId: section.id }, chatIds).pipe(toMessagingOperationFailed);
     }).pipe(Effect.catch((failure) => Effect.sync(() => this.#warn(failure.cause))));
   });
 

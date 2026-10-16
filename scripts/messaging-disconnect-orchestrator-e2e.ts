@@ -31,7 +31,7 @@ const SECTION = sourceText("status.messaging.integrationsSection");
 interface Step {
   name: string;
   agents: string[];
-  sectionAgents: string[] | null;
+  sectionChats: string[] | null;
   passed: boolean;
 }
 
@@ -118,6 +118,7 @@ async function boot<T>(
             )
           : agents.ensureAgentDeletable(agentId),
       deleteAgent: (agentId) => agents.deleteAgent(agentId),
+      sidebarChatIds: () => agents.sidebarChatIds(),
     },
     credentials,
     drivers: [],
@@ -134,12 +135,13 @@ async function boot<T>(
   }
 }
 
-function sectionAgents(layout: SidebarLayoutSnapshot, agentIds: ReadonlySet<string>): string[] | null {
+/** The agents and group chats in the Integrations section, or null when it is gone. */
+function sectionChats(layout: SidebarLayoutSnapshot, chatIds: ReadonlySet<string>): string[] | null {
   const section = layout.sections.find((candidate) => candidate.name === SECTION);
   if (!section) return null;
   return Object.entries(layout.agentAssignments)
-    .filter(([agentId, sectionId]) => sectionId === section.id && agentIds.has(agentId))
-    .map(([agentId]) => agentId)
+    .filter(([chatId, sectionId]) => sectionId === section.id && chatIds.has(chatId))
+    .map(([chatId]) => chatId)
     .sort();
 }
 
@@ -150,17 +152,19 @@ try {
       agents.messaging.store.updateConnection(record.connectionId, { enabled: true });
       await runCauseEffect(credentials.set(record.connectionId, { workspaceId }));
     }
-    function check(name: string, expected: { agents: string[]; sectionAgents: string[] | null }): void {
-      const agentIds = new Set(agents.listAgents().map((agent) => agent.id));
+    function check(name: string, expected: { agents: string[]; sectionChats: string[] | null }): void {
       const step: Step = {
         name,
-        agents: [...agentIds].sort(),
-        sectionAgents: sectionAgents(sidebar.getSnapshot(), agentIds),
+        agents: agents
+          .listAgents()
+          .map((agent) => agent.id)
+          .sort(),
+        sectionChats: sectionChats(sidebar.getSnapshot(), agents.sidebarChatIds()),
         passed: false,
       };
       report.steps.push(step);
       assert.deepEqual(step.agents, [...expected.agents].sort(), `${name}: agents`);
-      assert.deepEqual(step.sectionAgents, expected.sectionAgents?.slice().sort() ?? null, `${name}: section`);
+      assert.deepEqual(step.sectionChats, expected.sectionChats?.slice().sort() ?? null, `${name}: section`);
       step.passed = true;
     }
 
@@ -171,7 +175,7 @@ try {
     // Zero bound agents: a Discord server with no orchestrator.
     await connect("discord", "guild-empty");
     await runCauseEffect(messaging.disconnectDiscordGuild("guild-empty"));
-    check("disconnect with no orchestrator", { agents: [user.id], sectionAgents: null });
+    check("disconnect with no orchestrator", { agents: [user.id], sectionChats: null });
 
     // Several connectors, with the user's own agent filed in the Integrations section too.
     await connect("slack", "workspace-1");
@@ -189,11 +193,11 @@ try {
       ),
     );
     const all = [user.id, slack.agentId, discord.agentId, telegram.agentId];
-    check("set up", { agents: all, sectionAgents: all });
+    check("set up", { agents: all, sectionChats: all });
 
     await runCauseEffect(messaging.disconnectSlackWorkspace("workspace-1"));
     const afterSlack = [user.id, discord.agentId, telegram.agentId];
-    check("disconnect Slack deletes only its orchestrator", { agents: afterSlack, sectionAgents: afterSlack });
+    check("disconnect Slack deletes only its orchestrator", { agents: afterSlack, sectionChats: afterSlack });
 
     // A busy orchestrator stops the disconnect before it changes anything.
     busy.add(discord.agentId);
@@ -202,36 +206,62 @@ try {
     const guild = agents.messaging.store.connectionForWorkspace("discord", "guild-1");
     assert.ok(guild?.enabled, "A refused disconnect disabled the Discord server.");
     assert.equal(credentials.status(guild.connectionId), "saved", "A refused disconnect removed the token.");
-    check("busy orchestrator refuses the disconnect", { agents: afterSlack, sectionAgents: afterSlack });
+    check("busy orchestrator refuses the disconnect", { agents: afterSlack, sectionChats: afterSlack });
     busy.delete(discord.agentId);
 
     await runCauseEffect(messaging.disconnectDiscordGuild("guild-1"));
-    check("disconnect Discord", { agents: [user.id, telegram.agentId], sectionAgents: [user.id, telegram.agentId] });
+    check("disconnect Discord", { agents: [user.id, telegram.agentId], sectionChats: [user.id, telegram.agentId] });
 
     // The Telegram Orchestrator answers every chat: it goes with the last one.
     await runCauseEffect(messaging.disconnectTelegramChat("chat-1"));
     check("disconnect one of two Telegram chats", {
       agents: [user.id, telegram.agentId],
-      sectionAgents: [user.id, telegram.agentId],
+      sectionChats: [user.id, telegram.agentId],
     });
     await runCauseEffect(messaging.disconnectTelegramChat("chat-2"));
     check("disconnect the last Telegram chat keeps the section of the user's agent", {
       agents: [user.id],
-      sectionAgents: [user.id],
+      sectionChats: [user.id],
     });
 
-    // With the user's agent moved out, the last orchestrator takes the section with it.
-    await runCauseEffect(
-      sidebar.mutate(
-        { type: "assign", agentId: user.id, sectionId: null },
-        new Set(agents.listAgents().map((agent) => agent.id)),
+    // A group chat that the user filed in the section keeps it too.
+    const section = sidebar.getSnapshot().agentAssignments[user.id];
+    assert.ok(section, "The user's agent left the section.");
+    const group = await runCauseEffect(
+      agents.channels.command(
+        {
+          type: "save",
+          operationId: "messaging-disconnect-e2e:group",
+          channelId: "group-1",
+          draft: { name: "Group", title: "", instructions: "", members: [{ agentId: user.id }], leadAgentId: null },
+        },
+        { id: "openbot", name: "OpenBot" },
       ),
     );
+    await runCauseEffect(
+      sidebar.mutate({ type: "assign", agentId: user.id, sectionId: null }, agents.sidebarChatIds()),
+    );
+    await runCauseEffect(
+      sidebar.mutate({ type: "assign", agentId: group.id, sectionId: section }, agents.sidebarChatIds()),
+    );
     await connect("slack", "workspace-2");
-    const last = await runCauseEffect(messaging.addOrchestrator("slack", { workspaceId: "workspace-2" }));
-    check("set up the last orchestrator", { agents: [user.id, last.agentId], sectionAgents: [last.agentId] });
+    const second = await runCauseEffect(messaging.addOrchestrator("slack", { workspaceId: "workspace-2" }));
+    check("set up an orchestrator next to a group chat", {
+      agents: [user.id, second.agentId],
+      sectionChats: [group.id, second.agentId],
+    });
     await runCauseEffect(messaging.disconnectSlackWorkspace("workspace-2"));
-    check("disconnect the last orchestrator deletes the section", { agents: [user.id], sectionAgents: null });
+    check("disconnect keeps the section of a group chat", { agents: [user.id], sectionChats: [group.id] });
+
+    // With the group chat moved out, the last orchestrator takes the section with it.
+    await runCauseEffect(
+      sidebar.mutate({ type: "assign", agentId: group.id, sectionId: null }, agents.sidebarChatIds()),
+    );
+    await connect("slack", "workspace-3");
+    const last = await runCauseEffect(messaging.addOrchestrator("slack", { workspaceId: "workspace-3" }));
+    check("set up the last orchestrator", { agents: [user.id, last.agentId], sectionChats: [last.agentId] });
+    await runCauseEffect(messaging.disconnectSlackWorkspace("workspace-3"));
+    check("disconnect the last orchestrator deletes the section", { agents: [user.id], sectionChats: null });
     return { user: user.id };
   });
 
@@ -241,12 +271,12 @@ try {
     const step: Step = {
       name: "after restart",
       agents: [...agentIds].sort(),
-      sectionAgents: sectionAgents(sidebar.getSnapshot(), agentIds),
+      sectionChats: sectionChats(sidebar.getSnapshot(), agents.sidebarChatIds()),
       passed: false,
     };
     report.steps.push(step);
     assert.deepEqual(step.agents, [ids.user], "after restart: agents");
-    assert.equal(step.sectionAgents, null, "after restart: section");
+    assert.equal(step.sectionChats, null, "after restart: section");
     const orchestrators = agents.messaging.store
       .connections()
       .map((record) => record.orchestratorAgentId)
