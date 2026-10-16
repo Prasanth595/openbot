@@ -76,7 +76,6 @@ import {
 import { createBrowserActions } from "@/features/workspace/context/browser-actions";
 import {
   createHostRequestActions,
-  hidesAgentsOnHost,
   hostOwnsHide,
   readHostHiddenAgents,
   requestAgentAvatar,
