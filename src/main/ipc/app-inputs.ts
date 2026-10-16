@@ -197,6 +197,7 @@ export function parseExternalDestination(input: unknown): ExternalDestination {
     input !== "message" &&
     input !== "changelog" &&
     input !== "guides" &&
+    input !== "discord" &&
     input !== "grok-bot-export" &&
     input !== "hosted-server-contact" &&
     input !== "mac-screen-recording"
