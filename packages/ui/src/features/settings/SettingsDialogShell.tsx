@@ -120,11 +120,16 @@ export function SettingsDialogShell(props: SettingsDialogShellProps) {
   let scrollElement: HTMLDivElement | undefined;
   let scrollResizeObserver: ResizeObserver | undefined;
 
+  /** Puts the focus back on the opener, unless the page that replaced this one took the focus. */
   function restoreFocus(): void {
     if (!restoreTarget?.isConnected) return;
     const target = restoreTarget;
     restoreFrame = window.requestAnimationFrame(() => {
-      restoreFrame = window.requestAnimationFrame(() => target.focus());
+      restoreFrame = window.requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (active && active !== document.body) return;
+        target.focus();
+      });
     });
   }
 
