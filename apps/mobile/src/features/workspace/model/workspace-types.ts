@@ -84,6 +84,11 @@ export interface MobileServer {
   /** The last failed connection step and its code, until the server is online again. */
   connectionFailure?: RemoteConnectionFailure | null;
   recoveryStatus?: RemoteRecoveryStatus;
+  /**
+   * The server was online when the app left, and the first attempt after the return still runs in
+   * its quiet time. The app shows the server as online, and a request waits for the connection.
+   */
+  resuming?: boolean;
   address: string | null;
   accent: string;
   publicKey: string;

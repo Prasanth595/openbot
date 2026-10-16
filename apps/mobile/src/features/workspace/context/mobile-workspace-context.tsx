@@ -117,7 +117,7 @@ import {
   serverOrderKey,
   sortServers,
 } from "@/features/workspace/model/server-order";
-import { applyServerRecovery, serverKind } from "@/features/workspace/model/server-status";
+import { applyServerRecovery, serverKind, showsOnline } from "@/features/workspace/model/server-status";
 import { trustedHostKeys } from "@/features/workspace/model/trusted-host-keys";
 import {
   decodeAgent,
@@ -215,6 +215,30 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     [session.apiUrl, session.sessionToken, session.user.id, session.host],
   );
   const connections = useRef(new Map<string, ServerConnectionHandle>());
+  /** The servers in the quiet time of a return to the app, and the requests that wait for each one. */
+  const resumingServers = useRef(new Set<string>());
+  const connectionWaits = useRef(new Map<string, Set<{ resolve: () => void; reject: (error: Error) => void }>>());
+  const settleConnectionWaits = useCallback((serverId: string, error: Error | null) => {
+    const waits = connectionWaits.current.get(serverId);
+    if (!waits) return;
+    connectionWaits.current.delete(serverId);
+    for (const wait of waits) {
+      if (error) wait.reject(error);
+      else wait.resolve();
+    }
+  }, []);
+  /** A request to a server in its quiet return waits for the connection, instead of failing at once. */
+  const whenConnected = useCallback(
+    (serverId: string) =>
+      resumingServers.current.has(serverId)
+        ? new Promise<void>((resolve, reject) => {
+            const waits = connectionWaits.current.get(serverId) ?? new Set();
+            waits.add({ resolve, reject });
+            connectionWaits.current.set(serverId, waits);
+          })
+        : Promise.resolve(),
+    [],
+  );
   const loadGeneration = useRef(0);
   const directoryGeneration = useRef(0);
   const foreground = useAppForeground();
@@ -316,6 +340,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       const removedAgentIds = new Set<string>();
       for (const server of removed) {
         removedServers.current.add(server.id);
+        resumingServers.current.delete(server.id);
+        settleConnectionWaits(server.id, new Error(currentText().t("mobile.workspace.error.transportNotReady")));
         readRefresh.invalidate(server.id);
         for (const id of serverAgentIds.current.get(server.id) ?? []) removedAgentIds.add(id);
         serverAgentIds.current.delete(server.id);
@@ -354,6 +380,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
             connectionMessage: previous?.connectionMessage ?? null,
             connectionFailure: previous?.connectionFailure,
             recoveryStatus: previous?.recoveryStatus,
+            resuming: previous?.resuming,
             address: null,
             accent: serverAccent(host.hostId),
             publicKey: previous?.publicKey ?? host.devicePublicKey,
@@ -383,6 +410,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       queryClient,
       readRefresh,
       conversationStore,
+      settleConnectionWaits,
     ],
   );
 
@@ -437,11 +465,12 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       upload?: RemoteFileUpload,
       onUploadProgress?: (fraction: number) => void,
     ): Promise<T> => {
+      if (serverId) await whenConnected(serverId);
       const client = serverId ? connections.current.get(serverId)?.client : null;
       if (!client) throw new Error(currentText().t("mobile.workspace.error.transportNotReady"));
       return client.request(method, path, decode, body, upload, onUploadProgress);
     },
-    [],
+    [whenConnected],
   );
   const loadAgentAvatar = useCallback(
     (agentId: string, avatarUrl: string, serverId: string) => requestAgentAvatar(request, agentId, avatarUrl, serverId),
@@ -715,12 +744,21 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
   /** The last failed attempt of each server that asked for a wake. */
   const wakeAttempts = useRef(new Map<string, number>());
   const handleConnectionStatus = useCallback(
-    (hostId: string, status: RemoteRecoveryStatus, failure: RemoteConnectionFailure | null) => {
+    (hostId: string, status: RemoteRecoveryStatus, failure: RemoteConnectionFailure | null, resuming: boolean) => {
       setServers((current) =>
         current.map((server) =>
-          server.id === hostId ? applyServerRecovery(server, status, failure?.message ?? null, failure) : server,
+          server.id === hostId
+            ? applyServerRecovery(server, status, failure?.message ?? null, failure, resuming)
+            : server,
         ),
       );
+      if (resuming && status.phase !== "online") resumingServers.current.add(hostId);
+      else resumingServers.current.delete(hostId);
+      // A waiting request goes when the server is online, and fails with the attempt. An attempt that
+      // still runs after the quiet time keeps it waiting.
+      if (status.phase === "online") settleConnectionWaits(hostId, null);
+      else if (!resuming && status.phase !== "connecting")
+        settleConnectionWaits(hostId, new Error(sourceText("error.remote.selectedServerOffline")));
       if (status.phase === "online" && hostId === activeServerIdRef.current) setHold(null);
       // The status repeats each second while it waits, so each failed attempt asks once.
       if (status.phase === "online") wakeAttempts.current.delete(hostId);
@@ -729,7 +767,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       wakeAttempts.current.set(hostId, status.attempt);
       wakeSelectedServer(hostId);
     },
-    [wakeSelectedServer],
+    [wakeSelectedServer, settleConnectionWaits],
   );
   // The next retry of an offline server can be two minutes away, so a server starts when it is selected.
   useEffect(() => {
@@ -744,9 +782,13 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       loadGeneration.current += 1;
       conversationStore.cancelRequests();
       conversationStore.flush();
+      // The peer refuses requests in the background too. The next return starts a new quiet time.
+      const leaving = new Error(sourceText("error.remote.appInBackground"));
+      for (const serverId of [...connectionWaits.current.keys()]) settleConnectionWaits(serverId, leaving);
+      resumingServers.current.clear();
     }
     directoryRefresh.setActive(foreground);
-  }, [foreground, directoryRefresh, conversationStore]);
+  }, [foreground, directoryRefresh, conversationStore, settleConnectionWaits]);
 
   // On a return to the app the selected server connects first; the others follow when it is online,
   // or after a short wait. The phone then sets up the connection the user waits for alone, and the
@@ -1159,7 +1201,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       const server = servers.find((candidate) => candidate.id === serverId);
       return Boolean(
         server &&
-          server.state === "online" &&
+          showsOnline(server) &&
           (server.role === "owner" || server.role === "admin") &&
           serverCapabilities.current.get(serverId)?.includes(capability),
       );
@@ -1167,6 +1209,8 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     /** Drops a server that this account left or removed, and its local state. */
     const forgetServer = (serverId: string) => {
       removedServers.current.add(serverId);
+      resumingServers.current.delete(serverId);
+      settleConnectionWaits(serverId, new Error(currentText().t("mobile.workspace.error.transportNotReady")));
       readRefresh.invalidate(serverId);
       directoryGeneration.current += 1;
       directoryRefresh.invalidate();
@@ -1338,7 +1382,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
           .get()
           .approvalRequests[serverId]?.some((item) => String(item.requestId) === String(input.requestId));
         if (!pending) throw new InactiveRequestError(currentText().t("mobile.workspace.error.approvalInactive"));
-        if (serversRef.current.find((server) => server.id === serverId)?.state !== "online")
+        if (!showsOnline(serversRef.current.find((server) => server.id === serverId)))
           throw new Error(currentText().t("mobile.workspace.error.approvalOffline"));
         await sendApproval(serverId, input);
       },
@@ -1375,8 +1419,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
       hostedServerStarting,
       canEditServerIdentity: (serverId) => administers(serverId, HOST_ADMIN_CAPABILITY),
       canSendNotifications: (serverId) =>
-        servers.some((server) => server.id === serverId && server.state === "online") &&
-        supportsPushNotifications(serverId),
+        servers.some((server) => server.id === serverId && showsOnline(server)) && supportsPushNotifications(serverId),
       canManageEvents: (serverId) => administers(serverId, EVENTS_CAPABILITY),
       canManageAgentSkills: (serverId) => administers(serverId, SKILLS_ADMIN_CAPABILITY),
       canManageSharedTables: (serverId) => administers(serverId, SHARED_TABLES_CAPABILITY),
@@ -1571,7 +1614,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
         );
         if (
           agent?.serverId !== activeServer.id ||
-          activeServer.state !== "online" ||
+          !showsOnline(activeServer) ||
           !message?.questionPrompt ||
           message.questionPrompt.resolution ||
           !snapshot?.activeTurnId ||
@@ -1664,6 +1707,7 @@ export function MobileWorkspaceProvider({ children }: PropsWithChildren) {
     updatePreferences,
     supportsPushNotifications,
     sendApproval,
+    settleConnectionWaits,
   ]);
 
   const [valueStore] = useState(() => createWorkspaceValueStore(value));

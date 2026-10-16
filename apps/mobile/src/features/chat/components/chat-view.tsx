@@ -43,6 +43,7 @@ import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgentActivity } from "@/features/workspace/model/agent-activity";
 import type { PendingApproval } from "@/features/workspace/model/pending-approvals";
+import { showsOnline } from "@/features/workspace/model/server-status";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
@@ -449,7 +450,8 @@ export function ChatView({
   };
   const liquidGlassAvailable = isLiquidGlassAvailable() && !reducedTransparency;
   const server = servers.find((server) => server.id === target.serverId);
-  const serverOnline = server?.state === "online";
+  // A quiet return to the app counts as online: the chat keeps its look, and its requests wait.
+  const serverOnline = showsOnline(server);
   // Speech goes to the voice mode's own transcript, and only Send makes it a
   // message. Leaving the chat or losing the server stops listening and keeps it.
   const voice = useVoiceMode({
