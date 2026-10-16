@@ -103,7 +103,7 @@ export function SettingsPage(props: { kind: SettingsKind }) {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest("[role=dialog], [role=menu], [role=listbox]")) return;
+      if (target?.closest("[role=dialog], [role=alertdialog], [role=menu], [role=listbox]")) return;
       if (target && !root.contains(target) && target.closest("input, textarea, select, [contenteditable]")) return;
       event.preventDefault();
       if (query()) setQuery("");

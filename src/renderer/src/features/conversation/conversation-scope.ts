@@ -690,7 +690,11 @@ export function createConversationViewScope(props: ConversationProps) {
       // An open popover or menu, such as a routine chip, the model picker or the side panel's add
       // menu, closes on this key from a document listener that runs after this one. Closing the
       // panel under it too discards the edit the person was making.
-      if (event.target instanceof Element && event.target.closest('[role="dialog"], [role="menu"]')) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')
+      )
+        return;
       if (browserExpandedOpen() && !props.globalOverlayOpen) {
         event.preventDefault();
         setActiveRightPanel("browser");

@@ -1445,8 +1445,7 @@ body,
 }
 
 .account-login-error,
-.initial-setup-error,
-.account-popover-error {
+.initial-setup-error {
   border-color: var(--openbot-danger-soft);
   background: var(--openbot-danger-soft);
   color: var(--openbot-danger);
