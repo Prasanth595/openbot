@@ -136,6 +136,11 @@ export interface OpenStoredFileInput {
   action: "open" | "reveal" | "download";
 }
 
+/** The provider CLI versions on this computer that no OpenBot app uses any more. */
+export interface OldRuntimeVersions {
+  bytes: number;
+}
+
 export interface OpenStorageLocationInput {
   agentId: string;
 }
@@ -202,6 +207,10 @@ export function parseOpenStoredFileInput(value: unknown): OpenStoredFileInput {
 
 export function parseOpenStorageLocationInput(value: unknown): OpenStorageLocationInput {
   return { agentId: identifier(record(value, "location request").agentId, "agent") };
+}
+
+export function decodeOldRuntimeVersions(value: unknown): OldRuntimeVersions {
+  return { bytes: byteCount(record(value, "old runtime versions").bytes, "old runtime versions") };
 }
 
 function decodeBreakdown(value: unknown): StorageBreakdown {

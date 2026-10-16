@@ -623,6 +623,7 @@ function registerIpcHandlers({
     ...attachmentIpcHandlers({ service, mailbox, remoteServers, getMainWindow, translate: language.translate }),
     ...storageIpcHandlers({
       storage: storageUsage,
+      providerRuntimes,
       mailbox,
       remoteServers,
       getMainWindow,

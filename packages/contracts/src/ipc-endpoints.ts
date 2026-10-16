@@ -377,6 +377,7 @@ import type {
   ClearStorageInput,
   DeleteStoredFileInput,
   GetStorageUsageInput,
+  OldRuntimeVersions,
   OpenStorageLocationInput,
   OpenStoredFileInput,
   StorageUsage,
@@ -1314,6 +1315,10 @@ export const IPC_ENDPOINTS = {
     clear: scopedRequest<ClearStorageInput, void, "required">()("storage:clear"),
     openFile: scopedRequest<OpenStoredFileInput, void, "required">()("storage:open-file"),
     openLocation: request<OpenStorageLocationInput, void>()("storage:open-location"),
+    // Local only, like `openLocation`: a server removes its own old provider CLI versions.
+    getOldRuntimeVersions: request<undefined, OldRuntimeVersions>()("storage:get-old-runtime-versions"),
+    /** Removes the old versions no instance uses now, and answers what is left. */
+    removeOldRuntimeVersions: request<undefined, OldRuntimeVersions>()("storage:remove-old-runtime-versions"),
   },
   // Bound against the agent import service, which holds the staged archives. A remote server is
   // reached with `agent-import-v1`; main still opens the file dialog and sends the file.

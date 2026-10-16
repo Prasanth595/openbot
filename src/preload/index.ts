@@ -27,6 +27,7 @@ import {
   decodeMcpSignInRelayPage,
   decodeMcpSignInStates,
   decodeMcpTestResult,
+  decodeOldRuntimeVersions,
   decodeOptionalStorageUsage,
   decodeProviderHostSignInStatus,
   decodeProviderRelaySignInStatus,
@@ -1047,6 +1048,8 @@ const openbotApi: OpenBotDesktopApi = {
     clear: decodeVoid,
     openFile: decodeVoid,
     openLocation: decodeVoid,
+    getOldRuntimeVersions: decodeOldRuntimeVersions,
+    removeOldRuntimeVersions: decodeOldRuntimeVersions,
   }),
   remoteDesktop: bridgeGroup(IPC_ENDPOINTS.remoteDesktop, {
     checkSetup: decodeRemoteDesktopSetupFromMain,

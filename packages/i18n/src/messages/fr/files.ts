@@ -87,10 +87,13 @@ export const messages = {
   "files.cleanup.description.caches":
     "Copies des fichiers du serveur. OpenBot les télécharge à nouveau quand vous les ouvrez.",
   "files.cleanup.description.logs": "Journaux de diagnostic. De nouveaux journaux commencent aussitôt.",
+  "files.cleanup.description.runtimes":
+    "Anciennes versions de la CLI des fournisseurs qu’aucun agent n’utilise. OpenBot garde la version utilisée et une version précédente qui fonctionne.",
   "files.cleanup.clear": "Effacer",
   "files.cleanup.clearCategory": "Effacer : {category}",
   "files.cleanup.confirm.caches": "Effacer les fichiers du serveur en cache ?",
   "files.cleanup.confirm.logs": "Effacer les journaux ?",
+  "files.cleanup.confirm.runtimes": "Supprimer les anciennes versions de la CLI des fournisseurs ?",
   "files.cleanup.confirmDescription": "Cela libère {size}. {description}",
   "files.cleanup.clearing": "Effacement…",
   "files.cleanup.failed": "Impossible d’effacer les données.",

@@ -21,6 +21,7 @@ import {
   FILES_LAUNCH_ROWS,
   FILES_LONG_NAME_ROWS,
   FILES_NOW,
+  FILES_OLD_RUNTIME_BYTES,
   FILES_ROWS,
   FILES_STATUS_ROWS,
 } from "./files-fixtures";
@@ -54,6 +55,8 @@ const overviewArgs = (): OverviewArgs => ({
   onOpenAgent: fn(),
   onOpenConversation: fn(),
   onClear: fn(async () => undefined),
+  oldRuntimeBytes: FILES_OLD_RUNTIME_BYTES,
+  onRemoveOldRuntimes: fn(async () => undefined),
   onPreviewFile: fn(),
   onFileAction: fn(async () => undefined),
 });
