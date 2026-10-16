@@ -51,7 +51,7 @@ if [ -r /opt/OpenBot/hosted/openbot.env ]; then
   done </opt/OpenBot/hosted/openbot.env
 fi
 
-# The size of the virtual display, which computer use reads: $1 as WIDTHxHEIGHT, else 1920x1080. A
+# The size of the virtual display, which computer use reads: $1 as WIDTHxHEIGHT, else 1280x800. A
 # value that is not valid writes a warning and does not stop the start. See
 # docs/self-hosted-server.md#display-size. openbot-container has the same rules.
 display_size() {
@@ -61,8 +61,8 @@ display_size() {
     echo "$1"
     return
   fi
-  [ -z "$1" ] || echo "OPENBOT_DISPLAY_SIZE is not WIDTHxHEIGHT from 640x480 to 2576x2576. The display is 1920x1080." >&2
-  echo 1920x1080
+  [ -z "$1" ] || echo "OPENBOT_DISPLAY_SIZE is not WIDTHxHEIGHT from 640x480 to 2576x2576. The display is 1280x800." >&2
+  echo 1280x800
 }
 
 # Each server makes its own keyring password on its first start, so no two servers share one.

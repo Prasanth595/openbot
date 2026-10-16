@@ -58,7 +58,7 @@ Install options go after `sudo bash -s --`:
 | --- | --- | --- |
 | `--user <name>` | the installed user, else `openbot` | The user that runs OpenBot and its agents. The install makes it when it does not exist, with its home folder in `/var/lib/<name>`. |
 | `--auth-api-url <origin>` | the installed one, else the URL in the build | Another account server, for example the `test` Worker or a [self-hosted account service](self-hosting.md). |
-| `--display-size <W>x<H>` | the installed one, else `1920x1080` | The size of the virtual display that computer use reads (see [Display size](#display-size)). |
+| `--display-size <W>x<H>` | the installed one, else `1280x800` | The size of the virtual display that computer use reads (see [Display size](#display-size)). |
 
 Run the install again to reinstall or upgrade. The data stays in the home folder of the service
 user. A reinstall keeps the user and the account server, because the sign-in belongs to them, and
@@ -109,33 +109,51 @@ one warning.
 ## Display size
 
 A self-hosted server runs OpenBot on a virtual display (Xvfb), and computer use reads that display.
-The default size is 1920x1080. A [Docker](docker.md#environment) container uses the same setting
+The default size is 1280x800. A [Docker](docker.md#environment) container uses the same setting
 and the same default. A hosted server shows OpenBot on its boat desktop, and this setting does not
 change that desktop.
 
-To use another size, give it at the install with `--display-size 1280x800`, or write this line in
+The display size does not change the OpenBot browser (`openbot_browser`). Its pages have their own
+size, 1200x800 when no panel shows them, and its clicks go to page elements.
+
+To use another size, give it at the install with `--display-size 1920x1080`, or write this line in
 `/opt/OpenBot/hosted/openbot.env` and run `sudo openbot restart`:
 
 ```text
-OPENBOT_DISPLAY_SIZE=1280x800
+OPENBOT_DISPLAY_SIZE=1920x1080
 ```
 
 The value is `WIDTHxHEIGHT` in digits, from 640x480 to 2576x2576. The install refuses a value that is
 not valid. At a start, a value that is not valid writes this warning in `openbot logs`, and the
-server starts with 1920x1080:
+server starts with 1280x800:
 
 ```text
-OPENBOT_DISPLAY_SIZE is not WIDTHxHEIGHT from 640x480 to 2576x2576. The display is 1920x1080.
+OPENBOT_DISPLAY_SIZE is not WIDTHxHEIGHT from 640x480 to 2576x2576. The display is 1280x800.
 ```
 
-### Why 1920x1080
+### Which size to use
 
-Claude 4.7 and later models read an image of up to 2576 px on the long edge and 4784 visual tokens
-at its full size, and their coordinates map 1:1 to the pixels of the image. For computer use, the
-Claude docs say that "1080p provides a good balance of performance and cost", and that 720p or
-1366x768 are lower-cost options. See
-[Vision](https://platform.claude.com/docs/en/build-with-claude/vision#resolution-and-token-cost) and
-[Computer use](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool).
+Keep 1280x800 unless the apps that agents use need more space. At 1280x800, computer use clicks
+more accurately, and a screenshot costs fewer tokens. Use 1920x1080 only with a model that reads a
+1920x1080 image at its full size (see [Screenshots and clicks](#screenshots-and-clicks)).
+
+A click test compared the two sizes. A model clicked a 26x17 px button in an `xmessage` window that
+almost filled the display, once from a full-display screenshot and once from a window screenshot.
+The models were the free OpenCode models with image input (OpenCode 1.18.30, Docker image 0.42.0,
+arm64):
+
+| Model | 1920x1080, full display | 1920x1080, window | 1280x800, full display | 1280x800, window |
+| --- | --- | --- | --- | --- |
+| MiMo v2.6 Flash | Hit | Miss | Hit | Hit |
+| DeepSeek v4.1 Flash | Miss | Miss | Hit | Hit |
+| GLM 5.3 Flash | Hit | Miss | Hit | Not tested (429) |
+| LongCat 2.5 Preview | Miss | Miss | Hit | Hit |
+| Muse Spark 1.3 | Miss | Miss | Miss | Hit |
+| Nemotron 3.5 Super VL | Miss | Miss | Hit | Hit |
+| Space Bunny | Hit | Hit | Hit | Hit |
+| **Hits** | **3 of 7** | **1 of 7** | **6 of 7** | **6 of 6** |
+
+Claude and Codex models were not in the test.
 
 An image costs `⌈width / 28⌉ × ⌈height / 28⌉` visual tokens on Claude. A full-display screenshot at
 1920x1080 costs about 2 times the tokens of one at 1280x800:
@@ -153,24 +171,23 @@ An image costs `⌈width / 28⌉ × ⌈height / 28⌉` visual tokens on Claude. 
 The computer use driver (cua-driver, `cua-driver-rs-v0.34.0`) has two screenshots on Linux:
 
 - **One window** (`get_window_state`). The driver makes the image 1.15 megapixels or less, with a long
-  edge of 1568 px or less, and changes the x and y of each click back to screen pixels. So a window
-  that fills a 1920x1080 display gets to the model at about 1430x804, and the clicks land correctly
-  with all models.
+  edge of 1568 px or less, and changes the x and y of each click back to screen pixels. A 1260x780
+  window gets to the model at its full size. A 1900x1060 window gets to the model at 1435x801. Then
+  small controls are harder to hit, and some models send the x and y in screen pixels, so the click
+  lands outside the control. A window that goes past the edge of the display gives no screenshot.
 - **The full display** (`get_desktop_state`). The driver sends the image at its full size and uses
   the x and y of a click as screen pixels. The clicks land correctly only when the model reads the
   image at its full size.
 
 What a model reads of a full-display screenshot at 1920x1080:
 
-| Provider | Image | Full-display clicks |
-| --- | --- | --- |
-| Claude 4.7 and later, all Claude 5 models | Full size | Correct |
-| Codex | Full size: the limit is 2048 px and 2,500 tiles of 32x32 px, and 1920x1080 is 2,040 tiles | Correct |
-| Claude before 4.7, such as Sonnet 4.6 and Haiku 4.5 | Made smaller to 1456x819 | Short, at about 0.76 of the correct position |
-| Grok, Gemini, OpenCode, Cursor, Cline, Pi | Not known | Not known |
+| Provider | Image |
+| --- | --- |
+| Claude 4.7 and later, all Claude 5 models | Full size, up to 2576 px on the long edge and 4784 visual tokens ([Vision](https://platform.claude.com/docs/en/build-with-claude/vision#resolution-and-token-cost)) |
+| Codex | Full size: the limit is 2048 px and 2,500 tiles of 32x32 px, and 1920x1080 is 2,040 tiles |
+| Grok, Gemini, OpenCode, Cursor, Cline, Pi | Not known |
 
-Use 1280x800 with a model that makes a 1920x1080 image smaller, or to use fewer image tokens. A
-1280x800 screenshot is not made smaller by any Claude or Codex model.
+A 1280x800 screenshot is not made smaller by any Claude or Codex model.
 
 ## Phone app
 
@@ -257,9 +274,11 @@ Threat model:
 - The full install was not run on a Linux computer before the first release that has the setup
   file. It needs a release build.
 - [Display size](#display-size): the display sizes, the warning and the start with a value that is
-  not valid were tested in the Docker image. An install with `--display-size` was not run. Computer
-  use at 1920x1080 was not tested with a model. The screenshots and clicks come from the cua-driver
-  source (`platform-linux/src/tools/impl_.rs`, `get_window_state` and `get_desktop_state`), and
-  the Claude limits from the Claude docs. The Codex limit comes from `codex-rs/utils/image` and was
-  not checked again. It is not known if Claude Code or Codex makes a screenshot smaller before it
-  sends it to the model.
+  not valid were tested in the Docker image. An install with `--display-size` was not run. The click
+  test ran only on arm64, with one `xmessage` button and one run for each model, size and screenshot.
+  Claude and Codex were not in it. A window past the edge of the display was tested only with
+  `xmessage`. The window screenshot limits come from the cua-driver source
+  (`platform-linux/src/tools/impl_.rs`, `get_window_state` and `get_desktop_state`), and the Claude
+  limits from the Claude docs. The Codex limit comes from `codex-rs/utils/image` and was not checked
+  again. It is not known if Claude Code or Codex makes a screenshot smaller before it sends it to
+  the model.

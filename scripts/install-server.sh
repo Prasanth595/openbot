@@ -10,7 +10,7 @@
 #   --auth-api-url <origin>   Another account server, for development. Default: the one of the
 #                             installed server, else the one in the build.
 #   --display-size <W>x<H>    The size of the virtual display that computer use reads, from 640x480
-#                             to 2576x2576. Default: the one of the installed server, else 1920x1080.
+#                             to 2576x2576. Default: the one of the installed server, else 1280x800.
 #
 # This file only downloads the latest release and checks it against the release manifest, the
 # manifest that the Linux desktop updater reads. The install steps come from that release
