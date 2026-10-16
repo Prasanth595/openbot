@@ -243,7 +243,7 @@ export interface DevelopmentSeedSummary {
 const SEED_SUMMARY = {
   agents: 4,
   conversations: 4,
-  attachments: 10,
+  attachments: 12,
   teamMembers: 2,
   activeInvites: 1,
   sessions: 2,
@@ -647,13 +647,92 @@ async function seedAgents(agentStore: AgentStore, agentModel: SeededAgentModel):
   return agents;
 }
 
+const spreadsheetDateWorkbooks: {
+  system: "1900" | "1904";
+  cases: { id: string; serial: number; style: number }[];
+}[] = [
+  {
+    system: "1900",
+    cases: [
+      { id: "date-1", serial: 1, style: 1 },
+      { id: "date-59", serial: 59, style: 1 },
+      { id: "date-60", serial: 60, style: 1 },
+      { id: "date-61", serial: 61, style: 1 },
+      { id: "datetime-1.5", serial: 1.5, style: 2 },
+      { id: "datetime-60.5", serial: 60.5, style: 2 },
+      { id: "modern-45292", serial: 45292, style: 1 },
+      { id: "plain-number", serial: 60, style: 0 },
+      { id: "time-only", serial: 0.5, style: 3 },
+    ],
+  },
+  {
+    system: "1904",
+    cases: [
+      { id: "date-0", serial: 0, style: 1 },
+      { id: "date-59", serial: 59, style: 1 },
+      { id: "plain-number", serial: 60, style: 0 },
+      { id: "time-only", serial: 0.5, style: 3 },
+    ],
+  },
+];
+
+const NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const PACKAGE_REL = "http://schemas.openxmlformats.org/package/2006/relationships";
+
+function spreadsheetDatesXlsx(system: "1900" | "1904"): Uint8Array {
+  const workbook = spreadsheetDateWorkbooks.find((entry) => entry.system === system);
+  if (!workbook) throw new Error("Missing spreadsheet date fixture.");
+  const entries = {
+    "[Content_Types].xml": `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+      <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+      <Default Extension="xml" ContentType="application/xml"/>
+      <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+      <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+      <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+    </Types>`,
+    "_rels/.rels": `<Relationships xmlns="${PACKAGE_REL}"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    // No workbookPr in the 1900 fixture: Excel uses that system by default.
+    "xl/workbook.xml": `<workbook xmlns="${NS}" xmlns:r="${REL}">${workbook.system === "1904" ? '<workbookPr date1904="1"/>' : ""}<sheets><sheet name="Dates ${workbook.system}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    "xl/_rels/workbook.xml.rels": `<Relationships xmlns="${PACKAGE_REL}">
+      <Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/>
+      <Relationship Id="rId2" Type="${REL}/styles" Target="styles.xml"/>
+    </Relationships>`,
+    "xl/styles.xml": `<styleSheet xmlns="${NS}">
+      <fonts count="1"><font/></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+      <borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+      <cellXfs count="4">${[0, 14, 22, 21].map((id) => `<xf numFmtId="${id}" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>`).join("")}</cellXfs>
+    </styleSheet>`,
+    "xl/worksheets/sheet1.xml": `<worksheet xmlns="${NS}"><sheetData>
+      <row r="1"><c r="A1" t="inlineStr"><is><t>Case</t></is></c><c r="B1" t="inlineStr"><is><t>Value</t></is></c></row>
+      ${workbook.cases
+        .map(
+          (entry, index) =>
+            `<row r="${index + 2}"><c r="A${index + 2}" t="inlineStr"><is><t>${entry.id}</t></is></c><c r="B${index + 2}" s="${entry.style}"><v>${entry.serial}</v></c></row>`,
+        )
+        .join("")}
+    </sheetData></worksheet>`,
+  };
+  return zipSync(Object.fromEntries(Object.entries(entries).map(([name, xml]) => [name, strToU8(xml)])));
+}
+
 async function seedAttachments(
   mailbox: MailboxStore,
   agents: Map<string, AgentSummary>,
   transferDirectories: string[],
 ): Promise<
   Record<
-    "brief" | "metrics" | "evidence" | "image" | "log" | "svg" | "pdf" | "audio" | "spreadsheet",
+    | "brief"
+    | "metrics"
+    | "evidence"
+    | "image"
+    | "log"
+    | "svg"
+    | "pdf"
+    | "audio"
+    | "spreadsheet"
+    | "spreadsheetDates1900"
+    | "spreadsheetDates1904",
     AttachmentSummary
   >
 > {
@@ -734,6 +813,16 @@ async function seedAttachments(
       mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       bytes: previewXlsx(),
     }),
+    spreadsheetDates1900: await store(chief, {
+      name: "spreadsheet-dates-1900.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      bytes: spreadsheetDatesXlsx("1900"),
+    }),
+    spreadsheetDates1904: await store(chief, {
+      name: "spreadsheet-dates-1904.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      bytes: spreadsheetDatesXlsx("1904"),
+    }),
   };
 }
 
@@ -742,7 +831,17 @@ async function seedConversations(
   mailbox: MailboxStore,
   agents: Map<string, AgentSummary>,
   attachments: Record<
-    "brief" | "metrics" | "evidence" | "image" | "log" | "svg" | "pdf" | "audio" | "spreadsheet",
+    | "brief"
+    | "metrics"
+    | "evidence"
+    | "image"
+    | "log"
+    | "svg"
+    | "pdf"
+    | "audio"
+    | "spreadsheet"
+    | "spreadsheetDates1900"
+    | "spreadsheetDates1904",
     AttachmentSummary
   >,
   clock: SeedClock,
@@ -864,6 +963,20 @@ async function seedConversations(
           attachments.image,
           attachments.spreadsheet,
         ],
+      },
+      {
+        ...message(
+          "chief-assistant-spreadsheet-dates",
+          "assistant",
+          [
+            "Open these workbooks to check spreadsheet dates:",
+            "",
+            `- ${file(attachments.spreadsheetDates1900)}`,
+            `- ${file(attachments.spreadsheetDates1904)}`,
+          ].join("\n"),
+          42 * MINUTE,
+        ),
+        attachments: [attachments.spreadsheetDates1900, attachments.spreadsheetDates1904],
       },
       message(
         "chief-assistant-rich-previews",

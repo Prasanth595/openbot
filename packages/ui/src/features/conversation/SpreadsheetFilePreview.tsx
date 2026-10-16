@@ -96,10 +96,15 @@ function parseNumberFormats(bytes: Uint8Array | undefined): string[] {
 
 function formatExcelDate(value: number, format: string, date1904: boolean): string {
   const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
-  const date = new Date(epoch + value * 86_400_000);
+  // Excel includes the fictional date 1900-02-29 at serial 60 for compatibility.
+  const adjustedValue = !date1904 && value > 0 && value < 60 ? value + 1 : value;
+  const date = new Date(epoch + adjustedValue * 86_400_000);
   if (Number.isNaN(date.getTime())) return String(value);
   const pad = (part: number) => String(part).padStart(2, "0");
-  const day = `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+  const day =
+    !date1904 && value >= 60 && value < 61
+      ? "1900-02-29"
+      : `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
   if (!hasTimeFormat(format)) return day;
   return `${day} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
 }
