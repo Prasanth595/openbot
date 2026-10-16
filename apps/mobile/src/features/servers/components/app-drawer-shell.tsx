@@ -180,6 +180,9 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const blurStyle = useAnimatedStyle(() => ({
     opacity: drawerProgress.get(),
   }));
+  const scrimTouchStyle = useAnimatedStyle(() => ({
+    pointerEvents: drawerOpenOnUI.get() ? "auto" : "none",
+  }));
 
   const navigateAfterClosing = useCallback(
     (href: Href) => {
@@ -253,7 +256,7 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
               ]}
             >
               {children}
-              <View className="absolute inset-0" pointerEvents={drawerOpen ? "auto" : "none"}>
+              <Animated.View className="absolute inset-0" style={scrimTouchStyle}>
                 <Animated.View className="absolute inset-0" pointerEvents="none" style={blurStyle}>
                   <BlurView intensity={5} style={{ flex: 1 }} tint="systemThickMaterial" />
                 </Animated.View>
@@ -264,7 +267,7 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
                   className="flex-1"
                   onPress={closeDrawer}
                 />
-              </View>
+              </Animated.View>
             </Animated.View>
           </GestureDetector>
         </View>
