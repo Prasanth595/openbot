@@ -279,10 +279,22 @@ export function WebApp(props: { createRuntime?: WebRuntimeFactory } = {}) {
     const firstTouch = readFirstTouch(() => window.localStorage, Date.now());
     const value = await signInRequest("email/verify", { challengeId, code, ...(firstTouch ? { firstTouch } : {}) });
     if (value === null) return;
-    const account = await showAccount(accountFrom(value));
+    const account = accountFrom(value);
     sessionGeneration += 1;
     sessionEnded = false;
     channel?.postMessage("session-changed");
+    try {
+      await showAccount(account);
+    } catch {
+      // The server has used the code and set the session, so the retry checks the session again.
+      setState((draft) => {
+        draft.login = {
+          status: "error",
+          issue: { code: "auth_api_unavailable", message: sourceText("error.auth.serviceUnavailable") },
+        };
+      });
+      return;
+    }
     setState((draft) => {
       draft.account = account;
     });
