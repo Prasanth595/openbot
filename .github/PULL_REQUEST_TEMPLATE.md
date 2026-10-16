@@ -6,7 +6,7 @@
 
 <!-- Only for authors outside the nightly-labs organization. Organization members can remove this section. -->
 
-- [ ] I have read the [OpenBot Contributor Assignment Agreement](https://github.com/nightly-labs/openbot/blob/main/CLA.md) 1.0 and I agree to it.
+- [x] I have read the [OpenBot Contributor Assignment Agreement](https://github.com/nightly-labs/openbot/blob/main/CLA.md) 1.0 and I agree to it.
 
 ## Type of change
 
