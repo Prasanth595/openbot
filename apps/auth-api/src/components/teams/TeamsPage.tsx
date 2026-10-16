@@ -280,20 +280,45 @@ function Cursor(props: { teammate: LandingTeammate; index: number }) {
     frame = requestAnimationFrame(step);
   };
 
-  onSettled(() => {
+  let stop = () => {};
+
+  /** Puts the cursor on its first point and shows it. A hidden hero (phone width) has no size. */
+  const place = () => {
+    if (!element || element.dataset.placed) return;
+    const box = element.parentElement?.getBoundingClientRect();
+    if (!box?.width || !box.height) return;
     pickTarget(0);
     position.x = move.x;
     position.y = move.y;
     draw();
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    last = performance.now();
-    pickTarget(last + between(0, 1200));
-    frame = requestAnimationFrame(step);
+    element.dataset.placed = "true";
+  };
+
+  onSettled(() => {
+    place();
+    const area = element?.parentElement;
+    if (!area || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const pause = () => {
+      cancelAnimationFrame(frame);
+      frame = 0;
+    };
+    // The cursor moves only while the hero shows. A hero that is hidden or scrolled away uses no frames.
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return pause();
+      place();
+      if (frame) return;
+      last = performance.now();
+      pickTarget(last + between(0, 1200));
+      frame = requestAnimationFrame(step);
+    });
+    observer.observe(area);
+    stop = () => {
+      observer.disconnect();
+      pause();
+    };
   });
-  // The Worker also runs this cleanup, and it has no `cancelAnimationFrame`. A frame starts only in the browser.
-  onCleanup(() => {
-    if (frame) cancelAnimationFrame(frame);
-  });
+  // The Worker also runs this cleanup. It has no `IntersectionObserver`, and `stop` changes only in the browser.
+  onCleanup(() => stop());
 
   return (
     <span ref={element} class="teams-cursor" data-cursor={props.index}>
