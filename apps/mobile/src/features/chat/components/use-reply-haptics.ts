@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { haptics } from "@/shared/lib/haptics";
 import { replyWordFeedback } from "../model/reply-reveal";
 
-/** "PA. pa pa": one strong knock, a pause, then two lighter knocks, for the rest of a reply that shows at once. */
+/** "PA. pa PA": a strong knock, a pause, a light knock, then a strong knock, for the rest of a reply that shows at once. */
 const FLUSH_KNOCKS = [
   { style: "heavy", at: 0 },
   { style: "light", at: 240 },
-  { style: "medium", at: 360 },
+  { style: "heavy", at: 360 },
 ] as const;
 
 /** Feedback follows local playback, never network chunks or row layout events. */
