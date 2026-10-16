@@ -159,6 +159,7 @@ function MenuItem({ action, colors, onPressAction }: ItemProps) {
  */
 export function MenuView({
   ref,
+  title,
   actions,
   onPressAction,
   onOpenMenu,
@@ -227,6 +228,11 @@ export function MenuView({
       <Menu.Portal>
         <Menu.Overlay />
         <Menu.Content presentation="popover" placement="bottom" align="start" className="min-w-52">
+          {title ? (
+            <Menu.Label className="mb-1" numberOfLines={3} style={{ color: colors.muted }}>
+              {title}
+            </Menu.Label>
+          ) : null}
           {groups(actions).map((group, index) => (
             <Fragment key={group.map(actionId).join("|")}>
               {index > 0 ? <Separator className="mx-2.5 my-1.5" style={{ backgroundColor: colors.separator }} /> : null}
