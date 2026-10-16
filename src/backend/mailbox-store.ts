@@ -47,6 +47,7 @@ import { StoredStateFailure, storedIO, storedSync, toStoredStateFailure } from "
 
 export type { ExportedAttachmentFile, GeneratedAttachmentSource } from "./attachment-files";
 
+import { mailboxReactionRowKey } from "./database/mailbox-projection";
 import { MailboxDeliveryGate } from "./mailbox-delivery-gate";
 import { OpenBotDatabase } from "./openbot-database";
 import { isRecord } from "./protocol";
@@ -210,6 +211,14 @@ export class MailboxStore {
   readonly #deliveryGate = new MailboxDeliveryGate();
   readonly #stagedGeneratedAttachments = new Map<string, StoredGeneratedAttachment>();
   #state: StoredState = structuredClone(EMPTY_STATE);
+  /** The rows changed, added or removed, since the last committed write. `#persist` writes only these. */
+  readonly #changes = {
+    messageIds: new Set<string>(),
+    deliveryIds: new Set<string>(),
+    draftIds: new Set<string>(),
+    generatedAttachmentIds: new Set<string>(),
+    reactionKeys: new Set<string>(),
+  };
 
   constructor(userDataPath: string, sharedRoot: string, database = new OpenBotDatabase(userDataPath)) {
     this.#statePath = join(userDataPath, "mailbox.json");
@@ -237,7 +246,7 @@ export class MailboxStore {
       } else {
         this.#state = normalizeStoredState(yield* this.#readStateEffect());
         yield* this.#database.backupLegacyFile(this.#statePath);
-        this.#persist("mailbox.legacy-imported", "legacy-import:mailbox:v1");
+        this.#persist("mailbox.legacy-imported", "legacy-import:mailbox:v1", [], true);
       }
       const activeEdits = new Set(
         this.#state.deliveries
@@ -248,6 +257,7 @@ export class MailboxStore {
         (draft) => draft.preserveOnRestart || (draft.ownerEditId && activeEdits.has(draft.ownerEditId)),
       );
       if (retainedDrafts.length !== this.#state.drafts.length) {
+        for (const draft of this.#state.drafts) this.#changes.draftIds.add(draft.id);
         this.#state.drafts = retainedDrafts;
         this.#persist("mailbox.drafts-cleared");
       }
@@ -288,6 +298,7 @@ export class MailboxStore {
         .prepareDrafts(paths, data)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       this.#state.drafts.push(...prepared);
+      for (const draft of prepared) this.#changes.draftIds.add(draft.id);
       try {
         this.#persist("attachments.prepared");
         return prepared.map(toAttachmentSummary);
@@ -313,6 +324,7 @@ export class MailboxStore {
       if (index < 0) return;
       const [draft] = this.#state.drafts.splice(index, 1);
       if (!draft) return;
+      this.#changes.draftIds.add(draft.id);
       try {
         this.#persist("attachment-draft.discarded");
       } catch (error) {
@@ -503,6 +515,9 @@ export class MailboxStore {
       this.#state.deliveries.push(...deliveries);
       if (input.idempotencyKey) this.#state.idempotency[input.idempotencyKey] = messageId;
       this.#state.drafts = this.#state.drafts.filter((draft) => !(input.draftIds ?? []).includes(draft.id));
+      this.#changes.messageIds.add(messageId);
+      for (const delivery of deliveries) this.#changes.deliveryIds.add(delivery.id);
+      for (const draft of drafts) this.#changes.draftIds.add(draft.id);
       try {
         this.#persist();
       } catch (error) {
@@ -602,6 +617,8 @@ export class MailboxStore {
       };
       this.#state.messages.push(message);
       this.#state.drafts = this.#state.drafts.filter((draft) => !ids.has(draft.id));
+      this.#changes.messageIds.add(message.id);
+      for (const id of ids) this.#changes.draftIds.add(id);
       try {
         this.#persist("channel.attachments-committed", `mailbox:channel-attachments:${input.messageId}`);
       } catch (error) {
@@ -624,6 +641,8 @@ export class MailboxStore {
           ...before.drafts,
           ...drafts.filter((draft) => !before.drafts.some((candidate) => candidate.id === draft.id)),
         ];
+        this.#changes.messageIds.add(message.id);
+        for (const draft of drafts) this.#changes.draftIds.add(draft.id);
         try {
           this.#persist("channel.attachments-reverted", `mailbox:channel-attachments-reverted:${input.messageId}`);
         } catch (cause) {
@@ -762,6 +781,7 @@ export class MailboxStore {
         throw new Error(sourceText("error.backend.taskMoveRefused"));
       const previous = this.#state.messages;
       this.#state.messages = previous.map((candidate) => (candidate === message ? { ...message, taskId } : candidate));
+      this.#changes.messageIds.add(message.id);
       try {
         this.#persist("mailbox.task-assigned", `mailbox:task-assigned:${deliveryId}`);
       } catch (error) {
@@ -1014,6 +1034,7 @@ export class MailboxStore {
           updatedAt: new Date().toISOString(),
         });
       }
+      this.#changes.reactionKeys.add(mailboxReactionRowKey(agentId, messageId, actor));
       this.#persist("reaction.updated");
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -1430,6 +1451,7 @@ export class MailboxStore {
     const persisted = toCurrentMailboxState(this.#database.readMailboxState());
     if (!persisted || !isStoredState(persisted)) throw new Error("Stored mailbox projection is invalid.");
     this.#state = normalizeStoredState(persisted);
+    this.#clearChanges();
   }
 
   #assertQueueNotEditing(deliveryId: string): void {
@@ -1447,6 +1469,7 @@ export class MailboxStore {
       throw new QueueEditRejectedError(sourceText("error.backend.editedOnOtherDevice"));
     const previous = delivery.editId;
     delivery.editId = editId;
+    this.#changes.deliveryIds.add(delivery.id);
     try {
       this.#persist("delivery.edit-started");
     } catch (error) {
@@ -1470,7 +1493,10 @@ export class MailboxStore {
     if (drafts.some((draft) => draft.ownerEditId && draft.ownerEditId !== editId))
       throw new Error(sourceText("error.backend.attachmentInOtherEdit"));
     const previous = drafts.map((draft) => draft.ownerEditId);
-    for (const draft of drafts) draft.ownerEditId = editId;
+    for (const draft of drafts) {
+      draft.ownerEditId = editId;
+      this.#changes.draftIds.add(draft.id);
+    }
     try {
       this.#persist("delivery.edit-attachments-retained");
     } catch (error) {
@@ -1530,7 +1556,9 @@ export class MailboxStore {
       // Release the lock, not the bytes: a disconnected editor can still restore its
       // backup, including after a lost cancellation response and host restart.
       draft.preserveOnRestart = true;
+      this.#changes.draftIds.add(draft.id);
     }
+    this.#changes.deliveryIds.add(delivery.id);
     try {
       this.#persist(cancelDelivery ? "delivery.cancelled" : "delivery.edit-finished");
     } catch (error) {
@@ -1682,6 +1710,9 @@ export class MailboxStore {
                 releasedOwned = this.#state.drafts.filter((draft) => draft.ownerEditId === editId);
                 for (const draft of releasedOwned) delete draft.ownerEditId;
               }
+              this.#changes.messageIds.add(message.id);
+              this.#changes.deliveryIds.add(delivery.id);
+              for (const id of [...draftIds, ...releasedOwned.map((draft) => draft.id)]) this.#changes.draftIds.add(id);
               this.#persist(
                 "message.updated",
                 `mailbox:message-updated:${deliveryId}:${randomUUID()}`,
@@ -1755,6 +1786,7 @@ export class MailboxStore {
       const orders = new Map(orderedIds.map((deliveryId, index) => [deliveryId, index]));
       for (const delivery of allQueued) {
         delivery.queueOrder = orders.get(delivery.id) ?? delivery.queueOrder;
+        this.#changes.deliveryIds.add(delivery.id);
       }
       this.#persist("queue.reordered");
     } catch (cause) {
@@ -1798,6 +1830,7 @@ export class MailboxStore {
       }
       Object.assign(delivery, { status: "queued", turnId: null, error: null });
       delete delivery.steeredAt;
+      this.#changes.deliveryIds.add(delivery.id);
       this.#persist("delivery.updated");
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -1979,6 +2012,14 @@ export class MailboxStore {
       const previous = structuredClone(this.#state);
       const deletedAt = new Date().toISOString();
       for (const target of targets) target.deletedAt = deletedAt;
+      for (const message of this.#state.messages) {
+        if (message.attachments.some((attachment) => targets.includes(attachment))) {
+          this.#changes.messageIds.add(message.id);
+        }
+      }
+      for (const attachment of this.#state.generatedAttachments) {
+        if (targets.includes(attachment)) this.#changes.generatedAttachmentIds.add(attachment.id);
+      }
       const inUse = new Set(records.filter((record) => !record.deletedAt).map((record) => record.path));
       const deletions: string[] = [];
       for (const path of new Set(targets.map((target) => target.path))) {
@@ -2063,15 +2104,18 @@ export class MailboxStore {
     const changedMessages = snapshot.messages.filter((message) =>
       message.attachments?.some((attachment) => attachmentIds.includes(attachment.id)),
     );
+    for (const attachment of staged) this.#changes.generatedAttachmentIds.add(attachment.id);
     const persisted = this.#database.persistConversationChangesAndMailbox(
       snapshot,
       changedMessages,
       eventType,
       detail,
       nextState,
+      this.#changes,
       "attachment.generated-batch",
     );
     this.#state = nextState;
+    this.#clearChanges();
     for (const id of attachmentIds) this.#stagedGeneratedAttachments.delete(id);
     return persisted;
   }
@@ -2113,6 +2157,7 @@ export class MailboxStore {
         .storeGenerated(input)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       this.#state.generatedAttachments.push(attachment);
+      this.#changes.generatedAttachmentIds.add(attachment.id);
       try {
         this.#persist("attachment.generated");
         return toAttachmentSummary(attachment);
@@ -2266,6 +2311,7 @@ export class MailboxStore {
       if (!allowed.includes(delivery.status)) return;
       Object.assign(delivery, patch);
       if (patch.status === "queued") delete delivery.steeredAt;
+      this.#changes.deliveryIds.add(delivery.id);
       this.#persist("delivery.updated");
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -2275,7 +2321,9 @@ export class MailboxStore {
   /** The reason a steer waits is shown only while queued, so it goes when the delivery leaves the queue. */
   #clearSteerFallback(deliveryId: string): void {
     const delivery = this.#state.deliveries.find((candidate) => candidate.id === deliveryId);
-    if (delivery?.status === "queued") delete delivery.steerFallback;
+    if (delivery?.status !== "queued") return;
+    delete delivery.steerFallback;
+    this.#changes.deliveryIds.add(delivery.id);
   }
 
   #requireMessage(id: string): StoredMessage {
@@ -2300,13 +2348,28 @@ export class MailboxStore {
     });
   });
 
+  /**
+   * Writes the rows in `#changes`, or with `replaceAll` the whole state. The keys are cleared only
+   * after a write that committed its own transaction: a caller's transaction can still roll back,
+   * and the next write must then write those rows again.
+   */
   #persist(
     eventType = "mailbox.updated",
     commandId = `mailbox:${eventType}:${randomUUID()}`,
     fileDeletions: string[] = [],
-    rebaseHistory = false,
+    replaceAll = false,
   ): void {
-    this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, rebaseHistory);
+    const ownsTransaction = !this.#database.connection.isTransaction;
+    if (replaceAll) {
+      this.#database.replaceMailboxState(commandId, this.#state, eventType, fileDeletions, true);
+    } else {
+      this.#database.applyMailboxChanges(commandId, this.#state, this.#changes, eventType, fileDeletions);
+    }
+    if (ownsTransaction) this.#clearChanges();
+  }
+
+  #clearChanges(): void {
+    for (const keys of Object.values(this.#changes)) keys.clear();
   }
 
   #drainFileDeletionOutboxEffect = Effect.fn("MailboxStore.drainFileDeletionOutbox")(function* (this: MailboxStore) {
