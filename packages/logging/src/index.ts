@@ -47,8 +47,28 @@ const CREDENTIAL_ASSIGNMENT = new RegExp(
 // The prefix has to start a token: without the boundary, `sk-` matched inside
 // ordinary words and `risk-register` came out as `ri[redacted]`, erasing the
 // part of a diagnostic that names what failed.
+// `npm_`, `hf_` and `gsk_` also start ordinary names such as `npm_config_user_agent`, so their
+// value must be one long alphanumeric run, as the vendors issue them. `ASIA` is a word, so only the
+// exact shape of an AWS key ID counts.
 const KNOWN_SECRET_PREFIXES =
-  /(?<![A-Za-z0-9_-])(?:sk-ant|sk-|sk_|xai-|ghp_|gho_|ghu_|ghr_|ghs_|github_pat_|AKIA|xox[abeoprs]-|xapp-)[A-Za-z0-9._-]{8,}/g;
+  /(?<![A-Za-z0-9_-])(?:(?:sk-ant|sk-|sk_|xai-|ghp_|gho_|ghu_|ghr_|ghs_|github_pat_|AKIA|xox[abeoprs]-|xapp-|glpat-|rk_live_|whsec_)[A-Za-z0-9._-]{8,}|AIza[A-Za-z0-9_-]{30,}|(?:npm|hf|gsk)_[A-Za-z0-9]{30,}|ASIA[A-Z0-9]{16}(?![A-Za-z0-9]))/g;
+// A JSON Web Token: a header and a payload that both start as a JSON object, then the signature.
+const JSON_WEB_TOKEN = /(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]*/g;
+// A PEM private key, with its body. A key that the text cuts off before its END line is removed to
+// the end of the text, but only when a body follows the BEGIN line: prose that names the marker
+// stays. The search for the END line is bounded, far past the size of a real key, so a line of
+// repeated BEGIN markers cannot make each one scan the rest of the text.
+const PEM_PRIVATE_KEY =
+  /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----(?:[\s\S]{0,16384}?-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----|(?:\\[rn]|\s)*[A-Za-z0-9+/=]{16,}[\s\S]*$)/gu;
+// Every cookie in a `Cookie:` or `Set-Cookie:` header. The assignment rule stops at the first `;`
+// and kept every later cookie. The value must start with `name=`, so prose such as
+// `cookie: missing` is left to the assignment rule.
+const COOKIE_HEADER = /(\bcookie["']?\s*:\s*["']?)[^\s=;,"'\\]+=[^\r\n"'\\]*/giu;
+// URL query values that carry a credential under a name too common to be a secret label: an API
+// key, an OAuth code, a login ticket, a signature. Only a `?` or `&` before the name makes it a
+// query parameter. The value must hold a digit, so a placeholder such as `YOUR_API_KEY` in a skill
+// or a template is not taken for a secret.
+const QUERY_SECRET = /([?&](?:key|code|ticket|sig)=)(?!\[redacted\])(?=[^&#\s"'<>)\]]*\d)[^&#\s"'<>)\]]{8,}/giu;
 // Bounded for the same reason as the label above, and more sharply: with `+`
 // on the local part, every character of a long payload consumed the rest of
 // the run looking for an `@` and then backtracked over all of it.
@@ -170,13 +190,21 @@ function markRegisteredSecrets(value: string): string {
 }
 
 function applyTextRules(value: string): string {
-  return value
-    .replace(AUTH_HEADER_SECRET, "$1[redacted]")
-    .replace(BEARER_SECRET, "[redacted]")
-    .replace(CREDENTIAL_ASSIGNMENT, redactAssignedValue)
-    .replace(JSON_BARE_KEY, redactAssignedValue)
-    .replace(KNOWN_SECRET_PREFIXES, "[redacted]")
-    .replace(EMAIL, "[redacted-email]");
+  return (
+    value
+      .replace(PEM_PRIVATE_KEY, "[redacted]")
+      .replace(COOKIE_HEADER, "$1[redacted]")
+      .replace(AUTH_HEADER_SECRET, "$1[redacted]")
+      .replace(BEARER_SECRET, "[redacted]")
+      .replace(CREDENTIAL_ASSIGNMENT, redactAssignedValue)
+      .replace(JSON_BARE_KEY, redactAssignedValue)
+      // After the assignment rule: its value runs over `&`, and a query value redacted first would
+      // leave a `]` behind it.
+      .replace(QUERY_SECRET, "$1[redacted]")
+      .replace(KNOWN_SECRET_PREFIXES, "[redacted]")
+      .replace(JSON_WEB_TOKEN, "[redacted]")
+      .replace(EMAIL, "[redacted-email]")
+  );
 }
 
 /**
