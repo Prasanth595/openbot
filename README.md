@@ -563,11 +563,13 @@ under PolyForm Noncommercial 1.0.0. Community behavior is governed by the
 
 ## License and attribution
 
-Copyright 2026 Norbert Bodziony.
+Copyright 2026 Synthetify Labs spółka z ograniczoną odpowiedzialnością.
 
 Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and
 distribute the code for permitted noncommercial purposes. Commercial use requires a separate license
-from the copyright owner. Versions up to and including 0.1.11 remain available under Apache-2.0.
+from the copyright owner. For a commercial license, contact
+[licenses@openbot.run](mailto:licenses@openbot.run). Versions up to and including 0.1.11 remain
+available under Apache-2.0.
 See [NOTICE](NOTICE) for attribution and third-party notices.
 
 OpenBot is an independent source-available project and is not affiliated with, endorsed by, or
