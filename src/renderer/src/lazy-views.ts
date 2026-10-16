@@ -59,3 +59,12 @@ export const SettingsModal = lazy(() =>
 export const MarketplaceModal = lazy(() =>
   import("./features/settings/MarketplaceModal").then((module) => ({ default: module.MarketplaceModal })),
 );
+export const ScheduleView = lazy(() =>
+  import("./features/schedule/SchedulePanel").then((module) => ({ default: module.ScheduleView })),
+);
+export const ServerOnboarding = lazy(() =>
+  import("./features/onboarding/ServerOnboarding").then((module) => ({ default: module.ServerOnboarding })),
+);
+export const RoutineFlowsCanvas = lazy(() =>
+  import("./features/routine-flows/RoutineFlowsCanvas").then((module) => ({ default: module.RoutineFlowsCanvas })),
+);

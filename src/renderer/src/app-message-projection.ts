@@ -132,15 +132,24 @@ export function planTitle(plan: AgentMessagePlan): string {
   return t("chat.taskList.title");
 }
 
-export function toAgentMessages(messages: ConversationMessage[], ownerAgentId?: string): AgentMessage[] {
+/**
+ * The chat rows of stored messages. `convert` gives the row of the message at an index; a caller
+ * that keeps the rows of unchanged messages passes it.
+ */
+export function toAgentMessages(
+  messages: readonly ConversationMessage[],
+  ownerAgentId?: string,
+  convert: (message: ConversationMessage, index: number) => AgentMessage = (message) =>
+    toAgentMessage(message, ownerAgentId),
+): AgentMessage[] {
   const result: AgentMessage[] = [];
   const thinkingByTurn = new Map<string, AgentMessage>();
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     if ((message.delivery?.status === "queued" || message.delivery?.status === "cancelled") && !message.routine) {
       continue;
     }
     if (message.author !== "assistant" || message.itemType !== "commentary") {
-      result.push(toAgentMessage(message, ownerAgentId));
+      result.push(convert(message, index));
       continue;
     }
 

@@ -74,12 +74,14 @@ import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRai
 import { useText } from "@openbot/ui/text";
 import { Effect } from "effect";
 import { createEffect, createMemo, createSignal, Loading, lazy, onCleanup, onSettled, Show, untrack } from "solid-js";
+// Copying a selection with a formula in it gives its LaTeX source, as on desktop.
+import "katex/contrib/copy-tex";
 import { actionToast } from "../../action-toast";
 import { toAgentMessage } from "../../app-message-projection";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import { isGlobalSearchShortcut } from "../../global-search-shortcut";
 import { LayoutProvider, useLayout } from "../../layout";
-import { AgentUsagePanel } from "../../lazy-views";
+import { AgentUsagePanel, RoutineFlowsCanvas, ScheduleView, ServerOnboarding } from "../../lazy-views";
 import { PlatformProvider } from "../../platform";
 import { WorkspaceFrame } from "../../WorkspaceFrame";
 import {
@@ -111,9 +113,7 @@ import type { AgentSettingsRequest } from "../conversation/conversation-types";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
-import { ServerOnboarding } from "../onboarding/ServerOnboarding";
-import { RoutineFlowsCanvas } from "../routine-flows/RoutineFlowsCanvas";
-import { type ScheduleRoutine, ScheduleView } from "../schedule/SchedulePanel";
+import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
@@ -1371,19 +1371,21 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       </Loading>
                     }
                   >
-                    <ScheduleView
-                      serverId={target().id}
-                      hostName={target().name}
-                      onBack={closeHostPage}
-                      source={scheduleSource}
-                      agents={workspace.profiles()}
-                      channels={channels.state.channels}
-                      onOpenAgent={(agentId) => {
-                        setMobilePane("conversation");
-                        void select(agentId);
-                      }}
-                      onOpenRoutine={openRoutine}
-                    />
+                    <Loading>
+                      <ScheduleView
+                        serverId={target().id}
+                        hostName={target().name}
+                        onBack={closeHostPage}
+                        source={scheduleSource}
+                        agents={workspace.profiles()}
+                        channels={channels.state.channels}
+                        onOpenAgent={(agentId) => {
+                          setMobilePane("conversation");
+                          void select(agentId);
+                        }}
+                        onOpenRoutine={openRoutine}
+                      />
+                    </Loading>
                   </Show>
                 )}
               </Show>
@@ -1743,26 +1745,28 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
           >
             <Show when={serverOnboarding()}>
               {(settings) => (
-                <ServerOnboarding
-                  serverName={server()?.name ?? ""}
-                  setup={hostSetupProviderProps(settings())}
-                  onContinue={(provider, model) => {
-                    const id = server()?.id;
-                    if (id)
-                      setServerSetupChoices((current) => ({
-                        ...current,
-                        [id]: { preferredProvider: provider, preferredModel: model },
-                      }));
-                  }}
-                  onClose={
-                    returnHostId()
-                      ? () => {
-                          const id = returnHostId();
-                          if (id) selectServer(id);
-                        }
-                      : undefined
-                  }
-                />
+                <Loading>
+                  <ServerOnboarding
+                    serverName={server()?.name ?? ""}
+                    setup={hostSetupProviderProps(settings())}
+                    onContinue={(provider, model) => {
+                      const id = server()?.id;
+                      if (id)
+                        setServerSetupChoices((current) => ({
+                          ...current,
+                          [id]: { preferredProvider: provider, preferredModel: model },
+                        }));
+                    }}
+                    onClose={
+                      returnHostId()
+                        ? () => {
+                            const id = returnHostId();
+                            if (id) selectServer(id);
+                          }
+                        : undefined
+                    }
+                  />
+                </Loading>
               )}
             </Show>
             <Show when={agentFormOpen() && !serverOnboarding()}>
@@ -1817,13 +1821,15 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 {(_hostId) => (
                   <Show when={routineFlowsHost}>
                     {(host) => (
-                      <RoutineFlowsCanvas
-                        host={host()}
-                        agent={conversationAgent()}
-                        agents={workspace.profiles()}
-                        newAgentModels={newAgentModels()}
-                        createAgent={createCanvasAgent}
-                      />
+                      <Loading>
+                        <RoutineFlowsCanvas
+                          host={host()}
+                          agent={conversationAgent()}
+                          agents={workspace.profiles()}
+                          newAgentModels={newAgentModels()}
+                          createAgent={createCanvasAgent}
+                        />
+                      </Loading>
                     )}
                   </Show>
                 )}
