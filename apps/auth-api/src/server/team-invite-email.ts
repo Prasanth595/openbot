@@ -1,4 +1,3 @@
-import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type InviteLinkPayload, isCanonicalInviteUrl, parseInviteUrl } from "@openbot/contracts/invite-links";
 import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { Effect, Schema } from "effect";
@@ -21,7 +20,6 @@ export interface TeamInviteEmailServices {
 
 const Invitation = Schema.Struct({
   email: Schema.String,
-  serverName: Schema.String,
   inviteUrl: Schema.String,
   role: Schema.Literals(["admin", "member"]),
 });
@@ -35,13 +33,7 @@ export const sendTeamInviteEmail = Effect.fn("TeamInviteEmail.send")(function* (
   const invalid = () => new AuthServiceError(400, "invalid_invitation", "The invitation details are invalid.");
   const body = yield* Schema.decodeUnknownEffect(Invitation)(input).pipe(Effect.mapError(invalid));
   const link = inviteLink(body.inviteUrl);
-  if (
-    body.serverName.trim().length < INPUT_LIMITS.serverNameMin ||
-    body.serverName.trim().length > INPUT_LIMITS.serverName ||
-    /[\r\n]/u.test(body.serverName) ||
-    !link
-  )
-    return yield* invalid();
+  if (!link) return yield* invalid();
   const email = yield* Effect.try({
     try: () => normalizeEmail(body.email),
     catch: (error) => (error instanceof AuthServiceError ? error : invalid()),
